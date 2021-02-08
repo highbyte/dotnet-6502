@@ -1,0 +1,113 @@
+
+; ******** Source: c:\Users\highb\Source\Repos\6502-dotnet\Highbyte.DotNet6502.ConsoleUI\testprogram3.asm
+     1                          ;code start address
+     2                          * = $c000
+     3                          
+     4                          ;VSCode extension VS64 will automatially set output path and filename to the .cache directory
+     5                          ;!to "./testprogram3.prg"
+     6                          
+     7                          ;----------------------------------------------
+     8                          ;Test SBC with carry set before
+     9                          ;----------------------------------------------
+    10                          
+    11  c000 a920               	LDA #$20
+    12  c002 38                 	SEC			; Must set carry flag before doing subtraction. The carry flag is an input to the SBC instruction, set it to 1 perform a subtraction without borrow.
+    13  c003 e910               	SBC #$10 	; After SBC, A will be #$10 and Carry 1, Negative 0, Zero = 0
+    14                          
+    15  c005 ea                 	NOP
+    16                          
+    17  c006 a910               	LDA #$10
+    18  c008 38                 	SEC			; Must set carry flag before doing subtraction. The carry flag is an input to the SBC instruction, set it to 1 perform a subtraction without borrow.
+    19  c009 e920               	SBC #$20 	; After SBC, A will be #$F0 and Carry 0, Negative 1, Zero = 0
+    20                          
+    21  c00b ea                 	NOP
+    22                          
+    23  c00c a910               	LDA #$10
+    24  c00e 38                 	SEC			; Must set carry flag before doing subtraction. The carry flag is an input to the SBC instruction, set it to 1 perform a subtraction without borrow.
+    25  c00f e910               	SBC #$10 	; After SBC, A will be #$00 and Carry 1, Negative 0, Zero = 1
+    26                          
+    27  c011 ea                 	NOP 
+    28                          
+    29  c012 a910               	LDA #$10
+    30  c014 38                 	SEC			; Must set carry flag before doing subtraction. The carry flag is an input to the SBC instruction, set it to 1 perform a subtraction without borrow.
+    31  c015 e9ff               	SBC #$FF 	; After SBC, A will be #$11 and Carry 0 (because subtracting a neg nr? compare with #$20-#$10 which get Carry 1), Negative 0, Zero = 0
+    32                          
+    33  c017 ea                 	NOP 
+    34                          
+    35  c018 a9f0               	LDA #$F0
+    36  c01a 38                 	SEC			; Must set carry flag before doing subtraction. The carry flag is an input to the SBC instruction, set it to 1 perform a subtraction without borrow.
+    37  c01b e9ff               	SBC #$FF 	; After SBC, A will be #$F1 and Carry 0 (because subtracting a neg nr? compare with #$20-#$10 which get Carry 1), Negative 1, Zero = 0
+    38                          
+    39  c01d ea                 	NOP 
+    40                          
+    41  c01e a9f0               	LDA #$F0
+    42  c020 38                 	SEC			; Must set carry flag before doing subtraction. The carry flag is an input to the SBC instruction, set it to 1 perform a subtraction without borrow.
+    43  c021 e9ef               	SBC #$EF 	; After SBC, A will be #$01 and Carry 1, Negative 0, Zero = 0
+    44                          
+    45  c023 ea                 	NOP 
+    46                          
+    47  c024 a9f0               	LDA #$F0
+    48  c026 38                 	SEC			; Must set carry flag before doing subtraction. The carry flag is an input to the SBC instruction, set it to 1 perform a subtraction without borrow.
+    49  c027 e901               	SBC #$01 	; After SBC, A will be #$EF and Carry 1, Negative 1, Zero = 0
+    50                          
+    51  c029 ea                 	NOP 
+    52                          
+    53  c02a a910               	LDA #$10
+    54  c02c 38                 	SEC			; Must set carry flag before doing subtraction. The carry flag is an input to the SBC instruction, set it to 1 perform a subtraction without borrow.
+    55  c02d e900               	SBC #$00 	; After SBC, A will be #$10 and Carry 1, Negative 0, Zero = 0
+    56                          
+    57                          ;----------------------------------------------
+    58                          ;Test SBC with carry clear before
+    59                          ;----------------------------------------------
+    60                          
+    61  c02f ea                 	NOP
+    62                          
+    63  c030 a920               	LDA #$20
+    64  c032 18                 	CLC			; If carry is clear, #$10 - #$20 will not work correctly
+    65  c033 e910               	SBC #$10 	; After SBC, A will be #$0F (not #$10), and Carry 1, Negative 0, Zero 0
+    66                          
+    67  c035 ea                 	NOP
+    68                          
+    69  c036 a910               	LDA #$10
+    70  c038 18                 	CLC			; If carry is clear, #$20 - #$10 will not work correctly
+    71  c039 e920               	SBC #$20 	; After SBC, A will be #$EF (not #$F0), and Carry 0, Negative 1, Zero 0
+    72                          
+    73  c03b ea                 	NOP
+    74                          
+    75  c03c a910               	LDA #$10
+    76  c03e 18                 	CLC			; If carry is clear, #$10 - #$10 will not work correctly
+    77  c03f e910               	SBC #$10 	; After SBC, A will be #$FF and Carry 0, Negative 1, Zero 0
+    78                          
+    79  c041 ea                 	NOP
+    80                          
+    81  c042 a910               	LDA #$10
+    82  c044 18                 	CLC			; If carry is clear before subtracting a negative number, #$10 - #$FF will not work correctly
+    83  c045 e9ff               	SBC #$FF 	; After SBC, A will be #$10 (should have been #$11) and Carry 0, Negative 0, Zero = 0
+    84                          
+    85  c047 ea                 	NOP 
+    86                          
+    87  c048 a9f0               	LDA #$F0
+    88  c04a 18                 	CLC			; If carry is clear before subtracting a negative number, #$F0 - #$FF will not work correctly
+    89  c04b e9ff               	SBC #$FF 	; After SBC, A will be #$F0 and Carry 0, Negative 1, Zero = 0
+    90                          
+    91  c04d ea                 	NOP 
+    92                          
+    93  c04e a9f0               	LDA #$F0
+    94  c050 18                 	CLC			; If carry is clear before subtracting a negative number, #$F0 - #$EF will not work correctly
+    95  c051 e9ef               	SBC #$EF 	; After SBC, A will be #$00 and Carry 1 , Negative 0, Zero = 1
+    96                          
+    97  c053 ea                 	NOP 
+    98                          
+    99  c054 a9f0               	LDA #$F0
+   100  c056 18                 	CLC			; If carry is clear before subtracting a negative number, #$F0 - #01 will not work correctly
+   101  c057 e901               	SBC #$01 	; After SBC, A will be #$EE and Carry 0, Negative 1, Zero = 0
+   102                          
+   103  c059 ea                 	NOP 
+   104                          
+   105  c05a a910               	LDA #$10
+   106  c05c 18                 	CLC			; If carry is clear before subtracting a negative number, #$10 - #$00 will not work correctly
+   107  c05d e900               	SBC #$00 	; After SBC, A will be #$=0F (should have been #$10) and Carry 1, Negative 0, Zero = 0
+   108                          
+   109  c05f ea                 	NOP
+   110                          
+   111  c060 00                 	BRK

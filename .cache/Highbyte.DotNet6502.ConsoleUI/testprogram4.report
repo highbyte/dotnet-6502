@@ -1,0 +1,37 @@
+
+; ******** Source: c:\Users\highb\Source\Repos\6502-dotnet\Highbyte.DotNet6502.ConsoleUI\testprogram4.asm
+     1                          ;code start address
+     2                          * = $c000
+     3                          
+     4                          ;VSCode extension VS64 will automatially set output path and filename to the .cache directory
+     5                          ;!to "./testprogram3.prg"
+     6                          
+     7                          ;----------------------------------------------
+     8                          ;Test SBC overflow.
+     9                          ;----------------------------------------------
+    10                          
+    11  c000 a9fe               	LDA #$FE	; -2
+    12  c002 38                 	SEC			; Must set carry flag before doing subtraction. The carry flag is an input to the SBC instruction, set it to 1 perform a subtraction without borrow.
+    13  c003 e97f               	SBC #$7F 	; -127, After SBC, A will be #$7F (+127) (which is incorrect, it should have been -129 which cannot be contained in a signed byte, min -128), and Overflow = 1
+    14                          
+    15  c005 ea                 	NOP
+    16                          
+    17  c006 a901               	LDA #$01	; 1
+    18  c008 38                 	SEC			; Must set carry flag before doing subtraction. The carry flag is an input to the SBC instruction, set it to 1 perform a subtraction without borrow.
+    19  c009 e981               	SBC #$81 	; -127, After SBC, A will be #$80 (-128) (which is incorrect, it should have been +128 which cannot be contained in a signed byte. max +127), and Overflow = 1
+    20                          
+    21  c00b ea                 	NOP
+    22                          
+    23  c00c a9fe               	LDA #$FE	; -2
+    24  c00e 38                 	SEC			; Must set carry flag before doing subtraction. The carry flag is an input to the SBC instruction, set it to 1 perform a subtraction without borrow.
+    25  c00f e97e               	SBC #$7E 	; 126, After SBC, A will be #$80 (-128), and Overflow = 0
+    26                          
+    27  c011 ea                 	NOP
+    28                          
+    29  c012 a901               	LDA #$01	; 1
+    30  c014 38                 	SEC			; Must set carry flag before doing subtraction. The carry flag is an input to the SBC instruction, set it to 1 perform a subtraction without borrow.
+    31  c015 e982               	SBC #$82 	; -126, After SBC, A will be #$7F (127) , and Overflow = 0
+    32                          
+    33  c017 ea                 	NOP
+    34                          
+    35  c018 00                 	BRK

@@ -1,0 +1,16 @@
+
+; ******** Source: c:\Users\highb\Source\Repos\6502-dotnet\Highbyte.DotNet6502.ConsoleUI\testprogram.asm
+     1                          ;code start address
+     2                          * = $c000
+     3                          
+     4                          ;VSCode extension VS64 will automatially set output path and filename to the .cache directory
+     5                          ;!to "./testprogram.prg"
+     6                          
+     7                          ;copy $1000-10ff to $2000-200ff
+     8  c000 a200               	ldx #0
+     9                          loop:
+    10  c002 bd0010             	lda $1000,x
+    11  c005 9d0020             	sta $2000,x
+    12  c008 e8                 	inx
+    13  c009 d0f7               	bne loop
+    14  c00b 00                 	brk
