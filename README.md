@@ -5,7 +5,7 @@
 A [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) emulator for .NET
 
 What it (currently) does/is
-- .NET 5 cross platform library
+- .NET 5 cross platform library written in C#
 - Emulation of a 6502 processor
 - Supports all official 6502 opcodes
 - Can load an assembled 6502 program binary and execute it
