@@ -136,7 +136,7 @@ namespace Highbyte.DotNet6502
         {
             var operandAddress = cpu.FetchOperandWord(mem);
             // Note: CalcFullAddressX will check if adding X to address will cross page boundary. If so, one more cycle is consumed.
-            var insAddress = cpu.CalcFullAddressX(operandAddress, out bool didCrossPageBoundary);
+            var insAddress = cpu.CalcFullAddressX(operandAddress, out bool didCrossPageBoundary, false);
             return new AddrModeCalcResult
             {
                 InsAddress = insAddress,
@@ -148,7 +148,7 @@ namespace Highbyte.DotNet6502
         {
             var operandAddress = cpu.FetchOperandWord(mem);
             // Note: CalcFullAddressY will check if adding Y to address will cross page boundary. If so, one more cycle is consumed.
-            var insAddress = cpu.CalcFullAddressY(operandAddress, out bool didCrossPageBoundary);
+            var insAddress = cpu.CalcFullAddressY(operandAddress, out bool didCrossPageBoundary, false);
             return new AddrModeCalcResult
             {
                 InsAddress = insAddress,
@@ -171,7 +171,7 @@ namespace Highbyte.DotNet6502
             var operandAddress = cpu.FetchOperand(mem);
             var indirectIndexedAddress = cpu.FetchWord(mem, operandAddress);
             // Note: CalcFullAddressY will check if adding Y to address will cross page boundary. If so, one more cycle is consumed.
-            var insAddress = cpu.CalcFullAddressY(indirectIndexedAddress, out bool didCrossPageBoundary);
+            var insAddress = cpu.CalcFullAddressY(indirectIndexedAddress, out bool didCrossPageBoundary, false);
             return new AddrModeCalcResult
             {
                 InsAddress = insAddress,

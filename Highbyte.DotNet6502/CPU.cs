@@ -420,7 +420,7 @@ namespace Highbyte.DotNet6502
         /// <returns></returns>
         public ushort CalcFullAddressX(ushort fullAddress, bool alwaysExtraCycleWhenCrossBoundary)
         {
-            return CalcFullAddressX(fullAddress, out _, alwaysExtraCycleWhenCrossBoundary: alwaysExtraCycleWhenCrossBoundary);
+            return CalcFullAddressX(fullAddress, out _, alwaysExtraCycleWhenCrossBoundary);
         }
 
         /// <summary>
@@ -432,7 +432,7 @@ namespace Highbyte.DotNet6502
         /// <param name="fullAddress"></param>
         /// <param name="alwaysExtraCycleWhenCrossBoundary"></param>
         /// <returns></returns>
-        public ushort CalcFullAddressX(ushort fullAddress, out bool didCrossPageBoundary, bool alwaysExtraCycleWhenCrossBoundary = false)
+        public ushort CalcFullAddressX(ushort fullAddress, out bool didCrossPageBoundary, bool alwaysExtraCycleWhenCrossBoundary)
         {
             didCrossPageBoundary = (fullAddress & 0x00ff) + X > 0xff;
 
@@ -465,7 +465,7 @@ namespace Highbyte.DotNet6502
         /// <param name="didCrossPageBoundary"></param>
         /// <param name="alwaysExtraCycleWhenCrossBoundary"></param>
         /// <returns></returns>
-        public ushort CalcFullAddressY(ushort fullAddress, out bool didCrossPageBoundary, bool alwaysExtraCycleWhenCrossBoundary = false)
+        public ushort CalcFullAddressY(ushort fullAddress, out bool didCrossPageBoundary, bool alwaysExtraCycleWhenCrossBoundary)
         {
             didCrossPageBoundary = (fullAddress & 0x00ff) + Y > 0xff;
 

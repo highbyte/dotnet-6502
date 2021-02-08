@@ -930,7 +930,7 @@
 
                 case Ins.ASL_ABS_X:
                     fullAddress = FetchOperandWord(mem);
-                    fullAddressX = CalcFullAddressX(fullAddress, out didCrossPageBoundary);
+                    fullAddressX = CalcFullAddressX(fullAddress, out didCrossPageBoundary, false);
                     tempValue = FetchByte(mem, fullAddressX);
                     tempValue = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(tempValue, ProcessorStatus);
                     if(!didCrossPageBoundary)
@@ -979,7 +979,7 @@
 
                 case Ins.LSR_ABS_X:
                     fullAddress = FetchOperandWord(mem);
-                    fullAddressX = CalcFullAddressX(fullAddress, out didCrossPageBoundary);
+                    fullAddressX = CalcFullAddressX(fullAddress, out didCrossPageBoundary, false);
                     tempValue = FetchByte(mem, fullAddressX);
                     tempValue = BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(tempValue, ProcessorStatus);
                     if(!didCrossPageBoundary)
@@ -1028,7 +1028,7 @@
 
                 case Ins.ROL_ABS_X:
                     fullAddress = FetchOperandWord(mem);
-                    fullAddressX = CalcFullAddressX(fullAddress, out didCrossPageBoundary);
+                    fullAddressX = CalcFullAddressX(fullAddress, out didCrossPageBoundary, false);
                     tempValue = FetchByte(mem, fullAddressX);
                     tempValue = BinaryArithmeticHelpers.PerformROLAndSetStatusRegisters(tempValue, ProcessorStatus);
                     if(!didCrossPageBoundary)
@@ -1077,7 +1077,7 @@
 
                 case Ins.ROR_ABS_X:
                     fullAddress = FetchOperandWord(mem);
-                    fullAddressX = CalcFullAddressX(fullAddress, out didCrossPageBoundary);
+                    fullAddressX = CalcFullAddressX(fullAddress, out didCrossPageBoundary,false);
                     tempValue = FetchByte(mem, fullAddressX);
                     tempValue = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(tempValue, ProcessorStatus);
                     if(!didCrossPageBoundary)
