@@ -44,7 +44,7 @@ namespace Highbyte.DotNet6502
                         // Carry flag should be set
                         carry = true;
                     }
-                    else if(value1_bit || value2_bit)
+                    else
                     {
                         // Note: Case with both bits set is handled in if-statement before this.
 
@@ -77,7 +77,7 @@ namespace Highbyte.DotNet6502
                         result.SetBit(bit);
                         // Carry flag is already set
                     }
-                    else if(value1_bit || value2_bit)
+                    else
                     {
                         // Note: Case with both bits set is handled in if-statement before this.
 
