@@ -55,10 +55,6 @@ namespace Highbyte.DotNet6502
                         result.SetBit(bit);
                         // Carry flag should be cleared (which is already is)
                     }
-                    else
-                    {
-                        throw new Exception("Internal exception. Unhandled ADC case.");
-                    }
 
                 }
                 else
@@ -91,10 +87,6 @@ namespace Highbyte.DotNet6502
                         // This bit in result should be cleared (which is already is as result is initialized with 0x00 at start)
 
                         // Carry flag is already set
-                    }
-                    else
-                    {
-                        throw new Exception("Internal exception. Unhandled ADC case.");
                     }
                 }
             }
