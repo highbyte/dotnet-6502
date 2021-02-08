@@ -6,13 +6,13 @@ namespace Highbyte.DotNet6502.ConsoleUI
 {
     public class Run6502FunctionalTest
     {
-        readonly ILogger<Run6502FunctionalTest> _logger;
+        //readonly ILogger<Run6502FunctionalTest> _logger;
         readonly FunctionalTestCompiler _functionalTestCompiler;
         public Run6502FunctionalTest(
-            ILogger<Run6502FunctionalTest> logger,
+            //ILogger<Run6502FunctionalTest> logger,
             FunctionalTestCompiler functionalTestCompiler)
         {
-            _logger = logger;
+            //_logger = logger;
             _functionalTestCompiler = functionalTestCompiler;
         }
 

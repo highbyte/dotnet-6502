@@ -181,6 +181,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             if(!InsEffect.HasValue)
                 InsEffect = InstrEffect.Reg;
 
+            // TODO: Use custom Exception class on all throw below
             if(addrMode == AddrMode.Accumulator && FinalValue.HasValue)
                 throw new Exception($"If {nameof(AddrMode)} is {nameof(AddrMode.Accumulator)}, {nameof(FinalValue)} cannot be used.");
 
@@ -194,10 +195,8 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 if(ExpectedMemVal.HasValue)
                     throw new Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.Reg)}, {nameof(ExpectedMemVal)} is not supposed to be set (only used for comparing memory address changed by write)");
-
                 if(addrMode == AddrMode.Accumulator && (ExpectedX.HasValue ||ExpectedY.HasValue ))
                     throw new Exception($"If {nameof(addrMode)} is {nameof(AddrMode.Accumulator)}, {nameof(ExpectedX)} or {nameof(ExpectedY)} cannot be used, because addressing mode {nameof(AddrMode.Accumulator)} only can affect A register.");
-
                 if(ExpectedA.HasValue && !A.HasValue)
                     throw new Exception($"If {nameof(ExpectedA)} is set, {nameof(A)} must be set to an initial value");
                 if(ExpectedX.HasValue && !X.HasValue)

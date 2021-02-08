@@ -13,8 +13,8 @@ namespace Highbyte.DotNet6502
 
         public void Execute(CPU cpu, Memory mem)
         {
-            byte insByte = cpu.FetchInstruction(mem);
-            Execute(cpu, mem, insByte);
+            byte opCode = cpu.FetchInstruction(mem);
+            Execute(cpu, mem, opCode);
         }
 
         /// <summary>
@@ -83,6 +83,7 @@ namespace Highbyte.DotNet6502
                     return false;
             }
             if(addrModeCalcResult==null)
+                // TODO: Use custom Exception class
                 throw new Exception("Bug detected. Variable addrModeCalcResult expected to be set.");
 
             // TODO: Ugly setting OpCode here

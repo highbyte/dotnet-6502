@@ -29,7 +29,7 @@ namespace Highbyte.DotNet6502
                 if(!carry)
                 {
                     // carry clear
-                    if(!value1_bit & !value2_bit)
+                    if(!value1_bit && !value2_bit)
                     {
                         // = 0(c) + 0 + 0 = 0 + clear C
 
@@ -60,7 +60,7 @@ namespace Highbyte.DotNet6502
                 else
                 {
                     // carry set
-                    if(!value1_bit & !value2_bit)
+                    if(!value1_bit && !value2_bit)
                     {
                         // = 1(c) + 0 + 0 = 1 + clear C
 

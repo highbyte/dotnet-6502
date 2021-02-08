@@ -176,7 +176,8 @@ namespace Highbyte.DotNet6502
                         OnUnknownOpCodeDetected(new CPUUnknownOpCodeDetectedEventArgs(this, lastOpCode));
                         Debug.WriteLine($"Unknown opcode: {lastOpCode.ToHex()}");
                         if(execOptions.UnknownInstructionThrowsException)
-                            throw new Exception($"Unknown opcode: {lastOpCode.ToHex()}"); // TODO: Use custom Exception class
+                            // TODO: Use custom Exception class
+                            throw new Exception($"Unknown opcode: {lastOpCode.ToHex()}"); 
                 }
                 else
                 {
@@ -246,7 +247,7 @@ namespace Highbyte.DotNet6502
         }         
 
         /// <summary>
-        /// Get instruction from the byte on current PC (Program Counter).
+        /// Get instruction opcode from the byte on current PC (Program Counter).
         /// Increase PC by 1.
         /// </summary>
         /// <param name="mem"></param>
@@ -417,7 +418,7 @@ namespace Highbyte.DotNet6502
         /// </summary>
         /// <param name="fullAddress"></param>
         /// <returns></returns>
-        public ushort CalcFullAddressX(ushort fullAddress, bool alwaysExtraCycleWhenCrossBoundary = false)
+        public ushort CalcFullAddressX(ushort fullAddress, bool alwaysExtraCycleWhenCrossBoundary)
         {
             return CalcFullAddressX(fullAddress, out _, alwaysExtraCycleWhenCrossBoundary: alwaysExtraCycleWhenCrossBoundary);
         }
