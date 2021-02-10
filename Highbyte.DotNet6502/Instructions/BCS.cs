@@ -31,10 +31,10 @@ namespace Highbyte.DotNet6502.Instructions
                 new OpCode
                 {
 
-                    Code = Ins.BCS,
+                    Code = OpCodeId.BCS,
                     AddressingMode = AddrMode.Relative,
                     Size = 2,
-                    Cycles = 2, // +1 if branch succeeds +2 if to a new page
+                    MinimumCycles = 2, // +1 if branch succeeds +2 if to a new page
                 },
             };
         }

@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.LDY_I,
+                OpCode         = OpCodeId.LDY_I,
                 FinalValue     = 0,
                 ExpectedCycles = 2,
             };
@@ -22,7 +22,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 Y              = 0x00,
-                Instruction    = Ins.LDY_I,
+                OpCode         = OpCodeId.LDY_I,
                 FinalValue     = 0x01,
                 ExpectedY      = 0x01,
             };
@@ -35,7 +35,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 Y              = 0x03,
-                Instruction    = Ins.LDY_I,
+                OpCode         = OpCodeId.LDY_I,
                 FinalValue     = 0x10,
                 ExpectedY      = 0x10,
             };
@@ -48,7 +48,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 Y              = 0xff,
-                Instruction = Ins.LDY_I,
+                OpCode         = OpCodeId.LDY_I,
                 FinalValue     = 0xab,
                 ExpectedY      = 0xab,
             };
@@ -60,7 +60,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.LDY_I,
+                OpCode         = OpCodeId.LDY_I,
                 FinalValue     = 0x01,
                 ExpectedZ      = false,
             };
@@ -72,7 +72,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.LDY_I,
+                OpCode         = OpCodeId.LDY_I,
                 FinalValue     = 0x00,
                 ExpectedZ      = true,
             };
@@ -84,7 +84,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.LDY_I,
+                OpCode         = OpCodeId.LDY_I,
                 FinalValue     = 0xff,
                 ExpectedN      = true,
             };
@@ -96,7 +96,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.LDY_I,
+                OpCode         = OpCodeId.LDY_I,
                 FinalValue     = 0x10,
                 ExpectedN      = false,
             };
@@ -117,7 +117,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 Y              = 0x00,
-                Instruction    = Ins.LDY_ZP,
+                OpCode         = OpCodeId.LDY_ZP,
                 FinalValue     = 0x12,
                 ExpectedY      = 0x12,
                 ExpectedCycles = 3
@@ -131,7 +131,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 Y              = 0x00,
-                Instruction    = Ins.LDY_ZP_X,
+                OpCode         = OpCodeId.LDY_ZP_X,
                 FinalValue     = 0x12,
                 ExpectedY      = 0x12,
                 ExpectedCycles = 4
@@ -149,7 +149,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 Y              = 0x00,
-                Instruction    = Ins.LDY_ZP_X,
+                OpCode         = OpCodeId.LDY_ZP_X,
                 FinalValue     = 0x12,
                 ExpectedY      = 0x12,
                 ExpectedCycles = 4
@@ -163,7 +163,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 Y              = 0x00,
-                Instruction    = Ins.LDY_ABS,
+                OpCode         = OpCodeId.LDY_ABS,
                 FinalValue     = 0x12,
                 ExpectedY      = 0x12,
                 ExpectedCycles = 4
@@ -177,7 +177,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 Y              = 0x00,
-                Instruction    = Ins.LDY_ABS_X,
+                OpCode         = OpCodeId.LDY_ABS_X,
                 FinalValue     = 0x12,
                 ExpectedY      = 0x12,
                 ExpectedCycles = 4
@@ -191,7 +191,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 Y              = 0x00,
-                Instruction    = Ins.LDY_ABS_X,
+                OpCode         = OpCodeId.LDY_ABS_X,
                 FinalValue     = 0x12,
                 ExpectedY      = 0x12,
                 ExpectedCycles = 5

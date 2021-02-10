@@ -31,10 +31,10 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.JSR,
+                        Code = OpCodeId.JSR,
                         AddressingMode = AddrMode.ABS,
                         Size = 3,
-                        Cycles = 6,
+                        MinimumCycles = 6,
                     },
             };
         }

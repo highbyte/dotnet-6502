@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.CMP_I,
+                OpCode         = OpCodeId.CMP_I,
                 FinalValue     = 0,
                 ExpectedCycles = 2,
             };
@@ -22,7 +22,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0x02,
-                Instruction    = Ins.CMP_I,
+                OpCode         = OpCodeId.CMP_I,
                 FinalValue     = 0x01,  // The value A register is compared against
                 ExpectedC      = true
             };
@@ -35,7 +35,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0x01,
-                Instruction    = Ins.CMP_I,
+                OpCode         = OpCodeId.CMP_I,
                 FinalValue     = 0x01,  // The value A register is compared against
                 ExpectedC      = true
             };
@@ -48,7 +48,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0x01,
-                Instruction    = Ins.CMP_I,
+                OpCode         = OpCodeId.CMP_I,
                 FinalValue     = 0x02,  // The value A register is compared against
                 ExpectedC      = false
             };
@@ -61,7 +61,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0xff,  // 255. Always treated as signed, not as -1
-                Instruction    = Ins.CMP_I,
+                OpCode         = OpCodeId.CMP_I,
                 FinalValue     = 0x01,  // The value A register is compared against
                 ExpectedC      = true   // Because 0xff is bigger than 0x01 (sign is always ignored!)
             };
@@ -74,7 +74,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0x01,
-                Instruction    = Ins.CMP_I,
+                OpCode         = OpCodeId.CMP_I,
                 FinalValue     = 0x01,  // The value A register is compared against
                 ExpectedZ      = true
             };
@@ -88,7 +88,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0x01,
-                Instruction    = Ins.CMP_I,
+                OpCode         = OpCodeId.CMP_I,
                 FinalValue     = 0x02,  // The value A register is compared against
                 ExpectedZ      = false
             };
@@ -101,7 +101,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x01,
-                Instruction    = Ins.CMP_I,
+                OpCode         = OpCodeId.CMP_I,
                 FinalValue     = 0x02,
                 ExpectedN      = true,
             };
@@ -114,7 +114,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x02,
-                Instruction    = Ins.CMP_I,
+                OpCode         = OpCodeId.CMP_I,
                 FinalValue     = 0x01,
                 ExpectedN      = false,
             };
@@ -135,7 +135,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x33,
-                Instruction    = Ins.CMP_ZP,
+                OpCode         = OpCodeId.CMP_ZP,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,
@@ -151,7 +151,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x33,
-                Instruction    = Ins.CMP_ZP_X,
+                OpCode         = OpCodeId.CMP_ZP_X,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,
@@ -171,7 +171,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x33,
-                Instruction    = Ins.CMP_ZP_X,
+                OpCode         = OpCodeId.CMP_ZP_X,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,
@@ -187,7 +187,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x33,
-                Instruction    = Ins.CMP_ABS,
+                OpCode         = OpCodeId.CMP_ABS,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,
@@ -203,7 +203,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x33,
-                Instruction    = Ins.CMP_ABS_X,
+                OpCode         = OpCodeId.CMP_ABS_X,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,
@@ -219,7 +219,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x33,
-                Instruction    = Ins.CMP_ABS_X,
+                OpCode         = OpCodeId.CMP_ABS_X,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,
@@ -235,7 +235,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x33,
-                Instruction    = Ins.CMP_ABS_Y,
+                OpCode         = OpCodeId.CMP_ABS_Y,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,
@@ -251,7 +251,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x33,
-                Instruction    = Ins.CMP_ABS_Y,
+                OpCode         = OpCodeId.CMP_ABS_Y,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,
@@ -281,7 +281,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x33,
-                Instruction    = Ins.CMP_IX_IND,
+                OpCode         = OpCodeId.CMP_IX_IND,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,
@@ -300,7 +300,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x33,
-                Instruction    = Ins.CMP_IX_IND,
+                OpCode         = OpCodeId.CMP_IX_IND,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,
@@ -334,7 +334,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x33,
-                Instruction    = Ins.CMP_IND_IX,
+                OpCode         = OpCodeId.CMP_IND_IX,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,
@@ -355,7 +355,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 A              = 0x33,
-                Instruction    = Ins.CMP_IND_IX,
+                OpCode         = OpCodeId.CMP_IND_IX,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,

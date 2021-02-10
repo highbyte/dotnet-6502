@@ -25,10 +25,10 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.PHA,
+                        Code = OpCodeId.PHA,
                         AddressingMode = AddrMode.Implied,
                         Size = 1,
-                        Cycles = 3,
+                        MinimumCycles = 3,
                     }
             };
         }

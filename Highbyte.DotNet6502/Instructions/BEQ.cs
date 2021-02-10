@@ -31,10 +31,10 @@ namespace Highbyte.DotNet6502.Instructions
                 new OpCode
                 {
 
-                    Code = Ins.BEQ,
+                    Code = OpCodeId.BEQ,
                     AddressingMode = AddrMode.Relative,
-                    Size = 1,
-                    Cycles = 2, // +1 if branch succeeds +2 if to a new page
+                    Size = 2,
+                    MinimumCycles = 2, // +1 if branch succeeds +2 if to a new page
                 },
             };
         }

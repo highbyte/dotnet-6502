@@ -26,10 +26,10 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.CLC,
+                        Code = OpCodeId.CLC,
                         AddressingMode = AddrMode.Implied,
                         Size = 1,
-                        Cycles = 2,
+                        MinimumCycles = 2,
                     }
             };
         }

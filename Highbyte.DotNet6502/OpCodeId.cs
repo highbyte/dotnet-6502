@@ -1,6 +1,6 @@
 namespace Highbyte.DotNet6502
 {
-    public enum Ins: byte
+    public enum OpCodeId: byte
     {
         // LDA
         LDA_I = 0xA9,

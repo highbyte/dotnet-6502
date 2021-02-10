@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.JMP_ABS,
+                OpCode         = OpCodeId.JMP_ABS,
                 ExpectedCycles = 3,
             };
             test.Execute_And_Verify(AddrMode.ABS);
@@ -31,11 +31,11 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             ushort newPos = 0x0500;
 
             // Code at start address
-            _mem.WriteByte(ref startPos, Ins.JMP_ABS);
+            _mem.WriteByte(ref startPos, OpCodeId.JMP_ABS);
             _mem.WriteWord(ref startPos, newPos);
 
             // Code at jmp address
-            _mem.WriteByte(ref newPos, Ins.LDA_I);
+            _mem.WriteByte(ref newPos, OpCodeId.LDA_I);
             _mem.WriteByte(ref newPos, expectedAValue);
 
             // Act
@@ -57,7 +57,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.JMP_IND,
+                OpCode         = OpCodeId.JMP_IND,
                 ExpectedCycles = 5,
             };
             test.Execute_And_Verify(AddrMode.Indirect);
@@ -85,11 +85,11 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             _mem.WriteWord(indirectAddress, newPos);
 
             // Code at start address
-            _mem.WriteByte(ref startPos, Ins.JMP_IND);
+            _mem.WriteByte(ref startPos, OpCodeId.JMP_IND);
             _mem.WriteWord(ref startPos, indirectAddress);
 
             // Code at final jmp address
-            _mem.WriteByte(ref newPos, Ins.LDA_I);
+            _mem.WriteByte(ref newPos, OpCodeId.LDA_I);
             _mem.WriteByte(ref newPos, expectedAValue);
 
             // Act

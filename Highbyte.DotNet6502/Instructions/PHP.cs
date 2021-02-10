@@ -30,10 +30,10 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.PHP,
+                        Code = OpCodeId.PHP,
                         AddressingMode = AddrMode.Implied,
                         Size = 1,
-                        Cycles = 3,
+                        MinimumCycles = 3,
                     }
             };
         }

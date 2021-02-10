@@ -3,7 +3,7 @@ using System.Diagnostics;
 
 namespace Highbyte.DotNet6502
 {
-    public partial class CPU
+    public class CPU
     {
         /// <summary>
         /// Program Counter
@@ -146,21 +146,9 @@ namespace Highbyte.DotNet6502
 
                 bool instructionHandled;
                 if(InstructionList.OpCodeDictionary.ContainsKey(opCode))
-                {   
                     instructionHandled = _instructionExecutor.Execute(this, mem, opCode);
-
-                    // // Fall back the previous method to handle instructions
-                    // if(!instructionHandled)
-                    // {
-                    //     PC = tempPC;
-                    //     ExecState = tempExecState;
-                    //     instructionHandled = HandleInstruction(opCode.ToIns(), mem);
-                    // }
-                }
                 else
-                {
                     instructionHandled = false;
-                }
 
                 ExecState.LastOpCode = lastOpCode;
                 ExecState.LastOpCodeWasHandled = instructionHandled;
@@ -176,8 +164,7 @@ namespace Highbyte.DotNet6502
                         OnUnknownOpCodeDetected(new CPUUnknownOpCodeDetectedEventArgs(this, lastOpCode));
                         Debug.WriteLine($"Unknown opcode: {lastOpCode.ToHex()}");
                         if(execOptions.UnknownInstructionThrowsException)
-                            // TODO: Use custom Exception class
-                            throw new Exception($"Unknown opcode: {lastOpCode.ToHex()}"); 
+                            throw new DotNet6502Exception($"Unknown opcode: {lastOpCode.ToHex()}"); 
                 }
                 else
                 {

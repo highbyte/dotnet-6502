@@ -63,7 +63,7 @@
         /// <param name="mem"></param>
         /// <param name="address"></param>
         /// <param name="instruction"></param>
-        public static void WriteByte(this Memory mem, ushort address, Ins instruction)
+        public static void WriteByte(this Memory mem, ushort address, OpCodeId instruction)
         {
             WriteByte(mem, address, (byte)instruction);
         }
@@ -86,7 +86,7 @@
         /// <param name="mem"></param>
         /// <param name="address"></param>
         /// <param name="instruction"></param>
-        public static void WriteByte(this Memory mem, ref ushort address, Ins instruction)
+        public static void WriteByte(this Memory mem, ref ushort address, OpCodeId instruction)
         {
             WriteByte(mem, ref address, (byte)instruction);
         }

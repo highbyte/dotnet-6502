@@ -42,8 +42,7 @@ namespace Highbyte.DotNet6502
         public void StoreData(ushort address, byte[] data)
         {
             if((address + data.Length) > MAX_MEMORY_SIZE)
-                // TODO: Use custom exception type
-                throw new Exception($"Address {address} + size of data {data.Length} exceeds maximum memory limit {MAX_MEMORY_SIZE}");
+                throw new DotNet6502Exception($"Address {address} + size of data {data.Length} exceeds maximum memory limit {MAX_MEMORY_SIZE}");
 
             for (int i = 0; i < data.Length; i++)
             {

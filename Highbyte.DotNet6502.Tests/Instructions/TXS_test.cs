@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.TXS,
+                OpCode         = OpCodeId.TXS,
                 ExpectedCycles = 2,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -22,7 +22,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 X              = 0x34,
                 SP             = 0x80,
-                Instruction    = Ins.TXS,
+                OpCode         = OpCodeId.TXS,
                 ExpectedSP     = 0x34,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -36,7 +36,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 PS             = 0xff,
                 X              = 0x34,
                 SP             = 0x80,
-                Instruction    = Ins.TXS,
+                OpCode         = OpCodeId.TXS,
                 ExpectedPS     = 0xff
             };
             test.Execute_And_Verify(AddrMode.Implied);

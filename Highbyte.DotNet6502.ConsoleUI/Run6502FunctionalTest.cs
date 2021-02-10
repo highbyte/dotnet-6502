@@ -102,7 +102,7 @@ namespace Highbyte.DotNet6502.ConsoleUI
             var execState = cpu.ExecState;
             Console.WriteLine("");
             Console.WriteLine($"CPU last PC:                       {cpu.PC.ToHex()}");
-            Console.WriteLine($"CPU last opcode:                   {execState.LastOpCode.Value.ToIns()} ({execState.LastOpCode.Value.ToHex()})");
+            Console.WriteLine($"CPU last opcode:                   {execState.LastOpCode.Value.ToOpCodeId()} ({execState.LastOpCode.Value.ToHex()})");
             Console.WriteLine($"Total # CPU instructions executed: {execState.InstructionsExecutionCount}");
             Console.WriteLine($"Total # CPU cycles consumed:       {execState.CyclesConsumed}");
 
@@ -127,7 +127,7 @@ namespace Highbyte.DotNet6502.ConsoleUI
         {
             const int showEveryXInstructions = 2000000;
             if(e.CPU.ExecState.InstructionsExecutionCount % showEveryXInstructions == 0)
-                Console.WriteLine($"{e.CPU.ExecState.PCBeforeLastOpCodeExecuted.Value.ToHex()}: {e.CPU.ExecState.LastOpCode.Value.ToIns(), -10} ({e.CPU.ExecState.LastOpCode.Value.ToHex()})  (ins. count: {e.CPU.ExecState.InstructionsExecutionCount})");
+                Console.WriteLine($"{e.CPU.ExecState.PCBeforeLastOpCodeExecuted.Value.ToHex()}: {e.CPU.ExecState.LastOpCode.Value.ToOpCodeId(), -10} ({e.CPU.ExecState.LastOpCode.Value.ToHex()})  (ins. count: {e.CPU.ExecState.InstructionsExecutionCount})");
         }
 
         void OnUnknownOpCodeDetected(object sender, CPUUnknownOpCodeDetectedEventArgs e)

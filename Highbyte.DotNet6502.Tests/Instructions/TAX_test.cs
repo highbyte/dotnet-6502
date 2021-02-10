@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.TAX,
+                OpCode         = OpCodeId.TAX,
                 ExpectedCycles = 2,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -22,7 +22,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x34,
                 X              = 0x22,
-                Instruction    = Ins.TAX,
+                OpCode         = OpCodeId.TAX,
                 ExpectedX      = 0x34,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -35,7 +35,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x00,
                 X              = 0x01,
-                Instruction    = Ins.TAX,
+                OpCode         = OpCodeId.TAX,
                 ExpectedZ      = true,
                 ExpectedX      = 0x00,
             };
@@ -49,7 +49,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x34,
                 X              = 0x01,
-                Instruction    = Ins.TAX,
+                OpCode         = OpCodeId.TAX,
                 ExpectedZ      = false,
                 ExpectedX      = 0x34,
             };
@@ -63,7 +63,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0xfe,
                 X              = 0x00,
-                Instruction    = Ins.TAX,
+                OpCode         = OpCodeId.TAX,
                 ExpectedN      = true,
                 ExpectedX      = 0xfe,
             };
@@ -77,7 +77,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x34,
                 X              = 0x01,
-                Instruction    = Ins.TAX,
+                OpCode         = OpCodeId.TAX,
                 ExpectedN      = false,
                 ExpectedX      = 0x34,
             };

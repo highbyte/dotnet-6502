@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.CPX_I,
+                OpCode         = OpCodeId.CPX_I,
                 FinalValue     = 0,
                 ExpectedCycles = 2,
             };
@@ -22,7 +22,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 X              = 0x02,
-                Instruction    = Ins.CPX_I,
+                OpCode         = OpCodeId.CPX_I,
                 FinalValue     = 0x01,  // The value A register is compared against
                 ExpectedC      = true
             };
@@ -35,7 +35,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 X              = 0x01,
-                Instruction    = Ins.CPX_I,
+                OpCode         = OpCodeId.CPX_I,
                 FinalValue     = 0x01,  // The value A register is compared against
                 ExpectedC      = true
             };
@@ -48,7 +48,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 X              = 0x01,
-                Instruction    = Ins.CPX_I,
+                OpCode         = OpCodeId.CPX_I,
                 FinalValue     = 0x02,  // The value A register is compared against
                 ExpectedC      = false
             };
@@ -61,7 +61,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 X              = 0xff,  // 255. Always treated as signed, not as -1
-                Instruction    = Ins.CPX_I,
+                OpCode         = OpCodeId.CPX_I,
                 FinalValue     = 0x01,  // The value A register is compared against
                 ExpectedC      = true   // Because 0xff is bigger than 0x01 (sign is always ignored!)
             };
@@ -74,7 +74,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 X              = 0x01,
-                Instruction    = Ins.CPX_I,
+                OpCode         = OpCodeId.CPX_I,
                 FinalValue     = 0x01,  // The value A register is compared against
                 ExpectedZ      = true
             };
@@ -87,7 +87,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 X              = 0x01,
-                Instruction    = Ins.CPX_I,
+                OpCode         = OpCodeId.CPX_I,
                 FinalValue     = 0x02,  // The value A register is compared against
                 ExpectedZ      = false
             };
@@ -100,7 +100,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 X              = 0x01,
-                Instruction    = Ins.CPX_I,
+                OpCode         = OpCodeId.CPX_I,
                 FinalValue     = 0x02,
                 ExpectedN      = true,
             };
@@ -113,7 +113,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 X              = 0x02,
-                Instruction    = Ins.CPX_I,
+                OpCode         = OpCodeId.CPX_I,
                 FinalValue     = 0x01,
                 ExpectedN      = false,
             };
@@ -134,7 +134,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 X              = 0x33,
-                Instruction    = Ins.CPX_ZP,
+                OpCode         = OpCodeId.CPX_ZP,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,
@@ -150,7 +150,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 X              = 0x33,
-                Instruction    = Ins.CPX_ABS,
+                OpCode         = OpCodeId.CPX_ABS,
                 FinalValue     = 0x33,
                 ExpectedC      = true,
                 ExpectedZ      = true,

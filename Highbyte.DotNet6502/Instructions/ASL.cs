@@ -25,7 +25,7 @@ namespace Highbyte.DotNet6502.Instructions
                 if(addrModeCalcResult.OpCode.AddressingMode == AddrMode.ABS_X)
                 {
                     if(!addrModeCalcResult.AddressCalculationCrossedPageBoundary)
-                        // TODO: Is this correCt: Two extra cycles for ASL before writing back to memory if we did NOT cross page boundary?
+                        // TODO: Is this correct: Two extra cycles for ASL before writing back to memory if we did NOT cross page boundary?
                         cpu.ExecState.CyclesConsumed += 2;
                     else
                         // TODO: Is this correct: Extra cycle if the address + X crosses page boundary (1 extra was already added in CalcFullAddressX)
@@ -52,38 +52,38 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.ASL_ACC,
+                        Code = OpCodeId.ASL_ACC,
                         AddressingMode = AddrMode.Accumulator,
                         Size = 1,
-                        Cycles = 2,
+                        MinimumCycles = 2,
                     },
                     new OpCode
                     {
-                        Code = Ins.ASL_ZP,
+                        Code = OpCodeId.ASL_ZP,
                         AddressingMode = AddrMode.ZP,
                         Size = 2,
-                        Cycles = 5,
+                        MinimumCycles = 5,
                     },
                     new OpCode
                     {
-                        Code = Ins.ASL_ZP_X,
+                        Code = OpCodeId.ASL_ZP_X,
                         AddressingMode = AddrMode.ZP_X,
                         Size = 2,
-                        Cycles = 6,
+                        MinimumCycles = 6,
                     },
                     new OpCode
                     {
-                        Code = Ins.ASL_ABS,
+                        Code = OpCodeId.ASL_ABS,
                         AddressingMode = AddrMode.ABS,
                         Size = 3,
-                        Cycles = 6,
+                        MinimumCycles = 6,
                     },
                     new OpCode
                     {
-                        Code = Ins.ASL_ABS_X,
+                        Code = OpCodeId.ASL_ABS_X,
                         AddressingMode = AddrMode.ABS_X,
                         Size = 3,
-                        Cycles = 7,
+                        MinimumCycles = 7,
                     },
             };
         }

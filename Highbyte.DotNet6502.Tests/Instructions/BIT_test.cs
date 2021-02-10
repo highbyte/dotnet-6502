@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.BIT_ZP,
+                OpCode         = OpCodeId.BIT_ZP,
                 FinalValue     = 0,
                 ExpectedCycles = 3,
             };
@@ -22,7 +22,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 InsEffect      = InstrEffect.StatusOnly,
-                Instruction    = Ins.BIT_ZP,
+                OpCode         = OpCodeId.BIT_ZP,
                 A              = 0b01001100,
                 FinalValue     = 0b11010000, // The contents of the memory that is tested
                 ExpectedA      = 0b01001100, // A should be unchanged
@@ -38,7 +38,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 InsEffect      = InstrEffect.StatusOnly,
-                Instruction    = Ins.BIT_ZP,
+                OpCode         = OpCodeId.BIT_ZP,
                 A              = 0b00000000,
                 FinalValue     = 0b11111111,
                 ExpectedA      = 0b00000000,
@@ -54,7 +54,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.StatusOnly,
-                Instruction    = Ins.BIT_ZP,
+                OpCode         = OpCodeId.BIT_ZP,
                 A              = 0b00000000,    // A is not used in evaluation of N flag
                 FinalValue     = 0b11111111,
                 ExpectedN      = true,
@@ -68,7 +68,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.StatusOnly,
-                Instruction    = Ins.BIT_ZP,
+                OpCode         = OpCodeId.BIT_ZP,
                 A              = 0b10000000,    // A is not used in evaluation of N flag
                 FinalValue     = 0b01111111,
                 ExpectedN      = false,
@@ -82,7 +82,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.StatusOnly,
-                Instruction    = Ins.BIT_ZP,
+                OpCode         = OpCodeId.BIT_ZP,
                 A              = 0b00000000,    // A is not used in evaluation of V flag
                 FinalValue     = 0b01000001,
                 ExpectedV      = true,
@@ -96,7 +96,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.StatusOnly,
-                Instruction    = Ins.BIT_ZP,
+                OpCode         = OpCodeId.BIT_ZP,
                 A              = 0b00100000,    // A is not used in evaluation of V flag
                 FinalValue     = 0b00000001,
                 ExpectedV      = false,
@@ -115,7 +115,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.StatusOnly,
-                Instruction    = Ins.BIT_ABS,
+                OpCode         = OpCodeId.BIT_ABS,
                 A              = 0b01001100,
                 FinalValue     = 0b11010000, // The contents of the memory that is tested
                 ExpectedA      = 0b01001100, // A should be unchanged

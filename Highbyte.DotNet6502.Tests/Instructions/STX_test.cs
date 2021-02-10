@@ -10,7 +10,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STX_ZP,
+                OpCode         = OpCodeId.STX_ZP,
                 ExpectedCycles = 3,
             };
             test.Execute_And_Verify(AddrMode.ZP);
@@ -23,7 +23,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 X              = 0x42,
                 InsEffect      = InstrEffect.Mem,    // Defaults to Read
-                Instruction    = Ins.STX_ZP,
+                OpCode         = OpCodeId.STX_ZP,
                 FinalValue     = 0x01, // Initial value at memory the instruction will write to. If not specified, a default value will be written there before instruction executes.
                 //ZeroPageAddress = 0x30, // Optional ZeroPage address. If not specified, a default address is used.
                 ExpectedMemVal = 0x42, // Should be the value we had in A register before instruction executes.
@@ -47,7 +47,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 X              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STX_ZP_Y,
+                OpCode         = OpCodeId.STX_ZP_Y,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 4,
@@ -66,7 +66,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 X              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STX_ZP_Y,
+                OpCode         = OpCodeId.STX_ZP_Y,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 4,
@@ -81,7 +81,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 X              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STX_ABS,
+                OpCode         = OpCodeId.STX_ABS,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 4,

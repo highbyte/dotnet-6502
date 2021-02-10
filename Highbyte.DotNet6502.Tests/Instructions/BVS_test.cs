@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 PC             = 0x2000,
                 V              = false, // BVS does not branch if Overflow flag is clear.
-                Instruction    = Ins.BVS,
+                OpCode         = OpCodeId.BVS,
                 FinalValue     = 0x20,
                 ExpectedCycles = 2
             };
@@ -26,7 +26,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 PC             = 0x2000,
                 V              = true, // BVS branches if Overflow flag is set.
-                Instruction    = Ins.BVS,
+                OpCode         = OpCodeId.BVS,
                 FinalValue     = 0x20,
                 ExpectedCycles = 3
             };
@@ -40,7 +40,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 PC             = 0x20f0,
                 V              = true, // BVS branches if Overflow flag is set.
-                Instruction    = Ins.BVS,
+                OpCode         = OpCodeId.BVS,
                 FinalValue     = 0x20,
                 ExpectedCycles = 4,
             };
@@ -54,7 +54,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 PC             = 0x2000,
                 V              = false, // BVS does not branch if Overflow flag is clear.
-                Instruction    = Ins.BVS,
+                OpCode         = OpCodeId.BVS,
                 FinalValue     = 0x20,
                 ExpectedPC     = 0x2000 + 0x02 // When branhing fails, the PC should remain unchanged and point to next instruction after this one
             };
@@ -68,7 +68,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 PC             = 0x2000,
                 V              = true, // BVS branches if Overflow flag is set.
-                Instruction    = Ins.BVS,
+                OpCode         = OpCodeId.BVS,
                 FinalValue     = 0x20,
                 ExpectedPC     = 0x2000 + 0x02 + 0x20,  // The relative branch location should be where the PC is after the branching instruction has updated the PC (reading instruction + operand)
             };
@@ -82,7 +82,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 PC             = 0x2010,
                 V              = true, // BVS branches if Overflow flag is set.
-                Instruction    = Ins.BVS,
+                OpCode         = OpCodeId.BVS,
                 FinalValue     = 0xf0, // - 10
                 ExpectedPC     = 0x2010 + 0x02 - 0x10,
             };
@@ -96,7 +96,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 PC             = 0x20f0,
                 V              = true, // BVS branches if Overflow flag is set.
-                Instruction    = Ins.BVS,
+                OpCode         = OpCodeId.BVS,
                 FinalValue     = 0x20, // + 20
                 ExpectedPC     = 0x20f0 + 0x02 + 0x20,
             };

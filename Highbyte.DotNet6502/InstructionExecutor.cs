@@ -83,8 +83,7 @@ namespace Highbyte.DotNet6502
                     return false;
             }
             if(addrModeCalcResult==null)
-                // TODO: Use custom Exception class
-                throw new Exception("Bug detected. Variable addrModeCalcResult expected to be set.");
+                throw new DotNet6502Exception("Bug detected. Variable addrModeCalcResult expected to be set.");
 
             // TODO: Ugly setting OpCode here
             addrModeCalcResult.OpCode = opCodeObject; 

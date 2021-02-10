@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_I,
+                OpCode         = OpCodeId.ORA_I,
                 FinalValue     = 0,
                 ExpectedCycles = 2,
             };
@@ -21,7 +21,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                Instruction    = Ins.ORA_I,
+                OpCode         = OpCodeId.ORA_I,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b11100000,
@@ -34,7 +34,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                Instruction    = Ins.ORA_I,
+                OpCode         = OpCodeId.ORA_I,
                 A              = 0b00000000,
                 FinalValue     = 0b00000000,
                 ExpectedA      = 0b00000000,
@@ -47,7 +47,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                Instruction = Ins.ORA_I,
+                OpCode         = OpCodeId.ORA_I,
                 A              = 0b00000000,
                 FinalValue     = 0b11111111,
                 ExpectedA      = 0b11111111,
@@ -60,7 +60,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_I,
+                OpCode         = OpCodeId.ORA_I,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedZ      = false,
@@ -73,7 +73,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_I,
+                OpCode         = OpCodeId.ORA_I,
                 A              = 0b00000000,
                 FinalValue     = 0b00000000,
                 ExpectedZ      = true,
@@ -86,7 +86,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_I,
+                OpCode         = OpCodeId.ORA_I,
                 A              = 0b10000000,
                 FinalValue     = 0b00000000,
                 ExpectedN      = true,
@@ -99,7 +99,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_I,
+                OpCode         = OpCodeId.ORA_I,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedN      = false,
@@ -121,7 +121,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
 
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_ZP,
+                OpCode         = OpCodeId.ORA_ZP,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedA      = 0b00000111,
@@ -135,7 +135,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_ZP_X,
+                OpCode         = OpCodeId.ORA_ZP_X,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedA      = 0b00000111,
@@ -153,7 +153,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_ZP_X,
+                OpCode         = OpCodeId.ORA_ZP_X,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedA      = 0b00000111,
@@ -167,7 +167,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_ABS,
+                OpCode         = OpCodeId.ORA_ABS,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedA      = 0b00000111,
@@ -181,7 +181,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_ABS_X,
+                OpCode         = OpCodeId.ORA_ABS_X,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedA      = 0b00000111,
@@ -195,7 +195,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_ABS_X,
+                OpCode         = OpCodeId.ORA_ABS_X,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedA      = 0b00000111,
@@ -209,7 +209,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_ABS_Y,
+                OpCode         = OpCodeId.ORA_ABS_Y,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedA      = 0b00000111,
@@ -223,7 +223,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_ABS_Y,
+                OpCode         = OpCodeId.ORA_ABS_Y,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedA      = 0b00000111,
@@ -251,7 +251,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_IX_IND,
+                OpCode         = OpCodeId.ORA_IX_IND,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedA      = 0b00000111,
@@ -268,7 +268,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_IX_IND,
+                OpCode         = OpCodeId.ORA_IX_IND,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedA      = 0b00000111,
@@ -300,7 +300,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_IND_IX,
+                OpCode         = OpCodeId.ORA_IND_IX,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedA      = 0b00000111,
@@ -319,7 +319,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ORA_IND_IX,
+                OpCode         = OpCodeId.ORA_IND_IX,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedA      = 0b00000111,

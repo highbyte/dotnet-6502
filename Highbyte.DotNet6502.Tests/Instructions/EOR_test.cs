@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_I,
+                OpCode         = OpCodeId.EOR_I,
                 FinalValue     = 0,
                 ExpectedCycles = 2,
             };
@@ -21,7 +21,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                Instruction    = Ins.EOR_I,
+                OpCode         = OpCodeId.EOR_I,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b01100000,
@@ -34,7 +34,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                Instruction    = Ins.EOR_I,
+                OpCode         = OpCodeId.EOR_I,
                 A              = 0b00000000,
                 FinalValue     = 0b00000000,
                 ExpectedA      = 0b00000000,
@@ -47,7 +47,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                Instruction = Ins.EOR_I,
+                OpCode         = OpCodeId.EOR_I,
                 A              = 0b00000000,
                 FinalValue     = 0b11111111,
                 ExpectedA      = 0b11111111,
@@ -60,7 +60,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_I,
+                OpCode         = OpCodeId.EOR_I,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedZ      = false,
@@ -73,7 +73,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_I,
+                OpCode         = OpCodeId.EOR_I,
                 A              = 0b00000000,
                 FinalValue     = 0b00000000,
                 ExpectedZ      = true,
@@ -86,7 +86,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_I,
+                OpCode         = OpCodeId.EOR_I,
                 A              = 0b10000000,
                 FinalValue     = 0b00000000,
                 ExpectedN      = true,
@@ -99,7 +99,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_I,
+                OpCode         = OpCodeId.EOR_I,
                 A              = 0b00000011,
                 FinalValue     = 0b00000110,
                 ExpectedN      = false,
@@ -121,7 +121,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
 
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_ZP,
+                OpCode         = OpCodeId.EOR_ZP,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b01100000,
@@ -135,7 +135,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_ZP_X,
+                OpCode         = OpCodeId.EOR_ZP_X,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b01100000,
@@ -153,7 +153,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_ZP_X,
+                OpCode         = OpCodeId.EOR_ZP_X,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b01100000,
@@ -167,7 +167,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_ABS,
+                OpCode         = OpCodeId.EOR_ABS,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b01100000,
@@ -181,7 +181,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_ABS_X,
+                OpCode         = OpCodeId.EOR_ABS_X,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b01100000,
@@ -195,7 +195,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_ABS_X,
+                OpCode         = OpCodeId.EOR_ABS_X,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b01100000,
@@ -209,7 +209,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_ABS_Y,
+                OpCode         = OpCodeId.EOR_ABS_Y,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b01100000,
@@ -223,7 +223,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_ABS_Y,
+                OpCode         = OpCodeId.EOR_ABS_Y,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b01100000,
@@ -251,7 +251,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_IX_IND,
+                OpCode         = OpCodeId.EOR_IX_IND,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b01100000,
@@ -268,7 +268,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_IX_IND,
+                OpCode         = OpCodeId.EOR_IX_IND,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b01100000,
@@ -300,7 +300,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_IND_IX,
+                OpCode         = OpCodeId.EOR_IND_IX,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b01100000,
@@ -319,7 +319,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.EOR_IND_IX,
+                OpCode         = OpCodeId.EOR_IND_IX,
                 A              = 0b10100000,
                 FinalValue     = 0b11000000,
                 ExpectedA      = 0b01100000,

@@ -26,24 +26,24 @@ namespace Highbyte.DotNet6502.Instructions
                     new OpCode
                     {
 
-                        Code = Ins.CPX_I,
+                        Code = OpCodeId.CPX_I,
                         AddressingMode = AddrMode.I,
                         Size = 2,
-                        Cycles = 2,
+                        MinimumCycles = 2,
                     },
                     new OpCode
                     {
-                        Code = Ins.CPX_ZP,
+                        Code = OpCodeId.CPX_ZP,
                         AddressingMode = AddrMode.ZP,
                         Size = 2,
-                        Cycles = 3,
+                        MinimumCycles = 3,
                     },
                     new OpCode
                     {
-                        Code = Ins.CPX_ABS,
+                        Code = OpCodeId.CPX_ABS,
                         AddressingMode = AddrMode.ABS,
                         Size = 3,
-                        Cycles = 4,
+                        MinimumCycles = 4,
                     },
             };
         }

@@ -43,10 +43,10 @@ namespace Highbyte.DotNet6502.Instructions
                 new OpCode
                 {
 
-                    Code = Ins.BRK,
+                    Code = OpCodeId.BRK,
                     AddressingMode = AddrMode.Implied,
                     Size = 1,
-                    Cycles = 7
+                    MinimumCycles = 7
                 },
             };
         }

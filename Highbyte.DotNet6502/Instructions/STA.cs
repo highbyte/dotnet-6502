@@ -31,52 +31,52 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.STA_ZP,
+                        Code = OpCodeId.STA_ZP,
                         AddressingMode = AddrMode.ZP,
                         Size = 2,
-                        Cycles = 3,
+                        MinimumCycles = 3,
                     },
                     new OpCode
                     {
-                        Code = Ins.STA_ZP_X,
+                        Code = OpCodeId.STA_ZP_X,
                         AddressingMode = AddrMode.ZP_X,
                         Size = 2,
-                        Cycles = 4,
+                        MinimumCycles = 4,
                     },
                     new OpCode
                     {
-                        Code = Ins.STA_ABS,
+                        Code = OpCodeId.STA_ABS,
                         AddressingMode = AddrMode.ABS,
                         Size = 3,
-                        Cycles = 4,
+                        MinimumCycles = 4,
                     },
                     new OpCode
                     {
-                        Code = Ins.STA_ABS_X,
+                        Code = OpCodeId.STA_ABS_X,
                         AddressingMode = AddrMode.ABS_X,
                         Size = 3,
-                        Cycles = 5,
+                        MinimumCycles = 5,
                     },
                     new OpCode
                     {
-                        Code = Ins.STA_ABS_Y,
+                        Code = OpCodeId.STA_ABS_Y,
                         AddressingMode = AddrMode.ABS_Y,
                         Size = 3,
-                        Cycles = 5,
+                        MinimumCycles = 5,
                     },
                     new OpCode
                     {
-                        Code = Ins.STA_IX_IND,
+                        Code = OpCodeId.STA_IX_IND,
                         AddressingMode = AddrMode.IX_IND,
                         Size = 2,
-                        Cycles = 6,
+                        MinimumCycles = 6,
                     },
                     new OpCode
                     {
-                        Code = Ins.STA_IND_IX,
+                        Code = OpCodeId.STA_IND_IX,
                         AddressingMode = AddrMode.IND_IX,
                         Size = 2,
-                        Cycles = 6,
+                        MinimumCycles = 6,
                     },
             };
         }

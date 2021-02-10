@@ -51,15 +51,6 @@ namespace Highbyte.DotNet6502
             else 
                 // Clear bit. TODO: Better way to clear a bit?
                 data = (byte) (data & (255 ^ bitValue));  // and + xor
-        }
-
-        public static bool IsDefined(this byte ins)
-        {
-            return Enum.IsDefined(typeof(Ins), ins);
-        }
-        public static Ins ToIns(this byte ins)
-        {
-            return (Ins)ins;
-        }        
+        }     
    }
 }

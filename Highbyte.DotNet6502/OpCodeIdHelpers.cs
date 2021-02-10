@@ -6,21 +6,21 @@ namespace Highbyte.DotNet6502
     /// <summary>
     /// Helper methods for enum containing instructions.
     /// </summary>
-    public static class InsHelpers
+    public static class OpCodeIdHelpers
     {
-        public static string ToHex(this Ins value)
+        public static string ToHex(this OpCodeId value)
         {
             return $"0x{value:X2}";
         }
-        public static byte ToByte(this Ins value)
+        public static byte ToByte(this OpCodeId value)
         {
             return (byte)value;
         }
-        public static bool Contains(this List<Ins> list, byte ins)
+        public static bool Contains(this List<OpCodeId> list, byte opCodeId)
         {
-            if(ins.IsDefined())
+            if(opCodeId.IsDefinedAsOpCodeId())
             {
-                return list.Contains(ins.ToIns());
+                return list.Contains(opCodeId.ToOpCodeId());
             }
             return false;
         }

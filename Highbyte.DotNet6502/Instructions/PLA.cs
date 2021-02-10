@@ -27,10 +27,10 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.PLA,
+                        Code = OpCodeId.PLA,
                         AddressingMode = AddrMode.Implied,
                         Size = 1,
-                        Cycles = 4,
+                        MinimumCycles = 4,
                     }
             };
         }
