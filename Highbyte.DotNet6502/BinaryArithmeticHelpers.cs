@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Highbyte.DotNet6502
+﻿namespace Highbyte.DotNet6502
 {
     public static class BinaryArithmeticHelpers
     {
@@ -19,79 +17,12 @@ namespace Highbyte.DotNet6502
         /// <returns></returns>
         public static byte AddWithCarryAndOverflow(byte value1, byte value2, ProcessorStatus processorStatus)
         {
-            bool carry = processorStatus.Carry;
-            byte result = 0x00;
-            for (int bit = 0; bit < 8; bit++)
-            {
-                bool value1_bit = value1.IsBitSet(bit);
-                bool value2_bit = value2.IsBitSet(bit);
+            // Perform add with carry
+            ushort sum = (ushort) (value1 + value2 + (byte)(processorStatus.Carry?1:0));
+            byte result = (byte)(sum & 0xff);
 
-                if(!carry)
-                {
-                    // carry clear
-                    if(!value1_bit && !value2_bit)
-                    {
-                        // = 0(c) + 0 + 0 = 0 + clear C
-
-                        // This bit in result should be clear (which is already is as result is initialized with 0x00 at start)
-                        // Carry flag should be cleared (which is already is)
-                    }
-                    else if(value1_bit && value2_bit)
-                    {
-                        // = 0(c) + 1 + 1 = 0 + set C
-
-                        // This bit in result should be clear (which is already is as result is initialized with 0x00 at start)
-                        // Carry flag should be set
-                        carry = true;
-                    }
-                    else
-                    {
-                        // Note: Case with both bits set is handled in if-statement before this.
-
-                        //    = 0(c) + 1 + 0 = 1 + clear C
-                        // or = 0(c) + 0 + 1 = 1 + clear C
-
-                        // This bit in result should be set 
-                        result.SetBit(bit);
-                        // Carry flag should be cleared (which is already is)
-                    }
-
-                }
-                else
-                {
-                    // carry set
-                    if(!value1_bit && !value2_bit)
-                    {
-                        // = 1(c) + 0 + 0 = 1 + clear C
-
-                        // This bit in result should be set 
-                        result.SetBit(bit);
-                        // Carry flag should be cleared
-                        carry = false;
-                    }
-                    else if(value1_bit && value2_bit)
-                    {
-                        // =  1(c) + 1 + 1 = 1 + set C
-
-                        // This bit in result should be set 
-                        result.SetBit(bit);
-                        // Carry flag is already set
-                    }
-                    else
-                    {
-                        // Note: Case with both bits set is handled in if-statement before this.
-
-                        // =  1(c) + 1 + 0 = 0 + set C
-                        // or 1(c) + 0 + 1 = 0 + set C
-
-                        // This bit in result should be cleared (which is already is as result is initialized with 0x00 at start)
-
-                        // Carry flag is already set
-                    }
-                }
-            }
-
-            processorStatus.Carry = carry;
+            // Set carry if there was a overflow when adding two bytes
+            processorStatus.Carry = (byte)(sum>>8) == 1;
             processorStatus.Zero = result == 0;
             processorStatus.Negative = result.IsBitSet(7);
 
