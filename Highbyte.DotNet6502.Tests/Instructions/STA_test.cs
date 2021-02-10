@@ -10,7 +10,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STA_ZP,
+                Instruction    = OpCodeId.STA_ZP,
                 ExpectedCycles = 3,
             };
             test.Execute_And_Verify(AddrMode.ZP);
@@ -23,7 +23,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x42,
                 InsEffect      = InstrEffect.Mem,    // Defaults to Read
-                Instruction    = Ins.STA_ZP,
+                Instruction    = OpCodeId.STA_ZP,
                 FinalValue     = 0x01, // Initial value at memory the instruction will write to. If not specified, a default value will be written there before instruction executes.
                 //ZeroPageAddress = 0x30, // Optional ZeroPage address. If not specified, a default address is used.
                 ExpectedMemVal = 0x42, // Should be the value we had in A register before instruction executes.
@@ -47,7 +47,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STA_ZP_X,
+                Instruction    = OpCodeId.STA_ZP_X,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 4,
@@ -66,7 +66,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STA_ZP_X,
+                Instruction    = OpCodeId.STA_ZP_X,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 4,
@@ -81,7 +81,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STA_ABS,
+                Instruction    = OpCodeId.STA_ABS,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 4,
@@ -96,7 +96,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STA_ABS_X,
+                Instruction    = OpCodeId.STA_ABS_X,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 5,
@@ -111,7 +111,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STA_ABS_X,
+                Instruction    = OpCodeId.STA_ABS_X,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 5,
@@ -126,7 +126,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STA_ABS_Y,
+                Instruction    = OpCodeId.STA_ABS_Y,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 5,
@@ -141,7 +141,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STA_ABS_Y,
+                Instruction    = OpCodeId.STA_ABS_Y,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 5,
@@ -171,7 +171,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STA_IX_IND,
+                Instruction    = OpCodeId.STA_IX_IND,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 6,
@@ -189,7 +189,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STA_IX_IND,
+                Instruction    = OpCodeId.STA_IX_IND,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 6,
@@ -222,7 +222,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STA_IND_IX,
+                Instruction    = OpCodeId.STA_IND_IX,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 6,
@@ -242,7 +242,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x42,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.STA_IND_IX,
+                Instruction    = OpCodeId.STA_IND_IX,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x42,
                 ExpectedCycles = 6,

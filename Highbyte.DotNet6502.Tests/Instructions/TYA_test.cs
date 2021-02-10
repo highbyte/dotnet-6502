@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.TYA,
+                Instruction    = OpCodeId.TYA,
                 ExpectedCycles = 2,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -22,7 +22,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x34,
                 Y              = 0x22,
-                Instruction    = Ins.TYA,
+                Instruction    = OpCodeId.TYA,
                 ExpectedA      = 0x22,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -35,7 +35,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x34,
                 Y              = 0x00,
-                Instruction    = Ins.TYA,
+                Instruction    = OpCodeId.TYA,
                 ExpectedZ      = true,
                 ExpectedA      = 0x00,
             };
@@ -48,7 +48,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x34,
                 Y              = 0x01,
-                Instruction    = Ins.TYA,
+                Instruction    = OpCodeId.TYA,
                 ExpectedZ      = false,
                 ExpectedA      = 0x01,
             };
@@ -62,7 +62,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x34,
                 Y              = 0xfe,
-                Instruction    = Ins.TYA,
+                Instruction    = OpCodeId.TYA,
                 ExpectedN      = true,
                 ExpectedA      = 0xfe,
             };
@@ -76,7 +76,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x34,
                 Y              = 0x01,
-                Instruction    = Ins.TYA,
+                Instruction    = OpCodeId.TYA,
                 ExpectedN      = false,
                 ExpectedA      = 0x01,
             };

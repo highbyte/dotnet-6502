@@ -30,10 +30,10 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.RTI,
+                        Code = OpCodeId.RTI,
                         AddressingMode = AddrMode.Implied,
                         Size = 1,
-                        Cycles = 6,
+                        MinimumCycles = 6,
                     }
             };
         }

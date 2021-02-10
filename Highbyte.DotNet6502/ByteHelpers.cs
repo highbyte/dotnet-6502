@@ -1,4 +1,6 @@
-﻿namespace Highbyte.DotNet6502
+﻿using System;
+
+namespace Highbyte.DotNet6502
 {
     /// <summary>
     /// Helper methods for 8-bit unsigned bytes (byte) and byte arrays.
@@ -45,5 +47,14 @@
         {
             return $"0x{value:X2}";
         }
+
+        public static bool IsDefinedAsOpCodeId(this byte opCodeId)
+        {
+            return Enum.IsDefined(typeof(OpCodeId), opCodeId);
+        }
+        public static OpCodeId ToOpCodeId(this byte opCodeId)
+        {
+            return (OpCodeId)opCodeId;
+        }         
    }
 }

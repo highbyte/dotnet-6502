@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.PHA,
+                Instruction    = OpCodeId.PHA,
                 ExpectedCycles = 3,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -29,7 +29,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 U              = false,
                 V              = false,
                 N              = false,
-                Instruction    = Ins.PHA,
+                Instruction    = OpCodeId.PHA,
                 A              = 0x12,
                 ExpectedSP     = 0xfe,
                 ExpectedC      = false,

@@ -65,7 +65,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var execState = cpu.ExecState;
 
             _output.WriteLine($"CPU last PC:                       {cpu.PC.ToHex()}");
-            _output.WriteLine($"CPU last opcode:                   {execState.LastOpCode.Value.ToIns()} ({execState.LastOpCode.Value.ToHex()})");
+            _output.WriteLine($"CPU last opcode:                   {execState.LastOpCode.Value.ToOpCodeId()} ({execState.LastOpCode.Value.ToHex()})");
             _output.WriteLine($"Total # CPU instructions executed: {execState.InstructionsExecutionCount}");
             _output.WriteLine($"Total # CPU cycles consumed:       {execState.CyclesConsumed}");
 

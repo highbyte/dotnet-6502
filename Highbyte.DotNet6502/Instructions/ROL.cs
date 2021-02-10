@@ -51,38 +51,38 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.ROL_ACC,
+                        Code = OpCodeId.ROL_ACC,
                         AddressingMode = AddrMode.Accumulator,
                         Size = 1,
-                        Cycles = 2,
+                        MinimumCycles = 2,
                     },
                     new OpCode
                     {
-                        Code = Ins.ROL_ZP,
+                        Code = OpCodeId.ROL_ZP,
                         AddressingMode = AddrMode.ZP,
                         Size = 2,
-                        Cycles = 5,
+                        MinimumCycles = 5,
                     },
                     new OpCode
                     {
-                        Code = Ins.ROL_ZP_X,
+                        Code = OpCodeId.ROL_ZP_X,
                         AddressingMode = AddrMode.ZP_X,
                         Size = 2,
-                        Cycles = 6,
+                        MinimumCycles = 6,
                     },
                     new OpCode
                     {
-                        Code = Ins.ROL_ABS,
+                        Code = OpCodeId.ROL_ABS,
                         AddressingMode = AddrMode.ABS,
                         Size = 3,
-                        Cycles = 6,
+                        MinimumCycles = 6,
                     },
                     new OpCode
                     {
-                        Code = Ins.ROL_ABS_X,
+                        Code = OpCodeId.ROL_ABS_X,
                         AddressingMode = AddrMode.ABS_X,
                         Size = 3,
-                        Cycles = 7,
+                        MinimumCycles = 7,
                     },
             };
         }

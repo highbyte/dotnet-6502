@@ -23,24 +23,24 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.STY_ZP,
+                        Code = OpCodeId.STY_ZP,
                         AddressingMode = AddrMode.ZP,
                         Size = 2,
-                        Cycles = 3,
+                        MinimumCycles = 3,
                     },
                     new OpCode
                     {
-                        Code = Ins.STY_ZP_X,
+                        Code = OpCodeId.STY_ZP_X,
                         AddressingMode = AddrMode.ZP_X,
                         Size = 2,
-                        Cycles = 4,
+                        MinimumCycles = 4,
                     },
                     new OpCode
                     {
-                        Code = Ins.STY_ABS,
+                        Code = OpCodeId.STY_ABS,
                         AddressingMode = AddrMode.ABS,
                         Size = 3,
-                        Cycles = 4,
+                        MinimumCycles = 4,
                     },
             };
         }

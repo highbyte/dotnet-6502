@@ -28,59 +28,59 @@ namespace Highbyte.DotNet6502.Instructions
                     new OpCode
                     {
 
-                        Code = Ins.AND_I,
+                        Code = OpCodeId.AND_I,
                         AddressingMode = AddrMode.I,
                         Size = 2,
-                        Cycles = 2,
+                        MinimumCycles = 2,
                     },
                     new OpCode
                     {
-                        Code = Ins.AND_ZP,
+                        Code = OpCodeId.AND_ZP,
                         AddressingMode = AddrMode.ZP,
                         Size = 2,
-                        Cycles = 3,
+                        MinimumCycles = 3,
                     },
                     new OpCode
                     {
-                        Code = Ins.AND_ZP_X,
+                        Code = OpCodeId.AND_ZP_X,
                         AddressingMode = AddrMode.ZP_X,
                         Size = 2,
-                        Cycles = 4,
+                        MinimumCycles = 4,
                     },
                     new OpCode
                     {
-                        Code = Ins.AND_ABS,
+                        Code = OpCodeId.AND_ABS,
                         AddressingMode = AddrMode.ABS,
                         Size = 3,
-                        Cycles = 4,
+                        MinimumCycles = 4,
                     },
                     new OpCode
                     {
-                        Code = Ins.AND_ABS_X,
+                        Code = OpCodeId.AND_ABS_X,
                         AddressingMode = AddrMode.ABS_X,
                         Size = 3,
-                        Cycles = 4, // +1 if page boundary is crossed
+                        MinimumCycles = 4, // +1 if page boundary is crossed
                     },
                     new OpCode
                     {
-                        Code = Ins.AND_ABS_Y,
+                        Code = OpCodeId.AND_ABS_Y,
                         AddressingMode = AddrMode.ABS_Y,
                         Size = 3,
-                        Cycles = 4, // +1 if page boundary is crossed
+                        MinimumCycles = 4, // +1 if page boundary is crossed
                     },
                     new OpCode
                     {
-                        Code = Ins.AND_IX_IND,
+                        Code = OpCodeId.AND_IX_IND,
                         AddressingMode = AddrMode.IX_IND,
                         Size = 2,
-                        Cycles = 6,
+                        MinimumCycles = 6,
                     },
                     new OpCode
                     {
-                        Code = Ins.AND_IND_IX,
+                        Code = OpCodeId.AND_IND_IX,
                         AddressingMode = AddrMode.IND_IX,
                         Size = 2,
-                        Cycles = 5, // +1 if page boundary is crossed
+                        MinimumCycles = 5, // +1 if page boundary is crossed
                     },
             };
         }

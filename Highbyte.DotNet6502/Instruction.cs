@@ -20,7 +20,7 @@ namespace Highbyte.DotNet6502
             return false;
         }
 
-        protected byte GetInstructionValueFromAddressOrDirectly(CPU cpu, Memory mem,AddrModeCalcResult addrModeCalcResult)
+        protected byte GetInstructionValueFromAddressOrDirectly(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {
             byte insValue;
             if(addrModeCalcResult.InsAddress.HasValue)

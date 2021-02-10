@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace Highbyte.DotNet6502
+﻿namespace Highbyte.DotNet6502
 {
     public class OpCode
     {
@@ -8,7 +6,7 @@ namespace Highbyte.DotNet6502
         /// The OpCode for an instruction.
         /// </summary>
         /// <value></value>
-        public Ins Code { get; set;}
+        public OpCodeId Code { get; set;}
 
         /// <summary>
         /// The addressing mode for an instruction
@@ -23,9 +21,10 @@ namespace Highbyte.DotNet6502
         public int Size { get; set;}
 
         /// <summary>
-        /// Can take more depending on zero page wrap-around or crossing page boundary
+        /// Number of cycles the instruction consumes, at a minimum.
+        /// Can take more cycles depending on zero page wrap-around or crossing page boundary
         /// </summary>
         /// <value></value>
-        public int Cycles { get; set;}
+        public int MinimumCycles { get; set;}
     }
 }

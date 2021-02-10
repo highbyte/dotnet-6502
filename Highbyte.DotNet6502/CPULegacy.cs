@@ -7,7 +7,7 @@
     public partial class CPU
     {
 
-        private bool HandleInstruction(Ins ins, Memory mem)
+        private bool HandleInstruction(OpCodeId opCodeId, Memory mem)
         {
             byte zeroPageAddress;
             ushort zeroPageAddressX;
@@ -24,50 +24,50 @@
             ProcessorStatus processorStatusCopy;
 
             bool instructionHandled = true;
-            switch(ins)
+            switch(opCodeId)
             {
                 // ------------------------
                 // LDA
                 // ------------------------
-                case Ins.LDA_I:
+                case OpCodeId.LDA_I:
                     A = FetchOperand(mem);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.LDA_ZP:
+                case OpCodeId.LDA_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     A = FetchByte(mem, zeroPageAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.LDA_ZP_X:
+                case OpCodeId.LDA_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     A = FetchByte(mem, zeroPageAddressX);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.LDA_ABS:
+                case OpCodeId.LDA_ABS:
                     fullAddress = FetchOperandWord(mem);
                     A = FetchByte(mem, fullAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.LDA_ABS_X:
+                case OpCodeId.LDA_ABS_X:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress);
                     A = FetchByte(mem, fullAddressX);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.LDA_ABS_Y:
+                case OpCodeId.LDA_ABS_Y:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressY = CalcFullAddressY(fullAddress);
                     A = FetchByte(mem, fullAddressY);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.LDA_IX_IND:
+                case OpCodeId.LDA_IX_IND:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress);
                     fullAddress = FetchWord(mem, zeroPageAddressX);
@@ -75,7 +75,7 @@
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;  
 
-                case Ins.LDA_IND_IX:
+                case OpCodeId.LDA_IND_IX:
                     zeroPageAddress = FetchOperand(mem);
                     indirectIndexedAddress = FetchWord(mem, zeroPageAddress);
                     // Note: CalcFullAddressY will check if adding Y to address will cross page boundary. If so, one more cycle is consumed.
@@ -88,31 +88,31 @@
                 // ------------------------
                 // LDX
                 // ------------------------
-                case Ins.LDX_I:
+                case OpCodeId.LDX_I:
                     X = FetchOperand(mem);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(X, ProcessorStatus);
                     break;
 
-                case Ins.LDX_ZP:
+                case OpCodeId.LDX_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     X = FetchByte(mem, zeroPageAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(X, ProcessorStatus);
                     break;
 
-                case Ins.LDX_ZP_Y:
+                case OpCodeId.LDX_ZP_Y:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressY = CalcZeroPageAddressY(zeroPageAddress, wrapZeroPage: true);
                     X = FetchByte(mem, zeroPageAddressY);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(X, ProcessorStatus);
                     break;
 
-                case Ins.LDX_ABS:
+                case OpCodeId.LDX_ABS:
                     fullAddress = FetchOperandWord(mem);
                     X = FetchByte(mem, fullAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(X, ProcessorStatus);
                     break;
 
-                case Ins.LDX_ABS_Y:
+                case OpCodeId.LDX_ABS_Y:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressY = CalcFullAddressY(fullAddress);
                     X = FetchByte(mem, fullAddressY);
@@ -122,31 +122,31 @@
                 // ------------------------
                 // LDY
                 // ------------------------
-                case Ins.LDY_I:
+                case OpCodeId.LDY_I:
                     Y = FetchOperand(mem);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(Y, ProcessorStatus);
                     break;
 
-                case Ins.LDY_ZP:
+                case OpCodeId.LDY_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     Y = FetchByte(mem, zeroPageAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(Y, ProcessorStatus);
                     break;
 
-                case Ins.LDY_ZP_X:
+                case OpCodeId.LDY_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     Y = FetchByte(mem, zeroPageAddressX);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(Y, ProcessorStatus);
                     break;
 
-                case Ins.LDY_ABS:
+                case OpCodeId.LDY_ABS:
                     fullAddress = FetchOperandWord(mem);
                     Y = FetchByte(mem, fullAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(Y, ProcessorStatus);
                     break;
 
-                case Ins.LDY_ABS_X:
+                case OpCodeId.LDY_ABS_X:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress);
                     Y = FetchByte(mem, fullAddressX);
@@ -156,44 +156,44 @@
                 // ------------------------
                 // STA
                 // ------------------------
-                case Ins.STA_ZP:
+                case OpCodeId.STA_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     StoreByte(A, mem, zeroPageAddress);
                     break;
 
-                case Ins.STA_ZP_X:
+                case OpCodeId.STA_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     StoreByte(A, mem, zeroPageAddressX);
                     break;
 
-                case Ins.STA_ABS:
+                case OpCodeId.STA_ABS:
                     fullAddress = FetchOperandWord(mem);
                     StoreByte(A, mem, fullAddress);
                     break;
 
-                case Ins.STA_ABS_X:
+                case OpCodeId.STA_ABS_X:
                     fullAddress = FetchOperandWord(mem);
                     // TODO: Why does STA_ABS_X (and not LDA_ABS_X) always take an extra cycle even if final address crosses page boundary? Or wrong in documentation?
                     fullAddressX = CalcFullAddressX(fullAddress, alwaysExtraCycleWhenCrossBoundary: true);
                     StoreByte(A, mem, fullAddressX);
                     break;
 
-                case Ins.STA_ABS_Y:
+                case OpCodeId.STA_ABS_Y:
                     fullAddress = FetchOperandWord(mem);
                     // TODO: Why does STA_ABS_Y (and not LDA_ABS_Y) always take an extra cycle even if final address crosses page boundary? Or wrong in documentation?
                     fullAddressY = CalcFullAddressY(fullAddress, alwaysExtraCycleWhenCrossBoundary: true);
                     StoreByte(A, mem, fullAddressY);
                     break;
 
-                case Ins.STA_IX_IND:
+                case OpCodeId.STA_IX_IND:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress);
                     fullAddress = FetchWord(mem, zeroPageAddressX);
                     StoreByte(A, mem, fullAddress);
                     break;  
 
-                case Ins.STA_IND_IX:
+                case OpCodeId.STA_IND_IX:
                     zeroPageAddress = FetchOperand(mem);
                     indirectIndexedAddress = FetchWord(mem, zeroPageAddress);
                     // Note: CalcFullAddressY with alwaysExtraCycleWhenCrossBoundary = true will allways take one extra cycle..
@@ -205,18 +205,18 @@
                 // ------------------------
                 // STX
                 // ------------------------
-                case Ins.STX_ZP:
+                case OpCodeId.STX_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     StoreByte(X, mem, zeroPageAddress);
                     break;
 
-                case Ins.STX_ZP_Y:
+                case OpCodeId.STX_ZP_Y:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressY = CalcZeroPageAddressY(zeroPageAddress, wrapZeroPage: true);
                     StoreByte(X, mem, zeroPageAddressY);
                     break;
 
-                case Ins.STX_ABS:
+                case OpCodeId.STX_ABS:
                     fullAddress = FetchOperandWord(mem);
                     StoreByte(X, mem, fullAddress);
                     break;
@@ -224,18 +224,18 @@
                 // ------------------------
                 // STY
                 // ------------------------
-                case Ins.STY_ZP:
+                case OpCodeId.STY_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     StoreByte(Y, mem, zeroPageAddress);
                     break;
 
-                case Ins.STY_ZP_X:
+                case OpCodeId.STY_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     StoreByte(Y, mem, zeroPageAddressX);
                     break;
 
-                case Ins.STY_ABS:
+                case OpCodeId.STY_ABS:
                     fullAddress = FetchOperandWord(mem);
                     StoreByte(Y, mem, fullAddress);
                     break;
@@ -243,7 +243,7 @@
                 // ------------------------
                 // INC
                 // ------------------------
-                case Ins.INC_ZP:
+                case OpCodeId.INC_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     memValue = FetchByte(mem, zeroPageAddress);
                     memValue++;
@@ -252,7 +252,7 @@
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(memValue, ProcessorStatus);
                     break;
 
-                case Ins.INC_ZP_X:
+                case OpCodeId.INC_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     memValue = FetchByte(mem, zeroPageAddressX);
@@ -262,7 +262,7 @@
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(memValue, ProcessorStatus);
                     break;
 
-                case Ins.INC_ABS:
+                case OpCodeId.INC_ABS:
                     fullAddress = FetchOperandWord(mem);
                     memValue = FetchByte(mem, fullAddress);
                     memValue++;
@@ -271,7 +271,7 @@
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(memValue, ProcessorStatus);
                     break;
 
-                case Ins.INC_ABS_X:
+                case OpCodeId.INC_ABS_X:
                     // TODO: Why does INC_ABS_X (and not LDA_ABS_X) always take an extra cycle even if final address crosses page boundary? Or wrong in documentation?
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress, alwaysExtraCycleWhenCrossBoundary: true);
@@ -286,7 +286,7 @@
                 // ------------------------
                 // INX
                 // ------------------------
-                case Ins.INX:
+                case OpCodeId.INX:
                     X++;
                     ExecState.CyclesConsumed++;
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(X, ProcessorStatus);
@@ -295,7 +295,7 @@
                 // ------------------------
                 // INY
                 // ------------------------
-                case Ins.INY:
+                case OpCodeId.INY:
                     Y++;
                     ExecState.CyclesConsumed++;
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(Y, ProcessorStatus);
@@ -304,7 +304,7 @@
                 // ------------------------
                 // DEC
                 // ------------------------
-                case Ins.DEC_ZP:
+                case OpCodeId.DEC_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     memValue = FetchByte(mem, zeroPageAddress);
                     memValue--;
@@ -313,7 +313,7 @@
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(memValue, ProcessorStatus);
                     break;
 
-                case Ins.DEC_ZP_X:
+                case OpCodeId.DEC_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     memValue = FetchByte(mem, zeroPageAddressX);
@@ -323,7 +323,7 @@
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(memValue, ProcessorStatus);
                     break;
 
-                case Ins.DEC_ABS:
+                case OpCodeId.DEC_ABS:
                     fullAddress = FetchOperandWord(mem);
                     memValue = FetchByte(mem, fullAddress);
                     memValue--;
@@ -332,7 +332,7 @@
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(memValue, ProcessorStatus);
                     break;
 
-                case Ins.DEC_ABS_X:
+                case OpCodeId.DEC_ABS_X:
                     // TODO: Why does INC_ABS_X (and not LDA_ABS_X) always take an extra cycle even if final address crosses page boundary? Or wrong in documentation?
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress, alwaysExtraCycleWhenCrossBoundary: true);
@@ -347,7 +347,7 @@
                 // ------------------------
                 // DEX
                 // ------------------------
-                case Ins.DEX:
+                case OpCodeId.DEX:
                     X--;
                     ExecState.CyclesConsumed++;
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(X, ProcessorStatus);
@@ -356,7 +356,7 @@
                 // ------------------------
                 // DEY
                 // ------------------------
-                case Ins.DEY:
+                case OpCodeId.DEY:
                     Y--;
                     ExecState.CyclesConsumed++;
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(Y, ProcessorStatus);
@@ -366,12 +366,12 @@
                 // ------------------------
                 // JMP
                 // ------------------------
-                case Ins.JMP_ABS:
+                case OpCodeId.JMP_ABS:
                     // Get the address we should jump to (will update PC to point to next instruction)
                     PC = FetchOperandWord(mem);
                     break;
 
-                case Ins.JMP_IND:
+                case OpCodeId.JMP_IND:
                     // Get the address we should look for another address.
                     ushort indrectAddress = FetchOperandWord(mem);
                     // Get actual address
@@ -383,7 +383,7 @@
                 // ------------------------
                 // JSR
                 // ------------------------
-                case Ins.JSR:
+                case OpCodeId.JSR:
                     // Get the address we should branch to (will update PC to point to next instruction)
                     fullAddress = FetchOperandWord(mem);
                     // The JSR instruction pushes the address of the last byte of the instruction.
@@ -399,7 +399,7 @@
                 // ------------------------
                 // RTS
                 // ------------------------
-                case Ins.RTS:
+                case OpCodeId.RTS:
                     // Set PC back to the returning address from stack.
                     // As the address that was pushed on stack by JSR was the last byte of the JSR instruction, 
                     // we add one byte to the address we read from the stack (to get to next instruction)
@@ -411,7 +411,7 @@
                 // ------------------------
                 // BEQ
                 // ------------------------
-                case Ins.BEQ:
+                case OpCodeId.BEQ:
                     branchOffset = (sbyte)FetchOperand(mem);
                     if(ProcessorStatus.Zero)
                     {
@@ -423,7 +423,7 @@
                 // ------------------------
                 // BNE
                 // ------------------------
-                case Ins.BNE:
+                case OpCodeId.BNE:
                     branchOffset = (sbyte)FetchOperand(mem);
                     if(!ProcessorStatus.Zero)
                     {
@@ -435,7 +435,7 @@
                 // ------------------------
                 // BCC
                 // ------------------------
-                case Ins.BCC:
+                case OpCodeId.BCC:
                     branchOffset = (sbyte)FetchOperand(mem);
                     if(!ProcessorStatus.Carry)
                     {
@@ -447,7 +447,7 @@
                 // ------------------------
                 // BCS
                 // ------------------------
-                case Ins.BCS:
+                case OpCodeId.BCS:
                     branchOffset = (sbyte)FetchOperand(mem);
                     if(ProcessorStatus.Carry)
                     {
@@ -459,7 +459,7 @@
                 // ------------------------
                 // BMI
                 // ------------------------
-                case Ins.BMI:
+                case OpCodeId.BMI:
                     branchOffset = (sbyte)FetchOperand(mem);
                     if(ProcessorStatus.Negative)
                     {
@@ -471,7 +471,7 @@
                 // ------------------------
                 // BPL
                 // ------------------------
-                case Ins.BPL:
+                case OpCodeId.BPL:
                     branchOffset = (sbyte)FetchOperand(mem);
                     if(!ProcessorStatus.Negative)
                     {
@@ -483,7 +483,7 @@
                 // ------------------------
                 // BVC
                 // ------------------------
-                case Ins.BVC:
+                case OpCodeId.BVC:
                     branchOffset = (sbyte)FetchOperand(mem);
                     if(!ProcessorStatus.Overflow)
                     {
@@ -495,7 +495,7 @@
                 // ------------------------
                 // BVS
                 // ------------------------
-                case Ins.BVS:
+                case OpCodeId.BVS:
                     branchOffset = (sbyte)FetchOperand(mem);
                     if(ProcessorStatus.Overflow)
                     {
@@ -507,45 +507,45 @@
                 // ------------------------
                 // ADC
                 // ------------------------
-                case Ins.ADC_I:
+                case OpCodeId.ADC_I:
                     insValue = FetchOperand(mem);
                     A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;
 
-                case Ins.ADC_ZP:
+                case OpCodeId.ADC_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     insValue = FetchByte(mem, zeroPageAddress);
                     A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;
 
-                case Ins.ADC_ZP_X:
+                case OpCodeId.ADC_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     insValue = FetchByte(mem, zeroPageAddressX);
                     A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;
 
-                case Ins.ADC_ABS:
+                case OpCodeId.ADC_ABS:
                     fullAddress = FetchOperandWord(mem);
                     insValue = FetchByte(mem, fullAddress);
                     A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;
 
-                case Ins.ADC_ABS_X:
+                case OpCodeId.ADC_ABS_X:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress, alwaysExtraCycleWhenCrossBoundary: false);
                     insValue = FetchByte(mem, fullAddressX);
                     A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;
 
-                case Ins.ADC_ABS_Y:
+                case OpCodeId.ADC_ABS_Y:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressY = CalcFullAddressY(fullAddress, alwaysExtraCycleWhenCrossBoundary: false);
                     insValue = FetchByte(mem, fullAddressY);
                     A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;
 
-                case Ins.ADC_IX_IND:
+                case OpCodeId.ADC_IX_IND:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress);
                     fullAddress = FetchWord(mem, zeroPageAddressX);
@@ -553,7 +553,7 @@
                     A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;  
 
-                case Ins.ADC_IND_IX:
+                case OpCodeId.ADC_IND_IX:
                     zeroPageAddress = FetchOperand(mem);
                     indirectIndexedAddress = FetchWord(mem, zeroPageAddress);
                     // Note: CalcFullAddressY will check if adding Y to address will cross page boundary. If so, one more cycle is consumed.
@@ -566,45 +566,45 @@
                 // ------------------------
                 // SBC
                 // ------------------------
-                case Ins.SBC_I:
+                case OpCodeId.SBC_I:
                     insValue = FetchOperand(mem);
                     A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;
 
-                case Ins.SBC_ZP:
+                case OpCodeId.SBC_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     insValue = FetchByte(mem, zeroPageAddress);
                     A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;
 
-                case Ins.SBC_ZP_X:
+                case OpCodeId.SBC_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     insValue = FetchByte(mem, zeroPageAddressX);
                     A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;
 
-                case Ins.SBC_ABS:
+                case OpCodeId.SBC_ABS:
                     fullAddress = FetchOperandWord(mem);
                     insValue = FetchByte(mem, fullAddress);
                     A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;
 
-                case Ins.SBC_ABS_X:
+                case OpCodeId.SBC_ABS_X:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress, alwaysExtraCycleWhenCrossBoundary: false);
                     insValue = FetchByte(mem, fullAddressX);
                     A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;
 
-                case Ins.SBC_ABS_Y:
+                case OpCodeId.SBC_ABS_Y:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressY = CalcFullAddressY(fullAddress, alwaysExtraCycleWhenCrossBoundary: false);
                     insValue = FetchByte(mem, fullAddressY);
                     A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;
 
-                case Ins.SBC_IX_IND:
+                case OpCodeId.SBC_IX_IND:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress);
                     fullAddress = FetchWord(mem, zeroPageAddressX);
@@ -612,7 +612,7 @@
                     A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(A, insValue, ProcessorStatus);
                     break;  
 
-                case Ins.SBC_IND_IX:
+                case OpCodeId.SBC_IND_IX:
                     zeroPageAddress = FetchOperand(mem);
                     indirectIndexedAddress = FetchWord(mem, zeroPageAddress);
                     // Note: CalcFullAddressY will check if adding Y to address will cross page boundary. If so, one more cycle is consumed.
@@ -624,45 +624,45 @@
                 // ------------------------
                 // AND
                 // ------------------------
-                case Ins.AND_I:
+                case OpCodeId.AND_I:
                     A &= FetchOperand(mem);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.AND_ZP:
+                case OpCodeId.AND_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     A &= FetchByte(mem, zeroPageAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.AND_ZP_X:
+                case OpCodeId.AND_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     A &= FetchByte(mem, zeroPageAddressX);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.AND_ABS:
+                case OpCodeId.AND_ABS:
                     fullAddress = FetchOperandWord(mem);
                     A &= FetchByte(mem, fullAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.AND_ABS_X:
+                case OpCodeId.AND_ABS_X:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress);
                     A &= FetchByte(mem, fullAddressX);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.AND_ABS_Y:
+                case OpCodeId.AND_ABS_Y:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressY = CalcFullAddressY(fullAddress);
                     A &= FetchByte(mem, fullAddressY);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.AND_IX_IND:
+                case OpCodeId.AND_IX_IND:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress);
                     fullAddress = FetchWord(mem, zeroPageAddressX);
@@ -670,7 +670,7 @@
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;  
 
-                case Ins.AND_IND_IX:
+                case OpCodeId.AND_IND_IX:
                     zeroPageAddress = FetchOperand(mem);
                     indirectIndexedAddress = FetchWord(mem, zeroPageAddress);
                     // Note: CalcFullAddressY will check if adding Y to address will cross page boundary. If so, one more cycle is consumed.
@@ -682,45 +682,45 @@
                 // ------------------------
                 // ORA
                 // ------------------------
-                case Ins.ORA_I:
+                case OpCodeId.ORA_I:
                     A |= FetchOperand(mem);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.ORA_ZP:
+                case OpCodeId.ORA_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     A |= FetchByte(mem, zeroPageAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.ORA_ZP_X:
+                case OpCodeId.ORA_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     A |= FetchByte(mem, zeroPageAddressX);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.ORA_ABS:
+                case OpCodeId.ORA_ABS:
                     fullAddress = FetchOperandWord(mem);
                     A |= FetchByte(mem, fullAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.ORA_ABS_X:
+                case OpCodeId.ORA_ABS_X:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress);
                     A |= FetchByte(mem, fullAddressX);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.ORA_ABS_Y:
+                case OpCodeId.ORA_ABS_Y:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressY = CalcFullAddressY(fullAddress);
                     A |= FetchByte(mem, fullAddressY);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.ORA_IX_IND:
+                case OpCodeId.ORA_IX_IND:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress);
                     fullAddress = FetchWord(mem, zeroPageAddressX);
@@ -728,7 +728,7 @@
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;  
 
-                case Ins.ORA_IND_IX:
+                case OpCodeId.ORA_IND_IX:
                     zeroPageAddress = FetchOperand(mem);
                     indirectIndexedAddress = FetchWord(mem, zeroPageAddress);
                     // Note: CalcFullAddressY will check if adding Y to address will cross page boundary. If so, one more cycle is consumed.
@@ -740,45 +740,45 @@
                 // ------------------------
                 // EOR
                 // ------------------------
-                case Ins.EOR_I:
+                case OpCodeId.EOR_I:
                     A ^= FetchOperand(mem);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.EOR_ZP:
+                case OpCodeId.EOR_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     A ^= FetchByte(mem, zeroPageAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.EOR_ZP_X:
+                case OpCodeId.EOR_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     A ^= FetchByte(mem, zeroPageAddressX);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.EOR_ABS:
+                case OpCodeId.EOR_ABS:
                     fullAddress = FetchOperandWord(mem);
                     A ^= FetchByte(mem, fullAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.EOR_ABS_X:
+                case OpCodeId.EOR_ABS_X:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress);
                     A ^= FetchByte(mem, fullAddressX);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.EOR_ABS_Y:
+                case OpCodeId.EOR_ABS_Y:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressY = CalcFullAddressY(fullAddress);
                     A ^= FetchByte(mem, fullAddressY);
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;
 
-                case Ins.EOR_IX_IND:
+                case OpCodeId.EOR_IX_IND:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress);
                     fullAddress = FetchWord(mem, zeroPageAddressX);
@@ -786,7 +786,7 @@
                     BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(A, ProcessorStatus);
                     break;  
 
-                case Ins.EOR_IND_IX:
+                case OpCodeId.EOR_IND_IX:
                     zeroPageAddress = FetchOperand(mem);
                     indirectIndexedAddress = FetchWord(mem, zeroPageAddress);
                     // Note: CalcFullAddressY will check if adding Y to address will cross page boundary. If so, one more cycle is consumed.
@@ -798,45 +798,45 @@
                 // ------------------------
                 // CMP
                 // ------------------------
-                case Ins.CMP_I:
+                case OpCodeId.CMP_I:
                     tempValue  = FetchOperand(mem);
                     BinaryArithmeticHelpers.SetFlagsAfterCompare(A, tempValue, ProcessorStatus);
                     break;
 
-                case Ins.CMP_ZP:
+                case OpCodeId.CMP_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     tempValue = FetchByte(mem, zeroPageAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterCompare(A, tempValue, ProcessorStatus);
                     break;
 
-                case Ins.CMP_ZP_X:
+                case OpCodeId.CMP_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     tempValue = FetchByte(mem, zeroPageAddressX);
                     BinaryArithmeticHelpers.SetFlagsAfterCompare(A, tempValue, ProcessorStatus);
                     break;
 
-                case Ins.CMP_ABS:
+                case OpCodeId.CMP_ABS:
                     fullAddress = FetchOperandWord(mem);
                     tempValue = FetchByte(mem, fullAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterCompare(A, tempValue, ProcessorStatus);
                     break;
 
-                case Ins.CMP_ABS_X:
+                case OpCodeId.CMP_ABS_X:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress);
                     tempValue = FetchByte(mem, fullAddressX);
                     BinaryArithmeticHelpers.SetFlagsAfterCompare(A, tempValue, ProcessorStatus);
                     break;
 
-                case Ins.CMP_ABS_Y:
+                case OpCodeId.CMP_ABS_Y:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressY = CalcFullAddressY(fullAddress);
                     tempValue = FetchByte(mem, fullAddressY);
                     BinaryArithmeticHelpers.SetFlagsAfterCompare(A, tempValue, ProcessorStatus);
                     break;
 
-                case Ins.CMP_IX_IND:
+                case OpCodeId.CMP_IX_IND:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress);
                     fullAddress = FetchWord(mem, zeroPageAddressX);
@@ -844,7 +844,7 @@
                     BinaryArithmeticHelpers.SetFlagsAfterCompare(A, tempValue, ProcessorStatus);
                     break;  
 
-                case Ins.CMP_IND_IX:
+                case OpCodeId.CMP_IND_IX:
                     zeroPageAddress = FetchOperand(mem);
                     indirectIndexedAddress = FetchWord(mem, zeroPageAddress);
                     // Note: CalcFullAddressY will check if adding Y to address will cross page boundary. If so, one more cycle is consumed.
@@ -856,18 +856,18 @@
                 // ------------------------
                 // CPX
                 // ------------------------
-                case Ins.CPX_I:
+                case OpCodeId.CPX_I:
                     tempValue  = FetchOperand(mem);
                     BinaryArithmeticHelpers.SetFlagsAfterCompare(X, tempValue, ProcessorStatus);
                     break;
 
-                case Ins.CPX_ZP:
+                case OpCodeId.CPX_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     tempValue = FetchByte(mem, zeroPageAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterCompare(X, tempValue, ProcessorStatus);
                     break;
 
-                case Ins.CPX_ABS:
+                case OpCodeId.CPX_ABS:
                     fullAddress = FetchOperandWord(mem);
                     tempValue = FetchByte(mem, fullAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterCompare(X, tempValue, ProcessorStatus);
@@ -876,18 +876,18 @@
                 // ------------------------
                 // CPY
                 // ------------------------
-                case Ins.CPY_I:
+                case OpCodeId.CPY_I:
                     tempValue  = FetchOperand(mem);
                     BinaryArithmeticHelpers.SetFlagsAfterCompare(Y, tempValue, ProcessorStatus);
                     break;
 
-                case Ins.CPY_ZP:
+                case OpCodeId.CPY_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     tempValue = FetchByte(mem, zeroPageAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterCompare(Y, tempValue, ProcessorStatus);
                     break;
 
-                case Ins.CPY_ABS:
+                case OpCodeId.CPY_ABS:
                     fullAddress = FetchOperandWord(mem);
                     tempValue = FetchByte(mem, fullAddress);
                     BinaryArithmeticHelpers.SetFlagsAfterCompare(Y, tempValue, ProcessorStatus);
@@ -896,11 +896,11 @@
                 // ------------------------
                 // ASL
                 // ------------------------
-                case Ins.ASL_ACC:
+                case OpCodeId.ASL_ACC:
                     A = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(A, ProcessorStatus);
                     break;
 
-                case Ins.ASL_ZP:
+                case OpCodeId.ASL_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     tempValue = FetchByte(mem, zeroPageAddress);
                     tempValue = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(tempValue, ProcessorStatus);
@@ -909,7 +909,7 @@
                     StoreByte(tempValue, mem, zeroPageAddress);
                     break;
 
-                case Ins.ASL_ZP_X:
+                case OpCodeId.ASL_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     tempValue = FetchByte(mem, zeroPageAddressX);
@@ -919,7 +919,7 @@
                     StoreByte(tempValue, mem, zeroPageAddressX);
                     break;
 
-                case Ins.ASL_ABS:
+                case OpCodeId.ASL_ABS:
                     fullAddress = FetchOperandWord(mem);
                     tempValue = FetchByte(mem, fullAddress);
                     tempValue = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(tempValue, ProcessorStatus);
@@ -928,7 +928,7 @@
                     StoreByte(tempValue, mem, fullAddress);
                     break;
 
-                case Ins.ASL_ABS_X:
+                case OpCodeId.ASL_ABS_X:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress, out didCrossPageBoundary, false);
                     tempValue = FetchByte(mem, fullAddressX);
@@ -945,11 +945,11 @@
                 // ------------------------
                 // LSR
                 // ------------------------
-                case Ins.LSR_ACC:
+                case OpCodeId.LSR_ACC:
                     A = BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(A, ProcessorStatus);
                     break;
 
-                case Ins.LSR_ZP:
+                case OpCodeId.LSR_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     tempValue = FetchByte(mem, zeroPageAddress);
                     tempValue = BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(tempValue, ProcessorStatus);
@@ -958,7 +958,7 @@
                     StoreByte(tempValue, mem, zeroPageAddress);
                     break;
 
-                case Ins.LSR_ZP_X:
+                case OpCodeId.LSR_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     tempValue = FetchByte(mem, zeroPageAddressX);
@@ -968,7 +968,7 @@
                     StoreByte(tempValue, mem, zeroPageAddressX);
                     break;
 
-                case Ins.LSR_ABS:
+                case OpCodeId.LSR_ABS:
                     fullAddress = FetchOperandWord(mem);
                     tempValue = FetchByte(mem, fullAddress);
                     tempValue = BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(tempValue, ProcessorStatus);
@@ -977,7 +977,7 @@
                     StoreByte(tempValue, mem, fullAddress);
                     break;
 
-                case Ins.LSR_ABS_X:
+                case OpCodeId.LSR_ABS_X:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress, out didCrossPageBoundary, false);
                     tempValue = FetchByte(mem, fullAddressX);
@@ -994,11 +994,11 @@
                 // ------------------------
                 // ROL
                 // ------------------------
-                case Ins.ROL_ACC:
+                case OpCodeId.ROL_ACC:
                     A = BinaryArithmeticHelpers.PerformROLAndSetStatusRegisters(A, ProcessorStatus);
                     break;
 
-                case Ins.ROL_ZP:
+                case OpCodeId.ROL_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     tempValue = FetchByte(mem, zeroPageAddress);
                     tempValue = BinaryArithmeticHelpers.PerformROLAndSetStatusRegisters(tempValue, ProcessorStatus);
@@ -1007,7 +1007,7 @@
                     StoreByte(tempValue, mem, zeroPageAddress);
                     break;
 
-                case Ins.ROL_ZP_X:
+                case OpCodeId.ROL_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     tempValue = FetchByte(mem, zeroPageAddressX);
@@ -1017,7 +1017,7 @@
                     StoreByte(tempValue, mem, zeroPageAddressX);
                     break;
 
-                case Ins.ROL_ABS:
+                case OpCodeId.ROL_ABS:
                     fullAddress = FetchOperandWord(mem);
                     tempValue = FetchByte(mem, fullAddress);
                     tempValue = BinaryArithmeticHelpers.PerformROLAndSetStatusRegisters(tempValue, ProcessorStatus);
@@ -1026,7 +1026,7 @@
                     StoreByte(tempValue, mem, fullAddress);
                     break;
 
-                case Ins.ROL_ABS_X:
+                case OpCodeId.ROL_ABS_X:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress, out didCrossPageBoundary, false);
                     tempValue = FetchByte(mem, fullAddressX);
@@ -1043,11 +1043,11 @@
                 // ------------------------
                 // ROR
                 // ------------------------
-                case Ins.ROR_ACC:
+                case OpCodeId.ROR_ACC:
                     A = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(A, ProcessorStatus);
                     break;
 
-                case Ins.ROR_ZP:
+                case OpCodeId.ROR_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     tempValue = FetchByte(mem, zeroPageAddress);
                     tempValue = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(tempValue, ProcessorStatus);
@@ -1056,7 +1056,7 @@
                     StoreByte(tempValue, mem, zeroPageAddress);
                     break;
 
-                case Ins.ROR_ZP_X:
+                case OpCodeId.ROR_ZP_X:
                     zeroPageAddress = FetchOperand(mem);
                     zeroPageAddressX = CalcZeroPageAddressX(zeroPageAddress, wrapZeroPage: true);
                     tempValue = FetchByte(mem, zeroPageAddressX);
@@ -1066,7 +1066,7 @@
                     StoreByte(tempValue, mem, zeroPageAddressX);
                     break;
 
-                case Ins.ROR_ABS:
+                case OpCodeId.ROR_ABS:
                     fullAddress = FetchOperandWord(mem);
                     tempValue = FetchByte(mem, fullAddress);
                     tempValue = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(tempValue, ProcessorStatus);
@@ -1075,7 +1075,7 @@
                     StoreByte(tempValue, mem, fullAddress);
                     break;
 
-                case Ins.ROR_ABS_X:
+                case OpCodeId.ROR_ABS_X:
                     fullAddress = FetchOperandWord(mem);
                     fullAddressX = CalcFullAddressX(fullAddress, out didCrossPageBoundary,false);
                     tempValue = FetchByte(mem, fullAddressX);
@@ -1092,13 +1092,13 @@
                 // ------------------------
                 // BIT
                 // ------------------------
-                case Ins.BIT_ZP:
+                case OpCodeId.BIT_ZP:
                     zeroPageAddress = FetchOperand(mem);
                     tempValue = FetchByte(mem, zeroPageAddress);
                     BinaryArithmeticHelpers.PerformBITAndSetStatusRegisters(A, tempValue, ProcessorStatus);
                     break;
 
-                case Ins.BIT_ABS:
+                case OpCodeId.BIT_ABS:
                     fullAddress = FetchOperandWord(mem);
                     tempValue = FetchByte(mem, fullAddress);
                     BinaryArithmeticHelpers.PerformBITAndSetStatusRegisters(A, tempValue, ProcessorStatus);
@@ -1107,7 +1107,7 @@
                 // ------------------------
                 // TAX
                 // ------------------------
-                case Ins.TAX:
+                case OpCodeId.TAX:
                     X = A;
                     // Extra cycle for transfer register to another register?
                     ExecState.CyclesConsumed++;                        
@@ -1117,7 +1117,7 @@
                 // ------------------------
                 // TAY
                 // ------------------------
-                case Ins.TAY:
+                case OpCodeId.TAY:
                     Y = A;
                     // Extra cycle for transfer register to another register?
                     ExecState.CyclesConsumed++;                        
@@ -1127,7 +1127,7 @@
                 // ------------------------
                 // TXA
                 // ------------------------
-                case Ins.TXA:
+                case OpCodeId.TXA:
                     A = X;
                     // Extra cycle for transfer register to another register?
                     ExecState.CyclesConsumed++;                        
@@ -1137,7 +1137,7 @@
                 // ------------------------
                 // TYA
                 // ------------------------
-                case Ins.TYA:
+                case OpCodeId.TYA:
                     A = Y;
                     // Extra cycle for transfer register to another register?
                     ExecState.CyclesConsumed++;                        
@@ -1147,7 +1147,7 @@
                 // ------------------------
                 // TSX
                 // ------------------------
-                case Ins.TSX:
+                case OpCodeId.TSX:
                     X = SP;
                     // Extra cycle for transfer register to another register?
                     ExecState.CyclesConsumed++;                        
@@ -1157,7 +1157,7 @@
                 // ------------------------
                 // TXS
                 // ------------------------
-                case Ins.TXS:
+                case OpCodeId.TXS:
                     SP = X;
                     // Extra cycle for transfer register to another register?
                     ExecState.CyclesConsumed++;
@@ -1166,7 +1166,7 @@
                 // ------------------------
                 // PHA
                 // ------------------------
-                case Ins.PHA:
+                case OpCodeId.PHA:
                     PushByteToStack(A, mem);
                     // Consume extra cycles to change SP?
                     ExecState.CyclesConsumed++;
@@ -1175,7 +1175,7 @@
                 // ------------------------
                 // PHP
                 // ------------------------
-                case Ins.PHP:
+                case OpCodeId.PHP:
                     // Set the Break flag on the copy of the ProcessorStatus that will be stored in stack.
                     processorStatusCopy = ProcessorStatus.Clone();
                     processorStatusCopy.Break = true;
@@ -1188,7 +1188,7 @@
                 // ------------------------
                 // PLA
                 // ------------------------
-                case Ins.PLA:
+                case OpCodeId.PLA:
                     A = PopByteFromStack(mem);
                     // Consume two extra cycles to change SP? Why one more than PHA?
                     ExecState.CyclesConsumed += 2;
@@ -1198,7 +1198,7 @@
                 // ------------------------
                 // PLP
                 // ------------------------
-                case Ins.PLP:
+                case OpCodeId.PLP:
                     ProcessorStatus.Value = PopByteFromStack(mem);
                     // Consume two extra cycles to change SP? Why one more than PHP?
                     ExecState.CyclesConsumed += 2;                     
@@ -1207,7 +1207,7 @@
                 // ------------------------
                 // CLC
                 // ------------------------
-                case Ins.CLC:
+                case OpCodeId.CLC:
                     ProcessorStatus.Carry = false;
                     // Consume extra cycle to clear flag?
                     ExecState.CyclesConsumed ++;
@@ -1216,7 +1216,7 @@
                 // ------------------------
                 // CLD
                 // ------------------------
-                case Ins.CLD:
+                case OpCodeId.CLD:
                     ProcessorStatus.Decimal = false;
                     // Consume extra cycle to clear flag?
                     ExecState.CyclesConsumed ++;
@@ -1225,7 +1225,7 @@
                 // ------------------------
                 // CLI
                 // ------------------------
-                case Ins.CLI:
+                case OpCodeId.CLI:
                     ProcessorStatus.InterruptDisable = false;
                     // Consume extra cycle to clear flag?
                     ExecState.CyclesConsumed ++;
@@ -1234,7 +1234,7 @@
                 // ------------------------
                 // CLV
                 // ------------------------
-                case Ins.CLV:
+                case OpCodeId.CLV:
                     ProcessorStatus.Overflow = false;
                     // Consume extra cycle to clear flag?
                     ExecState.CyclesConsumed ++;
@@ -1243,7 +1243,7 @@
                 // ------------------------
                 // SEC
                 // ------------------------
-                case Ins.SEC:
+                case OpCodeId.SEC:
                     ProcessorStatus.Carry = true;
                     // Consume extra cycle to set flag?
                     ExecState.CyclesConsumed ++;
@@ -1252,7 +1252,7 @@
                 // ------------------------
                 // SED
                 // ------------------------
-                case Ins.SED:
+                case OpCodeId.SED:
                     ProcessorStatus.Decimal = true;
                     // Consume extra cycle to set flag?
                     ExecState.CyclesConsumed ++;
@@ -1261,7 +1261,7 @@
                 // ------------------------
                 // SEI
                 // ------------------------
-                case Ins.SEI:
+                case OpCodeId.SEI:
                     ProcessorStatus.InterruptDisable = true;
                     // Consume extra cycle to set flag?
                     ExecState.CyclesConsumed ++;
@@ -1270,7 +1270,7 @@
                 // ------------------------
                 // Misc system instructions
                 // ------------------------
-                case Ins.BRK:
+                case OpCodeId.BRK:
                     // BRK is strange. The complete instruction is only one byte but the processor increases 
                     // the return address pushed to stack is the *second* byte after the opcode!
                     // It is advisable to use a NOP after it to avoid issues (when returning from BRK with RTI, the PC will point to the next-next instruction)
@@ -1290,7 +1290,7 @@
                     PC = FetchWord(mem, CPU.BrkIRQHandlerVector);
                     break;
 
-                case Ins.RTI:
+                case OpCodeId.RTI:
                     ProcessorStatus.Value = PopByteFromStack(mem);
                     ProcessorStatus.Break = false;
                     ProcessorStatus.Unused = false;
@@ -1299,7 +1299,7 @@
                     ExecState.CyclesConsumed += 2;
                     break;                                                            
 
-                case Ins.NOP:
+                case OpCodeId.NOP:
                     // TODO: What is extra cycle for?
                     ExecState.CyclesConsumed++;
                     break;                                                            

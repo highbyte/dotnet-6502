@@ -27,10 +27,10 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.TAY,
+                        Code = OpCodeId.TAY,
                         AddressingMode = AddrMode.Implied,
                         Size = 1,
-                        Cycles = 2,
+                        MinimumCycles = 2,
                     }
             };
         }

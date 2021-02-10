@@ -27,38 +27,38 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.LDY_I,
+                        Code = OpCodeId.LDY_I,
                         AddressingMode = AddrMode.I,
                         Size = 2,
-                        Cycles = 2,
+                        MinimumCycles = 2,
                     },
                     new OpCode
                     {
-                        Code = Ins.LDY_ZP,
+                        Code = OpCodeId.LDY_ZP,
                         AddressingMode = AddrMode.ZP,
                         Size = 2,
-                        Cycles = 3,
+                        MinimumCycles = 3,
                     },
                     new OpCode
                     {
-                        Code = Ins.LDY_ZP_X,
+                        Code = OpCodeId.LDY_ZP_X,
                         AddressingMode = AddrMode.ZP_X,
                         Size = 2,
-                        Cycles = 4,
+                        MinimumCycles = 4,
                     },
                     new OpCode
                     {
-                        Code = Ins.LDY_ABS,
+                        Code = OpCodeId.LDY_ABS,
                         AddressingMode = AddrMode.ABS,
                         Size = 3,
-                        Cycles = 4,
+                        MinimumCycles = 4,
                     },
                     new OpCode
                     {
-                        Code = Ins.LDY_ABS_X,
+                        Code = OpCodeId.LDY_ABS_X,
                         AddressingMode = AddrMode.ABS_X,
                         Size = 3,
-                        Cycles = 4, // +1 if page boundary is crossed
+                        MinimumCycles = 4, // +1 if page boundary is crossed
                     },
             };
         }

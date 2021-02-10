@@ -60,7 +60,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         /// The CPU instruction value.
         /// </summary>
         /// <value></value>
-        public Ins Instruction { get; set; }
+        public OpCodeId Instruction { get; set; }
 
         /// <summary>
         /// Optional.
@@ -614,12 +614,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 //      -- JSR instruction
                 //
                 if(addrMode != AddrMode.Relative
-                    && Instruction != Ins.BRK     // Implied addressing mode
-                    && Instruction != Ins.RTS     // Implied addressing mode
-                    && Instruction != Ins.RTI     // Implied addressing mode
-                    && Instruction != Ins.JMP_IND // Indirect addressing mode
-                    && Instruction != Ins.JMP_ABS // Absolute addressing mode
-                    && Instruction != Ins.JSR     // Absolute addressing mode
+                    && Instruction != OpCodeId.BRK     // Implied addressing mode
+                    && Instruction != OpCodeId.RTS     // Implied addressing mode
+                    && Instruction != OpCodeId.RTI     // Implied addressing mode
+                    && Instruction != OpCodeId.JMP_IND // Indirect addressing mode
+                    && Instruction != OpCodeId.JMP_ABS // Absolute addressing mode
+                    && Instruction != OpCodeId.JSR     // Absolute addressing mode
                 )
                     Assert.Equal(codeMemPos, cpu.PC);
             }

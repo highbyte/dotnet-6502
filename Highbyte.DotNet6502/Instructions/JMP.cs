@@ -23,17 +23,17 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.JMP_ABS,
+                        Code = OpCodeId.JMP_ABS,
                         AddressingMode = AddrMode.ABS,
                         Size = 3,
-                        Cycles = 3,
+                        MinimumCycles = 3,
                     },
                     new OpCode
                     {
-                        Code = Ins.JMP_IND,
+                        Code = OpCodeId.JMP_IND,
                         AddressingMode = AddrMode.Indirect,
                         Size = 3,
-                        Cycles = 5,
+                        MinimumCycles = 5,
                     },
             };
         }

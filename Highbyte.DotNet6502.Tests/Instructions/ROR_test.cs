@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.ROR_ACC,
+                Instruction    = OpCodeId.ROR_ACC,
                 ExpectedCycles = 1,
             };
             test.Execute_And_Verify(AddrMode.Accumulator);
@@ -22,7 +22,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C              = false,
                 A              = 0b10011001,
-                Instruction    = Ins.ROR_ACC,
+                Instruction    = OpCodeId.ROR_ACC,
                 ExpectedA      = 0b01001100,
                 ExpectedC      = true
             };
@@ -36,7 +36,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C              = true,
                 A              = 0b10011000,
-                Instruction    = Ins.ROR_ACC,
+                Instruction    = OpCodeId.ROR_ACC,
                 ExpectedA      = 0b11001100,        // Bit 7 set to the original carry
                 ExpectedC      = false
             };
@@ -50,7 +50,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C              = false,
                 A              = 0b00000001,
-                Instruction    = Ins.ROR_ACC,
+                Instruction    = OpCodeId.ROR_ACC,
                 ExpectedA      = 0b00000000,
                 ExpectedZ      = true
             };
@@ -64,7 +64,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C              = false,
                 A              = 0b10000001,
-                Instruction    = Ins.ROR_ACC,
+                Instruction    = OpCodeId.ROR_ACC,
                 ExpectedA      = 0b01000000,
                 ExpectedZ      = false
             };
@@ -78,7 +78,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C              = true,
                 A              = 0b11111111,
-                Instruction    = Ins.ROR_ACC,
+                Instruction    = OpCodeId.ROR_ACC,
                 ExpectedA      = 0b11111111,
                 ExpectedN      = true
             };
@@ -92,7 +92,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C              = false,
                 A              = 0b11111111,
-                Instruction    = Ins.ROR_ACC,
+                Instruction    = OpCodeId.ROR_ACC,
                 ExpectedA      = 0b01111111,
                 ExpectedN      = false
             };
@@ -113,7 +113,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 C              = false,
-                Instruction    = Ins.ROR_ZP,
+                Instruction    = OpCodeId.ROR_ZP,
                 InsEffect      = InstrEffect.Mem,
                 FinalValue     = 0b00110010,
                 ExpectedMemVal = 0b00011001,
@@ -129,7 +129,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C              = false,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.ROR_ZP_X,
+                Instruction    = OpCodeId.ROR_ZP_X,
                 FinalValue     = 0b00110010,
                 ExpectedMemVal = 0b00011001,
                 ExpectedCycles = 6
@@ -147,7 +147,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C              = false,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.ROR_ZP_X,
+                Instruction    = OpCodeId.ROR_ZP_X,
                 FinalValue     = 0b00110010,
                 ExpectedMemVal = 0b00011001,
                 ExpectedCycles = 6
@@ -162,7 +162,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C              = false,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.ROR_ABS,
+                Instruction    = OpCodeId.ROR_ABS,
                 FinalValue     = 0b00110010,
                 ExpectedMemVal = 0b00011001,
                 ExpectedCycles = 6
@@ -177,7 +177,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C              = false,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.ROR_ABS_X,
+                Instruction    = OpCodeId.ROR_ABS_X,
                 FinalValue     = 0b00110010,
                 ExpectedMemVal = 0b00011001,
                 ExpectedCycles = 7
@@ -192,7 +192,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C              = false,
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = Ins.ROR_ABS_X,
+                Instruction    = OpCodeId.ROR_ABS_X,
                 FinalValue     = 0b00110010,
                 ExpectedMemVal = 0b00011001,
                 ExpectedCycles = 7

@@ -36,31 +36,31 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.DEC_ZP,
+                        Code = OpCodeId.DEC_ZP,
                         AddressingMode = AddrMode.ZP,
                         Size = 2,
-                        Cycles = 5,
+                        MinimumCycles = 5,
                     },
                     new OpCode
                     {
-                        Code = Ins.DEC_ZP_X,
+                        Code = OpCodeId.DEC_ZP_X,
                         AddressingMode = AddrMode.ZP_X,
                         Size = 2,
-                        Cycles = 6,
+                        MinimumCycles = 6,
                     },
                     new OpCode
                     {
-                        Code = Ins.DEC_ABS,
+                        Code = OpCodeId.DEC_ABS,
                         AddressingMode = AddrMode.ABS,
                         Size = 3,
-                        Cycles = 6,
+                        MinimumCycles = 6,
                     },
                     new OpCode
                     {
-                        Code = Ins.DEC_ABS_X,
+                        Code = OpCodeId.DEC_ABS_X,
                         AddressingMode = AddrMode.ABS_X,
                         Size = 3,
-                        Cycles = 7,
+                        MinimumCycles = 7,
                     },
             };
         }

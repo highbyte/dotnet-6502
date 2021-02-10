@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x01,
                 ExpectedCycles  = 2,
             };
@@ -23,7 +23,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,  // Carry must be set before SBC to perform a subtraction without borrow.
                 A               = 0x00,
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x00,
                 ExpectedA       = 0x00,
                 ExpectedC       = true,  // Carry should still be set after instruction
@@ -38,7 +38,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = false,
                 A               = 0x00,
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x00,
                 ExpectedA       = 0xff,
                 ExpectedC       = false,
@@ -54,7 +54,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = false,
                 A               = 0x00,
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0xff,
                 ExpectedA       = 0x00,   // Will result in 0 and not 1 (because of C clear at beginning?)
                 ExpectedC       = false,  // Carry should still be clear after instruction
@@ -69,7 +69,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x00,
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0xff,
                 ExpectedA       = 0x01,   // Will result in 1 (correct because Carry was set before)
                 ExpectedC       = false,  // Carry should still be clear after instruction
@@ -84,7 +84,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,  // Carry must be set before SBC to perform a subtraction without borrow.
                 A               = 0x03,
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x01,
                 ExpectedA       = 0x02,
             };
@@ -98,7 +98,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02,
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0xff, // -1
                 ExpectedA       = 0x03,
             };
@@ -112,7 +112,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0xff, // -1
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0xfe, // -2
                 ExpectedA       = 0x01,
             };
@@ -126,7 +126,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x00,
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x00,
                 ExpectedA       = 0x00,
                 ExpectedZ       = true,
@@ -141,7 +141,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x00,
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x01,
                 ExpectedZ       = false,
             };
@@ -155,7 +155,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x00,
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0xff, // -1
                 ExpectedZ       = false,
             };
@@ -169,7 +169,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x00,
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x01,
                 ExpectedN       = true,
             };
@@ -187,7 +187,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x20, // 32
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x10, // 16
                 ExpectedA       = 0x10, // 16
                 ExpectedC       = true,
@@ -202,7 +202,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x10, // 16
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x20, // 32
                 ExpectedA       = 0xf0, // -16
                 ExpectedC       = false,
@@ -217,7 +217,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x10, // 16
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x10, // 32
                 ExpectedA       = 0x00, // -16
                 ExpectedC       = true,
@@ -232,7 +232,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x10, // 16
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0xff, // -1
                 ExpectedA       = 0x11, // 17
                 ExpectedC       = false, // Because subtracting a neg nr? Compare with #$20-#$10 which get Carry 1
@@ -247,7 +247,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0xf0, // -16
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0xff, // -1
                 ExpectedA       = 0xf1, // -15
                 ExpectedC       = false, // Because subtracting a neg nr? compare with #$20-#$10 which get Carry 1
@@ -262,7 +262,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0xf0, // -16
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0xef, // -17
                 ExpectedA       = 0x01, // 1
                 ExpectedC       = true, //  Event though subtracting a neg nr, result is positive, so still Carry 1
@@ -278,7 +278,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0xf0, // -16
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x01, // 1
                 ExpectedA       = 0xef, // -17
                 ExpectedC       = true, // Because even though result in negative, the A and operand have different signs?
@@ -297,7 +297,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02, // 2
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x01, // 1
                 ExpectedV       = false,
             };
@@ -311,7 +311,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0xfe, // -2
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x7f, // 127
                 // -2 -127 = -129, which is an invalid signed number (minimum -128), therefor the result is not correct.
                 // Result will be 0x7f, which is not correct, and therefor the Overflow flag is set.
@@ -327,7 +327,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x01, // 1
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x81, // -127
                 // 1 -(-127) = 128, which is an invalid signed number (maximum 127), therefor the result is not correct.
                 ExpectedV       = true,
@@ -342,7 +342,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0xfe, // -2
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x7e, // 126
                 // -2 -126 = -128, is a valid signed number (minimum -128)
                 // Therefor the Overflow flag is clear.
@@ -359,7 +359,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x01, // 1
-                Instruction     = Ins.SBC_I,
+                Instruction     = OpCodeId.SBC_I,
                 FinalValue      = 0x82, // -126
                 // 1 -(-126) = 127, which is an valid signed number (maximum 127).
                 // And therefor the Overflow flag is clear.
@@ -383,7 +383,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02,
-                Instruction     = Ins.SBC_ZP,
+                Instruction     = OpCodeId.SBC_ZP,
                 FinalValue      = 0x01,
                 ExpectedA       = 0x01,
                 ExpectedCycles  = 3,
@@ -398,7 +398,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02,
-                Instruction     = Ins.SBC_ZP_X,
+                Instruction     = OpCodeId.SBC_ZP_X,
                 FinalValue      = 0x01,
                 ExpectedA       = 0x01,
                 ExpectedCycles  = 4,
@@ -417,7 +417,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02,
-                Instruction     = Ins.SBC_ZP_X,
+                Instruction     = OpCodeId.SBC_ZP_X,
                 FinalValue      = 0x01,
                 ExpectedA       = 0x01,
                 ExpectedCycles  = 4,
@@ -436,7 +436,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02,
-                Instruction     = Ins.SBC_ABS,
+                Instruction     = OpCodeId.SBC_ABS,
                 FinalValue      = 0x01,
                 ExpectedA       = 0x01,
                 ExpectedCycles  = 4,
@@ -451,7 +451,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02,
-                Instruction     = Ins.SBC_ABS_X,
+                Instruction     = OpCodeId.SBC_ABS_X,
                 FinalValue      = 0x01,
                 ExpectedA       = 0x01,
                 ExpectedCycles  = 4,
@@ -469,7 +469,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02,
-                Instruction     = Ins.SBC_ABS_X,
+                Instruction     = OpCodeId.SBC_ABS_X,
                 FinalValue      = 0x01,
                 ExpectedA       = 0x01,
                 ExpectedCycles  = 5,
@@ -484,7 +484,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02,
-                Instruction     = Ins.SBC_ABS_Y,
+                Instruction     = OpCodeId.SBC_ABS_Y,
                 FinalValue      = 0x01,
                 ExpectedA       = 0x01,
                 ExpectedCycles  = 4,
@@ -502,7 +502,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02,
-                Instruction     = Ins.SBC_ABS_Y,
+                Instruction     = OpCodeId.SBC_ABS_Y,
                 FinalValue      = 0x01,
                 ExpectedA       = 0x01,
                 ExpectedCycles  = 5,
@@ -531,7 +531,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02,
-                Instruction     = Ins.SBC_IX_IND,
+                Instruction     = OpCodeId.SBC_IX_IND,
                 FinalValue      = 0x01,
                 ExpectedA       = 0x01,
                 ExpectedCycles  = 6,
@@ -549,7 +549,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02,
-                Instruction     = Ins.SBC_IX_IND,
+                Instruction     = OpCodeId.SBC_IX_IND,
                 FinalValue      = 0x01,
                 ExpectedA       = 0x01,
                 ExpectedCycles  = 6,
@@ -581,7 +581,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02,
-                Instruction     = Ins.SBC_IND_IX,
+                Instruction     = OpCodeId.SBC_IND_IX,
                 FinalValue      = 0x01,
                 ExpectedA       = 0x01,
                 ExpectedCycles  = 5,
@@ -601,7 +601,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C               = true,
                 A               = 0x02,
-                Instruction     = Ins.SBC_IND_IX,
+                Instruction     = OpCodeId.SBC_IND_IX,
                 FinalValue      = 0x01,
                 ExpectedA       = 0x01,
                 ExpectedCycles  = 6,

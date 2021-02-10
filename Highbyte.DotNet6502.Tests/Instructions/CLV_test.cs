@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.CLV,
+                Instruction    = OpCodeId.CLV,
                 ExpectedCycles = 2,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -21,7 +21,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 V              = true,
-                Instruction    = Ins.CLV,
+                Instruction    = OpCodeId.CLV,
                 ExpectedV      = false,
             };
             test.Execute_And_Verify(AddrMode.Implied);

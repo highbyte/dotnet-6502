@@ -26,10 +26,10 @@ namespace Highbyte.DotNet6502.Instructions
                 {
                     new OpCode
                     {
-                        Code = Ins.DEX,
+                        Code = OpCodeId.DEX,
                         AddressingMode = AddrMode.Implied,
                         Size = 1,
-                        Cycles = 2,
+                        MinimumCycles = 2,
                     }
             };
         }

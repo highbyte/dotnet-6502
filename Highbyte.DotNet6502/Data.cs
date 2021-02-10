@@ -10,7 +10,7 @@ namespace Highbyte.DotNet6502
             {
                 // TODO: Add init code for setting SP, I flag, etc, as a normal 6502 would do in the reset vector
                 // End with jumping to address where our actual user code lives. Typically this would be the address of Basic.
-                (byte)Ins.JMP_ABS
+                (byte)OpCodeId.JMP_ABS
             };
             List<byte> code = list;
             code.AddRange(userCodeAddress.ToLittleEndianBytes()); 

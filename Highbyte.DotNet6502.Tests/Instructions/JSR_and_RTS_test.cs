@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.JSR,
+                Instruction    = OpCodeId.JSR,
                 ExpectedCycles = 6,
             };
             test.Execute_And_Verify(AddrMode.ABS);
@@ -31,11 +31,11 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             ushort branchPos = 0x0500;
 
             // Code at start address
-            _mem.WriteByte(ref startPos, Ins.JSR);
+            _mem.WriteByte(ref startPos, OpCodeId.JSR);
             _mem.WriteWord(ref startPos, branchPos);
 
             // Code at branch jsr address
-            _mem.WriteByte(ref branchPos, Ins.LDA_I);
+            _mem.WriteByte(ref branchPos, OpCodeId.LDA_I);
             _mem.WriteByte(ref branchPos, expectedAValue);
 
             // Act
@@ -67,15 +67,15 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var cpuCopy  = cpu.Clone();
 
             // Code at start address
-            _mem.WriteByte(ref startPos, Ins.JSR);
+            _mem.WriteByte(ref startPos, OpCodeId.JSR);
             _mem.WriteWord(ref startPos, branchPos);
-            _mem.WriteByte(ref startPos, Ins.LDA_I);
+            _mem.WriteByte(ref startPos, OpCodeId.LDA_I);
             _mem.WriteByte(ref startPos, expectedAValue);
 
             // Code at branch jsr address
-            _mem.WriteByte(ref branchPos, Ins.LDA_I);
+            _mem.WriteByte(ref branchPos, OpCodeId.LDA_I);
             _mem.WriteByte(ref branchPos, (byte) (expectedAValue + 1)); // In subroutine we set A to some other value than we will set later when we return.
-            _mem.WriteByte(ref branchPos, Ins.RTS);
+            _mem.WriteByte(ref branchPos, OpCodeId.RTS);
 
             // Act
             var execOptions = new ExecOptions

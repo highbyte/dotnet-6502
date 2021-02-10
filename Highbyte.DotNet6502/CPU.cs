@@ -154,7 +154,7 @@ namespace Highbyte.DotNet6502
                     // {
                     //     PC = tempPC;
                     //     ExecState = tempExecState;
-                    //     instructionHandled = HandleInstruction(opCode.ToIns(), mem);
+                    //     instructionHandled = HandleInstruction(opCode.ToOpCodeId(), mem);
                     // }
                 }
                 else

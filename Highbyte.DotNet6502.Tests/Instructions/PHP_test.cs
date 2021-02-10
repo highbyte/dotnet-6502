@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.PHP,
+                Instruction    = OpCodeId.PHP,
                 ExpectedCycles = 3,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -29,7 +29,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 U              = false, // Status bit 5 (Unused) clear when we start
                 V              = false,
                 N              = true,  // Status bit 7
-                Instruction    = Ins.PHP,
+                Instruction    = OpCodeId.PHP,
             };
             test.Execute_And_Verify(AddrMode.Implied);
 
@@ -56,7 +56,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 U              = true,
                 V              = false,
                 N              = true,  // Status bit 7
-                Instruction    = Ins.PHP,
+                Instruction    = OpCodeId.PHP,
                 ExpectedC      = false, // Status bit 0
                 ExpectedZ      = true,
                 ExpectedI      = false,

@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = Ins.TAY,
+                Instruction    = OpCodeId.TAY,
                 ExpectedCycles = 2,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -22,7 +22,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x34,
                 Y              = 0x22,
-                Instruction    = Ins.TAY,
+                Instruction    = OpCodeId.TAY,
                 ExpectedY      = 0x34,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -35,7 +35,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x00,
                 Y              = 0x01,
-                Instruction    = Ins.TAY,
+                Instruction    = OpCodeId.TAY,
                 ExpectedZ      = true,
                 ExpectedY      = 0x00,
             };
@@ -49,7 +49,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x34,
                 Y              = 0x01,
-                Instruction    = Ins.TAY,
+                Instruction    = OpCodeId.TAY,
                 ExpectedZ      = false,
                 ExpectedY      = 0x34,
             };
@@ -63,7 +63,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0xfe,
                 Y              = 0x00,
-                Instruction    = Ins.TAY,
+                Instruction    = OpCodeId.TAY,
                 ExpectedN      = true,
                 ExpectedY      = 0xfe,
             };
@@ -77,7 +77,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 A              = 0x34,
                 Y              = 0x01,
-                Instruction    = Ins.TAY,
+                Instruction    = OpCodeId.TAY,
                 ExpectedN      = false,
                 ExpectedY      = 0x34,
             };
