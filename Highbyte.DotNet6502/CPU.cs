@@ -164,8 +164,7 @@ namespace Highbyte.DotNet6502
                         OnUnknownOpCodeDetected(new CPUUnknownOpCodeDetectedEventArgs(this, lastOpCode));
                         Debug.WriteLine($"Unknown opcode: {lastOpCode.ToHex()}");
                         if(execOptions.UnknownInstructionThrowsException)
-                            // TODO: Use custom Exception class
-                            throw new Exception($"Unknown opcode: {lastOpCode.ToHex()}"); 
+                            throw new DotNet6502Exception($"Unknown opcode: {lastOpCode.ToHex()}"); 
                 }
                 else
                 {

@@ -25,7 +25,7 @@ namespace Highbyte.DotNet6502.Instructions
                 if(addrModeCalcResult.OpCode.AddressingMode == AddrMode.ABS_X)
                 {
                     if(!addrModeCalcResult.AddressCalculationCrossedPageBoundary)
-                        // TODO: Is this correCt: Two extra cycles for ASL before writing back to memory if we did NOT cross page boundary?
+                        // TODO: Is this correct: Two extra cycles for ASL before writing back to memory if we did NOT cross page boundary?
                         cpu.ExecState.CyclesConsumed += 2;
                     else
                         // TODO: Is this correct: Extra cycle if the address + X crosses page boundary (1 extra was already added in CalcFullAddressX)

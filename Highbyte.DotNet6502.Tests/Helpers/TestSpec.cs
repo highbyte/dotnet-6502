@@ -181,57 +181,56 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             if(!InsEffect.HasValue)
                 InsEffect = InstrEffect.Reg;
 
-            // TODO: Use custom Exception class on all throw below
             if(addrMode == AddrMode.Accumulator && FinalValue.HasValue)
-                throw new Exception($"If {nameof(AddrMode)} is {nameof(AddrMode.Accumulator)}, {nameof(FinalValue)} cannot be used.");
+                throw new DotNet6502Exception($"If {nameof(AddrMode)} is {nameof(AddrMode.Accumulator)}, {nameof(FinalValue)} cannot be used.");
 
             if(addrMode == AddrMode.Implied && FinalValue.HasValue)
-                throw new Exception($"If {nameof(addrMode)} is {nameof(AddrMode.Implied)}, {nameof(FinalValue)} cannot be used.");
+                throw new DotNet6502Exception($"If {nameof(addrMode)} is {nameof(AddrMode.Implied)}, {nameof(FinalValue)} cannot be used.");
 
             if(addrMode != AddrMode.Indirect && FinalValueWord.HasValue)
-                throw new Exception($"If {nameof(AddrMode)} is other than {nameof(AddrMode.Indirect)}, {nameof(FinalValueWord)} cannot be used.");
+                throw new DotNet6502Exception($"If {nameof(AddrMode)} is other than {nameof(AddrMode.Indirect)}, {nameof(FinalValueWord)} cannot be used.");
 
             if(InsEffect == InstrEffect.Reg)
             {
                 if(ExpectedMemVal.HasValue)
-                    throw new Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.Reg)}, {nameof(ExpectedMemVal)} is not supposed to be set (only used for comparing memory address changed by write)");
+                    throw new DotNet6502Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.Reg)}, {nameof(ExpectedMemVal)} is not supposed to be set (only used for comparing memory address changed by write)");
                 if(addrMode == AddrMode.Accumulator && (ExpectedX.HasValue ||ExpectedY.HasValue ))
-                    throw new Exception($"If {nameof(addrMode)} is {nameof(AddrMode.Accumulator)}, {nameof(ExpectedX)} or {nameof(ExpectedY)} cannot be used, because addressing mode {nameof(AddrMode.Accumulator)} only can affect A register.");
+                    throw new DotNet6502Exception($"If {nameof(addrMode)} is {nameof(AddrMode.Accumulator)}, {nameof(ExpectedX)} or {nameof(ExpectedY)} cannot be used, because addressing mode {nameof(AddrMode.Accumulator)} only can affect A register.");
                 if(ExpectedA.HasValue && !A.HasValue)
-                    throw new Exception($"If {nameof(ExpectedA)} is set, {nameof(A)} must be set to an initial value");
+                    throw new DotNet6502Exception($"If {nameof(ExpectedA)} is set, {nameof(A)} must be set to an initial value");
                 if(ExpectedX.HasValue && !X.HasValue)
-                    throw new Exception($"If {nameof(ExpectedX)} is set, {nameof(X)} must be set to an initial value");
+                    throw new DotNet6502Exception($"If {nameof(ExpectedX)} is set, {nameof(X)} must be set to an initial value");
                 if(ExpectedY.HasValue && !Y.HasValue)
-                    throw new Exception($"If {nameof(ExpectedY)} is set, {nameof(Y)} must be set to an initial value");
+                    throw new DotNet6502Exception($"If {nameof(ExpectedY)} is set, {nameof(Y)} must be set to an initial value");
             }
             else if (InsEffect == InstrEffect.Mem)
             {
                 if(addrMode == AddrMode.Implied)
-                    throw new Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.Mem)}, {nameof(addrMode)} {nameof(AddrMode.Implied)} cannot be used.");
+                    throw new DotNet6502Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.Mem)}, {nameof(addrMode)} {nameof(AddrMode.Implied)} cannot be used.");
 
                 if(addrMode == AddrMode.Accumulator)
-                    throw new Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.Mem)}, {nameof(addrMode)} {nameof(AddrMode.Accumulator)} cannot be used.");
+                    throw new DotNet6502Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.Mem)}, {nameof(addrMode)} {nameof(AddrMode.Accumulator)} cannot be used.");
 
                 if(ExpectedMemVal.HasValue && addrMode == AddrMode.I)
-                    throw new Exception($"{nameof(ExpectedMemVal)} cannot be used with addressing mode {nameof(AddrMode.I)}");
+                    throw new DotNet6502Exception($"{nameof(ExpectedMemVal)} cannot be used with addressing mode {nameof(AddrMode.I)}");
 
                 if(ExpectedMemVal.HasValue && addrMode == AddrMode.Accumulator)
-                    throw new Exception($"{nameof(ExpectedMemVal)} cannot be used with addressing mode {nameof(AddrMode.Accumulator)}");
+                    throw new DotNet6502Exception($"{nameof(ExpectedMemVal)} cannot be used with addressing mode {nameof(AddrMode.Accumulator)}");
 
                 if(ExpectedMemVal.HasValue & !FinalValue.HasValue)
-                    throw new Exception($"If {nameof(ExpectedMemVal)} is set, {nameof(FinalValue)} must also be set to an initial value that the memory will have before the instruction executes");
+                    throw new DotNet6502Exception($"If {nameof(ExpectedMemVal)} is set, {nameof(FinalValue)} must also be set to an initial value that the memory will have before the instruction executes");
 
                 if(ExpectedA.HasValue)
-                    throw new Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.Mem)}, {nameof(ExpectedA)} is not supposed to be set (only used for comparing register change after instruction executed)");
+                    throw new DotNet6502Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.Mem)}, {nameof(ExpectedA)} is not supposed to be set (only used for comparing register change after instruction executed)");
                 if(ExpectedX.HasValue)
-                    throw new Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.Mem)}, {nameof(ExpectedX)} is not supposed to be set (only used for comparing register change after instruction executed)");
+                    throw new DotNet6502Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.Mem)}, {nameof(ExpectedX)} is not supposed to be set (only used for comparing register change after instruction executed)");
                 if(ExpectedY.HasValue)
-                    throw new Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.Mem)}, {nameof(ExpectedY)} is not supposed to be set (only used for comparing register change after instruction executed)");
+                    throw new DotNet6502Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.Mem)}, {nameof(ExpectedY)} is not supposed to be set (only used for comparing register change after instruction executed)");
             }
             else if (InsEffect == InstrEffect.RegAndMem)
             {
                 if(addrMode == AddrMode.Implied)
-                    throw new Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.RegAndMem)}, {nameof(addrMode)} {nameof(AddrMode.Implied)} cannot be used.");
+                    throw new DotNet6502Exception($"If {nameof(InsEffect)} is {nameof(InstrEffect.RegAndMem)}, {nameof(addrMode)} {nameof(AddrMode.Implied)} cannot be used.");
             }
 
             // If processor flags aren't configured to be initialized by test, we automatically set them to the opposite of what was defined as the expected result
@@ -553,7 +552,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                     break;
 
                 default:
-                    throw new Exception($"Unhandled addressing mode: {addrMode}");
+                    throw new DotNet6502Exception($"Unhandled addressing mode: {addrMode}");
             }
 
             // Init registers and flags
@@ -642,7 +641,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             else if (InsEffect == InstrEffect.Mem || InsEffect == InstrEffect.RegAndMem)
             {
                 if(!finalAddressUsed.HasValue)
-                    throw new Exception($"Incorrect use of TestSpec class, or bug in TestSpec class. Is correct addressing mode being tested? Variable {nameof(finalAddressUsed)} must be initialized in all addressing mode code paths that can modify memory");
+                    throw new DotNet6502Exception($"Incorrect use of TestSpec class, or bug in TestSpec class. Is correct addressing mode being tested? Variable {nameof(finalAddressUsed)} must be initialized in all addressing mode code paths that can modify memory");
                 if(ExpectedMemVal.HasValue)
                     Assert.Equal(ExpectedMemVal.Value, mem[finalAddressUsed.Value]);
             }

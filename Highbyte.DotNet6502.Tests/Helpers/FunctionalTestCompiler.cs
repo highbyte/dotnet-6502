@@ -98,8 +98,7 @@ namespace Highbyte.DotNet6502.Tests.Helpers
             }
 
             if(!File.Exists(compiledBinFile))
-                // TODO: Use custom Exception class
-                throw new Exception($"Executing {as65exeFilePath} with arguments {arguments} did not generate expected binary file at {compiledBinFile}");
+                throw new DotNet6502Exception($"Executing {as65exeFilePath} with arguments {arguments} did not generate expected binary file at {compiledBinFile}");
             return compiledBinFile;
         }
 
