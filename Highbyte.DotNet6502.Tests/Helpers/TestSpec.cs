@@ -555,6 +555,10 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                     throw new DotNet6502Exception($"Unhandled addressing mode: {addrMode}");
             }
 
+            // Before we execute intruction, verify internal consistency of number of bytes the instruction takes by our test-setup code above
+            // with the value specified in OpCode.Bytes class.
+            Assert.Equal(cpu.PC + cpu.InstructionList.GetOpCode(Instruction.ToByte()).Size , codeMemPos);
+
             // Init registers and flags
             if(A.HasValue)
                 cpu.A = A.Value;

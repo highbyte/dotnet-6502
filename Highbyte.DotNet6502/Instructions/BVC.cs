@@ -33,7 +33,7 @@ namespace Highbyte.DotNet6502.Instructions
 
                     Code = OpCodeId.BVC,
                     AddressingMode = AddrMode.Relative,
-                    Size = 1,
+                    Size = 2,
                     MinimumCycles = 2, // +1 if branch succeeds +2 if to a new page
                 },
             };
