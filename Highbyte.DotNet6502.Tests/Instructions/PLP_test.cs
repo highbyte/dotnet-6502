@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.PLP,
+                OpCode         = OpCodeId.PLP,
                 ExpectedCycles = 4,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -23,7 +23,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 SP             = 0xfe,
                 PS             = 0x00,
-                Instruction    = OpCodeId.PLP,
+                OpCode         = OpCodeId.PLP,
                 ExpectedPS     = 0x12,
                 ExpectedSP     = 0xff,
             };
@@ -44,7 +44,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 SP             = 0xfe,
                 PS             = 0x00,
-                Instruction    = OpCodeId.PLP,
+                OpCode         = OpCodeId.PLP,
                 ExpectedPS     = 0xff,
                 ExpectedSP     = 0xff,
             };
@@ -69,7 +69,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 SP             = 0xff,
                 PS             = 0x00,
-                Instruction    = OpCodeId.PLP,
+                OpCode         = OpCodeId.PLP,
                 ExpectedSP     = 0x00,
                 ExpectedPS     = expectedValueFromStack,
             };

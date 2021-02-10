@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.JMP_ABS,
+                OpCode         = OpCodeId.JMP_ABS,
                 ExpectedCycles = 3,
             };
             test.Execute_And_Verify(AddrMode.ABS);
@@ -57,7 +57,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.JMP_IND,
+                OpCode         = OpCodeId.JMP_IND,
                 ExpectedCycles = 5,
             };
             test.Execute_And_Verify(AddrMode.Indirect);

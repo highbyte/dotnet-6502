@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.JSR,
+                OpCode         = OpCodeId.JSR,
                 ExpectedCycles = 6,
             };
             test.Execute_And_Verify(AddrMode.ABS);

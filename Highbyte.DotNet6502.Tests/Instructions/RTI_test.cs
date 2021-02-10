@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.RTI,
+                OpCode         = OpCodeId.RTI,
                 ExpectedCycles = 6,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -25,7 +25,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 SP             = 0xfc,
                 PS             = 0x33,
-                Instruction    = OpCodeId.RTI,
+                OpCode         = OpCodeId.RTI,
                 ExpectedPC     = returnAddressOnStack,
                 ExpectedSP     = 0xfc + 3       // 1 byte for processor status, 2 bytes for return address
             };
@@ -54,7 +54,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 SP             = 0xfc,
                 PS             = 0x33,
-                Instruction    = OpCodeId.RTI,
+                OpCode         = OpCodeId.RTI,
                 ExpectedPS     = expectedPSAfterInstruction,
                 ExpectedSP     = 0xfc + 3       // 1 byte for processor status, 2 bytes for return address
             };

@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.INX,
+                OpCode         = OpCodeId.INX,
                 ExpectedCycles = 2,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -21,7 +21,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 X              = 0x01,
-                Instruction    = OpCodeId.INX,
+                OpCode         = OpCodeId.INX,
                 ExpectedX      = 0x02,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -33,7 +33,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 X              = 0xff,
-                Instruction    = OpCodeId.INX,
+                OpCode         = OpCodeId.INX,
                 ExpectedX      = 0x00,
                 ExpectedZ      = true,
             };
@@ -45,7 +45,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 X              = 0x00,
-                Instruction    = OpCodeId.INX,
+                OpCode         = OpCodeId.INX,
                 ExpectedX      = 0x01,
                 ExpectedZ      = false,
             };
@@ -58,7 +58,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 X              = 0xfe,
-                Instruction    = OpCodeId.INX,
+                OpCode         = OpCodeId.INX,
                 ExpectedX      = 0xff,
                 ExpectedN      = true,
             };
@@ -71,7 +71,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 X              = 0x01,
-                Instruction    = OpCodeId.INX,
+                OpCode         = OpCodeId.INX,
                 ExpectedX      = 0x02,
                 ExpectedN      = false,
             };

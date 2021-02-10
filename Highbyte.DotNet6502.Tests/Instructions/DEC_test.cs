@@ -11,7 +11,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.DEC_ZP,
+                OpCode         = OpCodeId.DEC_ZP,
                 ExpectedCycles = 5,
             };
             test.Execute_And_Verify(AddrMode.ZP);
@@ -23,7 +23,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.DEC_ZP,
+                OpCode         = OpCodeId.DEC_ZP,
                 FinalValue     = 0x02,  // Will get written to the memory location being changed before instruction runs. Default address is used if not specified in ZeroPageAddress
                 //ZeroPageAddress = 0x20  // Optional. Will use a default ZeroPage address for test if not set
                 ExpectedMemVal = 0x01,
@@ -37,7 +37,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.DEC_ZP,
+                OpCode         = OpCodeId.DEC_ZP,
                 FinalValue     = 0x01,
                 ExpectedMemVal = 0x00,
                 ExpectedZ      = true,
@@ -51,7 +51,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.DEC_ZP,
+                OpCode         = OpCodeId.DEC_ZP,
                 FinalValue     = 0x02,
                 ExpectedMemVal = 0x01,
                 ExpectedZ      = false,
@@ -65,7 +65,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.DEC_ZP,
+                OpCode         = OpCodeId.DEC_ZP,
                 FinalValue     = 0x00,
                 ExpectedMemVal = 0xff,
                 ExpectedN      = true,
@@ -79,7 +79,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.DEC_ZP,
+                OpCode         = OpCodeId.DEC_ZP,
                 FinalValue     = 0x02,
                 ExpectedMemVal = 0x01,
                 ExpectedN      = false,
@@ -101,7 +101,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.DEC_ZP_X,
+                OpCode         = OpCodeId.DEC_ZP_X,
                 FinalValue     = 0x02,
                 ExpectedMemVal = 0x01,
                 ExpectedCycles = 6,
@@ -120,7 +120,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.DEC_ZP_X,
+                OpCode         = OpCodeId.DEC_ZP_X,
                 FinalValue     = 0x02,
                 ExpectedMemVal = 0x01,
                 ExpectedCycles = 6,
@@ -134,7 +134,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.DEC_ABS,
+                OpCode         = OpCodeId.DEC_ABS,
                 FinalValue     = 0x02,
                 ExpectedMemVal = 0x01,
                 ExpectedCycles = 6,
@@ -148,7 +148,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.DEC_ABS_X,
+                OpCode         = OpCodeId.DEC_ABS_X,
                 FinalValue     = 0x02,
                 ExpectedMemVal = 0x01,
                 ExpectedCycles = 7,

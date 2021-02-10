@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.TSX,
+                OpCode         = OpCodeId.TSX,
                 ExpectedCycles = 2,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -22,7 +22,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 SP             = 0x80,
                 X              = 0x34,
-                Instruction    = OpCodeId.TSX,
+                OpCode         = OpCodeId.TSX,
                 ExpectedX      = 0x80,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -35,7 +35,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 SP             = 0x00,
                 X              = 0x34,
-                Instruction    = OpCodeId.TSX,
+                OpCode         = OpCodeId.TSX,
                 ExpectedZ      = true,
                 ExpectedX      = 0x00,
             };
@@ -49,7 +49,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 SP             = 0x34,
                 X              = 0x01,
-                Instruction    = OpCodeId.TSX,
+                OpCode         = OpCodeId.TSX,
                 ExpectedZ      = false,
                 ExpectedX      = 0x34,
             };
@@ -63,7 +63,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 SP             = 0xfe,
                 X              = 0x34,
-                Instruction    = OpCodeId.TSX,
+                OpCode         = OpCodeId.TSX,
                 ExpectedN      = true,
                 ExpectedX      = 0xfe,
             };
@@ -77,7 +77,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 SP             = 0x34,
                 X              = 0x01,
-                Instruction    = OpCodeId.TSX,
+                OpCode         = OpCodeId.TSX,
                 ExpectedN      = false,
                 ExpectedX      = 0x34,
             };

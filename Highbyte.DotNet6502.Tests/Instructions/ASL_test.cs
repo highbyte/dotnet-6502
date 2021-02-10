@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.ASL_ACC,
+                OpCode         = OpCodeId.ASL_ACC,
                 ExpectedCycles = 1,
             };
             test.Execute_And_Verify(AddrMode.Accumulator);
@@ -21,7 +21,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0b10011001,
-                Instruction    = OpCodeId.ASL_ACC,
+                OpCode         = OpCodeId.ASL_ACC,
                 ExpectedA      = 0b00110010,
                 ExpectedC      = true
             };
@@ -35,7 +35,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C              = true,
                 A              = 0b00011001,
-                Instruction    = OpCodeId.ASL_ACC,
+                OpCode         = OpCodeId.ASL_ACC,
                 ExpectedA      = 0b00110010,        // Bit 0 is always set to 0, regardles of carry
                 ExpectedC      = false
             };
@@ -48,7 +48,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0b10000000,
-                Instruction    = OpCodeId.ASL_ACC,
+                OpCode         = OpCodeId.ASL_ACC,
                 ExpectedA      = 0b00000000,
                 ExpectedZ      = true
             };
@@ -61,7 +61,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0b10000001,
-                Instruction    = OpCodeId.ASL_ACC,
+                OpCode         = OpCodeId.ASL_ACC,
                 ExpectedA      = 0b00000010,
                 ExpectedZ      = false
             };
@@ -74,7 +74,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0b01000001,
-                Instruction    = OpCodeId.ASL_ACC,
+                OpCode         = OpCodeId.ASL_ACC,
                 ExpectedA      = 0b10000010,
                 ExpectedN      = true
             };
@@ -87,7 +87,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0b00100001,
-                Instruction    = OpCodeId.ASL_ACC,
+                OpCode         = OpCodeId.ASL_ACC,
                 ExpectedA      = 0b01000010,
                 ExpectedN      = false
             };
@@ -108,7 +108,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.ASL_ZP,
+                OpCode         = OpCodeId.ASL_ZP,
                 InsEffect      = InstrEffect.Mem,
                 FinalValue     = 0b10011001,
                 ExpectedMemVal = 0b00110010,
@@ -123,7 +123,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.ASL_ZP_X,
+                OpCode         = OpCodeId.ASL_ZP_X,
                 FinalValue     = 0b10011001,
                 ExpectedMemVal = 0b00110010,
                 ExpectedCycles = 6
@@ -140,7 +140,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.ASL_ZP_X,
+                OpCode         = OpCodeId.ASL_ZP_X,
                 FinalValue     = 0b10011001,
                 ExpectedMemVal = 0b00110010,
                 ExpectedCycles = 6
@@ -154,7 +154,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.ASL_ABS,
+                OpCode         = OpCodeId.ASL_ABS,
                 FinalValue     = 0b10011001,
                 ExpectedMemVal = 0b00110010,
                 ExpectedCycles = 6
@@ -168,7 +168,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.ASL_ABS_X,
+                OpCode         = OpCodeId.ASL_ABS_X,
                 FinalValue     = 0b10011001,
                 ExpectedMemVal = 0b00110010,
                 ExpectedCycles = 7
@@ -182,7 +182,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.ASL_ABS_X,
+                OpCode         = OpCodeId.ASL_ABS_X,
                 FinalValue     = 0b10011001,
                 ExpectedMemVal = 0b00110010,
                 ExpectedCycles = 7

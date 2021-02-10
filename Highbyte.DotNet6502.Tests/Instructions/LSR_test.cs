@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.LSR_ACC,
+                OpCode         = OpCodeId.LSR_ACC,
                 ExpectedCycles = 1,
             };
             test.Execute_And_Verify(AddrMode.Accumulator);
@@ -21,7 +21,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0b10011001,
-                Instruction    = OpCodeId.LSR_ACC,
+                OpCode         = OpCodeId.LSR_ACC,
                 ExpectedA      = 0b01001100,
                 ExpectedC      = true
             };
@@ -35,7 +35,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 C              = true,
                 A              = 0b10011000,
-                Instruction    = OpCodeId.LSR_ACC,
+                OpCode         = OpCodeId.LSR_ACC,
                 ExpectedA      = 0b01001100,        // Bit 7 is always set to 0, regardles of carry
                 ExpectedC      = false
             };
@@ -48,7 +48,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0b00000001,
-                Instruction    = OpCodeId.LSR_ACC,
+                OpCode         = OpCodeId.LSR_ACC,
                 ExpectedA      = 0b00000000,
                 ExpectedZ      = true
             };
@@ -61,7 +61,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0b10000001,
-                Instruction    = OpCodeId.LSR_ACC,
+                OpCode         = OpCodeId.LSR_ACC,
                 ExpectedA      = 0b01000000,
                 ExpectedZ      = false
             };
@@ -75,7 +75,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         //     var test = new TestSpec
         //     {
         //         A              = 0b11111111,
-        //         Instruction    = OpCodeId.LSR_ACC,
+        //         OpCode         = OpCodeId.LSR_ACC,
         //         ExpectedA      = 0b01111111,
         //         ExpectedN      = true
         //     };
@@ -88,7 +88,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec
             {
                 A              = 0b11111111,
-                Instruction    = OpCodeId.LSR_ACC,
+                OpCode         = OpCodeId.LSR_ACC,
                 ExpectedA      = 0b01111111,
                 ExpectedN      = false
             };
@@ -108,7 +108,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.LSR_ZP,
+                OpCode         = OpCodeId.LSR_ZP,
                 InsEffect      = InstrEffect.Mem,
                 FinalValue     = 0b00110010,
                 ExpectedMemVal = 0b00011001,
@@ -123,7 +123,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.LSR_ZP_X,
+                OpCode         = OpCodeId.LSR_ZP_X,
                 FinalValue     = 0b00110010,
                 ExpectedMemVal = 0b00011001,
                 ExpectedCycles = 6
@@ -140,7 +140,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.LSR_ZP_X,
+                OpCode         = OpCodeId.LSR_ZP_X,
                 FinalValue     = 0b00110010,
                 ExpectedMemVal = 0b00011001,
                 ExpectedCycles = 6
@@ -154,7 +154,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.LSR_ABS,
+                OpCode         = OpCodeId.LSR_ABS,
                 FinalValue     = 0b00110010,
                 ExpectedMemVal = 0b00011001,
                 ExpectedCycles = 6
@@ -168,7 +168,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.LSR_ABS_X,
+                OpCode         = OpCodeId.LSR_ABS_X,
                 FinalValue     = 0b00110010,
                 ExpectedMemVal = 0b00011001,
                 ExpectedCycles = 7
@@ -182,7 +182,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 InsEffect      = InstrEffect.Mem,
-                Instruction    = OpCodeId.LSR_ABS_X,
+                OpCode         = OpCodeId.LSR_ABS_X,
                 FinalValue     = 0b00110010,
                 ExpectedMemVal = 0b00011001,
                 ExpectedCycles = 7

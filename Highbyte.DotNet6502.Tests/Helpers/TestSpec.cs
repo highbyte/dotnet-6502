@@ -1,4 +1,3 @@
-using System;
 using Xunit;
 using Highbyte.DotNet6502.Tests.Helpers;
 
@@ -60,7 +59,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         /// The CPU instruction value.
         /// </summary>
         /// <value></value>
-        public OpCodeId Instruction { get; set; }
+        public OpCodeId OpCode { get; set; }
 
         /// <summary>
         /// Optional.
@@ -264,7 +263,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var codeMemPos = cpu.PC;
 
             // Write instruction at start address
-            mem.WriteByte(ref codeMemPos, Instruction);
+            mem.WriteByte(ref codeMemPos, OpCode);
 
             ushort ZPAddressX;
             ushort ZPAddressY;
@@ -555,9 +554,9 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                     throw new DotNet6502Exception($"Unhandled addressing mode: {addrMode}");
             }
 
-            // Before we execute intruction, verify internal consistency of number of bytes the instruction takes by our test-setup code above
+            // Before we execute intruction, verify internal consistency of number of bytes the OpCode takes by our test-setup code above
             // with the value specified in OpCode.Bytes class.
-            Assert.Equal(cpu.PC + cpu.InstructionList.GetOpCode(Instruction.ToByte()).Size , codeMemPos);
+            Assert.Equal(cpu.PC + cpu.InstructionList.GetOpCode(OpCode.ToByte()).Size , codeMemPos);
 
             // Init registers and flags
             if(A.HasValue)
@@ -617,12 +616,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 //      -- JSR instruction
                 //
                 if(addrMode != AddrMode.Relative
-                    && Instruction != OpCodeId.BRK     // Implied addressing mode
-                    && Instruction != OpCodeId.RTS     // Implied addressing mode
-                    && Instruction != OpCodeId.RTI     // Implied addressing mode
-                    && Instruction != OpCodeId.JMP_IND // Indirect addressing mode
-                    && Instruction != OpCodeId.JMP_ABS // Absolute addressing mode
-                    && Instruction != OpCodeId.JSR     // Absolute addressing mode
+                    && OpCode != OpCodeId.BRK     // Implied addressing mode
+                    && OpCode != OpCodeId.RTS     // Implied addressing mode
+                    && OpCode != OpCodeId.RTI     // Implied addressing mode
+                    && OpCode != OpCodeId.JMP_IND // Indirect addressing mode
+                    && OpCode != OpCodeId.JMP_ABS // Absolute addressing mode
+                    && OpCode != OpCodeId.JSR     // Absolute addressing mode
                 )
                     Assert.Equal(codeMemPos, cpu.PC);
             }

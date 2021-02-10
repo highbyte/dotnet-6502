@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                Instruction     = OpCodeId.SBC_I,
+                OpCode          = OpCodeId.SBC_I,
                 FinalValue      = 0x01,
                 ExpectedCycles  = 2,
             };
@@ -21,12 +21,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,  // Carry must be set before SBC to perform a subtraction without borrow.
-                A               = 0x00,
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x00,
-                ExpectedA       = 0x00,
-                ExpectedC       = true,  // Carry should still be set after instruction
+                C              = true,  // Carry must be set before SBC to perform a subtraction without borrow.
+                A              = 0x00,
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x00,
+                ExpectedA      = 0x00,
+                ExpectedC      = true,  // Carry should still be set after instruction
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -36,12 +36,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = false,
-                A               = 0x00,
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x00,
-                ExpectedA       = 0xff,
-                ExpectedC       = false,
+                C              = false,
+                A              = 0x00,
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x00,
+                ExpectedA      = 0xff,
+                ExpectedC      = false,
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -52,12 +52,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = false,
-                A               = 0x00,
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0xff,
-                ExpectedA       = 0x00,   // Will result in 0 and not 1 (because of C clear at beginning?)
-                ExpectedC       = false,  // Carry should still be clear after instruction
+                C              = false,
+                A              = 0x00,
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0xff,
+                ExpectedA      = 0x00,   // Will result in 0 and not 1 (because of C clear at beginning?)
+                ExpectedC      = false,  // Carry should still be clear after instruction
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -67,12 +67,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x00,
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0xff,
-                ExpectedA       = 0x01,   // Will result in 1 (correct because Carry was set before)
-                ExpectedC       = false,  // Carry should still be clear after instruction
+                C              = true,
+                A              = 0x00,
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0xff,
+                ExpectedA      = 0x01,   // Will result in 1 (correct because Carry was set before)
+                ExpectedC      = false,  // Carry should still be clear after instruction
             };
             test.Execute_And_Verify(AddrMode.I);
         }        
@@ -82,11 +82,11 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,  // Carry must be set before SBC to perform a subtraction without borrow.
-                A               = 0x03,
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x01,
-                ExpectedA       = 0x02,
+                C              = true,  // Carry must be set before SBC to perform a subtraction without borrow.
+                A              = 0x03,
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x01,
+                ExpectedA      = 0x02,
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -96,11 +96,11 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02,
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0xff, // -1
-                ExpectedA       = 0x03,
+                C              = true,
+                A              = 0x02,
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0xff, // -1
+                ExpectedA      = 0x03,
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -110,11 +110,11 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0xff, // -1
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0xfe, // -2
-                ExpectedA       = 0x01,
+                C              = true,
+                A              = 0xff, // -1
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0xfe, // -2
+                ExpectedA      = 0x01,
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -124,12 +124,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x00,
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x00,
-                ExpectedA       = 0x00,
-                ExpectedZ       = true,
+                C              = true,
+                A              = 0x00,
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x00,
+                ExpectedA      = 0x00,
+                ExpectedZ      = true,
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -139,11 +139,11 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x00,
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x01,
-                ExpectedZ       = false,
+                C              = true,
+                A              = 0x00,
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x01,
+                ExpectedZ      = false,
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -153,11 +153,11 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x00,
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0xff, // -1
-                ExpectedZ       = false,
+                C              = true,
+                A              = 0x00,
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0xff, // -1
+                ExpectedZ      = false,
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -167,11 +167,11 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x00,
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x01,
-                ExpectedN       = true,
+                C              = true,
+                A              = 0x00,
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x01,
+                ExpectedN      = true,
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -185,12 +185,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x20, // 32
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x10, // 16
-                ExpectedA       = 0x10, // 16
-                ExpectedC       = true,
+                C              = true,
+                A              = 0x20, // 32
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x10, // 16
+                ExpectedA      = 0x10, // 16
+                ExpectedC      = true,
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -200,12 +200,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x10, // 16
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x20, // 32
-                ExpectedA       = 0xf0, // -16
-                ExpectedC       = false,
+                C              = true,
+                A              = 0x10, // 16
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x20, // 32
+                ExpectedA      = 0xf0, // -16
+                ExpectedC      = false,
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -215,12 +215,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x10, // 16
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x10, // 32
-                ExpectedA       = 0x00, // -16
-                ExpectedC       = true,
+                C              = true,
+                A              = 0x10, // 16
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x10, // 32
+                ExpectedA      = 0x00, // -16
+                ExpectedC      = true,
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -230,12 +230,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x10, // 16
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0xff, // -1
-                ExpectedA       = 0x11, // 17
-                ExpectedC       = false, // Because subtracting a neg nr? Compare with #$20-#$10 which get Carry 1
+                C              = true,
+                A              = 0x10, // 16
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0xff, // -1
+                ExpectedA      = 0x11, // 17
+                ExpectedC      = false, // Because subtracting a neg nr? Compare with #$20-#$10 which get Carry 1
             };
             test.Execute_And_Verify(AddrMode.I);            
         }
@@ -245,12 +245,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0xf0, // -16
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0xff, // -1
-                ExpectedA       = 0xf1, // -15
-                ExpectedC       = false, // Because subtracting a neg nr? compare with #$20-#$10 which get Carry 1
+                C              = true,
+                A              = 0xf0, // -16
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0xff, // -1
+                ExpectedA      = 0xf1, // -15
+                ExpectedC      = false, // Because subtracting a neg nr? compare with #$20-#$10 which get Carry 1
             };
             test.Execute_And_Verify(AddrMode.I);                  
         }
@@ -260,12 +260,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0xf0, // -16
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0xef, // -17
-                ExpectedA       = 0x01, // 1
-                ExpectedC       = true, //  Event though subtracting a neg nr, result is positive, so still Carry 1
+                C              = true,
+                A              = 0xf0, // -16
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0xef, // -17
+                ExpectedA      = 0x01, // 1
+                ExpectedC      = true, //  Event though subtracting a neg nr, result is positive, so still Carry 1
             };
             test.Execute_And_Verify(AddrMode.I);                  
         }
@@ -276,12 +276,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0xf0, // -16
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x01, // 1
-                ExpectedA       = 0xef, // -17
-                ExpectedC       = true, // Because even though result in negative, the A and operand have different signs?
+                C              = true,
+                A              = 0xf0, // -16
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x01, // 1
+                ExpectedA      = 0xef, // -17
+                ExpectedC      = true, // Because even though result in negative, the A and operand have different signs?
             };
             test.Execute_And_Verify(AddrMode.I);        
         }
@@ -295,11 +295,11 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02, // 2
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x01, // 1
-                ExpectedV       = false,
+                C              = true,
+                A              = 0x02, // 2
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x01, // 1
+                ExpectedV      = false,
             };
             test.Execute_And_Verify(AddrMode.I);        
         }
@@ -309,13 +309,13 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0xfe, // -2
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x7f, // 127
+                C              = true,
+                A              = 0xfe, // -2
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x7f, // 127
                 // -2 -127 = -129, which is an invalid signed number (minimum -128), therefor the result is not correct.
                 // Result will be 0x7f, which is not correct, and therefor the Overflow flag is set.
-                ExpectedV       = true,
+                ExpectedV      = true,
             };
             test.Execute_And_Verify(AddrMode.I);               
         }
@@ -325,12 +325,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x01, // 1
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x81, // -127
+                C              = true,
+                A              = 0x01, // 1
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x81, // -127
                 // 1 -(-127) = 128, which is an invalid signed number (maximum 127), therefor the result is not correct.
-                ExpectedV       = true,
+                ExpectedV      = true,
             };
             test.Execute_And_Verify(AddrMode.I);
         }
@@ -340,13 +340,13 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0xfe, // -2
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x7e, // 126
+                C              = true,
+                A              = 0xfe, // -2
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x7e, // 126
                 // -2 -126 = -128, is a valid signed number (minimum -128)
                 // Therefor the Overflow flag is clear.
-                ExpectedV       = false,
+                ExpectedV      = false,
             };
             test.Execute_And_Verify(AddrMode.I);            
         }
@@ -357,13 +357,13 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x01, // 1
-                Instruction     = OpCodeId.SBC_I,
-                FinalValue      = 0x82, // -126
+                C              = true,
+                A              = 0x01, // 1
+                OpCode         = OpCodeId.SBC_I,
+                FinalValue     = 0x82, // -126
                 // 1 -(-126) = 127, which is an valid signed number (maximum 127).
                 // And therefor the Overflow flag is clear.
-                ExpectedV       = false,
+                ExpectedV      = false,
             };
             test.Execute_And_Verify(AddrMode.I); 
         }
@@ -381,12 +381,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02,
-                Instruction     = OpCodeId.SBC_ZP,
-                FinalValue      = 0x01,
-                ExpectedA       = 0x01,
-                ExpectedCycles  = 3,
+                C              = true,
+                A              = 0x02,
+                OpCode         = OpCodeId.SBC_ZP,
+                FinalValue     = 0x01,
+                ExpectedA      = 0x01,
+                ExpectedCycles = 3,
             };
             test.Execute_And_Verify(AddrMode.ZP);               
         }
@@ -396,12 +396,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02,
-                Instruction     = OpCodeId.SBC_ZP_X,
-                FinalValue      = 0x01,
-                ExpectedA       = 0x01,
-                ExpectedCycles  = 4,
+                C              = true,
+                A              = 0x02,
+                OpCode         = OpCodeId.SBC_ZP_X,
+                FinalValue     = 0x01,
+                ExpectedA      = 0x01,
+                ExpectedCycles = 4,
             };
             test.Execute_And_Verify(AddrMode.ZP_X);   
         }
@@ -415,12 +415,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02,
-                Instruction     = OpCodeId.SBC_ZP_X,
-                FinalValue      = 0x01,
-                ExpectedA       = 0x01,
-                ExpectedCycles  = 4,
+                C              = true,
+                A              = 0x02,
+                OpCode         = OpCodeId.SBC_ZP_X,
+                FinalValue     = 0x01,
+                ExpectedA      = 0x01,
+                ExpectedCycles = 4,
             };
             test.Execute_And_Verify(AddrMode.ZP_X, ZP_X_Should_Wrap_Over_Byte: true);
         }
@@ -434,12 +434,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02,
-                Instruction     = OpCodeId.SBC_ABS,
-                FinalValue      = 0x01,
-                ExpectedA       = 0x01,
-                ExpectedCycles  = 4,
+                C              = true,
+                A              = 0x02,
+                OpCode         = OpCodeId.SBC_ABS,
+                FinalValue     = 0x01,
+                ExpectedA      = 0x01,
+                ExpectedCycles = 4,
             };
             test.Execute_And_Verify(AddrMode.ABS);
         }
@@ -449,12 +449,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02,
-                Instruction     = OpCodeId.SBC_ABS_X,
-                FinalValue      = 0x01,
-                ExpectedA       = 0x01,
-                ExpectedCycles  = 4,
+                C              = true,
+                A              = 0x02,
+                OpCode         = OpCodeId.SBC_ABS_X,
+                FinalValue     = 0x01,
+                ExpectedA      = 0x01,
+                ExpectedCycles = 4,
             };
             test.Execute_And_Verify(AddrMode.ABS_X);
         }
@@ -467,12 +467,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02,
-                Instruction     = OpCodeId.SBC_ABS_X,
-                FinalValue      = 0x01,
-                ExpectedA       = 0x01,
-                ExpectedCycles  = 5,
+                C              = true,
+                A              = 0x02,
+                OpCode         = OpCodeId.SBC_ABS_X,
+                FinalValue     = 0x01,
+                ExpectedA      = 0x01,
+                ExpectedCycles = 5,
             };
             test.Execute_And_Verify(AddrMode.ABS_X, FullAddress_Should_Cross_Page_Boundary: true);
         }
@@ -482,12 +482,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02,
-                Instruction     = OpCodeId.SBC_ABS_Y,
-                FinalValue      = 0x01,
-                ExpectedA       = 0x01,
-                ExpectedCycles  = 4,
+                C              = true,
+                A              = 0x02,
+                OpCode         = OpCodeId.SBC_ABS_Y,
+                FinalValue     = 0x01,
+                ExpectedA      = 0x01,
+                ExpectedCycles = 4,
             };
             test.Execute_And_Verify(AddrMode.ABS_Y);
         }
@@ -500,12 +500,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02,
-                Instruction     = OpCodeId.SBC_ABS_Y,
-                FinalValue      = 0x01,
-                ExpectedA       = 0x01,
-                ExpectedCycles  = 5,
+                C              = true,
+                A              = 0x02,
+                OpCode         = OpCodeId.SBC_ABS_Y,
+                FinalValue     = 0x01,
+                ExpectedA      = 0x01,
+                ExpectedCycles = 5,
             };
             test.Execute_And_Verify(AddrMode.ABS_Y, FullAddress_Should_Cross_Page_Boundary: true);
         }
@@ -529,12 +529,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02,
-                Instruction     = OpCodeId.SBC_IX_IND,
-                FinalValue      = 0x01,
-                ExpectedA       = 0x01,
-                ExpectedCycles  = 6,
+                C              = true,
+                A              = 0x02,
+                OpCode         = OpCodeId.SBC_IX_IND,
+                FinalValue     = 0x01,
+                ExpectedA      = 0x01,
+                ExpectedCycles = 6,
             };
             test.Execute_And_Verify(AddrMode.IX_IND);
         }
@@ -547,12 +547,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02,
-                Instruction     = OpCodeId.SBC_IX_IND,
-                FinalValue      = 0x01,
-                ExpectedA       = 0x01,
-                ExpectedCycles  = 6,
+                C              = true,
+                A              = 0x02,
+                OpCode         = OpCodeId.SBC_IX_IND,
+                FinalValue     = 0x01,
+                ExpectedA      = 0x01,
+                ExpectedCycles = 6,
             };
             test.Execute_And_Verify(AddrMode.IX_IND, ZP_X_Should_Wrap_Over_Byte: true);
         }
@@ -579,12 +579,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02,
-                Instruction     = OpCodeId.SBC_IND_IX,
-                FinalValue      = 0x01,
-                ExpectedA       = 0x01,
-                ExpectedCycles  = 5,
+                C              = true,
+                A              = 0x02,
+                OpCode         = OpCodeId.SBC_IND_IX,
+                FinalValue     = 0x01,
+                ExpectedA      = 0x01,
+                ExpectedCycles = 5,
             };
             test.Execute_And_Verify(AddrMode.IND_IX);
         }
@@ -599,12 +599,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec
             {
-                C               = true,
-                A               = 0x02,
-                Instruction     = OpCodeId.SBC_IND_IX,
-                FinalValue      = 0x01,
-                ExpectedA       = 0x01,
-                ExpectedCycles  = 6,
+                C              = true,
+                A              = 0x02,
+                OpCode         = OpCodeId.SBC_IND_IX,
+                FinalValue     = 0x01,
+                ExpectedA      = 0x01,
+                ExpectedCycles = 6,
             };
             test.Execute_And_Verify(AddrMode.IND_IX, FullAddress_Should_Cross_Page_Boundary: true);
         }

@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.CLI,
+                OpCode         = OpCodeId.CLI,
                 ExpectedCycles = 2,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -21,7 +21,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 I              = true,
-                Instruction    = OpCodeId.CLI,
+                OpCode         = OpCodeId.CLI,
                 ExpectedI      = false,
             };
             test.Execute_And_Verify(AddrMode.Implied);

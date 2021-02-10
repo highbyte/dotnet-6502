@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.BRK,
+                OpCode         = OpCodeId.BRK,
                 ExpectedCycles = 7,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -28,7 +28,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 U              = false,
                 V              = false,
                 N              = true,  // Status bit 7
-                Instruction    = OpCodeId.BRK,
+                OpCode         = OpCodeId.BRK,
                 ExpectedC      = false, // Unchanged.
                 ExpectedZ      = true,  // Unchanged
                 ExpectedI      = true,  // Status bit 4 (Interrupt) set after instruction
@@ -49,7 +49,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 PC             = 0x2000,
                 PS             = 0b10001011,
                 SP             = 0xff,
-                Instruction    = OpCodeId.BRK,
+                OpCode         = OpCodeId.BRK,
                 ExpectedSP     = 0xff - 3,      // 2 bytes for PC + 1 byte for PS
             };
             var mem = test.TestContext.Computer.Mem;
@@ -79,7 +79,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 PC             = 0x2000,
                 PS             = 0b10001011,    // Bit 4 (Break) and Bit 5 (Unused) clear when we start
                 SP             = 0xff,
-                Instruction    = OpCodeId.BRK,
+                OpCode         = OpCodeId.BRK,
                 ExpectedSP     = 0xff - 3,      // 2 bytes for PC + 1 byte for PS
                 ExpectedPS     = 0b10001011,    // The processor status should remain unchanged. See below for verification the PS pushed to stack got extra bits set.
                 ExpectedI      = true,          // Interrupt flag shall always be set on PS after instruction.
@@ -110,7 +110,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var test = new TestSpec()
             {
                 PC             = 0x2000,
-                Instruction    = OpCodeId.BRK,
+                OpCode         = OpCodeId.BRK,
                 ExpectedPC     = brkIrqJumpAddress
             };
             var mem = test.TestContext.Computer.Mem;

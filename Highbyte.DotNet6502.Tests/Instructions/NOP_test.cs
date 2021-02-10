@@ -10,7 +10,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             var test = new TestSpec()
             {
-                Instruction    = OpCodeId.NOP,
+                OpCode         = OpCodeId.NOP,
                 ExpectedCycles = 2,
             };
             test.Execute_And_Verify(AddrMode.Implied);
@@ -33,7 +33,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 U              = false,
                 V              = false,
                 N              = false,
-                Instruction    = OpCodeId.NOP,
+                OpCode         = OpCodeId.NOP,
                 ExpectedA      = 0xa3,
                 ExpectedX      = 0x38,
                 ExpectedY      = 0xf2,
