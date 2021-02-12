@@ -6,20 +6,21 @@ namespace Highbyte.DotNet6502.Instructions
     /// Decrement X Register.
     /// Subtracts one from the X register setting the zero and negative flags as appropriate.
     /// </summary>
-    public class DEX : Instruction
+    public class DEX : Instruction, IInstructionUsesOnlyRegOrStatus
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
         {
             // Assume implied mode
             cpu.X--;
             cpu.ExecState.CyclesConsumed++;
             BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.X, cpu.ProcessorStatus);
-            return true;
+
+            return InstructionLogicResult.WithNoExtraCycles();
         }
-        
+
         public DEX()
         {
             _opCodes = new List<OpCode>

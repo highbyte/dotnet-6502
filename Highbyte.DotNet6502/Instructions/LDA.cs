@@ -6,19 +6,22 @@ namespace Highbyte.DotNet6502.Instructions
     /// Load Accumulator.
     /// Loads a byte of memory into the accumulator setting the zero and negative flags as appropriate.
     /// </summary>
-    public class LDA : Instruction
+    public class LDA : Instruction, IInstructionUsesByte
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        
+        public InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
         {
-            byte insValue = GetInstructionValueFromAddressOrDirectly(cpu, mem, addrModeCalcResult);
-
-            cpu.A = insValue;
+            cpu.A = value;
             BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, cpu.ProcessorStatus);
-            return true;
-            
+
+            return InstructionLogicResult.WithExtraCycles(
+                InstructionExtraCyclesCalculator.CalculateExtraCycles(
+                        addrModeCalcResult.OpCode.AddressingMode, 
+                        addrModeCalcResult.AddressCalculationCrossedPageBoundary)
+                );
         }
 
         public LDA()

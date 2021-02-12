@@ -6,20 +6,19 @@ namespace Highbyte.DotNet6502.Instructions
     /// Set Interrupt Disable.
     /// Set the interrupt disable flag to one.
     /// </summary>
-    public class SEI : Instruction
+    public class SEI : Instruction, IInstructionUsesOnlyRegOrStatus
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
         {
             // Assume implied mode
             cpu.ProcessorStatus.InterruptDisable = true;
-            // Consume extra cycle to set flag?
-            cpu.ExecState.CyclesConsumed ++;
-            return true;
+                        
+            return InstructionLogicResult.WithNoExtraCycles();
         }
-        
+
         public SEI()
         {
             _opCodes = new List<OpCode>

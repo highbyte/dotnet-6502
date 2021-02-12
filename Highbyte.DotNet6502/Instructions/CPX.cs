@@ -6,19 +6,19 @@ namespace Highbyte.DotNet6502.Instructions
     /// Compare X Register.
     /// This instruction compares the contents of the X register with another memory held value and sets the zero and carry flags as appropriate.
     /// </summary>
-    public class CPX : Instruction
+    public class CPX : Instruction, IInstructionUsesByte
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        
+        public InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
         {
-            byte insValue = GetInstructionValueFromAddressOrDirectly(cpu, mem, addrModeCalcResult);
-            BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.X, insValue, cpu.ProcessorStatus);
-            
-            return true;
-        }
+            BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.X, value, cpu.ProcessorStatus);
 
+            return InstructionLogicResult.WithNoExtraCycles();
+        }
+        
         public CPX()
         {
             _opCodes = new List<OpCode>

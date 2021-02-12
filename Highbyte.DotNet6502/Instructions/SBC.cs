@@ -5,18 +5,22 @@ namespace Highbyte.DotNet6502.Instructions
     /// <summary>
     /// Add with Carry
     /// </summary>
-    public class SBC : Instruction
+    public class SBC : Instruction, IInstructionUsesByte
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        
+        public InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
         {
-            byte insValue = GetInstructionValueFromAddressOrDirectly(cpu, mem, addrModeCalcResult);
-                
-            cpu.A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(cpu.A, insValue, cpu.ProcessorStatus);
-            return true;
-        }
+            cpu.A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(cpu.A, value, cpu.ProcessorStatus);
+
+            return InstructionLogicResult.WithExtraCycles(
+                InstructionExtraCyclesCalculator.CalculateExtraCycles(
+                        addrModeCalcResult.OpCode.AddressingMode, 
+                        addrModeCalcResult.AddressCalculationCrossedPageBoundary)
+                );
+        }        
 
         public SBC()
         {

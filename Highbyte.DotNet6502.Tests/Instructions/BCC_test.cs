@@ -34,7 +34,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         }
 
         [Fact]
-        public void BCC_I_Takes_4_Cycles_If_Page_Boundary_Is_Crossed()
+        public void BCC_I_Takes_4_Cycles_If_Branch_Succeeds_And_Page_Boundary_Is_Crossed()
         {
             var test = new TestSpec()
             {

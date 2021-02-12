@@ -8,12 +8,13 @@ namespace Highbyte.DotNet6502.Instructions
     /// The program counter and processor status are pushed on the stack then the IRQ interrupt vector at $FFFE/F 
     /// is loaded into the PC and the break flag in the status set to one.
     /// </summary>
-    public class BRK : Instruction
+    public class BRK : Instruction, IInstructionUsesStack
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        
+        public InstructionLogicResult ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {
             // BRK is strange. The complete instruction is only one byte but the processor increases 
             // the return address pushed to stack is the *second* byte after the opcode!
@@ -26,14 +27,12 @@ namespace Highbyte.DotNet6502.Instructions
             processorStatusCopy.Break = true;
             processorStatusCopy.Unused = true;
             cpu.PushByteToStack(processorStatusCopy.Value, mem);
-            // TODO: Consume extra cycles to change SP? Why not as many extra as RTI?
-            cpu.ExecState.CyclesConsumed++;
             // BRK sets current Interrupt flag
             cpu.ProcessorStatus.InterruptDisable = true;
             // Change PC to address found at BRK/IEQ handler vector
-            cpu.PC = cpu.FetchWord(mem, CPU.BrkIRQHandlerVector);            
+            cpu.PC = cpu.FetchWord(mem, CPU.BrkIRQHandlerVector);     
 
-            return true;
+            return InstructionLogicResult.WithNoExtraCycles();
         }
 
         public BRK()

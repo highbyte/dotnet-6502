@@ -6,21 +6,19 @@ namespace Highbyte.DotNet6502.Instructions
     /// Transfer X to Accumulator.
     /// Copies the current contents of the X register into the accumulator and sets the zero and negative flags as appropriate.
     /// </summary>
-    public class TXA : Instruction
+    public class TXA : Instruction, IInstructionUsesOnlyRegOrStatus
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
         {
             cpu.A = cpu.X;
-            // Extra cycle for transfer register to another register?
-            cpu.ExecState.CyclesConsumed++;                        
             BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, cpu.ProcessorStatus);
-
-            return true;
+            
+            return InstructionLogicResult.WithNoExtraCycles();                
         }
-        
+
         public TXA()
         {
             _opCodes = new List<OpCode>

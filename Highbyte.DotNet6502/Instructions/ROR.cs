@@ -8,43 +8,28 @@ namespace Highbyte.DotNet6502.Instructions
     /// Bit 7 is filled with the current value of the carry flag whilst the 
     /// old bit 0 becomes the new carry flag value.
     /// </summary>
-    public class ROR : Instruction
+    public class ROR : Instruction, IInstructionUsesAddress, IInstructionUsesOnlyRegOrStatus
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+                public InstructionLogicResult ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
         {
-            if(addrModeCalcResult.InsAddress.HasValue)
-            {
-                var insAddress = addrModeCalcResult.InsAddress.Value;
-                var tempValue = cpu.FetchByte(mem, insAddress);
-                tempValue = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(tempValue, cpu.ProcessorStatus);
+            var tempValue = cpu.FetchByte(mem, address);
+            tempValue = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(tempValue, cpu.ProcessorStatus);
+            cpu.StoreByte(tempValue, mem, address);
 
-                if(addrModeCalcResult.OpCode.AddressingMode == AddrMode.ABS_X)
-                {
-                    if(!addrModeCalcResult.AddressCalculationCrossedPageBoundary)
-                        // TODO: Is this correCt: Two extra cycles for ASL before writing back to memory if we did NOT cross page boundary?
-                        cpu.ExecState.CyclesConsumed += 2;
-                    else
-                        // TODO: Is this correct: Extra cycle if the address + X crosses page boundary (1 extra was already added in CalcFullAddressX)
-                        cpu.ExecState.CyclesConsumed ++;
-                }
-                else
-                {
-                    // Extra cycle for ASL? before writing back to memory?
-                    cpu.ExecState.CyclesConsumed++;
-                }
+            return InstructionLogicResult.WithNoExtraCycles();
+        }        
 
-                cpu.StoreByte(tempValue, mem, insAddress);            
-                return true;
-            }
-
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
+        {
             // Assume Accumulator mode
             cpu.A = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(cpu.A, cpu.ProcessorStatus);
-            return true;
-        }
 
+            return InstructionLogicResult.WithNoExtraCycles();
+        }
+        
         public ROR()
         {
             _opCodes = new List<OpCode>

@@ -6,19 +6,20 @@ namespace Highbyte.DotNet6502.Instructions
     /// Clear Overflow Flag.
     /// Clears the overflow flag.
     /// </summary>
-    public class CLV : Instruction
+    public class CLV : Instruction, IInstructionUsesOnlyRegOrStatus
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
         {
             // Assume implied mode
             cpu.ProcessorStatus.Overflow = false;
             // Consume extra cycle to clear flag?
             cpu.ExecState.CyclesConsumed ++;
-            return true;
-        }
+                        
+            return InstructionLogicResult.WithNoExtraCycles();
+        } 
         
         public CLV()
         {

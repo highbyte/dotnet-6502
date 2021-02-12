@@ -6,20 +6,21 @@ namespace Highbyte.DotNet6502.Instructions
     /// Clear Carry Flag.
     /// Set the carry flag to zero.
     /// </summary>
-    public class CLC : Instruction
+    public class CLC : Instruction, IInstructionUsesOnlyRegOrStatus
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
         {
             // Assume implied mode
             cpu.ProcessorStatus.Carry = false;
             // Consume extra cycle to clear flag?
             cpu.ExecState.CyclesConsumed ++;
-            return true;
+                        
+            return InstructionLogicResult.WithNoExtraCycles();
         }
-        
+
         public CLC()
         {
             _opCodes = new List<OpCode>

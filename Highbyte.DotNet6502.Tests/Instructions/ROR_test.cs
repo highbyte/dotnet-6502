@@ -5,12 +5,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
     public class ROR_test
     {
         [Fact]
-        public void ROR_ACC_Takes_1_Of_Cycle()
+        public void ROR_ACC_Takes_2_Of_Cycles()
         {
             var test = new TestSpec()
             {
                 OpCode         = OpCodeId.ROR_ACC,
-                ExpectedCycles = 1,
+                ExpectedCycles = 2,
             };
             test.Execute_And_Verify(AddrMode.Accumulator);
         }

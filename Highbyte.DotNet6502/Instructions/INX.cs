@@ -6,20 +6,21 @@ namespace Highbyte.DotNet6502.Instructions
     /// Increment X Register.
     /// Adds one to the X register setting the zero and negative flags as appropriate.
     /// </summary>
-    public class INX : Instruction
+    public class INX : Instruction, IInstructionUsesOnlyRegOrStatus
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
         {
             // Assume implied mode
             cpu.X++;
             cpu.ExecState.CyclesConsumed++;
             BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.X, cpu.ProcessorStatus);
-            return true;
+
+            return InstructionLogicResult.WithNoExtraCycles();
         }
-        
+
         public INX()
         {
             _opCodes = new List<OpCode>

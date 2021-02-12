@@ -6,20 +6,21 @@ namespace Highbyte.DotNet6502.Instructions
     /// Clear Decimal Mode.
     /// Sets the decimal mode flag to zero.
     /// </summary>
-    public class CLD : Instruction
+    public class CLD : Instruction, IInstructionUsesOnlyRegOrStatus
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
-
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
         {
             // Assume implied mode
             cpu.ProcessorStatus.Decimal = false;
             // Consume extra cycle to clear flag?
             cpu.ExecState.CyclesConsumed ++;
-            return true;
+                        
+            return InstructionLogicResult.WithNoExtraCycles();
         }
-        
+
         public CLD()
         {
             _opCodes = new List<OpCode>

@@ -6,17 +6,17 @@ namespace Highbyte.DotNet6502.Instructions
     /// Compare Y Register.
     /// This instruction compares the contents of the Y register with another memory held value and sets the zero and carry flags as appropriate.
     /// </summary>
-    public class CPY : Instruction
+    public class CPY : Instruction, IInstructionUsesByte
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        
+        public InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
         {
-            byte insValue = GetInstructionValueFromAddressOrDirectly(cpu, mem, addrModeCalcResult);
-            BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.Y, insValue, cpu.ProcessorStatus);
-            
-            return true;
+            BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.Y, value, cpu.ProcessorStatus);
+
+            return InstructionLogicResult.WithNoExtraCycles();
         }
 
         public CPY()

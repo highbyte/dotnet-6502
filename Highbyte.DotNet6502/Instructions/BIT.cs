@@ -8,17 +8,16 @@ namespace Highbyte.DotNet6502.Instructions
     /// The mask pattern in A is ANDed with the value in memory to set or clear the zero flag, 
     /// but the result is not kept. Bits 7 and 6 of the value from memory are copied into the N and V flags.
     /// </summary>
-    public class BIT : Instruction
+    public class BIT : Instruction, IInstructionUsesByte
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
-
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        public InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
         {
-            var insValue = cpu.FetchByte(mem, addrModeCalcResult.InsAddress.Value);
-            BinaryArithmeticHelpers.PerformBITAndSetStatusRegisters(cpu.A, insValue, cpu.ProcessorStatus);
-            return true;
-        }
+            BinaryArithmeticHelpers.PerformBITAndSetStatusRegisters(cpu.A, value, cpu.ProcessorStatus);
+
+            return InstructionLogicResult.WithNoExtraCycles();
+        }  
 
         public BIT()
         {

@@ -6,21 +6,24 @@ namespace Highbyte.DotNet6502.Instructions
     /// Exclusive OR.
     /// An exclusive OR is performed, bit by bit, on the accumulator contents using the contents of a byte of memory.
     /// </summary>
-    public class EOR : Instruction
+    public class EOR : Instruction, IInstructionUsesByte
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        
+        public InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
         {
-            var insValue = GetInstructionValueFromAddressOrDirectly(cpu, mem, addrModeCalcResult);
-
-            cpu.A ^= insValue;
+            cpu.A ^= value;
             BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, cpu.ProcessorStatus);
 
-            return true;
+            return InstructionLogicResult.WithExtraCycles(
+                InstructionExtraCyclesCalculator.CalculateExtraCycles(
+                        addrModeCalcResult.OpCode.AddressingMode, 
+                        addrModeCalcResult.AddressCalculationCrossedPageBoundary)
+                );
         }
-        
+       
         public EOR()
         {
             _opCodes = new List<OpCode>
