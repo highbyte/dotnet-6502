@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Highbyte.DotNet6502
+﻿namespace Highbyte.DotNet6502
 {
     /// <summary>
     /// Calculates extra clock cycles for instructions in certain addressing modes and circumstances.
@@ -36,7 +34,5 @@ namespace Highbyte.DotNet6502
                 extraCycles += 1;
             return extraCycles;
         }
-
-
     }
 }
