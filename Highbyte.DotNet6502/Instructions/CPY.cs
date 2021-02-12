@@ -14,18 +14,9 @@ namespace Highbyte.DotNet6502.Instructions
         
         public InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
         {
-            byte insValue = GetInstructionValueFromAddressOrDirectly(cpu, mem, addrModeCalcResult);
-            BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.Y, insValue, cpu.ProcessorStatus);
+            BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.Y, value, cpu.ProcessorStatus);
 
             return InstructionLogicResult.WithNoExtraCycles();
-        }
-
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            byte insValue = GetInstructionValueFromAddressOrDirectly(cpu, mem, addrModeCalcResult);
-            BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.Y, insValue, cpu.ProcessorStatus);
-            
-            return true;
         }
 
         public CPY()

@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Instructions
     /// Transfer Accumulator to Y.
     /// Copies the current contents of the accumulator into the Y register and sets the zero and negative flags as appropriate.
     /// </summary>
-    public class TAY : Instruction, IInstructionUseNone
+    public class TAY : Instruction, IInstructionUsesOnlyRegOrStatus
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
@@ -19,16 +19,6 @@ namespace Highbyte.DotNet6502.Instructions
             return InstructionLogicResult.WithNoExtraCycles();                
         }
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            cpu.Y = cpu.A;
-            // Extra cycle for transfer register to another register?
-            cpu.ExecState.CyclesConsumed++;                        
-            BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, cpu.ProcessorStatus);
-
-            return true;
-        }
-        
         public TAY()
         {
             _opCodes = new List<OpCode>

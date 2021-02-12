@@ -20,16 +20,6 @@ namespace Highbyte.DotNet6502.Instructions
             return InstructionLogicResult.WithNoExtraCycles();
         } 
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            cpu.A = cpu.PopByteFromStack(mem);
-            // Consume two extra cycles to change SP? Why one more than PHA?
-            cpu.ExecState.CyclesConsumed += 2;
-            BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, cpu.ProcessorStatus);
-
-            return true;
-        }
-        
         public PLA()
         {
             _opCodes = new List<OpCode>

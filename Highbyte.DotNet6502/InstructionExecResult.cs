@@ -2,7 +2,7 @@
 {
     public class InstructionExecResult
     {
-        public byte OpCodeByte { get; set; }
+        public byte OpCodeByte { get; private set; }
         public bool UnknownInstruction { get; set; }
         public ulong CyclesConsumed { get; set; }
         public InstructionExecResult(byte opCodeByte)
@@ -19,5 +19,15 @@
                 CyclesConsumed = 1
             };
         }
+
+        public static InstructionExecResult SuccessfulInstructionResult(byte opCodeByte, ulong cyclesConsumed)
+        {
+            return new InstructionExecResult(opCodeByte)
+            {
+                UnknownInstruction = false,
+                CyclesConsumed = cyclesConsumed
+            };
+        }
+
     }    
 }

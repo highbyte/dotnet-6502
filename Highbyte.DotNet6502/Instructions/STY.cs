@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Instructions
     /// Store Y Register.
     /// Stores the contents of the Y register into memory.
     /// </summary>
-    public class STY : Instruction, IInstructionUseAddress
+    public class STY : Instruction, IInstructionUsesAddress
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
@@ -16,12 +16,6 @@ namespace Highbyte.DotNet6502.Instructions
             cpu.StoreByte(cpu.Y, mem, address);        
 
             return InstructionLogicResult.WithNoExtraCycles();          
-        }
-
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            cpu.StoreByte(cpu.Y, mem, addrModeCalcResult.InsAddress.Value);            
-            return true;
         }
 
         public STY()

@@ -16,12 +16,6 @@ namespace Highbyte.DotNet6502.Instructions
         
         public InstructionLogicResult ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {
-            Execute(cpu, mem, addrModeCalcResult);
-            return InstructionLogicResult.WithNoExtraCycles();
-        }
-
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
             // BRK is strange. The complete instruction is only one byte but the processor increases 
             // the return address pushed to stack is the *second* byte after the opcode!
             // It is advisable to use a NOP after it to avoid issues (when returning from BRK with RTI, the PC will point to the next-next instruction)
@@ -33,14 +27,12 @@ namespace Highbyte.DotNet6502.Instructions
             processorStatusCopy.Break = true;
             processorStatusCopy.Unused = true;
             cpu.PushByteToStack(processorStatusCopy.Value, mem);
-            // TODO: Consume extra cycles to change SP? Why not as many extra as RTI?
-            cpu.ExecState.CyclesConsumed++;
             // BRK sets current Interrupt flag
             cpu.ProcessorStatus.InterruptDisable = true;
             // Change PC to address found at BRK/IEQ handler vector
-            cpu.PC = cpu.FetchWord(mem, CPU.BrkIRQHandlerVector);            
+            cpu.PC = cpu.FetchWord(mem, CPU.BrkIRQHandlerVector);     
 
-            return true;
+            return InstructionLogicResult.WithNoExtraCycles();
         }
 
         public BRK()

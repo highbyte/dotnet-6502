@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Instructions
     /// Store Accumulator.
     /// Stores the contents of the accumulator into memory.
     /// </summary>
-    public class STA : Instruction, IInstructionUseAddress
+    public class STA : Instruction, IInstructionUsesAddress
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
@@ -18,20 +18,6 @@ namespace Highbyte.DotNet6502.Instructions
             return InstructionLogicResult.WithNoExtraCycles();          
         }
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            cpu.StoreByte(cpu.A, mem, addrModeCalcResult.InsAddress.Value);
-
-            // TODO: If this correct? ABS_X, ABS_Y and IND_IX modes takes an extra cycle for this instruction?
-            //       Note: A previous method, cpu.CalcFullAddressX/cpu.CalcFullAddressY has already added one cycle if page boundary was crossed.
-            if(!addrModeCalcResult.AddressCalculationCrossedPageBoundary &&
-                    (addrModeCalcResult.OpCode.AddressingMode == AddrMode.ABS_X
-                    || addrModeCalcResult.OpCode.AddressingMode == AddrMode.ABS_Y
-                    || addrModeCalcResult.OpCode.AddressingMode == AddrMode.IND_IX))
-                cpu.ExecState.CyclesConsumed++;
-            return true;
-        }
-        
         public STA()
         {
             _opCodes = new List<OpCode>

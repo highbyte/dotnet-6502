@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Instructions
     /// Store X Register.
     /// Stores the contents of the X register into memory.
     /// </summary>
-    public class STX : Instruction, IInstructionUseAddress
+    public class STX : Instruction, IInstructionUsesAddress
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
@@ -17,12 +17,6 @@ namespace Highbyte.DotNet6502.Instructions
             cpu.StoreByte(cpu.X, mem, address);        
 
             return InstructionLogicResult.WithNoExtraCycles();          
-        }
-
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            cpu.StoreByte(cpu.X, mem, addrModeCalcResult.InsAddress.Value);            
-            return true;
         }
 
         public STX()

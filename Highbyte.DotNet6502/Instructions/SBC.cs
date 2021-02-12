@@ -22,14 +22,6 @@ namespace Highbyte.DotNet6502.Instructions
                 );
         }        
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            byte insValue = GetInstructionValueFromAddressOrDirectly(cpu, mem, addrModeCalcResult);
-                
-            cpu.A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(cpu.A, insValue, cpu.ProcessorStatus);
-            return true;
-        }
-
         public SBC()
         {
             _opCodes = new List<OpCode>

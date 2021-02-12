@@ -30,19 +30,6 @@ namespace Highbyte.DotNet6502.Instructions
                 );
         }          
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            byte insValue = addrModeCalcResult.InsValue.Value;
-
-            if(!cpu.ProcessorStatus.Negative)
-            {
-                // The instruction value is signed byte with the relative address (positive or negative)
-                cpu.PC = BranchHelper.CalculateNewAbsoluteBranchAddress(cpu.PC, (sbyte)insValue, out ulong cyclesConsumed);
-                cpu.ExecState.CyclesConsumed += cyclesConsumed;
-            }
-            return true;
-        }
-
         public BPL()
         {
             _opCodes = new List<OpCode>

@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Instructions
     /// Increment Y Register.
     /// Adds one to the Y register setting the zero and negative flags as appropriate.
     /// </summary>
-    public class INY : Instruction, IInstructionUseNone
+    public class INY : Instruction, IInstructionUsesOnlyRegOrStatus
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
@@ -19,15 +19,6 @@ namespace Highbyte.DotNet6502.Instructions
             BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, cpu.ProcessorStatus);
 
             return InstructionLogicResult.WithNoExtraCycles();
-        }
-
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            // Assume implied mode
-            cpu.Y++;
-            cpu.ExecState.CyclesConsumed++;
-            BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, cpu.ProcessorStatus);
-            return true;
         }
         
         public INY()

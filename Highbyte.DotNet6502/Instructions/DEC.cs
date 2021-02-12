@@ -21,25 +21,6 @@ namespace Highbyte.DotNet6502.Instructions
             return InstructionLogicResult.WithNoExtraCycles();
         }
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            var insValue = cpu.FetchByte(mem, addrModeCalcResult.InsAddress.Value);
-            
-            if(addrModeCalcResult.OpCode.AddressingMode == AddrMode.ABS_X && !addrModeCalcResult.AddressCalculationCrossedPageBoundary)
-            {
-                // TODO: Does INC_ABS_X (and not LDA_ABS_X) really always take an extra cycle even if final address didn't cross page boundary? 
-                // Or wrong in documentation?
-                cpu.ExecState.CyclesConsumed++;
-            }
-
-            insValue--;
-            cpu.ExecState.CyclesConsumed++;  // Takes extra cycle to add 1?
-            cpu.StoreByte(insValue, mem, addrModeCalcResult.InsAddress.Value);
-            BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(insValue, cpu.ProcessorStatus);
-
-            return true;
-        }
-        
         public DEC()
         {
             _opCodes = new List<OpCode>

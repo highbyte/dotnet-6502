@@ -23,17 +23,6 @@ namespace Highbyte.DotNet6502.Instructions
             return InstructionLogicResult.WithNoExtraCycles();
         }
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            cpu.ProcessorStatus.Value = cpu.PopByteFromStack(mem);
-            cpu.ProcessorStatus.Break = false;
-            cpu.ProcessorStatus.Unused = false;
-            cpu.PC = cpu.PopWordFromStack(mem);
-            // Consume two cycles to change SP (?)
-            cpu.ExecState.CyclesConsumed += 2;            
-
-            return true;
-        }
         
         public RTI()
         {

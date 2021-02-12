@@ -23,18 +23,6 @@ namespace Highbyte.DotNet6502.Instructions
             return InstructionLogicResult.WithNoExtraCycles();
         }
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            // Set PC back to the returning address from stack.
-            // As the address that was pushed on stack by JSR was the last byte of the JSR instruction, 
-            // we add one byte to the address we read from the stack (to get to next instruction)
-            cpu.PC = (ushort) (cpu.PopWordFromStack(mem) + 1);
-            // TODO: How may cycles to change SP? This seems odd, not the same as other RTI at also uses PopWordFromStack
-            cpu.ExecState.CyclesConsumed +=3;
-
-            return true;
-        }
-        
         public RTS()
         {
             _opCodes = new List<OpCode>

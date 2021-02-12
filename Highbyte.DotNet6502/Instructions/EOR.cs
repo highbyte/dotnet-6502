@@ -23,17 +23,7 @@ namespace Highbyte.DotNet6502.Instructions
                         addrModeCalcResult.AddressCalculationCrossedPageBoundary)
                 );
         }
-
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            var insValue = GetInstructionValueFromAddressOrDirectly(cpu, mem, addrModeCalcResult);
-
-            cpu.A ^= insValue;
-            BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, cpu.ProcessorStatus);
-
-            return true;
-        }
-        
+       
         public EOR()
         {
             _opCodes = new List<OpCode>

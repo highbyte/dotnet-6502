@@ -31,19 +31,6 @@ namespace Highbyte.DotNet6502.Instructions
 
         }
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            byte insValue = GetInstructionValueFromAddressOrDirectly(cpu, mem, addrModeCalcResult);
-
-            if(cpu.ProcessorStatus.Carry)
-            {
-                // The instruction value is signed byte with the relative address (positive or negative)
-                cpu.PC = BranchHelper.CalculateNewAbsoluteBranchAddress(cpu.PC, (sbyte)insValue, out ulong cyclesConsumed);
-                cpu.ExecState.CyclesConsumed += cyclesConsumed;
-            }
-            return true;
-        }
-
         public BCS()
         {
             _opCodes = new List<OpCode>

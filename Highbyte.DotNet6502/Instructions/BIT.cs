@@ -19,13 +19,6 @@ namespace Highbyte.DotNet6502.Instructions
             return InstructionLogicResult.WithNoExtraCycles();
         }  
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            var insValue = cpu.FetchByte(mem, addrModeCalcResult.InsAddress.Value);
-            BinaryArithmeticHelpers.PerformBITAndSetStatusRegisters(cpu.A, insValue, cpu.ProcessorStatus);
-            return true;
-        }
-
         public BIT()
         {
             _opCodes = new List<OpCode>

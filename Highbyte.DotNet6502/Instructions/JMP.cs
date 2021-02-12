@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Instructions
     /// Jump.
     /// Sets the program counter to the address specified by the operand.
     /// </summary>
-    public class JMP : Instruction, IInstructionUseAddress
+    public class JMP : Instruction, IInstructionUsesAddress
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
@@ -16,12 +16,6 @@ namespace Highbyte.DotNet6502.Instructions
            cpu.PC = address;
 
             return InstructionLogicResult.WithNoExtraCycles();
-        }
-
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            cpu.PC = addrModeCalcResult.InsAddress.Value;
-            return true;
         }
         
         public JMP()

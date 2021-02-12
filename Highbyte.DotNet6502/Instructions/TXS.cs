@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Instructions
     /// Transfer X to Stack Pointer.
     /// Copies the current contents of the X register into the stack register.
     /// </summary>
-    public class TXS : Instruction, IInstructionUseNone
+    public class TXS : Instruction, IInstructionUsesOnlyRegOrStatus
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
@@ -18,14 +18,6 @@ namespace Highbyte.DotNet6502.Instructions
             return InstructionLogicResult.WithNoExtraCycles();                
         }
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            cpu.SP = cpu.X;
-            // Extra cycle for transfer register to another register?
-            cpu.ExecState.CyclesConsumed++;
-            return true;
-        }
-        
         public TXS()
         {
             _opCodes = new List<OpCode>

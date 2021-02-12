@@ -1,16 +1,10 @@
-﻿using System;
-
-namespace Highbyte.DotNet6502
+﻿namespace Highbyte.DotNet6502
 {
     /// <summary>
     /// Executes a CPU instruction
     /// </summary>
     public class InstructionExecutor
     {
-        public InstructionExecutor()
-        {
-        }
-
         /// <summary>
         /// Executes the specified instruction.
         /// PC is assumed to point at the instruction operand, or the the next instruction, depending on instruction.
@@ -121,10 +115,10 @@ namespace Highbyte.DotNet6502
             }
 
             // Execute the instruction-specific logic, with final value calculated in addrModeCalcResult.
-
+            InstructionLogicResult instructionLogicResult;
             if (instruction is IInstructionUsesByte instructionUsesByte)
             {
-                // Instruction expects a byte directly or via an address
+                // Instruction expects a byte directly or via a relative or absolute (word) address
                 byte instructionValue;
                 if(addrModeCalcResult.InsAddress.HasValue)
                 {
@@ -133,44 +127,29 @@ namespace Highbyte.DotNet6502
                 else
                     instructionValue = addrModeCalcResult.InsValue.Value;
                 
-                var instructionLogicResult = instructionUsesByte.ExecuteWithByte(cpu, mem, instructionValue, addrModeCalcResult);
-
-                return new InstructionExecResult(opCode)
-                {
-                    CyclesConsumed = opCodeObject.MinimumCycles + instructionLogicResult.ExtraConsumedCycles
-                };
+                instructionLogicResult = instructionUsesByte.ExecuteWithByte(cpu, mem, instructionValue, addrModeCalcResult);
             }
-            else if (instruction is IInstructionUseAddress instructionUseAddress && addrModeCalcResult.InsAddress.HasValue)
+            else if (instruction is IInstructionUsesAddress instructionUseAddress && addrModeCalcResult.InsAddress.HasValue)
             {
-                var instructionLogicResult = instructionUseAddress.ExecuteWithWord(cpu, mem, addrModeCalcResult.InsAddress.Value, addrModeCalcResult);
-
-                return new InstructionExecResult(opCode)
-                {
-                    CyclesConsumed = opCodeObject.MinimumCycles + instructionLogicResult.ExtraConsumedCycles
-                };
+                // Instruction expects a an address (to write to, or use to change program counter)
+                instructionLogicResult = instructionUseAddress.ExecuteWithWord(cpu, mem, addrModeCalcResult.InsAddress.Value, addrModeCalcResult);
             }
-            else if (instruction is IInstructionUseNone instructionUseNone)
+            else if (instruction is IInstructionUsesStack instructionUsesStack)
             {
-                var instructionLogicResult = instructionUseNone.Execute(cpu, addrModeCalcResult);
-
-                return new InstructionExecResult(opCode)
-                {
-                    CyclesConsumed = opCodeObject.MinimumCycles + instructionLogicResult.ExtraConsumedCycles
-                };                
+                // Instruction is expected to push or pop stack
+                instructionLogicResult = instructionUsesStack.ExecuteWithStack(cpu, mem, addrModeCalcResult);
+            }            
+            else if (instruction is IInstructionUsesOnlyRegOrStatus instructionUseNone)
+            {
+                instructionLogicResult = instructionUseNone.Execute(cpu, addrModeCalcResult);
+               
             }
             else
             {
-                // Fall back to old execution method. Will count cycles dynamically by increasing cpu.ExecState.CyclesConsumed step by step
-                var instructionImplemented = instruction.Execute(cpu, mem, addrModeCalcResult);
-                if(!instructionImplemented)
-                    return InstructionExecResult.UnknownInstructionResult(opCode);
-
-                return new InstructionExecResult(opCode)
-                {
-                    CyclesConsumed = (ulong) (cpu.ExecState.CyclesConsumed - oldCountingStartCycles)
-                };                
-
+                throw new DotNet6502Exception($"Bug detected. Did not find a way to execute instruction: {instruction.Name} opcode: {opCode.ToHex()}"); 
             }
+
+            return InstructionExecResult.SuccessfulInstructionResult(opCode, opCodeObject.MinimumCycles + instructionLogicResult.ExtraConsumedCycles);
         }
     }
 }

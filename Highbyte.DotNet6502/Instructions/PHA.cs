@@ -18,14 +18,6 @@ namespace Highbyte.DotNet6502.Instructions
             return InstructionLogicResult.WithNoExtraCycles();
         }        
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            cpu.PushByteToStack(cpu.A, mem);
-            // Consume extra cycles to change SP?
-            cpu.ExecState.CyclesConsumed++;
-            return true;
-        }
-        
         public PHA()
         {
             _opCodes = new List<OpCode>

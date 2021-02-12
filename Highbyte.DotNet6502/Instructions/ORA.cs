@@ -24,16 +24,6 @@ namespace Highbyte.DotNet6502.Instructions
                 );
         }
 
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            byte insValue = GetInstructionValueFromAddressOrDirectly(cpu, mem, addrModeCalcResult);
-
-            cpu.A |= insValue;
-            BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, cpu.ProcessorStatus);
-            return true;
-            
-        }
-
         public ORA()
         {
             _opCodes = new List<OpCode>

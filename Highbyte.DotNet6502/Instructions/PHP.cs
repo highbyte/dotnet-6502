@@ -22,19 +22,6 @@ namespace Highbyte.DotNet6502.Instructions
 
             return InstructionLogicResult.WithNoExtraCycles();
         }        
-
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            // Set the Break flag on the copy of the ProcessorStatus that will be stored in stack.
-            var processorStatusCopy = cpu.ProcessorStatus.Clone();
-            processorStatusCopy.Break = true;
-            processorStatusCopy.Unused = true;            
-            cpu.PushByteToStack(processorStatusCopy.Value, mem);
-
-            // Consume extra cycles to change SP?
-            cpu.ExecState.CyclesConsumed++;
-            return true;
-        }
         
         public PHP()
         {

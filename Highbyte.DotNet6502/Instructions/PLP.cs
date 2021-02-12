@@ -18,14 +18,6 @@ namespace Highbyte.DotNet6502.Instructions
             
             return InstructionLogicResult.WithNoExtraCycles();
         } 
-
-        public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            cpu.ProcessorStatus.Value = cpu.PopByteFromStack(mem);
-            // Consume two extra cycles to change SP? Why one more than PHP?
-            cpu.ExecState.CyclesConsumed += 2;
-            return true;
-        }
         
         public PLP()
         {
