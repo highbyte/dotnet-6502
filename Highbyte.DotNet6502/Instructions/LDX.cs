@@ -6,10 +6,23 @@ namespace Highbyte.DotNet6502.Instructions
     /// Load X Register.
     /// Loads a byte of memory into the X register setting the zero and negative flags as appropriate.
     /// </summary>
-    public class LDX : Instruction
+    public class LDX : Instruction, IInstructionUsesByte
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
+
+        
+        public InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
+        {
+            cpu.X = value;
+            BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.X, cpu.ProcessorStatus);
+
+            return InstructionLogicResult.WithExtraCycles(
+                InstructionExtraCyclesCalculator.CalculateExtraCycles(
+                        addrModeCalcResult.OpCode.AddressingMode, 
+                        addrModeCalcResult.AddressCalculationCrossedPageBoundary)
+                );
+        }        
 
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {

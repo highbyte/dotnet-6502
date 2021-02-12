@@ -12,19 +12,6 @@ namespace Highbyte.DotNet6502
         }
 
         /// <summary>
-        /// Reads instruction from current PC and executes it.
-        /// When method returns, PC will be increased to point at next instruction 
-        /// Returns true if instruction was handled, false is instruction is unknown.
-        /// </summary>
-        /// <param name="cpu"></param>
-        /// <param name="mem"></param>
-        public void Execute(CPU cpu, Memory mem)
-        {
-            byte opCode = cpu.FetchInstruction(mem);
-            Execute(cpu, mem, opCode);
-        }
-
-        /// <summary>
         /// Executes the specified instruction.
         /// PC is assumed to point at the instruction operand, or the the next instruction, depending on instruction.
         /// When method returns, PC will be increased to point at next instruction 
@@ -34,16 +21,29 @@ namespace Highbyte.DotNet6502
         /// <param name="mem"></param>
         /// <param name="opCode"></param>
         /// <returns></returns>
-        public bool Execute(CPU cpu, Memory mem, byte opCode)
+        public InstructionExecResult Execute(CPU cpu, Memory mem)
         {
+            ulong oldCountingStartCycles = cpu.ExecState.CyclesConsumed;
+
+            byte opCode = cpu.FetchInstruction(mem);
+
+            if(!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
+                return InstructionExecResult.UnknownInstructionResult(opCode);
+
             var opCodeObject = cpu.InstructionList.GetOpCode(opCode);
             if(opCodeObject == null)
-                return false;
+                return InstructionExecResult.UnknownInstructionResult(opCode);
+
             var instruction = cpu.InstructionList.GetInstruction(opCodeObject);
             if(instruction == null)
-                return false;
+                 return InstructionExecResult.UnknownInstructionResult(opCode);
 
-            AddrModeCalcResult addrModeCalcResult = new AddrModeCalcResult(opCodeObject);
+            //var cyclesConsumedBeforeInstruction = 
+
+            // Derive what the final value is going to be used with the instruction based on addressing mode.
+            // The way the addressing mode works is the same accross the instructions, so we don't need to repeat the logic
+            // on how to get to the actual value used with the instruction.
+            AddrModeCalcResult addrModeCalcResult = new(opCodeObject);
             switch(opCodeObject.AddressingMode)
             {
                 case AddrMode.I:
@@ -117,13 +117,60 @@ namespace Highbyte.DotNet6502
                     break;
                 }
                  default:
-                    return false;
+                     return InstructionExecResult.UnknownInstructionResult(opCode);
             }
 
-            if(addrModeCalcResult==null)
-                throw new DotNet6502Exception("Bug detected. Variable addrModeCalcResult expected to be set.");
+            // Execute the instruction-specific logic, with final value calculated in addrModeCalcResult.
 
-            return instruction.Execute(cpu, mem, addrModeCalcResult);
+            if (instruction is IInstructionUsesByte instructionUsesByte)
+            {
+                // Instruction expects a byte directly or via an address
+                byte instructionValue;
+                if(addrModeCalcResult.InsAddress.HasValue)
+                {
+                    instructionValue = cpu.FetchByte(mem, addrModeCalcResult.InsAddress.Value);
+                }
+                else
+                    instructionValue = addrModeCalcResult.InsValue.Value;
+                
+                var instructionLogicResult = instructionUsesByte.ExecuteWithByte(cpu, mem, instructionValue, addrModeCalcResult);
+
+                return new InstructionExecResult(opCode)
+                {
+                    CyclesConsumed = opCodeObject.MinimumCycles + instructionLogicResult.ExtraConsumedCycles
+                };
+            }
+            else if (instruction is IInstructionUseAddress instructionUseAddress && addrModeCalcResult.InsAddress.HasValue)
+            {
+                var instructionLogicResult = instructionUseAddress.ExecuteWithWord(cpu, mem, addrModeCalcResult.InsAddress.Value, addrModeCalcResult);
+
+                return new InstructionExecResult(opCode)
+                {
+                    CyclesConsumed = opCodeObject.MinimumCycles + instructionLogicResult.ExtraConsumedCycles
+                };
+            }
+            else if (instruction is IInstructionUseNone instructionUseNone)
+            {
+                var instructionLogicResult = instructionUseNone.Execute(cpu, addrModeCalcResult);
+
+                return new InstructionExecResult(opCode)
+                {
+                    CyclesConsumed = opCodeObject.MinimumCycles + instructionLogicResult.ExtraConsumedCycles
+                };                
+            }
+            else
+            {
+                // Fall back to old execution method. Will count cycles dynamically by increasing cpu.ExecState.CyclesConsumed step by step
+                var instructionImplemented = instruction.Execute(cpu, mem, addrModeCalcResult);
+                if(!instructionImplemented)
+                    return InstructionExecResult.UnknownInstructionResult(opCode);
+
+                return new InstructionExecResult(opCode)
+                {
+                    CyclesConsumed = (ulong) (cpu.ExecState.CyclesConsumed - oldCountingStartCycles)
+                };                
+
+            }
         }
     }
 }

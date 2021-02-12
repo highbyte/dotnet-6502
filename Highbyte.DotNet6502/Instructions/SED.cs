@@ -6,10 +6,18 @@ namespace Highbyte.DotNet6502.Instructions
     /// Set Decimal Flag.
     /// Set the decimal mode flag to one.
     /// </summary>
-    public class SED : Instruction
+    public class SED : Instruction, IInstructionUseNone
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
+
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
+        {
+            // Assume implied mode
+            cpu.ProcessorStatus.Decimal = true;
+                        
+            return InstructionLogicResult.WithNoExtraCycles();
+        }
 
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {

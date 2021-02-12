@@ -8,11 +8,28 @@ namespace Highbyte.DotNet6502.Instructions
     /// Bit 7 is filled with the current value of the carry flag whilst the 
     /// old bit 0 becomes the new carry flag value.
     /// </summary>
-    public class ROR : Instruction
+    public class ROR : Instruction, IInstructionUseAddress, IInstructionUseNone
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
+                public InstructionLogicResult ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
+        {
+            var tempValue = cpu.FetchByte(mem, address);
+            tempValue = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(tempValue, cpu.ProcessorStatus);
+            cpu.StoreByte(tempValue, mem, address);
+
+            return InstructionLogicResult.WithNoExtraCycles();
+        }        
+
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
+        {
+            // Assume Accumulator mode
+            cpu.A = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(cpu.A, cpu.ProcessorStatus);
+
+            return InstructionLogicResult.WithNoExtraCycles();
+        }
+        
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {
             if(addrModeCalcResult.InsAddress.HasValue)

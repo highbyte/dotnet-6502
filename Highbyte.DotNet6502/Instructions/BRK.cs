@@ -8,10 +8,17 @@ namespace Highbyte.DotNet6502.Instructions
     /// The program counter and processor status are pushed on the stack then the IRQ interrupt vector at $FFFE/F 
     /// is loaded into the PC and the break flag in the status set to one.
     /// </summary>
-    public class BRK : Instruction
+    public class BRK : Instruction, IInstructionUsesStack
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
+
+        
+        public InstructionLogicResult ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        {
+            Execute(cpu, mem, addrModeCalcResult);
+            return InstructionLogicResult.WithNoExtraCycles();
+        }
 
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {

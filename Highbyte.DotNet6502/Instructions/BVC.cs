@@ -6,10 +6,29 @@ namespace Highbyte.DotNet6502.Instructions
     /// Branch if Overflow Clear.
     /// If the overflow flag is clear then add the relative displacement to the program counter to cause a branch to a new location.
     /// </summary>
-    public class BVC : Instruction
+    public class BVC : Instruction, IInstructionUsesByte
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
+
+        
+        public InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
+        {
+            bool branchSucceeded = false;
+            bool addressCalculationCrossedPageBoundary = false;
+            if(!cpu.ProcessorStatus.Overflow)
+            {
+                // The instruction value is signed byte with the relative address (positive or negative)
+                cpu.PC = BranchHelper.CalculateNewAbsoluteBranchAddress(cpu.PC, (sbyte)value, out ulong _, out addressCalculationCrossedPageBoundary);
+                branchSucceeded = true;
+            }
+
+            return InstructionLogicResult.WithExtraCycles(
+                InstructionExtraCyclesCalculator.CalculateExtraCyclesForBranchInstructions(
+                        branchSucceeded, 
+                        addressCalculationCrossedPageBoundary)
+                );
+        }  
 
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {

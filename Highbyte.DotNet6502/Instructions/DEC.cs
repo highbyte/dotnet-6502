@@ -6,10 +6,20 @@ namespace Highbyte.DotNet6502.Instructions
     /// Decrement Memory.
     /// Subtracts one from the value held at a specified memory location setting the zero and negative flags as appropriate.
     /// </summary>
-    public class DEC : Instruction
+    public class DEC : Instruction, IInstructionUsesByte
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
+
+        
+        public InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
+        {
+            value--;
+            cpu.StoreByte(value, mem, addrModeCalcResult.InsAddress.Value);
+            BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(value, cpu.ProcessorStatus);
+
+            return InstructionLogicResult.WithNoExtraCycles();
+        }
 
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {

@@ -72,7 +72,10 @@ namespace Highbyte.DotNet6502
 
             var typesToSearch = typeof(InstructionList).Assembly.GetTypes();
 
-            var instructionTypes = typesToSearch.Where(p => p.GetTypeInfo().IsSubclassOf(typeof(Instruction)));
+            var instructionTypes = typesToSearch.Where(p => 
+                p.GetTypeInfo().IsSubclassOf(typeof(Instruction))
+                && !p.GetTypeInfo().IsAbstract
+            );
 
             var instructions = new List<Instruction>();
             foreach(var instructionType in instructionTypes)

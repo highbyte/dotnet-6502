@@ -6,10 +6,18 @@ namespace Highbyte.DotNet6502.Instructions
     /// Transfer Accumulator to X.
     /// Copies the current contents of the accumulator into the X register and sets the zero and negative flags as appropriate.
     /// </summary>
-    public class TAX : Instruction
+    public class TAX : Instruction, IInstructionUseNone
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
+
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
+        {
+            cpu.X = cpu.A;
+            BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.X, cpu.ProcessorStatus);            
+
+            return InstructionLogicResult.WithNoExtraCycles();                
+        }
 
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {

@@ -6,10 +6,22 @@ namespace Highbyte.DotNet6502.Instructions
     /// Compare.
     /// This instruction compares the contents of the accumulator with another memory held value and sets the zero and carry flags as appropriate.
     /// </summary>
-    public class CMP : Instruction
+    public class CMP : Instruction, IInstructionUsesByte
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
+
+        
+        public InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
+        {
+            BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.A, value, cpu.ProcessorStatus);
+
+            return InstructionLogicResult.WithExtraCycles(
+                InstructionExtraCyclesCalculator.CalculateExtraCycles(
+                        addrModeCalcResult.OpCode.AddressingMode, 
+                        addrModeCalcResult.AddressCalculationCrossedPageBoundary)
+                );
+        }
 
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {

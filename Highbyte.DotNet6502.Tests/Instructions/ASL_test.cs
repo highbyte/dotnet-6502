@@ -5,12 +5,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
     public class ASL_test
     {
         [Fact]
-        public void ASL_ACC_Takes_1_Cycle()
+        public void ASL_ACC_Takes_2_Cycles()
         {
             var test = new TestSpec()
             {
                 OpCode         = OpCodeId.ASL_ACC,
-                ExpectedCycles = 1,
+                ExpectedCycles = 2,
             };
             test.Execute_And_Verify(AddrMode.Accumulator);
         }

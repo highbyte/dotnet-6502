@@ -6,10 +6,27 @@ namespace Highbyte.DotNet6502.Instructions
     /// Logical Shift Right.
     /// Each of the bits in A or M is shift one place to the right. The bit that was in bit 0 is shifted into the carry flag. Bit 7 is set to zero.
     /// </summary>
-    public class LSR : Instruction
+    public class LSR : Instruction, IInstructionUseAddress, IInstructionUseNone
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
+
+                public InstructionLogicResult ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
+        {
+            var tempValue = cpu.FetchByte(mem, address);
+            tempValue = BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(tempValue, cpu.ProcessorStatus);
+            cpu.StoreByte(tempValue, mem, address);               
+
+            return InstructionLogicResult.WithNoExtraCycles();
+        }        
+
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
+        {
+            // Assume Accumulator mode
+            cpu.A = BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(cpu.A, cpu.ProcessorStatus);
+
+            return InstructionLogicResult.WithNoExtraCycles();
+        }
 
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {

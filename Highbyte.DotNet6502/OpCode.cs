@@ -25,6 +25,6 @@
         /// Can take more cycles depending on zero page wrap-around or crossing page boundary
         /// </summary>
         /// <value></value>
-        public int MinimumCycles { get; set;}
+        public ulong MinimumCycles { get; set;}
     }
 }

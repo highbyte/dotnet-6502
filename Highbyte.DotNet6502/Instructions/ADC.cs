@@ -5,10 +5,22 @@ namespace Highbyte.DotNet6502.Instructions
     /// <summary>
     /// Add with Carry
     /// </summary>
-    public class ADC : Instruction
+    public class ADC : Instruction, IInstructionUsesByte
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
+
+        
+        public InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
+        {
+            cpu.A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(cpu.A, value, cpu.ProcessorStatus);
+
+            return InstructionLogicResult.WithExtraCycles(
+                InstructionExtraCyclesCalculator.CalculateExtraCycles(
+                        addrModeCalcResult.OpCode.AddressingMode, 
+                        addrModeCalcResult.AddressCalculationCrossedPageBoundary)
+                );
+        }
 
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {
@@ -17,6 +29,7 @@ namespace Highbyte.DotNet6502.Instructions
             cpu.A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(cpu.A, insValue, cpu.ProcessorStatus);
             return true;
         }
+
 
         public ADC()
         {

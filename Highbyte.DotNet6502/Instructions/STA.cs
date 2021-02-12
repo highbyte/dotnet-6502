@@ -6,10 +6,17 @@ namespace Highbyte.DotNet6502.Instructions
     /// Store Accumulator.
     /// Stores the contents of the accumulator into memory.
     /// </summary>
-    public class STA : Instruction
+    public class STA : Instruction, IInstructionUseAddress
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
+
+        public InstructionLogicResult ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
+        {
+            cpu.StoreByte(cpu.A, mem, address);
+
+            return InstructionLogicResult.WithNoExtraCycles();          
+        }
 
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {
@@ -24,7 +31,7 @@ namespace Highbyte.DotNet6502.Instructions
                 cpu.ExecState.CyclesConsumed++;
             return true;
         }
-
+        
         public STA()
         {
             _opCodes = new List<OpCode>

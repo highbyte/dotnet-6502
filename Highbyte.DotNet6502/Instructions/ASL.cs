@@ -9,10 +9,27 @@ namespace Highbyte.DotNet6502.Instructions
     /// multiply the memory contents by 2 (ignoring 2's complement considerations), setting the carry 
     /// if the result will not fit in 8 bits.
     /// </summary>
-    public class ASL : Instruction
+    public class ASL : Instruction, IInstructionUseAddress, IInstructionUseNone
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
+
+                public InstructionLogicResult ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
+        {
+            var tempValue = cpu.FetchByte(mem, address);
+            tempValue = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(tempValue, cpu.ProcessorStatus);
+            cpu.StoreByte(tempValue, mem, address);
+
+            return InstructionLogicResult.WithNoExtraCycles();
+        }
+
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
+        {
+            // Assume Accumulator mode
+            cpu.A = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(cpu.A, cpu.ProcessorStatus);
+
+            return InstructionLogicResult.WithNoExtraCycles();
+        }
 
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {

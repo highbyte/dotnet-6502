@@ -6,10 +6,18 @@ namespace Highbyte.DotNet6502.Instructions
     /// Set Carry Flag.
     /// Set the carry flag to one.
     /// </summary>
-    public class SEC : Instruction
+    public class SEC : Instruction, IInstructionUseNone
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
+
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
+        {
+            // Assume implied mode
+            cpu.ProcessorStatus.Carry = true;
+                        
+            return InstructionLogicResult.WithNoExtraCycles();
+        }
 
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {

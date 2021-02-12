@@ -6,10 +6,18 @@ namespace Highbyte.DotNet6502.Instructions
     /// Transfer Stack Pointer to X.
     /// Copies the current contents of the stack register into the X register and sets the zero and negative flags as appropriate.
     /// </summary>
-    public class TSX : Instruction
+    public class TSX : Instruction, IInstructionUseNone
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
+
+        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
+        {
+            cpu.X = cpu.SP;
+            BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.X, cpu.ProcessorStatus);
+            
+            return InstructionLogicResult.WithNoExtraCycles();                
+        }
 
         public override bool Execute(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {

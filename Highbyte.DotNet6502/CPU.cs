@@ -130,9 +130,6 @@ namespace Highbyte.DotNet6502
         {
             // Get current cycle count
             ulong startCycleCount = ExecState.CyclesConsumed;
-
-            byte lastOpCode;
-
             bool doNextInstruction = true;
             ulong cyclesConsumedThisIteration = 0;
 
@@ -141,30 +138,26 @@ namespace Highbyte.DotNet6502
                 OnInstructionToBeExecuted(new CPUInstructionToBeExecutedEventArgs(this));
 
                 ushort PCBeforeInstructionExecuted = PC;
-                byte opCode = FetchInstruction(mem);
-                lastOpCode = opCode;
 
-                bool instructionHandled;
-                if(InstructionList.OpCodeDictionary.ContainsKey(opCode))
-                    instructionHandled = _instructionExecutor.Execute(this, mem, opCode);
-                else
-                    instructionHandled = false;
+                var cycleCountBeforeInstruction = ExecState.CyclesConsumed;
+                var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
+                ExecState.CyclesConsumed = cycleCountBeforeInstruction + instructionExecutionResult.CyclesConsumed ;
 
-                ExecState.LastOpCode = lastOpCode;
-                ExecState.LastOpCodeWasHandled = instructionHandled;
+                ExecState.LastOpCode = instructionExecutionResult.OpCodeByte;
+                ExecState.LastOpCodeWasHandled = !instructionExecutionResult.UnknownInstruction;
 
-                if(!instructionHandled)
+                if(instructionExecutionResult.UnknownInstruction)
                     ExecState.UnknownOpCodeCount++;
 
                 ExecState.PCBeforeLastOpCodeExecuted = PCBeforeInstructionExecuted;
                 ExecState.InstructionsExecutionCount++;
 
-                if(!instructionHandled)
+                if(instructionExecutionResult.UnknownInstruction)
                 {
-                        OnUnknownOpCodeDetected(new CPUUnknownOpCodeDetectedEventArgs(this, lastOpCode));
-                        Debug.WriteLine($"Unknown opcode: {lastOpCode.ToHex()}");
+                        OnUnknownOpCodeDetected(new CPUUnknownOpCodeDetectedEventArgs(this, instructionExecutionResult.OpCodeByte));
+                        Debug.WriteLine($"Unknown opcode: {instructionExecutionResult.OpCodeByte.ToHex()}");
                         if(execOptions.UnknownInstructionThrowsException)
-                            throw new DotNet6502Exception($"Unknown opcode: {lastOpCode.ToHex()}"); 
+                            throw new DotNet6502Exception($"Unknown opcode: {instructionExecutionResult.OpCodeByte.ToHex()}"); 
                 }
                 else
                 {
@@ -179,7 +172,7 @@ namespace Highbyte.DotNet6502
                     doNextInstruction = false;
                 if(execOptions.MaxNumberOfInstructions.HasValue && ExecState.InstructionsExecutionCount >= execOptions.MaxNumberOfInstructions.Value) 
                     doNextInstruction = false;
-                if(execOptions.ExecuteUntilInstruction.Count > 0 && execOptions.ExecuteUntilInstruction.Contains(lastOpCode))
+                if(execOptions.ExecuteUntilInstruction.Count > 0 && execOptions.ExecuteUntilInstruction.Contains(instructionExecutionResult.OpCodeByte))
                      doNextInstruction = false;
                 if(execOptions.ExecuteUntilPC.HasValue && PC == execOptions.ExecuteUntilPC.Value)
                     doNextInstruction = false;
