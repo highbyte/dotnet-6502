@@ -43,19 +43,19 @@ namespace Highbyte.DotNet6502
             return word;
         }
 
-        public static string ToHex(this byte value)
+        public static string ToHex(this byte value, string hexPrefix="0x")
         {
-            return $"0x{value:X2}";
+            return $"{hexPrefix}{value:X2}";
         }
 
-        public static string ToHexAndDecimal(this byte value)
+        public static string ToHexAndDecimal(this byte value, string hexPrefix="0x")
         {
-            return $"{ToHex(value)} ({value})";
+            return $"{ToHex(value, hexPrefix)} ({value})";
         }
 
-        public static string ToDecimalAndHex(this byte value)
+        public static string ToDecimalAndHex(this byte value, string hexPrefix="0x")
         {
-            return $"{value} ({ToHex(value)})";
+            return $"{value} ({ToHex(value, hexPrefix)})";
         }
 
 
