@@ -52,6 +52,16 @@
         {
             return $"0x{value:X4}";
         }
-         
+
+        public static string ToHexAndDecimal(this ushort value)
+        {
+            return $"{ToHex(value)} ({value})";
+        }
+
+        public static string ToDecimalAndHex(this ushort value)
+        {
+            return $"{value} ({ToHex(value)})";
+        }
+
     }
 }

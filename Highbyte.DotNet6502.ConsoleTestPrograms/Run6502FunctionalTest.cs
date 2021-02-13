@@ -2,7 +2,7 @@
 using Highbyte.DotNet6502.Tests.Helpers;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.ConsoleUI
+namespace Highbyte.DotNet6502.ConsoleTestPrograms
 {
     public class Run6502FunctionalTest
     {

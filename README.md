@@ -132,7 +132,7 @@ Monitor commands: https://vice-emu.sourceforge.io/vice_12.html
 
 How to load and step through a program in the VICE monitor
 ```
-l "C:\Source\Repos\dotnet-6502\.cache\Highbyte.DotNet6502.ConsoleUI\testprogram5.prg" 0 1000
+l "C:\Source\Repos\dotnet-6502\.cache\Highbyte.DotNet6502.ConsoleTestPrograms\AssemblerSource\testprogram.prg" 0 1000
 d 1000
 r PC=1000
 z

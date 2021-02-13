@@ -1,22 +1,27 @@
-﻿using Highbyte.DotNet6502.Tests.Helpers;
+﻿using System.Diagnostics.CodeAnalysis;
+using Highbyte.DotNet6502.Tests.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.ConsoleUI
+[assembly: ExcludeFromCodeCoverage]
+namespace Highbyte.DotNet6502.ConsoleTestPrograms
 {
     class Program
     {
         //static void Main(string[] args)
         static void Main()
         {
-            var serviceCollection = new ServiceCollection();
-            ConfigureServices(serviceCollection);
+            //// Download, compile, and run 6502 functional test program
+            // var serviceCollection = new ServiceCollection();
+            // ConfigureServices(serviceCollection);
+            // var serviceProvider = serviceCollection.BuildServiceProvider(); 
+            // var run6502FunctionalTest = serviceProvider.GetService<Run6502FunctionalTest>();
+            // run6502FunctionalTest.Run();
 
-            var serviceProvider = serviceCollection.BuildServiceProvider(); 
+            // Run 16-bit multiplication 6502 binary
+            Run16bitMultiplyProgram.Run();
 
-            var run6502FunctionalTest = serviceProvider.GetService<Run6502FunctionalTest>();
-            run6502FunctionalTest.Run();
-
+            // Run simple 6502 binary
             //RunTestProgram.Run();
             //RunTestProgram2.Run();
         }

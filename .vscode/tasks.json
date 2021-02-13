@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Highbyte.DotNet6502.ConsoleUI/Highbyte.DotNet6502.ConsoleUI.csproj",
+                "${workspaceFolder}/Highbyte.DotNet6502.ConsoleTestPrograms/Highbyte.DotNet6502.ConsoleTestPrograms.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -19,7 +19,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/Highbyte.DotNet6502.ConsoleUI/Highbyte.DotNet6502.ConsoleUI.csproj",
+                "${workspaceFolder}/Highbyte.DotNet6502.ConsoleTestPrograms/Highbyte.DotNet6502.ConsoleTestPrograms.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -32,7 +32,7 @@
             "args": [
                 "watch",
                 "run",
-                "${workspaceFolder}/Highbyte.DotNet6502.ConsoleUI/Highbyte.DotNet6502.ConsoleUI.csproj",
+                "${workspaceFolder}/Highbyte.DotNet6502.ConsoleTestPrograms/Highbyte.DotNet6502.ConsoleTestPrograms.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],

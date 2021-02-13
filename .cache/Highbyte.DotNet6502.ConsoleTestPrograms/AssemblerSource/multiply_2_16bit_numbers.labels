@@ -1,0 +1,5 @@
+
+al C:d004 .RESULT16
+al C:d000 .INPUT16A
+al C:d002 .INPUT16B
+
