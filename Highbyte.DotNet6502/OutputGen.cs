@@ -12,10 +12,10 @@ namespace Highbyte.DotNet6502
             ushort programAddress = cpu.ExecState.PCBeforeLastOpCodeExecuted.Value;
 
             byte opCode = cpu.ExecState.LastOpCode.Value;
-            var opCodeObject = cpu.InstructionList.OpCodeDictionary[opCode];
             // Check if instruction is recognized
-            if(opCodeObject==null)
+            if(!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
                 return FormatInstruction(programAddress, opCode);
+            var opCodeObject = cpu.InstructionList.OpCodeDictionary[opCode];
 
             var operand = mem.ReadData((ushort)(programAddress + 1), (ushort)(opCodeObject.Size - 1)); // -1 for the opcode itself
             return FormatInstruction(programAddress, opCode, operand);
