@@ -32,4 +32,4 @@ jobs:
     - name: Pack NuGet package
       run: dotnet pack ${{ env.PROJECT_FILE }} --no-build -c ${{ env.CONFIGURATION }} -p:PackageVersion=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }} -o out 
     - name: Push NuGet package
-      run: dotnet nuget push ./out/*.nupkg --source ${{ env.PACKAGE_REPO }} --api-key ${secrets.GITHUB_TOKEN} --skip-duplicate
+      run: dotnet nuget push ./out/*.nupkg --source ${{ env.PACKAGE_REPO }} --api-key ${{ secrets.GITHUB_TOKEN }}$ --skip-duplicate
