@@ -1,0 +1,35 @@
+name: .NET build & push package
+
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+#  push:
+#    branches: [ master ]
+#  pull_request:
+#    branches: [ master ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+  
+env:
+   PROJECT_FILE: "Highbyte.DotNet6502/Highbyte.DotNet6502.csproj"
+   CONFIGURATION: "Release"
+   VERSION: "0.1"  #Major.Minor[.Rev]
+   VERSION_SUFFIX: "-alpha"
+   PACKAGE_REPO: "https://nuget.pkg.github.com/highbyte/index.json"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.x
+    - name: Build dll
+      run: dotnet build ${{ env.PROJECT_FILE }} -c ${{ env.Release }} /Property:Version=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }}
+    - name: Pack NuGet package
+      run: dotnet pack ${{ env.PROJECT_FILE }} --no-build -c ${{ env.Release }} -p:PackageVersion=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }} -o out 
+    - name: Push NuGet package
+      run: dotnet nuget push ./out/*.nupkg --source ${{ env.PACKAGE_REPO }} --api-key ${secrets.GITHUB_TOKEN} --skip-duplicate
