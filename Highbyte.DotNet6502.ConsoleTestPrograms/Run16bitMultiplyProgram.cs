@@ -55,7 +55,7 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
                     (s, e) => Console.WriteLine($"{e.CPU.PC.ToHex()}: {e.CPU.ExecState.LastOpCode.Value.ToOpCodeId()}"))
                 .WithExecOptions(options =>
                 {
-                    options.ExecuteUntilInstruction = new List<byte>{OpCodeId.BRK.ToByte()};
+                    options.ExecuteUntilInstruction = OpCodeId.BRK;
                 });
 
             var computer = computerBuilder.Build();

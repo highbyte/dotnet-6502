@@ -174,7 +174,9 @@ namespace Highbyte.DotNet6502
                     doNextInstruction = false;
                 if(execOptions.MaxNumberOfInstructions.HasValue && ExecState.InstructionsExecutionCount >= execOptions.MaxNumberOfInstructions.Value) 
                     doNextInstruction = false;
-                if(execOptions.ExecuteUntilInstruction.Count > 0 && execOptions.ExecuteUntilInstruction.Contains(instructionExecutionResult.OpCodeByte))
+                if(!instructionExecutionResult.UnknownInstruction && execOptions.ExecuteUntilInstruction.HasValue && instructionExecutionResult.OpCodeByte == execOptions.ExecuteUntilInstruction.Value.ToByte())
+                     doNextInstruction = false;
+                if(execOptions.ExecuteUntilInstructions.Count > 0 && execOptions.ExecuteUntilInstructions.Contains(instructionExecutionResult.OpCodeByte))
                      doNextInstruction = false;
                 if(execOptions.ExecuteUntilPC.HasValue && PC == execOptions.ExecuteUntilPC.Value)
                     doNextInstruction = false;

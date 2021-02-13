@@ -18,8 +18,11 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
             // var run6502FunctionalTest = serviceProvider.GetService<Run6502FunctionalTest>();
             // run6502FunctionalTest.Run();
 
+            // Run simple machine code to add two numbers and rotate right
+            RunSimple.Run();
+
             // Run 16-bit multiplication 6502 binary
-            Run16bitMultiplyProgram.Run();
+            //Run16bitMultiplyProgram.Run();
 
             // Run simple 6502 binary
             //RunTestProgram.Run();

@@ -9,7 +9,8 @@ namespace Highbyte.DotNet6502
         public ushort? ExecuteUntilPC {get; set;}
         public ushort? ExecuteUntilExecutedInstructionAtPC {get; set;}
         
-        public List<byte> ExecuteUntilInstruction {get; set;}
+        public OpCodeId? ExecuteUntilInstruction {get; set;}
+        public List<byte> ExecuteUntilInstructions {get; set;}
         public bool UnknownInstructionThrowsException {get; set;}
 
         public ExecOptions()
@@ -20,6 +21,7 @@ namespace Highbyte.DotNet6502
             ExecuteUntilExecutedInstructionAtPC = null;
             UnknownInstructionThrowsException = false;
             ExecuteUntilInstruction = new();
+            ExecuteUntilInstructions = new();
         }
 
         public ExecOptions Clone()
@@ -31,7 +33,8 @@ namespace Highbyte.DotNet6502
                 ExecuteUntilPC = this.ExecuteUntilPC,
                 ExecuteUntilExecutedInstructionAtPC = this.ExecuteUntilExecutedInstructionAtPC,
                 UnknownInstructionThrowsException = this.UnknownInstructionThrowsException,
-                ExecuteUntilInstruction = this.ExecuteUntilInstruction
+                ExecuteUntilInstruction = this.ExecuteUntilInstruction,
+                ExecuteUntilInstructions = this.ExecuteUntilInstructions
             };
         }
     }

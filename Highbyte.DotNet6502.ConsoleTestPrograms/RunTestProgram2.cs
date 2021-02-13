@@ -60,7 +60,7 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
             var execOptions = new ExecOptions
             {
                 UnknownInstructionThrowsException = true,
-                ExecuteUntilInstruction = new List<byte>{OpCodeId.BRK.ToByte()}
+                ExecuteUntilInstruction = OpCodeId.BRK
             };
 
             // Execute program

@@ -5,9 +5,6 @@ namespace Highbyte.DotNet6502
         public Memory Mem { get; set;}
         public CPU CPU { get ; set; }
         public ExecOptions ExecOptions { get ; set; }
-
-        public EmulatorSettings Settings { get ; set; }
-
         public Computer()
         {
             Mem = new Memory();
