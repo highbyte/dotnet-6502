@@ -27,7 +27,14 @@ Inspiration for this library was a [Youtube-series](https://www.youtube.com/watc
 # How to use from a .NET application
 - Use Windows, Linux, or Mac
 - [.NET 5 SDK](https://dotnet.microsoft.com/download/dotnet/5.0) installed.
-- Add reference to Highbyte.DotNet6502.dll 
+- Add GitHub Packages source _(if/when this package will live on nuget.org, this would not be needed)_
+``` powershell
+dotnet nuget add source https://nuget.pkg.github.com/highbyte/index.json --name "github-highbyte" --username [your-git-username] --password [your-git-personal-access-token]
+```
+- Add reference to the library in your application
+```
+dotnet add package Highbyte.DotNet6502 --prerelease
+```
 
 Example #1. Load compiled 6502 binary and execute it.
 ```c#
