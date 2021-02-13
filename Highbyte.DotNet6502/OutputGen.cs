@@ -1,5 +1,4 @@
-using System;
-using System.IO;
+using System.Linq;
 
 namespace Highbyte.DotNet6502
 {
@@ -8,19 +7,36 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public static class OutputGen
     {
-        public static string Write(CPU cpu)
+        public static string FormatLastInstruction(CPU cpu, Memory mem)
         {
-            return Write(cpu.PC, cpu.ExecState.LastOpCode.Value);
+            ushort programAddress = cpu.ExecState.PCBeforeLastOpCodeExecuted.Value;
+
+            byte opCode = cpu.ExecState.LastOpCode.Value;
+            var opCodeObject = cpu.InstructionList.OpCodeDictionary[opCode];
+            // Check if instruction is recognized
+            if(opCodeObject==null)
+                return FormatInstruction(programAddress, opCode);
+
+            var operand = mem.ReadData((ushort)(programAddress + 1), (ushort)(opCodeObject.Size - 1)); // -1 for the opcode itself
+            return FormatInstruction(programAddress, opCode, operand);
         }
  
-        public static string Write(ushort address, byte opCode, byte[] operand = null)
+        // TODO: Format output string according to addressing code convention
+        public static string FormatInstruction(ushort address, byte opCode, byte[] operand = null)
         {
             string opCodeString;
             if(opCode.IsDefinedAsOpCodeId())
                 opCodeString = opCode.ToOpCodeId().ToString();
             else
                 opCodeString = opCode.ToHex();
-            return $"{address.ToHex()}: {opCodeString}";
+
+            string operandString;
+            if(operand==null)
+                operandString = "";
+            else
+                operandString = string.Join(" ", operand.Select(x=>x.ToHex()));
+
+            return $"{address.ToHex()}: {opCodeString, -8} {operandString, -9}";
         }
     }
 }

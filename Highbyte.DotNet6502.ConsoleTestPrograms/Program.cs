@@ -11,7 +11,7 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
         //static void Main(string[] args)
         static void Main()
         {
-            //// Download, compile, and run 6502 functional test program
+            // // Download, compile, and run 6502 functional test program
             // var serviceCollection = new ServiceCollection();
             // ConfigureServices(serviceCollection);
             // var serviceProvider = serviceCollection.BuildServiceProvider(); 

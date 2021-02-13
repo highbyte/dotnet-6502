@@ -45,7 +45,7 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
                 .WithStartAddress(codeAddress)
                 .WithMemory(mem)
                 .WithInstructionExecutedEventHandler( 
-                    (s, e) => Console.WriteLine(OutputGen.Write(e.CPU)))
+                    (s, e) => Console.WriteLine(OutputGen.FormatLastInstruction(e.CPU, e.Mem)))
                 .WithExecOptions(options =>
                 {
                     options.ExecuteUntilInstruction = OpCodeId.BRK; // Emulator will stop executing when a BRK instruction is reached.

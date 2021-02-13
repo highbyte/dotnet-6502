@@ -20,7 +20,7 @@ namespace Highbyte.DotNet6502
             ExecuteUntilPC = null;
             ExecuteUntilExecutedInstructionAtPC = null;
             UnknownInstructionThrowsException = false;
-            ExecuteUntilInstruction = new();
+            ExecuteUntilInstruction = null;
             ExecuteUntilInstructions = new();
         }
 

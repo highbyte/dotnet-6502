@@ -127,7 +127,7 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
         {
             const int showEveryXInstructions = 2000000;
             if(e.CPU.ExecState.InstructionsExecutionCount % showEveryXInstructions == 0)
-                Console.WriteLine($"{e.CPU.ExecState.PCBeforeLastOpCodeExecuted.Value.ToHex()}: {e.CPU.ExecState.LastOpCode.Value.ToOpCodeId(), -10} ({e.CPU.ExecState.LastOpCode.Value.ToHex()})  (ins. count: {e.CPU.ExecState.InstructionsExecutionCount})");
+                Console.WriteLine($"{OutputGen.FormatLastInstruction(e.CPU, e.Mem)}  (ins. count: {e.CPU.ExecState.InstructionsExecutionCount})");
         }
 
         void OnUnknownOpCodeDetected(object sender, CPUUnknownOpCodeDetectedEventArgs e)

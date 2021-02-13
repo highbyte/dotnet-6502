@@ -135,7 +135,8 @@ namespace Highbyte.DotNet6502
 
             while(doNextInstruction)
             {
-                OnInstructionToBeExecuted(new CPUInstructionToBeExecutedEventArgs(this));
+                // Fire event before instruction executes
+                OnInstructionToBeExecuted(new CPUInstructionToBeExecutedEventArgs(this, mem));
 
                 // Execute instruction
                 ushort PCBeforeInstructionExecuted = PC;
@@ -154,7 +155,7 @@ namespace Highbyte.DotNet6502
                 // Fire "unknown opcode" or "instruction executed" event
                 if(instructionExecutionResult.UnknownInstruction)
                 {
-                    OnUnknownOpCodeDetected(new CPUUnknownOpCodeDetectedEventArgs(this, instructionExecutionResult.OpCodeByte));
+                    OnUnknownOpCodeDetected(new CPUUnknownOpCodeDetectedEventArgs(this, mem, instructionExecutionResult.OpCodeByte));
                     Debug.WriteLine($"Unknown opcode: {instructionExecutionResult.OpCodeByte.ToHex()}");
 
                     // Check if we're configured to throw exception when unknown exception occurs
@@ -163,7 +164,7 @@ namespace Highbyte.DotNet6502
                 }
                 else
                 {
-                    OnInstructionExecuted(new CPUInstructionExecutedEventArgs(this));
+                    OnInstructionExecuted(new CPUInstructionExecutedEventArgs(this, mem));
                 }
             
                 // How many cycles have we consumed in this call to cpu.Execute()?
