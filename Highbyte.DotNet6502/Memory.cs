@@ -50,6 +50,19 @@ namespace Highbyte.DotNet6502
             }
         }
 
+        public byte[] ReadData(ushort address, ushort length)
+        {
+            if((address + length) > MAX_MEMORY_SIZE)
+                throw new DotNet6502Exception($"Address {address} + length {length} exceeds maximum memory limit {MAX_MEMORY_SIZE}");
+
+            byte[] readArray = new byte[length];
+            for (int i = 0; i < length; i++)
+            {
+                readArray[i] = _data[address+i];
+            }
+            return readArray;
+        }        
+
         public Memory Clone()
         {
             var memoryClone = new Memory(this.Size);

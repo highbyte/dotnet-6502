@@ -29,7 +29,7 @@ Inspiration for this library was a [Youtube-series](https://www.youtube.com/watc
 - [.NET 5 SDK](https://dotnet.microsoft.com/download/dotnet/5.0) installed.
 - Add reference to Highbyte.DotNet6502.dll 
 
-Example how to call the library (as of now, API may change)
+Example #1. Load compiled 6502 binary and execute it.
 ```c#
   var mem = BinaryLoader.Load(
       "C:\Binaries\MyCompiled6502Program.prg", 
@@ -43,6 +43,61 @@ Example how to call the library (as of now, API may change)
       
   var computer = computerBuilder.Build();
   computer.Run();  
+```  
+
+Example #2. 6502 machine code for adding to numbers and dividing by 2
+```c#
+  // Test program 
+  // - adds values from two memory location
+  // - divides it by 2 (rotate right one bit position)
+  // - stores it in another memory location
+
+  // Load input data into memory
+  byte value1 = 12;
+  byte value2 = 30;
+  ushort value1Address = 0xd000;
+  ushort value2Address = 0xd001;
+  ushort resultAddress = 0xd002;
+  var mem = new Memory();
+  mem[value1Address] = value1;
+  mem[value2Address] = value2;
+
+  // Load machine code into memory
+  ushort codeAddress = 0xc000;
+  ushort codeInsAddress = codeAddress;
+  mem[codeInsAddress++] = 0xad;         // LDA (Load Accumulator)
+  mem[codeInsAddress++] = 0x00;         //  |-Lowbyte of $d000
+  mem[codeInsAddress++] = 0xd0;         //  |-Highbyte of $d000
+  mem[codeInsAddress++] = 0x18;         // CLC (Clear Carry flag)
+  mem[codeInsAddress++] = 0x6d;         // ADC (Add with Carry, adds memory to accumulator)
+  mem[codeInsAddress++] = 0x01;         //  |-Lowbyte of $d001
+  mem[codeInsAddress++] = 0xd0;         //  |-Highbyte of $d001
+  mem[codeInsAddress++] = 0x6a;         // ROR (Rotate Right, rotates accumulator right one bit position)
+  mem[codeInsAddress++] = 0x8d;         // STA (Store Accumulator, store to accumulator to memory)
+  mem[codeInsAddress++] = 0x02;         //  |-Lowbyte of $d002
+  mem[codeInsAddress++] = 0xd0;         //  |-Highbyte of $d002
+  mem[codeInsAddress++] = 0x00;         // BRK (Break/Force Interrupt) - emulator configured to stop execution when reaching this instruction
+
+  // Initialize emulator with CPU, memory, and execution parameters
+  var computerBuilder = new ComputerBuilder();
+  computerBuilder
+      .WithCPU()
+      .WithStartAddress(codeAddress)
+      .WithMemory(mem)
+      .WithInstructionExecutedEventHandler( 
+          (s, e) => Console.WriteLine(OutputGen.FormatLastInstruction(e.CPU, e.Mem)))
+      .WithExecOptions(options =>
+      {
+          options.ExecuteUntilInstruction = OpCodeId.BRK; // Emulator will stop executing when a BRK instruction is reached.
+      });
+  var computer = computerBuilder.Build();
+
+  // Run program
+  computer.Run();
+
+  // Print result
+  byte result = mem[resultAddress];
+  Console.WriteLine($"({value1} + {value2}) / 2 = {result}");
 ```  
 
 # How to develop
@@ -135,7 +190,7 @@ Monitor commands: https://vice-emu.sourceforge.io/vice_12.html
 
 How to load and step through a program in the VICE monitor
 ```
-l "C:\Source\Repos\dotnet-6502\.cache\Highbyte.DotNet6502.ConsoleUI\testprogram5.prg" 0 1000
+l "C:\Source\Repos\dotnet-6502\.cache\Highbyte.DotNet6502.ConsoleTestPrograms\AssemblerSource\testprogram.prg" 0 1000
 d 1000
 r PC=1000
 z

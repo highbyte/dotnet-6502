@@ -48,6 +48,17 @@ namespace Highbyte.DotNet6502
             return $"0x{value:X2}";
         }
 
+        public static string ToHexAndDecimal(this byte value)
+        {
+            return $"{ToHex(value)} ({value})";
+        }
+
+        public static string ToDecimalAndHex(this byte value)
+        {
+            return $"{value} ({ToHex(value)})";
+        }
+
+
         public static bool IsDefinedAsOpCodeId(this byte opCodeId)
         {
             return Enum.IsDefined(typeof(OpCodeId), opCodeId);

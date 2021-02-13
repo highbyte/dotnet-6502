@@ -10,9 +10,9 @@
             "request": "launch",
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Highbyte.DotNet6502.ConsoleUI/bin/Debug/net5.0/Highbyte.DotNet6502.ConsoleUI.dll",
+            "program": "${workspaceFolder}/Highbyte.DotNet6502.ConsoleTestPrograms/bin/Debug/net5.0/Highbyte.DotNet6502.ConsoleTestPrograms.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.ConsoleUI",
+            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.ConsoleTestPrograms",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",
             "stopAtEntry": false

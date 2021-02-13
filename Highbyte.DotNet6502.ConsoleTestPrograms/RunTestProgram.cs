@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 
-namespace Highbyte.DotNet6502.ConsoleUI
+namespace Highbyte.DotNet6502.ConsoleTestPrograms
 {
     public class RunTestProgram
     {
@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.ConsoleUI
             Console.WriteLine($"Run 6502 code that copies data between two addresses.");
             Console.WriteLine($"-----------------------------------------------------");
 
-            string prgFileName = "../.cache/Highbyte.DotNet6502.ConsoleUI/testprogram.prg";
+            string prgFileName = "../.cache/Highbyte.DotNet6502.ConsoleTestPrograms/testprogram.prg";
             Console.WriteLine($"Program binary file: {prgFileName}");
             if(!File.Exists(prgFileName))
             {
@@ -60,7 +60,7 @@ namespace Highbyte.DotNet6502.ConsoleUI
             var execOptions = new ExecOptions
             {
                 UnknownInstructionThrowsException = true,
-                ExecuteUntilInstruction = new List<byte>{OpCodeId.BRK.ToByte()}
+                ExecuteUntilInstruction = OpCodeId.BRK
             };
 
             // Execute program

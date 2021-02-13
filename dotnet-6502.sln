@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502", "High
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.Tests", "Highbyte.DotNet6502.Tests\Highbyte.DotNet6502.Tests.csproj", "{4C634415-8E21-4813-A40C-E19025C300D4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.ConsoleUI", "Highbyte.DotNet6502.ConsoleUI\Highbyte.DotNet6502.ConsoleUI.csproj", "{B5BA78CE-B37C-4644-936C-4AAB4C5494A7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.ConsoleTestPrograms", "Highbyte.DotNet6502.ConsoleTestPrograms\Highbyte.DotNet6502.ConsoleTestPrograms.csproj", "{B5BA78CE-B37C-4644-936C-4AAB4C5494A7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
