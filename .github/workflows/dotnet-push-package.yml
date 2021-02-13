@@ -28,8 +28,8 @@ jobs:
       with:
         dotnet-version: 5.0.x
     - name: Build dll
-      run: dotnet build ${{ env.PROJECT_FILE }} -c ${{ env.Release }} /Property:Version=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }}
+      run: dotnet build ${{ env.PROJECT_FILE }} -c ${{ env.CONFIGURATION }} /Property:Version=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }}
     - name: Pack NuGet package
-      run: dotnet pack ${{ env.PROJECT_FILE }} --no-build -c ${{ env.Release }} -p:PackageVersion=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }} -o out 
+      run: dotnet pack ${{ env.PROJECT_FILE }} --no-build -c ${{ env.CONFIGURATION }} -p:PackageVersion=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }} -o out 
     - name: Push NuGet package
       run: dotnet nuget push ./out/*.nupkg --source ${{ env.PACKAGE_REPO }} --api-key ${secrets.GITHUB_TOKEN} --skip-duplicate
