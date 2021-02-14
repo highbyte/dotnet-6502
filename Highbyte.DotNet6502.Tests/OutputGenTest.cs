@@ -33,6 +33,23 @@ namespace Highbyte.DotNet6502.Tests.Instructions
 
             // Assert
             Assert.Equal("1000  FF        ???        ", outputString);
+        }
+
+        [Fact]
+        public void OutputGen_Returns_Correctly_Formatted_Disassembly_For_Last_Executed_Instruction()
+        {
+            // Arrange
+            var cpu = new CPU();
+            cpu.ExecState.PCBeforeLastOpCodeExecuted = 0x1000;
+            var mem = new Memory();
+            mem[0x1000] = OpCodeId.LDX_I.ToByte();
+            mem[0x1001] = 0xee;
+
+            // Act
+            var outputString = OutputGen.GetLastInstructionDisassembly(cpu, mem);
+
+            // Assert
+            Assert.Equal("1000  A2 EE     LDX #$EE   ", outputString);
         }        
 
         [Theory]
