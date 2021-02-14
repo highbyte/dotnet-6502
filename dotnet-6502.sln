@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.Tests",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.ConsoleTestPrograms", "Highbyte.DotNet6502.ConsoleTestPrograms\Highbyte.DotNet6502.ConsoleTestPrograms.csproj", "{B5BA78CE-B37C-4644-936C-4AAB4C5494A7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.Monitor", "Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj", "{B5FDDFEE-632E-4AC5-B090-79946F8068DD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -58,5 +60,17 @@ Global
 		{B5BA78CE-B37C-4644-936C-4AAB4C5494A7}.Release|x64.Build.0 = Release|Any CPU
 		{B5BA78CE-B37C-4644-936C-4AAB4C5494A7}.Release|x86.ActiveCfg = Release|Any CPU
 		{B5BA78CE-B37C-4644-936C-4AAB4C5494A7}.Release|x86.Build.0 = Release|Any CPU
+		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Debug|x64.Build.0 = Debug|Any CPU
+		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Debug|x86.Build.0 = Debug|Any CPU
+		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Release|x64.ActiveCfg = Release|Any CPU
+		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Release|x64.Build.0 = Release|Any CPU
+		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Release|x86.ActiveCfg = Release|Any CPU
+		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

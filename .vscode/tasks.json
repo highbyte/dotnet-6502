@@ -2,7 +2,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
+            "label": "build console test",
             "command": "dotnet",
             "type": "process",
             "args": [
@@ -11,7 +11,27 @@
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
-            "problemMatcher": "$msCompile"
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build monitor",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Highbyte.DotNet6502.Monitor/Highbyte.DotNet6502.Monitor.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         },
         {
             "label": "publish",
@@ -48,7 +68,7 @@
                 "--filter",
                 "TestType!=Integration",
                 "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary",
+                "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile",
             "group": {
@@ -66,13 +86,13 @@
                 "--filter",
                 "TestType=Integration",
                 "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary",
+                "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile",
             "group": {
                 "kind": "test",
                 "isDefault": true
             }
-        }        
+        }
     ]
 }
