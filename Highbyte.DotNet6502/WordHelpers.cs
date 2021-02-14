@@ -48,19 +48,19 @@
             };
         }
 
-        public static string ToHex(this ushort value)
+        public static string ToHex(this ushort value, string hexPrefix="0x")
         {
-            return $"0x{value:X4}";
+            return $"{hexPrefix}{value:X4}";
         }
 
-        public static string ToHexAndDecimal(this ushort value)
+        public static string ToHexAndDecimal(this ushort value, string hexPrefix="0x")
         {
-            return $"{ToHex(value)} ({value})";
+            return $"{ToHex(value, hexPrefix)} ({value})";
         }
 
-        public static string ToDecimalAndHex(this ushort value)
+        public static string ToDecimalAndHex(this ushort value, string hexPrefix="0x")
         {
-            return $"{value} ({ToHex(value)})";
+            return $"{value} ({ToHex(value, hexPrefix)})";
         }
 
     }

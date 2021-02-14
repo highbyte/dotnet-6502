@@ -66,11 +66,9 @@ namespace Highbyte.DotNet6502
             return this;
         }
 
-
         public Computer Build()
         {
             return _computer;
         }
-
     }
 }

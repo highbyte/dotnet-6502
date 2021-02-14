@@ -101,11 +101,27 @@ Example #2. 6502 machine code for adding to numbers and dividing by 2
 
   // Run program
   computer.Run();
+  Console.WriteLine($"Execution stopped");
+  Console.WriteLine($"CPU state: {OutputGen.GetProcessorState(computer.CPU)}");
+  Console.WriteLine($"Stats: {computer.CPU.ExecState.InstructionsExecutionCount} instruction(s) processed, and used {computer.CPU.ExecState.CyclesConsumed} cycles.");
 
   // Print result
   byte result = mem[resultAddress];
-  Console.WriteLine($"({value1} + {value2}) / 2 = {result}");
+  Console.WriteLine($"Result: ({value1} + {value2}) / 2 = {result}");
 ```  
+generates this output
+``` console
+C000  AD 00 D0  LDA $D000  
+C003  18        CLC        
+C004  6D 01 D0  ADC $D001  
+C007  6A        ROR A      
+C008  8D 02 D0  STA $D002  
+C00B  00        BRK        
+Execution stopped
+CPU state: A=15 X=00 Y=00 PS=[-----I--] SP=FD PC=0000
+Stats: 6 instruction(s) processed, and used 23 cycles.
+Result: (12 + 30) / 2 = 21
+```
 
 # How to develop
 - Use Windows, Linux, or Mac.

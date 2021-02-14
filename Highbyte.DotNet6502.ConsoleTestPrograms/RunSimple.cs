@@ -45,7 +45,7 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
                 .WithStartAddress(codeAddress)
                 .WithMemory(mem)
                 .WithInstructionExecutedEventHandler( 
-                    (s, e) => Console.WriteLine(OutputGen.FormatLastInstruction(e.CPU, e.Mem)))
+                    (s, e) => Console.WriteLine(OutputGen.GetLastInstructionDisassembly(e.CPU, e.Mem)))
                 .WithExecOptions(options =>
                 {
                     options.ExecuteUntilInstruction = OpCodeId.BRK; // Emulator will stop executing when a BRK instruction is reached.
@@ -54,10 +54,13 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
 
             // Run program
             computer.Run();
+            Console.WriteLine($"Execution stopped");
+            Console.WriteLine($"CPU state: {OutputGen.GetProcessorState(computer.CPU)}");
+            Console.WriteLine($"Stats: {computer.CPU.ExecState.InstructionsExecutionCount} instruction(s) processed, and used {computer.CPU.ExecState.CyclesConsumed} cycles.");
 
             // Print result
             byte result = mem[resultAddress];
-            Console.WriteLine($"({value1} + {value2}) / 2 = {result}");
+            Console.WriteLine($"Result: ({value1} + {value2}) / 2 = {result}");
         }
     }
 }

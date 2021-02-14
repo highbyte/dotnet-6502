@@ -1,6 +1,5 @@
 ﻿using System;
 using Highbyte.DotNet6502.Tests.Helpers;
-using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.ConsoleTestPrograms
 {
@@ -101,8 +100,8 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
             var cpu = computer.CPU;
             var execState = cpu.ExecState;
             Console.WriteLine("");
-            Console.WriteLine($"CPU last PC:                       {cpu.PC.ToHex()}");
-            Console.WriteLine($"CPU last opcode:                   {execState.LastOpCode.Value.ToOpCodeId()} ({execState.LastOpCode.Value.ToHex()})");
+            Console.WriteLine($"Last instruction:                  {OutputGen.BuildInstructionString(computer.CPU, computer.Mem, computer.CPU.ExecState.PCBeforeLastOpCodeExecuted.Value)}");
+            Console.WriteLine($"CPU state:                         {OutputGen.GetProcessorState(computer.CPU)}");
             Console.WriteLine($"Total # CPU instructions executed: {execState.InstructionsExecutionCount}");
             Console.WriteLine($"Total # CPU cycles consumed:       {execState.CyclesConsumed}");
 
@@ -127,7 +126,7 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
         {
             const int showEveryXInstructions = 2000000;
             if(e.CPU.ExecState.InstructionsExecutionCount % showEveryXInstructions == 0)
-                Console.WriteLine($"{OutputGen.FormatLastInstruction(e.CPU, e.Mem)}  (ins. count: {e.CPU.ExecState.InstructionsExecutionCount})");
+                Console.WriteLine($"{OutputGen.GetLastInstructionDisassembly(e.CPU, e.Mem)}  (ins. count: {e.CPU.ExecState.InstructionsExecutionCount})");
         }
 
         void OnUnknownOpCodeDetected(object sender, CPUUnknownOpCodeDetectedEventArgs e)
