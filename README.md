@@ -1,8 +1,11 @@
 # dotnet-6502
+
+![.NET](https://github.com/highbyte/dotnet-6502/workflows/.NET/badge.svg)[![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=alert_status)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Security Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=security_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=vulnerabilities)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=VULNERABILITY) [![SonarCloud Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Bugs](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=bugs)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=BUG) [![SonarCloud Coverage](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=coverage)](https://sonarcloud.io/component_measures?id=highbyte_dotnet-6502&metric=coverage&view=list)
+
 A [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) emulator for .NET
 
 What it (currently) does/is
-- .NET 5 cross platform library
+- .NET 5 cross platform library written in C#
 - Emulation of a 6502 processor
 - Supports all official 6502 opcodes
 - Can load an assembled 6502 program binary and execute it
@@ -24,7 +27,14 @@ Inspiration for this library was a [Youtube-series](https://www.youtube.com/watc
 # How to use from a .NET application
 - Use Windows, Linux, or Mac
 - [.NET 5 SDK](https://dotnet.microsoft.com/download/dotnet/5.0) installed.
-- Add reference to Highbyte.DotNet6502.dll 
+- Add GitHub Packages source _(if/when this package will live on nuget.org, this would not be needed)_
+``` powershell
+dotnet nuget add source https://nuget.pkg.github.com/highbyte/index.json --name "github-highbyte" --username [your-git-username] --password [your-git-personal-access-token]
+```
+- Add reference to the library in your application
+```
+dotnet add package Highbyte.DotNet6502 --prerelease
+```
 
 Example #1. Load compiled 6502 binary and execute it.
 ```c#
