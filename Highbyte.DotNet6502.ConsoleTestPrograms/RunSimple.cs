@@ -54,7 +54,9 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
 
             // Run program
             computer.Run();
-            Console.WriteLine($"Execution stopped. Processed {computer.CPU.ExecState.InstructionsExecutionCount} instruction(s) and used {computer.CPU.ExecState.CyclesConsumed} cycles.");
+            Console.WriteLine($"Execution stopped");
+            Console.WriteLine($"CPU state: {OutputGen.GetProcessorState(computer.CPU)}");
+            Console.WriteLine($"Stats: {computer.CPU.ExecState.InstructionsExecutionCount} instruction(s) processed, and used {computer.CPU.ExecState.CyclesConsumed} cycles.");
 
             // Print result
             byte result = mem[resultAddress];

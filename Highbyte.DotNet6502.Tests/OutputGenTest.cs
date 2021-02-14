@@ -20,6 +20,21 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             Assert.Equal("1000  A2 EE     LDX #$EE   ", outputString);
         }
 
+        [Fact]
+        public void OutputGen_Returns_Correctly_Formatted_Disassembly_If_OpCode_Is_Unknown()
+        {
+            // Arrange
+            var cpu = new CPU();
+            var mem = new Memory();
+            mem[0x1000] = 0xff; // 0xff is not a (official) 6502 opcode
+
+            // Act
+            var outputString = OutputGen.GetInstructionDisassembly(cpu, mem, 0x1000);
+
+            // Assert
+            Assert.Equal("1000  FF        ???        ", outputString);
+        }        
+
         [Theory]
         [InlineData(AddrMode.Accumulator,   new byte[]{},           "A")]
         [InlineData(AddrMode.I,             new byte[]{0xee},       "#$EE")]
@@ -43,6 +58,45 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             // Assert
             Assert.Equal(expectedOutput, outputString);
         }
+
+        [Fact]
+        public void OutputGen_Returns_Correctly_Formatted_Processor_State()
+        {
+            // Arrange
+            var cpu = new CPU();
+            cpu.PC = 0x1000;
+            cpu.A  = 0x00;
+            cpu.X  = 0x00;
+            cpu.Y  = 0x00;
+            cpu.ProcessorStatus.Value = 0x00;
+            cpu.SP = 0xff;
+
+            // Act
+            var outputString = OutputGen.GetProcessorState(cpu, true);
+
+            // Assert
+            Assert.Equal("A=00 X=00 Y=00 PS=[--------] SP=FF PC=1000 CY=0", outputString);
+        }
+        [Fact]
+        public void OutputGen_Returns_Correctly_Formatted_Processor_State_When_All_Status_Flags_Are_Set
+        ()
+        {
+            // Arrange
+            var cpu = new CPU();
+            cpu.PC = 0x2000;
+            cpu.A  = 0x01;
+            cpu.X  = 0xff;
+            cpu.Y  = 0x7f;
+            cpu.ProcessorStatus.Value = 0xff;
+            cpu.SP = 0x80;
+
+            // Act
+            var outputString = OutputGen.GetProcessorState(cpu, false);
+
+            // Assert
+            Assert.Equal("A=01 X=FF Y=7F PS=[NVUBDIZC] SP=80 PC=2000", outputString);
+        }           
+
 
     }
 }

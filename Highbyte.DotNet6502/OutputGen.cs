@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 
 namespace Highbyte.DotNet6502
@@ -33,34 +32,40 @@ namespace Highbyte.DotNet6502
         /// <returns></returns>
         public static string GetInstructionDisassembly(CPU cpu, Memory mem, ushort address)
         {
-            byte opCodeByte = mem[address];
-            OpCode opCode;
-            byte[] operand;
-            string memoryString;
-            string instructionString;
-            string operandString;
-            if(cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
-            {
-                opCode = cpu.InstructionList.GetOpCode(opCodeByte);
-                operand = mem.ReadData((ushort)(address + 1), (ushort)(opCode.Size - 1)); // -1 for the opcode itself
-                memoryString = $"{opCodeByte.ToHex(HexPrefix)} {string.Join(" ", operand.Select(x=>x.ToHex(HexPrefix)))}";
-                instructionString = BuildInstructionString(cpu, opCode);
-                operandString = BuildOperandString(opCode.AddressingMode, operand);
-            }
-            else
-            {
-                operand = Array.Empty<byte>();
-                memoryString = string.Empty;
-                instructionString = "???";
-                operandString = "";
-            }
-
-            string addressString = $"{address.ToHex(HexPrefix)}";
-
-            return $"{addressString}  {memoryString,-8}  {instructionString} {operandString,-7}";
+            var addressString = $"{address.ToHex(HexPrefix)}";
+            var memoryString = BuildMemoryString(cpu, mem, address);
+            var instructionString = BuildInstructionString(cpu, mem, address);
+ 
+            return $"{addressString}  {memoryString,-8}  {instructionString,-11}";
         }
 
-        public static string BuildInstructionString(CPU cpu, OpCode opCode)
+        public static string BuildMemoryString(CPU cpu, Memory mem, ushort address)
+        {
+            byte opCodeByte = mem[address];
+            if(!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
+                return $"{opCodeByte.ToHex(HexPrefix)}";
+
+            var opCode = cpu.InstructionList.GetOpCode(opCodeByte);
+            var operand = mem.ReadData((ushort)(address + 1), (ushort)(opCode.Size - 1)); // -1 for the opcode itself
+
+            return $"{opCodeByte.ToHex(HexPrefix)} {string.Join(" ", operand.Select(x=>x.ToHex(HexPrefix)))}";
+        }
+
+        public static string BuildInstructionString(CPU cpu, Memory mem, ushort address)
+        {
+            byte opCodeByte = mem[address];
+            if(!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
+                return "???";
+
+            var opCode = cpu.InstructionList.GetOpCode(opCodeByte);
+            var operand = mem.ReadData((ushort)(address + 1), (ushort)(opCode.Size - 1)); // -1 for the opcode itself
+
+            var instructionName = BuildInstructionName(cpu, opCode);
+            var operandString = BuildOperandString(opCode.AddressingMode, operand);
+            return $"{instructionName} {operandString}";
+        }
+
+        public static string BuildInstructionName(CPU cpu, OpCode opCode)
         {
             var instruction = cpu.InstructionList.GetInstruction(opCode);
             return instruction.Name;
@@ -127,5 +132,35 @@ namespace Highbyte.DotNet6502
                     throw new DotNet6502Exception($"Bug detected! Unhandled addressing mode: {addrMode}");
             }
         }
+
+        public static string GetProcessorState(CPU cpu, bool includeCycles = false)
+        {
+            return $"{GetRegisters(cpu)} {GetStatus(cpu)} {GetPCandSP(cpu)}{(includeCycles?" CY="+cpu.ExecState.CyclesConsumed:"")}";
+        }
+
+        public static string GetRegisters(CPU cpu)
+        {
+            return $"A={cpu.A.ToHex(HexPrefix)} X={cpu.X.ToHex(HexPrefix)} Y={cpu.Y.ToHex(HexPrefix)}";
+        }
+
+        public static string GetStatus(CPU cpu)
+        {
+            return "PS=["
+            + (cpu.ProcessorStatus.Negative         ?"N":"-") // Bit 7
+            + (cpu.ProcessorStatus.Overflow         ?"V":"-")
+            + (cpu.ProcessorStatus.Unused           ?"U":"-")
+            + (cpu.ProcessorStatus.Break            ?"B":"-")
+            + (cpu.ProcessorStatus.Decimal          ?"D":"-")
+            + (cpu.ProcessorStatus.InterruptDisable ?"I":"-")
+            + (cpu.ProcessorStatus.Zero             ?"Z":"-")
+            + (cpu.ProcessorStatus.Carry            ?"C":"-") // Bit 0
+            +"]";
+        }
+
+        public static string GetPCandSP(CPU cpu)
+        {
+            return $"SP={cpu.SP.ToHex(HexPrefix)} PC={cpu.PC.ToHex(HexPrefix)}";
+        }
+
     }
 }
