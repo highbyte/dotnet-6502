@@ -10,7 +10,7 @@ What it (currently) does/is
 - Supports all official 6502 opcodes
 - Can load an assembled 6502 program binary and execute it
 - Passes this [Functional 6502 test program](https://github.com/Klaus2m5/6502_65C02_functional_tests)
-- Monitor (rudamentary)
+- Monitor (rudimentary)
 - **_A programming excerise, that may or may not turn into something more_**
 
 What's (currently) missing
@@ -26,7 +26,7 @@ Inspiration for this library was a [Youtube-series](https://www.youtube.com/watc
 
 # Table of Contents
 - [How to use Highbyte.DotNet6502 library from a .NET application](#how-to-use-highbytedotnet6502-library-from-a-net-application)
-- [How to use Highbyte.DotNet6502.Monitor](#how-to-use-highbytedotnet6502monitor)
+- [How to use Highbyte.DotNet6502 machine code monitor](#how-to-use-highbytedotnet6502-machine-code-monitor)
   - [Get source](#get-source)
   - [Running with dotnet](#running-with-dotnet)
   - [Build and run executable](#build-and-run-executable)
@@ -139,8 +139,9 @@ Stats: 6 instruction(s) processed, and used 23 cycles.
 Result: (12 + 30) / 2 = 21
 ```
 
-# How to use Highbyte.DotNet6502.Monitor
-The monitor is console application.
+# How to use Highbyte.DotNet6502 machine code monitor
+The Highbyte.DotNet6502.Monitor is a machine code monitor in a console application. It allows for some interaction with the Highbyte.DotNet6502 CPU emulator library.
+
 ## Get source
 - Clone this repo ```git clone https://github.com/highbyte/dotnet-6502.git```
 - Change dir ```cd dotnet-6502/Highbyte.DotNet6502.Monitor```
