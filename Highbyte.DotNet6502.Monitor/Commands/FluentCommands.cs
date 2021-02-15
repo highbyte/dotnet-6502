@@ -88,17 +88,17 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 });
             });            
 
-            app.Command("m", disassembleCmd =>
+            app.Command("m", memoryCmd =>
             {
-                disassembleCmd.Description = "Show contents of emulator memory in bytes";
+                memoryCmd.Description = "Show contents of emulator memory in bytes";
 
-                var start = disassembleCmd.Argument("start", "Start address (hex). If not specified, the 0000 address is used.");
+                var start = memoryCmd.Argument("start", "Start address (hex). If not specified, the 0000 address is used.");
                 start.Validators.Add(new MustBe16BitHexValueValidator());
 
-                var end = disassembleCmd.Argument("end", "End address (hex). If not specified, a default number of memory locations will be shown from start");
+                var end = memoryCmd.Argument("end", "End address (hex). If not specified, a default number of memory locations will be shown from start");
                 end.Validators.Add(new MustBe16BitHexValueValidator());
 
-                disassembleCmd.OnExecute(() =>
+                memoryCmd.OnExecute(() =>
                 {
                     ushort startAddress;
                     if(string.IsNullOrEmpty(start.Value))
@@ -124,15 +124,107 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 });
             });            
 
-            app.Command("r", disassembleCmd =>
+            app.Command("r", registersCmd =>
             {
-                disassembleCmd.Description = "Show processor status and registers. CY = #cycles executed.";
+                registersCmd.Description = "Show processor status and registers. CY = #cycles executed.";
 
-                disassembleCmd.OnExecute(() =>
+                registersCmd.Command("a", setRegisterCmd =>
+                    {
+                    setRegisterCmd.Description = "Sets A register";
+                    var regVal = setRegisterCmd.Argument("value", "Value of A register").IsRequired();
+                    regVal.Validators.Add(new MustBe8BitHexValueValidator());
+
+                    setRegisterCmd.OnExecute(() =>
+                    {
+                        var value = regVal.Value;
+                        mon.Cpu.A = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
+                        Console.WriteLine($"{OutputGen.GetRegisters(mon.Cpu)}");
+                        return 0;                       
+                    });
+                });
+
+                registersCmd.Command("x", setRegisterCmd =>
+                    {
+                    setRegisterCmd.Description = "Sets X register";
+                    var regVal = setRegisterCmd.Argument("value", "Value of X register").IsRequired();
+                    regVal.Validators.Add(new MustBe8BitHexValueValidator());
+
+                    setRegisterCmd.OnExecute(() =>
+                    {
+                        var value = regVal.Value;
+                        mon.Cpu.X = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
+                        Console.WriteLine($"{OutputGen.GetRegisters(mon.Cpu)}");
+                        return 0;                       
+                    });
+                });
+
+                registersCmd.Command("y", setRegisterCmd =>
+                    {
+                    setRegisterCmd.Description = "Sets Y register";
+                    var regVal = setRegisterCmd.Argument("value", "Value of Y register").IsRequired();
+                    regVal.Validators.Add(new MustBe8BitHexValueValidator());
+
+                    setRegisterCmd.OnExecute(() =>
+                    {
+                        var value = regVal.Value;
+                        mon.Cpu.Y = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
+                        Console.WriteLine($"{OutputGen.GetRegisters(mon.Cpu)}");
+                        return 0;                       
+                    });
+                });
+
+                registersCmd.Command("sp", setRegisterCmd =>
+                    {
+                    setRegisterCmd.Description = "Sets SP (Stack Pointer)";
+                    var regVal = setRegisterCmd.Argument("value", "Value of SP").IsRequired();
+                    regVal.Validators.Add(new MustBe8BitHexValueValidator());
+
+                    setRegisterCmd.OnExecute(() =>
+                    {
+                        var value = regVal.Value;
+                        mon.Cpu.SP = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
+                        Console.WriteLine($"{OutputGen.GetPCandSP(mon.Cpu)}");
+                        return 0;                       
+                    });
+                });
+
+                registersCmd.Command("ps", setRegisterCmd =>
+                    {
+                    setRegisterCmd.Description = "Sets processor status register";
+                    var regVal = setRegisterCmd.Argument("value", "Value of processor status register").IsRequired();
+                    regVal.Validators.Add(new MustBe8BitHexValueValidator());
+
+                    setRegisterCmd.OnExecute(() =>
+                    {
+                        var value = regVal.Value;
+                        mon.Cpu.ProcessorStatus.Value = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
+                        Console.WriteLine($"PS={value}");
+                        Console.WriteLine($"{OutputGen.GetStatus(mon.Cpu)}");
+                        return 0;                       
+                    });
+                });
+
+                registersCmd.Command("pc", setRegisterCmd =>
+                    {
+                    setRegisterCmd.Description = "Sets PC (Program Counter)";
+                    var regVal = setRegisterCmd.Argument("value", "Value of PC").IsRequired();
+                    regVal.Validators.Add(new MustBe16BitHexValueValidator());
+
+                    setRegisterCmd.OnExecute(() =>
+                    {
+                        var value = regVal.Value;
+                        mon.Cpu.PC = ushort.Parse(value, NumberStyles.AllowHexSpecifier, null);
+                        Console.WriteLine($"{OutputGen.GetPCandSP(mon.Cpu)}");
+                        return 0;                       
+                    });
+                });                                                    
+
+                registersCmd.OnExecute(() =>
                 {
                     Console.WriteLine(OutputGen.GetProcessorState(mon.Cpu, includeCycles: true));
                     return 0;
-                });
+                });                
+
             }); 
 
             app.Command("q", quitCmd =>
@@ -169,7 +261,23 @@ namespace Highbyte.DotNet6502.Monitor.Commands
             {
                 return new ValidationResult($"The value for {argument.Name} must be a 16-bit hex address");
             }
+            return ValidationResult.Success;            
+        }
+    }
 
+    class MustBe8BitHexValueValidator : IArgumentValidator
+    {
+        public ValidationResult GetValidationResult(CommandArgument argument, ValidationContext context)
+        {
+            // This validator only runs if there is a value
+            if (string.IsNullOrEmpty(argument.Value)) 
+                return ValidationResult.Success;  //return new ValidationResult($"{argument.Name} cannot be empty");
+
+            bool validByte = byte.TryParse(argument.Value, NumberStyles.AllowHexSpecifier, null, out byte byteValue);
+            if (!validByte)
+            {
+                return new ValidationResult($"The value for {argument.Name} must be a 8-bit hex number");
+            }
             return ValidationResult.Success;            
         }
     }
