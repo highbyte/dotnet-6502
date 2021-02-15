@@ -16,24 +16,31 @@ namespace Highbyte.DotNet6502.Monitor.Commands
             var app = new CommandLineApplication
             {
                 Name = "",
-                Description = "Monitor commands",
+                Description = "DotNet 6502 machine code monitor for the DotNet 6502 emulator library." + Environment.NewLine + 
+                              "By Highbyte 2021" + Environment.NewLine +               
+                              "Source at: https://github.com/highbyte/dotnet-6502",
                 UnrecognizedArgumentHandling = UnrecognizedArgumentHandling.StopParsingAndCollect
             };
 
-            app.HelpOption(inherited: true);
+            // Fix: Use custom HelpTextGentorator to avoid name/description of the application to be shown each time help text is shown.
+            app.HelpTextGenerator = new CustomHelpTextGenerator();
+            // Fix: To avoid CommandLineUtils to the name of the application at the end of the help text: Don't use HelpOption on app-level, instead set it on each command below.
+            //app.HelpOption(inherited: true);
 
-            app.Command("l", loadCmd =>
+            app.Command("l", cmd =>
             {
-                loadCmd.Description = "Load a 6502 binary into emulator memory";
-
-                var fileName = loadCmd.Argument("filename", "Name of the binary file")
+                cmd.HelpOption(inherited: true);
+                cmd.Description = "Load a 6502 binary into emulator memory.";
+                cmd.AddName("load");
+                
+                var fileName = cmd.Argument("filename", "Name of the binary file.")
                     .IsRequired()
                     .Accepts(v => v.ExistingFile());
 
-                var address = loadCmd.Argument("address", "Memory address (hex) to load the file into. If not specified, it's assumed the first two bytes of the file contains the load address");
+                var address = cmd.Argument("address", "Memory address (hex) to load the file into. If not specified, it's assumed the first two bytes of the file contains the load address.");
                 address.Validators.Add(new MustBe16BitHexValueValidator());
 
-                loadCmd.OnExecute(() =>
+                cmd.OnExecute(() =>
                 {
                     ushort loadedAtAddres;
                     if(string.IsNullOrEmpty(address.Value))
@@ -46,17 +53,18 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 });
             });
 
-            app.Command("d", disassembleCmd =>
+            app.Command("d", cmd =>
             {
-                disassembleCmd.Description = "Disassembles 6502 code from emulator memory";
+                cmd.HelpOption(inherited: true);
+                cmd.Description = "Disassembles 6502 code from emulator memory.";
 
-                var start = disassembleCmd.Argument("start", "Start address (hex). If not specified, the current PC address is used.");
+                var start = cmd.Argument("start", "Start address (hex). If not specified, the current PC address is used.");
                 start.Validators.Add(new MustBe16BitHexValueValidator());
 
-                var end = disassembleCmd.Argument("end", "End address (hex). If not specified, a default number of addresses will be shown from start");
+                var end = cmd.Argument("end", "End address (hex). If not specified, a default number of addresses will be shown from start.");
                 end.Validators.Add(new MustBe16BitHexValueValidator());
 
-                disassembleCmd.OnExecute(() =>
+                cmd.OnExecute(() =>
                 {
                     ushort startAddress;
                     if(string.IsNullOrEmpty(start.Value))
@@ -89,17 +97,19 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 });
             });            
 
-            app.Command("m", memoryCmd =>
+            app.Command("m", cmd =>
             {
-                memoryCmd.Description = "Show contents of emulator memory in bytes";
+                cmd.HelpOption(inherited: true);
+                cmd.Description = "Show contents of emulator memory in bytes.";
+                cmd.AddName("mem");
 
-                var start = memoryCmd.Argument("start", "Start address (hex). If not specified, the 0000 address is used.");
+                var start = cmd.Argument("start", "Start address (hex). If not specified, the 0000 address is used.");
                 start.Validators.Add(new MustBe16BitHexValueValidator());
 
-                var end = memoryCmd.Argument("end", "End address (hex). If not specified, a default number of memory locations will be shown from start");
+                var end = cmd.Argument("end", "End address (hex). If not specified, a default number of memory locations will be shown from start.");
                 end.Validators.Add(new MustBe16BitHexValueValidator());
 
-                memoryCmd.OnExecute(() =>
+                cmd.OnExecute(() =>
                 {
                     ushort startAddress;
                     if(string.IsNullOrEmpty(start.Value))
@@ -125,14 +135,16 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 });
             });            
 
-            app.Command("r", registersCmd =>
+            app.Command("r", cmd =>
             {
-                registersCmd.Description = "Show processor status and registers. CY = #cycles executed.";
+                cmd.HelpOption(inherited: true);
+                cmd.Description = "Show processor status and registers. CY = #cycles executed.";
+                cmd.AddName("reg");
 
-                registersCmd.Command("a", setRegisterCmd =>
+                cmd.Command("a", setRegisterCmd =>
                     {
-                    setRegisterCmd.Description = "Sets A register";
-                    var regVal = setRegisterCmd.Argument("value", "Value of A register (hex)").IsRequired();
+                    setRegisterCmd.Description = "Sets A register.";
+                    var regVal = setRegisterCmd.Argument("value", "Value of A register (hex).").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
                     setRegisterCmd.OnExecute(() =>
@@ -144,10 +156,10 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     });
                 });
 
-                registersCmd.Command("x", setRegisterCmd =>
+                cmd.Command("x", setRegisterCmd =>
                     {
-                    setRegisterCmd.Description = "Sets X register";
-                    var regVal = setRegisterCmd.Argument("value", "Value of X register (hex)").IsRequired();
+                    setRegisterCmd.Description = "Sets X register.";
+                    var regVal = setRegisterCmd.Argument("value", "Value of X register (hex).").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
                     setRegisterCmd.OnExecute(() =>
@@ -159,10 +171,10 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     });
                 });
 
-                registersCmd.Command("y", setRegisterCmd =>
+                cmd.Command("y", setRegisterCmd =>
                     {
-                    setRegisterCmd.Description = "Sets Y register";
-                    var regVal = setRegisterCmd.Argument("value", "Value of Y register (hex)").IsRequired();
+                    setRegisterCmd.Description = "Sets Y register.";
+                    var regVal = setRegisterCmd.Argument("value", "Value of Y register (hex).").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
                     setRegisterCmd.OnExecute(() =>
@@ -174,10 +186,10 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     });
                 });
 
-                registersCmd.Command("sp", setRegisterCmd =>
+                cmd.Command("sp", setRegisterCmd =>
                     {
-                    setRegisterCmd.Description = "Sets SP (Stack Pointer)";
-                    var regVal = setRegisterCmd.Argument("value", "Value of SP (hex)").IsRequired();
+                    setRegisterCmd.Description = "Sets SP (Stack Pointer).";
+                    var regVal = setRegisterCmd.Argument("value", "Value of SP (hex).").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
                     setRegisterCmd.OnExecute(() =>
@@ -189,10 +201,10 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     });
                 });
 
-                registersCmd.Command("ps", setRegisterCmd =>
+                cmd.Command("ps", setRegisterCmd =>
                     {
-                    setRegisterCmd.Description = "Sets processor status register";
-                    var regVal = setRegisterCmd.Argument("value", "Value of processor status register (hex)").IsRequired();
+                    setRegisterCmd.Description = "Sets processor status register.";
+                    var regVal = setRegisterCmd.Argument("value", "Value of processor status register (hex).").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
                     setRegisterCmd.OnExecute(() =>
@@ -205,10 +217,10 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     });
                 });
 
-                registersCmd.Command("pc", setRegisterCmd =>
+                cmd.Command("pc", setRegisterCmd =>
                     {
-                    setRegisterCmd.Description = "Sets PC (Program Counter)";
-                    var regVal = setRegisterCmd.Argument("value", "Value of PC (hex)").IsRequired();
+                    setRegisterCmd.Description = "Sets PC (Program Counter).";
+                    var regVal = setRegisterCmd.Argument("value", "Value of PC (hex).").IsRequired();
                     regVal.Validators.Add(new MustBe16BitHexValueValidator());
 
                     setRegisterCmd.OnExecute(() =>
@@ -220,31 +232,41 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     });
                 });                                                    
 
-                registersCmd.OnExecute(() =>
+                cmd.OnExecute(() =>
                 {
                     Console.WriteLine(OutputGen.GetProcessorState(mon.Cpu, includeCycles: true));
                     return 0;
                 });                
             }); 
 
-
-            app.Command("g", gotoCmd =>
+            app.Command("g", cmd =>
             {
-                gotoCmd.Description = "Change the PC (Program Counter) to the specified address and execute code.";
-                var address = gotoCmd.Argument("address", "The address (hex) to start executing code at").IsRequired();
+                cmd.HelpOption(inherited: true);
+                cmd.Description = "Change the PC (Program Counter) to the specified address and execute code.";
+                cmd.AddName("goto");
+
+                var address = cmd.Argument("address", "The address (hex) to start executing code at.").IsRequired();
                 address.Validators.Add(new MustBe16BitHexValueValidator());
-                var dontStopOnBRK = gotoCmd.Option("--no-brk|-nb", "Prevent execution stop when BRK instruction encountered.", CommandOptionType.NoValue);
-                gotoCmd.OnExecute(() =>
+                var dontStopOnBRK = cmd.Option("--no-brk|-nb", "Prevent execution stop when BRK instruction encountered.", CommandOptionType.NoValue);
+                cmd.OnExecute(() =>
                 {
                     mon.Cpu.PC = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
                     if(dontStopOnBRK.HasValue())
                     {
+                        mon.Computer.ExecOptions.MaxNumberOfInstructions = null;
                         mon.Computer.ExecOptions.ExecuteUntilInstruction = null;
+                        mon.Computer.ExecOptions.ExecuteUntilInstructions = new();
+                        mon.Computer.ExecOptions.ExecuteUntilExecutedInstructionAtPC = null;
+                        mon.Computer.ExecOptions.ExecuteUntilPC = null;
                         Console.WriteLine($"Will never stop.");
                     }
                     else
                     {
                         mon.Computer.ExecOptions.ExecuteUntilInstruction = OpCodeId.BRK;
+                        mon.Computer.ExecOptions.MaxNumberOfInstructions = null;
+                        mon.Computer.ExecOptions.ExecuteUntilInstructions = new();
+                        mon.Computer.ExecOptions.ExecuteUntilExecutedInstructionAtPC = null;
+                        mon.Computer.ExecOptions.ExecuteUntilPC = null;
                         Console.WriteLine($"Will stop on BRK instruction.");
                     }
                     Console.WriteLine($"Staring executing code at {mon.Cpu.PC.ToHex("",lowerCase:true)}");
@@ -255,18 +277,44 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 });
             });
 
-            app.Command("f", fillMemoryCmd =>
+            app.Command("z", cmd =>
             {
-                fillMemoryCmd.Description = "Fill memory att specified address with a list of bytes. Example: f 1000 20 ff ab 30";
-                
-                var memAddress = fillMemoryCmd.Argument("address", "Memory address (hex)").IsRequired();
+                cmd.HelpOption(inherited: true);
+                cmd.Description = "Single step through instructions. Optionally execute a specified number of instructions.";
+
+                var inscount = cmd.Argument<ulong>("inscount", "Number of instructions to execute. Defaults to 1.");
+                inscount.DefaultValue = 1;
+                cmd.OnExecute(() =>
+                {
+                    Console.WriteLine($"Executing code at {mon.Cpu.PC.ToHex("",lowerCase:true)} for {inscount.Value} instruction(s).");
+                    // TODO: Better model for ExecOptions and ExecState. Should be able to set ExecOptions for just one call to computer.Run() or cpu.Execute(), and an ExecState returned that was just for that invocation.
+                    mon.Computer.ExecOptions.MaxNumberOfInstructions = ulong.Parse(inscount.Value);
+                    mon.Cpu.ExecState.InstructionsExecutionCount = 0;
+                    mon.Computer.ExecOptions.ExecuteUntilInstruction = null;
+                    mon.Computer.ExecOptions.ExecuteUntilInstructions = new();
+                    mon.Computer.ExecOptions.ExecuteUntilExecutedInstructionAtPC = null;
+                    mon.Computer.ExecOptions.ExecuteUntilPC = null;
+                    mon.Computer.Run();
+                    Console.WriteLine($"Last instruction:");
+                    Console.WriteLine($"{OutputGen.GetLastInstructionDisassembly(mon.Cpu, mon.Mem)}");
+                    return 0;
+                });
+            });            
+
+            app.Command("f", cmd =>
+            {
+                cmd.HelpOption(inherited: true);
+                cmd.Description = "Fill memory att specified address with a list of bytes. Example: f 1000 20 ff ab 30";
+                cmd.AddName("fill");
+
+                var memAddress = cmd.Argument("address", "Memory address (hex).").IsRequired();
                 memAddress.Validators.Add(new MustBe16BitHexValueValidator());
 
-                var memValues = fillMemoryCmd.Argument("values", "List of byte values (hex). Example: 20 ff ab 30").IsRequired();
+                var memValues = cmd.Argument("values", "List of byte values (hex). Example: 20 ff ab 30").IsRequired();
                 memValues.MultipleValues = true;
                 memValues.Validators.Add(new MustBe8BitHexValueValidator());
 
-                fillMemoryCmd.OnExecute(() =>
+                cmd.OnExecute(() =>
                 {
                     var address = ushort.Parse(memAddress.Value, NumberStyles.AllowHexSpecifier, null);
                     List<byte> bytes = new();
@@ -278,10 +326,14 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 });
             });             
 
-            app.Command("q", quitCmd =>
+            app.Command("q", cmd =>
             {
-                quitCmd.Description = "Quit monitor";
-                quitCmd.OnExecute(() =>
+                cmd.HelpOption(inherited: true);
+                cmd.Description = "Quit monitor.";
+                cmd.AddName("quit");
+                cmd.AddName("x");
+                cmd.AddName("exit");
+                cmd.OnExecute(() =>
                 {
                     Console.WriteLine($"Quiting.");
                     return 2;
@@ -290,8 +342,10 @@ namespace Highbyte.DotNet6502.Monitor.Commands
 
             app.OnExecute(() =>
             {
-                Console.WriteLine("Specify a command");
-                app.ShowHelp();
+                Console.WriteLine("Unknown command");
+                Console.WriteLine("For help: ?|help|-?|--help");
+                //Console.WriteLine(helpText);
+                //app.ShowHelp();
                 return 1;
             });
 
