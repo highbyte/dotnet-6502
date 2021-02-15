@@ -5,10 +5,10 @@
    "version": "0.2.0",
    "configurations": [
         {
-            "name": ".NET Core Launch (console)",
+            "name": ".NET Core Launch (console test)",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build",
+            "preLaunchTask": "build console test",
             // If you have changed target frameworks, make sure to update the program path.
             "program": "${workspaceFolder}/Highbyte.DotNet6502.ConsoleTestPrograms/bin/Debug/net5.0/Highbyte.DotNet6502.ConsoleTestPrograms.dll",
             "args": [],
@@ -17,6 +17,19 @@
             "console": "internalConsole",
             "stopAtEntry": false
         },
+        {
+            "name": ".NET Core Launch (console monitor)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build monitor",
+            // If you have changed target frameworks, make sure to update the program path.
+            "program": "${workspaceFolder}/Highbyte.DotNet6502.Monitor/bin/Debug/net5.0/Highbyte.DotNet6502.Monitor.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.Monitor",
+            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
+            "console": "externalTerminal",
+            "stopAtEntry": false
+        },        
         {
             "name": ".NET Core Attach",
             "type": "coreclr",

@@ -3,7 +3,7 @@ using System.Linq;
 namespace Highbyte.DotNet6502
 {
     /// <summary>
-    /// Helper class formatting output
+    /// Helper class formatting output for instructions
     /// </summary>
     public static class OutputGen
     {
@@ -32,7 +32,7 @@ namespace Highbyte.DotNet6502
         /// <returns></returns>
         public static string GetInstructionDisassembly(CPU cpu, Memory mem, ushort address)
         {
-            var addressString = $"{address.ToHex(HexPrefix)}";
+            var addressString = $"{address.ToHex(HexPrefix, lowerCase: true)}";
             var memoryString = BuildMemoryString(cpu, mem, address);
             var instructionString = BuildInstructionString(cpu, mem, address);
  
@@ -43,12 +43,12 @@ namespace Highbyte.DotNet6502
         {
             byte opCodeByte = mem[address];
             if(!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
-                return $"{opCodeByte.ToHex(HexPrefix)}";
+                return $"{opCodeByte.ToHex(HexPrefix, lowerCase: true)}";
 
             var opCode = cpu.InstructionList.GetOpCode(opCodeByte);
             var operand = mem.ReadData((ushort)(address + 1), (ushort)(opCode.Size - 1)); // -1 for the opcode itself
 
-            return $"{opCodeByte.ToHex(HexPrefix)} {string.Join(" ", operand.Select(x=>x.ToHex(HexPrefix)))}";
+            return $"{opCodeByte.ToHex(HexPrefix, lowerCase: true)} {string.Join(" ", operand.Select(x=>x.ToHex(HexPrefix, lowerCase: true)))}";
         }
 
         public static string BuildInstructionString(CPU cpu, Memory mem, ushort address)
