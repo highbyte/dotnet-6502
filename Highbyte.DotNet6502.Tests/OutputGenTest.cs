@@ -17,7 +17,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var outputString = OutputGen.GetInstructionDisassembly(cpu, mem, 0x1000);
 
             // Assert
-            Assert.Equal("1000  A2 EE     LDX #$EE   ", outputString);
+            Assert.Equal("1000  a2 ee     LDX #$EE   ", outputString);
         }
 
         [Fact]
@@ -32,7 +32,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var outputString = OutputGen.GetInstructionDisassembly(cpu, mem, 0x1000);
 
             // Assert
-            Assert.Equal("1000  FF        ???        ", outputString);
+            Assert.Equal("1000  ff        ???        ", outputString);
         }
 
         [Fact]
@@ -40,16 +40,16 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             // Arrange
             var cpu = new CPU();
-            cpu.ExecState.PCBeforeLastOpCodeExecuted = 0x1000;
+            cpu.ExecState.PCBeforeLastOpCodeExecuted = 0xc0a0;
             var mem = new Memory();
-            mem[0x1000] = OpCodeId.LDX_I.ToByte();
-            mem[0x1001] = 0xee;
+            mem[0xc0a0] = OpCodeId.LDX_I.ToByte();
+            mem[0xc0a1] = 0xee;
 
             // Act
             var outputString = OutputGen.GetLastInstructionDisassembly(cpu, mem);
 
             // Assert
-            Assert.Equal("1000  A2 EE     LDX #$EE   ", outputString);
+            Assert.Equal("c0a0  a2 ee     LDX #$EE   ", outputString);
         }        
 
         [Theory]
@@ -95,8 +95,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             Assert.Equal("A=00 X=00 Y=00 PS=[--------] SP=FF PC=1000 CY=0", outputString);
         }
         [Fact]
-        public void OutputGen_Returns_Correctly_Formatted_Processor_State_When_All_Status_Flags_Are_Set
-        ()
+        public void OutputGen_Returns_Correctly_Formatted_Processor_State_When_All_Status_Flags_Are_Set        ()
         {
             // Arrange
             var cpu = new CPU();

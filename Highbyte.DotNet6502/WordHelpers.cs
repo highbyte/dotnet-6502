@@ -48,19 +48,22 @@
             };
         }
 
-        public static string ToHex(this ushort value, string hexPrefix="0x")
+        public static string ToHex(this ushort value, string hexPrefix="0x", bool lowerCase=false)
         {
-            return $"{hexPrefix}{value:X4}";
+            if(lowerCase)
+                return $"{hexPrefix}{value:x4}";
+            else
+                return $"{hexPrefix}{value:X4}";
         }
 
-        public static string ToHexAndDecimal(this ushort value, string hexPrefix="0x")
+        public static string ToHexAndDecimal(this ushort value, string hexPrefix="0x", bool lowerCase=false)
         {
-            return $"{ToHex(value, hexPrefix)} ({value})";
+            return $"{ToHex(value, hexPrefix, lowerCase)} ({value})";
         }
 
-        public static string ToDecimalAndHex(this ushort value, string hexPrefix="0x")
+        public static string ToDecimalAndHex(this ushort value, string hexPrefix="0x", bool lowerCase=false)
         {
-            return $"{value} ({ToHex(value, hexPrefix)})";
+            return $"{value} ({ToHex(value, hexPrefix, lowerCase)})";
         }
 
     }

@@ -52,7 +52,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 var start = disassembleCmd.Argument("start", "Start address (hex). If not specified, the current PC address is used.");
                 start.Validators.Add(new MustBe16BitHexValueValidator());
 
-                var end = disassembleCmd.Argument("end", "End address (hex). If not specified, a default number of addresses will be show from start");
+                var end = disassembleCmd.Argument("end", "End address (hex). If not specified, a default number of addresses will be shown from start");
                 end.Validators.Add(new MustBe16BitHexValueValidator());
 
                 disassembleCmd.OnExecute(() =>
@@ -84,6 +84,42 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                             insSize = mon.Cpu.InstructionList.GetOpCode(opCodeByte).Size;
                         currentAddress += (ushort)insSize;
                     }
+                    return 0;
+                });
+            });            
+
+            app.Command("m", disassembleCmd =>
+            {
+                disassembleCmd.Description = "Show contents of memory in bytes";
+
+                var start = disassembleCmd.Argument("start", "Start address (hex). If not specified, the 0000 address is used.");
+                start.Validators.Add(new MustBe16BitHexValueValidator());
+
+                var end = disassembleCmd.Argument("end", "End address (hex). If not specified, a default number of memory locations will be shown from start");
+                end.Validators.Add(new MustBe16BitHexValueValidator());
+
+                disassembleCmd.OnExecute(() =>
+                {
+                    ushort startAddress;
+                    if(string.IsNullOrEmpty(start.Value))
+                        startAddress = 0x0000;
+                    else
+                        startAddress = ushort.Parse(start.Value, NumberStyles.AllowHexSpecifier, null);
+
+                    ushort endAddress;
+                    if(string.IsNullOrEmpty(end.Value))
+                        endAddress = (ushort)(startAddress + (16*8) - 1);
+                    else
+                    {
+                        endAddress = ushort.Parse(end.Value, NumberStyles.AllowHexSpecifier, null);
+                        if(endAddress<startAddress)
+                            endAddress = startAddress;
+                    }
+
+                    var list = OutputMemoryGen.GetFormattedMemoryList(mon.Mem, startAddress, endAddress);
+                    foreach(var line in list)
+                        Console.WriteLine(line);
+
                     return 0;
                 });
             });            
