@@ -47,7 +47,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
 
             app.Command("d", disassembleCmd =>
             {
-                disassembleCmd.Description = "Disassembles 6502 code in memory";
+                disassembleCmd.Description = "Disassembles 6502 code from emulator memory";
 
                 var start = disassembleCmd.Argument("start", "Start address (hex). If not specified, the current PC address is used.");
                 start.Validators.Add(new MustBe16BitHexValueValidator());
@@ -90,7 +90,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
 
             app.Command("m", disassembleCmd =>
             {
-                disassembleCmd.Description = "Show contents of memory in bytes";
+                disassembleCmd.Description = "Show contents of emulator memory in bytes";
 
                 var start = disassembleCmd.Argument("start", "Start address (hex). If not specified, the 0000 address is used.");
                 start.Validators.Add(new MustBe16BitHexValueValidator());
@@ -123,6 +123,17 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     return 0;
                 });
             });            
+
+            app.Command("r", disassembleCmd =>
+            {
+                disassembleCmd.Description = "Show processor status and registers. CY = #cycles executed.";
+
+                disassembleCmd.OnExecute(() =>
+                {
+                    Console.WriteLine(OutputGen.GetProcessorState(mon.Cpu, includeCycles: true));
+                    return 0;
+                });
+            }); 
 
             app.Command("q", quitCmd =>
             {

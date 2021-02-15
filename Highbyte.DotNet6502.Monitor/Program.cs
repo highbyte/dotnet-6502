@@ -1,6 +1,5 @@
 ﻿using System;
 using Highbyte.DotNet6502.Monitor.Commands;
-using McMaster.Extensions.CommandLineUtils;
 
 namespace Highbyte.DotNet6502.Monitor
 {
