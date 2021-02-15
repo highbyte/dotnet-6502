@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using McMaster.Extensions.CommandLineUtils;
@@ -29,7 +30,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     .IsRequired()
                     .Accepts(v => v.ExistingFile());
 
-                var address = loadCmd.Argument("address", "Memory address to load the file into. If not specified, it's assumed the first two bytes of the file contains the load address");
+                var address = loadCmd.Argument("address", "Memory address (hex) to load the file into. If not specified, it's assumed the first two bytes of the file contains the load address");
                 address.Validators.Add(new MustBe16BitHexValueValidator());
 
                 loadCmd.OnExecute(() =>
@@ -131,7 +132,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 registersCmd.Command("a", setRegisterCmd =>
                     {
                     setRegisterCmd.Description = "Sets A register";
-                    var regVal = setRegisterCmd.Argument("value", "Value of A register").IsRequired();
+                    var regVal = setRegisterCmd.Argument("value", "Value of A register (hex)").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
                     setRegisterCmd.OnExecute(() =>
@@ -146,7 +147,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 registersCmd.Command("x", setRegisterCmd =>
                     {
                     setRegisterCmd.Description = "Sets X register";
-                    var regVal = setRegisterCmd.Argument("value", "Value of X register").IsRequired();
+                    var regVal = setRegisterCmd.Argument("value", "Value of X register (hex)").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
                     setRegisterCmd.OnExecute(() =>
@@ -161,7 +162,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 registersCmd.Command("y", setRegisterCmd =>
                     {
                     setRegisterCmd.Description = "Sets Y register";
-                    var regVal = setRegisterCmd.Argument("value", "Value of Y register").IsRequired();
+                    var regVal = setRegisterCmd.Argument("value", "Value of Y register (hex)").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
                     setRegisterCmd.OnExecute(() =>
@@ -176,7 +177,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 registersCmd.Command("sp", setRegisterCmd =>
                     {
                     setRegisterCmd.Description = "Sets SP (Stack Pointer)";
-                    var regVal = setRegisterCmd.Argument("value", "Value of SP").IsRequired();
+                    var regVal = setRegisterCmd.Argument("value", "Value of SP (hex)").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
                     setRegisterCmd.OnExecute(() =>
@@ -191,7 +192,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 registersCmd.Command("ps", setRegisterCmd =>
                     {
                     setRegisterCmd.Description = "Sets processor status register";
-                    var regVal = setRegisterCmd.Argument("value", "Value of processor status register").IsRequired();
+                    var regVal = setRegisterCmd.Argument("value", "Value of processor status register (hex)").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
                     setRegisterCmd.OnExecute(() =>
@@ -207,7 +208,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 registersCmd.Command("pc", setRegisterCmd =>
                     {
                     setRegisterCmd.Description = "Sets PC (Program Counter)";
-                    var regVal = setRegisterCmd.Argument("value", "Value of PC").IsRequired();
+                    var regVal = setRegisterCmd.Argument("value", "Value of PC (hex)").IsRequired();
                     regVal.Validators.Add(new MustBe16BitHexValueValidator());
 
                     setRegisterCmd.OnExecute(() =>
@@ -230,7 +231,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
             app.Command("g", gotoCmd =>
             {
                 gotoCmd.Description = "Change the PC (Program Counter) to the specified address and execute code.";
-                var address = gotoCmd.Argument("address", "The address to start executing code at").IsRequired();
+                var address = gotoCmd.Argument("address", "The address (hex) to start executing code at").IsRequired();
                 address.Validators.Add(new MustBe16BitHexValueValidator());
                 var dontStopOnBRK = gotoCmd.Option("--no-brk|-nb", "Prevent execution stop when BRK instruction encountered.", CommandOptionType.NoValue);
                 gotoCmd.OnExecute(() =>
@@ -252,7 +253,30 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     Console.WriteLine($"{OutputGen.GetLastInstructionDisassembly(mon.Cpu, mon.Mem)}");
                     return 0;
                 });
-            });  
+            });
+
+            app.Command("f", fillMemoryCmd =>
+            {
+                fillMemoryCmd.Description = "Fill memory att specified address with a list of bytes. Example: f 1000 20 ff ab 30";
+                
+                var memAddress = fillMemoryCmd.Argument("address", "Memory address (hex)").IsRequired();
+                memAddress.Validators.Add(new MustBe16BitHexValueValidator());
+
+                var memValues = fillMemoryCmd.Argument("values", "List of byte values (hex). Example: 20 ff ab 30").IsRequired();
+                memValues.MultipleValues = true;
+                memValues.Validators.Add(new MustBe8BitHexValueValidator());
+
+                fillMemoryCmd.OnExecute(() =>
+                {
+                    var address = ushort.Parse(memAddress.Value, NumberStyles.AllowHexSpecifier, null);
+                    List<byte> bytes = new();
+                    foreach(var val in memValues.Values)
+                        bytes.Add(byte.Parse(val, NumberStyles.AllowHexSpecifier, null));
+                    foreach(var val in bytes)
+                        mon.Mem[address++] = val;
+                    return 0;
+                });
+            });             
 
             app.Command("q", quitCmd =>
             {
