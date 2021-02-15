@@ -224,8 +224,35 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     Console.WriteLine(OutputGen.GetProcessorState(mon.Cpu, includeCycles: true));
                     return 0;
                 });                
-
             }); 
+
+
+            app.Command("g", gotoCmd =>
+            {
+                gotoCmd.Description = "Change the PC (Program Counter) to the specified address and execute code.";
+                var address = gotoCmd.Argument("address", "The address to start executing code at").IsRequired();
+                address.Validators.Add(new MustBe16BitHexValueValidator());
+                var dontStopOnBRK = gotoCmd.Option("--no-brk|-nb", "Prevent execution stop when BRK instruction encountered.", CommandOptionType.NoValue);
+                gotoCmd.OnExecute(() =>
+                {
+                    mon.Cpu.PC = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
+                    if(dontStopOnBRK.HasValue())
+                    {
+                        mon.Computer.ExecOptions.ExecuteUntilInstruction = null;
+                        Console.WriteLine($"Will never stop.");
+                    }
+                    else
+                    {
+                        mon.Computer.ExecOptions.ExecuteUntilInstruction = OpCodeId.BRK;
+                        Console.WriteLine($"Will stop on BRK instruction.");
+                    }
+                    Console.WriteLine($"Staring executing code at {mon.Cpu.PC.ToHex("",lowerCase:true)}");
+                    mon.Computer.Run();
+                    Console.WriteLine($"Stopped at                {mon.Cpu.PC.ToHex("",lowerCase:true)}");
+                    Console.WriteLine($"{OutputGen.GetLastInstructionDisassembly(mon.Cpu, mon.Mem)}");
+                    return 0;
+                });
+            });  
 
             app.Command("q", quitCmd =>
             {
@@ -235,7 +262,8 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     Console.WriteLine($"Quiting.");
                     return 2;
                 });
-            });                      
+            });
+
             app.OnExecute(() =>
             {
                 Console.WriteLine("Specify a command");
