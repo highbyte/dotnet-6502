@@ -39,8 +39,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         public void OutputGen_Returns_Correctly_Formatted_Disassembly_For_Last_Executed_Instruction()
         {
             // Arrange
-            var cpu = new CPU();
-            cpu.ExecState.PCBeforeLastOpCodeExecuted = 0xc0a0;
+            var cpu = new CPU(ExecState.ExecStateAfterInstruction(0,false,OpCodeId.LDX_I.ToByte(), 0xc0a0));
             var mem = new Memory();
             mem[0xc0a0] = OpCodeId.LDX_I.ToByte();
             mem[0xc0a1] = 0xee;

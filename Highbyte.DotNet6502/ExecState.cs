@@ -1,13 +1,15 @@
+using System;
+
 namespace Highbyte.DotNet6502
 {
     public class ExecState
     {
-        public ulong CyclesConsumed { get; set; }
-        public ulong InstructionsExecutionCount { get; set; }
-        public ulong UnknownOpCodeCount { get; set; }
-        public bool LastOpCodeWasHandled  { get; set; }
-        public byte? LastOpCode { get; set; }
-        public ushort? PCBeforeLastOpCodeExecuted { get; set; }
+        public ulong CyclesConsumed { get; private set; }
+        public ulong InstructionsExecutionCount { get; private set; }
+        public ulong UnknownOpCodeCount { get; private set; }
+        public bool LastOpCodeWasHandled  { get; private set; }
+        public byte? LastOpCode { get; private set; }
+        public ushort? PCBeforeLastOpCodeExecuted { get; private set; }
 
         public ExecState()
         {
@@ -18,6 +20,16 @@ namespace Highbyte.DotNet6502
             LastOpCode = null;
             PCBeforeLastOpCodeExecuted = null;
         }
+        public static ExecState ExecStateAfterInstruction(ulong cyclesConsumed, bool unknownInstruction, byte? lastOpCode, ushort? lastPC)
+        {
+            var execState = new ExecState();
+            execState.InstructionsExecutionCount = 1;
+            execState.CyclesConsumed = cyclesConsumed;
+            execState.InstructionsExecutionCount += unknownInstruction?(ulong)1:(ulong)0;
+            execState.PCBeforeLastOpCodeExecuted = lastPC;
+            execState.LastOpCode = lastOpCode;
+            return execState;
+        }        
 
         public ExecState Clone()
         {
@@ -30,6 +42,16 @@ namespace Highbyte.DotNet6502
                 LastOpCode = this.LastOpCode,
                 PCBeforeLastOpCodeExecuted = this.PCBeforeLastOpCodeExecuted
             };
+        }
+
+        internal void UpdateTotal(ExecState newExecState)
+        {
+            CyclesConsumed += newExecState.CyclesConsumed;
+            InstructionsExecutionCount += newExecState.InstructionsExecutionCount;
+            UnknownOpCodeCount += newExecState.UnknownOpCodeCount;
+            LastOpCodeWasHandled = newExecState.LastOpCodeWasHandled;
+            LastOpCode = newExecState.LastOpCode;
+            PCBeforeLastOpCodeExecuted = newExecState.PCBeforeLastOpCodeExecuted;
         }
     }
 }

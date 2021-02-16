@@ -15,8 +15,6 @@ namespace Highbyte.DotNet6502.Instructions
         {
             // Assume implied mode
             cpu.ProcessorStatus.Decimal = false;
-            // Consume extra cycle to clear flag?
-            cpu.ExecState.CyclesConsumed ++;
                         
             return InstructionLogicResult.WithNoExtraCycles();
         }

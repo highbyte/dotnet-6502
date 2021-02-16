@@ -25,13 +25,12 @@ What it isn't (and probably never will be)
 Inspiration for this library was a [Youtube-series](https://www.youtube.com/watch?v=qJgsuQoy9bc&list=PLLwK93hM93Z13TRzPx9JqTIn33feefl37) about implementing a 6502 emulator in C++
 
 # Table of Contents
+- [Requirements](#requirements)
 - [How to use Highbyte.DotNet6502 library from a .NET application](#how-to-use-highbytedotnet6502-library-from-a-net-application)
 - [How to use Highbyte.DotNet6502 machine code monitor](#how-to-use-highbytedotnet6502-machine-code-monitor)
   - [Get source](#get-source)
-  - [Running with dotnet](#running-with-dotnet)
-  - [Build and run executable](#build-and-run-executable)
-    - [Windows](#windows)
-    - [Linux](#linux)
+  - [Run with dotnet](#run-with-dotnet)
+  - [Or build and run executable](#or-build-and-run-executable)
   - [Monitor commands](#monitor-commands)
 - [How to develop](#how-to-develop)
 - [Tests](#tests)
@@ -40,17 +39,28 @@ Inspiration for this library was a [Youtube-series](https://www.youtube.com/watc
   - [Code coverate report locally](#code-coverage-report-locally)
 - [Resources](#6502-resources)
 
-# How to use Highbyte.DotNet6502 library from a .NET application
-- Use Windows, Linux, or Mac
+# Requirements
 - [.NET 5 SDK](https://dotnet.microsoft.com/download/dotnet/5.0) installed.
-- Add GitHub Packages source _(if/when this package will live on nuget.org, this would not be needed)_
+- Use Windows, Linux, or Mac
+
+# How to use Highbyte.DotNet6502 library from a .NET application
+## Reference NuGet package
+Add GitHub Packages source _(if/when this package will live on nuget.org, this would not be needed)_
 ``` powershell
 dotnet nuget add source https://nuget.pkg.github.com/highbyte/index.json --name "github-highbyte" --username [your-git-username] --password [your-git-personal-access-token]
 ```
-- Add reference to the library in your application
+Add reference to the NuGet package in your application
 ```
 dotnet add package Highbyte.DotNet6502 --prerelease
 ```
+
+## Or compile .dll yourself
+- Clone this repo ```git clone https://github.com/highbyte/dotnet-6502.git```
+- Change dir to library ```cd dotnet-6502/Highbyte.DotNet6502```
+- Build library ```dotnet build```
+- In your app, add .dll reference to ```./bin/Debug/net5.0/Highbyte.DotNet6502.dll```
+
+## Example application code
 
 Example #1. Load compiled 6502 binary and execute it.
 ```c#
@@ -139,25 +149,22 @@ Stats: 6 instruction(s) processed, and used 23 cycles.
 Result: (12 + 30) / 2 = 21
 ```
 
-# How to use Highbyte.DotNet6502 machine code monitor
-The Highbyte.DotNet6502.Monitor is a machine code monitor in a console application. It allows for some interaction with the Highbyte.DotNet6502 CPU emulator library.
+# How to use Highbyte.DotNet6502.Monitor
+A machine code monitor console application for the Highbyte.DotNet6502 emulator library. It allows for some basic interaction with the emulator.
 
 ## Get source
 - Clone this repo ```git clone https://github.com/highbyte/dotnet-6502.git```
-- Change dir ```cd dotnet-6502/Highbyte.DotNet6502.Monitor```
+- Change dir to monitor application ```cd dotnet-6502/Highbyte.DotNet6502.Monitor```
 
-## Running with dotnet
-- Run ```dotnet run```
+## Run with dotnet
+- ```dotnet run```
 
-## Build and run executable
-
-### Windows
+## Or build and run executable
 - Compile the source code with ```dotnet build```
-- Locate the compiled console application in ``` Highbyte.DotNet6502.Monitor\bin\Debug\net5.0\Highbyte.DotNet6502.Monitor.exe```
-- Run ``` Highbyte.DotNet6502.Monitor.exe ```
-
-### Linux
-_TODO_
+- Run executable
+  - Windows: ```.\bin\Debug\net5.0\Highbyte.DotNet6502.Monitor.exe```
+  - Linux: ```./bin/Debug/net5.0/Highbyte.DotNet6502.Monitor```
+  - Mac: ```./bin/Debug/net5.0/Highbyte.DotNet6502.Monitor```
 
 ## Monitor commands
 Type ```?|help|-?|--help``` to list commands.

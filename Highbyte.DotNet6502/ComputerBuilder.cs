@@ -45,7 +45,7 @@ namespace Highbyte.DotNet6502
         {
             var newExecOptions = new ExecOptions();
             configure(newExecOptions);
-            _computer.ExecOptions = newExecOptions;
+            _computer.DefaultExecOptions = newExecOptions;
             return this;
         }        
 

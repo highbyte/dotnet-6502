@@ -14,8 +14,6 @@ namespace Highbyte.DotNet6502.Instructions
         {
             // Assume implied mode
             cpu.ProcessorStatus.Overflow = false;
-            // Consume extra cycle to clear flag?
-            cpu.ExecState.CyclesConsumed ++;
                         
             return InstructionLogicResult.WithNoExtraCycles();
         } 
