@@ -84,8 +84,8 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
             var computer = computerBuilder.Build();
 
             Console.WriteLine("");
-            Console.WriteLine($"If test logic succeeds, the test program will reach a specific memory location: {computer.ExecOptions.ExecuteUntilExecutedInstructionAtPC.Value.ToHex()}, and the emulator will then stop processing.");
-            Console.WriteLine($"If test logic fails, the test program will loop forever at the location the error was found. The emulator will try executing a maximum #instructions {computer.ExecOptions.MaxNumberOfInstructions.Value} before giving up.");
+            Console.WriteLine($"If test logic succeeds, the test program will reach a specific memory location: {computer.DefaultExecOptions.ExecuteUntilExecutedInstructionAtPC.Value.ToHex()}, and the emulator will then stop processing.");
+            Console.WriteLine($"If test logic fails, the test program will loop forever at the location the error was found. The emulator will try executing a maximum #instructions {computer.DefaultExecOptions.MaxNumberOfInstructions.Value} before giving up.");
             Console.WriteLine($"If unknown opcode is found, it's logged and ignored, and processing continues on next instruction.");
 
             // Execute program
@@ -107,15 +107,15 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
 
             Console.WriteLine("");
             // Evaluate success/failure
-            if(cpu.PC == computer.ExecOptions.ExecuteUntilExecutedInstructionAtPC.Value)
+            if(cpu.PC == computer.DefaultExecOptions.ExecuteUntilExecutedInstructionAtPC.Value)
             {
                 Console.WriteLine($"Success!");
-                Console.WriteLine($"PC reached expected success memory location: {computer.ExecOptions.ExecuteUntilExecutedInstructionAtPC.Value.ToHex()}");
+                Console.WriteLine($"PC reached expected success memory location: {computer.DefaultExecOptions.ExecuteUntilExecutedInstructionAtPC.Value.ToHex()}");
             }
             else
             {
                 Console.WriteLine($"Probably failure");
-                Console.WriteLine($"The emulator executer a maximum #instructions {computer.ExecOptions.MaxNumberOfInstructions.Value}, and did not manage to get PC to the configured success location: {computer.ExecOptions.ExecuteUntilExecutedInstructionAtPC.Value.ToHex()}");
+                Console.WriteLine($"The emulator executer a maximum #instructions {computer.DefaultExecOptions.MaxNumberOfInstructions.Value}, and did not manage to get PC to the configured success location: {computer.DefaultExecOptions.ExecuteUntilExecutedInstructionAtPC.Value.ToHex()}");
                 Console.WriteLine($"The functional test program would end in a forever-loop on the same memory location if it fails.");
                 Console.WriteLine($"Verify the last PC location against the functional test program's .lst file to find out which logic test failed.");
             }
