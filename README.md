@@ -10,10 +10,10 @@ What it (currently) does/is
 - Supports all official 6502 opcodes
 - Can load an assembled 6502 program binary and execute it
 - Passes this [Functional 6502 test program](https://github.com/Klaus2m5/6502_65C02_functional_tests)
+- Monitor (rudamentary)
 - **_A programming excerise, that may or may not turn into something more_**
 
 What's (currently) missing
-- A monitor
 - A way for input/output other than loading files to memory and inspecting memory after execution
 - Decimal mode (Binary Coded Decimal) calculcations
 - Support for unofficial opcodes
@@ -24,7 +24,23 @@ What it isn't (and probably never will be)
 
 Inspiration for this library was a [Youtube-series](https://www.youtube.com/watch?v=qJgsuQoy9bc&list=PLLwK93hM93Z13TRzPx9JqTIn33feefl37) about implementing a 6502 emulator in C++
 
-# How to use from a .NET application
+# Table of Contents
+- [How to use Highbyte.DotNet6502 library from a .NET application](#how-to-use-highbytedotnet6502-library-from-a-net-application)
+- [How to use Highbyte.DotNet6502.Monitor](#how-to-use-highbytedotnet6502monitor)
+  - [Get source](#get-source)
+  - [Running with dotnet](#running-with-dotnet)
+  - [Build and run executable](#build-and-run-executable)
+    - [Windows](#windows)
+    - [Linux](#linux)
+  - [Monitor commands](#monitor-commands)
+- [How to develop](#how-to-develop)
+- [Tests](#tests)
+  - [Unit tests](#unit-tests)
+  - [Functional test](#functional-integration-test)
+  - [Code coverate report locally](#code-coverage-report-locally)
+- [Resources](#6502-resources)
+
+# How to use Highbyte.DotNet6502 library from a .NET application
 - Use Windows, Linux, or Mac
 - [.NET 5 SDK](https://dotnet.microsoft.com/download/dotnet/5.0) installed.
 - Add GitHub Packages source _(if/when this package will live on nuget.org, this would not be needed)_
@@ -123,6 +139,118 @@ Stats: 6 instruction(s) processed, and used 23 cycles.
 Result: (12 + 30) / 2 = 21
 ```
 
+# How to use Highbyte.DotNet6502.Monitor
+The monitor is console application.
+## Get source
+- Clone this repo ```git clone https://github.com/highbyte/dotnet-6502.git```
+- Change dir ```cd dotnet-6502/Highbyte.DotNet6502.Monitor```
+
+## Running with dotnet
+- Run ```dotnet run```
+
+## Build and run executable
+
+### Windows
+- Compile the source code with ```dotnet build```
+- Locate the compiled console application in ``` Highbyte.DotNet6502.Monitor\bin\Debug\net5.0\Highbyte.DotNet6502.Monitor.exe```
+- Run ``` Highbyte.DotNet6502.Monitor.exe ```
+
+### Linux
+_TODO_
+
+## Monitor commands
+Type ```?|help|-?|--help``` to list commands.
+```
+> ?
+Usage:  [command]
+
+Commands:
+  d  Disassembles 6502 code from emulator memory.
+  f  Fill memory att specified address with a list of bytes. Example: f 1000 20 ff ab 30
+  g  Change the PC (Program Counter) to the specified address and execute code.
+  l  Load a 6502 binary into emulator memory.
+  m  Show contents of emulator memory in bytes.
+  q  Quit monitor.
+  r  Show processor status and registers. CY = #cycles executed.
+  z  Single step through instructions. Optionally execute a specified number of instructions.
+```
+
+Type ```[command] -?|--help``` to list help on specific command.
+
+Example on help for ```d``` (disassemble) command:
+```
+> d -?
+Usage:  d [options] <start> <end>
+
+Arguments:
+  start         Start address (hex). If not specified, the current PC address is used.
+  end           End address (hex). If not specified, a default number of addresses will be shown from start.
+
+Options:
+  -?|-h|--help  Show help information.
+```
+
+Example how to load binary with ```l``` command:
+
+_The machine code binary simple.prg adds two number from memory, divides by 2, stores it in another memory location_
+```
+> l C:\Source\dotnet-6502\.cache\Highbyte.DotNet6502.ConsoleTestPrograms\AssemblerSource\simple.prg
+File loaded at 0xC000
+```
+
+Example how to disassemble with ```d``` command:
+
+_Shows what the code in simple.prg does_
+```
+> d c000 c010
+c000  ad 00 d0  LDA $D000
+c003  18        CLC
+c004  6d 01 d0  ADC $D001
+c007  6a        ROR A
+c008  8d 02 d0  STA $D002
+c00b  00        BRK
+c00c  00        BRK
+c00d  00        BRK
+c00e  00        BRK
+c00f  00        BRK
+c010  00        BRK
+```
+
+Example how to fill bytes in memory with ```f``` command:
+
+_Sets value A and B in memory locations (d000 and d001) that simple.prg uses_
+```
+> f d000 12 30
+```
+
+Example how to set PC (Program Counter) with ```r pc``` command:
+
+_Sets PC at load address of simple.prg_
+```
+> r pc c000
+SP=00 PC=C000
+```
+
+Example how to execute  ```g``` command:
+
+_Executes simple.prg, stops on BRK instruction_
+```
+> g c000
+Will stop on BRK instruction.
+Staring executing code at c000
+Stopped at                0000
+c00b  00        BRK
+```
+
+Example how to show contents of bytes in memory with ```m``` command:
+
+_Inspects values A (d000), B (d001), and result (d002)_
+```
+> m d000 d002
+d000  12 30 21
+```
+
+
 # How to develop
 - Use Windows, Linux, or Mac.
 - [.NET 5 SDK](https://dotnet.microsoft.com/download/dotnet/5.0) installed.
@@ -178,12 +306,12 @@ chmod +x ./codecov-console.sh
 ./codecov-console.sh
 ```
 
-## 6502 Resources
+# 6502 Resources
 
-### 6502 CPU Emulator in C++ video
+## 6502 CPU Emulator in C++ video
 - https://www.youtube.com/playlist?list=PLLwK93hM93Z13TRzPx9JqTIn33feefl37
 
-### Reference material
+## Reference material
 - http://www.obelisk.me.uk/6502/index.html
 - https://www.atariarchives.org/alp/appendix_1.php
 - http://www.6502.org/tutorials/compare_beyond.html
@@ -193,22 +321,22 @@ chmod +x ./codecov-console.sh
 - http://www.emulator101.com/6502-addressing-modes.html
 - https://www.pagetable.com/?p=410
 
-### Test programs
+## Test programs
 - http://visual6502.org/wiki/index.php?title=6502TestPrograms
 - https://github.com/Klaus2m5/6502_65C02_functional_tests/blob/master/6502_functional_test.a65
 - http://www.csharp4u.com/2017/01/getting-pretty-hex-dump-of-binary-file.html?m=1
 
-### Assemblers
+## Assemblers
 Was used during develoment to compile actual 6502 source code to a binary, and then run it through the emulator.
 
 - https://marketplace.visualstudio.com/items?itemName=rosc.vs64
 - https://nurpax.github.io/c64jasm-browser/
 - https://skilldrick.github.io/easy6502/#first-program
 
-### Monitors / Emulators
+## Monitors / Emulators
 Was used during development to test how certain instructions worked when in doubt.
 
-#### VICE
+### VICE
 Monitor commands: https://vice-emu.sourceforge.io/vice_12.html
 
 How to load and step through a program in the VICE monitor
