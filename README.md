@@ -10,7 +10,7 @@ What it (currently) does/is
 - Supports all official 6502 opcodes
 - Can load an assembled 6502 program binary and execute it
 - Passes this [Functional 6502 test program](https://github.com/Klaus2m5/6502_65C02_functional_tests)
-- Monitor (rudamentary)
+- Monitor (rudimentary)
 - **_A programming excerise, that may or may not turn into something more_**
 
 What's (currently) missing
@@ -27,7 +27,7 @@ Inspiration for this library was a [Youtube-series](https://www.youtube.com/watc
 # Table of Contents
 - [Requirements](#requirements)
 - [How to use Highbyte.DotNet6502 library from a .NET application](#how-to-use-highbytedotnet6502-library-from-a-net-application)
-- [How to use Highbyte.DotNet6502.Monitor](#how-to-use-highbytedotnet6502monitor)
+- [How to use Highbyte.DotNet6502 machine code monitor](#how-to-use-highbytedotnet6502-machine-code-monitor)
   - [Get source](#get-source)
   - [Run with dotnet](#run-with-dotnet)
   - [Or build and run executable](#or-build-and-run-executable)
@@ -150,7 +150,7 @@ Result: (12 + 30) / 2 = 21
 ```
 
 # How to use Highbyte.DotNet6502.Monitor
-A machine code monitor console application for the Highbyte.DotNet6502 emulator library.
+A machine code monitor console application for the Highbyte.DotNet6502 emulator library. It allows for some basic interaction with the emulator.
 
 ## Get source
 - Clone this repo ```git clone https://github.com/highbyte/dotnet-6502.git```
