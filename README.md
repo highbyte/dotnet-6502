@@ -150,10 +150,11 @@ Result: (12 + 30) / 2 = 21
 ```
 
 # How to use Highbyte.DotNet6502.Monitor
-The monitor is console application.
+A machine code monitor console application for the Highbyte.DotNet6502 emulator library.
+
 ## Get source
 - Clone this repo ```git clone https://github.com/highbyte/dotnet-6502.git```
-- Change dir ```cd dotnet-6502/Highbyte.DotNet6502.Monitor```
+- Change dir to monitor application ```cd dotnet-6502/Highbyte.DotNet6502.Monitor```
 
 ## Run with dotnet
 - ```dotnet run```
