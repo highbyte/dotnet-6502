@@ -596,12 +596,11 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 execOptions.CyclesRequested = null;
                 execOptions.MaxNumberOfInstructions = 1;
             }
-            ulong actualCycles;
-            actualCycles = cpu.Execute(mem, execOptions);
+            var thisExecState = cpu.Execute(mem, execOptions);
 
             // Assert
             // Check that we didn't find any unknown opcode
-            Assert.True(cpu.ExecState.UnknownOpCodeCount == 0);
+            Assert.True(thisExecState.UnknownOpCodeCount == 0);
 
             // Verify Program Counter
             if(ExpectedPC.HasValue)
@@ -628,7 +627,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
 
             // Verify expected # of cycles
             if (ExpectedCycles.HasValue)
-                Assert.Equal(ExpectedCycles, actualCycles);
+                Assert.Equal(ExpectedCycles, thisExecState.CyclesConsumed);
 
             // Verify registers (operations that affects registers)
             if(InsEffect == InstrEffect.Reg || InsEffect == InstrEffect.RegAndMem)

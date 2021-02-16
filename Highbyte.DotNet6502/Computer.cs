@@ -4,19 +4,19 @@ namespace Highbyte.DotNet6502
     {
         public Memory Mem { get; set;}
         public CPU CPU { get ; set; }
-        public ExecOptions ExecOptions { get ; set; }
+        public ExecOptions DefaultExecOptions { get ; set; }
         public Computer()
         {
             Mem = new Memory();
             CPU = new CPU();
-            ExecOptions = new ExecOptions();
+            DefaultExecOptions = new ExecOptions();
         }
 
-        public Computer(Memory mem, CPU cpu, ExecOptions execOptions)
+        public Computer(Memory mem, CPU cpu, ExecOptions defaultExecOptions)
         {
             Mem = mem;
             CPU = cpu;
-            ExecOptions = execOptions;
+            DefaultExecOptions = defaultExecOptions;
         }
 
         public Computer Clone()
@@ -25,7 +25,7 @@ namespace Highbyte.DotNet6502
             {
                 CPU = this.CPU.Clone(),
                 Mem = this.Mem.Clone(),
-                ExecOptions = this.ExecOptions.Clone()
+                DefaultExecOptions = this.DefaultExecOptions.Clone()
             };
         }
 
@@ -43,8 +43,17 @@ namespace Highbyte.DotNet6502
         {
             CPU.Execute(
                 this.Mem,
-                this.ExecOptions
+                this.DefaultExecOptions
                 );
         }
+
+        public void Run(ExecOptions execOptions)
+        {
+            CPU.Execute(
+                this.Mem,
+                execOptions
+                );
+                
+        }        
     }
 }

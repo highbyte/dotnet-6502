@@ -251,26 +251,22 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 cmd.OnExecute(() =>
                 {
                     mon.Cpu.PC = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
+                    ExecOptions execOptions;
                     if(dontStopOnBRK.HasValue())
                     {
-                        mon.Computer.ExecOptions.MaxNumberOfInstructions = null;
-                        mon.Computer.ExecOptions.ExecuteUntilInstruction = null;
-                        mon.Computer.ExecOptions.ExecuteUntilInstructions = new();
-                        mon.Computer.ExecOptions.ExecuteUntilExecutedInstructionAtPC = null;
-                        mon.Computer.ExecOptions.ExecuteUntilPC = null;
+                        execOptions = new ExecOptions();
                         Console.WriteLine($"Will never stop.");
                     }
                     else
                     {
-                        mon.Computer.ExecOptions.ExecuteUntilInstruction = OpCodeId.BRK;
-                        mon.Computer.ExecOptions.MaxNumberOfInstructions = null;
-                        mon.Computer.ExecOptions.ExecuteUntilInstructions = new();
-                        mon.Computer.ExecOptions.ExecuteUntilExecutedInstructionAtPC = null;
-                        mon.Computer.ExecOptions.ExecuteUntilPC = null;
+                        execOptions = new ExecOptions
+                        {
+                            ExecuteUntilInstruction = OpCodeId.BRK,
+                        };                        
                         Console.WriteLine($"Will stop on BRK instruction.");
                     }
                     Console.WriteLine($"Staring executing code at {mon.Cpu.PC.ToHex("",lowerCase:true)}");
-                    mon.Computer.Run();
+                    mon.Computer.Run(execOptions);
                     Console.WriteLine($"Stopped at                {mon.Cpu.PC.ToHex("",lowerCase:true)}");
                     Console.WriteLine($"{OutputGen.GetLastInstructionDisassembly(mon.Cpu, mon.Mem)}");
                     return 0;
@@ -287,14 +283,11 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 cmd.OnExecute(() =>
                 {
                     Console.WriteLine($"Executing code at {mon.Cpu.PC.ToHex("",lowerCase:true)} for {inscount.Value} instruction(s).");
-                    // TODO: Better model for ExecOptions and ExecState. Should be able to set ExecOptions for just one call to computer.Run() or cpu.Execute(), and an ExecState returned that was just for that invocation.
-                    mon.Computer.ExecOptions.MaxNumberOfInstructions = ulong.Parse(inscount.Value);
-                    mon.Cpu.ExecState.InstructionsExecutionCount = 0;
-                    mon.Computer.ExecOptions.ExecuteUntilInstruction = null;
-                    mon.Computer.ExecOptions.ExecuteUntilInstructions = new();
-                    mon.Computer.ExecOptions.ExecuteUntilExecutedInstructionAtPC = null;
-                    mon.Computer.ExecOptions.ExecuteUntilPC = null;
-                    mon.Computer.Run();
+                    var execOptions = new ExecOptions
+                    {
+                        MaxNumberOfInstructions = ulong.Parse(inscount.Value),
+                    };                    
+                    mon.Computer.Run(execOptions);
                     Console.WriteLine($"Last instruction:");
                     Console.WriteLine($"{OutputGen.GetLastInstructionDisassembly(mon.Cpu, mon.Mem)}");
                     return 0;
@@ -342,9 +335,8 @@ namespace Highbyte.DotNet6502.Monitor.Commands
 
             app.OnExecute(() =>
             {
-                Console.WriteLine("Unknown command");
-                Console.WriteLine("For help: ?|help|-?|--help");
-                //Console.WriteLine(helpText);
+                Console.WriteLine("Unknown command.");
+                Console.WriteLine("Help: ?|help|-?|--help");
                 //app.ShowHelp();
                 return 1;
             });

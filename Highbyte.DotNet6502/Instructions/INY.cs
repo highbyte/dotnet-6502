@@ -14,7 +14,6 @@ namespace Highbyte.DotNet6502.Instructions
         {
             // Assume implied mode
             cpu.Y++;
-            cpu.ExecState.CyclesConsumed++;
             BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, cpu.ProcessorStatus);
 
             return InstructionLogicResult.WithNoExtraCycles();

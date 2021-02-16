@@ -71,6 +71,10 @@ namespace Highbyte.DotNet6502
         /// </summary>
         public const ushort BrkIRQHandlerVector = 0xfffe; // + 0xffff
 
+        /// <summary>
+        /// Aggregated stats and info for all invocations of Execute()
+        /// </summary>
+        /// <value></value>
         public ExecState ExecState {get; private set;}
 
         public InstructionList InstructionList {get; private set;}
@@ -88,7 +92,6 @@ namespace Highbyte.DotNet6502
             handler?.Invoke(this, e);
         }
 
-
         public event EventHandler<CPUUnknownOpCodeDetectedEventArgs> UnknownOpCodeDetected;
         protected virtual void OnUnknownOpCodeDetected(CPUUnknownOpCodeDetectedEventArgs e)
         {
@@ -98,16 +101,18 @@ namespace Highbyte.DotNet6502
 
         private readonly InstructionExecutor _instructionExecutor;
 
-        public CPU()
+        public CPU(): this (new ExecState())
+        {
+        }
+        public CPU(ExecState execState)
         {
             ProcessorStatus = new ProcessorStatus();
-            ExecState = new ExecState();
+            ExecState = execState;
             // TODO: Inject instruction list?
             InstructionList = InstructionList.GetAllInstructions();
-
-            // TOD: Inject InstructionExecutor?
+            // TODO: Inject InstructionExecutor?
             _instructionExecutor = new InstructionExecutor();
-        }
+        }        
 
         public CPU Clone()
         {
@@ -124,14 +129,16 @@ namespace Highbyte.DotNet6502
             };
         }
 
-        public ulong Execute(
+        public ExecState Execute(
             Memory mem, 
             ExecOptions execOptions)
         {
+            // Collect stats for this invocation of Execute(). 
+            // Whereas the property Cpu.ExecState contains the aggregate stats for all invocations of Execute().
+            var thisExecState = new ExecState();
+
             // Get current cycle count
-            ulong startCycleCount = ExecState.CyclesConsumed;
             bool doNextInstruction = true;
-            ulong cyclesConsumedThisIteration = 0;
 
             while(doNextInstruction)
             {
@@ -140,17 +147,22 @@ namespace Highbyte.DotNet6502
 
                 // Execute instruction
                 ushort PCBeforeInstructionExecuted = PC;
-                var cycleCountBeforeInstruction = ExecState.CyclesConsumed;
                 var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
-                // Update CPU state with some statistics
-                ExecState.CyclesConsumed = cycleCountBeforeInstruction + instructionExecutionResult.CyclesConsumed ;
-                ExecState.LastOpCode = instructionExecutionResult.OpCodeByte;
-                ExecState.LastOpCodeWasHandled = !instructionExecutionResult.UnknownInstruction;
-                if(instructionExecutionResult.UnknownInstruction)
-                    ExecState.UnknownOpCodeCount++;
-                ExecState.PCBeforeLastOpCodeExecuted = PCBeforeInstructionExecuted;
-                ExecState.InstructionsExecutionCount++;
+                // Collect stats for this instruction.
+                // Whereas the property thisExecState contains the aggregate stats for this invocation of Execute().
+                // and the property Cpu.ExecState contains the aggregate stats for all invocations of Execute().
+                var instructionExecState = ExecState.ExecStateAfterInstruction(
+                    cyclesConsumed: instructionExecutionResult.CyclesConsumed,
+                    unknownInstruction: instructionExecutionResult.UnknownInstruction,
+                    lastOpCode: instructionExecutionResult.OpCodeByte,
+                    lastPC: PCBeforeInstructionExecuted
+                );
+
+                // Update/Aggregate total Cpu.ExecState stats
+                ExecState.UpdateTotal(instructionExecState);                
+                // Update/Aggregate this invocation of Execute() ExecState stats
+                thisExecState.UpdateTotal(instructionExecState);                
 
                 // Fire "unknown opcode" or "instruction executed" event
                 if(instructionExecutionResult.UnknownInstruction)
@@ -167,13 +179,10 @@ namespace Highbyte.DotNet6502
                     OnInstructionExecuted(new CPUInstructionExecutedEventArgs(this, mem));
                 }
             
-                // How many cycles have we consumed in this call to cpu.Execute()?
-                cyclesConsumedThisIteration = ExecState.CyclesConsumed - startCycleCount;
-
                 // Check if we should continue executing instructions
-                if(execOptions.CyclesRequested.HasValue  && cyclesConsumedThisIteration >= execOptions.CyclesRequested.Value)
+                if(execOptions.CyclesRequested.HasValue  && thisExecState.CyclesConsumed >= execOptions.CyclesRequested.Value)
                     doNextInstruction = false;
-                if(execOptions.MaxNumberOfInstructions.HasValue && ExecState.InstructionsExecutionCount >= execOptions.MaxNumberOfInstructions.Value) 
+                if(execOptions.MaxNumberOfInstructions.HasValue && thisExecState.InstructionsExecutionCount >= execOptions.MaxNumberOfInstructions.Value) 
                     doNextInstruction = false;
                 if(!instructionExecutionResult.UnknownInstruction && execOptions.ExecuteUntilInstruction.HasValue && instructionExecutionResult.OpCodeByte == execOptions.ExecuteUntilInstruction.Value.ToByte())
                      doNextInstruction = false;
@@ -185,8 +194,8 @@ namespace Highbyte.DotNet6502
                     doNextInstruction = false;                  
             }
 
-            // Return cycles consumed in this call to Execute (for total, inspect ExecState.TotalCyclesConsumed)
-            return cyclesConsumedThisIteration;
+            // Return stats for this invocation of Execute();
+            return thisExecState;
         }
 
         /// <summary>
@@ -203,9 +212,6 @@ namespace Highbyte.DotNet6502
             // Wrap around when Zero Page Address + X is greater than one byte (0xff)
             if(wrapZeroPage)
                 zeroPageAddressX = (ushort)(zeroPageAddressX & 0xff); 
-
-            // Is the extra cycle because of the calculation of zp address + X ?
-            ExecState.CyclesConsumed++;
 
             return zeroPageAddressX;
         }  
@@ -224,9 +230,6 @@ namespace Highbyte.DotNet6502
             // Wrap around when Zero Page Address + Y is greater than one byte (0xff)
             if(wrapZeroPage)
                 zeroPageAddressY = (ushort)(zeroPageAddressY & 0xff); 
-
-            // Is the extra cycle because of the calculation of zp address + X ?
-            ExecState.CyclesConsumed++;
 
             return zeroPageAddressY;
         }         
@@ -280,7 +283,6 @@ namespace Highbyte.DotNet6502
         public byte FetchByte(Memory mem, ushort address)
         {
             byte data = mem.FetchByte(address);
-            ExecState.CyclesConsumed++;
             return data;
         }
 
@@ -294,7 +296,6 @@ namespace Highbyte.DotNet6502
         public ushort FetchWord(Memory mem, ushort address)
         {
             ushort data = mem.FetchWord(address);
-            ExecState.CyclesConsumed +=2;
             return data;
         }
 
@@ -418,11 +419,6 @@ namespace Highbyte.DotNet6502
         public ushort CalcFullAddressX(ushort fullAddress, out bool didCrossPageBoundary, bool alwaysExtraCycleWhenCrossBoundary)
         {
             didCrossPageBoundary = (fullAddress & 0x00ff) + X > 0xff;
-
-            // Check if adding X to address will cross page boundary. If so, one more cycle is consumed
-            if( alwaysExtraCycleWhenCrossBoundary || didCrossPageBoundary)
-                ExecState.CyclesConsumed++;
-
             var fullAddressX = (ushort)(fullAddress + X);
             return fullAddressX;
         }
@@ -450,11 +446,6 @@ namespace Highbyte.DotNet6502
         public ushort CalcFullAddressY(ushort fullAddress, out bool didCrossPageBoundary, bool alwaysExtraCycleWhenCrossBoundary)
         {
             didCrossPageBoundary = (fullAddress & 0x00ff) + Y > 0xff;
-
-            // Check if adding X to address will cross page boundary. If so, one more cycle is consumed
-            if( alwaysExtraCycleWhenCrossBoundary || didCrossPageBoundary)
-                ExecState.CyclesConsumed++;
-
             var fullAddressY = (ushort)(fullAddress + Y);
             return fullAddressY;
         }        
@@ -469,8 +460,6 @@ namespace Highbyte.DotNet6502
         public void StoreByte(byte byteData, Memory mem, ushort address)
         {
             mem.WriteByte(address, byteData);
-            // Consume 1 cycle for writing a 8 bit byte
-            ExecState.CyclesConsumed++;
         }
 
         /// <summary>
@@ -483,7 +472,6 @@ namespace Highbyte.DotNet6502
         public void StoreWord(ushort word, Memory mem, ushort address)
         {
             mem.WriteWord(address, word);
-            ExecState.CyclesConsumed += 2; // Consume 2 cycles for writing a 16 bit word
         }
     }
 }
