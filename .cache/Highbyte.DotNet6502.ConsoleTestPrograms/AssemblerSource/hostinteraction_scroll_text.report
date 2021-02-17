@@ -1,0 +1,107 @@
+
+; ******** Source: c:\Users\highb\Source\Repos\dotnet-6502\Highbyte.DotNet6502.ConsoleTestPrograms\AssemblerSource\hostinteraction_scroll_text.asm
+     1                          ;VSCode extension VS64 (ACME cross-assembler) will automatially set output path and filename to the .cache directory
+     2                          ;!to "./hostinteraction_scroll_text.prg"
+     3                          
+     4                          ;code start address
+     5                          * = $c000
+     6                          
+     7                          ;Memory location where interact with host to update a Console screen.
+     8                          ;Console assumptions
+     9                          ;- 80 columns and 25 rows, 1 byte per character = 2000 (0x07d0) bytes
+    10                          ;- Laid out in memory as appears on screen.
+    11                          SCREEN_MEM = 0x1000
+    12                          SCREEN_MEM_COLS = 80
+    13                          SCREEN_MEM_ROWS = 25
+    14                          
+    15                          SCREEN_REFRESH_STATUS = 0xf000
+    16                          
+    17                          ;Zero Page address that will hold an 16 bit address (text start in memory + current scroll offset)
+    18                          ;Little endian:
+    19                          ;	0x40 will contain least significant byte, that is used in Indirect Indexed addressing mode
+    20                          ;	0x41 will contain most significant byte.
+    21                          ZP_SCROLL_TEXT_ADDRESS = 0x40
+    22                          
+    23                          ;-----------------
+    24                          ;Code start
+    25                          ;-----------------
+    26                          ;Initialize scroll text address to start of text.
+    27  c000 2040c0             	jsr initscroll
+    28                          !zone mainloop
+    29                          mainloop:
+    30  c003 200fc0             	jsr waitforrefresh
+    31  c006 2020c0             	jsr scrolltext
+    32  c009 2017c0             	jsr markdoneflag
+    33                          	;brk	; In emulator, setup hitting brk instruction to stop	
+    34  c00c 4c03c0             	jmp mainloop
+    35                          	;brk	; In emulator, setup hitting brk instruction to stop
+    36                          ;-----------------
+    37                          
+    38                          !zone waitforrefresh
+    39                          waitforrefresh:
+    40                          .loop
+    41  c00f ad00f0             	lda SCREEN_REFRESH_STATUS
+    42                          	;tax ; Store copy of current screen status in X
+    43  c012 2901               	and #%00000001	;Bit 0 set signals it time to refresh screen
+    44  c014 f0f9               	beq .loop	;Loop if bit 1 is not set (AND results in 0, then zero flag set, BEQ branches zero flag is set)
+    45                          	; txa ;Transfer original screen status back to A
+    46                          	; and %11111110 ;Clear bit 1. TODO: Clearing the flag in memory should probably be done by the host instead?
+    47                          	; sta SCREEN_REFRESH_STATUS ;Update status to memory
+    48  c016 60                 	rts
+    49                          ;-----------------	
+    50                          
+    51                          !zone markdoneflag
+    52                          markdoneflag:
+    53  c017 ad00f0             	lda SCREEN_REFRESH_STATUS
+    54  c01a 0902               	ora #%00000010	;Bit 1 set signals that emulator is currently done
+    55  c01c 8d00f0             	sta SCREEN_REFRESH_STATUS ;Update status to memory
+    56  c01f 60                 	rts
+    57                          ;-----------------
+    58                          
+    59                          !zone scrolltext
+    60                          scrolltext:
+    61  c020 a200               	ldx #0
+    62  c022 a000               	ldy #0
+    63                          .loop:
+    64  c024 b140               	lda (ZP_SCROLL_TEXT_ADDRESS), Y
+    65  c026 d008               	bne .notendofscroll
+    66  c028 2040c0             	jsr initscroll					; Reset scroll pointer to start of text
+    67                          .nothighbyteincrease2:
+    68  c02b a000               	ldy #0
+    69  c02d 4c24c0             	jmp .loop
+    70                          .notendofscroll
+    71  c030 c8                 	iny
+    72  c031 9d0010             	sta SCREEN_MEM, X				; Print character. A will contain current character to print, and Y the column
+    73  c034 e8                 	inx
+    74  c035 e050               	cpx #SCREEN_MEM_COLS
+    75  c037 d0eb               	bne .loop						;Loop until we printed 80 characters
+    76                          
+    77  c039 e640               	inc ZP_SCROLL_TEXT_ADDRESS		;Increase scroll start pointer lowbyte
+    78  c03b d002               	bne .nohighbyteincrease			;Check if we reach 00 (wrap around), then Zero flag is set, which means we should also increase highbyte
+    79  c03d e641               	inc ZP_SCROLL_TEXT_ADDRESS + 1	;Increase scroll start pointer highbyte if we got carry from lowbyte
+    80                          .nohighbyteincrease
+    81  c03f 60                 	rts
+    82                          ;-----------------
+    83                          
+    84                          !zone initscroll
+    85                          initscroll:
+    86  c040 a949               	lda #<SCROLL_TEXT	;Load lowbyte of scroll text start in memory. We start at -1 because code will start by increasing the address by 1
+    87  c042 8540               	sta ZP_SCROLL_TEXT_ADDRESS
+    88  c044 a9c0               	lda #>SCROLL_TEXT	;Load highbyte of scroll text start in memory. We start at -1 because code will start by increasing the address by 1
+    89  c046 8541               	sta ZP_SCROLL_TEXT_ADDRESS + 1
+    90  c048 60                 	rts
+    91                          ;-----------------
+    92                          
+    93                          ;-----------------
+    94                          ;Data
+    95                          ;-----------------
+    96                          !zone data
+    97                          
+    98                          !convtab raw	;Text conversion setting: pet (PetSCII), raw (none), scr (C64 screen code)
+    99                          SCROLL_TEXT:
+   100  c049 2020202020202020...	!text "                                                                                "
+   101  c099 4869676862797465...	!text "Highbyte, in 2021, proudly presents... A DotNet 6502 CPU emulator!    "
+   102  c0df 5468697320736372...	!text "This scroller is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
+   103  c150 4772656574696e67...	!text "Greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups Them and Virtual!"
+   104  c1bc 2020202020202020...	!text "                                                                                "
+   105  c20c 00                 	!by 0 ;End of scroll indicator	

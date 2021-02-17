@@ -1,0 +1,13 @@
+al C:0019 .SCREEN_MEM_ROWS
+
+al C:0050 .SCREEN_MEM_COLS
+al C:f000 .SCREEN_REFRESH_STATUS
+al C:0040 .ZP_SCROLL_TEXT_ADDRESS
+al C:1000 .SCREEN_MEM
+
+al C:c003 .mainloop
+al C:c00f .waitforrefresh
+al C:c020 .scrolltext
+al C:c040 .initscroll
+al C:c049 .SCROLL_TEXT
+al C:c017 .markdoneflag
