@@ -1,0 +1,30 @@
+al C:0019 .SCREEN_MEM_ROWS
+
+al C:d800 .SCREEN_COLOR_MEM
+al C:0050 .SCREEN_MEM_COLS
+al C:0050 .ZP_SCROLL_FRAME_COUNT
+al C:d000 .SCREEN_REFRESH_STATUS
+al C:0042 .ZP_COLOR_CYCLE_INDEX
+al C:0008 .STATIC_TEXT_ROW
+al C:0002 .COLOR_CYCLE_EACH_X_FRAME
+al C:0004 .SCROLL_EACH_X_FRAME
+al C:0040 .ZP_SCROLL_TEXT_ADDRESS
+al C:0400 .SCREEN_MEM
+al C:0051 .ZP_COLOR_CYCLE_FRAME_COUNT
+al C:000e .SCROLLER_ROW
+
+al C:c07d .initcolorcycleframecount
+al C:c078 .initcolorcycle
+al C:c03d .printstatictext
+al C:c0ab .initscrollframecount
+al C:c101 .STATIC_TEXT_COLOR
+al C:c00f .mainloop
+al C:c02c .waitforrefresh
+al C:c0b0 .STATIC_TEXT
+al C:c026 .skipscroll
+al C:c01c .skipcolorcycle
+al C:c082 .scrolltext
+al C:c0a2 .initscroll
+al C:c04e .colorcycle_statictext
+al C:c13e .SCROLL_TEXT
+al C:c034 .markdoneflag

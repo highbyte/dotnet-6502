@@ -27,6 +27,8 @@ Inspiration for this library was a [Youtube-series](https://www.youtube.com/watc
 # Table of Contents
 - [Requirements](#requirements)
 - [How to use Highbyte.DotNet6502 library from a .NET application](#how-to-use-highbytedotnet6502-library-from-a-net-application)
+  - [Reference NuGet package](reference-nuget-package)
+  - [Example applications](example-applications)
 - [How to use Highbyte.DotNet6502 machine code monitor](#how-to-use-highbytedotnet6502-machine-code-monitor)
   - [Get source](#get-source)
   - [Run with dotnet](#run-with-dotnet)
@@ -60,7 +62,7 @@ dotnet add package Highbyte.DotNet6502 --prerelease
 - Build library ```dotnet build```
 - In your app, add .dll reference to ```./bin/Debug/net5.0/Highbyte.DotNet6502.dll```
 
-## Example application code
+## Example of basic usage of library
 
 Example #1. Load compiled 6502 binary and execute it.
 ```c#
@@ -149,7 +151,26 @@ Stats: 6 instruction(s) processed, and used 23 cycles.
 Result: (12 + 30) / 2 = 21
 ```
 
-# How to use Highbyte.DotNet6502.Monitor
+## Example applications
+### SadConsole - graphical console
+Example of a [SadConsole](https://sadconsole.com/) game loop running compiled 6502 [assembly code](Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.asm) in the emulator, using a shared memory area between emulator and SadConsole for updating the SadConsole window. The implementation is a bit rough, subject for improvement. Currently only tested on Windows.
+
+``` 
+cd ./Examples/SadConsoleTest
+dotnet run
+```
+
+<img src="Examples/SadConsoleTest/Screenshot.png" width="50%" height="50%" title="SadConsole with 6502 emulator">
+
+### Standard OS text console
+Some example 6502 assembly programs running in the emulator from a standard OS console application.
+
+[Examples/ConsoleTestPrograms](Examples/ConsoleTestPrograms)
+- Run16bitMultiplyProgram.cs
+- HostInteractionLab_Scroll_Text.cs
+- etc.
+
+# How to use Highbyte.DotNet6502 machine code monitor
 A machine code monitor console application for the Highbyte.DotNet6502 emulator library. It allows for some basic interaction with the emulator.
 
 ## Get source
@@ -202,7 +223,7 @@ Example how to load binary with ```l``` command:
 
 _The machine code binary simple.prg adds two number from memory, divides by 2, stores it in another memory location_
 ```
-> l C:\Source\dotnet-6502\.cache\Highbyte.DotNet6502.ConsoleTestPrograms\AssemblerSource\simple.prg
+> l C:\Source\dotnet-6502\.cache\Example\ConsoleTestPrograms\AssemblerSource\simple.prg
 File loaded at 0xC000
 ```
 
@@ -349,7 +370,7 @@ Monitor commands: https://vice-emu.sourceforge.io/vice_12.html
 
 How to load and step through a program in the VICE monitor
 ```
-l "C:\Source\Repos\dotnet-6502\.cache\Highbyte.DotNet6502.ConsoleTestPrograms\AssemblerSource\testprogram.prg" 0 1000
+l "C:\Source\Repos\dotnet-6502\.cache\ConsoleTestPrograms\AssemblerSource\testprogram.prg" 0 1000
 d 1000
 r PC=1000
 z

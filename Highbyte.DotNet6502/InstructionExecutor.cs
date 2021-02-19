@@ -17,8 +17,6 @@
         /// <returns></returns>
         public InstructionExecResult Execute(CPU cpu, Memory mem)
         {
-            ulong oldCountingStartCycles = cpu.ExecState.CyclesConsumed;
-
             byte opCode = cpu.FetchInstruction(mem);
 
             if(!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
@@ -31,8 +29,6 @@
             var instruction = cpu.InstructionList.GetInstruction(opCodeObject);
             if(instruction == null)
                  return InstructionExecResult.UnknownInstructionResult(opCode);
-
-            //var cyclesConsumedBeforeInstruction = 
 
             // Derive what the final value is going to be used with the instruction based on addressing mode.
             // The way the addressing mode works is the same accross the instructions, so we don't need to repeat the logic

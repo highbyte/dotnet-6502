@@ -1,15 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26124.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30907.101
 MinimumVisualStudioVersion = 15.0.26124.0
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502", "Highbyte.DotNet6502\Highbyte.DotNet6502.csproj", "{F613F6C7-F4BF-47F8-86A5-69DF8EDF12B3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502", "Highbyte.DotNet6502\Highbyte.DotNet6502.csproj", "{F613F6C7-F4BF-47F8-86A5-69DF8EDF12B3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.Tests", "Highbyte.DotNet6502.Tests\Highbyte.DotNet6502.Tests.csproj", "{4C634415-8E21-4813-A40C-E19025C300D4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Tests", "Highbyte.DotNet6502.Tests\Highbyte.DotNet6502.Tests.csproj", "{4C634415-8E21-4813-A40C-E19025C300D4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.ConsoleTestPrograms", "Highbyte.DotNet6502.ConsoleTestPrograms\Highbyte.DotNet6502.ConsoleTestPrograms.csproj", "{B5BA78CE-B37C-4644-936C-4AAB4C5494A7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConsoleTestPrograms", "Examples\ConsoleTestPrograms\ConsoleTestPrograms.csproj", "{B5BA78CE-B37C-4644-936C-4AAB4C5494A7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.Monitor", "Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj", "{B5FDDFEE-632E-4AC5-B090-79946F8068DD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Monitor", "Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj", "{B5FDDFEE-632E-4AC5-B090-79946F8068DD}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{588A47B5-B723-4B4F-A05F-D26A684B5E25}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -19,9 +21,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{F613F6C7-F4BF-47F8-86A5-69DF8EDF12B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -72,5 +71,14 @@ Global
 		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Release|x64.Build.0 = Release|Any CPU
 		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Release|x86.ActiveCfg = Release|Any CPU
 		{B5FDDFEE-632E-4AC5-B090-79946F8068DD}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B5BA78CE-B37C-4644-936C-4AAB4C5494A7} = {588A47B5-B723-4B4F-A05F-D26A684B5E25}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0F55B6C2-E4B4-4F2C-9D2A-D63A17F3B5C4}
 	EndGlobalSection
 EndGlobal

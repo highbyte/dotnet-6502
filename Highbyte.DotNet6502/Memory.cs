@@ -63,6 +63,29 @@ namespace Highbyte.DotNet6502
             return readArray;
         }        
 
+        public bool IsBitSet(ushort address, int bit)
+        {
+            var value = this[address];
+            return value.IsBitSet(bit);
+        }
+
+        public void SetBit(ushort address, int bit)
+        {
+            ChangeBit(address, bit, true);
+        }
+
+        public void ClearBit(ushort address, int bit)
+        {
+            ChangeBit(address, bit, false);
+        }
+
+        public void ChangeBit(ushort address, int bit, bool state)
+        {
+            var value = this[address];
+            value.ChangeBit(bit, state);
+            this[address] = value;            
+        }
+
         public Memory Clone()
         {
             var memoryClone = new Memory(this.Size);

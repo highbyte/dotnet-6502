@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 [assembly: ExcludeFromCodeCoverage]
-namespace Highbyte.DotNet6502.ConsoleTestPrograms
+namespace ConsoleTestPrograms
 {
     class Program
     {
@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
             // run6502FunctionalTest.Run();
 
             // Run simple machine code to add two numbers and rotate right
-            RunSimple.Run();
+            // RunSimple.Run();
 
             // Run 16-bit multiplication 6502 binary
             //Run16bitMultiplyProgram.Run();
@@ -27,6 +27,10 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
             // Run simple 6502 binary
             //RunTestProgram.Run();
             //RunTestProgram2.Run();
+
+            //HostInteractionLab_Move_One_Char.Run();
+
+            HostInteractionLab_Scroll_Text.Run();
         }
 
         private static void ConfigureServices(IServiceCollection services)

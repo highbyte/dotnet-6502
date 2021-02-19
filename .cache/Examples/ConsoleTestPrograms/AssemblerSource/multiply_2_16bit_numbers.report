@@ -1,5 +1,5 @@
 
-; ******** Source: c:\Users\highb\Source\Repos\dotnet-6502\Highbyte.DotNet6502.ConsoleTestPrograms\AssemblerSource\multiply_2_16bit_numbers.asm
+; ******** Source: c:\Users\highb\Source\Repos\dotnet-6502\Examples\ConsoleTestPrograms\AssemblerSource\multiply_2_16bit_numbers.asm
      1                          ;Example based on code from http://www.obelisk.me.uk/6502/maclib.inc and modified for ACME assembler syntax
      2                          
      3                          ;VSCode extension VS64 (ACME cross-assembler) will automatially set output path and filename to the .cache directory
