@@ -27,8 +27,8 @@ Inspiration for this library was a [Youtube-series](https://www.youtube.com/watc
 # Table of Contents
 - [Requirements](#requirements)
 - [How to use Highbyte.DotNet6502 library from a .NET application](#how-to-use-highbytedotnet6502-library-from-a-net-application)
-  - [Reference NuGet package](reference-nuget-package)
-  - [Example applications](example-applications)
+  - [Reference NuGet package](#reference-nuget-package)
+  - [Example applications](#example-applications)
 - [How to use Highbyte.DotNet6502 machine code monitor](#how-to-use-highbytedotnet6502-machine-code-monitor)
   - [Get source](#get-source)
   - [Run with dotnet](#run-with-dotnet)
