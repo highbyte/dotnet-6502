@@ -1,7 +1,8 @@
 ﻿using System;
+using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Tests.Helpers;
 
-namespace Highbyte.DotNet6502.ConsoleTestPrograms
+namespace ConsoleTestPrograms
 {
     public class Run6502FunctionalTest
     {

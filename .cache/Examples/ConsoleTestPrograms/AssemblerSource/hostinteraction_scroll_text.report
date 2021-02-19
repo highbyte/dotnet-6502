@@ -1,5 +1,5 @@
 
-; ******** Source: c:\Users\highb\Source\Repos\dotnet-6502\Highbyte.DotNet6502.ConsoleTestPrograms\AssemblerSource\hostinteraction_scroll_text.asm
+; ******** Source: c:\Users\highb\Source\Repos\dotnet-6502\Examples\ConsoleTestPrograms\AssemblerSource\hostinteraction_scroll_text.asm
      1                          ;VSCode extension VS64 (ACME cross-assembler) will automatially set output path and filename to the .cache directory
      2                          ;!to "./hostinteraction_scroll_text.prg"
      3                          

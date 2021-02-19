@@ -1,0 +1,231 @@
+
+; ******** Source: c:\Users\highb\Source\Repos\dotnet-6502\Examples\SadConsoleTest\AssemblerSource\hostinteraction_scroll_text_and_cycle_colors.asm
+     1                          ;VSCode extension VS64 (ACME cross-assembler) will automatially set output path and filename to the .cache directory
+     2                          ;!to "./hostinteraction_scroll_text.prg"
+     3                          
+     4                          ;code start address
+     5                          * = $c000
+     6                          
+     7                          ;------------------------------------------------------------
+     8                          ;Program settings
+     9                          ;------------------------------------------------------------
+    10                          STATIC_TEXT_ROW = 8;
+    11                          COLOR_CYCLE_EACH_X_FRAME = 2;
+    12                          
+    13                          SCROLLER_ROW = 14;
+    14                          SCROLL_EACH_X_FRAME = 4;
+    15                          
+    16                          ;------------------------------------------------------------
+    17                          ;Memory address shared with emulator host for updating screen
+    18                          ;------------------------------------------------------------
+    19                          ;80 columns and 25 rows, 1 byte per character = 2000 (0x07d0) bytes
+    20                          ;Laid out in memory as appears on screen.
+    21                          SCREEN_MEM = 0x0400			;0x400 - 0xbcf
+    22                          SCREEN_MEM_COLS = 80
+    23                          SCREEN_MEM_ROWS = 25
+    24                          ;Colors, one byte per character = 2000 (0x07d0) bytes
+    25                          SCREEN_COLOR_MEM = 0xd800	;0xd800 - 0xdfcf
+    26                          ;Byte with status flags to communicate with emulator host. When host new frame, emulator done for frame, etc.
+    27                          SCREEN_REFRESH_STATUS = 0xd000
+    28                          
+    29                          ;------------------------------------------------------------
+    30                          ;ZP memory locations used for calculations
+    31                          ;------------------------------------------------------------
+    32                          ;Zero Page address that will hold an 16 bit address (text start in memory + current scroll offset)
+    33                          ;Little endian:
+    34                          ;	0x40 will contain least significant byte, that is used in Indirect Indexed addressing mode
+    35                          ;	0x41 will contain most significant byte.
+    36                          ZP_SCROLL_TEXT_ADDRESS = 0x40
+    37                          
+    38                          ;Index to where in color list we are
+    39                          ZP_COLOR_CYCLE_INDEX = 0x42
+    40                          
+    41                          ;Frame counters
+    42                          ZP_SCROLL_FRAME_COUNT = 0x50
+    43                          ZP_COLOR_CYCLE_FRAME_COUNT = 0x51
+    44                          
+    45                          ;------------------------------------------------------------
+    46                          ;Code start
+    47                          ;------------------------------------------------------------
+    48                          ;Initialize scroll text address to start of text.
+    49  c000 20a2c0             	jsr initscroll
+    50  c003 20abc0             	jsr initscrollframecount
+    51                          
+    52  c006 203dc0             	jsr printstatictext
+    53  c009 207dc0             	jsr initcolorcycleframecount
+    54  c00c 2078c0             	jsr initcolorcycle
+    55                          
+    56                          !zone mainloop
+    57                          mainloop:
+    58                          ;Wait for new frame (flag set by emulator host)
+    59  c00f 202cc0             	jsr waitforrefresh
+    60                          
+    61                          ;Color cycle (evry frame)
+    62                          	;Check how often we should scroll (every x frame)
+    63  c012 c651                	dec ZP_COLOR_CYCLE_FRAME_COUNT
+    64  c014 d006                	bne skipcolorcycle
+    65  c016 204ec0              	jsr colorcycle_statictext
+    66  c019 207dc0              	jsr initcolorcycleframecount
+    67                          skipcolorcycle:
+    68                          
+    69                          ;Scroller
+    70                          	;Check how often we should scroll (every x frame)
+    71  c01c c650                	dec ZP_SCROLL_FRAME_COUNT
+    72  c01e d006                	bne skipscroll
+    73  c020 2082c0              	jsr scrolltext
+    74  c023 20abc0              	jsr initscrollframecount
+    75                          
+    76                          skipscroll:
+    77                          
+    78                          
+    79                          ;We're done for this frame (emulator host checks this flag if it should continue with rendering the result from memory)
+    80  c026 2034c0             	jsr markdoneflag
+    81                          	;brk	; In emulator, setup hitting brk instruction to stop	
+    82  c029 4c0fc0             	jmp mainloop
+    83                          	;brk	; In emulator, setup hitting brk instruction to stop
+    84                          ;-----------------
+    85                          
+    86                          !zone waitforrefresh
+    87                          waitforrefresh:
+    88                          .loop
+    89  c02c ad00d0             	lda SCREEN_REFRESH_STATUS
+    90                          	;tax ; Store copy of current screen status in X
+    91  c02f 2901               	and #%00000001	;Bit 0 set signals it time to refresh screen
+    92  c031 f0f9               	beq .loop	;Loop if bit 1 is not set (AND results in 0, then zero flag set, BEQ branches zero flag is set)
+    93                          	; txa ;Transfer original screen status back to A
+    94                          	; and %11111110 ;Clear bit 1. TODO: Clearing the flag in memory should probably be done by the host instead?
+    95                          	; sta SCREEN_REFRESH_STATUS ;Update status to memory
+    96  c033 60                 	rts
+    97                          ;-----------------	
+    98                          
+    99                          !zone markdoneflag
+   100                          markdoneflag:
+   101  c034 ad00d0             	lda SCREEN_REFRESH_STATUS
+   102  c037 0902               	ora #%00000010	;Bit 1 set signals that emulator is currently done
+   103  c039 8d00d0             	sta SCREEN_REFRESH_STATUS ;Update status to memory
+   104  c03c 60                 	rts
+   105                          ;-----------------
+   106                          
+   107                          !zone printstatictext
+   108                          printstatictext:
+   109  c03d a200               	ldx #0
+   110  c03f a000               	ldy #0
+   111                          .loop:
+   112  c041 bdb0c0             	lda STATIC_TEXT, X
+   113  c044 9d8006             	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
+   114  c047 f004               	beq .endoftext
+   115  c049 e8                 	inx
+   116  c04a 4c41c0             	jmp .loop
+   117                          .endoftext
+   118  c04d 60                 	rts
+   119                          
+   120                          ;-----------------
+   121                          !zone colorcycle_statictext
+   122                          colorcycle_statictext:
+   123  c04e a200               	ldx #0
+   124  c050 a542               	lda ZP_COLOR_CYCLE_INDEX
+   125  c052 a8                 	tay
+   126                          .loop:
+   127  c053 b901c1             	lda STATIC_TEXT_COLOR, Y
+   128  c056 c9ff               	cmp #$ff
+   129  c058 d005               	bne .notendofcolorlist
+   130  c05a a000               	ldy #0
+   131  c05c 4c53c0             	jmp .loop
+   132                          .notendofcolorlist
+   133  c05f c8                 	iny
+   134  c060 9d80da             	sta SCREEN_COLOR_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Change color of character. A will contain current color to print, and X the column
+   135  c063 e8                 	inx
+   136  c064 e050               	cpx #SCREEN_MEM_COLS
+   137  c066 d0eb               	bne .loop	;Loop until we changed color for entire row of 80 characters
+   138                          
+   139                          	;Increase color cycle index starting point.
+   140  c068 e642               	inc ZP_COLOR_CYCLE_INDEX
+   141  c06a a542               	lda ZP_COLOR_CYCLE_INDEX
+   142  c06c a8                 	tay
+   143                          	;Check if we reached end, then reset
+   144  c06d b901c1             	lda STATIC_TEXT_COLOR, Y
+   145  c070 c9ff               	cmp #$ff
+   146  c072 d003               	bne .notendofcolorlist2
+   147  c074 2078c0             	jsr initcolorcycle
+   148                          .notendofcolorlist2
+   149  c077 60                 	rts
+   150                          
+   151                          ;-----------------
+   152                          !zone initcolorcycle
+   153                          initcolorcycle:
+   154  c078 a900               	lda #0
+   155  c07a 8542               	sta ZP_COLOR_CYCLE_INDEX
+   156  c07c 60                 	rts
+   157                          
+   158                          initcolorcycleframecount:	
+   159                          	;Init framecounter (decrease from number to 0)
+   160  c07d a902               	lda #COLOR_CYCLE_EACH_X_FRAME
+   161  c07f 8551               	sta ZP_COLOR_CYCLE_FRAME_COUNT
+   162  c081 60                 	rts
+   163                          
+   164                          ;-----------------
+   165                          !zone scrolltext
+   166                          scrolltext:
+   167  c082 a200               	ldx #0
+   168  c084 a000               	ldy #0
+   169                          .loop:
+   170  c086 b140               	lda (ZP_SCROLL_TEXT_ADDRESS), Y
+   171  c088 d008               	bne .notendofscroll
+   172  c08a 20a2c0             	jsr initscroll					; Reset scroll pointer to start of text
+   173  c08d a000               	ldy #0
+   174  c08f 4c86c0             	jmp .loop
+   175                          .notendofscroll
+   176  c092 c8                 	iny
+   177  c093 9d6008             	sta SCREEN_MEM + (SCREEN_MEM_COLS * SCROLLER_ROW) , X				; Print character. A will contain current character to print, and X the column
+   178  c096 e8                 	inx
+   179  c097 e050               	cpx #SCREEN_MEM_COLS
+   180  c099 d0eb               	bne .loop						;Loop until we printed 80 characters
+   181                          
+   182  c09b e640               	inc ZP_SCROLL_TEXT_ADDRESS		;Increase scroll start pointer lowbyte
+   183  c09d d002               	bne .nohighbyteincrease			;Check if we reach 00 (wrap around), then Zero flag is set, which means we should also increase highbyte
+   184  c09f e641               	inc ZP_SCROLL_TEXT_ADDRESS + 1	;Increase scroll start pointer highbyte if we got carry from lowbyte
+   185                          .nohighbyteincrease
+   186  c0a1 60                 	rts
+   187                          ;-----------------
+   188                          
+   189                          !zone initscroll
+   190                          initscroll:
+   191  c0a2 a93e               	lda #<SCROLL_TEXT	;Load lowbyte of scroll text start in memory. We start at -1 because code will start by increasing the address by 1
+   192  c0a4 8540               	sta ZP_SCROLL_TEXT_ADDRESS
+   193  c0a6 a9c1               	lda #>SCROLL_TEXT	;Load highbyte of scroll text start in memory. We start at -1 because code will start by increasing the address by 1
+   194  c0a8 8541               	sta ZP_SCROLL_TEXT_ADDRESS + 1
+   195  c0aa 60                 	rts
+   196                          
+   197                          initscrollframecount:	
+   198                          	;Init framecounter (decrease from number to 0)
+   199  c0ab a904               	lda #SCROLL_EACH_X_FRAME
+   200  c0ad 8550               	sta ZP_SCROLL_FRAME_COUNT
+   201  c0af 60                 	rts
+   202                          ;-----------------
+   203                          
+   204                          ;------------------------------------------------------------
+   205                          ;Data
+   206                          ;------------------------------------------------------------
+   207                          !zone data
+   208                          
+   209                          !convtab raw	;Text conversion setting: pet (PetSCII), raw (none), scr (C64 screen code)
+   210                          
+   211                          STATIC_TEXT:
+   212  c0b0 202020202020202a...	!text "       *** 6502 machine code running in Highbyte.DotNet6502 emulator! ***       "
+   213  c100 00                 	!by 0 ;End of text indicator
+   214                          
+   215                          STATIC_TEXT_COLOR:
+   216                          	;!by 0x0b,0x0b,0x0b,0x0b,0x0c,0x0c,0x0c,0x0c,0x0f,0x0f,0x01,0x01,0x0f,0x0f,0x0c,0x0c,0x0c,0x0c,0x0c,0x0c,0x0c
+   217                          	;!by 0x02,0x02,0x02,0x02,0x04,0x04,0x04,0x04,0x0a,0x0a,0x0a,0x0a,0x07,0x07,0x07,0x07,0x0a,0x0a,0x0a,0x0a,0x04,0x04,0x04,0x04,0x02,0x02,0x02,0x02
+   218  c101 020202020a0a0a0a...	!by 0x02,0x02,0x02,0x02,0x0a,0x0a,0x0a,0x0a,0x07,0x07,0x07,0x07,0x0a,0x0a,0x0a,0x0a,0x02,0x02,0x02,0x02
+   219  c115 060606060e0e0e0e...	!by 0x06,0x06,0x06,0x06,0x0e,0x0e,0x0e,0x0e,0x01,0x01,0x01,0x01,0x0e,0x0e,0x0e,0x0e,0x06,0x06,0x06,0x06
+   220  c129 050505050d0d0d0d...	!by 0x05,0x05,0x05,0x05,0x0d,0x0d,0x0d,0x0d,0x01,0x01,0x01,0x01,0x0d,0x0d,0x0d,0x0d,0x05,0x05,0x05,0x05
+   221  c13d ff                 	!by 0xff ;End of color indicator (cannot be 0 which is black)
+   222                          
+   223                          SCROLL_TEXT:
+   224  c13e 2020202020202020...	!text "                                                                                "
+   225  c18e 4869676862797465...	!text "Highbyte, in 2021, proudly presents... A DotNet 6502 CPU emulator!    "
+   226  c1d4 5468697320287261...	!text "This (rather choppy) scroller is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
+   227  c255 4772656574696e67...	!text "Greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups Them and Virtual!"
+   228  c2c1 2020202020202020...	!text "                                                                                "
+   229  c311 00                 	!by 0 ;End of text indicator

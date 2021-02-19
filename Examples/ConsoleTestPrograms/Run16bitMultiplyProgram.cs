@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using Highbyte.DotNet6502;
 
-namespace Highbyte.DotNet6502.ConsoleTestPrograms
+namespace ConsoleTestPrograms
 {
     public class Run16bitMultiplyProgram
     {
@@ -11,7 +12,7 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
             Console.WriteLine($"Run 6502 code that multiplies two 16 bit signed numbers.");
             Console.WriteLine($"--------------------------------------------------------");
 
-            string prgFileName = "../.cache/Highbyte.DotNet6502.ConsoleTestPrograms/AssemblerSource/multiply_2_16bit_numbers.prg";
+            string prgFileName = "../.cache/ConsoleTestPrograms/AssemblerSource/multiply_2_16bit_numbers.prg";
 
             Console.WriteLine("");
             Console.WriteLine($"Loading binary into emulator memory...");

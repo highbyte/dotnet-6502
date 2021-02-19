@@ -2,22 +2,6 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build console test",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/Highbyte.DotNet6502.ConsoleTestPrograms/Highbyte.DotNet6502.ConsoleTestPrograms.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        },
-        {
             "label": "build monitor",
             "command": "dotnet",
             "type": "process",
@@ -34,17 +18,38 @@
             }
         },
         {
-            "label": "publish",
+            "label": "build console test",
             "command": "dotnet",
             "type": "process",
             "args": [
-                "publish",
-                "${workspaceFolder}/Highbyte.DotNet6502.ConsoleTestPrograms/Highbyte.DotNet6502.ConsoleTestPrograms.csproj",
+                "build",
+                "${workspaceFolder}/Examples/ConsoleTestPrograms/ConsoleTestPrograms.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
-            "problemMatcher": "$msCompile"
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         },
+        {
+            "label": "build sadconsole test",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Examples/SadConsoleTest/SadConsoleTest.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },        
+
         {
             "label": "watch",
             "command": "dotnet",
@@ -52,7 +57,7 @@
             "args": [
                 "watch",
                 "run",
-                "${workspaceFolder}/Highbyte.DotNet6502.ConsoleTestPrograms/Highbyte.DotNet6502.ConsoleTestPrograms.csproj",
+                "${workspaceFolder}/ConsoleTestPrograms/ConsoleTestPrograms.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],

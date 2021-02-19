@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 [assembly: ExcludeFromCodeCoverage]
-namespace Highbyte.DotNet6502.ConsoleTestPrograms
+namespace ConsoleTestPrograms
 {
     class Program
     {

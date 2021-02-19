@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
-    <ProjectReference Include="..\Highbyte.DotNet6502.Tests\Highbyte.DotNet6502.Tests.csproj" />
+    <ProjectReference Include="..\..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+    <ProjectReference Include="..\..\Highbyte.DotNet6502.Tests\Highbyte.DotNet6502.Tests.csproj" />
   </ItemGroup>
 
   <ItemGroup>

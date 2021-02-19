@@ -1,18 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using Highbyte.DotNet6502;
 
-namespace Highbyte.DotNet6502.ConsoleTestPrograms
+namespace ConsoleTestPrograms
 {
-    public class RunTestProgram
+    public class RunTestProgram2
     {
         public static void Run()
         {
             Console.WriteLine($"-----------------------------------------------------");
-            Console.WriteLine($"Run 6502 code that copies data between two addresses.");
+            Console.WriteLine($"Run 6502 code that jumps to subroutine to copy data between two addresses.");
             Console.WriteLine($"-----------------------------------------------------");
 
-            string prgFileName = "../.cache/Highbyte.DotNet6502.ConsoleTestPrograms/testprogram.prg";
+            string prgFileName = "../.cache/ConsoleTestPrograms/testprogram2.prg";
             Console.WriteLine($"Program binary file: {prgFileName}");
             if(!File.Exists(prgFileName))
             {
@@ -65,7 +66,6 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
 
             // Execute program
             Console.WriteLine("Executing code...");
-            //var consumedCycles = cpu.Execute(mem, 10000, maxNumberOfInstructions: 1 + (4*256));
             var consumedCycles = cpu.Execute(mem, execOptions);
 
             Console.WriteLine("Program ended.");

@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using Highbyte.DotNet6502;
 
-namespace Highbyte.DotNet6502.ConsoleTestPrograms
+namespace ConsoleTestPrograms
 {
     public class RunSimple
     {

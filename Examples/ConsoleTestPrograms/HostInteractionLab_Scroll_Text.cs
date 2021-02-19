@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
+using Highbyte.DotNet6502;
 
-namespace Highbyte.DotNet6502.ConsoleTestPrograms
+namespace ConsoleTestPrograms
 {
     public class HostInteractionLab_Scroll_Text
     {
@@ -12,7 +13,7 @@ namespace Highbyte.DotNet6502.ConsoleTestPrograms
         {
             Console.Clear();
 
-            string prgFileName = "../.cache/Highbyte.DotNet6502.ConsoleTestPrograms/AssemblerSource/hostinteraction_scroll_text.prg";
+            string prgFileName = "../../.cache/Examples/ConsoleTestPrograms/AssemblerSource/hostinteraction_scroll_text.prg";
             Console.WriteLine($"Loading 6502 machine code binary file.");
             Console.WriteLine($"{prgFileName}");
             if(!File.Exists(prgFileName))

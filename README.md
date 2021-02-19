@@ -202,7 +202,7 @@ Example how to load binary with ```l``` command:
 
 _The machine code binary simple.prg adds two number from memory, divides by 2, stores it in another memory location_
 ```
-> l C:\Source\dotnet-6502\.cache\Highbyte.DotNet6502.ConsoleTestPrograms\AssemblerSource\simple.prg
+> l C:\Source\dotnet-6502\.cache\Example\ConsoleTestPrograms\AssemblerSource\simple.prg
 File loaded at 0xC000
 ```
 
@@ -349,7 +349,7 @@ Monitor commands: https://vice-emu.sourceforge.io/vice_12.html
 
 How to load and step through a program in the VICE monitor
 ```
-l "C:\Source\Repos\dotnet-6502\.cache\Highbyte.DotNet6502.ConsoleTestPrograms\AssemblerSource\testprogram.prg" 0 1000
+l "C:\Source\Repos\dotnet-6502\.cache\ConsoleTestPrograms\AssemblerSource\testprogram.prg" 0 1000
 d 1000
 r PC=1000
 z
