@@ -153,7 +153,7 @@ Result: (12 + 30) / 2 = 21
 
 ## Example applications
 ### SadConsole - graphical console
-Example of a [SadConsole](https://sadconsole.com/) game loop running compiled 6502 [assembly code](Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.asm) in the emulator, using a shared memory area between emulator and SadConsole for updating the SadConsole window. The implementation is a bit rough, subject for improvement. Currently only tested on Windows.
+Example of a [SadConsole](https://sadconsole.com/) game loop running compiled 6502 [assembly code](Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.asm) in the emulator, using a shared memory area between emulator and SadConsole for updating the SadConsole window. The implementation is a bit rough, subject for improvement. Tested on Windows and Ubuntu.
 
 ``` 
 cd ./Examples/SadConsoleTest
