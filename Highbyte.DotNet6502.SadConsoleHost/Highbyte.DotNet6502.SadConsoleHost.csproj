@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+    <PackageId>Highbyte.DotNet6502.SadConsoleHost</PackageId>
+    <Authors>Highbyte</Authors>
+    <PackageDescription>A SadConsole support library for running 6502 code in Highbyte.DotNet6502 CPU emulator and interacting with a SadConsole window on the host.</PackageDescription>
+    <RepositoryUrl>https://github.com/highbyte/dotnet-6502</RepositoryUrl>
+
+    <!-- Sourcelink - Optional: Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+ 
+    <!-- Sourcelink - Optional: Embed source files that are not tracked by the source control manager in the PDB -->
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  
+    <!-- Sourcelink - Optional: Build symbol package (.snupkg) to distribute the PDB containing Source Link -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.0.1641" />
+    <PackageReference Include="SadConsole" Version="8.99.3" />
+  </ItemGroup>
+</Project>

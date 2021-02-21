@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 
-namespace SadConsoleTest
+namespace Highbyte.DotNet6502.SadConsoleHost
 {
-    public static class SadConsoleEmulatorCharacterMaps
+    public static class CharacterMaps
     {
 
         /// <summary>

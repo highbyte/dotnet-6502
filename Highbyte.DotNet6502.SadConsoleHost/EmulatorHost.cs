@@ -1,30 +1,31 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using Highbyte.DotNet6502;
 
-namespace SadConsoleTest
+namespace Highbyte.DotNet6502.SadConsoleHost
 {
-    public class SadConsole6502Emulator
+    public class EmulatorHost
     {
+        private readonly Options _options;
         private static SadConsoleMain SadConsoleMain;
         
-        public void Start(
-            string prgFileName,
-            EmulatorMemoryConfig emulatorMemoryConfig,
-            SadConsoleConfig sadConsoleConfig)
+        public EmulatorHost(Options options)
         {
-            // Check for incorrect memory config, overlapping addresses, etc.
-            emulatorMemoryConfig.Validate();
+            _options = options;
+        }
+
+        public void Start()
+        {
+            _options.EmulatorConfig.Validate();
 
             // Init CPU emulator
-            var computer = SetupEmulator(prgFileName);
+            var computer = SetupEmulator(_options.EmulatorConfig);
 
             // Create SadConsole renderer that reads screen data from emulator memory and displays it on a SadConsole screen/console
             var sadConsoleEmulatorRenderer = new SadConsoleEmulatorRenderer(
                 GetSadConsoleScreen,
                 computer.Mem, 
-                emulatorMemoryConfig.EmulatorScreenConfig);
+                _options.EmulatorConfig.Memory.Screen);
 
             // Init emulator memory based on our configured memory layout
             sadConsoleEmulatorRenderer.InitEmulatorScreenMemory();
@@ -32,24 +33,24 @@ namespace SadConsoleTest
             // Create SadConsole input handler that forwards pressed keys to the emulator via memory addresses
             var sadConsoleEmulatorInput = new SadConsoleEmulatorInput(
                 computer.Mem, 
-                emulatorMemoryConfig.EmulatorInputConfig);            
+                _options.EmulatorConfig.Memory.Input);            
 
             // Create SadConsole executor that executes instructions in the emulator until a certain memory address has been flagged that emulator code is done for current frame
             var sadConsoleEmulatorExecutor = new SadConsoleEmulatorExecutor(
                 computer, 
-                emulatorMemoryConfig.EmulatorScreenConfig);            
+                _options.EmulatorConfig.Memory.Screen);            
 
             // Create the main game loop class that invokes emulator and render to host screen
             var sadConsoleEmulatorLoop = new SadConsoleEmulatorLoop(
                 sadConsoleEmulatorRenderer, 
                 sadConsoleEmulatorInput,
                 sadConsoleEmulatorExecutor,
-                updateEmulatorEveryXFrame: 1);
+                updateEmulatorEveryXFrame: _options.EmulatorConfig.RunEmulatorEveryFrame);
 
             // Create the main SadConsole class that is responsible for configuring and starting up SadConsole with our preferred configuration.
             SadConsoleMain = new SadConsoleMain(
-                sadConsoleConfig,
-                emulatorMemoryConfig.EmulatorScreenConfig,
+                _options.SadConsoleConfig,
+                _options.EmulatorConfig.Memory.Screen,
                 sadConsoleEmulatorLoop);
  
             // Start SadConsole. Will exit from this method after SadConsole window is closed.
@@ -61,18 +62,18 @@ namespace SadConsoleTest
             return SadConsoleMain.SadConsoleScreen;
         }
         
-        private Computer SetupEmulator(string prgFileName)
+        private Computer SetupEmulator(EmulatorConfig emulatorConfig)
         {
             Debug.WriteLine($"Loading 6502 machine code binary file.");
-            Debug.WriteLine($"{prgFileName}");
-            if(!File.Exists(prgFileName))
+            Debug.WriteLine($"{emulatorConfig.ProgramBinaryFile}");
+            if(!File.Exists(emulatorConfig.ProgramBinaryFile))
             {
                 Debug.WriteLine($"File does not exist.");
-                throw new Exception($"Cannot find 6502 binary file: {prgFileName}");
+                throw new Exception($"Cannot find 6502 binary file: {emulatorConfig.ProgramBinaryFile}");
             }
 
             var mem = BinaryLoader.Load(
-                prgFileName, 
+                emulatorConfig.ProgramBinaryFile, 
                 out ushort loadedAtAddress, 
                 out int fileLength);
 
@@ -84,7 +85,8 @@ namespace SadConsoleTest
                 .WithMemory(mem)
                 .WithExecOptions(options =>
                 {
-                    options.ExecuteUntilInstruction = OpCodeId.BRK; // Emulator will stop executing when a BRK instruction is reached.
+                    // Emulator will stop executing when a BRK instruction is reached.
+                    options.ExecuteUntilInstruction = emulatorConfig.StopAtBRK?OpCodeId.BRK:null; 
                 });
 
             var computer = computerBuilder.Build();

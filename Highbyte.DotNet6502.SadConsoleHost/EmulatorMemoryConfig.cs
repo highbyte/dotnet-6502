@@ -1,26 +1,26 @@
 using System;
 using System.Collections.Generic;
 
-namespace SadConsoleTest
+namespace Highbyte.DotNet6502.SadConsoleHost
 {
     public class EmulatorMemoryConfig
     {
-        public EmulatorScreenConfig EmulatorScreenConfig { get; set; }
-        public EmulatorInputConfig EmulatorInputConfig { get; set; }
+        public EmulatorScreenConfig Screen { get; set; }
+        public EmulatorInputConfig Input { get; set; }
        
         public EmulatorMemoryConfig()
         {
-            EmulatorScreenConfig = new();
-            EmulatorInputConfig = new();
+            Screen = new();
+            Input = new();
         }
 
         public void Validate()
         {
-            ushort screenMemoryStart = EmulatorScreenConfig.ScreenStartAddress;
-            ushort screenMemoryEnd = (ushort)(screenMemoryStart + (ushort)(EmulatorScreenConfig.Cols * EmulatorScreenConfig.Rows));
+            ushort screenMemoryStart = Screen.ScreenStartAddress;
+            ushort screenMemoryEnd = (ushort)(screenMemoryStart + (ushort)(Screen.Cols * Screen.Rows));
 
-            ushort colorMemoryStart = EmulatorScreenConfig.ScreenColorStartAddress;
-            ushort colorMemoryEnd = (ushort)(colorMemoryStart + (ushort)(EmulatorScreenConfig.Cols * EmulatorScreenConfig.Rows));
+            ushort colorMemoryStart = Screen.ScreenColorStartAddress;
+            ushort colorMemoryEnd = (ushort)(colorMemoryStart + (ushort)(Screen.Cols * Screen.Rows));
 
             // --------------------------------
             // Screen & color addresses
@@ -30,41 +30,40 @@ namespace SadConsoleTest
                 throw new Exception("Screen and Color memory address space overlaps");
 
             // Validate so Background color address falls within screen or color addresses
-            if(Within(EmulatorScreenConfig.ScreenBackgroundColorAddress, screenMemoryStart, screenMemoryEnd))
+            if(Within(Screen.ScreenBackgroundColorAddress, screenMemoryStart, screenMemoryEnd))
                 throw new Exception("ScreenBackgroundColorAddress cannot be in screen memory.");
-            if(Within(EmulatorScreenConfig.ScreenBackgroundColorAddress, colorMemoryStart, colorMemoryEnd))
+            if(Within(Screen.ScreenBackgroundColorAddress, colorMemoryStart, colorMemoryEnd))
                 throw new Exception("ScreenBackgroundColorAddress cannot be in screen memory.");
 
             // Validate so Border color address falls within screen or color addresses
-            if(Within(EmulatorScreenConfig.ScreenBorderColorAddress, screenMemoryStart, screenMemoryEnd))
+            if(Within(Screen.ScreenBorderColorAddress, screenMemoryStart, screenMemoryEnd))
                 throw new Exception("ScreenBorderColorAddress cannot be in screen memory.");
-            if(Within(EmulatorScreenConfig.ScreenBorderColorAddress, colorMemoryStart, colorMemoryEnd))
+            if(Within(Screen.ScreenBorderColorAddress, colorMemoryStart, colorMemoryEnd))
                 throw new Exception("ScreenBorderColorAddress cannot be in screen memory.");
 
             // --------------------------------
             // Input addresses
             // --------------------------------
             // Validate so Keyboard input address falls within screen or color addresses
-            if(Within(EmulatorInputConfig.KeyPressedAddress, screenMemoryStart, screenMemoryEnd))
+            if(Within(Input.KeyPressedAddress, screenMemoryStart, screenMemoryEnd))
                 throw new Exception("KeyPressedAddress cannot be in screen memory.");
-            if(Within(EmulatorInputConfig.KeyPressedAddress, colorMemoryStart, colorMemoryEnd))
+            if(Within(Input.KeyPressedAddress, colorMemoryStart, colorMemoryEnd))
                 throw new Exception("KeyPressedAddress cannot be in color memory.");
-            if(Within(EmulatorInputConfig.KeyDownAddress, screenMemoryStart, screenMemoryEnd))
+            if(Within(Input.KeyDownAddress, screenMemoryStart, screenMemoryEnd))
                 throw new Exception("KeyDownAddress cannot be in screen memory.");
-            if(Within(EmulatorInputConfig.KeyDownAddress, colorMemoryStart, colorMemoryEnd))
+            if(Within(Input.KeyDownAddress, colorMemoryStart, colorMemoryEnd))
                 throw new Exception("KeyDownAddress cannot be in color memory.");
-            if(Within(EmulatorInputConfig.KeyReleasedAddress, screenMemoryStart, screenMemoryEnd))
+            if(Within(Input.KeyReleasedAddress, screenMemoryStart, screenMemoryEnd))
                 throw new Exception("KeyReleasedAddress cannot be in color memory.");
-            if(Within(EmulatorInputConfig.KeyReleasedAddress, colorMemoryStart, colorMemoryEnd))
+            if(Within(Input.KeyReleasedAddress, colorMemoryStart, colorMemoryEnd))
                 throw new Exception("KeyReleasedAddress cannot be in color memory.");
 
 
             // --------------------------------
             // Character and color maps
             // --------------------------------
-            if(!EmulatorScreenConfig.UseAscIICharacters && EmulatorScreenConfig.CharacterMap==null)
-                throw new Exception($"If {nameof(EmulatorScreenConfig.UseAscIICharacters)} is false, {nameof(EmulatorScreenConfig.CharacterMap)} must be set to a character map.");
-
+            if(!Screen.UseAscIICharacters && Screen.CharacterMap==null)
+                throw new Exception($"If {nameof(Screen.UseAscIICharacters)} is false, {nameof(Screen.CharacterMap)} must be set to a character map.");
         }
 
         private bool Within(ushort address, ushort startAddress, ushort endAddress)
@@ -125,11 +124,11 @@ namespace SadConsoleTest
             DefaultBgColor                  = 0x06;  // 0x06 = Blue
             DefaultBorderColor              = 0x0e;  // 0x0e = Blue
 
-            ColorMap = SadConsoleEmulatorColorMaps.C64ColorMap; // Default to C64 color map
+            ColorMap = ColorMaps.C64ColorMap;        // Default to C64 color map. TODO: Make it configurable from config file (via enum?)
 
             UseAscIICharacters = true;
 
-            //CharacterMap = SadConsoleEmulatorCharacterMaps.PETSCIIMap; // TODO
+            //CharacterMap = CharacterMaps.PETSCIIMap; // TODO
         }
     }
 

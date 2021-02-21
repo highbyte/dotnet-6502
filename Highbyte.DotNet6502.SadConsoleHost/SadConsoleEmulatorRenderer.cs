@@ -1,7 +1,6 @@
 using System;
-using Highbyte.DotNet6502;
 
-namespace SadConsoleTest
+namespace Highbyte.DotNet6502.SadConsoleHost
 {
     public class SadConsoleEmulatorRenderer
     {

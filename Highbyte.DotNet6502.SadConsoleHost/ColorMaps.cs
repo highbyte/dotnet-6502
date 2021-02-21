@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 
-namespace SadConsoleTest
+namespace Highbyte.DotNet6502.SadConsoleHost
 {
-    public static class SadConsoleEmulatorColorMaps
+    public static class ColorMaps
     {
         public static Dictionary<byte, Color> C64ColorMap = new()
         {

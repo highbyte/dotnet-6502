@@ -1,6 +1,6 @@
 using SadConsole;
 
-namespace SadConsoleTest
+namespace Highbyte.DotNet6502.SadConsoleHost
 {
     /// <summary>
     /// A SadConsole "container" console that will contain our screen where we render to
@@ -19,7 +19,7 @@ namespace SadConsoleTest
             // Setup screen
             var screen = new Console(emulatorScreenConfig.Cols + (emulatorScreenConfig.BorderCols * 2), emulatorScreenConfig.Rows + (emulatorScreenConfig.BorderRows * 2))
             {
-                DefaultForeground = Microsoft.Xna.Framework.Color.Black,
+                DefaultForeground = Microsoft.Xna.Framework.Color.White,
                 DefaultBackground = Microsoft.Xna.Framework.Color.Black
             };
             //screen.Position = new Point(BorderWidth, BorderHeight);
