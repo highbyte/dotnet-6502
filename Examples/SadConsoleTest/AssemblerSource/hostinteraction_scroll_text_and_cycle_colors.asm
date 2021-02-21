@@ -25,6 +25,17 @@ SCREEN_MEM_ROWS = 25
 SCREEN_COLOR_MEM = 0xd800	;0xd800 - 0xdfcf
 ;Byte with status flags to communicate with emulator host. When host new frame, emulator done for frame, etc.
 SCREEN_REFRESH_STATUS = 0xd000
+;Border color address
+SCREEN_BORDER_COLOR_ADDRESS = 0xd020
+;Bg color address for entire screen
+SCREEN_BACKGROUND_COLOR_ADDRESS = 0xd021
+
+;Currently pressed key on host (ASCII byte). If no key is pressed, value is 0x00
+KEY_PRESSED_ADDRESS = 0xe000
+;Currently down key on host (ASCII byte). If no key is down, value is 0x00
+KEY_DOWN_ADDRESS = 0xe001
+;Currently released key on host (ASCII byte). If no key is down, value is 0x00
+KEY_RELEASED_ADDRESS = 0xe002
 
 ;------------------------------------------------------------
 ;ZP memory locations used for calculations
@@ -35,8 +46,14 @@ SCREEN_REFRESH_STATUS = 0xd000
 ;	0x41 will contain most significant byte.
 ZP_SCROLL_TEXT_ADDRESS = 0x40
 
-;Index to where in color list we are
-ZP_COLOR_CYCLE_INDEX = 0x42
+;Index to where in text color list we are
+ZP_TEXT_COLOR_CYCLE_INDEX = 0x42
+
+;Index to where in background color list we are
+ZP_BG_COLOR_CYCLE_INDEX = 0x43
+
+;Index to where in border color list we are
+ZP_BORDER_COLOR_CYCLE_INDEX = 0x44
 
 ;Frame counters
 ZP_SCROLL_FRAME_COUNT = 0x50
@@ -45,10 +62,27 @@ ZP_COLOR_CYCLE_FRAME_COUNT = 0x51
 ;------------------------------------------------------------
 ;Code start
 ;------------------------------------------------------------
+;Set screen background color
+	lda #$0
+	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+
+;Set border color
+	lda #$0
+	sta SCREEN_BORDER_COLOR_ADDRESS	
+
+;Init bg color cycle index
+	lda #2
+	sta ZP_BG_COLOR_CYCLE_INDEX
+
+;Init border color cycle index
+	lda #0
+	sta ZP_BORDER_COLOR_CYCLE_INDEX
+
 ;Initialize scroll text address to start of text.
 	jsr initscroll
 	jsr initscrollframecount
 
+;Initialize static text and color cycle
 	jsr printstatictext
 	jsr initcolorcycleframecount
 	jsr initcolorcycle
@@ -57,6 +91,12 @@ ZP_COLOR_CYCLE_FRAME_COUNT = 0x51
 mainloop:
 ;Wait for new frame (flag set by emulator host)
 	jsr waitforrefresh
+
+;Cycle background color if key is pressed
+;	jsr cyclebackgroundifkeyispressed
+;Cycle border color if key is pressed
+	jsr cycleborderifkeyispressed
+
 
 ;Color cycle (evry frame)
 	;Check how often we should scroll (every x frame)
@@ -121,7 +161,7 @@ printstatictext:
 !zone colorcycle_statictext
 colorcycle_statictext:
 	ldx #0
-	lda ZP_COLOR_CYCLE_INDEX
+	lda ZP_TEXT_COLOR_CYCLE_INDEX
 	tay
 .loop:
 	lda STATIC_TEXT_COLOR, Y
@@ -137,8 +177,8 @@ colorcycle_statictext:
 	bne .loop	;Loop until we changed color for entire row of 80 characters
 
 	;Increase color cycle index starting point.
-	inc ZP_COLOR_CYCLE_INDEX
-	lda ZP_COLOR_CYCLE_INDEX
+	inc ZP_TEXT_COLOR_CYCLE_INDEX
+	lda ZP_TEXT_COLOR_CYCLE_INDEX
 	tay
 	;Check if we reached end, then reset
 	lda STATIC_TEXT_COLOR, Y
@@ -152,7 +192,7 @@ colorcycle_statictext:
 !zone initcolorcycle
 initcolorcycle:
 	lda #0
-	sta ZP_COLOR_CYCLE_INDEX
+	sta ZP_TEXT_COLOR_CYCLE_INDEX
 	rts
 
 initcolorcycleframecount:	
@@ -201,6 +241,54 @@ initscrollframecount:
 	rts
 ;-----------------
 
+!zone cyclebackgroundifkeyispressed
+cyclebackgroundifkeyispressed:
+
+;Check if space is pressed, if so cycle background color
+	lda KEY_DOWN_ADDRESS
+	cmp #$20	;32 ($20) = space
+	bne .spacenotpressed
+.loop:
+	lda ZP_BG_COLOR_CYCLE_INDEX
+	tay
+	lda BACKGROUND_COLOR, Y
+	cmp #$ff
+	bne .notendofcolorlist
+	lda #0
+	sta ZP_BG_COLOR_CYCLE_INDEX	
+	jmp .loop
+.notendofcolorlist
+	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+	;Increase bg color cycle index starting point.
+	inc ZP_BG_COLOR_CYCLE_INDEX
+.spacenotpressed:	
+	rts
+
+;-----------------
+
+!zone cycleborderifkeyispressed
+cycleborderifkeyispressed:
+
+;Check if space is pressed, if so cycle border color
+	lda KEY_DOWN_ADDRESS
+	cmp #$20	;32 ($20) = space
+	bne .spacenotpressed
+.loop:
+	lda ZP_BORDER_COLOR_CYCLE_INDEX
+	tay
+	lda BORDER_COLOR, Y
+	cmp #$ff
+	bne .notendofcolorlist
+	lda #0
+	sta ZP_BORDER_COLOR_CYCLE_INDEX	
+	jmp .loop
+.notendofcolorlist
+	sta SCREEN_BORDER_COLOR_ADDRESS
+	;Increase bg color cycle index starting point.
+	inc ZP_BORDER_COLOR_CYCLE_INDEX
+.spacenotpressed:	
+	rts
+
 ;------------------------------------------------------------
 ;Data
 ;------------------------------------------------------------
@@ -223,7 +311,50 @@ STATIC_TEXT_COLOR:
 SCROLL_TEXT:
 	!text "                                                                                "
 	!text "Highbyte, in 2021, proudly presents... A DotNet 6502 CPU emulator!    "
-	!text "This (rather choppy) scroller is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
+	!text "This (rather choppy) scroller and color cycler is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
+	!text "Hold SPACE to flash border color.   "
 	!text "Greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups Them and Virtual!"
 	!text "                                                                                "
 	!by 0 ;End of text indicator
+
+BACKGROUND_COLOR:
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b
+	!by 0x0c,0x0c,0x0c,0x0c
+	!by 0x0f,0x0f,0x0f,0x0f
+	!by 0x0c,0x0c,0x0c,0x0c
+	!by 0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0xff ;End of color indicator (cannot be 0 which is black)
+
+
+BORDER_COLOR:
+	!by 0x02,0x02,0x02
+	!by 0x0a,0x0a,0x0a
+	!by 0x0f,0x0f,0x0f
+	!by 0x0a,0x0a,0x0a
+	!by 0x02,0x02,0x02
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0x05,0x05,0x05
+	!by 0x0d,0x0d,0x0d
+	!by 0x0f,0x0f,0x0f
+	!by 0x0d,0x0d,0x0d
+	!by 0x05,0x05,0x05
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0x06,0x06,0x06
+	!by 0x0e,0x0e,0x0e
+	!by 0x0f,0x0f,0x0f
+	!by 0x0e,0x0e,0x0e
+	!by 0x06,0x06,0x06
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+	!by 0xff ;End of color indicator (cannot be 0 which is black)
