@@ -18,4 +18,13 @@
     <PackageReference Include="SadConsole" Version="8.99.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Fonts\C64.font">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Fonts\Yayo_c64.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>  
+
 </Project>

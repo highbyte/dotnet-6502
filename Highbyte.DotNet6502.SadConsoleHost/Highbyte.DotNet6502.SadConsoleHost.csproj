@@ -5,6 +5,8 @@
     <Authors>Highbyte</Authors>
     <PackageDescription>A SadConsole support library for running 6502 code in Highbyte.DotNet6502 CPU emulator and interacting with a SadConsole window on the host.</PackageDescription>
     <RepositoryUrl>https://github.com/highbyte/dotnet-6502</RepositoryUrl>
+    <!-- Version will be overridden when built by GitHub action (dotnet pack -p:PackageVersion=x.y.run_number)-->
+    <Version>0.3.0-alpha</Version>
 
     <!-- Sourcelink - Optional: Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

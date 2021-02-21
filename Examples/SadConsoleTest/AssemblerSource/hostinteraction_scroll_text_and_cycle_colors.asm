@@ -7,22 +7,22 @@
 ;------------------------------------------------------------
 ;Program settings
 ;------------------------------------------------------------
-STATIC_TEXT_ROW = 8;
+STATIC_TEXT_ROW = 16;
 COLOR_CYCLE_EACH_X_FRAME = 2;
 
-SCROLLER_ROW = 14;
+SCROLLER_ROW = 28;
 SCROLL_EACH_X_FRAME = 4;
 
 ;------------------------------------------------------------
 ;Memory address shared with emulator host for updating screen
 ;------------------------------------------------------------
-;80 columns and 25 rows, 1 byte per character = 2000 (0x07d0) bytes
+;80 columns and 50 rows, 1 byte per character = 4000 (0x0fa0) bytes
 ;Laid out in memory as appears on screen.
-SCREEN_MEM = 0x0400			;0x400 - 0xbcf
+SCREEN_MEM = 0x0400			;0x0400 - 0x13bf
 SCREEN_MEM_COLS = 80
-SCREEN_MEM_ROWS = 25
-;Colors, one byte per character = 2000 (0x07d0) bytes
-SCREEN_COLOR_MEM = 0xd800	;0xd800 - 0xdfcf
+SCREEN_MEM_ROWS = 50
+;Colors, one byte per character = 4000 (0x0fa0) bytes
+SCREEN_COLOR_MEM = 0xd800	;0xd800 - 0xe7bf
 ;Byte with status flags to communicate with emulator host. When host new frame, emulator done for frame, etc.
 SCREEN_REFRESH_STATUS = 0xd000
 ;Border color address
@@ -31,11 +31,11 @@ SCREEN_BORDER_COLOR_ADDRESS = 0xd020
 SCREEN_BACKGROUND_COLOR_ADDRESS = 0xd021
 
 ;Currently pressed key on host (ASCII byte). If no key is pressed, value is 0x00
-KEY_PRESSED_ADDRESS = 0xe000
+KEY_PRESSED_ADDRESS = 0xd030
 ;Currently down key on host (ASCII byte). If no key is down, value is 0x00
-KEY_DOWN_ADDRESS = 0xe001
+KEY_DOWN_ADDRESS = 0xd031
 ;Currently released key on host (ASCII byte). If no key is down, value is 0x00
-KEY_RELEASED_ADDRESS = 0xe002
+KEY_RELEASED_ADDRESS = 0xd031
 
 ;------------------------------------------------------------
 ;ZP memory locations used for calculations

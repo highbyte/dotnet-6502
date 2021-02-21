@@ -5,6 +5,8 @@
     <Authors>Highbyte</Authors>
     <PackageDescription>6502 CPU emulator in .NET</PackageDescription>
     <RepositoryUrl>https://github.com/highbyte/dotnet-6502</RepositoryUrl>
+    <!-- Version will be overridden when built by GitHub action (dotnet pack -p:PackageVersion=x.y.run_number)-->
+    <Version>0.3.0-alpha</Version>
 
     <!-- Sourcelink - Optional: Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

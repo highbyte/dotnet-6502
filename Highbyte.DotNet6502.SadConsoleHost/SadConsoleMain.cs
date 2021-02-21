@@ -23,8 +23,9 @@ namespace Highbyte.DotNet6502.SadConsoleHost
 
         public void Run()
         {
-            // Setup the SadConsole engine and create the main window.
-            SadConsole.Game.Create(
+            // Setup the SadConsole engine and create the main window. 
+            // If font is null or empty, the default SadConsole font will be used.
+            SadConsole.Game.Create(_sadConsoleConfig.Font,
                 (_emulatorScreenConfig.Cols + (_emulatorScreenConfig.BorderCols*2)) * _sadConsoleConfig.FontScale, 
                 (_emulatorScreenConfig.Rows + (_emulatorScreenConfig.BorderRows*2)) * _sadConsoleConfig.FontScale);
 
@@ -57,22 +58,13 @@ namespace Highbyte.DotNet6502.SadConsoleHost
         private void InitSadConsole()
         {
             // TODO: Better way to map numeric scale value to SadConsole.Font.FontSizes enum?
-            SadConsole.Font.FontSizes fontSize;
-            switch(_sadConsoleConfig.FontScale)
+            var fontSize = _sadConsoleConfig.FontScale switch
             {
-                case 1:
-                    fontSize = SadConsole.Font.FontSizes.One;
-                    break;
-                case 2:
-                    fontSize = SadConsole.Font.FontSizes.Two;
-                    break;
-                case 3:
-                    fontSize = SadConsole.Font.FontSizes.Three;
-                    break;               
-                default:
-                    fontSize = SadConsole.Font.FontSizes.One;
-                    break;
-            }
+                1 => SadConsole.Font.FontSizes.One,
+                2 => SadConsole.Font.FontSizes.Two,
+                3 => SadConsole.Font.FontSizes.Three,
+                _ => SadConsole.Font.FontSizes.One,
+            };
             SadConsole.Global.FontDefault = SadConsole.Global.FontDefault.Master.GetFont(fontSize);
 
             // Create a SadConsole screen

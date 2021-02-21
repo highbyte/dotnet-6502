@@ -9,22 +9,22 @@
      7                          ;------------------------------------------------------------
      8                          ;Program settings
      9                          ;------------------------------------------------------------
-    10                          STATIC_TEXT_ROW = 8;
+    10                          STATIC_TEXT_ROW = 16;
     11                          COLOR_CYCLE_EACH_X_FRAME = 2;
     12                          
-    13                          SCROLLER_ROW = 14;
+    13                          SCROLLER_ROW = 28;
     14                          SCROLL_EACH_X_FRAME = 4;
     15                          
     16                          ;------------------------------------------------------------
     17                          ;Memory address shared with emulator host for updating screen
     18                          ;------------------------------------------------------------
-    19                          ;80 columns and 25 rows, 1 byte per character = 2000 (0x07d0) bytes
+    19                          ;80 columns and 50 rows, 1 byte per character = 4000 (0x0fa0) bytes
     20                          ;Laid out in memory as appears on screen.
-    21                          SCREEN_MEM = 0x0400			;0x400 - 0xbcf
+    21                          SCREEN_MEM = 0x0400			;0x0400 - 0x13bf
     22                          SCREEN_MEM_COLS = 80
-    23                          SCREEN_MEM_ROWS = 25
-    24                          ;Colors, one byte per character = 2000 (0x07d0) bytes
-    25                          SCREEN_COLOR_MEM = 0xd800	;0xd800 - 0xdfcf
+    23                          SCREEN_MEM_ROWS = 50
+    24                          ;Colors, one byte per character = 4000 (0x0fa0) bytes
+    25                          SCREEN_COLOR_MEM = 0xd800	;0xd800 - 0xe7bf
     26                          ;Byte with status flags to communicate with emulator host. When host new frame, emulator done for frame, etc.
     27                          SCREEN_REFRESH_STATUS = 0xd000
     28                          ;Border color address
@@ -33,11 +33,11 @@
     31                          SCREEN_BACKGROUND_COLOR_ADDRESS = 0xd021
     32                          
     33                          ;Currently pressed key on host (ASCII byte). If no key is pressed, value is 0x00
-    34                          KEY_PRESSED_ADDRESS = 0xe000
+    34                          KEY_PRESSED_ADDRESS = 0xd030
     35                          ;Currently down key on host (ASCII byte). If no key is down, value is 0x00
-    36                          KEY_DOWN_ADDRESS = 0xe001
+    36                          KEY_DOWN_ADDRESS = 0xd031
     37                          ;Currently released key on host (ASCII byte). If no key is down, value is 0x00
-    38                          KEY_RELEASED_ADDRESS = 0xe002
+    38                          KEY_RELEASED_ADDRESS = 0xd031
     39                          
     40                          ;------------------------------------------------------------
     41                          ;ZP memory locations used for calculations
@@ -152,7 +152,7 @@
    150  c054 a000               	ldy #0
    151                          .loop:
    152  c056 bd01c1             	lda STATIC_TEXT, X
-   153  c059 9d8006             	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
+   153  c059 9d0009             	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
    154  c05c f004               	beq .endoftext
    155  c05e e8                 	inx
    156  c05f 4c56c0             	jmp .loop
@@ -173,7 +173,7 @@
    171  c071 4c68c0             	jmp .loop
    172                          .notendofcolorlist
    173  c074 c8                 	iny
-   174  c075 9d80da             	sta SCREEN_COLOR_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Change color of character. A will contain current color to print, and X the column
+   174  c075 9d00dd             	sta SCREEN_COLOR_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Change color of character. A will contain current color to print, and X the column
    175  c078 e8                 	inx
    176  c079 e050               	cpx #SCREEN_MEM_COLS
    177  c07b d0eb               	bne .loop	;Loop until we changed color for entire row of 80 characters
@@ -216,7 +216,7 @@
    214  c0a4 4c9bc0             	jmp .loop
    215                          .notendofscroll
    216  c0a7 c8                 	iny
-   217  c0a8 9d6008             	sta SCREEN_MEM + (SCREEN_MEM_COLS * SCROLLER_ROW) , X				; Print character. A will contain current character to print, and X the column
+   217  c0a8 9dc00c             	sta SCREEN_MEM + (SCREEN_MEM_COLS * SCROLLER_ROW) , X				; Print character. A will contain current character to print, and X the column
    218  c0ab e8                 	inx
    219  c0ac e050               	cpx #SCREEN_MEM_COLS
    220  c0ae d0eb               	bne .loop						;Loop until we printed 80 characters
@@ -247,7 +247,7 @@
    245                          cyclebackgroundifkeyispressed:
    246                          
    247                          ;Check if space is pressed, if so cycle background color
-   248  c0c5 ad01e0             	lda KEY_DOWN_ADDRESS
+   248  c0c5 ad31d0             	lda KEY_DOWN_ADDRESS
    249  c0c8 c920               	cmp #$20	;32 ($20) = space
    250  c0ca d016               	bne .spacenotpressed
    251                          .loop:
@@ -272,7 +272,7 @@
    270                          cycleborderifkeyispressed:
    271                          
    272                          ;Check if space is pressed, if so cycle border color
-   273  c0e3 ad01e0             	lda KEY_DOWN_ADDRESS
+   273  c0e3 ad31d0             	lda KEY_DOWN_ADDRESS
    274  c0e6 c920               	cmp #$20	;32 ($20) = space
    275  c0e8 d016               	bne .spacenotpressed
    276                          .loop:
