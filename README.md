@@ -166,11 +166,31 @@ With the same principle, keyboard events are also communicated from SadConsole t
 ## Example of basic usage of Highbyte.DotNet6502.SadConsoleHost library
 
 - Create a new SadConsole .NET project (reference the SadConsole documentation for details). Output type in the .csproj file should be ```<OutputType>WinExe</OutputType>```.
+``` shell
+mkdir demo
+cd demo
+dotnet new --install SadConsole.Templates::1.0.5
+dotnet new sadconsole8
+```
+- Edit .csproj file and change ```<TargetFramework>netcoreapp3.1</TargetFramework>``` to ```<TargetFramework>net5.0</TargetFramework>```
 - Add reference to ```Highbyte.DotNet6502.SadConsoleHost``` (which will also get you the main emulator library ```Highbyte.DotNet6502```)
-- Add this code in your Main() entrypoint.
-
+``` shell
+dotnet add package Highbyte.DotNet6502.SadConsoleHost --prerelease
+```
+- Add reference to configuration libraries
+``` shell
+dotnet add package Microsoft.Extensions.Configuration.Json
+dotnet add package Microsoft.Extensions.Configuration.Binder
+```
+- Replace Program.cs with this code:
 ```c#
-    public static class Program
+using Highbyte.DotNet6502.SadConsoleHost;
+using Microsoft.Extensions.Configuration;
+using System.IO;
+
+namespace Demo
+{
+    class Program
     {
         private static IConfiguration Configuration;
 
@@ -188,11 +208,13 @@ With the same principle, keyboard events are also communicated from SadConsole t
             // Init EmulatorHost and run!
             var emulatorHost = new EmulatorHost(emulatorHostOptions);
             emulatorHost.Start();
-        }
+        }        
+
     }
+}
 ```
 
-- Create a ```appsettings.json``` file where you configure where the compiled 6502 program is, and what memory addresses your 6502 program uses for displaying text and colors.
+- Create a ```appsettings.json``` file where you configure where your compiled 6502 program is, and what memory addresses your 6502 program uses for displaying text and colors.
 
 ``` jsonc
 {
