@@ -47,7 +47,9 @@ Inspiration for this library was a [Youtube-series](https://www.youtube.com/watc
 
 # How to use Highbyte.DotNet6502 library from a .NET application
 ## Reference NuGet package
-Add GitHub Packages source _(if/when this package will live on nuget.org, this would not be needed)_
+Add GitHub Packages source. _Depending on platform, you may have to use option ```--store-password-in-clear-text```._
+
+_(if/when this package will live on nuget.org, adding a source would not be needed)_
 ``` powershell
 dotnet nuget add source https://nuget.pkg.github.com/highbyte/index.json --name "github-highbyte" --username [your-git-username] --password [your-git-personal-access-token]
 ```
