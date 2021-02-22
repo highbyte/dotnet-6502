@@ -11,7 +11,7 @@ What it (currently) does/is
 - Can load an assembled 6502 program binary and execute it
 - Passes this [Functional 6502 test program](https://github.com/Klaus2m5/6502_65C02_functional_tests)
 - Monitor (rudimentary)
-- A companion library letting emulator interacting with a [SadConsole](https://sadconsole.com/) window
+- A companion library to enable emulator interaction with a [SadConsole](https://sadconsole.com/) window
 - Example programs
 - **_A programming excerise, that may or may not turn into something more_**
 
