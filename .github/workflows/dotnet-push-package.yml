@@ -2,15 +2,16 @@ name: .NET build & push package
 
 on:
   # Triggers the workflow on push for the master branch
-  push:
-    branches: [ master ]
+  #push:
+  #  branches: [ master ]
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
   
 env:
    PROJECT_FILE: "Highbyte.DotNet6502/Highbyte.DotNet6502.csproj"
+   PROJECT_FILE2: "Highbyte.DotNet6502.SadConsoleHost/Highbyte.DotNet6502.SadConsoleHost.csproj"
    CONFIGURATION: "Release"
-   VERSION: "0.2"  #Major.Minor[.Rev]
+   VERSION: "0.3"  #Major.Minor[.Rev]
    VERSION_SUFFIX: "-alpha"
    PACKAGE_REPO: "https://nuget.pkg.github.com/highbyte/index.json"
 
@@ -28,5 +29,7 @@ jobs:
       run: dotnet build ${{ env.PROJECT_FILE }} -c ${{ env.CONFIGURATION }} /Property:Version=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }}
     - name: Pack NuGet package
       run: dotnet pack ${{ env.PROJECT_FILE }} --no-build -c ${{ env.CONFIGURATION }} -p:PackageVersion=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }} -o out 
-    - name: Push NuGet package
+    - name: Pack NuGet package
+      run: dotnet pack ${{ env.PROJECT_FILE2 }} --no-build -c ${{ env.CONFIGURATION }} -p:PackageVersion=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }} -o out 
+    - name: Push NuGet packages
       run: dotnet nuget push ./out/*.nupkg --source ${{ env.PACKAGE_REPO }} --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
