@@ -1,10 +1,6 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO;
-using SadConsole;
-using Microsoft.Xna.Framework;
-using Console = SadConsole.Console;
-using Highbyte.DotNet6502;
+﻿using System.IO;
+using Highbyte.DotNet6502.SadConsoleHost;
+using Microsoft.Extensions.Configuration;
 
 namespace SadConsoleTest
 {
@@ -17,180 +13,79 @@ namespace SadConsoleTest
     /// </summary>
     public static class Program
     {
-        // SadConsole screen setup
-        private const string WindowTitle = "SadConsole screen updated from program running in Highbyte.DotNet6502 emulator";
-        private const int Width = 80;
-        private const int Height = 25;
-        private const int BorderWidth = 2;
-        private const int BorderHeight = 2;
-        private static int FontScale = 2;
-        private static Microsoft.Xna.Framework.Color DefaultFgColor = Microsoft.Xna.Framework.Color.Black;
-        private static Microsoft.Xna.Framework.Color DefaultBgColor = Microsoft.Xna.Framework.Color.White;
-        private static SadConsoleScreen SadConsoleScreen;
-
-        // 6502 program binary to load into emulator
-        const string prgFileName = "../../.cache/Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.prg";
-
-        // Emulator <-> SadConsole interaction
-        private static int UpdateEmulatorEveryXFrame = 1;
-        private static SadConsoleEmulatorLoop SadConsoleEmulatorLoop;
-        private static SadConsoleEmulatorRenderer SadConsoleEmulatorRenderer;
+        private static IConfiguration Configuration;
 
         static void Main()
         {
-            // Init emulator
-            var computer = SetupEmulator(prgFileName);
-            var emulatorScreenConfig = SetupEmulatorScreenConfig();
-            InitEmulatorScreenMemory(emulatorScreenConfig, computer.Mem);
+            // Get config options
+            var builder = new ConfigurationBuilder()
+             .SetBasePath(Directory.GetCurrentDirectory())
+             .AddJsonFile("appsettings.json");
+            Configuration = builder.Build();
 
-            // Create SadConsole renderer for the screen memory contents in the emulator
-            SadConsoleEmulatorRenderer = new SadConsoleEmulatorRenderer(
-                GetSadConsoleScreen, 
-                computer.Mem, 
-                emulatorScreenConfig
-            );
+            var emulatorHostOptions = new Options();
+            Configuration.GetSection(Options.ConfigSectionName).Bind(emulatorHostOptions);
 
-            // Create the main game loop class that invokes emulator and render to host screen
-            SadConsoleEmulatorLoop = new SadConsoleEmulatorLoop(
-                SadConsoleEmulatorRenderer, 
-                computer,
-                emulatorScreenConfig,
-                updateEmulatorEveryXFrame: UpdateEmulatorEveryXFrame
-            );
+            // Alternative way, build config via code instead of reading from appsettings.json
+            //var emulatorHostOptions = ConfigViaCode();    
 
-            // Setup the SadConsole engine and create the main window.
-            SadConsole.Game.Create(Width * FontScale, Height * FontScale);
-
-            // Hook the start event so we can add consoles to the system.
-            SadConsole.Game.OnInitialize = InitSadConsole;
-
-            // Hook the update event that happens each frame
-            SadConsole.Game.OnUpdate = UpdateSadConsole;
-
-            // Hook the "after render"
-            //SadConsole.Game.OnDraw = Screen.DrawFrame;
-            
-            // Start the game.
-            SadConsole.Game.Instance.Run();
-            SadConsole.Game.Instance.Dispose();
+            // Init EmulatorHost and run!
+            var emulatorHost = new EmulatorHost(emulatorHostOptions);
+            emulatorHost.Start();
         }
 
-        private static void UpdateSadConsole(GameTime gameTime)
-        {
-            SadConsoleEmulatorLoop.SadConsoleUpdate(gameTime);
-        }
+    //     private static Options ConfigViaCode()
+    //     {
+    //         // Define how emulator memory should be layed out recarding screen output and keyboard input
+    //         var emulatorMemoryConfig = new EmulatorMemoryConfig
+    //         {
+    //             Screen = new EmulatorScreenConfig
+    //             {
+    //                 // 6502 code running in emulator should have the same #rows & #cols as we setup in SadConsole
+    //                 Cols        = 80,   
+    //                 Rows        = 25,
 
-        private static void InitSadConsole()
-        {
-            // TODO: Better way to map numeric scale value to SadConsole.Font.FontSizes enum?
-            SadConsole.Font.FontSizes fontSize;
-            switch(FontScale)
-            {
-                case 1:
-                    fontSize = SadConsole.Font.FontSizes.One;
-                    break;
-                case 2:
-                    fontSize = SadConsole.Font.FontSizes.Two;
-                    break;
-                case 3:
-                    fontSize = SadConsole.Font.FontSizes.Three;
-                    break;               
-                default:
-                    fontSize = SadConsole.Font.FontSizes.One;
-                    break;
-            }
-            SadConsole.Global.FontDefault = SadConsole.Global.FontDefault.Master.GetFont(fontSize);
+    //                 // If borders should be used. Currently only updateable with a color setting (see ScreenBackgroundColorAddress below)
+    //                 BorderCols  = 4,
+    //                 BorderRows  = 2,
 
-            // Set a custom ContainerConsole as the current screen, and it'll contain the actual consoles 
-            SadConsoleScreen = new SadConsoleScreen(
-                Width, 
-                Height, 
-                BorderHeight, 
-                BorderWidth,
-                DefaultFgColor,
-                DefaultBgColor
-                );
-            SadConsole.Global.CurrentScreen = SadConsoleScreen;
+    //                 // 6502 code must use these addresses as screen memory
+    //                 ScreenStartAddress              = 0x0400,   //80*25 = 2000(0x07d0) -> range 0x0400 - 0x0bcf
+    //                 ScreenColorStartAddress         = 0xd800,   //80*25 = 2000(0x07d0) -> range 0xd800 - 0xdfcf
+    //                 ScreenRefreshStatusAddress      = 0xd000,
+    //                 ScreenBorderColorAddress        = 0xd020,
+    //                 ScreenBackgroundColorAddress    = 0xd021,
+    //                 DefaultBgColor                  = 0x00,     // 0x00 = Black
+    //                 DefaultFgColor                  = 0x0f,     // 0x0f = Light grey
+    //                 DefaultBorderColor              = 0x0b,     // 0x0b = Dark grey
+    //             },
 
-            // Start with focus on screen console
-            SadConsole.Global.FocusedConsoles.Set(SadConsoleScreen.ScreenConsole);
+    //             Input = new EmulatorInputConfig
+    //             {
+    //                 KeyPressedAddress = 0xe000
+    //             }
+    //         };
 
-            SadConsole.Game.Instance.Window.Title = WindowTitle;
-        }
+    //         var emulatorConfig = new EmulatorConfig
+    //         {
+    //             ProgramBinaryFile = "../../.cache/Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.prg",
+    //             Memory = emulatorMemoryConfig
+    //         };
 
-        private static SadConsoleScreen GetSadConsoleScreen()
-        {
-            return SadConsoleScreen;
-        }
+    //         // Configure overall SadConsole settings
+    //         var sadConsoleConfig = new SadConsoleConfig
+    //         {
+    //             WindowTitle = "SadConsole screen updated from program running in Highbyte.DotNet6502 emulator",
+    //             FontScale   = 2
+    //         };
 
-        private static EmulatorScreenConfig SetupEmulatorScreenConfig()
-        {
-            return new EmulatorScreenConfig
-            {
-                // 6502 code running in emulator should have the same  #rows & #cols as we setup in SadConsole
-                Cols = Width,   
-                Rows = Height,
+    //         var emulatorHostOptions = new Options 
+    //         {
+    //             SadConsoleConfig = sadConsoleConfig,
+    //             EmulatorConfig = emulatorConfig
+    //         };
 
-                // 6502 code must use these addresses as screen memory
-                ScreenStartAddress = 0x0400,
-                ScreenColorStartAddress = 0xd800,
-
-                ScreenRefreshStatusAddress = 0xd000,
-                //ScreenBorderColorAddress = 0xd020 // TODO: Border colors
-                ScreenBackgroundColorAddress = 0xd021,
-
-                DefaultBgColor = 0x00,  // 0x00 = Black, 0x06 = Blue, 0x0b = Dark grey
-                DefaultFgColor = 0x0f   // 0x01 = White, 0x0e = Light blue, 0x0f = Light grey
-            };
-        }
-
-        private static void InitEmulatorScreenMemory(EmulatorScreenConfig emulatorScreenConfig, Memory mem)
-        {
-            // One common bg color for entire screen, controlled by specific address
-            mem[emulatorScreenConfig.ScreenBackgroundColorAddress] = emulatorScreenConfig.DefaultBgColor;
-
-            ushort currentScreenAddress = emulatorScreenConfig.ScreenStartAddress;
-            ushort currentColorAddress = emulatorScreenConfig.ScreenColorStartAddress;
-            for (int row = 0; row < emulatorScreenConfig.Rows; row++)
-            {
-                for (int col = 0; col < emulatorScreenConfig.Cols; col++)
-                {
-                    mem[currentScreenAddress++] = 0x20;
-                    mem[currentColorAddress++] = emulatorScreenConfig.DefaultFgColor;
-                }
-            }            
-        }
-
-        private static Computer SetupEmulator(string prgFileName)
-        {
-            Debug.WriteLine($"Loading 6502 machine code binary file.");
-            Debug.WriteLine($"{prgFileName}");
-            if(!File.Exists(prgFileName))
-            {
-                Debug.WriteLine($"File does not exist.");
-                throw new Exception($"Cannot find 6502 binary file: {prgFileName}");
-            }
-
-            var mem = BinaryLoader.Load(
-                prgFileName, 
-                out ushort loadedAtAddress, 
-                out int fileLength);
-
-            // Initialize emulator with CPU, memory, and execution parameters
-            var computerBuilder = new ComputerBuilder();
-            computerBuilder
-                .WithCPU()
-                .WithStartAddress(loadedAtAddress)
-                .WithMemory(mem)
-                // .WithInstructionExecutedEventHandler( 
-                //     (s, e) => Debug.WriteLine(OutputGen.GetLastInstructionDisassembly(e.CPU, e.Mem)))
-                .WithExecOptions(options =>
-                {
-                    options.ExecuteUntilInstruction = OpCodeId.BRK; // Emulator will stop executing when a BRK instruction is reached.
-                });
-            var computer = computerBuilder.Build();
-
-            return computer;
-        }
+    //         return emulatorHostOptions;
+    //     }
     }
 }
