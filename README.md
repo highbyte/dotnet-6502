@@ -1,6 +1,6 @@
 # dotnet-6502
 
-![.NET](https://github.com/highbyte/dotnet-6502/workflows/.NET/badge.svg)[![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=alert_status)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Security Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=security_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=vulnerabilities)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=VULNERABILITY) [![SonarCloud Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Bugs](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=bugs)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=BUG) [![SonarCloud Coverage](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=coverage)](https://sonarcloud.io/component_measures?id=highbyte_dotnet-6502&metric=coverage&view=list)
+![.NET](https://github.com/highbyte/dotnet-6502/workflows/.NET/badge.svg) [![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=alert_status)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Security Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=security_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=vulnerabilities)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=VULNERABILITY) [![SonarCloud Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Bugs](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=bugs)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=BUG) [![SonarCloud Coverage](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=coverage)](https://sonarcloud.io/component_measures?id=highbyte_dotnet-6502&metric=coverage&view=list)
 
 A [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) emulator for .NET
 
@@ -314,17 +314,17 @@ mainloop:
 ;Wait for emulator indicating a new frame
 .waitfornextframe
 	lda SCREEN_REFRESH_STATUS
-	and #%00000001					        ;Bit 0 set signals it time to refresh screen
-	beq .waitfornextframe			      ;Loop if bit 0 is not set
+	and #%00000001			;Bit 0 set signals it time to refresh screen
+	beq .waitfornextframe		;Loop if bit 0 is not set
 
 ;If space is pressed, cycle border color
-	lda KEY_DOWN_ADDRESS			      ;Load currently down key
+	lda KEY_DOWN_ADDRESS		;Load currently down key
 	cmp #$20                        ;32 ($20) = space
 	bne .spacenotpressed
 	ldx SCREEN_BORDER_COLOR_ADDRESS ;Get current border color
 	inx                             ;Next color
 	cpx #$10                        ;Passed highest color (#$0f)?
-	bne .notreachedhighestcolor		  ;If we haven't reached max color value
+	bne .notreachedhighestcolor	;If we haven't reached max color value
 	ldx #$00                        ;Reset to lowest color (0)
 .notreachedhighestcolor
 	stx SCREEN_BORDER_COLOR_ADDRESS	;Update border color
@@ -333,7 +333,7 @@ mainloop:
 ;Set bit flag that tells emulator that this 6502 code is done for current frame
 	lda SCREEN_REFRESH_STATUS
 	ora #%00000010                   ;Bit 1 set signals that emulator is currently done
-	sta SCREEN_REFRESH_STATUS 		   ;Update status to memory
+	sta SCREEN_REFRESH_STATUS 	 ;Update status to memory
 
 ;Loop forever
 	jmp mainloop
