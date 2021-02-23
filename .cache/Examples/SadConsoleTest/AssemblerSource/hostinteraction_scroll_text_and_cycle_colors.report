@@ -9,22 +9,22 @@
      7                          ;------------------------------------------------------------
      8                          ;Program settings
      9                          ;------------------------------------------------------------
-    10                          STATIC_TEXT_ROW = 16;
+    10                          STATIC_TEXT_ROW = 8;
     11                          COLOR_CYCLE_EACH_X_FRAME = 2;
     12                          
-    13                          SCROLLER_ROW = 28;
+    13                          SCROLLER_ROW = 14;
     14                          SCROLL_EACH_X_FRAME = 4;
     15                          
     16                          ;------------------------------------------------------------
     17                          ;Memory address shared with emulator host for updating screen
     18                          ;------------------------------------------------------------
-    19                          ;80 columns and 50 rows, 1 byte per character = 4000 (0x0fa0) bytes
+    19                          ;40 columns and 25 rows, 1 byte per character = 1000 (0x03e8) bytes
     20                          ;Laid out in memory as appears on screen.
-    21                          SCREEN_MEM = 0x0400			;0x0400 - 0x13bf
-    22                          SCREEN_MEM_COLS = 80
-    23                          SCREEN_MEM_ROWS = 50
-    24                          ;Colors, one byte per character = 4000 (0x0fa0) bytes
-    25                          SCREEN_COLOR_MEM = 0xd800	;0xd800 - 0xe7bf
+    21                          SCREEN_MEM = 0x0400			;0x0400 - 0x07e7
+    22                          SCREEN_MEM_COLS = 40
+    23                          SCREEN_MEM_ROWS = 25
+    24                          ;Colors, one byte per character = 1000 (0x03e8) bytes
+    25                          SCREEN_COLOR_MEM = 0xd800	;0xd800 - 0xdbe7
     26                          ;Byte with status flags to communicate with emulator host. When host new frame, emulator done for frame, etc.
     27                          SCREEN_REFRESH_STATUS = 0xd000
     28                          ;Border color address
@@ -152,7 +152,7 @@
    150  c054 a000               	ldy #0
    151                          .loop:
    152  c056 bd01c1             	lda STATIC_TEXT, X
-   153  c059 9d0009             	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
+   153  c059 9d4005             	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
    154  c05c f004               	beq .endoftext
    155  c05e e8                 	inx
    156  c05f 4c56c0             	jmp .loop
@@ -166,16 +166,16 @@
    164  c065 a542               	lda ZP_TEXT_COLOR_CYCLE_INDEX
    165  c067 a8                 	tay
    166                          .loop:
-   167  c068 b952c1             	lda STATIC_TEXT_COLOR, Y
+   167  c068 b92ac1             	lda STATIC_TEXT_COLOR, Y
    168  c06b c9ff               	cmp #$ff
    169  c06d d005               	bne .notendofcolorlist
    170  c06f a000               	ldy #0
    171  c071 4c68c0             	jmp .loop
    172                          .notendofcolorlist
    173  c074 c8                 	iny
-   174  c075 9d00dd             	sta SCREEN_COLOR_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Change color of character. A will contain current color to print, and X the column
+   174  c075 9d40d9             	sta SCREEN_COLOR_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Change color of character. A will contain current color to print, and X the column
    175  c078 e8                 	inx
-   176  c079 e050               	cpx #SCREEN_MEM_COLS
+   176  c079 e028               	cpx #SCREEN_MEM_COLS
    177  c07b d0eb               	bne .loop	;Loop until we changed color for entire row of 80 characters
    178                          
    179                          	;Increase color cycle index starting point.
@@ -183,7 +183,7 @@
    181  c07f a542               	lda ZP_TEXT_COLOR_CYCLE_INDEX
    182  c081 a8                 	tay
    183                          	;Check if we reached end, then reset
-   184  c082 b952c1             	lda STATIC_TEXT_COLOR, Y
+   184  c082 b92ac1             	lda STATIC_TEXT_COLOR, Y
    185  c085 c9ff               	cmp #$ff
    186  c087 d003               	bne .notendofcolorlist2
    187  c089 208dc0             	jsr initcolorcycle
@@ -216,9 +216,9 @@
    214  c0a4 4c9bc0             	jmp .loop
    215                          .notendofscroll
    216  c0a7 c8                 	iny
-   217  c0a8 9dc00c             	sta SCREEN_MEM + (SCREEN_MEM_COLS * SCROLLER_ROW) , X				; Print character. A will contain current character to print, and X the column
+   217  c0a8 9d3006             	sta SCREEN_MEM + (SCREEN_MEM_COLS * SCROLLER_ROW) , X				; Print character. A will contain current character to print, and X the column
    218  c0ab e8                 	inx
-   219  c0ac e050               	cpx #SCREEN_MEM_COLS
+   219  c0ac e028               	cpx #SCREEN_MEM_COLS
    220  c0ae d0eb               	bne .loop						;Loop until we printed 80 characters
    221                          
    222  c0b0 e640               	inc ZP_SCROLL_TEXT_ADDRESS		;Increase scroll start pointer lowbyte
@@ -230,7 +230,7 @@
    228                          
    229                          !zone initscroll
    230                          initscroll:
-   231  c0b7 a98f               	lda #<SCROLL_TEXT	;Load lowbyte of scroll text start in memory. We start at -1 because code will start by increasing the address by 1
+   231  c0b7 a967               	lda #<SCROLL_TEXT	;Load lowbyte of scroll text start in memory. We start at -1 because code will start by increasing the address by 1
    232  c0b9 8540               	sta ZP_SCROLL_TEXT_ADDRESS
    233  c0bb a9c1               	lda #>SCROLL_TEXT	;Load highbyte of scroll text start in memory. We start at -1 because code will start by increasing the address by 1
    234  c0bd 8541               	sta ZP_SCROLL_TEXT_ADDRESS + 1
@@ -253,7 +253,7 @@
    251                          .loop:
    252  c0cc a543               	lda ZP_BG_COLOR_CYCLE_INDEX
    253  c0ce a8                 	tay
-   254  c0cf b998c3             	lda BACKGROUND_COLOR, Y
+   254  c0cf b920c3             	lda BACKGROUND_COLOR, Y
    255  c0d2 c9ff               	cmp #$ff
    256  c0d4 d007               	bne .notendofcolorlist
    257  c0d6 a900               	lda #0
@@ -278,7 +278,7 @@
    276                          .loop:
    277  c0ea a544               	lda ZP_BORDER_COLOR_CYCLE_INDEX
    278  c0ec a8                 	tay
-   279  c0ed b9ddc3             	lda BORDER_COLOR, Y
+   279  c0ed b965c3             	lda BORDER_COLOR, Y
    280  c0f0 c9ff               	cmp #$ff
    281  c0f2 d007               	bne .notendofcolorlist
    282  c0f4 a900               	lda #0
@@ -299,64 +299,67 @@
    297                          !convtab raw	;Text conversion setting: pet (PetSCII), raw (none), scr (C64 screen code)
    298                          
    299                          STATIC_TEXT:
-   300  c101 202020202020202a...	!text "       *** 6502 machine code running in Highbyte.DotNet6502 emulator! ***       "
-   301  c151 00                 	!by 0 ;End of text indicator
-   302                          
-   303                          STATIC_TEXT_COLOR:
-   304                          	;!by 0x0b,0x0b,0x0b,0x0b,0x0c,0x0c,0x0c,0x0c,0x0f,0x0f,0x01,0x01,0x0f,0x0f,0x0c,0x0c,0x0c,0x0c,0x0c,0x0c,0x0c
-   305                          	;!by 0x02,0x02,0x02,0x02,0x04,0x04,0x04,0x04,0x0a,0x0a,0x0a,0x0a,0x07,0x07,0x07,0x07,0x0a,0x0a,0x0a,0x0a,0x04,0x04,0x04,0x04,0x02,0x02,0x02,0x02
-   306  c152 020202020a0a0a0a...	!by 0x02,0x02,0x02,0x02,0x0a,0x0a,0x0a,0x0a,0x07,0x07,0x07,0x07,0x0a,0x0a,0x0a,0x0a,0x02,0x02,0x02,0x02
-   307  c166 060606060e0e0e0e...	!by 0x06,0x06,0x06,0x06,0x0e,0x0e,0x0e,0x0e,0x01,0x01,0x01,0x01,0x0e,0x0e,0x0e,0x0e,0x06,0x06,0x06,0x06
-   308  c17a 050505050d0d0d0d...	!by 0x05,0x05,0x05,0x05,0x0d,0x0d,0x0d,0x0d,0x01,0x01,0x01,0x01,0x0d,0x0d,0x0d,0x0d,0x05,0x05,0x05,0x05
-   309  c18e ff                 	!by 0xff ;End of color indicator (cannot be 0 which is black)
-   310                          
-   311                          SCROLL_TEXT:
-   312  c18f 2020202020202020...	!text "                                                                                "
-   313  c1df 4869676862797465...	!text "Highbyte, in 2021, proudly presents... A DotNet 6502 CPU emulator!    "
-   314  c225 5468697320287261...	!text "This (rather choppy) scroller and color cycler is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
-   315  c2b7 486f6c6420535041...	!text "Hold SPACE to flash border color.   "
-   316  c2db 4772656574696e67...	!text "Greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups Them and Virtual!"
-   317  c347 2020202020202020...	!text "                                                                                "
-   318  c397 00                 	!by 0 ;End of text indicator
-   319                          
-   320                          BACKGROUND_COLOR:
-   321  c398 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   322  c3a8 0b0b0b0b0b0b0b0b   	!by 0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b
-   323  c3b0 0c0c0c0c           	!by 0x0c,0x0c,0x0c,0x0c
-   324  c3b4 0f0f0f0f           	!by 0x0f,0x0f,0x0f,0x0f
-   325  c3b8 0c0c0c0c           	!by 0x0c,0x0c,0x0c,0x0c
-   326  c3bc 0b0b0b0b0b0b0b0b   	!by 0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b
-   327  c3c4 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   328  c3d4 0000000000000000   	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   329  c3dc ff                 	!by 0xff ;End of color indicator (cannot be 0 which is black)
-   330                          
-   331                          
-   332                          BORDER_COLOR:
-   333  c3dd 020202             	!by 0x02,0x02,0x02
-   334  c3e0 0a0a0a             	!by 0x0a,0x0a,0x0a
-   335  c3e3 0f0f0f             	!by 0x0f,0x0f,0x0f
-   336  c3e6 0a0a0a             	!by 0x0a,0x0a,0x0a
-   337  c3e9 020202             	!by 0x02,0x02,0x02
-   338  c3ec 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   339  c3fc 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   340  c40c 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   341  c41c 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   342  c42c 050505             	!by 0x05,0x05,0x05
-   343  c42f 0d0d0d             	!by 0x0d,0x0d,0x0d
-   344  c432 0f0f0f             	!by 0x0f,0x0f,0x0f
-   345  c435 0d0d0d             	!by 0x0d,0x0d,0x0d
-   346  c438 050505             	!by 0x05,0x05,0x05
-   347  c43b 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   348  c44b 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   349  c45b 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   350  c46b 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   351  c47b 060606             	!by 0x06,0x06,0x06
-   352  c47e 0e0e0e             	!by 0x0e,0x0e,0x0e
-   353  c481 0f0f0f             	!by 0x0f,0x0f,0x0f
-   354  c484 0e0e0e             	!by 0x0e,0x0e,0x0e
-   355  c487 060606             	!by 0x06,0x06,0x06
-   356  c48a 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   357  c49a 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   358  c4aa 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   359  c4ba 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-   360  c4ca ff                 	!by 0xff ;End of color indicator (cannot be 0 which is black)
+   300                          	;!text "       *** 6502 machine code running in Highbyte.DotNet6502 emulator! ***       "
+   301  c101 3635303220636f64...	!text "6502 code running in DotNet6502 emulator"
+   302  c129 00                 	!by 0 ;End of text indicator
+   303                          
+   304                          STATIC_TEXT_COLOR:
+   305                          	;!by 0x0b,0x0b,0x0b,0x0b,0x0c,0x0c,0x0c,0x0c,0x0f,0x0f,0x01,0x01,0x0f,0x0f,0x0c,0x0c,0x0c,0x0c,0x0c,0x0c,0x0c
+   306                          	;!by 0x02,0x02,0x02,0x02,0x04,0x04,0x04,0x04,0x0a,0x0a,0x0a,0x0a,0x07,0x07,0x07,0x07,0x0a,0x0a,0x0a,0x0a,0x04,0x04,0x04,0x04,0x02,0x02,0x02,0x02
+   307  c12a 020202020a0a0a0a...	!by 0x02,0x02,0x02,0x02,0x0a,0x0a,0x0a,0x0a,0x07,0x07,0x07,0x07,0x0a,0x0a,0x0a,0x0a,0x02,0x02,0x02,0x02
+   308  c13e 060606060e0e0e0e...	!by 0x06,0x06,0x06,0x06,0x0e,0x0e,0x0e,0x0e,0x01,0x01,0x01,0x01,0x0e,0x0e,0x0e,0x0e,0x06,0x06,0x06,0x06
+   309  c152 050505050d0d0d0d...	!by 0x05,0x05,0x05,0x05,0x0d,0x0d,0x0d,0x0d,0x01,0x01,0x01,0x01,0x0d,0x0d,0x0d,0x0d,0x05,0x05,0x05,0x05
+   310  c166 ff                 	!by 0xff ;End of color indicator (cannot be 0 which is black)
+   311                          
+   312                          SCROLL_TEXT:
+   313                          	;!text "                                                                                "
+   314  c167 2020202020202020...	!text "                                        "
+   315  c18f 4869676862797465...	!text "Highbyte, in 2021, proudly presents... A DotNet 6502 CPU emulator!    "
+   316  c1d5 5468697320287261...	!text "This (rather choppy) scroller and color cycler is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
+   317  c267 486f6c6420535041...	!text "Hold SPACE to flash border color.   "
+   318  c28b 4772656574696e67...	!text "Greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups Them and Virtual!"
+   319                          	;!text "                                                                                "
+   320  c2f7 2020202020202020...	!text "                                        "
+   321  c31f 00                 	!by 0 ;End of text indicator
+   322                          
+   323                          BACKGROUND_COLOR:
+   324  c320 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   325  c330 0b0b0b0b0b0b0b0b   	!by 0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b
+   326  c338 0c0c0c0c           	!by 0x0c,0x0c,0x0c,0x0c
+   327  c33c 0f0f0f0f           	!by 0x0f,0x0f,0x0f,0x0f
+   328  c340 0c0c0c0c           	!by 0x0c,0x0c,0x0c,0x0c
+   329  c344 0b0b0b0b0b0b0b0b   	!by 0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b
+   330  c34c 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   331  c35c 0000000000000000   	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   332  c364 ff                 	!by 0xff ;End of color indicator (cannot be 0 which is black)
+   333                          
+   334                          
+   335                          BORDER_COLOR:
+   336  c365 020202             	!by 0x02,0x02,0x02
+   337  c368 0a0a0a             	!by 0x0a,0x0a,0x0a
+   338  c36b 0f0f0f             	!by 0x0f,0x0f,0x0f
+   339  c36e 0a0a0a             	!by 0x0a,0x0a,0x0a
+   340  c371 020202             	!by 0x02,0x02,0x02
+   341  c374 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   342  c384 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   343  c394 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   344  c3a4 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   345  c3b4 050505             	!by 0x05,0x05,0x05
+   346  c3b7 0d0d0d             	!by 0x0d,0x0d,0x0d
+   347  c3ba 0f0f0f             	!by 0x0f,0x0f,0x0f
+   348  c3bd 0d0d0d             	!by 0x0d,0x0d,0x0d
+   349  c3c0 050505             	!by 0x05,0x05,0x05
+   350  c3c3 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   351  c3d3 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   352  c3e3 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   353  c3f3 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   354  c403 060606             	!by 0x06,0x06,0x06
+   355  c406 0e0e0e             	!by 0x0e,0x0e,0x0e
+   356  c409 0f0f0f             	!by 0x0f,0x0f,0x0f
+   357  c40c 0e0e0e             	!by 0x0e,0x0e,0x0e
+   358  c40f 060606             	!by 0x06,0x06,0x06
+   359  c412 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   360  c422 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   361  c432 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   362  c442 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   363  c452 ff                 	!by 0xff ;End of color indicator (cannot be 0 which is black)
