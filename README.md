@@ -164,7 +164,7 @@ With the same principle, keyboard events are also communicated from SadConsole t
 ``` shell
 mkdir demo
 cd demo
-dotnet new --install SadConsole.Templates::1.0.5
+dotnet new --install SadConsole.Templates:1.0.5
 dotnet new sadconsole8
 ```
 - Edit .csproj file and change ```<TargetFramework>netcoreapp3.1</TargetFramework>``` to ```<TargetFramework>net5.0</TargetFramework>```
@@ -269,12 +269,12 @@ STATIC_TEXT_ROW = 10;
 ;------------------------------------------------------------
 ;Memory address shared with emulator host for updating screen
 ;------------------------------------------------------------
-;80 columns and 25 rows, 1 byte per character = 2000 (0x03e8) bytes. Laid out in memory as appears on screen.
-SCREEN_MEM = 0x0400					;0x0400 - 0x07e7
+;80 columns and 25 rows, 1 byte per character = 1000 (0x03e8) bytes. Laid out in memory as appears on screen.
+SCREEN_MEM = 0x0400               ;0x0400 - 0x07e7
 SCREEN_MEM_COLS	= 80
 SCREEN_MEM_ROWS	= 25
 ;Colors, one byte per character = 1000 (0x03e8) bytes
-SCREEN_COLOR_MEM = 0xd800			;0xd800 - 0xdbe7
+SCREEN_COLOR_MEM = 0xd800          ;0xd800 - 0xdbe7
 ;Byte with status flags to communicate with emulator host. When host new frame, emulator done for frame, etc.
 SCREEN_REFRESH_STATUS = 0xd000
 ;Border color address
@@ -314,26 +314,26 @@ mainloop:
 ;Wait for emulator indicating a new frame
 .waitfornextframe
 	lda SCREEN_REFRESH_STATUS
-	and #%00000001					;Bit 0 set signals it time to refresh screen
-	beq .waitfornextframe			;Loop if bit 1 is not set
+	and #%00000001					        ;Bit 0 set signals it time to refresh screen
+	beq .waitfornextframe			      ;Loop if bit 0 is not set
 
-;If space is pressed, cycle corder color
-	lda KEY_DOWN_ADDRESS			;Load currently down key
-	cmp #$20						;32 ($20) = space
+;If space is pressed, cycle border color
+	lda KEY_DOWN_ADDRESS			      ;Load currently down key
+	cmp #$20                        ;32 ($20) = space
 	bne .spacenotpressed
 	ldx SCREEN_BORDER_COLOR_ADDRESS ;Get current border color
-	inx								;Next color
-	cpx #$10						;Passed highest color (#$0f)?
-	bne .notreachedhighestcolor		;If we haven't reached max color value
-	ldx #$00						;Reset to lowest color (0)
+	inx                             ;Next color
+	cpx #$10                        ;Passed highest color (#$0f)?
+	bne .notreachedhighestcolor		  ;If we haven't reached max color value
+	ldx #$00                        ;Reset to lowest color (0)
 .notreachedhighestcolor
 	stx SCREEN_BORDER_COLOR_ADDRESS	;Update border color
 .spacenotpressed:
 
 ;Set bit flag that tells emulator that this 6502 code is done for current frame
 	lda SCREEN_REFRESH_STATUS
-	ora #%00000010					;Bit 1 set signals that emulator is currently done
-	sta SCREEN_REFRESH_STATUS 		;Update status to memory
+	ora #%00000010                   ;Bit 1 set signals that emulator is currently done
+	sta SCREEN_REFRESH_STATUS 		   ;Update status to memory
 
 ;Loop forever
 	jmp mainloop
@@ -343,10 +343,10 @@ mainloop:
 ;------------------------------------------------------------
 STATIC_TEXT:
 	!text "                     ***** DotNet6502 + SadConsole !! *****                     "
-	!by 0 							;End of text indicator	
+	!by 0                            ;End of text indicator	
 STATIC_TEXT_2:
 	!text "                        Press SPACE to cycle border color                       "
-	!by 0 							;End of text indicator
+	!by 0                            ;End of text indicator	
 ```
 
 _TODO: Detailed information on how to configure, and simple 6502 example code. See example app below for complete implementation._
