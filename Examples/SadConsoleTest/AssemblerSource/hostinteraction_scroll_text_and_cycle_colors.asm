@@ -7,22 +7,22 @@
 ;------------------------------------------------------------
 ;Program settings
 ;------------------------------------------------------------
-STATIC_TEXT_ROW = 16;
+STATIC_TEXT_ROW = 8;
 COLOR_CYCLE_EACH_X_FRAME = 2;
 
-SCROLLER_ROW = 28;
+SCROLLER_ROW = 14;
 SCROLL_EACH_X_FRAME = 4;
 
 ;------------------------------------------------------------
 ;Memory address shared with emulator host for updating screen
 ;------------------------------------------------------------
-;80 columns and 50 rows, 1 byte per character = 4000 (0x0fa0) bytes
+;40 columns and 25 rows, 1 byte per character = 1000 (0x03e8) bytes
 ;Laid out in memory as appears on screen.
-SCREEN_MEM = 0x0400			;0x0400 - 0x13bf
-SCREEN_MEM_COLS = 80
-SCREEN_MEM_ROWS = 50
-;Colors, one byte per character = 4000 (0x0fa0) bytes
-SCREEN_COLOR_MEM = 0xd800	;0xd800 - 0xe7bf
+SCREEN_MEM = 0x0400			;0x0400 - 0x07e7
+SCREEN_MEM_COLS = 40
+SCREEN_MEM_ROWS = 25
+;Colors, one byte per character = 1000 (0x03e8) bytes
+SCREEN_COLOR_MEM = 0xd800	;0xd800 - 0xdbe7
 ;Byte with status flags to communicate with emulator host. When host new frame, emulator done for frame, etc.
 SCREEN_REFRESH_STATUS = 0xd000
 ;Border color address
@@ -297,7 +297,8 @@ cycleborderifkeyispressed:
 !convtab raw	;Text conversion setting: pet (PetSCII), raw (none), scr (C64 screen code)
 
 STATIC_TEXT:
-	!text "       *** 6502 machine code running in Highbyte.DotNet6502 emulator! ***       "
+	;!text "       *** 6502 machine code running in Highbyte.DotNet6502 emulator! ***       "
+	!text "6502 code running in DotNet6502 emulator"
 	!by 0 ;End of text indicator
 
 STATIC_TEXT_COLOR:
@@ -309,12 +310,14 @@ STATIC_TEXT_COLOR:
 	!by 0xff ;End of color indicator (cannot be 0 which is black)
 
 SCROLL_TEXT:
-	!text "                                                                                "
+	;!text "                                                                                "
+	!text "                                        "
 	!text "Highbyte, in 2021, proudly presents... A DotNet 6502 CPU emulator!    "
 	!text "This (rather choppy) scroller and color cycler is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
 	!text "Hold SPACE to flash border color.   "
 	!text "Greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups Them and Virtual!"
-	!text "                                                                                "
+	;!text "                                                                                "
+	!text "                                        "
 	!by 0 ;End of text indicator
 
 BACKGROUND_COLOR:

@@ -5,18 +5,18 @@
 A [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) emulator for .NET
 
 What it (currently) does/is
-- .NET 5 cross platform library written in C#
+- .NET 5 cross platform library ```Highbyte.DotNet6502``` written in C#
 - Emulation of a 6502 processor
 - Supports all official 6502 opcodes
 - Can load an assembled 6502 program binary and execute it
 - Passes this [Functional 6502 test program](https://github.com/Klaus2m5/6502_65C02_functional_tests)
 - Monitor (rudimentary)
-- A companion library to enable emulator interaction with a [SadConsole](https://sadconsole.com/) window
+- A companion library ```Highbyte.DotNet6502.SadConsoleHost``` to enable emulator interaction with a [SadConsole](https://sadconsole.com/) window
 - Example programs
-- **_A programming excerise, that may or may not turn into something more_**
+- **_A programming exercise, that may or may not turn into something more_**
 
 What's (currently) missing
-- Decimal mode (Binary Coded Decimal) calculcations
+- Decimal mode (Binary Coded Decimal) calculations
 - Support for unofficial opcodes
 
 What it isn't (and probably never will be)
@@ -38,7 +38,7 @@ Inspiration for this library was a [Youtube-series](https://www.youtube.com/watc
 - [Tests](#tests)
   - [Unit tests](#unit-tests)
   - [Functional test](#functional-integration-test)
-  - [Code coverate report locally](#code-coverage-report-locally)
+  - [Code coverage report locally](#code-coverage-report-locally)
 - [Resources](#6502-resources)
 
 # Requirements
@@ -224,22 +224,27 @@ namespace Demo
 
     "SadConsoleConfig": {
       "WindowTitle": "SadConsole with Highbyte.DotNet6502 emulator!",
+      "FontScale": 2
     },
 
     "EmulatorConfig": {
-      "ProgramBinaryFile": "../my_cool_6502_program.prg",
+      "ProgramBinaryFile": "./.cache/hello_world.prg",     
+      "RunEmulatorEveryFrame" : 1,
 
       "Memory": {
         "Screen": {
           "Cols": 80,
           "Rows": 25,
-          "ScreenStartAddress":           "0x0400",   //80*25 = 2000 (0x07d0) -> range 0x0400 - 0x08cf
-          "ScreenColorStartAddress":      "0xd800",   //80*25 = 2000 (0x07d0) -> range 0xd800 - 0xdfcf
+          "BorderCols": 6,
+          "BorderRows": 3,
+          "ScreenStartAddress":           "0x0400",   // 80*25 = 2000 (0x07d0) -> range 0x0400 - 0x0bcf
+          "ScreenColorStartAddress":      "0xd800",   // 80*25 = 2000 (0x07d0) -> range 0xd800 - 0xdfcf
+
           "ScreenRefreshStatusAddress":   "0xd000",   // The 6502 code should set bit 1 here when it's done for current frame
           "ScreenBorderColorAddress":     "0xd020",
           "ScreenBackgroundColorAddress": "0xd021",
           "DefaultBgColor":               "0x00",     // 0x00 = Black (C64 scheme)
-          "DefaultFgColor":               "0x0f",     // 0x0f = Light grey (C64 scheme)
+          "DefaultFgColor":               "0x01",     // 0x0f = Light grey, 0x0e = Light Blue, 0x01 = White  (C64 scheme)
           "DefaultBorderColor":           "0x0b"      // 0x0b = Dark grey (C64 scheme)
         },
         "Input": {
@@ -251,6 +256,104 @@ namespace Demo
     }
   }
 }
+```
+
+6502 assembly code example. Note that the declarations starting with ```SCREEN_``` matches the memory addresses in ```appsettings.json``` above.
+The code can be compiled with ACME assembler. An easy way to do this is via the VS Code extension [vs64](https://marketplace.visualstudio.com/items?itemName=rosc.vs64).
+
+``` asm
+;hello_world.asm
+;Written with ACME cross-assembler using VSCode extension VS64. Extension will compile on save to .cache directory.
+
+;Code start address
+* = $c000
+
+;------------------------------------------------------------
+;Program settings
+;------------------------------------------------------------
+STATIC_TEXT_ROW = 10;
+
+;------------------------------------------------------------
+;Memory address shared with emulator host for updating screen
+;------------------------------------------------------------
+;80 columns and 25 rows, 1 byte per character = 2000 (0x03e8) bytes. Laid out in memory as appears on screen.
+SCREEN_MEM = 0x0400					;0x0400 - 0x07e7
+SCREEN_MEM_COLS	= 80
+SCREEN_MEM_ROWS	= 25
+;Colors, one byte per character = 1000 (0x03e8) bytes
+SCREEN_COLOR_MEM = 0xd800			;0xd800 - 0xdbe7
+;Byte with status flags to communicate with emulator host. When host new frame, emulator done for frame, etc.
+SCREEN_REFRESH_STATUS = 0xd000
+;Border color address
+SCREEN_BORDER_COLOR_ADDRESS = 0xd020
+;Bg color address for entire screen
+SCREEN_BACKGROUND_COLOR_ADDRESS = 0xd021
+
+;Currently pressed key on host (ASCII byte). If no key is pressed, value is 0x00
+KEY_PRESSED_ADDRESS = 0xd030
+;Currently down key on host (ASCII byte). If no key is down, value is 0x00
+KEY_DOWN_ADDRESS = 0xd031
+;Currently released key on host (ASCII byte). If no key is down, value is 0x00
+KEY_RELEASED_ADDRESS = 0xd031
+
+;------------------------------------------------------------
+;Code start
+;------------------------------------------------------------
+;Set screen background color
+	lda #$06
+	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+;Set border color
+	lda #$0e
+	sta SCREEN_BORDER_COLOR_ADDRESS	
+;Initialize static text at row defined in STATIC_TEXT_ROW
+	ldx #0
+.printchar:
+	lda STATIC_TEXT, X
+	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW), X
+	lda STATIC_TEXT_2, X
+	sta SCREEN_MEM + (SCREEN_MEM_COLS * (STATIC_TEXT_ROW + 2)), X
+	beq .endoftext
+	inx
+	jmp .printchar
+.endoftext
+
+mainloop:
+;Wait for emulator indicating a new frame
+.waitfornextframe
+	lda SCREEN_REFRESH_STATUS
+	and #%00000001					;Bit 0 set signals it time to refresh screen
+	beq .waitfornextframe			;Loop if bit 1 is not set
+
+;If space is pressed, cycle corder color
+	lda KEY_DOWN_ADDRESS			;Load currently down key
+	cmp #$20						;32 ($20) = space
+	bne .spacenotpressed
+	ldx SCREEN_BORDER_COLOR_ADDRESS ;Get current border color
+	inx								;Next color
+	cpx #$10						;Passed highest color (#$0f)?
+	bne .notreachedhighestcolor		;If we haven't reached max color value
+	ldx #$00						;Reset to lowest color (0)
+.notreachedhighestcolor
+	stx SCREEN_BORDER_COLOR_ADDRESS	;Update border color
+.spacenotpressed:
+
+;Set bit flag that tells emulator that this 6502 code is done for current frame
+	lda SCREEN_REFRESH_STATUS
+	ora #%00000010					;Bit 1 set signals that emulator is currently done
+	sta SCREEN_REFRESH_STATUS 		;Update status to memory
+
+;Loop forever
+	jmp mainloop
+
+;------------------------------------------------------------
+;Data
+;------------------------------------------------------------
+STATIC_TEXT:
+	!text "                     ***** DotNet6502 + SadConsole !! *****                     "
+	!by 0 							;End of text indicator	
+STATIC_TEXT_2:
+	!text "                        Press SPACE to cycle border color                       "
+	!by 0 							;End of text indicator
 ```
 
 _TODO: Detailed information on how to configure, and simple 6502 example code. See example app below for complete implementation._
