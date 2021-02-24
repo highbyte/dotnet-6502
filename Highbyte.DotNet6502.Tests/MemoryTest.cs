@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
     public class MemoryTest
     {
         [Fact]
-        public void Can_Initialize_Memory_With_Data_And_Read_It_Back()
+        public void Can_Initialize_Memory_In_Bank_0_With_Data_And_Read_It_Back()
         {
             // Arrange
             var mem = new Memory();
@@ -14,6 +14,22 @@ namespace Highbyte.DotNet6502.Tests.Instructions
 
             // Act
             var data = mem.ReadData(0x1000, 2);
+
+            // Assert
+            Assert.Equal(0x42, data[0]);
+            Assert.Equal(0x21, data[1]);
+        }
+
+        [Fact]
+        public void Can_Initialize_Memory_In_Bank_1_With_Data_And_Read_It_Back()
+        {
+            // Arrange
+            var mem = new Memory();
+            mem[0x2000] = 0x42;
+            mem[0x2001] = 0x21;
+
+            // Act
+            var data = mem.ReadData(0x2000, 2);
 
             // Assert
             Assert.Equal(0x42, data[0]);
