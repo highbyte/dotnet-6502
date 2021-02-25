@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         public void Changing_SegmentBank_On_Segment_0_Should_Not_Be_Allowed_And_Throws_Exception()
         {
             // Arrange
-            var mem = new Memory();
+            var mem = new Memory(enableBankSwitching: true);
 
             // Act/Assert
             Assert.Throws<ArgumentException>(() => mem.ChangeCurrentSegmentBank(0,0));
@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         public void Changing_A_Memory_SegmentNumber_That_Does_Not_Exist_Should_Not_Be_Allowed_And_Throws_Exception()
         {
             // Arrange
-            var mem = new Memory();
+            var mem = new Memory(enableBankSwitching: true);
 
             // Act/Assert
             Assert.Throws<ArgumentException>(() => mem.ChangeCurrentSegmentBank((byte)(mem.MemorySegments.Count + 1),0));
@@ -29,7 +29,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         public void Adding_MemorySegmentBank_With_SegmentBankNumber_0_Is_Not_Allowed_And_Throws_Exception()
         {
             // Arrange
-            var mem = new Memory();
+            var mem = new Memory(enableBankSwitching: true);
 
             // Act/Assert
             Assert.Throws<ArgumentException>(() => mem.AddMemorySegmentBank(segmentNumber: 0, new byte[Memory.ADDITIONAL_SEGMENT_SIZE]));
@@ -39,7 +39,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         public void Adding_MemorySegmentBank_With_Size_Not_Same_As_Segment_Size_Is_Not_Allowed_And_Throws_Exception()
         {
             // Arrange
-            var mem = new Memory();
+            var mem = new Memory(enableBankSwitching: true);
 
             // Act/Assert
             Assert.Throws<ArgumentException>(() => mem.AddMemorySegmentBank(segmentNumber: 1, new byte[1234]));
@@ -49,7 +49,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         public void Adding_MemorySegmentBank_With_SegmentNumber_That_Does_Not_Exists_Is_Not_Allowed_And_Throws_Exception()
         {
             // Arrange
-            var mem = new Memory();
+            var mem = new Memory(enableBankSwitching: true);
 
             // Act/Assert
             Assert.Throws<ArgumentException>(() => mem.AddMemorySegmentBank(segmentNumber: (byte)mem.MemorySegments.Count, new byte[Memory.ADDITIONAL_SEGMENT_SIZE]));
@@ -59,7 +59,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         public void Can_Switch_SegmentBank()
         {
             // Arrange
-            var mem = new Memory();
+            var mem = new Memory(enableBankSwitching: true);
             mem.AddMemorySegmentBank(segmentNumber: 1, new byte[Memory.ADDITIONAL_SEGMENT_SIZE]);
 
             mem[0x2000] = 0x42;
@@ -79,7 +79,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         public void Can_Switch_SegmentBank_And_Back_Again_Retain_Original_Memory()
         {
             // Arrange
-            var mem = new Memory();
+            var mem = new Memory(enableBankSwitching: true);
             mem.AddMemorySegmentBank(segmentNumber: 1, new byte[Memory.ADDITIONAL_SEGMENT_SIZE]);
 
             mem[0x2000] = 0x42;
@@ -99,7 +99,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         public void Can_Switching_SegmentBank_In_One_Segment_Does_Not_Affect_Other_Segments()
         {
             // Arrange
-            var mem = new Memory();
+            var mem = new Memory(enableBankSwitching: true);
             mem.AddMemorySegmentBank(segmentNumber: 1, new byte[Memory.ADDITIONAL_SEGMENT_SIZE]);
 
             mem[0x2000] = 0x42;

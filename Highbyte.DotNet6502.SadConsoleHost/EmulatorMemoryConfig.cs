@@ -5,11 +5,13 @@ namespace Highbyte.DotNet6502.SadConsoleHost
 {
     public class EmulatorMemoryConfig
     {
+        public EmulatorMemoryBanksConfig MemoryBanks { get; set; }
         public EmulatorScreenConfig Screen { get; set; }
         public EmulatorInputConfig Input { get; set; }
        
         public EmulatorMemoryConfig()
         {
+            MemoryBanks = new();
             Screen = new();
             Input = new();
         }
