@@ -72,7 +72,25 @@ namespace Highbyte.DotNet6502.SadConsoleHost
                 throw new Exception($"Cannot find 6502 binary file: {emulatorConfig.ProgramBinaryFile}");
             }
 
-            var mem = BinaryLoader.Load(
+            var enableBankSwitching = emulatorConfig.Memory.MemoryBanks.EnableMemoryBanks;
+            var mem = new Memory(enableBankSwitching: enableBankSwitching);
+            if(enableBankSwitching)
+            {
+                // Add additional memory banks for memory segment 1 (0x2000) and up (segment 0 cannot have multiple banks)
+                for (byte memorySegmentNumber = 1; memorySegmentNumber < mem.MemorySegments.Count; memorySegmentNumber++)
+                {
+                    // By default each segment has one bank when Memory is created above.
+                    // Thus we add the specified BanksPerSegment-1 new banks to each segment.
+                    for (int i = 0; i < emulatorConfig.Memory.MemoryBanks.BanksPerSegment-1; i++)
+                    {
+                        // Add additional memory banks for segment. Memory in those will be blank (0x00).
+                        mem.AddMemorySegmentBank(memorySegmentNumber);
+                    }
+                }
+            }
+
+            BinaryLoader.Load(
+                mem,
                 emulatorConfig.ProgramBinaryFile, 
                 out ushort loadedAtAddress, 
                 out int fileLength);
