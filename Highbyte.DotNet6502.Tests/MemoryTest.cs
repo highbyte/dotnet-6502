@@ -5,6 +5,15 @@ namespace Highbyte.DotNet6502.Tests.Instructions
     public class MemoryTest
     {
         [Fact]
+        public void Initializing_Memory_With_Defaults_Should_Create_64K_Memory()
+        {
+            // Arrange
+            var mem = new Memory();
+            // Act / Assert
+            Assert.Equal(64*1024, (int)mem.Size);
+        }
+
+        [Fact]
         public void Can_Initialize_Memory_In_Bank_0_With_Data_And_Read_It_Back()
         {
             // Arrange
