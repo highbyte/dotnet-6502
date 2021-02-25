@@ -15,8 +15,26 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             // Act / Assert
             int requiredSegments = 1;   // Segment 0
             int additionalSegments = (int)((Memory.MAX_MEMORY_SIZE - Memory.SEGMENT_0_SIZE) / Memory.ADDITIONAL_SEGMENT_SIZE);
-            Assert.Equal(requiredSegments + additionalSegments, mem.MemorySegments.Count);
+            int totalSegment = requiredSegments + additionalSegments;   // Should be 8 total banks if SEGMENT_0_SIZE and ADDITIONAL_SEGMENT_SIZE was 8K
+            Assert.Equal(totalSegment, mem.MemorySegments.Count);
         }
+
+        [Fact]
+        public void Initializing_Memory_With_Defaults_Should_Create_Segments_With_Appropriate_Starting_Addresses()
+        {
+            // Arrange
+            var mem = new Memory();
+            
+            // Act / Assert
+            Assert.Equal(0x0000, mem.MemorySegments[0].StartAddress);
+            Assert.Equal(Memory.SEGMENT_0_SIZE, mem.MemorySegments[1].StartAddress);
+            Assert.Equal(Memory.SEGMENT_0_SIZE + 1 * Memory.ADDITIONAL_SEGMENT_SIZE, mem.MemorySegments[2].StartAddress);
+            Assert.Equal(Memory.SEGMENT_0_SIZE + 2 * Memory.ADDITIONAL_SEGMENT_SIZE, mem.MemorySegments[3].StartAddress);
+            Assert.Equal(Memory.SEGMENT_0_SIZE + 3 * Memory.ADDITIONAL_SEGMENT_SIZE, mem.MemorySegments[4].StartAddress);
+            Assert.Equal(Memory.SEGMENT_0_SIZE + 4 * Memory.ADDITIONAL_SEGMENT_SIZE, mem.MemorySegments[5].StartAddress);
+            Assert.Equal(Memory.SEGMENT_0_SIZE + 5 * Memory.ADDITIONAL_SEGMENT_SIZE, mem.MemorySegments[6].StartAddress);
+            Assert.Equal(Memory.SEGMENT_0_SIZE + 6 * Memory.ADDITIONAL_SEGMENT_SIZE, mem.MemorySegments[7].StartAddress);
+        }        
 
 
         [Fact]

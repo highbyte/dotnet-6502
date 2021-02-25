@@ -20,18 +20,23 @@ namespace Highbyte.DotNet6502
         public byte[] Data { get => TotalMemoryFromAllSegments();}
 
         public uint Size => TotalMemoryLengthFromAllSegments();
+
+
+        private byte[] _optimizedMemory;
         
         public byte this[ushort index] 
         {
             get
             {
-                var bank = GetSegmentAndOffsetFromMemoryAddress(index, out ushort bankOffset);
-                return _memorySegments[bank][bankOffset];
+                return _optimizedMemory[index];
+                // var bank = GetSegmentAndOffsetFromMemoryAddress(index, out ushort bankOffset);
+                // return _memorySegments[bank][bankOffset];
             }
             set
             {
-                var bank = GetSegmentAndOffsetFromMemoryAddress(index, out ushort bankOffset);
-                _memorySegments[bank][bankOffset] = value;
+                // var bank = GetSegmentAndOffsetFromMemoryAddress(index, out ushort bankOffset);
+                // _memorySegments[bank][bankOffset] = value;
+                 _optimizedMemory[index] = value;
             }
         }
 
@@ -53,7 +58,7 @@ namespace Highbyte.DotNet6502
 
             // Add required segment 0 with a minimum size, not changable.
             ushort segmentStartAddess = 0x0000;
-            _memorySegments = new List<MemorySegment>
+            var memorySegments = new List<MemorySegment>
             {
                 new MemorySegment(segmentStartAddess, SEGMENT_0_SIZE)
             };
@@ -62,15 +67,17 @@ namespace Highbyte.DotNet6502
             var noAdditionalBanks = (memorySize - SEGMENT_0_SIZE) / ADDITIONAL_SEGMENT_SIZE;
             for (byte i = 0; i < noAdditionalBanks; i++)
             {
-                segmentStartAddess += (ushort) _memorySegments[i].Size; // Adds previous segments size (i=0 already added above)
-                _memorySegments.Add(new MemorySegment(segmentStartAddess, ADDITIONAL_SEGMENT_SIZE));
+                segmentStartAddess += (ushort) memorySegments[i].Size; // Adds previous segments size (i=0 already added above)
+                memorySegments.Add(new MemorySegment(segmentStartAddess, ADDITIONAL_SEGMENT_SIZE));
             }
-
+            _memorySegments = memorySegments;
+            BuildOptimizedMemory();
         }
 
         public Memory(List<MemorySegment> memorySegments)
         {
             _memorySegments = memorySegments;
+            BuildOptimizedMemory();
         }
 
         private byte[] TotalMemoryFromAllSegments()
@@ -97,25 +104,30 @@ namespace Highbyte.DotNet6502
                 bankOffset = address;
                 return 0;
             }
-            var additionalBankNo = Math.DivRem((int)(address - SEGMENT_0_SIZE), (int)ADDITIONAL_SEGMENT_SIZE, out int remainder);
+            var additionalBankNumber = Math.DivRem((int)(address - SEGMENT_0_SIZE), (int)ADDITIONAL_SEGMENT_SIZE, out int remainder);
             bankOffset = (ushort)remainder;
-            return (byte) (additionalBankNo + 1) ;
+            return (byte) (additionalBankNumber + 1) ;
         }
 
-        public void ChangeCurrentSegmentBank(byte segmentNumber, byte segmentBankId)
-        {
+        public void ChangeCurrentSegmentBank(byte segmentNumber, byte segmentBankNumber)
+        {         
             if(segmentNumber == 0)
                 throw new ArgumentException($"Segment 0 can not be changed.", nameof(segmentNumber));
             if(segmentNumber >= _memorySegments.Count)
                 throw new ArgumentException($"Maximum segmentNumber is {_memorySegments.Count-1}", nameof(segmentNumber));
-            _memorySegments[segmentNumber].ChangeCurrentSegmentBank(segmentBankId);
+
+            byte previousSegmentBankNumber = _memorySegments[segmentNumber].CurrentBankNumber;
+
+            _memorySegments[segmentNumber].ChangeCurrentSegmentBank(segmentBankNumber);
+
+            UpdateOptimizedMemory(segmentNumber, previousSegmentBankNumber);
         }
 
         /// <summary>
-        /// Sets a new empty bank (all memory locations with value 0) for specified segmentNumber and segmentBankId.
+        /// Sets a new empty bank (all memory locations with value 0) for specified segmentNumber and segmentBankNumber.
         /// </summary>
         /// <param name="segmentNumber"></param>
-        /// <param name="segmentBankId"></param>
+        /// <param name="segmentBankNumber"></param>
         public void AddMemorySegmentBank(byte segmentNumber)
         {
             AddMemorySegmentBank(segmentNumber,  new byte[ADDITIONAL_SEGMENT_SIZE]);
@@ -141,14 +153,14 @@ namespace Highbyte.DotNet6502
         }
 
         /// <summary>
-        /// Updates the specified segmentNumber and segmentBankId with a memory array.
+        /// Updates the specified segmentNumber and segmentBankNumber with a memory array.
         /// SegmentNumber 0 not allowed to use (it's the required first X bytes of memory)
-        /// SegmentBankId 0 not allowed to use (it's the original memory)
+        /// SegmentBankNumber 0 not allowed to use (it's the original memory)
         /// </summary>
         /// <param name="segmentNumber">The segment number that should be configured.</param>
-        /// <param name="segmentBankId">The segment bank id within the segment (unique per segment).</param>
-        /// <param name="segmentBankContent">The memory byte array for the segmentNumber and segmentBankId.</param>
-        public void UpdateMemorySegmentBank(byte segmentNumber, byte segmentBankId, byte[] segmentBankContent)
+        /// <param name="segmentBankNumber">The segment bank id within the segment (unique per segment).</param>
+        /// <param name="segmentBankContent">The memory byte array for the segmentNumber and segmentBankNumber.</param>
+        public void UpdateMemorySegmentBank(byte segmentNumber, byte segmentBankNumber, byte[] segmentBankContent)
         {
             if(segmentNumber == 0)
                 throw new ArgumentException($"Segment 0 can not be changed.", nameof(segmentNumber));
@@ -158,8 +170,28 @@ namespace Highbyte.DotNet6502
             if(segmentBankContent.Length != ADDITIONAL_SEGMENT_SIZE)
                 throw new ArgumentException($"The memory size for a segment bank must be {ADDITIONAL_SEGMENT_SIZE}.", nameof(segmentBankContent));
 
-            _memorySegments[segmentNumber].UpdateSegmentBank(segmentBankId, segmentBankContent);
-        }        
+            byte previousSegmentBankNumber = _memorySegments[segmentNumber].CurrentBankNumber;
+
+            _memorySegments[segmentNumber].UpdateSegmentBank(segmentBankNumber, segmentBankContent);
+
+            UpdateOptimizedMemory(segmentNumber, previousSegmentBankNumber);
+        }
+
+        private void BuildOptimizedMemory()
+        {
+            _optimizedMemory = TotalMemoryFromAllSegments();
+        }
+
+        private void UpdateOptimizedMemory(byte segmentNumber, byte previousSegmentBankNumber)
+        {
+            ushort segmentStartAddress = MemorySegments[segmentNumber].StartAddress;
+
+            // Copy current optimized memory to the previous SegmentBankNumber
+            Buffer.BlockCopy(_optimizedMemory, segmentStartAddress, MemorySegments[segmentNumber].Banks[previousSegmentBankNumber].Memory, 0, (int) MemorySegments[segmentNumber].Size);
+
+            // Copy the new (current) SegmentBankNumber to optimized memory
+            Buffer.BlockCopy(MemorySegments[segmentNumber].Memory, 0, _optimizedMemory, segmentStartAddress, (int) MemorySegments[segmentNumber].Size);
+        }
 
         public void StoreData(ushort address, byte[] data)
         {
