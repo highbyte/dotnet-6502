@@ -6,8 +6,6 @@
         private readonly byte[] _memory;
         public byte[] Memory => _memory;
 
-        public uint Size => (uint)_memory.Length;
-
         public MemorySegmentBank(uint segmentSize)
         {
             _memory = new byte[segmentSize];
@@ -18,10 +16,10 @@
             _memory = memory;
         }
 
-        public MemorySegmentBank Clone()
-        {
-            var memorySegmentBankClone = new MemorySegmentBank(_memory);
-            return memorySegmentBankClone;
-        }
+        // public MemorySegmentBank Clone()
+        // {
+        //     var memorySegmentBankClone = new MemorySegmentBank(_memory);
+        //     return memorySegmentBankClone;
+        // }
     }
 }

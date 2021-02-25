@@ -18,18 +18,6 @@ namespace Highbyte.DotNet6502
         private byte _currentBankNumber;
         public byte CurrentBankNumber => _currentBankNumber;
 
-        public byte this[ushort index] 
-        {
-            get
-            {
-                return _banks[_currentBankNumber].Memory[index];
-            }
-            set
-            {
-               _banks[_currentBankNumber].Memory[index] = value;
-            }
-        }
-
         public byte[] Memory => _banks[_currentBankNumber].Memory;
 
         public MemorySegment(ushort startAddress, uint segmentSize)
@@ -42,24 +30,19 @@ namespace Highbyte.DotNet6502
             _banks = new List<MemorySegmentBank>{new MemorySegmentBank(segmentSize)};
         }
 
-        public MemorySegment(ushort startAddress, List<MemorySegmentBank> banks, byte currentBankNumber)
-        {
-            _startAddress = startAddress;
-            _banks = banks;
-            _currentBankNumber = currentBankNumber;
-        }
+        // public MemorySegment(ushort startAddress, List<MemorySegmentBank> banks, byte currentBankNumber)
+        // {
+        //     _startAddress = startAddress;
+        //     _banks = banks;
+        //     _currentBankNumber = currentBankNumber;
+        // }
 
         public void ChangeCurrentSegmentBank(byte segmentBankNumber)
         {
             if(segmentBankNumber >= _banks.Count )
                 throw new ArgumentException($"Maximum segmentBankNumber is {_banks.Count-1}", nameof(segmentBankNumber));
             _currentBankNumber = segmentBankNumber;
-        }
-
-        public void AddSegmentBank()
-        {
-            Banks.Add(new MemorySegmentBank(Size));
-        }        
+        }   
 
         public void AddSegmentBank(byte[] memory)
         {
@@ -68,20 +51,20 @@ namespace Highbyte.DotNet6502
             Banks.Add(new MemorySegmentBank(memory));
         }        
 
-        public void UpdateSegmentBank(byte segmentBankNumber, byte[] memory)
-        {
-            if(segmentBankNumber >= _banks.Count)
-                throw new ArgumentException($"Maximum segmentBankNumber is {_banks.Count-1}", nameof(segmentBankNumber));
+        // public void UpdateSegmentBank(byte segmentBankNumber, byte[] memory)
+        // {
+        //     if(segmentBankNumber >= _banks.Count)
+        //         throw new ArgumentException($"Maximum segmentBankNumber is {_banks.Count-1}", nameof(segmentBankNumber));
 
-            if(memory.Length != Size)
-                throw new ArgumentException($"Segment bank must be the same size as the segment is configured for: {Size} bytes", nameof(memory));
-            Banks[segmentBankNumber] = new MemorySegmentBank(memory);
-        }        
+        //     if(memory.Length != Size)
+        //         throw new ArgumentException($"Segment bank must be the same size as the segment is configured for: {Size} bytes", nameof(memory));
+        //     Banks[segmentBankNumber] = new MemorySegmentBank(memory);
+        // }        
 
-        public MemorySegment Clone()
-        {
-            var memorySegmentClone = new MemorySegment(_startAddress, _banks, _currentBankNumber);
-            return memorySegmentClone;
-        }
+        // public MemorySegment Clone()
+        // {
+        //     var memorySegmentClone = new MemorySegment(_startAddress, _banks, _currentBankNumber);
+        //     return memorySegmentClone;
+        // }
     }
 }
