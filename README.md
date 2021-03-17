@@ -116,7 +116,7 @@ Example #2. 6502 machine code for adding to numbers and dividing by 2
       .WithStartAddress(codeAddress)
       .WithMemory(mem)
       .WithInstructionExecutedEventHandler( 
-          (s, e) => Console.WriteLine(OutputGen.FormatLastInstruction(e.CPU, e.Mem)))
+          (s, e) => Console.WriteLine(OutputGen.GetLastInstructionDisassembly(e.CPU, e.Mem)))
       .WithExecOptions(options =>
       {
           options.ExecuteUntilInstruction = OpCodeId.BRK; // Emulator will stop executing when a BRK instruction is reached.
