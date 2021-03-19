@@ -1,0 +1,12 @@
+@page "/"
+@inherits DotNet6502EmulatorComponent
+@inject IJSRuntime JsRuntime;
+
+<div id="emulator_root" class="c64">
+    <div id="emaultor_frame" class="c64frame">
+        @for (int i = 0; i < DisplayRows.Count; i++)
+        {
+            <span class="char_span">@DisplayRows[i]</span>
+        }
+    </div>
+</div>

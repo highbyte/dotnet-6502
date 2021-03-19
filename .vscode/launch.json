@@ -42,7 +42,15 @@
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "integratedTerminal",
             "stopAtEntry": false
-        },        
+        },
+        {
+            "name": "Blazor WASM Launch and Debug (BlazorWasmTest)",
+            "type": "blazorwasm",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/Examples/BlazorWasmTest",
+            "url": "http://localhost:5000",
+            "browser": "chrome"
+        },
         {
             "name": ".NET Core Attach",
             "type": "coreclr",

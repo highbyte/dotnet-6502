@@ -1,0 +1,43 @@
+/* C64 font: https://style64.org/c64-truetype */
+
+@font-face{font-family:"C64 Pro Mono Local";src:url(../fonts/C64_Pro_Mono-STYLE.woff2) format("woff2")}
+
+html,
+body {
+    height: 100%;
+    font-size: 16px;
+  }
+
+.c64 {
+    background-color: #A0A0FF;
+    padding: 4.5vw;
+    font-family: "C64 Pro Mono Local";
+    /* font-family: monospace; */  
+    letter-spacing: .2vw;
+  }
+
+.c64frame {
+  background-color: #4040E0;
+  height: 95%;
+  padding: 1.5vw 0;
+  color: #A0A0FF;
+}
+
+/* New line tricks: https://css-tricks.com/injecting-line-break/ */
+.char_span {
+  text-transform: uppercase;
+  font-size: 1.8vw;
+  /* display: block; */
+  white-space: pre;
+  padding: 0.4vw;
+}
+.char_span::after { content: '\A'; white-space: pre; }
+
+.char_span_newline {
+  text-transform: uppercase;
+  font-size: 1.8vw;
+  /* display: block; */
+  white-space: pre;
+  padding: 0.4vw;
+}
+.char_span_newline::after { content: '\A'; white-space: pre; }

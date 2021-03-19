@@ -48,8 +48,23 @@
                 "kind": "build",
                 "isDefault": true
             }
+        },
+        {
+            "label": "build blazor wasm test",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Examples/BlazorWasmTest/BlazorWasmTest.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }            
         },        
-
         {
             "label": "watch",
             "command": "dotnet",
