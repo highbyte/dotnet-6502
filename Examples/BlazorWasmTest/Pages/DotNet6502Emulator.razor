@@ -1,12 +1,41 @@
 @page "/"
 @inherits DotNet6502EmulatorComponent
 @inject IJSRuntime JsRuntime;
+@using System.Text;
 
-<div id="emulator_root" class="c64">
-    <div id="emaultor_frame" class="c64frame">
-        @for (int i = 0; i < DisplayRows.Count; i++)
+@if(EmulatorIsInitialized())
+{
+<div id="emulator_root" class="c64 @GetBorderBgColorClass()" @ref="myReference" @onkeydown="@OnKeyDown" @onkeyup="@OnKeyUp" tabindex="0">
+    <div id="emultor_frame" class="c64frame @GetBackgroundBgColorClass()">
+        @for (int row = 0; row < MAX_ROWS; row++)
         {
-            <span class="char_span">@DisplayRows[i]</span>
+            @for (int col = 0; col < MAX_COLS; col++)
+            {
+                StringBuilder builder = new StringBuilder();
+                if(col == (MAX_COLS-1))
+                    builder.Append("char_span_last_on_line ");
+                else
+                    builder.Append("char_span ");
+
+                builder.Append(GetFgColorCssClass(col,row));
+                @* builder.Append(' ');
+                builder.Append(GetBgColorCssClass(col,row)); *@
+                string cssClasses = @builder.ToString();
+                <span class="@cssClasses">@GetCharacter(col,row)</span>
+            }
         }
     </div>
 </div>
+
+@if(ShowDebugMessages)
+{
+    <div id="debug">
+        @foreach (var msg in GetDebugMessages())
+        {
+            <p>@msg</p>
+        }
+    </div>
+}
+
+
+}

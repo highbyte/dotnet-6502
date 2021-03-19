@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Highbyte.DotNet6502;
 using Microsoft.JSInterop;
 using System;
@@ -9,38 +10,42 @@ using System.Net.Http;
 using System.Text;
 using BlazorWasmTest.Helpers;
 
+
+
 namespace BlazorWasmTest
 {
     public class DotNet6502EmulatorComponent : ComponentBase
     {
-
-        [Parameter]
-        public List<string> DisplayRows  { get; set; }
-
         [Inject]
         protected IJSRuntime _jSRuntime {get; set;}
 
         [Inject]
         protected HttpClient _httpClient {get; set;}
 
-        static Dictionary<byte, string> C64ColorMap = new()
+        protected ElementReference myReference;  // set the @ref for attribute        
+
+        /// <summary>
+        /// Map of C64 color value (byte) to css classes for color and background-color styles
+        /// </summary>
+        /// <returns></returns>
+        static Dictionary<byte, Tuple<string,string>> C64ColorMap = new()
         {
-            { 0x00, "rgb(0, 0, 0)"},          // Black
-            { 0x01, "rgb(255, 255, 255)"},    // White
-            { 0x02, "rgb(136, 0, 0)"},        // Red
-            { 0x03, "rgb(170, 255, 238)"},    // Cyan
-            { 0x04, "rgb(204, 68, 204)"},     // Violet/purple
-            { 0x05, "rgb(0, 204, 85)"},       // Green
-            { 0x06, "rgb(0, 0, 170)"},        // Blue
-            { 0x07, "rgb(238, 238, 119)"},    // Yellow
-            { 0x08, "rgb(221, 136, 185)"},    // Orange
-            { 0x09, "rgb(102, 68, 0)"},       // Brown
-            { 0x0a, "rgb(255, 119, 119)"},    // Light red
-            { 0x0b, "rgb(51, 51, 51)"},       // Dark grey
-            { 0x0c, "rgb(119, 119, 119)"},    // Grey
-            { 0x0d, "rgb(170, 255, 102)"},    // Light green
-            { 0x0e, "rgb(0, 136, 255)"},      // Light blue
-            { 0x0f, "rgb(187, 187, 187)"},    // Light grey
+            { 0x00, new Tuple<string,string>("c64_black_fg",         "c64_black_bg")},        // Black
+            { 0x01, new Tuple<string,string>("c64_white_fg",         "c64_white_bg")},        // White
+            { 0x02, new Tuple<string,string>("c64_red_fg",           "c64_red_bg")},          // Red
+            { 0x03, new Tuple<string,string>("c64_cyan_fg",          "c64_cyan_bg")},         // Cyan
+            { 0x04, new Tuple<string,string>("c64_purple_fg",        "c64_purple_bg")},       // Violet/purple
+            { 0x05, new Tuple<string,string>("c64_green_fg",         "c64_green_bg")},        // Green
+            { 0x06, new Tuple<string,string>("c64_blue_fg",          "c64_blue_bg")},         // Blue
+            { 0x07, new Tuple<string,string>("c64_yellow_fg",        "c64_yellow_bg")},       // Yellow
+            { 0x08, new Tuple<string,string>("c64_orange_fg",        "c64_orange_bg")},       // Orange
+            { 0x09, new Tuple<string,string>("c64_brown_fg",         "c64_brown_bg")},        // Brown
+            { 0x0a, new Tuple<string,string>("c64_lightred_fg",      "c64_lightred_bg")},     // Light red
+            { 0x0b, new Tuple<string,string>("c64_darkgrey_fg",      "c64_darkgrey_bg")},     // Dark grey
+            { 0x0c, new Tuple<string,string>("c64_grey_fg",          "c64_grey_bg")},         // Grey
+            { 0x0d, new Tuple<string,string>("c64_lightgreen_fg",    "c64_lightgreen_bg")},   // Light green
+            { 0x0e, new Tuple<string,string>("c64_lightblue_fg",     "c64_lightblue_bg")},    // Light blue
+            { 0x0f, new Tuple<string,string>("c64_lightgrey_fg",     "c64_lightgrey_bg")},    // Light grey
         };
 
         private ulong _frameCounter = 0;
@@ -48,30 +53,42 @@ namespace BlazorWasmTest
 
         const string PRG_URL = "6502binaries/hostinteraction_scroll_text_and_cycle_colors.prg";
 
-        const int MAX_COLS = 40;
-        const int MAX_ROWS = 25;
+        protected const int MAX_COLS = 40;
+        protected const int MAX_ROWS = 25;
 
-        private Computer _computer;
+        const ushort SCREEN_MEMORY_ADDRESS = 0x0400;
+        const ushort COLOR_MEMORY_ADDRESS  = 0xd800;
+        const ushort BORDER_COLOR_ADDRESS = 0xd020; 
+        const ushort BACKGROUND_COLOR_ADDRESS = 0xd021;
 
-        private string _debugMessage;
+        // Currently pressed key on host (ASCII byte). If no key is pressed, value is 0x00
+        const ushort KEY_PRESSED_ADDRESS = 0xd030;
+        // Currently down key on host (ASCII byte). If no key is down, value is 0x00
+        const ushort KEY_DOWN_ADDRESS = 0xd031;
+        // Currently released key on host (ASCII byte). If no key is down, value is 0x00
+        const ushort KEY_RELEASED_ADDRESS = 0xd031;
 
-        public DotNet6502EmulatorComponent()
-        {
+        private Computer _computer = null;
 
-            DisplayRows = new List<string>();
-            string emptyRow = new(' ', MAX_COLS);
-            for (int i = 0; i < MAX_ROWS; i++)
-            {
-                DisplayRows.Add(emptyRow);
-            }
-        }
+        protected bool ShowDebugMessages = false;
+        private List<string> _debugMessages;
+
         protected override async Task OnInitializedAsync()
         {
             //await _jSRuntime.InvokeAsync<object>("initGame", DotNetObjectReference.Create(this));
-            _computer = await InitDotNet6502Computer(PRG_URL);
+            var prgBytes = await _httpClient.GetByteArrayAsync(PRG_URL);
+            _computer = InitDotNet6502Computer(prgBytes);
+            InitEmulatorScreenMemory(_computer);
+
+            // Hack until input from browser: simulate spacebar pressed down
+            //_computer.Mem[KEY_DOWN_ADDRESS] = 0x20; // space
+
+            _debugMessages = new List<string>();
+            _debugMessages.Add("Starting...");
+            ShowDebugMessages = false;
 
             await base.OnInitializedAsync();
-        }
+        } 
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
@@ -79,6 +96,8 @@ namespace BlazorWasmTest
                 return;
 
             await _jSRuntime.InvokeAsync<object>("initGame", DotNetObjectReference.Create(this));
+
+            //await jsRuntime.InvokeVoidAsync("setFocusToElement", myReference);  
 
         }
 
@@ -91,24 +110,39 @@ namespace BlazorWasmTest
                 return;                
             }
 
-            DisplayRows[1] = $"{_frameCounter}";
             await base.InvokeAsync(() =>
             {
                 return;
             });
 
+            HandleEmulatorInput();
+
             ExecuteEmulator();
-            var stats = $"{_computer.CPU.ExecState.InstructionsExecutionCount} ins, {_computer.CPU.ExecState.CyclesConsumed} cyc";
-            _debugMessage = $"{stats} CPU: {OutputGen.GetProcessorState(_computer.CPU)}";
 
-            //DisplayTestFrame();
-
-            DisplayScreenMemory();
-
-            //DisplayDebugMessage();
+            // var stats = $"{_computer.CPU.ExecState.InstructionsExecutionCount} ins, {_computer.CPU.ExecState.CyclesConsumed} cyc";
+            // _debugMessages[0] = $"{stats} CPU: {OutputGen.GetProcessorState(_computer.CPU)}";
 
             this.StateHasChanged();
+        }
 
+        protected void OnKeyDown(KeyboardEventArgs e) 
+        {
+            int keyCode=0;
+            if(e.Key.Length==1)
+                keyCode = (int)e.Key[0];
+
+            //_debugMessages.Add($"OnKeyDown. Code: {e.Code} Key: {e.Key} KeyCode: {keyCode}");
+            InputSystem.Instance.SetKeyState(keyCode ,ButtonState.States.Down);
+        }
+
+        protected void OnKeyUp(KeyboardEventArgs e)  
+        {
+            int keyCode=0;
+            if(e.Key.Length==1)
+                keyCode = (int)e.Key[0];
+                
+            //_debugMessages.Add($"OnKeyUp. Code: {e.Code} Key: {e.Key} KeyCode: {keyCode}");
+            InputSystem.Instance.SetKeyState(keyCode,ButtonState.States.Up);        
         }
 
         public void ExecuteEmulator()
@@ -128,96 +162,65 @@ namespace BlazorWasmTest
             
             // Clear the flag that the emulator set to indicate it's done.
             _computer.Mem.ClearBit(0xd000, (int)ScreenStatusBitFlags.EmulatorDoneForFrame);
-        }        
-
-        private void DisplayScreenMemory()
-        {
-            // TODO: Have common bg color like C64 or allow separate bg color per character in another memory range?
-            byte bgColor = this._computer.Mem[0xd021];
-
-            // Build screen data characters based on emulator memory contents (byte)
-            ushort currentScreenAddress = 0x0400;
-            ushort currentColorAddress = 0xd800;
-            for (int row = 0; row < MAX_ROWS; row++)
-            {
-                byte[] byteArray = new byte[MAX_COLS];
-                for (int col = 0; col < MAX_COLS; col++)
-                {
-                    var chrByte = _computer.Mem[currentScreenAddress++];
-                    // TODO: Remove hack to make value 0x00 mean space (0x20) if we haven't initialized screen memory.
-                    if(chrByte==0x00)
-                        chrByte=0x20;
-                    // if(chrByte==0x20)
-                    //     chrByte=0x2e;   // Temporary show period where every space is
-                    byteArray[col] = chrByte;
-                }
-                DisplayRows[row] = Encoding.UTF8.GetString(byteArray);    
-
-                // for (int col = 0; col < MAX_COLS; col++)
-                // {
-                //     byte charByte = _computer.Mem[currentScreenAddress++];
-                //     byte colorByte = _computer.Mem[currentColorAddress++];
-                //     DrawEmulatorCharacterOnScreen(
-                //         col, 
-                //         row,
-                //         charByte, 
-                //         colorByte, 
-                //         bgColor);
-                // }
-
-            }          
         }
 
-        private void DrawEmulatorCharacterOnScreen(int col, int row, byte charByte, byte colorByte, byte bgColor)
+        private void HandleEmulatorInput()
         {
+            var keysDown = InputSystem.Instance.GetKeysDown();
+            if(keysDown.Length>0)
+                _computer.Mem[KEY_DOWN_ADDRESS] = (byte)keysDown[0];
+            else
+                _computer.Mem[KEY_DOWN_ADDRESS] = 0x00;
         }
 
-        private void DisplayTestFrame()
+        protected bool EmulatorIsInitialized()
         {
-            for (int col = 0; col < MAX_COLS; col++)
-            {
-                for (int row = 0; row < MAX_ROWS; row++)
-                {
-                    if(col==0 || row == 0 || col == (MAX_COLS-1) || row == (MAX_ROWS-1))
-                    {
-                        byte chrAsc;
-                        if(row==0)
-                            chrAsc =(byte)(col%10);
-                        else if (col == 0)
-                            chrAsc =(byte)(row%10);
-                        else
-                            chrAsc = (byte)'*';
-                    DrawEmulatorCharacterOnScreen(
-                        col, 
-                        row,
-                        chrAsc, 
-                        0x0f, 
-                        0x06);
-                    }               
-                }
-            }            
+            return _computer!=null;
         }
 
-        private void DisplayDebugMessage()
+        protected string GetBorderBgColorClass()
         {
-            int col=0;
-            int row=MAX_ROWS -1;
-            foreach (char chr in _debugMessage)
-            {
-                if(col>=MAX_COLS)
-                    break;
-                DrawEmulatorCharacterOnScreen(
-                    col++, 
-                    row,
-                    (byte)chr, 
-                    0x0f, 
-                    0x00);              
-            }
+            // Common border color
+            byte borderColor = this._computer.Mem[BORDER_COLOR_ADDRESS];            
+            return C64ColorMap[borderColor].Item2;
         }
 
-        private async Task<Computer> InitDotNet6502Computer(string prgDownloadUrl)
+        protected string GetBackgroundBgColorClass()
         {
-            var prgBytes = await _httpClient.GetByteArrayAsync(prgDownloadUrl);
+            // Common background color
+            byte bgColor = this._computer.Mem[BACKGROUND_COLOR_ADDRESS];            
+            return C64ColorMap[bgColor].Item2;
+        }
+
+
+        protected char GetCharacter(int col, int row)
+        {
+            var charByte = _computer.Mem[(ushort) (SCREEN_MEMORY_ADDRESS + (row * MAX_COLS) + col)];
+            if(charByte==0x00)
+                charByte=0x020; // space
+            return  (char)charByte;
+        }
+
+        protected string GetFgColorCssClass(int col, int row)
+        {
+            byte fgColor = _computer.Mem[(ushort) (COLOR_MEMORY_ADDRESS + (row * MAX_COLS) + col)];
+            return C64ColorMap[fgColor].Item1;
+        }
+
+        protected string GetBgColorCssClass(int col, int row)
+        {
+            // Common bg color for all characters on screen
+            return GetBackgroundBgColorClass();
+        }
+
+        protected IEnumerable<string> GetDebugMessages()
+        {
+            return _debugMessages;
+        }
+        
+
+        private Computer InitDotNet6502Computer(byte[] prgBytes)
+        {
             // First two bytes of binary file is assumed to be start address, little endian notation.
             var fileHeaderLoadAddress = ByteHelpers.ToLittleEndianWord(prgBytes[0], prgBytes[1]);
             // The rest of the bytes are considered the code & data
@@ -243,5 +246,25 @@ namespace BlazorWasmTest
             var computer = computerBuilder.Build();
             return computer;
         }
+
+        private void InitEmulatorScreenMemory(Computer computer)
+        {
+            var mem = computer.Mem;
+            // Common bg and border color for entire screen, controlled by specific address
+            mem[BORDER_COLOR_ADDRESS]     = 0x0e;   // light blue
+            mem[BACKGROUND_COLOR_ADDRESS] = 0x06;   // blue
+
+            ushort currentScreenAddress = SCREEN_MEMORY_ADDRESS;
+            ushort currentColorAddress  = COLOR_MEMORY_ADDRESS;
+            for (int row = 0; row < MAX_ROWS; row++)
+            {
+                for (int col = 0; col < MAX_COLS; col++)
+                {
+                    mem[currentScreenAddress++] = 0x20;     // 32 (0x20) = space
+                    mem[currentColorAddress++] = 0x0e;      // light blue
+                }
+            }            
+        }
+
     }
 }
