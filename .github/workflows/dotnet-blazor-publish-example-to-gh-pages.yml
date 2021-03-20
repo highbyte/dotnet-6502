@@ -36,12 +36,12 @@ jobs:
       # Publish the Blazor WASM site to a build working folder
       - name: Publish
         # Note: Could not get -p:GHPagesInjectBrotliLoader=true to work. Gets error "Uncaught ReferenceError: Blazor is not defined" from "brotliloader.min.js"
-        run: dotnet publish ${{ env.PROJECT_FILE }} -c:${{ env.CONFIGURATION }} -p:GHPages=true -p:GHPagesBase="/${{ github.repository.name }}/${{ env.PROJECT_GH_PAGES_DIR }}/" -p:GHPagesInjectBrotliLoader=false -o:${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}
+        run: dotnet publish ${{ env.PROJECT_FILE }} -c:${{ env.CONFIGURATION }} -p:GHPages=true -p:GHPagesBase="/${{ github.repository }}/${{ env.PROJECT_GH_PAGES_DIR }}/" -p:GHPagesInjectBrotliLoader=false -o:${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}
 
       # Copy the published Blazor WASM site from wwwroot folder in publish output dir
       - name: Copy published wwwroot contents to a subdirectory in GH pages working dir root
         run: |
-          cp ${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/wwwroot/ ${{ env.GH_PAGES_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/
+          cp -r ${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/wwwroot/ ${{ env.GH_PAGES_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/
 
       # Deploy the Blazor WASM site
       - name: Deploy to Github Pages
