@@ -12,7 +12,7 @@ What it (currently) does/is
 - Passes this [Functional 6502 test program](https://github.com/Klaus2m5/6502_65C02_functional_tests)
 - Monitor (rudimentary)
 - A companion library ```Highbyte.DotNet6502.SadConsoleHost``` to enable emulator interaction with a [SadConsole](https://sadconsole.com/) window
-- Example programs
+- Example programs, incl. [SadConsole](#highbytedotnet6502sadconsolehost-demo) and [Blazor WebAssembly](#blazor-webassembly-demo) apps
 - **_A programming exercise, that may or may not turn into something more_**
 
 What's (currently) missing
@@ -407,7 +407,11 @@ _TODO: Detailed information on how to configure, and simple 6502 example code. S
 
 ## Example applications
 ### Highbyte.DotNet6502.SadConsoleHost demo
-Example of a [SadConsole](https://sadconsole.com/) application running compiled 6502 [assembly code](Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.asm) in the emulator, using ```Highbyte.DotNet6502.SadConsoleHost``` library to let the emulator interact with text-based screen provided by [SadConsole](https://sadconsole.com/). The scrolling is choppy due to text-mode only, but the color-cycling works ok. Tested on Windows and Ubuntu.
+Example of a [SadConsole](https://sadconsole.com/) application running compiled 6502 [assembly code](Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.asm) in the emulator, using ```Highbyte.DotNet6502.SadConsoleHost``` library to let the emulator interact with text-based screen provided by [SadConsole](https://sadconsole.com/). 
+
+_Notes:_
+- The scrolling is choppy due to text-mode only, but the color-cycling works ok. 
+- Tested on Windows and Ubuntu.
 
 ``` 
 cd ./Examples/SadConsoleTest
@@ -415,6 +419,23 @@ dotnet run
 ```
 
 <img src="Examples/SadConsoleTest/Screenshot.png" width="50%" height="50%" title="SadConsole with 6502 emulator">
+
+## Blazor WebAssembly demo
+Example of a [Blazor WebAssembly](https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor) app application running compiled 6502 [assembly code](Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.asm) in the emulator using ```Highbyte.DotNet6502``` library. 
+
+_Notes:_
+- Example uses a grid of ```<span>``` elements to represent each screen character. This could probably be done in a more performant way.
+- The scrolling is choppy due to text-mode only, but the color-cycling works ok. 
+- Tested on Chrome v89 and Edge v89.
+
+A deployed version can be found here [(https://highbyte.se/dotnet-6502/blazorexample](https://highbyte.se/dotnet-6502/blazorexample).
+
+Or run on your local dev machine
+``` 
+cd ./Examples/BlazorWasmTest
+dotnet run
+```
+and open browser at http://localhost:5000.
 
 ### Standard OS text console example
 Some example 6502 assembly programs running in the emulator from a standard OS console application.
@@ -532,7 +553,6 @@ _Inspects values A (d000), B (d001), and result (d002)_
 > m d000 d002
 d000  12 30 21
 ```
-
 
 # How to develop
 - Use Windows, Linux, or Mac.
