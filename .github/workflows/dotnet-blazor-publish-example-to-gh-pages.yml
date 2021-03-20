@@ -1,11 +1,19 @@
-name: Deploy DotNet Blazor WASM example to GitHub Pages
+name: .NET Blazor WASM example to GitHub Pages
 
 on:
 #  push:
 #    branches:
 #      - master
-  workflow_dispatch:      
+  workflow_dispatch:
 
+env:
+   CONFIGURATION: "Release"
+   PROJECT_FILE: "Examples/BlazorWasmTest/BlazorWasmTest.csproj"
+   PROJECT_GH_PAGES_DIR: "blazorexample"
+   BUILD_OUTPUT_WORKING_DIR: "build"
+   GH_PAGES_WORKING_DIR: "ghpages"
+   GH_PAGES_BRANCH_NAME: "gh-pages" 
+   
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -19,16 +27,28 @@ jobs:
         with:
           dotnet-version: 5.0.x
 
-      # Publish the Blazor WASM site
+      # Create GitHub Pages root folder contents
+      - name: Create GH root folder and add .nojekyll file do disable built-in Jekyll CMS
+        run: |
+          mkdir ${{ env.GH_PAGES_WORKING_DIR }}
+          echo '' > ${{ env.GH_PAGES_WORKING_DIR }}/.nojekyll
+                          
+      # Publish the Blazor WASM site to a build working folder
       - name: Publish
-        run: dotnet publish Examples/BlazorWasmTest/BlazorWasmTest.csproj -c:Release -p:GHPages=true -o:out 
+        # Note: Could not get -p:GHPagesInjectBrotliLoader=true to work. Gets error "Uncaught ReferenceError: Blazor is not defined" from "brotliloader.min.js"
+        run: dotnet publish ${{ env.PROJECT_FILE }} -c:${{ env.CONFIGURATION }} -p:GHPages=true -p:GHPagesBase="/${{ github.event.repository.name }}/${{ env.PROJECT_GH_PAGES_DIR }}/" -p:GHPagesInjectBrotliLoader=false -o:${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}
+
+      # Copy the published Blazor WASM site from wwwroot folder in publish output dir
+      - name: Copy published wwwroot contents to a subdirectory in GH pages working dir root
+        run: |
+          cp -r ${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/wwwroot/ ${{ env.GH_PAGES_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/
 
       # Deploy the Blazor WASM site
       - name: Deploy to Github Pages
         uses: JamesIves/github-pages-deploy-action@4.1.0
         with:
           # token: ${{ secrets.ACCESS_TOKEN }} # Use if custom token needed to another repo
-          branch: gh-pages # The branch the action should deploy to.
-          folder: out/wwwroot # The folder the action should deploy.
-          target-folder: blazorexample
-          singe-commit: true
+          branch: ${{ env.GH_PAGES_BRANCH_NAME }}  # The branch the action should deploy to.
+          folder: ${{ env.GH_PAGES_WORKING_DIR }} # The folder the action should deploy.
+          #target-folder: blazorexample #If not specified, the contents for folder above is copied to the root of the GH pages branch.
+          single-commit: true
