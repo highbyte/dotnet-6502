@@ -21,7 +21,8 @@ jobs:
 
       # Publish the Blazor WASM site
       - name: Publish
-        run: dotnet publish Examples/BlazorWasmTest/BlazorWasmTest.csproj -c:Release -p:GHPages=true -o:out 
+        # Note: Could not get -p:GHPagesInjectBrotliLoader=true to work. Gets error "Uncaught ReferenceError: Blazor is not defined" from "brotliloader.min.js"
+        run: dotnet publish Examples/BlazorWasmTest/BlazorWasmTest.csproj -c:Release -p:GHPages=true -p:GHPagesInjectBrotliLoader=false -o:out
 
       # Deploy the Blazor WASM site
       - name: Deploy to Github Pages
