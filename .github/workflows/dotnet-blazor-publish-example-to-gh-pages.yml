@@ -1,4 +1,4 @@
-name: Deploy DotNet Blazor WASM example to GitHub Pages
+name: .NET Blazor WASM example to GitHub Pages
 
 on:
 #  push:
