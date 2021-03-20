@@ -429,6 +429,7 @@ _Notes:_
 - Tested on Chrome v89 and Edge v89.
 
 A deployed version can be found here [(https://highbyte.se/dotnet-6502/blazorexample](https://highbyte.se/dotnet-6502/blazorexample).
+
 <img src="Examples/BlazorWasmTest/screenshot.png" width="50%" height="50%" title="Blazor WebAssembly with 6502 emulator">
 
 Or run on your local dev machine
