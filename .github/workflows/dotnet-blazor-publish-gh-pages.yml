@@ -1,0 +1,34 @@
+name: Deploy DotNet Blazor WASM example to GitHub Pages
+
+on:
+#  push:
+#    branches:
+#      - master
+  workflow_dispatch:      
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the code
+      - uses: actions/checkout@v2
+
+      # Install .NET Core SDK
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 5.0.x
+
+      # Publish the Blazor WASM site
+      - name: Publish
+        run: dotnet publish Examples/BlazorWasmTest/BlazorWasmTest.csproj -c:Release -p:GHPages=true -o:out 
+
+      # Deploy the Blazor WASM site
+      - name: Deploy to Github Pages
+        uses: JamesIves/github-pages-deploy-action@4.1.0
+        with:
+          # token: ${{ secrets.ACCESS_TOKEN }} # Use if custom token needed to another repo
+          branch: gh-pages # The branch the action should deploy to.
+          folder: out/wwwroot # The folder the action should deploy.
+          target-folder: blazorexample
+          singe-commit: true
