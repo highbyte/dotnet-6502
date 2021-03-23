@@ -150,7 +150,7 @@ Result: (12 + 30) / 2 = 21
 To enable more than 64KB total memory, a type of "bank switching" is implemented.
 
 - The memory has 8 segments of 8K (0x2000/8192 bytes) each. _(segment size may be a thing that can be configured in the future)_
-  - Segment 0: ```0x0000 - 0x1fff```_
+  - Segment 0: ```0x0000 - 0x1fff```
   - Segment 1: ```0x2000 - 0x3fff```
   - Segment 2: ```0x4000 - 0x5fff```
   - Segment 3: ```0x6000 - 0x7fff```
