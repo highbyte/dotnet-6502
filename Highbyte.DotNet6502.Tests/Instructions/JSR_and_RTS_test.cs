@@ -88,6 +88,43 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             Assert.Equal(expectedAValue, cpu.A);
             Assert.Equal(startPos, cpu.PC);
             Assert.Equal(cpuCopy.SP, cpu.SP);
-        }        
+        }
+
+        [Fact]
+        public void JSR_Pushes_Return_Address_To_Stack_Correctly()
+        {
+            // Arrange
+            ushort startPos = 0xc000;
+            CPU cpu = new();
+            cpu.PC = startPos;
+            var cpuCopy  = cpu.Clone();
+
+            ushort branchPos = 0x0500;
+
+            // Code at start address
+            _mem.WriteByte(ref startPos, OpCodeId.JSR);
+            _mem.WriteWord(ref startPos, branchPos);
+
+            // Act
+            var execOptions = new ExecOptions
+            {
+                MaxNumberOfInstructions = 1
+            };            
+            cpu.Execute(_mem, execOptions);
+
+            // Assert
+            Assert.Equal((byte)(cpuCopy.SP-2), cpu.SP); // We didn't return from the jsr with an rts, so the SP should have used two bytes for the return address
+
+            ushort expectedReturnAddressPushedToStack = (ushort)(startPos - 1);
+
+            byte expectedReturnAddressLowByte = expectedReturnAddressPushedToStack.Lowbyte();
+            byte expectedReturnAddressHighByte = expectedReturnAddressPushedToStack.Highbyte();
+
+            ushort expectedReturnAddressSPLowByteLocation = (ushort) (CPU.StackBaseAddress + (byte)(cpuCopy.SP - 1));
+            ushort expectedReturnAddressSPHighByteLocation = (ushort) (CPU.StackBaseAddress + (byte)(cpuCopy.SP));
+
+            Assert.Equal(expectedReturnAddressLowByte, _mem[expectedReturnAddressSPLowByteLocation]);
+            Assert.Equal(expectedReturnAddressHighByte, _mem[expectedReturnAddressSPHighByteLocation]);
+        }
     }
 }

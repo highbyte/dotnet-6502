@@ -332,17 +332,10 @@ namespace Highbyte.DotNet6502
         /// <returns></returns>
         public ushort PopWordFromStack(Memory mem)
         {
-            // Calculate absolute address for Stack Pointer.
-            // Memory locations 0x0100-0x01ff. SP is relative to 0x0100 and decreases for every value put on the stack.
-            // As SP currently points to the next free position, well go back one byte where the previous data was stored.
-            // We will read two bytes from that position (SP+1), and later below update the SP to SP+2 (as that is now the next free position)
-            ushort address = (ushort) (StackBaseAddress + (byte)(SP + 1));    
-            ushort data = FetchWord(mem, address);
-
-            // Update Stack Pointer
-            SP +=2;
-
-            return data;
+            var addrFromStack = new byte[2];
+            addrFromStack[0] = PopByteFromStack(mem);   // lowbyte is read first
+            addrFromStack[1] = PopByteFromStack(mem);   // highbyte is read second
+            return ByteHelpers.ToLittleEndianWord(addrFromStack);
         }
 
         /// <summary>
@@ -364,24 +357,16 @@ namespace Highbyte.DotNet6502
         }
 
         /// <summary>
-        /// Push one word (adjusted for little endian) to Stack at current SP (Stack Pointer) - 1.
-        /// Current SP points to the next free location to push data to (therefore we need to store it at -1 to have room for a word).
+        /// Push one word (adjusted for little endian).
         /// Decreases SP by 2.
+        /// The highbyte of address is pushed first, then the lowbyte  (so when it's read back again it will be read as normal with lowbyte first).
         /// </summary>
         /// <param name="word"></param>
         /// <param name="mem"></param>
         public void PushWordToStack(ushort word, Memory mem)
         {
-            // Calculate absolute address for Stack Pointer.
-            // Memory locations 0x0100-0x01ff.  SP is relative to 0x0100 and decreases for every value put on the stack.
-            // As we will write a word we must modify the address by -1. Also below, we then update the SP by -2 (to point to the first free location again)
-            ushort address = (ushort) (StackBaseAddress + (byte)(SP - 1));
-            StoreWord(word, mem, address);
-
-            // Update SP (Stack Pointer). 
-            // The SP points to the position we can push a new value to.
-            // As need to write a word, we'll need to move the stack pointer back two bytes (as we currently wrote our word to positions SP-1 (lowbyte) and SP (highbyte))
-            SP -= 2; 
+            PushByteToStack(word.Highbyte(), mem);
+            PushByteToStack(word.Lowbyte(), mem);
         }
 
         /// <summary>
