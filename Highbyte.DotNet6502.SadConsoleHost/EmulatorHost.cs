@@ -38,7 +38,8 @@ namespace Highbyte.DotNet6502.SadConsoleHost
             // Create SadConsole executor that executes instructions in the emulator until a certain memory address has been flagged that emulator code is done for current frame
             var sadConsoleEmulatorExecutor = new SadConsoleEmulatorExecutor(
                 computer, 
-                _options.EmulatorConfig.Memory.Screen);            
+                _options.EmulatorConfig.Memory.Screen,
+                _options.EmulatorConfig.StopAtBRK);
 
             // Create the main game loop class that invokes emulator and render to host screen
             var sadConsoleEmulatorLoop = new SadConsoleEmulatorLoop(

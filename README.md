@@ -632,7 +632,7 @@ chmod +x ./codecov-console.sh
 - http://www.csharp4u.com/2017/01/getting-pretty-hex-dump-of-binary-file.html?m=1
 
 ## Assemblers
-Was used during develoment to compile actual 6502 source code to a binary, and then run it through the emulator.
+Was used during development to compile actual 6502 source code to a binary, and then run it through the emulator.
 
 - https://marketplace.visualstudio.com/items?itemName=rosc.vs64
 - https://nurpax.github.io/c64jasm-browser/

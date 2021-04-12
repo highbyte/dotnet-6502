@@ -20,7 +20,11 @@ namespace SadConsoleTest
             // Get config options
             var builder = new ConfigurationBuilder()
              .SetBasePath(Directory.GetCurrentDirectory())
-             .AddJsonFile("appsettings.json");  // appsettings2.json for hello world example program
+             // appsettings_scroll.json
+             // appsettings_hello.json
+             // appsettings_snake.json
+             .AddJsonFile("appsettings_scroll.json");  
+             
             Configuration = builder.Build();
 
             var emulatorHostOptions = new Options();

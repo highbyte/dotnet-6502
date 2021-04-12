@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework;
 
 namespace Highbyte.DotNet6502.SadConsoleHost
@@ -41,7 +42,12 @@ namespace Highbyte.DotNet6502.SadConsoleHost
                 // --------------------------------------------------------------
                 // Run code in Emulator until it's done for this frame
                 // --------------------------------------------------------------
-                _executor.ExecuteEmulator();
+                bool shouldContinue = _executor.ExecuteEmulator();
+                if(!shouldContinue)
+                {
+                    // Exit program
+                    Environment.Exit(0);
+                }
 
                 // --------------------------------------------------------------
                 // Render the data the emulator wrote to its screen memory
