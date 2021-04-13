@@ -438,8 +438,8 @@ _Notes:_
 - [Assembly code](Examples/SadConsoleTest/AssemblerSource/snake6502.asm)
 - Game code based on original found [here](http://skilldrick.github.io/easy6502/#snake)
 - A deployed version can be found here [https://highbyte.se/dotnet-6502/blazorexample/?screenMem=512&cols=32&rows=32&prgUrl=6502binaries/snake6502.prg](https://highbyte.se/dotnet-6502/blazorexample/?screenMem=512&cols=32&rows=32&prgUrl=6502binaries/snake6502.prg)
-- Or launch with the 6502 program encoded inside a QR code!
-<img src="Examples/BlazorWasmTest/wwwroot/6502binaries/snake6502_qr_hosted.png" width="25%" height="25%" title="Blazor WebAssembly with 6502 emulator">
+- Or why not have 6502 game binary encoded inside a QR code :) Aim the camera on your smartphone and follow the link.
+<img src="Examples/BlazorWasmTest/wwwroot/6502binaries/snake6502_qr_hosted.png" width="25%" height="25%" title="Blazor WebAssembly with 6502 emulator via QR code">
 
 ### Run on local dev machine
 ``` 
