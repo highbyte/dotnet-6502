@@ -99,13 +99,14 @@ namespace Highbyte.DotNet6502.SadConsoleHost
         public byte DefaultBorderColor  { get; set; }
 
         public Dictionary<byte,Microsoft.Xna.Framework.Color> ColorMap { get; set; }
-        public bool UseAscIICharacters { get; internal set; }
+        public bool UseAscIICharacters { get; set; }
 
         /// <summary>
         /// If UseAscIICharacters is false, set a custom character map in CharacterMap
         /// </summary>
         /// <value></value>
-        public Dictionary<byte,byte> CharacterMap { get; set; }
+        //public Dictionary<byte,byte> CharacterMap { get; set; }
+        public Dictionary<string,byte> CharacterMap { get; set; }
 
         public EmulatorScreenConfig()
         {
@@ -140,12 +141,14 @@ namespace Highbyte.DotNet6502.SadConsoleHost
         public ushort KeyPressedAddress { get; set; }
         public ushort KeyDownAddress { get; set; }
         public ushort KeyReleasedAddress { get; set; }
+        public ushort RandomValueAddress { get; set; }
 
         public EmulatorInputConfig()
         {
             KeyPressedAddress       = 0xe000;
             KeyDownAddress          = 0xe001;
             KeyReleasedAddress      = 0xe002;
+            RandomValueAddress      = 0xd41b;
         }
     }
 

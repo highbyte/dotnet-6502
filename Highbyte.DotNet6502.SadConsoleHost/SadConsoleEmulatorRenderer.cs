@@ -133,21 +133,50 @@ namespace Highbyte.DotNet6502.SadConsoleHost
                 sadConsoleCharacter = emulatorCharacter;
             else
             {
-                if(!_emulatorScreenConfig.CharacterMap.ContainsKey(emulatorCharacter))
-                    throw new Exception($"Character value {emulatorCharacter} is not mapped.");
-
-                sadConsoleCharacter = _emulatorScreenConfig.CharacterMap[emulatorCharacter];
+                var dictKey = emulatorCharacter.ToString();
+                if(_emulatorScreenConfig.CharacterMap.ContainsKey(dictKey))
+                    sadConsoleCharacter = _emulatorScreenConfig.CharacterMap[dictKey];
+                else
+                    sadConsoleCharacter = emulatorCharacter;
             }
-                
+
             _getSadConsoleScreen().DrawCharacter(
                 x, 
                 y,
-                emulatorCharacter,  // Assume character set used by 6502 program is ASCII
+                sadConsoleCharacter,
                 _emulatorScreenConfig.ColorMap[emulatorFgColor], 
                 _emulatorScreenConfig.ColorMap[emulatorBgColor]
                 );
+        }
 
-            
+        private byte TranslateByteFromPETSCIItoASCII(byte sourceByte)
+        {
+            switch (sourceByte & 0xff)
+            {
+                case 0x0a:
+                case 0x0d:
+                    return (byte)' '; //NewLine/CarrigeReturn, is this relevant for rendering to screen?
+                case 0x40:
+                case 0x60:
+                    return sourceByte;
+                case 0xa0:  //160, C64 inverted space
+                    return 219; // Inverted square in SadConsole C64 font
+                case 0xe0:  //224, Also C64 inverted space?
+                    return 219; // Inverted square in SadConsole C64 font
+                default:
+                    switch (sourceByte & 0xe0)
+                    {
+                        case 0x40:
+                        case 0x60:
+                            return (byte)(sourceByte ^ (byte)0x20);
+
+                        case 0xc0:
+                            return (byte)(sourceByte ^ (byte)0x80);
+                        default:
+                            break;
+                    }
+                    return sourceByte;
+            }
         }
     }
 }

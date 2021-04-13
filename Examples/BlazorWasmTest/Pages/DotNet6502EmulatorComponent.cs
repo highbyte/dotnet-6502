@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.WebUtilities;
 using Highbyte.DotNet6502;
 using Microsoft.JSInterop;
 using System;
@@ -10,8 +11,6 @@ using System.Net.Http;
 using System.Text;
 using BlazorWasmTest.Helpers;
 
-
-
 namespace BlazorWasmTest
 {
     public class DotNet6502EmulatorComponent : ComponentBase
@@ -21,6 +20,10 @@ namespace BlazorWasmTest
 
         [Inject]
         protected HttpClient _httpClient {get; set;}
+
+        [Inject]
+        protected NavigationManager _navManager {get; set;}
+
 
         protected ElementReference myReference;  // set the @ref for attribute        
 
@@ -51,15 +54,34 @@ namespace BlazorWasmTest
         private ulong _frameCounter = 0;
         const int UPDATE_EVERY_X_FRAME = 0;
 
-        const string PRG_URL = "6502binaries/hostinteraction_scroll_text_and_cycle_colors.prg";
+        const string DEFAULT_PRG_URL = "6502binaries/hostinteraction_scroll_text_and_cycle_colors.prg";
+        //const string DEFAULT_PRG_URL = "6502binaries/hello_world.prg";
 
-        protected const int MAX_COLS = 40;
-        protected const int MAX_ROWS = 25;
+        protected const string DEFAULT_ROOT_CSS_CLASS = "c64";
+        protected const string DEFAULT_BORDER_CSS_CLASS = "c64frame";
 
-        const ushort SCREEN_MEMORY_ADDRESS = 0x0400;
-        const ushort COLOR_MEMORY_ADDRESS  = 0xd800;
-        const ushort BORDER_COLOR_ADDRESS = 0xd020; 
-        const ushort BACKGROUND_COLOR_ADDRESS = 0xd021;
+        protected const int DEFAULT_MAX_COLS = 40;
+        protected const int DEFAULT_MAX_ROWS = 25;
+
+        const ushort DEFAULT_SCREEN_MEMORY_ADDRESS = 0x0400;
+        const ushort DEFAULT_COLOR_MEMORY_ADDRESS  = 0xd800;
+        const ushort DEFAULT_BORDER_COLOR_ADDRESS = 0xd020; 
+        const ushort DEFAULT_BACKGROUND_COLOR_ADDRESS = 0xd021;
+
+        
+        protected string ROOT_CSS_CLASS = DEFAULT_ROOT_CSS_CLASS;
+        protected string BORDER_CSS_CLASS = DEFAULT_BORDER_CSS_CLASS;
+        protected int MAX_COLS = DEFAULT_MAX_COLS;
+        protected int MAX_ROWS = DEFAULT_MAX_ROWS;
+
+        protected ushort SCREEN_MEMORY_ADDRESS = DEFAULT_SCREEN_MEMORY_ADDRESS;
+        protected ushort COLOR_MEMORY_ADDRESS  = DEFAULT_COLOR_MEMORY_ADDRESS;
+        protected ushort BORDER_COLOR_ADDRESS = DEFAULT_BORDER_COLOR_ADDRESS; 
+        protected ushort BACKGROUND_COLOR_ADDRESS = DEFAULT_BACKGROUND_COLOR_ADDRESS;
+
+
+        // Memory address in emulator that the 6502 program and the host will use to communicate if current frame is done or not.
+        const ushort SCREEN_REFRESH_STATUS_ADDRESS = 0xd000;
 
         // Currently pressed key on host (ASCII byte). If no key is pressed, value is 0x00
         const ushort KEY_PRESSED_ADDRESS = 0xd030;
@@ -68,6 +90,10 @@ namespace BlazorWasmTest
         // Currently released key on host (ASCII byte). If no key is down, value is 0x00
         const ushort KEY_RELEASED_ADDRESS = 0xd031;
 
+        // Memory address to store a randomly generated value between 0-255
+        const ushort RANDOM_VALUE_ADDRESS = 0xd41b;
+        private Random _rnd = new Random();
+
         private Computer _computer = null;
 
         protected bool ShowDebugMessages = false;
@@ -75,8 +101,84 @@ namespace BlazorWasmTest
 
         protected override async Task OnInitializedAsync()
         {
+            byte[] prgBytes;
+            var uri = _navManager.ToAbsoluteUri(_navManager.Uri);
+            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("prgEnc", out var prgEnc))
+            {
+                // Query parameter prgEnc must be a valid Base64Url encoded string.
+                // Examples on how to generate it from a compiled 6502 binary file:
+                //      Linux: 
+                //          base64 -w0 myprogram.prg | sed 's/+/-/g; s/\//_/g'
+
+                //      https://www.base64encode.org/   
+                //          - Encode files to Base64 format
+                //          - Select file
+                //          - Select options: BINARY, Perform URL-safe encoding (uses Base64Url format)
+                //          - ENCODE
+                //          - CLICK OR TAP HERE to download the encoded file
+                //          - Use the contents in the generated file.
+                //
+                // Examples to generate a QR Code that will launch the program in the Base64URL string above:
+                //      Linux:
+                //          qrencode -s 3 -l L -o "myprogram.png" "http://localhost:5000/?prgEnc=THE_PROGRAM_ENCODED_AS_BASE64URL"
+                prgBytes = Base64UrlDecode(prgEnc.ToString());
+            }
+            else if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("prgUrl", out var prgUrl))
+            {
+                prgBytes = await _httpClient.GetByteArrayAsync(prgUrl.ToString());
+            }
+            else
+            {
+                prgBytes = await _httpClient.GetByteArrayAsync(DEFAULT_PRG_URL);
+            }
+
+            // TODO: Customize screen dimensions. Also needs to have predefined CSS styles for different widths? Customize screen memory addresses? Or always assume C64 addresses and layout? 
+            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("cols", out var cols))
+            {
+                if(int.TryParse(cols, out int colsParsed))
+                {
+                    // Only specific column sizes supported currently because each needs a specific css class (TODO: could be dynamic?).
+                    // Default is cols 40.
+                    if(colsParsed==40 || colsParsed==32)
+                        MAX_COLS = colsParsed;
+                    else
+                        throw new Exception($"Unsupported # columns: {colsParsed}");
+                }
+                else
+                    MAX_COLS = DEFAULT_MAX_COLS;
+
+                // Set root and border css classes based on cols (default is already set for 40)
+                if(MAX_COLS==32)
+                {
+                    ROOT_CSS_CLASS = "c64-32";
+                    BORDER_CSS_CLASS = "c64frame-32";
+                }
+            }
+            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("rows", out var rows))
+            {
+                if(int.TryParse(rows, out int rowsParsed))
+                    MAX_ROWS = rowsParsed;
+                else
+                    MAX_ROWS = DEFAULT_MAX_ROWS;
+            }
+            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("screenMem", out var screenMem))
+            {
+                SCREEN_MEMORY_ADDRESS = 0x0200;
+                // if(ushort.TryParse(screenMem, out ushort screenMemParsed))
+                //     SCREEN_MEMORY_ADDRESS = screenMemParsed;
+                // else
+                //     SCREEN_MEMORY_ADDRESS = screenMemParsed;
+            }
+            if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("colorMem", out var colorMem))
+            {
+                COLOR_MEMORY_ADDRESS = 0xd800;
+                // if(ushort.TryParse(colorMem, out ushort colorMemParsed))
+                //     COLOR_MEMORY_ADDRESS = colorMemParsed;
+                // else
+                //     COLOR_MEMORY_ADDRESS = colorMemParsed;
+            }            
+
             //await _jSRuntime.InvokeAsync<object>("initGame", DotNetObjectReference.Create(this));
-            var prgBytes = await _httpClient.GetByteArrayAsync(PRG_URL);
             _computer = InitDotNet6502Computer(prgBytes);
             InitEmulatorScreenMemory(_computer);
 
@@ -149,7 +251,7 @@ namespace BlazorWasmTest
         {
             // Set emulator Refresh bit
             // Emulator will wait until this bit is set until "redrawing" new data into memory
-            _computer.Mem.SetBit(0xd000 , (int)ScreenStatusBitFlags.HostNewFrame);
+            _computer.Mem.SetBit(SCREEN_REFRESH_STATUS_ADDRESS , (int)ScreenStatusBitFlags.HostNewFrame);
 
             bool shouldExecuteEmulator = true;
             while(shouldExecuteEmulator)
@@ -157,11 +259,11 @@ namespace BlazorWasmTest
                 // Execute a number of instructions
                 // TODO: _computer there a more optimal number of instructions to execute before we check if emulator code has flagged it's done via memory flag?
                 _computer.Run(new ExecOptions{MaxNumberOfInstructions = 10}); // TODO: What is the optimal number of cycles to execute in each loop?
-                shouldExecuteEmulator = !_computer.Mem.IsBitSet(0xd000, (int)ScreenStatusBitFlags.EmulatorDoneForFrame);
+                shouldExecuteEmulator = !_computer.Mem.IsBitSet(SCREEN_REFRESH_STATUS_ADDRESS, (int)ScreenStatusBitFlags.EmulatorDoneForFrame);
             }
             
             // Clear the flag that the emulator set to indicate it's done.
-            _computer.Mem.ClearBit(0xd000, (int)ScreenStatusBitFlags.EmulatorDoneForFrame);
+            _computer.Mem.ClearBit(SCREEN_REFRESH_STATUS_ADDRESS, (int)ScreenStatusBitFlags.EmulatorDoneForFrame);
         }
 
         private void HandleEmulatorInput()
@@ -171,12 +273,28 @@ namespace BlazorWasmTest
                 _computer.Mem[KEY_DOWN_ADDRESS] = (byte)keysDown[0];
             else
                 _computer.Mem[KEY_DOWN_ADDRESS] = 0x00;
+
+             _computer.Mem[RANDOM_VALUE_ADDRESS] = (byte)_rnd.Next(0, 255);
         }
 
         protected bool EmulatorIsInitialized()
         {
             return _computer!=null;
         }
+
+
+        protected string GetLayoutRootClass()
+        {
+            // CSS class for root div element
+            return this.ROOT_CSS_CLASS;
+        }
+
+        protected string GetFrameClass()
+        {
+            // CSS class for border div element
+            return this.BORDER_CSS_CLASS;
+        }
+
 
         protected string GetBorderBgColorClass()
         {
@@ -193,12 +311,26 @@ namespace BlazorWasmTest
         }
 
 
-        protected char GetCharacter(int col, int row)
+        protected MarkupString GetCharacter(int col, int row)
         {
             var charByte = _computer.Mem[(ushort) (SCREEN_MEMORY_ADDRESS + (row * MAX_COLS) + col)];
-            if(charByte==0x00)
-                charByte=0x020; // space
-            return  (char)charByte;
+            string representAsString;
+            switch(charByte)
+            {
+                case 0x00:  // Uninitialized
+                case 0x0a:  // NewLine/CarrigeReturn
+                case 0x0d:  // NewLine/CarrigeReturn
+                    representAsString = " "; // Replace with space
+                    break;
+                case 0xa0:  //160, C64 inverted space
+                case 0xe0:  //224, Also C64 inverted space?
+                    representAsString = @"&#x02588;"; // Unicode for Inverted square in https://style64.org/c64-truetype font
+                    break;
+                default:
+                    representAsString = Convert.ToString((char)charByte);
+                    break;
+            }
+            return new MarkupString(representAsString);
         }
 
         protected string GetFgColorCssClass(int col, int row)
@@ -217,7 +349,6 @@ namespace BlazorWasmTest
         {
             return _debugMessages;
         }
-        
 
         private Computer InitDotNet6502Computer(byte[] prgBytes)
         {
@@ -265,6 +396,33 @@ namespace BlazorWasmTest
                 }
             }            
         }
+
+        /// <summary>
+        /// Decode a Base64Url encoded string.
+        /// The Base64Url standard is a bit different from normal Base64
+        /// - Replaces '+' with '-'
+        /// - Replaces '/' with '_'
+        /// - Removes trailing '=' padding
+        /// 
+        /// This method does the above in reverse before decoding it as a normal Base64 string.
+        /// </summary>
+        /// <param name="arg"></param>
+        /// <returns></returns>
+        static byte[] Base64UrlDecode(string arg)
+        {
+            string s = arg;
+            s = s.Replace('-', '+'); // 62nd char of encoding
+            s = s.Replace('_', '/'); // 63rd char of encoding
+            switch (s.Length % 4) // Pad with trailing '='s
+            {
+                case 0: break; // No pad chars in this case
+                case 2: s += "=="; break; // Two pad chars
+                case 3: s += "="; break; // One pad char
+                default: throw new System.Exception(
+                "Illegal base64url string!");
+            }
+            return Convert.FromBase64String(s); // Standard base64 decoder
+        }      
 
     }
 }

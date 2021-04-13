@@ -1,3 +1,5 @@
+using System;
+
 namespace Highbyte.DotNet6502.SadConsoleHost
 {
     public class SadConsoleEmulatorInput
@@ -16,6 +18,7 @@ namespace Highbyte.DotNet6502.SadConsoleHost
         public void CaptureInput()
         {
             CaptureKeyboard();
+            CaptureRandomNumber();
         }
 
         private void CaptureKeyboard()
@@ -36,6 +39,12 @@ namespace Highbyte.DotNet6502.SadConsoleHost
                 _emulatorMem[_emulatorInputConfig.KeyReleasedAddress] = (byte)keyboard.KeysReleased[0].Character;
             else
                 _emulatorMem[_emulatorInputConfig.KeyReleasedAddress] = 0x00;
+        }
+
+        private void CaptureRandomNumber()
+        {
+            byte rnd = (byte)new Random().Next(0, 255);
+             _emulatorMem[_emulatorInputConfig.RandomValueAddress] = rnd;
         }
     }
 }

@@ -39,17 +39,17 @@ namespace Highbyte.DotNet6502
             CPU.PC = cpuStartPos.Value;
         }
 
-        public void Run()
+        public ExecState Run()
         {
-            CPU.Execute(
+            return CPU.Execute(
                 this.Mem,
                 this.DefaultExecOptions
                 );
         }
 
-        public void Run(ExecOptions execOptions)
+        public ExecState Run(ExecOptions execOptions)
         {
-            CPU.Execute(
+            return CPU.Execute(
                 this.Mem,
                 execOptions
                 );

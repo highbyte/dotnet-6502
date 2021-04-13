@@ -1,12 +1,11 @@
 @page "/"
 @inherits DotNet6502EmulatorComponent
-@inject IJSRuntime JsRuntime;
 @using System.Text;
 
 @if(EmulatorIsInitialized())
 {
-<div id="emulator_root" class="c64 @GetBorderBgColorClass()" @ref="myReference" @onkeydown="@OnKeyDown" @onkeyup="@OnKeyUp" tabindex="0">
-    <div id="emultor_frame" class="c64frame @GetBackgroundBgColorClass()">
+<div id="emulator_root" class="@GetLayoutRootClass() @GetBorderBgColorClass()" @ref="myReference" @onkeydown="@OnKeyDown" @onkeyup="@OnKeyUp" tabindex="0">
+    <div id="emultor_frame" class="@GetFrameClass() @GetBackgroundBgColorClass()">
         @for (int row = 0; row < MAX_ROWS; row++)
         {
             @for (int col = 0; col < MAX_COLS; col++)
@@ -21,7 +20,8 @@
                 @* builder.Append(' ');
                 builder.Append(GetBgColorCssClass(col,row)); *@
                 string cssClasses = @builder.ToString();
-                <span class="@cssClasses">@GetCharacter(col,row)</span>
+                MarkupString displayChar = @GetCharacter(col,row);
+                <span class="@cssClasses">@displayChar</span>
             }
         }
     </div>
