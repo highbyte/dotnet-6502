@@ -421,18 +421,27 @@ dotnet run
 <img src="Examples/SadConsoleTest/Screenshot.png" width="50%" height="50%" title="SadConsole with 6502 emulator">
 
 ## Blazor WebAssembly demo
-Example of a [Blazor WebAssembly](https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor) app application running compiled 6502 [assembly code](Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.asm) in the emulator using ```Highbyte.DotNet6502``` library. 
+Examples of a [Blazor WebAssembly](https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor) app running 6502 code with ```Highbyte.DotNet6502``` library.
 
 _Notes:_
 - Example uses a grid of ```<span>``` elements to represent each screen character. This could probably be done in a more performant way.
 - The scrolling is choppy due to text-mode only, but the color-cycling works ok. 
 - Tested on Chrome v89 and Edge v89.
 
-A deployed version can be found here [https://highbyte.se/dotnet-6502/blazorexample](https://highbyte.se/dotnet-6502/blazorexample).
+### Scroller
+- [Assembly code](Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.asm)
+- A deployed version can be found here [https://highbyte.se/dotnet-6502/blazorexample](https://highbyte.se/dotnet-6502/blazorexample)
 
 <img src="Examples/BlazorWasmTest/screenshot.png" width="50%" height="50%" title="Blazor WebAssembly with 6502 emulator">
 
-Or run on your local dev machine
+### Snake game
+- [Assembly code](Examples/SadConsoleTest/AssemblerSource/snake6502.asm)
+- Game code based on original found [here](http://skilldrick.github.io/easy6502/#snake)
+- A deployed version can be found here [https://highbyte.se/dotnet-6502/blazorexample/?screenMem=512&cols=32&rows=32&prgUrl=6502binaries/snake6502.prg](https://highbyte.se/dotnet-6502/blazorexample/?screenMem=512&cols=32&rows=32&prgUrl=6502binaries/snake6502.prg)
+- Or launch with the 6502 program encoded inside a QR code!
+<img src="Examples/BlazorWasmTest/wwwroot/6502binaries/snake6502_qr_hosted.png" width="25%" height="25%" title="Blazor WebAssembly with 6502 emulator">
+
+### Run on local dev machine
 ``` 
 cd ./Examples/BlazorWasmTest
 dotnet run
