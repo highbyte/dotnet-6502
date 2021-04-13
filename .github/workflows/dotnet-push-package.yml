@@ -11,7 +11,7 @@ env:
    PROJECT_FILE: "Highbyte.DotNet6502/Highbyte.DotNet6502.csproj"
    PROJECT_FILE2: "Highbyte.DotNet6502.SadConsoleHost/Highbyte.DotNet6502.SadConsoleHost.csproj"
    CONFIGURATION: "Release"
-   VERSION: "0.5.0"  #Major.Minor[.Rev]
+   VERSION: "0.5.1"  #Major.Minor[.Rev]
    VERSION_SUFFIX: "-alpha"
    PACKAGE_REPO: "https://nuget.pkg.github.com/highbyte/index.json"
 
