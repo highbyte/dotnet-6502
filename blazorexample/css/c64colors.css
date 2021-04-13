@@ -1,0 +1,96 @@
+.c64_black_fg {
+  color: #000000;
+}
+.c64_black_bg {
+  background-color: #000000;
+}
+.c64_white_fg {
+  color: #FFFFFF;
+}
+.c64_white_bg {
+  background-color: #FFFFFF;
+}
+.c64_red_fg {
+  color: #880000;
+}
+.c64_red_bg {
+  background-color: #880000;
+}
+.c64_cyan_fg {
+  color: #AAFFEE;
+}
+.c64_cyan_bg {
+  background-color: #AAFFEE;
+}
+.c64_purple_fg {
+  color: #CC44CC;
+}
+.c64_purple_bg {
+  background-color: #CC44CC;
+}
+.c64_green_fg {
+  color: #00CC55;
+}
+.c64_green_bg {
+  background-color: #00CC55;
+}
+.c64_blue_fg {
+  color: #0000AA;
+}
+.c64_blue_bg {
+  background-color: #0000AA;
+}
+.c64_yellow_fg {
+  color: #EEEE77;
+}
+.c64_yellow_bg {
+  background-color: #EEEE77;
+}
+.c64_orange_fg {
+  color: #DD8855;
+}
+.c64_orange_bg {
+  background-color: #DD8855;
+}
+.c64_brown_fg {
+  color: #664400;
+}
+.c64_brown_bg {
+  background-color: #664400;
+}
+.c64_lightred_fg {
+  color: #FF7777;
+}
+.c64_lightred_bg {
+  background-color: #FF7777;
+}
+.c64_darkgrey_fg {
+  color: #333333;
+}
+.c64_darkgrey_bg {
+  background-color: #333333;
+}
+.c64_grey_fg {
+  color: #777777;
+}
+.c64_grey_bg {
+  background-color: #777777;
+}
+.c64_lightgreen_fg {
+  color: #AAFF66;
+}
+.c64_lightgreen_bg {
+  background-color: #AAFF66;
+}
+.c64_lightblue_fg {
+  color: #0088FF;
+}
+.c64_lightblue_bg {
+  background-color: #0088FF;
+}
+.c64_lightgrey_fg {
+  color: #BBBBBB;
+}
+.c64_lightgrey_bg {
+  background-color: #BBBBBB;
+}
