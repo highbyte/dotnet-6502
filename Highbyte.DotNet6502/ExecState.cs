@@ -25,7 +25,7 @@ namespace Highbyte.DotNet6502
             var execState = new ExecState();
             execState.InstructionsExecutionCount = 1;
             execState.CyclesConsumed = cyclesConsumed;
-            execState.InstructionsExecutionCount += unknownInstruction?(ulong)1:(ulong)0;
+            execState.UnknownOpCodeCount = unknownInstruction?(ulong)1:(ulong)0;
             execState.PCBeforeLastOpCodeExecuted = lastPC;
             execState.LastOpCode = lastOpCode;
             return execState;
