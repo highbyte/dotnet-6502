@@ -38,58 +38,58 @@ namespace SadConsoleTest
             emulatorHost.Start();
         }
 
-    //     private static Options ConfigViaCode()
-    //     {
-    //         // Define how emulator memory should be layed out recarding screen output and keyboard input
-    //         var emulatorMemoryConfig = new EmulatorMemoryConfig
-    //         {
-    //             Screen = new EmulatorScreenConfig
-    //             {
-    //                 // 6502 code running in emulator should have the same #rows & #cols as we setup in SadConsole
-    //                 Cols        = 80,   
-    //                 Rows        = 25,
+        //     private static Options ConfigViaCode()
+        //     {
+        //         // Define how emulator memory should be layed out recarding screen output and keyboard input
+        //         var emulatorMemoryConfig = new EmulatorMemoryConfig
+        //         {
+        //             Screen = new EmulatorScreenConfig
+        //             {
+        //                 // 6502 code running in emulator should have the same #rows & #cols as we setup in SadConsole
+        //                 Cols        = 80,   
+        //                 Rows        = 25,
 
-    //                 // If borders should be used. Currently only updateable with a color setting (see ScreenBackgroundColorAddress below)
-    //                 BorderCols  = 4,
-    //                 BorderRows  = 2,
+        //                 // If borders should be used. Currently only updateable with a color setting (see ScreenBackgroundColorAddress below)
+        //                 BorderCols  = 4,
+        //                 BorderRows  = 2,
 
-    //                 // 6502 code must use these addresses as screen memory
-    //                 ScreenStartAddress              = 0x0400,   //80*25 = 2000(0x07d0) -> range 0x0400 - 0x0bcf
-    //                 ScreenColorStartAddress         = 0xd800,   //80*25 = 2000(0x07d0) -> range 0xd800 - 0xdfcf
-    //                 ScreenRefreshStatusAddress      = 0xd000,
-    //                 ScreenBorderColorAddress        = 0xd020,
-    //                 ScreenBackgroundColorAddress    = 0xd021,
-    //                 DefaultBgColor                  = 0x00,     // 0x00 = Black
-    //                 DefaultFgColor                  = 0x0f,     // 0x0f = Light grey
-    //                 DefaultBorderColor              = 0x0b,     // 0x0b = Dark grey
-    //             },
+        //                 // 6502 code must use these addresses as screen memory
+        //                 ScreenStartAddress              = 0x0400,   //80*25 = 2000(0x07d0) -> range 0x0400 - 0x0bcf
+        //                 ScreenColorStartAddress         = 0xd800,   //80*25 = 2000(0x07d0) -> range 0xd800 - 0xdfcf
+        //                 ScreenRefreshStatusAddress      = 0xd000,
+        //                 ScreenBorderColorAddress        = 0xd020,
+        //                 ScreenBackgroundColorAddress    = 0xd021,
+        //                 DefaultBgColor                  = 0x00,     // 0x00 = Black
+        //                 DefaultFgColor                  = 0x0f,     // 0x0f = Light grey
+        //                 DefaultBorderColor              = 0x0b,     // 0x0b = Dark grey
+        //             },
 
-    //             Input = new EmulatorInputConfig
-    //             {
-    //                 KeyPressedAddress = 0xe000
-    //             }
-    //         };
+        //             Input = new EmulatorInputConfig
+        //             {
+        //                 KeyPressedAddress = 0xe000
+        //             }
+        //         };
 
-    //         var emulatorConfig = new EmulatorConfig
-    //         {
-    //             ProgramBinaryFile = "../../.cache/Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.prg",
-    //             Memory = emulatorMemoryConfig
-    //         };
+        //         var emulatorConfig = new EmulatorConfig
+        //         {
+        //             ProgramBinaryFile = "../../../../../.cache/Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.prg",
+        //             Memory = emulatorMemoryConfig
+        //         };
 
-    //         // Configure overall SadConsole settings
-    //         var sadConsoleConfig = new SadConsoleConfig
-    //         {
-    //             WindowTitle = "SadConsole screen updated from program running in Highbyte.DotNet6502 emulator",
-    //             FontScale   = 2
-    //         };
+        //         // Configure overall SadConsole settings
+        //         var sadConsoleConfig = new SadConsoleConfig
+        //         {
+        //             WindowTitle = "SadConsole screen updated from program running in Highbyte.DotNet6502 emulator",
+        //             FontScale   = 2
+        //         };
 
-    //         var emulatorHostOptions = new Options 
-    //         {
-    //             SadConsoleConfig = sadConsoleConfig,
-    //             EmulatorConfig = emulatorConfig
-    //         };
+        //         var emulatorHostOptions = new Options 
+        //         {
+        //             SadConsoleConfig = sadConsoleConfig,
+        //             EmulatorConfig = emulatorConfig
+        //         };
 
-    //         return emulatorHostOptions;
-    //     }
+        //         return emulatorHostOptions;
+        //     }
     }
 }

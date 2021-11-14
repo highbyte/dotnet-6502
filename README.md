@@ -7,7 +7,7 @@
 A [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) emulator for .NET
 
 What it (currently) does/is
-- .NET 5 cross platform library ```Highbyte.DotNet6502``` written in C#
+- .NET 6 cross platform library ```Highbyte.DotNet6502``` written in C#
 - Emulation of a 6502 processor
 - Supports all official 6502 opcodes
 - Can load an assembled 6502 program binary and execute it
@@ -45,7 +45,7 @@ Inspiration for this library was a [Youtube-series](https://www.youtube.com/watc
 - [Resources](#6502-resources)
 
 # Requirements
-- [.NET 5 SDK](https://dotnet.microsoft.com/download/dotnet/5.0) installed.
+- [.NET 6 SDK](https://dotnet.microsoft.com/download/dotnet/6.0) installed.
 - Use Windows, Linux, or Mac
 
 # How to use Highbyte.DotNet6502 library from a .NET application
@@ -58,7 +58,7 @@ dotnet add package Highbyte.DotNet6502 --prerelease
 - Clone this repo ```git clone https://github.com/highbyte/dotnet-6502.git```
 - Change dir to library ```cd dotnet-6502/Highbyte.DotNet6502```
 - Build library ```dotnet build```
-- In your app, add .dll reference to ```./bin/Debug/net5.0/Highbyte.DotNet6502.dll```
+- In your app, add .dll reference to ```./bin/Debug/net6.0/Highbyte.DotNet6502.dll```
 
 ## Example of basic usage of Highbyte.DotNet6502 library
 
@@ -219,7 +219,7 @@ cd demo
 dotnet new --install SadConsole.Templates:1.0.5
 dotnet new sadconsole8
 ```
-- Edit .csproj file and change ```<TargetFramework>netcoreapp3.1</TargetFramework>``` to ```<TargetFramework>net5.0</TargetFramework>```
+- Edit .csproj file and change ```<TargetFramework>netcoreapp3.1</TargetFramework>``` to ```<TargetFramework>net6.0</TargetFramework>```
 - Add reference to ```Highbyte.DotNet6502.SadConsoleHost``` (which will also get you the main emulator library ```Highbyte.DotNet6502```)
 ``` shell
 dotnet add package Highbyte.DotNet6502.SadConsoleHost --prerelease
@@ -471,9 +471,9 @@ A machine code monitor console application for the Highbyte.DotNet6502 emulator 
 ## Or build and run executable
 - Compile the source code with ```dotnet build```
 - Run executable
-  - Windows: ```.\bin\Debug\net5.0\Highbyte.DotNet6502.Monitor.exe```
-  - Linux: ```./bin/Debug/net5.0/Highbyte.DotNet6502.Monitor```
-  - Mac: ```./bin/Debug/net5.0/Highbyte.DotNet6502.Monitor```
+  - Windows: ```.\bin\Debug\net6.0\Highbyte.DotNet6502.Monitor.exe```
+  - Linux: ```./bin/Debug/net6.0/Highbyte.DotNet6502.Monitor```
+  - Mac: ```./bin/Debug/net6.0/Highbyte.DotNet6502.Monitor```
 
 ## Monitor commands
 Type ```?|help|-?|--help``` to list commands.
@@ -569,7 +569,7 @@ d000  12 30 21
 
 # How to develop
 - Use Windows, Linux, or Mac.
-- [.NET 5 SDK](https://dotnet.microsoft.com/download/dotnet/5.0) installed.
+- [.NET 6 SDK](https://dotnet.microsoft.com/download/dotnet/6.0) installed.
 - Develop in VSCode (Windows, Linux, Mac), Visual Studio 2019 (Windows), or other preferred editor.
 
 # Tests
