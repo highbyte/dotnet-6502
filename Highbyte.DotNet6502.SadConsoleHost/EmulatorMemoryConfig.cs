@@ -1,3 +1,4 @@
+using SadRogue.Primitives;
 using System;
 using System.Collections.Generic;
 
@@ -98,7 +99,7 @@ namespace Highbyte.DotNet6502.SadConsoleHost
         public byte DefaultBgColor  { get; set; }
         public byte DefaultBorderColor  { get; set; }
 
-        public Dictionary<byte,Microsoft.Xna.Framework.Color> ColorMap { get; set; }
+        public Dictionary<byte,Color> ColorMap { get; set; }
         public bool UseAscIICharacters { get; set; }
 
         /// <summary>
