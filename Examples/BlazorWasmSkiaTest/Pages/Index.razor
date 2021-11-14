@@ -1,0 +1,72 @@
+@page "/"
+@using BlazorWasmSkiaTest.Helpers
+@using SkiaSharp
+@using SkiaSharp.Views.Blazor
+@*@implements IDisposable*@
+
+<PageTitle>Blazor Wasm Skia Test</PageTitle>
+@*<SKCanvasView></SKCanvasView>
+*@
+<SKGLView style="position:fixed; left:0px; top:0px; width: 100vw; height: 100vh; overflow: hidden;"
+          IgnorePixelScaling="true"
+          EnableRenderLoop="true"
+          OnPaintSurface="OnPaintSurface"
+          tabindex="0"
+          oncontextmenu="return false;"
+          @onkeypress="OnKeyPress"
+          @onkeydown="OnKeyDown"
+          @onkeyup="OnKeyUp"
+          @onpointerdown="OnPointerDown"
+          @onpointermove="OnPointerMove"
+          @onpointerup="OnPointerUp"
+          @ontouchmove="OnTouchMove"
+          @onwheel="OnMouseWheel" />
+
+
+@code
+{
+
+    private void OnKeyPress(KeyboardEventArgs e)
+    {
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+            int keyCode=0;
+            if(e.Key.Length==1)
+                keyCode = (int)e.Key[0];
+
+            //_debugMessages.Add($"OnKeyDown. Code: {e.Code} Key: {e.Key} KeyCode: {keyCode}");
+            InputSystem.Instance.SetKeyState(keyCode ,ButtonState.States.Down);        
+    }
+
+    private void OnKeyUp(KeyboardEventArgs e)
+    {
+            int keyCode=0;
+            if(e.Key.Length==1)
+                keyCode = (int)e.Key[0];
+                
+            //_debugMessages.Add($"OnKeyUp. Code: {e.Code} Key: {e.Key} KeyCode: {keyCode}");
+            InputSystem.Instance.SetKeyState(keyCode,ButtonState.States.Up);          
+    }
+
+    private void OnPointerDown(PointerEventArgs e)
+    {
+    }
+
+    private void OnPointerMove(PointerEventArgs e)
+    {
+    }
+
+    private void OnPointerUp(PointerEventArgs e)
+    {
+    }
+
+    private void OnTouchMove(TouchEventArgs e)
+    {
+    }
+
+    private void OnMouseWheel(WheelEventArgs e)
+    {
+    }
+}
