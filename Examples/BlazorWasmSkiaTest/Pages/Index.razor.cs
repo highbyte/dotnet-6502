@@ -60,7 +60,7 @@ namespace BlazorWasmSkiaTest.Pages
             _emulatorRenderer!.SetSize(e.Info.Width, e.Info.Height);
             if (e.Surface.Context is GRContext context && context != null)
             {
-                // Set the context so all rendering happens in the same place
+                // If we draw our own images (not directly on the canvas provided), make sure it's within the same contxt
                 _emulatorRenderer.SetContext(context);
             }
             _emulatorRenderer.Render(e.Surface.Canvas);
