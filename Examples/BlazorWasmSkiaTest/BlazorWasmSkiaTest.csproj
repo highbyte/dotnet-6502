@@ -18,6 +18,12 @@
     <WasmNativeStrip>false</WasmNativeStrip>
     <EmccCompileOptimizationFlag>-O1</EmccCompileOptimizationFlag>
   </PropertyGroup>
+  <ItemGroup>
+    <Content Remove="wwwroot\fonts\C64_Pro_Mono-STYLE.ttf" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Fonts\C64_Pro_Mono-STYLE.ttf" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
