@@ -1,3 +1,4 @@
+using SadConsole;
 using System;
 
 namespace Highbyte.DotNet6502.SadConsoleHost
@@ -23,7 +24,7 @@ namespace Highbyte.DotNet6502.SadConsoleHost
 
         private void CaptureKeyboard()
         {
-            var keyboard = SadConsole.Global.KeyboardState;
+            var keyboard = GameHost.Instance.Keyboard;
 
             if(keyboard.KeysPressed.Count > 0)
                 _emulatorMem[_emulatorInputConfig.KeyPressedAddress] = (byte)keyboard.KeysPressed[0].Character;

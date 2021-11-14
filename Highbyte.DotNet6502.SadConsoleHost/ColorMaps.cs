@@ -1,5 +1,5 @@
+using SadRogue.Primitives;
 using System.Collections.Generic;
-using Microsoft.Xna.Framework;
 
 namespace Highbyte.DotNet6502.SadConsoleHost
 {

@@ -1,5 +1,4 @@
-using Microsoft.Xna.Framework;
-
+using SadConsole;
 namespace Highbyte.DotNet6502.SadConsoleHost
 {
     public class SadConsoleMain
@@ -23,17 +22,23 @@ namespace Highbyte.DotNet6502.SadConsoleHost
 
         public void Run()
         {
+            Settings.WindowTitle = _sadConsoleConfig.WindowTitle;
+
             // Setup the SadConsole engine and create the main window. 
             // If font is null or empty, the default SadConsole font will be used.
-            SadConsole.Game.Create(_sadConsoleConfig.Font,
+            SadConsole.Game.Create(
                 (_emulatorScreenConfig.Cols + (_emulatorScreenConfig.BorderCols*2)) * _sadConsoleConfig.FontScale, 
-                (_emulatorScreenConfig.Rows + (_emulatorScreenConfig.BorderRows*2)) * _sadConsoleConfig.FontScale);
+                (_emulatorScreenConfig.Rows + (_emulatorScreenConfig.BorderRows*2)) * _sadConsoleConfig.FontScale,
+                _sadConsoleConfig.Font
+                );
+
+            //SadConsole.Game.Instance.DefaultFontSize = IFont.Sizes.One;
 
             // Hook the start event so we can add consoles to the system.
-            SadConsole.Game.OnInitialize = InitSadConsole;
+            SadConsole.Game.Instance.OnStart = InitSadConsole;
 
             // Hook the update event that happens each frame
-            SadConsole.Game.OnUpdate = UpdateSadConsole;
+            SadConsole.Game.Instance.FrameUpdate += UpdateSadConsole;
 
             // Hook the "after render"
             //SadConsole.Game.OnDraw = Screen.DrawFrame;
@@ -47,9 +52,9 @@ namespace Highbyte.DotNet6502.SadConsoleHost
         /// Runs every frame
         /// </summary>
         /// <param name="gameTime"></param>
-        private void UpdateSadConsole(GameTime gameTime)
+        private void UpdateSadConsole(object sender, GameHost e)
         {
-            _sadConsoleEmulatorLoop.SadConsoleUpdate(gameTime);
+            _sadConsoleEmulatorLoop.SadConsoleUpdate(e);
         }
 
         /// <summary>
@@ -57,27 +62,15 @@ namespace Highbyte.DotNet6502.SadConsoleHost
         /// </summary>
         private void InitSadConsole()
         {
-            // TODO: Better way to map numeric scale value to SadConsole.Font.FontSizes enum?
-            var fontSize = _sadConsoleConfig.FontScale switch
-            {
-                1 => SadConsole.Font.FontSizes.One,
-                2 => SadConsole.Font.FontSizes.Two,
-                3 => SadConsole.Font.FontSizes.Three,
-                _ => SadConsole.Font.FontSizes.One,
-            };
-            SadConsole.Global.FontDefault = SadConsole.Global.FontDefault.Master.GetFont(fontSize);
-
             // Create a SadConsole screen
-            _sadConsoleScreen = new SadConsoleScreen(_emulatorScreenConfig);
+            _sadConsoleScreen = new SadConsoleScreen(_emulatorScreenConfig, _sadConsoleConfig);
 
-            // Set SadConsole engine current screen to our screen
-            SadConsole.Global.CurrentScreen = _sadConsoleScreen;
+            SadConsole.Game.Instance.Screen = _sadConsoleScreen;
+            SadConsole.Game.Instance.DestroyDefaultStartingConsole();
 
-            // Start with focus on screen console
-            SadConsole.Global.FocusedConsoles.Set(_sadConsoleScreen.ScreenConsole);
-
-            // Set main window title
-            SadConsole.Game.Instance.Window.Title = _sadConsoleConfig.WindowTitle;
+            // Start with focus on main console on current screen
+            _sadConsoleScreen.IsFocused = true;
+            _sadConsoleScreen.ScreenConsole.IsFocused = true;
         }
     }
 }

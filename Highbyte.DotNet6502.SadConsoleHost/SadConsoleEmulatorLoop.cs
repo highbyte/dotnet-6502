@@ -1,5 +1,5 @@
 using System;
-using Microsoft.Xna.Framework;
+using SadConsole;
 
 namespace Highbyte.DotNet6502.SadConsoleHost
 {
@@ -29,7 +29,7 @@ namespace Highbyte.DotNet6502.SadConsoleHost
         /// This method is called once every frame, and is responsible for letting the SadConsole engine interact with the emulator
         /// </summary>
         /// <param name="gameTime"></param>    
-        public void SadConsoleUpdate(GameTime gameTime)
+        public void SadConsoleUpdate(GameHost gameHost)
         {
             _frameCounter++;
             if(_frameCounter >= _updateEmulatorEveryXFrame)
