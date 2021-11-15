@@ -12,6 +12,7 @@ namespace BlazorWasmSkiaTest.Pages
     {
 
         private const string DEFAULT_PRG_URL = "6502binaries/hostinteraction_scroll_text_and_cycle_colors.prg";
+        private const int TextSize = 20;
 
         private EmulatorHelper? _emulatorHelper;
         private EmulatorRenderer? _emulatorRenderer;
@@ -38,8 +39,8 @@ namespace BlazorWasmSkiaTest.Pages
             var timer = new PeriodicAsyncTimer();
             //SKTypeface typeFace = await LoadFont("../fonts/C64_Pro_Mono-STYLE.woff2");
             SKTypeface typeFace = LoadEmbeddedFont("C64_Pro_Mono-STYLE.ttf");
-            var skColorMaps = new SKPaintMaps(16, typeFace, ColorMaps.C64ColorMap);
-            _emulatorRenderer = new EmulatorRenderer(timer, skColorMaps, _emulatorHelper);
+            var skColorMaps = new SKPaintMaps(TextSize, typeFace, ColorMaps.C64ColorMap);
+            _emulatorRenderer = new EmulatorRenderer(timer, skColorMaps, TextSize, _emulatorHelper);
         }
 
         private (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) GetScreenSize(Uri uri)

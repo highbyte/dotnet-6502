@@ -5,9 +5,11 @@ namespace BlazorWasmSkiaTest.Skia
 {
     public class EmulatorRenderer : IDisposable
     {
-        private const int GameLoopInterval = 16;            // Number of milliseconds between each invokation of the main game loop
-        private const int CellPixels = 16;                  // Width & Height of a character
-        private const int BorderPixels = CellPixels * 3;    // Number of pixels used for border on top/bottom/left/right
+        private const int GameLoopInterval = 16;    // Number of milliseconds between each invokation of the main game loop
+        private const int BorderWidthFactor = 3;    // The factor applied to _textSizePixels to get the width and height of the border
+
+        private readonly int _textSizePixels;       // Size of each charatcter. Font assumed to be monospaced.
+        private readonly int _borderPixels;         // Number of pixels used for border on top/bottom/left/right
 
         private int _screenWidth;
         private int _screenHeight;
@@ -19,11 +21,15 @@ namespace BlazorWasmSkiaTest.Skia
         public EmulatorRenderer(
             PeriodicAsyncTimer? renderLoopTimer,
             SKPaintMaps sKPaintMaps,
+            int textSize,
             EmulatorHelper emulatorHelper)
         {
             _renderLoopTimer = renderLoopTimer;
             _sKPaintMaps = sKPaintMaps;
             _emulatorHelper = emulatorHelper;
+
+            _textSizePixels = textSize;
+            _borderPixels = textSize * BorderWidthFactor;
 
             if (_renderLoopTimer != null)
             {
@@ -71,20 +77,20 @@ namespace BlazorWasmSkiaTest.Skia
             // Draw border
             var borderColor = _emulatorHelper.GetBorderColor();
             var borderPaint = _sKPaintMaps.GetSKBackgroundPaint(borderColor);
-            canvas.DrawRect(0, 0, _emulatorHelper.MaxCols * CellPixels + BorderPixels * 2, _emulatorHelper.MaxRows * CellPixels + BorderPixels * 2, borderPaint);
+            canvas.DrawRect(0, 0, _emulatorHelper.MaxCols * _textSizePixels + _borderPixels * 2, _emulatorHelper.MaxRows * _textSizePixels + _borderPixels * 2, borderPaint);
 
             // Draw background
             using (new SKAutoCanvasRestore(canvas))
             {
                 var bgColor = _emulatorHelper.GetBackgroundColor();
                 var bgPaint = _sKPaintMaps.GetSKBackgroundPaint(bgColor);
-                canvas.Translate(BorderPixels, BorderPixels);
-                canvas.DrawRect(0, 0, _emulatorHelper.MaxCols * CellPixels, _emulatorHelper.MaxRows * CellPixels, bgPaint);
+                canvas.Translate(_borderPixels, _borderPixels);
+                canvas.DrawRect(0, 0, _emulatorHelper.MaxCols * _textSizePixels, _emulatorHelper.MaxRows * _textSizePixels, bgPaint);
             }
 
             using (new SKAutoCanvasRestore(canvas))
             {
-                canvas.Translate(BorderPixels, BorderPixels);
+                canvas.Translate(_borderPixels, _borderPixels);
                 // Draw characters
                 for (var row = 0; row < _emulatorHelper.MaxRows; row++)
                 {
@@ -125,14 +131,14 @@ namespace BlazorWasmSkiaTest.Skia
         {
             //var textHeight = textPaint.TextSize;
 
-            var x = col * CellPixels;
-            var y = row * CellPixels;
+            var x = col * _textSizePixels;
+            var y = row * _textSizePixels;
             // Make clipping rectangle for the tile we're drawing, to avoid any accidental spill-over to neighboring tiles.
-            var rect = new SKRect(x, y, x + CellPixels, y + CellPixels);
+            var rect = new SKRect(x, y, x + _textSizePixels, y + _textSizePixels);
             using (new SKAutoCanvasRestore(canvas))
             {
                 canvas.ClipRect(rect, SKClipOperation.Intersect);
-                canvas.DrawText(character, x, y + (CellPixels - 2), textPaint);
+                canvas.DrawText(character, x, y + (_textSizePixels - 2), textPaint);
             }
         }
 
