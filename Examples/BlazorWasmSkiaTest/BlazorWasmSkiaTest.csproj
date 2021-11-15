@@ -4,9 +4,10 @@
     <TargetFramework>net6.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <!-- <RunAOTCompilation>true</RunAOTCompilation> -->
+    
+    <!--<RunAOTCompilation>true</RunAOTCompilation> 
 
-    <!--<PublishIISAssets>true</PublishIISAssets>-->
+    <PublishIISAssets>true</PublishIISAssets>-->
 
     <!--<BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport>
     <BlazorWebAssemblyPreserveCollationData>false</BlazorWebAssemblyPreserveCollationData>-->
@@ -32,6 +33,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="6.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="6.0.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="2.2.0" />
     <PackageReference Include="SkiaSharp.Views.Blazor" Version="2.88.0-preview.155" />
     <PackageReference Include="PublishSPAforGitHubPages.Build" Version="1.3.2" />
     <PackageReference Include="System.Net.Http.Json" Version="6.0.0" />

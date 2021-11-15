@@ -1,43 +1,39 @@
+using BlazorWasmSkiaTest.Helpers;
 using SkiaSharp;
 
 namespace BlazorWasmSkiaTest.Skia
 {
     public class EmulatorRenderer : IDisposable
     {
-        private const int GameLoopInterval = 16;    // Number of milliseconds between each invokation of the main game loop
-        private const int CellPixels = 16;          // Width & Height of a cell
+        private const int GameLoopInterval = 16;            // Number of milliseconds between each invokation of the main game loop
+        private const int CellPixels = 16;                  // Width & Height of a character
+        private const int BorderPixels = CellPixels * 3;    // Number of pixels used for border on top/bottom/left/right
 
         private int _screenWidth;
         private int _screenHeight;
 
         private readonly PeriodicAsyncTimer? _renderLoopTimer;
-        private readonly SKTypeface _typeFace;
+        private readonly SKPaintMaps _sKPaintMaps;
+        private readonly EmulatorHelper _emulatorHelper;
 
         public EmulatorRenderer(
-            PeriodicAsyncTimer? renderLoopTimer, SKTypeface typeFace)
+            PeriodicAsyncTimer? renderLoopTimer,
+            SKPaintMaps sKPaintMaps,
+            EmulatorHelper emulatorHelper)
         {
             _renderLoopTimer = renderLoopTimer;
-            _typeFace = typeFace;
+            _sKPaintMaps = sKPaintMaps;
+            _emulatorHelper = emulatorHelper;
+
             if (_renderLoopTimer != null)
             {
                 _renderLoopTimer.IntervalMilliseconds = GameLoopInterval;
                 _renderLoopTimer.Elapsed += GameLoopTimerElapsed;
                 _renderLoopTimer.Start();
             }
-
-            //_pixelMapper.ViewPortChanged += (s, e) => _imageCache.SetDirty(_gridLayerRenderers);
-            //_pixelMapper.SetMapSize(40, 25, CellPixels);
         }
 
         private void GameLoopTimerElapsed(object? sender, EventArgs e) => GameLoopStep();
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-        public void GameLoopStep()
-        {
-            DoGameLoopStep();
-        }
-        private void DoGameLoopStep()
-        {
-        }
 
         public void SetSize(int width, int height)
         {
@@ -51,77 +47,83 @@ namespace BlazorWasmSkiaTest.Skia
         {
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
+        public void GameLoopStep()
+        {
+            DoGameLoopStep();
+        }
+        private void DoGameLoopStep()
+        {
+            _emulatorHelper.GenerateRandomNumber();
+            _emulatorHelper.ExecuteEmulator();
+        }
+
         public void Render(SKCanvas canvas)
         {
-            //PixelMapper pixelMapper = _pixelMapper.Snapshot();
-
             using (new SKAutoCanvasRestore(canvas))
             {
-                //RenderFrame(canvas, pixelMapper);
                 RenderFrame(canvas);
             }
         }
 
-        //private void RenderFrame(SKCanvas canvas, PixelMapper pixelMapper)
         private void RenderFrame(SKCanvas canvas)
         {
-            int y = 0;
-            DrawCharacter(canvas, "H", 0, y);
-            DrawCharacter(canvas, "I", 1, y);
-            DrawCharacter(canvas, "G", 2, y);
-            DrawCharacter(canvas, "H", 3, y);
+            // Draw border
+            var borderColor = _emulatorHelper.GetBorderColor();
+            var borderPaint = _sKPaintMaps.GetSKBackgroundPaint(borderColor);
+            canvas.DrawRect(0, 0, _emulatorHelper.MaxCols * CellPixels + BorderPixels * 2, _emulatorHelper.MaxRows * CellPixels + BorderPixels * 2, borderPaint);
 
-            const int fullBlockUnicode = 0x2588;
-            string fullBlockString = ((char)fullBlockUnicode).ToString();
+            // Draw background
+            using (new SKAutoCanvasRestore(canvas))
+            {
+                var bgColor = _emulatorHelper.GetBackgroundColor();
+                var bgPaint = _sKPaintMaps.GetSKBackgroundPaint(bgColor);
+                canvas.Translate(BorderPixels, BorderPixels);
+                canvas.DrawRect(0, 0, _emulatorHelper.MaxCols * CellPixels, _emulatorHelper.MaxRows * CellPixels, bgPaint);
+            }
 
-            y++;
-            DrawCharacter(canvas, " ", 0, y);
-            DrawCharacter(canvas, " ", 1, y);
-            DrawCharacter(canvas, " ", 2, y);
-            DrawCharacter(canvas, " ", 3, y);
-
-            y++;
-            DrawCharacter(canvas, fullBlockString, 0, y);
-            DrawCharacter(canvas, fullBlockString, 1, y);
-            DrawCharacter(canvas, fullBlockString, 2, y);
-            DrawCharacter(canvas, fullBlockString, 3, y);
-
-            y++;
-            DrawCharacter(canvas, "B", 0, y);
-            DrawCharacter(canvas, "Y", 1, y);
-            DrawCharacter(canvas, "T", 2, y);
-            DrawCharacter(canvas, "E", 3, y);
-
-            y++;
-            DrawCharacter(canvas, "A", 0, y);
-            DrawCharacter(canvas, "B", 1, y);
-            DrawCharacter(canvas, "C", 2, y);
-            DrawCharacter(canvas, "D", 3, y);
+            using (new SKAutoCanvasRestore(canvas))
+            {
+                canvas.Translate(BorderPixels, BorderPixels);
+                // Draw characters
+                for (var row = 0; row < _emulatorHelper.MaxRows; row++)
+                {
+                    for (var col = 0; col < _emulatorHelper.MaxCols; col++)
+                    {
+                        var chr = _emulatorHelper.GetScreenCharacter(col, row);
+                        var chrColor = _emulatorHelper.GetScreenCharacterForegroundColor(col, row);
+                        var drawText = GetDrawTextFromCharacter(chr);
+                        var textPaint = _sKPaintMaps.GetSKTextPaint(chrColor);
+                        DrawCharacter(canvas, drawText, col, row, textPaint);
+                    }
+                }
+            }
         }
 
-        private void DrawCharacter(SKCanvas canvas, string character, int col, int row)
+        private string GetDrawTextFromCharacter(byte chr)
         {
-            SKPaint textPaint;
-            SKPaint backgroundPaint;
-
-            if ((col % 2 == 0 && row % 2 == 0) || (col % 2 == 1 && row % 2 == 1))
+            string representAsString;
+            switch (chr)
             {
-                textPaint = s_yellowTextPaint;
-                backgroundPaint = s_darkBlueBGPaint;
+                case 0x00:  // Uninitialized
+                case 0x0a:  // NewLine/CarrigeReturn
+                case 0x0d:  // NewLine/CarrigeReturn
+                    representAsString = " "; // Replace with space
+                    break;
+                case 0xa0:  //160, C64 inverted space
+                case 0xe0:  //224, Also C64 inverted space?
+                    representAsString = ((char)0x2588).ToString(); // Unicode for Inverted square in https://style64.org/c64-truetype font
+                    break;
+                default:
+                    representAsString = Convert.ToString((char)chr);
+                    break;
             }
-            else
-            {
-                textPaint = s_darkBlueTextPaint;
-                backgroundPaint = s_yellowBGPaint;
-            }
-
-            DrawCharacter(canvas, character, col, row, textPaint, backgroundPaint);
+            return representAsString;
         }
-        private void DrawCharacter(SKCanvas canvas, string character, int col, int row, SKPaint textPaint, SKPaint backgroundPaint)
+
+        private void DrawCharacter(SKCanvas canvas, string character, int col, int row, SKPaint textPaint)
         {
             //var textHeight = textPaint.TextSize;
-
-            textPaint.Typeface = _typeFace;
 
             var x = col * CellPixels;
             var y = row * CellPixels;
@@ -130,38 +132,9 @@ namespace BlazorWasmSkiaTest.Skia
             using (new SKAutoCanvasRestore(canvas))
             {
                 canvas.ClipRect(rect, SKClipOperation.Intersect);
-                canvas.DrawRect(rect, backgroundPaint);
                 canvas.DrawText(character, x, y + (CellPixels - 2), textPaint);
             }
         }
-
-        private static readonly SKPaint s_yellowTextPaint = new()
-        {
-            TextSize = 16,
-            //IsAntialias = true,
-            Color = SKColors.Yellow,
-            TextAlign = SKTextAlign.Left,
-        };
-
-        private static readonly SKPaint s_darkBlueTextPaint = new()
-        {
-            TextSize = 16,
-            //IsAntialias = true,
-            Color = SKColors.DarkBlue,
-            TextAlign = SKTextAlign.Left,
-        };
-
-        private static readonly SKPaint s_darkBlueBGPaint = new()
-        {
-            Color = SKColors.DarkBlue,
-            Style = SKPaintStyle.Fill
-        };
-
-        private static readonly SKPaint s_yellowBGPaint = new()
-        {
-            Color = SKColors.Yellow,
-            Style = SKPaintStyle.Fill
-        };
 
         public void Dispose()
         {

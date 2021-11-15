@@ -28,11 +28,11 @@ namespace BlazorWasmSkiaTest.Skia
 
         private async Task StartTimer()
         {
-            var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(this.IntervalMilliseconds));
+            var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(IntervalMilliseconds));
             while (await timer.WaitForNextTickAsync(_cts!.Token))
             {
-                long time = _stopwatch.ElapsedMilliseconds;
-                this.TimeSinceLastTickMilliseconds = time - _lastTick;
+                var time = _stopwatch.ElapsedMilliseconds;
+                TimeSinceLastTickMilliseconds = time - _lastTick;
                 _lastTick = time;
                 Elapsed?.Invoke(this, EventArgs.Empty);
             }

@@ -32,22 +32,20 @@
 
     private void OnKeyDown(KeyboardEventArgs e)
     {
-            int keyCode=0;
-            if(e.Key.Length==1)
-                keyCode = (int)e.Key[0];
+        int keyCode=0;
+        if(e.Key.Length==1)
+            keyCode = (int)e.Key[0];
 
-            //_debugMessages.Add($"OnKeyDown. Code: {e.Code} Key: {e.Key} KeyCode: {keyCode}");
-            InputSystem.Instance.SetKeyState(keyCode ,ButtonState.States.Down);        
+        _emulatorHelper!.KeyDown(keyCode);
     }
 
     private void OnKeyUp(KeyboardEventArgs e)
     {
-            int keyCode=0;
-            if(e.Key.Length==1)
-                keyCode = (int)e.Key[0];
+        int keyCode=0;
+        if(e.Key.Length==1)
+            keyCode = (int)e.Key[0];
                 
-            //_debugMessages.Add($"OnKeyUp. Code: {e.Code} Key: {e.Key} KeyCode: {keyCode}");
-            InputSystem.Instance.SetKeyState(keyCode,ButtonState.States.Up);          
+        _emulatorHelper!.KeyUp(keyCode);
     }
 
     private void OnPointerDown(PointerEventArgs e)
