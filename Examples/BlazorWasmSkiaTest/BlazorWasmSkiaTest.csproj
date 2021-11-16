@@ -5,9 +5,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     
-    <!--<RunAOTCompilation>true</RunAOTCompilation> 
+    <RunAOTCompilation>true</RunAOTCompilation> 
 
-    <PublishIISAssets>true</PublishIISAssets>-->
+    <!--<PublishIISAssets>true</PublishIISAssets>-->
 
     <!--<BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport>
     <BlazorWebAssemblyPreserveCollationData>false</BlazorWebAssemblyPreserveCollationData>-->
