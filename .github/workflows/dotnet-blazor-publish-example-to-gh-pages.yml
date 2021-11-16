@@ -8,7 +8,8 @@ on:
 
 env:
    CONFIGURATION: "Release"
-   PROJECT_FILE: "Examples/BlazorWasmTest/BlazorWasmTest.csproj"
+   #PROJECT_FILE: "Examples/BlazorWasmTest/BlazorWasmTest.csproj"
+   PROJECT_FILE: "Examples/BlazorWasmSkiaTest/BlazorWasmSkiaTest.csproj"
    PROJECT_GH_PAGES_DIR: "blazorexample"
    BUILD_OUTPUT_WORKING_DIR: "build"
    GH_PAGES_WORKING_DIR: "ghpages"
