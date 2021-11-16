@@ -28,6 +28,10 @@ jobs:
         with:
           dotnet-version: 6.0.x
 
+      - name: Install DotNet workload - WASM tools
+        run: |
+          dotnet workload install wasm-tools
+
       # Create GitHub Pages root folder contents
       - name: Create GH root folder and add .nojekyll file do disable built-in Jekyll CMS
         run: |
