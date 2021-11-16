@@ -118,10 +118,12 @@ namespace BlazorWasmSkiaTest.Skia
                     break;
                 case 0xa0:  //160, C64 inverted space
                 case 0xe0:  //224, Also C64 inverted space?
-                    representAsString = ((char)0x2588).ToString(); // Unicode for Inverted square in https://style64.org/c64-truetype font
+                    // Unicode for Inverted square in https://style64.org/c64-truetype font
+                    representAsString = ((char)0x2588).ToString(); 
                     break;
                 default:
-                    representAsString = Convert.ToString((char)chr);
+                    // Even though both upper and lowercase characters are used in the 6502 program (and in the font), show all as uppercase for C64 look.
+                    representAsString = Convert.ToString((char)chr).ToUpper();
                     break;
             }
             return representAsString;
