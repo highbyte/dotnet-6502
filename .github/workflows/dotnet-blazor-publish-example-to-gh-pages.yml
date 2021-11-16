@@ -8,7 +8,8 @@ on:
 
 env:
    CONFIGURATION: "Release"
-   PROJECT_FILE: "Examples/BlazorWasmTest/BlazorWasmTest.csproj"
+   #PROJECT_FILE: "Examples/BlazorWasmTest/BlazorWasmTest.csproj"
+   PROJECT_FILE: "Examples/BlazorWasmSkiaTest/BlazorWasmSkiaTest.csproj"
    PROJECT_GH_PAGES_DIR: "blazorexample"
    BUILD_OUTPUT_WORKING_DIR: "build"
    GH_PAGES_WORKING_DIR: "ghpages"
@@ -26,6 +27,10 @@ jobs:
         uses: actions/setup-dotnet@v1
         with:
           dotnet-version: 6.0.x
+
+      - name: Install DotNet workload - WASM tools
+        run: |
+          dotnet workload install wasm-tools
 
       # Create GitHub Pages root folder contents
       - name: Create GH root folder and add .nojekyll file do disable built-in Jekyll CMS

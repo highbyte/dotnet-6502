@@ -426,26 +426,26 @@ dotnet run
 Examples of a [Blazor WebAssembly](https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor) app running 6502 code with ```Highbyte.DotNet6502``` library.
 
 _Notes:_
-- Example uses a grid of ```<span>``` elements to represent each screen character. This could probably be done in a more performant way.
+- The example uses [SkiaSharp.Views.Blazor](https://github.com/mono/SkiaSharp) for rendering.
 - The scrolling is choppy due to text-mode only, but the color-cycling works ok. 
-- Tested on Chrome v89 and Edge v89.
+- Tested on Chrome v96 and Edge v96.
 
 ### Scroller
 - [Assembly code](Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.asm)
 - A deployed version can be found here [https://highbyte.se/dotnet-6502/blazorexample](https://highbyte.se/dotnet-6502/blazorexample)
 
-<img src="Examples/BlazorWasmTest/screenshot.png" width="50%" height="50%" title="Blazor WebAssembly with 6502 emulator">
+<img src="Examples/BlazorWasmSkiaTest/screenshot.png" width="50%" height="50%" title="Blazor WebAssembly with 6502 emulator">
 
 ### Snake game
 - [Assembly code](Examples/SadConsoleTest/AssemblerSource/snake6502.asm)
 - Game code based on original found [here](http://skilldrick.github.io/easy6502/#snake)
 - A deployed version can be found here [https://highbyte.se/dotnet-6502/blazorexample/?screenMem=512&cols=32&rows=32&prgUrl=6502binaries/snake6502.prg](https://highbyte.se/dotnet-6502/blazorexample/?screenMem=512&cols=32&rows=32&prgUrl=6502binaries/snake6502.prg)
 - Or why not have the 6502 game binary (approx. 450 bytes) encoded inside a QR code :) Aim the camera on your smartphone and follow the link.
-<img src="Examples/BlazorWasmTest/wwwroot/6502binaries/snake6502_qr_hosted.png" width="25%" height="25%" title="Blazor WebAssembly with 6502 emulator via QR code">
+<img src="Examples/BlazorWasmSkiaTest/wwwroot/6502binaries/snake6502_qr_hosted.png" width="25%" height="25%" title="Blazor WebAssembly with 6502 emulator via QR code">
 
 ### Run on local dev machine
 ``` 
-cd ./Examples/BlazorWasmTest
+cd ./Examples/BlazorWasmSkiaTest
 dotnet run
 ```
 and open browser at http://localhost:5000.
