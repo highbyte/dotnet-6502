@@ -17,11 +17,15 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 6.0.x
-        
-    - name: Clean package cache as a temporary workaround for actions/setup-dotnet#155
+
+    - name: Install DotNet workload - WASM tools
       run: |
-        dotnet clean 
-        dotnet nuget locals all --clear
+        dotnet workload install wasm-tools
+
+    # - name: Clean package cache as a temporary workaround for actions/setup-dotnet#155
+    #   run: |
+    #     dotnet clean 
+    #     dotnet nuget locals all --clear
       
     - name: Restore dependencies
       run: dotnet restore
