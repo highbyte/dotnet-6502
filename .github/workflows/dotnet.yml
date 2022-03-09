@@ -18,10 +18,6 @@ jobs:
       with:
         dotnet-version: 6.0.x
 
-    - name: Install DotNet workload - WASM tools
-      run: |
-        dotnet workload install wasm-tools
-
     # - name: Clean package cache as a temporary workaround for actions/setup-dotnet#155
     #   run: |
     #     dotnet clean 
