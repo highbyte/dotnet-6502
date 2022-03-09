@@ -116,8 +116,6 @@ namespace Highbyte.DotNet6502.Tests.Helpers
             var functionalTestSourceCodeFileFilePath = Path.Join(downloadDir, functionalTestSourceCodeFileName);
 
             DownloadFile(functionalTestSourceCodeUrl, functionalTestSourceCodeFileFilePath);
-            //var wc = new System.Net.WebClient();
-            //wc.DownloadFile(functionalTestSourceCodeUrl, functionalTestSourceCodeFileFilePath);
 
             if(!disableDecimalTests)
                 return functionalTestSourceCodeFileFilePath;
@@ -130,7 +128,7 @@ namespace Highbyte.DotNet6502.Tests.Helpers
             return modifiedFunctionalTestSourceCodeFileFilePath;
         }
 
-        private void DownloadFile(string uri, string outputPath)
+        private static void DownloadFile(string uri, string outputPath)
         {
             byte[] fileBytes = s_httpClient.GetByteArrayAsync(uri).Result;
             File.WriteAllBytes(outputPath, fileBytes);
