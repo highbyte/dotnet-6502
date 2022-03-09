@@ -52,6 +52,14 @@
             "browser": "chrome"
         },
         {
+            "name": "Blazor WASM Skia Launch and Debug (BlazorWasmSkiaTest)",
+            "type": "blazorwasm",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/Examples/BlazorWasmSkiaTest",
+            "url": "http://localhost:5000",
+            "browser": "chrome"
+        },        
+        {
             "name": ".NET Core Attach",
             "type": "coreclr",
             "request": "attach",

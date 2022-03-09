@@ -216,10 +216,10 @@ With the same principle, keyboard events are also communicated from SadConsole t
 ``` shell
 mkdir demo
 cd demo
-dotnet new --install SadConsole.Templates:1.0.5
-dotnet new sadconsole8
+dotnet new --install SadConsole.Templates
+dotnet new sadconsole-mg
 ```
-- Edit .csproj file and change ```<TargetFramework>netcoreapp3.1</TargetFramework>``` to ```<TargetFramework>net6.0</TargetFramework>```
+- Make sure .csproj file targets .NET 6: ```<TargetFramework>net6.0</TargetFramework>```
 - Add reference to ```Highbyte.DotNet6502.SadConsoleHost``` (which will also get you the main emulator library ```Highbyte.DotNet6502```)
 ``` shell
 dotnet add package Highbyte.DotNet6502.SadConsoleHost --prerelease
@@ -408,6 +408,8 @@ STATIC_TEXT_2:
 _TODO: Detailed information on how to configure, and simple 6502 example code. See example app below for complete implementation._
 
 ## Example applications
+The solution file ```Examples\dotnet-6502-examples.sln``` includes all example projects, as well as the main projects.
+
 ### Highbyte.DotNet6502.SadConsoleHost demo
 Example of a [SadConsole](https://sadconsole.com/) application running compiled 6502 [assembly code](Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.asm) in the emulator, using ```Highbyte.DotNet6502.SadConsoleHost``` library to let the emulator interact with text-based screen provided by [SadConsole](https://sadconsole.com/). 
 
@@ -415,6 +417,7 @@ _Notes:_
 - The scrolling is choppy due to text-mode only, but the color-cycling works ok. 
 - Tested on Windows and Ubuntu.
 
+Run in Visual Studio, or in Powershell:
 ``` 
 cd ./Examples/SadConsoleTest
 dotnet run
@@ -422,7 +425,7 @@ dotnet run
 
 <img src="Examples/SadConsoleTest/Screenshot.png" width="50%" height="50%" title="SadConsole with 6502 emulator">
 
-## Blazor WebAssembly demo
+## Blazor WebAssembly Skia demo
 Examples of a [Blazor WebAssembly](https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor) app running 6502 code with ```Highbyte.DotNet6502``` library.
 
 _Notes:_
@@ -444,6 +447,7 @@ _Notes:_
 <img src="Examples/BlazorWasmSkiaTest/wwwroot/6502binaries/snake6502_qr_hosted.png" width="25%" height="25%" title="Blazor WebAssembly with 6502 emulator via QR code">
 
 ### Run on local dev machine
+Run in Visual Studio, or in Powershell:
 ``` 
 cd ./Examples/BlazorWasmSkiaTest
 dotnet run
