@@ -30,6 +30,12 @@ jobs:
         with:
           fetch-depth: '0'
 
+      # Install .NET Core SDK
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 6.0.x
+
       - name: Install DotNet workload - WASM tools
         run: |
           dotnet workload install wasm-tools
