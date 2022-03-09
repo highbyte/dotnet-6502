@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Net.Http;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Tests.Helpers
@@ -46,6 +47,8 @@ namespace Highbyte.DotNet6502.Tests.Helpers
     public class FunctionalTestCompiler
     {
         private readonly ILogger<FunctionalTestCompiler> _logger;
+
+        private static readonly HttpClient s_httpClient = new HttpClient();
 
         public FunctionalTestCompiler(ILogger<FunctionalTestCompiler> logger)        
         {
@@ -110,9 +113,11 @@ namespace Highbyte.DotNet6502.Tests.Helpers
             // Download 6502 functional test source code (.as64 assembler)
             var functionalTestSourceCodeUrl = "https://raw.githubusercontent.com/Klaus2m5/6502_65C02_functional_tests/master/6502_functional_test.a65";
             var functionalTestSourceCodeFileName = "6502_functional_test.a65";
-            var functionalTestSourceCodeFileFilePath =  Path.Join(downloadDir, functionalTestSourceCodeFileName);
-            var wc = new System.Net.WebClient();
-            wc.DownloadFile(functionalTestSourceCodeUrl, functionalTestSourceCodeFileFilePath);
+            var functionalTestSourceCodeFileFilePath = Path.Join(downloadDir, functionalTestSourceCodeFileName);
+
+            DownloadFile(functionalTestSourceCodeUrl, functionalTestSourceCodeFileFilePath);
+            //var wc = new System.Net.WebClient();
+            //wc.DownloadFile(functionalTestSourceCodeUrl, functionalTestSourceCodeFileFilePath);
 
             if(!disableDecimalTests)
                 return functionalTestSourceCodeFileFilePath;
@@ -123,6 +128,12 @@ namespace Highbyte.DotNet6502.Tests.Helpers
             ModifyAsmSourceCodeSettings(functionalTestSourceCodeFileFilePath, modifiedFunctionalTestSourceCodeFileFilePath);
 
             return modifiedFunctionalTestSourceCodeFileFilePath;
+        }
+
+        private void DownloadFile(string uri, string outputPath)
+        {
+            byte[] fileBytes = s_httpClient.GetByteArrayAsync(uri).Result;
+            File.WriteAllBytes(outputPath, fileBytes);
         }
 
         private void ModifyAsmSourceCodeSettings(string originalFile, string newFile)
