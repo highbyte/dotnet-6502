@@ -181,20 +181,10 @@ namespace BlazorWasmSkiaTest.Pages
             _emulatorRenderer!.SetSize(e.Info.Width, e.Info.Height);
             if (e.Surface.Context is GRContext context && context != null)
             {
-                // If we draw our own images (not directly on the canvas provided), make sure it's within the same contxt
+                // If we draw our own images (not directly on the canvas provided), make sure it's within the same context
                 _emulatorRenderer.SetContext(context);
             }
             _emulatorRenderer.Render(e.Surface.Canvas);
         }
-
-        //private void BeforeUnload_BeforeUnloadHandler(object? sender, blazejewicz.Blazor.BeforeUnload.BeforeUnloadArgs e)
-        //{
-        //    _emulatorRenderer.Dispose();
-        //}
-
-        //public void Dispose()
-        //{
-        //    this.BeforeUnload.BeforeUnloadHandler -= BeforeUnload_BeforeUnloadHandler;
-        //}
     }
 }

@@ -53,6 +53,9 @@ namespace BlazorWasmSkiaTest.Skia
         {
         }
 
+        /// <summary>
+        /// GameLoopStep is called by a timer running in the Browser
+        /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
         public void GameLoopStep()
         {
@@ -64,6 +67,10 @@ namespace BlazorWasmSkiaTest.Skia
             _emulatorHelper.ExecuteEmulator();
         }
 
+        /// <summary>
+        /// Render is called on each PaintSurface event triggered by Browser/Skia
+        /// </summary>
+        /// <param name="canvas"></param>
         public void Render(SKCanvas canvas)
         {
             using (new SKAutoCanvasRestore(canvas))
@@ -88,10 +95,10 @@ namespace BlazorWasmSkiaTest.Skia
                 canvas.DrawRect(0, 0, _emulatorHelper.MaxCols * _textSizePixels, _emulatorHelper.MaxRows * _textSizePixels, bgPaint);
             }
 
+            // Draw characters
             using (new SKAutoCanvasRestore(canvas))
             {
                 canvas.Translate(_borderPixels, _borderPixels);
-                // Draw characters
                 for (var row = 0; row < _emulatorHelper.MaxRows; row++)
                 {
                     for (var col = 0; col < _emulatorHelper.MaxCols; col++)
@@ -119,7 +126,7 @@ namespace BlazorWasmSkiaTest.Skia
                 case 0xa0:  //160, C64 inverted space
                 case 0xe0:  //224, Also C64 inverted space?
                     // Unicode for Inverted square in https://style64.org/c64-truetype font
-                    representAsString = ((char)0x2588).ToString(); 
+                    representAsString = ((char)0x2588).ToString();
                     break;
                 default:
                     // Even though both upper and lowercase characters are used in the 6502 program (and in the font), show all as uppercase for C64 look.
