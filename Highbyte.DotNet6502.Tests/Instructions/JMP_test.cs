@@ -4,9 +4,6 @@ namespace Highbyte.DotNet6502.Tests.Instructions
 {
     public class JMP_test
     {
-        const uint memorySize = 1024*64; // 0xffff
-        readonly Memory _mem = new(memorySize);
-
         [Fact]
         public void JMP_ABS_Takes_3_Cycles()
         {
@@ -31,19 +28,20 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             ushort newPos = 0x0500;
 
             // Code at start address
-            _mem.WriteByte(ref startPos, OpCodeId.JMP_ABS);
-            _mem.WriteWord(ref startPos, newPos);
+            var mem = new Memory();
+            mem.WriteByte(ref startPos, OpCodeId.JMP_ABS);
+            mem.WriteWord(ref startPos, newPos);
 
             // Code at jmp address
-            _mem.WriteByte(ref newPos, OpCodeId.LDA_I);
-            _mem.WriteByte(ref newPos, expectedAValue);
+            mem.WriteByte(ref newPos, OpCodeId.LDA_I);
+            mem.WriteByte(ref newPos, expectedAValue);
 
             // Act
             var execOptions = new ExecOptions
             {
                 MaxNumberOfInstructions = 2
             };
-            cpu.Execute(_mem, execOptions);
+            cpu.Execute(mem, execOptions);
 
             // Assert
             Assert.Equal(expectedAValue, cpu.A);
@@ -82,27 +80,28 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             byte expectedAValue=0x42;
 
             // Prepare the indirect address with and address to the final jump location
-            _mem.WriteWord(indirectAddress, newPos);
+            var mem = new Memory();
+            mem.WriteWord(indirectAddress, newPos);
 
             // Code at start address
-            _mem.WriteByte(ref startPos, OpCodeId.JMP_IND);
-            _mem.WriteWord(ref startPos, indirectAddress);
+            mem.WriteByte(ref startPos, OpCodeId.JMP_IND);
+            mem.WriteWord(ref startPos, indirectAddress);
 
             // Code at final jmp address
-            _mem.WriteByte(ref newPos, OpCodeId.LDA_I);
-            _mem.WriteByte(ref newPos, expectedAValue);
+            mem.WriteByte(ref newPos, OpCodeId.LDA_I);
+            mem.WriteByte(ref newPos, expectedAValue);
 
             // Act
             var execOptions = new ExecOptions
             {
                 MaxNumberOfInstructions = 2
             };            
-            cpu.Execute(_mem, execOptions);
+            cpu.Execute(mem, execOptions);
 
             // Assert
             Assert.Equal(expectedAValue, cpu.A);
             Assert.Equal(newPos, cpu.PC);
             Assert.Equal(cpuCopy.SP, cpu.SP);
-        }
+        }      
     }
 }

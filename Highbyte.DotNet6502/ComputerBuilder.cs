@@ -27,12 +27,13 @@ namespace Highbyte.DotNet6502
         }
         
         public ComputerBuilder WithMemory(
-            uint memorySize = 1024*64
+            int memorySize = 1024*64
             )
         {
-            _computer.Mem = new Memory(memorySize);
-            return this;
+            var mem = new Memory(memorySize, mapToDefaultRAM: true);
+            return WithMemory(mem);
         }
+
         public ComputerBuilder WithMemory(
             Memory mem
             )

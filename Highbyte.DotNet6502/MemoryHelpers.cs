@@ -133,5 +133,53 @@
             WriteWord(mem, address, data);
             address +=2;
         }
+
+        public static void StoreData(this Memory mem, ushort address, byte[] data)
+        {
+            if((address + data.Length) > Memory.MAX_MEMORY_SIZE)
+                throw new DotNet6502Exception($"Address {address} + size of data {data.Length} exceeds maximum memory limit {Memory.MAX_MEMORY_SIZE}");
+
+            for (int i = 0; i < data.Length; i++)
+            {
+                mem[(ushort)(address+i)] = data[i];
+            }
+        }
+
+        public static byte[] ReadData(this Memory mem, ushort address, ushort length)
+        {
+            if((address + length) > Memory.MAX_MEMORY_SIZE)
+                throw new DotNet6502Exception($"Address {address} + length {length} exceeds maximum memory limit {Memory.MAX_MEMORY_SIZE}");
+
+            byte[] readArray = new byte[length];
+            for (int i = 0; i < length; i++)
+            {
+                readArray[i] = mem[(ushort)(address+i)];
+            }
+            return readArray;
+        }
+
+        public static bool IsBitSet(this Memory mem, ushort address, int bit)
+        {
+            var value = mem[address];
+            return value.IsBitSet(bit);
+        }
+
+        public static void SetBit(this Memory mem, ushort address, int bit)
+        {
+            ChangeBit(mem, address, bit, true);
+        }
+
+        public static void ClearBit(this Memory mem, ushort address, int bit)
+        {
+            ChangeBit(mem, address, bit, false);
+        }
+
+        public static void ChangeBit(Memory mem, ushort address, int bit, bool state)
+        {
+            var value = mem[address];
+            value.ChangeBit(bit, state);
+            mem[address] = value;
+        }
+
     }
 }

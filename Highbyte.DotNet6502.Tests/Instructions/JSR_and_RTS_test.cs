@@ -4,9 +4,6 @@ namespace Highbyte.DotNet6502.Tests.Instructions
 {
     public class JSR_and_RTS_test
     {
-        const uint memorySize = 1024*64; // 0xffff
-        readonly Memory _mem = new(memorySize);
-
         [Fact]
         public void JSR_Takes_3_Cycles()
         {
@@ -31,19 +28,20 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             ushort branchPos = 0x0500;
 
             // Code at start address
-            _mem.WriteByte(ref startPos, OpCodeId.JSR);
-            _mem.WriteWord(ref startPos, branchPos);
+            var mem = new Memory();
+            mem.WriteByte(ref startPos, OpCodeId.JSR);
+            mem.WriteWord(ref startPos, branchPos);
 
             // Code at branch jsr address
-            _mem.WriteByte(ref branchPos, OpCodeId.LDA_I);
-            _mem.WriteByte(ref branchPos, expectedAValue);
+            mem.WriteByte(ref branchPos, OpCodeId.LDA_I);
+            mem.WriteByte(ref branchPos, expectedAValue);
 
             // Act
             var execOptions = new ExecOptions
             {
                 MaxNumberOfInstructions = 2
             };            
-            cpu.Execute(_mem, execOptions);
+            cpu.Execute(mem, execOptions);
 
             // Assert
             Assert.Equal(expectedAValue, cpu.A);
@@ -67,22 +65,23 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var cpuCopy  = cpu.Clone();
 
             // Code at start address
-            _mem.WriteByte(ref startPos, OpCodeId.JSR);
-            _mem.WriteWord(ref startPos, branchPos);
-            _mem.WriteByte(ref startPos, OpCodeId.LDA_I);
-            _mem.WriteByte(ref startPos, expectedAValue);
+            var mem = new Memory();
+            mem.WriteByte(ref startPos, OpCodeId.JSR);
+            mem.WriteWord(ref startPos, branchPos);
+            mem.WriteByte(ref startPos, OpCodeId.LDA_I);
+            mem.WriteByte(ref startPos, expectedAValue);
 
             // Code at branch jsr address
-            _mem.WriteByte(ref branchPos, OpCodeId.LDA_I);
-            _mem.WriteByte(ref branchPos, (byte) (expectedAValue + 1)); // In subroutine we set A to some other value than we will set later when we return.
-            _mem.WriteByte(ref branchPos, OpCodeId.RTS);
+            mem.WriteByte(ref branchPos, OpCodeId.LDA_I);
+            mem.WriteByte(ref branchPos, (byte) (expectedAValue + 1)); // In subroutine we set A to some other value than we will set later when we return.
+            mem.WriteByte(ref branchPos, OpCodeId.RTS);
 
             // Act
             var execOptions = new ExecOptions
             {
                 MaxNumberOfInstructions = 4 // JSR + LDA_I + RTS + LDA_I
             };            
-            cpu.Execute(_mem, execOptions);            
+            cpu.Execute(mem, execOptions);            
 
             // Assert
             Assert.Equal(expectedAValue, cpu.A);
@@ -102,15 +101,16 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             ushort branchPos = 0x0500;
 
             // Code at start address
-            _mem.WriteByte(ref startPos, OpCodeId.JSR);
-            _mem.WriteWord(ref startPos, branchPos);
+            var mem = new Memory();
+            mem.WriteByte(ref startPos, OpCodeId.JSR);
+            mem.WriteWord(ref startPos, branchPos);
 
             // Act
             var execOptions = new ExecOptions
             {
                 MaxNumberOfInstructions = 1
             };            
-            cpu.Execute(_mem, execOptions);
+            cpu.Execute(mem, execOptions);
 
             // Assert
             Assert.Equal((byte)(cpuCopy.SP-2), cpu.SP); // We didn't return from the jsr with an rts, so the SP should have used two bytes for the return address
@@ -123,8 +123,8 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             ushort expectedReturnAddressSPLowByteLocation = (ushort) (CPU.StackBaseAddress + (byte)(cpuCopy.SP - 1));
             ushort expectedReturnAddressSPHighByteLocation = (ushort) (CPU.StackBaseAddress + (byte)(cpuCopy.SP));
 
-            Assert.Equal(expectedReturnAddressLowByte, _mem[expectedReturnAddressSPLowByteLocation]);
-            Assert.Equal(expectedReturnAddressHighByte, _mem[expectedReturnAddressSPHighByteLocation]);
+            Assert.Equal(expectedReturnAddressLowByte, mem[expectedReturnAddressSPLowByteLocation]);
+            Assert.Equal(expectedReturnAddressHighByte, mem[expectedReturnAddressSPHighByteLocation]);
         }
     }
 }

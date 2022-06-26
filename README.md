@@ -151,53 +151,16 @@ Result: (12 + 30) / 2 = 21
 ## Use memory bank switching
 To enable more than 64KB total memory, a type of "bank switching" is implemented.
 
-- The memory has 8 segments of 8K (0x2000/8192 bytes) each. _(segment size may be a thing that can be configured in the future)_
-  - Segment 0: ```0x0000 - 0x1fff```
-  - Segment 1: ```0x2000 - 0x3fff```
-  - Segment 2: ```0x4000 - 0x5fff```
-  - Segment 3: ```0x6000 - 0x7fff```
-  - Segment 4: ```0x8000 - 0x9fff```
-  - Segment 5: ```0xa000 - 0xbfff```
-  - Segment 6: ```0xc000 - 0xdfff```
-  - Segment 7: ```0xe000 - 0x1fff```
-- Each segment has 1 bank by default (bank 0).
-- _The first segment (segment 0) cannot have multiple memory banks._
-- Additional (max 254) banks can be added to segments 1-7 individually.
+TODO
 
-### How to configure emulator to enable bank switching and add additional banks to segments.
+### How to configure emulator to enable bank switching
 ```c#
-  // Enable bank switching when creating Memory
-  var mem = new Memory(enableBankSwitching: true);
-  
-  // Add a new bank to segment 1 with blank (0x00) contents. The bank number will be 1 (the default one is 0)
-  mem.AddMemorySegmentBank(1);
-  // Add another new bank to segment 1 with blank (0x00) contents. The bank number will be 2 (the default one is 0)
-  mem.AddMemorySegmentBank(1);
-  
-  // Add a new bank to segment 5 with predefined contents. 
-  // The predefined arrary must be exactly 1 segement in size, 0x2000 (8192) bytes.
-  // Code to load byte array is not described here.
-  byte[] bankMem = GetMyBankMem();  
-  // The added bank number will be 1 (the default one is 0)
-  mem.AddMemorySegmentBank(5, bankMem);
+  // TODO
 ```
 
 ### How to control which bank in each segment is currently accessible
-To control which bank is active in each segment, two special memory locations in Zero Page can be used from 6502 code.
-It's a two-step process:
-1. Address ```0x02```: Write the bank number (0-255) for the segment to be loaded. Each segment has a bank 0. Additional banks is added by emulator startup code described above.
-2. Address ```0x01```: Write the segment number (1-7) for the segment to be loaded. Writing to this location will trigger the load.
+TODO
 
-Example: Switch the memory contents for segment 5 to bank 1 (that was added in example above)
-1. Write value ```1``` to address ```0x02```
-2. Write value ```5``` to address ```0x01```
-
-Example: Switch back segment 5 to use the original bank 0
-1. Write value ```0``` to address ```0x02```
-2. Write value ```5``` to address ```0x01```
-
-You can find example code in this [test](https://github.com/highbyte/dotnet-6502/blob/master/Highbyte.DotNet6502.Tests/MemorySegmentBankSwitchingCPUTest.cs).
- 
 # How to use Highbyte.DotNet6502.SadConsoleHost library from a .NET application
 The companion library ```Highbyte.DotNet6502.SadConsoleHost``` provides an easy way for letting 6502 code running in the ```Highbyte.DotNet6502``` emulator interacting with a [SadConsole](https://sadconsole.com/) window for a _text-based_ user interface (with possibility of colors and custom fonts).
 
@@ -297,10 +260,6 @@ namespace Demo
           "KeyDownAddress":               "0xd031",
           "KeyReleasedAddress":           "0xd032"
         },
-        "MemoryBanks": {                              // There are 8 memory segments (0-7) of 8K each. Segment 0 (0x0000-0x1fff) can not have multiple banks.
-          "EnableMemoryBanks": false                  // Set to true to enable banks to be used. And increase BanksPerSegment below.
-          "BanksPerSegment": 1,                       // Segments 1-7 can have more than one bank.
-	},      
       }
     }
   }
@@ -487,7 +446,7 @@ Usage:  [command]
 
 Commands:
   d  Disassembles 6502 code from emulator memory.
-  f  Fill memory att specified address with a list of bytes. Example: f 1000 20 ff ab 30
+  f  Fill memory at specified address with a list of bytes. Example: f 1000 20 ff ab 30
   g  Change the PC (Program Counter) to the specified address and execute code.
   l  Load a 6502 binary into emulator memory.
   m  Show contents of emulator memory in bytes.

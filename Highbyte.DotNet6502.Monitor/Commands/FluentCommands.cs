@@ -297,7 +297,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
             app.Command("f", cmd =>
             {
                 cmd.HelpOption(inherited: true);
-                cmd.Description = "Fill memory att specified address with a list of bytes. Example: f 1000 20 ff ab 30";
+                cmd.Description = "Fill memory at specified address with a list of bytes. Example: f 1000 20 ff ab 30";
                 cmd.AddName("fill");
 
                 var memAddress = cmd.Argument("address", "Memory address (hex).").IsRequired();

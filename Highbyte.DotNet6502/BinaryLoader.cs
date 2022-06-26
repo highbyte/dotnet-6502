@@ -36,7 +36,7 @@ namespace Highbyte.DotNet6502
             out int fileLength,
             ushort? forceLoadAddress = null)
         {
-            Memory mem = new();
+            Memory mem = new(mapToDefaultRAM: true);
             Load(mem, binaryFilePath, out loadedAtAddress, out fileLength, forceLoadAddress);
             return mem;
         }
