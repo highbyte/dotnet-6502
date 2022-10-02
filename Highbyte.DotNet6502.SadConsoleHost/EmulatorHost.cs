@@ -1,100 +1,77 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Generic;
+using Highbyte.DotNet6502.Systems.Generic.Config;
+using Highbyte.DotNet6502.SadConsoleHost;
+using Highbyte.DotNet6502.SadConsoleHost.Commodore64;
+using Highbyte.DotNet6502.SadConsoleHost.Generic;
 
 namespace Highbyte.DotNet6502.SadConsoleHost
 {
     public class EmulatorHost
     {
-        private readonly Options _options;
+        private readonly SadConsoleConfig _sadConsoleConfig;
+        private readonly GenericComputerConfig _genericComputerConfig;
         private static SadConsoleMain SadConsoleMain;
-        
-        public EmulatorHost(Options options)
+
+        public EmulatorHost(
+            SadConsoleConfig sadConsoleConfig,
+            GenericComputerConfig genericComputerConfig)
         {
-            _options = options;
+            _sadConsoleConfig = sadConsoleConfig;
+            _genericComputerConfig = genericComputerConfig;
         }
 
         public void Start()
         {
-            _options.EmulatorConfig.Validate();
 
-            // Init CPU emulator
-            var computer = SetupEmulator(_options.EmulatorConfig);
+            SystemRunner systemRunner;
+            int runEveryFrame;
+            switch (_sadConsoleConfig.Emulator)
+            {
+                case "GenericComputer":
+                    // Init emulator: Generic computer
+                    var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(_genericComputerConfig);
+                    systemRunner = GenericSadConsoleSystemRunnerBuilder.BuildSystemRunner(
+                        genericComputer,
+                        GetSadConsoleScreen,
+                        _genericComputerConfig.Memory.Screen,
+                        _genericComputerConfig.Memory.Input
+                        );
+                    runEveryFrame = _genericComputerConfig.RunEmulatorEveryFrame;
+                    break;
 
-            // Create SadConsole renderer that reads screen data from emulator memory and displays it on a SadConsole screen/console
-            var sadConsoleEmulatorRenderer = new SadConsoleEmulatorRenderer(
-                GetSadConsoleScreen,
-                computer.Mem, 
-                _options.EmulatorConfig.Memory.Screen);
+                case "C64":
+                    // Init emulator: C64
+                    systemRunner = C64SadConsoleSystemRunnerBuilder.BuildSystemRunner(
+                        GetSadConsoleScreen
+                        );
+                    runEveryFrame = 1;
+                    break;
+                default:
+                    throw new Exception($"Unknown emulator name: {_sadConsoleConfig.Emulator}");
+            }
 
-            // Init emulator memory based on our configured memory layout
-            sadConsoleEmulatorRenderer.InitEmulatorScreenMemory();
+            if (systemRunner.System is not ITextMode)
+                throw new Exception("SadConsole host only supports running emulator systems that supports text mode.");
 
-            // Create SadConsole input handler that forwards pressed keys to the emulator via memory addresses
-            var sadConsoleEmulatorInput = new SadConsoleEmulatorInput(
-                computer.Mem, 
-                _options.EmulatorConfig.Memory.Input);            
-
-            // Create SadConsole executor that executes instructions in the emulator until a certain memory address has been flagged that emulator code is done for current frame
-            var sadConsoleEmulatorExecutor = new SadConsoleEmulatorExecutor(
-                computer, 
-                _options.EmulatorConfig.Memory.Screen,
-                _options.EmulatorConfig.StopAtBRK);
-
-            // Create the main game loop class that invokes emulator and render to host screen
-            var sadConsoleEmulatorLoop = new SadConsoleEmulatorLoop(
-                sadConsoleEmulatorRenderer, 
-                sadConsoleEmulatorInput,
-                sadConsoleEmulatorExecutor,
-                updateEmulatorEveryXFrame: _options.EmulatorConfig.RunEmulatorEveryFrame);
-
-            // Create the main SadConsole class that is responsible for configuring and starting up SadConsole with our preferred configuration.
+            // Create the main SadConsole class that is responsible for configuring and starting up SadConsole and running the emulator code every frame with our preferred configuration.
             SadConsoleMain = new SadConsoleMain(
-                _options.SadConsoleConfig,
-                _options.EmulatorConfig.Memory.Screen,
-                sadConsoleEmulatorLoop);
- 
+                _sadConsoleConfig,
+                systemRunner,
+                runEveryFrame);
+
             // Start SadConsole. Will exit from this method after SadConsole window is closed.
             SadConsoleMain.Run();
         }
 
-        private SadConsoleScreen GetSadConsoleScreen()
+        private SadConsoleScreenObject GetSadConsoleScreen()
         {
             return SadConsoleMain.SadConsoleScreen;
         }
-        
-        private Computer SetupEmulator(EmulatorConfig emulatorConfig)
-        {
-            Debug.WriteLine($"Loading 6502 machine code binary file.");
-            Debug.WriteLine($"{emulatorConfig.ProgramBinaryFile}");
-            if(!File.Exists(emulatorConfig.ProgramBinaryFile))
-            {
-                Debug.WriteLine($"File does not exist.");
-                throw new Exception($"Cannot find 6502 binary file: {emulatorConfig.ProgramBinaryFile}");
-            }
 
-            var mem = new Memory();
 
-            BinaryLoader.Load(
-                mem,
-                emulatorConfig.ProgramBinaryFile, 
-                out ushort loadedAtAddress, 
-                out int fileLength);
-
-            // Initialize emulator with CPU, memory, and execution parameters
-            var computerBuilder = new ComputerBuilder();
-            computerBuilder
-                .WithCPU()
-                .WithStartAddress(loadedAtAddress)
-                .WithMemory(mem)
-                .WithExecOptions(options =>
-                {
-                    // Emulator will stop executing when a BRK instruction is reached.
-                    options.ExecuteUntilInstruction = emulatorConfig.StopAtBRK?OpCodeId.BRK:null; 
-                });
-
-            var computer = computerBuilder.Build();
-            return computer;
-        }
     }
 }

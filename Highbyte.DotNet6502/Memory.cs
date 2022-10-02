@@ -105,11 +105,11 @@ namespace Highbyte.DotNet6502
         {
             LoadByte reader = delegate(ushort address)
             {
-                return data[baseAddress - address];
+                return data[address - baseAddress];
             };
             // Func<ushort, byte> reader = (ushort address) =>
             // {
-            //     return data[baseAddress - address];
+            //     return data[address - baseAddress];
             // };
             for (int i = 0; i < data.Length; i++)
             {

@@ -1,7 +1,7 @@
 using SadRogue.Primitives;
 using System.Collections.Generic;
 
-namespace Highbyte.DotNet6502.SadConsoleHost
+namespace Highbyte.DotNet6502.Systems.Commodore64.Config
 {
     public static class ColorMaps
     {

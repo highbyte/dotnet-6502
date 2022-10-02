@@ -2,7 +2,7 @@ using SadRogue.Primitives;
 using System;
 using System.Collections.Generic;
 
-namespace Highbyte.DotNet6502.SadConsoleHost
+namespace Highbyte.DotNet6502.Systems.Generic.Config
 {
     public class EmulatorMemoryConfig
     {
@@ -63,8 +63,8 @@ namespace Highbyte.DotNet6502.SadConsoleHost
             // --------------------------------
             // Character and color maps
             // --------------------------------
-            if(!Screen.UseAscIICharacters && Screen.CharacterMap==null)
-                throw new Exception($"If {nameof(Screen.UseAscIICharacters)} is false, {nameof(Screen.CharacterMap)} must be set to a character map.");
+            // if(!Screen.UseAscIICharacters && Screen.CharacterMap==null)
+            //     throw new Exception($"If {nameof(Screen.UseAscIICharacters)} is false, {nameof(Screen.CharacterMap)} must be set to a character map.");
         }
 
         private bool Within(ushort address, ushort startAddress, ushort endAddress)
@@ -117,7 +117,8 @@ namespace Highbyte.DotNet6502.SadConsoleHost
             // Mimic C64 for some memory addresses (though we have 80 cols here instead of 40)
             ScreenStartAddress              = 0x0400;   //80*25 = 2000(0x07d0) -> range 0x0400 - 0x0bcf
             ScreenColorStartAddress         = 0xd800;   //80*25 = 2000(0x07d0) -> range 0xd800 - 0xdfcf
-            ScreenRefreshStatusAddress      = 0xd000;
+
+            ScreenRefreshStatusAddress      = 0xd000;   // To sync 6502 code with host frame: The 6502 code should wait for bit 0 to become set, and then wait for it to become cleared.
 
             ScreenBorderColorAddress        = 0xd020;
             ScreenBackgroundColorAddress    = 0xd021;
@@ -151,9 +152,4 @@ namespace Highbyte.DotNet6502.SadConsoleHost
         }
     }
 
-    public enum ScreenStatusBitFlags: int
-    {
-        HostNewFrame = 0,
-        EmulatorDoneForFrame = 1,
-    }
 }

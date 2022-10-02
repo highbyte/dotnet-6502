@@ -1,5 +1,5 @@
 
-; ******** Source: c:\Users\highb\Source\Repos\dotnet-6502\Examples\SadConsoleTest\AssemblerSource\hello_world.asm
+; ******** Source: c:\Users\highb\source\repos\dotnet-6502\Examples\SadConsoleTest\AssemblerSource\hello_world.asm
      1                          ;hello_world.asm
      2                          ;Written with ACME cross-assembler using VSCode extension VS64. Extension will compile on save to .cache directory.
      3                          
@@ -46,9 +46,9 @@
     44                          ;Initialize static text at row defined in STATIC_TEXT_ROW
     45  c00a a200               	ldx #0
     46                          .printchar:
-    47  c00c bd44c0             	lda STATIC_TEXT, X
+    47  c00c bd51c0             	lda STATIC_TEXT, X
     48  c00f 9d2007             	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW), X
-    49  c012 bd95c0             	lda STATIC_TEXT_2, X
+    49  c012 bda2c0             	lda STATIC_TEXT_2, X
     50  c015 9dc007             	sta SCREEN_MEM + (SCREEN_MEM_COLS * (STATIC_TEXT_ROW + 2)), X
     51  c018 f004               	beq .endoftext
     52  c01a e8                 	inx
@@ -56,38 +56,47 @@
     54                          .endoftext
     55                          
     56                          mainloop:
-    57                          ;Wait for emulator indicating a new frame
-    58                          .waitfornextframe
-    59  c01e ad00d0             	lda SCREEN_REFRESH_STATUS
-    60  c021 2901               	and #%00000001					;Bit 0 set signals it time to refresh screen
-    61  c023 f0f9               	beq .waitfornextframe			;Loop if bit 1 is not set
-    62                          
-    63                          ;If space is pressed, cycle corder color
-    64  c025 ad31d0             	lda KEY_DOWN_ADDRESS			;Load currently down key
-    65  c028 c920               	cmp #$20						;32 ($20) = space
-    66  c02a d00d               	bne .spacenotpressed
-    67  c02c ae20d0             	ldx SCREEN_BORDER_COLOR_ADDRESS ;Get current border color
-    68  c02f e8                 	inx								;Next color
-    69  c030 e010               	cpx #$10						;Passed highest color (#$0f)?
-    70  c032 d002               	bne .notreachedhighestcolor		;If we haven't reached max color value
-    71  c034 a200               	ldx #$00						;Reset to lowest color (0)
-    72                          .notreachedhighestcolor
-    73  c036 8e20d0             	stx SCREEN_BORDER_COLOR_ADDRESS	;Update border color
-    74                          .spacenotpressed:
-    75                          
-    76                          ;Set bit flag that tells emulator that this 6502 code is done for current frame
-    77  c039 ad00d0             	lda SCREEN_REFRESH_STATUS
-    78  c03c 0902               	ora #%00000010					;Bit 1 set signals that emulator is currently done
-    79  c03e 8d00d0             	sta SCREEN_REFRESH_STATUS 		;Update status to memory
+    57                          ;Wait for new frame (flag set by emulator host)
+    58  c01e 2040c0             	jsr waitforrefresh
+    59                          
+    60                          ;If space is pressed, cycle corder color
+    61  c021 ad31d0             	lda KEY_DOWN_ADDRESS			;Load currently down key
+    62  c024 c920               	cmp #$20						;32 ($20) = space
+    63  c026 d00d               	bne .spacenotpressed
+    64  c028 ae20d0             	ldx SCREEN_BORDER_COLOR_ADDRESS ;Get current border color
+    65  c02b e8                 	inx								;Next color
+    66  c02c e010               	cpx #$10						;Passed highest color (#$0f)?
+    67  c02e d002               	bne .notreachedhighestcolor		;If we haven't reached max color value
+    68  c030 a200               	ldx #$00						;Reset to lowest color (0)
+    69                          .notreachedhighestcolor
+    70  c032 8e20d0             	stx SCREEN_BORDER_COLOR_ADDRESS	;Update border color
+    71                          .spacenotpressed:
+    72                          
+    73                          ;Set bit flag that tells emulator that this 6502 code is done for current frame
+    74  c035 ad00d0             	lda SCREEN_REFRESH_STATUS
+    75  c038 0902               	ora #%00000010					;Bit 1 set signals that emulator is currently done
+    76  c03a 8d00d0             	sta SCREEN_REFRESH_STATUS 		;Update status to memory
+    77                          
+    78                          ;Loop forever
+    79  c03d 4c1ec0             	jmp mainloop
     80                          
-    81                          ;Loop forever
-    82  c041 4c1ec0             	jmp mainloop
-    83                          
-    84                          ;------------------------------------------------------------
-    85                          ;Data
-    86                          ;------------------------------------------------------------
-    87                          STATIC_TEXT:
-    88  c044 2020202020202020...	!text "                     ***** DotNet6502 + SadConsole !! *****                     "
-    89  c094 00                 	!by 0 							;End of text indicator	
-    90                          STATIC_TEXT_2:
-    91  c095 2020202020202020...	!text "                        Press SPACE to cycle border color                       "
+    81                          !zone waitforrefresh
+    82                          waitforrefresh:
+    83                          .loop
+    84  c040 ad00d0             	lda SCREEN_REFRESH_STATUS
+    85  c043 aa                 	tax ; Store copy of current screen status in X
+    86  c044 2901               	and #%00000001	;Bit 0 set signals it time to refresh screen
+    87  c046 f0f8               	beq .loop	;Loop if bit 0 is not set (AND results in value 0, then zero flag set, BEQ branches zero flag is set)
+    88  c048 ad00d0             	lda SCREEN_REFRESH_STATUS
+    89  c04b 29fe               	and #%11111110 ;Clear bit 0.
+    90  c04d 8d00d0             	sta SCREEN_REFRESH_STATUS ;Update status to memory (will acknowledge that 6502 code is done waiting for the next frame)
+    91  c050 60                 	rts	
+    92                          
+    93                          ;------------------------------------------------------------
+    94                          ;Data
+    95                          ;------------------------------------------------------------
+    96                          STATIC_TEXT:
+    97  c051 2020202020202020...	!text "                     ***** DotNet6502 + SadConsole !! *****                     "
+    98  c0a1 00                 	!by 0 							;End of text indicator	
+    99                          STATIC_TEXT_2:
+   100  c0a2 2020202020202020...	!text "                        Press SPACE to cycle border color                       "

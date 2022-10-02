@@ -54,11 +54,8 @@ KEY_RELEASED_ADDRESS = 0xd031
 .endoftext
 
 mainloop:
-;Wait for emulator indicating a new frame
-.waitfornextframe
-	lda SCREEN_REFRESH_STATUS
-	and #%00000001					;Bit 0 set signals it time to refresh screen
-	beq .waitfornextframe			;Loop if bit 1 is not set
+;Wait for new frame (flag set by emulator host)
+	jsr waitforrefresh
 
 ;If space is pressed, cycle corder color
 	lda KEY_DOWN_ADDRESS			;Load currently down key
@@ -80,6 +77,18 @@ mainloop:
 
 ;Loop forever
 	jmp mainloop
+
+!zone waitforrefresh
+waitforrefresh:
+.loop
+	lda SCREEN_REFRESH_STATUS
+	tax ; Store copy of current screen status in X
+	and #%00000001	;Bit 0 set signals it time to refresh screen
+	beq .loop	;Loop if bit 0 is not set (AND results in value 0, then zero flag set, BEQ branches zero flag is set)
+	lda SCREEN_REFRESH_STATUS
+	and #%11111110 ;Clear bit 0.
+	sta SCREEN_REFRESH_STATUS ;Update status to memory (will acknowledge that 6502 code is done waiting for the next frame)
+	rts	
 
 ;------------------------------------------------------------
 ;Data

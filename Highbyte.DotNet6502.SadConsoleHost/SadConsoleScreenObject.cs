@@ -1,24 +1,22 @@
+using Highbyte.DotNet6502.Systems;
 using SadConsole;
 using SadRogue.Primitives;
 
 namespace Highbyte.DotNet6502.SadConsoleHost
 {
-    /// <summary>
-    /// A SadConsole "container" console that will contain our screen where we render to
-    /// </summary>
-    public class SadConsoleScreen: ScreenObject
+    public class SadConsoleScreenObject : ScreenObject
     {
-        public Console ScreenConsole { get ;}
+        public Console ScreenConsole { get; }
 
-        public SadConsoleScreen(EmulatorScreenConfig emulatorScreenConfig, SadConsoleConfig sadConsoleConfig)
+        public SadConsoleScreenObject(ITextMode textMode, SadConsoleConfig sadConsoleConfig)
         {
-            ScreenConsole = CreateScreenConsole(emulatorScreenConfig, sadConsoleConfig);
+            ScreenConsole = CreateScreenConsole(textMode, sadConsoleConfig);
         }
 
-        private Console CreateScreenConsole(EmulatorScreenConfig emulatorScreenConfig, SadConsoleConfig sadConsoleConfig)
+        private Console CreateScreenConsole(ITextMode textMode, SadConsoleConfig sadConsoleConfig)
         {
             // Setup screen
-            var screen = new Console(emulatorScreenConfig.Cols + (emulatorScreenConfig.BorderCols * 2), emulatorScreenConfig.Rows + (emulatorScreenConfig.BorderRows * 2))
+            var screen = new Console(textMode.Cols + (textMode.BorderCols * 2), textMode.Rows + (textMode.BorderRows * 2))
             {
                 DefaultForeground = Color.White,
                 DefaultBackground = Color.Black
@@ -39,10 +37,9 @@ namespace Highbyte.DotNet6502.SadConsoleHost
             screen.Cursor.IsEnabled = false;
             screen.Cursor.IsVisible = false;
 
-            screen.Parent = this;            
+            screen.Parent = this;
             return screen;
         }
-        
         public void DrawCharacter(int x, int y, int sadConsoleCharCode, Color fgColor, Color bgColor)
         {
             ScreenConsole.SetGlyph(x, y, sadConsoleCharCode, fgColor, bgColor);

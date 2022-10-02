@@ -115,9 +115,6 @@ skipcolorcycle:
 
 skipscroll:
 
-
-;We're done for this frame (emulator host checks this flag if it should continue with rendering the result from memory)
-	jsr markdoneflag
 	;brk	; In emulator, setup hitting brk instruction to stop	
 	jmp mainloop
 	;brk	; In emulator, setup hitting brk instruction to stop
@@ -127,22 +124,14 @@ skipscroll:
 waitforrefresh:
 .loop
 	lda SCREEN_REFRESH_STATUS
-	;tax ; Store copy of current screen status in X
+	tax ; Store copy of current screen status in X
 	and #%00000001	;Bit 0 set signals it time to refresh screen
-	beq .loop	;Loop if bit 1 is not set (AND results in 0, then zero flag set, BEQ branches zero flag is set)
-	; txa ;Transfer original screen status back to A
-	; and %11111110 ;Clear bit 1. TODO: Clearing the flag in memory should probably be done by the host instead?
-	; sta SCREEN_REFRESH_STATUS ;Update status to memory
+	beq .loop	;Loop if bit 0 is not set (AND results in value 0, then zero flag set, BEQ branches zero flag is set)
+	lda SCREEN_REFRESH_STATUS
+	and #%11111110 ;Clear bit 0.
+	sta SCREEN_REFRESH_STATUS ;Update status to memory (will acknowledge that 6502 code is done waiting for the next frame)
 	rts
 ;-----------------	
-
-!zone markdoneflag
-markdoneflag:
-	lda SCREEN_REFRESH_STATUS
-	ora #%00000010	;Bit 1 set signals that emulator is currently done
-	sta SCREEN_REFRESH_STATUS ;Update status to memory
-	rts
-;-----------------
 
 !zone printstatictext
 printstatictext:

@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems.Generic;
 using Xunit;
 
 namespace Highbyte.DotNet6502.Tests.Instructions
@@ -8,7 +9,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         public void Computer_Can_Be_Reset_And_Restart_At_ResetVector()
         {
             // Arrange
-            var builder = new ComputerBuilder()
+            var builder = new GenericComputerBuilder()
             .WithCPU()
             .WithMemory(1024*64);
 

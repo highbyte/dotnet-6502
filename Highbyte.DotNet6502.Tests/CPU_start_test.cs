@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems.Generic;
 using Xunit;
 
 namespace Highbyte.DotNet6502.Tests.Instructions
@@ -7,7 +8,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         [Fact]
         public void Computer_Can_Be_Reset_And_Start_At_Address_Specified_In_ResetVector()
         {
-            var computer = new Computer();
+            var computer = new GenericComputer();
             computer.Mem.WriteWord(CPU.ResetVector, 0xc000);
 
             computer.Reset();

@@ -1,5 +1,7 @@
 ﻿using System.IO;
 using Highbyte.DotNet6502.SadConsoleHost;
+using Highbyte.DotNet6502.Systems.Generic.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Microsoft.Extensions.Configuration;
 
 namespace SadConsoleTest
@@ -23,18 +25,28 @@ namespace SadConsoleTest
              // appsettings_scroll.json
              // appsettings_hello.json
              // appsettings_snake.json
-             .AddJsonFile("appsettings_scroll.json");  
+             // appsettings_c64.json
+             .AddJsonFile("appsettings_c64.json");
              
             Configuration = builder.Build();
 
-            var emulatorHostOptions = new Options();
-            Configuration.GetSection(Options.ConfigSectionName).Bind(emulatorHostOptions);
+            var sadConsoleConfig = new SadConsoleConfig();
+            Configuration.GetSection(SadConsoleConfig.ConfigSectionName).Bind(sadConsoleConfig);
+
+            var genericComputerConfig = new GenericComputerConfig();
+            Configuration.GetSection(GenericComputerConfig.ConfigSectionName).Bind(genericComputerConfig);
+
+            // var c64Config = new C64Config();
+            // Configuration.GetSection(C64Config.ConfigSectionName).Bind(c64Config);
 
             // Alternative way, build config via code instead of reading from appsettings.json
-            //var emulatorHostOptions = ConfigViaCode();    
+            //var sadConsoleConfig = ConfigViaCode();
 
             // Init EmulatorHost and run!
-            var emulatorHost = new EmulatorHost(emulatorHostOptions);
+            var emulatorHost = new EmulatorHost(
+                sadConsoleConfig,
+                genericComputerConfig
+                );
             emulatorHost.Start();
         }
 

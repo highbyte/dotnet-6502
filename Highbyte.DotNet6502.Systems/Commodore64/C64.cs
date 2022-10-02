@@ -1,0 +1,305 @@
+using System;
+using System.Collections.Generic;
+
+namespace Highbyte.DotNet6502.Systems.Commodore64
+{
+    public class C64: ISystem, ITextMode
+    {
+        public CPU CPU { get; set; }
+        public Memory Mem { get; set; }
+        public byte[] RAM { get; set; }
+        public byte[] IO { get; set; }
+        public byte CurrentBank { get; set; }
+        public Vic2 Vic2 { get; set; }
+        public Keyboard Keyboard { get; set; }
+
+        public int Cols => Vic2.COLS;
+        public int Rows => Vic2.ROWS;
+        public bool HasBorder => true;
+        public int BorderCols => 3;
+        public int BorderRows => 3;
+
+        public void VerticalBlank()
+        {
+            Vic2.VerticalBlank(CPU);
+        }
+
+        private static ROM[] ROMS = new ROM[]
+        {
+            ROM.NewROM("basic",   "basic",   "79015323128650c742a3694c9429aa91f355905e"),
+            ROM.NewROM("chargen", "chargen", "adc7c31e18c7c7413d54802ef2f4193da14711aa"),
+            ROM.NewROM("kernal",  "kernal",  "1d503e56df85a62fee696e7618dc5b4e781df1bb"),
+        };
+
+        public bool ExecuteOneFrame()
+        {
+            bool executeUntilBRKInstruction = false;
+            // Execute a number of instructions
+            // TODO: The number of instructions per vblank should be configurable
+            var execState = CPU.Execute(
+                Mem,
+                new ExecOptions
+                {
+                    CyclesRequested = Vic2.NTSC_NEW_CYCLES_PER_FRAME,
+                    ExecuteUntilInstruction = executeUntilBRKInstruction?OpCodeId.BRK:null
+                });
+            if(!execState.LastOpCodeWasHandled || (execState.LastInstructionExecResult!=null && execState.LastInstructionExecResult.OpCodeByte == OpCodeId.BRK.ToByte()))
+                return false;
+
+            // Reset current line to 0 & generate hardware IRQ
+            VerticalBlank();
+
+            // Return true to continue running
+            return true;
+        }
+
+        public bool ExecuteOneInstruction()
+        {
+            var execState = CPU.Execute(
+                Mem,
+                new ExecOptions
+                {
+                    MaxNumberOfInstructions = 1
+                });
+            if (!execState.LastOpCodeWasHandled)
+                return false;
+
+            // Return true to continue running
+            return true;
+        }
+
+        private C64() { }
+
+        public static C64 BuildC64()
+        {
+            var vic2 = new Vic2();
+            var kb = new Keyboard();
+
+            var ram = new byte[64*1024];
+            var roms = ROM.LoadROMS(
+                Environment.ExpandEnvironmentVariables("%USERPROFILE%/Documents/C64/VICE/C64"), // TODO: ROM directory from config file
+                 ROMS); 
+            var io = new byte[4*1024];
+
+            var mem = CreateC64Memory(ram, io, roms);
+            var cpu = CreateC64CPU(vic2, mem);
+            var c64 = new C64
+            {
+                Mem = mem,
+                CPU = cpu,
+                RAM = ram,
+                IO = io,
+                Vic2 = vic2,
+                Keyboard = kb,
+            };
+
+            // Map specific memory addresses to different emulator actions            
+            MapIOLocations(c64);
+
+            // Configure the current memory configuration on startup
+            SetStartupBank(c64);
+
+            // Set program counter on startup to the address specified at the 6502 reset vector.
+            c64.CPU.PC = mem.FetchWord(CPU.ResetVector);
+
+            return c64;
+        }
+
+        private static void MapIOLocations(C64 c64)
+        {
+            var mem = c64.Mem;
+            var vic2 = c64.Vic2;
+            var kb = c64.Keyboard;
+
+            for (int bank = 0; bank < 32; bank++)
+            {
+                mem.SetMemoryConfiguration(bank);
+
+                // Address 0x01: IO Port. Controls bank switching and Cassette control
+                mem.MapReader(0x01, c64.IoPortLoad);
+                mem.MapWriter(0x01, c64.IoPortStore);
+
+                // Address 0xd020: Border color
+                mem.MapReader(0xd020, vic2.BorderColorLoad);
+                mem.MapWriter(0xd020, vic2.BorderColorStore);
+                // Address 0xd021: Background color
+                mem.MapReader(0xd021, vic2.BackgroundColorLoad);
+                mem.MapWriter(0xd021, vic2.BackgroundColorStore);
+
+                // Address: 0x00c6: Keyboard buffer index
+                mem.MapReader(0x00c6, kb.BufferIndexLoad);
+                mem.MapWriter(0x00c6, kb.BufferIndexStore);
+                // Address: 0x0277 - 0x0280: Keyboard buffer
+                mem.MapRAM(0x0277, kb.Buffer);
+                // Address: 0x0091: Stop key flag
+                mem.MapReader(0x0091, kb.StopKeyFlagLoad);
+                mem.MapWriter(0x0091, kb.StopKeyFlagStore);
+
+            }
+        }
+
+        private static void SetStartupBank(C64 c64)
+        {
+            var mem = c64.Mem;
+
+            // Initialize to bank 31
+            mem.SetMemoryConfiguration(31);
+            // GAME and EXROM on to start (cartridge). These "values" are not read/stored from a actual memory location, just 2 bits of data that the CPU uses together with the first 3 bits of 0x01 to determine which memory configuration to use
+            c64.CurrentBank = 0x18;
+            // HIMEM, LOMEM, CHAREN on to start
+            mem.Write(1, 0x7);
+        }
+
+        private static CPU CreateC64CPU(Vic2 vic2, Memory mem)
+        {
+            var cpu = new CPU();
+            cpu.InstructionExecuted += (s, e) => vic2.CPUCyclesConsumed(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
+            return cpu;
+        }
+
+        private static Memory CreateC64Memory(byte[] ram, byte[] io, Dictionary<string,byte[]> roms)
+        {
+            var basic = roms["basic"];
+            var chargen = roms["chargen"];
+            var kernal = roms["kernal"];
+
+            var mem = new Memory(numberOfConfigurations:32, mapToDefaultRAM: false);
+
+            mem.SetMemoryConfiguration(31);
+            mem.MapRAM(0x0000, ram);
+            mem.MapROM(0xa000, basic);
+            mem.MapRAM(0xd000, io);
+            mem.MapROM(0xe000, kernal);
+
+            foreach (var bank in new int[]{30, 14})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+                mem.MapRAM(0xd000, io);
+                mem.MapROM(0xe000, kernal);
+            }
+            foreach (var bank in new int[]{29, 13})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+                mem.MapRAM(0xd000, io);
+            }
+            foreach (var bank in new int[]{28, 24})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+            }
+            foreach (var bank in new int[]{27})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+                mem.MapROM(0xa000, basic);
+                mem.MapROM(0xd000, chargen);
+                mem.MapROM(0xe000, kernal);
+            }
+            foreach (var bank in new int[]{26, 10})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+                mem.MapROM(0xd000, chargen);
+                mem.MapROM(0xe000, kernal);
+            }
+            foreach (var bank in new int[]{25, 9})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+                mem.MapROM(0xd000, chargen);
+            }
+
+            foreach (var bank in new int[]{23, 22, 21, 20, 19, 18, 17, 16})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+                mem.MapRAM(0xd000, io);
+                // TODO: Cartridge low + high mapping
+            }
+            foreach (var bank in new int[]{15})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+                mem.MapROM(0xa000, basic);
+                mem.MapRAM(0xd000, io);
+                mem.MapROM(0xe000, kernal);
+                // TODO: Cartridge low mapping
+            }
+            foreach (var bank in new int[]{12, 8, 4, 0})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+            }
+            foreach (var bank in new int[]{11})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+                mem.MapROM(0xa000, basic);
+                mem.MapROM(0xd000, chargen);
+                mem.MapROM(0xe000, kernal);
+                // TODO: Cartridge low mapping
+            }
+            foreach (var bank in new int[]{7})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+                mem.MapRAM(0xd000, io);
+                mem.MapROM(0xe000, kernal);
+                // TODO: Cartridge low + high mapping
+            }
+            foreach (var bank in new int[]{6})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+                mem.MapRAM(0xd000, io);
+                mem.MapROM(0xe000, kernal);
+                // TODO: Cartridge high mapping
+            }
+            foreach (var bank in new int[]{5})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+                mem.MapRAM(0xd000, io);
+            }
+            foreach (var bank in new int[]{3})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+                mem.MapROM(0xd000, chargen);
+                mem.MapROM(0xe000, kernal);
+                // TODO: Cartridge low + high mapping
+            }
+            foreach (var bank in new int[]{2})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+                mem.MapROM(0xd000, chargen);
+                mem.MapROM(0xe000, kernal);
+                // TODO: Cartridge high mapping
+            }
+            foreach (var bank in new int[]{1})
+            {
+                mem.SetMemoryConfiguration(bank);
+                mem.MapRAM(0x0000, ram);
+            }
+            return mem;
+        }
+
+        private void IoPortStore(ushort _, byte value)
+        {
+            var bank = CurrentBank;
+            bank.ClearBits(0x07);            // Clear the first 3 bits
+            bank |= (byte)(value & 0x07);    // Replace the first 3 bits with new ones
+            CurrentBank = bank;
+            Mem.SetMemoryConfiguration(CurrentBank);
+        }
+
+        private byte IoPortLoad(ushort _)
+        {
+            // For now, only the the first 3 bits which is the current bank
+            return (byte)(CurrentBank & 0x07);
+        }
+    }
+}

@@ -1,13 +1,15 @@
+using Highbyte.DotNet6502.Systems.Generic;
+
 namespace Highbyte.DotNet6502.Tests.Helpers
 {
     public class TestContext
     {
-        public Computer Computer { get; private set;}
-        public Computer OriginalComputer { get; private set;} 
+        public GenericComputer Computer { get; private set;}
+        public GenericComputer OriginalComputer { get; private set;} 
         private TestContext(){}
         public static TestContext NewTestContext(ushort startPos = 0x1000, int memorySize = 1024*64)
         {
-            var builder = new ComputerBuilder()
+            var builder = new GenericComputerBuilder()
             .WithCPU()
             .WithMemory(memorySize);
 

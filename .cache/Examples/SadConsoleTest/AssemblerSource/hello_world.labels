@@ -11,6 +11,7 @@ al C:000a .STATIC_TEXT_ROW
 al C:0400 .SCREEN_MEM
 al C:d020 .SCREEN_BORDER_COLOR_ADDRESS
 
-al C:c095 .STATIC_TEXT_2
+al C:c0a2 .STATIC_TEXT_2
 al C:c01e .mainloop
-al C:c044 .STATIC_TEXT
+al C:c040 .waitforrefresh
+al C:c051 .STATIC_TEXT

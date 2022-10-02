@@ -1,15 +1,16 @@
 using System;
 
-namespace Highbyte.DotNet6502.SadConsoleHost
+namespace Highbyte.DotNet6502.Systems.Generic.Config
 {
-    public class EmulatorConfig
+    public class GenericComputerConfig
     {
-        public string ProgramBinaryFile  { get; set; }
+        public const string ConfigSectionName = "Highbyte.DotNet6502.GenericComputer";
+        public string ProgramBinaryFile { get; set; }
         public bool StopAtBRK { get; set; }
         public int RunEmulatorEveryFrame { get; set; }
         public EmulatorMemoryConfig Memory { get; set; }
 
-        public EmulatorConfig()
+        public GenericComputerConfig()
         {
             Memory = new();
             StopAtBRK = true;
@@ -18,12 +19,11 @@ namespace Highbyte.DotNet6502.SadConsoleHost
 
         public void Validate()
         {
-            if(string.IsNullOrEmpty(ProgramBinaryFile))
+            if (string.IsNullOrEmpty(ProgramBinaryFile))
                 throw new Exception($"Setting {nameof(ProgramBinaryFile)} must be specified.");
 
-             // Check for incorrect memory config, overlapping addresses, etc.
+            // Check for incorrect memory config, overlapping addresses, etc.
             Memory.Validate();
-             
         }
     }
 }

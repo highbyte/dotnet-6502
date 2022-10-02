@@ -28,8 +28,8 @@ namespace Highbyte.DotNet6502.Instructions
             cpu.PushByteToStack(processorStatusCopy.Value, mem);
             // BRK sets current Interrupt flag
             cpu.ProcessorStatus.InterruptDisable = true;
-            // Change PC to address found at BRK/IEQ handler vector
-            cpu.PC = cpu.FetchWord(mem, CPU.BrkIRQHandlerVector);     
+            // Change PC to address found at BRK/IRQ handler vector
+            cpu.PC = cpu.FetchWord(mem, CPU.BrkIRQHandlerVector);
 
             return InstructionLogicResult.WithNoExtraCycles();
         }

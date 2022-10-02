@@ -1,5 +1,5 @@
 
-; ******** Source: c:\Users\highb\Source\Repos\dotnet-6502\Examples\SadConsoleTest\AssemblerSource\snake6502.asm
+; ******** Source: c:\Users\highb\source\repos\dotnet-6502\Examples\SadConsoleTest\AssemblerSource\snake6502.asm
      1                          ; Modified version of the Snake game from http://skilldrick.github.io/easy6502/#snake
      2                          ; to be able to 
      3                          ; - Compile with ACME assembler
@@ -53,7 +53,7 @@
     51  c003 203dc0               jsr loop
     52                          
     53                          init:
-    54  c006 2045c1               jsr ClearScreen
+    54  c006 203fc1               jsr ClearScreen
     55  c009 2010c0               jsr initSnake
     56  c00c 202dc0               jsr generateApplePosition
     57  c00f 60                   rts
@@ -100,273 +100,260 @@
     98                          
     99                          loop:
    100                          ;Wait for new frame (flag set by emulator host)
-   101  c03d 20b5c1             	jsr waitforrefresh
+   101  c03d 20afc1             	jsr waitforrefresh
    102                          
-   103  c040 205ac0               jsr readKeys
-   104  c043 209bc0               jsr checkCollision
-   105  c046 20d1c0               jsr updateSnake
-   106  c049 2027c1               jsr drawApple
-   107  c04c 202ec1               jsr drawSnake
+   103  c040 2057c0               jsr readKeys
+   104  c043 2098c0               jsr checkCollision
+   105  c046 20cec0               jsr updateSnake
+   106  c049 2024c1               jsr drawApple
+   107  c04c 202bc1               jsr drawSnake
    108                          
    109  c04f a205                 ldx #5 ;wait for x frames
-   110  c051 203bc1               jsr spinWheels
+   110  c051 2038c1               jsr spinWheels
    111                          
-   112                            ;We're done for this frame (emulator host checks this flag if it should continue with rendering the result from memory)
-   113  c054 20bdc1             	jsr markdoneflag
+   112  c054 4c3dc0               jmp loop
+   113                          
    114                          
-   115  c057 4c3dc0               jmp loop
-   116                          
-   117                          
-   118                          readKeys:
-   119  c05a ad31d0               lda sysLastKey
-   120  c05d c977                 cmp #ASCII_w
-   121  c05f f00d                 beq upKey
-   122  c061 c964                 cmp #ASCII_d
-   123  c063 f014                 beq rightKey
-   124  c065 c973                 cmp #ASCII_s
-   125  c067 f01b                 beq downKey
-   126  c069 c961                 cmp #ASCII_a
-   127  c06b f022                 beq leftKey
-   128  c06d 60                   rts
-   129                          upKey:
-   130  c06e a904                 lda #movingDown
-   131  c070 2402                 bit snakeDirection
-   132  c072 d026                 bne illegalMove
-   133                          
-   134  c074 a901                 lda #movingUp
-   135  c076 8502                 sta snakeDirection
-   136  c078 60                   rts
-   137                          rightKey:
-   138  c079 a908                 lda #movingLeft
-   139  c07b 2402                 bit snakeDirection
-   140  c07d d01b                 bne illegalMove
-   141                          
-   142  c07f a902                 lda #movingRight
-   143  c081 8502                 sta snakeDirection
-   144  c083 60                   rts
-   145                          downKey:
-   146  c084 a901                 lda #movingUp
-   147  c086 2402                 bit snakeDirection
-   148  c088 d010                 bne illegalMove
-   149                          
-   150  c08a a904                 lda #movingDown
-   151  c08c 8502                 sta snakeDirection
-   152  c08e 60                   rts
-   153                          leftKey:
-   154  c08f a902                 lda #movingRight
-   155  c091 2402                 bit snakeDirection
-   156  c093 d005                 bne illegalMove
-   157                          
-   158  c095 a908                 lda #movingLeft
-   159  c097 8502                 sta snakeDirection
-   160  c099 60                   rts
-   161                          illegalMove:
-   162  c09a 60                   rts
-   163                          
-   164                          
-   165                          checkCollision:
-   166  c09b 20a2c0               jsr checkAppleCollision
-   167  c09e 20b6c0               jsr checkSnakeCollision
-   168  c0a1 60                   rts
-   169                          
-   170                          
-   171                          checkAppleCollision:
-   172  c0a2 a500                 lda appleL
-   173  c0a4 c510                 cmp snakeHeadL
-   174  c0a6 d00d                 bne doneCheckingAppleCollision
-   175  c0a8 a501                 lda appleH
-   176  c0aa c511                 cmp snakeHeadH
-   177  c0ac d007                 bne doneCheckingAppleCollision
-   178                          
-   179                            ;eat apple
-   180  c0ae e603                 inc snakeLength
-   181  c0b0 e603                 inc snakeLength ;increase length
-   182  c0b2 202dc0               jsr generateApplePosition
-   183                          doneCheckingAppleCollision:
-   184  c0b5 60                   rts
-   185                          
-   186                          
-   187                          checkSnakeCollision:
-   188  c0b6 a202                 ldx #2 ;start with second segment
-   189                          snakeCollisionLoop:
-   190  c0b8 b510                 lda snakeHeadL,x
-   191  c0ba c510                 cmp snakeHeadL
-   192  c0bc d006                 bne continueCollisionLoop
-   193                          
-   194                          maybeCollided:
-   195  c0be b511                 lda snakeHeadH,x
-   196  c0c0 c511                 cmp snakeHeadH
-   197  c0c2 f009                 beq didCollide
-   198                          
-   199                          continueCollisionLoop:
-   200  c0c4 e8                   inx
-   201  c0c5 e8                   inx
-   202  c0c6 e403                 cpx snakeLength          ;got to last section with no collision
-   203  c0c8 f006                 beq didntCollide
-   204  c0ca 4cb8c0               jmp snakeCollisionLoop
-   205                          
-   206                          didCollide:
-   207  c0cd 4cadc1               jmp gameOver
-   208                          didntCollide:
-   209  c0d0 60                   rts
-   210                          
-   211                          
-   212                          updateSnake:
-   213  c0d1 a603                 ldx snakeLength
-   214  c0d3 ca                   dex
-   215  c0d4 8a                   txa
-   216                          updateloop:
-   217  c0d5 b510                 lda snakeHeadL,x
-   218  c0d7 9512                 sta snakeBodyStart,x
-   219  c0d9 ca                   dex
-   220  c0da 10f9                 bpl updateloop
-   221                          
-   222  c0dc a502                 lda snakeDirection
-   223  c0de 4a                   lsr
-   224  c0df b009                 bcs up
-   225  c0e1 4a                   lsr
-   226  c0e2 b019                 bcs right
-   227  c0e4 4a                   lsr
-   228  c0e5 b01f                 bcs down
-   229  c0e7 4a                   lsr
-   230  c0e8 b02f                 bcs left
-   231                          up:
-   232  c0ea a510                 lda snakeHeadL
-   233  c0ec 38                   sec
-   234  c0ed e920                 sbc #screenCols ;#$20
-   235  c0ef 8510                 sta snakeHeadL
-   236  c0f1 9001                 bcc upup
-   237  c0f3 60                   rts
-   238                          upup:
-   239  c0f4 c611                 dec snakeHeadH
-   240                            ;lda #$1   ; Highbyte of screen memory when we reached top (1 = highbyte of 0x01?? = (screen start x0200 - x rows/cols) 
-   241  c0f6 a901                 lda #>(screenMem-1)
-   242  c0f8 c511                 cmp snakeHeadH
-   243  c0fa f028                 beq collision
-   244  c0fc 60                   rts
-   245                          right:
-   246  c0fd e610                 inc snakeHeadL
-   247  c0ff a91f                 lda #(screenCols-1)  ;#$1f
-   248  c101 2410                 bit snakeHeadL
-   249  c103 f01f                 beq collision
-   250  c105 60                   rts
-   251                          down:
-   252  c106 a510                 lda snakeHeadL
-   253  c108 18                   clc
-   254  c109 6920                 adc #screenCols ;#$20
-   255  c10b 8510                 sta snakeHeadL
-   256  c10d b001                 bcs downdown
-   257  c10f 60                   rts
-   258                          downdown:
-   259  c110 e611                 inc snakeHeadH
-   260                            ;lda #$6       ; Highbyte of screen memory when we reached end (6 = highbyte of 0x0600 = (screen start x0200 + screen size COLS*ROWS 0x0400)) 
-   261  c112 a906                 lda #>(screenMem + (screenRows * screenCols))
-   262  c114 c511                 cmp snakeHeadH
-   263  c116 f00c                 beq collision
-   264  c118 60                   rts
-   265                          left:
-   266  c119 c610                 dec snakeHeadL
-   267  c11b a510                 lda snakeHeadL
-   268  c11d 291f                 and #(screenRows-1) ;#$1f
-   269  c11f c91f                 cmp #(screenRows-1) ;#$1f
-   270  c121 f001                 beq collision
-   271  c123 60                   rts
-   272                          collision:
-   273  c124 4cadc1               jmp gameOver
-   274                          
-   275                          
-   276                          drawApple:
-   277  c127 a000                 ldy #0
-   278  c129 a940                 lda #appleCharacter
-   279  c12b 9100                 sta (appleL),y
-   280  c12d 60                   rts
-   281                          
-   282                          
-   283                          drawSnake:
-   284  c12e a603                 ldx snakeLength
-   285                            ;lda #0
-   286  c130 a920                 lda #blankCharachter
-   287  c132 8110                 sta (snakeHeadL,x) ; erase end of tail
-   288                          
-   289  c134 a200                 ldx #0
-   290                            ;lda #1
-   291  c136 a9a0                 lda #snakeCharacter
-   292  c138 8110                 sta (snakeHeadL,x) ; paint head
-   293  c13a 60                   rts
-   294                          
-   295                          spinWheels:
-   296                          spinloop:
-   297  c13b 20b5c1               jsr waitforrefresh
-   298  c13e 20bdc1               jsr markdoneflag
-   299  c141 ca                   dex
-   300  c142 d0f7                 bne spinloop
-   301  c144 60                   rts
-   302                          
-   303                          ClearScreen:
-   304  c145 a920               	lda #blankCharachter
-   305  c147 a220                 ldx #screenCols ;Width
-   306                          .clrScrLoop:
-   307  c149 ca                 	dex
-   308  c14a 9d0002             	sta screenMem,x
-   309  c14d 9d2002             	sta screenMem + $0020,x
-   310  c150 9d4002             	sta screenMem + $0040,x
-   311  c153 9d6002             	sta screenMem + $0060,x
-   312  c156 9d8002             	sta screenMem + $0080,x
-   313  c159 9da002             	sta screenMem + $00a0,x
-   314  c15c 9dc002             	sta screenMem + $00c0,x
-   315  c15f 9de002             	sta screenMem + $00e0,x
-   316  c162 9d0003             	sta screenMem + $0100,x
-   317  c165 9d2003             	sta screenMem + $0120,x
-   318  c168 9d4003             	sta screenMem + $0140,x
-   319  c16b 9d6003             	sta screenMem + $0160,x
-   320  c16e 9d8003             	sta screenMem + $0180,x
-   321  c171 9da003             	sta screenMem + $01a0,x
-   322  c174 9dc003             	sta screenMem + $01c0,x
-   323  c177 9de003             	sta screenMem + $01e0,x
-   324  c17a 9d0004             	sta screenMem + $0200,x
-   325  c17d 9d2004             	sta screenMem + $0220,x
-   326  c180 9d4004             	sta screenMem + $0240,x
-   327  c183 9d6004             	sta screenMem + $0260,x
-   328  c186 9d8004             	sta screenMem + $0280,x
-   329  c189 9da004             	sta screenMem + $02a0,x
-   330  c18c 9dc004             	sta screenMem + $02c0,x
-   331  c18f 9de004             	sta screenMem + $02e0,x
-   332  c192 9d0005             	sta screenMem + $0300,x
-   333  c195 9d2005             	sta screenMem + $0320,x
-   334  c198 9d4005             	sta screenMem + $0340,x
-   335  c19b 9d6005             	sta screenMem + $0360,x
-   336  c19e 9d8005             	sta screenMem + $0380,x
-   337  c1a1 9da005             	sta screenMem + $03a0,x
-   338  c1a4 9dc005             	sta screenMem + $03c0,x
-   339  c1a7 9de005             	sta screenMem + $03e0,x
-   340  c1aa d09d               	bne .clrScrLoop
-   341                          
-   342  c1ac 60                 	rts
-   343                          
-   344                          gameOver:
-   345                            ;brk
-   346  c1ad a278                 ldx #120 ;wait for x frames
-   347  c1af 203bc1               jsr spinWheels
-   348  c1b2 4c00c0               jmp Start
-   349                          
-   350                          ;-----------------
-   351                          
-   352                          !zone waitforrefresh
-   353                          waitforrefresh:
-   354                          .loop
-   355  c1b5 ad00d0             	lda SCREEN_REFRESH_STATUS
-   356                          	;tax ; Store copy of current screen status in X
-   357  c1b8 2901               	and #%00000001	;Bit 0 set signals it time to refresh screen
-   358  c1ba f0f9               	beq .loop	;Loop if bit 1 is not set (AND results in 0, then zero flag set, BEQ branches zero flag is set)
-   359                          	; txa ;Transfer original screen status back to A
-   360                          	; and %11111110 ;Clear bit 1. TODO: Clearing the flag in memory should probably be done by the host instead?
-   361                          	; sta SCREEN_REFRESH_STATUS ;Update status to memory
-   362  c1bc 60                 	rts
-   363                          ;-----------------	
-   364                          
-   365                          !zone markdoneflag
-   366                          markdoneflag:
-   367  c1bd ad00d0             	lda SCREEN_REFRESH_STATUS
-   368  c1c0 0902               	ora #%00000010	;Bit 1 set signals that emulator is currently done
-   369  c1c2 8d00d0             	sta SCREEN_REFRESH_STATUS ;Update status to memory
-   370  c1c5 60                 	rts
+   115                          readKeys:
+   116  c057 ad31d0               lda sysLastKey
+   117  c05a c977                 cmp #ASCII_w
+   118  c05c f00d                 beq upKey
+   119  c05e c964                 cmp #ASCII_d
+   120  c060 f014                 beq rightKey
+   121  c062 c973                 cmp #ASCII_s
+   122  c064 f01b                 beq downKey
+   123  c066 c961                 cmp #ASCII_a
+   124  c068 f022                 beq leftKey
+   125  c06a 60                   rts
+   126                          upKey:
+   127  c06b a904                 lda #movingDown
+   128  c06d 2402                 bit snakeDirection
+   129  c06f d026                 bne illegalMove
+   130                          
+   131  c071 a901                 lda #movingUp
+   132  c073 8502                 sta snakeDirection
+   133  c075 60                   rts
+   134                          rightKey:
+   135  c076 a908                 lda #movingLeft
+   136  c078 2402                 bit snakeDirection
+   137  c07a d01b                 bne illegalMove
+   138                          
+   139  c07c a902                 lda #movingRight
+   140  c07e 8502                 sta snakeDirection
+   141  c080 60                   rts
+   142                          downKey:
+   143  c081 a901                 lda #movingUp
+   144  c083 2402                 bit snakeDirection
+   145  c085 d010                 bne illegalMove
+   146                          
+   147  c087 a904                 lda #movingDown
+   148  c089 8502                 sta snakeDirection
+   149  c08b 60                   rts
+   150                          leftKey:
+   151  c08c a902                 lda #movingRight
+   152  c08e 2402                 bit snakeDirection
+   153  c090 d005                 bne illegalMove
+   154                          
+   155  c092 a908                 lda #movingLeft
+   156  c094 8502                 sta snakeDirection
+   157  c096 60                   rts
+   158                          illegalMove:
+   159  c097 60                   rts
+   160                          
+   161                          
+   162                          checkCollision:
+   163  c098 209fc0               jsr checkAppleCollision
+   164  c09b 20b3c0               jsr checkSnakeCollision
+   165  c09e 60                   rts
+   166                          
+   167                          
+   168                          checkAppleCollision:
+   169  c09f a500                 lda appleL
+   170  c0a1 c510                 cmp snakeHeadL
+   171  c0a3 d00d                 bne doneCheckingAppleCollision
+   172  c0a5 a501                 lda appleH
+   173  c0a7 c511                 cmp snakeHeadH
+   174  c0a9 d007                 bne doneCheckingAppleCollision
+   175                          
+   176                            ;eat apple
+   177  c0ab e603                 inc snakeLength
+   178  c0ad e603                 inc snakeLength ;increase length
+   179  c0af 202dc0               jsr generateApplePosition
+   180                          doneCheckingAppleCollision:
+   181  c0b2 60                   rts
+   182                          
+   183                          
+   184                          checkSnakeCollision:
+   185  c0b3 a202                 ldx #2 ;start with second segment
+   186                          snakeCollisionLoop:
+   187  c0b5 b510                 lda snakeHeadL,x
+   188  c0b7 c510                 cmp snakeHeadL
+   189  c0b9 d006                 bne continueCollisionLoop
+   190                          
+   191                          maybeCollided:
+   192  c0bb b511                 lda snakeHeadH,x
+   193  c0bd c511                 cmp snakeHeadH
+   194  c0bf f009                 beq didCollide
+   195                          
+   196                          continueCollisionLoop:
+   197  c0c1 e8                   inx
+   198  c0c2 e8                   inx
+   199  c0c3 e403                 cpx snakeLength          ;got to last section with no collision
+   200  c0c5 f006                 beq didntCollide
+   201  c0c7 4cb5c0               jmp snakeCollisionLoop
+   202                          
+   203                          didCollide:
+   204  c0ca 4ca7c1               jmp gameOver
+   205                          didntCollide:
+   206  c0cd 60                   rts
+   207                          
+   208                          
+   209                          updateSnake:
+   210  c0ce a603                 ldx snakeLength
+   211  c0d0 ca                   dex
+   212  c0d1 8a                   txa
+   213                          updateloop:
+   214  c0d2 b510                 lda snakeHeadL,x
+   215  c0d4 9512                 sta snakeBodyStart,x
+   216  c0d6 ca                   dex
+   217  c0d7 10f9                 bpl updateloop
+   218                          
+   219  c0d9 a502                 lda snakeDirection
+   220  c0db 4a                   lsr
+   221  c0dc b009                 bcs up
+   222  c0de 4a                   lsr
+   223  c0df b019                 bcs right
+   224  c0e1 4a                   lsr
+   225  c0e2 b01f                 bcs down
+   226  c0e4 4a                   lsr
+   227  c0e5 b02f                 bcs left
+   228                          up:
+   229  c0e7 a510                 lda snakeHeadL
+   230  c0e9 38                   sec
+   231  c0ea e920                 sbc #screenCols ;#$20
+   232  c0ec 8510                 sta snakeHeadL
+   233  c0ee 9001                 bcc upup
+   234  c0f0 60                   rts
+   235                          upup:
+   236  c0f1 c611                 dec snakeHeadH
+   237                            ;lda #$1   ; Highbyte of screen memory when we reached top (1 = highbyte of 0x01?? = (screen start x0200 - x rows/cols) 
+   238  c0f3 a901                 lda #>(screenMem-1)
+   239  c0f5 c511                 cmp snakeHeadH
+   240  c0f7 f028                 beq collision
+   241  c0f9 60                   rts
+   242                          right:
+   243  c0fa e610                 inc snakeHeadL
+   244  c0fc a91f                 lda #(screenCols-1)  ;#$1f
+   245  c0fe 2410                 bit snakeHeadL
+   246  c100 f01f                 beq collision
+   247  c102 60                   rts
+   248                          down:
+   249  c103 a510                 lda snakeHeadL
+   250  c105 18                   clc
+   251  c106 6920                 adc #screenCols ;#$20
+   252  c108 8510                 sta snakeHeadL
+   253  c10a b001                 bcs downdown
+   254  c10c 60                   rts
+   255                          downdown:
+   256  c10d e611                 inc snakeHeadH
+   257                            ;lda #$6       ; Highbyte of screen memory when we reached end (6 = highbyte of 0x0600 = (screen start x0200 + screen size COLS*ROWS 0x0400)) 
+   258  c10f a906                 lda #>(screenMem + (screenRows * screenCols))
+   259  c111 c511                 cmp snakeHeadH
+   260  c113 f00c                 beq collision
+   261  c115 60                   rts
+   262                          left:
+   263  c116 c610                 dec snakeHeadL
+   264  c118 a510                 lda snakeHeadL
+   265  c11a 291f                 and #(screenRows-1) ;#$1f
+   266  c11c c91f                 cmp #(screenRows-1) ;#$1f
+   267  c11e f001                 beq collision
+   268  c120 60                   rts
+   269                          collision:
+   270  c121 4ca7c1               jmp gameOver
+   271                          
+   272                          
+   273                          drawApple:
+   274  c124 a000                 ldy #0
+   275  c126 a940                 lda #appleCharacter
+   276  c128 9100                 sta (appleL),y
+   277  c12a 60                   rts
+   278                          
+   279                          
+   280                          drawSnake:
+   281  c12b a603                 ldx snakeLength
+   282                            ;lda #0
+   283  c12d a920                 lda #blankCharachter
+   284  c12f 8110                 sta (snakeHeadL,x) ; erase end of tail
+   285                          
+   286  c131 a200                 ldx #0
+   287                            ;lda #1
+   288  c133 a9a0                 lda #snakeCharacter
+   289  c135 8110                 sta (snakeHeadL,x) ; paint head
+   290  c137 60                   rts
+   291                          
+   292                          spinWheels:
+   293                          spinloop:
+   294  c138 20afc1               jsr waitforrefresh
+   295  c13b ca                   dex
+   296  c13c d0fa                 bne spinloop
+   297  c13e 60                   rts
+   298                          
+   299                          ClearScreen:
+   300  c13f a920               	lda #blankCharachter
+   301  c141 a220                 ldx #screenCols ;Width
+   302                          .clrScrLoop:
+   303  c143 ca                 	dex
+   304  c144 9d0002             	sta screenMem,x
+   305  c147 9d2002             	sta screenMem + $0020,x
+   306  c14a 9d4002             	sta screenMem + $0040,x
+   307  c14d 9d6002             	sta screenMem + $0060,x
+   308  c150 9d8002             	sta screenMem + $0080,x
+   309  c153 9da002             	sta screenMem + $00a0,x
+   310  c156 9dc002             	sta screenMem + $00c0,x
+   311  c159 9de002             	sta screenMem + $00e0,x
+   312  c15c 9d0003             	sta screenMem + $0100,x
+   313  c15f 9d2003             	sta screenMem + $0120,x
+   314  c162 9d4003             	sta screenMem + $0140,x
+   315  c165 9d6003             	sta screenMem + $0160,x
+   316  c168 9d8003             	sta screenMem + $0180,x
+   317  c16b 9da003             	sta screenMem + $01a0,x
+   318  c16e 9dc003             	sta screenMem + $01c0,x
+   319  c171 9de003             	sta screenMem + $01e0,x
+   320  c174 9d0004             	sta screenMem + $0200,x
+   321  c177 9d2004             	sta screenMem + $0220,x
+   322  c17a 9d4004             	sta screenMem + $0240,x
+   323  c17d 9d6004             	sta screenMem + $0260,x
+   324  c180 9d8004             	sta screenMem + $0280,x
+   325  c183 9da004             	sta screenMem + $02a0,x
+   326  c186 9dc004             	sta screenMem + $02c0,x
+   327  c189 9de004             	sta screenMem + $02e0,x
+   328  c18c 9d0005             	sta screenMem + $0300,x
+   329  c18f 9d2005             	sta screenMem + $0320,x
+   330  c192 9d4005             	sta screenMem + $0340,x
+   331  c195 9d6005             	sta screenMem + $0360,x
+   332  c198 9d8005             	sta screenMem + $0380,x
+   333  c19b 9da005             	sta screenMem + $03a0,x
+   334  c19e 9dc005             	sta screenMem + $03c0,x
+   335  c1a1 9de005             	sta screenMem + $03e0,x
+   336  c1a4 d09d               	bne .clrScrLoop
+   337                          
+   338  c1a6 60                 	rts
+   339                          
+   340                          gameOver:
+   341                            ;brk
+   342  c1a7 a278                 ldx #120 ;wait for x frames
+   343  c1a9 2038c1               jsr spinWheels
+   344  c1ac 4c00c0               jmp Start
+   345                          
+   346                          ;-----------------
+   347                          
+   348                          !zone waitforrefresh
+   349                          waitforrefresh:
+   350                          .loop
+   351  c1af ad00d0             	lda SCREEN_REFRESH_STATUS
+   352  c1b2 aa                 	tax ; Store copy of current screen status in X
+   353  c1b3 2901               	and #%00000001	;Bit 0 set signals it time to refresh screen
+   354  c1b5 f0f8               	beq .loop	;Loop if bit 0 is not set (AND results in value 0, then zero flag set, BEQ branches zero flag is set)
+   355  c1b7 ad00d0             	lda SCREEN_REFRESH_STATUS
+   356  c1ba 29fe               	and #%11111110 ;Clear bit 0.
+   357  c1bc 8d00d0             	sta SCREEN_REFRESH_STATUS ;Update status to memory (will acknowledge that 6502 code is done waiting for the next frame)

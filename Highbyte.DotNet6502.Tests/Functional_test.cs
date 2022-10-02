@@ -2,6 +2,7 @@ using Xunit;
 using Xunit.Abstractions;
 using Highbyte.DotNet6502.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
+using Highbyte.DotNet6502.Systems.Generic;
 
 namespace Highbyte.DotNet6502.Tests.Instructions
 {
@@ -36,7 +37,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             _output.WriteLine($"Code+data length (bytes):  0x{fileLength, -8:X8} ({fileLength})");
             _output.WriteLine($"Code start address:        {startAddress.ToHex(), 10} ({startAddress})");
 
-            var computerBuilder = new ComputerBuilder();
+            var computerBuilder = new GenericComputerBuilder();
             computerBuilder
                 .WithCPU()
                 .WithStartAddress(startAddress)
@@ -65,7 +66,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var execState = cpu.ExecState;
 
             _output.WriteLine($"CPU last PC:                       {cpu.PC.ToHex()}");
-            _output.WriteLine($"CPU last opcode:                   {execState.LastOpCode.Value.ToOpCodeId()} ({execState.LastOpCode.Value.ToHex()})");
+            _output.WriteLine($"CPU last opcode:                   {execState.LastInstructionExecResult.OpCodeByte.ToOpCodeId()} ({execState.LastInstructionExecResult.OpCodeByte.ToHex()})");
             _output.WriteLine($"Total # CPU instructions executed: {execState.InstructionsExecutionCount}");
             _output.WriteLine($"Total # CPU cycles consumed:       {execState.CyclesConsumed}");
 
