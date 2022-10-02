@@ -1,19 +1,20 @@
 ﻿using System;
 using System.Diagnostics;
 using Highbyte.DotNet6502;
+using Highbyte.DotNet6502.Systems.Generic;
 
 namespace Highbyte.DotNet6502.Monitor
 {
     public class Mon
     {
-        public Computer Computer { get; private set; }
+        public GenericComputer Computer { get; private set; }
         public CPU Cpu { get {return Computer.CPU;} }
         public Memory Mem { get {return Computer.Mem;} }
         public Mon()
         {
             var mem = new Memory();
 
-            var computerBuilder = new ComputerBuilder();
+            var computerBuilder = new GenericComputerBuilder();
             computerBuilder
                 .WithCPU()
                 //.WithStartAddress()
