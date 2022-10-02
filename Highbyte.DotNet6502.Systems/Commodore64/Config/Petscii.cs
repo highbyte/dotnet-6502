@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Highbyte.DotNet6502.Systems.Commodore64.Config
 {
     public static class Petscii
@@ -21,5 +23,73 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config
             Yellow     = 0x9e,
             Cyan       = 0x9f,
         };
+
+        public static Dictionary<char, byte> AscIICharToPetscii = new()
+        {
+            {'!',               0x21},
+            {'"',               0x22},
+            {'#',               0x23},
+            {'$',               0x24},
+            {'%',               0x25},
+            {'&',               0x26},
+            {'\'',              0x27},
+            {'(',               0x28},
+            {')',               0x29},
+            {'*',               0x2a},
+            {'+',               0x2b},
+            {',',               0x2c},
+            {'-',               0x2d},
+            {'.',               0x2e},
+            {'/',               0x2f},
+            {'0',               0x30},
+            {'1',               0x31},
+            {'2',               0x32},
+            {'3',               0x33},
+            {'4',               0x34},
+            {'5',               0x35},
+            {'6',               0x36},
+            {'7',               0x37},
+            {'8',               0x38},
+            {'9',               0x39},
+            {':',               0x3a},
+            {';',               0x3b},
+            {'<',               0x3c},
+            {'=',               0x3d},
+            {'>',               0x3e},
+            {'?',               0x3f},
+            {'@',               0x40},
+            {'a',               0x41},
+            {'b',               0x42},
+            {'c',               0x43},
+            {'d',               0x44},
+            {'e',               0x45},
+            {'f',               0x46},
+            {'g',               0x47},
+            {'h',               0x48},
+            {'i',               0x49},
+            {'j',               0x4a},
+            {'k',               0x4b},
+            {'l',               0x4c},
+            {'m',               0x4d},
+            {'n',               0x4e},
+            {'o',               0x4f},
+            {'p',               0x50},
+            {'q',               0x51},
+            {'r',               0x52},
+            {'s',               0x53},
+            {'t',               0x54},
+            {'u',               0x55},
+            {'v',               0x56},
+            {'w',               0x57},
+            {'x',               0x58},
+            {'y',               0x59},
+            {'z',               0x5a},
+            {'[',               0x5b},
+            {'\\',              0x5c},  // Map backslash to Pound sign
+            {'£',               0x5c},  // Pound sign
+            {']',               0x5d},
+            {'^',               0x5e},
+        };
+
     }
 }
