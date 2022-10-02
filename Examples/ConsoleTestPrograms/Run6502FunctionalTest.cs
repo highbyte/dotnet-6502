@@ -1,5 +1,6 @@
 ﻿using System;
 using Highbyte.DotNet6502;
+using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Tests.Helpers;
 
 namespace ConsoleTestPrograms
@@ -65,7 +66,7 @@ namespace ConsoleTestPrograms
             //Console.ReadLine();
 
             // Initialize CPU, set PC to start position
-            var computerBuilder = new ComputerBuilder();
+            var computerBuilder = new GenericComputerBuilder();
             computerBuilder
                 .WithCPU()
                 .WithStartAddress(0x400)

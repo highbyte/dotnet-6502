@@ -121,5 +121,13 @@ namespace Highbyte.DotNet6502.Systems.Generic
                 this.DefaultExecOptions
                 );
         }
+
+        public ExecState Run(ExecOptions execOptions)
+        {
+            return CPU.Execute(
+                this.Mem,
+                execOptions
+                );
+        }
     }
 }

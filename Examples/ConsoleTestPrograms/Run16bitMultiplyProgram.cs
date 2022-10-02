@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Highbyte.DotNet6502;
+using Highbyte.DotNet6502.Systems.Generic;
 
 namespace ConsoleTestPrograms
 {
@@ -47,13 +48,14 @@ namespace ConsoleTestPrograms
             Console.WriteLine($"{((ushort)(sourceAddressB + 1)).ToHex()} : {mem[(ushort)(sourceAddressB + 1)].ToHex()}");
 
             // Initialize CPU, set PC to start position
-            var computerBuilder = new ComputerBuilder();
+            var computerBuilder = new GenericComputerBuilder();
             computerBuilder
                 .WithCPU()
                 .WithStartAddress(loadedAtAddress)
                 .WithMemory(mem)
                 .WithInstructionExecutedEventHandler( 
-                    (s, e) => Console.WriteLine($"{e.CPU.PC.ToHex()}: {e.CPU.ExecState.LastOpCode.Value.ToOpCodeId()}"))
+                    (s, e) => Console.WriteLine(OutputGen.GetLastInstructionDisassembly(e.CPU, e.Mem)))
+                    //(s, e) => Console.WriteLine($"{e.CPU.PC.ToHex()}: {e.CPU.ExecState.LastOpCode.Value.ToOpCodeId()}"))
                 .WithExecOptions(options =>
                 {
                     options.ExecuteUntilInstruction = OpCodeId.BRK;
