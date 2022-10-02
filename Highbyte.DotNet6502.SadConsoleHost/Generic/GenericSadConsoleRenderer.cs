@@ -115,7 +115,7 @@ namespace Highbyte.DotNet6502.SadConsoleHost.Generic
                 }
             }
         }
-       
+
         /// <summary>
         /// Draw character to screen, with adjusted position for border.
         /// Colors are translated from emulator to SadConsole.
@@ -155,8 +155,8 @@ namespace Highbyte.DotNet6502.SadConsoleHost.Generic
                 x,
                 y,
                 sadConsoleCharacter,
-                _emulatorScreenConfig.ColorMap[emulatorFgColor],
-                _emulatorScreenConfig.ColorMap[emulatorBgColor]
+                GenericSadConsoleColors.NativeToSadConsoleColorMap[_emulatorScreenConfig.ColorMap[emulatorFgColor]],
+                GenericSadConsoleColors.NativeToSadConsoleColorMap[_emulatorScreenConfig.ColorMap[emulatorBgColor]]
                 );
         }
     }

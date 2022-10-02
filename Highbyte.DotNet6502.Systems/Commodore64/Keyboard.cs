@@ -32,32 +32,11 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
             Buffer = new byte[BUFFER_MAX_LENGTH];
         }
 
-        public void KeyPressed(int keyCode)
+        public void KeyPressed(byte petsciiCode)
         {
-            var found = TEMP_ASCIICodeToPETSCII(keyCode, out byte petsciiCode);
-            if(!found)
-                return;
             if(BufferIndex >= BUFFER_MAX_LENGTH)
                 return;
             Buffer[BufferIndex++] = petsciiCode;
-        }
-
-        private static bool TEMP_ASCIICodeToPETSCII(int asciiCode, out byte petsciiCode)
-        {
-            bool found = true;
-            // If the ASCII character is a-z, make it A-Z
-            if(asciiCode >= 97-32 && asciiCode <= 122-32)
-                petsciiCode = (byte)(asciiCode + 32);
-            // If the ASCII character is A-Z, make it a-z
-            else if(asciiCode >= 65+32 && asciiCode <= 90+32)
-                petsciiCode = (byte)(asciiCode - 32);
-            else
-            {
-                petsciiCode = (byte)asciiCode;
-                //petsciiCode = 0;
-                //found = false;
-            }
-            return found;
         }
     }
 }

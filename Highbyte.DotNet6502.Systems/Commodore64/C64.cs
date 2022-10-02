@@ -120,11 +120,11 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
                 mem.MapWriter(0x01, c64.IoPortStore);
 
                 // Address 0xd020: Border color
-                mem.MapReader(0xd020, vic2.BorderColorLoad);
-                mem.MapWriter(0xd020, vic2.BorderColorStore);
+                mem.MapReader(Vic2Addr.BORDER_COLOR, vic2.BorderColorLoad);
+                mem.MapWriter(Vic2Addr.BORDER_COLOR, vic2.BorderColorStore);
                 // Address 0xd021: Background color
-                mem.MapReader(0xd021, vic2.BackgroundColorLoad);
-                mem.MapWriter(0xd021, vic2.BackgroundColorStore);
+                mem.MapReader(Vic2Addr.BACKGROUND_COLOR, vic2.BackgroundColorLoad);
+                mem.MapWriter(Vic2Addr.BACKGROUND_COLOR, vic2.BackgroundColorStore);
 
                 // Address: 0x00c6: Keyboard buffer index
                 mem.MapReader(0x00c6, kb.BufferIndexLoad);

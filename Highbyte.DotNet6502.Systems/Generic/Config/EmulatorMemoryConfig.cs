@@ -1,6 +1,6 @@
-using SadRogue.Primitives;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 
 namespace Highbyte.DotNet6502.Systems.Generic.Config
 {
@@ -97,7 +97,7 @@ namespace Highbyte.DotNet6502.Systems.Generic.Config
         public byte DefaultBgColor  { get; set; }
         public byte DefaultBorderColor  { get; set; }
 
-        public Dictionary<byte,Color> ColorMap { get; set; }
+        public Dictionary<byte, Color> ColorMap { get; set; }
         public bool UseAscIICharacters { get; set; }
 
         /// <summary>
@@ -105,7 +105,7 @@ namespace Highbyte.DotNet6502.Systems.Generic.Config
         /// </summary>
         /// <value></value>
         //public Dictionary<byte,byte> CharacterMap { get; set; }
-        public Dictionary<string,byte> CharacterMap { get; set; }
+        public Dictionary<string, byte> CharacterMap { get; set; }
 
         public EmulatorScreenConfig()
         {
@@ -127,7 +127,7 @@ namespace Highbyte.DotNet6502.Systems.Generic.Config
             DefaultBgColor                  = 0x06;  // 0x06 = Blue
             DefaultBorderColor              = 0x0e;  // 0x0e = Blue
 
-            ColorMap = ColorMaps.C64ColorMap;        // Default to C64 color map. TODO: Make it configurable from config file (via enum?)
+            ColorMap = ColorMaps.GenericColorMap;        // Default to C64 color map. TODO: Make it configurable from config file (via enum?)
 
             UseAscIICharacters = true;
 
