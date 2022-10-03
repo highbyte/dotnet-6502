@@ -4,11 +4,11 @@ using System.IO;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
-using Highbyte.DotNet6502.SadConsoleHost;
-using Highbyte.DotNet6502.SadConsoleHost.Commodore64;
-using Highbyte.DotNet6502.SadConsoleHost.Generic;
+using Highbyte.DotNet6502.Impl.SadConsole;
+using Highbyte.DotNet6502.Impl.SadConsole.Commodore64;
+using Highbyte.DotNet6502.Impl.SadConsole.Generic;
 
-namespace Highbyte.DotNet6502.SadConsoleHost
+namespace Highbyte.DotNet6502.Impl.SadConsole
 {
     public class EmulatorHost
     {

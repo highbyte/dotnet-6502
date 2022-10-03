@@ -3,7 +3,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 
-namespace Highbyte.DotNet6502.SadConsoleHost.Generic
+namespace Highbyte.DotNet6502.Impl.SadConsole.Generic
 {
     public static class GenericSadConsoleSystemRunnerBuilder
     {

@@ -2,7 +2,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using System.Collections.Generic;
 using SadConsole.Input;
 
-namespace Highbyte.DotNet6502.SadConsoleHost.Commodore64.Config
+namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Config
 {
     public static class C64SadConsoleKeyboard
     {

@@ -2,7 +2,7 @@ using System;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 
-namespace Highbyte.DotNet6502.SadConsoleHost.Commodore64
+namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
 {
     public static class C64SadConsoleSystemRunnerBuilder
     {

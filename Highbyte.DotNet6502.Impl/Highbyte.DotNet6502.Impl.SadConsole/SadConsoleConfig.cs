@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.SadConsoleHost
+namespace Highbyte.DotNet6502.Impl.SadConsole
 {
     public class SadConsoleConfig
     {

@@ -1,19 +1,17 @@
-using System;
 using System.Collections.Generic;
-using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Generic.Config;
 using SadRogue.Primitives;
 
-namespace Highbyte.DotNet6502.SadConsoleHost.Commodore64
+namespace Highbyte.DotNet6502.Impl.SadConsole.Generic
 {
-    public static class C64SadConsoleColors
+    public static class GenericSadConsoleColors
     {
+        // Reuse 
         public static Dictionary<System.Drawing.Color, SadRogue.Primitives.Color> NativeToSadConsoleColorMap = new();
 
-        static C64SadConsoleColors()
+        static GenericSadConsoleColors()
         {
-            foreach (var nativeColor in ColorMaps.C64ColorMap.Values)
+            foreach (var nativeColor in ColorMaps.GenericColorMap.Values)
             {
                 NativeToSadConsoleColorMap.Add(nativeColor, nativeColor.ToSadConsoleColor());
             }

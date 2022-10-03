@@ -2,7 +2,7 @@ using Highbyte.DotNet6502.Systems;
 using SadConsole;
 using SadRogue.Primitives;
 
-namespace Highbyte.DotNet6502.SadConsoleHost
+namespace Highbyte.DotNet6502.Impl.SadConsole
 {
     public class SadConsoleScreenObject : ScreenObject
     {

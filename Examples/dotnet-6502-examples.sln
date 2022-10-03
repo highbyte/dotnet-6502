@@ -15,7 +15,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{58
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SadConsoleTest", "SadConsoleTest\SadConsoleTest.csproj", "{58F425DC-E923-4340-B73C-33B19971A289}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.SadConsoleHost", "..\Highbyte.DotNet6502.SadConsoleHost\Highbyte.DotNet6502.SadConsoleHost.csproj", "{B0D46CA9-5003-413B-9F25-7A35B95D31F6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Impl.SadConsole", "..\Highbyte.DotNet6502.Impl.SadConsole\Highbyte.DotNet6502.Impl.SadConsole.csproj", "{B0D46CA9-5003-413B-9F25-7A35B95D31F6}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlazorWasmTest", "BlazorWasmTest\BlazorWasmTest.csproj", "{DD12665D-24D3-4938-9757-B5D3ED254563}"
 EndProject

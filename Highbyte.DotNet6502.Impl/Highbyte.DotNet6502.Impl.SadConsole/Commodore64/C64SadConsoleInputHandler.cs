@@ -1,12 +1,12 @@
 using System.Linq;
-using Highbyte.DotNet6502.SadConsoleHost.Commodore64.Config;
+using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Config;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using SadConsole;
 using SadConsole.Input;
 
-namespace Highbyte.DotNet6502.SadConsoleHost.Commodore64
+namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
 {
     public class C64SadConsoleInputHandler : IInputHandler<C64>, IInputHandler
     {
@@ -55,7 +55,7 @@ namespace Highbyte.DotNet6502.SadConsoleHost.Commodore64
         }
 
         private byte GetPetsciiCode(
-            SadConsole.Input.Keyboard sadConsoleKeyboard)
+            global::SadConsole.Input.Keyboard sadConsoleKeyboard)
         {
             // NOTE ON CURRENT ISSUED WITH KEYBOARD
             // - SadConsole doesn't return the character pressed on a international keyboard correct.

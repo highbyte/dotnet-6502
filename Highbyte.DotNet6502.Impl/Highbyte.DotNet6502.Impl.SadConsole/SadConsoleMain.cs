@@ -1,8 +1,8 @@
 using System;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.SadConsoleHost;
+using Highbyte.DotNet6502.Impl.SadConsole;
 using SadConsole;
-namespace Highbyte.DotNet6502.SadConsoleHost
+namespace Highbyte.DotNet6502.Impl.SadConsole
 {
     public class SadConsoleMain
     {
@@ -32,7 +32,7 @@ namespace Highbyte.DotNet6502.SadConsoleHost
             // If font is null or empty, the default SadConsole font will be used.
             var textMode = _systemRunner.System as ITextMode;
 
-            SadConsole.Game.Create(
+            global::SadConsole.Game.Create(
                 (textMode.Cols + (textMode.BorderCols * 2)) * _sadConsoleConfig.FontScale,
                 (textMode.Rows + (textMode.BorderRows * 2)) * _sadConsoleConfig.FontScale,
                 _sadConsoleConfig.Font
@@ -41,17 +41,17 @@ namespace Highbyte.DotNet6502.SadConsoleHost
             //SadConsole.Game.Instance.DefaultFontSize = IFont.Sizes.One;
 
             // Hook the start event so we can add consoles to the system.
-            SadConsole.Game.Instance.OnStart = InitSadConsole;
+            global::SadConsole.Game.Instance.OnStart = InitSadConsole;
 
             // Hook the update event that happens each frame
-            SadConsole.Game.Instance.FrameUpdate += UpdateSadConsole;
+            global::SadConsole.Game.Instance.FrameUpdate += UpdateSadConsole;
 
             // Hook the "after render"
             //SadConsole.Game.OnDraw = Screen.DrawFrame;
 
             // Start the game.
-            SadConsole.Game.Instance.Run();
-            SadConsole.Game.Instance.Dispose();
+            global::SadConsole.Game.Instance.Run();
+            global::SadConsole.Game.Instance.Dispose();
         }
 
         /// <summary>
@@ -63,8 +63,8 @@ namespace Highbyte.DotNet6502.SadConsoleHost
             var textMode = _systemRunner.System as ITextMode;
             _sadConsoleScreen = new SadConsoleScreenObject(textMode, _sadConsoleConfig);
 
-            SadConsole.Game.Instance.Screen = _sadConsoleScreen;
-            SadConsole.Game.Instance.DestroyDefaultStartingConsole();
+            global::SadConsole.Game.Instance.Screen = _sadConsoleScreen;
+            global::SadConsole.Game.Instance.DestroyDefaultStartingConsole();
 
             // Start with focus on main console on current screen
             _sadConsoleScreen.IsFocused = true;

@@ -9,7 +9,7 @@ on:
   
 env:
    PROJECT_FILE: "Highbyte.DotNet6502/Highbyte.DotNet6502.csproj"
-   PROJECT_FILE2: "Highbyte.DotNet6502.SadConsoleHost/Highbyte.DotNet6502.SadConsoleHost.csproj"
+   PROJECT_FILE2: "Highbyte.DotNet6502.Impl.SadConsole/Highbyte.DotNet6502.Impl.SadConsole.csproj"
    CONFIGURATION: "Release"
    VERSION: "0.6.1"  #Major.Minor[.Rev]
    VERSION_SUFFIX: "-alpha"

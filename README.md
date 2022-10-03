@@ -13,7 +13,7 @@ What it (currently) does/is
 - Can load an assembled 6502 program binary and execute it
 - Passes this [Functional 6502 test program](https://github.com/Klaus2m5/6502_65C02_functional_tests)
 - Monitor (rudimentary)
-- A companion library ```Highbyte.DotNet6502.SadConsoleHost``` to enable emulator interaction with a [SadConsole](https://sadconsole.com/) window
+- A companion library ```Highbyte.DotNet6502.Impl.SadConsole``` to enable emulator interaction with a [SadConsole](https://sadconsole.com/) window
 - Example programs, incl. [SadConsole](#highbytedotnet6502sadconsolehost-demo) and [Blazor WebAssembly](#blazor-webassembly-demo) apps
 - **_A programming exercise, that may or may not turn into something more_**
 
@@ -31,7 +31,7 @@ Inspiration for this library was a [Youtube-series](https://www.youtube.com/watc
 - [Requirements](#requirements)
 - [How to use Highbyte.DotNet6502 library from a .NET application](#how-to-use-highbytedotnet6502-library-from-a-net-application)
     - [Use memory bank switching](#use-memory-bank-switching)
-- [How to use Highbyte.DotNet6502.SadConsoleHost library from a .NET application](#how-to-use-highbytedotnet6502sadconsolehost-library-from-a-net-application)
+- [How to use Highbyte.DotNet6502.Impl.SadConsole library from a .NET application](#how-to-use-highbytedotnet6502sadconsolehost-library-from-a-net-application)
 - [How to use Highbyte.DotNet6502 machine code monitor](#how-to-use-highbytedotnet6502-machine-code-monitor)
   - [Get source](#get-source)
   - [Run with dotnet](#run-with-dotnet)
@@ -161,10 +161,10 @@ TODO
 ### How to control which bank in each segment is currently accessible
 TODO
 
-# How to use Highbyte.DotNet6502.SadConsoleHost library from a .NET application
-The companion library ```Highbyte.DotNet6502.SadConsoleHost``` provides an easy way for letting 6502 code running in the ```Highbyte.DotNet6502``` emulator interacting with a [SadConsole](https://sadconsole.com/) window for a _text-based_ user interface (with possibility of colors and custom fonts).
+# How to use Highbyte.DotNet6502.Impl.SadConsole library from a .NET application
+The companion library ```Highbyte.DotNet6502.Impl.SadConsole``` provides an easy way for letting 6502 code running in the ```Highbyte.DotNet6502``` emulator interacting with a [SadConsole](https://sadconsole.com/) window for a _text-based_ user interface (with possibility of colors and custom fonts).
 
-The ```Highbyte.DotNet6502.SadConsoleHost``` library overview:
+The ```Highbyte.DotNet6502.Impl.SadConsole``` library overview:
 - Initializes the SadConsole library with a window to display screen data from code running in the 6502 emulator.
 - Your 6502 code running in the emulator 
   - is run every frame (SadConsole event handler) until your code sets a specific flag in a memory location, indicating that its done for current frame.
@@ -173,7 +173,7 @@ The ```Highbyte.DotNet6502.SadConsoleHost``` library overview:
 
 With the same principle, keyboard events are also communicated from SadConsole to the emulator via memory addresses.
 
-## Example of basic usage of Highbyte.DotNet6502.SadConsoleHost library
+## Example of basic usage of Highbyte.DotNet6502.Impl.SadConsole library
 
 - Create a new SadConsole .NET project (reference the SadConsole documentation for details). Output type in the .csproj file should be ```<OutputType>WinExe</OutputType>```.
 ``` shell
@@ -183,9 +183,9 @@ dotnet new --install SadConsole.Templates
 dotnet new sadconsole-mg
 ```
 - Make sure .csproj file targets .NET 6: ```<TargetFramework>net6.0</TargetFramework>```
-- Add reference to ```Highbyte.DotNet6502.SadConsoleHost``` (which will also get you the main emulator library ```Highbyte.DotNet6502```)
+- Add reference to ```Highbyte.DotNet6502.Impl.SadConsole``` (which will also get you the main emulator library ```Highbyte.DotNet6502```)
 ``` shell
-dotnet add package Highbyte.DotNet6502.SadConsoleHost --prerelease
+dotnet add package Highbyte.DotNet6502.Impl.SadConsole --prerelease
 ```
 - Add reference to configuration libraries
 ``` shell
@@ -194,7 +194,7 @@ dotnet add package Microsoft.Extensions.Configuration.Binder
 ```
 - Replace Program.cs with this code:
 ```c#
-using Highbyte.DotNet6502.SadConsoleHost;
+using Highbyte.DotNet6502.Impl.SadConsole;
 using Microsoft.Extensions.Configuration;
 using System.IO;
 
@@ -228,7 +228,7 @@ namespace Demo
 
 ``` jsonc
 {
-  "Highbyte.DotNet6502.SadConsoleHost": {
+  "Highbyte.DotNet6502.Impl.SadConsole": {
 
     "SadConsoleConfig": {
       "WindowTitle": "SadConsole with Highbyte.DotNet6502 emulator!",
@@ -369,8 +369,8 @@ _TODO: Detailed information on how to configure, and simple 6502 example code. S
 ## Example applications
 The solution file ```Examples\dotnet-6502-examples.sln``` includes all example projects, as well as the main projects.
 
-### Highbyte.DotNet6502.SadConsoleHost demo
-Example of a [SadConsole](https://sadconsole.com/) application running compiled 6502 [assembly code](Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.asm) in the emulator, using ```Highbyte.DotNet6502.SadConsoleHost``` library to let the emulator interact with text-based screen provided by [SadConsole](https://sadconsole.com/). 
+### Highbyte.DotNet6502.Impl.SadConsole demo
+Example of a [SadConsole](https://sadconsole.com/) application running compiled 6502 [assembly code](Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.asm) in the emulator, using ```Highbyte.DotNet6502.Impl.SadConsole``` library to let the emulator interact with text-based screen provided by [SadConsole](https://sadconsole.com/). 
 
 _Notes:_
 - The scrolling is choppy due to text-mode only, but the color-cycling works ok. 

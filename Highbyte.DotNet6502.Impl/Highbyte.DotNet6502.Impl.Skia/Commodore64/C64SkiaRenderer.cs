@@ -3,19 +3,16 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
-namespace Highbyte.DotNet6502.SadConsoleHost.Commodore64
+namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 {
-    public class C64SadConsoleRenderer : IRenderer<C64>, IRenderer
+    public class C64SkiaRenderer : IRenderer<C64>, IRenderer
     {
         public int Width => 320;
         public int Height => 200;
 
-        private readonly Func<SadConsoleScreenObject> _getSadConsoleScreen;
 
-        public C64SadConsoleRenderer(
-            Func<SadConsoleScreenObject> getSadConsoleScreen)
+        public C64SkiaRenderer()
         {
-            _getSadConsoleScreen = getSadConsoleScreen;
         }
 
         public void Draw(C64 c64)
@@ -32,11 +29,6 @@ namespace Highbyte.DotNet6502.SadConsoleHost.Commodore64
         private void RenderMainScreen(C64 c64)
         {
             var emulatorMem = c64.Mem;
-            // // Top Left
-            // DrawEmulatorCharacterOnScreen(0, 0, 65, 0x01, 0x05);
-            // // Bottom Right
-            // DrawEmulatorCharacterOnScreen(_emulatorMemoryConfig.Cols-1, _emulatorMemoryConfig.Rows-1 , 66, 0x01, 0x05);
-            // return;
 
             byte bgColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR];
 
@@ -96,7 +88,6 @@ namespace Highbyte.DotNet6502.SadConsoleHost.Commodore64
 
         /// <summary>
         /// Draw character to screen, with adjusted position for border.
-        /// Colors are translated from emulator to SadConsole.
         /// </summary>
         /// <param name="x"></param>
         /// <param name="y"></param>
@@ -111,36 +102,20 @@ namespace Highbyte.DotNet6502.SadConsoleHost.Commodore64
                 y += c64.BorderRows;
             }
 
-            byte sadConsoleCharacter;
-            // Default to C64 screen codes as source
-            sadConsoleCharacter = TranslateC64ScreenCodeToSadConsoleC64Font(emulatorCharacter);
+            // TODO: Draw character image from chargen ROM to a Skia surface
 
-            _getSadConsoleScreen().DrawCharacter(
-                x,
-                y,
-                sadConsoleCharacter,
-                C64SadConsoleColors.NativeToSadConsoleColorMap[ColorMaps.C64ColorMap[emulatorFgColor]],
-                C64SadConsoleColors.NativeToSadConsoleColorMap[ColorMaps.C64ColorMap[emulatorBgColor]]
-                );
+            // byte sadConsoleCharacter;
+            // // Default to C64 screen codes as source
+            // sadConsoleCharacter = TranslateC64ScreenCodeToSadConsoleC64Font(emulatorCharacter);
+
+            // _getSadConsoleScreen().DrawCharacter(
+            //     x,
+            //     y,
+            //     sadConsoleCharacter,
+            //     C64SadConsoleColors.NativeToSadConsoleColorMap[ColorMaps.C64ColorMap[emulatorFgColor]],
+            //     C64SadConsoleColors.NativeToSadConsoleColorMap[ColorMaps.C64ColorMap[emulatorBgColor]]
+            //     );
         }
 
-        private byte TranslateC64ScreenCodeToSadConsoleC64Font(byte sourceByte)
-        {
-            switch (sourceByte & 0xff)
-            {
-                case 0xa0:  //160, C64 inverted space
-                    return 219; // Inverted square in SadConsole C64 font
-                case 0xe0:  //224, Also C64 inverted space?
-                    return 219; // Inverted square in SadConsole C64 font
-                default:
-
-                    // Convert C64 screen code to PETSCII
-                    var sadConsoleCharacter = CharacterMaps.C64ScreenCodeToPETSCII(sourceByte);
-                    // TODO: Also convert to ASCII?  Would depend on the font being used?
-                    //sadConsoleCharacter = CharacterMaps.PETSCIICodeToASCII(sadConsoleCharacter);
-
-                    return sadConsoleCharacter;
-            }
-        }
     }
 }

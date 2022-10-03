@@ -9,9 +9,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Tests",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Monitor", "Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj", "{B5FDDFEE-632E-4AC5-B090-79946F8068DD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.SadConsoleHost", "Highbyte.DotNet6502.SadConsoleHost\Highbyte.DotNet6502.SadConsoleHost.csproj", "{B0D46CA9-5003-413B-9F25-7A35B95D31F6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Impl.SadConsole", "Highbyte.DotNet6502.Impl\Highbyte.DotNet6502.Impl.SadConsole\Highbyte.DotNet6502.Impl.SadConsole.csproj", "{B0D46CA9-5003-413B-9F25-7A35B95D31F6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.Systems", "Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj", "{A3F09C71-33B9-4351-A7BB-14BE9B017D67}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.Impl.Skia", "Highbyte.DotNet6502.Impl\Highbyte.DotNet6502.Impl.Skia\Highbyte.DotNet6502.Impl.Skia.csproj", "{4837554A-F083-468B-830E-FF704136D21B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -83,6 +85,18 @@ Global
 		{A3F09C71-33B9-4351-A7BB-14BE9B017D67}.Release|x64.Build.0 = Release|Any CPU
 		{A3F09C71-33B9-4351-A7BB-14BE9B017D67}.Release|x86.ActiveCfg = Release|Any CPU
 		{A3F09C71-33B9-4351-A7BB-14BE9B017D67}.Release|x86.Build.0 = Release|Any CPU
+		{4837554A-F083-468B-830E-FF704136D21B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4837554A-F083-468B-830E-FF704136D21B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4837554A-F083-468B-830E-FF704136D21B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4837554A-F083-468B-830E-FF704136D21B}.Debug|x64.Build.0 = Debug|Any CPU
+		{4837554A-F083-468B-830E-FF704136D21B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4837554A-F083-468B-830E-FF704136D21B}.Debug|x86.Build.0 = Debug|Any CPU
+		{4837554A-F083-468B-830E-FF704136D21B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4837554A-F083-468B-830E-FF704136D21B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4837554A-F083-468B-830E-FF704136D21B}.Release|x64.ActiveCfg = Release|Any CPU
+		{4837554A-F083-468B-830E-FF704136D21B}.Release|x64.Build.0 = Release|Any CPU
+		{4837554A-F083-468B-830E-FF704136D21B}.Release|x86.ActiveCfg = Release|Any CPU
+		{4837554A-F083-468B-830E-FF704136D21B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

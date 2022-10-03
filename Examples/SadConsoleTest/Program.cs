@@ -1,9 +1,8 @@
 ﻿using System.IO;
-using Highbyte.DotNet6502.SadConsoleHost;
+using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Microsoft.Extensions.Configuration;
-
 namespace SadConsoleTest
 {
     /// <summary>
