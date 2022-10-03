@@ -228,39 +228,39 @@ namespace Demo
 
 ``` jsonc
 {
-  "Highbyte.DotNet6502.Impl.SadConsole": {
+  "Highbyte.DotNet6502.SadConsoleConfig": {
 
     "SadConsoleConfig": {
       "WindowTitle": "SadConsole with Highbyte.DotNet6502 emulator!",
-      "FontScale": 2
-    },
+      "FontScale": 2,
+      "Emulator": "GenericComputer"
+    }
+  },
+  "Highbyte.DotNet6502.GenericComputer": {
+    "ProgramBinaryFile": "./.cache/hello_world.prg",     
+    "RunEmulatorEveryFrame" : 1,
 
-    "EmulatorConfig": {
-      "ProgramBinaryFile": "./.cache/hello_world.prg",     
-      "RunEmulatorEveryFrame" : 1,
+    "Memory": {
+      "Screen": {
+        "Cols": 80,
+        "Rows": 25,
+        "BorderCols": 6,
+        "BorderRows": 3,
+        "ScreenStartAddress":           "0x0400",   // 80*25 = 2000 (0x07d0) -> range 0x0400 - 0x0bcf
+        "ScreenColorStartAddress":      "0xd800",   // 80*25 = 2000 (0x07d0) -> range 0xd800 - 0xdfcf
 
-      "Memory": {
-        "Screen": {
-          "Cols": 80,
-          "Rows": 25,
-          "BorderCols": 6,
-          "BorderRows": 3,
-          "ScreenStartAddress":           "0x0400",   // 80*25 = 2000 (0x07d0) -> range 0x0400 - 0x0bcf
-          "ScreenColorStartAddress":      "0xd800",   // 80*25 = 2000 (0x07d0) -> range 0xd800 - 0xdfcf
-
-          "ScreenRefreshStatusAddress":   "0xd000",   // The 6502 code should set bit 1 here when it's done for current frame
-          "ScreenBorderColorAddress":     "0xd020",
-          "ScreenBackgroundColorAddress": "0xd021",
-          "DefaultBgColor":               "0x00",     // 0x00 = Black (C64 scheme)
-          "DefaultFgColor":               "0x01",     // 0x0f = Light grey, 0x0e = Light Blue, 0x01 = White  (C64 scheme)
-          "DefaultBorderColor":           "0x0b"      // 0x0b = Dark grey (C64 scheme)
-        },
-        "Input": {
-          "KeyPressedAddress":            "0xd030",
-          "KeyDownAddress":               "0xd031",
-          "KeyReleasedAddress":           "0xd032"
-        },
-      }
+        "ScreenRefreshStatusAddress":   "0xd000",   // The 6502 code should set bit 1 here when it's done for current frame
+        "ScreenBorderColorAddress":     "0xd020",
+        "ScreenBackgroundColorAddress": "0xd021",
+        "DefaultBgColor":               "0x00",     // 0x00 = Black (C64 scheme)
+        "DefaultFgColor":               "0x01",     // 0x0f = Light grey, 0x0e = Light Blue, 0x01 = White  (C64 scheme)
+        "DefaultBorderColor":           "0x0b"      // 0x0b = Dark grey (C64 scheme)
+      },
+      "Input": {
+        "KeyPressedAddress":            "0xd030",
+        "KeyDownAddress":               "0xd031",
+        "KeyReleasedAddress":           "0xd032"
+      },
     }
   }
 }
@@ -326,11 +326,8 @@ KEY_RELEASED_ADDRESS = 0xd031
 .endoftext
 
 mainloop:
-;Wait for emulator indicating a new frame
-.waitfornextframe
-	lda SCREEN_REFRESH_STATUS
-	and #%00000001			;Bit 0 set signals it time to refresh screen
-	beq .waitfornextframe		;Loop if bit 0 is not set
+;Wait for new frame (flag set by emulator host)
+	jsr waitforrefresh
 
 ;If space is pressed, cycle border color
 	lda KEY_DOWN_ADDRESS		;Load currently down key
@@ -352,6 +349,17 @@ mainloop:
 
 ;Loop forever
 	jmp mainloop
+
+waitforrefresh:
+.loop
+	lda SCREEN_REFRESH_STATUS
+	tax ; Store copy of current screen status in X
+	and #%00000001	;Bit 0 set signals it time to refresh screen
+	beq .loop	;Loop if bit 0 is not set (AND results in value 0, then zero flag set, BEQ branches zero flag is set)
+	lda SCREEN_REFRESH_STATUS
+	and #%11111110 ;Clear bit 0.
+	sta SCREEN_REFRESH_STATUS ;Update status to memory (will acknowledge that 6502 code is done waiting for the next frame)
+	rts
 
 ;------------------------------------------------------------
 ;Data
