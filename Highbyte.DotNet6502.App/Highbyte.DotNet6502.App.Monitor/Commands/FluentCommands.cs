@@ -5,7 +5,7 @@ using System.Globalization;
 using McMaster.Extensions.CommandLineUtils;
 using McMaster.Extensions.CommandLineUtils.Validation;
 
-namespace Highbyte.DotNet6502.Monitor.Commands
+namespace Highbyte.DotNet6502.App.Monitor.Commands
 {
     /// <summary>
     /// </summary>

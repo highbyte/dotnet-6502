@@ -10,9 +10,9 @@
             "request": "launch",
             "preLaunchTask": "build monitor",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Highbyte.DotNet6502.Monitor/bin/Debug/net6.0/Highbyte.DotNet6502.Monitor.dll",
+            "program": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.Monitor/bin/Debug/net6.0/Highbyte.DotNet6502.App.Monitor.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.Monitor/bin/Debug/net6.0",
+            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.Monitor/bin/Debug/net6.0",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "externalTerminal",
             "stopAtEntry": false

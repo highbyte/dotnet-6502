@@ -23,7 +23,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Highbyte.DotNet6502.Monitor/Highbyte.DotNet6502.Monitor.csproj",
+                "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.Monitor/Highbyte.DotNet6502.App.Monitor.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],

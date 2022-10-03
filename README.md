@@ -426,7 +426,7 @@ A machine code monitor console application for the Highbyte.DotNet6502 emulator 
 
 ## Get source
 - Clone this repo ```git clone https://github.com/highbyte/dotnet-6502.git```
-- Change dir to monitor application ```cd dotnet-6502/Highbyte.DotNet6502.Monitor```
+- Change dir to monitor application ```cd dotnet-6502/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.Monitor```
 
 ## Run with dotnet
 - ```dotnet run```
@@ -434,9 +434,9 @@ A machine code monitor console application for the Highbyte.DotNet6502 emulator 
 ## Or build and run executable
 - Compile the source code with ```dotnet build```
 - Run executable
-  - Windows: ```.\bin\Debug\net6.0\Highbyte.DotNet6502.Monitor.exe```
-  - Linux: ```./bin/Debug/net6.0/Highbyte.DotNet6502.Monitor```
-  - Mac: ```./bin/Debug/net6.0/Highbyte.DotNet6502.Monitor```
+  - Windows: ```.\bin\Debug\net6.0\Highbyte.DotNet6502.App.Monitor.exe```
+  - Linux: ```./bin/Debug/net6.0/Highbyte.DotNet6502.App.Monitor```
+  - Mac: ```./bin/Debug/net6.0/Highbyte.DotNet6502.App.Monitor```
 
 ## Monitor commands
 Type ```?|help|-?|--help``` to list commands.

@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502", "High
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Tests", "Highbyte.DotNet6502.Tests\Highbyte.DotNet6502.Tests.csproj", "{4C634415-8E21-4813-A40C-E19025C300D4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Monitor", "Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj", "{B5FDDFEE-632E-4AC5-B090-79946F8068DD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.App.Monitor", "Highbyte.DotNet6502.App\Highbyte.DotNet6502.App.Monitor\Highbyte.DotNet6502.App.Monitor.csproj", "{B5FDDFEE-632E-4AC5-B090-79946F8068DD}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Impl.SadConsole", "Highbyte.DotNet6502.Impl\Highbyte.DotNet6502.Impl.SadConsole\Highbyte.DotNet6502.Impl.SadConsole.csproj", "{B0D46CA9-5003-413B-9F25-7A35B95D31F6}"
 EndProject

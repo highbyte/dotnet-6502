@@ -3,7 +3,7 @@ using System.Diagnostics;
 using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Systems.Generic;
 
-namespace Highbyte.DotNet6502.Monitor
+namespace Highbyte.DotNet6502.App.Monitor
 {
     public class Mon
     {
