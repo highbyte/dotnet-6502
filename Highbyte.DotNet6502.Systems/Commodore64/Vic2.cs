@@ -6,19 +6,43 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
     {
         public const ushort COLS = 40;
         public const ushort ROWS = 25;
+        public const ushort WIDTH = 320;    // Pixels
+        public const ushort HEIGHT = 200;   // Pixels
 
-        public const int PIXELS_PER_LINE = 504;    // including border
+
+        public const int PIXELS_PER_CPU_CYCLE = 8;
+        public const int HBLANK_PIXELS = 101;
+        public const int VBLANK_LINES = 30;
+
         // PAL
+        public const int PAL_PIXELS_PER_LINE_VISIBLE = PAL_PIXELS_PER_LINE - HBLANK_PIXELS; // 504 - 101 = 403 pixels. Including visible border (excluding time to reach next line, HBLANK)
+        public const int PAL_PIXELS_PER_LINE = 416;   // TODO
+        //public const int PAL_PIXELS_PER_LINE = PAL_CYCLES_PER_LINE * PIXELS_PER_CPU_CYCLE;  // 63 * 8 = 504 pixels. Including border and time to reach next line (HBLANK)
         public const int PAL_CYCLES_PER_LINE = 63;
         public const int PAL_LINES = 312;
+        public const int PAL_LINES_VISIBLE = 284;                                             // TODO: Why is it 284? Shouldn't it be 312 - 30 = 282?
+        //public const int PAL_LINES_VISIBLE = PAL_LINES - VBLANK_LINES;                      // 312 - 30 = 282. Total vertical lines excluding lines spent in VBLANK.
         public const int PAL_CYCLES_PER_FRAME = PAL_CYCLES_PER_LINE * PAL_LINES;
+
         // NTSC new machines
+        public const int NTSC_NEW_PIXELS_PER_LINE_VISIBLE = NTSC_NEW_PIXELS_PER_LINE - HBLANK_PIXELS; // 411. Including visible border (excluding time to reach next line, HBLANK)
+        
+        public const int NTSC_NEW_PIXELS_PER_LINE = 431; // TODO
+        //public const int NTSC_NEW_PIXELS_PER_LINE = NTSC_NEW_CYCLES_PER_LINE * PIXELS_PER_CPU_CYCLE;  // 512. Including border and time to reach next line (HBLANK)
         public const int NTSC_NEW_CYCLES_PER_LINE = 64;
         public const int NTSC_NEW_LINES = 262;
+        public const int NTSC_NEW_LINES_VISIBLE = 234;                                             // TODO: Why is it 234? Shouldn't it be 262 - 30 = 232?
+        //public const int NTSC_NEW_LINES_VISIBLE = NTSC_NEW_LINES - VBLANK_LINES;                 // 262 - 30 = 232. Total vertical lines excluding lines spent in VBLANK.
+
         public const int NTSC_NEW_CYCLES_PER_FRAME = NTSC_NEW_CYCLES_PER_LINE * NTSC_NEW_LINES;
         // NTSC old machines
+        public const int NTSC_OLD_PIXELS_PER_LINE_VISIBLE = NTSC_OLD_PIXELS_PER_LINE - HBLANK_PIXELS; // 419. Including visible border (excluding time to reach next line, HBLANK)
+        public const int NTSC_OLD_PIXELS_PER_LINE = 439; // TODO
+        //public const int NTSC_OLD_PIXELS_PER_LINE = NTSC_OLD_CYCLES_PER_LINE * PIXELS_PER_CPU_CYCLE;  // 520. Including border and time to reach next line (HBLANK)
         public const int NTSC_OLD_CYCLES_PER_LINE = 65;
         public const int NTSC_OLD_LINES = 263;
+        public const int NTSC_OLD_LINES_VISIBLE = 235;                                             // TODO: Why is it 235? Shouldn't it be 263 - 30 = 233?
+        //public const int NTSC_OLD_LINES_VISIBLE = NTSC_OLD_LINES - VBLANK_LINES;                 // 263 - 30 = 233. Total vertical lines excluding lines spent in VBLANK.
         public const int NTSC_OLD_CYCLES_PER_FRAME = NTSC_OLD_CYCLES_PER_LINE * NTSC_OLD_LINES;
 
         private ulong _cyclesConsumedCurrentVblank = 0;

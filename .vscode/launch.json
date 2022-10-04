@@ -44,6 +44,19 @@
             "stopAtEntry": false
         },
         {
+            "name": ".NET Core Launch (SkiaNative)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build skia native app",
+            // If you have changed target frameworks, make sure to update the program path.
+            "program": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaNative/bin/Debug/net6.0/Highbyte.DotNet6502.App.SkiaNative.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaNative/bin/Debug/net6.0",
+            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },        
+        {
             "name": "Blazor WASM Launch and Debug (BlazorWasmTest)",
             "type": "blazorwasm",
             "request": "launch",

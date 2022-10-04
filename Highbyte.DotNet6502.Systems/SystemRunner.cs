@@ -31,16 +31,35 @@ namespace Highbyte.DotNet6502.Systems
 
         public bool RunOneFrame()
         {
-            if (_inputHandler != null)
-                _inputHandler.ProcessInput(System);
+            ProcessInput();
 
-            bool executeOk = System.ExecuteOneFrame();
+            bool executeOk = RunEmulatorOneFrame();
             if (!executeOk)
                 return false;
 
+            Draw();
+
+            return true;
+        }
+
+        public void ProcessInput()
+        {
+            if (_inputHandler != null)
+                _inputHandler.ProcessInput(System);
+        }
+
+        public bool RunEmulatorOneFrame()
+        {
+            bool executeOk = System.ExecuteOneFrame();
+            if (!executeOk)
+                return false;
+            return true;
+        }
+
+        public void Draw()
+        {
             if (_renderer != null)
                 _renderer.Draw(System);
-            return true;
         }
     }
 

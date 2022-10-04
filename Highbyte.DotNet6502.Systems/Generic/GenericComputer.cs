@@ -2,7 +2,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Systems.Generic
 {
-    public class GenericComputer : ISystem, ITextMode
+    public class GenericComputer : ISystem, ITextMode, IScreen
     {
         // How many 6502 CPU cycles this generic (fictional) computer should be able to execute per frame.
         // This should be adjusted to the performance of the machine the emulator is running on.
@@ -16,9 +16,16 @@ namespace Highbyte.DotNet6502.Systems.Generic
 
         public int Cols => _emulatorScreenConfig.Cols;
         public int Rows => _emulatorScreenConfig.Rows;
-        public bool HasBorder => _emulatorScreenConfig.BorderCols > 0 && _emulatorScreenConfig.BorderRows > 0;
-        public int BorderCols => _emulatorScreenConfig.BorderCols;
-        public int BorderRows => _emulatorScreenConfig.BorderRows;
+        public int CharacterWidth => 8;
+        public int CharacterHeight => 8;
+
+        public int Width => Cols * CharacterWidth;
+        public int Height => Rows * CharacterHeight;
+        public int VisibleWidth => (Cols * CharacterWidth) + (2 * (_emulatorScreenConfig.BorderCols * CharacterWidth));
+        public int VisibleHeight => (Rows * CharacterHeight) + (2 * (_emulatorScreenConfig.BorderRows * CharacterHeight));
+        public bool HasBorder => (VisibleWidth > Width) || (VisibleHeight > Height);
+        public int BorderWidth => VisibleWidth - Width;
+        public int BorderHeight => VisibleHeight - Height;
 
         private readonly EmulatorScreenConfig _emulatorScreenConfig;
 

@@ -9,8 +9,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
-    <ProjectReference Include="..\..\Highbyte.DotNet6502.Skia\Highbyte.DotNet6502.Skia.csproj" />
+    <ProjectReference Include="..\..\Highbyte.DotNet6502.Impl\Highbyte.DotNet6502.Impl.Skia\Highbyte.DotNet6502.Impl.Skia.csproj" />
     <ProjectReference Include="..\..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.Input" Version="2.16.0" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.16.0" />
+    <PackageReference Include="Silk.NET.Windowing" Version="2.16.0" />
   </ItemGroup>
 
 </Project>

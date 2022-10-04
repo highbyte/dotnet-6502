@@ -1,24 +1,29 @@
-using System;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using SkiaSharp;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 {
     public class C64SkiaRenderer : IRenderer<C64>, IRenderer
     {
-        public int Width => 320;
-        public int Height => 200;
+        private readonly SKCanvas _skCanvas;
 
+        public int Width => Vic2.COLS * 8;
+        public int Height => Vic2.ROWS * 8;
 
-        public C64SkiaRenderer()
+        public int MaxWidth => Vic2.PAL_PIXELS_PER_LINE_VISIBLE;
+        public int MaxHeight => Vic2.PAL_LINES_VISIBLE;
+
+        public C64SkiaRenderer(SKCanvas skCanvas)
         {
+            _skCanvas = skCanvas;
         }
 
         public void Draw(C64 c64)
         {
+            RenderBackgroundAndBorder(c64);
             RenderMainScreen(c64);
-            RenderBorder(c64);
         }
 
         public void Draw(ISystem system)
@@ -54,36 +59,30 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
             }
         }
 
-        private void RenderBorder(C64 c64)
+        private void RenderBackgroundAndBorder(C64 c64)
         {
             var emulatorMem = c64.Mem;
 
-            byte borderCharacter = 0;    // 0 = no character
-            byte borderBgColor = emulatorMem[Vic2Addr.BORDER_COLOR];
-            byte borderFgColor = borderBgColor;
+            byte backgroundColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR];
+            byte borderColor = emulatorMem[Vic2Addr.BORDER_COLOR];
 
-            int border_cols = c64.BorderCols;
-            int border_rows = c64.BorderRows;
+            SKColor backgroundSkColor = C64SkiaColors.NativeToSkColorMap[ColorMaps.C64ColorMap[backgroundColor]];
+            SKColor borderSkColor = C64SkiaColors.NativeToSkColorMap[ColorMaps.C64ColorMap[borderColor]];
 
-            for (int row = 0; row < (Vic2.ROWS + (border_rows * 2)); row++)
+            // Draw 4 rectangles for border
+            using (var paint = new SKPaint { Style = SKPaintStyle.Fill, Color = borderSkColor })
             {
-                for (int col = 0; col < (Vic2.COLS + (border_cols * 2)); col++)
-                {
-                    if (row < border_rows || row >= (Vic2.ROWS + border_rows)
-                        || col < border_cols || col >= (Vic2.COLS + border_cols))
-                    {
-                        DrawEmulatorCharacterOnScreen(
-                            col,
-                            row,
-                            borderCharacter,
-                            borderFgColor,
-                            borderBgColor,
-                            c64,
-                            adjustForBorder: false
-                            );
-                    }
-                }
+                _skCanvas.DrawRect(0, 0, c64.VisibleWidth, c64.BorderHeight, paint);
+                _skCanvas.DrawRect(0, (c64.BorderHeight + c64.Height), c64.VisibleWidth, c64.BorderHeight, paint);
+                _skCanvas.DrawRect(0, c64.BorderHeight, c64.BorderWidth, c64.Height, paint);
+                _skCanvas.DrawRect(c64.BorderWidth + c64.Width, c64.BorderHeight, c64.BorderWidth, c64.Height, paint);
             }
+            // Draw 1 rectangles for background
+            using (var paint = new SKPaint { Style = SKPaintStyle.Fill, Color = backgroundSkColor })
+            {
+                _skCanvas.DrawRect(c64.BorderWidth, c64.BorderHeight, c64.Width, c64.Height, paint);
+            }
+
         }
 
         /// <summary>
@@ -94,12 +93,14 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
         /// <param name="emulatorCharacter"></param>
         /// <param name="emulatorFgColor"></param>
         /// <param name="emulatorBgColor"></param>
-        public void DrawEmulatorCharacterOnScreen(int x, int y, byte emulatorCharacter, byte emulatorFgColor, byte emulatorBgColor, C64 c64, bool adjustForBorder)
+        public void DrawEmulatorCharacterOnScreen(int col, int row, byte emulatorCharacter, byte emulatorFgColor, byte emulatorBgColor, C64 c64, bool adjustForBorder)
         {
+            int pixelPosX = col * c64.CharacterWidth;
+            int pixelPosY = col * c64.CharacterHeight;
             if (adjustForBorder)
             {
-                x += c64.BorderCols;
-                y += c64.BorderRows;
+                pixelPosX += c64.BorderWidth;
+                pixelPosY += c64.BorderHeight;
             }
 
             // TODO: Draw character image from chargen ROM to a Skia surface
@@ -116,6 +117,5 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
             //     C64SadConsoleColors.NativeToSadConsoleColorMap[ColorMaps.C64ColorMap[emulatorBgColor]]
             //     );
         }
-
     }
 }

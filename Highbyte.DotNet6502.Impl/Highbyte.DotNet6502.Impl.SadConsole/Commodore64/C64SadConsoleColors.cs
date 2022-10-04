@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Generic;
-using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using SadRogue.Primitives;
 

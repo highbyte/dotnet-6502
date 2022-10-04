@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64
 {
-    public class C64: ISystem, ITextMode
+    public class C64: ISystem, ITextMode, IScreen
     {
         public CPU CPU { get; set; }
         public Memory Mem { get; set; }
@@ -15,9 +15,17 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
         public int Cols => Vic2.COLS;
         public int Rows => Vic2.ROWS;
+        public int CharacterWidth => 8;
+        public int CharacterHeight => 8;
+
+        public int Width => Vic2.WIDTH;
+        public int Height => Vic2.HEIGHT;
+        public int VisibleWidth => Vic2.PAL_PIXELS_PER_LINE;
+        public int VisibleHeight => Vic2.PAL_LINES_VISIBLE;
         public bool HasBorder => true;
-        public int BorderCols => 3;
-        public int BorderRows => 3;
+        public int BorderWidth => (VisibleWidth - Width) / 2;
+        public int BorderHeight => (VisibleHeight - Height) / 2;
+
 
         public void VerticalBlank()
         {
