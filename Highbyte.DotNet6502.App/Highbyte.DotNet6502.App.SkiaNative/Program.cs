@@ -28,16 +28,12 @@ var screen = (IScreen)system;
 // ----------
 // Silk.NET Window
 // ----------
-// int width = 1280;
-// int height = 720;
-// int width = 1130;
-// int height = 770;
 int windowWidth = (int)(screen.VisibleWidth * scale);
 int windowHeight = (int)(screen.VisibleHeight * scale);
 
 var windowOptions = WindowOptions.Default;
 // Update frequency, in hertz. 
-windowOptions.UpdatesPerSecond = 0.0f;
+windowOptions.UpdatesPerSecond = 60.0f;
 // Render frequency, in hertz.
 windowOptions.FramesPerSecond = 60.0f;
 //windowOptions.VSync = true;

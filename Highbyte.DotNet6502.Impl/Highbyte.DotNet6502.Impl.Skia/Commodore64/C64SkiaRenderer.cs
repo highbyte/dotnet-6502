@@ -82,7 +82,6 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
             {
                 _skCanvas.DrawRect(c64.BorderWidth, c64.BorderHeight, c64.Width, c64.Height, paint);
             }
-
         }
 
         /// <summary>
@@ -105,17 +104,16 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 
             // TODO: Draw character image from chargen ROM to a Skia surface
 
-            // byte sadConsoleCharacter;
-            // // Default to C64 screen codes as source
-            // sadConsoleCharacter = TranslateC64ScreenCodeToSadConsoleC64Font(emulatorCharacter);
-
-            // _getSadConsoleScreen().DrawCharacter(
-            //     x,
-            //     y,
-            //     sadConsoleCharacter,
-            //     C64SadConsoleColors.NativeToSadConsoleColorMap[ColorMaps.C64ColorMap[emulatorFgColor]],
-            //     C64SadConsoleColors.NativeToSadConsoleColorMap[ColorMaps.C64ColorMap[emulatorBgColor]]
-            //     );
+            // START LAB
+            SKColor foreGroundSkColor = C64SkiaColors.NativeToSkColorMap[ColorMaps.C64ColorMap[emulatorFgColor]];
+            if(emulatorCharacter != 32 && emulatorCharacter != 0)
+            {
+                using (var paint = new SKPaint { Style = SKPaintStyle.Fill, Color = foreGroundSkColor })
+                {
+                    _skCanvas.DrawRect(pixelPosX, pixelPosY, c64.CharacterWidth, c64.CharacterHeight, paint);
+                }
+            }
+            // END LAB
         }
     }
 }
