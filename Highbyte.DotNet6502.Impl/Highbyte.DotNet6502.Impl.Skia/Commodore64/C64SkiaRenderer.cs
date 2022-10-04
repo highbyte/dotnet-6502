@@ -96,7 +96,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
         public void DrawEmulatorCharacterOnScreen(int col, int row, byte emulatorCharacter, byte emulatorFgColor, byte emulatorBgColor, C64 c64, bool adjustForBorder)
         {
             int pixelPosX = col * c64.CharacterWidth;
-            int pixelPosY = col * c64.CharacterHeight;
+            int pixelPosY = row * c64.CharacterHeight;
             if (adjustForBorder)
             {
                 pixelPosX += c64.BorderWidth;

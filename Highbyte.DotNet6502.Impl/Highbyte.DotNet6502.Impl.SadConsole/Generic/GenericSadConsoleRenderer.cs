@@ -81,9 +81,9 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Generic
                         || col < _emulatorScreenConfig.BorderCols || col >= (_emulatorScreenConfig.Cols + _emulatorScreenConfig.BorderCols))
                     {
                         DrawEmulatorCharacterOnScreen(
-                            col, 
+                            col,
                             row,
-                            borderCharacter, 
+                            borderCharacter,
                             borderFgColor,
                             borderBgColor,
                             adjustPosForBorder: false
@@ -131,7 +131,6 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Generic
             {
                 x += _emulatorScreenConfig.BorderCols;
                 y += _emulatorScreenConfig.BorderRows;
-
             }
 
             if (!_emulatorScreenConfig.ColorMap.ContainsKey(emulatorFgColor))

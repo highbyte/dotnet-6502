@@ -70,8 +70,8 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
             byte borderBgColor = emulatorMem[Vic2Addr.BORDER_COLOR];
             byte borderFgColor = borderBgColor;
 
-            int border_cols = c64.BorderCols;
-            int border_rows = c64.BorderRows;
+            int border_cols = GetBorderCols(c64);
+            int border_rows = GetBorderRows(c64);
 
             for (int row = 0; row < (Vic2.ROWS + (border_rows * 2)); row++)
             {
@@ -107,8 +107,8 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
         {
             if (adjustForBorder)
             {
-                x += c64.BorderCols;
-                y += c64.BorderRows;
+                x += GetBorderCols(c64);
+                y += GetBorderRows(c64);
             }
 
             byte sadConsoleCharacter;
@@ -142,5 +142,15 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
                     return sadConsoleCharacter;
             }
         }
+
+        private int GetBorderCols(C64 c64)
+        {
+            return c64.BorderWidth / c64.CharacterWidth;
+        }
+        private int GetBorderRows(C64 c64)
+        {
+            return c64.BorderHeight / c64.CharacterHeight;
+        }
+
     }
 }

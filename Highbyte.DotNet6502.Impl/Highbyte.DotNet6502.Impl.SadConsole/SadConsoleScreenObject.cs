@@ -8,15 +8,25 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
     {
         public Console ScreenConsole { get; }
 
-        public SadConsoleScreenObject(ITextMode textMode, SadConsoleConfig sadConsoleConfig)
+        public SadConsoleScreenObject(ITextMode textMode, IScreen screen, SadConsoleConfig sadConsoleConfig)
         {
-            ScreenConsole = CreateScreenConsole(textMode, sadConsoleConfig);
+            ScreenConsole = CreateScreenConsole(textMode, screen, sadConsoleConfig);
         }
 
-        private Console CreateScreenConsole(ITextMode textMode, SadConsoleConfig sadConsoleConfig)
+        private Console CreateScreenConsole(ITextMode textMode, IScreen screen, SadConsoleConfig sadConsoleConfig)
         {
-            // Setup screen
-            var screen = new Console(textMode.Cols + (textMode.BorderCols * 2), textMode.Rows + (textMode.BorderRows * 2))
+            // Setup console screen
+            // int totalCols = (textMode.Cols + (textMode.BorderCols * 2));
+            // int totalRows = (textMode.Rows + (textMode.BorderRows * 2));
+            int totalCols = textMode.Cols;
+            int totalRows = textMode.Rows;
+            if(screen.HasBorder)
+            {
+                totalCols += (screen.BorderWidth / textMode.CharacterWidth) * 2;
+                totalRows += (screen.BorderHeight / textMode.CharacterHeight) * 2;
+            }
+
+            var console = new Console(totalCols, totalRows)
             {
                 DefaultForeground = Color.White,
                 DefaultBackground = Color.Black
@@ -31,14 +41,14 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
                 3 => IFont.Sizes.Three,
                 _ => IFont.Sizes.One,
             };
-            screen.FontSize = screen.Font.GetFontSize(fontSize);
+            console.FontSize = console.Font.GetFontSize(fontSize);
 
-            screen.Clear();
-            screen.Cursor.IsEnabled = false;
-            screen.Cursor.IsVisible = false;
+            console.Clear();
+            console.Cursor.IsEnabled = false;
+            console.Cursor.IsVisible = false;
 
-            screen.Parent = this;
-            return screen;
+            console.Parent = this;
+            return console;
         }
         public void DrawCharacter(int x, int y, int sadConsoleCharCode, Color fgColor, Color bgColor)
         {

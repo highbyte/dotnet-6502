@@ -1,6 +1,5 @@
 using System;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Impl.SadConsole;
 using SadConsole;
 namespace Highbyte.DotNet6502.Impl.SadConsole
 {
@@ -31,10 +30,20 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
             // Setup the SadConsole engine and create the main window. 
             // If font is null or empty, the default SadConsole font will be used.
             var textMode = _systemRunner.System as ITextMode;
+            var screen = _systemRunner.System as IScreen;
 
+            // int totalCols = (textMode.Cols + (textMode.BorderCols * 2));
+            // int totalRows = (textMode.Rows + (textMode.BorderRows * 2));
+            int totalCols = textMode.Cols;
+            int totalRows = textMode.Rows;
+            if (screen.HasBorder)
+            {
+                totalCols += (screen.BorderWidth / textMode.CharacterWidth) * 2;
+                totalRows += (screen.BorderHeight / textMode.CharacterHeight) * 2;
+            }
             global::SadConsole.Game.Create(
-                (textMode.Cols + (textMode.BorderCols * 2)) * _sadConsoleConfig.FontScale,
-                (textMode.Rows + (textMode.BorderRows * 2)) * _sadConsoleConfig.FontScale,
+                totalCols * _sadConsoleConfig.FontScale,
+                totalRows * _sadConsoleConfig.FontScale,
                 _sadConsoleConfig.Font
                 );
 
@@ -61,7 +70,8 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
         {
             // Create a SadConsole screen
             var textMode = _systemRunner.System as ITextMode;
-            _sadConsoleScreen = new SadConsoleScreenObject(textMode, _sadConsoleConfig);
+            var screen = _systemRunner.System as IScreen;
+            _sadConsoleScreen = new SadConsoleScreenObject(textMode, screen, _sadConsoleConfig);
 
             global::SadConsole.Game.Instance.Screen = _sadConsoleScreen;
             global::SadConsole.Game.Instance.DestroyDefaultStartingConsole();

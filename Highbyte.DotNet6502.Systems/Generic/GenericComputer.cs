@@ -24,8 +24,8 @@ namespace Highbyte.DotNet6502.Systems.Generic
         public int VisibleWidth => (Cols * CharacterWidth) + (2 * (_emulatorScreenConfig.BorderCols * CharacterWidth));
         public int VisibleHeight => (Rows * CharacterHeight) + (2 * (_emulatorScreenConfig.BorderRows * CharacterHeight));
         public bool HasBorder => (VisibleWidth > Width) || (VisibleHeight > Height);
-        public int BorderWidth => VisibleWidth - Width;
-        public int BorderHeight => VisibleHeight - Height;
+        public int BorderWidth => (VisibleWidth - Width) / 2;
+        public int BorderHeight => (VisibleHeight - Height) / 2;
 
         private readonly EmulatorScreenConfig _emulatorScreenConfig;
 

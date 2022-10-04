@@ -71,7 +71,5 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
         {
             return SadConsoleMain.SadConsoleScreen;
         }
-
-
     }
 }
