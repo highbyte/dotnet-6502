@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.App.SkiaNative;
 public class SilkNetWindow<TSystem> where TSystem: ISystem
 {
     private static IWindow s_window;
-    private readonly Func<SKCanvas, SystemRunner> _getSystemRunner;
+    private readonly Func<GRContext, SKCanvas, SystemRunner> _getSystemRunner;
     private readonly float _canvasScale;
 
     // SkipSharp context/surface/canvas
@@ -19,7 +19,7 @@ public class SilkNetWindow<TSystem> where TSystem: ISystem
 
     public SilkNetWindow(
         IWindow slikNetWindow,
-        Func<SKCanvas, SystemRunner> getSystemRunner,
+        Func<GRContext, SKCanvas, SystemRunner> getSystemRunner,
         float scale = 1.0f
         ) 
     {
@@ -44,7 +44,7 @@ public class SilkNetWindow<TSystem> where TSystem: ISystem
         // Init SkipSharp resources (must be done in OnLoad, otherwise no OpenGL context will exist create by SilkNet.)
         _skRenderContext = new SKRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
 
-        _systemRunner = _getSystemRunner(_skRenderContext.Canvas);
+        _systemRunner = _getSystemRunner(_skRenderContext.Context, _skRenderContext.Canvas);
 
         //_silkNetInput.Init(s_window);
     }

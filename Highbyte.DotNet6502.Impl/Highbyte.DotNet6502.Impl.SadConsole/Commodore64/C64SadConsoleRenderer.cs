@@ -7,9 +7,6 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
 {
     public class C64SadConsoleRenderer : IRenderer<C64>, IRenderer
     {
-        public int Width => 320;
-        public int Height => 200;
-
         private readonly Func<SadConsoleScreenObject> _getSadConsoleScreen;
 
         public C64SadConsoleRenderer(

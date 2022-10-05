@@ -13,7 +13,7 @@ var currentAppDir = AppDomain.CurrentDomain.BaseDirectory;
 Environment.CurrentDirectory = currentAppDir;
 
 // Systems
-Dictionary<string, (ISystem System, Func<SKCanvas, SystemRunner> SystemRunnerBuilder)> SystemsList = new ()
+Dictionary<string, (ISystem System, Func<GRContext, SKCanvas, SystemRunner> SystemRunnerBuilder)> SystemsList = new ()
 {
     {"C64", (C64.BuildC64(), GetC64SystemRunner)}    
 };
@@ -54,7 +54,7 @@ silkNetWindow.Run();
 
 // Functions for building SystemRunner based on Skia rendering.
 // Will be used as from SilkNetWindow in OnLoad (when OpenGL context has been created.)
-SystemRunner GetC64SystemRunner(SKCanvas skCanvas)
+SystemRunner GetC64SystemRunner(GRContext grContext, SKCanvas skCanvas)
 {
-    return  C64SkiaSystemRunnerBuilder.BuildSystemRunner(skCanvas);
+    return  C64SkiaSystemRunnerBuilder.BuildSystemRunner(grContext, skCanvas);
 }

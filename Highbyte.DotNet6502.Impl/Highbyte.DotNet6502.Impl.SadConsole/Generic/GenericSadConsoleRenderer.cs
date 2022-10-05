@@ -7,10 +7,6 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Generic
 {
     public class GenericSadConsoleRenderer : IRenderer<GenericComputer>, IRenderer
     {
-        public int Width => (_emulatorScreenConfig.Cols + _emulatorScreenConfig.BorderCols) * 8;  // 320
-        public int Height => (_emulatorScreenConfig.Rows + _emulatorScreenConfig.BorderRows) * 8; // 200
-
-
         private readonly Func<SadConsoleScreenObject> _getSadConsoleScreen;
         private readonly EmulatorScreenConfig _emulatorScreenConfig;
 
