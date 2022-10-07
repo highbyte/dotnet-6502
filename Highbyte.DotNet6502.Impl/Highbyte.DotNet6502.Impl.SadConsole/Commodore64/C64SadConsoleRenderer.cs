@@ -2,6 +2,7 @@ using System;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
 {
@@ -132,7 +133,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
                 default:
 
                     // Convert C64 screen code to PETSCII
-                    var sadConsoleCharacter = CharacterMaps.C64ScreenCodeToPETSCII(sourceByte);
+                    var sadConsoleCharacter = Petscii.C64ScreenCodeToPetscII(sourceByte);
                     // TODO: Also convert to ASCII?  Would depend on the font being used?
                     //sadConsoleCharacter = CharacterMaps.PETSCIICodeToASCII(sadConsoleCharacter);
 

@@ -136,7 +136,7 @@
 
         public static void StoreData(this Memory mem, ushort address, byte[] data)
         {
-            if((address + data.Length) > Memory.MAX_MEMORY_SIZE)
+            if((address + data.Length) > mem.Size)
                 throw new DotNet6502Exception($"Address {address} + size of data {data.Length} exceeds maximum memory limit {Memory.MAX_MEMORY_SIZE}");
 
             for (int i = 0; i < data.Length; i++)
@@ -147,7 +147,7 @@
 
         public static byte[] ReadData(this Memory mem, ushort address, ushort length)
         {
-            if((address + length) > Memory.MAX_MEMORY_SIZE)
+            if((address + length) > mem.Size)
                 throw new DotNet6502Exception($"Address {address} + length {length} exceeds maximum memory limit {Memory.MAX_MEMORY_SIZE}");
 
             byte[] readArray = new byte[length];

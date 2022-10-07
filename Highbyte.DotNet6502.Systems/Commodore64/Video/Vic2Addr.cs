@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.Systems.Commodore64
+namespace Highbyte.DotNet6502.Systems.Commodore64.Video
 {
     /// <summary>
     /// VIC-II io chip addresses: 0xd000 - 0xd02e
@@ -25,5 +25,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
         public const ushort BORDER_COLOR = 0xd020;
         public const ushort BACKGROUND_COLOR = 0xd021;
+
+        public const ushort PORT_A = 0xdd00;
+
     }
 }

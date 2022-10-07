@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using SkiaSharp;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
@@ -10,7 +11,11 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
         private readonly SKCanvas _skCanvas;
 
         private const int CHARGEN_IMAGE_CHARACTERS_PER_ROW = 16;
-        private SKImage _chargenImage;
+
+        private SKImage _characterSetCurrent;
+
+        private SKImage _characterSetROMShiftedImage;
+        private SKImage _characterSetROMUnshiftedImage;
 
         public int MaxWidth => Vic2.PAL_PIXELS_PER_LINE_VISIBLE;
         public int MaxHeight => Vic2.PAL_LINES_VISIBLE;
@@ -20,9 +25,10 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
             _skCanvas = skCanvas;
         }
 
-        public void Init(GRContext grContext, SKCanvas skCanvas)
+        public void Init(C64 c64, GRContext grContext, SKCanvas skCanvas)
         {
-            _chargenImage = GenerateChargenImage(grContext);
+            GenerateROMChargenImages(c64, grContext);
+            _characterSetCurrent = _characterSetROMShiftedImage; // Default to shifted ROM character set
         }
 
         public void Draw(C64 c64)
@@ -36,21 +42,34 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
             Draw((C64)system);
         }
 
-        private SKImage GenerateChargenImage(GRContext grContext)
+        private void GenerateROMChargenImages(C64 c64, GRContext grContext)
         {
-            var chargen = new Chargen();
-            // TODO: ROM directory from config file
-            var chargenFile = Environment.ExpandEnvironmentVariables("%USERPROFILE%/Documents/C64/VICE/C64/chargen"); 
+            // Get the two character sets (shifted & unshifted) from VIC2 view of memory (considering selected 16KB bank and charset start offset)
 
-            SKImage image = chargen.GenerateChargenImage(grContext, chargenFile, charctersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
+            var characterSets = c64.ROMData["chargen"];
+
+            // Chargen ROM data contains two character sets (1024 bytes each).
+            var characterSetShifted = characterSets.Take(Vic2.CHARACTERSET_SIZE).ToArray();
+            var characterSetUnShifted = characterSets.Skip(Vic2.CHARACTERSET_SIZE).Take(Vic2.CHARACTERSET_SIZE).ToArray();
+
+            var chargen = new Chargen();
+            // Generate and save the images for the two Chargen ROM character sets
+            _characterSetROMShiftedImage = chargen.GenerateChargenImage(grContext, characterSetShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
+            _characterSetROMUnshiftedImage = chargen.GenerateChargenImage(grContext, characterSetUnShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
 
 #if DEBUG
-            //var saveDir = Environment.ExpandEnvironmentVariables("%USERPROFILE%/AppData/Local/temp");;
-            var saveDir = Path.GetTempPath();
-            var saveFile = $"{saveDir}/c64_chargen_dump.png";
-            chargen.DumpChargenFileToImageFile(image, saveFile);
+            chargen.DumpChargenFileToImageFile(_characterSetROMShiftedImage, $"{Path.GetTempPath()}/c64_chargen_shifted_dump.png");
+            chargen.DumpChargenFileToImageFile(_characterSetROMUnshiftedImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_dump.png");
 #endif
-            return image;
+        }
+
+        // TODO: Vic2 class should generate event when VIC2 bank (in 0xdd00) or VIC2 character set offset (in 0xd018) is changed, so we can generate new character set image.
+        //       Detect if the VIC2 address is a Chargen ROM shadow location (bank 0 and 2, offset 0x1000 or 0x1800), if so we don't need to generate new image, instead use pre-generated images we did on Init()
+        private void GenerateCurrentChargenImage(C64 c64, GRContext grContext)
+        {
+            var characterSet = c64.Vic2.Mem.ReadData(c64.Vic2.CharacterSetAddressInVIC2Bank, Vic2.CHARACTERSET_SIZE);
+            var chargen = new Chargen();
+            _characterSetCurrent = chargen.GenerateChargenImage(grContext, characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
         }
 
         private void RenderMainScreen(C64 c64)
@@ -137,7 +156,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
             // TODO: Create pre-initialized ColorFilter
             using (var paint = new SKPaint { Style = SKPaintStyle.Fill, ColorFilter = CreateForceSingleColorFilter(foregroundColorForCharacter, backgroundColor) })
             {
-                _skCanvas.DrawImage(_chargenImage,
+                _skCanvas.DrawImage(_characterSetCurrent,
                     source: new SKRect(romImageX, romImageY, romImageX + 8, romImageY + 8),
                     dest:   new SKRect(pixelPosX, pixelPosY, pixelPosX + 8, pixelPosY + 8),
                     paint

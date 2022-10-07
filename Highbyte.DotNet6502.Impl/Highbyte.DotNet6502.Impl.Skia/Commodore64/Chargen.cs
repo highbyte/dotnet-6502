@@ -1,16 +1,18 @@
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using SkiaSharp;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 {
     public class Chargen
     {
-        public SKImage GenerateChargenImage(GRContext grContext, string chargenFile, int charctersPerRow = 16)
+        public SKImage GenerateChargenImage(GRContext grContext, byte[] characterSet, int charactersPerRow = 16)
         {
-            var chargenBytes = File.ReadAllBytes(chargenFile);
+            if (characterSet.Length != Vic2.CHARACTERSET_SIZE)
+                throw new ArgumentException($"Character set size must be {Vic2.CHARACTERSET_SIZE} bytes.", nameof(characterSet));
 
-            int rows = (chargenBytes.Length / 8) / charctersPerRow;
+            int rows = (characterSet.Length / Vic2.CHARACTERSET_ONE_CHARACTER_BYTES) / charactersPerRow;    // Each character is defined by 8 bytes in the character set.
 
-            using (var surface = SKSurface.Create(grContext, true, new SKImageInfo(charctersPerRow * 8, rows * 8)))
+            using (var surface = SKSurface.Create(grContext, true, new SKImageInfo(charactersPerRow * 8, rows * 8)))
             {
                 var canvas = surface.Canvas;
 
@@ -24,22 +26,22 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
                 int index = 0;
                 int row = 0;
                 int col = 0;
-                while (index < chargenBytes.Length)
+                while (index < characterSet.Length)
                 {
                     // Loop 8 lines for one character
                     byte[] charcterLines = new byte[8];
                     for (int i = 0; i < 8; i++)
                     {
-                        charcterLines[i] = chargenBytes[index++];
+                        charcterLines[i] = characterSet[index++];
                     }
                     DrawOneCharacter(canvas, paint, charcterLines);
                     canvas.Translate(8, 0);
                     col++;
-                    if (col == charctersPerRow)
+                    if (col == charactersPerRow)
                     {
                         col = 0;
                         row++;
-                        canvas.Translate(- charctersPerRow * 8, 8);
+                        canvas.Translate(- charactersPerRow * 8, 8);
                     }
                     charCode++;
                 }
@@ -49,9 +51,9 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
             }
         }
 
-        public void DumpChargenFileToImageFile(GRContext grContext, string chargenFile, string saveImageFile, int charctersPerRow = 16)
+        public void DumpChargenFileToImageFile(GRContext grContext, byte[] characterSet,  string saveImageFile, int charactersPerRow = 16)
         {
-            var image = GenerateChargenImage(grContext, chargenFile, charctersPerRow);
+            var image = GenerateChargenImage(grContext, characterSet, charactersPerRow);
             DumpChargenFileToImageFile(image, saveImageFile);
         }
 
@@ -63,7 +65,6 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
                 data.SaveTo(stream);
             }
         }
-
 
         private void DrawOneCharacter(SKCanvas canvas, SKPaint paint, byte[] dataRows)
         {

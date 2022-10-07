@@ -74,15 +74,15 @@ namespace Highbyte.DotNet6502
             }
         }
 
-        public void MapRAM(ushort baseAddress, byte[] data)
+        public void MapRAM(ushort baseAddress, byte[] data, ushort dataOffset = 0, ushort? length = null)
         {
             LoadByte reader = delegate(ushort address)
             {
-                return data[address - baseAddress];
+                return data[(address + dataOffset) - baseAddress];
             };
             StoreByte writer = delegate(ushort address, byte value)
             {
-                data[address - baseAddress] = value;
+                data[(address + dataOffset) - baseAddress] = value;
             };
             // Func<ushort, byte> reader = (ushort address) =>
             // {
@@ -93,8 +93,8 @@ namespace Highbyte.DotNet6502
             //     data[baseAddress - address] = value;
             // };
 
-
-            for (int i = 0; i < data.Length; i++)
+            int dataLength = length ?? data.Length;
+            for (int i = 0; i < dataLength; i++)
             {
                 _readers[baseAddress + i] = reader;
                 _writers[baseAddress + i] = writer;

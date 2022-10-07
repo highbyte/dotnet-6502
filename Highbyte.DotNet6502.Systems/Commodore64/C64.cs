@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64
 {
@@ -12,6 +13,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
         public byte CurrentBank { get; set; }
         public Vic2 Vic2 { get; set; }
         public Keyboard Keyboard { get; set; }
+
+        public Dictionary<string, byte[]> ROMData { get; set; }
 
         public int Cols => Vic2.COLS;
         public int Rows => Vic2.ROWS;
@@ -32,8 +35,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
             Vic2.VerticalBlank(CPU);
         }
 
-        private static ROM[] ROMS = new ROM[]
-        {
+        public static ROM[] ROMS = new ROM[]
+        {   
+            // name, file, checksum 
             ROM.NewROM("basic",   "basic",   "79015323128650c742a3694c9429aa91f355905e"),
             ROM.NewROM("chargen", "chargen", "adc7c31e18c7c7413d54802ef2f4193da14711aa"),
             ROM.NewROM("kernal",  "kernal",  "1d503e56df85a62fee696e7618dc5b4e781df1bb"),
@@ -80,16 +84,17 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
         public static C64 BuildC64()
         {
-            var vic2 = new Vic2();
+            var ram = new byte[64 * 1024];  // C64 has 64KB of RAM
+            var romData = ROM.LoadROMS(
+                Environment.ExpandEnvironmentVariables("%USERPROFILE%/Documents/C64/VICE/C64"), // TODO: ROM directory from config file
+                 ROMS);
+            var io = new byte[1 * 1024];  // 1KB of C64 IO addresses that is mapped to memory address range 0xd000 - 0xdfff in certain memory configuration.
+
+            var mem = CreateC64Memory(ram, io, romData);
+
+            var vic2 = Vic2.BuildVic2(ram, romData);
             var kb = new Keyboard();
 
-            var ram = new byte[64*1024];
-            var roms = ROM.LoadROMS(
-                Environment.ExpandEnvironmentVariables("%USERPROFILE%/Documents/C64/VICE/C64"), // TODO: ROM directory from config file
-                 ROMS); 
-            var io = new byte[4*1024];
-
-            var mem = CreateC64Memory(ram, io, roms);
             var cpu = CreateC64CPU(vic2, mem);
             var c64 = new C64
             {
@@ -99,6 +104,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
                 IO = io,
                 Vic2 = vic2,
                 Keyboard = kb,
+                ROMData = romData
             };
 
             // Map specific memory addresses to different emulator actions            
@@ -127,12 +133,18 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
                 mem.MapReader(0x01, c64.IoPortLoad);
                 mem.MapWriter(0x01, c64.IoPortStore);
 
+
+                // Address 0xdd00: "Port A" (VIC2 bank & serial bus)
+                mem.MapReader(Vic2Addr.PORT_A, vic2.PortALoad);
+                mem.MapWriter(Vic2Addr.PORT_A, vic2.PortAStore);
+
                 // Address 0xd020: Border color
                 mem.MapReader(Vic2Addr.BORDER_COLOR, vic2.BorderColorLoad);
                 mem.MapWriter(Vic2Addr.BORDER_COLOR, vic2.BorderColorStore);
                 // Address 0xd021: Background color
                 mem.MapReader(Vic2Addr.BACKGROUND_COLOR, vic2.BackgroundColorLoad);
                 mem.MapWriter(Vic2Addr.BACKGROUND_COLOR, vic2.BackgroundColorStore);
+
 
                 // Address: 0x00c6: Keyboard buffer index
                 mem.MapReader(0x00c6, kb.BufferIndexLoad);

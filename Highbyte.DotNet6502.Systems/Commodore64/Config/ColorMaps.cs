@@ -5,6 +5,10 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config
 {
     public static class ColorMaps
     {
+        /// <summary>
+        /// Map C64 color value 0-15 to RGB colors
+        /// </summary>
+        /// <returns></returns>
         public static Dictionary<byte, Color> C64ColorMap = new()
         {
             { 0x00, Color.FromArgb(0, 0, 0) },          // Black
