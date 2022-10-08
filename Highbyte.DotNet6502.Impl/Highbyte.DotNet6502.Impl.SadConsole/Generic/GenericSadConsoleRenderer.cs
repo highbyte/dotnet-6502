@@ -5,17 +5,27 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Generic
 {
-    public class GenericSadConsoleRenderer : IRenderer<GenericComputer>, IRenderer
+    public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRenderContext>, IRenderer
     {
-        private readonly Func<SadConsoleScreenObject> _getSadConsoleScreen;
+        private SadConsoleRenderContext _sadConsoleRenderContext;
+
         private readonly EmulatorScreenConfig _emulatorScreenConfig;
 
-        public GenericSadConsoleRenderer(
-            Func<SadConsoleScreenObject> getSadConsoleScreen,
-            EmulatorScreenConfig emulatorScreenConfig)
+        public GenericSadConsoleRenderer(EmulatorScreenConfig emulatorScreenConfig)
         {
-            _getSadConsoleScreen = getSadConsoleScreen;
             _emulatorScreenConfig = emulatorScreenConfig;
+        }
+
+        public void Init(GenericComputer genericComputer, SadConsoleRenderContext sadConsoleRenderContext)
+        {
+            _sadConsoleRenderContext = sadConsoleRenderContext;
+
+            InitEmulatorScreenMemory(genericComputer);
+        }
+
+        public void Init(ISystem system, IRenderContext renderContext)
+        {
+            Init((GenericComputer)system, (SadConsoleRenderContext)renderContext);
         }
 
         public void Draw(GenericComputer system)
@@ -92,7 +102,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Generic
         /// <summary>
         /// Set emulator screen memory initial state
         /// </summary>
-        public void InitEmulatorScreenMemory(GenericComputer system)
+        private void InitEmulatorScreenMemory(GenericComputer system)
         {
             var emulatorMem = system.Mem;
 
@@ -146,7 +156,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Generic
                     sadConsoleCharacter = emulatorCharacter;
             }
 
-            _getSadConsoleScreen().DrawCharacter(
+            _sadConsoleRenderContext.Screen.DrawCharacter(
                 x,
                 y,
                 sadConsoleCharacter,

@@ -25,7 +25,7 @@ namespace SadConsoleTest
              // appsettings_hello.json
              // appsettings_snake.json
              // appsettings_c64.json
-             .AddJsonFile("appsettings_c64.json");
+             .AddJsonFile("appsettings_scroll.json");
              
             Configuration = builder.Build();
 

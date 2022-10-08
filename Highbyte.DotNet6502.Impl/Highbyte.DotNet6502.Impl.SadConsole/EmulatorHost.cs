@@ -1,12 +1,10 @@
 using System;
-using System.Diagnostics;
-using System.IO;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
-using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64;
 using Highbyte.DotNet6502.Impl.SadConsole.Generic;
+using Highbyte.DotNet6502.Systems.Commodore64;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole
 {
@@ -29,27 +27,21 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
 
             SystemRunner systemRunner;
             int runEveryFrame;
+
+            var sadConsoleRenderContext = new SadConsoleRenderContext(GetSadConsoleScreen);
+
             switch (_sadConsoleConfig.Emulator)
             {
                 case "GenericComputer":
-                    // Init emulator: Generic computer
-                    var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(_genericComputerConfig);
-                    systemRunner = GenericSadConsoleSystemRunnerBuilder.BuildSystemRunner(
-                        genericComputer,
-                        GetSadConsoleScreen,
-                        _genericComputerConfig.Memory.Screen,
-                        _genericComputerConfig.Memory.Input
-                        );
+                    systemRunner = GetGenericSystemRunner(sadConsoleRenderContext);
                     runEveryFrame = _genericComputerConfig.RunEmulatorEveryFrame;
                     break;
 
                 case "C64":
-                    // Init emulator: C64
-                    systemRunner = C64SadConsoleSystemRunnerBuilder.BuildSystemRunner(
-                        GetSadConsoleScreen
-                        );
+                    systemRunner = GetC64SystemRunner(sadConsoleRenderContext);
                     runEveryFrame = 1;
                     break;
+
                 default:
                     throw new Exception($"Unknown emulator name: {_sadConsoleConfig.Emulator}");
             }
@@ -71,5 +63,41 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
         {
             return SadConsoleMain.SadConsoleScreen;
         }
+
+        SystemRunner GetC64SystemRunner(SadConsoleRenderContext sadConsoleRenderContext)
+        {
+            var c64 = C64.BuildC64();
+
+            var renderer = new C64SadConsoleRenderer();
+            renderer.Init(c64, sadConsoleRenderContext);
+
+            var inputHandler = new C64SadConsoleInputHandler();
+
+            var systemRunnerBuilder = new SystemRunnerBuilder<C64, SadConsoleRenderContext>(c64);
+            var systemRunner = systemRunnerBuilder
+                .WithRenderer(renderer)
+                .WithInputHandler(inputHandler)
+                .Build();
+            return systemRunner;
+        }
+
+
+        SystemRunner GetGenericSystemRunner(SadConsoleRenderContext sadConsoleRenderContext)
+        {
+            var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(_genericComputerConfig);
+
+            var renderer = new GenericSadConsoleRenderer(_genericComputerConfig.Memory.Screen);
+            renderer.Init(genericComputer, sadConsoleRenderContext);
+
+            var inputHandler = new GenericSadConsoleInputHandler(_genericComputerConfig.Memory.Input);
+
+            var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SadConsoleRenderContext>(genericComputer);
+            var systemRunner = systemRunnerBuilder
+                .WithRenderer(renderer)
+                .WithInputHandler(inputHandler)
+                .Build();
+            return systemRunner;
+        }
+
     }
 }

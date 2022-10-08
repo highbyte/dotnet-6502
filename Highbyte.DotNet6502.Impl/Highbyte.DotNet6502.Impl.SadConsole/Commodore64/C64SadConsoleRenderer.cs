@@ -1,4 +1,3 @@
-using System;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -6,14 +5,23 @@ using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
 {
-    public class C64SadConsoleRenderer : IRenderer<C64>, IRenderer
+ 
+    public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IRenderer
     {
-        private readonly Func<SadConsoleScreenObject> _getSadConsoleScreen;
+        private SadConsoleRenderContext _sadConsoleRenderContext;
 
-        public C64SadConsoleRenderer(
-            Func<SadConsoleScreenObject> getSadConsoleScreen)
+        public C64SadConsoleRenderer()
         {
-            _getSadConsoleScreen = getSadConsoleScreen;
+        }
+
+        public void Init(C64 c64, SadConsoleRenderContext sadConsoleRenderContext)
+        {
+            _sadConsoleRenderContext = sadConsoleRenderContext;
+        }
+
+        public void Init(ISystem system, IRenderContext renderContext)
+        {
+            Init((C64)system, (SadConsoleRenderContext)renderContext);
         }
 
         public void Draw(C64 c64)
@@ -113,7 +121,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
             // Default to C64 screen codes as source
             sadConsoleCharacter = TranslateC64ScreenCodeToSadConsoleC64Font(emulatorCharacter);
 
-            _getSadConsoleScreen().DrawCharacter(
+            _sadConsoleRenderContext.Screen.DrawCharacter(
                 x,
                 y,
                 sadConsoleCharacter,

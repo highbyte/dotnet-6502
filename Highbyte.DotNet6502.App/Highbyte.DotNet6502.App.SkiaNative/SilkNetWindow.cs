@@ -1,31 +1,33 @@
-﻿using Highbyte.DotNet6502.Systems;
+﻿using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Systems;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using SkiaSharp;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
-public class SilkNetWindow<TSystem> where TSystem: ISystem
+public class SilkNetWindow<TSystem> 
+    where TSystem: ISystem
 {
     private static IWindow s_window;
-    private readonly Func<GRContext, SKCanvas, SystemRunner> _getSystemRunner;
+    private readonly Func<SkiaRenderContext, SystemRunner> _getSystemRunner;
     private readonly float _canvasScale;
 
     // SkipSharp context/surface/canvas
-    private SKRenderContext _skRenderContext;
+    private SkiaRenderContext _skiaRenderContext;
 
     // Emulator    
     private SystemRunner _systemRunner;
 
     public SilkNetWindow(
         IWindow slikNetWindow,
-        Func<GRContext, SKCanvas, SystemRunner> getSystemRunner,
-        float scale = 1.0f
-        ) 
+        Func<SkiaRenderContext, SystemRunner> getSystemRunner,
+        float scale = 1.0f) 
     {
         s_window = slikNetWindow;
         _getSystemRunner = getSystemRunner;
         _canvasScale = scale;
+        //_silkNetInput = silkNetInput;
     }
 
     public void Run()
@@ -42,9 +44,9 @@ public class SilkNetWindow<TSystem> where TSystem: ISystem
     protected void OnLoad()
     {
         // Init SkipSharp resources (must be done in OnLoad, otherwise no OpenGL context will exist create by SilkNet.)
-        _skRenderContext = new SKRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
+        _skiaRenderContext = new SkiaRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
 
-        _systemRunner = _getSystemRunner(_skRenderContext.Context, _skRenderContext.Canvas);
+        _systemRunner = _getSystemRunner(_skiaRenderContext);
 
         //_silkNetInput.Init(s_window);
     }
@@ -56,7 +58,7 @@ public class SilkNetWindow<TSystem> where TSystem: ISystem
         s_window?.Dispose();
 
         // Cleanup Skia resources
-        _skRenderContext.CleanUp();
+        _skiaRenderContext.CleanUp();
     }
 
     /// <summary>
@@ -102,7 +104,7 @@ public class SilkNetWindow<TSystem> where TSystem: ISystem
         _systemRunner.Draw();
 
         // Flush the Skia Context
-        _skRenderContext.Context?.Flush();
+        _skiaRenderContext.GRContext?.Flush();
 
         // SilkNet windows are what's known as "double-buffered". In essence, the window manages two buffers.
         // One is rendered to while the other is currently displayed by the window.

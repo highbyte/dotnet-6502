@@ -6,9 +6,9 @@ using SkiaSharp;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 {
-    public class C64SkiaRenderer : IRenderer<C64>, IRenderer
+    public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     {
-        private readonly SKCanvas _skCanvas;
+        private SKCanvas _skCanvas;
 
         private const int CHARGEN_IMAGE_CHARACTERS_PER_ROW = 16;
 
@@ -20,14 +20,20 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
         public int MaxWidth => Vic2.PAL_PIXELS_PER_LINE_VISIBLE;
         public int MaxHeight => Vic2.PAL_LINES_VISIBLE;
 
-        public C64SkiaRenderer(SKCanvas skCanvas)
+        // public C64SkiaRenderer(SKCanvas skCanvas)
+        // {
+        //     _skCanvas = skCanvas;
+        // }
+
+        public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
         {
-            _skCanvas = skCanvas;
+            _skCanvas = skiaRenderContext.Canvas;
+            InitCharset(c64, skiaRenderContext.GRContext);
         }
 
-        public void Init(C64 c64, GRContext grContext, SKCanvas skCanvas)
+        public void Init(ISystem system, IRenderContext renderContext)
         {
-            InitCharset(c64, grContext);
+            Init((C64)system, (SkiaRenderContext)renderContext);
         }
 
         public void Draw(C64 c64)

@@ -2,6 +2,8 @@
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using Highbyte.DotNet6502.App.SkiaNative;
+using Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
+using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
@@ -13,7 +15,7 @@ var currentAppDir = AppDomain.CurrentDomain.BaseDirectory;
 Environment.CurrentDirectory = currentAppDir;
 
 // Systems
-Dictionary<string, (ISystem System, Func<GRContext, SKCanvas, SystemRunner> SystemRunnerBuilder)> SystemsList = new ()
+Dictionary<string, (ISystem System, Func<SkiaRenderContext, SystemRunner> SystemRunnerBuilder)> SystemsList = new ()
 {
     {"C64", (C64.BuildC64(), GetC64SystemRunner)}    
 };
@@ -48,13 +50,27 @@ windowOptions.ShouldSwapAutomatically = true;
 IWindow window = Window.Create(windowOptions);
 
 
+//SilkNetInput<C64> silkNetInput = null;
+//var silkNetInput = new SilkNetInput<C64, SkiaRenderContext>();
+
 var silkNetWindow = new SilkNetWindow<C64>(window, GetC64SystemRunner, scale);
 silkNetWindow.Run();
 
-
 // Functions for building SystemRunner based on Skia rendering.
 // Will be used as from SilkNetWindow in OnLoad (when OpenGL context has been created.)
-SystemRunner GetC64SystemRunner(GRContext grContext, SKCanvas skCanvas)
+SystemRunner GetC64SystemRunner(SkiaRenderContext skiaRenderContext)
 {
-    return  C64SkiaSystemRunnerBuilder.BuildSystemRunner(grContext, skCanvas);
+    var c64 = C64.BuildC64();
+
+    var renderer = new C64SkiaRenderer();
+    renderer.Init(c64, skiaRenderContext);
+
+    var inputHandler = new C64SilkNetInputHandler();
+
+    var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext>(c64);
+    var systemRunner = systemRunnerBuilder
+        .WithRenderer(renderer)
+        .WithInputHandler(inputHandler)
+        .Build();
+    return systemRunner;
 }
