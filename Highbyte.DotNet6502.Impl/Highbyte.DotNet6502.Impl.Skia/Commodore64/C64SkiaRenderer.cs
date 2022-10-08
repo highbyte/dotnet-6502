@@ -27,8 +27,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 
         public void Init(C64 c64, GRContext grContext, SKCanvas skCanvas)
         {
-            GenerateROMChargenImages(c64, grContext);
-            _characterSetCurrent = _characterSetROMShiftedImage; // Default to shifted ROM character set
+            InitCharset(c64, grContext);
         }
 
         public void Draw(C64 c64)
@@ -40,6 +39,16 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
         public void Draw(ISystem system)
         {
             Draw((C64)system);
+        }
+
+        private void InitCharset(C64 c64, GRContext grContext)
+        {
+            // Generate and remember images of the Chargen ROM charset.
+            GenerateROMChargenImages(c64, grContext);
+            // Default to shifted ROM character set
+            _characterSetCurrent = _characterSetROMShiftedImage;
+            // Listen to event when the VIC2 charset address is changed to recreate a image for the charset
+            c64.Vic2.CharsetAddressChanged += (s, e) => GenerateCurrentChargenImage(c64, grContext);
         }
 
         private void GenerateROMChargenImages(C64 c64, GRContext grContext)
@@ -67,6 +76,18 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
         //       Detect if the VIC2 address is a Chargen ROM shadow location (bank 0 and 2, offset 0x1000 or 0x1800), if so we don't need to generate new image, instead use pre-generated images we did on Init()
         private void GenerateCurrentChargenImage(C64 c64, GRContext grContext)
         {
+            // If the current address points to a location in where the Chargen ROM character sets are located, we can use pre-rendered images for the character set.
+            if (c64.Vic2.CharacterSetAddressInVIC2BankIsChargenROMUnshifted)
+            {
+                _characterSetCurrent = _characterSetROMUnshiftedImage;
+                return;
+            }
+            else if (c64.Vic2.CharacterSetAddressInVIC2BankIsChargenROMShifted)
+            {
+                _characterSetCurrent = _characterSetROMShiftedImage;
+                return;
+            }
+            // Pointing to a location where a custom character set is located. Create a image for it.
             var characterSet = c64.Vic2.Mem.ReadData(c64.Vic2.CharacterSetAddressInVIC2Bank, Vic2.CHARACTERSET_SIZE);
             var chargen = new Chargen();
             _characterSetCurrent = chargen.GenerateChargenImage(grContext, characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);

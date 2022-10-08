@@ -23,6 +23,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
         public const ushort SCREEN_CONTROL_REGISTER_1 = 0xd011;
         public const ushort CURRENT_RASTER_LINE = 0xd012;
 
+        public const ushort MEMORY_SETUP = 0xd018;
+
         public const ushort BORDER_COLOR = 0xd020;
         public const ushort BACKGROUND_COLOR = 0xd021;
 

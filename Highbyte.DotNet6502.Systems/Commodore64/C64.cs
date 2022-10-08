@@ -134,9 +134,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
                 mem.MapWriter(0x01, c64.IoPortStore);
 
 
-                // Address 0xdd00: "Port A" (VIC2 bank & serial bus)
-                mem.MapReader(Vic2Addr.PORT_A, vic2.PortALoad);
-                mem.MapWriter(Vic2Addr.PORT_A, vic2.PortAStore);
+                // Address 0xd0180: "Memory setup" (VIC2 pointer for charset/bitmap & screen memory)
+                mem.MapReader(Vic2Addr.MEMORY_SETUP, vic2.MemorySetupLoad);
+                mem.MapWriter(Vic2Addr.MEMORY_SETUP, vic2.MemorySetupStore);
 
                 // Address 0xd020: Border color
                 mem.MapReader(Vic2Addr.BORDER_COLOR, vic2.BorderColorLoad);
@@ -144,6 +144,10 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
                 // Address 0xd021: Background color
                 mem.MapReader(Vic2Addr.BACKGROUND_COLOR, vic2.BackgroundColorLoad);
                 mem.MapWriter(Vic2Addr.BACKGROUND_COLOR, vic2.BackgroundColorStore);
+
+                // Address 0xdd00: "Port A" (VIC2 bank & serial bus)
+                mem.MapReader(Vic2Addr.PORT_A, vic2.PortALoad);
+                mem.MapWriter(Vic2Addr.PORT_A, vic2.PortAStore);
 
 
                 // Address: 0x00c6: Keyboard buffer index

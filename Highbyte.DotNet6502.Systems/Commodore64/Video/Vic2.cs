@@ -65,14 +65,26 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
         private ulong _cyclesConsumedCurrentVblank = 0;
 
         private byte _currentVIC2Bank = 0;
-        private ushort _currentVIC2BankOffset = 0x1000;
+        private ushort _currentVIC2BankOffset = 0;
 
-        public ushort CharacterSetAddressInVIC2Bank => _currentVIC2BankOffset;  // Offset into the currently selected VIC2 bank (Mem.SetMemoryConfiguration(bank))
+        // Offset into the currently selected VIC2 bank (Mem.SetMemoryConfiguration(bank))
+        public ushort CharacterSetAddressInVIC2Bank => _currentVIC2BankOffset;
+        // True if CharacterSetAddressInVIC2Bank points to location where Chargen ROM (two charsets, unshifted & shifted) is "shadowed".
+        public bool CharacterSetAddressInVIC2BankIsChargenROMShifted => _currentVIC2BankOffset == 0x1000;
+        public bool CharacterSetAddressInVIC2BankIsChargenROMUnshifted => _currentVIC2BankOffset == 0x1800;
 
         public byte BorderColor { get; private set; }
         public byte BackgroundColor { get; private set; }
         public byte MemorySetup { get; private set; }
         public byte PortA { get; private set; }
+
+        public event EventHandler<CharsetAddressChangedEventArgs> CharsetAddressChanged;
+        protected virtual void OnCharsetAddressChanged(CharsetAddressChangedEventArgs e)
+        {
+            var handler = CharsetAddressChanged;
+            handler?.Invoke(this, e);
+        }
+
 
         private Vic2() { }
 
@@ -82,7 +94,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
 
             var vic2 = new Vic2()
             {
-                Mem = vic2Mem
+                Mem = vic2Mem,
             };
 
             return vic2;
@@ -154,6 +166,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
             // %101, 5: 0x2800-0x2FFF, 10240-12287.
             // %110, 6: 0x3000-0x37FF, 12288-14335.
             // %111, 7: 0x3800-0x3FFF, 14336-16383.
+            var oldVIC2BankOffset = _currentVIC2BankOffset;
             var newTextModeMemOffset = (value & 0b00001110) >> 1;
             _currentVIC2BankOffset = newTextModeMemOffset switch
             {
@@ -167,6 +180,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
                 0b111 => 0x3800,
                 _ => throw new NotImplementedException(),
             };
+            if (_currentVIC2BankOffset != oldVIC2BankOffset)
+                OnCharsetAddressChanged(new());
         }
 
         public byte MemorySetupLoad(ushort _)
@@ -197,8 +212,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
             // | 3          | 0xc000 - 0xffff | xxxx xx00           | No
             // |------------|-----------------|---------------------|-----------------------
 
-            int newbankValue = value & 0b00000011;
-            _currentVIC2Bank = newbankValue switch
+            int oldVIC2Bank = _currentVIC2Bank;
+            int newBankValue = value & 0b00000011;
+            _currentVIC2Bank = newBankValue switch
             {
                 0b11 => 0,
                 0b10 => 1,
@@ -206,6 +222,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
                 0b00 => 3,
                 _ => throw new NotImplementedException(),
             };
+            if (_currentVIC2Bank != oldVIC2Bank)
+                OnCharsetAddressChanged(new());
         }
 
         public byte PortALoad(ushort _)
