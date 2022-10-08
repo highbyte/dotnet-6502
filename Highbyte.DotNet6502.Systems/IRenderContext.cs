@@ -4,7 +4,8 @@ namespace Highbyte.DotNet6502.Systems
     {
     }
 
-    public interface IRenderContext<TSystem> : IRenderContext where TSystem : ISystem
+    public interface IRenderContext<TSystem> : IRenderContext
+        where TSystem : ISystem
     {
     }
 }

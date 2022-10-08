@@ -26,6 +26,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config
 
         public static Dictionary<char, byte> AscIICharToPetscii = new()
         {
+            {' ',               0x20},
             {'!',               0x21},
             {'"',               0x22},
             {'#',               0x23},

@@ -2,6 +2,7 @@
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using Highbyte.DotNet6502.App.SkiaNative;
+using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64;
@@ -15,7 +16,7 @@ var currentAppDir = AppDomain.CurrentDomain.BaseDirectory;
 Environment.CurrentDirectory = currentAppDir;
 
 // Systems
-Dictionary<string, (ISystem System, Func<SkiaRenderContext, SystemRunner> SystemRunnerBuilder)> SystemsList = new ()
+Dictionary<string, (ISystem System, Func<SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> SystemRunnerBuilder)> SystemsList = new ()
 {
     {"C64", (C64.BuildC64(), GetC64SystemRunner)}    
 };
@@ -58,7 +59,7 @@ silkNetWindow.Run();
 
 // Functions for building SystemRunner based on Skia rendering.
 // Will be used as from SilkNetWindow in OnLoad (when OpenGL context has been created.)
-SystemRunner GetC64SystemRunner(SkiaRenderContext skiaRenderContext)
+SystemRunner GetC64SystemRunner(SkiaRenderContext skiaRenderContext, SilkNetInputHandlerContext silkNetInputHandlerContext)
 {
     var c64 = C64.BuildC64();
 
@@ -66,8 +67,9 @@ SystemRunner GetC64SystemRunner(SkiaRenderContext skiaRenderContext)
     renderer.Init(c64, skiaRenderContext);
 
     var inputHandler = new C64SilkNetInputHandler();
+    inputHandler.Init(c64, silkNetInputHandlerContext);
 
-    var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext>(c64);
+    var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, SilkNetInputHandlerContext>(c64);
     var systemRunner = systemRunnerBuilder
         .WithRenderer(renderer)
         .WithInputHandler(inputHandler)

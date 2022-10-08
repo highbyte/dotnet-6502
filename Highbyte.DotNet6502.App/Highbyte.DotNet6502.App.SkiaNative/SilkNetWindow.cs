@@ -1,4 +1,5 @@
-﻿using Highbyte.DotNet6502.Impl.Skia;
+﻿using Highbyte.DotNet6502.Impl.SilkNet;
+using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Systems;
 using Silk.NET.Input;
 using Silk.NET.Maths;
@@ -10,24 +11,25 @@ public class SilkNetWindow<TSystem>
     where TSystem: ISystem
 {
     private static IWindow s_window;
-    private readonly Func<SkiaRenderContext, SystemRunner> _getSystemRunner;
+    private readonly Func<SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> _getSystemRunner;
     private readonly float _canvasScale;
 
     // SkipSharp context/surface/canvas
     private SkiaRenderContext _skiaRenderContext;
+    // SilkNet input handling
+    private SilkNetInputHandlerContext _silkNetInputHandlerContext;
 
     // Emulator    
     private SystemRunner _systemRunner;
 
     public SilkNetWindow(
-        IWindow slikNetWindow,
-        Func<SkiaRenderContext, SystemRunner> getSystemRunner,
+        IWindow window,
+        Func<SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> getSystemRunner,
         float scale = 1.0f) 
     {
-        s_window = slikNetWindow;
+        s_window = window;
         _getSystemRunner = getSystemRunner;
         _canvasScale = scale;
-        //_silkNetInput = silkNetInput;
     }
 
     public void Run()
@@ -45,20 +47,20 @@ public class SilkNetWindow<TSystem>
     {
         // Init SkipSharp resources (must be done in OnLoad, otherwise no OpenGL context will exist create by SilkNet.)
         _skiaRenderContext = new SkiaRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
-
-        _systemRunner = _getSystemRunner(_skiaRenderContext);
-
-        //_silkNetInput.Init(s_window);
+        _silkNetInputHandlerContext = new SilkNetInputHandlerContext(s_window);
+        _systemRunner = _getSystemRunner(_skiaRenderContext, _silkNetInputHandlerContext);
     }
 
     protected void OnClosing()
     {
-        // Cleanup SilkNet resources
-        //_silkNetInput.Cleanup();
-        s_window?.Dispose();
-
         // Cleanup Skia resources
-        _skiaRenderContext.CleanUp();
+        _skiaRenderContext.Cleanup();
+
+        // Cleanup SilkNet input resources
+        _silkNetInputHandlerContext.Cleanup();
+
+        // Cleanup SilNet window resources
+        s_window?.Dispose();
     }
 
     /// <summary>
@@ -70,22 +72,17 @@ public class SilkNetWindow<TSystem>
     /// <param name=""></param>
     protected void OnUpdate(double deltaTime)
     {
-        // if(_silkNetInput.Exit)
-        // {
-        //     s_window.Close();
-        //     return;
-        // }
+        if(_silkNetInputHandlerContext.Exit)
+        {
+            s_window.Close();
+            return;
+        }
 
         // Handle input
-        //_silkNetInput.HandleInput(deltaTime);
         _systemRunner.ProcessInput();
 
         // Update world
-        // RunLogic();
         _systemRunner.RunEmulatorOneFrame();
-
-        // Reset input state
-        // _silkNetInput.FrameDone(deltaTime);
     }
 
 

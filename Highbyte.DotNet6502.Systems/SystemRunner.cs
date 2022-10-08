@@ -67,18 +67,20 @@ namespace Highbyte.DotNet6502.Systems
         }
     }
 
-    public class SystemRunner<TSystem, TRenderContext> : SystemRunner
+    public class SystemRunner<TSystem, TRenderContext, TInputContext> : SystemRunner
         where TSystem : ISystem
-        where TRenderContext: IRenderContext
+        where TRenderContext : IRenderContext
+        where TInputContext : IInputHandlerContext
     {
         public SystemRunner(
             TSystem system) : base(system)
         {
         }
+
         public SystemRunner(
             TSystem system,
             IRenderer<TSystem, TRenderContext> renderer,
-            IInputHandler<TSystem> inputHandler
+            IInputHandler<TSystem, TInputContext> inputHandler
             ) : base(system, renderer, inputHandler)
         {
         }

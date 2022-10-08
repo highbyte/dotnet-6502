@@ -35,7 +35,7 @@ public class SkiaRenderContext: IRenderContext
         RenderSurface.Canvas.Scale(scale);
     }
 
-    public void CleanUp()
+    public void Cleanup()
     {
         RenderSurface?.Dispose();
         RenderSurface = null;

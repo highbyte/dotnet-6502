@@ -12,7 +12,7 @@ public class SadConsoleRenderContext : IRenderContext
         _getSadConsoleScreen = getSadConsoleScreen;
     }
 
-    public void CleanUp()
+    public void Cleanup()
     {
     }
 
