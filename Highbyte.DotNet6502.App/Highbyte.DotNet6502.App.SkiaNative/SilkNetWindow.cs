@@ -1,15 +1,24 @@
 ﻿using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Systems;
+using ImGuiNET;
 using Silk.NET.Input;
 using Silk.NET.Maths;
+using Silk.NET.OpenGL;
+using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
 using SkiaSharp;
+using System.Diagnostics;
+using System.Numerics;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 public class SilkNetWindow<TSystem> 
     where TSystem: ISystem
 {
+    private static ImGuiController s_ImGuiController;
+    private static GL s_Gl;
+
+
     private static IWindow s_window;
     private readonly Func<SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> _getSystemRunner;
     private readonly float _canvasScale;
@@ -21,6 +30,8 @@ public class SilkNetWindow<TSystem>
 
     // Emulator    
     private SystemRunner _systemRunner;
+
+    private bool _monitorEnabled = false;
 
     public SilkNetWindow(
         IWindow window,
@@ -49,6 +60,9 @@ public class SilkNetWindow<TSystem>
         _skiaRenderContext = new SkiaRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
         _silkNetInputHandlerContext = new SilkNetInputHandlerContext(s_window);
         _systemRunner = _getSystemRunner(_skiaRenderContext, _silkNetInputHandlerContext);
+
+        // Init ImgUI resources 
+        InitMonitorUI();
     }
 
     protected void OnClosing()
@@ -59,8 +73,12 @@ public class SilkNetWindow<TSystem>
         // Cleanup SilkNet input resources
         _silkNetInputHandlerContext.Cleanup();
 
+        // Dispose ImgUI
+        s_ImGuiController?.Dispose();
+
         // Cleanup SilNet window resources
         s_window?.Dispose();
+
     }
 
     /// <summary>
@@ -72,16 +90,22 @@ public class SilkNetWindow<TSystem>
     /// <param name=""></param>
     protected void OnUpdate(double deltaTime)
     {
+        if(_monitorEnabled)
+        {
+            return;
+        }
+
         if(_silkNetInputHandlerContext.Exit)
         {
             s_window.Close();
             return;
         }
 
+        // Run emulator.
         // Handle input
         _systemRunner.ProcessInput();
 
-        // Update world
+        // Run emulator for one frame worth of emulated CPU cycles 
         _systemRunner.RunEmulatorOneFrame();
     }
 
@@ -96,8 +120,12 @@ public class SilkNetWindow<TSystem>
     /// <param name="args"></param>
     protected void OnRender(double deltaTime)
     {
-        // Render our world, drawing on the Skia canvas
-        //TestDraw(_skRenderContext.Canvas);
+        if(_monitorEnabled)
+        {
+            s_Gl.Clear((uint) (ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+        }
+        
+        // Render emulator system screen
         _systemRunner.Draw();
 
         // Flush the Skia Context
@@ -111,38 +139,74 @@ public class SilkNetWindow<TSystem>
         // NOTE: s_window.SwapBuffers() seem to have some problem. Window is darker, and some flickering.
         //       Use windowOptions.ShouldSwapAutomatically = true  instead
         //s_window.SwapBuffers();
+
+        // Render monitor if enabled
+        if(_monitorEnabled)
+        {
+            DrawMonitorUI(deltaTime);
+        }
+
     }
 
     private void OnResize(Vector2D<int> vec2)
     {
-        //_worldRenderer.Resize(vec2.X, vec2.Y);
-    }    
+    }
+    
 
-    // private void InitSkiaSharpContext()
-    // {
-    //     // Create the SkiaSharp context
-    //     var glInterface = GRGlInterface.Create();
-    //     var grContextOptions = new GRContextOptions{};
-    //     _context = GRContext.CreateGl(glInterface, grContextOptions);
+    private void InitMonitorUI()
+    {
+        s_Gl = GL.GetApi(s_window);
 
-    //     // Create main Skia surface from OpenGL context
-    //     var glFramebufferInfo = new GRGlFramebufferInfo(
-    //             fboId: 0,
-    //             format: SKColorType.Rgba8888.ToGlSizedFormat());
+        s_ImGuiController = new ImGuiController(
+            s_Gl,
+            s_window, // pass in our window
+            _silkNetInputHandlerContext.InputContext // input context
+        );
+        ImGuiNET.ImGui.SetWindowPos(new Vector2(10, 10));
 
-    //     _renderTarget = new GRBackendRenderTarget(_windowOptions.Size.X, _windowOptions.Size.Y, sampleCount: 0, stencilBits: 0, glInfo: glFramebufferInfo);
+        // Init monitor list of history commands with blanks
+        for (int i = 0; i < MONITOR_CMD_HISTORY_VIEW_ROWS; i++)
+            _monitorCmdHistory.Add("");
 
-    //     // Create the SkiaSharp render target surface
-    //     _renderSurface = SKSurface.Create(_context, _renderTarget, GRSurfaceOrigin.BottomLeft, SKColorType.Rgba8888);
-    // }
+        // Listen to key to enable monitor
+        _silkNetInputHandlerContext.PrimaryKeyboard.KeyDown += OnMonitorKeyDown;
+    }
+    private void OnMonitorKeyDown(IKeyboard keyboard, Key key, int x)
+    {
+        if(key == Key.F12)
+            _monitorEnabled = !_monitorEnabled;
+    }
 
-    // private void TestDraw(SKCanvas skCanvas)
-    // {
-    //     skCanvas.Clear(SKColors.CornflowerBlue);
+    private void DrawMonitorUI(double deltaTime)
+    {
+        // Make sure ImGui is up-to-date
+        s_ImGuiController.Update((float)deltaTime);
 
-    //     using (var paint = new SKPaint { Style = SKPaintStyle.Fill, Color = SKColors.Gold })
-    //     {
-    //         skCanvas.DrawRect(50, 100, 100, 200, paint);
-    //     }
-    // }
+        ImGui.Begin("Monitor");
+        ImGui.SetWindowSize(new Vector2(620, 400));
+        //ImGuiNET.ImGui.Text("Commands");
+
+        foreach (var cmd in _monitorCmdHistory)
+        {
+            ImGui.Text(cmd);
+        }
+
+        ImGui.SetKeyboardFocusHere(0);
+        ImGui.PushItemWidth(600);
+        if (ImGui.InputText("", ref _monitorCmdString, MONITOR_CMD_LINE_LENGTH, ImGuiInputTextFlags.EnterReturnsTrue))
+        {
+            _monitorCmdHistory.Add(_monitorCmdString);
+            _monitorCmdString = "";
+            if (_monitorCmdHistory.Count > MONITOR_CMD_HISTORY_VIEW_ROWS)
+                _monitorCmdHistory.RemoveAt(0);
+        }
+
+        s_ImGuiController.Render();
+    }
+
+    int MONITOR_CMD_HISTORY_VIEW_ROWS = 20;
+    const int MONITOR_CMD_LINE_LENGTH = 80;
+    List<string> _monitorCmdHistory = new();
+
+    string _monitorCmdString = "";
 }

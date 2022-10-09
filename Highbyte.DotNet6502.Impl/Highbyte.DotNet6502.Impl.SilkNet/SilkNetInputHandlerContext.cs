@@ -9,13 +9,15 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
 {
     private readonly IWindow _silkNetWindow;
     private static IInputContext s_inputcontext;
+    public IInputContext InputContext => s_inputcontext;
     private IKeyboard _primaryKeyboard;
-
-    public bool Exit { get; private set; }
+    public IKeyboard PrimaryKeyboard => _primaryKeyboard;
 
     public HashSet<Key> KeysUp = new();
     public HashSet<Key> KeysDown = new();
     public HashSet<char> CharactersReceived = new();
+
+    public bool Exit { get; private set; }
 
     public bool IsKeyPressed(Key key) => _primaryKeyboard.IsKeyPressed(key);
 

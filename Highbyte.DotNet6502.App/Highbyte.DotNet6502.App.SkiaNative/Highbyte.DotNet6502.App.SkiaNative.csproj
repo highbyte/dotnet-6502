@@ -18,6 +18,7 @@
     <PackageReference Include="Silk.NET.Input" Version="2.16.0" />
     <PackageReference Include="Silk.NET.OpenGL" Version="2.16.0" />
     <PackageReference Include="Silk.NET.Windowing" Version="2.16.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.16.0" />
   </ItemGroup>
 
 </Project>

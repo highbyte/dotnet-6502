@@ -17,7 +17,7 @@ public class SkiaRenderContext: IRenderContext
         var glInterface = GRGlInterface.Create();
         var grContextOptions = new GRContextOptions{};
         GRContext = GRContext.CreateGl(glInterface, grContextOptions);
-        if(GRContext == null)
+        if (GRContext == null)
             throw new Exception("Cannot create OpenGL context.");
 
         // Create main Skia surface from OpenGL context
@@ -29,7 +29,7 @@ public class SkiaRenderContext: IRenderContext
 
         // Create the SkiaSharp render target surface
         RenderSurface = SKSurface.Create(GRContext, RenderTarget, GRSurfaceOrigin.BottomLeft, SKColorType.Rgba8888);
-        if(GRContext == null)
+        if (GRContext == null)
             throw new Exception("Cannot create SkiaSharp SKSurface.");
 
         RenderSurface.Canvas.Scale(scale);
