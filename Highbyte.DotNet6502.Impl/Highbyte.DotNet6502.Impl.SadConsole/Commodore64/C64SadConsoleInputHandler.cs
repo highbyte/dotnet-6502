@@ -104,12 +104,12 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
             }
 
             // "Normal" key is pressed, map via char-to-petscii table
-            if (!Petscii.AscIICharToPetscii.ContainsKey(sadConsoleKey.Character))
+            if (!Petscii.CharToPetscii.ContainsKey(sadConsoleKey.Character))
             {
                 System.Diagnostics.Debug.WriteLine($"SadConsole character pressed but not mapped: {sadConsoleKey.Character}");
                 return 0;
             }
-            var petsciiCode = Petscii.AscIICharToPetscii[sadConsoleKey.Character];
+            var petsciiCode = Petscii.CharToPetscii[sadConsoleKey.Character];
             System.Diagnostics.Debug.WriteLine($"SadConsole normal character pressed {sadConsoleKey.Character} and mapped to Petscii: {petsciiCode}");
             return petsciiCode;
         }

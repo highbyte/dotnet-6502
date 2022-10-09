@@ -4,6 +4,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config
 {
     public static class Petscii
     {
+        /// <summary>
+        /// PetscII codes for colors
+        /// </summary>
         public enum Colors : byte
         {
             White      = 0x05,
@@ -24,7 +27,13 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config
             Cyan       = 0x9f,
         };
 
-        public static Dictionary<char, byte> AscIICharToPetscii = new()
+        /// <summary>
+        /// Common C# character to PetscII code.
+        /// These are printable on a normal PC/Mac keyboard.
+        /// For mapping of non-printable PC/Mac keys (ex: Enter, Shift, Up), use specific mapping for the input system implementation (Skia, SadConsole etc)
+        /// </summary>
+        /// <returns></returns>
+        public static Dictionary<char, byte> CharToPetscii = new()
         {
             {' ',               0x20},
             {'!',               0x21},
@@ -90,6 +99,35 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config
             {'£',               0x5c},  // Pound sign
             {']',               0x5d},
             {'^',               0x5e},
+
+
+            {'A',               0xc1},
+            {'B',               0xc2},
+            {'C',               0xc3},
+            {'D',               0xc4},
+            {'E',               0xc5},
+            {'F',               0xc6},
+            {'G',               0xc7},
+            {'H',               0xc8},
+            {'I',               0xc9},
+            {'J',               0xca},
+            {'K',               0xcb},
+            {'L',               0xcc},
+            {'M',               0xcd},
+            {'N',               0xce},
+            {'O',               0xcf},
+            {'P',               0xd0},
+            {'Q',               0xd1},
+            {'R',               0xd2},
+            {'S',               0xd3},
+            {'T',               0xd4},
+            {'U',               0xd5},
+            {'V',               0xd6},
+            {'W',               0xd7},
+            {'X',               0xd8},
+            {'Y',               0xd9},
+            {'Z',               0xda},
+
         };
 
         /// <summary>
