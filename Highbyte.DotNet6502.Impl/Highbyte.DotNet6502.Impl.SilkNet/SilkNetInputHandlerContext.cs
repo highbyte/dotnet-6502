@@ -43,7 +43,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
         _primaryKeyboard.KeyChar += KeyReceived;
     }
 
-    public void KeyUp(IKeyboard keyboard, Key key, int x)
+    private void KeyUp(IKeyboard keyboard, Key key, int x)
     {
         if (!KeysUp.Contains(key))
         {
@@ -52,7 +52,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
         }
     }
 
-    public void KeyDown(IKeyboard keyboard, Key key, int x)
+    private void KeyDown(IKeyboard keyboard, Key key, int x)
     {
         if (!KeysDown.Contains(key))
         {
@@ -61,7 +61,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
         }
     }
 
-    public void KeyReceived(IKeyboard keyboard, char character)
+    private void KeyReceived(IKeyboard keyboard, char character)
     {
         Debug.WriteLine($"Character received: {character}");
         if (!CharactersReceived.Contains(character))

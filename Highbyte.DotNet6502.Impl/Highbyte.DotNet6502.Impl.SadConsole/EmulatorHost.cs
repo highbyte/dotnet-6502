@@ -29,16 +29,17 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
             int runEveryFrame;
 
             var sadConsoleRenderContext = new SadConsoleRenderContext(GetSadConsoleScreen);
+            var sadConsoleInputHandlerContext= new SadConsoleInputHandlerContext();
 
             switch (_sadConsoleConfig.Emulator)
             {
                 case "GenericComputer":
-                    systemRunner = GetGenericSystemRunner(sadConsoleRenderContext);
+                    systemRunner = GetGenericSystemRunner(sadConsoleRenderContext, sadConsoleInputHandlerContext);
                     runEveryFrame = _genericComputerConfig.RunEmulatorEveryFrame;
                     break;
 
                 case "C64":
-                    systemRunner = GetC64SystemRunner(sadConsoleRenderContext);
+                    systemRunner = GetC64SystemRunner(sadConsoleRenderContext, sadConsoleInputHandlerContext);
                     runEveryFrame = 1;
                     break;
 
@@ -64,7 +65,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
             return SadConsoleMain.SadConsoleScreen;
         }
 
-        SystemRunner GetC64SystemRunner(SadConsoleRenderContext sadConsoleRenderContext)
+        SystemRunner GetC64SystemRunner(SadConsoleRenderContext sadConsoleRenderContext, SadConsoleInputHandlerContext sadConsoleInputHandlerContext)
         {
             var c64 = C64.BuildC64();
 
@@ -72,8 +73,9 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
             renderer.Init(c64, sadConsoleRenderContext);
 
             var inputHandler = new C64SadConsoleInputHandler();
+            inputHandler.Init(c64, sadConsoleInputHandlerContext);
 
-            var systemRunnerBuilder = new SystemRunnerBuilder<C64, SadConsoleRenderContext>(c64);
+            var systemRunnerBuilder = new SystemRunnerBuilder<C64, SadConsoleRenderContext, SadConsoleInputHandlerContext>(c64);
             var systemRunner = systemRunnerBuilder
                 .WithRenderer(renderer)
                 .WithInputHandler(inputHandler)
@@ -82,7 +84,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
         }
 
 
-        SystemRunner GetGenericSystemRunner(SadConsoleRenderContext sadConsoleRenderContext)
+        SystemRunner GetGenericSystemRunner(SadConsoleRenderContext sadConsoleRenderContext, SadConsoleInputHandlerContext sadConsoleInputHandlerContext)
         {
             var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(_genericComputerConfig);
 
@@ -90,8 +92,9 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
             renderer.Init(genericComputer, sadConsoleRenderContext);
 
             var inputHandler = new GenericSadConsoleInputHandler(_genericComputerConfig.Memory.Input);
+            inputHandler.Init(genericComputer, sadConsoleInputHandlerContext);
 
-            var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SadConsoleRenderContext>(genericComputer);
+            var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SadConsoleRenderContext,  SadConsoleInputHandlerContext>(genericComputer);
             var systemRunner = systemRunnerBuilder
                 .WithRenderer(renderer)
                 .WithInputHandler(inputHandler)

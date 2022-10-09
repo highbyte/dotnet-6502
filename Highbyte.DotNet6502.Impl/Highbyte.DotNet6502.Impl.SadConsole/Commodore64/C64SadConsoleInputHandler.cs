@@ -8,10 +8,23 @@ using SadConsole.Input;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
 {
-    public class C64SadConsoleInputHandler : IInputHandler<C64>, IInputHandler
+    public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandlerContext>, IInputHandler
     {
+        private SadConsoleInputHandlerContext _inputHandlerContext;
+
         public C64SadConsoleInputHandler()
         {
+        }
+
+        public void Init(C64 system, SadConsoleInputHandlerContext inputHandlerContext)
+        {
+            _inputHandlerContext = inputHandlerContext;
+            //_inputHandlerContext.Init();
+        }
+
+        public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
+        {
+            Init((C64)system, (SadConsoleInputHandlerContext)inputHandlerContext);
         }
 
         public void ProcessInput(C64 c64)

@@ -6,14 +6,27 @@ using SadConsole;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Generic
 {
-    public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer>, IInputHandler
+    public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadConsoleInputHandlerContext>, IInputHandler
     {
+        private SadConsoleInputHandlerContext _inputHandlerContext;
+
         private readonly EmulatorInputConfig _emulatorInputConfig;
 
         public GenericSadConsoleInputHandler(
             EmulatorInputConfig emulatorInputConfig)
         {
             _emulatorInputConfig = emulatorInputConfig;
+        }
+
+        public void Init(GenericComputer system, SadConsoleInputHandlerContext inputHandlerContext)
+        {
+            _inputHandlerContext = inputHandlerContext;
+            //_inputHandlerContext.Init();
+        }
+
+        public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
+        {
+            Init((GenericComputer)system, (SadConsoleInputHandlerContext)inputHandlerContext);
         }
 
         public void ProcessInput(GenericComputer system)
