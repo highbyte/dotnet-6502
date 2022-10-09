@@ -44,18 +44,19 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
         {
             var c64Keyboard = c64.Keyboard;
 
-            HandleNonPrintedKeys(c64Keyboard);
+            HandleNonPrintedC64Keys(c64Keyboard);
 
-            bool processNextKey = true;
-            while (processNextKey)
-            {
-                processNextKey = GetNextPetsciiCode(out byte petsciiCode);
-                if (petsciiCode != 0)
-                    c64.Keyboard.KeyPressed(petsciiCode);
-            }
+            HandlePrintedC64Keys(c64Keyboard);
+            // bool processNextKey = true;
+            // while (processNextKey)
+            // {
+            //     processNextKey = GetNextPetsciiCode(out byte petsciiCode);
+            //     if (petsciiCode != 0)
+            //         c64.Keyboard.KeyPressed(petsciiCode);
+            // }
         }
 
-        private void HandleNonPrintedKeys(
+        private void HandleNonPrintedC64Keys(
             Systems.Commodore64.Keyboard c64Keyboard)
         {
             // STOP (ESC) down
@@ -73,14 +74,11 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
             }
         }
 
-        private bool GetNextPetsciiCode(out byte petsciiCode)
+        private void HandlePrintedC64Keys(
+            Systems.Commodore64.Keyboard c64Keyboard)
         {
-            petsciiCode = 0;
-            if (_inputHandlerContext.KeysReceived.Count == 0 && _inputHandlerContext.SpecialKeyReceived.Count == 0)
-                return false;
-
             // Check if modifier key is down.
-            Key? modifierKeyDown = null;
+            var modifierKeyDown = Key.Unknown;
             foreach (var modifierKey in C64SilkNetKeyboard.AllModifierKeys)
             {
                 var modifierKeyPressed = _inputHandlerContext.IsKeyPressed(modifierKey);
@@ -91,67 +89,39 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
                 }
             }
 
-            // If received key is not a normal PC/Mac character (or it wasn't mapped to PetscII character above), 
-            // check if we have a map for the key.
-            // If the special key is also a "normal" character received, skip it here (and process it below for normal characters)
-            if (_inputHandlerContext.SpecialKeyReceived.Count > 0)
+            if (C64SilkNetKeyboard.SpecialKeyMaps.ContainsKey(modifierKeyDown))
             {
-                Key? inspectSilkNetKey = null;
-                bool foundValidSilkNetKey = false;
-                while (!foundValidSilkNetKey && _inputHandlerContext.SpecialKeyReceived.Count > 0)
-                {
-                    // Special (non-character like Enter, Backspace, etc.)
-                    inspectSilkNetKey = _inputHandlerContext.SpecialKeyReceived.First();
-                    _inputHandlerContext.SpecialKeyReceived.Remove(inspectSilkNetKey.Value);
+                var specialKeyMap = C64SilkNetKeyboard.SpecialKeyMaps[modifierKeyDown];
 
-                    foundValidSilkNetKey = !C64SilkNetKeyboard.AllModifierKeys.Contains(inspectSilkNetKey.Value);
-                }
-
-                if (foundValidSilkNetKey)
+                foreach (var key in specialKeyMap.Keys)
                 {
-                    Key silkNetKey = inspectSilkNetKey.Value;
-                    if (!_inputHandlerContext.KeysReceived.Contains((char)silkNetKey))
+                    if (_inputHandlerContext.KeysDown.Contains(key))
                     {
+                        var petsciiCode = specialKeyMap[key];
+                        Debug.WriteLine($"SilkNet special key pressed: {key} with modifier: {modifierKeyDown} and mapped to Petscii: {petsciiCode}");
+                        c64Keyboard.KeyPressed(petsciiCode);
 
-                        Dictionary<Key, byte> specialKeyMap;
-                        // Check if any special key is pressed based on modifier key.
-                        if (modifierKeyDown.HasValue && C64SilkNetKeyboard.SpecialKeyMaps.ContainsKey(modifierKeyDown.Value))
-                            specialKeyMap = C64SilkNetKeyboard.SpecialKeyMaps[modifierKeyDown.Value];
-                        else
-                            specialKeyMap = C64SilkNetKeyboard.SpecialKeys; // With no modifier
-
-                        if (specialKeyMap.ContainsKey(silkNetKey))
-                        {
-                            petsciiCode = specialKeyMap[silkNetKey];
-                            System.Diagnostics.Debug.WriteLine($"SilkNet special key pressed: {silkNetKey} with modifier: {modifierKeyDown} and mapped to Petscii: {petsciiCode}");
-                            return true;
-                        }
+                        // If we detected a special Key/Combo pressed, don't process anymore. Some of them may also be in the _inputHandlerContext.CharactersReceived list processed below.
+                        return;
                     }
-
                 }
             }
 
-            // Normal PC/Mac characters received.
-            if (_inputHandlerContext.KeysReceived.Count > 0)
+            // Check if nothing to do with captured characters.
+            if (_inputHandlerContext.CharactersReceived.Count == 0)
+                return;
+
+            foreach (var character in _inputHandlerContext.CharactersReceived)
             {
-                // Get ASCII character
-                var silkNetCharacter = _inputHandlerContext.KeysReceived.First();
-                _inputHandlerContext.KeysReceived.Remove(silkNetCharacter);
-                if (!Petscii.CharToPetscii.ContainsKey(silkNetCharacter))
+                if (!Petscii.CharToPetscii.ContainsKey(character))
                 {
-                    System.Diagnostics.Debug.WriteLine($"SilkNet character pressed but not mapped: {silkNetCharacter}");
+                    Debug.WriteLine($"SilkNet normal character pressed {character} couldn't be found as a Petscii code.");
+                    continue;
                 }
-                else
-                {
-                    // Map to PetscII
-                    petsciiCode = Petscii.CharToPetscii[silkNetCharacter];
-                    System.Diagnostics.Debug.WriteLine($"SilkNet normal character pressed {silkNetCharacter} and mapped to Petscii: {petsciiCode}");
-                    return true;
-                }
+                var petsciiCode = Petscii.CharToPetscii[character];
+                Debug.WriteLine($"SilkNet normal character pressed {character} and mapped to Petscii: {petsciiCode}");
+                c64Keyboard.KeyPressed(petsciiCode);
             }
-
-
-            return false;
         }
     }
 }

@@ -60,6 +60,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Config
         {
             SpecialKeyMaps = new()
             {
+                {Key.Unknown, SpecialKeys},
                 {Key.Tab, SpecialKeysControl},
                 {Key.ControlLeft, SpecialKeysCommodore},
                 {Key.ControlRight, SpecialKeysCommodore},

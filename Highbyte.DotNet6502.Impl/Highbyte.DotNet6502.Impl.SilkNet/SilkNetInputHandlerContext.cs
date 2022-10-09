@@ -15,17 +15,9 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
 
     public HashSet<Key> KeysUp = new();
     public HashSet<Key> KeysDown = new();
-    public HashSet<char> KeysReceived = new();
-
-    // public bool IsKeyUp(Key key) => KeysUp.Contains(key);
-    // public bool IsKeyDown(Key key) => KeysDown.Contains(key);
-    public bool IsKeyReceived(char character) => KeysReceived.Contains(character);
+    public HashSet<char> CharactersReceived = new();
 
     public bool IsKeyPressed(Key key) => _primaryKeyboard.IsKeyPressed(key);
-
-    private HashSet<Key> _specialKeyDown = new();
-    public HashSet<Key> SpecialKeyReceived = new();
-
 
     public SilkNetInputHandlerContext(IWindow silkNetWindow)
     {
@@ -53,45 +45,34 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
 
     public void KeyUp(IKeyboard keyboard, Key key, int x)
     {
-        Debug.WriteLine($"KeyUp: {key}");
         if (!KeysUp.Contains(key))
-            KeysUp.Add(key);
-
-        if (_specialKeyDown.Contains(key))
         {
-            _specialKeyDown.Remove(key);
+            Debug.WriteLine($"KeyUp captured for frame: {key}");
+            KeysUp.Add(key);
         }
-
     }
 
     public void KeyDown(IKeyboard keyboard, Key key, int x)
     {
-        Debug.WriteLine($"KeyDown: {key}");
         if (!KeysDown.Contains(key))
-            KeysDown.Add(key);
-
-        if (!_specialKeyDown.Contains(key))
         {
-            _specialKeyDown.Add(key);
-            SpecialKeyReceived.Add(key);
-            Debug.WriteLine($"Special key received: {key}");
+            Debug.WriteLine($"KeyDown captured for frame: {key}");
+            KeysDown.Add(key);
         }
     }
 
     public void KeyReceived(IKeyboard keyboard, char character)
     {
-        Debug.WriteLine($"KeyReceived: {character}");
-        if (!KeysReceived.Contains(character))
-            KeysReceived.Add(character);
+        Debug.WriteLine($"Character received: {character}");
+        if (!CharactersReceived.Contains(character))
+            CharactersReceived.Add(character);
     }
 
     public void ClearKeys()
     {
         KeysUp.Clear();
         KeysDown.Clear();
-        KeysReceived.Clear();
-
-        SpecialKeyReceived.Clear();
+        CharactersReceived.Clear();
     }
 
     public void Cleanup()
