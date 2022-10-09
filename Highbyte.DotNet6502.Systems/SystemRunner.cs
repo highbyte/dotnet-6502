@@ -15,13 +15,6 @@ namespace Highbyte.DotNet6502.Systems
             _system = system;
         }
 
-        public SystemRunner(ISystem system, IRenderer renderer, IInputHandler inputHandler)
-        {
-            _system = system;
-            _renderer = renderer;
-            _inputHandler = inputHandler;
-        }
-
         public void Run()
         {
             bool quit = false;
@@ -64,25 +57,6 @@ namespace Highbyte.DotNet6502.Systems
         {
             if (_renderer != null)
                 _renderer.Draw(_system);
-        }
-    }
-
-    public class SystemRunner<TSystem, TRenderContext, TInputContext> : SystemRunner
-        where TSystem : ISystem
-        where TRenderContext : IRenderContext
-        where TInputContext : IInputHandlerContext
-    {
-        public SystemRunner(
-            TSystem system) : base(system)
-        {
-        }
-
-        public SystemRunner(
-            TSystem system,
-            IRenderer<TSystem, TRenderContext> renderer,
-            IInputHandler<TSystem, TInputContext> inputHandler
-            ) : base(system, renderer, inputHandler)
-        {
         }
     }
 }

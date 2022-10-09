@@ -1,10 +1,10 @@
 namespace Highbyte.DotNet6502.Systems
 {
 
-    public class SystemRunnerBuilder<TSystem, TRenderContext, TInputContext>
+    public class SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext>
         where TSystem : ISystem
         where TRenderContext : IRenderContext
-        where TInputContext : IInputHandlerContext
+        where TInputHandlerContext : IInputHandlerContext
     {
         private readonly SystemRunner _systemRunner;
 
@@ -13,13 +13,13 @@ namespace Highbyte.DotNet6502.Systems
             _systemRunner = new SystemRunner(system);
         }
 
-        public SystemRunnerBuilder<TSystem, TRenderContext, TInputContext> WithRenderer(IRenderer<TSystem, TRenderContext> renderer)
+        public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext> WithRenderer(IRenderer<TSystem, TRenderContext> renderer)
         {
             _systemRunner.Renderer = renderer;
             return this;
         }
 
-        public SystemRunnerBuilder<TSystem, TRenderContext, TInputContext> WithInputHandler(IInputHandler<TSystem, TInputContext> inputHandler)
+        public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext> WithInputHandler(IInputHandler<TSystem, TInputHandlerContext> inputHandler)
         {
             _systemRunner.InputHandler = inputHandler;
             return this;
