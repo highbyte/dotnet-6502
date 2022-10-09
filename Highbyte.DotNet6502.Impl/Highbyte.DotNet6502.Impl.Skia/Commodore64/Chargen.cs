@@ -5,6 +5,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 {
     public class Chargen
     {
+        public static SKColor CharacterImageDrawColor = SKColors.White;
         public SKImage GenerateChargenImage(GRContext grContext, byte[] characterSet, int charactersPerRow = 16)
         {
             if (characterSet.Length != Vic2.CHARACTERSET_SIZE)
@@ -19,7 +20,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
                 var paint = new SKPaint
                 {
                     Style = SKPaintStyle.Stroke,
-                    Color = SKColors.White
+                    Color = CharacterImageDrawColor
                 };
 
                 int charCode = 0;

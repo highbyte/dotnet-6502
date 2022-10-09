@@ -43,17 +43,8 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
         private void CaptureKeyboard(C64 c64)
         {
             var c64Keyboard = c64.Keyboard;
-
             HandleNonPrintedC64Keys(c64Keyboard);
-
             HandlePrintedC64Keys(c64Keyboard);
-            // bool processNextKey = true;
-            // while (processNextKey)
-            // {
-            //     processNextKey = GetNextPetsciiCode(out byte petsciiCode);
-            //     if (petsciiCode != 0)
-            //         c64.Keyboard.KeyPressed(petsciiCode);
-            // }
         }
 
         private void HandleNonPrintedC64Keys(

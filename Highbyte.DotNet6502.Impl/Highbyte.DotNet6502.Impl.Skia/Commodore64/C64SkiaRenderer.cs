@@ -103,8 +103,6 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
         {
             var emulatorMem = c64.Mem;
 
-            byte bgColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR];
-
             // Build screen data characters based on emulator memory contents (byte)
             ushort currentScreenAddress = Vic2Addr.SCREEN_RAM_START;
             ushort currentColorAddress = Vic2Addr.COLOR_RAM_START;
@@ -119,7 +117,6 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
                         row,
                         charByte,
                         colorByte,
-                        bgColor,
                         c64,
                         adjustForBorder: true
                         );
@@ -158,10 +155,9 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
         /// </summary>
         /// <param name="x"></param>
         /// <param name="y"></param>
-        /// <param name="emulatorCharacter"></param>
-        /// <param name="emulatorFgColor"></param>
-        /// <param name="emulatorBgColor"></param>
-        public void DrawEmulatorCharacterOnScreen(int col, int row, byte emulatorCharacter, byte emulatorFgColor, byte emulatorBgColor, C64 c64, bool adjustForBorder)
+        /// <param name="character"></param>
+        /// <param name="characterColor"></param>
+        public void DrawEmulatorCharacterOnScreen(int col, int row, byte character, byte characterColor, C64 c64, bool adjustForBorder)
         {
             int pixelPosX = col * c64.CharacterWidth;
             int pixelPosY = row * c64.CharacterHeight;
@@ -173,15 +169,15 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 
             // Draw character image from chargen ROM to a Skia surface
             // The chargen ROM has been loaded to a SKImage with 16 characters per row (each character 8 x 8 pixels).
-            int romImageX = (emulatorCharacter % CHARGEN_IMAGE_CHARACTERS_PER_ROW) * 8;
-            int romImageY = (emulatorCharacter / CHARGEN_IMAGE_CHARACTERS_PER_ROW) * 8;
+            int romImageX = (character % CHARGEN_IMAGE_CHARACTERS_PER_ROW) * 8;
+            int romImageY = (character / CHARGEN_IMAGE_CHARACTERS_PER_ROW) * 8;
 
             // TODO: Create pre-initialized SKPaint instances for each C64 color.
-            SKColor foregroundColorForCharacter = C64SkiaColors.NativeToSkColorMap[ColorMaps.C64ColorMap[emulatorFgColor]];
-            byte backgroundColor = c64.Mem[Vic2Addr.BACKGROUND_COLOR];
+            SKColor foregroundColorForCharacter = C64SkiaColors.NativeToSkColorMap[ColorMaps.C64ColorMap[characterColor]];
 
-            // TODO: Create pre-initialized ColorFilter
-            using (var paint = new SKPaint { Style = SKPaintStyle.Fill, ColorFilter = CreateForceSingleColorFilter(foregroundColorForCharacter, backgroundColor) })
+            // TODO: Create pre-initialized ColorFilter to change the (white) color the character images was drawn in, to the color defined for the VIC2 memory position (color ram)
+            using (var paint = new SKPaint { Style = SKPaintStyle.StrokeAndFill, ColorFilter = CreateForceSingleColorFilter(foregroundColorForCharacter, Chargen.CharacterImageDrawColor) })
+            //using (var paint = new SKPaint { Style = SKPaintStyle.Stroke })
             {
                 _skCanvas.DrawImage(_characterSetCurrent,
                     source: new SKRect(romImageX, romImageY, romImageX + 8, romImageY + 8),
@@ -192,39 +188,24 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
         }
 
         /// <summary>
-        /// Color filter to preserve background color, but change all other colors to specified one.
-        /// The image that contains the chargen characters where generated with foreground color White (and opaque background).
+        /// Color filter change the color the original character image was drawn in to a specified color.
         /// </summary>
         /// <param name="forceSingleColor"></param>
-        /// <param name="backgroundColor"></param>
+        /// <param name="originalImageSingleColor"></param>
         /// <returns></returns>
-        private SKColorFilter CreateForceSingleColorFilter(SKColor forceSingleColor, SKColor backgroundColor)
+        private SKColorFilter CreateForceSingleColorFilter(SKColor forceSingleColor, SKColor originalImageSingleColor)
         {
             byte[] R = new byte[256];
             byte[] G = new byte[256];
             byte[] B = new byte[256];
             byte[] A = new byte[256];
 
-            R[backgroundColor.Red] = backgroundColor.Red;
-            G[backgroundColor.Green] = backgroundColor.Green;
-            B[backgroundColor.Blue] = backgroundColor.Blue;
-
-            for (int x = 0; x <= 255; x++)
-            {
-                bool changeR = x != backgroundColor.Red;
-                bool changeG = x != backgroundColor.Green;
-                bool changeB = x != backgroundColor.Blue;
-                if (changeR)
-                    R[x] = forceSingleColor.Red;
-                if (changeG)
-                    G[x] = forceSingleColor.Green;
-                if (changeB)
-                    B[x] = forceSingleColor.Blue;
-                A[x] = forceSingleColor.Alpha;
-            }
+            R[originalImageSingleColor.Red] = forceSingleColor.Red;
+            G[originalImageSingleColor.Green] = forceSingleColor.Green;
+            B[originalImageSingleColor.Blue] = forceSingleColor.Blue;
+            A[originalImageSingleColor.Alpha] = originalImageSingleColor.Alpha;
 
             var colorFilter = SKColorFilter.CreateTable(A, R, G, B);
-
             return colorFilter;
         }
     }
