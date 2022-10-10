@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
   </ItemGroup>
 
   <ItemGroup>

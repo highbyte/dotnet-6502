@@ -4,8 +4,10 @@ using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64
 {
-    public class C64: ISystem, ITextMode, IScreen
+    public class C64 : ISystem, ITextMode, IScreen
     {
+        public string Name => "Commodore 64";
+        public string SystemInfo => BuildSystemInfo();
         public CPU CPU { get; set; }
         public Memory Mem { get; set; }
         public byte[] RAM { get; set; }
@@ -29,12 +31,6 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
         public int BorderWidth => (VisibleWidth - Width) / 2;
         public int BorderHeight => (VisibleHeight - Height) / 2;
 
-
-        public void VerticalBlank()
-        {
-            Vic2.VerticalBlank(CPU);
-        }
-
         public static ROM[] ROMS = new ROM[]
         {   
             // name, file, checksum 
@@ -52,14 +48,11 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
                 Mem,
                 new ExecOptions
                 {
-                    CyclesRequested = Vic2.NTSC_NEW_CYCLES_PER_FRAME,
-                    ExecuteUntilInstruction = executeUntilBRKInstruction?OpCodeId.BRK:null
+                    CyclesRequested = Vic2.NTSC_NEW_CYCLES_PER_FRAME - Vic2.CyclesConsumedCurrentVblank, // If we already executed cycles in current frame, reduce it from total.
+                    ExecuteUntilInstruction = executeUntilBRKInstruction ? OpCodeId.BRK : null
                 });
-            if(!execState.LastOpCodeWasHandled || (execState.LastInstructionExecResult!=null && execState.LastInstructionExecResult.OpCodeByte == OpCodeId.BRK.ToByte()))
+            if (!execState.LastOpCodeWasHandled || (execState.LastInstructionExecResult != null && execState.LastInstructionExecResult.OpCodeByte == OpCodeId.BRK.ToByte()))
                 return false;
-
-            // Reset current line to 0 & generate hardware IRQ
-            VerticalBlank();
 
             // Return true to continue running
             return true;
@@ -181,13 +174,13 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
             return cpu;
         }
 
-        private static Memory CreateC64Memory(byte[] ram, byte[] io, Dictionary<string,byte[]> roms)
+        private static Memory CreateC64Memory(byte[] ram, byte[] io, Dictionary<string, byte[]> roms)
         {
             var basic = roms["basic"];
             var chargen = roms["chargen"];
             var kernal = roms["kernal"];
 
-            var mem = new Memory(numberOfConfigurations:32, mapToDefaultRAM: false);
+            var mem = new Memory(numberOfConfigurations: 32, mapToDefaultRAM: false);
 
             mem.SetMemoryConfiguration(31);
             mem.MapRAM(0x0000, ram);
@@ -195,25 +188,25 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
 
-            foreach (var bank in new int[]{30, 14})
+            foreach (var bank in new int[] { 30, 14 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
                 mem.MapRAM(0xd000, io);
                 mem.MapROM(0xe000, kernal);
             }
-            foreach (var bank in new int[]{29, 13})
+            foreach (var bank in new int[] { 29, 13 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
                 mem.MapRAM(0xd000, io);
             }
-            foreach (var bank in new int[]{28, 24})
+            foreach (var bank in new int[] { 28, 24 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
             }
-            foreach (var bank in new int[]{27})
+            foreach (var bank in new int[] { 27 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
@@ -221,28 +214,28 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
                 mem.MapROM(0xd000, chargen);
                 mem.MapROM(0xe000, kernal);
             }
-            foreach (var bank in new int[]{26, 10})
+            foreach (var bank in new int[] { 26, 10 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
                 mem.MapROM(0xd000, chargen);
                 mem.MapROM(0xe000, kernal);
             }
-            foreach (var bank in new int[]{25, 9})
+            foreach (var bank in new int[] { 25, 9 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
                 mem.MapROM(0xd000, chargen);
             }
 
-            foreach (var bank in new int[]{23, 22, 21, 20, 19, 18, 17, 16})
+            foreach (var bank in new int[] { 23, 22, 21, 20, 19, 18, 17, 16 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
                 mem.MapRAM(0xd000, io);
                 // TODO: Cartridge low + high mapping
             }
-            foreach (var bank in new int[]{15})
+            foreach (var bank in new int[] { 15 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
@@ -251,12 +244,12 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
                 mem.MapROM(0xe000, kernal);
                 // TODO: Cartridge low mapping
             }
-            foreach (var bank in new int[]{12, 8, 4, 0})
+            foreach (var bank in new int[] { 12, 8, 4, 0 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
             }
-            foreach (var bank in new int[]{11})
+            foreach (var bank in new int[] { 11 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
@@ -265,7 +258,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
                 mem.MapROM(0xe000, kernal);
                 // TODO: Cartridge low mapping
             }
-            foreach (var bank in new int[]{7})
+            foreach (var bank in new int[] { 7 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
@@ -273,7 +266,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
                 mem.MapROM(0xe000, kernal);
                 // TODO: Cartridge low + high mapping
             }
-            foreach (var bank in new int[]{6})
+            foreach (var bank in new int[] { 6 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
@@ -281,13 +274,13 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
                 mem.MapROM(0xe000, kernal);
                 // TODO: Cartridge high mapping
             }
-            foreach (var bank in new int[]{5})
+            foreach (var bank in new int[] { 5 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
                 mem.MapRAM(0xd000, io);
             }
-            foreach (var bank in new int[]{3})
+            foreach (var bank in new int[] { 3 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
@@ -295,7 +288,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
                 mem.MapROM(0xe000, kernal);
                 // TODO: Cartridge low + high mapping
             }
-            foreach (var bank in new int[]{2})
+            foreach (var bank in new int[] { 2 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
@@ -303,7 +296,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
                 mem.MapROM(0xe000, kernal);
                 // TODO: Cartridge high mapping
             }
-            foreach (var bank in new int[]{1})
+            foreach (var bank in new int[] { 1 })
             {
                 mem.SetMemoryConfiguration(bank);
                 mem.MapRAM(0x0000, ram);
@@ -324,6 +317,11 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
         {
             // For now, only the the first 3 bits which is the current bank
             return (byte)(CurrentBank & 0x07);
+        }
+
+        private string BuildSystemInfo()
+        {
+            return $"CPU bank: {CurrentBank} VIC2 bank: {Vic2.CurrentVIC2Bank} VblankCY: {Vic2.CyclesConsumedCurrentVblank}";
         }
     }
 }

@@ -2,8 +2,10 @@ namespace Highbyte.DotNet6502.Systems
 {
     public interface ISystem
     {
-        CPU CPU { get; set; }
-        Memory Mem { get; set; }
+        string Name { get; }
+        string SystemInfo { get; }
+        CPU CPU { get; }
+        Memory Mem { get; }
 
         public bool ExecuteOneInstruction();
         public bool ExecuteOneFrame();

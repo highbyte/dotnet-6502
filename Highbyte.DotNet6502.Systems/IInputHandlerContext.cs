@@ -8,4 +8,8 @@ namespace Highbyte.DotNet6502.Systems
         where TSystem : ISystem
     {
     }
+
+    public class NullInputHandlerContext : IInputHandlerContext
+    {
+    }
 }

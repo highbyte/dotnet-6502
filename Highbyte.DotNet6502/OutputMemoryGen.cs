@@ -21,7 +21,8 @@ namespace Highbyte.DotNet6502
             int rowIndex = 0;
             string row = "";
             List<string> list = new();
-            while(currentAddress <= endAddress)
+            bool cont = true;
+            while (cont)
             {
                 if(colIndex == 0)
                     row += $"{currentAddress.ToHex(HexPrefix, lowerCase: true)}  ";
@@ -48,7 +49,10 @@ namespace Highbyte.DotNet6502
                     row = "";
                 }
 
-                currentAddress++;
+                if (currentAddress < endAddress && currentAddress != 0xffff)
+                    currentAddress++;
+                else
+                    cont = false;
             }
             return list;
         }

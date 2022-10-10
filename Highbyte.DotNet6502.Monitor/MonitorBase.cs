@@ -1,43 +1,44 @@
-﻿using Highbyte.DotNet6502.Monitor.Commands;
+﻿using Highbyte.DotNet6502.Systems;
 using McMaster.Extensions.CommandLineUtils;
 
 namespace Highbyte.DotNet6502.Monitor
 {
     public abstract class MonitorBase
     {
-        public CPU Cpu { get; private set; }
-        public Memory Mem { get; private set; }
+        private readonly SystemRunner _systemRunner;
+
+        public SystemRunner SystemRunner => _systemRunner;
+        public CPU Cpu => _systemRunner.System.CPU;
+        public Memory Mem => _systemRunner.System.Mem;
 
         private CommandLineApplication _commandLineApp;
 
         public bool Quit { get; set; }
-        public MonitorBase(CPU cpu, Memory mem)
+        public MonitorBase(SystemRunner systemRunner)
         {
-            Cpu = cpu;
-            Mem = mem;
             _commandLineApp = FluentCommands.Configure(this);
+            _systemRunner = systemRunner;
         }
 
-        public void SendCommand(string command)
+        public CommandResult SendCommand(string command)
         {
             if (string.IsNullOrEmpty(command))
-                return;
+                return CommandResult.Ok;
 
-            if (string.Equals(command, "?", StringComparison.InvariantCultureIgnoreCase) 
+            if (string.Equals(command, "?", StringComparison.InvariantCultureIgnoreCase)
                 || string.Equals(command, "-?", StringComparison.InvariantCultureIgnoreCase)
                 || string.Equals(command, "help", StringComparison.InvariantCultureIgnoreCase)
                 || string.Equals(command, "--help", StringComparison.InvariantCultureIgnoreCase))
             {
                 ShowHelp();
-                return;
+                return CommandResult.Ok;
             }
 
             // Workaround for CommandLineUtils after showing help once, it will always show it for every command, even if syntax is correct.
             // Create new instance for every time we parse input
             _commandLineApp = FluentCommands.Configure(this);
-            int result = _commandLineApp.Execute(command.Split(' '));
-            if (result == 2)
-                Quit = true;
+            var result = (CommandResult)_commandLineApp.Execute(command.Split(' '));
+            return result;
         }
 
         public void ShowDescription()
@@ -64,5 +65,13 @@ namespace Highbyte.DotNet6502.Monitor
         Information,
         Warning,
         Error
+    }
+
+    public enum CommandResult
+    {
+        Ok = 0,
+        Error = 1,
+        Quit = 2,
+        Continue = 3,
     }
 }

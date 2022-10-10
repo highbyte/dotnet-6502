@@ -53,8 +53,8 @@ public class SilkNetWindow<TSystem>
         _systemRunner = _getSystemRunner(_skiaRenderContext, _silkNetInputHandlerContext);
 
         // Init Monitor ImgUI resources 
-        _monitor = new SilkNetImgUIMonitor(_systemRunner.System);
-        _monitor.Init(s_window, _silkNetInputHandlerContext.InputContext);
+        _monitor = new SilkNetImgUIMonitor(_systemRunner);
+        _monitor.Init(s_window);
         _monitor.MonitorStateChange += (s, monitorEnabled) => _silkNetInputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
     }
 
@@ -87,7 +87,7 @@ public class SilkNetWindow<TSystem>
             return;
         }
 
-        if (_silkNetInputHandlerContext.Exit)
+        if (_silkNetInputHandlerContext.Quit || _monitor.Quit)
         {
             s_window.Close();
             return;

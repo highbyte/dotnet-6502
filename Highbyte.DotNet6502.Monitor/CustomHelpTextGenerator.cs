@@ -1,7 +1,7 @@
 using McMaster.Extensions.CommandLineUtils;
 using McMaster.Extensions.CommandLineUtils.HelpText;
 
-namespace Highbyte.DotNet6502.Monitor.Commands
+namespace Highbyte.DotNet6502.Monitor
 {
     internal class CustomHelpTextGenerator : DefaultHelpTextGenerator
     {

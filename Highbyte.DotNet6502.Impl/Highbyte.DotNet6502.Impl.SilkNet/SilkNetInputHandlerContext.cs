@@ -17,7 +17,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
     public HashSet<Key> KeysDown = new();
     public HashSet<char> CharactersReceived = new();
 
-    public bool Exit { get; private set; }
+    public bool Quit { get; private set; }
 
     public bool IsKeyPressed(Key key) => _primaryKeyboard.IsKeyPressed(key);
 
@@ -28,7 +28,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
 
     public void Init()
     {
-        Exit = false;
+        Quit = false;
 
         s_inputcontext = _silkNetWindow.CreateInput();
 

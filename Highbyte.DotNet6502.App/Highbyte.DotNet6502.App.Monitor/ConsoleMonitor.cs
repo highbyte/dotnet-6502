@@ -1,11 +1,12 @@
 ﻿using System;
 using Highbyte.DotNet6502.Monitor;
+using Highbyte.DotNet6502.Systems;
 
 namespace Highbyte.DotNet6502.App.Monitor
 {
     public class ConsoleMonitor : MonitorBase
     {
-        public ConsoleMonitor(CPU cpu, Memory mem) : base(cpu, mem)
+        public ConsoleMonitor(SystemRunner systemRunner) : base(systemRunner)
         {
         }
 
@@ -19,7 +20,12 @@ namespace Highbyte.DotNet6502.App.Monitor
                 forceLoadAddress);
         }
 
-        public override void WriteOutput(string message, MessageSeverity? severity = MessageSeverity.Information)
+        public override void WriteOutput(string message)
+        {
+            WriteOutput(message, MessageSeverity.Information);
+        }
+
+        public override void WriteOutput(string message, MessageSeverity severity)
         {
             switch (severity)
             {

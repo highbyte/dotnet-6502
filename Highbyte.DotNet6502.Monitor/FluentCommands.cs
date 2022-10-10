@@ -1,10 +1,9 @@
 using System.ComponentModel.DataAnnotations;
-using System.Diagnostics;
 using System.Globalization;
 using McMaster.Extensions.CommandLineUtils;
 using McMaster.Extensions.CommandLineUtils.Validation;
 
-namespace Highbyte.DotNet6502.Monitor.Commands
+namespace Highbyte.DotNet6502.Monitor
 {
     /// <summary>
     /// </summary>
@@ -53,7 +52,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                         monitor.LoadBinary(fileName.Value, out loadedAtAddress, forceLoadAddress: ushort.Parse(address.Value));
 
                     monitor.WriteOutput($"File loaded at {loadedAtAddress.ToHex()}");
-                    return 0;
+                    return (int)CommandResult.Ok;
                 });
             });
 
@@ -67,6 +66,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
 
                 var end = cmd.Argument("end", "End address (hex). If not specified, a default number of addresses will be shown from start.");
                 end.Validators.Add(new MustBe16BitHexValueValidator());
+                end.Validators.Add(new GreaterThan16bitValidator(start));
 
                 cmd.OnValidationError((ValidationResult validationResult) =>
                 {
@@ -84,7 +84,13 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     ushort endAddress;
                     if (string.IsNullOrEmpty(end.Value))
                     {
-                        endAddress = (ushort)(startAddress + 0x10);
+                        const int DEFAULT_BYTES_TO_SHOW = 0x10;
+                        var endAddressDelta = DEFAULT_BYTES_TO_SHOW - 1;
+                        if ((uint)((uint)startAddress + (uint)endAddressDelta) <= 0xffff)
+                            endAddress = (ushort)(startAddress + endAddressDelta);
+                        else
+                            endAddress = 0xffff;
+                        endAddress = (ushort)(startAddress + endAddressDelta);
                     }
                     else
                     {
@@ -93,7 +99,8 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                             endAddress = startAddress;
                     }
                     ushort currentAddress = startAddress;
-                    while (currentAddress <= endAddress)
+                    bool cont = true;
+                    while (cont)
                     {
                         monitor.WriteOutput(OutputGen.GetInstructionDisassembly(monitor.Cpu, monitor.Mem, currentAddress));
                         var opCodeByte = monitor.Mem[currentAddress];
@@ -102,9 +109,13 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                             insSize = 1;
                         else
                             insSize = monitor.Cpu.InstructionList.GetOpCode(opCodeByte).Size;
-                        currentAddress += (ushort)insSize;
+
+                        if (currentAddress < endAddress && ((uint)(currentAddress + insSize) <= 0xffff))
+                            currentAddress += (ushort)insSize;
+                        else
+                            cont = false;
                     }
-                    return 0;
+                    return (int)CommandResult.Ok;
                 });
             });
 
@@ -119,6 +130,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
 
                 var end = cmd.Argument("end", "End address (hex). If not specified, a default number of memory locations will be shown from start.");
                 end.Validators.Add(new MustBe16BitHexValueValidator());
+                end.Validators.Add(new GreaterThan16bitValidator(start));
 
                 cmd.OnValidationError((ValidationResult validationResult) =>
                 {
@@ -136,7 +148,12 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     ushort endAddress;
                     if (string.IsNullOrEmpty(end.Value))
                     {
-                        endAddress = (ushort)(startAddress + (16*8) - 1);
+                        const int DEFAULT_BYTES_TO_SHOW = (16 * 8);
+                        ushort endAddressDelta = DEFAULT_BYTES_TO_SHOW - 1;
+                        if ((uint)((uint)startAddress + (uint)endAddressDelta) <= 0xffff)
+                            endAddress = (ushort)(startAddress + endAddressDelta);
+                        else
+                            endAddress = 0xffff;
                     }
                     else
                     {
@@ -149,7 +166,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     foreach (var line in list)
                         monitor.WriteOutput(line);
 
-                    return 0;
+                    return (int)CommandResult.Ok;
                 });
             });
 
@@ -175,7 +192,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                         var value = regVal.Value;
                         monitor.Cpu.A = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
                         monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
-                        return 0;
+                        return (int)CommandResult.Ok;
                     });
                 });
 
@@ -195,7 +212,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                         var value = regVal.Value;
                         monitor.Cpu.X = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
                         monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
-                        return 0;
+                        return (int)CommandResult.Ok;
                     });
                 });
 
@@ -215,7 +232,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                         var value = regVal.Value;
                         monitor.Cpu.Y = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
                         monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
-                        return 0;
+                        return (int)CommandResult.Ok;
                     });
                 });
 
@@ -235,7 +252,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                         var value = regVal.Value;
                         monitor.Cpu.SP = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
                         monitor.WriteOutput($"{OutputGen.GetPCandSP(monitor.Cpu)}");
-                        return 0;
+                        return (int)CommandResult.Ok;
                     });
                 });
 
@@ -256,7 +273,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                         monitor.Cpu.ProcessorStatus.Value = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
                         monitor.WriteOutput($"PS={value}");
                         monitor.WriteOutput($"{OutputGen.GetStatus(monitor.Cpu)}");
-                        return 0;
+                        return (int)CommandResult.Ok;
                     });
                 });
 
@@ -276,7 +293,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                         var value = regVal.Value;
                         monitor.Cpu.PC = ushort.Parse(value, NumberStyles.AllowHexSpecifier, null);
                         monitor.WriteOutput($"{OutputGen.GetPCandSP(monitor.Cpu)}");
-                        return 0;
+                        return (int)CommandResult.Ok;
                     });
                 });
 
@@ -288,17 +305,17 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 cmd.OnExecute(() =>
                 {
                     monitor.WriteOutput(OutputGen.GetProcessorState(monitor.Cpu, includeCycles: true));
-                    return 0;
+                    return (int)CommandResult.Ok;
                 });
             });
 
             app.Command("g", cmd =>
             {
                 cmd.HelpOption(inherited: true);
-                cmd.Description = "Change the PC (Program Counter) to the specified address and execute code.";
+                cmd.Description = "Change the PC (Program Counter) to the specified address continue execution.";
                 cmd.AddName("goto");
 
-                var address = cmd.Argument("address", "The address (hex) to start executing code at.").IsRequired();
+                var address = cmd.Argument("address", "Optional address (hex) to start executing code at.");
                 address.Validators.Add(new MustBe16BitHexValueValidator());
                 var dontStopOnBRK = cmd.Option("--no-brk|-nb", "Prevent execution stop when BRK instruction encountered.", CommandOptionType.NoValue);
 
@@ -309,6 +326,9 @@ namespace Highbyte.DotNet6502.Monitor.Commands
 
                 cmd.OnExecute(() =>
                 {
+                    if (string.IsNullOrEmpty(address.Value))
+                        return (int)CommandResult.Continue;
+
                     monitor.Cpu.PC = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
                     ExecOptions execOptions;
                     if (dontStopOnBRK.HasValue())
@@ -325,10 +345,10 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                         monitor.WriteOutput($"Will stop on BRK instruction.");
                     }
                     monitor.WriteOutput($"Staring executing code at {monitor.Cpu.PC.ToHex("",lowerCase:true)}");
-                    monitor.Cpu.Execute(monitor.Mem, execOptions);
-                    monitor.WriteOutput($"Stopped at                {monitor.Cpu.PC.ToHex("",lowerCase:true)}");
-                    monitor.WriteOutput($"{OutputGen.GetLastInstructionDisassembly(monitor.Cpu, monitor.Mem)}");
-                    return 0;
+                    // monitor.SystemRunner.Run();
+                    // monitor.WriteOutput($"Stopped at                {monitor.Cpu.PC.ToHex("",lowerCase:true)}");
+                    // monitor.WriteOutput($"{OutputGen.GetLastInstructionDisassembly(monitor.Cpu, monitor.Mem)}");
+                    return (int)CommandResult.Continue;
                 });
             });
 
@@ -347,15 +367,15 @@ namespace Highbyte.DotNet6502.Monitor.Commands
 
                 cmd.OnExecute(() =>
                 {
-                    monitor.WriteOutput($"Executing code at {monitor.Cpu.PC.ToHex("",lowerCase:true)} for {inscount.Value} instruction(s).");
+                    //monitor.WriteOutput($"Executing code at {monitor.Cpu.PC.ToHex("",lowerCase:true)} for {inscount.Value} instruction(s).");
                     var execOptions = new ExecOptions
                     {
                         MaxNumberOfInstructions = ulong.Parse(inscount.Value),
                     };
                     monitor.Cpu.Execute(monitor.Mem, execOptions);
-                    monitor.WriteOutput($"Last instruction:");
+                    //monitor.WriteOutput($"Last instruction:");
                     monitor.WriteOutput($"{OutputGen.GetLastInstructionDisassembly(monitor.Cpu, monitor.Mem)}");
-                    return 0;
+                    return (int)CommandResult.Ok;
                 });
             });
 
@@ -385,7 +405,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                         bytes.Add(byte.Parse(val, NumberStyles.AllowHexSpecifier, null));
                     foreach (var val in bytes)
                         monitor.Mem[address++] = val;
-                    return 0;
+                    return (int)CommandResult.Ok;
                 });
             });
 
@@ -405,7 +425,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 cmd.OnExecute(() =>
                 {
                     //monitor.WriteOutput($"Quiting.");
-                    return 2;
+                    return (int)CommandResult.Quit;
                 });
             });
 
@@ -413,7 +433,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
             {
                 monitor.WriteOutput("Unknown command.", MessageSeverity.Error);
                 monitor.WriteOutput("Help: ?|help|-?|--help", MessageSeverity.Information);
-                return 1;
+                return (int)CommandResult.Error;
             });
 
             return app;
@@ -424,7 +444,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
             monitor.WriteOutput(!string.IsNullOrEmpty(validationResult.ErrorMessage)
                 ? validationResult.ErrorMessage
                 : "Unknown validation message", MessageSeverity.Error);
-            return 0;
+            return (int)CommandResult.Ok;
         }
     }
 
@@ -463,4 +483,25 @@ namespace Highbyte.DotNet6502.Monitor.Commands
         }
     }
 
+    class GreaterThan16bitValidator : IArgumentValidator
+    {
+        private readonly CommandArgument _otherArgument;
+        private readonly bool _ignoreUndefined;
+
+        public GreaterThan16bitValidator(CommandArgument otherArgument, bool ignoreUndefined = true)
+        {
+            _otherArgument = otherArgument;
+            _ignoreUndefined = ignoreUndefined;
+        }
+
+        public ValidationResult GetValidationResult(CommandArgument argument, ValidationContext context)
+        {
+            if (_ignoreUndefined && string.IsNullOrEmpty(argument.Value))
+                return ValidationResult.Success;
+
+            var value = ushort.Parse(argument.Value, NumberStyles.AllowHexSpecifier, null);
+            var otherValue = ushort.Parse(_otherArgument.Value, NumberStyles.AllowHexSpecifier, null);
+            return value > otherValue ? ValidationResult.Success : new ValidationResult($"The 16 bit value {argument.Name} ({argument.Value}) must higher than {_otherArgument.Name} ({_otherArgument.Value})");
+        }
+    }
 }

@@ -62,9 +62,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
         //public const int NTSC_OLD_LINES_VISIBLE = NTSC_OLD_LINES - VBLANK_LINES;                 // 263 - 30 = 233. Total vertical lines excluding lines spent in VBLANK.
         public const int NTSC_OLD_CYCLES_PER_FRAME = NTSC_OLD_CYCLES_PER_LINE * NTSC_OLD_LINES;
 
-        private ulong _cyclesConsumedCurrentVblank = 0;
+        public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
 
-        private byte _currentVIC2Bank = 0;
+        public byte CurrentVIC2Bank { get; private set; }
         private ushort _currentVIC2BankOffset = 0;
 
         // Offset into the currently selected VIC2 bank (Mem.SetMemoryConfiguration(bank))
@@ -84,7 +84,6 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
             var handler = CharsetAddressChanged;
             handler?.Invoke(this, e);
         }
-
 
         private Vic2() { }
 
@@ -212,9 +211,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
             // | 3          | 0xc000 - 0xffff | xxxx xx00           | No
             // |------------|-----------------|---------------------|-----------------------
 
-            int oldVIC2Bank = _currentVIC2Bank;
+            int oldVIC2Bank = CurrentVIC2Bank;
             int newBankValue = value & 0b00000011;
-            _currentVIC2Bank = newBankValue switch
+            CurrentVIC2Bank = newBankValue switch
             {
                 0b11 => 0,
                 0b10 => 1,
@@ -222,7 +221,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
                 0b00 => 3,
                 _ => throw new NotImplementedException(),
             };
-            if (_currentVIC2Bank != oldVIC2Bank)
+            if (CurrentVIC2Bank != oldVIC2Bank)
                 OnCharsetAddressChanged(new());
         }
 
@@ -233,8 +232,6 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
 
         public void VerticalBlank(CPU cpu)
         {
-            _cyclesConsumedCurrentVblank = 0;
-
             // Issue vertical blank signal to CPU (typically issue a IRQ, will take effect next frame)
             // TODO: This assumes the IRQ always occurs for raster line 0. In a real Vic2 (C64) the line to generate the IRQ is configurable in 0xd012
             cpu.IRQ = true;
@@ -242,14 +239,19 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
 
         public void CPUCyclesConsumed(CPU cpu, Memory mem, ulong cyclesConsumed)
         {
-            _cyclesConsumedCurrentVblank += cyclesConsumed;
-            UpdateCurrentRasterLine(mem);
+            CyclesConsumedCurrentVblank += cyclesConsumed;
+            if (CyclesConsumedCurrentVblank >= NTSC_NEW_CYCLES_PER_FRAME)
+            {
+                CyclesConsumedCurrentVblank = 0;
+                VerticalBlank(cpu);
+            }
+            UpdateCurrentRasterLine(mem, CyclesConsumedCurrentVblank);
         }
 
-        private void UpdateCurrentRasterLine(Memory mem)
+        private void UpdateCurrentRasterLine(Memory mem, ulong cyclesConsumedCurrentVblank)
         {
             // Calculate the current raster line based on how man CPU cycles has been executed this frame
-            var line = (ushort)(_cyclesConsumedCurrentVblank / NTSC_NEW_CYCLES_PER_LINE);
+            var line = (ushort)(cyclesConsumedCurrentVblank / NTSC_NEW_CYCLES_PER_LINE);
             // Bits 0-7 of current line stored in 0xd012
             mem[Vic2Addr.CURRENT_RASTER_LINE] = (byte)(line & 0xff);
             // Bit 8 of current line stored in 0xd011 bit #7

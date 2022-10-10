@@ -94,7 +94,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
             var inputHandler = new GenericSadConsoleInputHandler(_genericComputerConfig.Memory.Input);
             inputHandler.Init(genericComputer, sadConsoleInputHandlerContext);
 
-            var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SadConsoleRenderContext,  SadConsoleInputHandlerContext>(genericComputer);
+            var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SadConsoleRenderContext, SadConsoleInputHandlerContext>(genericComputer);
             var systemRunner = systemRunnerBuilder
                 .WithRenderer(renderer)
                 .WithInputHandler(inputHandler)

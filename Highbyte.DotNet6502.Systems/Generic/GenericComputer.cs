@@ -10,6 +10,9 @@ namespace Highbyte.DotNet6502.Systems.Generic
         // TODO: Should probably move to config instead of hardcoded constant.
         public const int CYCLES_PER_FRAME = 40000;
 
+        public string Name => "Generic";
+        public string SystemInfo => "";
+
         public Memory Mem { get; set; }
         public CPU CPU { get; set; }
         public ExecOptions DefaultExecOptions { get; set; }

@@ -39,6 +39,14 @@ namespace Highbyte.DotNet6502.Systems
             return true;
         }
 
+        public bool RunOneInstruction()
+        {
+            bool executeOk = _system.ExecuteOneInstruction();
+            if (!executeOk)
+                return false;
+            return true;
+        }
+
         public void ProcessInput()
         {
             if (_inputHandler != null)
