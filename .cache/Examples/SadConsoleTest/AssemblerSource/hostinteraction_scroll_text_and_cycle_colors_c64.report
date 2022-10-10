@@ -106,7 +106,7 @@
    104                          	;Check how often we should scroll (every x frame)
    105  c027 c651                	dec ZP_COLOR_CYCLE_FRAME_COUNT
    106  c029 d006                	bne skipcolorcycle
-   107  c02b 205ac0              	jsr colorcycle_statictext
+   107  c02b 205ac0             	jsr colorcycle_statictext
    108  c02e 2089c0              	jsr initcolorcycleframecount
    109                          skipcolorcycle:
    110                          
@@ -142,8 +142,8 @@
    140  c04b a000               	ldy #0
    141                          .loop:
    142  c04d bdf8c0             	lda STATIC_TEXT, X
-   143  c050 9d4005             	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
-   144  c053 f004               	beq .endoftext
+   143  c050 f007               	beq .endoftext
+   144  c052 9d4005              	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
    145  c055 e8                 	inx
    146  c056 4c4dc0             	jmp .loop
    147                          .endoftext
@@ -286,11 +286,11 @@
    284                          ;------------------------------------------------------------
    285                          !zone data
    286                          
-   287                          !convtab raw	;Text conversion setting: pet (PetSCII), raw (none), scr (C64 screen code)
+   287                          !convtab scr	;Text conversion setting: pet (PetSCII), raw (none), scr (C64 screen code)
    288                          
    289                          STATIC_TEXT:
    290                          	;!text "       *** 6502 machine code running in Highbyte.DotNet6502 emulator! ***       "
-   291  c0f8 3635303220636f64...	!text "6502 code running in DotNet6502 emulator"
+   291  c0f8 3635303220030f04...	!text "6502 code running in dotnet6502 emulator"
    292  c120 00                 	!by 0 ;End of text indicator
    293                          
    294                          STATIC_TEXT_COLOR:
@@ -304,10 +304,10 @@
    302                          SCROLL_TEXT:
    303                          	;!text "                                                                                "
    304  c15e 2020202020202020...	!text "                                        "
-   305  c186 4869676862797465...	!text "Highbyte, in 2021, proudly presents... A DotNet 6502 CPU emulator!    "
-   306  c1cc 5468697320287261...	!text "This (rather choppy) scroller and color cycler is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
-   307  c25e 486f6c6420535041...	!text "Hold SPACE to flash border color.   "
-   308  c282 4772656574696e67...	!text "Greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups Them and Virtual!"
+   305  c186 0809070802191405...	!text "highbyte, in 2021, proudly presents... a dotnet 6502 cpu emulator!    "
+   306  c1cc 1408091320281201...	!text "this (rather choppy) scroller and color cycler is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
+   307  c25e 080f0c0420131001...	!text "hold space to flash border color.   "
+   308  c282 0712050514090e07...	!text "greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups them and virtual!"
    309                          	;!text "                                                                                "
    310  c2ee 2020202020202020...	!text "                                        "
    311  c316 00                 	!by 0 ;End of text indicator

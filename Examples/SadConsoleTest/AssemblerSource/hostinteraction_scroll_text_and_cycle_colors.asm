@@ -139,8 +139,8 @@ printstatictext:
 	ldy #0
 .loop:
 	lda STATIC_TEXT, X
-	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
 	beq .endoftext
+	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
 	inx
 	jmp .loop
 .endoftext

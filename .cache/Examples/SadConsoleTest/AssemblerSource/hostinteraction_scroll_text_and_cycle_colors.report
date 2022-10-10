@@ -141,8 +141,8 @@
    139  c051 a000               	ldy #0
    140                          .loop:
    141  c053 bdfec0             	lda STATIC_TEXT, X
-   142  c056 9d4005             	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
-   143  c059 f004               	beq .endoftext
+   142  c056 f007               	beq .endoftext
+   143  c058 9d4005             	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
    144  c05b e8                 	inx
    145  c05c 4c53c0             	jmp .loop
    146                          .endoftext

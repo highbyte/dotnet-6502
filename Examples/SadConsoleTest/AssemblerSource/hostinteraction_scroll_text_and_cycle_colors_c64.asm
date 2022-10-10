@@ -104,7 +104,7 @@ mainloop:
 	;Check how often we should scroll (every x frame)
  	dec ZP_COLOR_CYCLE_FRAME_COUNT
  	bne skipcolorcycle
- 	jsr colorcycle_statictext
+	jsr colorcycle_statictext
  	jsr initcolorcycleframecount
 skipcolorcycle:
 
@@ -140,8 +140,8 @@ printstatictext:
 	ldy #0
 .loop:
 	lda STATIC_TEXT, X
-	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
 	beq .endoftext
+ 	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
 	inx
 	jmp .loop
 .endoftext
@@ -284,11 +284,11 @@ cycleborderifkeyispressed:
 ;------------------------------------------------------------
 !zone data
 
-!convtab raw	;Text conversion setting: pet (PetSCII), raw (none), scr (C64 screen code)
+!convtab scr	;Text conversion setting: pet (PetSCII), raw (none), scr (C64 screen code)
 
 STATIC_TEXT:
 	;!text "       *** 6502 machine code running in Highbyte.DotNet6502 emulator! ***       "
-	!text "6502 code running in DotNet6502 emulator"
+	!text "6502 code running in dotnet6502 emulator"
 	!by 0 ;End of text indicator
 
 STATIC_TEXT_COLOR:
@@ -302,10 +302,10 @@ STATIC_TEXT_COLOR:
 SCROLL_TEXT:
 	;!text "                                                                                "
 	!text "                                        "
-	!text "Highbyte, in 2021, proudly presents... A DotNet 6502 CPU emulator!    "
-	!text "This (rather choppy) scroller and color cycler is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
-	!text "Hold SPACE to flash border color.   "
-	!text "Greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups Them and Virtual!"
+	!text "highbyte, in 2021, proudly presents... a dotnet 6502 cpu emulator!    "
+	!text "this (rather choppy) scroller and color cycler is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
+	!text "hold space to flash border color.   "
+	!text "greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups them and virtual!"
 	;!text "                                                                                "
 	!text "                                        "
 	!by 0 ;End of text indicator
