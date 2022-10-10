@@ -11,10 +11,10 @@ namespace Highbyte.DotNet6502.Monitor
     {
         public static CommandLineApplication Configure(MonitorBase monitor)
         {
-            var app = new CommandLineApplication
+            var app = new CommandLineApplication(NullConsole.Singleton, monitor.Options.DefaultDirectory)
             {
                 Name = "",
-                Description = "DotNet 6502 machine code monitor for the DotNet 6502 emulator library." + Environment.NewLine + 
+                Description = "DotNet 6502 machine code monitor for the DotNet 6502 emulator library." + Environment.NewLine +
                               "By Highbyte 2022" + Environment.NewLine +
                               "Source at: https://github.com/highbyte/dotnet-6502",
                 UnrecognizedArgumentHandling = UnrecognizedArgumentHandling.StopParsingAndCollect

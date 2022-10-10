@@ -1,5 +1,6 @@
 ﻿using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
@@ -8,7 +9,7 @@ namespace Highbyte.DotNet6502.App.SkiaNative;
 public class SilkNetWindow<TSystem>
     where TSystem : ISystem
 {
-
+    private readonly MonitorOptions _monitorOptions;
     private static IWindow s_window;
     private readonly Func<SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> _getSystemRunner;
     private readonly float _canvasScale;
@@ -25,10 +26,12 @@ public class SilkNetWindow<TSystem>
     private SilkNetImgUIMonitor _monitor;
 
     public SilkNetWindow(
+        MonitorOptions monitorOptions,
         IWindow window,
         Func<SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> getSystemRunner,
         float scale = 1.0f)
     {
+        _monitorOptions = monitorOptions;
         s_window = window;
         _getSystemRunner = getSystemRunner;
         _canvasScale = scale;
@@ -53,7 +56,7 @@ public class SilkNetWindow<TSystem>
         _systemRunner = _getSystemRunner(_skiaRenderContext, _silkNetInputHandlerContext);
 
         // Init Monitor ImgUI resources 
-        _monitor = new SilkNetImgUIMonitor(_systemRunner);
+        _monitor = new SilkNetImgUIMonitor(_systemRunner, _monitorOptions);
         _monitor.Init(s_window);
         _monitor.MonitorStateChange += (s, monitorEnabled) => _silkNetInputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
     }

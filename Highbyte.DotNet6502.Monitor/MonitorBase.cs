@@ -7,6 +7,8 @@ namespace Highbyte.DotNet6502.Monitor
     {
         private readonly SystemRunner _systemRunner;
 
+        public MonitorOptions Options { get; private set; }
+
         public SystemRunner SystemRunner => _systemRunner;
         public CPU Cpu => _systemRunner.System.CPU;
         public Memory Mem => _systemRunner.System.Mem;
@@ -14,8 +16,9 @@ namespace Highbyte.DotNet6502.Monitor
         private CommandLineApplication _commandLineApp;
 
         public bool Quit { get; set; }
-        public MonitorBase(SystemRunner systemRunner)
+        public MonitorBase(SystemRunner systemRunner, MonitorOptions options)
         {
+            Options = options;
             _commandLineApp = FluentCommands.Configure(this);
             _systemRunner = systemRunner;
         }

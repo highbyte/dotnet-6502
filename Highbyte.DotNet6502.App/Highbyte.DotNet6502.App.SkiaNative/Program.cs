@@ -1,5 +1,4 @@
-﻿using Silk.NET.Input;
-using Silk.NET.Maths;
+﻿using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using Highbyte.DotNet6502.App.SkiaNative;
 using Highbyte.DotNet6502.Impl.SilkNet;
@@ -8,25 +7,35 @@ using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using SkiaSharp;
-using System.Collections.Generic;
+using Highbyte.DotNet6502.Monitor;
 
 // Fix for starting in debug mode from VS Code. By default the OS current directory is set to the project folder, not the folder containing the built .exe file...
 var currentAppDir = AppDomain.CurrentDomain.BaseDirectory;
 Environment.CurrentDirectory = currentAppDir;
 
+// ----------
 // Systems
-Dictionary<string, (ISystem System, Func<SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> SystemRunnerBuilder)> SystemsList = new ()
+// ----------
+Dictionary<string, (ISystem System, Func<SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> SystemRunnerBuilder)> SystemsList = new()
 {
-    {"C64", (C64.BuildC64(), GetC64SystemRunner)}    
+    {"Commodore 64", (C64.BuildC64(), GetC64SystemRunner)}
 };
 
-string selectedSystemId = "C64";
+// TODO: Read options from appsettings.json
+var options = new EmulatorOptions
+{
+    SystemName = "Commodore 64",
+    Monitor = new MonitorOptions
+    {
+        //DefaultDirectory = "../../../../../.cache/Examples/SadConsoleTest/AssemblerSource"
+        DefaultDirectory = @"C:\Users\highb\source\repos\dotnet-6502\.cache\Examples\SadConsoleTest\AssemblerSource"
+    }
+};
+
 float scale = 3.0f;
 
-var system = SystemsList[selectedSystemId].System;
+var system = SystemsList[options.SystemName].System;
 var screen = (IScreen)system;
-
 
 // ----------
 // Silk.NET Window
@@ -54,7 +63,7 @@ IWindow window = Window.Create(windowOptions);
 //SilkNetInput<C64> silkNetInput = null;
 //var silkNetInput = new SilkNetInput<C64, SkiaRenderContext>();
 
-var silkNetWindow = new SilkNetWindow<C64>(window, GetC64SystemRunner, scale);
+var silkNetWindow = new SilkNetWindow<C64>(options.Monitor, window, GetC64SystemRunner, scale);
 silkNetWindow.Run();
 
 // Functions for building SystemRunner based on Skia rendering.

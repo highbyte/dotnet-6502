@@ -11,6 +11,8 @@ namespace Highbyte.DotNet6502.App.SkiaNative
 {
     public class SilkNetImgUIMonitor : MonitorBase
     {
+        private readonly MonitorOptions _monitorOptions;
+
         public bool MonitorVisible = false;
         public bool Quit = false;
 
@@ -27,7 +29,7 @@ namespace Highbyte.DotNet6502.App.SkiaNative
         private const int MONITOR_WIDTH = 620;
         private const int MONITOR_HEIGHT = 420;
         const int MONITOR_CMD_HISTORY_VIEW_ROWS = 20;
-        const int MONITOR_CMD_LINE_LENGTH = 80;
+        const int MONITOR_CMD_LINE_LENGTH = 160;
         List<(string Message, MessageSeverity Severity)> _monitorCmdHistory = new();
 
         static Vector4 s_InformationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -43,8 +45,12 @@ namespace Highbyte.DotNet6502.App.SkiaNative
             handler?.Invoke(this, monitorEnabled);
         }
 
-        public SilkNetImgUIMonitor(SystemRunner systemRunner) : base(systemRunner)
+        public SilkNetImgUIMonitor(
+            SystemRunner systemRunner,
+            MonitorOptions monitorOptions
+            ) : base(systemRunner, monitorOptions)
         {
+            _monitorOptions = monitorOptions;
         }
 
         public void Init(IWindow window)
@@ -194,6 +200,8 @@ namespace Highbyte.DotNet6502.App.SkiaNative
 
         public override void LoadBinary(string fileName, out ushort loadedAtAddress, ushort? forceLoadAddress = null)
         {
+            if (!Path.IsPathFullyQualified(fileName))
+                fileName = $"{_monitorOptions.DefaultDirectory}/{fileName}";
             BinaryLoader.Load(
                 Mem,
                 fileName,
