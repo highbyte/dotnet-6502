@@ -40,9 +40,29 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
         if (_primaryKeyboard == null)
             throw new Exception("Keyboard not found");
 
-        _primaryKeyboard.KeyUp += KeyUp;
-        _primaryKeyboard.KeyDown += KeyDown;
-        _primaryKeyboard.KeyChar += KeyReceived;
+        ListenForKeyboardInput(enabled: true);
+    }
+
+    public void ListenForKeyboardInput(bool enabled)
+    {
+        if (enabled)
+        {
+            // Unregister any existing handlers to avoid duplicates
+            _primaryKeyboard.KeyUp -= KeyUp;
+            _primaryKeyboard.KeyDown -= KeyDown;
+            _primaryKeyboard.KeyChar -= KeyReceived;
+
+            _primaryKeyboard.KeyUp += KeyUp;
+            _primaryKeyboard.KeyDown += KeyDown;
+            _primaryKeyboard.KeyChar += KeyReceived;
+
+        }
+        else
+        {
+            _primaryKeyboard.KeyUp -= KeyUp;
+            _primaryKeyboard.KeyDown -= KeyDown;
+            _primaryKeyboard.KeyChar -= KeyReceived;
+        }
     }
 
     private void KeyUp(IKeyboard keyboard, Key key, int x)

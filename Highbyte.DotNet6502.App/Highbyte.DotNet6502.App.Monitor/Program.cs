@@ -1,48 +1,43 @@
 ﻿using System;
-using Highbyte.DotNet6502.App.Monitor.Commands;
+using System.Diagnostics;
+using Highbyte.DotNet6502.Systems.Generic;
 using McMaster.Extensions.CommandLineUtils;
 
 namespace Highbyte.DotNet6502.App.Monitor
 {
     class Program
     {
-        static Mon Mon;
+        static ConsoleMonitor Monitor;
         static void Main(string[] args)
         {
-            Mon = new Mon();
-            var commandLineApp = FluentCommands.Configure(Mon);
 
-            Console.WriteLine(commandLineApp.Description);
-            Console.WriteLine("");
+            var mem = new Memory();
 
-            commandLineApp.ShowHelp();
-            
+            var computerBuilder = new GenericComputerBuilder();
+            computerBuilder
+                .WithCPU()
+                //.WithStartAddress()
+                .WithMemory(mem)
+                .WithInstructionExecutedEventHandler(
+                    (s, e) => Debug.WriteLine(OutputGen.GetLastInstructionDisassembly(e.CPU, e.Mem)));
+                // .WithExecOptions(options =>
+                // {
+                // });
+            var computer = computerBuilder.Build();
+
+            Monitor = new ConsoleMonitor(computer.CPU, computer.Mem);
+
+            Monitor.ShowDescription();
+            Monitor.WriteOutput("");
+            Monitor.ShowHelp();
+
             bool cont = true;
-            while(cont)
+            while (cont)
             {
                 var input = PromptInput();
-                if(input==null)
-                    input = "";
-                if(!string.IsNullOrEmpty(input))
-                {
-                    if(string.Equals(input, "?", StringComparison.InvariantCultureIgnoreCase) 
-                        || string.Equals(input, "-?", StringComparison.InvariantCultureIgnoreCase)
-                        || string.Equals(input, "help", StringComparison.InvariantCultureIgnoreCase)
-                        || string.Equals(input, "--help", StringComparison.InvariantCultureIgnoreCase)
-                    )
-                    {
-                        commandLineApp.ShowHelp();
-                    }
-                    else
-                    {
-                        // Workaround for CommandLineUtils after showing help once, it will always show it for every command, even if syntax is correct.
-                        // Create new instance for every time we parse input
-                        commandLineApp = FluentCommands.Configure(Mon);
-                        int result = commandLineApp.Execute(input.Split(' '));
-                        if(result==2)
-                            cont = false;
-                    }
-                }
+                Monitor.SendCommand(input);
+                if (Monitor.Quit)
+                    cont = false;
             }
         }
 

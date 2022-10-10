@@ -1,28 +1,27 @@
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.Globalization;
 using McMaster.Extensions.CommandLineUtils;
 using McMaster.Extensions.CommandLineUtils.Validation;
 
-namespace Highbyte.DotNet6502.App.Monitor.Commands
+namespace Highbyte.DotNet6502.Monitor.Commands
 {
     /// <summary>
     /// </summary>
     public class FluentCommands
     {
-        public static CommandLineApplication Configure(Mon mon)
+        public static CommandLineApplication Configure(MonitorBase monitor)
         {
             var app = new CommandLineApplication
             {
                 Name = "",
                 Description = "DotNet 6502 machine code monitor for the DotNet 6502 emulator library." + Environment.NewLine + 
-                              "By Highbyte 2021" + Environment.NewLine +               
+                              "By Highbyte 2022" + Environment.NewLine +
                               "Source at: https://github.com/highbyte/dotnet-6502",
                 UnrecognizedArgumentHandling = UnrecognizedArgumentHandling.StopParsingAndCollect
             };
 
-            // Fix: Use custom HelpTextGentorator to avoid name/description of the application to be shown each time help text is shown.
+            // Fix: Use custom Help Text Generator to avoid name/description of the application to be shown each time help text is shown.
             app.HelpTextGenerator = new CustomHelpTextGenerator();
             // Fix: To avoid CommandLineUtils to the name of the application at the end of the help text: Don't use HelpOption on app-level, instead set it on each command below.
             //app.HelpOption(inherited: true);
@@ -32,7 +31,7 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                 cmd.HelpOption(inherited: true);
                 cmd.Description = "Load a 6502 binary into emulator memory.";
                 cmd.AddName("load");
-                
+
                 var fileName = cmd.Argument("filename", "Name of the binary file.")
                     .IsRequired()
                     .Accepts(v => v.ExistingFile());
@@ -40,15 +39,20 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                 var address = cmd.Argument("address", "Memory address (hex) to load the file into. If not specified, it's assumed the first two bytes of the file contains the load address.");
                 address.Validators.Add(new MustBe16BitHexValueValidator());
 
+                cmd.OnValidationError((ValidationResult validationResult) =>
+                {
+                    return WriteValidationError(monitor, validationResult);
+                });
+
                 cmd.OnExecute(() =>
                 {
-                    ushort loadedAtAddres;
-                    if(string.IsNullOrEmpty(address.Value))
-                        mon.LoadBinary(fileName.Value, out loadedAtAddres);
+                    ushort loadedAtAddress;
+                    if (string.IsNullOrEmpty(address.Value))
+                        monitor.LoadBinary(fileName.Value, out loadedAtAddress);
                     else
-                        mon.LoadBinary(fileName.Value, out loadedAtAddres, forceLoadAddress: ushort.Parse(address.Value));
+                        monitor.LoadBinary(fileName.Value, out loadedAtAddress, forceLoadAddress: ushort.Parse(address.Value));
 
-                    Console.WriteLine($"File loaded at {loadedAtAddres.ToHex()}");
+                    monitor.WriteOutput($"File loaded at {loadedAtAddress.ToHex()}");
                     return 0;
                 });
             });
@@ -64,38 +68,45 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                 var end = cmd.Argument("end", "End address (hex). If not specified, a default number of addresses will be shown from start.");
                 end.Validators.Add(new MustBe16BitHexValueValidator());
 
+                cmd.OnValidationError((ValidationResult validationResult) =>
+                {
+                    return WriteValidationError(monitor, validationResult);
+                });
+
                 cmd.OnExecute(() =>
                 {
                     ushort startAddress;
-                    if(string.IsNullOrEmpty(start.Value))
-                        startAddress = mon.Cpu.PC;
+                    if (string.IsNullOrEmpty(start.Value))
+                        startAddress = monitor.Cpu.PC;
                     else
                         startAddress = ushort.Parse(start.Value, NumberStyles.AllowHexSpecifier, null);
 
                     ushort endAddress;
-                    if(string.IsNullOrEmpty(end.Value))
+                    if (string.IsNullOrEmpty(end.Value))
+                    {
                         endAddress = (ushort)(startAddress + 0x10);
+                    }
                     else
                     {
                         endAddress = ushort.Parse(end.Value, NumberStyles.AllowHexSpecifier, null);
-                        if(endAddress<startAddress)
+                        if (endAddress < startAddress)
                             endAddress = startAddress;
                     }
                     ushort currentAddress = startAddress;
-                    while(currentAddress <= endAddress)
+                    while (currentAddress <= endAddress)
                     {
-                        Console.WriteLine(OutputGen.GetInstructionDisassembly(mon.Cpu, mon.Mem, currentAddress));
-                        var opCodeByte = mon.Mem[currentAddress];
+                        monitor.WriteOutput(OutputGen.GetInstructionDisassembly(monitor.Cpu, monitor.Mem, currentAddress));
+                        var opCodeByte = monitor.Mem[currentAddress];
                         int insSize;
-                        if (!mon.Cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
+                        if (!monitor.Cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
                             insSize = 1;
                         else
-                            insSize = mon.Cpu.InstructionList.GetOpCode(opCodeByte).Size;
+                            insSize = monitor.Cpu.InstructionList.GetOpCode(opCodeByte).Size;
                         currentAddress += (ushort)insSize;
                     }
                     return 0;
                 });
-            });            
+            });
 
             app.Command("m", cmd =>
             {
@@ -109,31 +120,38 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                 var end = cmd.Argument("end", "End address (hex). If not specified, a default number of memory locations will be shown from start.");
                 end.Validators.Add(new MustBe16BitHexValueValidator());
 
+                cmd.OnValidationError((ValidationResult validationResult) =>
+                {
+                    return WriteValidationError(monitor, validationResult);
+                });
+
                 cmd.OnExecute(() =>
                 {
                     ushort startAddress;
-                    if(string.IsNullOrEmpty(start.Value))
+                    if (string.IsNullOrEmpty(start.Value))
                         startAddress = 0x0000;
                     else
                         startAddress = ushort.Parse(start.Value, NumberStyles.AllowHexSpecifier, null);
 
                     ushort endAddress;
-                    if(string.IsNullOrEmpty(end.Value))
+                    if (string.IsNullOrEmpty(end.Value))
+                    {
                         endAddress = (ushort)(startAddress + (16*8) - 1);
+                    }
                     else
                     {
                         endAddress = ushort.Parse(end.Value, NumberStyles.AllowHexSpecifier, null);
-                        if(endAddress<startAddress)
+                        if (endAddress < startAddress)
                             endAddress = startAddress;
                     }
 
-                    var list = OutputMemoryGen.GetFormattedMemoryList(mon.Mem, startAddress, endAddress);
-                    foreach(var line in list)
-                        Console.WriteLine(line);
+                    var list = OutputMemoryGen.GetFormattedMemoryList(monitor.Mem, startAddress, endAddress);
+                    foreach (var line in list)
+                        monitor.WriteOutput(line);
 
                     return 0;
                 });
-            });            
+            });
 
             app.Command("r", cmd =>
             {
@@ -147,12 +165,17 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                     var regVal = setRegisterCmd.Argument("value", "Value of A register (hex).").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
+                    setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
+                    {
+                        return WriteValidationError(monitor, validationResult);
+                    });
+
                     setRegisterCmd.OnExecute(() =>
                     {
                         var value = regVal.Value;
-                        mon.Cpu.A = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
-                        Console.WriteLine($"{OutputGen.GetRegisters(mon.Cpu)}");
-                        return 0;                       
+                        monitor.Cpu.A = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
+                        monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
+                        return 0;
                     });
                 });
 
@@ -162,12 +185,17 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                     var regVal = setRegisterCmd.Argument("value", "Value of X register (hex).").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
+                    setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
+                    {
+                        return WriteValidationError(monitor, validationResult);
+                    });
+
                     setRegisterCmd.OnExecute(() =>
                     {
                         var value = regVal.Value;
-                        mon.Cpu.X = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
-                        Console.WriteLine($"{OutputGen.GetRegisters(mon.Cpu)}");
-                        return 0;                       
+                        monitor.Cpu.X = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
+                        monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
+                        return 0;
                     });
                 });
 
@@ -177,12 +205,17 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                     var regVal = setRegisterCmd.Argument("value", "Value of Y register (hex).").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
+                    setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
+                    {
+                        return WriteValidationError(monitor, validationResult);
+                    });
+
                     setRegisterCmd.OnExecute(() =>
                     {
                         var value = regVal.Value;
-                        mon.Cpu.Y = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
-                        Console.WriteLine($"{OutputGen.GetRegisters(mon.Cpu)}");
-                        return 0;                       
+                        monitor.Cpu.Y = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
+                        monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
+                        return 0;
                     });
                 });
 
@@ -192,12 +225,17 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                     var regVal = setRegisterCmd.Argument("value", "Value of SP (hex).").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
+                    setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
+                    {
+                        return WriteValidationError(monitor, validationResult);
+                    });
+
                     setRegisterCmd.OnExecute(() =>
                     {
                         var value = regVal.Value;
-                        mon.Cpu.SP = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
-                        Console.WriteLine($"{OutputGen.GetPCandSP(mon.Cpu)}");
-                        return 0;                       
+                        monitor.Cpu.SP = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
+                        monitor.WriteOutput($"{OutputGen.GetPCandSP(monitor.Cpu)}");
+                        return 0;
                     });
                 });
 
@@ -207,13 +245,18 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                     var regVal = setRegisterCmd.Argument("value", "Value of processor status register (hex).").IsRequired();
                     regVal.Validators.Add(new MustBe8BitHexValueValidator());
 
+                    setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
+                    {
+                        return WriteValidationError(monitor, validationResult);
+                    });
+
                     setRegisterCmd.OnExecute(() =>
                     {
                         var value = regVal.Value;
-                        mon.Cpu.ProcessorStatus.Value = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
-                        Console.WriteLine($"PS={value}");
-                        Console.WriteLine($"{OutputGen.GetStatus(mon.Cpu)}");
-                        return 0;                       
+                        monitor.Cpu.ProcessorStatus.Value = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
+                        monitor.WriteOutput($"PS={value}");
+                        monitor.WriteOutput($"{OutputGen.GetStatus(monitor.Cpu)}");
+                        return 0;
                     });
                 });
 
@@ -223,21 +266,31 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                     var regVal = setRegisterCmd.Argument("value", "Value of PC (hex).").IsRequired();
                     regVal.Validators.Add(new MustBe16BitHexValueValidator());
 
+                    setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
+                    {
+                        return WriteValidationError(monitor, validationResult);
+                    });
+
                     setRegisterCmd.OnExecute(() =>
                     {
                         var value = regVal.Value;
-                        mon.Cpu.PC = ushort.Parse(value, NumberStyles.AllowHexSpecifier, null);
-                        Console.WriteLine($"{OutputGen.GetPCandSP(mon.Cpu)}");
-                        return 0;                       
+                        monitor.Cpu.PC = ushort.Parse(value, NumberStyles.AllowHexSpecifier, null);
+                        monitor.WriteOutput($"{OutputGen.GetPCandSP(monitor.Cpu)}");
+                        return 0;
                     });
-                });                                                    
+                });
+
+                cmd.OnValidationError((ValidationResult validationResult) =>
+                {
+                    return WriteValidationError(monitor, validationResult);
+                });
 
                 cmd.OnExecute(() =>
                 {
-                    Console.WriteLine(OutputGen.GetProcessorState(mon.Cpu, includeCycles: true));
+                    monitor.WriteOutput(OutputGen.GetProcessorState(monitor.Cpu, includeCycles: true));
                     return 0;
-                });                
-            }); 
+                });
+            });
 
             app.Command("g", cmd =>
             {
@@ -248,14 +301,20 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                 var address = cmd.Argument("address", "The address (hex) to start executing code at.").IsRequired();
                 address.Validators.Add(new MustBe16BitHexValueValidator());
                 var dontStopOnBRK = cmd.Option("--no-brk|-nb", "Prevent execution stop when BRK instruction encountered.", CommandOptionType.NoValue);
+
+                cmd.OnValidationError((ValidationResult validationResult) =>
+                {
+                    return WriteValidationError(monitor, validationResult);
+                });
+
                 cmd.OnExecute(() =>
                 {
-                    mon.Cpu.PC = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
+                    monitor.Cpu.PC = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
                     ExecOptions execOptions;
-                    if(dontStopOnBRK.HasValue())
+                    if (dontStopOnBRK.HasValue())
                     {
                         execOptions = new ExecOptions();
-                        Console.WriteLine($"Will never stop.");
+                        monitor.WriteOutput($"Will never stop.");
                     }
                     else
                     {
@@ -263,12 +322,12 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                         {
                             ExecuteUntilInstruction = OpCodeId.BRK,
                         };                        
-                        Console.WriteLine($"Will stop on BRK instruction.");
+                        monitor.WriteOutput($"Will stop on BRK instruction.");
                     }
-                    Console.WriteLine($"Staring executing code at {mon.Cpu.PC.ToHex("",lowerCase:true)}");
-                    mon.Computer.Run(execOptions);
-                    Console.WriteLine($"Stopped at                {mon.Cpu.PC.ToHex("",lowerCase:true)}");
-                    Console.WriteLine($"{OutputGen.GetLastInstructionDisassembly(mon.Cpu, mon.Mem)}");
+                    monitor.WriteOutput($"Staring executing code at {monitor.Cpu.PC.ToHex("",lowerCase:true)}");
+                    monitor.Cpu.Execute(monitor.Mem, execOptions);
+                    monitor.WriteOutput($"Stopped at                {monitor.Cpu.PC.ToHex("",lowerCase:true)}");
+                    monitor.WriteOutput($"{OutputGen.GetLastInstructionDisassembly(monitor.Cpu, monitor.Mem)}");
                     return 0;
                 });
             });
@@ -280,19 +339,25 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
 
                 var inscount = cmd.Argument<ulong>("inscount", "Number of instructions to execute. Defaults to 1.");
                 inscount.DefaultValue = 1;
+
+                cmd.OnValidationError((ValidationResult validationResult) =>
+                {
+                    return WriteValidationError(monitor, validationResult);
+                });
+
                 cmd.OnExecute(() =>
                 {
-                    Console.WriteLine($"Executing code at {mon.Cpu.PC.ToHex("",lowerCase:true)} for {inscount.Value} instruction(s).");
+                    monitor.WriteOutput($"Executing code at {monitor.Cpu.PC.ToHex("",lowerCase:true)} for {inscount.Value} instruction(s).");
                     var execOptions = new ExecOptions
                     {
                         MaxNumberOfInstructions = ulong.Parse(inscount.Value),
-                    };                    
-                    mon.Computer.Run(execOptions);
-                    Console.WriteLine($"Last instruction:");
-                    Console.WriteLine($"{OutputGen.GetLastInstructionDisassembly(mon.Cpu, mon.Mem)}");
+                    };
+                    monitor.Cpu.Execute(monitor.Mem, execOptions);
+                    monitor.WriteOutput($"Last instruction:");
+                    monitor.WriteOutput($"{OutputGen.GetLastInstructionDisassembly(monitor.Cpu, monitor.Mem)}");
                     return 0;
                 });
-            });            
+            });
 
             app.Command("f", cmd =>
             {
@@ -307,17 +372,22 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                 memValues.MultipleValues = true;
                 memValues.Validators.Add(new MustBe8BitHexValueValidator());
 
+                cmd.OnValidationError((ValidationResult validationResult) =>
+                {
+                    return WriteValidationError(monitor, validationResult);
+                });
+
                 cmd.OnExecute(() =>
                 {
                     var address = ushort.Parse(memAddress.Value, NumberStyles.AllowHexSpecifier, null);
                     List<byte> bytes = new();
-                    foreach(var val in memValues.Values)
+                    foreach (var val in memValues.Values)
                         bytes.Add(byte.Parse(val, NumberStyles.AllowHexSpecifier, null));
-                    foreach(var val in bytes)
-                        mon.Mem[address++] = val;
+                    foreach (var val in bytes)
+                        monitor.Mem[address++] = val;
                     return 0;
                 });
-            });             
+            });
 
             app.Command("q", cmd =>
             {
@@ -326,22 +396,35 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
                 cmd.AddName("quit");
                 cmd.AddName("x");
                 cmd.AddName("exit");
+
+                cmd.OnValidationError((ValidationResult validationResult) =>
+                {
+                    return WriteValidationError(monitor, validationResult);
+                });
+
                 cmd.OnExecute(() =>
                 {
-                    Console.WriteLine($"Quiting.");
+                    //monitor.WriteOutput($"Quiting.");
                     return 2;
                 });
             });
 
             app.OnExecute(() =>
             {
-                Console.WriteLine("Unknown command.");
-                Console.WriteLine("Help: ?|help|-?|--help");
-                //app.ShowHelp();
+                monitor.WriteOutput("Unknown command.", MessageSeverity.Error);
+                monitor.WriteOutput("Help: ?|help|-?|--help", MessageSeverity.Information);
                 return 1;
             });
 
             return app;
+        }
+
+        private static int WriteValidationError(MonitorBase monitor, ValidationResult validationResult)
+        {
+            monitor.WriteOutput(!string.IsNullOrEmpty(validationResult.ErrorMessage)
+                ? validationResult.ErrorMessage
+                : "Unknown validation message", MessageSeverity.Error);
+            return 0;
         }
     }
 
@@ -350,7 +433,7 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
         public ValidationResult GetValidationResult(CommandArgument argument, ValidationContext context)
         {
             // This validator only runs if there is a value
-            if (string.IsNullOrEmpty(argument.Value)) 
+            if (string.IsNullOrEmpty(argument.Value))
                 return ValidationResult.Success;  //return new ValidationResult($"{argument.Name} cannot be empty");
 
             var addressString = argument.Value;
@@ -359,7 +442,7 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
             {
                 return new ValidationResult($"The value for {argument.Name} must be a 16-bit hex address");
             }
-            return ValidationResult.Success;            
+            return ValidationResult.Success;
         }
     }
 
@@ -368,7 +451,7 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
         public ValidationResult GetValidationResult(CommandArgument argument, ValidationContext context)
         {
             // This validator only runs if there is a value
-            if (string.IsNullOrEmpty(argument.Value)) 
+            if (string.IsNullOrEmpty(argument.Value))
                 return ValidationResult.Success;  //return new ValidationResult($"{argument.Name} cannot be empty");
 
             bool validByte = byte.TryParse(argument.Value, NumberStyles.AllowHexSpecifier, null, out byte byteValue);
@@ -376,7 +459,7 @@ namespace Highbyte.DotNet6502.App.Monitor.Commands
             {
                 return new ValidationResult($"The value for {argument.Name} must be a 8-bit hex number");
             }
-            return ValidationResult.Success;            
+            return ValidationResult.Success;
         }
     }
 

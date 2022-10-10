@@ -1,23 +1,13 @@
 ﻿using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Systems;
-using ImGuiNET;
-using Silk.NET.Input;
 using Silk.NET.Maths;
-using Silk.NET.OpenGL;
-using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
-using SkiaSharp;
-using System.Diagnostics;
-using System.Numerics;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
-public class SilkNetWindow<TSystem> 
-    where TSystem: ISystem
+public class SilkNetWindow<TSystem>
+    where TSystem : ISystem
 {
-    private static ImGuiController s_ImGuiController;
-    private static GL s_Gl;
-
 
     private static IWindow s_window;
     private readonly Func<SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> _getSystemRunner;
@@ -31,12 +21,13 @@ public class SilkNetWindow<TSystem>
     // Emulator    
     private SystemRunner _systemRunner;
 
-    private bool _monitorEnabled = false;
+    // Monitor
+    private SilkNetImgUIMonitor _monitor;
 
     public SilkNetWindow(
         IWindow window,
         Func<SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> getSystemRunner,
-        float scale = 1.0f) 
+        float scale = 1.0f)
     {
         s_window = window;
         _getSystemRunner = getSystemRunner;
@@ -61,8 +52,10 @@ public class SilkNetWindow<TSystem>
         _silkNetInputHandlerContext = new SilkNetInputHandlerContext(s_window);
         _systemRunner = _getSystemRunner(_skiaRenderContext, _silkNetInputHandlerContext);
 
-        // Init ImgUI resources 
-        InitMonitorUI();
+        // Init Monitor ImgUI resources 
+        _monitor = new SilkNetImgUIMonitor(_systemRunner.System);
+        _monitor.Init(s_window, _silkNetInputHandlerContext.InputContext);
+        _monitor.MonitorStateChange += (s, monitorEnabled) => _silkNetInputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
     }
 
     protected void OnClosing()
@@ -70,15 +63,14 @@ public class SilkNetWindow<TSystem>
         // Cleanup Skia resources
         _skiaRenderContext.Cleanup();
 
+        // Dispose Monitor ImgUI
+        _monitor.Cleanup();
+
         // Cleanup SilkNet input resources
         _silkNetInputHandlerContext.Cleanup();
 
-        // Dispose ImgUI
-        s_ImGuiController?.Dispose();
-
         // Cleanup SilNet window resources
         s_window?.Dispose();
-
     }
 
     /// <summary>
@@ -90,12 +82,12 @@ public class SilkNetWindow<TSystem>
     /// <param name=""></param>
     protected void OnUpdate(double deltaTime)
     {
-        if(_monitorEnabled)
+        if (_monitor.MonitorVisible)
         {
             return;
         }
 
-        if(_silkNetInputHandlerContext.Exit)
+        if (_silkNetInputHandlerContext.Exit)
         {
             s_window.Close();
             return;
@@ -109,7 +101,6 @@ public class SilkNetWindow<TSystem>
         _systemRunner.RunEmulatorOneFrame();
     }
 
-
     /// <summary>
     /// Runs on every Render Frame event.
     /// 
@@ -120,11 +111,11 @@ public class SilkNetWindow<TSystem>
     /// <param name="args"></param>
     protected void OnRender(double deltaTime)
     {
-        if(_monitorEnabled)
+        if (_monitor.MonitorVisible)
         {
-            s_Gl.Clear((uint) (ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+            _monitor.PreOnRender(deltaTime, clearOpenGL: true);
         }
-        
+
         // Render emulator system screen
         _systemRunner.Draw();
 
@@ -141,72 +132,13 @@ public class SilkNetWindow<TSystem>
         //s_window.SwapBuffers();
 
         // Render monitor if enabled
-        if(_monitorEnabled)
+        if (_monitor.MonitorVisible)
         {
-            DrawMonitorUI(deltaTime);
+            _monitor.PostOnRender(deltaTime);
         }
-
     }
 
     private void OnResize(Vector2D<int> vec2)
     {
     }
-    
-
-    private void InitMonitorUI()
-    {
-        s_Gl = GL.GetApi(s_window);
-
-        s_ImGuiController = new ImGuiController(
-            s_Gl,
-            s_window, // pass in our window
-            _silkNetInputHandlerContext.InputContext // input context
-        );
-        ImGuiNET.ImGui.SetWindowPos(new Vector2(10, 10));
-
-        // Init monitor list of history commands with blanks
-        for (int i = 0; i < MONITOR_CMD_HISTORY_VIEW_ROWS; i++)
-            _monitorCmdHistory.Add("");
-
-        // Listen to key to enable monitor
-        _silkNetInputHandlerContext.PrimaryKeyboard.KeyDown += OnMonitorKeyDown;
-    }
-    private void OnMonitorKeyDown(IKeyboard keyboard, Key key, int x)
-    {
-        if(key == Key.F12)
-            _monitorEnabled = !_monitorEnabled;
-    }
-
-    private void DrawMonitorUI(double deltaTime)
-    {
-        // Make sure ImGui is up-to-date
-        s_ImGuiController.Update((float)deltaTime);
-
-        ImGui.Begin("Monitor");
-        ImGui.SetWindowSize(new Vector2(620, 400));
-        //ImGuiNET.ImGui.Text("Commands");
-
-        foreach (var cmd in _monitorCmdHistory)
-        {
-            ImGui.Text(cmd);
-        }
-
-        ImGui.SetKeyboardFocusHere(0);
-        ImGui.PushItemWidth(600);
-        if (ImGui.InputText("", ref _monitorCmdString, MONITOR_CMD_LINE_LENGTH, ImGuiInputTextFlags.EnterReturnsTrue))
-        {
-            _monitorCmdHistory.Add(_monitorCmdString);
-            _monitorCmdString = "";
-            if (_monitorCmdHistory.Count > MONITOR_CMD_HISTORY_VIEW_ROWS)
-                _monitorCmdHistory.RemoveAt(0);
-        }
-
-        s_ImGuiController.Render();
-    }
-
-    int MONITOR_CMD_HISTORY_VIEW_ROWS = 20;
-    const int MONITOR_CMD_LINE_LENGTH = 80;
-    List<string> _monitorCmdHistory = new();
-
-    string _monitorCmdString = "";
 }
