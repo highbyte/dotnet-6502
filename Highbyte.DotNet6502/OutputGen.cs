@@ -20,6 +20,19 @@ namespace Highbyte.DotNet6502
             ushort programAddress = cpu.ExecState.PCBeforeLastOpCodeExecuted.Value;
             return GetInstructionDisassembly(cpu, mem, programAddress);
         }
+
+        /// <summary>
+        /// Returns a string with the following information
+        /// [next instruction PC]  [byte1 [byte2 [byte3]]]  [instruction] [addressingmode/value] 
+        /// </summary>
+        /// <param name="cpu"></param>
+        /// <param name="mem"></param>
+        /// <returns></returns>
+        public static string GetNextInstructionDisassembly(CPU cpu, Memory mem)
+        {
+            ushort programAddress = cpu.PC;
+            return GetInstructionDisassembly(cpu, mem, programAddress);
+        }
  
         /// <summary>
         /// Returns a string with the following information

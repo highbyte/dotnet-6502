@@ -1,5 +1,3 @@
-using System;
-
 namespace Highbyte.DotNet6502
 {
     public class ExecState
@@ -9,7 +7,7 @@ namespace Highbyte.DotNet6502
         public ulong UnknownOpCodeCount { get; private set; }
 
         public InstructionExecResult LastInstructionExecResult { get; private set; }
-        public bool LastOpCodeWasHandled  { get {return !LastInstructionExecResult.UnknownInstruction;} }
+        public bool LastOpCodeWasHandled { get { return !LastInstructionExecResult.UnknownInstruction; } }
         public ushort? PCBeforeLastOpCodeExecuted { get; private set; }
 
         public ExecState()
@@ -26,10 +24,10 @@ namespace Highbyte.DotNet6502
             execState.InstructionsExecutionCount = 1;
             execState.CyclesConsumed = lastinstructionExecutionResult.CyclesConsumed;
             execState.LastInstructionExecResult = lastinstructionExecutionResult;
-            execState.UnknownOpCodeCount = lastinstructionExecutionResult.UnknownInstruction?(ulong)1:(ulong)0;
+            execState.UnknownOpCodeCount = lastinstructionExecutionResult.UnknownInstruction ? (ulong)1 : (ulong)0;
             execState.PCBeforeLastOpCodeExecuted = lastPC;
             return execState;
-        }        
+        }
 
         public ExecState Clone()
         {

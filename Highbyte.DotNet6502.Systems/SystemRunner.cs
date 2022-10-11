@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Highbyte.DotNet6502.Systems
 {
     public class SystemRunner
@@ -10,9 +12,27 @@ namespace Highbyte.DotNet6502.Systems
         public IRenderer Renderer { get => _renderer; set => _renderer = value; }
         public IInputHandler InputHandler { get => _inputHandler; set => _inputHandler = value; }
 
+        private IExecEvaluator? _customExecEvaluator;
+        public IExecEvaluator? CustomExecEvaluator => _customExecEvaluator;
+
         public SystemRunner(ISystem system)
         {
             _system = system;
+        }
+
+        /// <summary>
+        /// Set a ExecEvaluator that is used for when executing the CPU instructions. 
+        /// This will be used in addition to what "normally" is used (running for x cycles or instructions).
+        /// Useful for setting breakpoints.
+        /// </summary>
+        /// <param name="execEvaluator"></param>
+        public void SetCustomExecEvaluator(IExecEvaluator execEvaluator)
+        {
+            _customExecEvaluator = execEvaluator;
+        }
+        public void ClearCustomExecEvaluator()
+        {
+            _customExecEvaluator = null;
         }
 
         public void Run()
@@ -55,8 +75,8 @@ namespace Highbyte.DotNet6502.Systems
 
         public bool RunEmulatorOneFrame()
         {
-            bool executeOk = _system.ExecuteOneFrame();
-            if (!executeOk)
+            bool shouldContinue = _system.ExecuteOneFrame(_customExecEvaluator);
+            if (!shouldContinue)
                 return false;
             return true;
         }

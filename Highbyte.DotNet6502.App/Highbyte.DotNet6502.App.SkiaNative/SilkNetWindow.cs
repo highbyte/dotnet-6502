@@ -101,7 +101,9 @@ public class SilkNetWindow<TSystem>
         _systemRunner.ProcessInput();
 
         // Run emulator for one frame worth of emulated CPU cycles 
-        _systemRunner.RunEmulatorOneFrame();
+        bool cont = _systemRunner.RunEmulatorOneFrame();
+        if (!cont)
+            _monitor.Enable();
     }
 
     /// <summary>

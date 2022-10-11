@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Highbyte.DotNet6502
@@ -104,7 +105,7 @@ namespace Highbyte.DotNet6502
         {
             var handler = UnknownOpCodeDetected;
             handler?.Invoke(this, e);
-        }        
+        }
 
         private readonly InstructionExecutor _instructionExecutor;
 
@@ -136,20 +137,27 @@ namespace Highbyte.DotNet6502
             };
         }
 
+        public ExecState ExecuteOneInstruction(
+            Memory mem)
+        {
+            return Execute(mem, LegacyExecEvaluator.OneInstructionExecEvaluator);
+        }
+
         public ExecState Execute(
-            Memory mem, 
-            ExecOptions execOptions)
+            Memory mem,
+            params IExecEvaluator[] execEvaluators)
         {
             // Collect stats for this invocation of Execute(). 
             // Whereas the property Cpu.ExecState contains the aggregate stats for all invocations of Execute().
             var thisExecState = new ExecState();
 
-            // Get current cycle count
+            // Reset checks if executions should continue
+            foreach (var execEvaluator in execEvaluators)
+                execEvaluator.Reset();
+
             bool doNextInstruction = true;
-
-            while(doNextInstruction)
+            while (doNextInstruction)
             {
-
                 // Fire event before instruction executes
                 OnInstructionToBeExecuted(new CPUInstructionToBeExecutedEventArgs(this, mem));
 
@@ -170,42 +178,34 @@ namespace Highbyte.DotNet6502
                 // Update/Aggregate this invocation of Execute() ExecState stats
                 thisExecState.UpdateTotal(instructionExecState);
 
-                // Fire "unknown opcode" or "instruction executed" event
-                if(instructionExecutionResult.UnknownInstruction)
+                if (instructionExecutionResult.UnknownInstruction)
                 {
+                    // Fire event for unknown instruction
                     OnUnknownOpCodeDetected(new CPUUnknownOpCodeDetectedEventArgs(this, mem, instructionExecutionResult.OpCodeByte));
                     Debug.WriteLine($"Unknown opcode: {instructionExecutionResult.OpCodeByte.ToHex()}");
-
-                    // Check if we're configured to throw exception when unknown exception occurs
-                    if(execOptions.UnknownInstructionThrowsException)
-                        throw new DotNet6502Exception($"Unknown opcode: {instructionExecutionResult.OpCodeByte.ToHex()}"); 
                 }
                 else
                 {
+                    // Fire event for instruction recognized and executed
                     OnInstructionExecuted(new CPUInstructionExecutedEventArgs(this, mem, instructionExecState));
                 }
-            
-                // Check if we should continue executing instructions
-                if(execOptions.CyclesRequested.HasValue  && thisExecState.CyclesConsumed >= execOptions.CyclesRequested.Value)
-                    doNextInstruction = false;
-                if(execOptions.MaxNumberOfInstructions.HasValue && thisExecState.InstructionsExecutionCount >= execOptions.MaxNumberOfInstructions.Value) 
-                    doNextInstruction = false;
-                if(!instructionExecutionResult.UnknownInstruction && execOptions.ExecuteUntilInstruction.HasValue && instructionExecutionResult.OpCodeByte == execOptions.ExecuteUntilInstruction.Value.ToByte())
-                     doNextInstruction = false;
-                if(execOptions.ExecuteUntilInstructions.Count > 0 && execOptions.ExecuteUntilInstructions.Contains(instructionExecutionResult.OpCodeByte))
-                     doNextInstruction = false;
-                if(execOptions.ExecuteUntilPC.HasValue && PC == execOptions.ExecuteUntilPC.Value)
-                    doNextInstruction = false;
-                if(execOptions.ExecuteUntilExecutedInstructionAtPC.HasValue && PCBeforeInstructionExecuted == execOptions.ExecuteUntilExecutedInstructionAtPC.Value)
-                    doNextInstruction = false;
 
                 // Check if a hardware IRQ has been raised (could have been done in a delegate callback OnInstructionExecuted above)    
-                if(IRQ)
+                if (IRQ)
                 {
                     IRQ = false;
                     // Only process the IRQ as long we don't have set the Interrupt Disable status flag.
-                    if(!ProcessorStatus.InterruptDisable)
+                    if (!ProcessorStatus.InterruptDisable)
                         ProcessHardwareIRQ(mem);
+                }
+
+                // Evaluate if execution shall continue to next instruction, or stop here.
+                // Will continue only if all of the ExecEvaluators reports true.
+                foreach (var execEvaluator in execEvaluators)
+                {
+                    execEvaluator.Check(thisExecState, this, mem);
+                    if (doNextInstruction == true && execEvaluator.Continue == false)
+                        doNextInstruction = false;
                 }
             }
 

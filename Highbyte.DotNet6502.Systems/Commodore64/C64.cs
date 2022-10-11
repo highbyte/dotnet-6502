@@ -31,6 +31,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
         public int BorderWidth => (VisibleWidth - Width) / 2;
         public int BorderHeight => (VisibleHeight - Height) / 2;
 
+        private LegacyExecEvaluator _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = Vic2.NTSC_NEW_CYCLES_PER_FRAME });
+
         public static ROM[] ROMS = new ROM[]
         {   
             // name, file, checksum 
@@ -39,37 +41,39 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
             ROM.NewROM("kernal",  "kernal",  "1d503e56df85a62fee696e7618dc5b4e781df1bb"),
         };
 
-        public bool ExecuteOneFrame()
+        public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
         {
-            bool executeUntilBRKInstruction = false;
-            // Execute a number of instructions
-            // TODO: The number of instructions per vblank should be configurable
+            // TODO: The number of cycles per vblank should be configurable
+            // If we already executed cycles in current frame, reduce it from total.
+            _oneFrameExecEvaluator.ExecOptions.CyclesRequested = Vic2.NTSC_NEW_CYCLES_PER_FRAME - Vic2.CyclesConsumedCurrentVblank;
+
+            // TODO: Create a pre-initialized array/list of two or one ExecEvaluator objects and reuse them to increase perf.
+            List<IExecEvaluator> execEvaluators = new() { _oneFrameExecEvaluator };
+            if (execEvaluator != null)
+                execEvaluators.Add(execEvaluator);
+
             var execState = CPU.Execute(
                 Mem,
-                new ExecOptions
-                {
-                    CyclesRequested = Vic2.NTSC_NEW_CYCLES_PER_FRAME - Vic2.CyclesConsumedCurrentVblank, // If we already executed cycles in current frame, reduce it from total.
-                    ExecuteUntilInstruction = executeUntilBRKInstruction ? OpCodeId.BRK : null
-                });
-            if (!execState.LastOpCodeWasHandled || (execState.LastInstructionExecResult != null && execState.LastInstructionExecResult.OpCodeByte == OpCodeId.BRK.ToByte()))
+                execEvaluators.ToArray());
+
+            if (!execState.LastOpCodeWasHandled)
                 return false;
 
-            // Return true to continue running
+            // If the custom ExecEvaluator said we shouldn't contine (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
+            if (execEvaluator != null && !execEvaluator.Continue)
+                return false;
+
+            // Return true to indicate execution was successfull and we should continue
             return true;
         }
 
         public bool ExecuteOneInstruction()
         {
-            var execState = CPU.Execute(
-                Mem,
-                new ExecOptions
-                {
-                    MaxNumberOfInstructions = 1
-                });
+            var execState = CPU.ExecuteOneInstruction(Mem);
+            // If an unhandled instruction, return false
             if (!execState.LastOpCodeWasHandled)
                 return false;
-
-            // Return true to continue running
+            // Return true to indicate execution was successfull
             return true;
         }
 

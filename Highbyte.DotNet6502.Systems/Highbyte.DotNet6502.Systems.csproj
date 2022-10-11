@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <!-- <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable> -->
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
     <PackageId>Highbyte.DotNet6502.Systems</PackageId>
     <Authors>Highbyte</Authors>
     <PackageDescription>Emulators for 8-bit systems that implement the Highbyte.DotNet6502 CPU</PackageDescription>

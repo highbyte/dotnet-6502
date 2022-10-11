@@ -9,6 +9,7 @@ namespace Highbyte.DotNet6502.Systems.Generic
         // For comparison, a C64 runs about 16700 cycles per frame (1/60 sec).
         // TODO: Should probably move to config instead of hardcoded constant.
         public const int CYCLES_PER_FRAME = 40000;
+        public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
 
         public string Name => "Generic";
         public string SystemInfo => "";
@@ -32,6 +33,8 @@ namespace Highbyte.DotNet6502.Systems.Generic
 
         private readonly EmulatorScreenConfig _emulatorScreenConfig;
 
+        private LegacyExecEvaluator _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = CYCLES_PER_FRAME });
+
         public GenericComputer() : this(new EmulatorScreenConfig()) { }
         public GenericComputer(EmulatorScreenConfig emulatorScreenConfig)
         {
@@ -39,20 +42,30 @@ namespace Highbyte.DotNet6502.Systems.Generic
             Mem = new Memory();
             CPU = new CPU();
             DefaultExecOptions = new ExecOptions();
+
+            CPU.InstructionExecuted += (s, e) => CPUCyclesConsumed(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
         }
 
-        public bool ExecuteOneFrame()
+        public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
         {
-            // Execute a number of instructions
-            // TODO: The number of instructions per vblank should be configurable
+            // TODO: The number of cycles per vblank should be configurable
+            // If we already executed cycles in current frame, reduce it from total.
+            _oneFrameExecEvaluator.ExecOptions.CyclesRequested = CYCLES_PER_FRAME - CyclesConsumedCurrentVblank;
+
+            // TODO: Create a pre-initialized array/list of two or one ExecEvaluator objects and reuse them to increase perf.
+            List<IExecEvaluator> execEvaluators = new() { _oneFrameExecEvaluator };
+            if (execEvaluator != null)
+                execEvaluators.Add(execEvaluator);
+
             var execState = CPU.Execute(
                 Mem,
-                new ExecOptions
-                {
-                    CyclesRequested = CYCLES_PER_FRAME,
-                });
+                execEvaluators.ToArray());
+
             // If an unhandled instruction, return false
             if (!execState.LastOpCodeWasHandled)
+                return false;
+            // If the custom ExecEvaluator said we shouldn't contine (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
+            if (execEvaluator != null && !execEvaluator.Continue)
                 return false;
 
             // Tell CPU 6502 code that one frame worth of CPU cycles has been executed
@@ -63,7 +76,17 @@ namespace Highbyte.DotNet6502.Systems.Generic
             if (!waitOk)
                 return false;
 
-            // Return true to continue running
+            // Return true to indicate execution was successfull and we should continue
+            return true;
+        }
+
+        public bool ExecuteOneInstruction()
+        {
+            var execState = CPU.ExecuteOneInstruction(Mem);
+            // If an unhandled instruction, return false
+            if (!execState.LastOpCodeWasHandled)
+                return false;
+            // Return true to indicate execution was successfull
             return true;
         }
 
@@ -77,31 +100,26 @@ namespace Highbyte.DotNet6502.Systems.Generic
             // Keep on executing instructions until CPU 6502 code has cleared bit 0 in ScreenRefreshStatusAddress
             while (Mem.IsBitSet(_emulatorScreenConfig.ScreenRefreshStatusAddress, (int)ScreenStatusBitFlags.HostNewFrame))
             {
-                var execState = CPU.Execute(
-                    Mem,
-                    new ExecOptions
-                    {
-                        MaxNumberOfInstructions = 1
-                    });
+                var ok = ExecuteOneInstruction();
                 // If an unhandled instruction, return false
-                if (!execState.LastOpCodeWasHandled)
+                if (!ok)
                     return false;
             }
             return true;
         }
 
-        public bool ExecuteOneInstruction()
+        public void CPUCyclesConsumed(CPU cpu, Memory mem, ulong cyclesConsumed)
         {
-            var execState = CPU.Execute(
-                Mem,
-                new ExecOptions
-                {
-                    MaxNumberOfInstructions = 1,
-                });
-            if (!execState.LastOpCodeWasHandled)
-                return false;
+            CyclesConsumedCurrentVblank += cyclesConsumed;
+            if (CyclesConsumedCurrentVblank >= CYCLES_PER_FRAME)
+            {
+                CyclesConsumedCurrentVblank = 0;
+                VerticalBlank(cpu);
+            }
+        }
 
-            return true;
+        public void VerticalBlank(CPU cpu)
+        {
         }
 
         public GenericComputer Clone()
@@ -118,26 +136,11 @@ namespace Highbyte.DotNet6502.Systems.Generic
         {
             // TODO: Leave memory intact after reset?
 
-            if(cpuStartPos==null)
+            if (cpuStartPos == null)
                 cpuStartPos = Mem.FetchWord(CPU.ResetVector);
 
             CPU.PC = cpuStartPos.Value;
         }
 
-        public ExecState Run()
-        {
-            return CPU.Execute(
-                this.Mem,
-                this.DefaultExecOptions
-                );
-        }
-
-        public ExecState Run(ExecOptions execOptions)
-        {
-            return CPU.Execute(
-                this.Mem,
-                execOptions
-                );
-        }
     }
 }
