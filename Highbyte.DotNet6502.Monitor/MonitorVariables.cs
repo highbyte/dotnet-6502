@@ -6,5 +6,6 @@ namespace Highbyte.DotNet6502.Monitor
     public class MonitorVariables
     {
         public ushort? LatestDisassemblyAddress { get; set; }
+        public ushort? LatestMemoryDumpAddress { get; set; }
     }
 }

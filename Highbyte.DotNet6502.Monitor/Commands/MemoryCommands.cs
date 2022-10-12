@@ -32,9 +32,15 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 {
                     ushort startAddress;
                     if (string.IsNullOrEmpty(start.Value))
-                        startAddress = 0x0000;
+                    {
+                        if (!monitorVariables.LatestMemoryDumpAddress.HasValue)
+                            monitorVariables.LatestMemoryDumpAddress = 0x0000;
+                        startAddress = monitorVariables.LatestMemoryDumpAddress.Value;
+                    }
                     else
+                    {
                         startAddress = ushort.Parse(start.Value, NumberStyles.AllowHexSpecifier, null);
+                    }
 
                     ushort endAddress;
                     if (string.IsNullOrEmpty(end.Value))
@@ -56,6 +62,8 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     var list = OutputMemoryGen.GetFormattedMemoryList(monitor.Mem, startAddress, endAddress);
                     foreach (var line in list)
                         monitor.WriteOutput(line);
+
+                    monitorVariables.LatestMemoryDumpAddress = ++endAddress;
 
                     return (int)CommandResult.Ok;
                 });
