@@ -34,7 +34,7 @@ namespace Highbyte.DotNet6502.App.Monitor
 
             var monitorOptions = new MonitorOptions
             {
-                // DefaultDirectory = 
+                DefaultDirectory = Environment.CurrentDirectory
             };
 
             Monitor = new ConsoleMonitor(systemRunner, monitorOptions);
