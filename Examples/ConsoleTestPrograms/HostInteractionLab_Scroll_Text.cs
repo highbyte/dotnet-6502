@@ -67,7 +67,7 @@ namespace ConsoleTestPrograms
                 while(shouldExecuteEmulator)
                 {
                     // Execute a number of instructions
-                    computer.Run(new ExecOptions{MaxNumberOfInstructions=10});
+                    computer.Run(LegacyExecEvaluator.InstructionCountExecEvaluator(10));
                     shouldExecuteEmulator = !mem.IsBitSet(SCREEN_REFRESH_STATUS, SCREEN_REFRESH_STATUS_EMULATOR_DONE_BIT);
                 }
 

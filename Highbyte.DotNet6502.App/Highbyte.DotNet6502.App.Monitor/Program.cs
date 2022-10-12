@@ -32,7 +32,12 @@ namespace Highbyte.DotNet6502.App.Monitor
         
             var systemRunner = systemRunnerBuilder.Build();
 
-            Monitor = new ConsoleMonitor(systemRunner);
+            var monitorOptions = new MonitorOptions
+            {
+                // DefaultDirectory = 
+            };
+
+            Monitor = new ConsoleMonitor(systemRunner, monitorOptions);
 
             Monitor.ShowDescription();
             Monitor.WriteOutput("");

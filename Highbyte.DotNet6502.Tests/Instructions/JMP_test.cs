@@ -37,11 +37,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             mem.WriteByte(ref newPos, expectedAValue);
 
             // Act
-            var execOptions = new ExecOptions
-            {
-                MaxNumberOfInstructions = 2
-            };
-            cpu.Execute(mem, execOptions);
+            cpu.Execute(mem, LegacyExecEvaluator.InstructionCountExecEvaluator(2));
 
             // Assert
             Assert.Equal(expectedAValue, cpu.A);
@@ -92,11 +88,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             mem.WriteByte(ref newPos, expectedAValue);
 
             // Act
-            var execOptions = new ExecOptions
-            {
-                MaxNumberOfInstructions = 2
-            };            
-            cpu.Execute(mem, execOptions);
+            cpu.Execute(mem, LegacyExecEvaluator.InstructionCountExecEvaluator(2));
 
             // Assert
             Assert.Equal(expectedAValue, cpu.A);

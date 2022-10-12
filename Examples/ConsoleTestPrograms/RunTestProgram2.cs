@@ -66,7 +66,7 @@ namespace ConsoleTestPrograms
 
             // Execute program
             Console.WriteLine("Executing code...");
-            var consumedCycles = cpu.Execute(mem, execOptions);
+            var consumedCycles = cpu.Execute(mem, new LegacyExecEvaluator(execOptions));
 
             Console.WriteLine("Program ended.");
             Console.WriteLine($"Consumed cycles: {consumedCycles}");

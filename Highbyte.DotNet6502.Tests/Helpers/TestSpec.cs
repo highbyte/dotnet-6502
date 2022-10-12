@@ -596,7 +596,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 execOptions.CyclesRequested = null;
                 execOptions.MaxNumberOfInstructions = 1;
             }
-            var thisExecState = cpu.Execute(mem, execOptions);
+            var thisExecState = cpu.Execute(mem, new LegacyExecEvaluator(execOptions));
 
             // Assert
             // Check that we didn't find any unknown opcode

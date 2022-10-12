@@ -37,11 +37,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             mem.WriteByte(ref branchPos, expectedAValue);
 
             // Act
-            var execOptions = new ExecOptions
-            {
-                MaxNumberOfInstructions = 2
-            };            
-            cpu.Execute(mem, execOptions);
+            cpu.Execute(mem, LegacyExecEvaluator.InstructionCountExecEvaluator(2));
 
             // Assert
             Assert.Equal(expectedAValue, cpu.A);
@@ -80,8 +76,8 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var execOptions = new ExecOptions
             {
                 MaxNumberOfInstructions = 4 // JSR + LDA_I + RTS + LDA_I
-            };            
-            cpu.Execute(mem, execOptions);            
+            };
+            cpu.Execute(mem, new LegacyExecEvaluator(execOptions));
 
             // Assert
             Assert.Equal(expectedAValue, cpu.A);
@@ -110,7 +106,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             {
                 MaxNumberOfInstructions = 1
             };            
-            cpu.Execute(mem, execOptions);
+            cpu.Execute(mem, new LegacyExecEvaluator(execOptions));
 
             // Assert
             Assert.Equal((byte)(cpuCopy.SP-2), cpu.SP); // We didn't return from the jsr with an rts, so the SP should have used two bytes for the return address

@@ -6,7 +6,10 @@ namespace Highbyte.DotNet6502.App.Monitor
 {
     public class ConsoleMonitor : MonitorBase
     {
-        public ConsoleMonitor(SystemRunner systemRunner) : base(systemRunner)
+        public ConsoleMonitor(
+            SystemRunner systemRunner,
+            MonitorOptions monitorOptions
+            ) : base(systemRunner, monitorOptions)
         {
         }
 

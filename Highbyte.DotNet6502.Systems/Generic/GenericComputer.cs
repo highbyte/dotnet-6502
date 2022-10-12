@@ -2,7 +2,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Systems.Generic
 {
-    public class GenericComputer : ISystem, ITextMode, IScreen
+    public class  GenericComputer : ISystem, ITextMode, IScreen
     {
         // How many 6502 CPU cycles this generic (fictional) computer should be able to execute per frame.
         // This should be adjusted to the performance of the machine the emulator is running on.
@@ -44,6 +44,15 @@ namespace Highbyte.DotNet6502.Systems.Generic
             DefaultExecOptions = new ExecOptions();
 
             CPU.InstructionExecuted += (s, e) => CPUCyclesConsumed(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
+        }
+
+        public void Run(IExecEvaluator? execEvaluator = null)
+        {
+            if (execEvaluator == null)
+                execEvaluator = new LegacyExecEvaluator(DefaultExecOptions);
+            CPU.Execute(
+                Mem,
+                execEvaluator);
         }
 
         public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)

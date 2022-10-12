@@ -15,7 +15,9 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             cpu.PC = 0x1000;
             
             // Act
-            var execState = cpu.Execute(mem, new ExecOptions{MaxNumberOfInstructions=1, UnknownInstructionThrowsException = false});
+            var execState = cpu.Execute(
+                mem, 
+                new LegacyExecEvaluator(new ExecOptions{MaxNumberOfInstructions=1, UnknownInstructionThrowsException = false}));
 
             // Assert
             Assert.False(execState.LastOpCodeWasHandled);
