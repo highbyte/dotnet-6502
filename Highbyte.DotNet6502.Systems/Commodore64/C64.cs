@@ -59,7 +59,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
             if (!execState.LastOpCodeWasHandled)
                 return false;
 
-            // If the custom ExecEvaluator said we shouldn't contine (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
+            // If the custom ExecEvaluator said we shouldn't continue (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
             if (execEvaluator != null && !execEvaluator.Continue)
                 return false;
 
@@ -111,7 +111,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
             SetStartupBank(c64);
 
             // Set program counter on startup to the address specified at the 6502 reset vector.
-            c64.CPU.PC = mem.FetchWord(CPU.ResetVector);
+            c64.CPU.Reset(c64.Mem);
 
             return c64;
         }

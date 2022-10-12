@@ -43,18 +43,24 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
         private void CaptureKeyboard(C64 c64)
         {
             var c64Keyboard = c64.Keyboard;
-            HandleNonPrintedC64Keys(c64Keyboard);
+            HandleNonPrintedC64Keys(c64Keyboard, c64);
             HandlePrintedC64Keys(c64Keyboard);
         }
 
         private void HandleNonPrintedC64Keys(
-            Systems.Commodore64.Keyboard c64Keyboard)
+            Systems.Commodore64.Keyboard c64Keyboard, C64 c64)
         {
             // STOP (ESC) down
             if (_inputHandlerContext.IsKeyPressed(Key.Escape))
             //if (_inputHandlerContext.SpecialKeyReceived.Count == 1 && _inputHandlerContext.SpecialKeyReceived.First() == Key.Escape)
             {
+                // Pressing STOP (RUN/STOP) will stop any running Basic program.
                 c64Keyboard.StopKeyFlag = 0x7f;
+
+                // RESTORE (PageUp) down. Together with STOP it will issue a NMI (which will jump to code that detects STOP is pressed and resets any running program, and clears screen.)
+                if (_inputHandlerContext.IsKeyPressed(Key.PageUp))
+                    c64.CPU.NMI = true;
+                    
                 return;
             }
             // STOP (ESC) released

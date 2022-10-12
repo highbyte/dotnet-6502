@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace Highbyte.DotNet6502.Systems.Commodore64.Config
 {
     public static class Petscii
@@ -9,22 +7,22 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config
         /// </summary>
         public enum Colors : byte
         {
-            White      = 0x05,
-            Red        = 0x1c,
-            Green      = 0x1e,
-            Blue       = 0x1f,
-            Orange     = 0x81,
-            Black      = 0x90,
-            Brown      = 0x95,
-            LightRed   = 0x96,
-            DarkGray   = 0x97,
+            White = 0x05,
+            Red = 0x1c,
+            Green = 0x1e,
+            Blue = 0x1f,
+            Orange = 0x81,
+            Black = 0x90,
+            Brown = 0x95,
+            LightRed = 0x96,
+            DarkGray = 0x97,
             MediumGray = 0x98,
             LightGreen = 0x99,
-            LightBlue  = 0x9a,
-            LightGray  = 0x9b,
-            Purple     = 0x9c,
-            Yellow     = 0x9e,
-            Cyan       = 0x9f,
+            LightBlue = 0x9a,
+            LightGray = 0x9b,
+            Purple = 0x9c,
+            Yellow = 0x9e,
+            Cyan = 0x9f,
         };
 
         /// <summary>
@@ -100,7 +98,6 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config
             {']',               0x5d},
             {'^',               0x5e},
 
-
             {'A',               0xc1},
             {'B',               0xc2},
             {'C',               0xc3},
@@ -165,16 +162,16 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config
             // Ref: https://thec64community.online/thread/77/petscii-ascii-tool?page=1&scrollTo=438
             byte asciiCode;
             // If the PETSCII character is A-Z, make it a-z (PETSCII 97-122, subtract 32)
-            if(petsciiCode >= 97 && petsciiCode <= 122)
+            if (petsciiCode >= 97 && petsciiCode <= 122)
                 asciiCode = (byte)(petsciiCode - 32);
             // If the PETSCII character is a-z, make it A-Z (PETSCII 65-90, add 32)
-            else if(petsciiCode >= 65 && petsciiCode <= 90)
+            else if (petsciiCode >= 65 && petsciiCode <= 90)
                 asciiCode = (byte)(petsciiCode + 32);
             // If the PETSCII character is 192-223, subtract 96. Then subtract 32 if the resultant value is 97-122.                    
-            else if(petsciiCode >= 192 && petsciiCode <= 223)
+            else if (petsciiCode >= 192 && petsciiCode <= 223)
             {
                 asciiCode = (byte)(petsciiCode - 96);
-                if(asciiCode >= 97 && asciiCode <= 122)
+                if (asciiCode >= 97 && asciiCode <= 122)
                     asciiCode = (byte)(asciiCode - 32);
             }
             else

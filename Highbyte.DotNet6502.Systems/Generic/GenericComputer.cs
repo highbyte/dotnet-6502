@@ -135,12 +135,10 @@ namespace Highbyte.DotNet6502.Systems.Generic
         public void Reset(ushort? cpuStartPos = null)
         {
             // TODO: Leave memory intact after reset?
-
             if (cpuStartPos == null)
-                cpuStartPos = Mem.FetchWord(CPU.ResetVector);
-
-            CPU.PC = cpuStartPos.Value;
+                CPU.Reset(Mem);
+            else
+                CPU.PC = cpuStartPos.Value;
         }
-
     }
 }

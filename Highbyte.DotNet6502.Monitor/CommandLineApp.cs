@@ -30,6 +30,7 @@ namespace Highbyte.DotNet6502.Monitor
             app.ConfigureExecution(monitor, monitorVariables);
             app.ConfigureBreakpoints(monitor, monitorVariables);
             app.ConfigureFiles(monitor, monitorVariables);
+            app.ConfigureReset(monitor, monitorVariables);
 
             app.Command("q", cmd =>
             {
