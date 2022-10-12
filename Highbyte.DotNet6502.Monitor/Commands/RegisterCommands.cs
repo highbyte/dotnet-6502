@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
     /// </summary>
     public static class RegisterCommands
     {
-        public static CommandLineApplication ConfigureRegisters(this CommandLineApplication app, MonitorBase monitor)
+        public static CommandLineApplication ConfigureRegisters(this CommandLineApplication app, MonitorBase monitor, MonitorVariables monitorVariables)
         {
             app.Command("r", cmd =>
             {

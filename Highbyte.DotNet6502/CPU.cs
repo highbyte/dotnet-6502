@@ -213,6 +213,28 @@ namespace Highbyte.DotNet6502
             return thisExecState;
         }
 
+        public ushort GetNextInstructionAddress(Memory mem, ushort? currentInstructionAddress = null)
+        {
+            if (!currentInstructionAddress.HasValue)
+                currentInstructionAddress = PC;
+            byte insSize = GetInstructionSize(mem, currentInstructionAddress);
+            ushort nextInstructionAddress = (ushort)(currentInstructionAddress + insSize);
+            return nextInstructionAddress;
+        }
+
+        public byte GetInstructionSize(Memory mem, ushort? instructionAddress = null)
+        {
+            if (!instructionAddress.HasValue)
+                instructionAddress = PC;
+            var opCodeByte = mem[instructionAddress.Value];
+            byte insSize;
+            if (!InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
+                insSize = 1;
+            else
+                insSize = (byte)InstructionList.GetOpCode(opCodeByte).Size;
+            return insSize;
+        }
+
         private void ProcessHardwareIRQ(Memory mem)
         {
             // The return address pushed to stack is the current PC (the address of the next instruction at this point)

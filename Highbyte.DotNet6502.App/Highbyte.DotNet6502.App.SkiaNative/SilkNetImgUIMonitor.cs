@@ -177,6 +177,7 @@ namespace Highbyte.DotNet6502.App.SkiaNative
             Quit = false;
             MonitorVisible = true;
             CreateImGuiController();
+            base.Reset();   // Reset monitor working variables (like last disassembly location)
             OnMonitorStateChange(true);
         }
 

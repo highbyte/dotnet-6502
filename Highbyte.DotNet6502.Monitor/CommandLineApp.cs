@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.Monitor
     /// </summary>
     public class CommandLineApp
     {
-        public static CommandLineApplication Build(MonitorBase monitor)
+        public static CommandLineApplication Build(MonitorBase monitor, MonitorVariables monitorVariables)
         {
             var app = new CommandLineApplication(NullConsole.Singleton, monitor.Options.DefaultDirectory)
             {
@@ -24,12 +24,12 @@ namespace Highbyte.DotNet6502.Monitor
             // Fix: To avoid CommandLineUtils to the name of the application at the end of the help text: Don't use HelpOption on app-level, instead set it on each command below.
             //app.HelpOption(inherited: true);
 
-            app.ConfigureRegisters(monitor);
-            app.ConfigureMemory(monitor);
-            app.ConfigureDisassembly(monitor);
-            app.ConfigureExecution(monitor);
-            app.ConfigureBreakpoints(monitor);
-            app.ConfigureFiles(monitor);
+            app.ConfigureRegisters(monitor, monitorVariables);
+            app.ConfigureMemory(monitor, monitorVariables);
+            app.ConfigureDisassembly(monitor, monitorVariables);
+            app.ConfigureExecution(monitor, monitorVariables);
+            app.ConfigureBreakpoints(monitor, monitorVariables);
+            app.ConfigureFiles(monitor, monitorVariables);
 
             app.Command("q", cmd =>
             {

@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
     /// </summary>
     public static class ExecutionCommands
     {
-        public static CommandLineApplication ConfigureExecution(this CommandLineApplication app, MonitorBase monitor)
+        public static CommandLineApplication ConfigureExecution(this CommandLineApplication app, MonitorBase monitor, MonitorVariables monitorVariables)
         {
             app.Command("g", cmd =>
             {

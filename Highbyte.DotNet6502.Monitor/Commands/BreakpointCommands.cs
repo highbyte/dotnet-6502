@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
     /// </summary>
     public static class BreakpointCommands
     {
-        public static CommandLineApplication ConfigureBreakpoints(this CommandLineApplication app, MonitorBase monitor)
+        public static CommandLineApplication ConfigureBreakpoints(this CommandLineApplication app, MonitorBase monitor, MonitorVariables monitorVariables)
         {
             app.Command("b", cmd =>
             {

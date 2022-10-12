@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
     /// </summary>
     public static class MemoryCommands
     {
-        public static CommandLineApplication ConfigureMemory(this CommandLineApplication app, MonitorBase monitor)
+        public static CommandLineApplication ConfigureMemory(this CommandLineApplication app, MonitorBase monitor, MonitorVariables monitorVariables)
         {
             app.Command("m", cmd =>
             {

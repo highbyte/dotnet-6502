@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
     /// </summary>
     public static class DisassemblyCommands
     {
-        public static CommandLineApplication ConfigureDisassembly(this CommandLineApplication app, MonitorBase monitor)
+        public static CommandLineApplication ConfigureDisassembly(this CommandLineApplication app, MonitorBase monitor, MonitorVariables monitorVariables)
         {
             app.Command("d", cmd =>
             {
@@ -31,20 +31,21 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 {
                     ushort startAddress;
                     if (string.IsNullOrEmpty(start.Value))
-                        startAddress = monitor.Cpu.PC;
+                    {
+                        if (!monitorVariables.LatestDisassemblyAddress.HasValue)
+                            monitorVariables.LatestDisassemblyAddress = monitor.Cpu.PC;
+                        startAddress = monitorVariables.LatestDisassemblyAddress.Value;
+                    }
                     else
+                    {
                         startAddress = ushort.Parse(start.Value, NumberStyles.AllowHexSpecifier, null);
+                    }
 
-                    ushort endAddress;
+                    ushort? endAddress = null;
+                    int? instructionShowCount = null;
                     if (string.IsNullOrEmpty(end.Value))
                     {
-                        const int DEFAULT_BYTES_TO_SHOW = 0x10;
-                        var endAddressDelta = DEFAULT_BYTES_TO_SHOW - 1;
-                        if ((uint)((uint)startAddress + (uint)endAddressDelta) <= 0xffff)
-                            endAddress = (ushort)(startAddress + endAddressDelta);
-                        else
-                            endAddress = 0xffff;
-                        endAddress = (ushort)(startAddress + endAddressDelta);
+                        instructionShowCount = 10;
                     }
                     else
                     {
@@ -52,23 +53,30 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                         if (endAddress < startAddress)
                             endAddress = startAddress;
                     }
+
                     ushort currentAddress = startAddress;
                     bool cont = true;
                     while (cont)
                     {
                         monitor.WriteOutput(OutputGen.GetInstructionDisassembly(monitor.Cpu, monitor.Mem, currentAddress));
-                        var opCodeByte = monitor.Mem[currentAddress];
-                        int insSize;
-                        if (!monitor.Cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
-                            insSize = 1;
-                        else
-                            insSize = monitor.Cpu.InstructionList.GetOpCode(opCodeByte).Size;
+                        var nextInstructionAddress = monitor.Cpu.GetNextInstructionAddress(monitor.Mem, currentAddress);
 
-                        if (currentAddress < endAddress && ((uint)(currentAddress + insSize) <= 0xffff))
-                            currentAddress += (ushort)insSize;
+                        if (instructionShowCount.HasValue)
+                        {
+                            instructionShowCount--;
+                            if (instructionShowCount == 0)
+                                cont = false;
+                        }
                         else
-                            cont = false;
+                        {
+                            if (nextInstructionAddress > endAddress || (currentAddress >= nextInstructionAddress))
+                                cont = false;
+                        }
+                        currentAddress = nextInstructionAddress;
                     }
+
+                    monitorVariables.LatestDisassemblyAddress = currentAddress;
+
                     return (int)CommandResult.Ok;
                 });
             });

@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
     /// </summary>
     public static class FileCommands
     {
-        public static CommandLineApplication ConfigureFiles(this CommandLineApplication app, MonitorBase monitor)
+        public static CommandLineApplication ConfigureFiles(this CommandLineApplication app, MonitorBase monitor, MonitorVariables monitorVariables)
         {
             app.Command("l", cmd =>
             {
