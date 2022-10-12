@@ -10,7 +10,9 @@ namespace Highbyte.DotNet6502.Monitor
     {
         public static CommandLineApplication Build(MonitorBase monitor, MonitorVariables monitorVariables)
         {
-            var app = new CommandLineApplication(NullConsole.Singleton, monitor.Options.DefaultDirectory)
+            //var app = new CommandLineApplication()
+            //var app = new CommandLineApplication(NullConsole.Singleton, monitor.Options.DefaultDirectory)
+            var app = new CommandLineApplication(MonitorConsole.BuildSingleton(monitor), monitor.Options.DefaultDirectory)
             {
                 Name = "",
                 Description = "DotNet 6502 machine code monitor for the DotNet 6502 emulator library." + Environment.NewLine +
@@ -47,7 +49,6 @@ namespace Highbyte.DotNet6502.Monitor
 
                 cmd.OnExecute(() =>
                 {
-                    //monitor.WriteOutput($"Quiting.");
                     return (int)CommandResult.Quit;
                 });
             });
@@ -56,6 +57,7 @@ namespace Highbyte.DotNet6502.Monitor
             {
                 monitor.WriteOutput("Unknown command.", MessageSeverity.Error);
                 monitor.WriteOutput("Help: ?|help|-?|--help", MessageSeverity.Information);
+                monitor.WriteOutput("Help: command -?|-h|--help", MessageSeverity.Information);
                 return (int)CommandResult.Error;
             });
 

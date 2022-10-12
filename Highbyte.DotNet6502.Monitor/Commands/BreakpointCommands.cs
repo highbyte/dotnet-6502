@@ -89,6 +89,11 @@ namespace Highbyte.DotNet6502.Monitor.Commands
 
         private static int ListBreakpoints(MonitorBase monitor)
         {
+            if (monitor.BreakPoints.Count == 0)
+                monitor.WriteOutput($"No breakpoints.");
+            else
+                monitor.WriteOutput($"Breakpoints:");
+
             foreach (var bp in monitor.BreakPoints.Keys)
             {
                 var addr = bp.ToHex();
