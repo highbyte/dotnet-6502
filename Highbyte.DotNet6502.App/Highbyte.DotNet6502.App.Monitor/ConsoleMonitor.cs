@@ -13,7 +13,7 @@ namespace Highbyte.DotNet6502.App.Monitor
         {
         }
 
-        public override void LoadBinary(string fileName, out ushort loadedAtAddress, out int fileLength, ushort? forceLoadAddress = null)
+        public override void LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
         {
             BinaryLoader.Load(
                 Mem,
@@ -21,6 +21,16 @@ namespace Highbyte.DotNet6502.App.Monitor
                 out loadedAtAddress,
                 out fileLength,
                 forceLoadAddress);
+        }
+
+        public override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
+        {
+            BinarySaver.Save(
+                Mem,
+                fileName,
+                startAddress,
+                endAddress,
+                addFileHeaderWithLoadAddress: addFileHeaderWithLoadAddress);
         }
 
         public override void WriteOutput(string message)

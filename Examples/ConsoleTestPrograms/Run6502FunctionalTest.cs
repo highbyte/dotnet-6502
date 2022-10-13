@@ -52,7 +52,7 @@ namespace ConsoleTestPrograms
             var mem = BinaryLoader.Load(
                 functionalTestBinary, 
                 out ushort loadedAtAddress, 
-                out int fileLength,
+                out ushort fileLength,
                 forceLoadAddress: loadAddress);
             Console.WriteLine($"Loading done.");
 

@@ -26,7 +26,7 @@ namespace ConsoleTestPrograms
             var mem = BinaryLoader.Load(
                 prgFileName, 
                 out ushort loadedAtAddress, 
-                out int fileLength);
+                out ushort fileLength);
 
             // Initialize emulator with CPU, memory, and execution parameters
             var computerBuilder = new GenericComputerBuilder();

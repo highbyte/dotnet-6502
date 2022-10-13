@@ -30,7 +30,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             var mem = BinaryLoader.Load(
                 functionalTestBinary, 
                 out ushort loadedAtAddress, 
-                out int fileLength,
+                out ushort fileLength,
                 forceLoadAddress: loadAddress);
 
             _output.WriteLine($"Data & code load  address: {loadAddress.ToHex(), 10} ({loadAddress})");
