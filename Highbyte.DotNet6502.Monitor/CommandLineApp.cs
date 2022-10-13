@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Highbyte.DotNet6502.Monitor.Commands;
+using Highbyte.DotNet6502.Monitor.SystemSpecific.C64.Commands;
 using McMaster.Extensions.CommandLineUtils;
 
 namespace Highbyte.DotNet6502.Monitor
@@ -33,6 +34,13 @@ namespace Highbyte.DotNet6502.Monitor
             app.ConfigureBreakpoints(monitor, monitorVariables);
             app.ConfigureFiles(monitor, monitorVariables);
             app.ConfigureReset(monitor, monitorVariables);
+
+            // TODO: Refactor system-specific monitor commands to belong to system implementation (ex: 64) and not this common project.
+            if (monitor.SystemRunner.System is Highbyte.DotNet6502.Systems.Commodore64.C64)
+            {
+                var c6basicFileCommands = new BasicFileCommands();
+                c6basicFileCommands.Configure(app, monitor);
+            }
 
             app.Command("q", cmd =>
             {

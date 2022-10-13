@@ -31,17 +31,18 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 cmd.OnExecute(() =>
                 {
                     ushort loadedAtAddress;
+                    ushort fileLength;
                     if (string.IsNullOrEmpty(address.Value))
                     {
-                        monitor.LoadBinary(fileName.Value, out loadedAtAddress);
+                        monitor.LoadBinary(fileName.Value, out loadedAtAddress, out fileLength);
                     }
                     else
                     {
                         ushort forceLoadAtAddress = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
-                        monitor.LoadBinary(fileName.Value, out loadedAtAddress, forceLoadAddress: forceLoadAtAddress);
+                        monitor.LoadBinary(fileName.Value, out loadedAtAddress, out fileLength, forceLoadAddress: forceLoadAtAddress);
                     }
 
-                    monitor.WriteOutput($"File loaded at {loadedAtAddress.ToHex()}");
+                    monitor.WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
                     return (int)CommandResult.Ok;
                 });
             });

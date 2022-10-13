@@ -199,7 +199,7 @@ namespace Highbyte.DotNet6502.App.SkiaNative
             }
         }
 
-        public override void LoadBinary(string fileName, out ushort loadedAtAddress, ushort? forceLoadAddress = null)
+        public override void LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
         {
             if (!Path.IsPathFullyQualified(fileName))
                 fileName = $"{_monitorOptions.DefaultDirectory}/{fileName}";
@@ -207,7 +207,7 @@ namespace Highbyte.DotNet6502.App.SkiaNative
                 Mem,
                 fileName,
                 out loadedAtAddress,
-                out int _,
+                out fileLength,
                 forceLoadAddress);
         }
 

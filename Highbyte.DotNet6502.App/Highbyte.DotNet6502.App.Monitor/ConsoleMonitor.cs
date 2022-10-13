@@ -13,13 +13,13 @@ namespace Highbyte.DotNet6502.App.Monitor
         {
         }
 
-        public override void LoadBinary(string fileName, out ushort loadedAtAddress, ushort? forceLoadAddress = null)
+        public override void LoadBinary(string fileName, out ushort loadedAtAddress, out int fileLength, ushort? forceLoadAddress = null)
         {
             BinaryLoader.Load(
                 Mem,
                 fileName,
                 out loadedAtAddress,
-                out int _,
+                out fileLength,
                 forceLoadAddress);
         }
 

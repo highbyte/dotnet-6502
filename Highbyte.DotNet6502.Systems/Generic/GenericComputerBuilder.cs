@@ -103,7 +103,7 @@ namespace Highbyte.DotNet6502.Systems.Generic
                 mem,
                 emulatorConfig.ProgramBinaryFile,
                 out ushort loadedAtAddress,
-                out int fileLength);
+                out ushort fileLength);
 
             // Initialize emulator with CPU, memory, and execution parameters
             var computerBuilder = new GenericComputerBuilder(emulatorConfig.Memory.Screen);

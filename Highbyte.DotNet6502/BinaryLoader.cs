@@ -18,7 +18,7 @@ namespace Highbyte.DotNet6502
             string binaryFilePath,
             out ushort loadedAtAddress)
         {
-            return Load(binaryFilePath, out loadedAtAddress, out int _);
+            return Load(binaryFilePath, out loadedAtAddress, out ushort _);
         }
 
         /// <summary>
@@ -33,7 +33,7 @@ namespace Highbyte.DotNet6502
         public static Memory Load(
             string binaryFilePath,
             out ushort loadedAtAddress,
-            out int fileLength,
+            out ushort fileLength,
             ushort? forceLoadAddress = null)
         {
             Memory mem = new(mapToDefaultRAM: true);
@@ -54,7 +54,7 @@ namespace Highbyte.DotNet6502
             Memory mem,
             string binaryFilePath,
             out ushort loadedAtAddress,
-            out int fileLength,
+            out ushort fileLength,
             ushort? forceLoadAddress = null)
         {
             byte[] fileData = ReadFile(
@@ -75,7 +75,7 @@ namespace Highbyte.DotNet6502
             string binaryFilePath,
             bool fileHeaderContainsLoadAddress,
             out ushort? fileHeaderLoadAddress,
-            out int codeAndDataFileSize
+            out ushort codeAndDataFileSize
             )
         {
             // Load binary file
@@ -94,7 +94,7 @@ namespace Highbyte.DotNet6502
             {
                 fileHeaderLoadAddress = null;
             }
-            codeAndDataFileSize = fileData.Length;
+            codeAndDataFileSize = (ushort)fileData.Length;
             return fileData;
         }
     }

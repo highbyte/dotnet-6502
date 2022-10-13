@@ -20,12 +20,12 @@ namespace Highbyte.DotNet6502.Monitor
 
         public MonitorBase(SystemRunner systemRunner, MonitorOptions options)
         {
+            _systemRunner = systemRunner;
+            _systemRunner.SetCustomExecEvaluator(new BreakPointExecEvaluator(_breakPoints));
             Options = options;
             _variables = new MonitorVariables();
             _commandLineApp = CommandLineApp.Build(this, _variables);
-            _systemRunner = systemRunner;
 
-            _systemRunner.SetCustomExecEvaluator(new BreakPointExecEvaluator(_breakPoints));
         }
 
         public CommandResult SendCommand(string command)
@@ -68,7 +68,7 @@ namespace Highbyte.DotNet6502.Monitor
                 WriteOutput(line);
         }
 
-        public abstract void LoadBinary(string fileName, out ushort loadedAtAddress, ushort? forceLoadAddress = null);
+        public abstract void LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null);
         public abstract void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress);
         public abstract void WriteOutput(string message);
         public abstract void WriteOutput(string message, MessageSeverity severity);
