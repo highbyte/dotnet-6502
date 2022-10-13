@@ -1,5 +1,4 @@
-using System;
-using System.Collections.Generic;
+using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64
