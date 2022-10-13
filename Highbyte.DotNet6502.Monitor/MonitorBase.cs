@@ -1,4 +1,5 @@
-﻿using Highbyte.DotNet6502.Systems;
+﻿using Highbyte.DotNet6502.Monitor.SystemSpecific;
+using Highbyte.DotNet6502.Systems;
 using McMaster.Extensions.CommandLineUtils;
 
 namespace Highbyte.DotNet6502.Monitor
@@ -52,6 +53,13 @@ namespace Highbyte.DotNet6502.Monitor
         public void Reset()
         {
             _variables = new MonitorVariables();
+
+            // If there are system-specific monitor commands, issue reset there too
+            if (SystemRunner.System is IMonitor systemWithMonitor)
+            {
+                var monitorCommands = systemWithMonitor.GetMonitorCommands();
+                monitorCommands.Reset(this);
+            }
         }
 
         public void ShowDescription()

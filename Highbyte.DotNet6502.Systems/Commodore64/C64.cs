@@ -1,9 +1,10 @@
-using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Monitor.SystemSpecific;
+using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64
 {
-    public class C64 : ISystem, ITextMode, IScreen
+    public class C64 : ISystem, ITextMode, IScreen, IMonitor
     {
         public string Name => "Commodore 64";
         public string SystemInfo => BuildSystemInfo();
@@ -31,6 +32,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
         public int BorderHeight => (VisibleHeight - Height) / 2;
 
         private LegacyExecEvaluator _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = Vic2.NTSC_NEW_CYCLES_PER_FRAME });
+
+        private C64MonitorCommands _c64MonitorCommands = new C64MonitorCommands();
 
         public static ROM[] ROMS = new ROM[]
         {   
@@ -325,6 +328,11 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
         private string BuildSystemInfo()
         {
             return $"CPU bank: {CurrentBank} VIC2 bank: {Vic2.CurrentVIC2Bank} VblankCY: {Vic2.CyclesConsumedCurrentVblank}";
+        }
+
+        public IMonitorCommands GetMonitorCommands()
+        {
+            return _c64MonitorCommands;
         }
     }
 }

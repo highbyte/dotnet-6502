@@ -1,13 +1,15 @@
 using System.ComponentModel.DataAnnotations;
+using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Monitor.Commands;
+using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using McMaster.Extensions.CommandLineUtils;
 
-namespace Highbyte.DotNet6502.Monitor.SystemSpecific.C64.Commands
+namespace Highbyte.DotNet6502.Systems.Commodore64.Monitor
 {
     /// <summary>
     /// C64-specific monitor commands.
     /// </summary>
-    public class BasicFileCommands : IRegisterMonitorCommands
+    public class C64MonitorCommands : IMonitorCommands
     {
         public void Configure(CommandLineApplication app, MonitorBase monitor)
         {
@@ -46,7 +48,6 @@ namespace Highbyte.DotNet6502.Monitor.SystemSpecific.C64.Commands
                 });
             });
 
-
             app.Command("sb", cmd =>
             {
                 cmd.HelpOption(inherited: true);
@@ -71,6 +72,11 @@ namespace Highbyte.DotNet6502.Monitor.SystemSpecific.C64.Commands
                     return (int)CommandResult.Ok;
                 });
             });
+        }
+
+        public void Reset(MonitorBase monitor)
+        {
+            
         }
     }
 }

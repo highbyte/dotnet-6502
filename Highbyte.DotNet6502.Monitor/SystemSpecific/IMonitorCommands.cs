@@ -4,8 +4,9 @@ namespace Highbyte.DotNet6502.Monitor.SystemSpecific
 {
     /// <summary>
     /// </summary>
-    public interface IRegisterMonitorCommands
+    public interface IMonitorCommands
     {
         public void Configure(CommandLineApplication app, MonitorBase monitor);
+        public void Reset(MonitorBase monitor);
     }
 }
