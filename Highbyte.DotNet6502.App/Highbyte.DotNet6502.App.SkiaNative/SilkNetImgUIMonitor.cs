@@ -211,6 +211,19 @@ namespace Highbyte.DotNet6502.App.SkiaNative
                 forceLoadAddress);
         }
 
+        public override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
+        {
+            if (!Path.IsPathFullyQualified(fileName))
+                fileName = $"{_monitorOptions.DefaultDirectory}/{fileName}";
+
+            BinarySaver.Save(
+                Mem,
+                fileName,
+                startAddress,
+                endAddress,
+                addFileHeaderWithLoadAddress: addFileHeaderWithLoadAddress);
+        }
+
         public override void WriteOutput(string message)
         {
             WriteOutput(message, MessageSeverity.Information);
@@ -222,5 +235,6 @@ namespace Highbyte.DotNet6502.App.SkiaNative
             if (_monitorCmdHistory.Count > MONITOR_CMD_HISTORY_VIEW_ROWS)
                 _monitorCmdHistory.RemoveAt(0);
         }
+
     }
 }

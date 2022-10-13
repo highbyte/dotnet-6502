@@ -69,6 +69,7 @@ namespace Highbyte.DotNet6502.Monitor
         }
 
         public abstract void LoadBinary(string fileName, out ushort loadedAtAddress, ushort? forceLoadAddress = null);
+        public abstract void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress);
         public abstract void WriteOutput(string message);
         public abstract void WriteOutput(string message, MessageSeverity severity);
     }
