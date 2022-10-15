@@ -3,9 +3,7 @@ using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using ImGuiNET;
 using Silk.NET.Input;
-using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
-using Silk.NET.Windowing;
 
 namespace Highbyte.DotNet6502.App.SkiaNative
 {
@@ -13,21 +11,17 @@ namespace Highbyte.DotNet6502.App.SkiaNative
     {
         private readonly MonitorOptions _monitorOptions;
 
-        public bool MonitorVisible = false;
+        public bool Visible = false;
         public bool Quit = false;
-
-        private bool _hasBeenInitializedOnce = false;
-
-        private IWindow _window;
-        private GL _gl;
-        private static IInputContext s_inputcontext;
-        private IKeyboard _primaryKeyboard;
-        private static ImGuiController s_ImGuiController;
 
         private string _monitorCmdString = "";
 
-        private const int MONITOR_WIDTH = 620;
-        private const int MONITOR_HEIGHT = 420;
+        private bool _hasBeenInitializedOnce = false;
+
+        private const int POS_X = 10;
+        private const int POS_Y = 10;
+        private const int WIDTH = 620;
+        private const int HEIGHT = 420;
         const int MONITOR_CMD_HISTORY_VIEW_ROWS = 20;
         const int MONITOR_CMD_LINE_LENGTH = 160;
         List<(string Message, MessageSeverity Severity)> _monitorCmdHistory = new();
@@ -53,33 +47,16 @@ namespace Highbyte.DotNet6502.App.SkiaNative
             _monitorOptions = monitorOptions;
         }
 
-        public void Init(IWindow window)
+        public void PostOnRender(ImGuiController imGuiController, double deltaTime)
         {
-            _window = window;
-            _gl = GL.GetApi(window);
-            s_inputcontext = window.CreateInput();
+            // Make sure ImGui is up-to-date
+            imGuiController.Update((float)deltaTime);
 
-            // Listen to key to enable monitor
-            if (s_inputcontext.Keyboards == null || s_inputcontext.Keyboards.Count == 0)
-                throw new Exception("Keyboard not found");
-            _primaryKeyboard = s_inputcontext.Keyboards[0];
-
-            // Listen to special key that will show the monitor
-            _primaryKeyboard.KeyDown += OnMonitorKeyDown;
-        }
-
-        private void CreateImGuiController()
-        {
-            s_ImGuiController = new ImGuiController(
-                _gl,
-                _window, // pass in our window
-                s_inputcontext // input context
-            );
+            ImGui.SetWindowPos(new Vector2(POS_X, POS_Y));
+            ImGui.SetWindowSize(new Vector2(WIDTH, HEIGHT));
 
             if (!_hasBeenInitializedOnce)
             {
-                ImGuiNET.ImGui.SetWindowPos(new Vector2(10, 10));
-
                 // Init monitor list of history commands with blanks
                 for (int i = 0; i < MONITOR_CMD_HISTORY_VIEW_ROWS; i++)
                     WriteOutput("");
@@ -91,28 +68,8 @@ namespace Highbyte.DotNet6502.App.SkiaNative
 
                 _hasBeenInitializedOnce = true;
             }
-        }
-
-        private void DestroyImGuiController()
-        {
-            s_ImGuiController.Dispose();
-        }
-
-        public void PreOnRender(double deltaTime, bool clearOpenGL = true)
-        {
-            if (clearOpenGL)
-                _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
-        }
-
-        public void PostOnRender(double deltaTime)
-        {
-            // Make sure ImGui is up-to-date
-            s_ImGuiController.Update((float)deltaTime);
-
-            ImGui.SetWindowSize(new Vector2(MONITOR_WIDTH, MONITOR_HEIGHT));
 
             ImGui.Begin($"6502 Monitor: {SystemRunner.System.Name}");
-            //ImGuiNET.ImGui.Text("Output");
 
             Vector4 textColor;
             foreach (var cmd in _monitorCmdHistory)
@@ -148,7 +105,7 @@ namespace Highbyte.DotNet6502.App.SkiaNative
             }
 
             // When reaching this line, we may have destroyed the ImGui controller if we did a Quit or Continue as monitor command.
-            if (!MonitorVisible)
+            if (!Visible)
                 return;
 
             // CPU status
@@ -163,40 +120,21 @@ namespace Highbyte.DotNet6502.App.SkiaNative
 
             ImGui.End();
 
-            s_ImGuiController?.Render();
-        }
-
-        public void Cleanup()
-        {
-            s_inputcontext?.Dispose();
-            _gl?.Dispose();
+            imGuiController?.Render();
         }
 
         public void Enable()
         {
             Quit = false;
-            MonitorVisible = true;
-            CreateImGuiController();
+            Visible = true;
             base.Reset();   // Reset monitor working variables (like last disassembly location)
             OnMonitorStateChange(true);
         }
 
         public void Disable()
         {
-            MonitorVisible = false;
-            DestroyImGuiController();
+            Visible = false;
             OnMonitorStateChange(false);
-        }
-
-        private void OnMonitorKeyDown(IKeyboard keyboard, Key key, int x)
-        {
-            if (key == Key.F12)
-            {
-                if (MonitorVisible)
-                    Disable();
-                else
-                    Enable();
-            }
         }
 
         public override void LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
@@ -235,6 +173,5 @@ namespace Highbyte.DotNet6502.App.SkiaNative
             if (_monitorCmdHistory.Count > MONITOR_CMD_HISTORY_VIEW_ROWS)
                 _monitorCmdHistory.RemoveAt(0);
         }
-
     }
 }

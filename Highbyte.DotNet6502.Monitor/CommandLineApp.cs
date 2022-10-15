@@ -36,9 +36,9 @@ namespace Highbyte.DotNet6502.Monitor
             app.ConfigureReset(monitor, monitorVariables);
 
             // Add any system-specific monitor commands if the system implements it.
-            if (monitor.SystemRunner.System is IMonitor systemWithMonitor)
+            if (monitor.SystemRunner.System is ISystemMonitor systemWithMonitor)
             {
-                var monitorCommands = systemWithMonitor.GetMonitorCommands();
+                var monitorCommands = systemWithMonitor.GetSystemMonitorCommands();
                 monitorCommands.Configure(app, monitor);
             }
 

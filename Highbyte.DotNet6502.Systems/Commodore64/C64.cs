@@ -4,7 +4,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64
 {
-    public class C64 : ISystem, ITextMode, IScreen, IMonitor
+    public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     {
         public string Name => "Commodore 64";
         public string SystemInfo => BuildSystemInfo();
@@ -330,7 +330,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
             return $"CPU bank: {CurrentBank} VIC2 bank: {Vic2.CurrentVIC2Bank} VblankCY: {Vic2.CyclesConsumedCurrentVblank}";
         }
 
-        public IMonitorCommands GetMonitorCommands()
+        public ISystemMonitorCommands GetSystemMonitorCommands()
         {
             return _c64MonitorCommands;
         }

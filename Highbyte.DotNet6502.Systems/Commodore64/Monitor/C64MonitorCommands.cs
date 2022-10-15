@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Monitor
     /// <summary>
     /// C64-specific monitor commands.
     /// </summary>
-    public class C64MonitorCommands : IMonitorCommands
+    public class C64MonitorCommands : ISystemMonitorCommands
     {
         public void Configure(CommandLineApplication app, MonitorBase monitor)
         {

@@ -55,9 +55,9 @@ namespace Highbyte.DotNet6502.Monitor
             _variables = new MonitorVariables();
 
             // If there are system-specific monitor commands, issue reset there too
-            if (SystemRunner.System is IMonitor systemWithMonitor)
+            if (SystemRunner.System is ISystemMonitor systemWithMonitor)
             {
-                var monitorCommands = systemWithMonitor.GetMonitorCommands();
+                var monitorCommands = systemWithMonitor.GetSystemMonitorCommands();
                 monitorCommands.Reset(this);
             }
         }
