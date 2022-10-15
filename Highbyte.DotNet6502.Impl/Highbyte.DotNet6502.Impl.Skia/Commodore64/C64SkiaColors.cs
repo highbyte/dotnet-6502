@@ -6,13 +6,17 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 {
     public static class C64SkiaColors
     {
-        public static Dictionary<System.Drawing.Color, SKColor> NativeToSkColorMap = new();
+        /// <summary>
+        /// .NET system Color to SkiaColor map for C64.
+        /// </summary>
+        /// <returns></returns>
+        public static Dictionary<System.Drawing.Color, SKColor> SystemToSkColorMap = new();
 
         static C64SkiaColors()
         {
-            foreach (var nativeColor in ColorMaps.C64ColorMap.Values)
+            foreach (var systemColor in ColorMaps.C64ColorMap.Values)
             {
-                NativeToSkColorMap.Add(nativeColor, nativeColor.ToSkColor());
+                SystemToSkColorMap.Add(systemColor, systemColor.ToSkColor());
             }
         }
 

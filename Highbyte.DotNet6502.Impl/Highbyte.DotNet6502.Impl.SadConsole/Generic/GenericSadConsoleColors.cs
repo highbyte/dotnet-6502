@@ -7,13 +7,13 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Generic
     public static class GenericSadConsoleColors
     {
         // Reuse 
-        public static Dictionary<System.Drawing.Color, SadRogue.Primitives.Color> NativeToSadConsoleColorMap = new();
+        public static Dictionary<System.Drawing.Color, SadRogue.Primitives.Color> SystemToSadConsoleColorMap = new();
 
         static GenericSadConsoleColors()
         {
-            foreach (var nativeColor in ColorMaps.GenericColorMap.Values)
+            foreach (var systemColor in ColorMaps.GenericColorMap.Values)
             {
-                NativeToSadConsoleColorMap.Add(nativeColor, nativeColor.ToSadConsoleColor());
+                SystemToSadConsoleColorMap.Add(systemColor, systemColor.ToSadConsoleColor());
             }
         }
 

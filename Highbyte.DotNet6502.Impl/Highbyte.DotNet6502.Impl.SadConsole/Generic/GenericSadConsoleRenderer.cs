@@ -160,8 +160,8 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Generic
                 x,
                 y,
                 sadConsoleCharacter,
-                GenericSadConsoleColors.NativeToSadConsoleColorMap[_emulatorScreenConfig.ColorMap[emulatorFgColor]],
-                GenericSadConsoleColors.NativeToSadConsoleColorMap[_emulatorScreenConfig.ColorMap[emulatorBgColor]]
+                GenericSadConsoleColors.SystemToSadConsoleColorMap[_emulatorScreenConfig.ColorMap[emulatorFgColor]],
+                GenericSadConsoleColors.SystemToSadConsoleColorMap[_emulatorScreenConfig.ColorMap[emulatorBgColor]]
                 );
         }
     }

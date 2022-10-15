@@ -62,14 +62,21 @@ namespace Highbyte.DotNet6502.Systems.Generic
             // If we already executed cycles in current frame, reduce it from total.
             _oneFrameExecEvaluator.ExecOptions.CyclesRequested = CYCLES_PER_FRAME - CyclesConsumedCurrentVblank;
 
-            // TODO: Create a pre-initialized array/list of two or one ExecEvaluator objects and reuse them to increase perf.
-            List<IExecEvaluator> execEvaluators = new() { _oneFrameExecEvaluator };
-            if (execEvaluator != null)
-                execEvaluators.Add(execEvaluator);
-
-            var execState = CPU.Execute(
-                Mem,
-                execEvaluators.ToArray());
+            ExecState execState;
+            if (execEvaluator == null)
+            {
+                execState = CPU.Execute(
+                    Mem,
+                    _oneFrameExecEvaluator);
+            }
+            else
+            {
+                execState = CPU.Execute(
+                    Mem,
+                    _oneFrameExecEvaluator,
+                    execEvaluator
+                    );
+            }
 
             // If an unhandled instruction, return false
             if (!execState.LastOpCodeWasHandled)

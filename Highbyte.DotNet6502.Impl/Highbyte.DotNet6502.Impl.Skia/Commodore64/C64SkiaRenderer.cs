@@ -126,28 +126,43 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 
         private void RenderBackgroundAndBorder(C64 c64)
         {
+            // var emulatorMem = c64.Mem;
+
+            // byte backgroundColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR];
+            // byte borderColor = emulatorMem[Vic2Addr.BORDER_COLOR];
+
+            // // TODO: Create pre-initialized SKPaint instances for each C64 color.
+            // SKColor backgroundSkColor = C64SkiaColors.NativeToSkColorMap[ColorMaps.C64ColorMap[backgroundColor]];
+            // SKColor borderSkColor = C64SkiaColors.NativeToSkColorMap[ColorMaps.C64ColorMap[borderColor]];
+
+            // // Draw 4 rectangles for border
+            // using (var paint = new SKPaint { Style = SKPaintStyle.Fill, Color = borderSkColor })
+            // {
+            //     _skCanvas.DrawRect(0, 0, c64.VisibleWidth, c64.BorderHeight, paint);
+            //     _skCanvas.DrawRect(0, (c64.BorderHeight + c64.Height), c64.VisibleWidth, c64.BorderHeight, paint);
+            //     _skCanvas.DrawRect(0, c64.BorderHeight, c64.BorderWidth, c64.Height, paint);
+            //     _skCanvas.DrawRect(c64.BorderWidth + c64.Width, c64.BorderHeight, c64.BorderWidth, c64.Height, paint);
+            // }
+            // // Draw 1 rectangles for background
+            // using (var paint = new SKPaint { Style = SKPaintStyle.Fill, Color = backgroundSkColor })
+            // {
+            //     _skCanvas.DrawRect(c64.BorderWidth, c64.BorderHeight, c64.Width, c64.Height, paint);
+            // }
+
             var emulatorMem = c64.Mem;
 
-            byte backgroundColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR];
-            byte borderColor = emulatorMem[Vic2Addr.BORDER_COLOR];
-
-            // TODO: Create pre-initialized SKPaint instances for each C64 color.
-            SKColor backgroundSkColor = C64SkiaColors.NativeToSkColorMap[ColorMaps.C64ColorMap[backgroundColor]];
-            SKColor borderSkColor = C64SkiaColors.NativeToSkColorMap[ColorMaps.C64ColorMap[borderColor]];
-
             // Draw 4 rectangles for border
-            using (var paint = new SKPaint { Style = SKPaintStyle.Fill, Color = borderSkColor })
-            {
-                _skCanvas.DrawRect(0, 0, c64.VisibleWidth, c64.BorderHeight, paint);
-                _skCanvas.DrawRect(0, (c64.BorderHeight + c64.Height), c64.VisibleWidth, c64.BorderHeight, paint);
-                _skCanvas.DrawRect(0, c64.BorderHeight, c64.BorderWidth, c64.Height, paint);
-                _skCanvas.DrawRect(c64.BorderWidth + c64.Width, c64.BorderHeight, c64.BorderWidth, c64.Height, paint);
-            }
+            byte borderColor = emulatorMem[Vic2Addr.BORDER_COLOR];
+            var borderPaint = C64SkiaPaint.C64ToFillPaintMap[borderColor];
+            _skCanvas.DrawRect(0, 0, c64.VisibleWidth, c64.BorderHeight, borderPaint);
+            _skCanvas.DrawRect(0, (c64.BorderHeight + c64.Height), c64.VisibleWidth, c64.BorderHeight, borderPaint);
+            _skCanvas.DrawRect(0, c64.BorderHeight, c64.BorderWidth, c64.Height, borderPaint);
+            _skCanvas.DrawRect(c64.BorderWidth + c64.Width, c64.BorderHeight, c64.BorderWidth, c64.Height, borderPaint);
+
             // Draw 1 rectangles for background
-            using (var paint = new SKPaint { Style = SKPaintStyle.Fill, Color = backgroundSkColor })
-            {
-                _skCanvas.DrawRect(c64.BorderWidth, c64.BorderHeight, c64.Width, c64.Height, paint);
-            }
+            byte backgroundColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR];
+            var bgPaint = C64SkiaPaint.C64ToFillPaintMap[backgroundColor];
+            _skCanvas.DrawRect(c64.BorderWidth, c64.BorderHeight, c64.Width, c64.Height, bgPaint);
         }
 
         /// <summary>
@@ -172,12 +187,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
             int romImageX = (character % CHARGEN_IMAGE_CHARACTERS_PER_ROW) * 8;
             int romImageY = (character / CHARGEN_IMAGE_CHARACTERS_PER_ROW) * 8;
 
-            // TODO: Create pre-initialized SKPaint instances for each C64 color.
-            SKColor foregroundColorForCharacter = C64SkiaColors.NativeToSkColorMap[ColorMaps.C64ColorMap[characterColor]];
-
-            // TODO: Create pre-initialized ColorFilter to change the (white) color the character images was drawn in, to the color defined for the VIC2 memory position (color ram)
-            using (var paint = new SKPaint { Style = SKPaintStyle.StrokeAndFill, ColorFilter = CreateForceSingleColorFilter(foregroundColorForCharacter, Chargen.CharacterImageDrawColor) })
-            //using (var paint = new SKPaint { Style = SKPaintStyle.Stroke })
+            var paint = C64SkiaPaint.C64ToDrawChargenCharecterMap[characterColor];
             {
                 _skCanvas.DrawImage(_characterSetCurrent,
                     source: new SKRect(romImageX, romImageY, romImageX + 8, romImageY + 8),
@@ -185,28 +195,6 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
                     paint
                     );
             }
-        }
-
-        /// <summary>
-        /// Color filter change the color the original character image was drawn in to a specified color.
-        /// </summary>
-        /// <param name="forceSingleColor"></param>
-        /// <param name="originalImageSingleColor"></param>
-        /// <returns></returns>
-        private SKColorFilter CreateForceSingleColorFilter(SKColor forceSingleColor, SKColor originalImageSingleColor)
-        {
-            byte[] R = new byte[256];
-            byte[] G = new byte[256];
-            byte[] B = new byte[256];
-            byte[] A = new byte[256];
-
-            R[originalImageSingleColor.Red] = forceSingleColor.Red;
-            G[originalImageSingleColor.Green] = forceSingleColor.Green;
-            B[originalImageSingleColor.Blue] = forceSingleColor.Blue;
-            A[originalImageSingleColor.Alpha] = originalImageSingleColor.Alpha;
-
-            var colorFilter = SKColorFilter.CreateTable(A, R, G, B);
-            return colorFilter;
         }
     }
 }

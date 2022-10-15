@@ -49,14 +49,21 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
             // If we already executed cycles in current frame, reduce it from total.
             _oneFrameExecEvaluator.ExecOptions.CyclesRequested = Vic2.NTSC_NEW_CYCLES_PER_FRAME - Vic2.CyclesConsumedCurrentVblank;
 
-            // TODO: Create a pre-initialized array/list of two or one ExecEvaluator objects and reuse them to increase perf.
-            List<IExecEvaluator> execEvaluators = new() { _oneFrameExecEvaluator };
-            if (execEvaluator != null)
-                execEvaluators.Add(execEvaluator);
-
-            var execState = CPU.Execute(
-                Mem,
-                execEvaluators.ToArray());
+            ExecState execState;
+            if (execEvaluator == null)
+            {
+                execState = CPU.Execute(
+                    Mem,
+                    _oneFrameExecEvaluator);
+            }
+            else
+            {
+                execState = CPU.Execute(
+                    Mem,
+                    _oneFrameExecEvaluator,
+                    execEvaluator
+                    );
+            }
 
             if (!execState.LastOpCodeWasHandled)
                 return false;
