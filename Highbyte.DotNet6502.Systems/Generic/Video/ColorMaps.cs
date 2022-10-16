@@ -1,7 +1,6 @@
-using System.Collections.Generic;
 using System.Drawing;
 
-namespace Highbyte.DotNet6502.Systems.Generic.Config
+namespace Highbyte.DotNet6502.Systems.Generic.Video
 {
     public static class ColorMaps
     {

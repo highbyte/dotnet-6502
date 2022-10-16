@@ -35,8 +35,8 @@ namespace SadConsoleTest
             var genericComputerConfig = new GenericComputerConfig();
             Configuration.GetSection(GenericComputerConfig.ConfigSectionName).Bind(genericComputerConfig);
 
-            // var c64Config = new C64Config();
-            // Configuration.GetSection(C64Config.ConfigSectionName).Bind(c64Config);
+            var c64Config = new C64Config();
+            Configuration.GetSection(C64Config.ConfigSectionName).Bind(c64Config);
 
             // Alternative way, build config via code instead of reading from appsettings.json
             //var sadConsoleConfig = ConfigViaCode();
@@ -44,7 +44,8 @@ namespace SadConsoleTest
             // Init EmulatorHost and run!
             var emulatorHost = new EmulatorHost(
                 sadConsoleConfig,
-                genericComputerConfig
+                genericComputerConfig,
+                c64Config
                 );
             emulatorHost.Start();
         }

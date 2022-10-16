@@ -1,19 +1,19 @@
-using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Systems.Generic
 {
     public class  GenericComputer : ISystem, ITextMode, IScreen
     {
+        public const string SystemName = "Generic";
+        public string Name => SystemName;
+        public string SystemInfo => "";
+
         // How many 6502 CPU cycles this generic (fictional) computer should be able to execute per frame.
         // This should be adjusted to the performance of the machine the emulator is running on.
         // For comparison, a C64 runs about 16700 cycles per frame (1/60 sec).
         // TODO: Should probably move to config instead of hardcoded constant.
         public const int CYCLES_PER_FRAME = 40000;
         public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
-
-        public string Name => "Generic";
-        public string SystemInfo => "";
 
         public Memory Mem { get; set; }
         public CPU CPU { get; set; }

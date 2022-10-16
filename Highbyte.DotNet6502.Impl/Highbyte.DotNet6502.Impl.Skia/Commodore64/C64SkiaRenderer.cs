@@ -1,6 +1,5 @@
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using SkiaSharp;
 
@@ -16,14 +15,6 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 
         private SKImage _characterSetROMShiftedImage;
         private SKImage _characterSetROMUnshiftedImage;
-
-        public int MaxWidth => Vic2.PAL_PIXELS_PER_LINE_VISIBLE;
-        public int MaxHeight => Vic2.PAL_LINES_VISIBLE;
-
-        // public C64SkiaRenderer(SKCanvas skCanvas)
-        // {
-        //     _skCanvas = skCanvas;
-        // }
 
         public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
         {

@@ -1,10 +1,9 @@
 using System.Diagnostics;
 using System.Linq;
 using Highbyte.DotNet6502.Impl.SilkNet;
-using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Config;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Silk.NET.Input;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64

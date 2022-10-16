@@ -1,8 +1,7 @@
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Silk.NET.Input;
-using System.Collections.Generic;
 
-namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Config
+namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
 {
     public static class C64SilkNetKeyboard
     {

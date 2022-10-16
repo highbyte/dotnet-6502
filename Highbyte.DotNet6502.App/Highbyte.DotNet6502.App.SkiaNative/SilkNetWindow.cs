@@ -11,12 +11,12 @@ using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
-public class SilkNetWindow<TSystem>
-    where TSystem : ISystem
+public class SilkNetWindow
 {
-    private readonly MonitorOptions _monitorOptions;
+    private readonly MonitorConfig _monitorConfig;
     private static IWindow s_window;
-    private readonly Func<SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> _getSystemRunner;
+    private readonly ISystem _system;
+    private readonly Func<ISystem, SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> _getSystemRunner;
     private readonly float _canvasScale;
 
     private readonly ElapsedMillisecondsTimedStat _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("SilkNet-InputTime");
@@ -46,13 +46,15 @@ public class SilkNetWindow<TSystem>
 
 
     public SilkNetWindow(
-        MonitorOptions monitorOptions,
+        MonitorConfig monitorConfig,
         IWindow window,
-        Func<SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> getSystemRunner,
+        ISystem system,
+        Func<ISystem, SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> getSystemRunner,
         float scale = 1.0f)
     {
-        _monitorOptions = monitorOptions;
+        _monitorConfig = monitorConfig;
         s_window = window;
+        _system = system;
         _getSystemRunner = getSystemRunner;
         _canvasScale = scale;
     }
@@ -73,7 +75,7 @@ public class SilkNetWindow<TSystem>
         // Init SkipSharp resources (must be done in OnLoad, otherwise no OpenGL context will exist create by SilkNet.)
         _skiaRenderContext = new SkiaRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
         _silkNetInputHandlerContext = new SilkNetInputHandlerContext(s_window);
-        _systemRunner = _getSystemRunner(_skiaRenderContext, _silkNetInputHandlerContext);
+        _systemRunner = _getSystemRunner(_system, _skiaRenderContext, _silkNetInputHandlerContext);
 
         InitImGui();
     }
@@ -201,7 +203,7 @@ public class SilkNetWindow<TSystem>
         primaryKeyboard.KeyDown += OnKeyDown;
 
         // Init Monitor ImGui resources 
-        _monitor = new SilkNetImgUIMonitor(_systemRunner, _monitorOptions);
+        _monitor = new SilkNetImgUIMonitor(_systemRunner, _monitorConfig);
         _monitor.MonitorStateChange += (s, monitorEnabled) => _silkNetInputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
         _monitor.MonitorStateChange += (s, monitorEnabled) =>
         {

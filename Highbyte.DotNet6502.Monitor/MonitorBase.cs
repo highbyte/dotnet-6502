@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Monitor
 {
     public abstract class MonitorBase
     {
-        public MonitorOptions Options { get; private set; }
+        public MonitorConfig Options { get; private set; }
         private MonitorVariables _variables;
 
         private readonly SystemRunner _systemRunner;
@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.Monitor
 
         private CommandLineApplication _commandLineApp;
 
-        public MonitorBase(SystemRunner systemRunner, MonitorOptions options)
+        public MonitorBase(SystemRunner systemRunner, MonitorConfig options)
         {
             _systemRunner = systemRunner;
             _systemRunner.SetCustomExecEvaluator(new BreakPointExecEvaluator(_breakPoints));

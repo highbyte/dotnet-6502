@@ -1,6 +1,6 @@
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using SkiaSharp;
-using static Highbyte.DotNet6502.Systems.Commodore64.Config.ColorMaps;
+using static Highbyte.DotNet6502.Systems.Commodore64.Video.ColorMaps;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 {

@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.App.SkiaNative
 {
     public class SilkNetImgUIMonitor : MonitorBase
     {
-        private readonly MonitorOptions _monitorOptions;
+        private readonly MonitorConfig _monitorConfig;
 
         public bool Visible = false;
         public bool Quit = false;
@@ -41,10 +41,10 @@ namespace Highbyte.DotNet6502.App.SkiaNative
 
         public SilkNetImgUIMonitor(
             SystemRunner systemRunner,
-            MonitorOptions monitorOptions
-            ) : base(systemRunner, monitorOptions)
+            MonitorConfig monitorConfig
+            ) : base(systemRunner, monitorConfig)
         {
-            _monitorOptions = monitorOptions;
+            _monitorConfig = monitorConfig;
         }
 
         public void PostOnRender(ImGuiController imGuiController, double deltaTime)
@@ -140,7 +140,7 @@ namespace Highbyte.DotNet6502.App.SkiaNative
         public override void LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
         {
             if (!Path.IsPathFullyQualified(fileName))
-                fileName = $"{_monitorOptions.DefaultDirectory}/{fileName}";
+                fileName = $"{_monitorConfig.DefaultDirectory}/{fileName}";
             BinaryLoader.Load(
                 Mem,
                 fileName,
@@ -152,7 +152,7 @@ namespace Highbyte.DotNet6502.App.SkiaNative
         public override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
         {
             if (!Path.IsPathFullyQualified(fileName))
-                fileName = $"{_monitorOptions.DefaultDirectory}/{fileName}";
+                fileName = $"{_monitorConfig.DefaultDirectory}/{fileName}";
 
             BinarySaver.Save(
                 Mem,

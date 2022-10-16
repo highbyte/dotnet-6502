@@ -8,8 +8,8 @@ namespace Highbyte.DotNet6502.App.Monitor
     {
         public ConsoleMonitor(
             SystemRunner systemRunner,
-            MonitorOptions monitorOptions
-            ) : base(systemRunner, monitorOptions)
+            MonitorConfig monitorConfig
+            ) : base(systemRunner, monitorConfig)
         {
         }
 

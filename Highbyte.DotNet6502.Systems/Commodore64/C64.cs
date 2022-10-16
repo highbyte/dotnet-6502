@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
@@ -6,8 +7,10 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 {
     public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     {
-        public string Name => "Commodore 64";
+        public const string SystemName = "C64";
+        public string Name => SystemName;
         public string SystemInfo => BuildSystemInfo();
+        
         public CPU CPU { get; set; }
         public Memory Mem { get; set; }
         public byte[] RAM { get; set; }
@@ -25,13 +28,13 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
         public int Width => Vic2.WIDTH;
         public int Height => Vic2.HEIGHT;
-        public int VisibleWidth => Vic2.PAL_PIXELS_PER_LINE;
-        public int VisibleHeight => Vic2.PAL_LINES_VISIBLE;
+        public int VisibleWidth => Vic2.VariantSetting.PixelsPerLineVisible;
+        public int VisibleHeight => Vic2.VariantSetting.LinesVisible;
         public bool HasBorder => true;
         public int BorderWidth => (VisibleWidth - Width) / 2;
         public int BorderHeight => (VisibleHeight - Height) / 2;
 
-        private LegacyExecEvaluator _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = Vic2.NTSC_NEW_CYCLES_PER_FRAME });
+        private LegacyExecEvaluator _oneFrameExecEvaluator;
 
         private C64MonitorCommands _c64MonitorCommands = new C64MonitorCommands();
 
@@ -45,9 +48,12 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
         public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
         {
+            if (_oneFrameExecEvaluator == null)
+                _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = (ulong)Vic2.VariantSetting.CyclesPerFrame });
+
             // TODO: The number of cycles per vblank should be configurable
             // If we already executed cycles in current frame, reduce it from total.
-            _oneFrameExecEvaluator.ExecOptions.CyclesRequested = Vic2.NTSC_NEW_CYCLES_PER_FRAME - Vic2.CyclesConsumedCurrentVblank;
+            _oneFrameExecEvaluator.ExecOptions.CyclesRequested = (ulong)Vic2.VariantSetting.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
 
             ExecState execState;
             if (execEvaluator == null)
@@ -88,17 +94,17 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
         private C64() { }
 
-        public static C64 BuildC64()
+        public static C64 BuildC64(C64Config c64Config)
         {
             var ram = new byte[64 * 1024];  // C64 has 64KB of RAM
             var romData = ROM.LoadROMS(
-                Environment.ExpandEnvironmentVariables("%USERPROFILE%/Documents/C64/VICE/C64"), // TODO: ROM directory from config file
+                Environment.ExpandEnvironmentVariables(c64Config.ROMDirectory), // TODO: ROM directory from config file
                  ROMS);
             var io = new byte[1 * 1024];  // 1KB of C64 IO addresses that is mapped to memory address range 0xd000 - 0xdfff in certain memory configuration.
 
             var mem = CreateC64Memory(ram, io, romData);
 
-            var vic2 = Vic2.BuildVic2(ram, romData);
+            var vic2 = Vic2.BuildVic2(ram, romData, C64Variants.Vic2Variants[c64Config.Vic2Variant]);
             var kb = new Keyboard();
 
             var cpu = CreateC64CPU(vic2, mem);

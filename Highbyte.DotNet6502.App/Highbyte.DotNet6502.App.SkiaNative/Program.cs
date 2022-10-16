@@ -5,41 +5,48 @@ using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64;
+using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Monitor;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
 // Fix for starting in debug mode from VS Code. By default the OS current directory is set to the project folder, not the folder containing the built .exe file...
 var currentAppDir = AppDomain.CurrentDomain.BaseDirectory;
 Environment.CurrentDirectory = currentAppDir;
 
+// TODO: Read options from appsettings.json
+var emulatorConfig = new EmulatorConfig
+{
+    Emulator = "C64",
+    Monitor = new MonitorConfig
+    {
+        //DefaultDirectory = "../../../../../.cache/Examples/SadConsoleTest/AssemblerSource"
+        DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/.cache/Examples/SadConsoleTest/AssemblerSource"
+    }
+};
+emulatorConfig.Validate();
+
+var c64Config = new C64Config
+{
+    ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64",
+    Vic2Variant = "NTSC"     // NTSC, NTSC_old, PAL
+};
+c64Config.Validate();
+
 // ----------
 // Systems
 // ----------
-Dictionary<string, (ISystem System, Func<SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> SystemRunnerBuilder)> SystemsList = new()
-{
-    {"Commodore 64", (C64.BuildC64(), GetC64SystemRunner)}
-};
+var systemList = new SystemList();
+systemList.BuildSystemLookups(c64Config); //, genericComputerConfig);
 
-// TODO: Read options from appsettings.json
-var options = new EmulatorOptions
-{
-    SystemName = "Commodore 64",
-    Monitor = new MonitorOptions
-    {
-        //DefaultDirectory = "../../../../../.cache/Examples/SadConsoleTest/AssemblerSource"
-        DefaultDirectory = @"C:\Users\highb\source\repos\dotnet-6502\.cache\Examples\SadConsoleTest\AssemblerSource"
-    }
-};
-
-float scale = 3.0f;
-
-var system = SystemsList[options.SystemName].System;
-var screen = (IScreen)system;
+var system = systemList.Systems[emulatorConfig.Emulator];
 
 // ----------
 // Silk.NET Window
 // ----------
+var screen = (IScreen)system;
+float scale = 3.0f;
+
 int windowWidth = (int)(screen.VisibleWidth * scale);
 int windowHeight = (int)(screen.VisibleHeight * scale);
 
@@ -48,6 +55,7 @@ var windowOptions = WindowOptions.Default;
 windowOptions.UpdatesPerSecond = 60.0f;
 // Render frequency, in hertz.
 windowOptions.FramesPerSecond = 60.0f;
+
 //windowOptions.VSync = true;
 windowOptions.WindowState = WindowState.Normal;
 windowOptions.Title = "DotNet 6502 emulator hosted in native app using SkiaSharp drawing, with OpenGL context provided by Silk.NET.";
@@ -59,29 +67,28 @@ windowOptions.ShouldSwapAutomatically = true;
 
 IWindow window = Window.Create(windowOptions);
 
-
-//SilkNetInput<C64> silkNetInput = null;
-//var silkNetInput = new SilkNetInput<C64, SkiaRenderContext>();
-
-var silkNetWindow = new SilkNetWindow<C64>(options.Monitor, window, GetC64SystemRunner, scale);
+var silkNetWindow = new SilkNetWindow(emulatorConfig.Monitor, window, system, GetSystemRunner, scale);
 silkNetWindow.Run();
 
 // Functions for building SystemRunner based on Skia rendering.
 // Will be used as from SilkNetWindow in OnLoad (when OpenGL context has been created.)
-SystemRunner GetC64SystemRunner(SkiaRenderContext skiaRenderContext, SilkNetInputHandlerContext silkNetInputHandlerContext)
+SystemRunner GetSystemRunner(ISystem system, SkiaRenderContext skiaRenderContext, SilkNetInputHandlerContext silkNetInputHandlerContext)
 {
-    var c64 = C64.BuildC64();
+    if (system is C64 c64)
+    {
+        var renderer = new C64SkiaRenderer();
+        renderer.Init(system, skiaRenderContext);
 
-    var renderer = new C64SkiaRenderer();
-    renderer.Init(c64, skiaRenderContext);
+        var inputHandler = new C64SilkNetInputHandler();
+        inputHandler.Init(system, silkNetInputHandlerContext);
 
-    var inputHandler = new C64SilkNetInputHandler();
-    inputHandler.Init(c64, silkNetInputHandlerContext);
+        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, SilkNetInputHandlerContext>(c64);
+        var systemRunner = systemRunnerBuilder
+            .WithRenderer(renderer)
+            .WithInputHandler(inputHandler)
+            .Build();
+        return systemRunner;
+    }
 
-    var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, SilkNetInputHandlerContext>(c64);
-    var systemRunner = systemRunnerBuilder
-        .WithRenderer(renderer)
-        .WithInputHandler(inputHandler)
-        .Build();
-    return systemRunner;
+    throw new NotImplementedException($"System not handled: {system.Name}");
 }
