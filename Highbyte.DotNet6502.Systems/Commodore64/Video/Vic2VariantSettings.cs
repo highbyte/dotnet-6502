@@ -9,8 +9,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
         public override int CyclesPerLine => 64;
         public override int CyclesPerFrame => CyclesPerLine * Lines;
 
-        // TODO: Are the lines visible same as PAL (border stays same)?  Below assumes the border stays same, and VBlank is increased.
-        public override int LinesVisible => 284;
+        // TODO: Are the lines visible same ratio as PAL?  Below assumes the border stays same ratio, and VBlank is changed
+        public override int LinesVisible => (int)((float)Lines * ((float)284 / 312));
         // TODO: Is the extra cycle per line compared to PAL spent in the border or in the HBlank area. Below assumes the border stays same, and HBlank is increased.
         public override int PixelsPerLineVisible => 403;
 
@@ -30,8 +30,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
         public override int CyclesPerLine => 65;
         public override int CyclesPerFrame => CyclesPerLine * Lines;
 
-        // TODO: Are the lines visible same as PAL (border stays same)?  Below assumes the border stays same, and VBlank is increased.
-        public override int LinesVisible => 284;
+        // TODO: Are the lines visible same ratio as PAL?  Below assumes the border stays same ratio, and VBlank is changed
+        public override int LinesVisible => (int)((float)Lines * ((float)284 / 312));
         // TODO: Is the extra cycle per line compared to PAL spent in the border or in the HBlank area. Below assumes the border stays same, and HBlank is increased.
         public override int PixelsPerLineVisible => 403;
 
