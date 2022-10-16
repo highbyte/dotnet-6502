@@ -206,7 +206,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
         public void CPUCyclesConsumed(CPU cpu, Memory mem, ulong cyclesConsumed)
         {
             CyclesConsumedCurrentVblank += cyclesConsumed;
-            var cyclesUntilVBlank = VariantSetting.CyclesPerLine * (VariantSetting.Lines - (VariantSetting.VBlankLines / 2));
+            //var cyclesUntilVBlank = VariantSetting.CyclesPerLine * (VariantSetting.Lines - (VariantSetting.VBlankLines / 2));
+            var cyclesUntilVBlank = VariantSetting.CyclesPerFrame;
             if (CyclesConsumedCurrentVblank >= (ulong)cyclesUntilVBlank)
             {
                 CyclesConsumedCurrentVblank = 0;
