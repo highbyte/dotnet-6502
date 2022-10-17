@@ -28,8 +28,11 @@ emulatorConfig.Validate();
 
 var c64Config = new C64Config
 {
-    ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64",
-    Vic2Variant = "NTSC"     // NTSC, NTSC_old, PAL
+    C64Model = "C64NTSC",   // C64NTSC, C64PAL
+    Vic2Model = "NTSC",     // NTSC, NTSC_old, PAL
+    // C64Model = "C64PAL",   // C64NTSC, C64PAL
+    // Vic2Model = "PAL",     // NTSC, NTSC_old, PAL
+    ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64"
 };
 c64Config.Validate();
 
@@ -52,11 +55,11 @@ int windowHeight = (int)(screen.VisibleHeight * scale);
 
 var windowOptions = WindowOptions.Default;
 // Update frequency, in hertz. 
-windowOptions.UpdatesPerSecond = 60.0f;
+windowOptions.UpdatesPerSecond = screen.RefreshFrequencyHz;
 // Render frequency, in hertz.
-windowOptions.FramesPerSecond = 60.0f;
+windowOptions.FramesPerSecond = 60.0f;  // TODO: With Vsync=false the FramesPerSecond settings does not seem to matter. Measured in OnRender method it'll be same as UpdatesPerSecond setting.
 
-//windowOptions.VSync = true;
+windowOptions.VSync = false;  // TODO: With Vsync=true Silk.NET seem to use incorrect UpdatePerSecond. The actual FPS its called is 10 lower than it should be (measured in the OnUpdate method)
 windowOptions.WindowState = WindowState.Normal;
 windowOptions.Title = "DotNet 6502 emulator hosted in native app using SkiaSharp drawing, with OpenGL context provided by Silk.NET.";
 windowOptions.Size = new Vector2D<int>(windowWidth, windowHeight);

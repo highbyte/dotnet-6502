@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
@@ -10,7 +11,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
         public const string SystemName = "C64";
         public string Name => SystemName;
         public string SystemInfo => BuildSystemInfo();
-        
+        public C64ModelBase Model { get; private set; }
+
+        public float CpuFrequencyHz => Model.CPUFrequencyHz;
         public CPU CPU { get; set; }
         public Memory Mem { get; set; }
         public byte[] RAM { get; set; }
@@ -28,11 +31,13 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
         public int Width => Vic2.WIDTH;
         public int Height => Vic2.HEIGHT;
-        public int VisibleWidth => Vic2.VariantSetting.PixelsPerLineVisible;
-        public int VisibleHeight => Vic2.VariantSetting.LinesVisible;
+        public int VisibleWidth => Vic2.Vic2Model.PixelsPerLineVisible;
+        public int VisibleHeight => Vic2.Vic2Model.LinesVisible;
         public bool HasBorder => true;
         public int BorderWidth => (VisibleWidth - Width) / 2;
         public int BorderHeight => (VisibleHeight - Height) / 2;
+        public float RefreshFrequencyHz => (float)CpuFrequencyHz / Vic2.Vic2Model.CyclesPerFrame;
+
 
         private LegacyExecEvaluator _oneFrameExecEvaluator;
 
@@ -49,11 +54,11 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
         public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
         {
             if (_oneFrameExecEvaluator == null)
-                _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = (ulong)Vic2.VariantSetting.CyclesPerFrame });
+                _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = (ulong)Vic2.Vic2Model.CyclesPerFrame });
 
             // TODO: The number of cycles per vblank should be configurable
             // If we already executed cycles in current frame, reduce it from total.
-            _oneFrameExecEvaluator.ExecOptions.CyclesRequested = (ulong)Vic2.VariantSetting.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
+            _oneFrameExecEvaluator.ExecOptions.CyclesRequested = (ulong)Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
 
             ExecState execState;
             if (execEvaluator == null)
@@ -96,6 +101,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
         public static C64 BuildC64(C64Config c64Config)
         {
+            var c64Model = C64ModelInventory.C64Models[c64Config.C64Model];
+
             var ram = new byte[64 * 1024];  // C64 has 64KB of RAM
             var romData = ROM.LoadROMS(
                 Environment.ExpandEnvironmentVariables(c64Config.ROMDirectory), // TODO: ROM directory from config file
@@ -104,19 +111,21 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
             var mem = CreateC64Memory(ram, io, romData);
 
-            var vic2 = Vic2.BuildVic2(ram, romData, C64Variants.Vic2Variants[c64Config.Vic2Variant]);
+            var vic2Model = c64Model.Vic2Models.Single(x => x.Name == c64Config.Vic2Model);
+            var vic2 = Vic2.BuildVic2(ram, romData, vic2Model);
             var kb = new Keyboard();
 
             var cpu = CreateC64CPU(vic2, mem);
             var c64 = new C64
             {
+                Model = c64Model,
                 Mem = mem,
                 CPU = cpu,
                 RAM = ram,
                 IO = io,
                 Vic2 = vic2,
                 Keyboard = kb,
-                ROMData = romData
+                ROMData = romData,
             };
 
             // Map specific memory addresses to different emulator actions            
@@ -340,7 +349,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
         private string BuildSystemInfo()
         {
-            return $"CPU bank: {CurrentBank} VIC2 bank: {Vic2.CurrentVIC2Bank} VblankCY: {Vic2.CyclesConsumedCurrentVblank}";
+            return $"Model: {Model.Name} Freq: {Model.CPUFrequencyHz} CPU bank: {CurrentBank} VIC2 Model: {Vic2.Vic2Model.Name} VIC2 bank: {Vic2.CurrentVIC2Bank} VblankCY: {Vic2.CyclesConsumedCurrentVblank}";
         }
 
         public ISystemMonitorCommands GetSystemMonitorCommands()

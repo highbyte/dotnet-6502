@@ -1,6 +1,6 @@
-namespace Highbyte.DotNet6502.Systems.Commodore64.Video
+namespace Highbyte.DotNet6502.Systems.Commodore64.Models
 {
-    public class Vic2VariantSettingsNTSC : Vic2VariantSettingsBase
+    public class Vic2ModelNTSC : Vic2ModelBase
     {
         public override string Name => "NTSC";
         public override int Lines => 262;               // Total lines, incl. normal draw area (200 lines), border, and VBlank.
@@ -18,9 +18,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
         public override int HBlankPixels => PixelsPerLine - PixelsPerLineVisible;
         // Should be?
         public override int VBlankLines => Lines - LinesVisible;
-     }
+    }
 
-    public class Vic2VariantSettingsNTSC_old : Vic2VariantSettingsBase
+    public class Vic2ModelNTSC_old : Vic2ModelBase
     {
 
         public override string Name => "NTSC_old";
@@ -44,9 +44,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
     /// <summary>
     /// VIC2 PAL screen ref: https://dustlayer.com/vic-ii/2013/4/25/vic-ii-for-beginners-beyond-the-screen-rasters-cycle
     /// </summary>
-    public class Vic2VariantSettingsPAL : Vic2VariantSettingsBase
+    public class Vic2ModelPAL : Vic2ModelBase
     {
-
         public override string Name => "PAL";
         public override int Lines => 312;           // Total lines, incl. normal draw area (200 lines), border, and VBlank.
         public override int PixelsPerLine => 504;   // Total pixels per line, incl. normal draw area (320 pixels), border, and HBlank.
@@ -68,7 +67,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
         public override int VBlankLines => Lines - LinesVisible;
     }
 
-    public abstract class Vic2VariantSettingsBase
+    public abstract class Vic2ModelBase
     {
         public abstract string Name { get; }
 

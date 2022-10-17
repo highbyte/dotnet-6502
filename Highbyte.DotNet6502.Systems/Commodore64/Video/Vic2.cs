@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Highbyte.DotNet6502.Systems.Commodore64.Models;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video
 {
@@ -14,7 +15,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
     /// </summary>
     public class Vic2
     {
-        public Vic2VariantSettingsBase VariantSetting { get; private set; }
+        public Vic2ModelBase Vic2Model { get; private set; }
         public Memory Mem { get; set; }
 
         public const ushort COLS = 40;      // # characters per line in text mode
@@ -52,14 +53,14 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
 
         private Vic2() { }
 
-        public static Vic2 BuildVic2(byte[] ram, Dictionary<string, byte[]> romData, Vic2VariantSettingsBase vic2VariantSetting)
+        public static Vic2 BuildVic2(byte[] ram, Dictionary<string, byte[]> romData, Vic2ModelBase vic2Model)
         {
             var vic2Mem = CreateSid2Memory(ram, romData);
 
             var vic2 = new Vic2()
             {
                 Mem = vic2Mem,
-                VariantSetting = vic2VariantSetting,
+                Vic2Model = vic2Model,
             };
 
             return vic2;
@@ -207,7 +208,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
         {
             CyclesConsumedCurrentVblank += cyclesConsumed;
             //var cyclesUntilVBlank = VariantSetting.CyclesPerLine * (VariantSetting.Lines - (VariantSetting.VBlankLines / 2));
-            var cyclesUntilVBlank = VariantSetting.CyclesPerFrame;
+            var cyclesUntilVBlank = Vic2Model.CyclesPerFrame;
             if (CyclesConsumedCurrentVblank >= (ulong)cyclesUntilVBlank)
             {
                 CyclesConsumedCurrentVblank = 0;
@@ -219,12 +220,12 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
         private void UpdateCurrentRasterLine(Memory mem, ulong cyclesConsumedCurrentVblank)
         {
             // Calculate the current raster line based on how man CPU cycles has been executed this frame
-            var line = (ushort)(cyclesConsumedCurrentVblank / (ulong)VariantSetting.CyclesPerLine);
+            var line = (ushort)(cyclesConsumedCurrentVblank / (ulong)Vic2Model.CyclesPerLine);
             // Bits 0-7 of current line stored in 0xd012
             mem[Vic2Addr.CURRENT_RASTER_LINE] = (byte)(line & 0xff);
             // Bit 8 of current line stored in 0xd011 bit #7
             var screenControlReg1Value = mem[Vic2Addr.SCREEN_CONTROL_REGISTER_1];
-            if (line > VariantSetting.Lines)
+            if (line > Vic2Model.Lines)
                 throw new Exception($"Internal error. Unreachable scan line: {line}. The CPU probably executed more cycles current frame than allowed.");
             if (line <= 255)
                 screenControlReg1Value.ClearBit(7);

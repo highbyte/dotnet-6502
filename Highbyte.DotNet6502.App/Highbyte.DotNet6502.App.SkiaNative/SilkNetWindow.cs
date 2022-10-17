@@ -22,7 +22,8 @@ public class SilkNetWindow
     private readonly ElapsedMillisecondsTimedStat _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("SilkNet-InputTime");
     private readonly ElapsedMillisecondsTimedStat _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("Emulator-SystemTime");
     private readonly ElapsedMillisecondsTimedStat _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("SkiaSharp-RenderTime");
-    private readonly PerSecondTimedStat _fps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNetSkiaSharp-OnRenderFPS");
+    private readonly PerSecondTimedStat _updateFps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNetSkiaSharp-OnUpdateFPS");
+    private readonly PerSecondTimedStat _renderFps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNetSkiaSharp-OnRenderFPS");
 
     // SkipSharp context/surface/canvas
     private SkiaRenderContext _skiaRenderContext;
@@ -106,6 +107,12 @@ public class SilkNetWindow
     /// <param name=""></param>
     protected void OnUpdate(double deltaTime)
     {
+        _updateFps.Update();
+        RunEmulator();
+    }
+
+    private void RunEmulator()
+    {
         // Don't update emulator state when monitor is visible
         if (_monitor.Visible)
         {
@@ -146,7 +153,12 @@ public class SilkNetWindow
     /// <param name="args"></param>
     protected void OnRender(double deltaTime)
     {
-        _fps.Update();
+        _renderFps.Update();
+        RenderEmulator(deltaTime);
+    }
+
+    private void RenderEmulator(double deltaTime)
+    {
 
         if (_monitor.Visible || _statsPanel.Visible)
         {
@@ -182,7 +194,6 @@ public class SilkNetWindow
         {
             _statsPanel.PostOnRender(_imGuiController, deltaTime);
         }
-
     }
 
     private void OnResize(Vector2D<int> vec2)

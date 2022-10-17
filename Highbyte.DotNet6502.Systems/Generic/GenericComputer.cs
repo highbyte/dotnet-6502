@@ -31,6 +31,7 @@ namespace Highbyte.DotNet6502.Systems.Generic
         public bool HasBorder => (VisibleWidth > Width) || (VisibleHeight > Height);
         public int BorderWidth => (VisibleWidth - Width) / 2;
         public int BorderHeight => (VisibleHeight - Height) / 2;
+        public float RefreshFrequencyHz => 60.0f;
 
         private readonly EmulatorScreenConfig _emulatorScreenConfig;
 
