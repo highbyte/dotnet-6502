@@ -253,10 +253,12 @@ namespace BlazorWasmTest
             // Execute a number of cycles for one frame
             _computer.CPU.Execute(
                 _computer.Mem,
-                new ExecOptions
-                {
-                    CyclesRequested = 8000, // TODO: What is max to able to run withing 1/60 second?
-                });                    
+                new LegacyExecEvaluator(
+                    new ExecOptions
+                    {
+                        CyclesRequested = 8000, // TODO: What is max to able to run withing 1/60 second?
+                    })
+                );
 
             // Tell CPU 6502 code that one frame worth of CPU cycles has been executed
             SetFrameCompleted();
@@ -279,10 +281,7 @@ namespace BlazorWasmTest
             {
                 var execState = _computer.CPU.Execute(
                     _computer.Mem,
-                    new ExecOptions
-                    {
-                        MaxNumberOfInstructions = 1
-                    });
+                    LegacyExecEvaluator.OneInstructionExecEvaluator);
                 // If an unhandled instruction, return false
                 if (!execState.LastOpCodeWasHandled)
                     return false;

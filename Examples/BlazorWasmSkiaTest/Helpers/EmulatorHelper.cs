@@ -1,10 +1,11 @@
 using Highbyte.DotNet6502;
+using Highbyte.DotNet6502.Systems.Generic;
 
 namespace BlazorWasmSkiaTest.Helpers
 {
     public class EmulatorHelper
     {
-        private Computer? _computer;
+        private GenericComputer? _computer;
         private readonly Random _rnd = new();
 
         private readonly ushort _screenMemoryAddress = DEFAULT_SCREEN_MEMORY_ADDRESS;
@@ -64,7 +65,7 @@ namespace BlazorWasmSkiaTest.Helpers
             mem.StoreData(fileHeaderLoadAddress, codeAndDataActual);
 
             // Initialize emulator with CPU, memory, and execution parameters
-            var computerBuilder = new ComputerBuilder();
+            var computerBuilder = new GenericComputerBuilder();
             computerBuilder
                 .WithCPU()
                 .WithStartAddress(fileHeaderLoadAddress)
@@ -113,7 +114,7 @@ namespace BlazorWasmSkiaTest.Helpers
             {
                 // Execute a number of instructions
                 // TODO: _computer there a more optimal number of instructions to execute before we check if emulator code has flagged it's done via memory flag?
-                _computer.Run(new ExecOptions { MaxNumberOfInstructions = 10 }); // TODO: What is the optimal number of cycles to execute in each loop?
+                _computer.Run(LegacyExecEvaluator.InstructionCountExecEvaluator(10)); // TODO: What is the optimal number of cycles to execute in each loop?
                 shouldExecuteEmulator = !_computer.Mem.IsBitSet(SCREEN_REFRESH_STATUS_ADDRESS, (int)ScreenStatusBitFlags.EmulatorDoneForFrame);
             }
 

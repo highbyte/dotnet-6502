@@ -82,6 +82,22 @@
             }            
         },
         {
+            "label": "build blazor wasm skia test",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Examples/BlazorWasmSkiaTest/BlazorWasmSkiaTest.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }            
+        },        
+        {
             "label": "build skia native app",
             "command": "dotnet",
             "type": "process",
