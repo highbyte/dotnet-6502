@@ -2,7 +2,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Systems.Generic
 {
-    public class  GenericComputer : ISystem, ITextMode, IScreen
+    public class GenericComputer : ISystem, ITextMode, IScreen
     {
         public const string SystemName = "Generic";
         public string Name => SystemName;

@@ -16,7 +16,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
         /// C64 color to SKPaint (with SkiaColorFilter) for replacing color when copying characters from chargen rom image to screen.
         /// </summary>
         /// <returns></returns>
-        public static Dictionary<byte, SKPaint> C64ToDrawChargenCharecterMap = new();
+        public static Dictionary<byte, SKPaint> C64ToDrawChargenCharacterMap = new();
 
         static C64SkiaPaint()
         {
@@ -39,7 +39,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
                 var paint = new SKPaint { Style = SKPaintStyle.StrokeAndFill, ColorFilter = colorFilter };
                 //var paint = new SKPaint { Style = SKPaintStyle.Stroke, ColorFilter = colorFilter };
 
-                C64ToDrawChargenCharecterMap.Add(c64ColorValue, paint);
+                C64ToDrawChargenCharacterMap.Add(c64ColorValue, paint);
             }
         }
 

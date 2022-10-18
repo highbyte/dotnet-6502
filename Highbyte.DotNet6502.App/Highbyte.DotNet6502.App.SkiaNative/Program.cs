@@ -9,6 +9,10 @@ using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Generic.Config;
+using Highbyte.DotNet6502.Impl.Skia.Generic;
+using Highbyte.DotNet6502.Systems.Generic;
+using Highbyte.DotNet6502.Impl.SilkNet.Generic;
 
 // Fix for starting in debug mode from VS Code. By default the OS current directory is set to the project folder, not the folder containing the built .exe file...
 var currentAppDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -17,7 +21,9 @@ Environment.CurrentDirectory = currentAppDir;
 // TODO: Read options from appsettings.json
 var emulatorConfig = new EmulatorConfig
 {
-    Emulator = "C64",
+    //Emulator = "C64",
+    Emulator = "Generic",
+    DrawScale = 3.0f,
     Monitor = new MonitorConfig
     {
         //DefaultDirectory = "../../../../../.cache/Examples/SadConsoleTest/AssemblerSource"
@@ -36,11 +42,37 @@ var c64Config = new C64Config
 };
 c64Config.Validate();
 
+var genericComputerConfig = new GenericComputerConfig
+{
+    ProgramBinaryFile = "../../../../../.cache/Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.prg",
+    Memory = new EmulatorMemoryConfig
+    {
+        Screen = new EmulatorScreenConfig
+        {
+            Cols = 40,
+            Rows = 25,
+            BorderCols = 3,
+            BorderRows = 3,
+            UseAscIICharacters = true,
+            DefaultBgColor = 0x00,     // 0x00 = Black (C64 scheme)
+            DefaultFgColor = 0x01,     // 0x0f = Light grey, 0x0e = Light Blue, 0x01 = White  (C64 scheme)
+            DefaultBorderColor = 0x0b, // 0x0b = Dark grey (C64 scheme)
+        },
+        Input = new EmulatorInputConfig
+        {
+            KeyPressedAddress = 0xd030,
+            KeyDownAddress = 0xd031,
+            KeyReleasedAddress = 0xd031,
+        }
+    }
+};
+genericComputerConfig.Validate();
+
 // ----------
 // Systems
 // ----------
 var systemList = new SystemList();
-systemList.BuildSystemLookups(c64Config); //, genericComputerConfig);
+systemList.BuildSystemLookups(c64Config, genericComputerConfig);
 
 var system = systemList.Systems[emulatorConfig.Emulator];
 
@@ -48,10 +80,9 @@ var system = systemList.Systems[emulatorConfig.Emulator];
 // Silk.NET Window
 // ----------
 var screen = (IScreen)system;
-float scale = 3.0f;
 
-int windowWidth = (int)(screen.VisibleWidth * scale);
-int windowHeight = (int)(screen.VisibleHeight * scale);
+int windowWidth = (int)(screen.VisibleWidth * emulatorConfig.DrawScale);
+int windowHeight = (int)(screen.VisibleHeight * emulatorConfig.DrawScale);
 
 var windowOptions = WindowOptions.Default;
 // Update frequency, in hertz. 
@@ -65,12 +96,12 @@ windowOptions.Title = "DotNet 6502 emulator hosted in native app using SkiaSharp
 windowOptions.Size = new Vector2D<int>(windowWidth, windowHeight);
 windowOptions.API = GraphicsAPI.Default; // = Default = OpenGL 3.3 with forward compatibility
 windowOptions.ShouldSwapAutomatically = true;
-//windowOptions.TransparentFramebuffer = false;
+ //windowOptions.TransparentFramebuffer = false;
 //windowOptions.PreferredDepthBufferBits = 24;    // Depth buffer bits must be set explicitly on MacOS (tested on M1), otherwise there will be be no depth buffer (for OpenGL 3d).
 
 IWindow window = Window.Create(windowOptions);
 
-var silkNetWindow = new SilkNetWindow(emulatorConfig.Monitor, window, system, GetSystemRunner, scale);
+var silkNetWindow = new SilkNetWindow(emulatorConfig.Monitor, window, system, GetSystemRunner, emulatorConfig.DrawScale);
 silkNetWindow.Run();
 
 // Functions for building SystemRunner based on Skia rendering.
@@ -79,13 +110,29 @@ SystemRunner GetSystemRunner(ISystem system, SkiaRenderContext skiaRenderContext
 {
     if (system is C64 c64)
     {
-        var renderer = new C64SkiaRenderer();
+        var renderer = (IRenderer<C64, SkiaRenderContext>)systemList.Renderers[c64];
         renderer.Init(system, skiaRenderContext);
 
-        var inputHandler = new C64SilkNetInputHandler();
+        var inputHandler = (IInputHandler<C64, SilkNetInputHandlerContext>)systemList.InputHandlers[c64];
         inputHandler.Init(system, silkNetInputHandlerContext);
 
         var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, SilkNetInputHandlerContext>(c64);
+        var systemRunner = systemRunnerBuilder
+            .WithRenderer(renderer)
+            .WithInputHandler(inputHandler)
+            .Build();
+        return systemRunner;
+    }
+
+    if (system is GenericComputer genericComputer)
+    {
+        var renderer = (IRenderer<GenericComputer, SkiaRenderContext>)systemList.Renderers[genericComputer];
+        renderer.Init(system, skiaRenderContext);
+
+        var inputHandler = (IInputHandler<GenericComputer, SilkNetInputHandlerContext>)systemList.InputHandlers[genericComputer];
+        inputHandler.Init(system, silkNetInputHandlerContext);
+
+        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext>(genericComputer);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)

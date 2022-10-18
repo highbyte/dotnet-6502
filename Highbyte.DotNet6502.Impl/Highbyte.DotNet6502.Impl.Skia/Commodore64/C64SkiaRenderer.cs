@@ -178,7 +178,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
             int romImageX = (character % CHARGEN_IMAGE_CHARACTERS_PER_ROW) * 8;
             int romImageY = (character / CHARGEN_IMAGE_CHARACTERS_PER_ROW) * 8;
 
-            var paint = C64SkiaPaint.C64ToDrawChargenCharecterMap[characterColor];
+            var paint = C64SkiaPaint.C64ToDrawChargenCharacterMap[characterColor];
             {
                 _skCanvas.DrawImage(_characterSetCurrent,
                     source: new SKRect(romImageX, romImageY, romImageX + 8, romImageY + 8),
