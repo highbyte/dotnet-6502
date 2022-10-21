@@ -21,6 +21,14 @@
         <a class="dismiss">🗙</a>
     </div>
     <script src="_framework/blazor.webassembly.js"></script>
+
+    <!-- Custom JS script to set focus on element from C# code -->
+    <script>
+        window.focusElement = (element) => {
+            var elementToFocus = document.getElementById(element);
+            elementToFocus.focus();
+        }
+    </script>
 </body>
 
 </html>

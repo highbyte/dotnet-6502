@@ -8,24 +8,42 @@
     @_statsString
 </div>
 <p></p>
- 
-@*<SKCanvasView></SKCanvasView>
-*@
-@*<SKGLView style="position:fixed; left:40px; top:70px; width: 100vw; height: 100vh; overflow: hidden;"*@
-<SKGLView style="position:relative; left:0px; top:0px; width: 1104px; height: 744px; overflow: hidden;"
+
+@*Inject JS to be able to set focus on SKGLView from code*@
+@inject IJSRuntime Js
+
+@*Skia OpenGl View Blazor WASM component*@
+<SKGLView class="skGLViewStyle"
           IgnorePixelScaling="true"
           EnableRenderLoop="true"
           OnPaintSurface="OnPaintSurface"
+          id="emulatorSKGLView"
           tabindex="0"
           oncontextmenu="return false;"
           @onkeypress="OnKeyPress"
           @onkeydown="OnKeyDown"
-          @onkeyup="OnKeyUp"
-          @ref="_skGLView" />
+          @onkeyup="OnKeyUp" />
+
+<style>
+    .skGLViewStyle {
+        position: relative;
+        left: 0px;
+        top: 0px;
+        width: @_windowWidthStyle;
+        height: @_windowHeightStyle;
+        overflow: hidden;
+    }
+</style>
 
 @code
 {
-    private SKGLView _skGLView;
+    protected override async void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Js.InvokeVoidAsync("focusElement", "emulatorSKGLView");
+        }
+    }
 
     private void OnKeyPress(KeyboardEventArgs e)
     {

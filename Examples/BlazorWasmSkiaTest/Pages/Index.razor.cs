@@ -23,6 +23,9 @@ namespace BlazorWasmSkiaTest.Pages
 
         public string _statsString = "Stats: calculating...";
 
+        public string _windowWidthStyle = "";
+        public string _windowHeightStyle = "";
+
         [Inject]
         public HttpClient? HttpClient { get; set; }
 
@@ -44,10 +47,14 @@ namespace BlazorWasmSkiaTest.Pages
             //var system = _systemList.Systems[emulatorConfig.Emulator];
             var system = _systemList.Systems["Generic"];
 
+            // Set SKGLView dimensions
             float scale = 3.0f;
+            var screen = (IScreen)system;
+            _windowWidthStyle = $"{screen.VisibleWidth * scale}px";
+            _windowHeightStyle = $"{screen.VisibleHeight * scale}px";
+            this.StateHasChanged();
 
             _wasmHost = new WasmHost(system, GetSystemRunner, UpdateStats, scale);
-
         }
 
         private C64Config BuildC64Config(Uri uri)
