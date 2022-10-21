@@ -1,10 +1,13 @@
-using System.Reflection;
-using BlazorWasmSkiaTest.Helpers;
 using BlazorWasmSkiaTest.Skia;
+using Highbyte.DotNet6502.Systems.Generic;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.WebUtilities;
-using SkiaSharp;
 using SkiaSharp.Views.Blazor;
+using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace BlazorWasmSkiaTest.Pages
 {
@@ -12,10 +15,12 @@ namespace BlazorWasmSkiaTest.Pages
     {
 
         private const string DEFAULT_PRG_URL = "6502binaries/hostinteraction_scroll_text_and_cycle_colors.prg";
-        private const int TextSize = 20;
+        //private const string DEFAULT_PRG_URL = "6502binaries/snake6502.prg";
 
-        private EmulatorHelper? _emulatorHelper;
-        private EmulatorRenderer? _emulatorRenderer;
+        private WasmHost? _wasmHost;
+        private SystemList _systemList;
+
+        public string _statsString = "Stats: calculating...";
 
         [Inject]
         public HttpClient? HttpClient { get; set; }
@@ -25,23 +30,128 @@ namespace BlazorWasmSkiaTest.Pages
 
         protected async override void OnInitialized()
         {
+
             var uri = NavManager!.ToAbsoluteUri(NavManager.Uri);
-            // Load 6502 program binary
+
+            //var c64Config = BuildC64Config(uri);
+            C64Config c64Config = null;
+
+            var genericComputerConfig = await BuildGenericComputerConfig(uri);
+
+            _systemList = new SystemList();
+            _systemList.BuildSystemLookups(c64Config, genericComputerConfig);
+
+            //var system = _systemList.Systems[emulatorConfig.Emulator];
+            var system = _systemList.Systems["Generic"];
+
+            float scale = 3.0f;
+
+            _wasmHost = new WasmHost(system, GetSystemRunner, UpdateStats, scale);
+
+        }
+
+        private C64Config BuildC64Config(Uri uri)
+        {
+            var c64Config = new C64Config
+            {
+                C64Model = "C64NTSC",   // C64NTSC, C64PAL
+                Vic2Model = "NTSC",     // NTSC, NTSC_old, PAL
+                                        // C64Model = "C64PAL",   // C64NTSC, C64PAL
+                                        // Vic2Model = "PAL",     // NTSC, NTSC_old, PAL
+                // ROMBaseUrl = "https://...."  // TODO: Load C64 ROMs from URL instead of directory
+            };
+            //c64Config.Validate();
+
+            return c64Config;
+        }
+
+        private async Task<GenericComputerConfig> BuildGenericComputerConfig(Uri uri)
+        {
+
+            // Load 6502 program binary specified in url
             var prgBytes = await Load6502Binary(uri);
 
-            // Init 6502 emulator
+            // Get screen size specified in url
             (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) = GetScreenSize(uri);
 
-            _emulatorHelper = new EmulatorHelper(cols, rows, screenMemoryAddress, colorMemoryAddress);
-            _emulatorHelper.InitDotNet6502Computer(prgBytes);
+            cols = cols ?? 40;
+            rows = rows ?? 25;
+            screenMemoryAddress = screenMemoryAddress ?? 0x0400;
+            colorMemoryAddress = colorMemoryAddress ?? 0xd800;
 
-            // Init emulator renderer (Skia)
-            var timer = new PeriodicAsyncTimer();
-            //SKTypeface typeFace = await LoadFont("../fonts/C64_Pro_Mono-STYLE.woff2");
-            SKTypeface typeFace = LoadEmbeddedFont("C64_Pro_Mono-STYLE.ttf");
-            var skColorMaps = new SKPaintMaps(TextSize, typeFace, ColorMaps.C64ColorMap);
-            _emulatorRenderer = new EmulatorRenderer(timer, skColorMaps, TextSize, _emulatorHelper);
+            var genericComputerConfig = new GenericComputerConfig
+            {
+                ProgramBinary = prgBytes,
+
+                CPUCyclesPerFrame = 2500,
+                ScreenRefreshFrequencyHz = 60,
+
+                Memory = new EmulatorMemoryConfig
+                {
+                    Screen = new EmulatorScreenConfig
+                    {
+                        Cols = cols.Value,
+                        Rows = rows.Value,
+                        BorderCols = 3,
+                        BorderRows = 3,
+                        ScreenStartAddress = screenMemoryAddress.Value,
+                        ScreenColorStartAddress = colorMemoryAddress.Value,
+
+                        UseAscIICharacters = true,
+                        DefaultBgColor = 0x00,     // 0x00 = Black (C64 scheme)
+                        DefaultFgColor = 0x01,     // 0x0f = Light grey, 0x0e = Light Blue, 0x01 = White  (C64 scheme)
+                        DefaultBorderColor = 0x0b, // 0x0b = Dark grey (C64 scheme)
+                    },
+                    Input = new EmulatorInputConfig
+                    {
+                        KeyPressedAddress = 0xd030,
+                        KeyDownAddress = 0xd031,
+                        KeyReleasedAddress = 0xd031,
+                    }
+                }
+            };
+            genericComputerConfig.Validate();
+
+            return genericComputerConfig;
         }
+
+        SystemRunner GetSystemRunner(ISystem system, SkiaRenderContext skiaRenderContext, NullInputHandlerContext inputHandlerContext)
+        {
+            if (system is C64 c64)
+            {
+                var renderer = (IRenderer<C64, SkiaRenderContext>)_systemList.Renderers[c64];
+                renderer.Init(system, skiaRenderContext);
+
+                var inputHandler = (IInputHandler<C64, NullInputHandlerContext>)_systemList.InputHandlers[c64];
+                inputHandler.Init(system, inputHandlerContext);
+
+                var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, NullInputHandlerContext>(c64);
+                var systemRunner = systemRunnerBuilder
+                    .WithRenderer(renderer)
+                    .WithInputHandler(inputHandler)
+                    .Build();
+                return systemRunner;
+            }
+
+            if (system is GenericComputer genericComputer)
+            {
+                var renderer = (IRenderer<GenericComputer, SkiaRenderContext>)_systemList.Renderers[genericComputer];
+                renderer.Init(system, skiaRenderContext);
+
+                var inputHandler = (IInputHandler<GenericComputer, NullInputHandlerContext>)_systemList.InputHandlers[genericComputer];
+                inputHandler.Init(system, inputHandlerContext);
+
+                var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, NullInputHandlerContext>(genericComputer);
+                var systemRunner = systemRunnerBuilder
+                    .WithRenderer(renderer)
+                    .WithInputHandler(inputHandler)
+                    .Build();
+                return systemRunner;
+            }
+
+            throw new NotImplementedException($"System not handled: {system.Name}");
+        }
+
 
         private (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) GetScreenSize(Uri uri)
         {
@@ -145,46 +255,25 @@ namespace BlazorWasmSkiaTest.Pages
             return Convert.FromBase64String(s); // Standard base64 decoder
         }
 
-        private async Task<SKTypeface> LoadFont(string fontUrl)
-        {
-            using (Stream file = await HttpClient!.GetStreamAsync(fontUrl))
-            using (var memoryStream = new MemoryStream())
-            {
-                await file.CopyToAsync(memoryStream);
-                //byte[] bytes = memoryStream.ToArray();
-                var typeFace = SKTypeface.FromStream(memoryStream);
-                if (typeFace == null)
-                    throw new ArgumentException($"Cannot load font as a Skia TypeFace. Url: {fontUrl}", nameof(fontUrl));
-                return typeFace;
-            }
-        }
-
-        private SKTypeface LoadEmbeddedFont(string fullFontName)
-        {
-            var assembly = Assembly.GetExecutingAssembly();
-
-            var resourceName = $"{"BlazorWasmSkiaTest.Resources.Fonts"}.{fullFontName}";
-            using (Stream? resourceStream = assembly.GetManifestResourceStream(resourceName))
-            {
-                if (resourceStream == null)
-                    throw new ArgumentException($"Cannot load font from embedded resource. Resource: {resourceName}", nameof(fullFontName));
-
-                var typeFace = SKTypeface.FromStream(resourceStream);
-                if (typeFace == null)
-                    throw new ArgumentException($"Cannot load font as a Skia TypeFace from embedded resource. Resource: {resourceName}", nameof(fullFontName));
-                return typeFace;
-            }
-        }
-
         protected void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
         {
-            _emulatorRenderer!.SetSize(e.Info.Width, e.Info.Height);
-            if (e.Surface.Context is GRContext context && context != null)
-            {
-                // If we draw our own images (not directly on the canvas provided), make sure it's within the same contxt
-                _emulatorRenderer.SetContext(context);
-            }
-            _emulatorRenderer.Render(e.Surface.Canvas);
+            if (_wasmHost == null)
+                return;
+
+            //_emulatorRenderer!.SetSize(e.Info.Width, e.Info.Height);
+            //if (e.Surface.Context is GRContext context && context != null)
+            //{
+            //    // If we draw our own images (not directly on the canvas provided), make sure it's within the same contxt
+            //    _emulatorRenderer.SetContext(context);
+            //}
+
+            _wasmHost.Render(e.Surface.Canvas);
+        }
+
+        protected void UpdateStats(string stats)
+        {
+            _statsString = stats;
+            this.StateHasChanged();
         }
 
         //private void BeforeUnload_BeforeUnloadHandler(object? sender, blazejewicz.Blazor.BeforeUnload.BeforeUnloadArgs e)
@@ -196,5 +285,7 @@ namespace BlazorWasmSkiaTest.Pages
         //{
         //    this.BeforeUnload.BeforeUnloadHandler -= BeforeUnload_BeforeUnloadHandler;
         //}
+
+
     }
 }

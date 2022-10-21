@@ -1,4 +1,4 @@
-﻿using Silk.NET.Maths;
+using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using Highbyte.DotNet6502.App.SkiaNative;
 using Highbyte.DotNet6502.Impl.SilkNet;
@@ -21,7 +21,7 @@ Environment.CurrentDirectory = currentAppDir;
 // TODO: Read options from appsettings.json
 var emulatorConfig = new EmulatorConfig
 {
-    //Emulator = "C64",
+    //Emulator = "C64", 
     Emulator = "Generic",
     DrawScale = 3.0f,
     Monitor = new MonitorConfig
@@ -45,6 +45,7 @@ c64Config.Validate();
 var genericComputerConfig = new GenericComputerConfig
 {
     ProgramBinaryFile = "../../../../../.cache/Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.prg",
+    CPUCyclesPerFrame = 8000,
     Memory = new EmulatorMemoryConfig
     {
         Screen = new EmulatorScreenConfig

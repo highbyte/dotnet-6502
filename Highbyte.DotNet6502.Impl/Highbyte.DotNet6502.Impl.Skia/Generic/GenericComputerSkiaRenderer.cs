@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Generic
 {
     public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRenderContext>, IRenderer
     {
-        private SKCanvas _skCanvas;
+        private Func<SKCanvas> _getSkCanvas;
         private SKPaintMaps _skPaintMaps;
 
         private const int TextSize = 8;
@@ -24,7 +24,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Generic
 
         public void Init(GenericComputer genericComputer, SkiaRenderContext skiaRenderContext)
         {
-            _skCanvas = skiaRenderContext.Canvas;
+            _getSkCanvas = skiaRenderContext.GetCanvas;
 
             SKTypeface typeFace = LoadEmbeddedFont("C64_Pro_Mono-STYLE.ttf");
             _skPaintMaps = new SKPaintMaps(
@@ -44,25 +44,27 @@ namespace Highbyte.DotNet6502.Impl.Skia.Generic
         public void Draw(GenericComputer genericComputer)
         {
             var mem = genericComputer.Mem;
+            var canvas = _getSkCanvas();
+
             // Draw border
             byte borderColor = mem[_emulatorScreenConfig.ScreenBorderColorAddress];
             var borderPaint = _skPaintMaps.GetSKBackgroundPaint(borderColor);
-            _skCanvas.DrawRect(0, 0, genericComputer.Cols * TextPixelSize + BorderPixels * 2, genericComputer.Rows * TextPixelSize + BorderPixels * 2, borderPaint);
+            canvas.DrawRect(0, 0, genericComputer.Cols * TextPixelSize + BorderPixels * 2, genericComputer.Rows * TextPixelSize + BorderPixels * 2, borderPaint);
 
             // Draw background
-            using (new SKAutoCanvasRestore(_skCanvas))
+            using (new SKAutoCanvasRestore(canvas))
             {
                 byte bgColor = mem[_emulatorScreenConfig.ScreenBackgroundColorAddress];
                 var bgPaint = _skPaintMaps.GetSKBackgroundPaint(bgColor);
-                _skCanvas.Translate(BorderPixels, BorderPixels);
-                _skCanvas.DrawRect(0, 0, genericComputer.Cols * TextPixelSize, genericComputer.Rows * TextPixelSize, bgPaint);
+                canvas.Translate(BorderPixels, BorderPixels);
+                canvas.DrawRect(0, 0, genericComputer.Cols * TextPixelSize, genericComputer.Rows * TextPixelSize, bgPaint);
             }
 
             var screenMemoryAddress = _emulatorScreenConfig.ScreenStartAddress;
             var colorMemoryAddress = _emulatorScreenConfig.ScreenColorStartAddress;
-            using (new SKAutoCanvasRestore(_skCanvas))
+            using (new SKAutoCanvasRestore(canvas))
             {
-                _skCanvas.Translate(BorderPixels, BorderPixels);
+                canvas.Translate(BorderPixels, BorderPixels);
                 // Draw characters
                 for (var row = 0; row < genericComputer.Rows; row++)
                 {
@@ -72,7 +74,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Generic
                         var chrColor = mem[(ushort)(colorMemoryAddress + row * genericComputer.Cols + col)];;
                         var drawText = GetDrawTextFromCharacter(chr);
                         var textPaint = _skPaintMaps.GetSKTextPaint(chrColor);
-                        DrawCharacter(_skCanvas, drawText, col, row, textPaint);
+                        DrawCharacter(canvas, drawText, col, row, textPaint);
                     }
                 }
             }

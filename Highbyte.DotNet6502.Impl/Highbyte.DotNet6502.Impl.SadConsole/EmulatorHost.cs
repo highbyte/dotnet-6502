@@ -31,7 +31,6 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
         {
 
             SystemRunner systemRunner;
-            int runEveryFrame;
 
             var sadConsoleRenderContext = new SadConsoleRenderContext(GetSadConsoleScreen);
             var sadConsoleInputHandlerContext= new SadConsoleInputHandlerContext();
@@ -40,12 +39,10 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
             {
                 case "GenericComputer":
                     systemRunner = GetGenericSystemRunner(sadConsoleRenderContext, sadConsoleInputHandlerContext);
-                    runEveryFrame = _genericComputerConfig.RunEmulatorEveryFrame;
                     break;
 
                 case "C64":
                     systemRunner = GetC64SystemRunner(sadConsoleRenderContext, sadConsoleInputHandlerContext);
-                    runEveryFrame = 1;
                     break;
 
                 default:
@@ -58,8 +55,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
             // Create the main SadConsole class that is responsible for configuring and starting up SadConsole and running the emulator code every frame with our preferred configuration.
             SadConsoleMain = new SadConsoleMain(
                 _sadConsoleConfig,
-                systemRunner,
-                runEveryFrame);
+                systemRunner);
 
             // Start SadConsole. Will exit from this method after SadConsole window is closed.
             SadConsoleMain.Run();

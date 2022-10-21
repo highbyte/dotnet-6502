@@ -10,17 +10,14 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
         public SadConsoleScreenObject SadConsoleScreen => _sadConsoleScreen;
 
         private readonly SystemRunner _systemRunner;
-        private readonly int _updateEmulatorEveryXFrame;
         private int _frameCounter;
 
         public SadConsoleMain(
             SadConsoleConfig sadConsoleConfig,
-            SystemRunner systemRunner,
-            int updateEmulatorEveryXFrame = 0)
+            SystemRunner systemRunner)
         {
             _sadConsoleConfig = sadConsoleConfig;
             _systemRunner = systemRunner;
-            _updateEmulatorEveryXFrame = updateEmulatorEveryXFrame;
         }
 
         public void Run()
@@ -88,17 +85,12 @@ namespace Highbyte.DotNet6502.Impl.SadConsole
         /// <param name="gameTime"></param>
         private void UpdateSadConsole(object sender, GameHost e)
         {
-            _frameCounter++;
-            if (_frameCounter >= _updateEmulatorEveryXFrame)
+            // Run emulator for one frame
+            bool shouldContinue = _systemRunner.RunOneFrame();
+            if (!shouldContinue)
             {
-                // Run emulator for one frame
-                bool shouldContinue = _systemRunner.RunOneFrame();
-                if (!shouldContinue)
-                {
-                    // Exit program
-                    Environment.Exit(0);
-                }
-                _frameCounter = 0;
+                // Exit program
+                Environment.Exit(0);
             }
         }
     }

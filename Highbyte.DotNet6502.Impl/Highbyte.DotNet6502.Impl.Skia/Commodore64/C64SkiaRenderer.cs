@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 {
     public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     {
-        private SKCanvas _skCanvas;
+        private Func<SKCanvas> _getSkCanvas;
 
         private const int CHARGEN_IMAGE_CHARACTERS_PER_ROW = 16;
 
@@ -18,7 +18,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 
         public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
         {
-            _skCanvas = skiaRenderContext.Canvas;
+            _getSkCanvas = skiaRenderContext.GetCanvas;
             InitCharset(c64, skiaRenderContext.GRContext);
         }
 
@@ -117,43 +117,21 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 
         private void RenderBackgroundAndBorder(C64 c64)
         {
-            // var emulatorMem = c64.Mem;
-
-            // byte backgroundColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR];
-            // byte borderColor = emulatorMem[Vic2Addr.BORDER_COLOR];
-
-            // // TODO: Create pre-initialized SKPaint instances for each C64 color.
-            // SKColor backgroundSkColor = C64SkiaColors.NativeToSkColorMap[ColorMaps.C64ColorMap[backgroundColor]];
-            // SKColor borderSkColor = C64SkiaColors.NativeToSkColorMap[ColorMaps.C64ColorMap[borderColor]];
-
-            // // Draw 4 rectangles for border
-            // using (var paint = new SKPaint { Style = SKPaintStyle.Fill, Color = borderSkColor })
-            // {
-            //     _skCanvas.DrawRect(0, 0, c64.VisibleWidth, c64.BorderHeight, paint);
-            //     _skCanvas.DrawRect(0, (c64.BorderHeight + c64.Height), c64.VisibleWidth, c64.BorderHeight, paint);
-            //     _skCanvas.DrawRect(0, c64.BorderHeight, c64.BorderWidth, c64.Height, paint);
-            //     _skCanvas.DrawRect(c64.BorderWidth + c64.Width, c64.BorderHeight, c64.BorderWidth, c64.Height, paint);
-            // }
-            // // Draw 1 rectangles for background
-            // using (var paint = new SKPaint { Style = SKPaintStyle.Fill, Color = backgroundSkColor })
-            // {
-            //     _skCanvas.DrawRect(c64.BorderWidth, c64.BorderHeight, c64.Width, c64.Height, paint);
-            // }
-
             var emulatorMem = c64.Mem;
+            var canvas = _getSkCanvas();
 
             // Draw 4 rectangles for border
             byte borderColor = emulatorMem[Vic2Addr.BORDER_COLOR];
             var borderPaint = C64SkiaPaint.C64ToFillPaintMap[borderColor];
-            _skCanvas.DrawRect(0, 0, c64.VisibleWidth, c64.BorderHeight, borderPaint);
-            _skCanvas.DrawRect(0, (c64.BorderHeight + c64.Height), c64.VisibleWidth, c64.BorderHeight, borderPaint);
-            _skCanvas.DrawRect(0, c64.BorderHeight, c64.BorderWidth, c64.Height, borderPaint);
-            _skCanvas.DrawRect(c64.BorderWidth + c64.Width, c64.BorderHeight, c64.BorderWidth, c64.Height, borderPaint);
+            canvas.DrawRect(0, 0, c64.VisibleWidth, c64.BorderHeight, borderPaint);
+            canvas.DrawRect(0, (c64.BorderHeight + c64.Height), c64.VisibleWidth, c64.BorderHeight, borderPaint);
+            canvas.DrawRect(0, c64.BorderHeight, c64.BorderWidth, c64.Height, borderPaint);
+            canvas.DrawRect(c64.BorderWidth + c64.Width, c64.BorderHeight, c64.BorderWidth, c64.Height, borderPaint);
 
             // Draw 1 rectangles for background
             byte backgroundColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR];
             var bgPaint = C64SkiaPaint.C64ToFillPaintMap[backgroundColor];
-            _skCanvas.DrawRect(c64.BorderWidth, c64.BorderHeight, c64.Width, c64.Height, bgPaint);
+            canvas.DrawRect(c64.BorderWidth, c64.BorderHeight, c64.Width, c64.Height, bgPaint);
         }
 
         /// <summary>
@@ -178,9 +156,11 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
             int romImageX = (character % CHARGEN_IMAGE_CHARACTERS_PER_ROW) * 8;
             int romImageY = (character / CHARGEN_IMAGE_CHARACTERS_PER_ROW) * 8;
 
+            var canvas = _getSkCanvas();
+
             var paint = C64SkiaPaint.C64ToDrawChargenCharacterMap[characterColor];
             {
-                _skCanvas.DrawImage(_characterSetCurrent,
+                canvas.DrawImage(_characterSetCurrent,
                     source: new SKRect(romImageX, romImageY, romImageX + 8, romImageY + 8),
                     dest:   new SKRect(pixelPosX, pixelPosY, pixelPosX + 8, pixelPosY + 8),
                     paint

@@ -1,13 +1,18 @@
 @page "/"
-@using BlazorWasmSkiaTest.Helpers
 @using SkiaSharp
 @using SkiaSharp.Views.Blazor
 @*@implements IDisposable*@
 
 <PageTitle>Blazor Wasm Skia Test</PageTitle>
+<div class="px-4">
+    @_statsString
+</div>
+<p></p>
+ 
 @*<SKCanvasView></SKCanvasView>
 *@
-<SKGLView style="position:fixed; left:40px; top:70px; width: 100vw; height: 100vh; overflow: hidden;"
+@*<SKGLView style="position:fixed; left:40px; top:70px; width: 100vw; height: 100vh; overflow: hidden;"*@
+<SKGLView style="position:relative; left:0px; top:0px; width: 100vw; height: 100vh; overflow: hidden;"
           IgnorePixelScaling="true"
           EnableRenderLoop="true"
           OnPaintSurface="OnPaintSurface"
@@ -17,7 +22,6 @@
           @onkeydown="OnKeyDown"
           @onkeyup="OnKeyUp"
           />
-
 
 @code
 {
@@ -32,7 +36,7 @@
         if(e.Key.Length==1)
             keyCode = (int)e.Key[0];
 
-        _emulatorHelper!.KeyDown(keyCode);
+        //_emulatorHelper!.KeyDown(keyCode);
     }
 
     private void OnKeyUp(KeyboardEventArgs e)
@@ -41,7 +45,7 @@
         if(e.Key.Length==1)
             keyCode = (int)e.Key[0];
                 
-        _emulatorHelper!.KeyUp(keyCode);
+        //_emulatorHelper!.KeyUp(keyCode);
     }
 
     //private void OnPointerDown(PointerEventArgs e)

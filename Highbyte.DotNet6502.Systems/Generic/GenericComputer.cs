@@ -11,39 +11,39 @@ namespace Highbyte.DotNet6502.Systems.Generic
         // How many 6502 CPU cycles this generic (fictional) computer should be able to execute per frame.
         // This should be adjusted to the performance of the machine the emulator is running on.
         // For comparison, a C64 runs about 16700 cycles per frame (1/60 sec).
-        // TODO: Should probably move to config instead of hardcoded constant.
-        public const int CYCLES_PER_FRAME = 40000;
+        public ulong CPUCyclesPerFrame => _genericComputerConfig.CPUCyclesPerFrame;
         public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
 
         public Memory Mem { get; set; }
         public CPU CPU { get; set; }
         public ExecOptions DefaultExecOptions { get; set; }
 
-        public int Cols => _emulatorScreenConfig.Cols;
-        public int Rows => _emulatorScreenConfig.Rows;
+        public int Cols => _genericComputerConfig.Memory.Screen.Cols;
+        public int Rows => _genericComputerConfig.Memory.Screen.Rows;
         public int CharacterWidth => 8;
         public int CharacterHeight => 8;
 
         public int Width => Cols * CharacterWidth;
         public int Height => Rows * CharacterHeight;
-        public int VisibleWidth => (Cols * CharacterWidth) + (2 * (_emulatorScreenConfig.BorderCols * CharacterWidth));
-        public int VisibleHeight => (Rows * CharacterHeight) + (2 * (_emulatorScreenConfig.BorderRows * CharacterHeight));
+        public int VisibleWidth => (Cols * CharacterWidth) + (2 * (_genericComputerConfig.Memory.Screen.BorderCols * CharacterWidth));
+        public int VisibleHeight => (Rows * CharacterHeight) + (2 * (_genericComputerConfig.Memory.Screen.BorderRows * CharacterHeight));
         public bool HasBorder => (VisibleWidth > Width) || (VisibleHeight > Height);
         public int BorderWidth => (VisibleWidth - Width) / 2;
         public int BorderHeight => (VisibleHeight - Height) / 2;
-        public float RefreshFrequencyHz => 60.0f;
+        public float RefreshFrequencyHz => _genericComputerConfig.ScreenRefreshFrequencyHz;
 
-        private readonly EmulatorScreenConfig _emulatorScreenConfig;
+        private readonly GenericComputerConfig _genericComputerConfig;
+        private LegacyExecEvaluator _oneFrameExecEvaluator;
 
-        private LegacyExecEvaluator _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = CYCLES_PER_FRAME });
-
-        public GenericComputer() : this(new EmulatorScreenConfig()) { }
-        public GenericComputer(EmulatorScreenConfig emulatorScreenConfig)
+        public GenericComputer() : this(new GenericComputerConfig()) { }
+        public GenericComputer(GenericComputerConfig genericComputerConfig)
         {
-            _emulatorScreenConfig = emulatorScreenConfig;
+            _genericComputerConfig = genericComputerConfig;
             Mem = new Memory();
             CPU = new CPU();
             DefaultExecOptions = new ExecOptions();
+
+            _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = CPUCyclesPerFrame });
 
             CPU.InstructionExecuted += (s, e) => CPUCyclesConsumed(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
         }
@@ -61,7 +61,7 @@ namespace Highbyte.DotNet6502.Systems.Generic
         {
             // TODO: The number of cycles per vblank should be configurable
             // If we already executed cycles in current frame, reduce it from total.
-            _oneFrameExecEvaluator.ExecOptions.CyclesRequested = CYCLES_PER_FRAME - CyclesConsumedCurrentVblank;
+            _oneFrameExecEvaluator.ExecOptions.CyclesRequested = CPUCyclesPerFrame - CyclesConsumedCurrentVblank;
 
             ExecState execState;
             if (execEvaluator == null)
@@ -110,13 +110,13 @@ namespace Highbyte.DotNet6502.Systems.Generic
 
         private void SetFrameCompleted()
         {
-            Mem.SetBit(_emulatorScreenConfig.ScreenRefreshStatusAddress, (int)ScreenStatusBitFlags.HostNewFrame);
+            Mem.SetBit(_genericComputerConfig.Memory.Screen.ScreenRefreshStatusAddress, (int)ScreenStatusBitFlags.HostNewFrame);
         }
 
         private bool WaitFrameCompletedAcknowledged()
         {
             // Keep on executing instructions until CPU 6502 code has cleared bit 0 in ScreenRefreshStatusAddress
-            while (Mem.IsBitSet(_emulatorScreenConfig.ScreenRefreshStatusAddress, (int)ScreenStatusBitFlags.HostNewFrame))
+            while (Mem.IsBitSet(_genericComputerConfig.Memory.Screen.ScreenRefreshStatusAddress, (int)ScreenStatusBitFlags.HostNewFrame))
             {
                 var ok = ExecuteOneInstruction();
                 // If an unhandled instruction, return false
@@ -129,7 +129,7 @@ namespace Highbyte.DotNet6502.Systems.Generic
         public void CPUCyclesConsumed(CPU cpu, Memory mem, ulong cyclesConsumed)
         {
             CyclesConsumedCurrentVblank += cyclesConsumed;
-            if (CyclesConsumedCurrentVblank >= CYCLES_PER_FRAME)
+            if (CyclesConsumedCurrentVblank >= CPUCyclesPerFrame)
             {
                 CyclesConsumedCurrentVblank = 0;
                 VerticalBlank(cpu);
@@ -142,7 +142,7 @@ namespace Highbyte.DotNet6502.Systems.Generic
 
         public GenericComputer Clone()
         {
-            return new GenericComputer(this._emulatorScreenConfig)
+            return new GenericComputer(this._genericComputerConfig)
             {
                 CPU = this.CPU.Clone(),
                 Mem = this.Mem.Clone(),
