@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Impl.AspNet.Generic;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64;
 using Highbyte.DotNet6502.Impl.Skia.Generic;
 using Highbyte.DotNet6502.Systems;
@@ -42,7 +43,7 @@ namespace BlazorWasmSkiaTest.Skia
                 var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig);
                 Systems.Add(genericComputer.Name, genericComputer);
                 Renderers.Add(genericComputer, new GenericComputerSkiaRenderer(genericComputerConfig.Memory.Screen));
-                InputHandlers.Add(genericComputer, new NullInputHandler<GenericComputer>());
+                InputHandlers.Add(genericComputer, new GenericComputerAspNetInputHandler(genericComputerConfig.Memory.Input));
             }
         }
     }

@@ -8,6 +8,7 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using Highbyte.DotNet6502.Impl.AspNet;
 
 namespace BlazorWasmSkiaTest.Pages
 {
@@ -30,7 +31,6 @@ namespace BlazorWasmSkiaTest.Pages
 
         protected async override void OnInitialized()
         {
-
             var uri = NavManager!.ToAbsoluteUri(NavManager.Uri);
 
             //var c64Config = BuildC64Config(uri);
@@ -115,17 +115,17 @@ namespace BlazorWasmSkiaTest.Pages
             return genericComputerConfig;
         }
 
-        SystemRunner GetSystemRunner(ISystem system, SkiaRenderContext skiaRenderContext, NullInputHandlerContext inputHandlerContext)
+        SystemRunner GetSystemRunner(ISystem system, SkiaRenderContext skiaRenderContext, AspNetInputHandlerContext inputHandlerContext)
         {
             if (system is C64 c64)
             {
                 var renderer = (IRenderer<C64, SkiaRenderContext>)_systemList.Renderers[c64];
                 renderer.Init(system, skiaRenderContext);
 
-                var inputHandler = (IInputHandler<C64, NullInputHandlerContext>)_systemList.InputHandlers[c64];
+                var inputHandler = (IInputHandler<C64, AspNetInputHandlerContext>)_systemList.InputHandlers[c64];
                 inputHandler.Init(system, inputHandlerContext);
 
-                var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, NullInputHandlerContext>(c64);
+                var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, AspNetInputHandlerContext>(c64);
                 var systemRunner = systemRunnerBuilder
                     .WithRenderer(renderer)
                     .WithInputHandler(inputHandler)
@@ -138,10 +138,10 @@ namespace BlazorWasmSkiaTest.Pages
                 var renderer = (IRenderer<GenericComputer, SkiaRenderContext>)_systemList.Renderers[genericComputer];
                 renderer.Init(system, skiaRenderContext);
 
-                var inputHandler = (IInputHandler<GenericComputer, NullInputHandlerContext>)_systemList.InputHandlers[genericComputer];
+                var inputHandler = (IInputHandler<GenericComputer, AspNetInputHandlerContext>)_systemList.InputHandlers[genericComputer];
                 inputHandler.Init(system, inputHandlerContext);
 
-                var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, NullInputHandlerContext>(genericComputer);
+                var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, AspNetInputHandlerContext>(genericComputer);
                 var systemRunner = systemRunnerBuilder
                     .WithRenderer(renderer)
                     .WithInputHandler(inputHandler)

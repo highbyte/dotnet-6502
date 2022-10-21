@@ -12,7 +12,7 @@
 @*<SKCanvasView></SKCanvasView>
 *@
 @*<SKGLView style="position:fixed; left:40px; top:70px; width: 100vw; height: 100vh; overflow: hidden;"*@
-<SKGLView style="position:relative; left:0px; top:0px; width: 100vw; height: 100vh; overflow: hidden;"
+<SKGLView style="position:relative; left:0px; top:0px; width: 1104px; height: 744px; overflow: hidden;"
           IgnorePixelScaling="true"
           EnableRenderLoop="true"
           OnPaintSurface="OnPaintSurface"
@@ -21,31 +21,32 @@
           @onkeypress="OnKeyPress"
           @onkeydown="OnKeyDown"
           @onkeyup="OnKeyUp"
-          />
+          @ref="_skGLView" />
 
 @code
 {
+    private SKGLView _skGLView;
 
     private void OnKeyPress(KeyboardEventArgs e)
     {
+        if (_wasmHost == null)
+            return;
+        _wasmHost.InputHandlerContext.KeyPress(e);
+
     }
 
     private void OnKeyDown(KeyboardEventArgs e)
     {
-        int keyCode=0;
-        if(e.Key.Length==1)
-            keyCode = (int)e.Key[0];
-
-        //_emulatorHelper!.KeyDown(keyCode);
+        if (_wasmHost == null)
+            return;
+        _wasmHost.InputHandlerContext.KeyDown(e);
     }
 
     private void OnKeyUp(KeyboardEventArgs e)
     {
-        int keyCode=0;
-        if(e.Key.Length==1)
-            keyCode = (int)e.Key[0];
-                
-        //_emulatorHelper!.KeyUp(keyCode);
+        if (_wasmHost == null)
+            return;
+        _wasmHost.InputHandlerContext.KeyUp(e);
     }
 
     //private void OnPointerDown(PointerEventArgs e)

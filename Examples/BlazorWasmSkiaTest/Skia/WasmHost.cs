@@ -1,4 +1,5 @@
 using BlazorWasmSkiaTest.Instrumentation.Stats;
+using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Systems;
 using SkiaSharp;
@@ -14,7 +15,7 @@ namespace BlazorWasmSkiaTest.Skia
 
         private SKCanvas _skCanvas;
         private SkiaRenderContext _skiaRenderContext;
-        private readonly NullInputHandlerContext _inputHandlerContext;
+        public AspNetInputHandlerContext InputHandlerContext { get; private set; }
         private readonly ISystem _system;
         private readonly Action<string> _updateStats;
         private readonly float _scale;
@@ -30,21 +31,21 @@ namespace BlazorWasmSkiaTest.Skia
 
         public WasmHost(
             ISystem system,
-            Func<ISystem, SkiaRenderContext, NullInputHandlerContext, SystemRunner> getSystemRunner,
+            Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, SystemRunner> getSystemRunner,
             Action<string> updateStats,
             float scale = 1.0f
             )
         {
             _system = system;
             _skiaRenderContext = new SkiaRenderContext(GetCanvas);
-            _inputHandlerContext = new NullInputHandlerContext();
-            _systemRunner = getSystemRunner(_system, _skiaRenderContext, _inputHandlerContext);
+            InputHandlerContext = new AspNetInputHandlerContext();
+            _systemRunner = getSystemRunner(_system, _skiaRenderContext, InputHandlerContext);
             _updateStats = updateStats;
             _scale = scale;
+
             var screen = (IScreen)system;
             // Number of milliseconds between each invokation of the main game loop. 60 fps -> (1/60) * 1000  -> approx 16.6667ms
             double updateIntervalMS = (1 / screen.RefreshFrequencyHz) * 1000;
-
             _updateTimer = new PeriodicAsyncTimer();
             _updateTimer.IntervalMilliseconds = updateIntervalMS;
             _updateTimer.Elapsed += UpdateTimerElapsed;
@@ -108,7 +109,7 @@ namespace BlazorWasmSkiaTest.Skia
             }
         }
 
-        public SKCanvas GetCanvas()
+        private SKCanvas GetCanvas()
         {
             return _skCanvas;
         }
