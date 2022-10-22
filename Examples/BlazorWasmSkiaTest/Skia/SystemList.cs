@@ -35,7 +35,7 @@ namespace BlazorWasmSkiaTest.Skia
                 var c64 = C64.BuildC64(c64Config);
                 Systems.Add(c64.Name, c64);
                 Renderers.Add(c64, new C64SkiaRenderer());
-                InputHandlers.Add(c64, new NullInputHandler<C64>());
+                InputHandlers.Add(c64, new C64AspNetInputHandler());
             }
 
             if (genericComputerConfig != null)

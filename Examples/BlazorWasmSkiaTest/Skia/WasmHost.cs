@@ -8,15 +8,18 @@ namespace BlazorWasmSkiaTest.Skia
 {
     public class WasmHost : IDisposable
     {
-        private int _screenWidth;
-        private int _screenHeight;
-        private readonly SystemRunner _systemRunner;
-        private readonly PeriodicAsyncTimer? _updateTimer;
+        public bool Initialized { get; private set; }
+
+        private SystemRunner _systemRunner;
 
         private SKCanvas _skCanvas;
-        private SkiaRenderContext _skiaRenderContext;
+        private GRContext _grContext;
+
+        private PeriodicAsyncTimer? _updateTimer;
+
         public AspNetInputHandlerContext InputHandlerContext { get; private set; }
         private readonly ISystem _system;
+        private readonly Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, SystemRunner> _getSystemRunner;
         private readonly Action<string> _updateStats;
         private readonly float _scale;
 
@@ -37,13 +40,23 @@ namespace BlazorWasmSkiaTest.Skia
             )
         {
             _system = system;
-            _skiaRenderContext = new SkiaRenderContext(GetCanvas);
-            InputHandlerContext = new AspNetInputHandlerContext();
-            _systemRunner = getSystemRunner(_system, _skiaRenderContext, InputHandlerContext);
+            _getSystemRunner = getSystemRunner;
             _updateStats = updateStats;
             _scale = scale;
 
-            var screen = (IScreen)system;
+            Initialized = false;
+        }
+
+        public void Init(SKCanvas canvas, GRContext grContext)
+        {
+            _skCanvas = canvas;
+            _grContext = grContext;
+
+            var skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
+            InputHandlerContext = new AspNetInputHandlerContext();
+            _systemRunner = _getSystemRunner(_system, skiaRenderContext, InputHandlerContext);
+
+            var screen = (IScreen)_system;
             // Number of milliseconds between each invokation of the main game loop. 60 fps -> (1/60) * 1000  -> approx 16.6667ms
             double updateIntervalMS = (1 / screen.RefreshFrequencyHz) * 1000;
             _updateTimer = new PeriodicAsyncTimer();
@@ -51,22 +64,11 @@ namespace BlazorWasmSkiaTest.Skia
             _updateTimer.Elapsed += UpdateTimerElapsed;
             _updateTimer.Start();
 
-
+            Initialized = true;
         }
 
         private void UpdateTimerElapsed(object? sender, EventArgs e) => EmulatorRunOneFrame();
 
-        public void SetSize(int width, int height)
-        {
-            _screenWidth = width;
-            _screenHeight = height;
-        }
-
-        public (int Width, int Height) GetScreenSize() => (_screenWidth, _screenHeight);
-
-        public void SetContext(GRContext context)
-        {
-        }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
         private void EmulatorRunOneFrame()
@@ -83,7 +85,6 @@ namespace BlazorWasmSkiaTest.Skia
                 _systemRunner.RunEmulatorOneFrame();
             }
 
-
             _statsFrameCount++;
             if (_statsFrameCount >= STATS_EVERY_X_FRAME)
             {
@@ -93,10 +94,11 @@ namespace BlazorWasmSkiaTest.Skia
             }
         }
 
-        public void Render(SKCanvas canvas)
+        public void Render(SKCanvas canvas, GRContext grContext)
         {
             _renderFps.Update();
 
+            _grContext = grContext;
             _skCanvas = canvas;
             _skCanvas.Scale(_scale);
             using (_renderTime.Measure())
@@ -112,6 +114,11 @@ namespace BlazorWasmSkiaTest.Skia
         private SKCanvas GetCanvas()
         {
             return _skCanvas;
+        }
+
+        private GRContext GetGRContext()
+        {
+            return _grContext;
         }
 
         private string GetStats()

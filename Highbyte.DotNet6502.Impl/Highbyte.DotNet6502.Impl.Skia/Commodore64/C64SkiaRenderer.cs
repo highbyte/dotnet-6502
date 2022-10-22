@@ -8,6 +8,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
     public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     {
         private Func<SKCanvas> _getSkCanvas;
+        private Func<GRContext> _getGRContext;
 
         private const int CHARGEN_IMAGE_CHARACTERS_PER_ROW = 16;
 
@@ -19,7 +20,9 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
         public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
         {
             _getSkCanvas = skiaRenderContext.GetCanvas;
-            InitCharset(c64, skiaRenderContext.GRContext);
+            _getGRContext = skiaRenderContext.GetGRContext;
+
+            InitCharset(c64, _getGRContext());
         }
 
         public void Init(ISystem system, IRenderContext renderContext)

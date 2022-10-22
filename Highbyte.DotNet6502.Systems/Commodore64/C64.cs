@@ -43,13 +43,13 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
         private C64MonitorCommands _c64MonitorCommands = new C64MonitorCommands();
 
-        public static ROM[] ROMS = new ROM[]
-        {   
-            // name, file, checksum 
-            ROM.NewROM("basic",   "basic",   "79015323128650c742a3694c9429aa91f355905e"),
-            ROM.NewROM("chargen", "chargen", "adc7c31e18c7c7413d54802ef2f4193da14711aa"),
-            ROM.NewROM("kernal",  "kernal",  "1d503e56df85a62fee696e7618dc5b4e781df1bb"),
-        };
+        //public static ROM[] ROMS = new ROM[]
+        //{   
+        //    // name, file, checksum 
+        //    ROM.NewROM("basic",   "basic",   "79015323128650c742a3694c9429aa91f355905e"),
+        //    ROM.NewROM("chargen", "chargen", "adc7c31e18c7c7413d54802ef2f4193da14711aa"),
+        //    ROM.NewROM("kernal",  "kernal",  "1d503e56df85a62fee696e7618dc5b4e781df1bb"),
+        //};
 
         public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
         {
@@ -104,9 +104,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
             var c64Model = C64ModelInventory.C64Models[c64Config.C64Model];
 
             var ram = new byte[64 * 1024];  // C64 has 64KB of RAM
-            var romData = ROM.LoadROMS(
-                Environment.ExpandEnvironmentVariables(c64Config.ROMDirectory), // TODO: ROM directory from config file
-                 ROMS);
+
+            var romData = ROM.LoadROMS(Environment.ExpandEnvironmentVariables(c64Config.ROMDirectory), c64Config.ROMs.ToArray());
+
             var io = new byte[1 * 1024];  // 1KB of C64 IO addresses that is mapped to memory address range 0xd000 - 0xdfff in certain memory configuration.
 
             var mem = CreateC64Memory(ram, io, romData);

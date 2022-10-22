@@ -1,4 +1,4 @@
-﻿using Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats;
+using Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats;
 using Highbyte.DotNet6502.App.SkiaNative.Stats;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
@@ -171,7 +171,7 @@ public class SilkNetWindow
             _systemRunner.Draw();
 
             // Flush the Skia Context
-            _skiaRenderContext.GRContext?.Flush();
+            _skiaRenderContext.GetGRContext().Flush();
         }
 
         // SilkNet windows are what's known as "double-buffered". In essence, the window manages two buffers.

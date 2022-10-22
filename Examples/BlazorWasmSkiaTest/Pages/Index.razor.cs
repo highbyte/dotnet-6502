@@ -9,6 +9,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Impl.AspNet;
+using SkiaSharp;
 
 namespace BlazorWasmSkiaTest.Pages
 {
@@ -36,16 +37,16 @@ namespace BlazorWasmSkiaTest.Pages
         {
             var uri = NavManager!.ToAbsoluteUri(NavManager.Uri);
 
-            //var c64Config = BuildC64Config(uri);
-            C64Config c64Config = null;
+            var c64Config = await BuildC64Config(uri);
+            //C64Config c64Config = null;
 
             var genericComputerConfig = await BuildGenericComputerConfig(uri);
 
             _systemList = new SystemList();
             _systemList.BuildSystemLookups(c64Config, genericComputerConfig);
 
-            //var system = _systemList.Systems[emulatorConfig.Emulator];
-            var system = _systemList.Systems["Generic"];
+            //var system = _systemList.Systems["Generic"];
+            var system = _systemList.Systems["C64"];
 
             // Set SKGLView dimensions
             float scale = 3.0f;
@@ -57,19 +58,88 @@ namespace BlazorWasmSkiaTest.Pages
             _wasmHost = new WasmHost(system, GetSystemRunner, UpdateStats, scale);
         }
 
-        private C64Config BuildC64Config(Uri uri)
+        protected void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
         {
+            if (!(e.Surface.Context is GRContext grContext && grContext != null))
+                return;
+
+            if (_wasmHost == null)
+                return;
+
+            if (!_wasmHost.Initialized)
+            {
+                _wasmHost.Init(e.Surface.Canvas, grContext);
+            }
+
+            //_emulatorRenderer!.SetSize(e.Info.Width, e.Info.Height);
+            //if (e.Surface.Context is GRContext context && context != null)
+            //{
+            //    // If we draw our own images (not directly on the canvas provided), make sure it's within the same contxt
+            //    _emulatorRenderer.SetContext(context);
+            //}
+
+            _wasmHost.Render(e.Surface.Canvas, grContext);
+        }
+
+        private async Task<C64Config> BuildC64Config(Uri uri)
+        {
+            const string BASIC_ROM_URL = "ROM/basic.901226-01.bin";
+            const string CHARGEN_ROM_URL = "ROM/characters.901225-01.bin";
+            const string KERNAL_ROM_URL = "ROM/kernal.901227-03.bin";
+
+            byte[] basicROMData = await GetROMFromUrl(BASIC_ROM_URL);
+            byte[] chargenROMData = await GetROMFromUrl(CHARGEN_ROM_URL);
+            byte[] kernalROMData = await GetROMFromUrl(KERNAL_ROM_URL);
+
             var c64Config = new C64Config
             {
                 C64Model = "C64NTSC",   // C64NTSC, C64PAL
                 Vic2Model = "NTSC",     // NTSC, NTSC_old, PAL
                                         // C64Model = "C64PAL",   // C64NTSC, C64PAL
                                         // Vic2Model = "PAL",     // NTSC, NTSC_old, PAL
-                // ROMBaseUrl = "https://...."  // TODO: Load C64 ROMs from URL instead of directory
+
+                ROMDirectory = "",  // Set ROMDirectory to skip loading ROMs from file system (ROMDirectory + File property), instead read from the Data property
+                ROMs = new List<ROM>
+                {
+                    new ROM
+                    {
+                        Name = "basic",
+                        Data = basicROMData,
+                        //Checksum = ""
+                    },
+                    new ROM
+                    {
+                        Name = "chargen",
+                        Data = chargenROMData,
+                        //Checksum = ""
+                    },
+                    new ROM
+                    {
+                        Name = "kernal",
+                        Data = kernalROMData,
+                        //Checksum = ""
+                    }
+                }
             };
-            //c64Config.Validate();
+            c64Config.Validate();
 
             return c64Config;
+        }
+
+        private async Task<byte[]> GetROMFromUrl(string url)
+        {
+            return await HttpClient!.GetByteArrayAsync(url);
+
+            //var request = new HttpRequestMessage(HttpMethod.Get, url);
+            ////request.SetBrowserRequestMode(BrowserRequestMode.NoCors);
+            ////request.SetBrowserRequestCache(BrowserRequestCache.NoStore); //optional  
+
+            ////var response = await HttpClient!.SendAsync(request);
+
+            //var statusCode = response.StatusCode;
+            //response.EnsureSuccessStatusCode();
+            //byte[] responseRawData = await response.Content.ReadAsByteArrayAsync();
+            //return responseRawData;
         }
 
         private async Task<GenericComputerConfig> BuildGenericComputerConfig(Uri uri)
@@ -262,20 +332,6 @@ namespace BlazorWasmSkiaTest.Pages
             return Convert.FromBase64String(s); // Standard base64 decoder
         }
 
-        protected void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
-        {
-            if (_wasmHost == null)
-                return;
-
-            //_emulatorRenderer!.SetSize(e.Info.Width, e.Info.Height);
-            //if (e.Surface.Context is GRContext context && context != null)
-            //{
-            //    // If we draw our own images (not directly on the canvas provided), make sure it's within the same contxt
-            //    _emulatorRenderer.SetContext(context);
-            //}
-
-            _wasmHost.Render(e.Surface.Canvas);
-        }
 
         protected void UpdateStats(string stats)
         {

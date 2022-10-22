@@ -276,3 +276,5 @@ nuget.config
 
 # covergereport from dotnet global tool "reportgenerator"
 coveragereport/
+
+**/wwwroot/ROM/

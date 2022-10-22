@@ -21,8 +21,8 @@ Environment.CurrentDirectory = currentAppDir;
 // TODO: Read options from appsettings.json
 var emulatorConfig = new EmulatorConfig
 {
-    //Emulator = "C64", 
-    Emulator = "Generic",
+    Emulator = "C64", 
+    //Emulator = "Generic",
     DrawScale = 3.0f,
     Monitor = new MonitorConfig
     {

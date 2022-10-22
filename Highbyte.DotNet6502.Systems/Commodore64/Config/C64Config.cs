@@ -6,16 +6,46 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config
     {
         public const string ConfigSectionName = "Highbyte.DotNet6502.C64";
 
+        public static List<string> RequiredROMs = new()
+        {
+            "basic", "chargen", "kernal"
+        };
+
+        public List<ROM> ROMs { get; set; }
         public string ROMDirectory { get; set; }
 
         public string C64Model { get; set; }
-
         public string Vic2Model { get; set; }
 
         public C64Config()
         {
             // Defaults
+            ROMs = new List<ROM>
+            {
+                new ROM
+                {
+                    Name = "basic",
+                    File = "basic",
+                    Data = null,
+                    Checksum = "79015323128650c742a3694c9429aa91f355905e",
+                },
+                new ROM
+                {
+                    Name = "chargen",
+                    File = "chargen",
+                    Data = null,
+                    Checksum = "adc7c31e18c7c7413d54802ef2f4193da14711aa",
+                },
+                new ROM
+                {
+                    Name = "kernal",
+                    File = "kernal",
+                    Data = null,
+                    Checksum = "1d503e56df85a62fee696e7618dc5b4e781df1bb",
+                },
+            };
             ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64";
+
             C64Model = "C64NTSC";
             Vic2Model = "NTSC";
         }
@@ -29,9 +59,20 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config
             if (!c64Model.Vic2Models.Exists(x => x.Name == Vic2Model))
                 throw new Exception($"Setting {nameof(Vic2Model)} value {Vic2Model} is not supported for the specified C64Variant. Valid values are: {string.Join(',', c64Model.Vic2Models.Select( x => x.Name))}");
 
+            var allRequiredROMSconfigured = RequiredROMs.Intersect(ROMs.Select(x => x.Name)).Count() == RequiredROMs.Count();
+            if (!allRequiredROMSconfigured)
+                throw new Exception($"Setting {nameof(ROMs)} must contain at least all required ROMs: {string.Join(',', RequiredROMs)}");
+
             var romDir = Environment.ExpandEnvironmentVariables(ROMDirectory);
-            if (!Directory.Exists(romDir))
-                throw new Exception($"Setting {nameof(ROMDirectory)} value {romDir} does not contain an existing directory.");
+            if (!string.IsNullOrEmpty(romDir))
+            {
+                if (!Directory.Exists(romDir))
+                    throw new Exception($"Setting {nameof(ROMDirectory)} value {romDir} does not contain an existing directory.");
+            }
+            foreach (var rom in ROMs)
+            {
+                rom.Validate();
+            }
         }
     }
 }
