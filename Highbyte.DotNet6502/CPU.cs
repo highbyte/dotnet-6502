@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -145,6 +145,35 @@ namespace Highbyte.DotNet6502
             };
         }
 
+        public bool ExecuteOneInstructionMinimal(
+            Memory mem,
+            out ulong cyclesConsumed
+            )
+        {
+            var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
+
+            // Check if a hardware IRQ has been raised (could have been done in a delegate callback OnInstructionExecuted above)    
+            if (IRQ)
+            {
+                IRQ = false;
+                // Only process the IRQ as long we don't have set the Interrupt Disable status flag.
+                if (!ProcessorStatus.InterruptDisable)
+                    ProcessHardwareIRQ(mem);
+            }
+
+            // Check if a hardware NMI has been raised (could have been done in a delegate callback OnInstructionExecuted above)    
+            if (NMI)
+            {
+                NMI = false;
+                // Always process is it, regardless if InterruptDisable status flag has been set.
+                ProcessHardwareNMI(mem);
+            }
+
+            cyclesConsumed = instructionExecutionResult.CyclesConsumed;
+
+            return !instructionExecutionResult.UnknownInstruction;
+        }
+
         public ExecState ExecuteOneInstruction(
             Memory mem)
         {
@@ -158,10 +187,6 @@ namespace Highbyte.DotNet6502
             // Collect stats for this invocation of Execute(). 
             // Whereas the property Cpu.ExecState contains the aggregate stats for all invocations of Execute().
             var thisExecState = new ExecState();
-
-            // Reset checks if executions should continue
-            foreach (var execEvaluator in execEvaluators)
-                execEvaluator.Reset();
 
             bool doNextInstruction = true;
             while (doNextInstruction)
@@ -219,9 +244,12 @@ namespace Highbyte.DotNet6502
                 // Will continue only if all of the ExecEvaluators reports true.
                 foreach (var execEvaluator in execEvaluators)
                 {
-                    execEvaluator.Check(thisExecState, this, mem);
-                    if (doNextInstruction == true && execEvaluator.Continue == false)
+                    var cont = execEvaluator.Check(thisExecState, this, mem);
+                    if (!cont)
+                    {
                         doNextInstruction = false;
+                        break;
+                    }
                 }
             }
 

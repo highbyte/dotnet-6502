@@ -57,6 +57,11 @@ namespace Highbyte.DotNet6502.Systems.Generic
                 execEvaluator);
         }
 
+        public bool ExecuteOneFrame()
+        {
+            return ExecuteOneFrame();
+        }
+
         public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
         {
             // If we already executed cycles in current frame, reduce it from total.
@@ -82,7 +87,7 @@ namespace Highbyte.DotNet6502.Systems.Generic
             if (!execState.LastOpCodeWasHandled)
                 return false;
             // If the custom ExecEvaluator said we shouldn't contine (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
-            if (execEvaluator != null && !execEvaluator.Continue)
+            if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
                 return false;
 
             // Tell CPU 6502 code that one frame worth of CPU cycles has been executed

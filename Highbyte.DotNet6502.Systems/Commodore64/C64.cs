@@ -51,49 +51,76 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
         //    ROM.NewROM("kernal",  "kernal",  "1d503e56df85a62fee696e7618dc5b4e781df1bb"),
         //};
 
+        // Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
         public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
         {
-            if (_oneFrameExecEvaluator == null)
-                _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = (ulong)Vic2.Vic2Model.CyclesPerFrame });
+            var cyclesToExecute = (ulong)Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
 
-            // If we already executed cycles in current frame, reduce it from total.
-            _oneFrameExecEvaluator.ExecOptions.CyclesRequested = (ulong)Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
-
-            ExecState execState;
-            if (execEvaluator == null)
+            ulong totalCyclesConsumed = 0;
+            while (totalCyclesConsumed < cyclesToExecute)
             {
-                execState = CPU.Execute(
-                    Mem,
-                    _oneFrameExecEvaluator);
+                var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out var instructionCyclesConsumed);
+                if (!knownInstruction)
+                    return false;
+
+                Vic2.CPUCyclesConsumed(CPU, Mem, instructionCyclesConsumed);
+                totalCyclesConsumed += instructionCyclesConsumed;
+
+                // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
+                if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
+                    return false;
             }
-            else
-            {
-                execState = CPU.Execute(
-                    Mem,
-                    _oneFrameExecEvaluator,
-                    execEvaluator
-                    );
-            }
-
-            if (!execState.LastOpCodeWasHandled)
-                return false;
-
-            // If the custom ExecEvaluator said we shouldn't continue (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
-            if (execEvaluator != null && !execEvaluator.Continue)
-                return false;
-
-            // Return true to indicate execution was successfull and we should continue
             return true;
         }
 
+
+        // Slower CPU execution, with customization such as statistics and execution events.
+        //public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
+        //{
+        //    if (_oneFrameExecEvaluator == null)
+        //        _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = (ulong)Vic2.Vic2Model.CyclesPerFrame });
+
+        //    // If we already executed cycles in current frame, reduce it from total.
+        //    _oneFrameExecEvaluator.ExecOptions.CyclesRequested = (ulong)Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
+
+        //    ExecState execState;
+        //    if (execEvaluator == null)
+        //    {
+        //        execState = CPU.Execute(
+        //            Mem,
+        //            _oneFrameExecEvaluator);
+        //    }
+        //    else
+        //    {
+        //        execState = CPU.Execute(
+        //            Mem,
+        //            _oneFrameExecEvaluator,
+        //            execEvaluator
+        //            );
+        //    }
+
+        //    if (!execState.LastOpCodeWasHandled)
+        //        return false;
+
+        //    // If the custom ExecEvaluator said we shouldn't continue (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
+        //    if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
+        //        return false;
+
+        //    // Return true to indicate execution was successfull and we should continue
+        //    return true;
+        //}
+
         public bool ExecuteOneInstruction()
         {
-            var execState = CPU.ExecuteOneInstruction(Mem);
-            // If an unhandled instruction, return false
-            if (!execState.LastOpCodeWasHandled)
-                return false;
-            // Return true to indicate execution was successfull
-            return true;
+            var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out ulong cyclesConsumed);
+            return knownInstruction;
+
+            //var execState = CPU.ExecuteOneInstruction(Mem);
+            //// If an unhandled instruction, return false
+            //if (!execState.LastOpCodeWasHandled)
+            //    return false;
+            //// Return true to indicate execution was successfull
+            //return true;
         }
 
         private C64() { }

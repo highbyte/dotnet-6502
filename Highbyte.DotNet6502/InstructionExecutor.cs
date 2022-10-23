@@ -1,4 +1,4 @@
-﻿namespace Highbyte.DotNet6502
+namespace Highbyte.DotNet6502
 {
     /// <summary>
     /// Executes a CPU instruction
@@ -19,16 +19,11 @@
         {
             byte opCode = cpu.FetchInstruction(mem);
 
-            if(!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
+            if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
                 return InstructionExecResult.UnknownInstructionResult(opCode);
 
             var opCodeObject = cpu.InstructionList.GetOpCode(opCode);
-            if(opCodeObject == null)
-                return InstructionExecResult.UnknownInstructionResult(opCode);
-
             var instruction = cpu.InstructionList.GetInstruction(opCodeObject);
-            if(instruction == null)
-                 return InstructionExecResult.UnknownInstructionResult(opCode);
 
             // Derive what the final value is going to be used with the instruction based on addressing mode.
             // The way the addressing mode works is the same accross the instructions, so we don't need to repeat the logic

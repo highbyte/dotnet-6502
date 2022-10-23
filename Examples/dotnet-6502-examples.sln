@@ -35,6 +35,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.App.Ski
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Impl.AspNet", "..\Highbyte.DotNet6502.Impl\Highbyte.DotNet6502.Impl.AspNet\Highbyte.DotNet6502.Impl.AspNet.csproj", "{6B45E308-63B7-44F2-9C1B-D7B9EDBC9F7D}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Monitor", "..\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj", "{A3405B42-1924-4638-AFD6-50B2425A4038}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -201,6 +203,18 @@ Global
 		{6B45E308-63B7-44F2-9C1B-D7B9EDBC9F7D}.Release|x64.Build.0 = Release|Any CPU
 		{6B45E308-63B7-44F2-9C1B-D7B9EDBC9F7D}.Release|x86.ActiveCfg = Release|Any CPU
 		{6B45E308-63B7-44F2-9C1B-D7B9EDBC9F7D}.Release|x86.Build.0 = Release|Any CPU
+		{A3405B42-1924-4638-AFD6-50B2425A4038}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A3405B42-1924-4638-AFD6-50B2425A4038}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A3405B42-1924-4638-AFD6-50B2425A4038}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A3405B42-1924-4638-AFD6-50B2425A4038}.Debug|x64.Build.0 = Debug|Any CPU
+		{A3405B42-1924-4638-AFD6-50B2425A4038}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A3405B42-1924-4638-AFD6-50B2425A4038}.Debug|x86.Build.0 = Debug|Any CPU
+		{A3405B42-1924-4638-AFD6-50B2425A4038}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A3405B42-1924-4638-AFD6-50B2425A4038}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A3405B42-1924-4638-AFD6-50B2425A4038}.Release|x64.ActiveCfg = Release|Any CPU
+		{A3405B42-1924-4638-AFD6-50B2425A4038}.Release|x64.Build.0 = Release|Any CPU
+		{A3405B42-1924-4638-AFD6-50B2425A4038}.Release|x86.ActiveCfg = Release|Any CPU
+		{A3405B42-1924-4638-AFD6-50B2425A4038}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 
 namespace Highbyte.DotNet6502
 {
@@ -9,8 +10,8 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public class InstructionList
     {
-        public Dictionary<byte,OpCode> OpCodeDictionary {get; private set;}
-        public Dictionary<byte,Instruction> InstructionDictionary {get; private set;}
+        public Dictionary<byte, OpCode> OpCodeDictionary {get; private set;}
+        public Dictionary<byte, Instruction> InstructionDictionary {get; private set;}
 
         public InstructionList()
         {
@@ -25,28 +26,19 @@ namespace Highbyte.DotNet6502
                 foreach(var opCode in instruction.OpCodes)
                 {
                     OpCodeDictionary.Add(opCode.Code.ToByte(), opCode);
-                    InstructionDictionary.Add(opCode.Code.ToByte(), instruction);
+                    InstructionDictionary.Add(opCode.CodeRaw, instruction);
                 }
             }
         }
 
         public OpCode GetOpCode(byte opCode)
         {
-             if(!OpCodeDictionary.ContainsKey(opCode))
-                return null;
             return OpCodeDictionary[opCode];
         }
 
-        // TODO: Optimize. Maybe add reference to from OpCode to the Instruction it belongs to, so this linq query is not necessary.
-        public Instruction GetInstruction(byte opCode)
-        {
-             if(!InstructionDictionary.ContainsKey(opCode))
-                return null;
-            return InstructionDictionary[opCode];
-        }
         public Instruction GetInstruction(OpCode opCodeObject)
         {
-            return GetInstruction(opCodeObject.Code.ToByte());
+            return InstructionDictionary[opCodeObject.CodeRaw];
         }
 
         public InstructionList Clone()

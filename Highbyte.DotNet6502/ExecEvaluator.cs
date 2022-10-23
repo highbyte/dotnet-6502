@@ -2,15 +2,11 @@ namespace Highbyte.DotNet6502
 {
     public interface IExecEvaluator
     {
-        public bool Continue { get; }
-        public void Reset();
-        public void Check(ExecState execState, CPU cpu, Memory mem);
+        public bool Check(ExecState execState, CPU cpu, Memory mem);
     }
 
     public class LegacyExecEvaluator : IExecEvaluator
     {
-        public bool Continue { get; private set; }
-
         public ExecOptions ExecOptions => _execOptions;
 
         private readonly ExecOptions _execOptions;
@@ -27,15 +23,11 @@ namespace Highbyte.DotNet6502
             _execOptions = execOptions;
         }
 
-        public void Reset()
+        public bool Check(ExecState execState, CPU cpu, Memory mem)
         {
-            Continue = true;
-        }
+            var cont = true;
 
-        public void Check(ExecState execState, CPU cpu, Memory mem)
-        {
             var instructionExecutionResult = execState.LastInstructionExecResult;
-            Continue = true;
 
             // Check if we're configured to throw exception when unknown exception occurs
             if (instructionExecutionResult.UnknownInstruction && ExecOptions.UnknownInstructionThrowsException)
@@ -43,24 +35,24 @@ namespace Highbyte.DotNet6502
 
             // Check if we should continue executing instructions
             if (ExecOptions.CyclesRequested.HasValue && execState.CyclesConsumed >= ExecOptions.CyclesRequested.Value)
-                Continue = false;
+                cont = false;
             if (ExecOptions.MaxNumberOfInstructions.HasValue && execState.InstructionsExecutionCount >= ExecOptions.MaxNumberOfInstructions.Value)
-                Continue = false;
+                cont = false;
             if (!instructionExecutionResult.UnknownInstruction && ExecOptions.ExecuteUntilInstruction.HasValue && instructionExecutionResult.OpCodeByte == ExecOptions.ExecuteUntilInstruction.Value.ToByte())
-                Continue = false;
+                cont = false;
             if (ExecOptions.ExecuteUntilInstructions.Count > 0 && ExecOptions.ExecuteUntilInstructions.Contains(instructionExecutionResult.OpCodeByte))
-                Continue = false;
+                cont = false;
             if (ExecOptions.ExecuteUntilPC.HasValue && cpu.PC == ExecOptions.ExecuteUntilPC.Value)
-                Continue = false;
+                cont = false;
             if (ExecOptions.ExecuteUntilExecutedInstructionAtPC.HasValue && execState.PCBeforeLastOpCodeExecuted == ExecOptions.ExecuteUntilExecutedInstructionAtPC.Value)
-                Continue = false;
+                cont = false;
+
+            return cont;
         }
     }
 
     public class AlwaysExecEvaluator : IExecEvaluator
     {
-        public bool Continue => true;
-        public void Check(ExecState execState, CPU cpu, Memory mem) { }
-        public void Reset() { }
+        public bool Check(ExecState execState, CPU cpu, Memory mem) => true;
     }
 }
