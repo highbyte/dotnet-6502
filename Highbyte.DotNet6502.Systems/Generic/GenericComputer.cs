@@ -59,7 +59,6 @@ namespace Highbyte.DotNet6502.Systems.Generic
 
         public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
         {
-            // TODO: The number of cycles per vblank should be configurable
             // If we already executed cycles in current frame, reduce it from total.
             _oneFrameExecEvaluator.ExecOptions.CyclesRequested = CPUCyclesPerFrame - CyclesConsumedCurrentVblank;
 

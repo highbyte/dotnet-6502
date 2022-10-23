@@ -56,7 +56,6 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
             if (_oneFrameExecEvaluator == null)
                 _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = (ulong)Vic2.Vic2Model.CyclesPerFrame });
 
-            // TODO: The number of cycles per vblank should be configurable
             // If we already executed cycles in current frame, reduce it from total.
             _oneFrameExecEvaluator.ExecOptions.CyclesRequested = (ulong)Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
 

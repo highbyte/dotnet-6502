@@ -17,6 +17,9 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
         private SKImage _characterSetROMShiftedImage;
         private SKImage _characterSetROMUnshiftedImage;
 
+        private SKRect _drawImageSource = new SKRect();
+        private SKRect _drawImageDest = new SKRect();
+
         public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
         {
             _getSkCanvas = skiaRenderContext.GetCanvas;
@@ -161,14 +164,24 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 
             var canvas = _getSkCanvas();
 
+            _drawImageSource.Left = romImageX;
+            _drawImageSource.Top = romImageY;
+            _drawImageSource.Right = romImageX + 8;
+            _drawImageSource.Bottom = romImageY + 8;
+
+            _drawImageDest.Left = pixelPosX;
+            _drawImageDest.Top = pixelPosY;
+            _drawImageDest.Right = pixelPosX + 8;
+            _drawImageDest.Bottom = pixelPosY + 8;
+
             var paint = C64SkiaPaint.C64ToDrawChargenCharacterMap[characterColor];
-            {
-                canvas.DrawImage(_characterSetCurrent,
-                    source: new SKRect(romImageX, romImageY, romImageX + 8, romImageY + 8),
-                    dest:   new SKRect(pixelPosX, pixelPosY, pixelPosX + 8, pixelPosY + 8),
-                    paint
-                    );
-            }
+            canvas.DrawImage(_characterSetCurrent,
+                //source: new SKRect(romImageX, romImageY, romImageX + 8, romImageY + 8),
+                //dest: new SKRect(pixelPosX, pixelPosY, pixelPosX + 8, pixelPosY + 8),
+                source: _drawImageSource,
+                dest: _drawImageDest,
+                paint
+                );
         }
     }
 }
