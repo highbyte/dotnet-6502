@@ -17,7 +17,7 @@ namespace Highbyte.DotNet6502.Instructions
             cpu.StoreByte(value, mem, addrModeCalcResult.InsAddress.Value);
             BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(value, cpu.ProcessorStatus);
 
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }
 
         public DEC()

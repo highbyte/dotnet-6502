@@ -15,7 +15,7 @@ namespace Highbyte.DotNet6502.Instructions
             cpu.Y = cpu.A;
             BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, cpu.ProcessorStatus);
             
-            return InstructionLogicResult.WithNoExtraCycles();                
+            return 0;                
         }
 
         public TAY()

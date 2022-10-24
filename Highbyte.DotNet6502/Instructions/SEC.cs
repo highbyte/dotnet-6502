@@ -15,7 +15,7 @@ namespace Highbyte.DotNet6502.Instructions
             // Assume implied mode
             cpu.ProcessorStatus.Carry = true;
                         
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }
 
         public SEC()

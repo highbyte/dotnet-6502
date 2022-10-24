@@ -16,7 +16,7 @@ namespace Highbyte.DotNet6502.Instructions
         {
             BinaryArithmeticHelpers.PerformBITAndSetStatusRegisters(cpu.A, value, cpu.ProcessorStatus);
 
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }  
 
         public BIT()

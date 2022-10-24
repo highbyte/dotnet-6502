@@ -22,11 +22,10 @@ namespace Highbyte.DotNet6502.Instructions
                 branchSucceeded = true;
             }
 
-            return InstructionLogicResult.WithExtraCycles(
+            return 
                 InstructionExtraCyclesCalculator.CalculateExtraCyclesForBranchInstructions(
                         branchSucceeded, 
-                        addressCalculationCrossedPageBoundary)
-                );
+                        addressCalculationCrossedPageBoundary);
         }         
 
         public BVS()

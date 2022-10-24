@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.Instructions
             cpu.ProcessorStatus.Unused = false;
             cpu.PC = cpu.PopWordFromStack(mem);
 
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }
 
         

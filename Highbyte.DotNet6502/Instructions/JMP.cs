@@ -14,7 +14,7 @@ namespace Highbyte.DotNet6502.Instructions
         {
            cpu.PC = address;
 
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }
         
         public JMP()

@@ -16,11 +16,10 @@ namespace Highbyte.DotNet6502.Instructions
             cpu.Y = value;
             BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, cpu.ProcessorStatus);
 
-            return InstructionLogicResult.WithExtraCycles(
+            return 
                 InstructionExtraCyclesCalculator.CalculateExtraCycles(
                         addrModeCalcResult.OpCode.AddressingMode, 
-                        addrModeCalcResult.AddressCalculationCrossedPageBoundary)
-                );
+                        addrModeCalcResult.AddressCalculationCrossedPageBoundary);
         } 
 
         public LDY()

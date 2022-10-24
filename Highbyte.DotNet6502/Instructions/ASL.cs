@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.Instructions
             tempValue = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(tempValue, cpu.ProcessorStatus);
             cpu.StoreByte(tempValue, mem, address);
 
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }
 
         public ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
@@ -27,7 +27,7 @@ namespace Highbyte.DotNet6502.Instructions
             // Assume Accumulator mode
             cpu.A = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(cpu.A, cpu.ProcessorStatus);
 
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }
 
         public ASL()

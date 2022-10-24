@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.Instructions
             // Set PC to address we will jump to
             cpu.PC = address;             
 
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }
 
         public JSR()

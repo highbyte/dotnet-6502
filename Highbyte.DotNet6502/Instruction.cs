@@ -14,27 +14,6 @@ namespace Highbyte.DotNet6502
             return OpCodes.Exists(x=>x.AddressingMode == mode);
         }
     }
-
-    public static class InstructionLogicResult
-    {
-        //public ulong ExtraConsumedCycles { get; set; }
-        public static ulong WithNoExtraCycles()
-        {
-            return 0;
-            //return new InstructionLogicResult
-            //{
-            //    ExtraConsumedCycles = 0
-            //};
-        }
-        public static ulong WithExtraCycles(ulong extraCycles)
-        {
-            return extraCycles;
-            //return new InstructionLogicResult
-            //{
-            //    ExtraConsumedCycles = extraCycles
-            //};
-        }
-    }  
     
     /// <summary>
     /// Use for instructions requires a byte value as input for processing.

@@ -15,7 +15,7 @@ namespace Highbyte.DotNet6502.Instructions
         {
             BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.X, value, cpu.ProcessorStatus);
 
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }
         
         public CPX()

@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.Instructions
             // we add one byte to the address we read from the stack (to get to next instruction)
             cpu.PC = (ushort) (cpu.PopWordFromStack(mem) + 1);
 
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }
 
         public RTS()

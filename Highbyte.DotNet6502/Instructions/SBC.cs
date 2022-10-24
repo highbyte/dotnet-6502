@@ -14,11 +14,10 @@ namespace Highbyte.DotNet6502.Instructions
         {
             cpu.A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(cpu.A, value, cpu.ProcessorStatus);
 
-            return InstructionLogicResult.WithExtraCycles(
+            return 
                 InstructionExtraCyclesCalculator.CalculateExtraCycles(
                         addrModeCalcResult.OpCode.AddressingMode, 
-                        addrModeCalcResult.AddressCalculationCrossedPageBoundary)
-                );
+                        addrModeCalcResult.AddressCalculationCrossedPageBoundary);
         }        
 
         public SBC()

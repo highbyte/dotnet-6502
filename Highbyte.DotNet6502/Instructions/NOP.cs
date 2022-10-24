@@ -13,7 +13,7 @@ namespace Highbyte.DotNet6502.Instructions
         public ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
         {
             // Do nothing!
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }
 
         public NOP()

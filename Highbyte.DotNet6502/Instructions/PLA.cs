@@ -16,7 +16,7 @@ namespace Highbyte.DotNet6502.Instructions
             cpu.A = cpu.PopByteFromStack(mem);
             BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, cpu.ProcessorStatus);
             
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         } 
 
         public PLA()

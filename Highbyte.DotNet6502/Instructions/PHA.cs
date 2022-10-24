@@ -14,7 +14,7 @@ namespace Highbyte.DotNet6502.Instructions
         public ulong ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {
             cpu.PushByteToStack(cpu.A, mem);
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }        
 
         public PHA()

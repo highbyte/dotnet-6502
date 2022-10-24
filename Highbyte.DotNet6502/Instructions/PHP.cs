@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.Instructions
             processorStatusCopy.Unused = true;            
             cpu.PushByteToStack(processorStatusCopy.Value, mem);
 
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }        
         
         public PHP()

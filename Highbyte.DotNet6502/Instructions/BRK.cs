@@ -31,7 +31,7 @@ namespace Highbyte.DotNet6502.Instructions
             // Change PC to address found at BRK/IRQ handler vector
             cpu.PC = cpu.FetchWord(mem, CPU.BrkIRQHandlerVector);
 
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }
 
         public BRK()

@@ -15,7 +15,7 @@ namespace Highbyte.DotNet6502.Instructions
         {
             cpu.ProcessorStatus.Value = cpu.PopByteFromStack(mem);
             
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         } 
         
         public PLP()
