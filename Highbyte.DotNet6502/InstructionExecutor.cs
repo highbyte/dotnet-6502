@@ -28,8 +28,8 @@ namespace Highbyte.DotNet6502
             // Derive what the final value is going to be used with the instruction based on addressing mode.
             // The way the addressing mode works is the same accross the instructions, so we don't need to repeat the logic
             // on how to get to the actual value used with the instruction.
-            AddrModeCalcResult addrModeCalcResult = new(opCodeObject);
-            switch(opCodeObject.AddressingMode)
+            AddrModeCalcResult addrModeCalcResult = new AddrModeCalcResult() { OpCode = opCodeObject };
+            switch (opCodeObject.AddressingMode)
             {
                 case AddrMode.I:
                 {
@@ -106,7 +106,7 @@ namespace Highbyte.DotNet6502
             }
 
             // Execute the instruction-specific logic, with final value calculated in addrModeCalcResult.
-            InstructionLogicResult instructionLogicResult;
+            ulong extraCyclesConsumed;
             if (instruction is IInstructionUsesByte instructionUsesByte)
             {
                 // Instruction expects a byte directly or via a relative or absolute (word) address
@@ -118,21 +118,21 @@ namespace Highbyte.DotNet6502
                 else
                     instructionValue = addrModeCalcResult.InsValue.Value;
                 
-                instructionLogicResult = instructionUsesByte.ExecuteWithByte(cpu, mem, instructionValue, addrModeCalcResult);
+                extraCyclesConsumed = instructionUsesByte.ExecuteWithByte(cpu, mem, instructionValue, addrModeCalcResult);
             }
             else if (instruction is IInstructionUsesAddress instructionUseAddress && addrModeCalcResult.InsAddress.HasValue)
             {
                 // Instruction expects a an address (to write to, or use to change program counter)
-                instructionLogicResult = instructionUseAddress.ExecuteWithWord(cpu, mem, addrModeCalcResult.InsAddress.Value, addrModeCalcResult);
+                extraCyclesConsumed = instructionUseAddress.ExecuteWithWord(cpu, mem, addrModeCalcResult.InsAddress.Value, addrModeCalcResult);
             }
             else if (instruction is IInstructionUsesStack instructionUsesStack)
             {
                 // Instruction is expected to push or pop stack
-                instructionLogicResult = instructionUsesStack.ExecuteWithStack(cpu, mem, addrModeCalcResult);
+                extraCyclesConsumed = instructionUsesStack.ExecuteWithStack(cpu, mem, addrModeCalcResult);
             }            
             else if (instruction is IInstructionUsesOnlyRegOrStatus instructionUseNone)
             {
-                instructionLogicResult = instructionUseNone.Execute(cpu, addrModeCalcResult);
+                extraCyclesConsumed = instructionUseNone.Execute(cpu, addrModeCalcResult);
                
             }
             else
@@ -140,7 +140,7 @@ namespace Highbyte.DotNet6502
                 throw new DotNet6502Exception($"Bug detected. Did not find a way to execute instruction: {instruction.Name} opcode: {opCode.ToHex()}"); 
             }
 
-            return InstructionExecResult.SuccessfulInstructionResult(opCode, opCodeObject.MinimumCycles + instructionLogicResult.ExtraConsumedCycles);
+            return InstructionExecResult.SuccessfulInstructionResult(opCode, opCodeObject.MinimumCycles + extraCyclesConsumed);
         }
     }
 }

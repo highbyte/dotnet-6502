@@ -11,7 +11,7 @@ namespace Highbyte.DotNet6502.Instructions
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public InstructionLogicResult ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
+        public ulong ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
         {
             // The JSR instruction pushes the address of the last byte of the instruction.
             // As PC now points to the next instruction, we push PC minus one to the stack.

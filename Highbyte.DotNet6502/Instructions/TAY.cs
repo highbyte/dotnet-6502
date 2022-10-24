@@ -10,7 +10,7 @@ namespace Highbyte.DotNet6502.Instructions
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
-        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
+        public ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
         {
             cpu.Y = cpu.A;
             BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, cpu.ProcessorStatus);

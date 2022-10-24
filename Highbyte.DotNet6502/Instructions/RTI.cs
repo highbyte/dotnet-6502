@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.Instructions
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public InstructionLogicResult ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        public ulong ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {
             cpu.ProcessorStatus.Value = cpu.PopByteFromStack(mem);
             cpu.ProcessorStatus.Break = false;

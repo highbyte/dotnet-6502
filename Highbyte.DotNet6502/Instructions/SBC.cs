@@ -10,7 +10,7 @@ namespace Highbyte.DotNet6502.Instructions
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
+        public ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
         {
             cpu.A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(cpu.A, value, cpu.ProcessorStatus);
 

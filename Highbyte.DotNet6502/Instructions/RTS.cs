@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.Instructions
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public InstructionLogicResult ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        public ulong ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {
             // Set PC back to the returning address from stack.
             // As the address that was pushed on stack by JSR was the last byte of the JSR instruction, 

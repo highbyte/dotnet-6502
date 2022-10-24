@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.Instructions
     {
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
-        public InstructionLogicResult ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
+        public ulong ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
         {
             var tempValue = cpu.FetchByte(mem, address);
             tempValue = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(tempValue, cpu.ProcessorStatus);
@@ -21,7 +21,7 @@ namespace Highbyte.DotNet6502.Instructions
             return InstructionLogicResult.WithNoExtraCycles();
         }        
 
-        public InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
+        public ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
         {
             // Assume Accumulator mode
             cpu.A = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(cpu.A, cpu.ProcessorStatus);

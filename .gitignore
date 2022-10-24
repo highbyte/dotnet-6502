@@ -278,3 +278,4 @@ nuget.config
 coveragereport/
 
 **/wwwroot/ROM/
+**/out/

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Highbyte.DotNet6502
 {
@@ -15,22 +15,24 @@ namespace Highbyte.DotNet6502
         }
     }
 
-    public class InstructionLogicResult
+    public static class InstructionLogicResult
     {
-        public ulong ExtraConsumedCycles { get; set; }
-        public static InstructionLogicResult WithNoExtraCycles()
+        //public ulong ExtraConsumedCycles { get; set; }
+        public static ulong WithNoExtraCycles()
         {
-            return new InstructionLogicResult
-            {
-                ExtraConsumedCycles = 0
-            };
+            return 0;
+            //return new InstructionLogicResult
+            //{
+            //    ExtraConsumedCycles = 0
+            //};
         }
-        public static InstructionLogicResult WithExtraCycles(ulong extraCycles)
+        public static ulong WithExtraCycles(ulong extraCycles)
         {
-            return new InstructionLogicResult
-            {
-                ExtraConsumedCycles = extraCycles
-            };
+            return extraCycles;
+            //return new InstructionLogicResult
+            //{
+            //    ExtraConsumedCycles = extraCycles
+            //};
         }
     }  
     
@@ -42,7 +44,7 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public interface IInstructionUsesByte
     {
-        InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult);
+        ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult);
     }
 
     /// <summary>
@@ -52,7 +54,7 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public interface IInstructionUsesAddress
     {
-        InstructionLogicResult ExecuteWithWord(CPU cpu, Memory mem, ushort value, AddrModeCalcResult addrModeCalcResult);
+        ulong ExecuteWithWord(CPU cpu, Memory mem, ushort value, AddrModeCalcResult addrModeCalcResult);
     }
 
     /// <summary>
@@ -60,7 +62,7 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public interface IInstructionUsesStack
     {
-        InstructionLogicResult ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult);
+        ulong ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult);
     }
 
     /// <summary>
@@ -68,7 +70,7 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public interface IInstructionUsesOnlyRegOrStatus
     {
-        InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult);
+        ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult);
     }
 
 }
