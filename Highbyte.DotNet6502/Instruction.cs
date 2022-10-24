@@ -14,7 +14,7 @@ namespace Highbyte.DotNet6502
             return OpCodes.Exists(x=>x.AddressingMode == mode);
         }
     }
-    
+
     /// <summary>
     /// Use for instructions requires a byte value as input for processing.
     /// The byte value can come as an immediate value in the operand, or via a relative (signed byte) or absolute (word) adddress.
@@ -23,6 +23,14 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public interface IInstructionUsesByte
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cpu"></param>
+        /// <param name="mem"></param>
+        /// <param name="value"></param>
+        /// <param name="addrModeCalcResult"></param>
+        /// <returns>Number of extra CPU cycles used in addition to the minimul defined by the OpCode.</returns>
         ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult);
     }
 
@@ -33,6 +41,14 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public interface IInstructionUsesAddress
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cpu"></param>
+        /// <param name="mem"></param>
+        /// <param name="value"></param>
+        /// <param name="addrModeCalcResult"></param>
+        /// <returns>Number of extra CPU cycles used in addition to the minimul defined by the OpCode.</returns>
         ulong ExecuteWithWord(CPU cpu, Memory mem, ushort value, AddrModeCalcResult addrModeCalcResult);
     }
 
@@ -41,6 +57,13 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public interface IInstructionUsesStack
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cpu"></param>
+        /// <param name="mem"></param>
+        /// <param name="addrModeCalcResult"></param>
+        /// <returns>Number of extra CPU cycles used in addition to the minimul defined by the OpCode.</returns>
         ulong ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult);
     }
 
@@ -49,7 +72,12 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public interface IInstructionUsesOnlyRegOrStatus
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cpu"></param>
+        /// <param name="addrModeCalcResult"></param>
+        /// <returns>Number of extra CPU cycles used in addition to the minimul defined by the OpCode.</returns>
         ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult);
     }
-
 }
