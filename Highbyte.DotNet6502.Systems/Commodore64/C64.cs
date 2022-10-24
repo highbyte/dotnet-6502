@@ -31,8 +31,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
         public int Width => Vic2.WIDTH;
         public int Height => Vic2.HEIGHT;
-        public int VisibleWidth => Vic2.Vic2Model.PixelsPerLineVisible;
-        public int VisibleHeight => Vic2.Vic2Model.LinesVisible;
+        public int VisibleWidth => (int)Vic2.Vic2Model.PixelsPerLineVisible;
+        public int VisibleHeight => (int)Vic2.Vic2Model.LinesVisible;
         public bool HasBorder => true;
         public int BorderWidth => (VisibleWidth - Width) / 2;
         public int BorderHeight => (VisibleHeight - Height) / 2;
@@ -54,7 +54,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
         // Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
         public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
         {
-            var cyclesToExecute = (ulong)Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
+            var cyclesToExecute = Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
 
             ulong totalCyclesConsumed = 0;
             while (totalCyclesConsumed < cyclesToExecute)
@@ -78,10 +78,10 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
         //public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
         //{
         //    if (_oneFrameExecEvaluator == null)
-        //        _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = (ulong)Vic2.Vic2Model.CyclesPerFrame });
+        //        _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = Vic2.Vic2Model.CyclesPerFrame });
 
         //    // If we already executed cycles in current frame, reduce it from total.
-        //    _oneFrameExecEvaluator.ExecOptions.CyclesRequested = (ulong)Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
+        //    _oneFrameExecEvaluator.ExecOptions.CyclesRequested = Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
 
         //    ExecState execState;
         //    if (execEvaluator == null)

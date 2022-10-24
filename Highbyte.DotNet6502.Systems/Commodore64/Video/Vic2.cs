@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video
@@ -209,7 +207,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
             CyclesConsumedCurrentVblank += cyclesConsumed;
             //var cyclesUntilVBlank = VariantSetting.CyclesPerLine * (VariantSetting.Lines - (VariantSetting.VBlankLines / 2));
             var cyclesUntilVBlank = Vic2Model.CyclesPerFrame;
-            if (CyclesConsumedCurrentVblank >= (ulong)cyclesUntilVBlank)
+            if (CyclesConsumedCurrentVblank >= cyclesUntilVBlank)
             {
                 CyclesConsumedCurrentVblank = 0;
                 VerticalBlank(cpu);
@@ -220,7 +218,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
         private void UpdateCurrentRasterLine(Memory mem, ulong cyclesConsumedCurrentVblank)
         {
             // Calculate the current raster line based on how man CPU cycles has been executed this frame
-            var line = (ushort)(cyclesConsumedCurrentVblank / (ulong)Vic2Model.CyclesPerLine);
+            var line = (cyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine);
             // Bits 0-7 of current line stored in 0xd012
             mem[Vic2Addr.CURRENT_RASTER_LINE] = (byte)(line & 0xff);
             // Bit 8 of current line stored in 0xd011 bit #7
