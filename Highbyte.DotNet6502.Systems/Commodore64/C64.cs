@@ -34,8 +34,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
         public int VisibleWidth => (int)Vic2.Vic2Model.PixelsPerLineVisible;
         public int VisibleHeight => (int)Vic2.Vic2Model.LinesVisible;
         public bool HasBorder => true;
-        public int BorderWidth => (VisibleWidth - Width) / 2;
-        public int BorderHeight => (VisibleHeight - Height) / 2;
+        public int BorderWidth => (int)Math.Ceiling((double)((VisibleWidth - Width) / 2.0d));
+        public int BorderHeight => (int)Math.Ceiling((double)((VisibleHeight - Height) / 2.0d));
         public float RefreshFrequencyHz => (float)CpuFrequencyHz / Vic2.Vic2Model.CyclesPerFrame;
 
 
