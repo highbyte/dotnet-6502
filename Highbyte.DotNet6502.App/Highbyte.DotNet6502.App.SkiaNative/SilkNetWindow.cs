@@ -9,6 +9,7 @@ using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
+using SkiaSharp;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 public class SilkNetWindow
@@ -74,7 +75,18 @@ public class SilkNetWindow
     protected void OnLoad()
     {
         // Init SkipSharp resources (must be done in OnLoad, otherwise no OpenGL context will exist create by SilkNet.)
-        _skiaRenderContext = new SkiaRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
+        //_skiaRenderContext = new SkiaRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
+        GRGlGetProcedureAddressDelegate getProcAddress = (string name) =>
+        {
+            bool addrFound = s_window.GLContext!.TryGetProcAddress(name, out var addr);
+            return addrFound ? addr : 0;
+        };
+
+        _skiaRenderContext = new SkiaRenderContext(
+            getProcAddress, 
+            s_window.FramebufferSize.X,
+            s_window.FramebufferSize.Y,
+            _canvasScale * (s_window.FramebufferSize.X / s_window.Size.X));
         _silkNetInputHandlerContext = new SilkNetInputHandlerContext(s_window);
         _systemRunner = _getSystemRunner(_system, _skiaRenderContext, _silkNetInputHandlerContext);
 

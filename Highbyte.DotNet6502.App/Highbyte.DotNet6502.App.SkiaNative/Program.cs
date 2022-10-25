@@ -118,13 +118,13 @@ windowOptions.VSync = false;  // TODO: With Vsync=true Silk.NET seem to use inco
 windowOptions.WindowState = WindowState.Normal;
 windowOptions.Title = "DotNet 6502 emulator hosted in native app using SkiaSharp drawing, with OpenGL context provided by Silk.NET.";
 windowOptions.Size = new Vector2D<int>(windowWidth, windowHeight);
+windowOptions.WindowBorder = WindowBorder.Fixed;
 windowOptions.API = GraphicsAPI.Default; // = Default = OpenGL 3.3 with forward compatibility
 windowOptions.ShouldSwapAutomatically = true;
- //windowOptions.TransparentFramebuffer = false;
+//windowOptions.TransparentFramebuffer = false;
 //windowOptions.PreferredDepthBufferBits = 24;    // Depth buffer bits must be set explicitly on MacOS (tested on M1), otherwise there will be be no depth buffer (for OpenGL 3d).
 
 IWindow window = Window.Create(windowOptions);
-
 var silkNetWindow = new SilkNetWindow(emulatorConfig.Monitor, window, system, GetSystemRunner, emulatorConfig.DrawScale);
 silkNetWindow.Run();
 

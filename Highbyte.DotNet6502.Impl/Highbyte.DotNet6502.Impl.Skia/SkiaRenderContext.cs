@@ -41,21 +41,26 @@ public class SkiaRenderContext : IRenderContext
         _getGrContextExternal = getGrContext;
     }
 
-    public SkiaRenderContext(int sizeX, int sizeY, float scale = 1.0f)
+    public SkiaRenderContext(GRGlGetProcedureAddressDelegate getProcAddress, int sizeX, int sizeY, float scale = 1.0f)
     {
         // Create the SkiaSharp context
-        var glInterface = GRGlInterface.Create();
-        var grContextOptions = new GRContextOptions{};
+        //var glInterface = GRGlInterface.Create();
+        var glInterface = GRGlInterface.Create(name => getProcAddress(name));
+        glInterface.Validate();
+        var grContextOptions = new GRContextOptions { };
         _grContext = GRContext.CreateGl(glInterface, grContextOptions);
         if (_grContext == null)
             throw new Exception("Cannot create OpenGL context.");
 
         // Create main Skia surface from OpenGL context
-        var glFramebufferInfo = new GRGlFramebufferInfo(
-                fboId: 0,
-                format: SKColorType.Rgba8888.ToGlSizedFormat());
+        GRGlFramebufferInfo glFramebufferInfo = new(0, SKColorType.Rgba8888.ToGlSizedFormat());
 
-        _renderTarget = new GRBackendRenderTarget(sizeX, sizeY, sampleCount: 0, stencilBits: 0, glInfo: glFramebufferInfo);
+        _renderTarget = new(
+            sizeX,
+            sizeY,
+            0,
+            8,
+            glFramebufferInfo);
 
         // Create the SkiaSharp render target surface
         _renderSurface = SKSurface.Create(_grContext, _renderTarget, GRSurfaceOrigin.BottomLeft, SKColorType.Rgba8888);
