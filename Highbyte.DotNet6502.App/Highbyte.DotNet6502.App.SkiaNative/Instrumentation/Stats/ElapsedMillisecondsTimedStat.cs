@@ -33,7 +33,9 @@ namespace Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats
             {
                 return "null";
             }
-            double ms = Value.Value / 10000.0d; // 10000 ticks per millisecond
+
+            //double ms = Value.Value / 10000.0d; // 10000 ticks per millisecond
+            double ms = Value.Value / TimeSpan.TicksPerMillisecond; // 10000 ticks per millisecond
 
             if (ms < 0.01)
             {

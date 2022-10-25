@@ -97,10 +97,12 @@ namespace Highbyte.DotNet6502.Systems.Generic
             {
                 // .prg is loaded from file.
                 Debug.WriteLine($"Loading 6502 prg file from binary file.");
-                Debug.WriteLine($"{emulatorConfig.ProgramBinaryFile}");
+                var prgFile = Environment.ExpandEnvironmentVariables(emulatorConfig.ProgramBinaryFile);
+                
+                Debug.WriteLine($"{prgFile}");
                 BinaryLoader.Load(
                     mem,
-                    emulatorConfig.ProgramBinaryFile,
+                    prgFile,
                     out loadedAtAddress,
                     out fileLength);
             }

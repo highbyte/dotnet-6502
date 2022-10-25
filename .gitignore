@@ -279,3 +279,5 @@ coveragereport/
 
 **/wwwroot/ROM/
 **/out/
+
+.DS_Store

@@ -30,10 +30,12 @@ namespace Highbyte.DotNet6502.Systems.Generic.Config
 
             if (!string.IsNullOrEmpty(ProgramBinaryFile))
             {
-                if (!File.Exists(ProgramBinaryFile))
+                var prgFile = Environment.ExpandEnvironmentVariables(ProgramBinaryFile);
+
+                if (!File.Exists(prgFile))
                 {
                     Debug.WriteLine($"File does not exist.");
-                    throw new Exception($"Cannot find 6502 binary file: {ProgramBinaryFile}");
+                    throw new Exception($"Cannot find 6502 binary file: {prgFile}");
                 }
             }
 
