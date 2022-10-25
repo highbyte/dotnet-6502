@@ -20,7 +20,7 @@ namespace Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats
         {
             _sw.Stop();
             //SetValue(_sw.ElapsedMilliseconds);
-            SetValue(_sw.ElapsedTicks);
+            SetValue(_sw.Elapsed.Ticks);
         }
         public IDisposable Measure()
         {

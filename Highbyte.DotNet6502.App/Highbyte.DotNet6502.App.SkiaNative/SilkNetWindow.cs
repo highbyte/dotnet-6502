@@ -138,6 +138,7 @@ public class SilkNetWindow
         {
             cont = _systemRunner.RunEmulatorOneFrame();
         }
+
         // Show monitor if we encounter breakpoint or other break
         if (!cont)
             _monitor.Enable();
