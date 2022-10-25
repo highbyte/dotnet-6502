@@ -30,7 +30,7 @@ namespace Highbyte.DotNet6502.Systems.Generic.Config
 
             if (!string.IsNullOrEmpty(ProgramBinaryFile))
             {
-                var prgFile = Environment.ExpandEnvironmentVariables(ProgramBinaryFile);
+                var prgFile = PathHelper.ExpandOSEnvironmentVariables(ProgramBinaryFile);
 
                 if (!File.Exists(prgFile))
                 {

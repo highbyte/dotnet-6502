@@ -63,7 +63,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config
             if (!allRequiredROMSconfigured)
                 throw new Exception($"Setting {nameof(ROMs)} must contain at least all required ROMs: {string.Join(',', RequiredROMs)}");
 
-            var romDir = Environment.ExpandEnvironmentVariables(ROMDirectory);
+            var romDir = PathHelper.ExpandOSEnvironmentVariables(ROMDirectory);
             if (!string.IsNullOrEmpty(romDir))
             {
                 if (!Directory.Exists(romDir))

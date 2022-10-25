@@ -2,17 +2,13 @@ using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using Highbyte.DotNet6502.App.SkiaNative;
 using Highbyte.DotNet6502.Impl.SilkNet;
-using Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
 using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic.Config;
-using Highbyte.DotNet6502.Impl.Skia.Generic;
 using Highbyte.DotNet6502.Systems.Generic;
-using Highbyte.DotNet6502.Impl.SilkNet.Generic;
 
 // Fix for starting in debug mode from VS Code. By default the OS current directory is set to the project folder, not the folder containing the built .exe file...
 var currentAppDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -28,7 +24,7 @@ var emulatorConfig = new EmulatorConfig
     {
         //DefaultDirectory = "../../../../../.cache/Examples/SadConsoleTest/AssemblerSource"
         //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/.cache/Examples/SadConsoleTest/AssemblerSource"
-        DefaultDirectory = "%HOME%/source/repos/dotnet-6502/.cache/Examples/SadConsoleTest/AssemblerSource"
+        //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/.cache/Examples/SadConsoleTest/AssemblerSource"
     }
 };
 emulatorConfig.Validate();
@@ -39,7 +35,7 @@ var c64Config = new C64Config
     Vic2Model = "NTSC",     // NTSC, NTSC_old, PAL
     // C64Model = "C64PAL",   // C64NTSC, C64PAL
     // Vic2Model = "PAL",     // NTSC, NTSC_old, PAL
-    //ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64"
+    //ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64",
     ROMDirectory = "%HOME%/Downloads/C64",
     ROMs = new List<ROM>
     {

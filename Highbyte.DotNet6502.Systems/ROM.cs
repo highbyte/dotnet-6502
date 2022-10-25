@@ -41,6 +41,7 @@ namespace Highbyte.DotNet6502.Systems
                 if (!string.IsNullOrEmpty(rom.File))
                 {
                     var romFilePath = Path.Combine(directory, rom.File);
+                    romFilePath = PathHelper.ExpandOSEnvironmentVariables(romFilePath);
                     fileData = System.IO.File.ReadAllBytes(romFilePath);
                 }
                 else

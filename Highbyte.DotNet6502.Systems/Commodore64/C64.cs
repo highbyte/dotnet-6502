@@ -131,7 +131,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
             var ram = new byte[64 * 1024];  // C64 has 64KB of RAM
 
-            var romData = ROM.LoadROMS(Environment.ExpandEnvironmentVariables(c64Config.ROMDirectory), c64Config.ROMs.ToArray());
+            var romData = ROM.LoadROMS(c64Config.ROMDirectory, c64Config.ROMs.ToArray());
 
             var io = new byte[1 * 1024];  // 1KB of C64 IO addresses that is mapped to memory address range 0xd000 - 0xdfff in certain memory configuration.
 

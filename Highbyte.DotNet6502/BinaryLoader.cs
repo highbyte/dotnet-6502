@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Highbyte.DotNet6502.Systems;
 
 namespace Highbyte.DotNet6502
 {
@@ -78,6 +79,8 @@ namespace Highbyte.DotNet6502
             out ushort codeAndDataFileSize
             )
         {
+            binaryFilePath = PathHelper.ExpandOSEnvironmentVariables(binaryFilePath);
+
             // Load binary file
             byte[] fileData = File.ReadAllBytes(binaryFilePath);
 
