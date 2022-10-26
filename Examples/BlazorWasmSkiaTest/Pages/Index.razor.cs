@@ -23,6 +23,7 @@ namespace BlazorWasmSkiaTest.Pages
         private SystemList _systemList;
 
         public string _statsString = "Stats: calculating...";
+        public string _debugString = "";
 
         public string _windowWidthStyle = "";
         public string _windowHeightStyle = "";
@@ -55,7 +56,7 @@ namespace BlazorWasmSkiaTest.Pages
             _windowHeightStyle = $"{screen.VisibleHeight * scale}px";
             this.StateHasChanged();
 
-            _wasmHost = new WasmHost(system, GetSystemRunner, UpdateStats, scale);
+            _wasmHost = new WasmHost(system, GetSystemRunner, UpdateStats, UpdateDebugMessage, scale);
         }
 
         protected void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
@@ -95,8 +96,8 @@ namespace BlazorWasmSkiaTest.Pages
             {
                 C64Model = "C64NTSC",   // C64NTSC, C64PAL
                 Vic2Model = "NTSC",     // NTSC, NTSC_old, PAL
-                                        // C64Model = "C64PAL",   // C64NTSC, C64PAL
-                                        // Vic2Model = "PAL",     // NTSC, NTSC_old, PAL
+                // C64Model = "C64PAL",   // C64NTSC, C64PAL
+                // Vic2Model = "PAL",     // NTSC, NTSC_old, PAL
 
                 ROMDirectory = "",  // Set ROMDirectory to skip loading ROMs from file system (ROMDirectory + File property), instead read from the Data property
                 ROMs = new List<ROM>
@@ -332,12 +333,18 @@ namespace BlazorWasmSkiaTest.Pages
             return Convert.FromBase64String(s); // Standard base64 decoder
         }
 
-
         protected void UpdateStats(string stats)
         {
             _statsString = stats;
             this.StateHasChanged();
         }
+
+        protected void UpdateDebugMessage(string debug)
+        {
+            _debugString = debug;
+            this.StateHasChanged();
+        }
+
 
         //private void BeforeUnload_BeforeUnloadHandler(object? sender, blazejewicz.Blazor.BeforeUnload.BeforeUnloadArgs e)
         //{

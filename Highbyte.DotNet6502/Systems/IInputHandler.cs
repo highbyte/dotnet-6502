@@ -5,6 +5,7 @@ namespace Highbyte.DotNet6502.Systems
         void Init(ISystem system, IInputHandlerContext inputContext);
         void ProcessInput(ISystem system);
 
+        string GetDebugMessage();
     }
 
     public interface IInputHandler<TSystem, TInputHandlerContext> : IInputHandler
@@ -36,5 +37,7 @@ namespace Highbyte.DotNet6502.Systems
         {
             ProcessInput((ISystem)system);
         }
+
+        public string GetDebugMessage() => string.Empty;
     }
 }

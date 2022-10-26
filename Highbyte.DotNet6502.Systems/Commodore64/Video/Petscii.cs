@@ -33,6 +33,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
         /// <returns></returns>
         public static Dictionary<char, byte> CharToPetscii = new()
         {
+            {(char)13,          0x0d},  // Return
             {' ',               0x20},
             {'!',               0x21},
             {'"',               0x22},

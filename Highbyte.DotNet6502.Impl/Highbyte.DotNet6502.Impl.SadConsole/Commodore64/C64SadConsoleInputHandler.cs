@@ -126,5 +126,11 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
             System.Diagnostics.Debug.WriteLine($"SadConsole normal character pressed {sadConsoleKey.Character} and mapped to Petscii: {petsciiCode}");
             return petsciiCode;
         }
+
+        public string GetDebugMessage()
+        {
+            return "";
+        }
+
     }
 }

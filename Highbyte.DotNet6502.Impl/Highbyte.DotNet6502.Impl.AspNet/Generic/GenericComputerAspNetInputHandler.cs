@@ -63,5 +63,10 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Generic
                 genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = 0x00;
             }
         }
+
+        public string GetDebugMessage()
+        {
+            return "";
+        }
     }
 }

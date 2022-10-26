@@ -41,14 +41,13 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
 
         private void CaptureKeyboard(C64 c64)
         {
-            var c64Keyboard = c64.Keyboard;
-            HandleNonPrintedC64Keys(c64Keyboard, c64);
-            HandlePrintedC64Keys(c64Keyboard);
+            HandleNonPrintedC64Keys(c64);
+            HandlePrintedC64Keys(c64);
         }
 
-        private void HandleNonPrintedC64Keys(
-            Systems.Commodore64.Keyboard c64Keyboard, C64 c64)
+        private void HandleNonPrintedC64Keys(C64 c64)
         {
+            var c64Keyboard = c64.Keyboard;
             // STOP (ESC) down
             if (_inputHandlerContext.IsKeyPressed(Key.Escape))
             //if (_inputHandlerContext.SpecialKeyReceived.Count == 1 && _inputHandlerContext.SpecialKeyReceived.First() == Key.Escape)
@@ -59,7 +58,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
                 // RESTORE (PageUp) down. Together with STOP it will issue a NMI (which will jump to code that detects STOP is pressed and resets any running program, and clears screen.)
                 if (_inputHandlerContext.IsKeyPressed(Key.PageUp))
                     c64.CPU.NMI = true;
-                    
+
                 return;
             }
             // STOP (ESC) released
@@ -70,9 +69,10 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
             }
         }
 
-        private void HandlePrintedC64Keys(
-            Systems.Commodore64.Keyboard c64Keyboard)
+        private void HandlePrintedC64Keys(C64 c64)
         {
+            var c64Keyboard = c64.Keyboard;
+
             // Check if modifier key is down.
             var modifierKeyDown = Key.Unknown;
             foreach (var modifierKey in C64SilkNetKeyboard.AllModifierKeys)
@@ -118,6 +118,10 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
                 Debug.WriteLine($"SilkNet normal character pressed {character} and mapped to Petscii: {petsciiCode}");
                 c64Keyboard.KeyPressed(petsciiCode);
             }
+        }
+        public string GetDebugMessage()
+        {
+            return "";
         }
     }
 }

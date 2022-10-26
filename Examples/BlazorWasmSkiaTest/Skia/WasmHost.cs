@@ -21,6 +21,7 @@ namespace BlazorWasmSkiaTest.Skia
         private readonly ISystem _system;
         private readonly Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, SystemRunner> _getSystemRunner;
         private readonly Action<string> _updateStats;
+        private readonly Action<string> _updateDebugMessage;
         private readonly float _scale;
 
         private readonly ElapsedMillisecondsTimedStat _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("WASM-InputTime");
@@ -32,16 +33,20 @@ namespace BlazorWasmSkiaTest.Skia
         private const int STATS_EVERY_X_FRAME = 60 * 1;
         private int _statsFrameCount = 0;
 
+        private const int DEBUGMESSAGE_EVERY_X_FRAME = 1;
+        private int _debugFrameCount = 0;
+
         public WasmHost(
             ISystem system,
             Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, SystemRunner> getSystemRunner,
             Action<string> updateStats,
-            float scale = 1.0f
-            )
+            Action<string> updateDebugMessage,
+            float scale = 1.0f)
         {
             _system = system;
             _getSystemRunner = getSystemRunner;
             _updateStats = updateStats;
+            _updateDebugMessage = updateDebugMessage;
             _scale = scale;
 
             Initialized = false;
@@ -74,6 +79,14 @@ namespace BlazorWasmSkiaTest.Skia
         private void EmulatorRunOneFrame()
         {
             _updateFps.Update();
+
+            _debugFrameCount++;
+            if (_debugFrameCount >= DEBUGMESSAGE_EVERY_X_FRAME)
+            {
+                _debugFrameCount = 0;
+                var debugString = GetDebugMessage();
+                _updateDebugMessage(debugString);
+            }
 
             //_emulatorHelper.GenerateRandomNumber();
             using (_inputTime.Measure())
@@ -134,6 +147,13 @@ namespace BlazorWasmSkiaTest.Skia
             };
             var stats = string.Join(" - ", strings);
             return stats;
+        }
+
+        private string GetDebugMessage()
+        {
+            string msg = "DEBUG: ";
+            msg += _systemRunner.InputHandler.GetDebugMessage();
+            return msg;
         }
 
         public void Dispose()

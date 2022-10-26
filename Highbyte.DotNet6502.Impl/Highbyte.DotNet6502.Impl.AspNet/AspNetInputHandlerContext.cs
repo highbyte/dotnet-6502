@@ -13,7 +13,7 @@ public class AspNetInputHandlerContext : IInputHandlerContext
 
     //public bool Quit { get; private set; }
 
-    //public bool IsKeyPressed(Key key) => _primaryKeyboard.IsKeyPressed(key);
+    public bool IsKeyPressed(string key) => KeysPressed.Contains(key);
 
     //public AspNetInputHandlerContext()
     //{
@@ -26,15 +26,15 @@ public class AspNetInputHandlerContext : IInputHandlerContext
         //ListenForKeyboardInput(enabled: true);
     }
 
-
     public void KeyUp(KeyboardEventArgs e)
     {
         var key = e.Key;
         if (!KeysUp.Contains(key))
         {
-            Debug.WriteLine($"KeyUp captured for frame: {key}");
             KeysUp.Add(key);
         }
+        if (KeysDown.Contains(key))
+            KeysDown.Remove(key);
     }
 
     public void KeyDown(KeyboardEventArgs e)
@@ -42,7 +42,6 @@ public class AspNetInputHandlerContext : IInputHandlerContext
         var key = e.Key;
         if (!KeysDown.Contains(key))
         {
-            Debug.WriteLine($"KeyDown captured for frame: {key}");
             KeysDown.Add(key);
         }
     }
@@ -52,7 +51,6 @@ public class AspNetInputHandlerContext : IInputHandlerContext
         var key = e.Key;
         if (!KeysPressed.Contains(key))
         {
-            Debug.WriteLine($"KeyPress for frame: {key}");
             KeysPressed.Add(key);
         }
     }
@@ -60,8 +58,8 @@ public class AspNetInputHandlerContext : IInputHandlerContext
     public void ClearKeys()
     {
         KeysUp.Clear();
-        KeysDown.Clear();
-        //CharactersReceived.Clear();
+        //KeysDown.Clear(); // KeysDown individual keys are removed in KeyUp event.
+        KeysPressed.Clear();
     }
 
     //public void Cleanup()

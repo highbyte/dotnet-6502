@@ -4,10 +4,6 @@
 @*@implements IDisposable*@
 
 <PageTitle>Blazor Wasm Skia Test</PageTitle>
-<div class="px-4">
-    @_statsString
-</div>
-<p></p>
 
 @*Inject JS to be able to set focus on SKGLView from code*@
 @inject IJSRuntime Js
@@ -34,6 +30,16 @@
         overflow: hidden;
     }
 </style>
+
+<div class="px-4">
+    @_statsString
+</div>
+<p></p>
+<div class="px-4">
+    @_debugString
+</div>
+<p></p>
+
 
 @code
 {

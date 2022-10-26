@@ -68,5 +68,9 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Generic
             byte rnd = (byte)new Random().Next(0, 255);
             emulatorMem[_emulatorInputConfig.RandomValueAddress] = rnd;
         }
+        public string GetDebugMessage()
+        {
+            return "";
+        }
     }
 }
