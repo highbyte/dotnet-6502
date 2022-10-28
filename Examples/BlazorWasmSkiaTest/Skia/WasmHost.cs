@@ -1,7 +1,10 @@
+using System.Threading;
 using BlazorWasmSkiaTest.Instrumentation.Stats;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using Microsoft.AspNetCore.Components.Web;
 using SkiaSharp;
 
 namespace BlazorWasmSkiaTest.Skia
@@ -22,7 +25,12 @@ namespace BlazorWasmSkiaTest.Skia
         private readonly Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, SystemRunner> _getSystemRunner;
         private readonly Action<string> _updateStats;
         private readonly Action<string> _updateDebugMessage;
+        private readonly Func<bool, Task> _setMonitorState;
+        private readonly MonitorConfig _monitorConfig;
+        private readonly Func<Task> _toggleDebugStatsState;
         private readonly float _scale;
+
+        public WasmMonitor Monitor { get; private set; }
 
         private readonly ElapsedMillisecondsTimedStat _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("WASM-InputTime");
         private readonly ElapsedMillisecondsTimedStat _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("Emulator-SystemTime");
@@ -41,12 +49,18 @@ namespace BlazorWasmSkiaTest.Skia
             Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, SystemRunner> getSystemRunner,
             Action<string> updateStats,
             Action<string> updateDebugMessage,
+            Func<bool, Task> setMonitorState,
+            MonitorConfig monitorConfig,
+            Func<Task> toggleDebugStatsState,
             float scale = 1.0f)
         {
             _system = system;
             _getSystemRunner = getSystemRunner;
             _updateStats = updateStats;
             _updateDebugMessage = updateDebugMessage;
+            _setMonitorState = setMonitorState;
+            _monitorConfig = monitorConfig;
+            _toggleDebugStatsState = toggleDebugStatsState;
             _scale = scale;
 
             Initialized = false;
@@ -61,8 +75,10 @@ namespace BlazorWasmSkiaTest.Skia
             InputHandlerContext = new AspNetInputHandlerContext();
             _systemRunner = _getSystemRunner(_system, skiaRenderContext, InputHandlerContext);
 
+            Monitor = new WasmMonitor(_systemRunner, _monitorConfig, _setMonitorState);
+
             var screen = (IScreen)_system;
-            // Number of milliseconds between each invokation of the main game loop. 60 fps -> (1/60) * 1000  -> approx 16.6667ms
+            // Number of milliseconds between each invokation of the main loop. 60 fps -> (1/60) * 1000  -> approx 16.6667ms
             double updateIntervalMS = (1 / screen.RefreshFrequencyHz) * 1000;
             _updateTimer = new PeriodicAsyncTimer();
             _updateTimer.IntervalMilliseconds = updateIntervalMS;
@@ -78,6 +94,9 @@ namespace BlazorWasmSkiaTest.Skia
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
         private void EmulatorRunOneFrame()
         {
+            if (Monitor.Visible)
+                return;
+
             _updateFps.Update();
 
             _debugFrameCount++;
@@ -93,9 +112,11 @@ namespace BlazorWasmSkiaTest.Skia
             {
                 _systemRunner.ProcessInput();
             }
+
+            bool cont;
             using (_systemTime.Measure())
             {
-                _systemRunner.RunEmulatorOneFrame();
+                cont = _systemRunner.RunEmulatorOneFrame();
             }
 
             _statsFrameCount++;
@@ -105,10 +126,17 @@ namespace BlazorWasmSkiaTest.Skia
                 var statsString = GetStats();
                 _updateStats(statsString);
             }
+
+            // Show monitor if we encounter breakpoint or other break
+            if (!cont)
+                Monitor.Enable();
         }
 
         public void Render(SKCanvas canvas, GRContext grContext)
         {
+            //if (Monitor.Visible)
+            //    return;
+
             _renderFps.Update();
 
             _grContext = grContext;
@@ -158,6 +186,50 @@ namespace BlazorWasmSkiaTest.Skia
 
         public void Dispose()
         {
+        }
+
+        /// <summary>
+        /// Enable / Disable emulator functions such as monitor and stats/debug
+        /// </summary>
+        /// <param name="e"></param>
+        public void OnKeyDown(KeyboardEventArgs e)
+        {
+            var key = e.Key;
+
+            //if ((key == "§" || key == "~") && e.ShiftKey)
+            //{
+            //    // TODO: Show/hide stats & debug panel
+            //    _toggleDebugStatsState();
+
+            //}
+            //else 
+
+            if (key == "§" || key == "~")
+            {
+                if (Monitor.Visible)
+                {
+                    Monitor.Disable();
+                }
+                else
+                {
+                    Monitor.Enable();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Enable / Disable emulator functions such as monitor and stats/debug
+        /// </summary>
+        /// <param name="e"></param>
+        public void OnKeyPress(KeyboardEventArgs e)
+        {
+            var key = e.Key;
+
+            if ((key == "½" || key == "¬") && e.ShiftKey)   // Shift-"§" (Swedish) or Shift-"~" (Us)
+            {
+                // TODO: Show/hide stats & debug panel
+                _toggleDebugStatsState();
+            }
         }
     }
 }

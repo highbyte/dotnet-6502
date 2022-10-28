@@ -9,36 +9,61 @@
 @inject IJSRuntime Js
 
 @*Skia OpenGl View Blazor WASM component*@
-<SKGLView class="skGLViewStyle"
-          IgnorePixelScaling="true"
-          EnableRenderLoop="true"
-          OnPaintSurface="OnPaintSurface"
-          id="emulatorSKGLView"
-          tabindex="0"
-          oncontextmenu="return false;"
-          @onkeypress="OnKeyPress"
-          @onkeydown="OnKeyDown"
-          @onkeyup="OnKeyUp" />
+<div id="main" @ref="_mainRef">
+    <SKGLView class="skGLViewStyle"
+              IgnorePixelScaling="true"
+              EnableRenderLoop="true"
+              OnPaintSurface="OnPaintSurface"
+              id="emulatorSKGLView"
+              tabindex="0"
+              oncontextmenu="return false;"
+              @onkeypress="OnKeyPress"
+              @onkeydown="OnKeyDown"
+              @onkeyup="OnKeyUp" 
+              @ref="_emulatorSKGLViewRef"
+              autofocus />
+</div>
+
+@*Monitor console*@
+<div id="monitor" class="monitorStyle">
+    <div class="px-4">
+        Monitor
+    </div>
+    <div id="monitor-outer-screen">
+        <div id="monitor-inner-screen">
+            <div id="monitor-output-outer"><div id="monitor-output">@((MarkupString)_monitorOutput)</div></div>
+            <div id="monitor-blank-line">&nbsp;</div>
+            <div id="monitor-input-row">
+                <span>&gt;&nbsp;</span><input id="monitor-input" @bind="_monitorInput" type="text" @onkeydown="OnKeyDownMonitor" @onkeyup="OnKeyUpMonitor" @ref="_monitorInputRef" />
+            </div>
+        </div>
+    </div>
+</div>
+
+@*Stats/Debug*@
+<div id="debug" class="debugStyle">
+    <div class="px-4">
+        @_statsString
+    </div>
+    <div class="px-4">
+        @_debugString
+    </div>
+</div>
 
 <style>
     .skGLViewStyle {
-        position: relative;
-        left: 0px;
-        top: 0px;
         width: @_windowWidthStyle;
         height: @_windowHeightStyle;
-        overflow: hidden;
     }
-</style>
+    .debugStyle {
+        display: @_debugDisplay;
+    }
+    .monitorStyle {
+        display: @_monitorDisplay;
+    }
 
-<div class="px-4">
-    @_statsString
-</div>
-<p></p>
-<div class="px-4">
-    @_debugString
-</div>
-<p></p>
+
+</style>
 
 
 @code
@@ -47,7 +72,7 @@
     {
         if (firstRender)
         {
-            await Js.InvokeVoidAsync("focusElement", "emulatorSKGLView");
+            //await FocusEmulator();
         }
     }
 
@@ -57,6 +82,8 @@
             return;
         _wasmHost.InputHandlerContext.KeyPress(e);
 
+        // Emulator host functions such as monitor and stats/debug
+        _wasmHost.OnKeyPress(e);
     }
 
     private void OnKeyDown(KeyboardEventArgs e)
@@ -64,6 +91,9 @@
         if (_wasmHost == null)
             return;
         _wasmHost.InputHandlerContext.KeyDown(e);
+
+        // Emulator host functions such as monitor and stats/debug
+        _wasmHost.OnKeyDown(e);
     }
 
     private void OnKeyUp(KeyboardEventArgs e)
@@ -92,4 +122,29 @@
     //private void OnMouseWheel(WheelEventArgs e)
     //{
     //}
+
+    private void OnKeyDownMonitor(KeyboardEventArgs e)
+    {
+        if (_wasmHost == null || _wasmHost.Monitor == null)
+            return;
+        _wasmHost.Monitor.OnKeyDown(e);
+    }
+
+    private void OnKeyUpMonitor(KeyboardEventArgs e)
+    {
+        if (_wasmHost == null || _wasmHost.Monitor == null)
+            return;
+        _wasmHost.Monitor.OnKeyUp(e);
+    }
+
+    private async Task FocusEmulator()
+    {
+        await Js.InvokeVoidAsync("focusId", "emulatorSKGLView");
+    }
+
+    private async Task FocusMonitor()
+    {
+        await Task.Run(async () => await _monitorInputRef.FocusAsync());    // Task.Run fix for focusing on a element that is not yet visible (but about to be)
+        //await _monitorInputRef.FocusAsync();
+    }
 }

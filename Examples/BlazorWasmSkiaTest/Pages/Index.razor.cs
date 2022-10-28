@@ -10,23 +10,62 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Impl.AspNet;
 using SkiaSharp;
+using Highbyte.DotNet6502.Monitor;
 
 namespace BlazorWasmSkiaTest.Pages
 {
     public partial class Index
     {
-
         private const string DEFAULT_PRG_URL = "6502binaries/hostinteraction_scroll_text_and_cycle_colors.prg";
         //private const string DEFAULT_PRG_URL = "6502binaries/snake6502.prg";
+
+        protected SKGLView _emulatorSKGLViewRef;
+        protected ElementReference _mainRef;
+        protected ElementReference _monitorInputRef;
 
         private WasmHost? _wasmHost;
         private SystemList _systemList;
 
-        public string _statsString = "Stats: calculating...";
-        public string _debugString = "";
+        private string _statsString = "Stats: calculating...";
+        private string _debugString = "";
 
-        public string _windowWidthStyle = "";
-        public string _windowHeightStyle = "";
+        private string _windowWidthStyle = "";
+        private string _windowHeightStyle = "";
+
+        private string _debugDisplay = "none"; // none or inline
+        private string _monitorDisplay = "none"; // none or inline
+
+        private string _monitorOutput
+        {
+            get
+            {
+                if (_wasmHost == null || _wasmHost.Monitor == null)
+                    return "";
+                return _wasmHost.Monitor.Output;
+            }
+            set
+            {
+                if (_wasmHost == null || _wasmHost.Monitor == null)
+                    return;
+                _wasmHost.Monitor.Output = value;
+            }
+        }
+        private string _monitorInput
+        {
+            get
+            {
+                if (_wasmHost == null || _wasmHost.Monitor == null)
+                    return "";
+                return _wasmHost.Monitor.Input;
+            }
+            set
+            {
+                if (_wasmHost == null || _wasmHost.Monitor == null)
+                    return;
+                _wasmHost.Monitor.Input = value;
+            }
+        }
+
 
         [Inject]
         public HttpClient? HttpClient { get; set; }
@@ -37,6 +76,17 @@ namespace BlazorWasmSkiaTest.Pages
         protected async override void OnInitialized()
         {
             var uri = NavManager!.ToAbsoluteUri(NavManager.Uri);
+
+            var monitorConfig = new MonitorConfig
+            {
+                MaxLineLength = 100,        // TODO: This affects help text printout, should it be set dynamically?
+
+                //DefaultDirectory = "../../../../../.cache/Examples/SadConsoleTest/AssemblerSource"
+                //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/.cache/Examples/SadConsoleTest/AssemblerSource"
+                //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/.cache/Examples/SadConsoleTest/AssemblerSource"
+            };
+            monitorConfig.Validate();
+
 
             var c64Config = await BuildC64Config(uri);
             //C64Config c64Config = null;
@@ -56,7 +106,9 @@ namespace BlazorWasmSkiaTest.Pages
             _windowHeightStyle = $"{screen.VisibleHeight * scale}px";
             this.StateHasChanged();
 
-            _wasmHost = new WasmHost(system, GetSystemRunner, UpdateStats, UpdateDebugMessage, scale);
+            _wasmHost = new WasmHost(system, GetSystemRunner, UpdateStats, UpdateDebugMessage, SetMonitorState, monitorConfig, ToggleDebugStatsState, scale);
+
+            //await FocusEmulator();
         }
 
         protected void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
@@ -345,6 +397,29 @@ namespace BlazorWasmSkiaTest.Pages
             this.StateHasChanged();
         }
 
+        protected async Task ToggleDebugStatsState()
+        {
+            if (_debugDisplay == "none")
+                _debugDisplay = "inline";
+            else
+                _debugDisplay = "none";
+            this.StateHasChanged();
+        }
+
+        protected async Task SetMonitorState(bool visible)
+        {
+            if (visible)
+            {
+                _monitorDisplay = "inline";
+                await FocusMonitor();
+            }
+            else
+            {
+                _monitorDisplay = "none";
+                await FocusEmulator();
+            }
+            this.StateHasChanged();
+        }
 
         //private void BeforeUnload_BeforeUnloadHandler(object? sender, blazejewicz.Blazor.BeforeUnload.BeforeUnloadArgs e)
         //{

@@ -28,7 +28,7 @@ public class AspNetInputHandlerContext : IInputHandlerContext
 
     public void KeyUp(KeyboardEventArgs e)
     {
-        var key = e.Key;
+        var key = GetKey(e);
         if (!KeysUp.Contains(key))
         {
             KeysUp.Add(key);
@@ -39,7 +39,7 @@ public class AspNetInputHandlerContext : IInputHandlerContext
 
     public void KeyDown(KeyboardEventArgs e)
     {
-        var key = e.Key;
+        var key = GetKey(e);
         if (!KeysDown.Contains(key))
         {
             KeysDown.Add(key);
@@ -48,7 +48,7 @@ public class AspNetInputHandlerContext : IInputHandlerContext
 
     public void KeyPress(KeyboardEventArgs e)
     {
-        var key = e.Key;
+        var key = GetKey(e);
         if (!KeysPressed.Contains(key))
         {
             KeysPressed.Add(key);
@@ -60,6 +60,22 @@ public class AspNetInputHandlerContext : IInputHandlerContext
         KeysUp.Clear();
         //KeysDown.Clear(); // KeysDown individual keys are removed in KeyUp event.
         KeysPressed.Clear();
+    }
+
+    private string GetKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Control" || e.Key == "Shift" || e.Key == "Alt")
+            return $"{e.Key}{GetLeftRightPosition(e)}";
+        return e.Key;
+    }
+
+    private string GetLeftRightPosition(KeyboardEventArgs e)
+    {
+        if (e.Location == 1)
+            return "Left";
+        else if (e.Location == 2)
+            return "Right";
+        return "";
     }
 
     //public void Cleanup()

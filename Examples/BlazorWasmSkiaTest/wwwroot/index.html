@@ -25,9 +25,14 @@
     <!-- Custom JS script to set focus on element from C# code -->
     <script>
         window.focusElement = (element) => {
-            var elementToFocus = document.getElementById(element);
+            element.focus();
+        }
+
+        window.focusId = (id) => {
+            var elementToFocus = document.getElementById(id);
             elementToFocus.focus();
         }
+
     </script>
 </body>
 

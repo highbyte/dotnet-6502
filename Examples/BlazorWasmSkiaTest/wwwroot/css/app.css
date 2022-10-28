@@ -42,9 +42,90 @@ a, .btn-link {
     z-index: 1000;
 }
 
-    #blazor-error-ui .dismiss {
-        cursor: pointer;
-        position: absolute;
-        right: 0.75rem;
-        top: 0.5rem;
-    }
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}
+
+
+
+/*Main layout style*/
+#main {
+}
+
+/*Emulator SKCanvas view style*/
+#emulatorSKGLView {
+    position: relative;
+    left: 0px;
+    top: 0px;
+    overflow: hidden;
+}
+
+/*Debug style*/
+#debug {
+    margin: 5px;
+/*    box-sizing: border-box;
+    border: 1px solid gray;*/
+}
+
+/*Monitor styles*/
+#monitor {
+    padding-top: 10px;
+}
+
+#monitor-outer-screen {
+    background-color: #111;
+    padding: 1em;
+    /*margin: 2vw auto;*/ /* setting margin forces center */
+    border-radius: 1vw;
+    /*width: 100%;*/
+
+    box-sizing: border-box;
+    width: 1209px;
+}
+
+#monitor-inner-screen {
+    color: #f8f8f8;
+    font-family: "Courier New", monospace;
+    font-size: 1em;
+    text-align: left;
+    width: 99%;
+}
+
+#monitor-output-outer {
+    overflow: auto;
+    height: 60ex;
+    line-height: 3ex;
+    display: flex;
+    flex-direction: column-reverse
+}
+
+#monitor-output .info {
+    color: white;
+}
+
+#monitor-output .warning {
+    color: yellow;
+}
+
+#monitor-output .error {
+    color: red;
+}
+
+#monitor-input {
+    background-color: #111;
+    color: #f8f8f8;
+    font: inherit;
+    border: none;
+    outline: none;
+    caret-color: inherit;
+    width: 90%;
+}
+
+#monitor-input::-ms-clear {
+    /* Hide the X clear button microsoft puts in input fields. */
+    display: none;
+}
+

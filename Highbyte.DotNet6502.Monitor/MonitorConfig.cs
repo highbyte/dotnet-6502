@@ -6,6 +6,13 @@ namespace Highbyte.DotNet6502.Monitor
     {
         public string DefaultDirectory { get; set; }
 
+        public int? MaxLineLength { get; set; }
+
+        public MonitorConfig()
+        {
+            MaxLineLength = null;
+        }
+
         public void Validate()
         {
             if (string.IsNullOrEmpty(DefaultDirectory))

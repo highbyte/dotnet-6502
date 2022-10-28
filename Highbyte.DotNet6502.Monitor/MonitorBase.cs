@@ -1,4 +1,4 @@
-﻿using Highbyte.DotNet6502.Monitor.SystemSpecific;
+using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems;
 using McMaster.Extensions.CommandLineUtils;
 
@@ -25,7 +25,7 @@ namespace Highbyte.DotNet6502.Monitor
             _systemRunner.SetCustomExecEvaluator(new BreakPointExecEvaluator(_breakPoints));
             Options = options;
             _variables = new MonitorVariables();
-            _commandLineApp = CommandLineApp.Build(this, _variables);
+            _commandLineApp = CommandLineApp.Build(this, _variables, options);
 
         }
 
@@ -45,7 +45,7 @@ namespace Highbyte.DotNet6502.Monitor
 
             // Workaround for CommandLineUtils after showing help once, it will always show it for every command, even if syntax is correct.
             // Create new instance for every time we parse input
-            _commandLineApp = CommandLineApp.Build(this, _variables);
+            _commandLineApp = CommandLineApp.Build(this, _variables, Options);
             var result = (CommandResult)_commandLineApp.Execute(command.Split(' '));
             return result;
         }

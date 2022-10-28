@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Monitor
     /// </summary>
     public class CommandLineApp
     {
-        public static CommandLineApplication Build(MonitorBase monitor, MonitorVariables monitorVariables)
+        public static CommandLineApplication Build(MonitorBase monitor, MonitorVariables monitorVariables, MonitorConfig options)
         {
             //var app = new CommandLineApplication()
             //var app = new CommandLineApplication(NullConsole.Singleton, monitor.Options.DefaultDirectory)
@@ -23,7 +23,7 @@ namespace Highbyte.DotNet6502.Monitor
             };
 
             // Fix: Use custom Help Text Generator to avoid name/description of the application to be shown each time help text is shown.
-            app.HelpTextGenerator = new CustomHelpTextGenerator();
+            app.HelpTextGenerator = new CustomHelpTextGenerator(options.MaxLineLength);
             // Fix: To avoid CommandLineUtils to the name of the application at the end of the help text: Don't use HelpOption on app-level, instead set it on each command below.
             //app.HelpOption(inherited: true);
 
