@@ -127,12 +127,12 @@ namespace BlazorWasmSkiaTest.Skia
             var cpuStatus = $"CPU: {OutputGen.GetProcessorState(Cpu, includeCycles: true)}";
             if (Status != "")
                 Status += "<br />";
-            Status += $@"<span class=""info"">{HttpUtility.HtmlEncode(cpuStatus)}</span>";
+            Status += BuildHtmlString(cpuStatus, "info");
 
             var systemStatus = $"SYS: {SystemRunner.System.SystemInfo}";
             if (Status != "")
                 Status += "<br />";
-            Status += $@"<span class=""info"">{HttpUtility.HtmlEncode(systemStatus)}</span>";
+            Status += BuildHtmlString(systemStatus, "info");
         }
 
         public override void LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
@@ -153,11 +153,16 @@ namespace BlazorWasmSkiaTest.Skia
         public override void WriteOutput(string message, MessageSeverity severity)
         {
             if (severity == MessageSeverity.Information)
-                Output += $@"<br /><span class=""info"">{HttpUtility.HtmlEncode(message)}</span>";
+                Output += BuildHtmlString(message, "info");
             else if (severity == MessageSeverity.Error)
-                Output += $@"<br / ><span class=""error"">{HttpUtility.HtmlEncode(message)}</span>";
+                Output += BuildHtmlString(message, "error");
             else if (severity == MessageSeverity.Warning)
-                Output += $@"<br / ><span class=""warning"">{HttpUtility.HtmlEncode(message)}</span>";
+                Output += BuildHtmlString(message, "warning");
+        }
+
+        private string BuildHtmlString(string message, string cssClass)
+        {
+            return $@"<br /><span class=""{cssClass}"">{HttpUtility.HtmlEncode(message)}</span>";
         }
     }
 }

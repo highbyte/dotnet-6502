@@ -19,9 +19,9 @@ namespace BlazorWasmSkiaTest.Pages
         private const string DEFAULT_PRG_URL = "6502binaries/hostinteraction_scroll_text_and_cycle_colors.prg";
         //private const string DEFAULT_PRG_URL = "6502binaries/snake6502.prg";
 
-        protected SKGLView _emulatorSKGLViewRef;
-        protected ElementReference _mainRef;
-        protected ElementReference _monitorInputRef;
+        protected SKGLView? _emulatorSKGLViewRef;
+        protected ElementReference? _mainRef;
+        protected ElementReference? _monitorInputRef;
 
         private WasmHost? _wasmHost;
         private SystemList _systemList;
@@ -122,7 +122,7 @@ namespace BlazorWasmSkiaTest.Pages
             _windowHeightStyle = $"{screen.VisibleHeight * scale}px";
             this.StateHasChanged();
 
-            _wasmHost = new WasmHost(system, GetSystemRunner, UpdateStats, UpdateDebugMessage, SetMonitorState, monitorConfig, ToggleDebugStatsState, scale);
+            _wasmHost = new WasmHost(system, GetSystemRunner, UpdateStats, UpdateDebug, SetMonitorState, monitorConfig, ToggleDebugStatsState, scale);
 
             //await FocusEmulator();
         }
@@ -407,7 +407,7 @@ namespace BlazorWasmSkiaTest.Pages
             this.StateHasChanged();
         }
 
-        protected void UpdateDebugMessage(string debug)
+        protected void UpdateDebug(string debug)
         {
             _debugString = debug;
             this.StateHasChanged();

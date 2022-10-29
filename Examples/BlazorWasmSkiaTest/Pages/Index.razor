@@ -8,27 +8,33 @@
 @*Inject JS to be able to set focus on SKGLView from code*@
 @inject IJSRuntime Js
 
-@*Skia OpenGl View Blazor WASM component*@
 <div id="main" @ref="_mainRef">
-    <SKGLView class="skGLViewStyle"
-              IgnorePixelScaling="true"
-              EnableRenderLoop="true"
-              OnPaintSurface="OnPaintSurface"
-              id="emulatorSKGLView"
-              tabindex="0"
-              oncontextmenu="return false;"
-              @onkeypress="OnKeyPress"
-              @onkeydown="OnKeyDown"
-              @onkeyup="OnKeyUp" 
-              @ref="_emulatorSKGLViewRef"
-              autofocus />
+    <div id="canvas-outer">
+        @*Skia OpenGl View Blazor WASM component*@
+        <SKGLView class="skGLViewStyle"
+                  IgnorePixelScaling="true"
+                  EnableRenderLoop="true"
+                  OnPaintSurface="OnPaintSurface"
+                  id="emulatorSKGLView"
+                  tabindex="0"
+                  oncontextmenu="return false;"
+                  @onkeypress="OnKeyPress"
+                  @onkeydown="OnKeyDown"
+                  @onkeyup="OnKeyUp"
+                  @ref="_emulatorSKGLViewRef"
+                  autofocus />
+    </div>
+
+    @*Stats/debug info*@
+    <div id="debug-outer-screen" class="debugStyle">
+        <div id="debug-inner-screen">
+            <div id="debug-output-outer"><div id="debug-output">@((MarkupString)_statsString)</div></div>
+        </div>
+    </div>
 </div>
 
 @*Monitor console*@
 <div id="monitor" class="monitorStyle">
-    <div class="px-4">
-        Monitor
-    </div>
     <div id="monitor-outer-screen">
         <div id="monitor-inner-screen">
             <div id="monitor-output-outer"><div id="monitor-output">@((MarkupString)_monitorOutput)</div></div>
@@ -37,8 +43,6 @@
                 <span>&gt;&nbsp;</span><input id="monitor-input" @bind="_monitorInput" type="text" @onkeydown="OnKeyDownMonitor" @onkeyup="OnKeyUpMonitor" @ref="_monitorInputRef" />
             </div>
         </div>
-
-@*        <div id="monitor-status-outer"><div id="monitor-status">@((MarkupString)_monitorStatus)</div></div>*@
     </div>
 
     <div id="monitor-status-outer-screen">
@@ -48,15 +52,6 @@
     </div>
 </div>
 
-@*Stats/Debug*@
-<div id="debug" class="debugStyle">
-    <div class="px-4">
-        @_statsString
-    </div>
-    <div class="px-4">
-        @_debugString
-    </div>
-</div>
 
 <style>
     .skGLViewStyle {
@@ -69,8 +64,6 @@
     .monitorStyle {
         display: @_monitorDisplay;
     }
-
-
 </style>
 
 
@@ -152,7 +145,7 @@
 
     private async Task FocusMonitor()
     {
-        await Task.Run(async () => await _monitorInputRef.FocusAsync());    // Task.Run fix for focusing on a element that is not yet visible (but about to be)
+        await Task.Run(async () => await _monitorInputRef!.Value.FocusAsync());    // Task.Run fix for focusing on a element that is not yet visible (but about to be)
         //await _monitorInputRef.FocusAsync();
     }
 }

@@ -1,4 +1,5 @@
 using System.Threading;
+using System.Web;
 using BlazorWasmSkiaTest.Instrumentation.Stats;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.Skia;
@@ -24,7 +25,7 @@ namespace BlazorWasmSkiaTest.Skia
         private readonly ISystem _system;
         private readonly Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, SystemRunner> _getSystemRunner;
         private readonly Action<string> _updateStats;
-        private readonly Action<string> _updateDebugMessage;
+        private readonly Action<string> _updateDebug;
         private readonly Func<bool, Task> _setMonitorState;
         private readonly MonitorConfig _monitorConfig;
         private readonly Func<Task> _toggleDebugStatsState;
@@ -48,7 +49,7 @@ namespace BlazorWasmSkiaTest.Skia
             ISystem system,
             Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, SystemRunner> getSystemRunner,
             Action<string> updateStats,
-            Action<string> updateDebugMessage,
+            Action<string> updateDebug,
             Func<bool, Task> setMonitorState,
             MonitorConfig monitorConfig,
             Func<Task> toggleDebugStatsState,
@@ -57,7 +58,7 @@ namespace BlazorWasmSkiaTest.Skia
             _system = system;
             _getSystemRunner = getSystemRunner;
             _updateStats = updateStats;
-            _updateDebugMessage = updateDebugMessage;
+            _updateDebug = updateDebug;
             _setMonitorState = setMonitorState;
             _monitorConfig = monitorConfig;
             _toggleDebugStatsState = toggleDebugStatsState;
@@ -104,7 +105,7 @@ namespace BlazorWasmSkiaTest.Skia
             {
                 _debugFrameCount = 0;
                 var debugString = GetDebugMessage();
-                _updateDebugMessage(debugString);
+                _updateDebug(debugString);
             }
 
             //_emulatorHelper.GenerateRandomNumber();
@@ -169,7 +170,7 @@ namespace BlazorWasmSkiaTest.Skia
             {
                 if (stat.ShouldShow())
                 {
-                    string line = name + ": " + stat.GetDescription();
+                    string line = BuildHtmlString(name, "header") + ": " + BuildHtmlString(stat.GetDescription(), "value");
                     strings.Add(line);
                 }
             };
@@ -181,8 +182,18 @@ namespace BlazorWasmSkiaTest.Skia
         {
             string msg = "DEBUG: ";
             msg += _systemRunner.InputHandler.GetDebugMessage();
-            return msg;
+            return BuildHtmlString(msg, "header");
         }
+
+        private string BuildHtmlString(string message, string cssClass)
+        {
+            return $@"<span class=""{cssClass}"">{HttpUtility.HtmlEncode(message)}</span>";
+        }
+        private string BuildHtmlStringNewLine()
+        {
+            return $@"<br />";
+        }
+
 
         public void Dispose()
         {

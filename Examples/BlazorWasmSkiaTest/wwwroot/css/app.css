@@ -55,36 +55,67 @@ a, .btn-link {
 #main {
 }
 
+#canvas-outer {
+    float: left;
+}
+
 /*Emulator SKCanvas view style*/
 #emulatorSKGLView {
     position: relative;
     left: 0px;
     top: 0px;
-    overflow: hidden;
+/*    overflow: hidden;*/
 }
 
 /*Debug style*/
-#debug {
-    margin: 5px;
-/*    box-sizing: border-box;
-    border: 1px solid gray;*/
+#debug-outer-screen {
+    background-color: #063e5b;
+    padding: 1em;
+    /*margin: 2vw auto;*/ /* setting margin forces center */
+    border-radius: 0.5vw;
+    box-sizing: border-box;
+/*    width: 809px;*/
+/*    width: 1209px;*/
+    width: 600px;
+    float: left;
 }
+#debug-inner-screen {
+    color: #f8f8f8;
+    font-family: "Courier New", monospace;
+    font-size: 0.7em;
+    text-align: left;
+/*    width: 99%;*/
+}
+#debug-output-outer {
+    overflow: auto;
+    height: 20ex;
+    line-height: 3ex;
+    display: flex;
+    /*flex-direction: column-reverse*/
+}
+#debug-output .header {
+    color: white;
+}
+#debug-output .value{
+    color: gold;
+}
+
 
 /*Monitor styles*/
 #monitor {
     padding-top: 10px;
+/*    float: none;*/
 }
 
 #monitor-outer-screen {
     background-color: #333;
     padding: 1em;
     /*margin: 2vw auto;*/ /* setting margin forces center */
-    border-radius: 1vw;
-    /*width: 100%;*/
-
+    border-radius: 0.5vw;
     box-sizing: border-box;
+/*    width: 809px;*/
+    width: 824px;
     /*width: 1209px;*/
-    width: 809px;
 
     float: left;
 }
@@ -114,7 +145,7 @@ a, .btn-link {
 }
 
 #monitor-output .error {
-    color: red;
+    color: red; 
 }
 
 #monitor-input {
@@ -137,12 +168,12 @@ a, .btn-link {
     background-color: #222;
     padding: 1em;
     /*margin: 2vw auto;*/ /* setting margin forces center */
-    border-radius: 1vw;
-
+    border-radius: 0.5vw;
     box-sizing: border-box;
-    width: 90%;
+    width: 100%;
     float: left;
-    width: 400px;
+    /*width: 400px;*/
+    width: 385px;
 }
 
 #monitor-status-inner-screen {
@@ -159,17 +190,9 @@ a, .btn-link {
     height: 10ex;
     line-height: 3ex;
     display: flex;
-    flex-direction: column-reverse
+    /*flex-direction: column-reverse*/
 }
 
 #monitor-status-output .info {
     color: white;
-}
-
-#monitor-status-output .warning {
-    color: yellow;
-}
-
-#monitor-status-output .error {
-    color: red;
 }
