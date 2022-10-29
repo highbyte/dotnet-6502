@@ -38,12 +38,14 @@
             </div>
         </div>
 
-        <div id="monitor-status-outer"><div id="monitor-status">@((MarkupString)_monitorStatus)</div></div>
+@*        <div id="monitor-status-outer"><div id="monitor-status">@((MarkupString)_monitorStatus)</div></div>*@
     </div>
-@*    <div class="px-4">
-        Status
+
+    <div id="monitor-status-outer-screen">
+        <div id="monitor-status-inner-screen">
+            <div id="monitor-status-output-outer"><div id="monitor-status-output">@((MarkupString)_monitorStatus)</div></div>
+        </div>
     </div>
-    <div id="monitor-status-outer"><div id="monitor-status">@((MarkupString)_monitorStatus)</div></div>*@
 </div>
 
 @*Stats/Debug*@

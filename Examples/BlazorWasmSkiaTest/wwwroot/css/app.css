@@ -76,14 +76,17 @@ a, .btn-link {
 }
 
 #monitor-outer-screen {
-    background-color: #111;
+    background-color: #333;
     padding: 1em;
     /*margin: 2vw auto;*/ /* setting margin forces center */
     border-radius: 1vw;
     /*width: 100%;*/
 
     box-sizing: border-box;
-    width: 1209px;
+    /*width: 1209px;*/
+    width: 809px;
+
+    float: left;
 }
 
 #monitor-inner-screen {
@@ -115,7 +118,7 @@ a, .btn-link {
 }
 
 #monitor-input {
-    background-color: #111;
+    background-color: #444;
     color: #f8f8f8;
     font: inherit;
     border: none;
@@ -129,23 +132,44 @@ a, .btn-link {
     display: none;
 }
 
-#monitor-status-outer {
-    background-color: #333;
-    /*    overflow: auto;*/
-    height: 10ex;
-    line-height: 3ex;
-/*    display: flex;*/
-    /*    flex-direction: column-reverse*/
+/*Monitor status*/
+#monitor-status-outer-screen {
+    background-color: #222;
+    padding: 1em;
+    /*margin: 2vw auto;*/ /* setting margin forces center */
+    border-radius: 1vw;
+
+    box-sizing: border-box;
+    width: 90%;
+    float: left;
+    width: 400px;
 }
 
-#monitor-status .info {
+#monitor-status-inner-screen {
+    color: #f8f8f8;
+    font-family: "Courier New", monospace;
+    font-size: 0.7em;
+    text-align: left;
+    width: 99%;
+}
+
+
+#monitor-status-outer {
+    overflow: auto;
+    height: 10ex;
+    line-height: 3ex;
+    display: flex;
+    flex-direction: column-reverse
+}
+
+#monitor-status-output .info {
     color: white;
 }
 
-#monitor-status .warning {
+#monitor-status-output .warning {
     color: yellow;
 }
 
-#monitor-status .error {
+#monitor-status-output .error {
     color: red;
 }
