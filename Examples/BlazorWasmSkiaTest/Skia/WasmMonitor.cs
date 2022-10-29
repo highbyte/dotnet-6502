@@ -1,3 +1,5 @@
+using System.Net.NetworkInformation;
+using System.Reflection.Metadata;
 using System.Web;
 using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Monitor;
@@ -123,16 +125,19 @@ namespace BlazorWasmSkiaTest.Skia
         private void DisplayStatus()
         {
             Status = "";
+            var cpuStateDictionary = OutputGen.GetProcessorStateDictionary(Cpu, includeCycles: true);
 
-            var cpuStatus = $"CPU: {OutputGen.GetProcessorState(Cpu, includeCycles: true)}";
             if (Status != "")
                 Status += "<br />";
-            Status += BuildHtmlString(cpuStatus, "info");
+            foreach (var cpuState in cpuStateDictionary)
+            {
+                Status += $"{BuildHtmlString(cpuState.Key, "header")}: {BuildHtmlString(cpuState.Value, "value")} ";
+            }
 
             var systemStatus = $"SYS: {SystemRunner.System.SystemInfo}";
             if (Status != "")
                 Status += "<br />";
-            Status += BuildHtmlString(systemStatus, "info");
+            Status += BuildHtmlString(systemStatus, "header");
         }
 
         public override void LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
@@ -153,16 +158,21 @@ namespace BlazorWasmSkiaTest.Skia
         public override void WriteOutput(string message, MessageSeverity severity)
         {
             if (severity == MessageSeverity.Information)
-                Output += BuildHtmlString(message, "info");
+                Output += BuildHtmlString(message, "info", startNewLine: true);
             else if (severity == MessageSeverity.Error)
-                Output += BuildHtmlString(message, "error");
+                Output += BuildHtmlString(message, "error", startNewLine: true);
             else if (severity == MessageSeverity.Warning)
-                Output += BuildHtmlString(message, "warning");
+                Output += BuildHtmlString(message, "warning", startNewLine: true);
         }
 
-        private string BuildHtmlString(string message, string cssClass)
+        private string BuildHtmlString(string message, string cssClass, bool startNewLine = false)
         {
-            return $@"<br /><span class=""{cssClass}"">{HttpUtility.HtmlEncode(message)}</span>";
+            string html = "";
+            if (startNewLine)
+                html += "<br />";
+            html += $@"<span class=""{cssClass}"">{HttpUtility.HtmlEncode(message)}</span>";
+            return html;
+            
         }
     }
 }

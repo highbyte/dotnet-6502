@@ -25,12 +25,24 @@
                   autofocus />
     </div>
 
-    @*Stats/debug info*@
-    <div id="debug-outer-screen" class="debugStyle">
-        <div id="debug-inner-screen">
-            <div id="debug-output-outer"><div id="debug-output">@((MarkupString)_statsString)</div></div>
+    @*Stats info*@
+    <div id="stats-outer-screen" class="infobox-outer-screen debugStyle">
+        <div id="stats-inner-screen" class="infobox-inner-screen">
+            <div id="stats-output-outer" class="infobox-output-outer">
+                <div id="stats-output" class="infobox-output">@((MarkupString)_statsString)</div>
+            </div>
         </div>
     </div>
+
+    @*Debug info*@
+    <div id="debug-outer-screen" class="infobox-outer-screen debugStyle">
+        <div id="debug-inner-screen" class="infobox-inner-screen">
+            <div id="debug-output-outer" class="infobox-output-outer">
+                <div id="debug-output" class="infobox-output">@((MarkupString)_debugString)</div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 @*Monitor console*@
@@ -45,9 +57,12 @@
         </div>
     </div>
 
-    <div id="monitor-status-outer-screen">
-        <div id="monitor-status-inner-screen">
-            <div id="monitor-status-output-outer"><div id="monitor-status-output">@((MarkupString)_monitorStatus)</div></div>
+    @*Monistor status*@
+    <div id="monitor-status-outer-screen" class="infobox-outer-screen">
+        <div id="monitor-status-inner-screen" class="infobox-inner-screen">
+            <div id="monitor-status-output-outer" class="infobox-output-outer">
+                <div id="monitor-status-output" class="infobox-output">@((MarkupString)_monitorStatus)</div>
+            </div>
         </div>
     </div>
 </div>
