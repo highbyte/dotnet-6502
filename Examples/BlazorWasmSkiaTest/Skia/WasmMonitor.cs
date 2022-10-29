@@ -11,6 +11,7 @@ namespace BlazorWasmSkiaTest.Skia
         public bool Visible { get; set; } = false;
         public string Output { get; set; } = "";
         public string Input { get; set; } = "";
+        public string Status { get; set; } = "";
 
         private readonly List<string> _history = new List<string>();
         private int _historyIndex = 0;
@@ -40,15 +41,12 @@ namespace BlazorWasmSkiaTest.Skia
                 // Show description and general help text first time
                 ShowDescription();
                 WriteOutput("");
-
-                var previousOut = Console.Out;
-                var writer = new StringWriter();
-                Console.SetOut(writer);
                 ShowHelp();
-                Console.SetOut(previousOut);
 
                 _hasBeenInitializedOnce = true;
             }
+
+            DisplayStatus();
         }
 
         public async void Disable()
@@ -110,6 +108,7 @@ namespace BlazorWasmSkiaTest.Skia
         {
             WriteOutput(cmd, MessageSeverity.Information);
             var commandResult = SendCommand(cmd);
+            DisplayStatus();
             if (commandResult == CommandResult.Quit)
             {
                 //Quit = true;
@@ -119,6 +118,21 @@ namespace BlazorWasmSkiaTest.Skia
             {
                 Disable();
             }
+        }
+
+        private void DisplayStatus()
+        {
+            Status = "";
+
+            var cpuStatus = $"CPU: {OutputGen.GetProcessorState(Cpu, includeCycles: true)}";
+            if (Status != "")
+                Status += "<br />";
+            Status += $@"<span class=""info"">{HttpUtility.HtmlEncode(cpuStatus)}</span>";
+
+            var systemStatus = $"SYS: {SystemRunner.System.SystemInfo}";
+            if (Status != "")
+                Status += "<br />";
+            Status += $@"<span class=""info"">{HttpUtility.HtmlEncode(systemStatus)}</span>";
         }
 
         public override void LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)

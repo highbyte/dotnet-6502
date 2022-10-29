@@ -65,6 +65,22 @@ namespace BlazorWasmSkiaTest.Pages
                 _wasmHost.Monitor.Input = value;
             }
         }
+        private string _monitorStatus
+        {
+            get
+            {
+                if (_wasmHost == null || _wasmHost.Monitor == null)
+                    return "";
+                return _wasmHost.Monitor.Status;
+            }
+            set
+            {
+                if (_wasmHost == null || _wasmHost.Monitor == null)
+                    return;
+                _wasmHost.Monitor.Status = value;
+            }
+        }
+
 
 
         [Inject]

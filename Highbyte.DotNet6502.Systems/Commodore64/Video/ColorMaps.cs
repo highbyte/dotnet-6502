@@ -5,10 +5,10 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
     public static class ColorMaps
     {
         /// <summary>
-        /// Map C64 color value 0-15 to RGB colors
+        /// Map C64 color value 0-15 to system RGB colors
         /// </summary>
         /// <returns></returns>
-        public static Dictionary<byte, Color> C64ColorMap = new()
+        private static Dictionary<byte, Color> C64ColorMap = new()
         {
             { (byte)C64Colors.Black,        Color.FromArgb(0, 0, 0) },          // Black
             { (byte)C64Colors.White,        Color.FromArgb(255, 255, 255) },    // White
@@ -46,6 +46,21 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
             LightGreen = 0x0d,
             LightBlue = 0x0e,
             LightGrey = 0x0f
+        }
+
+        public static Dictionary<byte, Color>.ValueCollection GetAllSystemColors()
+        {
+            return C64ColorMap.Values;
+        }
+
+        public static Color GetSystemColor(byte c64Color)
+        {
+            Color color;
+            if (C64ColorMap.ContainsKey(c64Color))
+                color = C64ColorMap[c64Color];
+            else
+                color = C64ColorMap.Values.First();
+            return color;
         }
     }
 }

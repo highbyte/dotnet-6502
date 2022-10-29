@@ -14,7 +14,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 
         static C64SkiaColors()
         {
-            foreach (var systemColor in ColorMaps.C64ColorMap.Values)
+            foreach (var systemColor in ColorMaps.GetAllSystemColors())
             {
                 SystemToSkColorMap.Add(systemColor, systemColor.ToSkColor());
             }

@@ -129,3 +129,23 @@ a, .btn-link {
     display: none;
 }
 
+#monitor-status-outer {
+    background-color: #333;
+    /*    overflow: auto;*/
+    height: 10ex;
+    line-height: 3ex;
+/*    display: flex;*/
+    /*    flex-direction: column-reverse*/
+}
+
+#monitor-status .info {
+    color: white;
+}
+
+#monitor-status .warning {
+    color: yellow;
+}
+
+#monitor-status .error {
+    color: red;
+}

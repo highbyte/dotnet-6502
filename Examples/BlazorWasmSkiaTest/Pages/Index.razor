@@ -37,7 +37,13 @@
                 <span>&gt;&nbsp;</span><input id="monitor-input" @bind="_monitorInput" type="text" @onkeydown="OnKeyDownMonitor" @onkeyup="OnKeyUpMonitor" @ref="_monitorInputRef" />
             </div>
         </div>
+
+        <div id="monitor-status-outer"><div id="monitor-status">@((MarkupString)_monitorStatus)</div></div>
     </div>
+@*    <div class="px-4">
+        Status
+    </div>
+    <div id="monitor-status-outer"><div id="monitor-status">@((MarkupString)_monitorStatus)</div></div>*@
 </div>
 
 @*Stats/Debug*@

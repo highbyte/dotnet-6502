@@ -125,8 +125,8 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64
                 x,
                 y,
                 sadConsoleCharacter,
-                C64SadConsoleColors.SystemToSadConsoleColorMap[ColorMaps.C64ColorMap[emulatorFgColor]],
-                C64SadConsoleColors.SystemToSadConsoleColorMap[ColorMaps.C64ColorMap[emulatorBgColor]]
+                C64SadConsoleColors.GetSadConsoleColor(ColorMaps.GetSystemColor(emulatorFgColor)),
+                C64SadConsoleColors.GetSadConsoleColor(ColorMaps.GetSystemColor(emulatorBgColor))
                 );
         }
 

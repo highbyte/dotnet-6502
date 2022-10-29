@@ -23,7 +23,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
             foreach (var c64Color in Enum.GetValues(typeof(C64Colors)))
             {
                 var c64ColorValue = (byte)c64Color; // Color 0-15
-                var systemColor = ColorMaps.C64ColorMap[c64ColorValue]; // .NET "Color" type
+                var systemColor = ColorMaps.GetSystemColor(c64ColorValue); // .NET "Color" type
                 var skColor = C64SkiaColors.SystemToSkColorMap[systemColor];    // Skia "SKColor" type
                 var paint = new SKPaint { Style = SKPaintStyle.Fill, Color = skColor };
 
@@ -33,7 +33,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
             foreach (var c64Color in Enum.GetValues(typeof(C64Colors)))
             {
                 var c64ColorValue = (byte)c64Color; // Color 0-15
-                var systemColor = ColorMaps.C64ColorMap[c64ColorValue]; // .NET "Color" type
+                var systemColor = ColorMaps.GetSystemColor(c64ColorValue); // .NET "Color" type
                 var skColor = C64SkiaColors.SystemToSkColorMap[systemColor];    // Skia "SKColor" type
                 var colorFilter = CreateReplaceColorFilter(skColor, Chargen.CharacterImageDrawColor);
                 var paint = new SKPaint { Style = SKPaintStyle.StrokeAndFill, ColorFilter = colorFilter };

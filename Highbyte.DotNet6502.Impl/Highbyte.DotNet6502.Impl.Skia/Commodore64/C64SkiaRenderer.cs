@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using SkiaSharp;
+using static Highbyte.DotNet6502.Systems.Commodore64.Video.ColorMaps;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 {
@@ -128,7 +130,16 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 
             // Draw 4 rectangles for border
             byte borderColor = emulatorMem[Vic2Addr.BORDER_COLOR];
-            var borderPaint = C64SkiaPaint.C64ToFillPaintMap[borderColor];
+            SKPaint borderPaint;
+            if (C64SkiaPaint.C64ToFillPaintMap.ContainsKey(borderColor))
+            {
+                borderPaint = C64SkiaPaint.C64ToFillPaintMap[borderColor];
+            }
+            else
+            {
+                // Debug.WriteLine($"Warning: Invalid border  color value: {borderColor}");
+                borderPaint = C64SkiaPaint.C64ToFillPaintMap[(byte)C64Colors.Black];
+            }
             canvas.DrawRect(0, 0, c64.VisibleWidth, c64.BorderHeight, borderPaint);
             canvas.DrawRect(0, (c64.BorderHeight + c64.Height), c64.VisibleWidth, c64.BorderHeight, borderPaint);
             canvas.DrawRect(0, c64.BorderHeight, c64.BorderWidth, c64.Height, borderPaint);
@@ -136,7 +147,17 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
 
             // Draw 1 rectangles for background
             byte backgroundColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR];
-            var bgPaint = C64SkiaPaint.C64ToFillPaintMap[backgroundColor];
+            SKPaint bgPaint;
+            if (C64SkiaPaint.C64ToFillPaintMap.ContainsKey(backgroundColor))
+            {
+                bgPaint = C64SkiaPaint.C64ToFillPaintMap[backgroundColor];
+            }
+            else
+            {
+                // Debug.WriteLine($"Warning: Invalid background color value: {backgroundColor}");
+                bgPaint = C64SkiaPaint.C64ToFillPaintMap[(byte)C64Colors.Black];
+            }
+
             canvas.DrawRect(c64.BorderWidth, c64.BorderHeight, c64.Width, c64.Height, bgPaint);
         }
 
