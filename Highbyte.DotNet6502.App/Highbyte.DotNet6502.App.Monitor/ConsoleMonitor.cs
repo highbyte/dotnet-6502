@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 
@@ -21,6 +21,11 @@ namespace Highbyte.DotNet6502.App.Monitor
                 out loadedAtAddress,
                 out fileLength,
                 forceLoadAddress);
+        }
+
+        public override bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
+        {
+            throw new NotImplementedException("Filepicker dialog not implmeneted");
         }
 
         public override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)

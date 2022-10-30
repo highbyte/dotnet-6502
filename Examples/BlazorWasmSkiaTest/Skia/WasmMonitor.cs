@@ -1,10 +1,12 @@
 using System.Net.NetworkInformation;
 using System.Reflection.Metadata;
+using System.Threading;
 using System.Web;
 using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 
 namespace BlazorWasmSkiaTest.Skia
 {
@@ -19,16 +21,19 @@ namespace BlazorWasmSkiaTest.Skia
         private int _historyIndex = 0;
 
         private bool _hasBeenInitializedOnce = false;
+        private readonly IJSRuntime _jsRuntime;
         private readonly Func<bool, Task> _setMonitorState;
         private readonly MonitorConfig _monitorConfig;
 
         public WasmMonitor(
+            IJSRuntime jsRuntime,
             SystemRunner systemRunner,
             MonitorConfig monitorConfig,
             Func<bool, Task> setMonitorState
 
             ) : base(systemRunner, monitorConfig)
         {
+            _jsRuntime = jsRuntime;
             _monitorConfig = monitorConfig;
             _setMonitorState = setMonitorState;
         }
@@ -142,7 +147,35 @@ namespace BlazorWasmSkiaTest.Skia
 
         public override void LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
         {
-            throw new NotImplementedException();
+            throw new NotImplementedException("Loading file directly from url not implemented yet.");
+        }
+
+        public override bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
+        {
+            // Trigger the html file picker dialog to open. After the file is picked and uploaded, LoadBinaryFromUser below will be called.
+            _jsRuntime.InvokeVoidAsync("clickId", "monitorFilePicker");
+
+            fileLength = 0;
+            loadedAtAddress = 0;
+            // Return false to indicate the file wasn't loaded now, but will be later when user has picked file from upload file dialog.
+            return false;
+        }
+
+        /// <summary>
+        /// Called after Blazor InputFile component callback has uploaded the user selected local file.
+        /// </summary>
+        /// <param name="fileData"></param>
+        /// <param name="forceLoadAddress"></param>
+        public void LoadBinaryFromUser(byte[] fileData, ushort? forceLoadAddress = null)
+        {
+            BinaryLoader.Load(
+                Mem,
+                fileData,
+                out ushort loadedAtAddress,
+                out ushort fileLength,
+                forceLoadAddress);
+
+            WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
         }
 
         public override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)

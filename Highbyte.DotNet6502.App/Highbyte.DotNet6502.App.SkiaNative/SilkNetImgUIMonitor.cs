@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using ImGuiNET;
@@ -141,6 +141,7 @@ namespace Highbyte.DotNet6502.App.SkiaNative
         {
             if (!Path.IsPathFullyQualified(fileName))
                 fileName = $"{_monitorConfig.DefaultDirectory}/{fileName}";
+
             BinaryLoader.Load(
                 Mem,
                 fileName,
@@ -148,6 +149,15 @@ namespace Highbyte.DotNet6502.App.SkiaNative
                 out fileLength,
                 forceLoadAddress);
         }
+
+        public override bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
+        {
+            // TODO: Implement file picker dialaog
+            fileLength = 0;
+            loadedAtAddress = 0;
+            return false;
+        }
+
 
         public override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
         {

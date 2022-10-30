@@ -11,6 +11,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Impl.AspNet;
 using SkiaSharp;
 using Highbyte.DotNet6502.Monitor;
+using Microsoft.JSInterop;
 
 namespace BlazorWasmSkiaTest.Pages
 {
@@ -122,7 +123,7 @@ namespace BlazorWasmSkiaTest.Pages
             _windowHeightStyle = $"{screen.VisibleHeight * scale}px";
             this.StateHasChanged();
 
-            _wasmHost = new WasmHost(system, GetSystemRunner, UpdateStats, UpdateDebug, SetMonitorState, monitorConfig, ToggleDebugStatsState, scale);
+            _wasmHost = new WasmHost(Js, system, GetSystemRunner, UpdateStats, UpdateDebug, SetMonitorState, monitorConfig, ToggleDebugStatsState, scale);
 
             //await FocusEmulator();
         }

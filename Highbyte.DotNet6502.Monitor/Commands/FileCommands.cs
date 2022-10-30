@@ -13,11 +13,45 @@ namespace Highbyte.DotNet6502.Monitor.Commands
             app.Command("l", cmd =>
             {
                 cmd.HelpOption(inherited: true);
-                cmd.Description = "Load a 6502 binary into emulator memory.";
-                cmd.AddName("load");
+                cmd.Description = "Load 6502 binary file from file pick dialog into emulator memory.";
+                cmd.AddName("load from file picker");
+
+                var address = cmd.Argument("address", "Memory address (hex) to load the file into. If not specified, it's assumed the first two bytes of the file contains the load address.");
+                address.Validators.Add(new MustBe16BitHexValueValidator());
+
+                cmd.OnValidationError((ValidationResult validationResult) =>
+                {
+                    return monitor.WriteValidationError(validationResult);
+                });
+
+                cmd.OnExecute(() =>
+                {
+                    ushort? forceLoadAtAddress;
+
+                    if (string.IsNullOrEmpty(address.Value))
+                        forceLoadAtAddress = null;
+                    else
+                        forceLoadAtAddress = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
+
+                    var loaded = monitor.LoadBinary(out var loadedAtAddress, out var fileLength, forceLoadAddress: forceLoadAtAddress);
+                    if (!loaded)
+                    {
+                        monitor.WriteOutput($"Waiting for file to be selected by user.");
+                        return (int)CommandResult.Ok;
+                    }
+
+                    monitor.WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+                    return (int)CommandResult.Ok;
+
+                });
+            });
+            app.Command("ll", cmd =>
+            {
+                cmd.HelpOption(inherited: true);
+                cmd.Description = "Load specifiled 6502 binary file into emulator memory.";
+                cmd.AddName("load file");
 
                 var fileName = cmd.Argument("filename", "Name of the binary file.")
-                    .IsRequired()
                     .Accepts(v => v.ExistingFile());
 
                 var address = cmd.Argument("address", "Memory address (hex) to load the file into. If not specified, it's assumed the first two bytes of the file contains the load address.");
@@ -30,20 +64,18 @@ namespace Highbyte.DotNet6502.Monitor.Commands
 
                 cmd.OnExecute(() =>
                 {
-                    ushort loadedAtAddress;
-                    ushort fileLength;
+                    ushort? forceLoadAtAddress;
+
                     if (string.IsNullOrEmpty(address.Value))
-                    {
-                        monitor.LoadBinary(fileName.Value, out loadedAtAddress, out fileLength);
-                    }
+                        forceLoadAtAddress = null;
                     else
-                    {
-                        ushort forceLoadAtAddress = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
-                        monitor.LoadBinary(fileName.Value, out loadedAtAddress, out fileLength, forceLoadAddress: forceLoadAtAddress);
-                    }
+                        forceLoadAtAddress = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
+
+                    monitor.LoadBinary(fileName.Value, out var loadedAtAddress, out var fileLength, forceLoadAddress: forceLoadAtAddress);
 
                     monitor.WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
                     return (int)CommandResult.Ok;
+
                 });
             });
 

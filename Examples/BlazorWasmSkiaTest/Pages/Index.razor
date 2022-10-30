@@ -81,6 +81,7 @@
     }
 </style>
 
+<InputFile id="monitorFilePicker" OnChange="@OnMonitorFilePickerChange" hidden/>
 
 @code
 {
@@ -161,6 +162,26 @@
     private async Task FocusMonitor()
     {
         await Task.Run(async () => await _monitorInputRef!.Value.FocusAsync());    // Task.Run fix for focusing on a element that is not yet visible (but about to be)
-        //await _monitorInputRef.FocusAsync();
+                                                                                   //await _monitorInputRef.FocusAsync();
+    }
+
+
+    private async Task OnMonitorFilePickerChange(InputFileChangeEventArgs e)
+    {
+        if (_wasmHost == null || _wasmHost.Monitor == null)
+            return;
+
+        // Only expect one file
+        if (e.FileCount > 1)
+            return;
+        var file = e.File;
+        System.Diagnostics.Debug.WriteLine($"File picked: {file.Name} Size: {file.Size}");
+
+        var fileBuffer = new byte[file.Size];
+        //var fileStream = e.File.OpenReadStream(file.Size);
+        await file.OpenReadStream().ReadAsync(fileBuffer);
+        var fileSize = fileBuffer.Length;
+
+        _wasmHost.Monitor.LoadBinaryFromUser(fileBuffer);
     }
 }

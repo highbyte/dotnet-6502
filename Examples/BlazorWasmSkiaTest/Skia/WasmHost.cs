@@ -6,6 +6,7 @@ using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 using SkiaSharp;
 
 namespace BlazorWasmSkiaTest.Skia
@@ -13,6 +14,8 @@ namespace BlazorWasmSkiaTest.Skia
     public class WasmHost : IDisposable
     {
         public bool Initialized { get; private set; }
+
+        private readonly IJSRuntime _jsRuntime;
 
         private SystemRunner _systemRunner;
 
@@ -46,6 +49,7 @@ namespace BlazorWasmSkiaTest.Skia
         private int _debugFrameCount = 0;
 
         public WasmHost(
+            IJSRuntime jsRuntime,
             ISystem system,
             Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, SystemRunner> getSystemRunner,
             Action<string> updateStats,
@@ -55,6 +59,7 @@ namespace BlazorWasmSkiaTest.Skia
             Func<Task> toggleDebugStatsState,
             float scale = 1.0f)
         {
+            _jsRuntime = jsRuntime;
             _system = system;
             _getSystemRunner = getSystemRunner;
             _updateStats = updateStats;
@@ -76,7 +81,7 @@ namespace BlazorWasmSkiaTest.Skia
             InputHandlerContext = new AspNetInputHandlerContext();
             _systemRunner = _getSystemRunner(_system, skiaRenderContext, InputHandlerContext);
 
-            Monitor = new WasmMonitor(_systemRunner, _monitorConfig, _setMonitorState);
+            Monitor = new WasmMonitor(_jsRuntime, _systemRunner, _monitorConfig, _setMonitorState);
 
             var screen = (IScreen)_system;
             // Number of milliseconds between each invokation of the main loop. 60 fps -> (1/60) * 1000  -> approx 16.6667ms
