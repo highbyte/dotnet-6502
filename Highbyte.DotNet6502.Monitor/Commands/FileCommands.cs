@@ -103,7 +103,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     .IsRequired();
                 endAddress.Validators.Add(new MustBe16BitHexValueValidator());
 
-                var addFileHeader = cmd.Argument("addFileHeader", "Optional. Set to y add a 2 byte file header with start address (useful for programs, not data)")
+                var addFileHeader = cmd.Argument("addFileHeader", "Optional. Set to n to NOT add a 2 byte file header with start address (usefull for data, not code)")
                     .Accepts(arg => arg.Values("y", "yes", "n", "no"));
 
                 cmd.OnValidationError((ValidationResult validationResult) =>
@@ -116,8 +116,8 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     ushort startAddressValue = ushort.Parse(startAddress.Value, NumberStyles.AllowHexSpecifier, null);
                     ushort endAddressValue = ushort.Parse(endAddress.Value, NumberStyles.AllowHexSpecifier, null);
 
-                    bool addFileHeaderWithLoadAddress = !string.IsNullOrEmpty(addFileHeader.Value)
-                                                        && (addFileHeader.Value.ToLower() == "y" || addFileHeader.Value.ToLower() == "yes");
+                    bool addFileHeaderWithLoadAddress = string.IsNullOrEmpty(addFileHeader.Value)
+                                                        || (addFileHeader.Value.ToLower() == "y" && addFileHeader.Value.ToLower() == "yes");
 
                     monitor.SaveBinary(fileName.Value, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress);
 

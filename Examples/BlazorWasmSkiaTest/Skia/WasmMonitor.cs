@@ -25,6 +25,8 @@ namespace BlazorWasmSkiaTest.Skia
         private readonly Func<bool, Task> _setMonitorState;
         private readonly MonitorConfig _monitorConfig;
 
+        private ushort? _lastTriggeredLoadBinaryForceLoadAddress = null;
+
         public WasmMonitor(
             IJSRuntime jsRuntime,
             SystemRunner systemRunner,
@@ -156,6 +158,10 @@ namespace BlazorWasmSkiaTest.Skia
 
         public override bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
         {
+            // Remember what the user specified as load address (is null of not specified). 
+            // This will be used later when LoadBinaryFromUser is called after user has opened file dialog and selected and uploaded file.
+            _lastTriggeredLoadBinaryForceLoadAddress = forceLoadAddress;
+
             // Trigger the html file picker dialog to open. After the file is picked and uploaded, LoadBinaryFromUser below will be called.
             _jsRuntime.InvokeVoidAsync("clickId", "monitorFilePicker");
 
@@ -171,22 +177,26 @@ namespace BlazorWasmSkiaTest.Skia
         /// Called after Blazor InputFile component callback has uploaded the user selected local file.
         /// </summary>
         /// <param name="fileData"></param>
-        /// <param name="forceLoadAddress"></param>
-        public void LoadBinaryFromUser(byte[] fileData, ushort? forceLoadAddress = null)
+        public void LoadBinaryFromUser(byte[] fileData)
         {
             BinaryLoader.Load(
                 Mem,
                 fileData,
                 out ushort loadedAtAddress,
                 out ushort fileLength,
-                forceLoadAddress);
+                _lastTriggeredLoadBinaryForceLoadAddress);
 
             WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
         }
 
-        public override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
+        public async override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
         {
-            throw new NotImplementedException();
+            var saveData = BinarySaver.BuildSaveData(Mem, startAddress, endAddress, addFileHeaderWithLoadAddress);
+            var fileStream = new MemoryStream(saveData);
+            using var streamRef = new DotNetStreamReference(stream: fileStream);
+
+            // Invoke JS helper script to trigger save dialog to users browser downloads folder
+            await _jsRuntime.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
         }
 
         public override void WriteOutput(string message)

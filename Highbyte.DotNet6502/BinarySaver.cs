@@ -25,6 +25,26 @@ namespace Highbyte.DotNet6502
             bool addFileHeaderWithLoadAddress = true
             )
         {
+            var saveData = BuildSaveData(mem, startAddress, endAddress, addFileHeaderWithLoadAddress);
+            File.WriteAllBytes(binaryFilePath, saveData);
+        }
+
+        /// <summary>
+        /// Creates a byte array from the memory, ranging from specified start to end.
+        /// If addFileHeaderWithLoadAddress is true, two bytes at the start is added with the start start address (little endian).
+        /// </summary>
+        /// <param name="mem"></param>
+        /// <param name="startAddress"></param>
+        /// <param name="endAddress"></param>
+        /// <param name="addFileHeaderWithLoadAddress"></param>
+        /// <returns></returns>
+        public static byte[] BuildSaveData(
+            Memory mem,
+            ushort startAddress,
+            ushort endAddress,
+            bool addFileHeaderWithLoadAddress = true
+            )
+        {
             ushort length = (ushort)(endAddress - startAddress);
             var memData = mem.ReadData(startAddress, length);
 
@@ -41,7 +61,7 @@ namespace Highbyte.DotNet6502
             {
                 saveData = memData;
             }
-            File.WriteAllBytes(binaryFilePath, saveData);
+            return saveData;
         }
     }
 }
