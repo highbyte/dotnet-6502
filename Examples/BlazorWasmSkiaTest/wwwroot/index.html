@@ -22,7 +22,7 @@
     </div>
     <script src="_framework/blazor.webassembly.js"></script>
 
-    <!-- Custom JS script to set focus on element from C# code -->
+    <!-- Custom JS script functions for JS interop from C# code -->
     <script>
         window.focusElement = (element) => {
             element.focus();
@@ -37,7 +37,22 @@
             var elementToClick = document.getElementById(id);
             elementToClick.click();
         }
+    </script>
 
+    <script>
+        // Fix for some keys not working correctly in Monitor UI
+        setTimeout(() => {
+            element = document.getElementById("monitor-input");
+            element.onkeydown = handleSpecialKeys
+        }, 3000);
+        function handleSpecialKeys(event) {
+            if (event.key == "ArrowDown" || event.key == "ArrowUp") {
+                event.preventDefault();
+            }
+            else if (event.key == "Escape") {
+                event.srcElement.value = ""
+            }
+        }
     </script>
 </body>
 
