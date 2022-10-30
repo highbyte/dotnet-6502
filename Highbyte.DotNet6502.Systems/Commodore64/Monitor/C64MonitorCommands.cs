@@ -30,7 +30,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Monitor
                     var loaded = monitor.LoadBinary(out var loadedAtAddress, out var fileLength);
                     if (!loaded)
                     {
-                        monitor.WriteOutput($"Waiting for file to be selected by user.");
+                        // If file could not be loaded at this time, probably because a Web/WASM file picker dialog is asynchronus
                         return (int)CommandResult.Ok;
                     }
 
@@ -57,8 +57,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Monitor
                 cmd.AddName("loadbasic file");
 
                 var fileName = cmd.Argument("filename", "Name of the Basic file.")
-                    .IsRequired()
-                    .Accepts(v => v.ExistingFile());
+                    .IsRequired();
+                    //.Accepts(v => v.ExistingFile()); // File exists check is done in LoadBinary(...) implementation.
 
                 cmd.OnValidationError((ValidationResult validationResult) =>
                 {
@@ -68,7 +68,12 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Monitor
                 cmd.OnExecute(() =>
                 {
                     // Basic file should have a start address of 0801 stored as the two first bytes (little endian order, 01 08).
-                    monitor.LoadBinary(fileName.Value, out var loadedAtAddress, out var fileLength);
+                    bool loaded = monitor.LoadBinary(fileName.Value, out var loadedAtAddress, out var fileLength);
+                    if (!loaded)
+                    {
+                        // If file could not be loaded, probably because it's not supported/implemented by the derived class.
+                        return (int)CommandResult.Ok;
+                    }
 
                     monitor.WriteOutput($"Basic program loaded at {loadedAtAddress.ToHex()}");
 

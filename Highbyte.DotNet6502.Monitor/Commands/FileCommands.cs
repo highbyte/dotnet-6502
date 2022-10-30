@@ -36,7 +36,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     var loaded = monitor.LoadBinary(out var loadedAtAddress, out var fileLength, forceLoadAddress: forceLoadAtAddress);
                     if (!loaded)
                     {
-                        monitor.WriteOutput($"Waiting for file to be selected by user.");
+                        // If file could not be loaded at this time, probably because a Web/WASM file picker dialog is asynchronus
                         return (int)CommandResult.Ok;
                     }
 
@@ -52,7 +52,8 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                 cmd.AddName("load file");
 
                 var fileName = cmd.Argument("filename", "Name of the binary file.")
-                    .Accepts(v => v.ExistingFile());
+                    .IsRequired();
+                    //.Accepts(v => v.ExistingFile());  // Check file is done in LoadBinary(...) implementation
 
                 var address = cmd.Argument("address", "Memory address (hex) to load the file into. If not specified, it's assumed the first two bytes of the file contains the load address.");
                 address.Validators.Add(new MustBe16BitHexValueValidator());
@@ -71,7 +72,12 @@ namespace Highbyte.DotNet6502.Monitor.Commands
                     else
                         forceLoadAtAddress = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
 
-                    monitor.LoadBinary(fileName.Value, out var loadedAtAddress, out var fileLength, forceLoadAddress: forceLoadAtAddress);
+                    bool loaded = monitor.LoadBinary(fileName.Value, out var loadedAtAddress, out var fileLength, forceLoadAddress: forceLoadAtAddress);
+                    if (!loaded)
+                    {
+                        // If file could not be loaded, probably because it's not supported/implemented by the derived class.
+                        return (int)CommandResult.Ok;
+                    }
 
                     monitor.WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
                     return (int)CommandResult.Ok;

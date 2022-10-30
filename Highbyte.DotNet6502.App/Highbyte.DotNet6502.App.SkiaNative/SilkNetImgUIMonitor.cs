@@ -137,22 +137,33 @@ namespace Highbyte.DotNet6502.App.SkiaNative
             OnMonitorStateChange(false);
         }
 
-        public override void LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
+        public override bool LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
         {
             if (!Path.IsPathFullyQualified(fileName))
                 fileName = $"{_monitorConfig.DefaultDirectory}/{fileName}";
 
+            if (!File.Exists(fileName))
+            {
+                WriteOutput($"File not found: {fileName}", MessageSeverity.Error);
+                loadedAtAddress = 0;
+                fileLength = 0;
+                return false;
+            }
+
             BinaryLoader.Load(
-                Mem,
-                fileName,
-                out loadedAtAddress,
-                out fileLength,
-                forceLoadAddress);
+            Mem,
+            fileName,
+            out loadedAtAddress,
+            out fileLength,
+            forceLoadAddress);
+
+            return true;
         }
 
         public override bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
         {
-            // TODO: Implement file picker dialaog
+            WriteOutput($"Loading file via file picker dialoag not implemented.", MessageSeverity.Warning);
+
             fileLength = 0;
             loadedAtAddress = 0;
             return false;

@@ -145,15 +145,21 @@ namespace BlazorWasmSkiaTest.Skia
             Status += BuildHtmlString(systemStatus, "header");
         }
 
-        public override void LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
+        public override bool LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
         {
-            throw new NotImplementedException("Loading file directly from url not implemented yet.");
+            WriteOutput($"Loading file directly from url not implemented.", MessageSeverity.Warning);
+
+            loadedAtAddress = 0;
+            fileLength = 0;
+            return false;
         }
 
         public override bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
         {
             // Trigger the html file picker dialog to open. After the file is picked and uploaded, LoadBinaryFromUser below will be called.
             _jsRuntime.InvokeVoidAsync("clickId", "monitorFilePicker");
+
+            WriteOutput($"Waiting for file to be selected by user.");
 
             fileLength = 0;
             loadedAtAddress = 0;
