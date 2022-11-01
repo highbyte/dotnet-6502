@@ -1,50 +1,70 @@
-using Highbyte.DotNet6502.Impl.AspNet.Generic;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64;
-using Highbyte.DotNet6502.Impl.Skia.Generic;
+using Highbyte.DotNet6502.Impl.AspNet;
+using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic;
-using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace BlazorWasmSkiaTest.Skia
 {
     public class SystemList
     {
-        /// <summary>
-        /// Systems that are available for running with a native Silk.Net & Skia host.
-        /// </summary>
-        public static HashSet<string> SystemNames = new();
+        public HashSet<string> Systems = new();
+        public ISystem? SelectedSystem { get; private set; }
+        public IRenderer? SelectedRenderer { get; private set; }
+        public IInputHandler? SelectedInputHandler { get; private set; }
 
-        static SystemList()
+        public SystemList()
         {
-            SystemNames.Add(C64.SystemName);
-            SystemNames.Add(GenericComputer.SystemName);
+            Systems.Add(C64.SystemName);
+            Systems.Add(GenericComputer.SystemName);
         }
 
-        public Dictionary<string, ISystem> Systems = new();
-        public Dictionary<ISystem, IRenderer> Renderers = new();
-        public Dictionary<ISystem, IInputHandler> InputHandlers = new();
-
-        public void BuildSystemLookups(
-            C64Config? c64Config = null,
-            GenericComputerConfig? genericComputerConfig = null)
+        public async Task SetSelectedSystem(string systemName, HttpClient httpClient, Uri uri)
         {
-            if (c64Config != null)
-            {
-                var c64 = C64.BuildC64(c64Config);
-                Systems.Add(c64.Name, c64);
-                Renderers.Add(c64, new C64SkiaRenderer());
-                InputHandlers.Add(c64, new C64AspNetInputHandler());
-            }
+            if (!Systems.Contains(systemName))
+                throw new NotImplementedException($"System not implemented: {systemName}");
 
-            if (genericComputerConfig != null)
+            switch (systemName)
             {
-                var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig);
-                Systems.Add(genericComputer.Name, genericComputer);
-                Renderers.Add(genericComputer, new GenericComputerSkiaRenderer(genericComputerConfig.Memory.Screen));
-                InputHandlers.Add(genericComputer, new GenericComputerAspNetInputHandler(genericComputerConfig.Memory.Input));
+                case C64.SystemName:
+                    var c64Config = await C64Setup.BuildC64Config(httpClient, uri);
+                    SelectedSystem = C64Setup.BuildC64(c64Config);
+                    SelectedRenderer = C64Setup.BuildC64Renderer(c64Config);
+                    SelectedInputHandler = C64Setup.BuildC64InputHander(c64Config);
+                    break;
+
+                case GenericComputer.SystemName:
+                    var genericConfig = await GenericComputerSetup.BuildGenericComputerConfig(httpClient, uri);
+                    SelectedSystem = GenericComputerSetup.BuildGenericComputer(genericConfig);
+                    SelectedRenderer = GenericComputerSetup.BuildGenericComputerRenderer(genericConfig);
+                    SelectedInputHandler = GenericComputerSetup.BuildGenericComputerInputHander(genericConfig);
+                    break;
+                default:
+                    throw new NotImplementedException();
             }
+        }
+
+        public SystemRunner GetSystemRunner(ISystem system, SkiaRenderContext skiaRenderContext, AspNetInputHandlerContext inputHandlerContext)
+        {
+            if (system is C64 c64)
+            {
+                return C64Setup.BuildSystemRunner(
+                    c64,
+                    (IRenderer<C64, SkiaRenderContext>)SelectedRenderer!,
+                    (IInputHandler<C64, AspNetInputHandlerContext>)SelectedInputHandler!,
+                    skiaRenderContext,
+                    inputHandlerContext);
+            }
+            else if (system is GenericComputer genericComputer)
+            {
+                return GenericComputerSetup.BuildSystemRunner(
+                    genericComputer,
+                    (IRenderer<GenericComputer, SkiaRenderContext>)SelectedRenderer!,
+                    (IInputHandler<GenericComputer, AspNetInputHandlerContext>)SelectedInputHandler!,
+                    skiaRenderContext,
+                    inputHandlerContext);
+            }
+            throw new NotImplementedException();
         }
     }
 }

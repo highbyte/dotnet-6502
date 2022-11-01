@@ -8,6 +8,32 @@
 @*Inject JS to be able to set focus on SKGLView from code*@
 @inject IJSRuntime Js
 
+<div id="title-header">
+    <div id="system-selector">
+        <div>System: 
+            <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled>
+                @foreach (var systemName in _systemList.Systems)
+                {
+                    <option value="@systemName"> @systemName </option>
+                }
+            </select>
+        </div>
+        <div>Status: @(_emulatorState)</div>
+        <button @onclick="OnStart" disabled=@OnStartDisabled>Start</button>
+        <button @onclick="OnPause" disabled=@OnPauseDisabled>Pause</button>
+        <button @onclick="OnReset" disabled=@OnResetDisabled>Reset</button>
+        <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
+    </div>
+    <div id="title-info">
+        <div>
+        A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502" target="_blank" class="ml-md-auto">6502</a> CPU emulator <a href="https://github.com/highbyte/dotnet-6502" target="_blank" class="ml-md-auto">dotnet-6502</a> written in <a href="https://dotnet.microsoft.com/" target="_blank" class="ml-md-auto">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank" class="ml-md-auto">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank" class="ml-md-auto">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank" class="ml-md-auto">Blazor</a>, running in a browser!
+        </div>
+        <div>
+            Press § (or ~) for monitor. Shift-§ (or Shift-~) for stats.
+        </div>
+    </div>
+</div>
+
 <div id="main" @ref="_mainRef">
     <div id="canvas-outer">
         @*Skia OpenGl View Blazor WASM component*@
@@ -85,6 +111,42 @@
 
 @code
 {
+    protected bool OnSelectSystemNameDisabled => _emulatorState == EmulatorState.Running || _emulatorState == EmulatorState.Paused;
+    protected bool OnStartDisabled => _emulatorState == EmulatorState.Running;
+    protected bool OnPauseDisabled => _emulatorState == EmulatorState.Paused || _emulatorState == EmulatorState.Uninitialized;
+    protected bool OnResetDisabled => _emulatorState == EmulatorState.Uninitialized;
+    protected bool OnStopDisabled => _emulatorState == EmulatorState.Uninitialized;
+
+    protected async void OnStart(MouseEventArgs mouseEventArgs)
+    {
+        if (_emulatorState == EmulatorState.Uninitialized)
+            await InitEmulator();
+
+        _wasmHost!.Start();
+        _emulatorState = EmulatorState.Running;
+        this.StateHasChanged();
+    }
+    protected void OnPause(MouseEventArgs mouseEventArgs)
+    {
+        if (_emulatorState == EmulatorState.Uninitialized)
+            return;
+
+        _wasmHost!.Stop();
+        _emulatorState = EmulatorState.Paused;
+        this.StateHasChanged();
+    }
+    protected void OnReset(MouseEventArgs mouseEventArgs)
+    {
+        OnPause(mouseEventArgs);
+        OnStop(mouseEventArgs);
+        OnStart(mouseEventArgs);
+    }
+    protected void OnStop(MouseEventArgs mouseEventArgs)
+    {
+        CleanupEmulator();
+        this.StateHasChanged();
+    }
+
     protected override async void OnAfterRender(bool firstRender)
     {
         if (firstRender)

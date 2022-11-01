@@ -1,5 +1,3 @@
-using System.Threading;
-using System.Web;
 using BlazorWasmSkiaTest.Instrumentation.Stats;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.Skia;
@@ -8,6 +6,7 @@ using Highbyte.DotNet6502.Systems;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using SkiaSharp;
+using System.Web;
 
 namespace BlazorWasmSkiaTest.Skia
 {
@@ -21,7 +20,7 @@ namespace BlazorWasmSkiaTest.Skia
 
         private SKCanvas _skCanvas;
         private GRContext _grContext;
-
+        private SkiaRenderContext _skiaRenderContext;
         private PeriodicAsyncTimer? _updateTimer;
 
         public AspNetInputHandlerContext InputHandlerContext { get; private set; }
@@ -36,11 +35,11 @@ namespace BlazorWasmSkiaTest.Skia
 
         public WasmMonitor Monitor { get; private set; }
 
-        private readonly ElapsedMillisecondsTimedStat _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("WASM-InputTime");
-        private readonly ElapsedMillisecondsTimedStat _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("Emulator-SystemTime");
-        private readonly ElapsedMillisecondsTimedStat _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("WASMSkiaSharp-RenderTime");
-        private readonly PerSecondTimedStat _updateFps = InstrumentationBag.Add<PerSecondTimedStat>("WASMSkiaSharp-OnUpdateFPS");
-        private readonly PerSecondTimedStat _renderFps = InstrumentationBag.Add<PerSecondTimedStat>("WASMSkiaSharp-OnRenderFPS");
+        private readonly ElapsedMillisecondsTimedStat _inputTime;
+        private readonly ElapsedMillisecondsTimedStat _systemTime;
+        private readonly ElapsedMillisecondsTimedStat _renderTime;
+        private readonly PerSecondTimedStat _updateFps;
+        private readonly PerSecondTimedStat _renderFps;
 
         private const int STATS_EVERY_X_FRAME = 60 * 1;
         private int _statsFrameCount = 0;
@@ -69,6 +68,14 @@ namespace BlazorWasmSkiaTest.Skia
             _toggleDebugStatsState = toggleDebugStatsState;
             _scale = scale;
 
+            // Init stats
+            InstrumentationBag.Clear();
+            _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("WASM-InputTime");
+            _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("Emulator-SystemTime");
+            _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("WASMSkiaSharp-RenderTime");
+            _updateFps = InstrumentationBag.Add<PerSecondTimedStat>("WASMSkiaSharp-OnUpdateFPS");
+            _renderFps = InstrumentationBag.Add<PerSecondTimedStat>("WASMSkiaSharp-OnRenderFPS");
+
             Initialized = false;
         }
 
@@ -77,29 +84,67 @@ namespace BlazorWasmSkiaTest.Skia
             _skCanvas = canvas;
             _grContext = grContext;
 
-            var skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
+            _skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
             InputHandlerContext = new AspNetInputHandlerContext();
-            _systemRunner = _getSystemRunner(_system, skiaRenderContext, InputHandlerContext);
+            _systemRunner = _getSystemRunner(_system, _skiaRenderContext, InputHandlerContext);
 
             Monitor = new WasmMonitor(_jsRuntime, _systemRunner, _monitorConfig, _setMonitorState);
-
-            var screen = (IScreen)_system;
-            // Number of milliseconds between each invokation of the main loop. 60 fps -> (1/60) * 1000  -> approx 16.6667ms
-            double updateIntervalMS = (1 / screen.RefreshFrequencyHz) * 1000;
-            _updateTimer = new PeriodicAsyncTimer();
-            _updateTimer.IntervalMilliseconds = updateIntervalMS;
-            _updateTimer.Elapsed += UpdateTimerElapsed;
-            _updateTimer.Start();
 
             Initialized = true;
         }
 
-        private void UpdateTimerElapsed(object? sender, EventArgs e) => EmulatorRunOneFrame();
+        public void Stop()
+        {
+            if (_updateTimer == null)
+                return;
+            _updateTimer!.Stop();
+        }
 
+        public void Start()
+        {
+            if (_updateTimer != null)
+            {
+            }
+            else
+            {
+                var screen = (IScreen)_system;
+                // Number of milliseconds between each invokation of the main loop. 60 fps -> (1/60) * 1000  -> approx 16.6667ms
+                double updateIntervalMS = (1 / screen.RefreshFrequencyHz) * 1000;
+                _updateTimer = new PeriodicAsyncTimer();
+                _updateTimer.IntervalMilliseconds = updateIntervalMS;
+                _updateTimer.Elapsed += UpdateTimerElapsed;
+            }
+
+            _updateTimer!.Start();
+        }
+
+        public void Cleanup()
+        {
+            if (_updateTimer != null)
+            {
+                _updateTimer.Stop();
+                _updateTimer = null;
+            }
+
+            // Clear canvas
+            _skiaRenderContext.GetCanvas().Clear();
+
+            // Cleanup Skia resources
+            _skiaRenderContext?.Cleanup();
+
+            // Cleanup input handler resources
+            InputHandlerContext?.Cleanup();
+        }
+
+        private void UpdateTimerElapsed(object? sender, EventArgs e) => EmulatorRunOneFrame();
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
         private void EmulatorRunOneFrame()
         {
+
+            if (!Initialized)
+                return;
+
             if (Monitor.Visible)
                 return;
 
@@ -198,7 +243,6 @@ namespace BlazorWasmSkiaTest.Skia
         {
             return $@"<br />";
         }
-
 
         public void Dispose()
         {

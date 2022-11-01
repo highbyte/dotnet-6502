@@ -78,7 +78,7 @@ public class AspNetInputHandlerContext : IInputHandlerContext
         return "";
     }
 
-    //public void Cleanup()
-    //{
-    //}
+    public void Cleanup()
+    {
+    }
 }
