@@ -5,46 +5,7 @@
    "version": "0.2.0",
    "configurations": [
         {
-            "name": ".NET Core Launch (console monitor)",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build monitor",
-            // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.Monitor/bin/Debug/net6.0/Highbyte.DotNet6502.App.Monitor.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.Monitor/bin/Debug/net6.0",
-            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
-            "console": "externalTerminal",
-            "stopAtEntry": false
-        },
-        {
-            "name": ".NET Core Launch (console test)",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build console test",
-            // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Examples/ConsoleTestPrograms/bin/Debug/net6.0/ConsoleTestPrograms.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/Examples/ConsoleTestPrograms/bin/Debug/net6.0",
-            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
-            "console": "externalTerminal",
-            "stopAtEntry": false
-        },
-        {
-            "name": ".NET Core Launch (sadconsole test)",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build sadconsole test",
-            // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Examples/SadConsoleTest/bin/Debug/net6.0/SadConsoleTest.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/Examples/SadConsoleTest/bin/Debug/net6.0",
-            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
-            "console": "integratedTerminal",
-            "stopAtEntry": false
-        },
-        {
-            "name": ".NET Core Launch (SkiaNative)",
+            "name": ".NET Core Launch (SkiaNative app)",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build skia native app",
@@ -55,23 +16,62 @@
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "integratedTerminal",
             "stopAtEntry": false
-        },        
+        },
         {
-            "name": "Blazor WASM Launch and Debug (BlazorWasmTest)",
+            "name": "Blazor WASM Skia Launch and Debug (skia blazor wasm app)",
+            "type": "blazorwasm",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaWASM",
+            "url": "http://localhost:5000",
+            "browser": "chrome"
+        },           
+        {
+            "name": ".NET Core Launch (console monitor app)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build console monitor app",
+            // If you have changed target frameworks, make sure to update the program path.
+            "program": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net6.0/Highbyte.DotNet6502.App.ConsoleMonitor.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net6.0",
+            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
+            "console": "externalTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": ".NET Core Launch (console example)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build console example",
+            // If you have changed target frameworks, make sure to update the program path.
+            "program": "${workspaceFolder}/Examples/ConsoleTestPrograms/bin/Debug/net6.0/ConsoleTestPrograms.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Examples/ConsoleTestPrograms/bin/Debug/net6.0",
+            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
+            "console": "externalTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": ".NET Core Launch (sadconsole example)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build sadconsole example",
+            // If you have changed target frameworks, make sure to update the program path.
+            "program": "${workspaceFolder}/Examples/SadConsoleTest/bin/Debug/net6.0/SadConsoleTest.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Examples/SadConsoleTest/bin/Debug/net6.0",
+            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Blazor WASM Launch and Debug (old BlazorWasmTest example)",
             "type": "blazorwasm",
             "request": "launch",
             "cwd": "${workspaceFolder}/Examples/BlazorWasmTest",
             "url": "http://localhost:5000",
             "browser": "chrome"
-        },
-        {
-            "name": "Blazor WASM Skia Launch and Debug (BlazorWasmSkiaTest)",
-            "type": "blazorwasm",
-            "request": "launch",
-            "cwd": "${workspaceFolder}/Examples/BlazorWasmSkiaTest",
-            "url": "http://localhost:5000",
-            "browser": "chrome"
-        },        
+        },     
         {
             "name": ".NET Core Attach",
             "type": "coreclr",
