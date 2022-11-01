@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
-namespace BlazorWasmSkiaTest
+namespace Highbyte.DotNet6502.App.SkiaWASM
 {
     public class Program
     {

@@ -7,7 +7,7 @@ using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Microsoft.AspNetCore.WebUtilities;
 
-namespace BlazorWasmSkiaTest.Skia
+namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 {
     public static class GenericComputerSetup
     {

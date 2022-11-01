@@ -4,7 +4,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
 
-namespace BlazorWasmSkiaTest.Skia
+namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 {
     public class SystemList
     {

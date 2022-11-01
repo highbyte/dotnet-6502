@@ -1,11 +1,11 @@
-using BlazorWasmSkiaTest.Skia;
+using Highbyte.DotNet6502.App.SkiaWASM.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.AspNetCore.Components;
 using SkiaSharp;
 using SkiaSharp.Views.Blazor;
 
-namespace BlazorWasmSkiaTest.Pages
+namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 {
 
     public partial class Index

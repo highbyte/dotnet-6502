@@ -1,16 +1,15 @@
-﻿using System;
-using System.Diagnostics;
+using System;
 using System.Threading;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using McMaster.Extensions.CommandLineUtils;
 
-namespace Highbyte.DotNet6502.App.Monitor
+namespace Highbyte.DotNet6502.App.ConsoleMonitor
 {
     class Program
     {
-        static ConsoleMonitor Monitor;
+        static Monitor Monitor;
         static void Main(string[] args)
         {
 
@@ -37,7 +36,7 @@ namespace Highbyte.DotNet6502.App.Monitor
                 DefaultDirectory = Environment.CurrentDirectory
             };
 
-            Monitor = new ConsoleMonitor(systemRunner, monitorConfig);
+            Monitor = new Monitor(systemRunner, monitorConfig);
 
             Monitor.ShowDescription();
             Monitor.WriteOutput("");

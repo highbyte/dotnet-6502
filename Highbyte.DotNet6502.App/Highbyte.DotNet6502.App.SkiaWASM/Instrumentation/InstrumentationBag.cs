@@ -1,6 +1,6 @@
-using BlazorWasmSkiaTest.Instrumentation.Stats;
+using Highbyte.DotNet6502.App.SkiaWASM.Instrumentation.Stats;
 
-namespace BlazorWasmSkiaTest
+namespace Highbyte.DotNet6502.App.SkiaWASM
 {
     // Credit to instrumentation/stat code to: https://github.com/davidwengier/Trains.NET    
     public static class InstrumentationBag

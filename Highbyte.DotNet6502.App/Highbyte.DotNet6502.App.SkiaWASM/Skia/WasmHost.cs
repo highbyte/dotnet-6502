@@ -1,4 +1,4 @@
-using BlazorWasmSkiaTest.Instrumentation.Stats;
+using Highbyte.DotNet6502.App.SkiaWASM.Instrumentation.Stats;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
@@ -8,7 +8,7 @@ using Microsoft.JSInterop;
 using SkiaSharp;
 using System.Web;
 
-namespace BlazorWasmSkiaTest.Skia
+namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 {
     public class WasmHost : IDisposable
     {

@@ -6,7 +6,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
-namespace BlazorWasmSkiaTest.Skia
+namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 {
     public static class C64Setup
     {

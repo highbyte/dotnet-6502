@@ -8,7 +8,7 @@ using Highbyte.DotNet6502.Systems;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 
-namespace BlazorWasmSkiaTest.Skia
+namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 {
     public class WasmMonitor : MonitorBase
     {

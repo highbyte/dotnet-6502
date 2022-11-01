@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace BlazorWasmSkiaTest.Skia
+namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 {
     public class PeriodicAsyncTimer
     {

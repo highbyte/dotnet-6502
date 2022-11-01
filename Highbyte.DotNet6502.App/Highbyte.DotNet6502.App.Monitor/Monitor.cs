@@ -3,11 +3,14 @@ using System.IO;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 
-namespace Highbyte.DotNet6502.App.Monitor
+namespace Highbyte.DotNet6502.App.ConsoleMonitor
 {
-    public class ConsoleMonitor : MonitorBase
+    /// <summary>
+    /// A implementation of the 6502 Monitor in a native Console application.
+    /// </summary>
+    public class Monitor : MonitorBase
     {
-        public ConsoleMonitor(
+        public Monitor(
             SystemRunner systemRunner,
             MonitorConfig monitorConfig
             ) : base(systemRunner, monitorConfig)
