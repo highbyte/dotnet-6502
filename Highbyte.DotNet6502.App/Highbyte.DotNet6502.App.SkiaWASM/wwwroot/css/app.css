@@ -25,7 +25,6 @@ a {
     color: #f7c346
 }
 
-
 .menu {
     grid-area: menu;
     max-width: 400px;
@@ -39,6 +38,7 @@ a {
 
 .right {
     grid-area: right;
+    display: inline-grid;
 }
 
 .footer {
@@ -111,22 +111,22 @@ a {
 
 /*Debug style*/
 .infobox {
-    margin: 1px;
-    padding: 4px;
-    /*margin: 2vw auto;*/ /* setting margin forces center */
+    margin: 4px;
+    padding: 8px;
     border-radius: 0.5vw;
-    box-sizing: border-box;
+/*    box-sizing: border-box;*/
+
     background-color: #063e5b;
     color: #f8f8f8;
     font-family: "Courier New", monospace;
     font-size: 0.7em;
     text-align: left;
     overflow: auto;
-    height: 10ex;
+    /*height: 10ex;*/
     line-height: 3ex;
     display: flex;
-
 }
+
 .infobox .header {
     color: white;
 }
