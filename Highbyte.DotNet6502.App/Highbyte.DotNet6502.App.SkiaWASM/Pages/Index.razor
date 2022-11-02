@@ -9,6 +9,14 @@
 @inject IJSRuntime Js
 
 <div id="title-header">
+    <div id="title-info">
+        <div>
+            A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502" target="_blank" class="ml-md-auto">6502</a> CPU emulator <a href="https://github.com/highbyte/dotnet-6502" target="_blank" class="ml-md-auto">dotnet-6502</a> written in <a href="https://dotnet.microsoft.com/" target="_blank" class="ml-md-auto">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank" class="ml-md-auto">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank" class="ml-md-auto">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank" class="ml-md-auto">Blazor</a>, running in a browser!
+        </div>
+        <div>
+            Press § (or ~) for monitor. Shift-§ (or Shift-~) for stats.
+        </div>
+    </div>
     <div id="system-selector">
         <div>System: 
             <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled>
@@ -24,13 +32,13 @@
         <button @onclick="OnReset" disabled=@OnResetDisabled>Reset</button>
         <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
     </div>
-    <div id="title-info">
-        <div>
-        A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502" target="_blank" class="ml-md-auto">6502</a> CPU emulator <a href="https://github.com/highbyte/dotnet-6502" target="_blank" class="ml-md-auto">dotnet-6502</a> written in <a href="https://dotnet.microsoft.com/" target="_blank" class="ml-md-auto">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank" class="ml-md-auto">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank" class="ml-md-auto">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank" class="ml-md-auto">Blazor</a>, running in a browser!
-        </div>
-        <div>
-            Press § (or ~) for monitor. Shift-§ (or Shift-~) for stats.
-        </div>
+    <div id="system-help-c64" class="system-help systemHelpC64Style">
+        <div>Special C64 keys map to PC keyboard: Run/Stop: Esc | Restore: PageUp | CTRL: RightCtrl | C=: LeftCtrl</div>
+        <div>Specific C64 monitor commands: "lb" to pick Basic .prg file to load. "sb [filename.prg]" to save basic prog. as a download.</div>
+    </div>
+    <div id="system-help-generic" class="system-help systemHelpGenericStyle">
+        <div>A generic 6502 computer, with custom defined memory layout.</div>
+        <div>Useful monitor commands: "l" to pick a machine code .prg file to load. "s [filename.prg] [start] [end]" to save machine code (or data) as download.</div>
     </div>
 </div>
 
@@ -95,15 +103,21 @@
 
 
 <style>
+    .systemHelpC64Style {
+        display: @GetDisplayStyle("C64Help");
+    }
+    .systemHelpGenericStyle {
+        display: @GetDisplayStyle("GenericHelp");
+    }
     .skGLViewStyle {
         width: @_windowWidthStyle;
         height: @_windowHeightStyle;
     }
     .debugStyle {
-        display: @_debugDisplay;
+        display: @GetDisplayStyle("Debug");
     }
     .monitorStyle {
-        display: @_monitorDisplay;
+        display: @GetDisplayStyle("Monitor");
     }
 </style>
 
@@ -111,6 +125,35 @@
 
 @code
 {
+
+    protected string GetDisplayStyle(string displayData)
+    {
+        const string VISIBLE = "inline";
+        const string HIDDEN = "none";
+
+        switch (displayData)
+        {
+            case "C64Help":
+                {
+                    return SelectedSystemName == "C64" ? VISIBLE : HIDDEN;
+                }
+            case "GenericHelp":
+                {
+                    return SelectedSystemName == "Generic" ? VISIBLE : HIDDEN;
+                }
+            case "Debug":
+                {
+                    return _debugVisible ? VISIBLE : HIDDEN;
+                }
+            case "Monitor":
+                {
+                    return _monitorVisible ? VISIBLE : HIDDEN;
+                }
+            default:
+                return VISIBLE;
+        }
+    }
+
     protected bool OnSelectSystemNameDisabled => _emulatorState == EmulatorState.Running || _emulatorState == EmulatorState.Paused;
     protected bool OnStartDisabled => _emulatorState == EmulatorState.Running;
     protected bool OnPauseDisabled => _emulatorState == EmulatorState.Paused || _emulatorState == EmulatorState.Uninitialized;

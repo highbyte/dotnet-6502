@@ -45,8 +45,8 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
         private string _windowWidthStyle = "";
         private string _windowHeightStyle = "";
 
-        private string _debugDisplay = "none"; // none or inline
-        private string _monitorDisplay = "none"; // none or inline
+        private bool _debugVisible = false;
+        private bool _monitorVisible = false;
 
         [Inject]
         public HttpClient? HttpClient { get; set; }
@@ -140,25 +140,17 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 
         protected async Task ToggleDebugStatsState()
         {
-            if (_debugDisplay == "none")
-                _debugDisplay = "inline";
-            else
-                _debugDisplay = "none";
+            _debugVisible = !_debugVisible;
             this.StateHasChanged();
         }
 
         protected async Task SetMonitorState(bool visible)
         {
+            _monitorVisible = visible;
             if (visible)
-            {
-                _monitorDisplay = "inline";
                 await FocusMonitor();
-            }
             else
-            {
-                _monitorDisplay = "none";
                 await FocusEmulator();
-            }
             this.StateHasChanged();
         }
 
