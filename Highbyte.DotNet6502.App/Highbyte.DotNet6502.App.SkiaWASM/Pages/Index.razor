@@ -8,99 +8,117 @@
 @*Inject JS to be able to set focus on SKGLView from code*@
 @inject IJSRuntime Js
 
-<div id="title-header">
-    <div id="title-info">
-        <div>
-            A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502" target="_blank" class="ml-md-auto">6502</a> CPU emulator <a href="https://github.com/highbyte/dotnet-6502" target="_blank" class="ml-md-auto">dotnet-6502</a> written in <a href="https://dotnet.microsoft.com/" target="_blank" class="ml-md-auto">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank" class="ml-md-auto">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank" class="ml-md-auto">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank" class="ml-md-auto">Blazor</a>, running in a browser!
+<div class="grid-container">
+    <div class="header">
+        A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502" target="_blank" class="ml-md-auto">6502</a> CPU emulator <a href="https://github.com/highbyte/dotnet-6502" target="_blank" class="ml-md-auto">dotnet-6502</a> written in <a href="https://dotnet.microsoft.com/" target="_blank" class="ml-md-auto">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank" class="ml-md-auto">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank" class="ml-md-auto">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank" class="ml-md-auto">Blazor</a>, running in a browser!
+    </div>
+    <div class="menu">
+        <div id="system-selector">
+            <div>
+                System:
+                <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled>
+                    @foreach (var systemName in _systemList.Systems)
+                    {
+                        <option value="@systemName"> @systemName </option>
+                    }
+                </select>
+            </div>
+            <div>Status: @(_emulatorState)</div>
+            <button @onclick="OnStart" disabled=@OnStartDisabled>Start</button>
+            <button @onclick="OnPause" disabled=@OnPauseDisabled>Pause</button>
+            <button @onclick="OnReset" disabled=@OnResetDisabled>Reset</button>
+            <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
         </div>
-        <div>
-            Press § (or ~) for monitor. Shift-§ (or Shift-~) for stats.
+
+        <div class="system-help">
+            <h3>General help</h3>
+            <ul>
+                <li>A machine code monitor can be toggled by pressing § (or ~) key.</li>
+                <li>A stats panel can be toggled by pressing Shift-§ (or Shift-~) keys.</li>
+                <li>The monitor uses hexadecimal notation for all addreses and values.</li>
+            </ul>
+        </div>
+
+        <div class="system-help systemHelpC64Style">
+            <h3>Selected system: C64 help</h3>
+            <p>
+            Special C64 keys map to PC keyboard:
+            </p>
+            <ul>
+                <li>Run/Stop: Esc</li>
+                <li>Restore: PageUp</li>
+                <li>CTRL: RightCtrl</li>
+                <li>C=: LeftCtrl</li>
+            </ul>
+            <p>
+            Useful C64 monitor commands
+            </p>
+            <ul>
+                <li>lb: Pick Basic .prg file to load.</li>
+                <li>sb [filename.prg]: Save Basic .prg file as a download.</li>
+            </ul>
+        </div>
+
+        <div class="system-help systemHelpGenericStyle">
+            <h3>Selected system: Generic computer help</h3>
+            <p>
+            A generic 6502 CPU computer, with custom defined memory layout.
+            Currently configured in the application config and code. A future update could make it possible to configure such things as total memory, screen memory addres and IO memory addresses here in the UI.
+            </p>
+            <p>
+            Useful monitor commands:
+            </p>
+            <ul>
+                <li>l: Pick a machine code .prg file to load</li>
+                <li>s [filename.prg] [start] [end]: Save machine code (or data) as download.</li>
+            </ul>
         </div>
     </div>
-    <div id="system-selector">
-        <div>System: 
-            <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled>
-                @foreach (var systemName in _systemList.Systems)
-                {
-                    <option value="@systemName"> @systemName </option>
-                }
-            </select>
+
+    @*Skia OpenGl View Blazor WASM component*@
+    <SKGLView class="main skGLViewStyle"
+                IgnorePixelScaling="true"
+                EnableRenderLoop="true"
+                OnPaintSurface="OnPaintSurface"
+                id="emulatorSKGLView"
+                tabindex="0"
+                oncontextmenu="return false;"
+                @onkeypress="OnKeyPress"
+                @onkeydown="OnKeyDown"
+                @onkeyup="OnKeyUp"
+                @ref="_emulatorSKGLViewRef"
+                autofocus />
+
+    <div class="right">
+        <div class="infobox debugStyle">
+            <div class="infobox-output">@((MarkupString)_statsString)</div>
         </div>
-        <div>Status: @(_emulatorState)</div>
-        <button @onclick="OnStart" disabled=@OnStartDisabled>Start</button>
-        <button @onclick="OnPause" disabled=@OnPauseDisabled>Pause</button>
-        <button @onclick="OnReset" disabled=@OnResetDisabled>Reset</button>
-        <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
+        <div class="infobox debugStyle">
+            <div class="infobox-output">@((MarkupString)_debugString)</div>
+        </div>
+
+        <div class="monitorStyle">
+            <div id="monitor-outer-screen">
+                <div id="monitor-inner-screen">
+                    <div id="monitor-output-outer"><div id="monitor-output">@((MarkupString)_monitorOutput)</div></div>
+                    <div id="monitor-blank-line">&nbsp;</div>
+                    <div id="monitor-input-row">
+                        <span>&gt;&nbsp;</span><input id="monitor-input" @bind="_monitorInput" type="text" @onkeydown="OnKeyDownMonitor" @onkeyup="OnKeyUpMonitor" @ref="_monitorInputRef" />
+                    </div>
+                </div>
+            </div>
+
+            @*Monitor status*@
+            <div class="infobox">
+                <div class="infobox-output">@((MarkupString)_monitorStatus)</div>
+            </div>
+        </div>
     </div>
-    <div id="system-help-c64" class="system-help systemHelpC64Style">
-        <div>Special C64 keys map to PC keyboard: Run/Stop: Esc | Restore: PageUp | CTRL: RightCtrl | C=: LeftCtrl</div>
-        <div>Specific C64 monitor commands: "lb" to pick Basic .prg file to load. "sb [filename.prg]" to save basic prog. as a download.</div>
-    </div>
-    <div id="system-help-generic" class="system-help systemHelpGenericStyle">
-        <div>A generic 6502 computer, with custom defined memory layout.</div>
-        <div>Useful monitor commands: "l" to pick a machine code .prg file to load. "s [filename.prg] [start] [end]" to save machine code (or data) as download.</div>
+
+    <div class="footer">
+        By <a href = "https://github.com/highbyte">Highbyte</a> 2022
     </div>
 </div>
-
-<div id="main" @ref="_mainRef">
-    <div id="canvas-outer">
-        @*Skia OpenGl View Blazor WASM component*@
-        <SKGLView class="skGLViewStyle"
-                  IgnorePixelScaling="true"
-                  EnableRenderLoop="true"
-                  OnPaintSurface="OnPaintSurface"
-                  id="emulatorSKGLView"
-                  tabindex="0"
-                  oncontextmenu="return false;"
-                  @onkeypress="OnKeyPress"
-                  @onkeydown="OnKeyDown"
-                  @onkeyup="OnKeyUp"
-                  @ref="_emulatorSKGLViewRef"
-                  autofocus />
-    </div>
-
-    @*Stats info*@
-    <div id="stats-outer-screen" class="infobox-outer-screen debugStyle">
-        <div id="stats-inner-screen" class="infobox-inner-screen">
-            <div id="stats-output-outer" class="infobox-output-outer">
-                <div id="stats-output" class="infobox-output">@((MarkupString)_statsString)</div>
-            </div>
-        </div>
-    </div>
-
-    @*Debug info*@
-    <div id="debug-outer-screen" class="infobox-outer-screen debugStyle">
-        <div id="debug-inner-screen" class="infobox-inner-screen">
-            <div id="debug-output-outer" class="infobox-output-outer">
-                <div id="debug-output" class="infobox-output">@((MarkupString)_debugString)</div>
-            </div>
-        </div>
-    </div>
-
-</div>
-
-@*Monitor console*@
-<div id="monitor" class="monitorStyle">
-    <div id="monitor-outer-screen">
-        <div id="monitor-inner-screen">
-            <div id="monitor-output-outer"><div id="monitor-output">@((MarkupString)_monitorOutput)</div></div>
-            <div id="monitor-blank-line">&nbsp;</div>
-            <div id="monitor-input-row">
-                <span>&gt;&nbsp;</span><input id="monitor-input" @bind="_monitorInput" type="text" @onkeydown="OnKeyDownMonitor" @onkeyup="OnKeyUpMonitor" @ref="_monitorInputRef" />
-            </div>
-        </div>
-    </div>
-
-    @*Monistor status*@
-    <div id="monitor-status-outer-screen" class="infobox-outer-screen">
-        <div id="monitor-status-inner-screen" class="infobox-inner-screen">
-            <div id="monitor-status-output-outer" class="infobox-output-outer">
-                <div id="monitor-status-output" class="infobox-output">@((MarkupString)_monitorStatus)</div>
-            </div>
-        </div>
-    </div>
-</div>
-
 
 <style>
     .systemHelpC64Style {
@@ -112,6 +130,8 @@
     .skGLViewStyle {
         width: @_windowWidthStyle;
         height: @_windowHeightStyle;
+        max-width: @_windowWidthStyle;
+        min-height: @_windowHeightStyle;
     }
     .debugStyle {
         display: @GetDisplayStyle("Debug");

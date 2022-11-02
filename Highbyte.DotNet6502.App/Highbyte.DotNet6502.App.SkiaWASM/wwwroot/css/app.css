@@ -1,35 +1,3 @@
-/* @import url('open-iconic/font/css/open-iconic-bootstrap.min.css'); */
-/* 
-html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-} */
-
-a, .btn-link {
-    color: #0366d6;
-}
-
-.btn-primary {
-    color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
-}
-
-.content {
-    padding-top: 1.1rem;
-}
-
-.valid.modified:not([type=checkbox]) {
-    outline: 1px solid #26b050;
-}
-
-.invalid {
-    outline: 1px solid red;
-}
-
-.validation-message {
-    color: red;
-}
-
 #blazor-error-ui {
     background: lightyellow;
     bottom: 0;
@@ -49,31 +17,55 @@ a, .btn-link {
     top: 0.5rem;
 }
 
-#title-header 
-{
-/*    min-height: 80px;*/
-    height: 85px
-}
 
-#title-info {
-    background-color: #40677c;
-    color: #f8f8f8;
-    /*font-family: "Courier New", monospace;*/
-    font-size: 1.0em;
-    text-align: left;
-    margin: 1px;
-    padding: 4px;
-    /*margin: 2vw auto;*/ /* setting margin forces center */
-    border-radius: 0.5vw;
-    box-sizing: border-box;
-    width: 450px;
-    min-height: 80px;
-    float: left;
+.header {
+    grid-area: header;
 }
-#title-info a
-{
+a {
     color: #f7c346
 }
+
+
+.menu {
+    grid-area: menu;
+    max-width: 400px;
+    min-width: 160px;
+}
+
+.main {
+    grid-area: main;
+    width: 100%
+}
+
+.right {
+    grid-area: right;
+}
+
+.footer {
+    grid-area: footer;
+}
+
+.grid-container {
+    display: grid;
+    grid-template-areas:
+        'header header header header header header'
+        'menu   main   main   main   right  right'
+        'menu   footer footer footer footer footer';
+    gap: 4px;
+    padding: 4px;
+    background-color: #203446;
+}
+    .grid-container > div {
+        /*background-color: rgba(255, 255, 255, 0.8);*/
+        color: #ffffff;
+        background-color: #40677c;
+        text-align: center;
+        padding: 8px 4px;
+        font-size: 1.0em;
+
+/*        display: flex;*/
+/*        align-items: center;*/
+    }
 
 #system-selector {
     background-color: #1b2930;
@@ -81,40 +73,32 @@ a, .btn-link {
     font-family: "Courier New", monospace;
     font-size: 1.0em;
     text-align: left;
-    margin: 1px;
-    padding: 4px;
+
     /*margin: 2vw auto;*/ /* setting margin forces center */
     border-radius: 0.5vw;
     box-sizing: border-box;
-    width: 300px;
-    min-height: 80px;
-    float: left;
+
+    margin: 0px;
+    padding: 10px;
+    /*width: 300px;*/
 }
 
 .system-help {
-    background-color: #40677c;
+/*    background-color: #40677c;
     color: #f8f8f8;
+*/
+    color: white;
     /*font-family: "Courier New", monospace;*/
     font-size: 1.0em;
     text-align: left;
-    margin: 1px;
-    padding: 4px;
+    margin: 8px;
+    padding: 8px;
+
+    display: inline
+
     /*margin: 2vw auto;*/ /* setting margin forces center */
-    border-radius: 0.5vw;
-    box-sizing: border-box;
-    width: 600px;
-    min-height: 80px;
-    float: left;
-}
-
-/*Main layout style*/
-#main {
-}
-
-#canvas-outer {
-    min-height: 100px;
-/*    float: none;*/
-    float: left;
+/*    border-radius: 0.5vw;
+    box-sizing: border-box;*/
 }
 
 /*Emulator SKCanvas view style*/
@@ -126,45 +110,31 @@ a, .btn-link {
 }
 
 /*Debug style*/
-.infobox-outer-screen {
+.infobox {
     margin: 1px;
-    background-color: #063e5b;
     padding: 4px;
     /*margin: 2vw auto;*/ /* setting margin forces center */
     border-radius: 0.5vw;
     box-sizing: border-box;
-    /*    width: 809px;*/
-    /*    width: 1209px;*/
-    width: 600px;
-    float: left;
-}
-.infobox-inner-screen {
+    background-color: #063e5b;
     color: #f8f8f8;
     font-family: "Courier New", monospace;
     font-size: 0.7em;
     text-align: left;
-    /*    width: 99%;*/
-}
-.infobox-output-outer {
     overflow: auto;
     height: 10ex;
     line-height: 3ex;
     display: flex;
-    /*flex-direction: column-reverse*/
+
 }
-.infobox-output .header {
+.infobox .header {
     color: white;
 }
-.infobox-output .value {
+.infobox .value {
     color: gold;
 }
 
 /*Monitor styles*/
-#monitor {
-    padding-top: 10px;
-/*    float: none;*/
-}
-
 #monitor-outer-screen {
     margin: 1px;
     background-color: #333;
@@ -173,10 +143,8 @@ a, .btn-link {
     border-radius: 0.5vw;
     box-sizing: border-box;
 /*    width: 809px;*/
-    width: 824px;
+/*    width: 824px;*/
     /*width: 1209px;*/
-
-    float: left;
 }
 
 #monitor-inner-screen {
