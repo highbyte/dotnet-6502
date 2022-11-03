@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             Systems.Add(GenericComputer.SystemName);
         }
 
-        public async Task SetSelectedSystem(string systemName, HttpClient httpClient, Uri uri)
+        public async Task<bool> SetSelectedSystem(string systemName, SystemUserConfig systemUserConfig)
         {
             if (!Systems.Contains(systemName))
                 throw new NotImplementedException($"System not implemented: {systemName}");
@@ -27,14 +27,16 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             switch (systemName)
             {
                 case C64.SystemName:
-                    var c64Config = await C64Setup.BuildC64Config(httpClient, uri);
+                    if (!C64Setup.IsValidSystemUserConfig(systemUserConfig))
+                        return false;
+                    var c64Config = await C64Setup.BuildC64Config(systemUserConfig);
                     SelectedSystem = C64Setup.BuildC64(c64Config);
                     SelectedRenderer = C64Setup.BuildC64Renderer(c64Config);
                     SelectedInputHandler = C64Setup.BuildC64InputHander(c64Config);
                     break;
 
                 case GenericComputer.SystemName:
-                    var genericConfig = await GenericComputerSetup.BuildGenericComputerConfig(httpClient, uri);
+                    var genericConfig = await GenericComputerSetup.BuildGenericComputerConfig(systemUserConfig);
                     SelectedSystem = GenericComputerSetup.BuildGenericComputer(genericConfig);
                     SelectedRenderer = GenericComputerSetup.BuildGenericComputerRenderer(genericConfig);
                     SelectedInputHandler = GenericComputerSetup.BuildGenericComputerInputHander(genericConfig);
@@ -42,6 +44,8 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
                 default:
                     throw new NotImplementedException();
             }
+
+            return true;
         }
 
         public SystemRunner GetSystemRunner(ISystem system, SkiaRenderContext skiaRenderContext, AspNetInputHandlerContext inputHandlerContext)

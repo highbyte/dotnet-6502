@@ -17,7 +17,6 @@
     top: 0.5rem;
 }
 
-
 .header {
     grid-area: header;
     text-align: center;
@@ -34,16 +33,12 @@ p {
 
 h4 {
     color: #f7c346;
-/*    text-decoration: underline;*/
-/*    font-weight: bold;*/
     margin-bottom: 0px
 }
 
 .menu {
     grid-area: menu;
     width: 250px;
-    /*    max-width: 400px; */
-    /*    min-width: 200px;*/
     display: inline;
 }
 
@@ -69,7 +64,7 @@ h4 {
         'footer footer right';
     gap: 4px;
     padding: 4px;
-    background-color: #203446;
+    background-color: #142833;
 }
     .grid-container > div {
         color: #ffffff;
@@ -90,6 +85,12 @@ h4 {
 
     margin: 0px;
     padding: 10px;
+}
+
+.system-config {
+    color: white;
+    font-size: 1.0em;
+    text-align: left;
 }
 
 .system-help {

@@ -7,7 +7,6 @@ using SkiaSharp.Views.Blazor;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 {
-
     public partial class Index
     {
         public enum EmulatorState
@@ -28,6 +27,16 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             set
             {
                 _selectedSystemName = value;
+            }
+        }
+        private Dictionary<string, SystemUserConfig> _systemUserConfigs = new();
+        public SystemUserConfig SelectedSystemUserConfig
+        {
+            get
+            {
+                if (!_systemUserConfigs.ContainsKey(_selectedSystemName))
+                    _systemUserConfigs.Add(_selectedSystemName, new SystemUserConfig());
+                return _systemUserConfigs[_selectedSystemName];
             }
         }
 
@@ -75,12 +84,19 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             _selectedSystemName = "C64";
         }
 
-        private async Task InitEmulator()
+        private async Task<bool> InitEmulator()
         {
             var uri = NavManager!.ToAbsoluteUri(NavManager.Uri);
             var httpClient = HttpClient!;
 
-            await _systemList.SetSelectedSystem(_selectedSystemName, httpClient, uri);
+            SelectedSystemUserConfig.HttpClient = httpClient;
+            SelectedSystemUserConfig.Uri = uri;
+
+            bool isValid = await _systemList.SetSelectedSystem(_selectedSystemName, SelectedSystemUserConfig);
+            if (!isValid)
+            {
+                return false;
+            }
 
             // Set SKGLView dimensions
             float scale = 3.0f;
@@ -93,6 +109,8 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 
             _emulatorState = EmulatorState.Paused;
             //await FocusEmulator();
+
+            return true;
         }
 
         private void CleanupEmulator()

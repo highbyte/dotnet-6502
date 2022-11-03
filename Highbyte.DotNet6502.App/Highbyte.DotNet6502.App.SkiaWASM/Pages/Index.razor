@@ -1,4 +1,6 @@
 @page "/"
+@using Highbyte.DotNet6502.App.SkiaWASM.Skia
+@using Microsoft.Extensions.Logging
 @using SkiaSharp
 @using SkiaSharp.Views.Blazor
 @*@implements IDisposable*@
@@ -40,6 +42,37 @@
                 <li>Continue executing emulator by entering command g in the monitor.</li>
                 <li>Stats panel toggled by pressing Shift-§ (or Shift-~) keys.</li>
             </ul>
+        </div>
+
+        <div class="system-config systemHelpC64Style">
+            <h4>Selected system config: C64</h4>
+            <p>Please pick C64 ROMs to use from your computer. Must be three files: <strong>Kernal, Basic, and Character generator</strong>.</p>
+            <p>Can be downloaded from for example <a href="https://c64preservation.com/c64/roms/">here</a></p>
+
+            <InputFile id="c64RomFilePicker" OnChange="@OnC64RomFilePickerChange" multiple hidden/>
+            <button onclick="document.getElementById('c64RomFilePicker').click()" disabled=@(_emulatorState != EmulatorState.Uninitialized)>Load ROMs</button>
+
+            @if (_isLoadingC64Roms)
+            {
+                <p>Uploading ROMs...</p>
+            }
+            else
+            {
+                @if (SelectedSystemUserConfig.UserSettings.ContainsKey(C64Setup.USER_CONFIG_ROMS))
+                {
+                    <p>ROMs loaded:</p>
+                    <ul>
+                        @foreach (var rom in (Dictionary<string, byte[]>)SelectedSystemUserConfig.UserSettings[C64Setup.USER_CONFIG_ROMS])
+                        {
+                            <li>ROM: @rom.Key (@rom.Value.Length bytes)</li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p>No ROMs loaded.</p>
+                }
+            }
         </div>
 
         <div class="system-help systemHelpC64Style">
@@ -184,8 +217,13 @@
 
     protected async void OnStart(MouseEventArgs mouseEventArgs)
     {
+        bool isValid = true;
         if (_emulatorState == EmulatorState.Uninitialized)
-            await InitEmulator();
+            isValid = await InitEmulator();
+        if (!isValid)
+        {
+            return;
+        }
 
         _wasmHost!.Start();
         _emulatorState = EmulatorState.Running;
@@ -311,4 +349,61 @@
 
         _wasmHost.Monitor.LoadBinaryFromUser(fileBuffer);
     }
+
+
+    private bool _isLoadingC64Roms;
+    private List<IBrowserFile> _loadedC64RomFiles = new();
+    private long _maxC64RomFileSize = 1024 * 8;
+    private int _maxC64AllowedRomFiles = 3;
+
+    private async Task OnC64RomFilePickerChange(InputFileChangeEventArgs e)
+    {
+        _isLoadingC64Roms = true;
+
+        if (!SelectedSystemUserConfig.UserSettings.ContainsKey(C64Setup.USER_CONFIG_ROMS))
+            SelectedSystemUserConfig.UserSettings[C64Setup.USER_CONFIG_ROMS] = new Dictionary<string, byte[]>();
+        var roms = (Dictionary<string, byte[]>)SelectedSystemUserConfig.UserSettings[C64Setup.USER_CONFIG_ROMS];
+
+        foreach (var file in e.GetMultipleFiles(_maxC64AllowedRomFiles))
+        {
+            try
+            {
+                if (file.Size > _maxC64RomFileSize)
+                {
+                    continue;
+                }
+                bool isKernal = false;
+                bool isBasic = false;
+                bool isChargen = false;
+                if (file.Name.Contains("kernal", StringComparison.InvariantCultureIgnoreCase))
+                    isKernal = true;
+                else if (file.Name.Contains("basic", StringComparison.InvariantCultureIgnoreCase))
+                    isBasic = true;
+                else if (file.Name.Contains("char", StringComparison.InvariantCultureIgnoreCase))
+                    isChargen = true;
+                else
+                    continue;
+
+                var fileBuffer = new byte[file.Size];
+                //var fileStream = e.File.OpenReadStream(file.Size);
+                await file.OpenReadStream().ReadAsync(fileBuffer);
+                var fileSize = fileBuffer.Length;
+
+                if (isKernal)
+                    roms[C64Setup.USER_CONFIG_KERNAL_ROM] = fileBuffer;
+                else if (isBasic)
+                    roms[C64Setup.USER_CONFIG_BASIC_ROM] = fileBuffer;
+                else if (isChargen)
+                    roms[C64Setup.USER_CONFIG_CHARGEN_ROM] = fileBuffer;
+            }
+            catch (Exception ex)
+            {
+                //Logger.LogError("File: {Filename} Error: {Error}",
+                //    file.Name, ex.Message);
+            }
+        }
+
+        _isLoadingC64Roms = false;
+    }
+
 }

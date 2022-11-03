@@ -46,8 +46,11 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
                 .Build();
             return systemRunner;
         }
-        public static async Task<GenericComputerConfig> BuildGenericComputerConfig(HttpClient httpClient, Uri uri)
+        public static async Task<GenericComputerConfig> BuildGenericComputerConfig(SystemUserConfig systemUserConfig)
         {
+            var httpClient = systemUserConfig.HttpClient;
+            var uri = systemUserConfig.Uri;
+
             // Load 6502 program binary specified in url
             var prgBytes = await Load6502Binary(httpClient, uri);
 

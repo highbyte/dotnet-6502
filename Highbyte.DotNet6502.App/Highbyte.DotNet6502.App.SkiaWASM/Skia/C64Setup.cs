@@ -10,6 +10,11 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 {
     public static class C64Setup
     {
+        public const string USER_CONFIG_ROMS = "ROMS";
+
+        public const string USER_CONFIG_KERNAL_ROM = "KERNAL";
+        public const string USER_CONFIG_BASIC_ROM = "BASIC";
+        public const string USER_CONFIG_CHARGEN_ROM = "CHARGEN";
 
         public static C64 BuildC64(C64Config c64Config)
         {
@@ -44,15 +49,61 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             return systemRunner;
         }
 
-        public static async Task<C64Config> BuildC64Config(HttpClient httpClient, Uri uri)
+        public static bool IsValidSystemUserConfig(SystemUserConfig systemUserConfig)
         {
-            const string BASIC_ROM_URL = "ROM/basic.901226-01.bin";
-            const string CHARGEN_ROM_URL = "ROM/characters.901225-01.bin";
-            const string KERNAL_ROM_URL = "ROM/kernal.901227-03.bin";
+            var userSettings = systemUserConfig.UserSettings;
+            if (!userSettings.ContainsKey(USER_CONFIG_ROMS))
+                return false;
 
-            byte[] basicROMData = await GetROMFromUrl(httpClient, BASIC_ROM_URL);
-            byte[] chargenROMData = await GetROMFromUrl(httpClient, CHARGEN_ROM_URL);
-            byte[] kernalROMData = await GetROMFromUrl(httpClient, KERNAL_ROM_URL);
+            var roms = (Dictionary<string, byte[]>)userSettings[USER_CONFIG_ROMS];
+
+            bool validKernal =
+                (
+                roms.ContainsKey(USER_CONFIG_KERNAL_ROM)
+                && roms[USER_CONFIG_KERNAL_ROM].Length > 0
+                );
+            bool validBasic =
+                (
+                roms.ContainsKey(USER_CONFIG_BASIC_ROM)
+                && roms[USER_CONFIG_BASIC_ROM].Length > 0
+                );
+            bool validChargen =
+                (
+                roms.ContainsKey(USER_CONFIG_CHARGEN_ROM)
+                && roms[USER_CONFIG_CHARGEN_ROM].Length > 0
+                );
+
+            return validKernal && validBasic && validChargen;
+        }
+
+        public static async Task<C64Config> BuildC64Config(SystemUserConfig systemUserConfig)
+        {
+            var httpClient = systemUserConfig.HttpClient;
+            var uri = systemUserConfig.Uri;
+
+
+            byte[] basicROMData;
+            byte[] chargenROMData;
+            byte[] kernalROMData;
+
+            var userSettings = systemUserConfig.UserSettings;
+            if (userSettings.ContainsKey(USER_CONFIG_KERNAL_ROM))
+            {
+                // ROMs uploaded to client by user
+                basicROMData = (byte[])userSettings[USER_CONFIG_BASIC_ROM];
+                chargenROMData = (byte[])userSettings[USER_CONFIG_CHARGEN_ROM];
+                kernalROMData = (byte[])userSettings[USER_CONFIG_KERNAL_ROM];
+            }
+            else
+            {
+                // Load ROMs from website
+                const string BASIC_ROM_URL = "ROM/basic.901226-01.bin";
+                const string CHARGEN_ROM_URL = "ROM/characters.901225-01.bin";
+                const string KERNAL_ROM_URL = "ROM/kernal.901227-03.bin";
+                basicROMData = await GetROMFromUrl(httpClient, BASIC_ROM_URL);
+                chargenROMData = await GetROMFromUrl(httpClient, CHARGEN_ROM_URL);
+                kernalROMData = await GetROMFromUrl(httpClient, KERNAL_ROM_URL);
+            }
 
             var c64Config = new C64Config
             {
