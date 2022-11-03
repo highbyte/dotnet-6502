@@ -20,20 +20,35 @@
 
 .header {
     grid-area: header;
+    text-align: center;
 }
 a {
-    color: #f7c346
+    color: #37a3d3
+}
+ul {
+    margin: 4px;
+}
+p {
+    margin: 4px;
+}
+
+h4 {
+    color: #f7c346;
+/*    text-decoration: underline;*/
+/*    font-weight: bold;*/
+    margin-bottom: 0px
 }
 
 .menu {
     grid-area: menu;
-    max-width: 400px;
-    min-width: 160px;
+    width: 250px;
+    /*    max-width: 400px; */
+    /*    min-width: 200px;*/
+    display: inline;
 }
 
 .main {
     grid-area: main;
-    width: 100%
 }
 
 .right {
@@ -43,28 +58,24 @@ a {
 
 .footer {
     grid-area: footer;
+    text-align: center;
 }
 
 .grid-container {
-    display: grid;
+    display: inline-grid;
     grid-template-areas:
-        'header header header header header header'
-        'menu   main   main   main   right  right'
-        'menu   footer footer footer footer footer';
+        'header header right'
+        'menu   main   right'
+        'footer footer right';
     gap: 4px;
     padding: 4px;
     background-color: #203446;
 }
     .grid-container > div {
-        /*background-color: rgba(255, 255, 255, 0.8);*/
         color: #ffffff;
-        background-color: #40677c;
-        text-align: center;
+        background-color: #203446;
         padding: 8px 4px;
         font-size: 1.0em;
-
-/*        display: flex;*/
-/*        align-items: center;*/
     }
 
 #system-selector {
@@ -74,39 +85,25 @@ a {
     font-size: 1.0em;
     text-align: left;
 
-    /*margin: 2vw auto;*/ /* setting margin forces center */
     border-radius: 0.5vw;
     box-sizing: border-box;
 
     margin: 0px;
     padding: 10px;
-    /*width: 300px;*/
 }
 
 .system-help {
-/*    background-color: #40677c;
-    color: #f8f8f8;
-*/
     color: white;
-    /*font-family: "Courier New", monospace;*/
     font-size: 1.0em;
     text-align: left;
-    margin: 8px;
-    padding: 8px;
-
-    display: inline
-
-    /*margin: 2vw auto;*/ /* setting margin forces center */
-/*    border-radius: 0.5vw;
-    box-sizing: border-box;*/
 }
 
 /*Emulator SKCanvas view style*/
 #emulatorSKGLView {
-    position: relative;
+/*    position: relative;
     left: 0px;
     top: 0px;
-/*    overflow: hidden;*/
+*/
 }
 
 /*Debug style*/
@@ -114,7 +111,6 @@ a {
     margin: 4px;
     padding: 8px;
     border-radius: 0.5vw;
-/*    box-sizing: border-box;*/
 
     background-color: #063e5b;
     color: #f8f8f8;
@@ -122,7 +118,6 @@ a {
     font-size: 0.7em;
     text-align: left;
     overflow: auto;
-    /*height: 10ex;*/
     line-height: 3ex;
     display: flex;
 }
@@ -142,9 +137,6 @@ a {
     /*margin: 2vw auto;*/ /* setting margin forces center */
     border-radius: 0.5vw;
     box-sizing: border-box;
-/*    width: 809px;*/
-/*    width: 824px;*/
-    /*width: 1209px;*/
 }
 
 #monitor-inner-screen {

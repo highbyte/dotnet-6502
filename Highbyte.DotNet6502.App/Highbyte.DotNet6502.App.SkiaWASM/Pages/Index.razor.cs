@@ -42,8 +42,11 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
         private string _statsString = "Stats: calculating...";
         private string _debugString = "";
 
-        private string _windowWidthStyle = "";
-        private string _windowHeightStyle = "";
+        private const string DEFAULT_WINDOW_WIDTH_STYLE = "640px";
+        private const string DEFAULT_WINDOW_HEIGHT_STYLE = "400px";
+
+        private string _windowWidthStyle = DEFAULT_WINDOW_WIDTH_STYLE;
+        private string _windowHeightStyle = DEFAULT_WINDOW_HEIGHT_STYLE;
 
         private bool _debugVisible = false;
         private bool _monitorVisible = false;
@@ -98,6 +101,8 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             _wasmHost?.Cleanup();
             _wasmHost = null;
             _emulatorState = EmulatorState.Uninitialized;
+            _windowWidthStyle = DEFAULT_WINDOW_WIDTH_STYLE;
+            _windowHeightStyle = DEFAULT_WINDOW_HEIGHT_STYLE;
         }
 
         protected void OnPaintSurface(SKPaintGLSurfaceEventArgs e)

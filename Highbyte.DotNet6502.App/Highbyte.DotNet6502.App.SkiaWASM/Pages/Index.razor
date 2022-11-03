@@ -32,29 +32,26 @@
             <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
         </div>
 
-        <div class="system-help">
-            <h3>General help</h3>
+        <div class="system-help" style="display:inline;">
+            <h4>General help</h4>
             <ul>
-                <li>A machine code monitor can be toggled by pressing § (or ~) key.</li>
-                <li>A stats panel can be toggled by pressing Shift-§ (or Shift-~) keys.</li>
+                <li>Machine code monitor toggled by pressing § (or ~) key.</li>
                 <li>The monitor uses hexadecimal notation for all addreses and values.</li>
+                <li>Continue executing emulator by entering command g in the monitor.</li>
+                <li>Stats panel toggled by pressing Shift-§ (or Shift-~) keys.</li>
             </ul>
         </div>
 
         <div class="system-help systemHelpC64Style">
-            <h3>Selected system: C64 help</h3>
-            <p>
-            Special C64 keys map to PC keyboard:
-            </p>
+            <h4>Selected system help: C64</h4>
+            <p>Special C64 keys map to PC keyboard:</p>
             <ul>
                 <li>Run/Stop: Esc</li>
                 <li>Restore: PageUp</li>
                 <li>CTRL: RightCtrl</li>
                 <li>C=: LeftCtrl</li>
             </ul>
-            <p>
             Useful C64 monitor commands
-            </p>
             <ul>
                 <li>lb: Pick Basic .prg file to load.</li>
                 <li>sb [filename.prg]: Save Basic .prg file as a download.</li>
@@ -62,13 +59,13 @@
         </div>
 
         <div class="system-help systemHelpGenericStyle">
-            <h3>Selected system: Generic computer help</h3>
+            <h4>Selected system: Generic computer help</h4>
             <p>
             A generic 6502 CPU computer, with custom defined memory layout.
             Currently configured in the application config and code. A future update could make it possible to configure such things as total memory, screen memory addres and IO memory addresses here in the UI.
             </p>
             <p>
-            Useful monitor commands:
+                Useful monitor commands:
             </p>
             <ul>
                 <li>l: Pick a machine code .prg file to load</li>
@@ -78,19 +75,21 @@
     </div>
 
     @*Skia OpenGl View Blazor WASM component*@
-    <SKGLView class="main skGLViewStyle"
-                IgnorePixelScaling="true"
-                EnableRenderLoop="true"
-                OnPaintSurface="OnPaintSurface"
-                id="emulatorSKGLView"
-                tabindex="0"
-                oncontextmenu="return false;"
-                @onkeypress="OnKeyPress"
-                @onkeydown="OnKeyDown"
-                @onkeyup="OnKeyUp"
-                @ref="_emulatorSKGLViewRef"
-                autofocus />
+    <div class="main">
+        <SKGLView class="skGLViewStyle"
+                  IgnorePixelScaling="true"
+                  EnableRenderLoop="true"
+                  OnPaintSurface="OnPaintSurface"
+                  id="emulatorSKGLView"
+                  tabindex="0"
+                  oncontextmenu="return false;"
+                  @onkeypress="OnKeyPress"
+                  @onkeydown="OnKeyDown"
+                  @onkeyup="OnKeyUp"
+                  @ref="_emulatorSKGLViewRef"
+                  autofocus />
 
+    </div>
     <div class="right">
         <div class="infobox debugStyle">
             <div class="infobox-output">@((MarkupString)_statsString)</div>
@@ -132,8 +131,9 @@
     .skGLViewStyle {
         width: @_windowWidthStyle;
         height: @_windowHeightStyle;
-        max-width: @_windowWidthStyle;
+/*        max-width: @_windowWidthStyle;
         min-height: @_windowHeightStyle;
+*/
     }
     .debugStyle {
         display: @GetDisplayStyle("Debug");
