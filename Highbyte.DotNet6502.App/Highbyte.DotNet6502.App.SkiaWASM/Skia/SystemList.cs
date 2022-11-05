@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             Systems.Add(GenericComputer.SystemName);
         }
 
-        public async Task<bool> SetSelectedSystem(string systemName, SystemUserConfig systemUserConfig)
+        public (bool isOk, string valError) IsSystemConfigOk(string systemName, SystemUserConfig systemUserConfig)
         {
             if (!Systems.Contains(systemName))
                 throw new NotImplementedException($"System not implemented: {systemName}");
@@ -27,8 +27,27 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             switch (systemName)
             {
                 case C64.SystemName:
-                    if (!C64Setup.IsValidSystemUserConfig(systemUserConfig))
-                        return false;
+                    if (!C64Setup.IsValidSystemUserConfig(systemUserConfig, out string validationError))
+                        return (false, validationError);
+                    break;
+
+                case GenericComputer.SystemName:
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+
+            return (true, "");
+        }
+
+        public async Task SetSelectedSystem(string systemName, SystemUserConfig systemUserConfig)
+        {
+            if (!Systems.Contains(systemName))
+                throw new NotImplementedException($"System not implemented: {systemName}");
+
+            switch (systemName)
+            {
+                case C64.SystemName:
                     var c64Config = await C64Setup.BuildC64Config(systemUserConfig);
                     SelectedSystem = C64Setup.BuildC64(c64Config);
                     SelectedRenderer = C64Setup.BuildC64Renderer(c64Config);
@@ -44,8 +63,6 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
                 default:
                     throw new NotImplementedException();
             }
-
-            return true;
         }
 
         public SystemRunner GetSystemRunner(ISystem system, SkiaRenderContext skiaRenderContext, AspNetInputHandlerContext inputHandlerContext)

@@ -9,6 +9,7 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Systems.Generic;
+using static Highbyte.DotNet6502.Systems.Commodore64.C64;
 
 // Fix for starting in debug mode from VS Code. By default the OS current directory is set to the project folder, not the folder containing the built .exe file...
 var currentAppDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -41,21 +42,21 @@ var c64Config = new C64Config
     {
         new ROM
         {
-            Name = "basic",
+            Name = C64Config.BASIC_ROM_NAME,
             File = "basic.901226-01.bin",
             Data = null,
             Checksum = "79015323128650c742a3694c9429aa91f355905e",
         },
         new ROM
         {
-            Name = "chargen",
+            Name = C64Config.CHARGEN_ROM_NAME,
             File = "characters.901225-01.bin",
             Data = null,
             Checksum = "adc7c31e18c7c7413d54802ef2f4193da14711aa",
         },
         new ROM
         {
-            Name = "kernal",
+            Name = C64Config.KERNAL_ROM_NAME,
             File = "kernal.901227-03.bin",
             Data = null,
             Checksum = "1d503e56df85a62fee696e7618dc5b4e781df1bb",

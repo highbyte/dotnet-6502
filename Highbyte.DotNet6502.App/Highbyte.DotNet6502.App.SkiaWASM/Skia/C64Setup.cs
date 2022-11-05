@@ -12,10 +12,6 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
     {
         public const string USER_CONFIG_ROMS = "ROMS";
 
-        public const string USER_CONFIG_KERNAL_ROM = "KERNAL";
-        public const string USER_CONFIG_BASIC_ROM = "BASIC";
-        public const string USER_CONFIG_CHARGEN_ROM = "CHARGEN";
-
         public static C64 BuildC64(C64Config c64Config)
         {
             return C64.BuildC64(c64Config);
@@ -49,31 +45,31 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             return systemRunner;
         }
 
-        public static bool IsValidSystemUserConfig(SystemUserConfig systemUserConfig)
+        public static bool IsValidSystemUserConfig(SystemUserConfig systemUserConfig, out string validationError)
         {
+            validationError = "";
+
             var userSettings = systemUserConfig.UserSettings;
             if (!userSettings.ContainsKey(USER_CONFIG_ROMS))
+            {
+                validationError = "Missing C64 ROMs. Press Config to upload.";
                 return false;
+            }
 
-            var roms = (Dictionary<string, byte[]>)userSettings[USER_CONFIG_ROMS];
+            var loadedRoms = (Dictionary<string, byte[]>)userSettings[USER_CONFIG_ROMS];
+            List<string> missingRoms = new();
+            foreach (var romName in C64Config.RequiredROMs)
+            {
+                if (!loadedRoms.ContainsKey(romName))
+                    missingRoms.Add(romName);
+            }
 
-            bool validKernal =
-                (
-                roms.ContainsKey(USER_CONFIG_KERNAL_ROM)
-                && roms[USER_CONFIG_KERNAL_ROM].Length > 0
-                );
-            bool validBasic =
-                (
-                roms.ContainsKey(USER_CONFIG_BASIC_ROM)
-                && roms[USER_CONFIG_BASIC_ROM].Length > 0
-                );
-            bool validChargen =
-                (
-                roms.ContainsKey(USER_CONFIG_CHARGEN_ROM)
-                && roms[USER_CONFIG_CHARGEN_ROM].Length > 0
-                );
-
-            return validKernal && validBasic && validChargen;
+            if (missingRoms.Count > 0)
+            {
+                validationError = $"Missing ROMs: {string.Join(',', missingRoms)}";
+                return false;
+            }
+            return true;
         }
 
         public static async Task<C64Config> BuildC64Config(SystemUserConfig systemUserConfig)
@@ -87,16 +83,16 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             byte[] kernalROMData;
 
             var userSettings = systemUserConfig.UserSettings;
-            if (userSettings.ContainsKey(USER_CONFIG_KERNAL_ROM))
+            if (userSettings.ContainsKey(C64Config.KERNAL_ROM_NAME))
             {
                 // ROMs uploaded to client by user
-                basicROMData = (byte[])userSettings[USER_CONFIG_BASIC_ROM];
-                chargenROMData = (byte[])userSettings[USER_CONFIG_CHARGEN_ROM];
-                kernalROMData = (byte[])userSettings[USER_CONFIG_KERNAL_ROM];
+                basicROMData = (byte[])userSettings[C64Config.BASIC_ROM_NAME];
+                chargenROMData = (byte[])userSettings[C64Config.CHARGEN_ROM_NAME];
+                kernalROMData = (byte[])userSettings[C64Config.KERNAL_ROM_NAME];
             }
             else
             {
-                // Load ROMs from website
+                // Load ROMs from current website
                 const string BASIC_ROM_URL = "ROM/basic.901226-01.bin";
                 const string CHARGEN_ROM_URL = "ROM/characters.901225-01.bin";
                 const string KERNAL_ROM_URL = "ROM/kernal.901227-03.bin";
@@ -117,19 +113,19 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
                 {
                     new ROM
                     {
-                        Name = "basic",
+                        Name = C64Config.BASIC_ROM_NAME,
                         Data = basicROMData,
                         //Checksum = ""
                     },
                     new ROM
                     {
-                        Name = "chargen",
+                        Name = C64Config.CHARGEN_ROM_NAME,
                         Data = chargenROMData,
                         //Checksum = ""
                     },
                     new ROM
                     {
-                        Name = "kernal",
+                        Name = C64Config.KERNAL_ROM_NAME,
                         Data = kernalROMData,
                         //Checksum = ""
                     }

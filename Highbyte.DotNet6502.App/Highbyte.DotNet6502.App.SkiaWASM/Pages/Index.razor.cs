@@ -1,9 +1,12 @@
+using Blazored.Modal.Services;
+using Blazored.Modal;
 using Highbyte.DotNet6502.App.SkiaWASM.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.AspNetCore.Components;
 using SkiaSharp;
 using SkiaSharp.Views.Blazor;
+using System.Xml.Schema;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 {
@@ -27,6 +30,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             set
             {
                 _selectedSystemName = value;
+                ValidateEmulator();
             }
         }
         private Dictionary<string, SystemUserConfig> _systemUserConfigs = new();
@@ -38,6 +42,16 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
                     _systemUserConfigs.Add(_selectedSystemName, new SystemUserConfig());
                 return _systemUserConfigs[_selectedSystemName];
             }
+        }
+
+        private bool IsSelectedSystemConfigOk => string.IsNullOrEmpty(_selectedSystemUserConfigValidationMessage);
+
+        private string _selectedSystemUserConfigValidationMessage = "";
+        public string GetSelectedSystemUserConfigValidationMessage()
+        {
+            if (string.IsNullOrEmpty(_selectedSystemUserConfigValidationMessage))
+                return "";
+            return _selectedSystemUserConfigValidationMessage;
         }
 
         protected SKGLView? _emulatorSKGLViewRef;
@@ -81,7 +95,16 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             _systemList = new SystemList();
 
             // Default system
-            _selectedSystemName = "C64";
+            SelectedSystemName = "C64";
+        }
+
+        private void ValidateEmulator()
+        {
+            (bool isOk, string valError) = _systemList.IsSystemConfigOk(_selectedSystemName, SelectedSystemUserConfig);
+            if (!isOk)
+                _selectedSystemUserConfigValidationMessage = valError;
+            else
+                _selectedSystemUserConfigValidationMessage = "";
         }
 
         private async Task<bool> InitEmulator()
@@ -92,11 +115,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             SelectedSystemUserConfig.HttpClient = httpClient;
             SelectedSystemUserConfig.Uri = uri;
 
-            bool isValid = await _systemList.SetSelectedSystem(_selectedSystemName, SelectedSystemUserConfig);
-            if (!isValid)
-            {
-                return false;
-            }
+            await _systemList.SetSelectedSystem(_selectedSystemName, SelectedSystemUserConfig);
 
             // Set SKGLView dimensions
             float scale = 3.0f;
@@ -147,6 +166,66 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             //}
 
             _wasmHost.Render(e.Surface.Canvas, grContext);
+        }
+
+        /// <summary>
+        /// Blazored.Modal instance required to open modal dialog.
+        /// </summary>
+        [CascadingParameter] public IModalService Modal { get; set; } = default!;
+
+        private async Task ShowC64ConfigUI() => await ShowConfigUI<C64ConfigUI>();
+        //private async Task ShowGenericConfigUI() => await ShowConfigUI<GenericConfigUI>();
+
+        private async Task ShowConfigUI<T>() where T : IComponent
+        {
+            var parameters = new ModalParameters()
+                .Add("UserSettings", SelectedSystemUserConfig.UserSettings);
+
+            var result = await Modal.Show<T>("Config", parameters).Result;
+
+            if (result.Cancelled)
+            {
+                //Console.WriteLine("Modal was cancelled");
+            }
+            else if (result.Confirmed)
+            {
+                // Note: The UserSettings parameter that was sent to input dialog is by reference, so the data is updated directly by the dialog.
+                //       Therefore no need to handle the result. 
+                // TODO: Should the UserSettings be changed to be passed by value (struct instead of class?) instead to handle that the dialog can be cancelled, and then the changes won't stick?
+
+                //if (result.Data is null)
+                //{
+                //    Console.WriteLine($"Returned null data");
+                //    return;
+                //}
+                //if (!(result.Data is Dictionary<string, object>))
+                //{
+                //    Console.WriteLine($"Returned unrecongnized type: {result.Data.GetType()}");
+                //    return;
+                //}
+                //Dictionary<string, object> userSettings = (Dictionary<string, object>)result.Data;
+                //Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
+            }
+            ValidateEmulator();
+            this.StateHasChanged();
+        }
+
+        private async Task ShowC64HelpUI() => await ShowHelpUI<C64HelpUI>();
+        private async Task ShowGenericHelpUI() => await ShowHelpUI<GenericHelpUI>();
+        private async Task ShowGeneralHelpUI() => await ShowHelpUI<GeneralHelpUI>();
+
+        private async Task ShowHelpUI<T>() where T : IComponent
+        {
+            var result = await Modal.Show<T>("Help").Result;
+
+            if (result.Cancelled)
+            {
+                //Console.WriteLine("Modal was cancelled");
+            }
+            else if (result.Confirmed)
+            {
+                //Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
+            }
         }
 
         protected void UpdateStats(string stats)

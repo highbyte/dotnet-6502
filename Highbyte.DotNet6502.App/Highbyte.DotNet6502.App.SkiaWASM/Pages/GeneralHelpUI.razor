@@ -1,0 +1,24 @@
+﻿@using Highbyte.DotNet6502.App.SkiaWASM.Skia
+@using Highbyte.DotNet6502.Systems.Commodore64.Config
+@using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index
+
+<p>
+    General tips
+</p>
+<ul>
+    <li>Machine code monitor toggled by pressing § (or ~) key.</li>
+    <li>The monitor uses hexadecimal notation for all addreses and values.</li>
+    <li>Continue executing emulator by entering command g in the monitor.</li>
+    <li>Stats panel toggled by pressing Shift-§ (or Shift-~) keys.</li>
+</ul>
+
+<p></p>
+<button @onclick="Close">Close</button>
+
+@code {
+
+    [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
+
+    private async Task Close() => await BlazoredModal.CloseAsync();
+
+}

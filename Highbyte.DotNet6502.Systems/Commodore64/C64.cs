@@ -46,9 +46,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
         //public static ROM[] ROMS = new ROM[]
         //{   
         //    // name, file, checksum 
-        //    ROM.NewROM("basic",   "basic",   "79015323128650c742a3694c9429aa91f355905e"),
-        //    ROM.NewROM("chargen", "chargen", "adc7c31e18c7c7413d54802ef2f4193da14711aa"),
-        //    ROM.NewROM("kernal",  "kernal",  "1d503e56df85a62fee696e7618dc5b4e781df1bb"),
+        //    ROM.NewROM(C64Config.BASIC_ROM_NAME,   "basic",   "79015323128650c742a3694c9429aa91f355905e"),
+        //    ROM.NewROM(C64Config.CHARGEN_ROM_NAME, "chargen", "adc7c31e18c7c7413d54802ef2f4193da14711aa"),
+        //    ROM.NewROM(C64Config.KERNAL_ROM_NAME,  "kernal",  "1d503e56df85a62fee696e7618dc5b4e781df1bb"),
         //};
 
         // Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
@@ -230,9 +230,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64
 
         private static Memory CreateC64Memory(byte[] ram, byte[] io, Dictionary<string, byte[]> roms)
         {
-            var basic = roms["basic"];
-            var chargen = roms["chargen"];
-            var kernal = roms["kernal"];
+            var basic = roms[C64Config.BASIC_ROM_NAME];
+            var chargen = roms[C64Config.CHARGEN_ROM_NAME];
+            var kernal = roms[C64Config.KERNAL_ROM_NAME];
 
             var mem = new Memory(numberOfConfigurations: 32, mapToDefaultRAM: false);
 

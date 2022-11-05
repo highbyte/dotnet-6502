@@ -34,76 +34,27 @@
             <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
         </div>
 
-        <div class="system-help" style="display:inline;">
-            <h4>General help</h4>
-            <ul>
-                <li>Machine code monitor toggled by pressing § (or ~) key.</li>
-                <li>The monitor uses hexadecimal notation for all addreses and values.</li>
-                <li>Continue executing emulator by entering command g in the monitor.</li>
-                <li>Stats panel toggled by pressing Shift-§ (or Shift-~) keys.</li>
-            </ul>
-        </div>
-
-        <div class="system-config systemHelpC64Style">
-            <h4>Selected system config: C64</h4>
-            <p>Please pick C64 ROMs to use from your computer. Must be three files: <strong>Kernal, Basic, and Character generator</strong>.</p>
-            <p>Can be downloaded from for example <a href="https://c64preservation.com/c64/roms/">here</a></p>
-
-            <InputFile id="c64RomFilePicker" OnChange="@OnC64RomFilePickerChange" multiple hidden/>
-            <button onclick="document.getElementById('c64RomFilePicker').click()" disabled=@(_emulatorState != EmulatorState.Uninitialized)>Load ROMs</button>
-
-            @if (_isLoadingC64Roms)
-            {
-                <p>Uploading ROMs...</p>
-            }
-            else
-            {
-                @if (SelectedSystemUserConfig.UserSettings.ContainsKey(C64Setup.USER_CONFIG_ROMS))
-                {
-                    <p>ROMs loaded:</p>
-                    <ul>
-                        @foreach (var rom in (Dictionary<string, byte[]>)SelectedSystemUserConfig.UserSettings[C64Setup.USER_CONFIG_ROMS])
-                        {
-                            <li>ROM: @rom.Key (@rom.Value.Length bytes)</li>
-                        }
-                    </ul>
-                }
-                else
-                {
-                    <p>No ROMs loaded.</p>
-                }
-            }
-        </div>
-
         <div class="system-help systemHelpC64Style">
-            <h4>Selected system help: C64</h4>
-            <p>Special C64 keys map to PC keyboard:</p>
-            <ul>
-                <li>Run/Stop: Esc</li>
-                <li>Restore: PageUp</li>
-                <li>CTRL: RightCtrl</li>
-                <li>C=: LeftCtrl</li>
-            </ul>
-            Useful C64 monitor commands
-            <ul>
-                <li>lb: Pick Basic .prg file to load.</li>
-                <li>sb [filename.prg]: Save Basic .prg file as a download.</li>
-            </ul>
+            <h4>C64</h4>
+            <div>
+                <span>@GetSelectedSystemUserConfigValidationMessage()</span>
+            </div>
+            <button @onclick="ShowC64ConfigUI" disabled=@ShowConfigDisabled>C64 Config</button>
+            <button @onclick="ShowC64HelpUI">Help</button>
         </div>
 
         <div class="system-help systemHelpGenericStyle">
-            <h4>Selected system: Generic computer help</h4>
-            <p>
-            A generic 6502 CPU computer, with custom defined memory layout.
-            Currently configured in the application config and code. A future update could make it possible to configure such things as total memory, screen memory addres and IO memory addresses here in the UI.
-            </p>
-            <p>
-                Useful monitor commands:
-            </p>
-            <ul>
-                <li>l: Pick a machine code .prg file to load</li>
-                <li>s [filename.prg] [start] [end]: Save machine code (or data) as download.</li>
-            </ul>
+            <h4>Generic computer</h4>
+            <div>
+                <span>@GetSelectedSystemUserConfigValidationMessage()</span>
+            </div>
+            @*            <button @onclick="ShowGenericConfigUI" disabled=@ShowConfigDisabled>Generic computer Config</button>*@
+            <button @onclick="ShowGenericHelpUI">Help</button>
+        </div>
+
+        <div class="system-help" style="display:inline;">
+            <h4>General emulator info</h4>
+            <button @onclick="ShowGeneralHelpUI">Help</button>
         </div>
     </div>
 
@@ -180,7 +131,6 @@
 
 @code
 {
-
     protected string GetDisplayStyle(string displayData)
     {
         const string VISIBLE = "inline";
@@ -210,10 +160,12 @@
     }
 
     protected bool OnSelectSystemNameDisabled => _emulatorState == EmulatorState.Running || _emulatorState == EmulatorState.Paused;
-    protected bool OnStartDisabled => _emulatorState == EmulatorState.Running;
+    protected bool OnStartDisabled => _emulatorState == EmulatorState.Running ||!IsSelectedSystemConfigOk;
     protected bool OnPauseDisabled => _emulatorState == EmulatorState.Paused || _emulatorState == EmulatorState.Uninitialized;
     protected bool OnResetDisabled => _emulatorState == EmulatorState.Uninitialized;
     protected bool OnStopDisabled => _emulatorState == EmulatorState.Uninitialized;
+
+    protected bool ShowConfigDisabled => _emulatorState != EmulatorState.Uninitialized;
 
     protected async void OnStart(MouseEventArgs mouseEventArgs)
     {
@@ -330,7 +282,6 @@
                                                                                    //await _monitorInputRef.FocusAsync();
     }
 
-
     private async Task OnMonitorFilePickerChange(InputFileChangeEventArgs e)
     {
         if (_wasmHost == null || _wasmHost.Monitor == null)
@@ -349,61 +300,4 @@
 
         _wasmHost.Monitor.LoadBinaryFromUser(fileBuffer);
     }
-
-
-    private bool _isLoadingC64Roms;
-    private List<IBrowserFile> _loadedC64RomFiles = new();
-    private long _maxC64RomFileSize = 1024 * 8;
-    private int _maxC64AllowedRomFiles = 3;
-
-    private async Task OnC64RomFilePickerChange(InputFileChangeEventArgs e)
-    {
-        _isLoadingC64Roms = true;
-
-        if (!SelectedSystemUserConfig.UserSettings.ContainsKey(C64Setup.USER_CONFIG_ROMS))
-            SelectedSystemUserConfig.UserSettings[C64Setup.USER_CONFIG_ROMS] = new Dictionary<string, byte[]>();
-        var roms = (Dictionary<string, byte[]>)SelectedSystemUserConfig.UserSettings[C64Setup.USER_CONFIG_ROMS];
-
-        foreach (var file in e.GetMultipleFiles(_maxC64AllowedRomFiles))
-        {
-            try
-            {
-                if (file.Size > _maxC64RomFileSize)
-                {
-                    continue;
-                }
-                bool isKernal = false;
-                bool isBasic = false;
-                bool isChargen = false;
-                if (file.Name.Contains("kernal", StringComparison.InvariantCultureIgnoreCase))
-                    isKernal = true;
-                else if (file.Name.Contains("basic", StringComparison.InvariantCultureIgnoreCase))
-                    isBasic = true;
-                else if (file.Name.Contains("char", StringComparison.InvariantCultureIgnoreCase))
-                    isChargen = true;
-                else
-                    continue;
-
-                var fileBuffer = new byte[file.Size];
-                //var fileStream = e.File.OpenReadStream(file.Size);
-                await file.OpenReadStream().ReadAsync(fileBuffer);
-                var fileSize = fileBuffer.Length;
-
-                if (isKernal)
-                    roms[C64Setup.USER_CONFIG_KERNAL_ROM] = fileBuffer;
-                else if (isBasic)
-                    roms[C64Setup.USER_CONFIG_BASIC_ROM] = fileBuffer;
-                else if (isChargen)
-                    roms[C64Setup.USER_CONFIG_CHARGEN_ROM] = fileBuffer;
-            }
-            catch (Exception ex)
-            {
-                //Logger.LogError("File: {Filename} Error: {Error}",
-                //    file.Name, ex.Message);
-            }
-        }
-
-        _isLoadingC64Roms = false;
-    }
-
 }

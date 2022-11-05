@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using SkiaSharp;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.ColorMaps;
@@ -60,7 +61,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64
         {
             // Get the two character sets (shifted & unshifted) from VIC2 view of memory (considering selected 16KB bank and charset start offset)
 
-            var characterSets = c64.ROMData["chargen"];
+            var characterSets = c64.ROMData[C64Config.CHARGEN_ROM_NAME];
 
             // Chargen ROM data contains two character sets (1024 bytes each).
             var characterSetShifted = characterSets.Take(Vic2.CHARACTERSET_SIZE).ToArray();

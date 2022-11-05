@@ -1,0 +1,26 @@
+﻿@using Highbyte.DotNet6502.App.SkiaWASM.Skia
+@using Highbyte.DotNet6502.Systems.Commodore64.Config
+@using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index
+
+<p>
+    A generic 6502 CPU computer, with custom defined memory layout.
+    Currently configured in the application config and code. A future update could make it possible to configure such things as total memory, screen memory addres and IO memory addresses here in the UI.
+</p>
+<p>
+    Useful monitor commands:
+</p>
+<ul>
+    <li>l: Pick a machine code .prg file to load</li>
+    <li>s [filename.prg] [start] [end]: Save machine code (or data) as download.</li>
+</ul>
+
+<p></p>
+<button @onclick="Close">Close</button>
+
+@code {
+
+    [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
+
+    private async Task Close() => await BlazoredModal.CloseAsync();
+
+}

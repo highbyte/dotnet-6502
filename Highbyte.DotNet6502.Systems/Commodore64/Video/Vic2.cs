@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video
@@ -71,7 +72,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video
         /// <returns></returns>
         private static Memory CreateSid2Memory(byte[] ram, Dictionary<string, byte[]> romData)
         {
-            var chargen = romData["chargen"];
+            var chargen = romData[C64Config.CHARGEN_ROM_NAME];
 
             // Vic2 can use 4 different banks of 16KB of memory each. They map into C64 RAM or Chargen ROM depending on bank.
             var mem = new Memory(memorySize: 16 * 1024, numberOfConfigurations: 4, mapToDefaultRAM: false);
