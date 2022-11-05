@@ -285,7 +285,12 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
         {
             var key = e.Key;
 
-            if ((key == "½" || key == "¬") && e.ShiftKey)   // Shift-"§" (Swedish) or Shift-"~" (Us)
+            // The key on far left side just below Esc key
+            if ((key == "½"     // Shift-"§" (Swedish Windows)
+                || key == "°"   // Shift-"§" (Swedish Mac)
+                || key == "¬"   // Shift-"~" (US Windows)
+                || key == "`")  // Shift-"~" (US Mac)
+                && e.ShiftKey)
             {
                 // TODO: Show/hide stats & debug panel
                 _toggleDebugStatsState();

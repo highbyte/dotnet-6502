@@ -11,7 +11,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Config
         public const string CHARGEN_ROM_NAME = "chargen";
         public static List<string> RequiredROMs = new()
         {
-            BASIC_ROM_NAME, CHARGEN_ROM_NAME, KERNAL_ROM_NAME
+            KERNAL_ROM_NAME, BASIC_ROM_NAME, CHARGEN_ROM_NAME
         };
 
         public List<ROM> ROMs { get; set; }
