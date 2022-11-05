@@ -83,12 +83,13 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             byte[] kernalROMData;
 
             var userSettings = systemUserConfig.UserSettings;
-            if (userSettings.ContainsKey(C64Config.KERNAL_ROM_NAME))
+            if (userSettings.ContainsKey(USER_CONFIG_ROMS))
             {
+                var roms = (Dictionary<string, byte[]>)userSettings[USER_CONFIG_ROMS];
                 // ROMs uploaded to client by user
-                basicROMData = (byte[])userSettings[C64Config.BASIC_ROM_NAME];
-                chargenROMData = (byte[])userSettings[C64Config.CHARGEN_ROM_NAME];
-                kernalROMData = (byte[])userSettings[C64Config.KERNAL_ROM_NAME];
+                basicROMData = (byte[])roms[C64Config.BASIC_ROM_NAME];
+                chargenROMData = (byte[])roms[C64Config.CHARGEN_ROM_NAME];
+                kernalROMData = (byte[])roms[C64Config.KERNAL_ROM_NAME];
             }
             else
             {
