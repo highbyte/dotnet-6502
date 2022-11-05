@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="utf-8" />
@@ -13,7 +13,13 @@
 </head>
 
 <body>
-    <div id="app">Loading...</div>
+    <div id="app">
+        <svg class="loading-progress">
+            <circle r="40%" cx="50%" cy="50%" />
+            <circle r="40%" cx="50%" cy="50%" />
+        </svg>
+        <div class="loading-progress-text"></div>
+    </div>
 
     <div id="blazor-error-ui">
         An unhandled error has occurred.
@@ -54,8 +60,8 @@
     <script>
         // Fix for some keys not working correctly in Monitor UI
         setTimeout(() => {
-            element = document.getElementById("monitor-input");
-            element.onkeydown = handleSpecialKeys
+            var element = document.getElementById("monitor-input");
+            //element.onkeydown = handleSpecialKeys
         }, 3000);
         function handleSpecialKeys(event) {
             if (event.key == "ArrowDown" || event.key == "ArrowUp") {

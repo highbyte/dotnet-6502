@@ -1,6 +1,6 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <PackageId>Highbyte.DotNet6502.Impl.SadConsole</PackageId>
     <Authors>Highbyte</Authors>
     <PackageDescription>A SadConsole support library for running 6502 code in Highbyte.DotNet6502 CPU emulator and interacting with a SadConsole window on the host.</PackageDescription>

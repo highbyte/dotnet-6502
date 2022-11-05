@@ -10,9 +10,9 @@
             "request": "launch",
             "preLaunchTask": "build skia native app",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaNative/bin/Debug/net6.0/Highbyte.DotNet6502.App.SkiaNative.dll",
+            "program": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaNative/bin/Debug/net7.0/Highbyte.DotNet6502.App.SkiaNative.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaNative/bin/Debug/net6.0",
+            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaNative/bin/Debug/net7.0",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "integratedTerminal",
             "stopAtEntry": false
@@ -31,9 +31,9 @@
             "request": "launch",
             "preLaunchTask": "build console monitor app",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net6.0/Highbyte.DotNet6502.App.ConsoleMonitor.dll",
+            "program": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net7.0/Highbyte.DotNet6502.App.ConsoleMonitor.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net6.0",
+            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net7.0",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "externalTerminal",
             "stopAtEntry": false
@@ -44,9 +44,9 @@
             "request": "launch",
             "preLaunchTask": "build console example",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Examples/ConsoleTestPrograms/bin/Debug/net6.0/ConsoleTestPrograms.dll",
+            "program": "${workspaceFolder}/Examples/ConsoleTestPrograms/bin/Debug/net7.0/ConsoleTestPrograms.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/Examples/ConsoleTestPrograms/bin/Debug/net6.0",
+            "cwd": "${workspaceFolder}/Examples/ConsoleTestPrograms/bin/Debug/net7.0",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "externalTerminal",
             "stopAtEntry": false
@@ -57,9 +57,9 @@
             "request": "launch",
             "preLaunchTask": "build sadconsole example",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Examples/SadConsoleTest/bin/Debug/net6.0/SadConsoleTest.dll",
+            "program": "${workspaceFolder}/Examples/SadConsoleTest/bin/Debug/net7.0/SadConsoleTest.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/Examples/SadConsoleTest/bin/Debug/net6.0",
+            "cwd": "${workspaceFolder}/Examples/SadConsoleTest/bin/Debug/net7.0",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "integratedTerminal",
             "stopAtEntry": false
