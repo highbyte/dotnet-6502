@@ -3,15 +3,20 @@
 @using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index
 
 <p>
-    A generic 6502 CPU computer, with custom defined memory layout.
-    Currently configured in the application config and code. A future update could make it possible to configure such things as total memory, screen memory addres and IO memory addresses here in the UI.
-</p>
-<p>
-    Useful monitor commands:
+    Special C64 keys map to PC keyboard:
 </p>
 <ul>
-    <li>l: Pick a machine code .prg file to load</li>
-    <li>s [filename.prg] [start] [end]: Save machine code (or data) as download.</li>
+    <li>Run/Stop: Esc</li>
+    <li>Restore: PageUp</li>
+    <li>CTRL: RightCtrl</li>
+    <li>C=: LeftCtrl</li>
+</ul>
+<p>
+    Useful C64 monitor commands
+</p>
+<ul>
+    <li>lb: Pick Basic .prg file to load.</li>
+    <li>sb [filename.prg]: Save Basic .prg file as a download.</li>
 </ul>
 
 <p></p>
