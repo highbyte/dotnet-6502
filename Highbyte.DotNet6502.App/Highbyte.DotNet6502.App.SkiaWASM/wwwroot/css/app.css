@@ -77,18 +77,17 @@ h4 {
         background-color: #203446;
         padding: 4px 4px;
         font-size: 1.0em;
+        font-family: 'Segoe UI'
     }
 
 #system-selector {
     background-color: #1b2930;
     color: #f8f8f8;
-    font-family: "Courier New", monospace;
+    font-family: 'Cascadia Code', "Courier New", monospace;
     font-size: 1.0em;
     text-align: left;
-
     border-radius: 0.5vw;
     box-sizing: border-box;
-
     margin: 0px;
     padding: 10px;
 }
