@@ -26,6 +26,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
         private readonly MonitorConfig _monitorConfig;
 
         private ushort? _lastTriggeredLoadBinaryForceLoadAddress = null;
+        private Action<MonitorBase, ushort, ushort>? _lastTriggeredAfterLoadCallback = null;
 
         public WasmMonitor(
             IJSRuntime jsRuntime,
@@ -147,7 +148,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             Status += BuildHtmlString(systemStatus, "header");
         }
 
-        public override bool LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
+        public override bool LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null, Action<MonitorBase, ushort, ushort>? afterLoadCallback = null)
         {
             WriteOutput($"Loading file directly from url not implemented.", MessageSeverity.Warning);
 
@@ -156,11 +157,12 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             return false;
         }
 
-        public override bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
+        public override bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null, Action<MonitorBase, ushort, ushort>? afterLoadCallback = null)
         {
             // Remember what the user specified as load address (is null of not specified). 
             // This will be used later when LoadBinaryFromUser is called after user has opened file dialog and selected and uploaded file.
             _lastTriggeredLoadBinaryForceLoadAddress = forceLoadAddress;
+            _lastTriggeredAfterLoadCallback = afterLoadCallback;
 
             // Trigger the html file picker dialog to open. After the file is picked and uploaded, LoadBinaryFromUser below will be called.
             _jsRuntime.InvokeVoidAsync("clickId", "monitorFilePicker");
@@ -187,6 +189,9 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
                 _lastTriggeredLoadBinaryForceLoadAddress);
 
             WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+
+            if (_lastTriggeredAfterLoadCallback != null)
+                _lastTriggeredAfterLoadCallback(this, loadedAtAddress, fileLength);
         }
 
         public async override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
@@ -221,7 +226,6 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
                 html += "<br />";
             html += $@"<span class=""{cssClass}"">{HttpUtility.HtmlEncode(message)}</span>";
             return html;
-            
         }
     }
 }

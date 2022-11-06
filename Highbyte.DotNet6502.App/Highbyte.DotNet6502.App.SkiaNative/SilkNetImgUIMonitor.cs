@@ -137,7 +137,7 @@ namespace Highbyte.DotNet6502.App.SkiaNative
             OnMonitorStateChange(false);
         }
 
-        public override bool LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
+        public override bool LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null, Action<MonitorBase, ushort, ushort>? afterLoadCallback = null)
         {
             if (!Path.IsPathFullyQualified(fileName))
                 fileName = $"{_monitorConfig.DefaultDirectory}/{fileName}";
@@ -160,9 +160,9 @@ namespace Highbyte.DotNet6502.App.SkiaNative
             return true;
         }
 
-        public override bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null)
+        public override bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null, Action<MonitorBase, ushort, ushort>? afterLoadCallback = null)
         {
-            WriteOutput($"Loading file via file picker dialoag not implemented.", MessageSeverity.Warning);
+            WriteOutput($"Loading file via file picker dialog not implemented.", MessageSeverity.Warning);
 
             fileLength = 0;
             loadedAtAddress = 0;

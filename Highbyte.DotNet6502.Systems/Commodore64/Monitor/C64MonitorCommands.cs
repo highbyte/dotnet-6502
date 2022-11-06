@@ -27,27 +27,14 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Monitor
                 cmd.OnExecute(() =>
                 {
                     // Basic file should have a start address of 0801 stored as the two first bytes (little endian order, 01 08).
-                    var loaded = monitor.LoadBinary(out var loadedAtAddress, out var fileLength);
+                    var loaded = monitor.LoadBinary(out var loadedAtAddress, out var fileLength, null, AfterLoadBasic);
                     if (!loaded)
                     {
                         // If file could not be loaded at this time, probably because a Web/WASM file picker dialog is asynchronus
                         return (int)CommandResult.Ok;
                     }
-
-                    monitor.WriteOutput($"Basic program loaded at {loadedAtAddress.ToHex()}");
-
-                    // The following memory locations are pointers to where Basic expects variables to be stored.
-                    // The address should be one byte after the Basic program end address after it's been loaded
-                    // VARTAB $002D-$002E   Pointer to the Start of the BASIC Variable Storage Area
-                    // ARYTAB $002F-$0030   Pointer to the Start of the BASIC Array Storage Area
-                    // STREND $0031-$0032   Pointer to End of the BASIC Array Storage Area (+1), and the Start of Free RAM
-                    // Ref: https://www.pagetable.com/c64ref/c64mem/
-                    ushort varStartAddress = (ushort)(loadedAtAddress + fileLength + 1);
-                    monitor.Mem.WriteWord(0x2d, varStartAddress);
-                    monitor.Mem.WriteWord(0x2f, varStartAddress);
-                    monitor.Mem.WriteWord(0x31, varStartAddress);
+                    AfterLoadBasic(monitor, loadedAtAddress, fileLength);
                     return (int)CommandResult.Ok;
-
                 });
             });
             app.Command("llb", cmd =>
@@ -74,19 +61,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Monitor
                         // If file could not be loaded, probably because it's not supported/implemented by the derived class.
                         return (int)CommandResult.Ok;
                     }
-
-                    monitor.WriteOutput($"Basic program loaded at {loadedAtAddress.ToHex()}");
-
-                    // The following memory locations are pointers to where Basic expects variables to be stored.
-                    // The address should be one byte after the Basic program end address after it's been loaded
-                    // VARTAB $002D-$002E   Pointer to the Start of the BASIC Variable Storage Area
-                    // ARYTAB $002F-$0030   Pointer to the Start of the BASIC Array Storage Area
-                    // STREND $0031-$0032   Pointer to End of the BASIC Array Storage Area (+1), and the Start of Free RAM
-                    // Ref: https://www.pagetable.com/c64ref/c64mem/
-                    ushort varStartAddress = (ushort)(loadedAtAddress + fileLength + 1);
-                    monitor.Mem.WriteWord(0x2d, varStartAddress);
-                    monitor.Mem.WriteWord(0x2f, varStartAddress);
-                    monitor.Mem.WriteWord(0x31, varStartAddress);
+                    AfterLoadBasic(monitor, loadedAtAddress, fileLength);
                     return (int)CommandResult.Ok;
 
                 });
@@ -120,7 +95,22 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Monitor
 
         public void Reset(MonitorBase monitor)
         {
-            
+        }
+
+        public void AfterLoadBasic(MonitorBase monitor, ushort loadedAtAddress, ushort fileLength)
+        {
+            monitor.WriteOutput($"Basic program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+
+            // The following memory locations are pointers to where Basic expects variables to be stored.
+            // The address should be one byte after the Basic program end address after it's been loaded
+            // VARTAB $002D-$002E   Pointer to the Start of the BASIC Variable Storage Area
+            // ARYTAB $002F-$0030   Pointer to the Start of the BASIC Array Storage Area
+            // STREND $0031-$0032   Pointer to End of the BASIC Array Storage Area (+1), and the Start of Free RAM
+            // Ref: https://www.pagetable.com/c64ref/c64mem/
+            ushort varStartAddress = (ushort)(loadedAtAddress + fileLength + 1);
+            monitor.Mem.WriteWord(0x2d, varStartAddress);
+            monitor.Mem.WriteWord(0x2f, varStartAddress);
+            monitor.Mem.WriteWord(0x31, varStartAddress);
         }
     }
 }
