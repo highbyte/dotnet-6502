@@ -1,7 +1,4 @@
 @page "/"
-@using Highbyte.DotNet6502.App.SkiaWASM.Skia
-@using Microsoft.Extensions.Logging
-@using SkiaSharp
 @using SkiaSharp.Views.Blazor
 @*@implements IDisposable*@
 
@@ -32,6 +29,7 @@
             <button @onclick="OnPause" disabled=@OnPauseDisabled>Pause</button>
             <button @onclick="OnReset" disabled=@OnResetDisabled>Reset</button>
             <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
+            <span>Scale (0.5-3.0): <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
         </div>
 
         <div class="system-help systemHelpC64Style">

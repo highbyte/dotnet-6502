@@ -6,7 +6,6 @@ using Highbyte.DotNet6502.Systems;
 using Microsoft.AspNetCore.Components;
 using SkiaSharp;
 using SkiaSharp.Views.Blazor;
-using System.Xml.Schema;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 {
@@ -53,6 +52,8 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
                 return "";
             return _selectedSystemUserConfigValidationMessage;
         }
+
+        private double Scale { get; set; } = 2.0f;
 
         protected SKGLView? _emulatorSKGLViewRef;
         protected ElementReference? _mainRef;
@@ -118,13 +119,12 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             await _systemList.SetSelectedSystem(_selectedSystemName, SelectedSystemUserConfig);
 
             // Set SKGLView dimensions
-            float scale = 3.0f;
             var screen = (IScreen)_systemList.SelectedSystem!;
-            _windowWidthStyle = $"{screen.VisibleWidth * scale}px";
-            _windowHeightStyle = $"{screen.VisibleHeight * scale}px";
+            _windowWidthStyle = $"{screen.VisibleWidth * Scale}px";
+            _windowHeightStyle = $"{screen.VisibleHeight * Scale}px";
             this.StateHasChanged();
 
-            _wasmHost = new WasmHost(Js, _systemList.SelectedSystem!, _systemList.GetSystemRunner, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, scale);
+            _wasmHost = new WasmHost(Js, _systemList.SelectedSystem!, _systemList.GetSystemRunner, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale);
 
             _emulatorState = EmulatorState.Paused;
             //await FocusEmulator();
