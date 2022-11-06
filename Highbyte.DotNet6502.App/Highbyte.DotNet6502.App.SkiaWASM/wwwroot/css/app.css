@@ -242,3 +242,18 @@ h4 {
     /* Hide the X clear button microsoft puts in input fields. */
     display: none;
 }
+
+.custom-modal {
+    background-color: #accaf2;
+    color: #000;
+    font-family: 'Segoe UI';
+    font-size: 1.0em;
+    border-radius: 0.5vw;
+    box-sizing: border-box;
+
+    width: 500px;
+    margin-top: 10px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 8px;
+}
