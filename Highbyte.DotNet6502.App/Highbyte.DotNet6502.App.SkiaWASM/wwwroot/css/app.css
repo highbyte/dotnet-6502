@@ -131,14 +131,14 @@ h4 {
 }
     .grid-container > div {
         color: #ffffff;
-        background-color: #203446;
+        background-color: #313f53;
         padding: 4px 4px;
         font-size: 1.0em;
         font-family: 'Segoe UI'
     }
 
 #system-selector {
-    background-color: #1b2930;
+    background-color: #212b39;
     color: #f8f8f8;
     font-family: 'Cascadia Code', "Courier New", monospace;
     font-size: 1.0em;
@@ -175,7 +175,7 @@ h4 {
     padding: 8px;
     border-radius: 0.5vw;
 
-    background-color: #063e5b;
+    background-color: #212b39;
     color: #f8f8f8;
     font-family: "Courier New", monospace;
     font-size: 0.7em;
@@ -195,7 +195,7 @@ h4 {
 /*Monitor styles*/
 #monitor-outer-screen {
     margin: 1px;
-    background-color: #333;
+    background-color: #212b39;
     padding: 1em;
     /*margin: 2vw auto;*/ /* setting margin forces center */
     border-radius: 0.5vw;
