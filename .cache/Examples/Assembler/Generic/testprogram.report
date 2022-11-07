@@ -1,5 +1,5 @@
 
-; ******** Source: c:\Users\highb\Source\Repos\dotnet-6502\Examples\ConsoleTestPrograms\AssemblerSource\testprogram.asm
+; ******** Source: c:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\Generic\testprogram.asm
      1                          ;code start address
      2                          * = $c000
      3                          

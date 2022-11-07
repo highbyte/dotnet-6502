@@ -1,25 +1,36 @@
 ```mermaid
 classDiagram
 
-Host_SkiaNative
-Host_SkiaNative --> SystemRunner
-Host_SkiaNative --> System_C64
-Host_SkiaNative --> Impl_Skia_C64
-Host_SkiaNative --> Impl_SilkNet_C64
-Host_SkiaNative --> System_X
-Host_SkiaNative --> Impl_Skia_X
-Host_SkiaNative --> Impl_SilkNet_X
-Host_SkiaNative --> SilkNetMonitor
-SilkNet_Monitor --> MonitorBase
+App_SkiaWASM
+App_SkiaWASM --> SystemRunner
+App_SkiaWASM --> System_C64
+App_SkiaWASM --> Impl_Skia_C64
+App_SkiaWASM --> Impl_AspNet_C64
+App_SkiaWASM --> System_X
+App_SkiaWASM --> Impl_Skia_X
+App_SkiaWASM --> Impl_AspNet_X
+App_SkiaWASM --> App_WASM_Monitor
+App_WASM_Monitor --> MonitorBase
 
-Host_SadConsole
-Host_SadConsole --> SystemRunner
-Host_SadConsole --> System_C64
-Host_SadConsole --> Impl_SadConsole_C64
-Host_SadConsole --> System_X
-Host_SadConsole --> Impl_SadConsole_X
-Host_SadConsole --> SadConsole_Monitor
-SadConsole_Monitor --> MonitorBase
+App_SkiaNative
+App_SkiaNative --> SystemRunner
+App_SkiaNative --> System_C64
+App_SkiaNative --> Impl_Skia_C64
+App_SkiaNative --> Impl_SilkNet_C64
+App_SkiaNative --> System_X
+App_SkiaNative --> Impl_Skia_X
+App_SkiaNative --> Impl_SilkNet_X
+App_SkiaNative --> App_SilkNetImGui_Monitor
+App_SilkNetImGui_Monitor --> MonitorBase
+
+App_SadConsole
+App_SadConsole --> SystemRunner
+App_SadConsole --> System_C64
+App_SadConsole --> Impl_SadConsole_C64
+App_SadConsole --> System_X
+App_SadConsole --> Impl_SadConsole_X
+App_SadConsole --> App_SadConsole_Monitor
+App_SadConsole_Monitor --> MonitorBase
 
 Impl_Skia_C64
 Impl_Skia_C64 --> System_C64
@@ -36,6 +47,14 @@ Impl_SilkNet_C64 --> IInputHandler
 Impl_SilkNet_X
 Impl_SilkNet_X --> System_X
 Impl_SilkNet_X --> IInputHandler
+
+Impl_AspNet_C64
+Impl_AspNet_C64 --> System_C64
+Impl_AspNet_C64 --> IInputHandler
+
+Impl_AspNet_X
+Impl_AspNet_X --> System_X
+Impl_AspNet_X --> IInputHandler
 
 Impl_SadConsole_C64
 Impl_SadConsole_C64 --> System_C64

@@ -1,5 +1,5 @@
 
-; ******** Source: c:\Users\highb\source\repos\dotnet-6502\Examples\SadConsoleTest\AssemblerSource\snake6502.asm
+; ******** Source: c:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\Generic\snake6502.asm
      1                          ; Modified version of the Snake game from http://skilldrick.github.io/easy6502/#snake
      2                          ; to be able to 
      3                          ; - Compile with ACME assembler

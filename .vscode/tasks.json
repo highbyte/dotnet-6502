@@ -82,12 +82,12 @@
             }
         },
         {
-            "label": "build sadconsole example",
+            "label": "build sadconsole app",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Examples/SadConsoleTest/SadConsoleTest.csproj",
+                "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SadConsole/Highbyte.DotNet6502.App.SadConsole.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],

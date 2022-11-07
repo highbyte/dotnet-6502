@@ -18,14 +18,16 @@ Environment.CurrentDirectory = currentAppDir;
 // TODO: Read options from appsettings.json
 var emulatorConfig = new EmulatorConfig
 {
-    Emulator = "C64", 
+    Emulator = "C64",
     //Emulator = "Generic",
     DrawScale = 3.0f,
     Monitor = new MonitorConfig
     {
-        //DefaultDirectory = "../../../../../.cache/Examples/SadConsoleTest/AssemblerSource"
-        //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/.cache/Examples/SadConsoleTest/AssemblerSource"
-        //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/.cache/Examples/SadConsoleTest/AssemblerSource"
+        //DefaultDirectory = "../../../../../.cache/Examples/Assembler/C64"
+
+        //DefaultDirectory = "../../../../../.cache/Examples/Assembler/Generic"
+        //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic"
+        //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic"
     }
 };
 emulatorConfig.Validate();
@@ -67,8 +69,8 @@ c64Config.Validate();
 
 var genericComputerConfig = new GenericComputerConfig
 {
-    //ProgramBinaryFile = "../../../../../.cache/Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.prg",
-    ProgramBinaryFile = "%HOME%/source/repos/dotnet-6502/.cache/Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.prg",
+    //ProgramBinaryFile = "../../../../../.cache/Examples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.prg",
+    ProgramBinaryFile = "%HOME%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.prg",
     CPUCyclesPerFrame = 8000,
     Memory = new EmulatorMemoryConfig
     {

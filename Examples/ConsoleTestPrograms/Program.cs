@@ -11,7 +11,7 @@ namespace ConsoleTestPrograms
         //static void Main(string[] args)
         static void Main()
         {
-            //// Download, compile, and run 6502 functional test program
+            // Download, compile, and run 6502 functional test program
             // var serviceCollection = new ServiceCollection();
             // ConfigureServices(serviceCollection);
             // var serviceProvider = serviceCollection.BuildServiceProvider(); 
@@ -19,7 +19,7 @@ namespace ConsoleTestPrograms
             // run6502FunctionalTest.Run();
 
             // Run simple machine code to add two numbers and rotate right
-            // RunSimple.Run();
+            //RunSimple.Run();
 
             // Run 16-bit multiplication 6502 binary
             //Run16bitMultiplyProgram.Run();
@@ -27,8 +27,6 @@ namespace ConsoleTestPrograms
             // Run simple 6502 binary
             //RunTestProgram.Run();
             //RunTestProgram2.Run();
-
-            //HostInteractionLab_Move_One_Char.Run();
 
             HostInteractionLab_Scroll_Text.Run();
         }

@@ -3,7 +3,7 @@ using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Microsoft.Extensions.Configuration;
-namespace SadConsoleTest
+namespace Highbyte.DotNet6502.App.SadConsole
 {
     /// <summary>
     /// Example code running Highbyte.DotNet6502 emulator together with SadConsole Game library.
@@ -84,7 +84,7 @@ namespace SadConsoleTest
 
         //         var emulatorConfig = new EmulatorConfig
         //         {
-        //             ProgramBinaryFile = "../../../../../.cache/Examples/SadConsoleTest/AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.prg",
+        //             ProgramBinaryFile = "../../../../../.cache/Examples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.prg",
         //             Memory = emulatorMemoryConfig
         //         };
 

@@ -5,7 +5,7 @@
    "version": "0.2.0",
    "configurations": [
         {
-            "name": ".NET Core Launch (SkiaNative app)",
+            "name": "SkiaNative app - .NET Core Launch",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build skia native app",
@@ -18,7 +18,7 @@
             "stopAtEntry": false
         },
         {
-            "name": "Blazor WASM Skia Launch and Debug (skia blazor wasm app)",
+            "name": "Blazor WASM Skia app - Launch and Debug",
             "type": "blazorwasm",
             "request": "launch",
             "cwd": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaWASM",
@@ -26,7 +26,7 @@
             "browser": "chrome"
         },           
         {
-            "name": ".NET Core Launch (console monitor app)",
+            "name": "Console Monitor app - .NET Core Launch",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build console monitor app",
@@ -39,7 +39,7 @@
             "stopAtEntry": false
         },
         {
-            "name": ".NET Core Launch (console example)",
+            "name": "Console example - .NET Core Launch",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build console example",
@@ -52,20 +52,20 @@
             "stopAtEntry": false
         },
         {
-            "name": ".NET Core Launch (sadconsole example)",
+            "name": "SadConsole app - .NET Core Launch",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build sadconsole example",
+            "preLaunchTask": "build sadconsole app",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Examples/SadConsoleTest/bin/Debug/net7.0/SadConsoleTest.dll",
+            "program": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SadConsole/bin/Debug/net7.0/Highbyte.DotNet6502.App.SadConsole.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/Examples/SadConsoleTest/bin/Debug/net7.0",
+            "cwd": "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SadConsole/bin/Debug/net7.0",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "integratedTerminal",
             "stopAtEntry": false
         },
         {
-            "name": "Blazor WASM Launch and Debug (old BlazorWasmTest example)",
+            "name": "Old Blazor WASM example - Blazor WASM Launch and Debug",
             "type": "blazorwasm",
             "request": "launch",
             "cwd": "${workspaceFolder}/Examples/BlazorWasmTest",

@@ -14,7 +14,7 @@ namespace ConsoleTestPrograms
         {
             Console.Clear();
 
-            string prgFileName = "../../../../../.cache/Examples/ConsoleTestPrograms/AssemblerSource/hostinteraction_scroll_text.prg";
+            string prgFileName = "../../../../../.cache/Examples/Assembler/Generic/hostinteraction_scroll_text.prg";
             Console.WriteLine($"Loading 6502 machine code binary file.");
             Console.WriteLine($"{prgFileName}");
             if(!File.Exists(prgFileName))

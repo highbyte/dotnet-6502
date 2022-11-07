@@ -1,5 +1,5 @@
 
-; ******** Source: c:\Users\highb\source\repos\dotnet-6502\Examples\SadConsoleTest\AssemblerSource\hello_world.asm
+; ******** Source: c:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\Generic\hello_world.asm
      1                          ;hello_world.asm
      2                          ;Written with ACME cross-assembler using VSCode extension VS64. Extension will compile on save to .cache directory.
      3                          

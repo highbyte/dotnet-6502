@@ -87,9 +87,9 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             {
                 MaxLineLength = 100,        // TODO: This affects help text printout, should it be set dynamically?
 
-                //DefaultDirectory = "../../../../../.cache/Examples/SadConsoleTest/AssemblerSource"
-                //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/.cache/Examples/SadConsoleTest/AssemblerSource"
-                //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/.cache/Examples/SadConsoleTest/AssemblerSource"
+                //DefaultDirectory = "../../../../../.cache/Examples/Assembler/Generic"
+                //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic"
+                //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic"
             };
             _monitorConfig.Validate();
 
