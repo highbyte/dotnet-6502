@@ -37,6 +37,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
+    - name: Install DotNet workload - WASM tools
+      run: |
+        dotnet workload install wasm-tools
+
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v1
