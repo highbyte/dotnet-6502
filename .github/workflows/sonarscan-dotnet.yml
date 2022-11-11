@@ -30,6 +30,10 @@ jobs:
         with:
           fetch-depth: '0'
 
+      - name: Install DotNet workload - WASM tools
+        run: |
+          dotnet workload install wasm-tools
+
       # Runs a single command using the runners shell
       - name: SonarScanner for .NET 7 with pull request decoration support
         uses: highbyte/sonarscan-dotnet@v2.2.0-beta
