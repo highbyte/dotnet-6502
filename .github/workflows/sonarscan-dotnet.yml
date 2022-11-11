@@ -30,10 +30,6 @@ jobs:
         with:
           fetch-depth: '0'
 
-      - name: Install DotNet workload - WASM tools
-        run: |
-          dotnet workload install wasm-tools
-
       # Runs a single command using the runners shell
       - name: SonarScanner for .NET 7 with pull request decoration support
         uses: highbyte/sonarscan-dotnet@v2.2.0-beta
@@ -44,6 +40,8 @@ jobs:
           sonarProjectName:  dotnet-6502
           # The name of the SonarQube organization in SonarCloud. For hosted SonarQube, skip this setting.
           sonarOrganization: highbyte
+          # Optional command run before the 'dotnet build'
+          dotnetPreBuildCmd: dotnet workload install wasm-tools
           # Optional command arguments to dotnet test
           dotnetTestArguments: Highbyte.DotNet6502.Tests --filter TestType!=Integration --logger trx --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
           # Optional extra command arguments the the SonarScanner 'begin' command
