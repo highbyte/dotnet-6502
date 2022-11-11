@@ -48,7 +48,7 @@ namespace Highbyte.DotNet6502.Monitor.Commands
             app.Command("ll", cmd =>
             {
                 cmd.HelpOption(inherited: true);
-                cmd.Description = "Load specifiled 6502 binary file into emulator memory.";
+                cmd.Description = "Load specified 6502 binary file into emulator memory.";
                 cmd.AddName("load file");
 
                 var fileName = cmd.Argument("filename", "Name of the binary file.")

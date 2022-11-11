@@ -281,3 +281,4 @@ coveragereport/
 **/out/
 
 .DS_Store
+.vscode/settings.json

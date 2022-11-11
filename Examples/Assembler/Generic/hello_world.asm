@@ -94,7 +94,7 @@ waitforrefresh:
 ;Data
 ;------------------------------------------------------------
 STATIC_TEXT:
-	!text "                     ***** DotNet6502 + SadConsole !! *****                     "
+	!text "                      ***** Hello from DotNet6502 !! *****                      "
 	!by 0 							;End of text indicator	
 STATIC_TEXT_2:
 	!text "                        Press SPACE to cycle border color                       "

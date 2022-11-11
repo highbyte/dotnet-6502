@@ -98,7 +98,7 @@ initscroll:
 !convtab raw	;Text conversion setting: pet (PetSCII), raw (none), scr (C64 screen code)
 SCROLL_TEXT:
 	!text "                                                                                "
-	!text "Highbyte, in 2021, proudly presents... A DotNet 6502 CPU emulator!    "
+	!text "Highbyte, in 2022, proudly presents... A DotNet 6502 CPU emulator!    "
 	!text "This scroller is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
 	!text "Greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups Them and Virtual!"
 	!text "                                                                                "

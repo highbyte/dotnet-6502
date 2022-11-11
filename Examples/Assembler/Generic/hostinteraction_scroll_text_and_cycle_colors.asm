@@ -301,7 +301,7 @@ STATIC_TEXT_COLOR:
 SCROLL_TEXT:
 	;!text "                                                                                "
 	!text "                                        "
-	!text "Highbyte, in 2021, proudly presents... A DotNet 6502 CPU emulator!    "
+	!text "Highbyte, in 2022, proudly presents... A DotNet 6502 CPU emulator!    "
 	!text "This (rather choppy) scroller and color cycler is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
 	!text "Hold SPACE to flash border color.   "
 	!text "Greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups Them and Virtual!"

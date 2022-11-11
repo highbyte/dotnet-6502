@@ -304,7 +304,7 @@
    302                          SCROLL_TEXT:
    303                          	;!text "                                                                                "
    304  c15e 2020202020202020...	!text "                                        "
-   305  c186 0809070802191405...	!text "highbyte, in 2021, proudly presents... a dotnet 6502 cpu emulator!    "
+   305  c186 0809070802191405...	!text "highbyte, in 2022, proudly presents... a dotnet 6502 cpu emulator!    "
    306  c1cc 1408091320281201...	!text "this (rather choppy) scroller and color cycler is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
    307  c25e 080f0c0420131001...	!text "hold space to flash border color.   "
    308  c282 0712050514090e07...	!text "greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups them and virtual!"

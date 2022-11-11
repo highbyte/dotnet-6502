@@ -96,7 +96,7 @@
     94                          ;Data
     95                          ;------------------------------------------------------------
     96                          STATIC_TEXT:
-    97  c051 2020202020202020...	!text "                     ***** DotNet6502 + SadConsole !! *****                     "
+    97  c051 2020202020202020...	!text "                      ***** Hello from DotNet6502 !! *****                      "
     98  c0a1 00                 	!by 0 							;End of text indicator	
     99                          STATIC_TEXT_2:
    100  c0a2 2020202020202020...	!text "                        Press SPACE to cycle border color                       "
