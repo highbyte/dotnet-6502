@@ -15,7 +15,7 @@ namespace Highbyte.DotNet6502
             CyclesConsumed = 0;
             InstructionsExecutionCount = 0;
             UnknownOpCodeCount = 0;
-            LastInstructionExecResult = null;
+            LastInstructionExecResult = default;
             PCBeforeLastOpCodeExecuted = null;
         }
         public static ExecState ExecStateAfterInstruction(InstructionExecResult lastinstructionExecutionResult, ushort? lastPC)

@@ -5,8 +5,6 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public class InstructionExecutor
     {
-        private static AddrModeCalcResult addrModeCalcResult = new AddrModeCalcResult();
-
         /// <summary>
         /// Executes the specified instruction.
         /// PC is assumed to point at the instruction operand, or the the next instruction, depending on instruction.
@@ -31,8 +29,7 @@ namespace Highbyte.DotNet6502
             // The way the addressing mode works is the same accross the instructions, so we don't need to repeat the logic
             // on how to get to the actual value used with the instruction.
 
-            // Note: Minor perf improvement by reusing same addrModeCalcResult instance instead of creating new object.
-            //AddrModeCalcResult addrModeCalcResult = new AddrModeCalcResult() { OpCode = opCodeObject };
+            AddrModeCalcResult addrModeCalcResult = new AddrModeCalcResult() { OpCode = opCodeObject };
             addrModeCalcResult.OpCode = opCodeObject;
             addrModeCalcResult.AddressCalculationCrossedPageBoundary = false;
             addrModeCalcResult.InsAddress = null;

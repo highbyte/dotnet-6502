@@ -1,6 +1,6 @@
 namespace Highbyte.DotNet6502
 {
-    public class AddrModeCalcResult
+    public struct AddrModeCalcResult
     {
         public OpCode OpCode { get; set; }
         public byte? InsValue { get; set; }
