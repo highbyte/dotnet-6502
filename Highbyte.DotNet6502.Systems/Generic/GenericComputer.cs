@@ -57,11 +57,6 @@ namespace Highbyte.DotNet6502.Systems.Generic
                 execEvaluator);
         }
 
-        public bool ExecuteOneFrame()
-        {
-            return ExecuteOneFrame();
-        }
-
         public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
         {
             // If we already executed cycles in current frame, reduce it from total.
