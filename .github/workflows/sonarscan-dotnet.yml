@@ -43,7 +43,7 @@ jobs:
           # Optional command run before the 'dotnet build'
           dotnetPreBuildCmd: dotnet workload install wasm-tools
           # Optional command arguments to 'dotnet build'
-          dotnetBuildArguments: dotnet-6502-ci.sln
+          dotnetBuildArguments: Highbyte.DotNet6502.Tests
           # Optional command arguments to dotnet test
           dotnetTestArguments: Highbyte.DotNet6502.Tests --filter TestType!=Integration --logger trx --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
           # Optional extra command arguments the the SonarScanner 'begin' command
