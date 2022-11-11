@@ -37,6 +37,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
+    # Add .NET 7.0 manually as github/codeql-action/autobuild below does not seem to support it.
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 7.0.x
+
+    # Add the WASM workload manually (github/codeql-action/autobuild only seems to work with this if runs-on: windows-latest)
     - name: Install DotNet workload - WASM tools
       run: |
         dotnet workload install wasm-tools
