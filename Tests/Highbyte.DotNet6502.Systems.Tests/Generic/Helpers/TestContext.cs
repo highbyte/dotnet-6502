@@ -1,6 +1,6 @@
 using Highbyte.DotNet6502.Systems.Generic;
 
-namespace Highbyte.DotNet6502.Tests.Helpers
+namespace Highbyte.DotNet6502.Systems.Tests.Generic.Helpers
 {
     public class TestContext
     {

@@ -2,7 +2,7 @@ using Xunit;
 using Highbyte.DotNet6502;
 using System.Collections.Generic;
 
-namespace Highbyte.DotNet6502.Tests.Instructions
+namespace Highbyte.DotNet6502.Tests
 {
     public class OpCodeIdHelpersTest
     {

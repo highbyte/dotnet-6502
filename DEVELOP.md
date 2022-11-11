@@ -20,9 +20,10 @@ Most of the ```Highbyte.DotNet6502``` library code has been developed with a tes
 The [XUnit](https://xunit.net/) library is used.
 
 ## Unit tests
-To run only unit tests:
+To run only unit tests (for the ```Highbyte.DotNet6502``` library)
 
 ```powershell
+cd Tests/Highbyte.DotNet6502.Tests
 dotnet test --filter TestType!=Integration
 ```
 
@@ -42,10 +43,11 @@ Notes on the special functional/integration XUnit test
 To run only the special functional/integration XUnit test:
 
 ```powershell
+cd Tests/Highbyte.DotNet6502.Tests
 dotnet test --filter TestType=Integration
 ```
 
-# Code coverage report locally
+# Code coverage report locally (```Highbyte.DotNet6502``` library)
 
 Install report-generator global tool
 ```powershell

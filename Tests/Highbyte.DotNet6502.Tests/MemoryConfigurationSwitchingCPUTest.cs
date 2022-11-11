@@ -1,7 +1,7 @@
 // using System.Diagnostics;
 // using Xunit;
 
-// namespace Highbyte.DotNet6502.Tests.Instructions
+// namespace Highbyte.DotNet6502.Tests
 // {
 //     public class MemorySegmentBankSwitchingCPUTest
 //     {

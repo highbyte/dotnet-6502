@@ -251,9 +251,8 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 N = ! ExpectedN.Value;
 
             // Shorthand variables to cpu and memory
-            var computer = TestContext.Computer;
-            var cpu = computer.CPU;
-            var mem = computer.Mem;
+            var cpu = TestContext.CPU;
+            var mem = TestContext.Mem;
 
             // Init Program Counter
             if(PC.HasValue)

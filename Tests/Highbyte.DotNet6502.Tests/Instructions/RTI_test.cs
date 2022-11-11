@@ -30,7 +30,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 ExpectedSP     = 0xfc + 3       // 1 byte for processor status, 2 bytes for return address
             };
 
-            var mem = test.TestContext.Computer.Mem;
+            var mem = test.TestContext.Mem;
 
             // The return address on stack next. Little endian.
             mem[(ushort)(CPU.StackBaseAddress + test.SP + 2)] = returnAddressOnStack.Lowbyte();
@@ -59,7 +59,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 ExpectedSP     = 0xfc + 3       // 1 byte for processor status, 2 bytes for return address
             };
 
-            var mem = test.TestContext.Computer.Mem;
+            var mem = test.TestContext.Mem;
 
             // The processor status pushed to stack by BRK instruction (it was written last, but will be read in reverse order when it's popped)
             // The current SP always points to the next free location. So the last location that was used (by the BRK instruction) is one up (remember stack goes downwards)

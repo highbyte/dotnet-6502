@@ -52,7 +52,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 OpCode         = OpCodeId.BRK,
                 ExpectedSP     = 0xff - 3,      // 2 bytes for PC + 1 byte for PS
             };
-            var mem = test.TestContext.Computer.Mem;
+            var mem = test.TestContext.Mem;
 
             // Execute and verify instruction according to TestSpec above
             test.Execute_And_Verify(AddrMode.Implied);
@@ -84,7 +84,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 ExpectedPS     = 0b10001011,    // The processor status should remain unchanged. See below for verification the PS pushed to stack got extra bits set.
                 ExpectedI      = true,          // Interrupt flag shall always be set on PS after instruction.
             };
-            var mem = test.TestContext.Computer.Mem;
+            var mem = test.TestContext.Mem;
 
             // Execute and verify instruction according to TestSpec above
             test.Execute_And_Verify(AddrMode.Implied);
@@ -113,7 +113,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 OpCode         = OpCodeId.BRK,
                 ExpectedPC     = brkIrqJumpAddress
             };
-            var mem = test.TestContext.Computer.Mem;
+            var mem = test.TestContext.Mem;
 
             // Set the memory address that the BRK instruction will look for an address to jump to (Break/IQR handler vector address)
             mem.WriteWord(CPU.BrkIRQHandlerVector, brkIrqJumpAddress);

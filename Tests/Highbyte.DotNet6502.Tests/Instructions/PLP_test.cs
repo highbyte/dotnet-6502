@@ -31,7 +31,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             // Prepare a value on the stack (one address higher than the current SP we use in test)
             // Remember that stack works downwards (0xff-0x00), points to the next free location, and is located at address 0x0100 + SP
             ushort stackPointerFullAddress = CPU.StackBaseAddress + 0xff;
-            test.TestContext.Computer.Mem[stackPointerFullAddress] = 0x12;
+            test.TestContext.Mem[stackPointerFullAddress] = 0x12;
 
             test.Execute_And_Verify(AddrMode.Implied);
         }
@@ -52,7 +52,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             // Prepare a value on the stack (one address higher than the current SP we use in test)
             // Remember that stack works downwards (0xff-0x00), points to the next free location, and is located at address 0x0100 + SP
             ushort stackPointerFullAddress = CPU.StackBaseAddress + 0xff;
-            test.TestContext.Computer.Mem[stackPointerFullAddress] = 0xff;
+            test.TestContext.Mem[stackPointerFullAddress] = 0xff;
 
             test.Execute_And_Verify(AddrMode.Implied);
         }
@@ -78,9 +78,9 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             // Remember that stack works downwards (0xff-0x00), points to the next free location, and is located at address 0x0100 + SP
             byte SPToReadFrom = (byte)(test.SP + 1);
             ushort stackPointerFullAddressShouldPopFrom = (ushort) (CPU.StackBaseAddress  + SPToReadFrom);
-            test.TestContext.Computer.Mem[stackPointerFullAddressShouldPopFrom] = expectedValueFromStack;
+            test.TestContext.Mem[stackPointerFullAddressShouldPopFrom] = expectedValueFromStack;
             // The incorrect memory position with another value
-            test.TestContext.Computer.Mem[(ushort)(CPU.StackBaseAddress + test.SP + 1)] = (byte)(expectedValueFromStack-1); 
+            test.TestContext.Mem[(ushort)(CPU.StackBaseAddress + test.SP + 1)] = (byte)(expectedValueFromStack-1); 
 
             test.Execute_And_Verify(AddrMode.Implied);
         }

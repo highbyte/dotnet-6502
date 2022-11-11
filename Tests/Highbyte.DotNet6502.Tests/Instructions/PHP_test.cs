@@ -39,7 +39,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             byte expectedPSOnStack = test.PS.Value;
             expectedPSOnStack.SetBit(StatusFlagBits.Break); 
             expectedPSOnStack.SetBit(StatusFlagBits.Unused); 
-            Assert.Equal(expectedPSOnStack, test.TestContext.Computer.Mem[stackPointerFullAddress]);
+            Assert.Equal(expectedPSOnStack, test.TestContext.Mem[stackPointerFullAddress]);
         }
 
         [Fact]

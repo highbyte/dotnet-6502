@@ -1,7 +1,7 @@
 using Xunit;
 using static Highbyte.DotNet6502.Memory;
 
-namespace Highbyte.DotNet6502.Tests.Instructions
+namespace Highbyte.DotNet6502.Tests
 {
     public class MemoryTest
     {

@@ -1,18 +1,18 @@
 using Xunit;
 
-namespace Highbyte.DotNet6502.Tests.Instructions
+namespace Highbyte.DotNet6502.Tests
 {
-    public class ByteHelpersTest
+    public class WordHelpersTest
     {
         [Fact]
         public void ToHexAndDecimal_Can_Format_Output_Correctly()
         {
             // Arrange
             // Act
-            var output = ByteHelpers.ToHexAndDecimal(0x42);
+            var output = WordHelpers.ToHexAndDecimal(0x2142);
 
             // Assert
-            Assert.Equal("0x42 (66)", output);
+            Assert.Equal("0x2142 (8514)", output);
         }
 
         [Fact]
@@ -20,12 +20,12 @@ namespace Highbyte.DotNet6502.Tests.Instructions
         {
             // Arrange
             // Act
-            var output = ByteHelpers.ToDecimalAndHex(0x42);
+            var output = WordHelpers.ToDecimalAndHex(0x2142);
 
             // Assert
-            Assert.Equal("66 (0x42)", output);
+            Assert.Equal("8514 (0x2142)", output);
         }        
 
-        // TODO: More unit tests for ByteHelpers class
+        // TODO: More unit tests for WordHelpers class
     }
 }

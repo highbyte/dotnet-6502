@@ -46,7 +46,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             // Verify that stack (the previous position) contains value of A register.
             // Remember that stack works downwards (0xff-0x00), points to the next free location, and is located at address 0x0100 + SP
             ushort stackPointerFullAddress = CPU.StackBaseAddress + 0xfe + 1;
-            Assert.Equal(test.A, test.TestContext.Computer.Mem[stackPointerFullAddress]);
+            Assert.Equal(test.A, test.TestContext.Mem[stackPointerFullAddress]);
         }
 
     }

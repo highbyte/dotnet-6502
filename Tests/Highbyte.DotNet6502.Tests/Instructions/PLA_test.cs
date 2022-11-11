@@ -31,7 +31,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
             // Prepare a value on the stack (one address higher than the current SP we use in test)
             // Remember that stack works downwards (0xff-0x00), points to the next free location, and is located at address 0x0100 + SP
             ushort stackPointerFullAddress = CPU.StackBaseAddress + 0xff;
-            test.TestContext.Computer.Mem[stackPointerFullAddress] = 0x12;
+            test.TestContext.Mem[stackPointerFullAddress] = 0x12;
 
             test.Execute_And_Verify(AddrMode.Implied);
 
@@ -49,7 +49,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 ExpectedA      = 0x00,
             };
             ushort stackPointerFullAddress = CPU.StackBaseAddress + 0xff;
-            test.TestContext.Computer.Mem[stackPointerFullAddress] = 0x00;
+            test.TestContext.Mem[stackPointerFullAddress] = 0x00;
             test.Execute_And_Verify(AddrMode.Implied);        }
 
         [Fact]
@@ -64,7 +64,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 ExpectedA      = 0x01,
             };
             ushort stackPointerFullAddress = CPU.StackBaseAddress + 0xff;
-            test.TestContext.Computer.Mem[stackPointerFullAddress] = 0x01;
+            test.TestContext.Mem[stackPointerFullAddress] = 0x01;
             test.Execute_And_Verify(AddrMode.Implied);        
         }
 
@@ -80,7 +80,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 ExpectedA      = 0xfe,
             };
             ushort stackPointerFullAddress = CPU.StackBaseAddress + 0xff;
-            test.TestContext.Computer.Mem[stackPointerFullAddress] = 0xfe;
+            test.TestContext.Mem[stackPointerFullAddress] = 0xfe;
             test.Execute_And_Verify(AddrMode.Implied);
         }
 
@@ -96,7 +96,7 @@ namespace Highbyte.DotNet6502.Tests.Instructions
                 ExpectedA      = 0x70,
             };
             ushort stackPointerFullAddress = CPU.StackBaseAddress + 0xff;
-            test.TestContext.Computer.Mem[stackPointerFullAddress] = 0x70;
+            test.TestContext.Mem[stackPointerFullAddress] = 0x70;
             test.Execute_And_Verify(AddrMode.Implied);
         }        
     }
