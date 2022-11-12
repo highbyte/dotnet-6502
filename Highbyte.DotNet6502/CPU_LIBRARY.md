@@ -9,7 +9,7 @@
 - Passes this [Functional 6502 test program](https://github.com/Klaus2m5/6502_65C02_functional_tests)
 
 # Requirements
-- See details [here](DEVELOP#Requirements)
+- See details [here](../DEVELOP.md#Requirements)
 
 # Using from a .NET application
 ## Reference NuGet package
