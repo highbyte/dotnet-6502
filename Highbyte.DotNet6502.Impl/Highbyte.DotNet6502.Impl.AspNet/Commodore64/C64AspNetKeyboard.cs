@@ -8,11 +8,11 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
         {
             "ShiftLeft",
             "ShiftRight",
-            //"Tab",  
+            "Tab",
             "AltLeft",
             "AltRight",
             "ControlLeft",
-            "ControlRight",    // Instead of Tab (SE keyboard)
+            "ControlRight",
             // "Windows",
         };
 
@@ -58,7 +58,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
             SpecialKeyMaps = new()
             {
                 {"", SpecialKeys},
-                {"ControlRight", SpecialKeysControl},    // Would like to use Tab here, but can't do it in a Web app, the browser captures it first.
+                {"Tab", SpecialKeysControl},
                 {"ControlLeft", SpecialKeysCommodore},
             };
         }
