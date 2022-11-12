@@ -177,6 +177,8 @@
 
         _wasmHost!.Start();
         _emulatorState = EmulatorState.Running;
+        await FocusEmulator();
+
         this.StateHasChanged();
     }
     protected void OnPause(MouseEventArgs mouseEventArgs)
