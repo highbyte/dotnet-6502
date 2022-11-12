@@ -85,7 +85,7 @@ namespace Highbyte.DotNet6502
         {
             Carry = false;
             Zero = false;
-            InterruptDisable = false;
+            InterruptDisable = true;   // The 6502 starts with Interrupt Disable enabled so it won't respond to hardware interrupts until necessary necessary Interrupt routine and vector has been configured. This flag must be cleared explicitly in code for IRQ:s to be received.
             Decimal = false;
             Break = false;
             Unused = false;

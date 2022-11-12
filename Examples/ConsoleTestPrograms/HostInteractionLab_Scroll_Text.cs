@@ -1,9 +1,10 @@
-﻿using System;
+﻿ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
 using Highbyte.DotNet6502;
+using Highbyte.DotNet6502.Systems.Generic;
 
 namespace ConsoleTestPrograms
 {
@@ -13,7 +14,7 @@ namespace ConsoleTestPrograms
         {
             Console.Clear();
 
-            string prgFileName = "../../../../../.cache/Examples/ConsoleTestPrograms/AssemblerSource/hostinteraction_scroll_text.prg";
+            string prgFileName = "../../../../../.cache/Examples/Assembler/Generic/hostinteraction_scroll_text.prg";
             Console.WriteLine($"Loading 6502 machine code binary file.");
             Console.WriteLine($"{prgFileName}");
             if(!File.Exists(prgFileName))
@@ -25,10 +26,10 @@ namespace ConsoleTestPrograms
             var mem = BinaryLoader.Load(
                 prgFileName, 
                 out ushort loadedAtAddress, 
-                out int fileLength);
+                out ushort fileLength);
 
             // Initialize emulator with CPU, memory, and execution parameters
-            var computerBuilder = new ComputerBuilder();
+            var computerBuilder = new GenericComputerBuilder();
             computerBuilder
                 .WithCPU()
                 .WithStartAddress(loadedAtAddress)
@@ -66,7 +67,7 @@ namespace ConsoleTestPrograms
                 while(shouldExecuteEmulator)
                 {
                     // Execute a number of instructions
-                    computer.Run(new ExecOptions{MaxNumberOfInstructions=10});
+                    computer.Run(LegacyExecEvaluator.InstructionCountExecEvaluator(10));
                     shouldExecuteEmulator = !mem.IsBitSet(SCREEN_REFRESH_STATUS, SCREEN_REFRESH_STATUS_EMULATOR_DONE_BIT);
                 }
 

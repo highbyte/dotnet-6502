@@ -4,14 +4,14 @@ namespace Highbyte.DotNet6502
 {
     public class ExecOptions
     {
-        public ulong? CyclesRequested {get; set;}
-        public ulong? MaxNumberOfInstructions {get; set;}
-        public ushort? ExecuteUntilPC {get; set;}
-        public ushort? ExecuteUntilExecutedInstructionAtPC {get; set;}
-        
-        public OpCodeId? ExecuteUntilInstruction {get; set;}
-        public List<byte> ExecuteUntilInstructions {get; set;}
-        public bool UnknownInstructionThrowsException {get; set;}
+        public ulong? CyclesRequested { get; set; }
+        public ulong? MaxNumberOfInstructions { get; set; }
+        public ushort? ExecuteUntilPC { get; set; }
+        public ushort? ExecuteUntilExecutedInstructionAtPC { get; set; }
+
+        public OpCodeId? ExecuteUntilInstruction { get; set; }
+        public List<byte> ExecuteUntilInstructions { get; set; }
+        public bool UnknownInstructionThrowsException { get; set; }
 
         public ExecOptions()
         {

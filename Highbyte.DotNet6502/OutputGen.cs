@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace Highbyte.DotNet6502
@@ -18,6 +20,19 @@ namespace Highbyte.DotNet6502
         public static string GetLastInstructionDisassembly(CPU cpu, Memory mem)
         {
             ushort programAddress = cpu.ExecState.PCBeforeLastOpCodeExecuted.Value;
+            return GetInstructionDisassembly(cpu, mem, programAddress);
+        }
+
+        /// <summary>
+        /// Returns a string with the following information
+        /// [next instruction PC]  [byte1 [byte2 [byte3]]]  [instruction] [addressingmode/value] 
+        /// </summary>
+        /// <param name="cpu"></param>
+        /// <param name="mem"></param>
+        /// <returns></returns>
+        public static string GetNextInstructionDisassembly(CPU cpu, Memory mem)
+        {
+            ushort programAddress = cpu.PC;
             return GetInstructionDisassembly(cpu, mem, programAddress);
         }
  
@@ -138,6 +153,20 @@ namespace Highbyte.DotNet6502
             return $"{GetRegisters(cpu)} {GetStatus(cpu)} {GetPCandSP(cpu)}{(includeCycles?" CY="+cpu.ExecState.CyclesConsumed:"")}";
         }
 
+        public static Dictionary<string, string> GetProcessorStateDictionary(CPU cpu, bool includeCycles = false)
+        {
+            var state = new Dictionary<string, string>();
+            state.Add("A", cpu.A.ToHex(HexPrefix));
+            state.Add("X", cpu.X.ToHex(HexPrefix));
+            state.Add("Y", cpu.Y.ToHex(HexPrefix));
+            state.Add("PS", GetStatusValueString(cpu));
+            state.Add("PC", cpu.PC.ToHex(HexPrefix));
+            state.Add("SP", cpu.SP.ToHex(HexPrefix));
+            if (includeCycles)
+                state.Add("CY", cpu.ExecState.CyclesConsumed.ToString());
+            return state;
+        }
+
         public static string GetRegisters(CPU cpu)
         {
             return $"A={cpu.A.ToHex(HexPrefix)} X={cpu.X.ToHex(HexPrefix)} Y={cpu.Y.ToHex(HexPrefix)}";
@@ -146,15 +175,21 @@ namespace Highbyte.DotNet6502
         public static string GetStatus(CPU cpu)
         {
             return "PS=["
-            + (cpu.ProcessorStatus.Negative         ?"N":"-") // Bit 7
-            + (cpu.ProcessorStatus.Overflow         ?"V":"-")
-            + (cpu.ProcessorStatus.Unused           ?"U":"-")
-            + (cpu.ProcessorStatus.Break            ?"B":"-")
-            + (cpu.ProcessorStatus.Decimal          ?"D":"-")
-            + (cpu.ProcessorStatus.InterruptDisable ?"I":"-")
-            + (cpu.ProcessorStatus.Zero             ?"Z":"-")
-            + (cpu.ProcessorStatus.Carry            ?"C":"-") // Bit 0
-            +"]";
+            + GetStatusValueString(cpu)
+            + "]";
+        }
+        private static string GetStatusValueString(CPU cpu)
+        {
+            return ""
+            + (cpu.ProcessorStatus.Negative ? "N" : "-") // Bit 7
+            + (cpu.ProcessorStatus.Overflow ? "V" : "-")
+            + (cpu.ProcessorStatus.Unused ? "U" : "-")
+            + (cpu.ProcessorStatus.Break ? "B" : "-")
+            + (cpu.ProcessorStatus.Decimal ? "D" : "-")
+            + (cpu.ProcessorStatus.InterruptDisable ? "I" : "-")
+            + (cpu.ProcessorStatus.Zero ? "Z" : "-")
+            + (cpu.ProcessorStatus.Carry ? "C" : "-"); // Bit 0
+
         }
 
         public static string GetPCandSP(CPU cpu)

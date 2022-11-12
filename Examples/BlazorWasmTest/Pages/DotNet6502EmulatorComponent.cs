@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.WebUtilities;
 using Highbyte.DotNet6502;
+using Highbyte.DotNet6502.Systems.Generic;
 using Microsoft.JSInterop;
 using System;
 using System.Collections.Generic;
@@ -94,7 +95,7 @@ namespace BlazorWasmTest
         const ushort RANDOM_VALUE_ADDRESS = 0xd41b;
         private Random _rnd = new Random();
 
-        private Computer _computer = null;
+        private GenericComputer _computer = null;
 
         protected bool ShowDebugMessages = false;
         private List<string> _debugMessages;
@@ -249,22 +250,45 @@ namespace BlazorWasmTest
 
         public void ExecuteEmulator()
         {
-            // Set emulator Refresh bit
-            // Emulator will wait until this bit is set until "redrawing" new data into memory
-            _computer.Mem.SetBit(SCREEN_REFRESH_STATUS_ADDRESS , (int)ScreenStatusBitFlags.HostNewFrame);
+            // Execute a number of cycles for one frame
+            _computer.CPU.Execute(
+                _computer.Mem,
+                new LegacyExecEvaluator(
+                    new ExecOptions
+                    {
+                        CyclesRequested = 8000, // TODO: What is max to able to run withing 1/60 second?
+                    })
+                );
 
-            bool shouldExecuteEmulator = true;
-            while(shouldExecuteEmulator)
-            {
-                // Execute a number of instructions
-                // TODO: _computer there a more optimal number of instructions to execute before we check if emulator code has flagged it's done via memory flag?
-                _computer.Run(new ExecOptions{MaxNumberOfInstructions = 10}); // TODO: What is the optimal number of cycles to execute in each loop?
-                shouldExecuteEmulator = !_computer.Mem.IsBitSet(SCREEN_REFRESH_STATUS_ADDRESS, (int)ScreenStatusBitFlags.EmulatorDoneForFrame);
-            }
-            
-            // Clear the flag that the emulator set to indicate it's done.
-            _computer.Mem.ClearBit(SCREEN_REFRESH_STATUS_ADDRESS, (int)ScreenStatusBitFlags.EmulatorDoneForFrame);
+            // Tell CPU 6502 code that one frame worth of CPU cycles has been executed
+            SetFrameCompleted();
+
+            // Wait for CPU 6502 code has acknowledged that it knows a frame has completed.
+            bool waitOk = WaitFrameCompletedAcknowledged();
+            if (!waitOk)
+                return;            
         }
+
+        private void SetFrameCompleted()
+        {
+            _computer.Mem.SetBit(SCREEN_REFRESH_STATUS_ADDRESS, (int)Highbyte.DotNet6502.Systems.Generic.ScreenStatusBitFlags.HostNewFrame);
+        }
+
+        private bool WaitFrameCompletedAcknowledged()
+        {
+            // Keep on executing instructions until CPU 6502 code has cleared bit 0 in ScreenRefreshStatusAddress
+            while (_computer.Mem.IsBitSet(SCREEN_REFRESH_STATUS_ADDRESS, (int)Highbyte.DotNet6502.Systems.Generic.ScreenStatusBitFlags.HostNewFrame))
+            {
+                var execState = _computer.CPU.Execute(
+                    _computer.Mem,
+                    LegacyExecEvaluator.OneInstructionExecEvaluator);
+                // If an unhandled instruction, return false
+                if (!execState.LastOpCodeWasHandled)
+                    return false;
+            }
+            return true;
+        }
+
 
         private void HandleEmulatorInput()
         {
@@ -350,7 +374,7 @@ namespace BlazorWasmTest
             return _debugMessages;
         }
 
-        private Computer InitDotNet6502Computer(byte[] prgBytes)
+        private GenericComputer InitDotNet6502Computer(byte[] prgBytes)
         {
             // First two bytes of binary file is assumed to be start address, little endian notation.
             var fileHeaderLoadAddress = ByteHelpers.ToLittleEndianWord(prgBytes[0], prgBytes[1]);
@@ -362,7 +386,7 @@ namespace BlazorWasmTest
             mem.StoreData(fileHeaderLoadAddress, codeAndDataActual);
 
             // Initialize emulator with CPU, memory, and execution parameters
-            var computerBuilder = new ComputerBuilder();
+            var computerBuilder = new GenericComputerBuilder();
             computerBuilder
                 .WithCPU()
                 .WithStartAddress(fileHeaderLoadAddress)
@@ -378,7 +402,7 @@ namespace BlazorWasmTest
             return computer;
         }
 
-        private void InitEmulatorScreenMemory(Computer computer)
+        private void InitEmulatorScreenMemory(GenericComputer computer)
         {
             var mem = computer.Mem;
             // Common bg and border color for entire screen, controlled by specific address

@@ -1,0 +1,31 @@
+﻿@using Highbyte.DotNet6502.App.SkiaWASM.Skia
+@using Highbyte.DotNet6502.Systems.Commodore64.Config
+@using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index
+
+<p>
+    Special C64 keys map to PC keyboard:
+</p>
+<ul>
+    <li>Run/Stop: Esc</li>
+    <li>Restore: PageUp</li>
+    <li>CTRL: RightCtrl</li>
+    <li>C=: LeftCtrl</li>
+</ul>
+<p>
+    Useful C64 monitor commands
+</p>
+<ul>
+    <li>lb: Pick Basic .prg file to load.</li>
+    <li>sb [filename.prg]: Save Basic .prg file as a download.</li>
+</ul>
+
+<p></p>
+<button @onclick="Close">Close</button>
+
+@code {
+
+    [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
+
+    private async Task Close() => await BlazoredModal.CloseAsync();
+
+}

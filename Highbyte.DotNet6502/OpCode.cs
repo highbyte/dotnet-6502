@@ -1,12 +1,21 @@
-﻿namespace Highbyte.DotNet6502
+namespace Highbyte.DotNet6502
 {
     public class OpCode
     {
+        private OpCodeId _code;
+        private byte _codeRaw;
+
         /// <summary>
-        /// The OpCode for an instruction.
+        /// The OpCodeId Enum representation for an instruction.
         /// </summary>
         /// <value></value>
-        public OpCodeId Code { get; set;}
+        public OpCodeId Code { get { return _code; } set { _code = value; _codeRaw = value.ToByte(); } }
+
+        /// <summary>
+        /// The op-code 8-bit value for an instruction.
+        /// </summary>
+        /// <value></value>
+        public byte CodeRaw => _codeRaw;
 
         /// <summary>
         /// The addressing mode for an instruction

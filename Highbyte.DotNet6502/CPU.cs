@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Highbyte.DotNet6502
@@ -49,6 +50,21 @@ namespace Highbyte.DotNet6502
         /// </summary>
         public ProcessorStatus ProcessorStatus;
 
+        /// <summary>
+        /// Set to True when IRQ (Interrupt Request) shall be raised. 
+        /// 
+        /// Will trigger IRQ processing after current instruction has been executed, which will end in the ProgramCounter (PC) being set to the IRQ vector address defined in 0xfffe and the flag reset to false.
+        /// </summary>
+        /// <value></value>
+        public bool IRQ { get; set; }
+
+        /// <summary>
+        /// Set to True when NMI (non-maskable interrupt) shall be raised. 
+        /// 
+        /// Will trigger NMI processing after current instruction has been executed, which will end in the ProgramCounter (PC) being set to the IRQ vector address defined in 0xfffa and the flag reset to false.
+        /// </summary>
+        /// <value></value>
+        public bool NMI { get; set; }
 
         /// <summary>
         /// Address for vector to Non-maskable interrupt handler at 0xfffa/0xfffb
@@ -67,7 +83,7 @@ namespace Highbyte.DotNet6502
         public const ushort ResetVector = 0xfffc; // + 0xfffd
 
         /// <summary>
-        ///  Address for vector to BRK/interrupt request handler
+        ///  Address for vector to BRK and IRQ (interrupt request) handler
         /// </summary>
         public const ushort BrkIRQHandlerVector = 0xfffe; // + 0xffff
 
@@ -97,7 +113,7 @@ namespace Highbyte.DotNet6502
         {
             var handler = UnknownOpCodeDetected;
             handler?.Invoke(this, e);
-        }        
+        }
 
         private readonly InstructionExecutor _instructionExecutor;
 
@@ -129,18 +145,44 @@ namespace Highbyte.DotNet6502
             };
         }
 
+        /// <summary>
+        /// Executes one instruction with minimal overhead.
+        /// Does not fire any events when instruction is executed.
+        /// Does not update statistics (ExecState property).
+        /// </summary>
+        /// <param name="mem"></param>
+        /// <param name="cyclesConsumed"></param>
+        /// <returns>True if instruction was known, False if not</returns>
+        public bool ExecuteOneInstructionMinimal(
+            Memory mem,
+            out ulong cyclesConsumed
+            )
+        {
+            var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
+
+            ProcessInterrupts(mem);
+
+            cyclesConsumed = instructionExecutionResult.CyclesConsumed;
+
+            return !instructionExecutionResult.UnknownInstruction;
+        }
+
+        public ExecState ExecuteOneInstruction(
+            Memory mem)
+        {
+            return Execute(mem, LegacyExecEvaluator.OneInstructionExecEvaluator);
+        }
+
         public ExecState Execute(
-            Memory mem, 
-            ExecOptions execOptions)
+            Memory mem,
+            params IExecEvaluator[] execEvaluators)
         {
             // Collect stats for this invocation of Execute(). 
             // Whereas the property Cpu.ExecState contains the aggregate stats for all invocations of Execute().
             var thisExecState = new ExecState();
 
-            // Get current cycle count
             bool doNextInstruction = true;
-
-            while(doNextInstruction)
+            while (doNextInstruction)
             {
                 // Fire event before instruction executes
                 OnInstructionToBeExecuted(new CPUInstructionToBeExecutedEventArgs(this, mem));
@@ -153,50 +195,118 @@ namespace Highbyte.DotNet6502
                 // Whereas the property thisExecState contains the aggregate stats for this invocation of Execute().
                 // and the property Cpu.ExecState contains the aggregate stats for all invocations of Execute().
                 var instructionExecState = ExecState.ExecStateAfterInstruction(
-                    cyclesConsumed: instructionExecutionResult.CyclesConsumed,
-                    unknownInstruction: instructionExecutionResult.UnknownInstruction,
-                    lastOpCode: instructionExecutionResult.OpCodeByte,
+                    lastinstructionExecutionResult: instructionExecutionResult,
                     lastPC: PCBeforeInstructionExecuted
                 );
 
                 // Update/Aggregate total Cpu.ExecState stats
-                ExecState.UpdateTotal(instructionExecState);                
+                ExecState.UpdateTotal(instructionExecState);
                 // Update/Aggregate this invocation of Execute() ExecState stats
-                thisExecState.UpdateTotal(instructionExecState);                
+                thisExecState.UpdateTotal(instructionExecState);
 
-                // Fire "unknown opcode" or "instruction executed" event
-                if(instructionExecutionResult.UnknownInstruction)
+                if (instructionExecutionResult.UnknownInstruction)
                 {
+                    // Fire event for unknown instruction
                     OnUnknownOpCodeDetected(new CPUUnknownOpCodeDetectedEventArgs(this, mem, instructionExecutionResult.OpCodeByte));
                     Debug.WriteLine($"Unknown opcode: {instructionExecutionResult.OpCodeByte.ToHex()}");
-
-                    // Check if we're configured to throw exception when unknown exception occurs
-                    if(execOptions.UnknownInstructionThrowsException)
-                        throw new DotNet6502Exception($"Unknown opcode: {instructionExecutionResult.OpCodeByte.ToHex()}"); 
                 }
                 else
                 {
-                    OnInstructionExecuted(new CPUInstructionExecutedEventArgs(this, mem));
+                    // Fire event for instruction recognized and executed
+                    OnInstructionExecuted(new CPUInstructionExecutedEventArgs(this, mem, instructionExecState));
                 }
-            
-                // Check if we should continue executing instructions
-                if(execOptions.CyclesRequested.HasValue  && thisExecState.CyclesConsumed >= execOptions.CyclesRequested.Value)
-                    doNextInstruction = false;
-                if(execOptions.MaxNumberOfInstructions.HasValue && thisExecState.InstructionsExecutionCount >= execOptions.MaxNumberOfInstructions.Value) 
-                    doNextInstruction = false;
-                if(!instructionExecutionResult.UnknownInstruction && execOptions.ExecuteUntilInstruction.HasValue && instructionExecutionResult.OpCodeByte == execOptions.ExecuteUntilInstruction.Value.ToByte())
-                     doNextInstruction = false;
-                if(execOptions.ExecuteUntilInstructions.Count > 0 && execOptions.ExecuteUntilInstructions.Contains(instructionExecutionResult.OpCodeByte))
-                     doNextInstruction = false;
-                if(execOptions.ExecuteUntilPC.HasValue && PC == execOptions.ExecuteUntilPC.Value)
-                    doNextInstruction = false;
-                if(execOptions.ExecuteUntilExecutedInstructionAtPC.HasValue && PCBeforeInstructionExecuted == execOptions.ExecuteUntilExecutedInstructionAtPC.Value)
-                    doNextInstruction = false;                  
+
+                ProcessInterrupts(mem);
+
+                // Evaluate if execution shall continue to next instruction, or stop here.
+                // Will continue only if all of the ExecEvaluators reports true.
+                foreach (var execEvaluator in execEvaluators)
+                {
+                    var cont = execEvaluator.Check(thisExecState, this, mem);
+                    if (!cont)
+                    {
+                        doNextInstruction = false;
+                        break;
+                    }
+                }
             }
 
             // Return stats for this invocation of Execute();
             return thisExecState;
         }
+
+        private void ProcessInterrupts(Memory mem)
+        {
+            // Check if a hardware IRQ has been raised (could have been done in a delegate callback OnInstructionExecuted above)    
+            if (IRQ)
+            {
+                IRQ = false;
+                // Only process the IRQ as long we don't have set the Interrupt Disable status flag.
+                if (!ProcessorStatus.InterruptDisable)
+                    ProcessHardwareIRQ(mem);
+            }
+
+            // Check if a hardware NMI has been raised (could have been done in a delegate callback OnInstructionExecuted above)    
+            if (NMI)
+            {
+                NMI = false;
+                // Always process is it, regardless if InterruptDisable status flag has been set.
+                ProcessHardwareNMI(mem);
+            }
+        }
+
+        /// <summary>
+        /// Generate a IRQ.
+        /// Ref: https://www.pagetable.com/?p=410
+        /// </summary>
+        /// <param name="mem"></param>
+        private void ProcessHardwareIRQ(Memory mem)
+        {
+            // The return address pushed to stack is the current PC (the address of the next instruction at this point)
+            ushort pcPushedToStack = PC;
+            PushWordToStack(pcPushedToStack, mem);
+            // Set the Break flag on the copy of the ProcessorStatus that will be stored in stack.
+            var processorStatusCopy = ProcessorStatus.Clone();
+            processorStatusCopy.Break = false;      // Break flag should be cleared on the PS value stored on stack, so that the IRQ routine can determine if the IRQ was generated by hardware, or the BRK instruction.
+            processorStatusCopy.Unused = true;
+            PushByteToStack(processorStatusCopy.Value, mem);
+            // Set current Interrupt flag
+            ProcessorStatus.InterruptDisable = true;
+            // Change PC to address found at BRK/IRQ handler vector
+            PC = FetchWord(mem, CPU.BrkIRQHandlerVector);
+        }
+
+        /// <summary>
+        /// Generate a Non-maskable Interrupt.
+        /// Ref: https://www.pagetable.com/?p=410
+        /// </summary>
+        /// <param name="mem"></param>
+        private void ProcessHardwareNMI(Memory mem)
+        {
+            // The return address pushed to stack is the current PC (the address of the next instruction at this point)
+            ushort pcPushedToStack = PC;
+            PushWordToStack(pcPushedToStack, mem);
+            // Set the Break flag on the copy of the ProcessorStatus that will be stored in stack.
+            var processorStatusCopy = ProcessorStatus.Clone();
+            processorStatusCopy.Break = false;      // Break flag should be cleared on the PS value stored on stack, so that the IRQ routine can determine if the IRQ was generated by hardware, or the BRK instruction.
+            processorStatusCopy.Unused = true;
+            PushByteToStack(processorStatusCopy.Value, mem);
+            // Set current Interrupt flag
+            ProcessorStatus.InterruptDisable = true;
+            // Change PC to address found at BRK/IRQ handler vector
+            PC = FetchWord(mem, CPU.NonMaskableIRQHandlerVector);
+        }
+
+        /// <summary>
+        /// Issue a Reset
+        /// </summary>
+        /// <param name="mem"></param>
+        public void Reset(Memory mem)
+        {
+            // Change PC to address found at BRK/IRQ handler vector
+            PC = FetchWord(mem, CPU.ResetVector);
+        }
+
 
         /// <summary>
         /// Gets the Zero Page address at the current PC with Y offset.

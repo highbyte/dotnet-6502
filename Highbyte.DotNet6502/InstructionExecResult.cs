@@ -1,10 +1,11 @@
-﻿namespace Highbyte.DotNet6502
+namespace Highbyte.DotNet6502
 {
-    public class InstructionExecResult
+    public struct InstructionExecResult
     {
         public byte OpCodeByte { get; private set; }
         public bool UnknownInstruction { get; set; }
         public ulong CyclesConsumed { get; set; }
+
         public InstructionExecResult(byte opCodeByte)
         {
             OpCodeByte = opCodeByte;
@@ -28,6 +29,5 @@
                 CyclesConsumed = cyclesConsumed
             };
         }
-
-    }    
+    }
 }

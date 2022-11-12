@@ -13,7 +13,7 @@ namespace ConsoleTestPrograms
             Console.WriteLine($"Run 6502 code that copies data between two addresses.");
             Console.WriteLine($"-----------------------------------------------------");
 
-            string prgFileName = "../.cache/ConsoleTestPrograms/testprogram.prg";
+            string prgFileName = "../../../../../.cache/Examples/Assembler/Generic/testprogram.prg";
             Console.WriteLine($"Program binary file: {prgFileName}");
             if(!File.Exists(prgFileName))
             {
@@ -67,7 +67,7 @@ namespace ConsoleTestPrograms
             // Execute program
             Console.WriteLine("Executing code...");
             //var consumedCycles = cpu.Execute(mem, 10000, maxNumberOfInstructions: 1 + (4*256));
-            var consumedCycles = cpu.Execute(mem, execOptions);
+            var consumedCycles = cpu.Execute(mem, new LegacyExecEvaluator(execOptions));
 
             Console.WriteLine("Program ended.");
             Console.WriteLine($"Consumed cycles: {consumedCycles}");

@@ -9,7 +9,7 @@ on:
 env:
    CONFIGURATION: "Release"
    #PROJECT_FILE: "Examples/BlazorWasmTest/BlazorWasmTest.csproj"
-   PROJECT_FILE: "Examples/BlazorWasmSkiaTest/BlazorWasmSkiaTest.csproj"
+   PROJECT_FILE: "Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaWASM/Highbyte.DotNet6502.App.SkiaWASM.csproj"
    PROJECT_GH_PAGES_DIR: "blazorexample"
    BUILD_OUTPUT_WORKING_DIR: "build"
    GH_PAGES_WORKING_DIR: "ghpages"
@@ -24,9 +24,9 @@ jobs:
 
       # Install .NET Core SDK
       - name: Setup .NET Core
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: 6.0.x
+          dotnet-version: 7.0.x
 
       - name: Install DotNet workload - WASM tools
         run: |
@@ -50,7 +50,7 @@ jobs:
 
       # Deploy the Blazor WASM site
       - name: Deploy to Github Pages
-        uses: JamesIves/github-pages-deploy-action@4.1.0
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
           # token: ${{ secrets.ACCESS_TOKEN }} # Use if custom token needed to another repo
           branch: ${{ env.GH_PAGES_BRANCH_NAME }}  # The branch the action should deploy to.

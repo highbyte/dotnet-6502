@@ -6,10 +6,12 @@ namespace Highbyte.DotNet6502
     {
         public CPU CPU { get; }
         public Memory Mem { get; }
-        public CPUInstructionExecutedEventArgs(CPU cpu, Memory mem)
+        public ExecState InstructionExecState { get; }
+        public CPUInstructionExecutedEventArgs(CPU cpu, Memory mem, ExecState instructionExecState)
         {
             CPU = cpu;
             Mem = mem;
+            InstructionExecState = instructionExecState;
         }
     }
 }

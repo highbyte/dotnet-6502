@@ -13,7 +13,7 @@ namespace Highbyte.DotNet6502.Instructions
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public InstructionLogicResult ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        public ulong ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {
             // BRK is strange. The complete instruction is only one byte but the processor increases 
             // the return address pushed to stack is the *second* byte after the opcode!
@@ -28,10 +28,10 @@ namespace Highbyte.DotNet6502.Instructions
             cpu.PushByteToStack(processorStatusCopy.Value, mem);
             // BRK sets current Interrupt flag
             cpu.ProcessorStatus.InterruptDisable = true;
-            // Change PC to address found at BRK/IEQ handler vector
-            cpu.PC = cpu.FetchWord(mem, CPU.BrkIRQHandlerVector);     
+            // Change PC to address found at BRK/IRQ handler vector
+            cpu.PC = cpu.FetchWord(mem, CPU.BrkIRQHandlerVector);
 
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }
 
         public BRK()

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Highbyte.DotNet6502.Systems;
 
 namespace Highbyte.DotNet6502
 {
@@ -18,7 +19,7 @@ namespace Highbyte.DotNet6502
             string binaryFilePath,
             out ushort loadedAtAddress)
         {
-            return Load(binaryFilePath, out loadedAtAddress, out int _);
+            return Load(binaryFilePath, out loadedAtAddress, out ushort _);
         }
 
         /// <summary>
@@ -33,10 +34,10 @@ namespace Highbyte.DotNet6502
         public static Memory Load(
             string binaryFilePath,
             out ushort loadedAtAddress,
-            out int fileLength,
+            out ushort fileLength,
             ushort? forceLoadAddress = null)
         {
-            Memory mem = new();
+            Memory mem = new(mapToDefaultRAM: true);
             Load(mem, binaryFilePath, out loadedAtAddress, out fileLength, forceLoadAddress);
             return mem;
         }
@@ -54,7 +55,7 @@ namespace Highbyte.DotNet6502
             Memory mem,
             string binaryFilePath,
             out ushort loadedAtAddress,
-            out int fileLength,
+            out ushort fileLength,
             ushort? forceLoadAddress = null)
         {
             byte[] fileData = ReadFile(
@@ -71,30 +72,64 @@ namespace Highbyte.DotNet6502
             mem.StoreData(loadedAtAddress, fileData);
         }
 
+        public static void Load(
+            Memory mem,
+            byte[] fileData,
+            out ushort loadedAtAddress,
+            out ushort fileLength,
+            ushort? forceLoadAddress = null)
+        {
+            byte[] data = ReadFile(
+                fileData,
+                fileHeaderContainsLoadAddress: !forceLoadAddress.HasValue,
+                out ushort? fileHeaderLoadAddress,
+                out fileLength
+            );
+            if (fileHeaderLoadAddress.HasValue)
+                loadedAtAddress = fileHeaderLoadAddress.Value;
+            else
+                loadedAtAddress = forceLoadAddress.Value;
+
+            mem.StoreData(loadedAtAddress, data);
+        }
+
+
         public static byte[] ReadFile(
             string binaryFilePath,
             bool fileHeaderContainsLoadAddress,
             out ushort? fileHeaderLoadAddress,
-            out int codeAndDataFileSize
+            out ushort codeAndDataFileSize
             )
         {
+            binaryFilePath = PathHelper.ExpandOSEnvironmentVariables(binaryFilePath);
+
             // Load binary file
             byte[] fileData = File.ReadAllBytes(binaryFilePath);
 
-            if(fileHeaderContainsLoadAddress)
+            return ReadFile(fileData, fileHeaderContainsLoadAddress, out fileHeaderLoadAddress, out codeAndDataFileSize);
+        }
+
+        public static byte[] ReadFile(
+            byte[] fileData,
+            bool fileHeaderContainsLoadAddress,
+            out ushort? fileHeaderLoadAddress,
+            out ushort codeAndDataFileSize
+            )
+        {
+            if (fileHeaderContainsLoadAddress)
             {
                 // First two bytes of binary file is assumed to be start address, little endian notation.
                 fileHeaderLoadAddress = ByteHelpers.ToLittleEndianWord(fileData[0], fileData[1]);
                 // The rest of the bytes are considered the code & data
-                byte[] codeAndDataActual = new byte[fileData.Length-2];
-                Array.Copy(fileData, 2, codeAndDataActual, 0, fileData.Length-2);
+                byte[] codeAndDataActual = new byte[fileData.Length - 2];
+                Array.Copy(fileData, 2, codeAndDataActual, 0, fileData.Length - 2);
                 fileData = codeAndDataActual;
             }
             else
             {
                 fileHeaderLoadAddress = null;
             }
-            codeAndDataFileSize = fileData.Length;
+            codeAndDataFileSize = (ushort)fileData.Length;
             return fileData;
         }
     }

@@ -9,9 +9,14 @@ on:
   
 env:
    PROJECT_FILE: "Highbyte.DotNet6502/Highbyte.DotNet6502.csproj"
-   PROJECT_FILE2: "Highbyte.DotNet6502.SadConsoleHost/Highbyte.DotNet6502.SadConsoleHost.csproj"
+  #  PROJECT_FILE2: "Highbyte.DotNet6502.Systems/Highbyte.DotNet6502.Systems.csproj"
+  #  PROJECT_FILE3: "Highbyte.DotNet6502.Monitor/Highbyte.DotNet6502.Monitor.csproj"
+  #  PROJECT_FILE4: "Highbyte.DotNet6502.Impl.SadConsole/Highbyte.DotNet6502.Impl.SadConsole.csproj"
+  #  PROJECT_FILE5: "Highbyte.DotNet6502.Impl.AspNet/Highbyte.DotNet6502.Impl.AspNet.csproj"
+  #  PROJECT_FILE6: "Highbyte.DotNet6502.Impl.SilkNet/Highbyte.DotNet6502.Impl.SilkNet.csproj"
+  #  PROJECT_FILE7: "Highbyte.DotNet6502.Impl.Skia/Highbyte.DotNet6502.Impl.Skia.csproj"
    CONFIGURATION: "Release"
-   VERSION: "0.6.1"  #Major.Minor[.Rev]
+   VERSION: "0.7.0"  #Major.Minor[.Rev]
    VERSION_SUFFIX: "-alpha"
    PACKAGE_REPO: "https://nuget.pkg.github.com/highbyte/index.json"
 
@@ -22,9 +27,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Setup .NET
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 6.0.x
+        dotnet-version: 7.0.x
 
     - name: Clean package cache as a temporary workaround for actions/setup-dotnet#155
       run: |
@@ -40,11 +45,11 @@ jobs:
     - name: Push NuGet package to NuGet.org
       run: dotnet nuget push "./out/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
       
-    - name: Build dll 2
-      run: dotnet build ${{ env.PROJECT_FILE2 }} -c ${{ env.CONFIGURATION }} /Property:Version=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }}
-    - name: Pack NuGet package 2
-      run: dotnet pack ${{ env.PROJECT_FILE2 }} --no-build -c ${{ env.CONFIGURATION }} -p:PackageVersion=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }} -o out2
-    - name: Push NuGet package 2 to GitHub Packages
-      run: dotnet nuget push "./out2/*.nupkg" --source ${{ env.PACKAGE_REPO }} --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
-    - name: Push NuGet package 2 to NuGet.org
-      run: dotnet nuget push "./out2/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
+    # - name: Build dll 2
+    #   run: dotnet build ${{ env.PROJECT_FILE2 }} -c ${{ env.CONFIGURATION }} /Property:Version=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }}
+    # - name: Pack NuGet package 2
+    #   run: dotnet pack ${{ env.PROJECT_FILE2 }} --no-build -c ${{ env.CONFIGURATION }} -p:PackageVersion=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }} -o out2
+    # - name: Push NuGet package 2 to GitHub Packages
+    #   run: dotnet nuget push "./out2/*.nupkg" --source ${{ env.PACKAGE_REPO }} --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
+    # - name: Push NuGet package 2 to NuGet.org
+    #   run: dotnet nuget push "./out2/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate

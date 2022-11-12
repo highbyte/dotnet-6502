@@ -11,7 +11,7 @@ namespace Highbyte.DotNet6502.Instructions
         private readonly List<OpCode> _opCodes;
         public override List<OpCode> OpCodes => _opCodes;
 
-        public InstructionLogicResult ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
+        public ulong ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
         {
             // Set the Break flag on the copy of the ProcessorStatus that will be stored in stack.
             var processorStatusCopy = cpu.ProcessorStatus.Clone();
@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.Instructions
             processorStatusCopy.Unused = true;            
             cpu.PushByteToStack(processorStatusCopy.Value, mem);
 
-            return InstructionLogicResult.WithNoExtraCycles();
+            return 0;
         }        
         
         public PHP()

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Highbyte.DotNet6502;
+using Highbyte.DotNet6502.Systems.Generic;
 
 namespace ConsoleTestPrograms
 {
@@ -40,7 +41,7 @@ namespace ConsoleTestPrograms
             mem[codeInsAddress++] = 0x00;         // BRK (Break/Force Interrupt) - emulator configured to stop execution when reaching this instruction
 
             // Initialize emulator with CPU, memory, and execution parameters
-            var computerBuilder = new ComputerBuilder();
+            var computerBuilder = new GenericComputerBuilder();
             computerBuilder
                 .WithCPU()
                 .WithStartAddress(codeAddress)

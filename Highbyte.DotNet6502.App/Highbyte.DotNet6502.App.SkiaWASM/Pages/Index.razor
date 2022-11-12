@@ -1,0 +1,301 @@
+@page "/"
+@using SkiaSharp.Views.Blazor
+@*@implements IDisposable*@
+
+@*Note: Page title set in index.html title element*@
+@*<PageTitle>dotnet-6502 CPU emulator in Blazor WebAssembly with Skia rendering</PageTitle>
+*@
+
+@*Inject JS to be able to set focus on SKGLView from code*@
+@inject IJSRuntime Js
+
+<div class="grid-container">
+    <div class="header">
+        <a href="https://github.com/highbyte/dotnet-6502" target="_blank" class="ml-md-auto">dotnet-6502</a> CPU emulator written in <a href="https://dotnet.microsoft.com/" target="_blank" class="ml-md-auto">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank" class="ml-md-auto">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank" class="ml-md-auto">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank" class="ml-md-auto">Blazor</a>, running in a browser!
+    </div>
+    <div class="menu">
+        <div id="system-selector">
+            <div>
+                System:
+                <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled>
+                    @foreach (var systemName in _systemList.Systems)
+                    {
+                        <option value="@systemName"> @systemName </option>
+                    }
+                </select>
+            </div>
+            <div>Status: @(_emulatorState)</div>
+            <button @onclick="OnStart" disabled=@OnStartDisabled>Start</button>
+            <button @onclick="OnPause" disabled=@OnPauseDisabled>Pause</button>
+            <button @onclick="OnReset" disabled=@OnResetDisabled>Reset</button>
+            <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
+            <span>Scale (0.5-3.0): <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
+        </div>
+
+        <div class="system-help systemHelpC64Style">
+            <h4>C64</h4>
+            <div>
+                <span>@GetSelectedSystemUserConfigValidationMessage()</span>
+            </div>
+            <button @onclick="ShowC64ConfigUI" disabled=@ShowConfigDisabled>C64 Config</button>
+            <button @onclick="ShowC64HelpUI">Help</button>
+        </div>
+
+        <div class="system-help systemHelpGenericStyle">
+            <h4>Generic computer</h4>
+            <div>
+                <span>@GetSelectedSystemUserConfigValidationMessage()</span>
+            </div>
+            @*            <button @onclick="ShowGenericConfigUI" disabled=@ShowConfigDisabled>Generic computer Config</button>*@
+            <button @onclick="ShowGenericHelpUI">Help</button>
+        </div>
+
+        <div class="system-help" style="display:inline;">
+            <h4>General emulator info</h4>
+            <button @onclick="ShowGeneralHelpUI">Help</button>
+        </div>
+    </div>
+
+    @*Skia OpenGl View Blazor WASM component*@
+    <div class="main">
+        <SKGLView class="skGLViewStyle"
+                  IgnorePixelScaling="true"
+                  EnableRenderLoop="true"
+                  OnPaintSurface="OnPaintSurface"
+                  id="emulatorSKGLView"
+                  tabindex="0"
+                  oncontextmenu="return false;"
+                  @onkeypress="OnKeyPress"
+                  @onkeydown="OnKeyDown"
+                  @onkeyup="OnKeyUp"
+                  @ref="_emulatorSKGLViewRef"
+                  autofocus />
+
+    </div>
+    <div class="right">
+        <div class="infobox debugStyle">
+            <div class="infobox-output">@((MarkupString)_statsString)</div>
+        </div>
+        <div class="infobox debugStyle">
+            <div class="infobox-output">@((MarkupString)_debugString)</div>
+        </div>
+
+        <div class="monitorStyle">
+            <div id="monitor-outer-screen">
+                <div id="monitor-inner-screen">
+                    <div id="monitor-output-outer"><div id="monitor-output">@((MarkupString)_monitorOutput)</div></div>
+                    <div id="monitor-blank-line">&nbsp;</div>
+                    <div id="monitor-input-row">
+                        <span>&gt;&nbsp;</span><input id="monitor-input" @bind="_monitorInput" type="text" @onkeydown="OnKeyDownMonitor" @onkeyup="OnKeyUpMonitor" @ref="_monitorInputRef" />
+                    </div>
+                </div>
+            </div>
+
+            @*Monitor status*@
+            <div class="infobox">
+                <div class="infobox-output">@((MarkupString)_monitorStatus)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        By <a href = "https://github.com/highbyte">Highbyte</a> 2022
+    </div>
+</div>
+
+<style>
+    .systemHelpC64Style {
+        display: @GetDisplayStyle("C64Help");
+    }
+    .systemHelpGenericStyle {
+        display: @GetDisplayStyle("GenericHelp");
+    }
+    .skGLViewStyle {
+        width: @_windowWidthStyle;
+        height: @_windowHeightStyle;
+/*        max-width: @_windowWidthStyle;
+        min-height: @_windowHeightStyle;
+*/
+    }
+    .debugStyle {
+        display: @GetDisplayStyle("Debug");
+    }
+    .monitorStyle {
+        display: @GetDisplayStyle("Monitor");
+    }
+</style>
+
+<InputFile id="monitorFilePicker" OnChange="@OnMonitorFilePickerChange" hidden/>
+
+@code
+{
+    protected string GetDisplayStyle(string displayData)
+    {
+        const string VISIBLE = "inline";
+        const string HIDDEN = "none";
+
+        switch (displayData)
+        {
+            case "C64Help":
+                {
+                    return SelectedSystemName == "C64" ? VISIBLE : HIDDEN;
+                }
+            case "GenericHelp":
+                {
+                    return SelectedSystemName == "Generic" ? VISIBLE : HIDDEN;
+                }
+            case "Debug":
+                {
+                    return _debugVisible ? VISIBLE : HIDDEN;
+                }
+            case "Monitor":
+                {
+                    return _monitorVisible ? VISIBLE : HIDDEN;
+                }
+            default:
+                return VISIBLE;
+        }
+    }
+
+    protected bool OnSelectSystemNameDisabled => _emulatorState == EmulatorState.Running || _emulatorState == EmulatorState.Paused;
+    protected bool OnStartDisabled => _emulatorState == EmulatorState.Running ||!IsSelectedSystemConfigOk;
+    protected bool OnPauseDisabled => _emulatorState == EmulatorState.Paused || _emulatorState == EmulatorState.Uninitialized;
+    protected bool OnResetDisabled => _emulatorState == EmulatorState.Uninitialized;
+    protected bool OnStopDisabled => _emulatorState == EmulatorState.Uninitialized;
+
+    protected bool ShowConfigDisabled => _emulatorState != EmulatorState.Uninitialized;
+
+    protected async void OnStart(MouseEventArgs mouseEventArgs)
+    {
+        bool isValid = true;
+        if (_emulatorState == EmulatorState.Uninitialized)
+            isValid = await InitEmulator();
+        if (!isValid)
+        {
+            return;
+        }
+
+        _wasmHost!.Start();
+        _emulatorState = EmulatorState.Running;
+        this.StateHasChanged();
+    }
+    protected void OnPause(MouseEventArgs mouseEventArgs)
+    {
+        if (_emulatorState == EmulatorState.Uninitialized)
+            return;
+
+        _wasmHost!.Stop();
+        _emulatorState = EmulatorState.Paused;
+        this.StateHasChanged();
+    }
+    protected void OnReset(MouseEventArgs mouseEventArgs)
+    {
+        OnPause(mouseEventArgs);
+        OnStop(mouseEventArgs);
+        OnStart(mouseEventArgs);
+    }
+    protected void OnStop(MouseEventArgs mouseEventArgs)
+    {
+        CleanupEmulator();
+        this.StateHasChanged();
+    }
+
+    protected override async void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            //await FocusEmulator();
+        }
+    }
+
+    private void OnKeyPress(KeyboardEventArgs e)
+    {
+        if (_wasmHost == null)
+            return;
+        _wasmHost.InputHandlerContext.KeyPress(e);
+
+        // Emulator host functions such as monitor and stats/debug
+        _wasmHost.OnKeyPress(e);
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (_wasmHost == null)
+            return;
+        _wasmHost.InputHandlerContext.KeyDown(e);
+
+        // Emulator host functions such as monitor and stats/debug
+        _wasmHost.OnKeyDown(e);
+    }
+
+    private void OnKeyUp(KeyboardEventArgs e)
+    {
+        if (_wasmHost == null)
+            return;
+        _wasmHost.InputHandlerContext.KeyUp(e);
+    }
+
+    //private void OnPointerDown(PointerEventArgs e)
+    //{
+    //}
+
+    //private void OnPointerMove(PointerEventArgs e)
+    //{
+    //}
+
+    //private void OnPointerUp(PointerEventArgs e)
+    //{
+    //}
+
+    //private void OnTouchMove(TouchEventArgs e)
+    //{
+    //}
+
+    //private void OnMouseWheel(WheelEventArgs e)
+    //{
+    //}
+
+    private void OnKeyDownMonitor(KeyboardEventArgs e)
+    {
+        if (_wasmHost == null || _wasmHost.Monitor == null)
+            return;
+        _wasmHost.Monitor.OnKeyDown(e);
+    }
+
+    private void OnKeyUpMonitor(KeyboardEventArgs e)
+    {
+        if (_wasmHost == null || _wasmHost.Monitor == null)
+            return;
+        _wasmHost.Monitor.OnKeyUp(e);
+    }
+
+    private async Task FocusEmulator()
+    {
+        await Js.InvokeVoidAsync("focusId", "emulatorSKGLView");
+    }
+
+    private async Task FocusMonitor()
+    {
+        await Task.Run(async () => await _monitorInputRef!.Value.FocusAsync());    // Task.Run fix for focusing on a element that is not yet visible (but about to be)
+                                                                                   //await _monitorInputRef.FocusAsync();
+    }
+
+    private async Task OnMonitorFilePickerChange(InputFileChangeEventArgs e)
+    {
+        if (_wasmHost == null || _wasmHost.Monitor == null)
+            return;
+
+        // Only expect one file
+        if (e.FileCount > 1)
+            return;
+        var file = e.File;
+        System.Diagnostics.Debug.WriteLine($"File picked: {file.Name} Size: {file.Size}");
+
+        var fileBuffer = new byte[file.Size];
+        //var fileStream = e.File.OpenReadStream(file.Size);
+        await file.OpenReadStream().ReadAsync(fileBuffer);
+        var fileSize = fileBuffer.Length;
+
+        _wasmHost.Monitor.LoadBinaryFromUser(fileBuffer);
+    }
+}

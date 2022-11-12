@@ -1,6 +1,6 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <PackageId>Highbyte.DotNet6502</PackageId>
     <Authors>Highbyte</Authors>
     <PackageDescription>6502 CPU emulator in .NET</PackageDescription>

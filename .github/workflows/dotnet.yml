@@ -14,9 +14,13 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Setup .NET
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 6.0.x
+        dotnet-version: 7.0.x
+
+    - name: Install DotNet workload - WASM tools
+      run: |
+        dotnet workload install wasm-tools
 
     # - name: Clean package cache as a temporary workaround for actions/setup-dotnet#155
     #   run: |
@@ -24,8 +28,8 @@ jobs:
     #     dotnet nuget locals all --clear
       
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore dotnet-6502.sln
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build dotnet-6502.sln --no-restore
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test dotnet-6502.sln --no-build --verbosity normal

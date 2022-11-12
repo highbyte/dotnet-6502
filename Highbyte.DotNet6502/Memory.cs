@@ -6,280 +6,191 @@ namespace Highbyte.DotNet6502
 {
     public class Memory
     {
-        public const uint MAX_MEMORY_SIZE = 1024*64; // 65536 / 64KB (0x0000 - 0xffff)
+        public delegate byte LoadByte(ushort address);
+        public delegate void StoreByte(ushort address, byte value);
 
-        // Segment 0 is always required
-        public const uint SEGMENT_0_SIZE = 1024*8; // 8192 /  8KB  (0x0000 - 0x1fff)
+        public class MemValue
+        {
+            public byte Value { get; set; }
+        }
 
-        // Additional segments. 
-        // The remaining memory size (MAX_MEMORY_SIZE - SEGMENT_0_SIZE) must be evenly divisible by this segment size
-        // TODO: Could be configurable
-        public const uint ADDITIONAL_SEGMENT_SIZE = 1024*8; // 8192 /  8KB  (0x2000-0x3fff, 0x4000-0x5fff, ..., 0e000-0xffff)
+        public const int MAX_MEMORY_SIZE = 1024*64;
 
-        /// <summary>
-        /// Writing to this address will change the contents of the memory segment specified by the value,
-        /// by loading in the memory contents for the Segment Bank Number specified in address MEM_SWITCH_SEGMENT_BANK_NUMBER_ADDRESS.
-        /// Memory location MEM_SWITCH_SEGMENT_BANK_NUMBER_ADDRESS must thus be prepared before writing to this address.
-        /// </summary>
-        private const ushort MEM_SWITCH_SEGMENT_NUMBER_ADDRESS = 0x0001;
-        /// <summary>
-        /// Specifies which Segment Bank Number to be loaded in to the memory Segment specified by MEM_SWITCH_SEGMENT_NUMBER_ADDRESS.
-        /// The actual loading in of the bank is not performed until writing to MEM_SWITCH_SEGMENT_NUMBER_ADDRESS (where the Segment number should be written to)
-        /// </summary>        
-        private const ushort MEM_SWITCH_SEGMENT_BANK_NUMBER_ADDRESS = 0x0002;
+        public int Size { get; private set; }
+        public int NumberOfConfigurations { get; private set; }
+        public int CurrentConfiguration { get; private set; }
 
+        private LoadByte[] _readers;
+        private StoreByte[] _writers;
 
-        private readonly List<MemorySegment> _memorySegments;
-        public List<MemorySegment> MemorySegments => _memorySegments;
+        private LoadByte[][] _readersPerConfiguration;
+        private StoreByte[][] _writersPerConfiguration;
 
-        public byte[] Data { get => TotalMemoryFromAllSegments();}
+        public Memory(int memorySize = MAX_MEMORY_SIZE, int numberOfConfigurations=1, bool mapToDefaultRAM = true) 
+        {
+            if(memorySize<=0)
+                throw new ArgumentException("Must be greater than 0", nameof(memorySize));
+            if(memorySize > MAX_MEMORY_SIZE)
+                throw new ArgumentException($"Must be less than or equal to {MAX_MEMORY_SIZE}", nameof(memorySize));
+            if(numberOfConfigurations<=0)
+                throw new ArgumentException("Must be equal to or greater than 1", nameof(numberOfConfigurations));
 
-        public uint Size => TotalMemoryLengthFromAllSegments();
+            Size = memorySize;
+            NumberOfConfigurations = numberOfConfigurations;
+            _readersPerConfiguration = new LoadByte[numberOfConfigurations][];
+            _writersPerConfiguration = new StoreByte[numberOfConfigurations][];
 
-        private byte[] _optimizedMemory;
+            for (int i = 0; i < numberOfConfigurations; i++)
+            {
+                _readersPerConfiguration[i] = new LoadByte[memorySize];
+                _writersPerConfiguration[i] = new StoreByte[memorySize];
+                if(mapToDefaultRAM)
+                {
+                    SetMemoryConfiguration(i);
+                    MapRAM(0x0000, new byte[Size]);
+                }
+            }
+            SetMemoryConfiguration(0);
+        }
 
-        private bool _bankSwitchingEnabled;
-        
+        public void SetMemoryConfiguration(int configuration)
+        {
+            if(configuration>=NumberOfConfigurations)
+                throw new ArgumentException($"Memory configuration doesn't exist. Max value is {NumberOfConfigurations-1} ", nameof(configuration));
+            CurrentConfiguration = configuration;
+            _readers = _readersPerConfiguration[CurrentConfiguration];
+            _writers = _writersPerConfiguration[CurrentConfiguration];
+        }
+
         public byte this[ushort index] 
         {
             get
             {
-                return _optimizedMemory[index];
-                // var bank = GetSegmentAndOffsetFromMemoryAddress(index, out ushort bankOffset);
-                // return _memorySegments[bank][bankOffset];
+                return Read(index);
             }
             set
             {
-                // var bank = GetSegmentAndOffsetFromMemoryAddress(index, out ushort bankOffset);
-                // _memorySegments[bank][bankOffset] = value;
-                 _optimizedMemory[index] = value;
-
-                // Check if we are writing to a special location that will trigger loading of memory bank in to a segment.
-                if(_bankSwitchingEnabled && index == MEM_SWITCH_SEGMENT_NUMBER_ADDRESS)
-                {
-                    byte segmentNumber = value;
-                    byte segmentBankNumber = this[MEM_SWITCH_SEGMENT_BANK_NUMBER_ADDRESS];
-                    ChangeCurrentSegmentBank(segmentNumber, segmentBankNumber);
-                }
+                Write(index, value);
             }
         }
 
-        public Memory(bool enableBankSwitching = false): this(MAX_MEMORY_SIZE, enableBankSwitching)
+        public void MapRAM(ushort baseAddress, byte[] data, ushort dataOffset = 0, ushort? length = null)
         {
-        }
-
-        public Memory(uint memorySize, bool enableBankSwitching = false)
-        {
-            _bankSwitchingEnabled = enableBankSwitching;
-
-            if(memorySize<SEGMENT_0_SIZE)
-                throw new ArgumentException($"The specified memorySize {memorySize} is less than minimum allowed memory size {SEGMENT_0_SIZE}", nameof(memorySize));
-
-            if(memorySize>MAX_MEMORY_SIZE)
-                throw new ArgumentException($"The specified memorySize {memorySize} is greater than maximum allowed memory size {MAX_MEMORY_SIZE}", nameof(memorySize));
-
-            if((memorySize - SEGMENT_0_SIZE) % ADDITIONAL_SEGMENT_SIZE !=0)
-                throw new ArgumentException($"The size of the memory above the required minimum {SEGMENT_0_SIZE} must be evenly divisible by the bank size {ADDITIONAL_SEGMENT_SIZE}", nameof(memorySize));
-
-
-            // Add required segment 0 with a minimum size, not changable.
-            ushort segmentStartAddess = 0x0000;
-            var memorySegments = new List<MemorySegment>
+            LoadByte reader = delegate(ushort address)
             {
-                new MemorySegment(segmentStartAddess, SEGMENT_0_SIZE)
+                return data[(address + dataOffset) - baseAddress];
             };
-
-            // Create additional segments until we reach required total memory size
-            var noAdditionalBanks = (memorySize - SEGMENT_0_SIZE) / ADDITIONAL_SEGMENT_SIZE;
-            for (byte i = 0; i < noAdditionalBanks; i++)
+            StoreByte writer = delegate(ushort address, byte value)
             {
-                segmentStartAddess += (ushort) memorySegments[i].Size; // Adds previous segments size (i=0 already added above)
-                memorySegments.Add(new MemorySegment(segmentStartAddess, ADDITIONAL_SEGMENT_SIZE));
-            }
-            _memorySegments = memorySegments;
-            BuildOptimizedMemory();
-        }
+                data[(address + dataOffset) - baseAddress] = value;
+            };
+            // Func<ushort, byte> reader = (ushort address) =>
+            // {
+            //     return data[baseAddress - address];
+            // };
+            // Action<ushort, byte> writer = (ushort address, byte value) =>
+            // {
+            //     data[baseAddress - address] = value;
+            // };
 
-        public Memory(List<MemorySegment> memorySegments, bool enableBankSwitching)
-        {
-            _memorySegments = memorySegments;
-            _bankSwitchingEnabled = enableBankSwitching;
-            BuildOptimizedMemory();
-        }
-
-        private byte[] TotalMemoryFromAllSegments()
-        {
-            byte[] allMemory = new byte[TotalMemoryLengthFromAllSegments()];
-            int offset = 0;
-            foreach (byte[] data in _memorySegments.Select(x=>x.Memory))
+            int dataLength = length ?? data.Length;
+            for (int i = 0; i < dataLength; i++)
             {
-                Buffer.BlockCopy(data, 0, allMemory, offset, data.Length);
-                offset += data.Length;
+                _readers[baseAddress + i] = reader;
+                _writers[baseAddress + i] = writer;
             }
-            return allMemory;
         }
 
-        private uint TotalMemoryLengthFromAllSegments()
+        public void MapROM(ushort baseAddress, byte[] data)
         {
-            return (uint)_memorySegments.Sum(x => x.Size);
-        }        
-
-        // private byte GetSegmentAndOffsetFromMemoryAddress(ushort address, out ushort bankOffset)
-        // {
-        //     if(address<SEGMENT_0_SIZE)
-        //     {
-        //         bankOffset = address;
-        //         return 0;
-        //     }
-        //     var additionalBankNumber = Math.DivRem((int)(address - SEGMENT_0_SIZE), (int)ADDITIONAL_SEGMENT_SIZE, out int remainder);
-        //     bankOffset = (ushort)remainder;
-        //     return (byte) (additionalBankNumber + 1) ;
-        // }
-
-        public void ChangeCurrentSegmentBank(byte segmentNumber, byte segmentBankNumber)
-        {         
-            if(segmentNumber == 0)
-                throw new ArgumentException($"Segment 0 can not be changed.", nameof(segmentNumber));
-            if(segmentNumber >= _memorySegments.Count)
-                throw new ArgumentException($"Maximum segmentNumber is {_memorySegments.Count-1}", nameof(segmentNumber));
-
-            byte previousSegmentBankNumber = _memorySegments[segmentNumber].CurrentBankNumber;
-
-            _memorySegments[segmentNumber].ChangeCurrentSegmentBank(segmentBankNumber);
-
-            UpdateOptimizedMemory(segmentNumber, previousSegmentBankNumber);
-        }
-
-        /// <summary>
-        /// Sets a new empty bank (all memory locations with value 0) for specified segmentNumber and segmentBankNumber.
-        /// </summary>
-        /// <param name="segmentNumber"></param>
-        /// <param name="segmentBankNumber"></param>
-        public void AddMemorySegmentBank(byte segmentNumber)
-        {
-            AddMemorySegmentBank(segmentNumber,  new byte[ADDITIONAL_SEGMENT_SIZE]);
-        }
-
-        /// <summary>
-        /// Adds a bank to the specified the specified segmentNumber with the specified memory array.
-        /// SegmentNumber 0 not allowed to use (it's the required first X bytes of memory)
-        /// </summary>
-        /// <param name="segmentNumber">The segment number that should be configured.</param>
-        /// <param name="segmentBankContent">The memory byte array for the new bank in segment specified by segmentNumber</param>
-        public void AddMemorySegmentBank(byte segmentNumber, byte[] segmentBankContent)
-        {
-            AssertBankSwitchingEnabled();
-
-            if(segmentNumber == 0)
-                throw new ArgumentException($"Segment 0 can not have multiple memory banks.", nameof(segmentNumber));
-            if(segmentNumber >= _memorySegments.Count)
-                throw new ArgumentException($"Maximum segmentNumber is {_memorySegments.Count-1}", nameof(segmentNumber));
-
-            if(segmentBankContent.Length != ADDITIONAL_SEGMENT_SIZE)
-                throw new ArgumentException($"The memory size for a segment bank must be {ADDITIONAL_SEGMENT_SIZE}.", nameof(segmentBankContent));
-
-            _memorySegments[segmentNumber].AddSegmentBank(segmentBankContent);
-        }
-
-        // /// <summary>
-        // /// Updates the specified segmentNumber and segmentBankNumber with a memory array.
-        // /// SegmentNumber 0 not allowed to use (it's the required first X bytes of memory)
-        // /// SegmentBankNumber 0 not allowed to use (it's the original memory)
-        // /// </summary>
-        // /// <param name="segmentNumber">The segment number that should be configured.</param>
-        // /// <param name="segmentBankNumber">The segment bank id within the segment (unique per segment).</param>
-        // /// <param name="segmentBankContent">The memory byte array for the segmentNumber and segmentBankNumber.</param>
-        // public void UpdateMemorySegmentBank(byte segmentNumber, byte segmentBankNumber, byte[] segmentBankContent)
-        // {
-        //     AssertBankSwitchingEnabled();
-
-        //     if(segmentNumber == 0)
-        //         throw new ArgumentException($"Segment 0 can not be changed.", nameof(segmentNumber));
-        //     if(segmentNumber >= _memorySegments.Count)
-        //         throw new ArgumentException($"Maximum segmentNumber is {_memorySegments.Count-1}", nameof(segmentNumber));
-
-        //     if(segmentBankContent.Length != ADDITIONAL_SEGMENT_SIZE)
-        //         throw new ArgumentException($"The memory size for a segment bank must be {ADDITIONAL_SEGMENT_SIZE}.", nameof(segmentBankContent));
-
-        //     byte previousSegmentBankNumber = _memorySegments[segmentNumber].CurrentBankNumber;
-
-        //     _memorySegments[segmentNumber].UpdateSegmentBank(segmentBankNumber, segmentBankContent);
-
-        //     UpdateOptimizedMemory(segmentNumber, previousSegmentBankNumber);
-        // }
-
-        private void AssertBankSwitchingEnabled()
-        {
-            if(!_bankSwitchingEnabled)
-                throw new DotNet6502Exception($"Bank switching has not been enabled. Enable this option when {nameof(Memory)} is created.");
-        }
-
-        private void BuildOptimizedMemory()
-        {
-            _optimizedMemory = TotalMemoryFromAllSegments();
-        }
-
-        private void UpdateOptimizedMemory(byte segmentNumber, byte previousSegmentBankNumber)
-        {
-            ushort segmentStartAddress = MemorySegments[segmentNumber].StartAddress;
-
-            // Copy current optimized memory to the previous SegmentBankNumber
-            Buffer.BlockCopy(_optimizedMemory, segmentStartAddress, MemorySegments[segmentNumber].Banks[previousSegmentBankNumber].Memory, 0, (int) MemorySegments[segmentNumber].Size);
-
-            // Copy the new (current) SegmentBankNumber to optimized memory
-            Buffer.BlockCopy(MemorySegments[segmentNumber].Memory, 0, _optimizedMemory, segmentStartAddress, (int) MemorySegments[segmentNumber].Size);
-        }
-
-        public void StoreData(ushort address, byte[] data)
-        {
-            if((address + data.Length) > MAX_MEMORY_SIZE)
-                throw new DotNet6502Exception($"Address {address} + size of data {data.Length} exceeds maximum memory limit {MAX_MEMORY_SIZE}");
-
+            LoadByte reader = delegate(ushort address)
+            {
+                return data[address - baseAddress];
+            };
+            // Func<ushort, byte> reader = (ushort address) =>
+            // {
+            //     return data[address - baseAddress];
+            // };
             for (int i = 0; i < data.Length; i++)
             {
-                this[(ushort)(address+i)] = data[i];  
+                _readers[baseAddress + i] = reader;
+                // TODO: Should we check that there is a writer registered (RAM) for the same location? If not, calling Write could generate exception.
             }
         }
 
-        public byte[] ReadData(ushort address, ushort length)
-        {
-            if((address + length) > MAX_MEMORY_SIZE)
-                throw new DotNet6502Exception($"Address {address} + length {length} exceeds maximum memory limit {MAX_MEMORY_SIZE}");
 
-            byte[] readArray = new byte[length];
-            for (int i = 0; i < length; i++)
-            {
-                readArray[i] = this[(ushort)(address+i)];
-            }
-            return readArray;
-        }        
-
-        public bool IsBitSet(ushort address, int bit)
+        public void MapRO(ushort address, MemValue memValue)
         {
-            var value = this[address];
-            return value.IsBitSet(bit);
+            LoadByte reader = _ => { return memValue.Value;};
+            _readers[address] = reader;
         }
 
-        public void SetBit(ushort address, int bit)
+        public void MapWO(ushort address, MemValue memValue)
         {
-            ChangeBit(address, bit, true);
+            StoreByte writer = (_, newVal) => { memValue.Value = newVal;};
+            _writers[address] = writer;
         }
 
-        public void ClearBit(ushort address, int bit)
+        public void MapRW(ushort address, MemValue memValue)
         {
-            ChangeBit(address, bit, false);
+            MapRO(address, memValue);
+            MapWO(address, memValue);
         }
 
-        public void ChangeBit(ushort address, int bit, bool state)
+
+        /// <summary>
+        /// Maps an individual address to a delegate for reading 
+        /// </summary>
+        /// <param name="address"></param>
+        /// <param name="reader"></param>
+        public void MapReader(ushort address, LoadByte reader)
         {
-            var value = this[address];
-            value.ChangeBit(bit, state);
-            this[address] = value;            
+            _readers[address] = reader;
+        }
+
+        /// <summary>
+        /// Maps an individual address to a an delegate for writing
+        /// </summary>
+        /// <param name="address"></param>
+        /// <param name="writer"></param>
+        public void MapWriter(ushort address, StoreByte writer)
+        {
+            _writers[address] = writer;
+        }
+
+        /// <summary>
+        /// Returns the value at a memory location. 
+        /// If ROM has been mapped after RAM on the same location, the ROM value will be returned.
+        /// </summary>
+        /// <param name="address"></param>
+        /// <returns></returns>
+        public byte Read(ushort address)
+        {
+            return _readers[address](address);
+        }
+
+        /// <summary>
+        /// Writes a value to a memory location.
+        /// If ROM has been mapped after RAM on the same location, the RAM value will be updated.
+        /// </summary>
+        /// <param name="address"></param>
+        /// <param name="value"></param>
+        public void Write(ushort address, byte value)
+        {
+            _writers[address](address, value);
         }
 
         public Memory Clone()
         {
-            var memoryClone = new Memory(_memorySegments, _bankSwitchingEnabled);
+            var memoryClone = new Memory
+            {
+                _readers = this._readers,
+                _writers = this._writers,
+                _readersPerConfiguration = this._readersPerConfiguration,
+                _writersPerConfiguration = this._writersPerConfiguration,
+                CurrentConfiguration = this.CurrentConfiguration,
+                NumberOfConfigurations = this.NumberOfConfigurations,
+            };
             return memoryClone;
         }
     }

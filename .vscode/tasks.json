@@ -2,12 +2,28 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build monitor",
+            "label": "build systems library",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Highbyte.DotNet6502.Monitor/Highbyte.DotNet6502.Monitor.csproj",
+                "${workspaceFolder}/Highbyte.DotNet6502.Systems/Highbyte.DotNet6502.Systems.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },        
+        {
+            "label": "build console monitor app",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.ConsoleMonitor/Highbyte.DotNet6502.App.ConsoleMonitor.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -18,7 +34,39 @@
             }
         },
         {
-            "label": "build console test",
+            "label": "build skia blazor wasm app",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaWASM/Highbyte.DotNet6502.App.SkiaWASM.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }            
+        },        
+        {
+            "label": "build skia native app",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaNative/Highbyte.DotNet6502.App.SkiaNative.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },        
+        {
+            "label": "build console example",
             "command": "dotnet",
             "type": "process",
             "args": [
@@ -34,12 +82,12 @@
             }
         },
         {
-            "label": "build sadconsole test",
+            "label": "build sadconsole app",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Examples/SadConsoleTest/SadConsoleTest.csproj",
+                "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SadConsole/Highbyte.DotNet6502.App.SadConsole.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -50,7 +98,7 @@
             }
         },
         {
-            "label": "build blazor wasm test",
+            "label": "build (old) blazor wasm example",
             "command": "dotnet",
             "type": "process",
             "args": [
@@ -64,15 +112,15 @@
                 "kind": "build",
                 "isDefault": true
             }            
-        },        
+        },
         {
-            "label": "watch",
+            "label": "watch console example",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "watch",
                 "run",
-                "${workspaceFolder}/ConsoleTestPrograms/ConsoleTestPrograms.csproj",
+                "${workspaceFolder}/Examples/ConsoleTestPrograms/ConsoleTestPrograms.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],

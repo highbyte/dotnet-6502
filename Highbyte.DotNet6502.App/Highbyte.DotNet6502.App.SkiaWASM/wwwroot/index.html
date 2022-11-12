@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>dotnet-6502 CPU emulator in Blazor WebAssembly with Skia rendering</title>
+    <base href="/" />
+    <!-- Custom app stylesheet-->
+    <link href="css/app.css" rel="stylesheet" />
+    <!-- Blazor auto-genereated stylesheet-->
+    <link href="Highbyte.DotNet6502.App.SkiaWASM.styles.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div id="app">
+        <svg class="loading-progress">
+            <circle r="40%" cx="50%" cy="50%" />
+            <circle r="40%" cx="50%" cy="50%" />
+        </svg>
+        <div class="loading-progress-text"></div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
+
+    <!-- Custom JS script functions for JS interop from C# code -->
+    <script>
+        window.focusElement = (element) => {
+            element.focus();
+        }
+
+        window.focusId = (id) => {
+            var elementToFocus = document.getElementById(id);
+            elementToFocus.focus();
+        }
+
+        window.clickId= (id) => {
+            var elementToClick = document.getElementById(id);
+            elementToClick.click();
+        }
+
+        window.downloadFileFromStream = async (fileName, contentStreamReference) => {
+            const arrayBuffer = await contentStreamReference.arrayBuffer();
+            const blob = new Blob([arrayBuffer]);
+            const url = URL.createObjectURL(blob);
+            const anchorElement = document.createElement('a');
+            anchorElement.href = url;
+            anchorElement.download = fileName ?? '';
+            anchorElement.click();
+            anchorElement.remove();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+
+    <script>
+        // Fix for some keys not working correctly in Monitor UI
+        setTimeout(() => {
+            var element = document.getElementById("monitor-input");
+            //element.onkeydown = handleSpecialKeys
+        }, 3000);
+        function handleSpecialKeys(event) {
+            if (event.key == "ArrowDown" || event.key == "ArrowUp") {
+                event.preventDefault();
+            }
+            else if (event.key == "Escape") {
+                event.srcElement.value = ""
+            }
+        }
+    </script>
+</body>
+
+</html>

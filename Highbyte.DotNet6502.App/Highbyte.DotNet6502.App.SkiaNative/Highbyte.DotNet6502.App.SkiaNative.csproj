@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+    <ProjectReference Include="..\..\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj" />
+    <ProjectReference Include="..\..\Highbyte.DotNet6502.Impl\Highbyte.DotNet6502.Impl.Skia\Highbyte.DotNet6502.Impl.Skia.csproj" />
+    <ProjectReference Include="..\..\Highbyte.DotNet6502.Impl\Highbyte.DotNet6502.Impl.SilkNet\Highbyte.DotNet6502.Impl.SilkNet.csproj" />
+    <ProjectReference Include="..\..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.Input" Version="2.16.0" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.16.0" />
+    <PackageReference Include="Silk.NET.Windowing" Version="2.16.0" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.16.0" />
+  </ItemGroup>
+
+</Project>

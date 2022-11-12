@@ -51,6 +51,11 @@ namespace Highbyte.DotNet6502
             else 
                 // Clear bit. TODO: Better way to clear a bit?
                 data = (byte) (data & (255 ^ bitValue));  // and + xor
-        }     
+        }
+
+        public static void ClearBits(this ref byte data, byte clearBits)
+        {
+            data = (byte)(data & ~(clearBits));
+        }
    }
 }

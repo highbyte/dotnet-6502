@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Highbyte.DotNet6502
 {
@@ -15,25 +15,6 @@ namespace Highbyte.DotNet6502
         }
     }
 
-    public class InstructionLogicResult
-    {
-        public ulong ExtraConsumedCycles { get; set; }
-        public static InstructionLogicResult WithNoExtraCycles()
-        {
-            return new InstructionLogicResult
-            {
-                ExtraConsumedCycles = 0
-            };
-        }
-        public static InstructionLogicResult WithExtraCycles(ulong extraCycles)
-        {
-            return new InstructionLogicResult
-            {
-                ExtraConsumedCycles = extraCycles
-            };
-        }
-    }  
-    
     /// <summary>
     /// Use for instructions requires a byte value as input for processing.
     /// The byte value can come as an immediate value in the operand, or via a relative (signed byte) or absolute (word) adddress.
@@ -42,7 +23,15 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public interface IInstructionUsesByte
     {
-        InstructionLogicResult ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cpu"></param>
+        /// <param name="mem"></param>
+        /// <param name="value"></param>
+        /// <param name="addrModeCalcResult"></param>
+        /// <returns>Number of extra CPU cycles used in addition to the minimul defined by the OpCode.</returns>
+        ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult);
     }
 
     /// <summary>
@@ -52,7 +41,15 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public interface IInstructionUsesAddress
     {
-        InstructionLogicResult ExecuteWithWord(CPU cpu, Memory mem, ushort value, AddrModeCalcResult addrModeCalcResult);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cpu"></param>
+        /// <param name="mem"></param>
+        /// <param name="value"></param>
+        /// <param name="addrModeCalcResult"></param>
+        /// <returns>Number of extra CPU cycles used in addition to the minimul defined by the OpCode.</returns>
+        ulong ExecuteWithWord(CPU cpu, Memory mem, ushort value, AddrModeCalcResult addrModeCalcResult);
     }
 
     /// <summary>
@@ -60,7 +57,14 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public interface IInstructionUsesStack
     {
-        InstructionLogicResult ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cpu"></param>
+        /// <param name="mem"></param>
+        /// <param name="addrModeCalcResult"></param>
+        /// <returns>Number of extra CPU cycles used in addition to the minimul defined by the OpCode.</returns>
+        ulong ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult);
     }
 
     /// <summary>
@@ -68,7 +72,12 @@ namespace Highbyte.DotNet6502
     /// </summary>
     public interface IInstructionUsesOnlyRegOrStatus
     {
-        InstructionLogicResult Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cpu"></param>
+        /// <param name="addrModeCalcResult"></param>
+        /// <returns>Number of extra CPU cycles used in addition to the minimul defined by the OpCode.</returns>
+        ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult);
     }
-
 }

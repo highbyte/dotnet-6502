@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    
+    <RunAOTCompilation>true</RunAOTCompilation> 
+
+    <!--<PublishIISAssets>true</PublishIISAssets>-->
+
+    <!--<BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport>
+    <BlazorWebAssemblyPreserveCollationData>false</BlazorWebAssemblyPreserveCollationData>-->
+
+  </PropertyGroup>
+
+  <!--In debug, make builds faster by reducing optimizations-->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <WasmNativeStrip>false</WasmNativeStrip>
+    <EmccCompileOptimizationFlag>-O1</EmccCompileOptimizationFlag>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Remove="wwwroot\fonts\C64_Pro_Mono-STYLE.ttf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Highbyte.DotNet6502.Impl\Highbyte.DotNet6502.Impl.AspNet\Highbyte.DotNet6502.Impl.AspNet.csproj" />
+    <ProjectReference Include="..\..\Highbyte.DotNet6502.Impl\Highbyte.DotNet6502.Impl.Skia\Highbyte.DotNet6502.Impl.Skia.csproj" />
+    <ProjectReference Include="..\..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+    <ProjectReference Include="..\..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Blazored.Modal" Version="7.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="7.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="7.0.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="2.2.0" />
+    <PackageReference Include="SkiaSharp.Views.Blazor" Version="2.88.3" />
+    <PackageReference Include="PublishSPAforGitHubPages.Build" Version="2.0.2" />
+    <PackageReference Include="System.Net.Http.Json" Version="7.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -276,3 +276,9 @@ nuget.config
 
 # covergereport from dotnet global tool "reportgenerator"
 coveragereport/
+
+**/wwwroot/ROM/
+**/out/
+
+.DS_Store
+.vscode/settings.json
