@@ -256,15 +256,12 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
         {
             var key = e.Key;
 
-            //if ((key == "§" || key == "~") && e.ShiftKey)
-            //{
-            //    // TODO: Show/hide stats & debug panel
-            //    _toggleDebugStatsState();
+            if (key == "F11")
+            {
+                _toggleDebugStatsState();
 
-            //}
-            //else 
-
-            if (key == "§" || key == "~")
+            }
+            else if (key == "F12")
             {
                 if (Monitor.Visible)
                 {
@@ -278,23 +275,10 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
         }
 
         /// <summary>
-        /// Enable / Disable emulator functions such as monitor and stats/debug
         /// </summary>
         /// <param name="e"></param>
         public void OnKeyPress(KeyboardEventArgs e)
         {
-            var key = e.Key;
-
-            // The key on far left side just below Esc key
-            if ((key == "½"     // Shift-"§" (Swedish Windows)
-                || key == "°"   // Shift-"§" (Swedish Mac)
-                || key == "¬"   // Shift-"~" (US Windows)
-                || key == "`")  // Shift-"~" (US Mac)
-                && e.ShiftKey)
-            {
-                // TODO: Show/hide stats & debug panel
-                _toggleDebugStatsState();
-            }
         }
     }
 }

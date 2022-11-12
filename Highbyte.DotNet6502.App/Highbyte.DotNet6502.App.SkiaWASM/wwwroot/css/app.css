@@ -257,3 +257,7 @@ h4 {
     margin-right: auto;
     padding: 8px;
 }
+
+    .custom-modal a {
+        color: #194f85
+    }

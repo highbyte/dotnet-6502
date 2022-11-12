@@ -70,7 +70,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             if (!Visible)
                 return;
 
-            if (e.Key == "§" || e.Key == "~")
+            if (e.Key == "F12")
             {
                 Disable();
                 return;

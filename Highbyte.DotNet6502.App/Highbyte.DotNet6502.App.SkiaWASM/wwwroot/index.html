@@ -58,13 +58,27 @@
     </script>
 
     <script>
-        // Fix for some keys not working correctly in Monitor UI
         setTimeout(() => {
-            var element = document.getElementById("monitor-input");
-            //element.onkeydown = handleSpecialKeys
+            // Fix for some keys not working correctly in Emulator Canvas
+            var emulatorCanvasElement = document.getElementById("emulatorSKGLView");
+            emulatorCanvasElement.onkeydown = handleSpecialKeysForCanvas
+
+            // Fix for some keys not working correctly in Monitor UI
+            var monitorElement = document.getElementById("monitor-input");
+            monitorElement.onkeydown = handleSpecialKeysForMonitor
         }, 3000);
-        function handleSpecialKeys(event) {
-            if (event.key == "ArrowDown" || event.key == "ArrowUp") {
+
+        function handleSpecialKeysForCanvas(event) {
+            if (event.key == "ArrowDown" || event.key == "ArrowUp" || event.key == "ArrowRight" || event.key == "ArrowLeft"
+                || event.key == "PageUp" || event.key == "PageDown" || event.key == "Home" || event.key == "End"
+                || event.key == "Tab" || event.key == "F11" || event.key == "F12") {
+                event.preventDefault();
+            }
+        }
+
+        function handleSpecialKeysForMonitor(event) {
+            if (event.key == "ArrowDown" || event.key == "ArrowUp"
+                || event.key == "F12") {
                 event.preventDefault();
             }
             else if (event.key == "Escape") {
