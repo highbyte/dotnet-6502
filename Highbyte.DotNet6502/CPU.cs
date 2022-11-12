@@ -145,6 +145,14 @@ namespace Highbyte.DotNet6502
             };
         }
 
+        /// <summary>
+        /// Executes one instruction with minimal overhead.
+        /// Does not fire any events when instruction is executed.
+        /// Does not update statistics (ExecState property).
+        /// </summary>
+        /// <param name="mem"></param>
+        /// <param name="cyclesConsumed"></param>
+        /// <returns>True if instruction was known, False if not</returns>
         public bool ExecuteOneInstructionMinimal(
             Memory mem,
             out ulong cyclesConsumed
@@ -152,22 +160,7 @@ namespace Highbyte.DotNet6502
         {
             var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
-            // Check if a hardware IRQ has been raised (could have been done in a delegate callback OnInstructionExecuted above)    
-            if (IRQ)
-            {
-                IRQ = false;
-                // Only process the IRQ as long we don't have set the Interrupt Disable status flag.
-                if (!ProcessorStatus.InterruptDisable)
-                    ProcessHardwareIRQ(mem);
-            }
-
-            // Check if a hardware NMI has been raised (could have been done in a delegate callback OnInstructionExecuted above)    
-            if (NMI)
-            {
-                NMI = false;
-                // Always process is it, regardless if InterruptDisable status flag has been set.
-                ProcessHardwareNMI(mem);
-            }
+            ProcessInterrupts(mem);
 
             cyclesConsumed = instructionExecutionResult.CyclesConsumed;
 
@@ -223,22 +216,7 @@ namespace Highbyte.DotNet6502
                     OnInstructionExecuted(new CPUInstructionExecutedEventArgs(this, mem, instructionExecState));
                 }
 
-                // Check if a hardware IRQ has been raised (could have been done in a delegate callback OnInstructionExecuted above)    
-                if (IRQ)
-                {
-                    IRQ = false;
-                    // Only process the IRQ as long we don't have set the Interrupt Disable status flag.
-                    if (!ProcessorStatus.InterruptDisable)
-                        ProcessHardwareIRQ(mem);
-                }
-
-                // Check if a hardware NMI has been raised (could have been done in a delegate callback OnInstructionExecuted above)    
-                if (NMI)
-                {
-                    NMI = false;
-                    // Always process is it, regardless if InterruptDisable status flag has been set.
-                    ProcessHardwareNMI(mem);
-                }
+                ProcessInterrupts(mem);
 
                 // Evaluate if execution shall continue to next instruction, or stop here.
                 // Will continue only if all of the ExecEvaluators reports true.
@@ -257,26 +235,24 @@ namespace Highbyte.DotNet6502
             return thisExecState;
         }
 
-        public ushort GetNextInstructionAddress(Memory mem, ushort? currentInstructionAddress = null)
+        private void ProcessInterrupts(Memory mem)
         {
-            if (!currentInstructionAddress.HasValue)
-                currentInstructionAddress = PC;
-            byte insSize = GetInstructionSize(mem, currentInstructionAddress);
-            ushort nextInstructionAddress = (ushort)(currentInstructionAddress + insSize);
-            return nextInstructionAddress;
-        }
+            // Check if a hardware IRQ has been raised (could have been done in a delegate callback OnInstructionExecuted above)    
+            if (IRQ)
+            {
+                IRQ = false;
+                // Only process the IRQ as long we don't have set the Interrupt Disable status flag.
+                if (!ProcessorStatus.InterruptDisable)
+                    ProcessHardwareIRQ(mem);
+            }
 
-        public byte GetInstructionSize(Memory mem, ushort? instructionAddress = null)
-        {
-            if (!instructionAddress.HasValue)
-                instructionAddress = PC;
-            var opCodeByte = mem[instructionAddress.Value];
-            byte insSize;
-            if (!InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
-                insSize = 1;
-            else
-                insSize = (byte)InstructionList.GetOpCode(opCodeByte).Size;
-            return insSize;
+            // Check if a hardware NMI has been raised (could have been done in a delegate callback OnInstructionExecuted above)    
+            if (NMI)
+            {
+                NMI = false;
+                // Always process is it, regardless if InterruptDisable status flag has been set.
+                ProcessHardwareNMI(mem);
+            }
         }
 
         /// <summary>
