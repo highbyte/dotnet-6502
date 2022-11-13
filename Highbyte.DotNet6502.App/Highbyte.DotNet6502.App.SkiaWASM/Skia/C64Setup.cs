@@ -72,12 +72,8 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             return true;
         }
 
-        public static async Task<C64Config> BuildC64Config(SystemUserConfig systemUserConfig)
+        public static async Task<C64Config> BuildC64Config(SystemUserConfig systemUserConfig, BrowserContext browserContext)
         {
-            var httpClient = systemUserConfig.HttpClient;
-            var uri = systemUserConfig.Uri;
-
-
             byte[] basicROMData;
             byte[] chargenROMData;
             byte[] kernalROMData;
@@ -97,9 +93,9 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
                 const string BASIC_ROM_URL = "ROM/basic.901226-01.bin";
                 const string CHARGEN_ROM_URL = "ROM/characters.901225-01.bin";
                 const string KERNAL_ROM_URL = "ROM/kernal.901227-03.bin";
-                basicROMData = await GetROMFromUrl(httpClient, BASIC_ROM_URL);
-                chargenROMData = await GetROMFromUrl(httpClient, CHARGEN_ROM_URL);
-                kernalROMData = await GetROMFromUrl(httpClient, KERNAL_ROM_URL);
+                basicROMData = await GetROMFromUrl(browserContext.HttpClient, BASIC_ROM_URL);
+                chargenROMData = await GetROMFromUrl(browserContext.HttpClient, CHARGEN_ROM_URL);
+                kernalROMData = await GetROMFromUrl(browserContext.HttpClient, KERNAL_ROM_URL);
             }
 
             var c64Config = new C64Config
@@ -137,7 +133,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             return c64Config;
         }
 
-        private static async Task<byte[]> GetROMFromUrl(HttpClient httpClient, string url)
+        public static async Task<byte[]> GetROMFromUrl(HttpClient httpClient, string url)
         {
             return await httpClient.GetByteArrayAsync(url);
 

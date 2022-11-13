@@ -6,11 +6,14 @@ using Highbyte.DotNet6502.Systems;
 using Microsoft.AspNetCore.Components;
 using SkiaSharp;
 using SkiaSharp.Views.Blazor;
+using System;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 {
     public partial class Index
     {
+        private BrowserContext _browserContext;
+
         public enum EmulatorState
         {
             Uninitialized,
@@ -83,6 +86,12 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 
         protected async override void OnInitialized()
         {
+            _browserContext = new()
+            {
+                Uri = NavManager!.ToAbsoluteUri(NavManager.Uri),
+                HttpClient = HttpClient!
+            };
+
             _monitorConfig = new MonitorConfig
             {
                 MaxLineLength = 100,        // TODO: This affects help text printout, should it be set dynamically?
@@ -97,11 +106,12 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 
             // Default system
             SelectedSystemName = "C64";
+
         }
 
-        private void ValidateEmulator()
+        private async void ValidateEmulator()
         {
-            (bool isOk, string valError) = _systemList.IsSystemConfigOk(_selectedSystemName, SelectedSystemUserConfig);
+            (bool isOk, string valError) = await _systemList.IsSystemConfigOk(_selectedSystemName, SelectedSystemUserConfig, _browserContext);
             if (!isOk)
                 _selectedSystemUserConfigValidationMessage = valError;
             else
@@ -110,13 +120,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 
         private async Task<bool> InitEmulator()
         {
-            var uri = NavManager!.ToAbsoluteUri(NavManager.Uri);
-            var httpClient = HttpClient!;
-
-            SelectedSystemUserConfig.HttpClient = httpClient;
-            SelectedSystemUserConfig.Uri = uri;
-
-            await _systemList.SetSelectedSystem(_selectedSystemName, SelectedSystemUserConfig);
+            await _systemList.SetSelectedSystem(_selectedSystemName, SelectedSystemUserConfig, _browserContext);
 
             // Set SKGLView dimensions
             var screen = (IScreen)_systemList.SelectedSystem!;

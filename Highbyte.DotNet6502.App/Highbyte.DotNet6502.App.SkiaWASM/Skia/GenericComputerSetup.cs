@@ -46,16 +46,13 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
                 .Build();
             return systemRunner;
         }
-        public static async Task<GenericComputerConfig> BuildGenericComputerConfig(SystemUserConfig systemUserConfig)
+        public static async Task<GenericComputerConfig> BuildGenericComputerConfig(SystemUserConfig systemUserConfig, BrowserContext browserContext)
         {
-            var httpClient = systemUserConfig.HttpClient;
-            var uri = systemUserConfig.Uri;
-
             // Load 6502 program binary specified in url
-            var prgBytes = await Load6502Binary(httpClient, uri);
+            var prgBytes = await Load6502Binary(browserContext.HttpClient, browserContext.Uri);
 
             // Get screen size specified in url
-            (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) = GetScreenSize(uri);
+            (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) = GetScreenSize(browserContext.Uri);
 
             cols = cols ?? 40;
             rows = rows ?? 25;
