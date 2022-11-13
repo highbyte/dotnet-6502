@@ -215,16 +215,17 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 
         private string GetStats()
         {
-            var strings = new List<string>();
+            string stats = "";
+
             foreach ((string name, IStat stat) in InstrumentationBag.Stats.OrderBy(i => i.Name))
             {
                 if (stat.ShouldShow())
                 {
-                    string line = BuildHtmlString(name, "header") + ": " + BuildHtmlString(stat.GetDescription(), "value");
-                    strings.Add(line);
+                    if (stats != "")
+                        stats += "<br />";
+                    stats += $"{BuildHtmlString(name, "header")}: {BuildHtmlString(stat.GetDescription(), "value")} ";
                 }
-            };
-            var stats = string.Join(" - ", strings);
+            }
             return stats;
         }
 
@@ -235,13 +236,13 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             return BuildHtmlString(msg, "header");
         }
 
-        private string BuildHtmlString(string message, string cssClass)
+        private string BuildHtmlString(string message, string cssClass, bool startNewLine = false)
         {
-            return $@"<span class=""{cssClass}"">{HttpUtility.HtmlEncode(message)}</span>";
-        }
-        private string BuildHtmlStringNewLine()
-        {
-            return $@"<br />";
+            string html = "";
+            if (startNewLine)
+                html += "<br />";
+            html += $@"<span class=""{cssClass}"">{HttpUtility.HtmlEncode(message)}</span>";
+            return html;
         }
 
         public void Dispose()
