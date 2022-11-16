@@ -32,28 +32,24 @@
             <span>Scale (0.5-3.0): <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
         </div>
 
+        <div class="system-help" style="display:inline;">
+            <h4>General emulator info</h4>
+        </div>
+
         <div class="system-help systemHelpC64Style">
-            <h4>C64</h4>
-            <div>
-                <span>@GetSelectedSystemUserConfigValidationMessage()</span>
-            </div>
+            <h4>Selected system: C64</h4>
             <button @onclick="ShowC64ConfigUI" disabled=@ShowConfigDisabled>C64 Config</button>
-            <button @onclick="ShowC64HelpUI">Help</button>
         </div>
 
         <div class="system-help systemHelpGenericStyle">
-            <h4>Generic computer</h4>
-            <div>
-                <span>@GetSelectedSystemUserConfigValidationMessage()</span>
-            </div>
-            @*            <button @onclick="ShowGenericConfigUI" disabled=@ShowConfigDisabled>Generic computer Config</button>*@
-            <button @onclick="ShowGenericHelpUI">Help</button>
+            <h4>Selected system: Generic</h4>
+            <button @onclick="ShowGenericConfigUI" disabled=@ShowConfigDisabled>Generic computer Config</button>
         </div>
 
-        <div class="system-help" style="display:inline;">
-            <h4>General emulator info</h4>
-            <button @onclick="ShowGeneralHelpUI">Help</button>
+        <div>
+            <span>@GetSelectedSystemUserConfigValidationMessage()</span>
         </div>
+
     </div>
 
     @*Skia OpenGl View Blazor WASM component*@
@@ -99,7 +95,54 @@
     </div>
 
     <div class="footer">
-        By <a href = "https://github.com/highbyte">Highbyte</a> 2022
+        @*By <a href = "https://github.com/highbyte">Highbyte</a> 2022*@
+
+        <div class="system-help systemHelpC64Style">
+            <div class="row">
+                <div class="column">
+                    <p>
+                        Useful C64 Basic keyboard commands
+                    </p>
+                    <ul>
+                        <li>Stop running Basic program: <strong>Run/Stop</strong></li>
+                        <li>Soft reset: <strong>Run/Stop + Restore</strong></li>
+                        <li>Change text color 1-8: <strong>CTRL + numbers 1-8</strong></li>
+                        <li>Change text color 9-16: <strong>C= + numbers 1-8</strong></li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <p>
+                        C64 keys mapped to PC keyboard
+                    </p>
+                    <ul>
+                        <li><strong>Run/Stop</strong>: Esc</li>
+                        <li><strong>Restore</strong>: PageUp</li>
+                        <li><strong>CTRL</strong>: Tab</li>
+                        <li><strong>C=</strong>: LeftCtrl</li>
+                    </ul>
+                    <button @onclick="ShowC64HelpUI">Detailed help</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="system-help systemHelpGenericStyle">
+            <div class="row">
+                <div class="column">
+                    <p>
+                        A generic 6502 CPU computer, with custom defined memory layout.
+                    </p>
+                    <p>
+                        Currently configured in the application config and code.
+                        A future update could make it possible to configure such things as
+                        total memory, screen memory addres and IO memory addresses in
+                        the UI.
+                    </p>
+                </div>
+                <div class="column">
+                    <button @onclick="ShowGeneralHelpUI">Detailed help</button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -167,12 +210,13 @@
 
     protected async void OnStart(MouseEventArgs mouseEventArgs)
     {
-        bool isValid = true;
         if (_emulatorState == EmulatorState.Uninitialized)
-            isValid = await InitEmulator();
-        if (!isValid)
         {
-            return;
+            (bool isOk, _) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
+            if (!isOk)
+                return;
+
+            await InitEmulator();
         }
 
         _wasmHost!.Start();

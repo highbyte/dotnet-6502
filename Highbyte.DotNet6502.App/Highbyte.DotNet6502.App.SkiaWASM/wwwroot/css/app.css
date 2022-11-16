@@ -116,7 +116,7 @@ h4 {
 
 .footer {
     grid-area: footer;
-    text-align: center;
+    text-align: left;
 }
 
 .grid-container {
@@ -124,7 +124,7 @@ h4 {
     grid-template-areas:
         'header header right'
         'menu   main   right'
-        'footer footer right';
+        'menu   footer right';
     gap: 4px;
     padding: 4px;
     background-color: #142833;
@@ -261,3 +261,19 @@ h4 {
     .custom-modal a {
         color: #194f85
     }
+
+.row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.column {
+    max-width: fit-content;
+    display: flex;
+    flex-direction: column;
+    flex-basis: auto;
+    flex: 1;
+}
+

@@ -1,0 +1,50 @@
+﻿@using Highbyte.DotNet6502.App.SkiaWASM.Skia
+@using Highbyte.DotNet6502.Systems.Generic.Config
+@using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index
+
+<p>Memory addresses</p>
+<ul>
+    <li>
+        Load file at start: @GenericComputerConfig.ProgramBinaryFile
+    </li>
+    <li>
+        Columns: @GenericComputerConfig.Memory.Screen.Cols Rows: @GenericComputerConfig.Memory.Screen.Rows
+    </li>
+    <li>
+        BorderColumns: @GenericComputerConfig.Memory.Screen.BorderCols BorderRows: @GenericComputerConfig.Memory.Screen.BorderRows
+    </li>
+    <li>
+        Screen start address: @GenericComputerConfig.Memory.Screen.ScreenStartAddress
+    </li>
+    <li>
+        Screen color start address: @GenericComputerConfig.Memory.Screen.ScreenColorStartAddress
+    </li>
+    <li>
+        Screen background color address: @GenericComputerConfig.Memory.Screen.ScreenBackgroundColorAddress
+    </li>
+    <li>
+        Screen border color address: @GenericComputerConfig.Memory.Screen.ScreenBorderColorAddress
+    </li>
+</ul>
+@if (!string.IsNullOrEmpty(_validationMessage))
+{
+    <p>@_validationMessage</p>
+}
+<p></p>
+<button @onclick="Ok">Ok</button>
+
+@code {
+
+    [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
+
+    [Parameter] public Dictionary<string, object>? UserSettings { get; set; }
+
+    public GenericComputerConfig GenericComputerConfig => (GenericComputerConfig)UserSettings["GenericConfig"];
+
+    protected override void OnInitialized() => BlazoredModal.SetTitle("Generic config");
+
+    private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(UserSettings));
+
+    private string _validationMessage = "";
+
+}

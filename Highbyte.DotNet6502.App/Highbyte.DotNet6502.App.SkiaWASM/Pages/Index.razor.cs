@@ -6,7 +6,6 @@ using Highbyte.DotNet6502.Systems;
 using Microsoft.AspNetCore.Components;
 using SkiaSharp;
 using SkiaSharp.Views.Blazor;
-using System;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 {
@@ -32,17 +31,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             set
             {
                 _selectedSystemName = value;
-                ValidateEmulator();
-            }
-        }
-        private Dictionary<string, SystemUserConfig> _systemUserConfigs = new();
-        public SystemUserConfig SelectedSystemUserConfig
-        {
-            get
-            {
-                if (!_systemUserConfigs.ContainsKey(_selectedSystemName))
-                    _systemUserConfigs.Add(_selectedSystemName, new SystemUserConfig());
-                return _systemUserConfigs[_selectedSystemName];
+                OnSelectedEmulatorChanged();
             }
         }
 
@@ -56,7 +45,19 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             return _selectedSystemUserConfigValidationMessage;
         }
 
-        private double Scale { get; set; } = 2.0f;
+        private double _scale = 2.0f;
+        private double Scale
+        {
+            get
+            {
+                return _scale;
+            }
+            set
+            {
+                _scale = value;
+                UpdateCanvasSize();
+            }
+        }
 
         protected SKGLView? _emulatorSKGLViewRef;
         protected ElementReference? _mainRef;
@@ -92,7 +93,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
                 HttpClient = HttpClient!
             };
 
-            _monitorConfig = new MonitorConfig
+            _monitorConfig = new()
             {
                 MaxLineLength = 100,        // TODO: This affects help text printout, should it be set dynamically?
 
@@ -102,38 +103,47 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             };
             _monitorConfig.Validate();
 
-            _systemList = new SystemList();
+            _systemList = new SystemList(_browserContext);
 
             // Default system
             SelectedSystemName = "C64";
-
         }
 
-        private async void ValidateEmulator()
+        private async void OnSelectedEmulatorChanged()
         {
-            (bool isOk, string valError) = await _systemList.IsSystemConfigOk(_selectedSystemName, SelectedSystemUserConfig, _browserContext);
+            (bool isOk, string valError) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
             if (!isOk)
+            {
                 _selectedSystemUserConfigValidationMessage = valError;
-            else
-                _selectedSystemUserConfigValidationMessage = "";
+                return;
+            }
+            _selectedSystemUserConfigValidationMessage = "";
+
+            UpdateCanvasSize();
+
+            this.StateHasChanged();
         }
 
-        private async Task<bool> InitEmulator()
+        private async void UpdateCanvasSize()
         {
-            await _systemList.SetSelectedSystem(_selectedSystemName, SelectedSystemUserConfig, _browserContext);
+            (bool isOk, _) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
+            if (!isOk)
+                return;
+
+            var selectedSystem = await _systemList.GetSystemData(_selectedSystemName);
 
             // Set SKGLView dimensions
-            var screen = (IScreen)_systemList.SelectedSystem!;
+            var screen = (IScreen)selectedSystem.System!;
             _windowWidthStyle = $"{screen.VisibleWidth * Scale}px";
             _windowHeightStyle = $"{screen.VisibleHeight * Scale}px";
             this.StateHasChanged();
+        }
 
-            _wasmHost = new WasmHost(Js, _systemList.SelectedSystem!, _systemList.GetSystemRunner, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale);
-
+        private async Task InitEmulator()
+        {
+            var selectedSystem = await _systemList.GetSystemData(_selectedSystemName);
+            _wasmHost = new WasmHost(Js, selectedSystem.System!, _systemList.GetSystemRunner, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale);
             _emulatorState = EmulatorState.Paused;
-            //await FocusEmulator();
-
-            return true;
         }
 
         private void CleanupEmulator()
@@ -146,7 +156,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             _windowHeightStyle = DEFAULT_WINDOW_HEIGHT_STYLE;
         }
 
-        protected void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
+        protected async void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
         {
             if (_emulatorState != EmulatorState.Running)
                 return;
@@ -159,7 +169,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 
             if (!_wasmHost.Initialized)
             {
-                _wasmHost.Init(e.Surface.Canvas, grContext);
+                await _wasmHost.Init(e.Surface.Canvas, grContext);
             }
 
             //_emulatorRenderer!.SetSize(e.Info.Width, e.Info.Height);
@@ -178,12 +188,12 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
         [CascadingParameter] public IModalService Modal { get; set; } = default!;
 
         private async Task ShowC64ConfigUI() => await ShowConfigUI<C64ConfigUI>();
-        //private async Task ShowGenericConfigUI() => await ShowConfigUI<GenericConfigUI>();
+        private async Task ShowGenericConfigUI() => await ShowConfigUI<GenericConfigUI>();
 
         private async Task ShowConfigUI<T>() where T : IComponent
         {
             var parameters = new ModalParameters()
-                .Add("UserSettings", SelectedSystemUserConfig.UserSettings);
+                .Add("UserSettings", (await _systemList.GetSystemUserConfig(_selectedSystemName)).UserSettings);
 
             var result = await Modal.Show<T>("Config", parameters).Result;
 
@@ -210,7 +220,15 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
                 //Dictionary<string, object> userSettings = (Dictionary<string, object>)result.Data;
                 //Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
             }
-            ValidateEmulator();
+
+            (bool isOk, string valError) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
+            _selectedSystemUserConfigValidationMessage = "";
+            if (!isOk)
+            {
+                _selectedSystemUserConfigValidationMessage = valError;
+            }
+
+            UpdateCanvasSize();
             this.StateHasChanged();
         }
 

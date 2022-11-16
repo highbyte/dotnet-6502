@@ -1,10 +1,8 @@
-using System.Diagnostics;
-using Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
-namespace Highbyte.DotNet6502.Impl.AspNet.Generic
+namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 {
     public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>, IInputHandler
     {

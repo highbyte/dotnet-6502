@@ -1,5 +1,5 @@
 using Highbyte.DotNet6502.Impl.AspNet;
-using Highbyte.DotNet6502.Impl.AspNet.Generic;
+using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64;
 using Highbyte.DotNet6502.Systems;
@@ -45,22 +45,15 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             return systemRunner;
         }
 
-        public static bool IsValidSystemUserConfig(SystemUserConfig systemUserConfig, out string validationError)
+        public static bool IsValidC64Config(C64Config c64Config, out string validationError)
         {
             validationError = "";
 
-            var userSettings = systemUserConfig.UserSettings;
-            if (!userSettings.ContainsKey(USER_CONFIG_ROMS))
-            {
-                validationError = "Missing C64 ROMs. Press Config to upload.";
-                return false;
-            }
-
-            var loadedRoms = (Dictionary<string, byte[]>)userSettings[USER_CONFIG_ROMS];
+            var loadedRoms = c64Config.ROMs.Select(x => x.Name).ToList();
             List<string> missingRoms = new();
             foreach (var romName in C64Config.RequiredROMs)
             {
-                if (!loadedRoms.ContainsKey(romName))
+                if (!loadedRoms.Contains(romName))
                     missingRoms.Add(romName);
             }
 
@@ -72,30 +65,38 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             return true;
         }
 
-        public static async Task<C64Config> BuildC64Config(SystemUserConfig systemUserConfig, BrowserContext browserContext)
+        public static async Task<C64Config> BuildC64Config(Dictionary<string, byte[]>? roms)
         {
-            byte[] basicROMData;
-            byte[] chargenROMData;
-            byte[] kernalROMData;
-
-            var userSettings = systemUserConfig.UserSettings;
-            if (userSettings.ContainsKey(USER_CONFIG_ROMS))
+            var romList = new List<ROM>();
+            if (roms != null)
             {
-                var roms = (Dictionary<string, byte[]>)userSettings[USER_CONFIG_ROMS];
-                // ROMs uploaded to client by user
-                basicROMData = (byte[])roms[C64Config.BASIC_ROM_NAME];
-                chargenROMData = (byte[])roms[C64Config.CHARGEN_ROM_NAME];
-                kernalROMData = (byte[])roms[C64Config.KERNAL_ROM_NAME];
-            }
-            else
-            {
-                // Load ROMs from current website
-                const string BASIC_ROM_URL = "ROM/basic.901226-01.bin";
-                const string CHARGEN_ROM_URL = "ROM/characters.901225-01.bin";
-                const string KERNAL_ROM_URL = "ROM/kernal.901227-03.bin";
-                basicROMData = await GetROMFromUrl(browserContext.HttpClient, BASIC_ROM_URL);
-                chargenROMData = await GetROMFromUrl(browserContext.HttpClient, CHARGEN_ROM_URL);
-                kernalROMData = await GetROMFromUrl(browserContext.HttpClient, KERNAL_ROM_URL);
+                if (roms.ContainsKey(C64Config.BASIC_ROM_NAME))
+                {
+                    romList.Add(new ROM
+                    {
+                        Name = C64Config.BASIC_ROM_NAME,
+                        Data = roms[C64Config.BASIC_ROM_NAME],
+                        //Checksum = ""
+                    });
+                }
+                if (roms.ContainsKey(C64Config.CHARGEN_ROM_NAME))
+                {
+                    romList.Add(new ROM
+                    {
+                        Name = C64Config.CHARGEN_ROM_NAME,
+                        Data = roms[C64Config.CHARGEN_ROM_NAME],
+                        //Checksum = ""
+                    });
+                }
+                if (roms.ContainsKey(C64Config.KERNAL_ROM_NAME))
+                {
+                    romList.Add(new ROM
+                    {
+                        Name = C64Config.KERNAL_ROM_NAME,
+                        Data = roms[C64Config.KERNAL_ROM_NAME],
+                        //Checksum = ""
+                    });
+                }
             }
 
             var c64Config = new C64Config
@@ -106,29 +107,10 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
                 // Vic2Model = "PAL",     // NTSC, NTSC_old, PAL
 
                 ROMDirectory = "",  // Set ROMDirectory to skip loading ROMs from file system (ROMDirectory + File property), instead read from the Data property
-                ROMs = new List<ROM>
-                {
-                    new ROM
-                    {
-                        Name = C64Config.BASIC_ROM_NAME,
-                        Data = basicROMData,
-                        //Checksum = ""
-                    },
-                    new ROM
-                    {
-                        Name = C64Config.CHARGEN_ROM_NAME,
-                        Data = chargenROMData,
-                        //Checksum = ""
-                    },
-                    new ROM
-                    {
-                        Name = C64Config.KERNAL_ROM_NAME,
-                        Data = kernalROMData,
-                        //Checksum = ""
-                    }
-                }
+                ROMs = romList,
             };
-            c64Config.Validate();
+
+            //c64Config.Validate();
 
             return c64Config;
         }

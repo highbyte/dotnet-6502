@@ -25,7 +25,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 
         public AspNetInputHandlerContext InputHandlerContext { get; private set; }
         private readonly ISystem _system;
-        private readonly Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, SystemRunner> _getSystemRunner;
+        private readonly Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, Task<SystemRunner>> _getSystemRunner;
         private readonly Action<string> _updateStats;
         private readonly Action<string> _updateDebug;
         private readonly Func<bool, Task> _setMonitorState;
@@ -50,7 +50,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
         public WasmHost(
             IJSRuntime jsRuntime,
             ISystem system,
-            Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, SystemRunner> getSystemRunner,
+            Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, Task<SystemRunner>> getSystemRunner,
             Action<string> updateStats,
             Action<string> updateDebug,
             Func<bool, Task> setMonitorState,
@@ -79,14 +79,14 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             Initialized = false;
         }
 
-        public void Init(SKCanvas canvas, GRContext grContext)
+        public async Task Init(SKCanvas canvas, GRContext grContext)
         {
             _skCanvas = canvas;
             _grContext = grContext;
 
             _skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
             InputHandlerContext = new AspNetInputHandlerContext();
-            _systemRunner = _getSystemRunner(_system, _skiaRenderContext, InputHandlerContext);
+            _systemRunner = await _getSystemRunner(_system, _skiaRenderContext, InputHandlerContext);
 
             Monitor = new WasmMonitor(_jsRuntime, _systemRunner, _monitorConfig, _setMonitorState);
 

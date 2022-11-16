@@ -1,6 +1,6 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
-namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
+namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 {
     public static class C64AspNetKeyboard
     {
