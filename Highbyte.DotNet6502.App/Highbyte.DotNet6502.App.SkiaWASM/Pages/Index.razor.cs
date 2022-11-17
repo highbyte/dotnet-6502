@@ -70,11 +70,11 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
         private string _statsString = "Stats: calculating...";
         private string _debugString = "";
 
-        private const string DEFAULT_WINDOW_WIDTH_STYLE = "640px";
-        private const string DEFAULT_WINDOW_HEIGHT_STYLE = "400px";
+        private const int DEFAULT_WINDOW_WIDTH = 640;
+        private const int DEFAULT_WINDOW_HEIGHT = 400;
 
-        private string _windowWidthStyle = DEFAULT_WINDOW_WIDTH_STYLE;
-        private string _windowHeightStyle = DEFAULT_WINDOW_HEIGHT_STYLE;
+        private string _windowWidthStyle = "0px";
+        private string _windowHeightStyle = "0px";
 
         private bool _debugVisible = false;
         private bool _monitorVisible = false;
@@ -113,14 +113,11 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
         {
             (bool isOk, string valError) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
             if (!isOk)
-            {
                 _selectedSystemUserConfigValidationMessage = valError;
-                return;
-            }
-            _selectedSystemUserConfigValidationMessage = "";
+            else
+                _selectedSystemUserConfigValidationMessage = "";
 
             UpdateCanvasSize();
-
             this.StateHasChanged();
         }
 
@@ -128,14 +125,19 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
         {
             (bool isOk, _) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
             if (!isOk)
-                return;
+            {
+                _windowWidthStyle = $"{DEFAULT_WINDOW_WIDTH}px";
+                _windowHeightStyle = $"{DEFAULT_WINDOW_HEIGHT}px";
+            }
+            else
+            {
+                var selectedSystem = await _systemList.GetSystemData(_selectedSystemName);
+                // Set SKGLView dimensions
+                var screen = (IScreen)selectedSystem.System!;
+                _windowWidthStyle = $"{screen.VisibleWidth * Scale}px";
+                _windowHeightStyle = $"{screen.VisibleHeight * Scale}px";
+            }
 
-            var selectedSystem = await _systemList.GetSystemData(_selectedSystemName);
-
-            // Set SKGLView dimensions
-            var screen = (IScreen)selectedSystem.System!;
-            _windowWidthStyle = $"{screen.VisibleWidth * Scale}px";
-            _windowHeightStyle = $"{screen.VisibleHeight * Scale}px";
             this.StateHasChanged();
         }
 
@@ -152,8 +154,6 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             _wasmHost?.Cleanup();
             _wasmHost = null;
             _emulatorState = EmulatorState.Uninitialized;
-            _windowWidthStyle = DEFAULT_WINDOW_WIDTH_STYLE;
-            _windowHeightStyle = DEFAULT_WINDOW_HEIGHT_STYLE;
         }
 
         protected async void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
