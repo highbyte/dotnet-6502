@@ -275,6 +275,7 @@ h4 {
     flex-direction: column;
     flex-basis: auto;
     flex: 1;
+    padding: 8px;
 }
 
 .table {

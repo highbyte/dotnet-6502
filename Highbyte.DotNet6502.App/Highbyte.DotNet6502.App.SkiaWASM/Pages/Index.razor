@@ -32,10 +32,11 @@
             <span>Scale (0.5-3.0): <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
         </div>
 
-@*        <div class="system-help" style="display:inline;">
-            <h4>General emulator info</h4>
+        <div class="system-help" style="display:inline;">
+            <h4>About the emulator</h4>
+            <button @onclick="ShowGeneralHelpUI">Help</button>
         </div>
-*@
+
         <div class="system-help systemHelpC64Style">
             <h4>Selected system: C64</h4>
             <button @onclick="ShowC64ConfigUI" disabled=@ShowConfigDisabled>C64 Config</button>
@@ -95,7 +96,6 @@
     </div>
 
     <div class="footer">
-        @*By <a href = "https://github.com/highbyte">Highbyte</a> 2022*@
 
         <div class="system-help systemHelpC64Style">
             <div class="row">
@@ -103,23 +103,62 @@
                     <p>
                         Useful C64 Basic keyboard commands
                     </p>
-                    <ul>
+@*                    <ul>
                         <li>Stop running Basic program: <strong>Run/Stop</strong></li>
                         <li>Soft reset: <strong>Run/Stop + Restore</strong></li>
                         <li>Change text color 1-8: <strong>CTRL + numbers 1-8</strong></li>
                         <li>Change text color 9-16: <strong>C= + numbers 1-8</strong></li>
                     </ul>
+*@
+                    <div class="table">
+                        <div class="table-row">
+                            <div class="table-cell">Stop running Basic program</div>
+                            <div class="table-cell">Run/Stop</div>
+                        </div>
+                        <div class="table-row">
+                            <div class="table-cell">Soft reset</div>
+                            <div class="table-cell">Run/Stop + Restore</div>
+                        </div>
+                        <div class="table-row">
+                            <div class="table-cell">Change text color 1-8</div>
+                            <div class="table-cell">CTRL + numbers 1-8</div>
+                        </div>
+                        <div class="table-row">
+                            <div class="table-cell">Change text color 9-16</div>
+                            <div class="table-cell">C= + numbers 1-8</div>
+                        </div>
+                    </div>
                 </div>
                 <div class="column">
                     <p>
                         C64 keys mapped to PC keyboard
                     </p>
-                    <ul>
+@*                    <ul>
                         <li><strong>Run/Stop</strong>: Esc</li>
                         <li><strong>Restore</strong>: PageUp</li>
                         <li><strong>CTRL</strong>: Tab</li>
                         <li><strong>C=</strong>: LeftCtrl</li>
                     </ul>
+*@                   
+
+                    <div class="table">
+                        <div class="table-row">
+                            <div class="table-cell">Run/Stop</div>
+                            <div class="table-cell">Esc</div>
+                        </div>
+                        <div class="table-row">
+                            <div class="table-cell">Restore</div>
+                            <div class="table-cell">PageUp (fn + ArrowUp on Mac)</div>
+                        </div>
+                        <div class="table-row">
+                            <div class="table-cell">CTRL</div>
+                            <div class="table-cell">Tab</div>
+                        </div>
+                        <div class="table-row">
+                            <div class="table-cell">C=</div>
+                            <div class="table-cell">LeftCtrl</div>
+                        </div>
+                    </div>
                     <button @onclick="ShowC64HelpUI">Detailed help</button>
                 </div>
             </div>
@@ -139,7 +178,7 @@
                     </p>
                 </div>
                 <div class="column">
-                    <button @onclick="ShowGeneralHelpUI">Detailed help</button>
+                    <button @onclick="ShowGenericHelpUI">Detailed help</button>
                 </div>
             </div>
         </div>
