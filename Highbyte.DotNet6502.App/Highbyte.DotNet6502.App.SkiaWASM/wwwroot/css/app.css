@@ -277,3 +277,29 @@ h4 {
     flex: 1;
 }
 
+.table {
+    display: table;
+    width: 100%;
+    border: 1px solid black;
+}
+
+.table-row {
+    display: table-row;
+    min-height: 1px;
+    height: auto;
+    margin: 0;
+}
+
+.table-cell {
+    display: table-cell;
+    margin: 0;
+    padding: 2px;
+    border: 1px solid black;
+}
+/*.onecol {
+    width: 100%;
+}*/
+/*.twocol {
+    width: 50%;
+}
+*//**/

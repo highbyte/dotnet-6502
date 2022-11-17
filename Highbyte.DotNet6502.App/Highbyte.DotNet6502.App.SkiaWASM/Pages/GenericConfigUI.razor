@@ -2,30 +2,50 @@
 @using Highbyte.DotNet6502.Systems.Generic.Config
 @using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index
 
-<p>Memory addresses</p>
-<ul>
-    <li>
-        Load file at start: @GenericComputerConfig.ProgramBinaryFile
-    </li>
-    <li>
-        Columns: @GenericComputerConfig.Memory.Screen.Cols Rows: @GenericComputerConfig.Memory.Screen.Rows
-    </li>
-    <li>
-        BorderColumns: @GenericComputerConfig.Memory.Screen.BorderCols BorderRows: @GenericComputerConfig.Memory.Screen.BorderRows
-    </li>
-    <li>
-        Screen start address: @GenericComputerConfig.Memory.Screen.ScreenStartAddress
-    </li>
-    <li>
-        Screen color start address: @GenericComputerConfig.Memory.Screen.ScreenColorStartAddress
-    </li>
-    <li>
-        Screen background color address: @GenericComputerConfig.Memory.Screen.ScreenBackgroundColorAddress
-    </li>
-    <li>
-        Screen border color address: @GenericComputerConfig.Memory.Screen.ScreenBorderColorAddress
-    </li>
-</ul>
+General settings
+<div class="table">
+    <div class="table-row">
+        <div class="table-cell">Load file at start:</div>
+        <div class="table-cell">@GenericComputerConfig.ProgramBinaryFile</div>
+    </div>
+</div>
+
+Memory addresses
+<div class="table">
+    <div class="table-row">
+        <div class="table-cell twocol">Columns:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.Cols</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">Rows:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.Rows</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">Border cols:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.BorderCols</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">Border rows:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.BorderRows</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">ScreenStartAddress:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.ScreenStartAddress.ToHex()</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">ScreenColorStartAddress:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.ScreenColorStartAddress.ToHex()</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">ScreenBackgroundColorAddress:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.ScreenBackgroundColorAddress.ToHex()</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">ScreenBorderColorAddress:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.ScreenBorderColorAddress.ToHex()</div>
+    </div>
+</div>
+
 @if (!string.IsNullOrEmpty(_validationMessage))
 {
     <p>@_validationMessage</p>
@@ -39,7 +59,7 @@
 
     [Parameter] public Dictionary<string, object>? UserSettings { get; set; }
 
-    public GenericComputerConfig GenericComputerConfig => (GenericComputerConfig)UserSettings["GenericConfig"];
+    public GenericComputerConfig GenericComputerConfig => (GenericComputerConfig)UserSettings[SystemList.CONFIG_KEY];
 
     protected override void OnInitialized() => BlazoredModal.SetTitle("Generic config");
 

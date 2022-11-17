@@ -32,10 +32,10 @@
             <span>Scale (0.5-3.0): <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
         </div>
 
-        <div class="system-help" style="display:inline;">
+@*        <div class="system-help" style="display:inline;">
             <h4>General emulator info</h4>
         </div>
-
+*@
         <div class="system-help systemHelpC64Style">
             <h4>Selected system: C64</h4>
             <button @onclick="ShowC64ConfigUI" disabled=@ShowConfigDisabled>C64 Config</button>
@@ -46,7 +46,7 @@
             <button @onclick="ShowGenericConfigUI" disabled=@ShowConfigDisabled>Generic computer Config</button>
         </div>
 
-        <div>
+        <div class="validation-message">
             <span>@GetSelectedSystemUserConfigValidationMessage()</span>
         </div>
 

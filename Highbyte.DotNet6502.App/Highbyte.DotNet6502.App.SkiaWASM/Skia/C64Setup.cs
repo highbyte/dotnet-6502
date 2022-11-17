@@ -59,7 +59,8 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 
             if (missingRoms.Count > 0)
             {
-                validationError = $"Missing ROMs: {string.Join(',', missingRoms)}";
+                validationError = $"Missing ROMs: {string.Join(", ", missingRoms)}.";
+                validationError += " Press C64 Config to load ROMs";
                 return false;
             }
             return true;
