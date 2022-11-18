@@ -1,3 +1,6 @@
+@import url("https://cdn.jsdelivr.net/npm/@xz/fonts@1/serve/cascadia-code.min.css");
+@import url('https://fonts.googleapis.com/css?family=Open+Sans');
+
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
 }
@@ -72,8 +75,6 @@
         content: var(--blazor-load-percentage-text, "Loading");
     }
 
-    
-
 .header {
     grid-area: header;
     text-align: center;
@@ -134,7 +135,7 @@ h4 {
         background-color: #313f53;
         padding: 4px 4px;
         font-size: 1.0em;
-        font-family: 'Segoe UI'
+        font-family: 'Open Sans', sans-serif;
     }
 
 #system-selector {
@@ -163,10 +164,20 @@ h4 {
 
 /*Emulator SKCanvas view style*/
 #emulatorSKGLView {
-/*    position: relative;
-    left: 0px;
-    top: 0px;
-*/
+}
+
+/*When SKCanvas (#emulatorSKGLView) is not shown (emulator stopped) this style shows text in the background */
+#canvasUninitialized {
+    text-align: center;
+    padding: 10px 0;
+    margin-bottom: 30px; 
+    font-family: 'Cascadia Code', "Courier New", monospace;
+}
+#canvasUninitialized h2 {
+    color: #f7c346;
+}
+#canvasUninitialized p {
+    margin: 20px;
 }
 
 /*Debug style*/
@@ -174,10 +185,9 @@ h4 {
     margin: 4px;
     padding: 8px;
     border-radius: 0.5vw;
-
     background-color: #212b39;
     color: #f8f8f8;
-    font-family: "Courier New", monospace;
+    font-family: 'Cascadia Code', "Courier New", monospace;
     font-size: 0.7em;
     text-align: left;
     overflow: auto;
@@ -204,7 +214,7 @@ h4 {
 
 #monitor-inner-screen {
     color: #f8f8f8;
-    font-family: "Courier New", monospace;
+    font-family: 'Cascadia Code', "Courier New", monospace;
     font-size: 1em;
     text-align: left;
     width: 99%;
@@ -246,11 +256,10 @@ h4 {
 .custom-modal {
     background-color: #accaf2;
     color: #000;
-    font-family: 'Segoe UI';
+    font-family: 'Open Sans', sans-serif;
     font-size: 1.0em;
     border-radius: 0.5vw;
     box-sizing: border-box;
-
     width: 500px;
     margin-top: 10px;
     margin-left: auto;
@@ -297,10 +306,3 @@ h4 {
     padding: 2px;
     border: 1px solid black;
 }
-/*.onecol {
-    width: 100%;
-}*/
-/*.twocol {
-    width: 50%;
-}
-*//**/

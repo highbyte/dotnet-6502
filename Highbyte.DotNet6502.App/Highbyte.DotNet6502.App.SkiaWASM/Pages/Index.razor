@@ -1,4 +1,7 @@
 @page "/"
+@using Highbyte.DotNet6502.Systems.Commodore64.Config;
+@using Highbyte.DotNet6502.Systems.Commodore64;
+@using Highbyte.DotNet6502.Systems.Generic;
 @using SkiaSharp.Views.Blazor
 @*@implements IDisposable*@
 
@@ -11,13 +14,13 @@
 
 <div class="grid-container">
     <div class="header">
-        <a href="https://github.com/highbyte/dotnet-6502" target="_blank" class="ml-md-auto">dotnet-6502</a> CPU emulator written in <a href="https://dotnet.microsoft.com/" target="_blank" class="ml-md-auto">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank" class="ml-md-auto">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank" class="ml-md-auto">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank" class="ml-md-auto">Blazor</a>, running in a browser!
+        <a href="https://github.com/highbyte" target="_blank">Highbyte</a> 2022
     </div>
     <div class="menu">
         <div id="system-selector">
             <div>
                 System:
-                <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled>
+                <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled autofocus>
                     @foreach (var systemName in _systemList.Systems)
                     {
                         <option value="@systemName"> @systemName </option>
@@ -29,7 +32,7 @@
             <button @onclick="OnPause" disabled=@OnPauseDisabled>Pause</button>
             <button @onclick="OnReset" disabled=@OnResetDisabled>Reset</button>
             <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
-            <span>Scale (0.5-3.0): <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
+            <span>Screen scale: <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
         </div>
 
         <div class="system-help" style="display:inline;">
@@ -66,7 +69,34 @@
                   @onkeydown="OnKeyDown"
                   @onkeyup="OnKeyUp"
                   @ref="_emulatorSKGLViewRef"
-                  autofocus />
+                  />
+
+        <div id="canvasUninitialized"
+             class="canvasUninitializedStyle">
+
+            <h2>
+                The <a href="https://github.com/highbyte/dotnet-6502" target="_blank">DotNet 6502</a> emulator!
+            </h2>
+
+            <p>
+                CPU emulator written in <a href="https://dotnet.microsoft.com/" target="_blank">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank">Blazor</a>, running in a browser!
+            </p>
+            <p>
+                Select the computer to emulate in the System drop down menu on the left.
+            </p>
+            <p>
+                For certain computers (like the C64) you have to provide ROM files via a Config button.
+            </p>
+            <p>
+                Press Start button to run.
+            </p>
+            <p>
+                When running, press F12 to start machine code monitor.
+            </p>
+            <p>
+                When running, press F11 to show statistics.
+            </p>
+        </div>
 
     </div>
     <div class="right">
@@ -103,13 +133,6 @@
                     <p>
                         Useful C64 Basic keyboard commands
                     </p>
-@*                    <ul>
-                        <li>Stop running Basic program: <strong>Run/Stop</strong></li>
-                        <li>Soft reset: <strong>Run/Stop + Restore</strong></li>
-                        <li>Change text color 1-8: <strong>CTRL + numbers 1-8</strong></li>
-                        <li>Change text color 9-16: <strong>C= + numbers 1-8</strong></li>
-                    </ul>
-*@
                     <div class="table">
                         <div class="table-row">
                             <div class="table-cell">Stop running Basic program</div>
@@ -133,14 +156,6 @@
                     <p>
                         C64 keys mapped to PC keyboard
                     </p>
-@*                    <ul>
-                        <li><strong>Run/Stop</strong>: Esc</li>
-                        <li><strong>Restore</strong>: PageUp</li>
-                        <li><strong>CTRL</strong>: Tab</li>
-                        <li><strong>C=</strong>: LeftCtrl</li>
-                    </ul>
-*@                   
-
                     <div class="table">
                         <div class="table-row">
                             <div class="table-cell">Run/Stop</div>
@@ -186,18 +201,23 @@
 </div>
 
 <style>
+    .skGLViewStyle {
+        display: @GetDisplayStyle("Canvas");
+        width: @_windowWidthStyle;
+        height: @_windowHeightStyle;
+    }
+
+    .canvasUninitializedStyle {
+        display: @GetDisplayStyle("CanvasUninitialized");
+        width: 806px;
+        height: 320px;
+    }
+
     .systemHelpC64Style {
         display: @GetDisplayStyle("C64Help");
     }
     .systemHelpGenericStyle {
         display: @GetDisplayStyle("GenericHelp");
-    }
-    .skGLViewStyle {
-        width: @_windowWidthStyle;
-        height: @_windowHeightStyle;
-/*        max-width: @_windowWidthStyle;
-        min-height: @_windowHeightStyle;
-*/
     }
     .debugStyle {
         display: @GetDisplayStyle("Debug");
@@ -214,17 +234,26 @@
     protected string GetDisplayStyle(string displayData)
     {
         const string VISIBLE = "inline";
+        const string VISIBLE_BLOCK = "inline-block";
         const string HIDDEN = "none";
 
         switch (displayData)
         {
+            case "Canvas":
+                {
+                    return _emulatorState != EmulatorState.Uninitialized ? VISIBLE: HIDDEN;
+                }
+            case "CanvasUninitialized":
+                {
+                    return _emulatorState == EmulatorState.Uninitialized ? VISIBLE_BLOCK : HIDDEN;
+                }
             case "C64Help":
                 {
-                    return SelectedSystemName == "C64" ? VISIBLE : HIDDEN;
+                    return SelectedSystemName == C64.SystemName ? VISIBLE : HIDDEN;
                 }
             case "GenericHelp":
                 {
-                    return SelectedSystemName == "Generic" ? VISIBLE : HIDDEN;
+                    return SelectedSystemName == GenericComputer.SystemName ? VISIBLE : HIDDEN;
                 }
             case "Debug":
                 {
@@ -356,7 +385,7 @@
 
     private async Task FocusEmulator()
     {
-        await Js.InvokeVoidAsync("focusId", "emulatorSKGLView");
+        await Js.InvokeVoidAsync("focusId", "emulatorSKGLView", 100);  // Hack: Delay of x ms for focus to work.
     }
 
     private async Task FocusMonitor()

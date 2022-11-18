@@ -34,12 +34,15 @@
             element.focus();
         }
 
-        window.focusId = (id) => {
-            var elementToFocus = document.getElementById(id);
-            elementToFocus.focus();
+        window.focusId = (id, delayMs) => {
+            setTimeout(() => {
+                var elementToFocus = document.getElementById(id);
+                elementToFocus.focus();
+            }, delayMs);
+
         }
 
-        window.clickId= (id) => {
+        window.clickId = (id) => {
             var elementToClick = document.getElementById(id);
             elementToClick.click();
         }
