@@ -106,6 +106,10 @@ h4 {
     display: inline;
 }
 
+.menuFooter {
+    grid-area: menuFooter;
+}
+
 .main {
     grid-area: main;
 }
@@ -123,17 +127,19 @@ h4 {
 .grid-container {
     display: inline-grid;
     grid-template-areas:
-        'header header right'
-        'menu   main   right'
-        'menu   footer right';
-    gap: 4px;
+        'header     main    right'
+        'menu       main    right'
+        'menu       footer  right'
+        'menuFooter footer  right';
+
+    gap: 2px;
     padding: 4px;
     background-color: #142833;
 }
     .grid-container > div {
         color: #ffffff;
         background-color: #313f53;
-        padding: 4px 4px;
+        padding: 2px 2px;
         font-size: 1.0em;
         font-family: 'Open Sans', sans-serif;
     }
@@ -161,6 +167,18 @@ h4 {
     font-size: 1.0em;
     text-align: left;
 }
+
+#versionInfo {
+    color: #929292;
+    font-family: 'Cascadia Code', "Courier New", monospace;
+    font-size: 0.75em;
+    text-align: left;
+}
+
+#versionInfo a {
+    color: #929292;
+}
+
 
 /*Emulator SKCanvas view style*/
 #emulatorSKGLView {

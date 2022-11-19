@@ -11,6 +11,8 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 {
     public partial class Index
     {
+        public Version Version => typeof(Program).Assembly.GetName().Version!;
+
         private BrowserContext _browserContext;
 
         public enum EmulatorState

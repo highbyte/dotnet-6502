@@ -12,6 +12,7 @@
     <!--<BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport>
     <BlazorWebAssemblyPreserveCollationData>false</BlazorWebAssemblyPreserveCollationData>-->
 
+    <Version>1.0</Version>
   </PropertyGroup>
 
   <!--In debug, make builds faster by reducing optimizations-->
