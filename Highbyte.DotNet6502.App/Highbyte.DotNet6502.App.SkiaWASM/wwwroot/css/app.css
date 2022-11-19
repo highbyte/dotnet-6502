@@ -164,7 +164,7 @@ h4 {
 
 .system-help {
     color: white;
-    font-size: 1.0em;
+    font-size: 0.9em;
     text-align: left;
 }
 
@@ -206,7 +206,7 @@ h4 {
     background-color: #212b39;
     color: #f8f8f8;
     font-family: 'Cascadia Code', "Courier New", monospace;
-    font-size: 0.7em;
+    font-size: 0.75em;
     text-align: left;
     overflow: auto;
     line-height: 3ex;
@@ -311,6 +311,28 @@ h4 {
     border: 1px solid black;
 }
 
+.table-caption {
+    display: table-caption;
+    text-align: center;
+    font-weight: bold;
+}
+
+.table-header {
+    display: table-header-group;
+    background-color: gray;
+    font-weight: bold;
+}
+.table-header-cell {
+    display: table-cell;
+    padding: 3px;
+    text-align: justify;
+    border: 1px solid black;
+}
+
+.table-body {
+    display: table-row-group;
+}
+
 .table-row {
     display: table-row;
     min-height: 1px;
@@ -320,7 +342,14 @@ h4 {
 
 .table-cell {
     display: table-cell;
-    margin: 0;
-    padding: 2px;
+    padding: 3px;
     border: 1px solid black;
+}
+
+.table-footer {
+    display: table-footer-group;
+    background-color: gray;
+    font-weight: bold;
+    font-size: 25px;
+    color: rgba(255, 255, 255, 0.45);
 }
