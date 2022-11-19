@@ -288,7 +288,7 @@
 
     protected bool ShowConfigDisabled => _emulatorState != EmulatorState.Uninitialized;
 
-    protected async void OnStart(MouseEventArgs mouseEventArgs)
+    protected async Task OnStart(MouseEventArgs mouseEventArgs)
     {
         if (_emulatorState == EmulatorState.Uninitialized)
         {
@@ -305,7 +305,7 @@
 
         this.StateHasChanged();
     }
-    protected void OnPause(MouseEventArgs mouseEventArgs)
+    protected async Task OnPause(MouseEventArgs mouseEventArgs)
     {
         if (_emulatorState == EmulatorState.Uninitialized)
             return;
@@ -314,24 +314,24 @@
         _emulatorState = EmulatorState.Paused;
         this.StateHasChanged();
     }
-    protected void OnReset(MouseEventArgs mouseEventArgs)
+    protected async Task OnReset(MouseEventArgs mouseEventArgs)
     {
-        OnPause(mouseEventArgs);
-        OnStop(mouseEventArgs);
-        OnStart(mouseEventArgs);
+        await OnPause(mouseEventArgs);
+        await OnStop(mouseEventArgs);
+        await OnStart(mouseEventArgs);
     }
-    protected async void OnStop(MouseEventArgs mouseEventArgs)
+    protected async Task OnStop(MouseEventArgs mouseEventArgs)
     {
         await CleanupEmulator();
         this.StateHasChanged();
     }
-    protected async void OnMonitorToggle(MouseEventArgs mouseEventArgs)
+    protected async Task OnMonitorToggle(MouseEventArgs mouseEventArgs)
     {
         await _wasmHost!.ToggleMonitor();
         this.StateHasChanged();
     }
 
-    protected async void OnStatsToggle(MouseEventArgs mouseEventArgs)
+    protected async Task OnStatsToggle(MouseEventArgs mouseEventArgs)
     {
         await ToggleDebugStatsState();
     }
