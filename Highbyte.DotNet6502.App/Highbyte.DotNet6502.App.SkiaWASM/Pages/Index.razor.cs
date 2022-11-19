@@ -6,12 +6,14 @@ using Highbyte.DotNet6502.Systems;
 using Microsoft.AspNetCore.Components;
 using SkiaSharp;
 using SkiaSharp.Views.Blazor;
+using System.Reflection;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 {
     public partial class Index
     {
-        public Version Version => typeof(Program).Assembly.GetName().Version!;
+        //public string Version => typeof(Program).Assembly.GetName().Version!.ToString();
+        public string Version => Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
 
         private BrowserContext _browserContext;
 
