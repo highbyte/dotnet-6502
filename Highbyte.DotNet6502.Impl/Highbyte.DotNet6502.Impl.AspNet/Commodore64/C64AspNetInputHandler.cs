@@ -94,6 +94,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                         var petsciiCode = specialKeyMap[key];
                         c64Keyboard.KeyPressed(petsciiCode);
 
+                        _inputHandlerContext.KeysDown.Remove(key);
                         // If we detected a special Key/Combo pressed, don't process anymore. Some of them may also be in the _inputHandlerContext.CharactersReceived list processed below.
                         return;
                     }
