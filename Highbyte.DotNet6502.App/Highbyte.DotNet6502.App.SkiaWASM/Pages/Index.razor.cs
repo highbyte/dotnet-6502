@@ -152,8 +152,11 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             _emulatorState = EmulatorState.Paused;
         }
 
-        private void CleanupEmulator()
+        private async Task CleanupEmulator()
         {
+            _debugVisible = false;
+            await _wasmHost!.Monitor.Disable();
+
             _emulatorState = EmulatorState.Paused;
             _wasmHost?.Cleanup();
             _wasmHost = null;
@@ -269,6 +272,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
         protected async Task ToggleDebugStatsState()
         {
             _debugVisible = !_debugVisible;
+            await FocusEmulator();
             this.StateHasChanged();
         }
 

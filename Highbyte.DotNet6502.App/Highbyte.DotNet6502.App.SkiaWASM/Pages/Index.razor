@@ -32,6 +32,9 @@
             <button @onclick="OnPause" disabled=@OnPauseDisabled>Pause</button>
             <button @onclick="OnReset" disabled=@OnResetDisabled>Reset</button>
             <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
+            <button @onclick="OnMonitorToggle" disabled=@OnStopDisabled>Monitor</button>
+            <button @onclick="OnStatsToggle" disabled=@OnStopDisabled>Stats</button>
+            <p></p>
             <span>Screen scale: <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
         </div>
 
@@ -317,11 +320,22 @@
         OnStop(mouseEventArgs);
         OnStart(mouseEventArgs);
     }
-    protected void OnStop(MouseEventArgs mouseEventArgs)
+    protected async void OnStop(MouseEventArgs mouseEventArgs)
     {
-        CleanupEmulator();
+        await CleanupEmulator();
         this.StateHasChanged();
     }
+    protected async void OnMonitorToggle(MouseEventArgs mouseEventArgs)
+    {
+        await _wasmHost!.ToggleMonitor();
+        this.StateHasChanged();
+    }
+
+    protected async void OnStatsToggle(MouseEventArgs mouseEventArgs)
+    {
+        await ToggleDebugStatsState();
+    }
+
 
     protected override async void OnAfterRender(bool firstRender)
     {

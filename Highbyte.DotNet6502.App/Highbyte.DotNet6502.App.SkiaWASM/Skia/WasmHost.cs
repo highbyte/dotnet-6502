@@ -253,25 +253,30 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
         /// Enable / Disable emulator functions such as monitor and stats/debug
         /// </summary>
         /// <param name="e"></param>
-        public void OnKeyDown(KeyboardEventArgs e)
+        public async Task OnKeyDown(KeyboardEventArgs e)
         {
             var key = e.Key;
 
             if (key == "F11")
             {
-                _toggleDebugStatsState();
+                await _toggleDebugStatsState();
 
             }
             else if (key == "F12")
             {
-                if (Monitor.Visible)
-                {
-                    Monitor.Disable();
-                }
-                else
-                {
-                    Monitor.Enable();
-                }
+                await ToggleMonitor();
+            }
+        }
+
+        public async Task ToggleMonitor()
+        {
+            if (Monitor.Visible)
+            {
+                await Monitor.Disable();
+            }
+            else
+            {
+                await Monitor.Enable();
             }
         }
 

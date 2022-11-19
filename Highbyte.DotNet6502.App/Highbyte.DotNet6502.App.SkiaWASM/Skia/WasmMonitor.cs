@@ -41,7 +41,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             _setMonitorState = setMonitorState;
         }
 
-        public async void Enable()
+        public async Task Enable()
         {
             Visible = true;
             await _setMonitorState(true);
@@ -59,7 +59,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             DisplayStatus();
         }
 
-        public async void Disable()
+        public async Task Disable()
         {
             Visible = false;
             await _setMonitorState(false);
