@@ -23,6 +23,10 @@
 
 <InputFile id="c64RomFilePicker" OnChange="@OnC64RomFilePickerChange" multiple hidden />
 <button onclick="document.getElementById('c64RomFilePicker').click()">Load ROMs</button>
+
+<button @onclick="UnloadROMs">Unload ROMs</button>
+
+
 <p></p>
 @if (_isLoadingC64Roms)
 {
@@ -68,6 +72,10 @@ else
     }
 
     protected override void OnInitialized() => BlazoredModal.SetTitle("C64 config");
+
+
+    private async Task UnloadROMs() => C64Config.ROMs = new List<ROM>();
+
 
     private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(UserSettings));
 

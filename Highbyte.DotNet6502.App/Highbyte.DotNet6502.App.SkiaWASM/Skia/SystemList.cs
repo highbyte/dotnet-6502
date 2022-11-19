@@ -59,7 +59,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 //                            Console.WriteLine($"Couldn't load C64 ROMS directly from current site in Debug mode");
 //                        }
 //#endif
-                        var c64Config = await C64Setup.BuildC64Config(roms);
+                        var c64Config = await C64Setup.BuildC64Config(_browserContext, roms);
                         userSettings[CONFIG_KEY] = c64Config;
 
                         break;
@@ -75,6 +75,23 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             }
 
             return SystemUserConfigs[systemName];
+        }
+
+        public async Task PersistSystemUserConfig(string systemName, SystemUserConfig systemUserConfig)
+        {
+            var userSettings = systemUserConfig.UserSettings;
+
+            switch (systemName)
+            {
+                case C64.SystemName:
+                    var c64Config = (C64Config)userSettings[CONFIG_KEY];
+                    await C64Setup.SaveROMsToLocalStorage(c64Config.ROMs, _browserContext);
+                    break;
+
+                case GenericComputer.SystemName:
+                    var genericConfig = (GenericComputerConfig)userSettings[CONFIG_KEY];
+                    break;
+            }
         }
 
         public async Task<(bool isOk, string valError)> IsSystemUserConfigOk(string systemName)

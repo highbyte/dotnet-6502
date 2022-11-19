@@ -94,7 +94,8 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             _browserContext = new()
             {
                 Uri = NavManager!.ToAbsoluteUri(NavManager.Uri),
-                HttpClient = HttpClient!
+                HttpClient = HttpClient!,
+                LocalStorage = _localStorage
             };
 
             _monitorConfig = new()
@@ -199,8 +200,9 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 
         private async Task ShowConfigUI<T>() where T : IComponent
         {
+            var systemConfig = await _systemList.GetSystemUserConfig(_selectedSystemName);
             var parameters = new ModalParameters()
-                .Add("UserSettings", (await _systemList.GetSystemUserConfig(_selectedSystemName)).UserSettings);
+                .Add("UserSettings", systemConfig.UserSettings);
 
             var result = await Modal.Show<T>("Config", parameters).Result;
 
@@ -214,18 +216,20 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
                 //       Therefore no need to handle the result. 
                 // TODO: Should the UserSettings be changed to be passed by value (struct instead of class?) instead to handle that the dialog can be cancelled, and then the changes won't stick?
 
-                //if (result.Data is null)
-                //{
-                //    Console.WriteLine($"Returned null data");
-                //    return;
-                //}
-                //if (!(result.Data is Dictionary<string, object>))
-                //{
-                //    Console.WriteLine($"Returned unrecongnized type: {result.Data.GetType()}");
-                //    return;
-                //}
-                //Dictionary<string, object> userSettings = (Dictionary<string, object>)result.Data;
-                //Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
+                if (result.Data is null)
+                {
+                    Console.WriteLine($"Returned null data");
+                    return;
+                }
+                if (result.Data is not Dictionary<string, object>)
+                {
+                    Console.WriteLine($"Returned unrecongnized type: {result.Data.GetType()}");
+                    return;
+                }
+                Dictionary<string, object> userSettings = (Dictionary<string, object>)result.Data;
+                Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
+
+                await _systemList.PersistSystemUserConfig(_selectedSystemName, systemConfig);
             }
 
             (bool isOk, string valError) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
