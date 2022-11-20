@@ -1,4 +1,7 @@
 @page "/"
+@using Highbyte.DotNet6502.Systems.Commodore64.Config;
+@using Highbyte.DotNet6502.Systems.Commodore64;
+@using Highbyte.DotNet6502.Systems.Generic;
 @using SkiaSharp.Views.Blazor
 @*@implements IDisposable*@
 
@@ -9,15 +12,18 @@
 @*Inject JS to be able to set focus on SKGLView from code*@
 @inject IJSRuntime Js
 
+@*Inject Local Storage helper services *@
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage
+
 <div class="grid-container">
     <div class="header">
-        <a href="https://github.com/highbyte/dotnet-6502" target="_blank" class="ml-md-auto">dotnet-6502</a> CPU emulator written in <a href="https://dotnet.microsoft.com/" target="_blank" class="ml-md-auto">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank" class="ml-md-auto">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank" class="ml-md-auto">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank" class="ml-md-auto">Blazor</a>, running in a browser!
+        <a href="https://github.com/highbyte/dotnet-6502" target="_blank">DotNet 6502</a>
     </div>
     <div class="menu">
         <div id="system-selector">
             <div>
                 System:
-                <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled>
+                <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled autofocus>
                     @foreach (var systemName in _systemList.Systems)
                     {
                         <option value="@systemName"> @systemName </option>
@@ -29,30 +35,44 @@
             <button @onclick="OnPause" disabled=@OnPauseDisabled>Pause</button>
             <button @onclick="OnReset" disabled=@OnResetDisabled>Reset</button>
             <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
-            <span>Scale (0.5-3.0): <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
-        </div>
-
-        <div class="system-help systemHelpC64Style">
-            <h4>C64</h4>
-            <div>
-                <span>@GetSelectedSystemUserConfigValidationMessage()</span>
-            </div>
-            <button @onclick="ShowC64ConfigUI" disabled=@ShowConfigDisabled>C64 Config</button>
-            <button @onclick="ShowC64HelpUI">Help</button>
-        </div>
-
-        <div class="system-help systemHelpGenericStyle">
-            <h4>Generic computer</h4>
-            <div>
-                <span>@GetSelectedSystemUserConfigValidationMessage()</span>
-            </div>
-            @*            <button @onclick="ShowGenericConfigUI" disabled=@ShowConfigDisabled>Generic computer Config</button>*@
-            <button @onclick="ShowGenericHelpUI">Help</button>
+            <button @onclick="OnMonitorToggle" disabled=@OnStopDisabled>Monitor</button>
+            <button @onclick="OnStatsToggle" disabled=@OnStopDisabled>Stats</button>
+            <p></p>
+            <span>Screen scale: <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
         </div>
 
         <div class="system-help" style="display:inline;">
-            <h4>General emulator info</h4>
+            <h4>About the emulator</h4>
             <button @onclick="ShowGeneralHelpUI">Help</button>
+        </div>
+
+        <div class="system-help systemHelpC64Style">
+            <h4>Selected system: C64</h4>
+            <button @onclick="ShowC64ConfigUI" disabled=@ShowConfigDisabled>C64 Config</button>
+        </div>
+
+        <div class="system-help systemHelpGenericStyle">
+            <h4>Selected system: Generic</h4>
+            <button @onclick="ShowGenericConfigUI" disabled=@ShowConfigDisabled>Generic computer Config</button>
+        </div>
+
+        <div class="validation-message">
+            <span>@GetSelectedSystemUserConfigValidationMessage()</span>
+        </div>
+
+    </div>
+
+    <div class="menuFooter">
+        <div id="versionInfo">
+            <p>
+                <a href="https://github.com/highbyte/dotnet-6502" target="_blank">dotnet-6502</a>
+            </p>
+            <p>
+                By: <a href="https://github.com/highbyte" target="_blank">Highbyte</a>
+            </p>
+            <p>
+                Version: @Version
+            </p>
         </div>
     </div>
 
@@ -69,7 +89,31 @@
                   @onkeydown="OnKeyDown"
                   @onkeyup="OnKeyUp"
                   @ref="_emulatorSKGLViewRef"
-                  autofocus />
+                  />
+
+        <div id="canvasUninitialized"
+             class="canvasUninitializedStyle">
+
+            <h2>
+                The DotNet 6502 emulator!
+            </h2>
+
+            <p>
+                A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502" target="_blank">6502 CPU</a> emulator written in <a href="https://dotnet.microsoft.com/" target="_blank">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank">Blazor</a>, running in a browser.
+            </p>
+            <p>
+                Select the computer to emulate in the System drop down menu on the left.
+            </p>
+            <p>
+                For certain computers (like the C64) you have to provide ROM files via a Config button.
+            </p>
+            <p>
+                Press Start button to run.
+            </p>
+            <p>
+                When running, press F12 to start machine code monitor and F11 to show statistics.
+            </p>
+        </div>
 
     </div>
     <div class="right">
@@ -99,23 +143,96 @@
     </div>
 
     <div class="footer">
-        By <a href = "https://github.com/highbyte">Highbyte</a> 2022
+
+        <div class="system-help systemHelpC64Style">
+            <div class="row">
+                <div class="column">
+                    <div class="table">
+                        <div class="table-caption">
+                            C64 keyboard mapping
+                        </div>
+                        <div class="table-header">
+                            <div class="table-header-cell">
+                                Command
+                            </div>
+                            <div class="table-header-cell">
+                                C64 key
+                            </div>
+                            <div class="table-header-cell">
+                                PC / Mac key
+                            </div>
+                        </div>
+
+                        <div class="table-body">
+                            <div class="table-row">
+                                <div class="table-cell">Stop running Basic program</div>
+                                <div class="table-cell">Run/Stop</div>
+                                <div class="table-cell">Esc</div>
+                            </div>
+                            <div class="table-row">
+                                <div class="table-cell">Soft reset</div>
+                                <div class="table-cell">Run/Stop + Restore</div>
+                                <div class="table-cell">Esc + PageUp (fn + ArrowUp on Mac)</div>
+                            </div>
+                            <div class="table-row">
+                                <div class="table-cell">Change text color 1-8</div>
+                                <div class="table-cell">CTRL + numbers 1-8</div>
+                                <div class="table-cell">Tab + numbers 1-8</div>
+                            </div>
+                            <div class="table-row">
+                                <div class="table-cell">Change text color 9-16</div>
+                                <div class="table-cell">C= + numbers 1-8</div>
+                                <div class="table-cell">LeftCtrl + numbers 1-8</div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="column">
+                    <button @onclick="ShowC64HelpUI">Detailed help</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="system-help systemHelpGenericStyle">
+            <div class="row">
+                <div class="column">
+                    <p>
+                        A generic 6502 CPU computer, with custom defined memory layout.
+                    </p>
+                    <p>
+                        Currently configured in the application config and code.
+                        A future update could make it possible to configure such things as
+                        total memory, screen memory addres and IO memory addresses in
+                        the UI.
+                    </p>
+                </div>
+                <div class="column">
+                    <button @onclick="ShowGenericHelpUI">Detailed help</button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <style>
+    .skGLViewStyle {
+        display: @GetDisplayStyle("Canvas");
+        width: @_windowWidthStyle;
+        height: @_windowHeightStyle;
+    }
+
+    .canvasUninitializedStyle {
+        display: @GetDisplayStyle("CanvasUninitialized");
+        width: 806px;
+        height: 320px;
+    }
+
     .systemHelpC64Style {
         display: @GetDisplayStyle("C64Help");
     }
     .systemHelpGenericStyle {
         display: @GetDisplayStyle("GenericHelp");
-    }
-    .skGLViewStyle {
-        width: @_windowWidthStyle;
-        height: @_windowHeightStyle;
-/*        max-width: @_windowWidthStyle;
-        min-height: @_windowHeightStyle;
-*/
     }
     .debugStyle {
         display: @GetDisplayStyle("Debug");
@@ -132,17 +249,26 @@
     protected string GetDisplayStyle(string displayData)
     {
         const string VISIBLE = "inline";
+        const string VISIBLE_BLOCK = "inline-block";
         const string HIDDEN = "none";
 
         switch (displayData)
         {
+            case "Canvas":
+                {
+                    return _emulatorState != EmulatorState.Uninitialized ? VISIBLE: HIDDEN;
+                }
+            case "CanvasUninitialized":
+                {
+                    return _emulatorState == EmulatorState.Uninitialized ? VISIBLE_BLOCK : HIDDEN;
+                }
             case "C64Help":
                 {
-                    return SelectedSystemName == "C64" ? VISIBLE : HIDDEN;
+                    return SelectedSystemName == C64.SystemName ? VISIBLE : HIDDEN;
                 }
             case "GenericHelp":
                 {
-                    return SelectedSystemName == "Generic" ? VISIBLE : HIDDEN;
+                    return SelectedSystemName == GenericComputer.SystemName ? VISIBLE : HIDDEN;
                 }
             case "Debug":
                 {
@@ -165,21 +291,24 @@
 
     protected bool ShowConfigDisabled => _emulatorState != EmulatorState.Uninitialized;
 
-    protected async void OnStart(MouseEventArgs mouseEventArgs)
+    protected async Task OnStart(MouseEventArgs mouseEventArgs)
     {
-        bool isValid = true;
         if (_emulatorState == EmulatorState.Uninitialized)
-            isValid = await InitEmulator();
-        if (!isValid)
         {
-            return;
+            (bool isOk, _) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
+            if (!isOk)
+                return;
+
+            await InitEmulator();
         }
 
         _wasmHost!.Start();
         _emulatorState = EmulatorState.Running;
+        await FocusEmulator();
+
         this.StateHasChanged();
     }
-    protected void OnPause(MouseEventArgs mouseEventArgs)
+    protected async Task OnPause(MouseEventArgs mouseEventArgs)
     {
         if (_emulatorState == EmulatorState.Uninitialized)
             return;
@@ -188,17 +317,28 @@
         _emulatorState = EmulatorState.Paused;
         this.StateHasChanged();
     }
-    protected void OnReset(MouseEventArgs mouseEventArgs)
+    protected async Task OnReset(MouseEventArgs mouseEventArgs)
     {
-        OnPause(mouseEventArgs);
-        OnStop(mouseEventArgs);
-        OnStart(mouseEventArgs);
+        await OnPause(mouseEventArgs);
+        await OnStop(mouseEventArgs);
+        await OnStart(mouseEventArgs);
     }
-    protected void OnStop(MouseEventArgs mouseEventArgs)
+    protected async Task OnStop(MouseEventArgs mouseEventArgs)
     {
-        CleanupEmulator();
+        await CleanupEmulator();
         this.StateHasChanged();
     }
+    protected async Task OnMonitorToggle(MouseEventArgs mouseEventArgs)
+    {
+        await _wasmHost!.ToggleMonitor();
+        this.StateHasChanged();
+    }
+
+    protected async Task OnStatsToggle(MouseEventArgs mouseEventArgs)
+    {
+        await ToggleDebugStatsState();
+    }
+
 
     protected override async void OnAfterRender(bool firstRender)
     {
@@ -271,7 +411,7 @@
 
     private async Task FocusEmulator()
     {
-        await Js.InvokeVoidAsync("focusId", "emulatorSKGLView");
+        await Js.InvokeVoidAsync("focusId", "emulatorSKGLView", 100);  // Hack: Delay of x ms for focus to work.
     }
 
     private async Task FocusMonitor()

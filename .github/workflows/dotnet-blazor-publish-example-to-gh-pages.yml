@@ -7,7 +7,10 @@ on:
   workflow_dispatch:
 
 env:
+   #VERSION: "2022.11.19"
+   VERSION_SUFFIX: "-alpha"
    CONFIGURATION: "Release"
+
    #PROJECT_FILE: "Examples/BlazorWasmTest/BlazorWasmTest.csproj"
    PROJECT_FILE: "Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaWASM/Highbyte.DotNet6502.App.SkiaWASM.csproj"
    PROJECT_GH_PAGES_DIR: "blazorexample"
@@ -21,6 +24,11 @@ jobs:
     steps:
       # Checkout the code
       - uses: actions/checkout@v2
+
+
+      # Set version number (major.minor.revision) as current Year.Month.Day. Ex: 2022.11.19
+      - name: Set current date as env variable
+        run: echo "VERSION=$(date +'%Y.%m.%d')" >> $GITHUB_ENV
 
       # Install .NET Core SDK
       - name: Setup .NET Core
@@ -41,7 +49,7 @@ jobs:
       # Publish the Blazor WASM site to a build working folder
       - name: Publish
         # Note: Could not get -p:GHPagesInjectBrotliLoader=true to work. Gets error "Uncaught ReferenceError: Blazor is not defined" from "brotliloader.min.js"
-        run: dotnet publish ${{ env.PROJECT_FILE }} -c:${{ env.CONFIGURATION }} -p:GHPages=true -p:GHPagesBase="/${{ github.event.repository.name }}/${{ env.PROJECT_GH_PAGES_DIR }}/" -p:GHPagesInjectBrotliLoader=false -o:${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}
+        run: dotnet publish ${{ env.PROJECT_FILE }} -p:Version=${{ env.VERSION }}.${{ github.run_number }}${{ env.VERSION_SUFFIX }} -c:${{ env.CONFIGURATION }} -p:GHPages=true -p:GHPagesBase="/${{ github.event.repository.name }}/${{ env.PROJECT_GH_PAGES_DIR }}/" -p:GHPagesInjectBrotliLoader=false -o:${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}
 
       # Copy the published Blazor WASM site from wwwroot folder in publish output dir
       - name: Copy published wwwroot contents to a subdirectory in GH pages working dir root

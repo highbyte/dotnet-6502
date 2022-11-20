@@ -1,5 +1,7 @@
+using System.ComponentModel;
+using System.Xml.Linq;
 using Highbyte.DotNet6502.Impl.AspNet;
-using Highbyte.DotNet6502.Impl.AspNet.Generic;
+using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64;
 using Highbyte.DotNet6502.Systems;
@@ -11,6 +13,8 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
     public static class C64Setup
     {
         public const string USER_CONFIG_ROMS = "ROMS";
+
+        const string LOCAL_STORAGE_ROM_PREFIX = "rom_";
 
         public static C64 BuildC64(C64Config c64Config)
         {
@@ -45,61 +49,64 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             return systemRunner;
         }
 
-        public static bool IsValidSystemUserConfig(SystemUserConfig systemUserConfig, out string validationError)
+        public static bool IsValidC64Config(C64Config c64Config, out string validationError)
         {
             validationError = "";
 
-            var userSettings = systemUserConfig.UserSettings;
-            if (!userSettings.ContainsKey(USER_CONFIG_ROMS))
-            {
-                validationError = "Missing C64 ROMs. Press Config to upload.";
-                return false;
-            }
-
-            var loadedRoms = (Dictionary<string, byte[]>)userSettings[USER_CONFIG_ROMS];
+            var loadedRoms = c64Config.ROMs.Select(x => x.Name).ToList();
             List<string> missingRoms = new();
             foreach (var romName in C64Config.RequiredROMs)
             {
-                if (!loadedRoms.ContainsKey(romName))
+                if (!loadedRoms.Contains(romName))
                     missingRoms.Add(romName);
             }
 
             if (missingRoms.Count > 0)
             {
-                validationError = $"Missing ROMs: {string.Join(',', missingRoms)}";
+                validationError = $"Missing ROMs: {string.Join(", ", missingRoms)}.";
+                validationError += " Press C64 Config to load ROMs";
                 return false;
             }
             return true;
         }
 
-        public static async Task<C64Config> BuildC64Config(SystemUserConfig systemUserConfig)
+        public static async Task<C64Config> BuildC64Config(BrowserContext browserContext, Dictionary<string, byte[]>? roms)
         {
-            var httpClient = systemUserConfig.HttpClient;
-            var uri = systemUserConfig.Uri;
+            var romList = new List<ROM>();
 
-
-            byte[] basicROMData;
-            byte[] chargenROMData;
-            byte[] kernalROMData;
-
-            var userSettings = systemUserConfig.UserSettings;
-            if (userSettings.ContainsKey(USER_CONFIG_ROMS))
+            if (roms == null)
             {
-                var roms = (Dictionary<string, byte[]>)userSettings[USER_CONFIG_ROMS];
-                // ROMs uploaded to client by user
-                basicROMData = (byte[])roms[C64Config.BASIC_ROM_NAME];
-                chargenROMData = (byte[])roms[C64Config.CHARGEN_ROM_NAME];
-                kernalROMData = (byte[])roms[C64Config.KERNAL_ROM_NAME];
+                romList = await GetROMsFromLocalStorage(browserContext);
             }
             else
             {
-                // Load ROMs from current website
-                const string BASIC_ROM_URL = "ROM/basic.901226-01.bin";
-                const string CHARGEN_ROM_URL = "ROM/characters.901225-01.bin";
-                const string KERNAL_ROM_URL = "ROM/kernal.901227-03.bin";
-                basicROMData = await GetROMFromUrl(httpClient, BASIC_ROM_URL);
-                chargenROMData = await GetROMFromUrl(httpClient, CHARGEN_ROM_URL);
-                kernalROMData = await GetROMFromUrl(httpClient, KERNAL_ROM_URL);
+                if (roms.ContainsKey(C64Config.BASIC_ROM_NAME) && roms[C64Config.BASIC_ROM_NAME] != null)
+                {
+                    romList.Add(new ROM
+                    {
+                        Name = C64Config.BASIC_ROM_NAME,
+                        Data = roms[C64Config.BASIC_ROM_NAME],
+                        //Checksum = ""
+                    });
+                }
+                if (roms.ContainsKey(C64Config.CHARGEN_ROM_NAME) && roms[C64Config.CHARGEN_ROM_NAME] != null)
+                {
+                    romList.Add(new ROM
+                    {
+                        Name = C64Config.CHARGEN_ROM_NAME,
+                        Data = roms[C64Config.CHARGEN_ROM_NAME],
+                        //Checksum = ""
+                    });
+                }
+                if (roms.ContainsKey(C64Config.KERNAL_ROM_NAME) && roms[C64Config.KERNAL_ROM_NAME] != null)
+                {
+                    romList.Add(new ROM
+                    {
+                        Name = C64Config.KERNAL_ROM_NAME,
+                        Data = roms[C64Config.KERNAL_ROM_NAME],
+                        //Checksum = ""
+                    });
+                }
             }
 
             var c64Config = new C64Config
@@ -110,34 +117,67 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
                 // Vic2Model = "PAL",     // NTSC, NTSC_old, PAL
 
                 ROMDirectory = "",  // Set ROMDirectory to skip loading ROMs from file system (ROMDirectory + File property), instead read from the Data property
-                ROMs = new List<ROM>
-                {
-                    new ROM
-                    {
-                        Name = C64Config.BASIC_ROM_NAME,
-                        Data = basicROMData,
-                        //Checksum = ""
-                    },
-                    new ROM
-                    {
-                        Name = C64Config.CHARGEN_ROM_NAME,
-                        Data = chargenROMData,
-                        //Checksum = ""
-                    },
-                    new ROM
-                    {
-                        Name = C64Config.KERNAL_ROM_NAME,
-                        Data = kernalROMData,
-                        //Checksum = ""
-                    }
-                }
+                ROMs = romList,
             };
-            c64Config.Validate();
+
+            //c64Config.Validate();
 
             return c64Config;
         }
 
-        private static async Task<byte[]> GetROMFromUrl(HttpClient httpClient, string url)
+        private static async Task<List<ROM>> GetROMsFromLocalStorage(BrowserContext browserContext)
+        {
+            var roms = new List<ROM>();
+            string name;
+            byte[] data;
+
+            name = C64Config.BASIC_ROM_NAME;
+            data = await browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}");
+            if (data != null)
+            {
+                roms.Add(new ROM
+                {
+                    Name = name,
+                    Data = await browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}")
+                });
+            }
+            name = C64Config.KERNAL_ROM_NAME;
+            data = await browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}");
+            if (data != null)
+            {
+                roms.Add(new ROM
+                {
+                    Name = name,
+                    Data = await browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}")
+                });
+            }
+            name = C64Config.CHARGEN_ROM_NAME;
+            data = await browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}");
+            if (data != null)
+            {
+                roms.Add(new ROM
+                {
+                    Name = name,
+                    Data = await browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}")
+                });
+            }
+
+            return roms;
+        }
+
+        public static async Task SaveROMsToLocalStorage(List<ROM> roms, BrowserContext browserContext)
+        {
+            foreach (var requiredRomName in C64Config.RequiredROMs)
+            {
+                var rom = roms.SingleOrDefault(x => x.Name == requiredRomName);
+                if (rom != null)
+                    await browserContext.LocalStorage.SetItemAsync($"{LOCAL_STORAGE_ROM_PREFIX}{rom.Name}", rom.Data);
+                else
+                    await browserContext.LocalStorage.RemoveItemAsync($"{LOCAL_STORAGE_ROM_PREFIX}{requiredRomName}");
+            }
+        }
+
+        public static async Task<byte[]> GetROMFromUrl(HttpClient httpClient, string url)
         {
             return await httpClient.GetByteArrayAsync(url);
 

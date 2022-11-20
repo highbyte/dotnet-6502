@@ -1,0 +1,70 @@
+﻿@using Highbyte.DotNet6502.App.SkiaWASM.Skia
+@using Highbyte.DotNet6502.Systems.Generic.Config
+@using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index
+
+General settings
+<div class="table">
+    <div class="table-row">
+        <div class="table-cell">Load file at start:</div>
+        <div class="table-cell">@GenericComputerConfig.ProgramBinaryFile</div>
+    </div>
+</div>
+
+Memory addresses
+<div class="table">
+    <div class="table-row">
+        <div class="table-cell twocol">Columns:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.Cols</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">Rows:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.Rows</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">Border cols:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.BorderCols</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">Border rows:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.BorderRows</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">ScreenStartAddress:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.ScreenStartAddress.ToHex()</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">ScreenColorStartAddress:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.ScreenColorStartAddress.ToHex()</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">ScreenBackgroundColorAddress:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.ScreenBackgroundColorAddress.ToHex()</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">ScreenBorderColorAddress:</div>
+        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.ScreenBorderColorAddress.ToHex()</div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(_validationMessage))
+{
+    <p>@_validationMessage</p>
+}
+<p></p>
+<button @onclick="Ok">Ok</button>
+
+@code {
+
+    [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
+
+    [Parameter] public Dictionary<string, object>? UserSettings { get; set; }
+
+    public GenericComputerConfig GenericComputerConfig => (GenericComputerConfig)UserSettings[SystemList.CONFIG_KEY];
+
+    protected override void OnInitialized() => BlazoredModal.SetTitle("Generic config");
+
+    private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(UserSettings));
+
+    private string _validationMessage = "";
+
+}

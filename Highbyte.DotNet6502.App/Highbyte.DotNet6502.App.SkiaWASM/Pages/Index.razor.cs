@@ -6,11 +6,17 @@ using Highbyte.DotNet6502.Systems;
 using Microsoft.AspNetCore.Components;
 using SkiaSharp;
 using SkiaSharp.Views.Blazor;
+using System.Reflection;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 {
     public partial class Index
     {
+        //public string Version => typeof(Program).Assembly.GetName().Version!.ToString();
+        public string Version => Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+
+        private BrowserContext _browserContext;
+
         public enum EmulatorState
         {
             Uninitialized,
@@ -29,17 +35,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             set
             {
                 _selectedSystemName = value;
-                ValidateEmulator();
-            }
-        }
-        private Dictionary<string, SystemUserConfig> _systemUserConfigs = new();
-        public SystemUserConfig SelectedSystemUserConfig
-        {
-            get
-            {
-                if (!_systemUserConfigs.ContainsKey(_selectedSystemName))
-                    _systemUserConfigs.Add(_selectedSystemName, new SystemUserConfig());
-                return _systemUserConfigs[_selectedSystemName];
+                OnSelectedEmulatorChanged();
             }
         }
 
@@ -53,7 +49,19 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             return _selectedSystemUserConfigValidationMessage;
         }
 
-        private double Scale { get; set; } = 2.0f;
+        private double _scale = 2.0f;
+        private double Scale
+        {
+            get
+            {
+                return _scale;
+            }
+            set
+            {
+                _scale = value;
+                UpdateCanvasSize();
+            }
+        }
 
         protected SKGLView? _emulatorSKGLViewRef;
         protected ElementReference? _mainRef;
@@ -66,11 +74,11 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
         private string _statsString = "Stats: calculating...";
         private string _debugString = "";
 
-        private const string DEFAULT_WINDOW_WIDTH_STYLE = "640px";
-        private const string DEFAULT_WINDOW_HEIGHT_STYLE = "400px";
+        private const int DEFAULT_WINDOW_WIDTH = 640;
+        private const int DEFAULT_WINDOW_HEIGHT = 400;
 
-        private string _windowWidthStyle = DEFAULT_WINDOW_WIDTH_STYLE;
-        private string _windowHeightStyle = DEFAULT_WINDOW_HEIGHT_STYLE;
+        private string _windowWidthStyle = "0px";
+        private string _windowHeightStyle = "0px";
 
         private bool _debugVisible = false;
         private bool _monitorVisible = false;
@@ -83,7 +91,14 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 
         protected async override void OnInitialized()
         {
-            _monitorConfig = new MonitorConfig
+            _browserContext = new()
+            {
+                Uri = NavManager!.ToAbsoluteUri(NavManager.Uri),
+                HttpClient = HttpClient!,
+                LocalStorage = _localStorage
+            };
+
+            _monitorConfig = new()
             {
                 MaxLineLength = 100,        // TODO: This affects help text printout, should it be set dynamically?
 
@@ -93,56 +108,63 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
             };
             _monitorConfig.Validate();
 
-            _systemList = new SystemList();
+            _systemList = new SystemList(_browserContext);
 
             // Default system
             SelectedSystemName = "C64";
         }
 
-        private void ValidateEmulator()
+        private async void OnSelectedEmulatorChanged()
         {
-            (bool isOk, string valError) = _systemList.IsSystemConfigOk(_selectedSystemName, SelectedSystemUserConfig);
+            (bool isOk, string valError) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
             if (!isOk)
                 _selectedSystemUserConfigValidationMessage = valError;
             else
                 _selectedSystemUserConfigValidationMessage = "";
-        }
 
-        private async Task<bool> InitEmulator()
-        {
-            var uri = NavManager!.ToAbsoluteUri(NavManager.Uri);
-            var httpClient = HttpClient!;
-
-            SelectedSystemUserConfig.HttpClient = httpClient;
-            SelectedSystemUserConfig.Uri = uri;
-
-            await _systemList.SetSelectedSystem(_selectedSystemName, SelectedSystemUserConfig);
-
-            // Set SKGLView dimensions
-            var screen = (IScreen)_systemList.SelectedSystem!;
-            _windowWidthStyle = $"{screen.VisibleWidth * Scale}px";
-            _windowHeightStyle = $"{screen.VisibleHeight * Scale}px";
+            UpdateCanvasSize();
             this.StateHasChanged();
-
-            _wasmHost = new WasmHost(Js, _systemList.SelectedSystem!, _systemList.GetSystemRunner, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale);
-
-            _emulatorState = EmulatorState.Paused;
-            //await FocusEmulator();
-
-            return true;
         }
 
-        private void CleanupEmulator()
+        private async void UpdateCanvasSize()
         {
+            (bool isOk, _) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
+            if (!isOk)
+            {
+                _windowWidthStyle = $"{DEFAULT_WINDOW_WIDTH}px";
+                _windowHeightStyle = $"{DEFAULT_WINDOW_HEIGHT}px";
+            }
+            else
+            {
+                var selectedSystem = await _systemList.GetSystemData(_selectedSystemName);
+                // Set SKGLView dimensions
+                var screen = (IScreen)selectedSystem.System!;
+                _windowWidthStyle = $"{screen.VisibleWidth * Scale}px";
+                _windowHeightStyle = $"{screen.VisibleHeight * Scale}px";
+            }
+
+            this.StateHasChanged();
+        }
+
+        private async Task InitEmulator()
+        {
+            var selectedSystem = await _systemList.GetSystemData(_selectedSystemName);
+            _wasmHost = new WasmHost(Js, selectedSystem.System!, _systemList.GetSystemRunner, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale);
+            _emulatorState = EmulatorState.Paused;
+        }
+
+        private async Task CleanupEmulator()
+        {
+            _debugVisible = false;
+            await _wasmHost!.Monitor.Disable();
+
             _emulatorState = EmulatorState.Paused;
             _wasmHost?.Cleanup();
             _wasmHost = null;
             _emulatorState = EmulatorState.Uninitialized;
-            _windowWidthStyle = DEFAULT_WINDOW_WIDTH_STYLE;
-            _windowHeightStyle = DEFAULT_WINDOW_HEIGHT_STYLE;
         }
 
-        protected void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
+        protected async void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
         {
             if (_emulatorState != EmulatorState.Running)
                 return;
@@ -155,7 +177,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
 
             if (!_wasmHost.Initialized)
             {
-                _wasmHost.Init(e.Surface.Canvas, grContext);
+                await _wasmHost.Init(e.Surface.Canvas, grContext);
             }
 
             //_emulatorRenderer!.SetSize(e.Info.Width, e.Info.Height);
@@ -174,12 +196,13 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
         [CascadingParameter] public IModalService Modal { get; set; } = default!;
 
         private async Task ShowC64ConfigUI() => await ShowConfigUI<C64ConfigUI>();
-        //private async Task ShowGenericConfigUI() => await ShowConfigUI<GenericConfigUI>();
+        private async Task ShowGenericConfigUI() => await ShowConfigUI<GenericConfigUI>();
 
         private async Task ShowConfigUI<T>() where T : IComponent
         {
+            var systemConfig = await _systemList.GetSystemUserConfig(_selectedSystemName);
             var parameters = new ModalParameters()
-                .Add("UserSettings", SelectedSystemUserConfig.UserSettings);
+                .Add("UserSettings", systemConfig.UserSettings);
 
             var result = await Modal.Show<T>("Config", parameters).Result;
 
@@ -193,20 +216,30 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
                 //       Therefore no need to handle the result. 
                 // TODO: Should the UserSettings be changed to be passed by value (struct instead of class?) instead to handle that the dialog can be cancelled, and then the changes won't stick?
 
-                //if (result.Data is null)
-                //{
-                //    Console.WriteLine($"Returned null data");
-                //    return;
-                //}
-                //if (!(result.Data is Dictionary<string, object>))
-                //{
-                //    Console.WriteLine($"Returned unrecongnized type: {result.Data.GetType()}");
-                //    return;
-                //}
-                //Dictionary<string, object> userSettings = (Dictionary<string, object>)result.Data;
-                //Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
+                if (result.Data is null)
+                {
+                    Console.WriteLine($"Returned null data");
+                    return;
+                }
+                if (result.Data is not Dictionary<string, object>)
+                {
+                    Console.WriteLine($"Returned unrecongnized type: {result.Data.GetType()}");
+                    return;
+                }
+                Dictionary<string, object> userSettings = (Dictionary<string, object>)result.Data;
+                Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
+
+                await _systemList.PersistSystemUserConfig(_selectedSystemName, systemConfig);
             }
-            ValidateEmulator();
+
+            (bool isOk, string valError) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
+            _selectedSystemUserConfigValidationMessage = "";
+            if (!isOk)
+            {
+                _selectedSystemUserConfigValidationMessage = valError;
+            }
+
+            UpdateCanvasSize();
             this.StateHasChanged();
         }
 
@@ -243,6 +276,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages
         protected async Task ToggleDebugStatsState()
         {
             _debugVisible = !_debugVisible;
+            await FocusEmulator();
             this.StateHasChanged();
         }
 

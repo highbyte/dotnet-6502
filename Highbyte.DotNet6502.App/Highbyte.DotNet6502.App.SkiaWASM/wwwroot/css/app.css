@@ -1,3 +1,6 @@
+@import url("https://cdn.jsdelivr.net/npm/@xz/fonts@1/serve/cascadia-code.min.css");
+@import url('https://fonts.googleapis.com/css?family=Open+Sans');
+
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
 }
@@ -72,8 +75,6 @@
         content: var(--blazor-load-percentage-text, "Loading");
     }
 
-    
-
 .header {
     grid-area: header;
     text-align: center;
@@ -105,6 +106,10 @@ h4 {
     display: inline;
 }
 
+.menuFooter {
+    grid-area: menuFooter;
+}
+
 .main {
     grid-area: main;
 }
@@ -116,25 +121,27 @@ h4 {
 
 .footer {
     grid-area: footer;
-    text-align: center;
+    text-align: left;
 }
 
 .grid-container {
     display: inline-grid;
     grid-template-areas:
-        'header header right'
-        'menu   main   right'
-        'footer footer right';
-    gap: 4px;
+        'header     main    right'
+        'menu       main    right'
+        'menu       footer  right'
+        'menuFooter footer  right';
+
+    gap: 2px;
     padding: 4px;
     background-color: #142833;
 }
     .grid-container > div {
         color: #ffffff;
         background-color: #313f53;
-        padding: 4px 4px;
+        padding: 2px 2px;
         font-size: 1.0em;
-        font-family: 'Segoe UI'
+        font-family: 'Open Sans', sans-serif;
     }
 
 #system-selector {
@@ -157,16 +164,38 @@ h4 {
 
 .system-help {
     color: white;
-    font-size: 1.0em;
+    font-size: 0.9em;
     text-align: left;
 }
 
+#versionInfo {
+    color: #929292;
+    font-family: 'Cascadia Code', "Courier New", monospace;
+    font-size: 0.75em;
+    text-align: left;
+}
+
+#versionInfo a {
+    color: #929292;
+}
+
+
 /*Emulator SKCanvas view style*/
 #emulatorSKGLView {
-/*    position: relative;
-    left: 0px;
-    top: 0px;
-*/
+}
+
+/*When SKCanvas (#emulatorSKGLView) is not shown (emulator stopped) this style shows text in the background */
+#canvasUninitialized {
+    text-align: center;
+    padding: 10px 0;
+    margin-bottom: 30px; 
+    font-family: 'Cascadia Code', "Courier New", monospace;
+}
+#canvasUninitialized h2 {
+    color: #f7c346;
+}
+#canvasUninitialized p {
+    margin: 20px;
 }
 
 /*Debug style*/
@@ -174,11 +203,10 @@ h4 {
     margin: 4px;
     padding: 8px;
     border-radius: 0.5vw;
-
     background-color: #212b39;
     color: #f8f8f8;
-    font-family: "Courier New", monospace;
-    font-size: 0.7em;
+    font-family: 'Cascadia Code', "Courier New", monospace;
+    font-size: 0.75em;
     text-align: left;
     overflow: auto;
     line-height: 3ex;
@@ -204,7 +232,7 @@ h4 {
 
 #monitor-inner-screen {
     color: #f8f8f8;
-    font-family: "Courier New", monospace;
+    font-family: 'Cascadia Code', "Courier New", monospace;
     font-size: 1em;
     text-align: left;
     width: 99%;
@@ -246,14 +274,82 @@ h4 {
 .custom-modal {
     background-color: #accaf2;
     color: #000;
-    font-family: 'Segoe UI';
+    font-family: 'Open Sans', sans-serif;
     font-size: 1.0em;
     border-radius: 0.5vw;
     box-sizing: border-box;
-
     width: 500px;
     margin-top: 10px;
     margin-left: auto;
     margin-right: auto;
     padding: 8px;
+}
+
+    .custom-modal a {
+        color: #194f85
+    }
+
+.row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.column {
+    max-width: fit-content;
+    display: flex;
+    flex-direction: column;
+    flex-basis: auto;
+    flex: 1;
+    padding: 8px;
+}
+
+.table {
+    display: table;
+    width: 100%;
+    border: 1px solid black;
+}
+
+.table-caption {
+    display: table-caption;
+    text-align: center;
+    font-weight: bold;
+}
+
+.table-header {
+    display: table-header-group;
+    background-color: gray;
+    font-weight: bold;
+}
+.table-header-cell {
+    display: table-cell;
+    padding: 3px;
+    text-align: justify;
+    border: 1px solid black;
+}
+
+.table-body {
+    display: table-row-group;
+}
+
+.table-row {
+    display: table-row;
+    min-height: 1px;
+    height: auto;
+    margin: 0;
+}
+
+.table-cell {
+    display: table-cell;
+    padding: 3px;
+    border: 1px solid black;
+}
+
+.table-footer {
+    display: table-footer-group;
+    background-color: gray;
+    font-weight: bold;
+    font-size: 25px;
+    color: rgba(255, 255, 255, 0.45);
 }

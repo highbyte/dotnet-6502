@@ -34,12 +34,15 @@
             element.focus();
         }
 
-        window.focusId = (id) => {
-            var elementToFocus = document.getElementById(id);
-            elementToFocus.focus();
+        window.focusId = (id, delayMs) => {
+            setTimeout(() => {
+                var elementToFocus = document.getElementById(id);
+                elementToFocus.focus();
+            }, delayMs);
+
         }
 
-        window.clickId= (id) => {
+        window.clickId = (id) => {
             var elementToClick = document.getElementById(id);
             elementToClick.click();
         }
@@ -58,13 +61,29 @@
     </script>
 
     <script>
-        // Fix for some keys not working correctly in Monitor UI
         setTimeout(() => {
-            var element = document.getElementById("monitor-input");
-            //element.onkeydown = handleSpecialKeys
-        }, 3000);
-        function handleSpecialKeys(event) {
-            if (event.key == "ArrowDown" || event.key == "ArrowUp") {
+            // Fix for some keys not working correctly in Emulator Canvas
+            var emulatorCanvasElement = document.getElementById("emulatorSKGLView");
+            emulatorCanvasElement.onkeydown = handleSpecialKeysForCanvas
+
+            // Fix for some keys not working correctly in Monitor UI
+            var monitorElement = document.getElementById("monitor-input");
+            monitorElement.onkeydown = handleSpecialKeysForMonitor
+        }, 5000);
+
+        function handleSpecialKeysForCanvas(event) {
+            if (event.key == "ArrowDown" || event.key == "ArrowUp" || event.key == "ArrowRight" || event.key == "ArrowLeft"
+                || event.key == "PageUp" || event.key == "PageDown" || event.key == "Home" || event.key == "End"
+                || event.key == "Tab" || event.key == "Control"
+                || event.key == "1" || event.key == "2" || event.key == "3" || event.key == "4" || event.key == "5" || event.key == "6" || event.key == "7" || event.key == "8" || event.key == "9" || event.key == "0"
+                || event.key == "F11" || event.key == "F12") {
+                event.preventDefault();
+            }
+        }
+
+        function handleSpecialKeysForMonitor(event) {
+            if (event.key == "ArrowDown" || event.key == "ArrowUp"
+                || event.key == "F11" || event.key == "F12") {
                 event.preventDefault();
             }
             else if (event.key == "Escape") {

@@ -1,5 +1,6 @@
 ﻿@using Highbyte.DotNet6502.App.SkiaWASM.Skia
 @using Highbyte.DotNet6502.Systems.Commodore64.Config
+@using Highbyte.DotNet6502.Systems;
 @using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index
 
 <p>The C64 system requires the following types of ROM files: <strong>Kernal, Basic, and Character generator</strong>.</p>
@@ -22,6 +23,10 @@
 
 <InputFile id="c64RomFilePicker" OnChange="@OnC64RomFilePickerChange" multiple hidden />
 <button onclick="document.getElementById('c64RomFilePicker').click()">Load ROMs</button>
+
+<button @onclick="UnloadROMs">Unload ROMs</button>
+
+
 <p></p>
 @if (_isLoadingC64Roms)
 {
@@ -58,7 +63,19 @@ else
 
     [Parameter] public Dictionary<string, object>? UserSettings { get; set; }
 
+    public C64Config C64Config
+    {
+        get
+        {
+            return (C64Config)UserSettings![SystemList.CONFIG_KEY];
+        }
+    }
+
     protected override void OnInitialized() => BlazoredModal.SetTitle("C64 config");
+
+
+    private async Task UnloadROMs() => C64Config.ROMs = new List<ROM>();
+
 
     private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(UserSettings));
 
@@ -68,9 +85,12 @@ else
 
     private Dictionary<string, byte[]> GetLoadedRoms()
     {
-        if (UserSettings == null || !UserSettings.ContainsKey(C64Setup.USER_CONFIG_ROMS))
-            return new Dictionary<string, byte[]>();
-        return (Dictionary<string, byte[]>)UserSettings[C64Setup.USER_CONFIG_ROMS];
+        var dict = new Dictionary<string, byte[]>();
+        foreach (var rom in C64Config.ROMs)
+        {
+            dict[rom.Name] = rom.Data == null ? new byte[]{} : rom.Data;
+        }
+        return dict;
     }
 
     private int LoadedROMCount => GetLoadedRoms().Count;
@@ -79,15 +99,10 @@ else
 
     private async Task OnC64RomFilePickerChange(InputFileChangeEventArgs e)
     {
-        if (UserSettings == null)
+        if (C64Config == null)
             return;
 
         _isLoadingC64Roms = true;
-
-        if (!UserSettings.ContainsKey(C64Setup.USER_CONFIG_ROMS))
-            UserSettings[C64Setup.USER_CONFIG_ROMS] = new Dictionary<string, byte[]>();
-        var loadedRoms = (Dictionary<string, byte[]>)UserSettings[C64Setup.USER_CONFIG_ROMS];
-
         _validationMessage = "";
 
         foreach (var file in e.GetMultipleFiles(_maxC64AllowedRomFiles))
@@ -117,11 +132,11 @@ else
                 var fileSize = fileBuffer.Length;
 
                 if (isKernal)
-                    loadedRoms[C64Config.KERNAL_ROM_NAME] = fileBuffer;
+                    SetROM(C64Config.KERNAL_ROM_NAME, fileBuffer);
                 else if (isBasic)
-                    loadedRoms[C64Config.BASIC_ROM_NAME] = fileBuffer;
+                    SetROM(C64Config.BASIC_ROM_NAME, fileBuffer);
                 else if (isChargen)
-                    loadedRoms[C64Config.CHARGEN_ROM_NAME] = fileBuffer;
+                    SetROM(C64Config.CHARGEN_ROM_NAME, fileBuffer);
             }
             catch (Exception ex)
             {
@@ -131,6 +146,23 @@ else
         }
         _isLoadingC64Roms = false;
         this.StateHasChanged();
+    }
 
+    private void SetROM(string romName, byte[] data)
+    {
+        ROM rom;
+        if (!C64Config.ROMs.Exists(x => x.Name == romName))
+        {
+            rom = new()
+                {
+                    Name = romName
+                };
+            C64Config.ROMs.Add(rom);
+        }
+        else
+        {
+            rom = C64Config.ROMs.Single(x => x.Name == romName);
+        }
+        rom.Data = data;
     }
 }

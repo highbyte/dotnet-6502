@@ -2,22 +2,17 @@
 @using Highbyte.DotNet6502.Systems.Commodore64.Config
 @using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index
 
-<p>
-    Special C64 keys map to PC keyboard:
-</p>
-<ul>
-    <li>Run/Stop: Esc</li>
-    <li>Restore: PageUp</li>
-    <li>CTRL: RightCtrl</li>
-    <li>C=: LeftCtrl</li>
-</ul>
-<p>
-    Useful C64 monitor commands
-</p>
-<ul>
-    <li>lb: Pick Basic .prg file to load.</li>
-    <li>sb [filename.prg]: Save Basic .prg file as a download.</li>
-</ul>
+Useful C64 monitor commands
+<div class="table">
+    <div class="table-row">
+        <div class="table-cell">lb</div>
+        <div class="table-cell">Pick Basic .prg file to load.</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell">sb [filename.prg</div>
+        <div class="table-cell">Save Basic .prg file as a download.</div>
+    </div>
+</div>
 
 <p></p>
 <button @onclick="Close">Close</button>

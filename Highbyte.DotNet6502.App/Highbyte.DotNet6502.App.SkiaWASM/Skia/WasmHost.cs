@@ -25,7 +25,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 
         public AspNetInputHandlerContext InputHandlerContext { get; private set; }
         private readonly ISystem _system;
-        private readonly Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, SystemRunner> _getSystemRunner;
+        private readonly Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, Task<SystemRunner>> _getSystemRunner;
         private readonly Action<string> _updateStats;
         private readonly Action<string> _updateDebug;
         private readonly Func<bool, Task> _setMonitorState;
@@ -50,7 +50,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
         public WasmHost(
             IJSRuntime jsRuntime,
             ISystem system,
-            Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, SystemRunner> getSystemRunner,
+            Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, Task<SystemRunner>> getSystemRunner,
             Action<string> updateStats,
             Action<string> updateDebug,
             Func<bool, Task> setMonitorState,
@@ -79,14 +79,14 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             Initialized = false;
         }
 
-        public void Init(SKCanvas canvas, GRContext grContext)
+        public async Task Init(SKCanvas canvas, GRContext grContext)
         {
             _skCanvas = canvas;
             _grContext = grContext;
 
             _skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
             InputHandlerContext = new AspNetInputHandlerContext();
-            _systemRunner = _getSystemRunner(_system, _skiaRenderContext, InputHandlerContext);
+            _systemRunner = await _getSystemRunner(_system, _skiaRenderContext, InputHandlerContext);
 
             Monitor = new WasmMonitor(_jsRuntime, _systemRunner, _monitorConfig, _setMonitorState);
 
@@ -215,16 +215,17 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 
         private string GetStats()
         {
-            var strings = new List<string>();
+            string stats = "";
+
             foreach ((string name, IStat stat) in InstrumentationBag.Stats.OrderBy(i => i.Name))
             {
                 if (stat.ShouldShow())
                 {
-                    string line = BuildHtmlString(name, "header") + ": " + BuildHtmlString(stat.GetDescription(), "value");
-                    strings.Add(line);
+                    if (stats != "")
+                        stats += "<br />";
+                    stats += $"{BuildHtmlString(name, "header")}: {BuildHtmlString(stat.GetDescription(), "value")} ";
                 }
-            };
-            var stats = string.Join(" - ", strings);
+            }
             return stats;
         }
 
@@ -235,13 +236,13 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
             return BuildHtmlString(msg, "header");
         }
 
-        private string BuildHtmlString(string message, string cssClass)
+        private string BuildHtmlString(string message, string cssClass, bool startNewLine = false)
         {
-            return $@"<span class=""{cssClass}"">{HttpUtility.HtmlEncode(message)}</span>";
-        }
-        private string BuildHtmlStringNewLine()
-        {
-            return $@"<br />";
+            string html = "";
+            if (startNewLine)
+                html += "<br />";
+            html += $@"<span class=""{cssClass}"">{HttpUtility.HtmlEncode(message)}</span>";
+            return html;
         }
 
         public void Dispose()
@@ -252,49 +253,38 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
         /// Enable / Disable emulator functions such as monitor and stats/debug
         /// </summary>
         /// <param name="e"></param>
-        public void OnKeyDown(KeyboardEventArgs e)
+        public async Task OnKeyDown(KeyboardEventArgs e)
         {
             var key = e.Key;
 
-            //if ((key == "§" || key == "~") && e.ShiftKey)
-            //{
-            //    // TODO: Show/hide stats & debug panel
-            //    _toggleDebugStatsState();
-
-            //}
-            //else 
-
-            if (key == "§" || key == "~")
+            if (key == "F11")
             {
-                if (Monitor.Visible)
-                {
-                    Monitor.Disable();
-                }
-                else
-                {
-                    Monitor.Enable();
-                }
+                await _toggleDebugStatsState();
+
+            }
+            else if (key == "F12")
+            {
+                await ToggleMonitor();
+            }
+        }
+
+        public async Task ToggleMonitor()
+        {
+            if (Monitor.Visible)
+            {
+                await Monitor.Disable();
+            }
+            else
+            {
+                await Monitor.Enable();
             }
         }
 
         /// <summary>
-        /// Enable / Disable emulator functions such as monitor and stats/debug
         /// </summary>
         /// <param name="e"></param>
         public void OnKeyPress(KeyboardEventArgs e)
         {
-            var key = e.Key;
-
-            // The key on far left side just below Esc key
-            if ((key == "½"     // Shift-"§" (Swedish Windows)
-                || key == "°"   // Shift-"§" (Swedish Mac)
-                || key == "¬"   // Shift-"~" (US Windows)
-                || key == "`")  // Shift-"~" (US Mac)
-                && e.ShiftKey)
-            {
-                // TODO: Show/hide stats & debug panel
-                _toggleDebugStatsState();
-            }
         }
     }
 }
