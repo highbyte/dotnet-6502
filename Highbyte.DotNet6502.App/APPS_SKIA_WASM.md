@@ -1,7 +1,7 @@
 <h1 align="center">Highbyte.DotNet6502.App.SkiaWASM</h1>
 
 # Overview
-<img src="../Examples/Screenshots/SkiaWASM_C64.png" width="50%" height="50%" title="SkiaSharp rendering in a Blazor WASM browser host"><img src="../Examples/Screenshots/SkiaWASM_Generic.png" width="50%" height="50%" title="SkiaSharp rendering in a Blazor WASM browser host">
+<img align="top" src="../Examples/Screenshots/SkiaWASM_C64.png" width="50%" height="50%" title="SkiaSharp rendering in a Blazor WASM browser host"><img align="top" src="../Examples/Screenshots/SkiaWASM_Generic.png" width="50%" height="50%" title="SkiaSharp rendering in a Blazor WASM browser host">
 
 <img src="../Examples/Screenshots/SkiaWASM_Monitor.png" width="100%" height="100%" title="SkiaSharp rendering in a Blazor WASM browser host">
 

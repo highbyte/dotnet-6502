@@ -9,7 +9,7 @@
 
 ## A [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) emulator for .NET
 
-[<img src="Examples/Screenshots/SkiaWASM_C64.png" width="50%" height="50%" title="SkiaSharp rendering in a Blazor WASM browser host"/>](https://highbyte.se/dotnet-6502/blazorexample)<img src="Examples/Screenshots/SadConsole_Generic.png" width="50%" height="50%" title="SadConsole rendering in native SadConsole host window">
+[<img align="top" src="Examples/Screenshots/SkiaWASM_C64.png" width="50%" height="50%" title="SkiaSharp rendering in a Blazor WASM browser host"/>](https://highbyte.se/dotnet-6502/blazorexample)<img  align="top" src="Examples/Screenshots/SadConsole_Generic.png" width="50%" height="50%" title="SadConsole rendering in native SadConsole host window">
 
 # Overview / purpose
 
