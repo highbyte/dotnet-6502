@@ -1,7 +1,6 @@
-namespace Highbyte.DotNet6502.Systems.Generic
+namespace Highbyte.DotNet6502.Systems.Generic;
+
+public enum ScreenStatusBitFlags : int
 {
-    public enum ScreenStatusBitFlags : int
-    {
-        HostNewFrame = 0,
-    }
+    HostNewFrame = 0,
 }

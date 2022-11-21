@@ -1,12 +1,11 @@
-namespace Highbyte.DotNet6502.Monitor
-{
-    public class BreakPoint
-    {
-        public bool Enabled { get; set; }
+namespace Highbyte.DotNet6502.Monitor;
 
-        public BreakPoint()
-        {
-            Enabled = true;
-        }
+public class BreakPoint
+{
+    public bool Enabled { get; set; }
+
+    public BreakPoint()
+    {
+        Enabled = true;
     }
 }

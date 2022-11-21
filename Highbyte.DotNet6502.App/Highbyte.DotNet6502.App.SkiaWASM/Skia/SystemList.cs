@@ -6,35 +6,35 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 
-namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
+namespace Highbyte.DotNet6502.App.SkiaWASM.Skia;
+
+public class SystemList
 {
-    public class SystemList
+    public HashSet<string> Systems = new();
+
+    public Dictionary<string, SystemUserConfig> SystemUserConfigs = new Dictionary<string, SystemUserConfig>();
+
+    public const string CONFIG_KEY = "CONFIG";
+    private readonly BrowserContext _browserContext;
+
+    public SystemList(BrowserContext browserContext)
     {
-        public HashSet<string> Systems = new();
+        _browserContext = browserContext;
+        Systems.Add(C64.SystemName);
+        Systems.Add(GenericComputer.SystemName);
+    }
 
-        public Dictionary<string, SystemUserConfig> SystemUserConfigs = new Dictionary<string, SystemUserConfig>();
-
-        public const string CONFIG_KEY = "CONFIG";
-        private readonly BrowserContext _browserContext;
-
-        public SystemList(BrowserContext browserContext)
+    public async Task<SystemUserConfig> GetSystemUserConfig(string systemName)
+    {
+        if (!SystemUserConfigs.ContainsKey(systemName))
         {
-            _browserContext = browserContext;
-            Systems.Add(C64.SystemName);
-            Systems.Add(GenericComputer.SystemName);
-        }
+            SystemUserConfig systemUserConfig = new SystemUserConfig();
+            var userSettings = systemUserConfig.UserSettings;
 
-        public async Task<SystemUserConfig> GetSystemUserConfig(string systemName)
-        {
-            if (!SystemUserConfigs.ContainsKey(systemName))
+            switch (systemName)
             {
-                SystemUserConfig systemUserConfig = new SystemUserConfig();
-                var userSettings = systemUserConfig.UserSettings;
-
-                switch (systemName)
-                {
-                    case C64.SystemName:
-                        Dictionary<string, byte[]>? roms = null;
+                case C64.SystemName:
+                    Dictionary<string, byte[]>? roms = null;
 
 //#if DEBUG
 //                        // If running locally in Debug mode, try to load C64 ROMs from path "ROM" in current site.
@@ -59,123 +59,122 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia
 //                            Console.WriteLine($"Couldn't load C64 ROMS directly from current site in Debug mode");
 //                        }
 //#endif
-                        var c64Config = await C64Setup.BuildC64Config(_browserContext, roms);
-                        userSettings[CONFIG_KEY] = c64Config;
+                    var c64Config = await C64Setup.BuildC64Config(_browserContext, roms);
+                    userSettings[CONFIG_KEY] = c64Config;
 
-                        break;
-
-                    case GenericComputer.SystemName:
-
-                        var genericConfig = await GenericComputerSetup.BuildGenericComputerConfig(_browserContext);
-                        userSettings[CONFIG_KEY] = genericConfig;
-                        break;
-                }
-
-                SystemUserConfigs[systemName] = systemUserConfig;
-            }
-
-            return SystemUserConfigs[systemName];
-        }
-
-        public async Task PersistSystemUserConfig(string systemName, SystemUserConfig systemUserConfig)
-        {
-            var userSettings = systemUserConfig.UserSettings;
-
-            switch (systemName)
-            {
-                case C64.SystemName:
-                    var c64Config = (C64Config)userSettings[CONFIG_KEY];
-                    await C64Setup.SaveROMsToLocalStorage(c64Config.ROMs, _browserContext);
                     break;
 
                 case GenericComputer.SystemName:
-                    var genericConfig = (GenericComputerConfig)userSettings[CONFIG_KEY];
+
+                    var genericConfig = await GenericComputerSetup.BuildGenericComputerConfig(_browserContext);
+                    userSettings[CONFIG_KEY] = genericConfig;
                     break;
             }
+
+            SystemUserConfigs[systemName] = systemUserConfig;
         }
 
-        public async Task<(bool isOk, string valError)> IsSystemUserConfigOk(string systemName)
+        return SystemUserConfigs[systemName];
+    }
+
+    public async Task PersistSystemUserConfig(string systemName, SystemUserConfig systemUserConfig)
+    {
+        var userSettings = systemUserConfig.UserSettings;
+
+        switch (systemName)
         {
-            if (!Systems.Contains(systemName))
-                throw new NotImplementedException($"System not implemented: {systemName}");
+            case C64.SystemName:
+                var c64Config = (C64Config)userSettings[CONFIG_KEY];
+                await C64Setup.SaveROMsToLocalStorage(c64Config.ROMs, _browserContext);
+                break;
 
-            var systemUserConfig = await GetSystemUserConfig(systemName);
-
-            switch (systemName)
-            {
-                case C64.SystemName:
-                    C64Config c64Config = (C64Config)systemUserConfig.UserSettings[CONFIG_KEY];
-                    if (!C64Setup.IsValidC64Config(c64Config, out string validationError))
-                        return (false, validationError);
-                    break;
-
-                case GenericComputer.SystemName:
-                    break;
-
-                default:
-                    throw new NotImplementedException();
-            }
-
-            return (true, "");
+            case GenericComputer.SystemName:
+                var genericConfig = (GenericComputerConfig)userSettings[CONFIG_KEY];
+                break;
         }
+    }
 
-        public async Task<SystemData> GetSystemData(string systemName)
+    public async Task<(bool isOk, string valError)> IsSystemUserConfigOk(string systemName)
+    {
+        if (!Systems.Contains(systemName))
+            throw new NotImplementedException($"System not implemented: {systemName}");
+
+        var systemUserConfig = await GetSystemUserConfig(systemName);
+
+        switch (systemName)
         {
-            if (!Systems.Contains(systemName))
-                throw new NotImplementedException($"System not implemented: {systemName}");
+            case C64.SystemName:
+                C64Config c64Config = (C64Config)systemUserConfig.UserSettings[CONFIG_KEY];
+                if (!C64Setup.IsValidC64Config(c64Config, out string validationError))
+                    return (false, validationError);
+                break;
 
-            var systemData = new SystemData();
+            case GenericComputer.SystemName:
+                break;
 
-            var systemUserConfig = await GetSystemUserConfig(systemName);
-
-            switch (systemName)
-            {
-                case C64.SystemName:
-                    var c64Config = (C64Config)systemUserConfig.UserSettings[CONFIG_KEY];
-                    systemData.System = C64Setup.BuildC64(c64Config);
-                    systemData.Renderer = C64Setup.BuildC64Renderer(c64Config);
-                    systemData.InputHandler = C64Setup.BuildC64InputHander(c64Config);
-                    break;
-
-                case GenericComputer.SystemName:
-                    var genericConfig = (GenericComputerConfig)systemUserConfig.UserSettings[CONFIG_KEY];
-                    systemData.System = GenericComputerSetup.BuildGenericComputer(genericConfig);
-                    systemData.Renderer = GenericComputerSetup.BuildGenericComputerRenderer(genericConfig);
-                    systemData.InputHandler = GenericComputerSetup.BuildGenericComputerInputHander(genericConfig);
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
-
-            return systemData;
+            default:
+                throw new NotImplementedException();
         }
 
-        public async Task<SystemRunner> GetSystemRunner(
-            ISystem system,
-            SkiaRenderContext skiaRenderContext,
-            AspNetInputHandlerContext inputHandlerContext)
+        return (true, "");
+    }
+
+    public async Task<SystemData> GetSystemData(string systemName)
+    {
+        if (!Systems.Contains(systemName))
+            throw new NotImplementedException($"System not implemented: {systemName}");
+
+        var systemData = new SystemData();
+
+        var systemUserConfig = await GetSystemUserConfig(systemName);
+
+        switch (systemName)
         {
-            var systemData = await GetSystemData(system.Name);
+            case C64.SystemName:
+                var c64Config = (C64Config)systemUserConfig.UserSettings[CONFIG_KEY];
+                systemData.System = C64Setup.BuildC64(c64Config);
+                systemData.Renderer = C64Setup.BuildC64Renderer(c64Config);
+                systemData.InputHandler = C64Setup.BuildC64InputHander(c64Config);
+                break;
 
-            if (system is C64 c64)
-            {
-                return C64Setup.BuildSystemRunner(
-                    c64,
-                    (IRenderer<C64, SkiaRenderContext>)systemData.Renderer!,
-                    (IInputHandler<C64, AspNetInputHandlerContext>)systemData.InputHandler!,
-                    skiaRenderContext,
-                    inputHandlerContext);
-            }
-            else if (system is GenericComputer genericComputer)
-            {
-                return GenericComputerSetup.BuildSystemRunner(
-                    genericComputer,
-                    (IRenderer<GenericComputer, SkiaRenderContext>)systemData.Renderer!,
-                    (IInputHandler<GenericComputer, AspNetInputHandlerContext>)systemData.InputHandler!,
-                    skiaRenderContext,
-                    inputHandlerContext);
-            }
-            throw new NotImplementedException();
+            case GenericComputer.SystemName:
+                var genericConfig = (GenericComputerConfig)systemUserConfig.UserSettings[CONFIG_KEY];
+                systemData.System = GenericComputerSetup.BuildGenericComputer(genericConfig);
+                systemData.Renderer = GenericComputerSetup.BuildGenericComputerRenderer(genericConfig);
+                systemData.InputHandler = GenericComputerSetup.BuildGenericComputerInputHander(genericConfig);
+                break;
+            default:
+                throw new NotImplementedException();
         }
+
+        return systemData;
+    }
+
+    public async Task<SystemRunner> GetSystemRunner(
+        ISystem system,
+        SkiaRenderContext skiaRenderContext,
+        AspNetInputHandlerContext inputHandlerContext)
+    {
+        var systemData = await GetSystemData(system.Name);
+
+        if (system is C64 c64)
+        {
+            return C64Setup.BuildSystemRunner(
+                c64,
+                (IRenderer<C64, SkiaRenderContext>)systemData.Renderer!,
+                (IInputHandler<C64, AspNetInputHandlerContext>)systemData.InputHandler!,
+                skiaRenderContext,
+                inputHandlerContext);
+        }
+        else if (system is GenericComputer genericComputer)
+        {
+            return GenericComputerSetup.BuildSystemRunner(
+                genericComputer,
+                (IRenderer<GenericComputer, SkiaRenderContext>)systemData.Renderer!,
+                (IInputHandler<GenericComputer, AspNetInputHandlerContext>)systemData.InputHandler!,
+                skiaRenderContext,
+                inputHandlerContext);
+        }
+        throw new NotImplementedException();
     }
 }

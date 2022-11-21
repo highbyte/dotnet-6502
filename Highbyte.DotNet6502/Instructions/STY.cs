@@ -1,48 +1,47 @@
 using System.Collections.Generic;
 
-namespace Highbyte.DotNet6502.Instructions
+namespace Highbyte.DotNet6502.Instructions;
+
+/// <summary>
+/// Store Y Register.
+/// Stores the contents of the Y register into memory.
+/// </summary>
+public class STY : Instruction, IInstructionUsesAddress
 {
-    /// <summary>
-    /// Store Y Register.
-    /// Stores the contents of the Y register into memory.
-    /// </summary>
-    public class STY : Instruction, IInstructionUsesAddress
+    private readonly List<OpCode> _opCodes;
+    public override List<OpCode> OpCodes => _opCodes;
+    public ulong ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
     {
-        private readonly List<OpCode> _opCodes;
-        public override List<OpCode> OpCodes => _opCodes;
-        public ulong ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
-        {
-            cpu.StoreByte(cpu.Y, mem, address);        
+        cpu.StoreByte(cpu.Y, mem, address);        
 
-            return 0;          
-        }
+        return 0;          
+    }
 
-        public STY()
-        {
-            _opCodes = new List<OpCode>
+    public STY()
+    {
+        _opCodes = new List<OpCode>
+            {
+                new OpCode
                 {
-                    new OpCode
-                    {
-                        Code = OpCodeId.STY_ZP,
-                        AddressingMode = AddrMode.ZP,
-                        Size = 2,
-                        MinimumCycles = 3,
-                    },
-                    new OpCode
-                    {
-                        Code = OpCodeId.STY_ZP_X,
-                        AddressingMode = AddrMode.ZP_X,
-                        Size = 2,
-                        MinimumCycles = 4,
-                    },
-                    new OpCode
-                    {
-                        Code = OpCodeId.STY_ABS,
-                        AddressingMode = AddrMode.ABS,
-                        Size = 3,
-                        MinimumCycles = 4,
-                    },
-            };
-        }
+                    Code = OpCodeId.STY_ZP,
+                    AddressingMode = AddrMode.ZP,
+                    Size = 2,
+                    MinimumCycles = 3,
+                },
+                new OpCode
+                {
+                    Code = OpCodeId.STY_ZP_X,
+                    AddressingMode = AddrMode.ZP_X,
+                    Size = 2,
+                    MinimumCycles = 4,
+                },
+                new OpCode
+                {
+                    Code = OpCodeId.STY_ABS,
+                    AddressingMode = AddrMode.ABS,
+                    Size = 3,
+                    MinimumCycles = 4,
+                },
+        };
     }
 }

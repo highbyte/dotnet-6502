@@ -1,9 +1,8 @@
-namespace Highbyte.DotNet6502.Monitor.SystemSpecific
+namespace Highbyte.DotNet6502.Monitor.SystemSpecific;
+
+/// <summary>
+/// </summary>
+public interface ISystemMonitor
 {
-    /// <summary>
-    /// </summary>
-    public interface ISystemMonitor
-    {
-        public ISystemMonitorCommands GetSystemMonitorCommands();
-    }
+    public ISystemMonitorCommands GetSystemMonitorCommands();
 }

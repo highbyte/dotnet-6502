@@ -9,7 +9,6 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Systems.Generic;
-using static Highbyte.DotNet6502.Systems.Commodore64.C64;
 
 // Fix for starting in debug mode from VS Code. By default the OS current directory is set to the project folder, not the folder containing the built .exe file...
 var currentAppDir = AppDomain.CurrentDomain.BaseDirectory;

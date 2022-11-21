@@ -1,38 +1,37 @@
-namespace Highbyte.DotNet6502.Systems
+namespace Highbyte.DotNet6502.Systems;
+
+public interface IRenderer
 {
-    public interface IRenderer
-    {
-        void Init(ISystem system, IRenderContext renderContext);
-        void Draw(ISystem system);
-    }
+    void Init(ISystem system, IRenderContext renderContext);
+    void Draw(ISystem system);
+}
 
-    public interface IRenderer<TSystem, TRenderContext> : IRenderer
+public interface IRenderer<TSystem, TRenderContext> : IRenderer
+    where TSystem : ISystem
+    where TRenderContext : IRenderContext
+{
+    void Init(TSystem system, TRenderContext renderContext);
+    void Draw(TSystem system);
+}
+
+public class NullRenderer<TSystem> : IRenderer<TSystem, NullRenderContext>, IRenderer
         where TSystem : ISystem
-        where TRenderContext : IRenderContext
+{
+    public void Init(ISystem system, IRenderContext renderContext)
     {
-        void Init(TSystem system, TRenderContext renderContext);
-        void Draw(TSystem system);
     }
 
-    public class NullRenderer<TSystem> : IRenderer<TSystem, NullRenderContext>, IRenderer
-            where TSystem : ISystem
+    public void Init(TSystem system, NullRenderContext renderContext)
     {
-        public void Init(ISystem system, IRenderContext renderContext)
-        {
-        }
+        Init((ISystem)system, renderContext);
+    }
 
-        public void Init(TSystem system, NullRenderContext renderContext)
-        {
-            Init((ISystem)system, renderContext);
-        }
+    public void Draw(ISystem system)
+    {
+    }
 
-        public void Draw(ISystem system)
-        {
-        }
-
-        public void Draw(TSystem system)
-        {
-            Draw((ISystem)system);
-        }
+    public void Draw(TSystem system)
+    {
+        Draw((ISystem)system);
     }
 }

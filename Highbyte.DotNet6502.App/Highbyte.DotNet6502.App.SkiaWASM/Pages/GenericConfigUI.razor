@@ -55,16 +55,16 @@ Memory addresses
 
 @code {
 
-    [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
+[CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
-    [Parameter] public Dictionary<string, object>? UserSettings { get; set; }
+[Parameter] public Dictionary<string, object>? UserSettings { get; set; }
 
-    public GenericComputerConfig GenericComputerConfig => (GenericComputerConfig)UserSettings[SystemList.CONFIG_KEY];
+public GenericComputerConfig GenericComputerConfig => (GenericComputerConfig)UserSettings[SystemList.CONFIG_KEY];
 
-    protected override void OnInitialized() => BlazoredModal.SetTitle("Generic config");
+protected override void OnInitialized() => BlazoredModal.SetTitle("Generic config");
 
-    private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(UserSettings));
+private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(UserSettings));
 
-    private string _validationMessage = "";
+private string _validationMessage = "";
 
 }

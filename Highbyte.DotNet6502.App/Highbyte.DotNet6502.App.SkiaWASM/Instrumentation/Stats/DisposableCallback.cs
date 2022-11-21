@@ -1,12 +1,11 @@
-namespace Highbyte.DotNet6502.App.SkiaWASM.Instrumentation.Stats
+namespace Highbyte.DotNet6502.App.SkiaWASM.Instrumentation.Stats;
+
+// Credit to instrumentation/stat code to: https://github.com/davidwengier/Trains.NET
+public class DisposableCallback : IDisposable
 {
-    // Credit to instrumentation/stat code to: https://github.com/davidwengier/Trains.NET
-    public class DisposableCallback : IDisposable
+    public event EventHandler? Disposing;
+    public void Dispose()
     {
-        public event EventHandler? Disposing;
-        public void Dispose()
-        {
-            Disposing?.Invoke(this, EventArgs.Empty);
-        }
+        Disposing?.Invoke(this, EventArgs.Empty);
     }
 }

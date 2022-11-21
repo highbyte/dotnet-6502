@@ -36,21 +36,21 @@ else
 {
     <p>@LoadedROMCount/@_maxC64AllowedRomFiles ROMs loaded</p>
     @if (!string.IsNullOrEmpty(_validationMessage))
-    {
-        <p>@_validationMessage</p>
-    }
+{
+    <p>@_validationMessage</p>
+}
     <ul>
         @foreach (var romName in C64Config.RequiredROMs)
+    {
+        @if (GetLoadedRoms().ContainsKey(romName))
         {
-            @if (GetLoadedRoms().ContainsKey(romName))
-            {
-                <li>@romName @GetLoadedRoms()[romName].Length bytes</li>
-            }
-            else
-            {
-                <li>@romName - not loaded</li>
-            }
+            <li>@romName @GetLoadedRoms()[romName].Length bytes</li>
         }
+        else
+        {
+            <li>@romName - not loaded</li>
+        }
+    }
     </ul>
 }
 
@@ -59,110 +59,110 @@ else
 
 @code {
 
-    [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
+[CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
-    [Parameter] public Dictionary<string, object>? UserSettings { get; set; }
+[Parameter] public Dictionary<string, object>? UserSettings { get; set; }
 
-    public C64Config C64Config
+public C64Config C64Config
+{
+    get
     {
-        get
-        {
-            return (C64Config)UserSettings![SystemList.CONFIG_KEY];
-        }
+        return (C64Config)UserSettings![SystemList.CONFIG_KEY];
     }
+}
 
-    protected override void OnInitialized() => BlazoredModal.SetTitle("C64 config");
-
-
-    private async Task UnloadROMs() => C64Config.ROMs = new List<ROM>();
+protected override void OnInitialized() => BlazoredModal.SetTitle("C64 config");
 
 
-    private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(UserSettings));
+private async Task UnloadROMs() => C64Config.ROMs = new List<ROM>();
 
-    private bool _isLoadingC64Roms;
-    private long _maxC64RomFileSize = 1024 * 8;
-    private int _maxC64AllowedRomFiles = 3;
 
-    private Dictionary<string, byte[]> GetLoadedRoms()
+private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(UserSettings));
+
+private bool _isLoadingC64Roms;
+private long _maxC64RomFileSize = 1024 * 8;
+private int _maxC64AllowedRomFiles = 3;
+
+private Dictionary<string, byte[]> GetLoadedRoms()
+{
+    var dict = new Dictionary<string, byte[]>();
+    foreach (var rom in C64Config.ROMs)
     {
-        var dict = new Dictionary<string, byte[]>();
-        foreach (var rom in C64Config.ROMs)
-        {
-            dict[rom.Name] = rom.Data == null ? new byte[]{} : rom.Data;
-        }
-        return dict;
+        dict[rom.Name] = rom.Data == null ? new byte[]{} : rom.Data;
     }
+    return dict;
+}
 
-    private int LoadedROMCount => GetLoadedRoms().Count;
+private int LoadedROMCount => GetLoadedRoms().Count;
 
-    private string _validationMessage = "";
+private string _validationMessage = "";
 
-    private async Task OnC64RomFilePickerChange(InputFileChangeEventArgs e)
+private async Task OnC64RomFilePickerChange(InputFileChangeEventArgs e)
+{
+    if (C64Config == null)
+        return;
+
+    _isLoadingC64Roms = true;
+    _validationMessage = "";
+
+    foreach (var file in e.GetMultipleFiles(_maxC64AllowedRomFiles))
     {
-        if (C64Config == null)
-            return;
-
-        _isLoadingC64Roms = true;
-        _validationMessage = "";
-
-        foreach (var file in e.GetMultipleFiles(_maxC64AllowedRomFiles))
+        try
         {
-            try
+            if (file.Size > _maxC64RomFileSize)
             {
-                if (file.Size > _maxC64RomFileSize)
-                {
-                    _isLoadingC64Roms = false;
-                    _validationMessage += $"File {file.Name} size {file.Size} is more than limit {_maxC64RomFileSize}. ";
-                    continue;
-                }
-
-                bool isKernal = file.Name.Contains("kern", StringComparison.InvariantCultureIgnoreCase);
-                bool isBasic = file.Name.Contains("bas", StringComparison.InvariantCultureIgnoreCase);
-                bool isChargen = file.Name.Contains("char", StringComparison.InvariantCultureIgnoreCase);
-                if (!isKernal && !isBasic && !isChargen)
-                {
-                    _isLoadingC64Roms = false;
-                    _validationMessage = $"File name {file.Name} does not contain one of the following string: kern, bas, char ";
-                    continue;
-                }
-
-                var fileBuffer = new byte[file.Size];
-                //var fileStream = e.File.OpenReadStream(file.Size);
-                await file.OpenReadStream().ReadAsync(fileBuffer);
-                var fileSize = fileBuffer.Length;
-
-                if (isKernal)
-                    SetROM(C64Config.KERNAL_ROM_NAME, fileBuffer);
-                else if (isBasic)
-                    SetROM(C64Config.BASIC_ROM_NAME, fileBuffer);
-                else if (isChargen)
-                    SetROM(C64Config.CHARGEN_ROM_NAME, fileBuffer);
+                _isLoadingC64Roms = false;
+                _validationMessage += $"File {file.Name} size {file.Size} is more than limit {_maxC64RomFileSize}. ";
+                continue;
             }
-            catch (Exception ex)
+
+            bool isKernal = file.Name.Contains("kern", StringComparison.InvariantCultureIgnoreCase);
+            bool isBasic = file.Name.Contains("bas", StringComparison.InvariantCultureIgnoreCase);
+            bool isChargen = file.Name.Contains("char", StringComparison.InvariantCultureIgnoreCase);
+            if (!isKernal && !isBasic && !isChargen)
             {
-                //Logger.LogError("File: {Filename} Error: {Error}",
-                //    file.Name, ex.Message);
+                _isLoadingC64Roms = false;
+                _validationMessage = $"File name {file.Name} does not contain one of the following string: kern, bas, char ";
+                continue;
             }
-        }
-        _isLoadingC64Roms = false;
-        this.StateHasChanged();
-    }
 
-    private void SetROM(string romName, byte[] data)
-    {
-        ROM rom;
-        if (!C64Config.ROMs.Exists(x => x.Name == romName))
-        {
-            rom = new()
-                {
-                    Name = romName
-                };
-            C64Config.ROMs.Add(rom);
+            var fileBuffer = new byte[file.Size];
+            //var fileStream = e.File.OpenReadStream(file.Size);
+            await file.OpenReadStream().ReadAsync(fileBuffer);
+            var fileSize = fileBuffer.Length;
+
+            if (isKernal)
+                SetROM(C64Config.KERNAL_ROM_NAME, fileBuffer);
+            else if (isBasic)
+                SetROM(C64Config.BASIC_ROM_NAME, fileBuffer);
+            else if (isChargen)
+                SetROM(C64Config.CHARGEN_ROM_NAME, fileBuffer);
         }
-        else
+        catch (Exception ex)
         {
-            rom = C64Config.ROMs.Single(x => x.Name == romName);
+            //Logger.LogError("File: {Filename} Error: {Error}",
+            //    file.Name, ex.Message);
         }
-        rom.Data = data;
     }
+    _isLoadingC64Roms = false;
+    this.StateHasChanged();
+}
+
+private void SetROM(string romName, byte[] data)
+{
+    ROM rom;
+    if (!C64Config.ROMs.Exists(x => x.Name == romName))
+    {
+        rom = new()
+            {
+                Name = romName
+            };
+        C64Config.ROMs.Add(rom);
+    }
+    else
+    {
+        rom = C64Config.ROMs.Single(x => x.Name == romName);
+    }
+    rom.Data = data;
+}
 }
