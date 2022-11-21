@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-
 namespace Highbyte.DotNet6502;
 
 /// <summary>

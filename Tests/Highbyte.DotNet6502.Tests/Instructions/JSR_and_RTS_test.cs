@@ -1,5 +1,3 @@
-using Xunit;
-
 namespace Highbyte.DotNet6502.Tests.Instructions;
 
 public class JSR_and_RTS_test

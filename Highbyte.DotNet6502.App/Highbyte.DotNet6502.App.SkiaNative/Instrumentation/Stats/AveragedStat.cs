@@ -1,26 +1,27 @@
-namespace Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats;
-
-// Credit to instrumentation/stat code to: https://github.com/davidwengier/Trains.NET
-public abstract class AveragedStat : IStat
+namespace Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats
 {
-    public double? Value { get; private set; }
-    private readonly int _sampleCount;
-    public AveragedStat(int sampleCount)
+    // Credit to instrumentation/stat code to: https://github.com/davidwengier/Trains.NET
+    public abstract class AveragedStat : IStat
     {
-        _sampleCount = sampleCount;
-    }
-    protected void SetValue(double value)
-    {
-        if (this.Value == null)
+        public double? Value { get; private set; }
+        private readonly int _sampleCount;
+        public AveragedStat(int sampleCount)
         {
-            this.Value = value;
+            _sampleCount = sampleCount;
         }
-        else
+        protected void SetValue(double value)
         {
-            this.Value = (this.Value * (_sampleCount - 1) + value) / _sampleCount;
+            if (this.Value == null)
+            {
+                this.Value = value;
+            }
+            else
+            {
+                this.Value = (this.Value * (_sampleCount - 1) + value) / _sampleCount;
+            }
         }
-    }
-    public abstract string GetDescription();
+        public abstract string GetDescription();
 
-    public bool ShouldShow() => this.Value.HasValue;
+        public bool ShouldShow() => this.Value.HasValue;
+    }
 }

@@ -1,5 +1,3 @@
-﻿using System;
-
 namespace Highbyte.DotNet6502;
 
 /// <summary>

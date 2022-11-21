@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Video;
-using SadRogue.Primitives;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Generic;
 

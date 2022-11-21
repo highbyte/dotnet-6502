@@ -1,7 +1,6 @@
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
-using McMaster.Extensions.CommandLineUtils;
 using Highbyte.DotNet6502.App.ConsoleMonitor;
 using Highbyte.DotNet6502;
 

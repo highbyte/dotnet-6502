@@ -1,8 +1,6 @@
-using System;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
-using SadConsole;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Generic;
 

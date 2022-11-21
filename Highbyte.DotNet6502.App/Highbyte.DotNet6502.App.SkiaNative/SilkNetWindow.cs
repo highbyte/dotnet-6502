@@ -4,12 +4,6 @@ using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
-using Silk.NET.Input;
-using Silk.NET.Maths;
-using Silk.NET.OpenGL;
-using Silk.NET.OpenGL.Extensions.ImGui;
-using Silk.NET.Windowing;
-using SkiaSharp;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 public class SilkNetWindow

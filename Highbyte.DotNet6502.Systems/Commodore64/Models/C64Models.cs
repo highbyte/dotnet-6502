@@ -1,5 +1,3 @@
-using Highbyte.DotNet6502.Systems.Commodore64.Video;
-
 namespace Highbyte.DotNet6502.Systems.Commodore64.Models;
 
 

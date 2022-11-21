@@ -1,5 +1,4 @@
 using Highbyte.DotNet6502.Systems.Generic;
-using Xunit;
 
 namespace Highbyte.DotNet6502.Systems.Tests.Generic;
 

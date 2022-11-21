@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-
-namespace Highbyte.DotNet6502;
+﻿namespace Highbyte.DotNet6502;
 
 public class Memory
 {

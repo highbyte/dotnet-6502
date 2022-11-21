@@ -1,7 +1,5 @@
 using System.Diagnostics;
 using Highbyte.DotNet6502.Systems;
-using Silk.NET.Input;
-using Silk.NET.Windowing;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet;
 

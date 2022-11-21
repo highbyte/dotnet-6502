@@ -1,5 +1,3 @@
-using Xunit;
-using Xunit.Abstractions;
 using Highbyte.DotNet6502.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 

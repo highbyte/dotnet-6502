@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace Highbyte.DotNet6502;
 
 /// <summary>

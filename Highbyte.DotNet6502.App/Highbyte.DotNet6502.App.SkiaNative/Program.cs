@@ -1,5 +1,3 @@
-using Silk.NET.Maths;
-using Silk.NET.Windowing;
 using Highbyte.DotNet6502.App.SkiaNative;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;

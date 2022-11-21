@@ -1,4 +1,3 @@
-using Xunit;
 using static Highbyte.DotNet6502.Memory;
 
 namespace Highbyte.DotNet6502.Tests;

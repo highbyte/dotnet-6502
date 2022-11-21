@@ -1,6 +1,4 @@
 using Highbyte.DotNet6502.Systems;
-using SadConsole;
-using SadRogue.Primitives;
 using Console = SadConsole.Console;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole;

@@ -1,5 +1,4 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
-using Silk.NET.Input;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
 

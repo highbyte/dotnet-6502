@@ -1,6 +1,5 @@
 using System.Drawing;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
-using SkiaSharp;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64;
 

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace Highbyte.DotNet6502;
+﻿namespace Highbyte.DotNet6502;
 
 /// <summary>
 /// Helper methods for enum containing instructions.

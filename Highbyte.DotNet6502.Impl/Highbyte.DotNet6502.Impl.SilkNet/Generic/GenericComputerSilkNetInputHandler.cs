@@ -1,7 +1,6 @@
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
-using Silk.NET.Input;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Generic;
 
