@@ -1,12 +1,8 @@
 using Highbyte.DotNet6502.App.SkiaNative;
-using Highbyte.DotNet6502.Impl.SilkNet;
-using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic.Config;
-using Highbyte.DotNet6502.Systems.Generic;
 
 // Fix for starting in debug mode from VS Code. By default the OS current directory is set to the project folder, not the folder containing the built .exe file...
 var currentAppDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -15,9 +11,9 @@ Environment.CurrentDirectory = currentAppDir;
 // TODO: Read options from appsettings.json
 var emulatorConfig = new EmulatorConfig
 {
-    Emulator = "C64",
-    //Emulator = "Generic",
-    DrawScale = 3.0f,
+    DefaultEmulator = "C64",
+    //DefaultEmulator  = "Generic",
+    DefaultDrawScale = 3.0f,
     Monitor = new MonitorConfig
     {
         //DefaultDirectory = "../../../../../.cache/Examples/Assembler/C64"
@@ -95,22 +91,18 @@ genericComputerConfig.Validate();
 // ----------
 // Systems
 // ----------
-var systemList = new SystemList();
-systemList.BuildSystemLookups(c64Config, genericComputerConfig);
-
-var system = systemList.Systems[emulatorConfig.Emulator];
+var systemList = new SystemList(c64Config, genericComputerConfig);
 
 // ----------
 // Silk.NET Window
 // ----------
-var screen = (IScreen)system;
 
-int windowWidth = (int)(screen.VisibleWidth * emulatorConfig.DrawScale);
-int windowHeight = (int)(screen.VisibleHeight * emulatorConfig.DrawScale);
+int windowWidth = SilkNetWindow.DEFAULT_WIDTH;
+int windowHeight = SilkNetWindow.DEFAULT_HEIGHT;
 
 var windowOptions = WindowOptions.Default;
 // Update frequency, in hertz. 
-windowOptions.UpdatesPerSecond = screen.RefreshFrequencyHz;
+windowOptions.UpdatesPerSecond = SilkNetWindow.DEFAULT_RENDER_HZ;
 // Render frequency, in hertz.
 windowOptions.FramesPerSecond = 60.0f;  // TODO: With Vsync=false the FramesPerSecond settings does not seem to matter. Measured in OnRender method it'll be same as UpdatesPerSecond setting.
 
@@ -125,44 +117,5 @@ windowOptions.ShouldSwapAutomatically = true;
 //windowOptions.PreferredDepthBufferBits = 24;    // Depth buffer bits must be set explicitly on MacOS (tested on M1), otherwise there will be be no depth buffer (for OpenGL 3d).
 
 IWindow window = Window.Create(windowOptions);
-var silkNetWindow = new SilkNetWindow(emulatorConfig.Monitor, window, system, GetSystemRunner, emulatorConfig.DrawScale);
+var silkNetWindow = new SilkNetWindow(emulatorConfig.Monitor, window, systemList, emulatorConfig.DefaultDrawScale, emulatorConfig.DefaultEmulator);
 silkNetWindow.Run();
-
-// Functions for building SystemRunner based on Skia rendering.
-// Will be used as from SilkNetWindow in OnLoad (when OpenGL context has been created.)
-SystemRunner GetSystemRunner(ISystem system, SkiaRenderContext skiaRenderContext, SilkNetInputHandlerContext silkNetInputHandlerContext)
-{
-    if (system is C64 c64)
-    {
-        var renderer = (IRenderer<C64, SkiaRenderContext>)systemList.Renderers[c64];
-        renderer.Init(system, skiaRenderContext);
-
-        var inputHandler = (IInputHandler<C64, SilkNetInputHandlerContext>)systemList.InputHandlers[c64];
-        inputHandler.Init(system, silkNetInputHandlerContext);
-
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, SilkNetInputHandlerContext>(c64);
-        var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer)
-            .WithInputHandler(inputHandler)
-            .Build();
-        return systemRunner;
-    }
-
-    if (system is GenericComputer genericComputer)
-    {
-        var renderer = (IRenderer<GenericComputer, SkiaRenderContext>)systemList.Renderers[genericComputer];
-        renderer.Init(system, skiaRenderContext);
-
-        var inputHandler = (IInputHandler<GenericComputer, SilkNetInputHandlerContext>)systemList.InputHandlers[genericComputer];
-        inputHandler.Init(system, silkNetInputHandlerContext);
-
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext>(genericComputer);
-        var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer)
-            .WithInputHandler(inputHandler)
-            .Build();
-        return systemRunner;
-    }
-
-    throw new NotImplementedException($"System not handled: {system.Name}");
-}

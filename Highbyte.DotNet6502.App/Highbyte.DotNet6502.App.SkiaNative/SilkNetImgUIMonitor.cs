@@ -15,10 +15,10 @@ public class SilkNetImGuiMonitor : MonitorBase
 
     private bool _hasBeenInitializedOnce = false;
 
-    private const int POS_X = 10;
-    private const int POS_Y = 10;
+    private const int POS_X = 300;
+    private const int POS_Y = 2;
     private const int WIDTH = 620;
-    private const int HEIGHT = 420;
+    private const int HEIGHT = 500;
     const int MONITOR_CMD_HISTORY_VIEW_ROWS = 20;
     const int MONITOR_CMD_LINE_LENGTH = 160;
     List<(string Message, MessageSeverity Severity)> _monitorCmdHistory = new();
@@ -44,13 +44,13 @@ public class SilkNetImGuiMonitor : MonitorBase
         _monitorConfig = monitorConfig;
     }
 
-    public void PostOnRender(ImGuiController imGuiController, double deltaTime)
+    public void PostOnRender()
     {
-        // Make sure ImGui is up-to-date
-        imGuiController.Update((float)deltaTime);
+        ImGui.SetNextWindowSize(new Vector2(WIDTH, HEIGHT), ImGuiCond.Once);
+        ImGui.SetNextWindowPos(new Vector2(POS_X, POS_Y), ImGuiCond.Once);
 
-        ImGui.SetWindowPos(new Vector2(POS_X, POS_Y));
-        ImGui.SetWindowSize(new Vector2(WIDTH, HEIGHT));
+        //ImGui.SetWindowPos(new Vector2(POS_X, POS_Y));
+        //ImGui.SetWindowSize(new Vector2(WIDTH, HEIGHT));
 
         if (!_hasBeenInitializedOnce)
         {
@@ -116,8 +116,6 @@ public class SilkNetImGuiMonitor : MonitorBase
         ImGui.PopStyleColor();
 
         ImGui.End();
-
-        imGuiController?.Render();
     }
 
     public void Enable()

@@ -1,5 +1,7 @@
+using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
 using Highbyte.DotNet6502.Impl.SilkNet.Generic;
+using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64;
 using Highbyte.DotNet6502.Impl.Skia.Generic;
 using Highbyte.DotNet6502.Systems;
@@ -23,20 +25,70 @@ public class SystemList
         SystemNames.Add(GenericComputer.SystemName);
     }
 
-    public Dictionary<string, ISystem> Systems = new();
-    public Dictionary<ISystem, IRenderer> Renderers = new();
-    public Dictionary<ISystem, IInputHandler> InputHandlers = new();
+    private readonly C64Config _c64Config;
+    private readonly GenericComputerConfig _genericComputerConfig;
 
-    public void BuildSystemLookups(C64Config c64Config, GenericComputerConfig genericComputerConfig)
+    public SystemList(C64Config c64Config, GenericComputerConfig genericComputerConfig)
     {
-        var c64 = C64.BuildC64(c64Config);
-        Systems.Add(c64.Name, c64);
-        Renderers.Add(c64, new C64SkiaRenderer());
-        InputHandlers.Add(c64, new C64SilkNetInputHandler());
+        _c64Config = c64Config;
+        _genericComputerConfig = genericComputerConfig;
+    }
 
-        var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig);
-        Systems.Add(genericComputer.Name, genericComputer);
-        Renderers.Add(genericComputer, new GenericComputerSkiaRenderer(genericComputerConfig.Memory.Screen));
-        InputHandlers.Add(genericComputer, new GenericComputerSilkNetInputHandler(genericComputerConfig.Memory.Input));
+    public ISystem BuildSystem(string systemName)
+    {
+        ISystem system;
+        switch (systemName)
+        {
+            case C64.SystemName:
+                system = C64.BuildC64(_c64Config);
+                break;
+
+            case GenericComputer.SystemName:
+                system = GenericComputerBuilder.SetupGenericComputerFromConfig(_genericComputerConfig);
+                break;
+
+            default:
+                throw new ArgumentException("Unknown system", nameof(systemName));
+        }
+        return system;
+    }
+
+    // Functions for building SystemRunner based on Skia rendering.
+    // Will be used as from SilkNetWindow in OnLoad (when OpenGL context has been created.)
+    public SystemRunner GetSystemRunner(ISystem system, SkiaRenderContext skiaRenderContext, SilkNetInputHandlerContext silkNetInputHandlerContext)
+    {
+        if (system is C64 c64)
+        {
+            var renderer = new C64SkiaRenderer();
+            renderer.Init(system, skiaRenderContext);
+
+            var inputHandler = new C64SilkNetInputHandler();
+            inputHandler.Init(system, silkNetInputHandlerContext);
+
+            var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, SilkNetInputHandlerContext>(c64);
+            var systemRunner = systemRunnerBuilder
+                .WithRenderer(renderer)
+                .WithInputHandler(inputHandler)
+                .Build();
+            return systemRunner;
+        }
+
+        if (system is GenericComputer genericComputer)
+        {
+            var renderer = new GenericComputerSkiaRenderer(_genericComputerConfig.Memory.Screen);
+            renderer.Init(system, skiaRenderContext);
+
+            var inputHandler = new GenericComputerSilkNetInputHandler(_genericComputerConfig.Memory.Input);
+            inputHandler.Init(system, silkNetInputHandlerContext);
+
+            var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext>(genericComputer);
+            var systemRunner = systemRunnerBuilder
+                .WithRenderer(renderer)
+                .WithInputHandler(inputHandler)
+                .Build();
+            return systemRunner;
+        }
+
+        throw new NotImplementedException($"System not handled: {system.Name}");
     }
 }
