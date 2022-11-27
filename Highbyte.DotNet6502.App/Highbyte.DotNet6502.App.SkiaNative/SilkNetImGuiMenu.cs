@@ -37,17 +37,22 @@ public class SilkNetImGuiMenu
         //ImGui.Begin($"DotNet 6502 Emulator", ImGuiWindowFlags.NoResize);
         ImGui.Begin($"DotNet 6502 Emulator");
 
-        ImGui.PushStyleColor(ImGuiCol.Text, s_WarningColor);
-        ImGui.Text("Toggle menu with F6");
-        ImGui.Text("Toggle monitor with F12");
-        ImGui.Text("Toggle stats with F11");
-        ImGui.PopStyleColor();
-
+        ImGui.PushStyleColor(ImGuiCol.Text, s_InformationColor);
+        ImGui.Text("System: ");
+        ImGui.SameLine();
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
         ImGui.PushItemWidth(120);
-        ImGui.Combo("System", ref _selectedSystemItem, SystemList.SystemNames.ToArray(), SystemList.SystemNames.Count);
+        ImGui.Combo("", ref _selectedSystemItem, SystemList.SystemNames.ToArray(), SystemList.SystemNames.Count);
         ImGui.PopItemWidth();
         ImGui.EndDisabled();
+        ImGui.PopStyleColor();
+
+        ImGui.PushStyleColor(ImGuiCol.Text, s_InformationColor);
+        ImGui.Text("Status: ");
+        ImGui.SameLine();
+        ImGui.Text(EmulatorState.ToString());
+        ImGui.PopStyleColor();
+
 
         ImGui.BeginDisabled(disabled: !(EmulatorState != EmulatorState.Running));
         if (ImGui.Button("Start"))
@@ -85,6 +90,21 @@ public class SilkNetImGuiMenu
         }
         ImGui.EndDisabled();
 
+        ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused));
+        if (ImGui.Button("Monitor"))
+        {
+            _silkNetWindow.ToggleMonitor();
+        }
+        ImGui.EndDisabled();
+
+        ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused));
+        ImGui.SameLine();
+        if (ImGui.Button("Stats"))
+        {
+            _silkNetWindow.ToggleStatsPanel();
+        }
+        ImGui.EndDisabled();
+
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
         ImGui.PushStyleColor(ImGuiCol.Text, s_InformationColor);
         //ImGui.SetKeyboardFocusHere(0);
@@ -97,6 +117,13 @@ public class SilkNetImGuiMenu
         ImGui.PopStyleColor();
         ImGui.PopItemWidth();
         ImGui.EndDisabled();
+
+
+        ImGui.PushStyleColor(ImGuiCol.Text, s_WarningColor);
+        ImGui.Text("Toggle menu with F6");
+        ImGui.Text("Toggle monitor with F12");
+        ImGui.Text("Toggle stats with F11");
+        ImGui.PopStyleColor();
 
         ImGui.End();
     }

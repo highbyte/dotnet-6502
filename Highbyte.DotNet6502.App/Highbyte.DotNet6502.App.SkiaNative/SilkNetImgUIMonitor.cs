@@ -15,6 +15,8 @@ public class SilkNetImGuiMonitor : MonitorBase
 
     private bool _hasBeenInitializedOnce = false;
 
+    private bool _setFocusOnInput = false;
+
     private const int POS_X = 300;
     private const int POS_Y = 2;
     private const int WIDTH = 620;
@@ -68,6 +70,11 @@ public class SilkNetImGuiMonitor : MonitorBase
 
         ImGui.Begin($"6502 Monitor: {SystemRunner.System.Name}");
 
+        if (ImGui.IsWindowFocused())
+        {
+            _setFocusOnInput = true;
+        }
+
         Vector4 textColor;
         foreach (var cmd in _monitorCmdHistory)
         {
@@ -83,7 +90,11 @@ public class SilkNetImGuiMonitor : MonitorBase
             ImGui.PopStyleColor();
         }
 
-        ImGui.SetKeyboardFocusHere(0);
+        if (_setFocusOnInput)
+        {
+            ImGui.SetKeyboardFocusHere();
+            _setFocusOnInput = false;
+        }
         ImGui.PushItemWidth(600);
         if (ImGui.InputText("", ref _monitorCmdString, MONITOR_CMD_LINE_LENGTH, ImGuiInputTextFlags.EnterReturnsTrue))
         {
@@ -99,6 +110,7 @@ public class SilkNetImGuiMonitor : MonitorBase
             {
                 Disable();
             }
+            _setFocusOnInput = true;
         }
 
         // When reaching this line, we may have destroyed the ImGui controller if we did a Quit or Continue as monitor command.
@@ -122,6 +134,7 @@ public class SilkNetImGuiMonitor : MonitorBase
     {
         Quit = false;
         Visible = true;
+        _setFocusOnInput = true;
         base.Reset();   // Reset monitor working variables (like last disassembly location)
         OnMonitorStateChange(true);
     }

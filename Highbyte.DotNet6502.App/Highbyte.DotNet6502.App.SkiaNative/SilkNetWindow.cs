@@ -59,9 +59,13 @@ public class SilkNetWindow
 
     // Monitor
     private SilkNetImGuiMonitor _monitor;
+    public SilkNetImGuiMonitor Monitor => _monitor;
 
     // Stats panel
     private SilkNetImGuiStatsPanel _statsPanel;
+    public SilkNetImGuiStatsPanel StatsPanel => _statsPanel;
+
+    // Menu
     private SilkNetImGuiMenu _menu;
     private bool _statsWasEnabled = false;
 
@@ -391,43 +395,54 @@ public class SilkNetWindow
             _menu.Visible = !_menu.Visible;
         }
 
-        if (EmulatorState == EmulatorState.Running)
+        if (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused)
         {
             if (key == Key.F11)
             {
-                if (_monitor.Visible)
-                    return;
-
-                if (_statsPanel.Visible)
-                {
-                    _statsPanel.Disable();
-                    _statsWasEnabled = false;
-                }
-                else
-                {
-                    _statsPanel.Enable();
-                }
+                ToggleStatsPanel();
             }
 
             if (key == Key.F12)
             {
-                if (_statsPanel.Visible)
-                {
-                    _statsWasEnabled = true;
-                    _statsPanel.Disable();
-                }
-
-                if (_monitor.Visible)
-                {
-                    _monitor.Disable();
-                    if (_statsWasEnabled)
-                        _statsPanel.Enable();
-                }
-                else
-                {
-                    _monitor.Enable();
-                }
+                ToggleMonitor();
             }
         }
+    }
+
+    public void ToggleStatsPanel()
+    {
+        if (_monitor.Visible)
+            return;
+
+        if (_statsPanel.Visible)
+        {
+            _statsPanel.Disable();
+            _statsWasEnabled = false;
+        }
+        else
+        {
+            _statsPanel.Enable();
+        }
+    }
+
+    public void ToggleMonitor()
+    {
+        if (_statsPanel.Visible)
+        {
+            _statsWasEnabled = true;
+            _statsPanel.Disable();
+        }
+
+        if (_monitor.Visible)
+        {
+            _monitor.Disable();
+            if (_statsWasEnabled)
+                _statsPanel.Enable();
+        }
+        else
+        {
+            _monitor.Enable();
+        }
+
     }
 }
