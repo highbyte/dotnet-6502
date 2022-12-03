@@ -1,5 +1,6 @@
+using System.Diagnostics;
 using System.Numerics;
-using Silk.NET.OpenGL.Extensions.ImGui;
+using Highbyte.DotNet6502.App.SkiaNative.ConfigUI;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 
@@ -20,6 +21,10 @@ public class SilkNetImGuiMenu
 
     private string _screenScaleString = "";
     private int _selectedSystemItem = 0;
+    private string SelectedSystemName => SystemList.SystemNames.ToArray()[_selectedSystemItem];
+
+    private SilkNetImGuiC64Config _c64ConfigUI;
+    private SilkNetImGuiGenericComputerConfig _genericComputerConfigUI;
 
     public SilkNetImGuiMenu(SilkNetWindow silkNetWindow, string defaultSystemName)
     {
@@ -27,6 +32,12 @@ public class SilkNetImGuiMenu
         _screenScaleString = silkNetWindow.CanvasScale.ToString();
 
         _selectedSystemItem = SystemList.SystemNames.ToList().IndexOf(defaultSystemName);
+
+        _c64ConfigUI = new SilkNetImGuiC64Config();
+        _c64ConfigUI.Reset(_silkNetWindow.SystemList.C64Config);
+
+        _genericComputerConfigUI = new SilkNetImGuiGenericComputerConfig();
+        _genericComputerConfigUI.Reset(_silkNetWindow.SystemList.GenericComputerConfig);
     }
 
     public void PostOnRender()
@@ -54,11 +65,11 @@ public class SilkNetImGuiMenu
         ImGui.PopStyleColor();
 
 
-        ImGui.BeginDisabled(disabled: !(EmulatorState != EmulatorState.Running));
+        ImGui.BeginDisabled(disabled: !(EmulatorState != EmulatorState.Running && SelectedSystemConfigIsValid()));
         if (ImGui.Button("Start"))
         {
             if(_silkNetWindow.System == null)
-               _silkNetWindow.SetCurrentSystem(SystemList.SystemNames.ToArray()[_selectedSystemItem]);
+               _silkNetWindow.SetCurrentSystem(SelectedSystemName);
             _silkNetWindow.Start();
             return;
         }
@@ -118,14 +129,106 @@ public class SilkNetImGuiMenu
         ImGui.PopItemWidth();
         ImGui.EndDisabled();
 
-
         ImGui.PushStyleColor(ImGuiCol.Text, s_WarningColor);
         ImGui.Text("Toggle menu with F6");
         ImGui.Text("Toggle monitor with F12");
         ImGui.Text("Toggle stats with F11");
         ImGui.PopStyleColor();
 
+
+        DrawC64Config();
+
+        DrawGenericComputerConfig();
+
         ImGui.End();
+    }
+
+    private void DrawC64Config()
+    {
+        if (SelectedSystemName == "C64")
+        {
+            ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
+            if (ImGui.Button("C64 config"))
+            {
+                if (!_c64ConfigUI.Visible)
+                    _c64ConfigUI.Init(_silkNetWindow.SystemList.C64Config);
+            }
+            ImGui.EndDisabled();
+
+            if (!_c64ConfigUI.IsValidConfig)
+            {
+                ImGui.PushStyleColor(ImGuiCol.Text, s_ErrorColor);
+                ImGui.TextWrapped($"Config has errors. Press C64 Config button.");
+                ImGui.PopStyleColor();
+            }
+
+            if (_c64ConfigUI.Visible)
+            {
+                _c64ConfigUI.PostOnRender();
+                if (_c64ConfigUI.Ok)
+                {
+                    Debug.WriteLine("Ok pressed");
+                    _silkNetWindow.SystemList.C64Config = _c64ConfigUI.UpdatedConfig;
+                    _c64ConfigUI.Reset(_silkNetWindow.SystemList.C64Config);
+                }
+                else if (_c64ConfigUI.Cancel)
+                {
+                    Debug.WriteLine("Cancel pressed");
+                    _c64ConfigUI.Reset(_silkNetWindow.SystemList.C64Config);
+                }
+            }
+        }
+
+    }
+
+    private void DrawGenericComputerConfig()
+    {
+        if (SelectedSystemName == "Generic")
+        {
+            ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
+            if (ImGui.Button("GenericComputer config"))
+            {
+                if (!_genericComputerConfigUI.Visible)
+                    _genericComputerConfigUI.Init(_silkNetWindow.SystemList.GenericComputerConfig);
+            }
+            ImGui.EndDisabled();
+
+            if (!_genericComputerConfigUI.IsValidConfig)
+            {
+                ImGui.PushStyleColor(ImGuiCol.Text, s_ErrorColor);
+                ImGui.TextWrapped($"Config has errors. Press GenericComputerConfig button.");
+                ImGui.PopStyleColor();
+            }
+
+            if (_genericComputerConfigUI.Visible)
+            {
+                _genericComputerConfigUI.PostOnRender();
+                if (_genericComputerConfigUI.Ok)
+                {
+                    Debug.WriteLine("Ok pressed");
+                    _silkNetWindow.SystemList.GenericComputerConfig = _genericComputerConfigUI.UpdatedConfig;
+                    _genericComputerConfigUI.Reset(_silkNetWindow.SystemList.GenericComputerConfig);
+                }
+                else if (_genericComputerConfigUI.Cancel)
+                {
+                    Debug.WriteLine("Cancel pressed");
+                    _genericComputerConfigUI.Reset(_silkNetWindow.SystemList.GenericComputerConfig);
+                }
+            }
+        }
+    }
+
+    private bool SelectedSystemConfigIsValid()
+    {
+        switch (SelectedSystemName)
+        {
+            case "C64":
+                return _c64ConfigUI.IsValidConfig;
+            case "Generic":
+                return _genericComputerConfigUI.IsValidConfig;
+            default:
+                throw new Exception($"System not handled: {SelectedSystemName}");
+        }
     }
 
     public void Run()

@@ -6,6 +6,13 @@ public class C64Config
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.C64";
 
+    private bool _isDirty = false;
+    public bool IsDirty => _isDirty;
+    public void ClearDirty()
+    {
+        _isDirty = false;
+    }
+
     public const string KERNAL_ROM_NAME = "kernal";
     public const string BASIC_ROM_NAME = "basic";
     public const string CHARGEN_ROM_NAME = "chargen";
@@ -14,11 +21,62 @@ public class C64Config
         KERNAL_ROM_NAME, BASIC_ROM_NAME, CHARGEN_ROM_NAME
     };
 
-    public List<ROM> ROMs { get; set; }
-    public string ROMDirectory { get; set; }
+    private List<ROM> _roms;
+    public List<ROM> ROMs
+    {
+        get
+        {
+            return _roms;
+        }
+        set
+        {
+            _roms = value;
+            _isDirty = true;
+        }
+    }
 
-    public string C64Model { get; set; }
-    public string Vic2Model { get; set; }
+    private string _romDirectory;
+    public string ROMDirectory
+    {
+        get
+        {
+            return _romDirectory;
+        }
+        set
+        {
+            _romDirectory = value;
+            _isDirty = true;
+        }
+    }
+
+    private string _c64Model;
+    public string C64Model
+    {
+        get
+        {
+            return _c64Model;
+        }
+        set
+        {
+            _c64Model = value;
+            _isDirty = true;
+        }
+    }
+
+    private string _vic2Model;
+    public string Vic2Model
+    {
+        get
+        {
+            return _vic2Model;
+        }
+        set
+        {
+            _vic2Model = value;
+            _isDirty = true;
+        }
+    }
+
 
     public C64Config()
     {
@@ -53,28 +111,80 @@ public class C64Config
         Vic2Model = "NTSC";
     }
 
+    public bool HasROM(string romName) => ROMs.Any(x => x.Name == romName);
+    public ROM GetROM(string romName) => ROMs.Single(x => x.Name == romName);
+
+    public void SetROM(string romName, string? file = null, byte[]? data = null)
+    {
+        if (HasROM(romName))
+        {
+            var rom = GetROM(romName);
+            rom.File = file;
+            rom.Data = data;
+        }
+        else
+        {
+            var rom = new ROM()
+            {
+                Name = romName,
+                File = file,
+                Data = data
+            };
+            ROMs.Add(rom);
+        }
+
+        _isDirty = true;
+    }
+
+    public C64Config Clone()
+    {
+        return new C64Config
+        {
+            ROMDirectory = ROMDirectory,
+            C64Model = C64Model,
+            Vic2Model = Vic2Model,
+            ROMs = ROM.Clone(ROMs)
+        };
+    }
+
     public void Validate()
     {
+        if (!Validate(out List<string> validationErrors))
+            throw new Exception($"Config errors: {string.Join(',', validationErrors)}");
+    }
+
+    public bool Validate(out List<string> validationErrors)
+    {
+        validationErrors = new List<string>();
+
         if (!C64ModelInventory.C64Models.ContainsKey(C64Model))
-            throw new Exception($"Setting {nameof(C64Model)} value {C64Model} is not supported. Valid values are: {string.Join(',', C64ModelInventory.C64Models.Keys)}");
+        {
+            validationErrors.Add($"{nameof(C64Model)} value {C64Model} is not supported. Valid values are: {string.Join(',', C64ModelInventory.C64Models.Keys)}");
+            return false;
+        }
+
         var c64Model = C64ModelInventory.C64Models[C64Model];
 
         if (!c64Model.Vic2Models.Exists(x => x.Name == Vic2Model))
-            throw new Exception($"Setting {nameof(Vic2Model)} value {Vic2Model} is not supported for the specified C64Variant. Valid values are: {string.Join(',', c64Model.Vic2Models.Select( x => x.Name))}");
+            validationErrors.Add($"{nameof(Vic2Model)} value {Vic2Model} is not supported for the specified C64Variant. Valid values are: {string.Join(',', c64Model.Vic2Models.Select(x => x.Name))}");
 
         var allRequiredROMSconfigured = RequiredROMs.Intersect(ROMs.Select(x => x.Name)).Count() == RequiredROMs.Count();
         if (!allRequiredROMSconfigured)
-            throw new Exception($"Setting {nameof(ROMs)} must contain at least all required ROMs: {string.Join(',', RequiredROMs)}");
+            validationErrors.Add($"{nameof(ROMs)} must contain at least all required ROMs: {string.Join(',', RequiredROMs)}");
 
         var romDir = PathHelper.ExpandOSEnvironmentVariables(ROMDirectory);
         if (!string.IsNullOrEmpty(romDir))
         {
             if (!Directory.Exists(romDir))
-                throw new Exception($"Setting {nameof(ROMDirectory)} value {romDir} does not contain an existing directory.");
+                validationErrors.Add($"{nameof(ROMDirectory)} is not an existing directory: {romDir}");
         }
         foreach (var rom in ROMs)
         {
-            rom.Validate();
+            var romValidationErrors = new List<string>();
+            if (!rom.Validate(out romValidationErrors, ROMDirectory))
+                validationErrors.AddRange(romValidationErrors);
         }
+
+        return validationErrors.Count == 0;
     }
 }

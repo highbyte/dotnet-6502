@@ -58,12 +58,11 @@ var c64Config = new C64Config
         }
     }
 };
-c64Config.Validate();
 
 var genericComputerConfig = new GenericComputerConfig
 {
-    //ProgramBinaryFile = "../../../../../.cache/Examples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.prg",
-    ProgramBinaryFile = "%HOME%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.prg",
+    ProgramBinaryFile = "../../../../../.cache/Examples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.prg",
+    //ProgramBinaryFile = "%HOME%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.prg",
     CPUCyclesPerFrame = 8000,
     Memory = new EmulatorMemoryConfig
     {
@@ -86,7 +85,6 @@ var genericComputerConfig = new GenericComputerConfig
         }
     }
 };
-genericComputerConfig.Validate();
 
 // ----------
 // Systems

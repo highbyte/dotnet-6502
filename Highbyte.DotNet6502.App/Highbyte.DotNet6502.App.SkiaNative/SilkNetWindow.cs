@@ -35,8 +35,8 @@ public class SilkNetWindow
     private ISystem? _system;
     public ISystem? System => _system;
 
-    public const int DEFAULT_WIDTH = 800;
-    public const int DEFAULT_HEIGHT = 600;
+    public const int DEFAULT_WIDTH = 1000;
+    public const int DEFAULT_HEIGHT = 700;
     public const int DEFAULT_RENDER_HZ = 60;
 
     public IWindow Window { get { return _window; } }

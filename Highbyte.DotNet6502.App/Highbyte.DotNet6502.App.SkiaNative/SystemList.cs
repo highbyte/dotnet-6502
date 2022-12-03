@@ -25,8 +25,19 @@ public class SystemList
         SystemNames.Add(GenericComputer.SystemName);
     }
 
-    private readonly C64Config _c64Config;
-    private readonly GenericComputerConfig _genericComputerConfig;
+    private C64Config _c64Config;
+    public C64Config C64Config
+    {
+        get { return _c64Config; }
+        set { _c64Config = value; }
+    }
+
+    private GenericComputerConfig _genericComputerConfig;
+    public GenericComputerConfig GenericComputerConfig
+    {
+        get { return _genericComputerConfig; }
+        set { _genericComputerConfig = value; }
+    }
 
     public SystemList(C64Config c64Config, GenericComputerConfig genericComputerConfig)
     {
