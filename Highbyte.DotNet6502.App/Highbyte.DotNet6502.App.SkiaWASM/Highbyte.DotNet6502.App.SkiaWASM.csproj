@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
-    <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    
+    <Nullable>enable</Nullable>
+
     <RunAOTCompilation>true</RunAOTCompilation> 
 
     <!--<PublishIISAssets>true</PublishIISAssets>-->

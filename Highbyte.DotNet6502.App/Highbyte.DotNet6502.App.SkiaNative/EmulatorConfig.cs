@@ -1,25 +1,27 @@
-﻿using Highbyte.DotNet6502.Monitor;
+using Highbyte.DotNet6502.Impl.SilkNet;
+using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Monitor;
+using Highbyte.DotNet6502.Systems;
 
-namespace Highbyte.DotNet6502.App.SkiaNative
+namespace Highbyte.DotNet6502.App.SkiaNative;
+
+public class EmulatorConfig
 {
-    public class EmulatorConfig
+    public const string ConfigSectionName = "Highbyte.DotNet6502.SkiaConfig";
+
+    public string DefaultEmulator { get; set; }
+    public float DefaultDrawScale { get; set; }
+    public MonitorConfig Monitor { get; set; }
+
+    public EmulatorConfig()
     {
-        public const string ConfigSectionName = "Highbyte.DotNet6502.SkiaConfig";
+        DefaultDrawScale = 3.0f;
+    }
 
-        public string Emulator { get; set; }
-        public float DrawScale { get; set; }
-        public MonitorConfig Monitor { get; set; }
-
-        public EmulatorConfig()
-        {
-            DrawScale = 3.0f;
-        }
-
-        public void Validate()
-        {
-            if (!SystemList.SystemNames.Contains(Emulator))
-                throw new Exception($"Setting {nameof(Emulator)} value {Emulator} is not supported. Valid values are: {string.Join(',', SystemList.SystemNames)}");
-            Monitor.Validate();
-        }
+    public void Validate(SystemList<SkiaRenderContext, SilkNetInputHandlerContext> systemList)
+    {
+        if (!systemList.Systems.Contains(DefaultEmulator))
+            throw new Exception($"Setting {nameof(DefaultEmulator)} value {DefaultEmulator} is not supported. Valid values are: {string.Join(',', systemList.Systems)}");
+        Monitor.Validate();
     }
 }

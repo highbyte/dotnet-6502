@@ -1,11 +1,8 @@
-﻿using System;
+﻿namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-namespace Highbyte.DotNet6502.Systems.Commodore64
+public class CharsetAddressChangedEventArgs: EventArgs
 {
-    public class CharsetAddressChangedEventArgs: EventArgs
+    public CharsetAddressChangedEventArgs()
     {
-        public CharsetAddressChangedEventArgs()
-        {
-        }
     }
 }

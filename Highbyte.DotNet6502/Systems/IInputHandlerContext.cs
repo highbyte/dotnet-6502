@@ -1,15 +1,14 @@
-namespace Highbyte.DotNet6502.Systems
+namespace Highbyte.DotNet6502.Systems;
+
+public interface IInputHandlerContext
 {
-    public interface IInputHandlerContext
-    {
-    }
+}
 
-    public interface IInputHandlerContext<TSystem> : IInputHandlerContext
-        where TSystem : ISystem
-    {
-    }
+public interface IInputHandlerContext<TSystem> : IInputHandlerContext
+    where TSystem : ISystem
+{
+}
 
-    public class NullInputHandlerContext : IInputHandlerContext
-    {
-    }
+public class NullInputHandlerContext : IInputHandlerContext
+{
 }

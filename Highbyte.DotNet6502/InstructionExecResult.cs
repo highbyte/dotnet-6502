@@ -1,33 +1,32 @@
-namespace Highbyte.DotNet6502
+namespace Highbyte.DotNet6502;
+
+public struct InstructionExecResult
 {
-    public struct InstructionExecResult
+    public byte OpCodeByte { get; private set; }
+    public bool UnknownInstruction { get; set; }
+    public ulong CyclesConsumed { get; set; }
+
+    public InstructionExecResult(byte opCodeByte)
     {
-        public byte OpCodeByte { get; private set; }
-        public bool UnknownInstruction { get; set; }
-        public ulong CyclesConsumed { get; set; }
+        OpCodeByte = opCodeByte;
+        UnknownInstruction = false;
+    }
 
-        public InstructionExecResult(byte opCodeByte)
+    public static InstructionExecResult UnknownInstructionResult(byte opCodeByte)
+    {
+        return new InstructionExecResult(opCodeByte)
         {
-            OpCodeByte = opCodeByte;
-            UnknownInstruction = false;
-        }
+            UnknownInstruction = true,
+            CyclesConsumed = 1
+        };
+    }
 
-        public static InstructionExecResult UnknownInstructionResult(byte opCodeByte)
+    public static InstructionExecResult SuccessfulInstructionResult(byte opCodeByte, ulong cyclesConsumed)
+    {
+        return new InstructionExecResult(opCodeByte)
         {
-            return new InstructionExecResult(opCodeByte)
-            {
-                UnknownInstruction = true,
-                CyclesConsumed = 1
-            };
-        }
-
-        public static InstructionExecResult SuccessfulInstructionResult(byte opCodeByte, ulong cyclesConsumed)
-        {
-            return new InstructionExecResult(opCodeByte)
-            {
-                UnknownInstruction = false,
-                CyclesConsumed = cyclesConsumed
-            };
-        }
+            UnknownInstruction = false,
+            CyclesConsumed = cyclesConsumed
+        };
     }
 }

@@ -2,180 +2,178 @@ using System.Reflection;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
-using SkiaSharp;
 
-namespace Highbyte.DotNet6502.Impl.Skia.Generic
+namespace Highbyte.DotNet6502.Impl.Skia.Generic;
+
+public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRenderContext>, IRenderer
 {
-    public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRenderContext>, IRenderer
+    private Func<SKCanvas> _getSkCanvas;
+    private SKPaintMaps _skPaintMaps;
+
+    private const int TextSize = 8;
+    private const int TextPixelSize = TextSize;
+    private const int BorderWidthFactor = 3;
+    private const int BorderPixels = TextPixelSize * BorderWidthFactor;
+    private readonly EmulatorScreenConfig _emulatorScreenConfig;
+
+    public GenericComputerSkiaRenderer(EmulatorScreenConfig emulatorScreenConfig)
     {
-        private Func<SKCanvas> _getSkCanvas;
-        private SKPaintMaps _skPaintMaps;
+        _emulatorScreenConfig = emulatorScreenConfig;
+    }
 
-        private const int TextSize = 8;
-        private const int TextPixelSize = TextSize;
-        private const int BorderWidthFactor = 3;
-        private const int BorderPixels = TextPixelSize * BorderWidthFactor;
-        private readonly EmulatorScreenConfig _emulatorScreenConfig;
+    public void Init(GenericComputer genericComputer, SkiaRenderContext skiaRenderContext)
+    {
+        _getSkCanvas = skiaRenderContext.GetCanvas;
 
-        public GenericComputerSkiaRenderer(EmulatorScreenConfig emulatorScreenConfig)
+        SKTypeface typeFace = LoadEmbeddedFont("C64_Pro_Mono-STYLE.ttf");
+        _skPaintMaps = new SKPaintMaps(
+            textSize: TextSize,
+            typeFace: typeFace,
+            SKPaintMaps.ColorMap
+        );
+
+        InitEmulatorScreenMemory(genericComputer);
+    }
+
+    public void Init(ISystem system, IRenderContext renderContext)
+    {
+        Init((GenericComputer)system, (SkiaRenderContext)renderContext);
+    }
+
+    public void Draw(GenericComputer genericComputer)
+    {
+        var mem = genericComputer.Mem;
+        var canvas = _getSkCanvas();
+
+        // Draw border
+        byte borderColor = mem[_emulatorScreenConfig.ScreenBorderColorAddress];
+        var borderPaint = _skPaintMaps.GetSKBackgroundPaint(borderColor);
+        canvas.DrawRect(0, 0, genericComputer.Cols * TextPixelSize + BorderPixels * 2, genericComputer.Rows * TextPixelSize + BorderPixels * 2, borderPaint);
+
+        // Draw background
+        using (new SKAutoCanvasRestore(canvas))
         {
-            _emulatorScreenConfig = emulatorScreenConfig;
+            byte bgColor = mem[_emulatorScreenConfig.ScreenBackgroundColorAddress];
+            var bgPaint = _skPaintMaps.GetSKBackgroundPaint(bgColor);
+            canvas.Translate(BorderPixels, BorderPixels);
+            canvas.DrawRect(0, 0, genericComputer.Cols * TextPixelSize, genericComputer.Rows * TextPixelSize, bgPaint);
         }
 
-        public void Init(GenericComputer genericComputer, SkiaRenderContext skiaRenderContext)
+        var screenMemoryAddress = _emulatorScreenConfig.ScreenStartAddress;
+        var colorMemoryAddress = _emulatorScreenConfig.ScreenColorStartAddress;
+        using (new SKAutoCanvasRestore(canvas))
         {
-            _getSkCanvas = skiaRenderContext.GetCanvas;
-
-            SKTypeface typeFace = LoadEmbeddedFont("C64_Pro_Mono-STYLE.ttf");
-            _skPaintMaps = new SKPaintMaps(
-                textSize: TextSize,
-                typeFace: typeFace,
-                SKPaintMaps.ColorMap
-            );
-
-            InitEmulatorScreenMemory(genericComputer);
-        }
-
-        public void Init(ISystem system, IRenderContext renderContext)
-        {
-            Init((GenericComputer)system, (SkiaRenderContext)renderContext);
-        }
-
-        public void Draw(GenericComputer genericComputer)
-        {
-            var mem = genericComputer.Mem;
-            var canvas = _getSkCanvas();
-
-            // Draw border
-            byte borderColor = mem[_emulatorScreenConfig.ScreenBorderColorAddress];
-            var borderPaint = _skPaintMaps.GetSKBackgroundPaint(borderColor);
-            canvas.DrawRect(0, 0, genericComputer.Cols * TextPixelSize + BorderPixels * 2, genericComputer.Rows * TextPixelSize + BorderPixels * 2, borderPaint);
-
-            // Draw background
-            using (new SKAutoCanvasRestore(canvas))
+            canvas.Translate(BorderPixels, BorderPixels);
+            // Draw characters
+            for (var row = 0; row < genericComputer.Rows; row++)
             {
-                byte bgColor = mem[_emulatorScreenConfig.ScreenBackgroundColorAddress];
-                var bgPaint = _skPaintMaps.GetSKBackgroundPaint(bgColor);
-                canvas.Translate(BorderPixels, BorderPixels);
-                canvas.DrawRect(0, 0, genericComputer.Cols * TextPixelSize, genericComputer.Rows * TextPixelSize, bgPaint);
-            }
-
-            var screenMemoryAddress = _emulatorScreenConfig.ScreenStartAddress;
-            var colorMemoryAddress = _emulatorScreenConfig.ScreenColorStartAddress;
-            using (new SKAutoCanvasRestore(canvas))
-            {
-                canvas.Translate(BorderPixels, BorderPixels);
-                // Draw characters
-                for (var row = 0; row < genericComputer.Rows; row++)
+                for (var col = 0; col < genericComputer.Cols; col++)
                 {
-                    for (var col = 0; col < genericComputer.Cols; col++)
-                    {
-                        var chr = mem[(ushort)(screenMemoryAddress + row * genericComputer.Cols + col)];
-                        var chrColor = mem[(ushort)(colorMemoryAddress + row * genericComputer.Cols + col)];;
-                        var drawText = GetDrawTextFromCharacter(chr);
-                        var textPaint = _skPaintMaps.GetSKTextPaint(chrColor);
-                        DrawCharacter(canvas, drawText, col, row, textPaint);
-                    }
+                    var chr = mem[(ushort)(screenMemoryAddress + row * genericComputer.Cols + col)];
+                    var chrColor = mem[(ushort)(colorMemoryAddress + row * genericComputer.Cols + col)];;
+                    var drawText = GetDrawTextFromCharacter(chr);
+                    var textPaint = _skPaintMaps.GetSKTextPaint(chrColor);
+                    DrawCharacter(canvas, drawText, col, row, textPaint);
                 }
             }
         }
+    }
 
-        public void Draw(ISystem system)
+    public void Draw(ISystem system)
+    {
+        Draw((GenericComputer)system);
+    }
+
+
+    private string GetDrawTextFromCharacter(byte chr)
+    {
+        string representAsString;
+        switch (chr)
         {
-            Draw((GenericComputer)system);
+            case 0x00:  // Uninitialized
+            case 0x0a:  // NewLine/CarrigeReturn
+            case 0x0d:  // NewLine/CarrigeReturn
+                representAsString = " "; // Replace with space
+                break;
+            case 0xa0:  //160, C64 inverted space
+            case 0xe0:  //224, Also C64 inverted space?
+                // Unicode for Inverted square in https://style64.org/c64-truetype font
+                representAsString = ((char)0x2588).ToString(); 
+                break;
+            default:
+                // Even though both upper and lowercase characters are used in the 6502 program (and in the font), show all as uppercase for C64 look.
+                representAsString = Convert.ToString((char)chr).ToUpper();
+                break;
         }
+        return representAsString;
+    }
 
+    private void DrawCharacter(SKCanvas canvas, string character, int col, int row, SKPaint textPaint)
+    {
+        //var textHeight = textPaint.TextSize;
 
-        private string GetDrawTextFromCharacter(byte chr)
+        var x = col * TextPixelSize;
+        var y = row * TextPixelSize;
+        // Make clipping rectangle for the tile we're drawing, to avoid any accidental spill-over to neighboring tiles.
+        var rect = new SKRect(x, y, x + TextPixelSize, y + TextPixelSize);
+        using (new SKAutoCanvasRestore(canvas))
         {
-            string representAsString;
-            switch (chr)
-            {
-                case 0x00:  // Uninitialized
-                case 0x0a:  // NewLine/CarrigeReturn
-                case 0x0d:  // NewLine/CarrigeReturn
-                    representAsString = " "; // Replace with space
-                    break;
-                case 0xa0:  //160, C64 inverted space
-                case 0xe0:  //224, Also C64 inverted space?
-                    // Unicode for Inverted square in https://style64.org/c64-truetype font
-                    representAsString = ((char)0x2588).ToString(); 
-                    break;
-                default:
-                    // Even though both upper and lowercase characters are used in the 6502 program (and in the font), show all as uppercase for C64 look.
-                    representAsString = Convert.ToString((char)chr).ToUpper();
-                    break;
-            }
-            return representAsString;
+            canvas.ClipRect(rect, SKClipOperation.Intersect);
+            //canvas.DrawText(character, x, y + (TextPixelSize - 2), textPaint);
+            canvas.DrawText(character, x, y + TextPixelSize, textPaint);
         }
+    }
 
-        private void DrawCharacter(SKCanvas canvas, string character, int col, int row, SKPaint textPaint)
+    // private async Task<SKTypeface> LoadFont(string fontUrl)
+    // {
+    //     using (Stream file = await HttpClient!.GetStreamAsync(fontUrl))
+    //     using (var memoryStream = new MemoryStream())
+    //     {
+    //         await file.CopyToAsync(memoryStream);
+    //         //byte[] bytes = memoryStream.ToArray();
+    //         var typeFace = SKTypeface.FromStream(memoryStream);
+    //         if (typeFace == null)
+    //             throw new ArgumentException($"Cannot load font as a Skia TypeFace. Url: {fontUrl}", nameof(fontUrl));
+    //         return typeFace;
+    //     }
+    // }
+
+    private SKTypeface LoadEmbeddedFont(string fullFontName)
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+
+        var resourceName = $"{"Highbyte.DotNet6502.Impl.Skia.Resources.Fonts"}.{fullFontName}";
+        using (Stream? resourceStream = assembly.GetManifestResourceStream(resourceName))
         {
-            //var textHeight = textPaint.TextSize;
+            if (resourceStream == null)
+                throw new ArgumentException($"Cannot load font from embedded resource. Resource: {resourceName}", nameof(fullFontName));
 
-            var x = col * TextPixelSize;
-            var y = row * TextPixelSize;
-            // Make clipping rectangle for the tile we're drawing, to avoid any accidental spill-over to neighboring tiles.
-            var rect = new SKRect(x, y, x + TextPixelSize, y + TextPixelSize);
-            using (new SKAutoCanvasRestore(canvas))
-            {
-                canvas.ClipRect(rect, SKClipOperation.Intersect);
-                //canvas.DrawText(character, x, y + (TextPixelSize - 2), textPaint);
-                canvas.DrawText(character, x, y + TextPixelSize, textPaint);
-            }
+            var typeFace = SKTypeface.FromStream(resourceStream);
+            if (typeFace == null)
+                throw new ArgumentException($"Cannot load font as a Skia TypeFace from embedded resource. Resource: {resourceName}", nameof(fullFontName));
+            return typeFace;
         }
+    }
 
-        // private async Task<SKTypeface> LoadFont(string fontUrl)
-        // {
-        //     using (Stream file = await HttpClient!.GetStreamAsync(fontUrl))
-        //     using (var memoryStream = new MemoryStream())
-        //     {
-        //         await file.CopyToAsync(memoryStream);
-        //         //byte[] bytes = memoryStream.ToArray();
-        //         var typeFace = SKTypeface.FromStream(memoryStream);
-        //         if (typeFace == null)
-        //             throw new ArgumentException($"Cannot load font as a Skia TypeFace. Url: {fontUrl}", nameof(fontUrl));
-        //         return typeFace;
-        //     }
-        // }
+    /// <summary>
+    /// Set emulator screen memory initial state
+    /// </summary>
+    private void InitEmulatorScreenMemory(GenericComputer system)
+    {
+        var emulatorMem = system.Mem;
 
-        private SKTypeface LoadEmbeddedFont(string fullFontName)
+        // Common bg and border color for entire screen, controlled by specific address
+        emulatorMem[_emulatorScreenConfig.ScreenBorderColorAddress] = _emulatorScreenConfig.DefaultBorderColor;
+        emulatorMem[_emulatorScreenConfig.ScreenBackgroundColorAddress] = _emulatorScreenConfig.DefaultBgColor;
+
+        ushort currentScreenAddress = _emulatorScreenConfig.ScreenStartAddress;
+        ushort currentColorAddress  = _emulatorScreenConfig.ScreenColorStartAddress;
+        for (int row = 0; row < _emulatorScreenConfig.Rows; row++)
         {
-            var assembly = Assembly.GetExecutingAssembly();
-
-            var resourceName = $"{"Highbyte.DotNet6502.Impl.Skia.Resources.Fonts"}.{fullFontName}";
-            using (Stream? resourceStream = assembly.GetManifestResourceStream(resourceName))
+            for (int col = 0; col < _emulatorScreenConfig.Cols; col++)
             {
-                if (resourceStream == null)
-                    throw new ArgumentException($"Cannot load font from embedded resource. Resource: {resourceName}", nameof(fullFontName));
-
-                var typeFace = SKTypeface.FromStream(resourceStream);
-                if (typeFace == null)
-                    throw new ArgumentException($"Cannot load font as a Skia TypeFace from embedded resource. Resource: {resourceName}", nameof(fullFontName));
-                return typeFace;
-            }
-        }
-
-        /// <summary>
-        /// Set emulator screen memory initial state
-        /// </summary>
-        private void InitEmulatorScreenMemory(GenericComputer system)
-        {
-            var emulatorMem = system.Mem;
-
-            // Common bg and border color for entire screen, controlled by specific address
-            emulatorMem[_emulatorScreenConfig.ScreenBorderColorAddress] = _emulatorScreenConfig.DefaultBorderColor;
-            emulatorMem[_emulatorScreenConfig.ScreenBackgroundColorAddress] = _emulatorScreenConfig.DefaultBgColor;
-
-            ushort currentScreenAddress = _emulatorScreenConfig.ScreenStartAddress;
-            ushort currentColorAddress  = _emulatorScreenConfig.ScreenColorStartAddress;
-            for (int row = 0; row < _emulatorScreenConfig.Rows; row++)
-            {
-                for (int col = 0; col < _emulatorScreenConfig.Cols; col++)
-                {
-                    emulatorMem[currentScreenAddress++] = 0x20;    // 32 (0x20) = space
-                    emulatorMem[currentColorAddress++] = _emulatorScreenConfig.DefaultFgColor;
-                }
+                emulatorMem[currentScreenAddress++] = 0x20;    // 32 (0x20) = space
+                emulatorMem[currentColorAddress++] = _emulatorScreenConfig.DefaultFgColor;
             }
         }
     }

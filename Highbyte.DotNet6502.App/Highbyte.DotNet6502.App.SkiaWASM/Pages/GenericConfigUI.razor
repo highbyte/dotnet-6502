@@ -1,5 +1,6 @@
 ﻿@using Highbyte.DotNet6502.App.SkiaWASM.Skia
 @using Highbyte.DotNet6502.Systems.Generic.Config
+@using Highbyte.DotNet6502.Systems;
 @using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index
 
 General settings
@@ -57,13 +58,13 @@ Memory addresses
 
     [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
-    [Parameter] public Dictionary<string, object>? UserSettings { get; set; }
+    [Parameter] public ISystemConfig SystemConfig { get; set; }
 
-    public GenericComputerConfig GenericComputerConfig => (GenericComputerConfig)UserSettings[SystemList.CONFIG_KEY];
+    public GenericComputerConfig GenericComputerConfig => (GenericComputerConfig)SystemConfig;
 
     protected override void OnInitialized() => BlazoredModal.SetTitle("Generic config");
 
-    private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(UserSettings));
+    private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(SystemConfig));
 
     private string _validationMessage = "";
 

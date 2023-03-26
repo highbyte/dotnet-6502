@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Highbyte.DotNet6502.Systems;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole;

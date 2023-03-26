@@ -2,151 +2,150 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
-namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
+namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64;
+
+public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>, IInputHandler
 {
-    public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>, IInputHandler
+    private AspNetInputHandlerContext _inputHandlerContext;
+
+    public C64AspNetInputHandler()
     {
-        private AspNetInputHandlerContext _inputHandlerContext;
+    }
 
-        public C64AspNetInputHandler()
+    public void Init(C64 system, AspNetInputHandlerContext inputHandlerContext)
+    {
+        _inputHandlerContext = inputHandlerContext;
+        _inputHandlerContext.Init();
+    }
+
+    public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
+    {
+        Init((C64)system, (AspNetInputHandlerContext)inputHandlerContext);
+    }
+
+    public void ProcessInput(C64 c64)
+    {
+        CaptureKeyboard(c64);
+
+        _inputHandlerContext.ClearKeys();   // Clear our captured keys so far
+    }
+
+    public void ProcessInput(ISystem system)
+    {
+        ProcessInput((C64)system);
+    }
+
+    private void CaptureKeyboard(C64 c64)
+    {
+        HandleNonPrintedC64Keys(c64);
+        HandlePrintedC64Keys(c64);
+    }
+
+    private void HandleNonPrintedC64Keys(C64 c64)
+    {
+        var c64Keyboard = c64.Keyboard;
+
+        // STOP (ESC) down
+        if (_inputHandlerContext.KeysDown.Contains("Escape"))
+        //if (_inputHandlerContext.SpecialKeyReceived.Count == 1 && _inputHandlerContext.SpecialKeyReceived.First() == Key.Escape)
         {
+            // Pressing STOP (RUN/STOP) will stop any running Basic program.
+            c64Keyboard.StopKeyFlag = 0x7f;
+
+            // RESTORE (PageUp) down. Together with STOP it will issue a NMI (which will jump to code that detects STOP is pressed and resets any running program, and clears screen.)
+            if (_inputHandlerContext.KeysDown.Contains("PageUp"))
+                c64.CPU.NMI = true;
+
+            return;
         }
 
-        public void Init(C64 system, AspNetInputHandlerContext inputHandlerContext)
+        // STOP (ESC) released
+        if (_inputHandlerContext.KeysUp.Count == 1 && _inputHandlerContext.KeysUp.First() == "Escape")
         {
-            _inputHandlerContext = inputHandlerContext;
-            _inputHandlerContext.Init();
+            c64Keyboard.StopKeyFlag = 0xff;
+            return;
         }
+    }
 
-        public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
+    private void HandlePrintedC64Keys(C64 c64)
+    {
+        var c64Keyboard = c64.Keyboard;
+
+        // Check if modifier key is down.
+        var modifierKeyDown = "";
+        foreach (var modifierKey in C64AspNetKeyboard.AllModifierKeys)
         {
-            Init((C64)system, (AspNetInputHandlerContext)inputHandlerContext);
-        }
-
-        public void ProcessInput(C64 c64)
-        {
-            CaptureKeyboard(c64);
-
-            _inputHandlerContext.ClearKeys();   // Clear our captured keys so far
-        }
-
-        public void ProcessInput(ISystem system)
-        {
-            ProcessInput((C64)system);
-        }
-
-        private void CaptureKeyboard(C64 c64)
-        {
-            HandleNonPrintedC64Keys(c64);
-            HandlePrintedC64Keys(c64);
-        }
-
-        private void HandleNonPrintedC64Keys(C64 c64)
-        {
-            var c64Keyboard = c64.Keyboard;
-
-            // STOP (ESC) down
-            if (_inputHandlerContext.KeysDown.Contains("Escape"))
-            //if (_inputHandlerContext.SpecialKeyReceived.Count == 1 && _inputHandlerContext.SpecialKeyReceived.First() == Key.Escape)
+            var modifierKeyPressed = _inputHandlerContext.KeysDown.Contains(modifierKey);
+            if (modifierKeyPressed)
             {
-                // Pressing STOP (RUN/STOP) will stop any running Basic program.
-                c64Keyboard.StopKeyFlag = 0x7f;
-
-                // RESTORE (PageUp) down. Together with STOP it will issue a NMI (which will jump to code that detects STOP is pressed and resets any running program, and clears screen.)
-                if (_inputHandlerContext.KeysDown.Contains("PageUp"))
-                    c64.CPU.NMI = true;
-
-                return;
+                modifierKeyDown = modifierKey;
+                break;
             }
-
-            // STOP (ESC) released
-            if (_inputHandlerContext.KeysUp.Count == 1 && _inputHandlerContext.KeysUp.First() == "Escape")
-            {
-                c64Keyboard.StopKeyFlag = 0xff;
-                return;
-            }
         }
 
-        private void HandlePrintedC64Keys(C64 c64)
+        if (C64AspNetKeyboard.SpecialKeyMaps.ContainsKey(modifierKeyDown))
         {
-            var c64Keyboard = c64.Keyboard;
+            var specialKeyMap = C64AspNetKeyboard.SpecialKeyMaps[modifierKeyDown];
 
-            // Check if modifier key is down.
-            var modifierKeyDown = "";
-            foreach (var modifierKey in C64AspNetKeyboard.AllModifierKeys)
+            foreach (var key in specialKeyMap.Keys)
             {
-                var modifierKeyPressed = _inputHandlerContext.KeysDown.Contains(modifierKey);
-                if (modifierKeyPressed)
+                if (_inputHandlerContext.KeysDown.Contains(key))
                 {
-                    modifierKeyDown = modifierKey;
-                    break;
+                    var petsciiCode = specialKeyMap[key];
+                    c64Keyboard.KeyPressed(petsciiCode);
+
+                    _inputHandlerContext.KeysDown.Remove(key);
+                    // If we detected a special Key/Combo pressed, don't process anymore. Some of them may also be in the _inputHandlerContext.CharactersReceived list processed below.
+                    return;
                 }
             }
+        }
 
-            if (C64AspNetKeyboard.SpecialKeyMaps.ContainsKey(modifierKeyDown))
+        // Check if nothing to do with captured characters.
+        if (_inputHandlerContext.KeysPressed.Count == 0)
+            return;
+
+        foreach (var key in _inputHandlerContext.KeysPressed)
+        {
+            char character;
+            if (key.Length == 1)
             {
-                var specialKeyMap = C64AspNetKeyboard.SpecialKeyMaps[modifierKeyDown];
-
-                foreach (var key in specialKeyMap.Keys)
-                {
-                    if (_inputHandlerContext.KeysDown.Contains(key))
-                    {
-                        var petsciiCode = specialKeyMap[key];
-                        c64Keyboard.KeyPressed(petsciiCode);
-
-                        _inputHandlerContext.KeysDown.Remove(key);
-                        // If we detected a special Key/Combo pressed, don't process anymore. Some of them may also be in the _inputHandlerContext.CharactersReceived list processed below.
-                        return;
-                    }
-                }
+                character = key[0];
             }
-
-            // Check if nothing to do with captured characters.
-            if (_inputHandlerContext.KeysPressed.Count == 0)
-                return;
-
-            foreach (var key in _inputHandlerContext.KeysPressed)
+            else
             {
-                char character;
-                if (key.Length == 1)
-                {
-                    character = key[0];
-                }
-                else
-                {
-                    character = MapAspNetKeyStringToCharacter(key);
-                    if (character == 0)
-                        continue;
-                }
-                if (!Petscii.CharToPetscii.ContainsKey(character))
-                {
+                character = MapAspNetKeyStringToCharacter(key);
+                if (character == 0)
                     continue;
-                }
-                var petsciiCode = Petscii.CharToPetscii[character];
-                c64Keyboard.KeyPressed(petsciiCode);
             }
-        }
-
-        private char MapAspNetKeyStringToCharacter(string key)
-        {
-            if (C64AspNetKeyboard.AspNetKeyStringToCharacter.ContainsKey(key))
-                return C64AspNetKeyboard.AspNetKeyStringToCharacter[key];
-            return (char)0; // No key found
-        }
-
-        public string GetDebugMessage()
-        {
-            string msg = "";
-            if (_inputHandlerContext.KeysDown.Count > 0)
-                msg += $"KeysDown: {string.Join(',', _inputHandlerContext.KeysDown)}";
-
-            if (_inputHandlerContext.KeysUp.Count > 0)
+            if (!Petscii.CharToPetscii.ContainsKey(character))
             {
-                if (msg.Length == 0)
-                    msg += " # ";
-                msg += $"KeysUp: {string.Join(',', _inputHandlerContext.KeysUp)}";
+                continue;
             }
-            return msg;
+            var petsciiCode = Petscii.CharToPetscii[character];
+            c64Keyboard.KeyPressed(petsciiCode);
         }
+    }
+
+    private char MapAspNetKeyStringToCharacter(string key)
+    {
+        if (C64AspNetKeyboard.AspNetKeyStringToCharacter.ContainsKey(key))
+            return C64AspNetKeyboard.AspNetKeyStringToCharacter[key];
+        return (char)0; // No key found
+    }
+
+    public string GetDebugMessage()
+    {
+        string msg = "";
+        if (_inputHandlerContext.KeysDown.Count > 0)
+            msg += $"KeysDown: {string.Join(',', _inputHandlerContext.KeysDown)}";
+
+        if (_inputHandlerContext.KeysUp.Count > 0)
+        {
+            if (msg.Length == 0)
+                msg += " # ";
+            msg += $"KeysUp: {string.Join(',', _inputHandlerContext.KeysUp)}";
+        }
+        return msg;
     }
 }

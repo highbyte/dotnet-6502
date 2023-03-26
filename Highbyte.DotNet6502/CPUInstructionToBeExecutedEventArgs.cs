@@ -1,15 +1,12 @@
-﻿using System;
+namespace Highbyte.DotNet6502;
 
-namespace Highbyte.DotNet6502
+public class CPUInstructionToBeExecutedEventArgs: EventArgs
 {
-    public class CPUInstructionToBeExecutedEventArgs: EventArgs
+    public CPU CPU { get; }
+    public Memory Mem { get; }
+    public CPUInstructionToBeExecutedEventArgs(CPU cpu, Memory mem)
     {
-        public CPU CPU { get; }
-        public Memory Mem { get; }
-        public CPUInstructionToBeExecutedEventArgs(CPU cpu, Memory mem)
-        {
-            CPU = cpu;
-            Mem = mem;            
-        }
+        CPU = cpu;
+        Mem = mem;            
     }
 }

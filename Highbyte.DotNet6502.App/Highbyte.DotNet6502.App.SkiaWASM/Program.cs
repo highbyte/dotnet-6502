@@ -1,5 +1,4 @@
 using Blazored.Modal;
-using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Highbyte.DotNet6502.App.SkiaWASM;
 using Blazored.LocalStorage;

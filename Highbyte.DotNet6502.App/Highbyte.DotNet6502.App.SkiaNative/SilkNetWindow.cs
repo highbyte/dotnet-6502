@@ -4,21 +4,41 @@ using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
-using Silk.NET.Input;
-using Silk.NET.Maths;
-using Silk.NET.OpenGL;
-using Silk.NET.OpenGL.Extensions.ImGui;
-using Silk.NET.Windowing;
-using SkiaSharp;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
+
+public enum EmulatorState
+{
+    Uninitialized,
+    Running,
+    Paused
+}
+
 public class SilkNetWindow
 {
     private readonly MonitorConfig _monitorConfig;
-    private static IWindow s_window;
-    private readonly ISystem _system;
-    private readonly Func<ISystem, SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> _getSystemRunner;
-    private readonly float _canvasScale;
+    private readonly IWindow _window;
+
+    private readonly SystemList<SkiaRenderContext, SilkNetInputHandlerContext> _systemList;
+    public SystemList<SkiaRenderContext, SilkNetInputHandlerContext> SystemList => _systemList;
+
+    private float _canvasScale;
+    private readonly string _defaultSystemName;
+    private string _currentSystemName;
+
+    public float CanvasScale
+    {
+        get { return _canvasScale; }
+        set { _canvasScale = value; }
+    }
+
+    public const int DEFAULT_WIDTH = 1000;
+    public const int DEFAULT_HEIGHT = 700;
+    public const int DEFAULT_RENDER_HZ = 60;
+
+    public IWindow Window { get { return _window; } }
+
+    public EmulatorState EmulatorState { get; set; } = EmulatorState.Uninitialized;
 
     private readonly ElapsedMillisecondsTimedStat _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("SilkNet-InputTime");
     private readonly ElapsedMillisecondsTimedStat _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("Emulator-SystemTime");
@@ -35,62 +55,62 @@ public class SilkNetWindow
     private SystemRunner _systemRunner;
 
     // Monitor
-    private SilkNetImgUIMonitor _monitor;
+    private SilkNetImGuiMonitor _monitor;
+    public SilkNetImGuiMonitor Monitor => _monitor;
 
     // Stats panel
     private SilkNetImGuiStatsPanel _statsPanel;
+    public SilkNetImGuiStatsPanel StatsPanel => _statsPanel;
+
+    // Menu
+    private SilkNetImGuiMenu _menu;
+    private bool _statsWasEnabled = false;
 
     // GL and other ImGui resources
     private GL _gl;
     private IInputContext _inputContext;
     private ImGuiController _imGuiController;
-    private bool _statsWasEnabled = false;
 
 
     public SilkNetWindow(
         MonitorConfig monitorConfig,
         IWindow window,
-        ISystem system,
-        Func<ISystem, SkiaRenderContext, SilkNetInputHandlerContext, SystemRunner> getSystemRunner,
-        float scale = 1.0f)
+        SystemList<SkiaRenderContext, SilkNetInputHandlerContext> systemList,
+        float scale,
+        string defaultSystemName)
     {
         _monitorConfig = monitorConfig;
-        s_window = window;
-        _system = system;
-        _getSystemRunner = getSystemRunner;
+        _window = window;
+        _systemList = systemList;
         _canvasScale = scale;
+        _defaultSystemName = defaultSystemName;
     }
 
     public void Run()
     {
-        s_window.Load += OnLoad;
-        s_window.Closing += OnClosing;
-        s_window.Update += OnUpdate;
-        s_window.Render += OnRender;
-        s_window.Resize += OnResize;
+        _window.Load += OnLoad;
+        _window.Closing += OnClosing;
+        _window.Update += OnUpdate;
+        _window.Render += OnRender;
+        _window.Resize += OnResize;
 
-        s_window.Run();
+        _window.Run();
     }
 
     protected void OnLoad()
     {
-        // Init SkipSharp resources (must be done in OnLoad, otherwise no OpenGL context will exist create by SilkNet.)
-        //_skiaRenderContext = new SkiaRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
-        GRGlGetProcedureAddressDelegate getProcAddress = (string name) =>
-        {
-            bool addrFound = s_window.GLContext!.TryGetProcAddress(name, out var addr);
-            return addrFound ? addr : 0;
-        };
+        SetUninitializedWindow();
 
-        _skiaRenderContext = new SkiaRenderContext(
-            getProcAddress, 
-            s_window.FramebufferSize.X,
-            s_window.FramebufferSize.Y,
-            _canvasScale * (s_window.FramebufferSize.X / s_window.Size.X));
-        _silkNetInputHandlerContext = new SilkNetInputHandlerContext(s_window);
-        _systemRunner = _getSystemRunner(_system, _skiaRenderContext, _silkNetInputHandlerContext);
+        InitRendering();
+        InitInput();
+
+        _systemList.InitContext(() => _skiaRenderContext, () => _silkNetInputHandlerContext);
 
         InitImGui();
+
+        // Init main menu
+        _menu = new SilkNetImGuiMenu(this, _defaultSystemName);
+
     }
 
     protected void OnClosing()
@@ -107,7 +127,7 @@ public class SilkNetWindow
         _silkNetInputHandlerContext.Cleanup();
 
         // Cleanup SilNet window resources
-        s_window?.Dispose();
+        _window?.Dispose();
     }
 
     /// <summary>
@@ -119,8 +139,98 @@ public class SilkNetWindow
     /// <param name=""></param>
     protected void OnUpdate(double deltaTime)
     {
+        if (EmulatorState != EmulatorState.Running)
+            return;
         _updateFps.Update();
         RunEmulator();
+    }
+
+    private void SetUninitializedWindow()
+    {
+        Window.Size = new Vector2D<int>(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        Window.UpdatesPerSecond = DEFAULT_RENDER_HZ;
+        EmulatorState = EmulatorState.Uninitialized;
+    }
+
+    private void InitRendering()
+    {
+        // Init SkipSharp resources (must be done in OnLoad, otherwise no OpenGL context will exist create by SilkNet.)
+        //_skiaRenderContext = new SkiaRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
+        GRGlGetProcedureAddressDelegate getProcAddress = (string name) =>
+        {
+            bool addrFound = _window.GLContext!.TryGetProcAddress(name, out var addr);
+            return addrFound ? addr : 0;
+        };
+
+        _skiaRenderContext = new SkiaRenderContext(
+            getProcAddress,
+            _window.FramebufferSize.X,
+            _window.FramebufferSize.Y,
+            _canvasScale * (_window.FramebufferSize.X / _window.Size.X));
+    }
+
+    public void SetCurrentSystem(string systemName)
+    {
+        if (EmulatorState != EmulatorState.Uninitialized)
+            throw new Exception("Internal error. Cannot change system while running");
+
+        _currentSystemName = systemName;
+
+        if (_systemList.IsValidConfig(systemName).Result)
+        {
+            var system = _systemList.GetSystem(systemName).Result;
+            var screen = (IScreen)system;
+            Window.Size = new Vector2D<int>((int)(screen.VisibleWidth * _canvasScale), (int)(screen.VisibleHeight * _canvasScale));
+            Window.UpdatesPerSecond = screen.RefreshFrequencyHz;
+
+            InitRendering();
+        }
+        else
+        {
+
+        }
+    }
+
+    public void Start()
+    {
+        if (EmulatorState == EmulatorState.Running)
+            return;
+
+        if (!_systemList.IsValidConfig(_currentSystemName).Result)
+            throw new Exception("Internal error. Cannot start emulator if current system config is invalid.");
+
+        // Only create a new instance of SystemRunner if we previously has not started (so resume after pause works).
+        if (EmulatorState == EmulatorState.Uninitialized)
+            _systemRunner = _systemList.BuildSystemRunner(_currentSystemName).Result;
+
+        InitMonitorAndStats();
+
+        EmulatorState = EmulatorState.Running;
+    }
+
+    public void Pause()
+    {
+        if (EmulatorState == EmulatorState.Paused || EmulatorState == EmulatorState.Uninitialized)
+            return;
+        EmulatorState = EmulatorState.Paused;
+    }
+
+    public void Reset()
+    {
+        if (EmulatorState == EmulatorState.Uninitialized)
+            return;
+        Stop();
+        //SetCurrentSystem(_selectedSystemName);
+        Start();
+    }
+
+    public void Stop()
+    {
+        if (EmulatorState == EmulatorState.Running)
+            Pause();
+        _systemRunner = null;
+        SetUninitializedWindow();
+        InitRendering();
     }
 
     private void RunEmulator()
@@ -133,7 +243,7 @@ public class SilkNetWindow
 
         if (_silkNetInputHandlerContext.Quit || _monitor.Quit)
         {
-            s_window.Close();
+            _window.Close();
             return;
         }
 
@@ -172,52 +282,80 @@ public class SilkNetWindow
 
     private void RenderEmulator(double deltaTime)
     {
+        // Make sure ImGui is up-to-date
+        _imGuiController.Update((float)deltaTime);
 
-        if (_monitor.Visible || _statsPanel.Visible)
+        bool emulatorRendered = false;
+
+        if (EmulatorState == EmulatorState.Running)
         {
-            _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+            if (_monitor.Visible || _statsPanel.Visible)
+            {
+                _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+            }
+
+            using (_renderTime.Measure())
+            {
+                // Render emulator system screen
+                _systemRunner.Draw();
+
+                // Flush the Skia Context
+                _skiaRenderContext.GetGRContext().Flush();
+            }
+            emulatorRendered = true;
+
+            // SilkNet windows are what's known as "double-buffered". In essence, the window manages two buffers.
+            // One is rendered to while the other is currently displayed by the window.
+            // This avoids screen tearing, a visual artifact that can happen if the buffer is modified while being displayed.
+            // After drawing, call this function to swap the buffers. If you don't, it won't display what you've rendered.
+
+            // NOTE: s_window.SwapBuffers() seem to have some problem. Window is darker, and some flickering.
+            //       Use windowOptions.ShouldSwapAutomatically = true  instead
+            //s_window.SwapBuffers();
+
+            // Render monitor if enabled
+            if (_monitor.Visible)
+            {
+                _monitor.PostOnRender();
+            }
+
+            // Render stats if enabled
+            if (_statsPanel.Visible)
+            {
+                _statsPanel.PostOnRender();
+            }
         }
 
-        using (_renderTime.Measure())
+        if (!emulatorRendered)
         {
-            // Render emulator system screen
-            _systemRunner.Draw();
-
-            // Flush the Skia Context
+            if (_menu.Visible)
+            {
+                _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+            }
+            // Seems the canvas has to be drawn & flushed for ImGui stuff to be visible on top
+            var canvas = _skiaRenderContext.GetCanvas();
+            canvas.Clear();
             _skiaRenderContext.GetGRContext().Flush();
         }
 
-        // SilkNet windows are what's known as "double-buffered". In essence, the window manages two buffers.
-        // One is rendered to while the other is currently displayed by the window.
-        // This avoids screen tearing, a visual artifact that can happen if the buffer is modified while being displayed.
-        // After drawing, call this function to swap the buffers. If you don't, it won't display what you've rendered.
-
-        // NOTE: s_window.SwapBuffers() seem to have some problem. Window is darker, and some flickering.
-        //       Use windowOptions.ShouldSwapAutomatically = true  instead
-        //s_window.SwapBuffers();
-
-        // Render monitor if enabled
-        if (_monitor.Visible)
+        if (_menu.Visible)
         {
-            _monitor.PostOnRender(_imGuiController, deltaTime);
+            _menu.PostOnRender();
         }
 
-        // Render stats if enabled
-        if (_statsPanel.Visible)
-        {
-            _statsPanel.PostOnRender(_imGuiController, deltaTime);
-        }
+        // Render any ImGui UI rendered above emulator.
+        _imGuiController?.Render();
     }
 
     private void OnResize(Vector2D<int> vec2)
     {
     }
 
-    private void InitImGui()
+    private void InitInput()
     {
-        // Init ImGui resource
-        _gl = GL.GetApi(s_window);
-        _inputContext = s_window.CreateInput();
+        _silkNetInputHandlerContext = new SilkNetInputHandlerContext(_window);
+
+        _inputContext = _window.CreateInput();
         // Listen to key to enable monitor
         if (_inputContext.Keyboards == null || _inputContext.Keyboards.Count == 0)
             throw new Exception("Keyboard not found");
@@ -225,9 +363,23 @@ public class SilkNetWindow
 
         // Listen to special key that will show/hide overlays for monitor/stats
         primaryKeyboard.KeyDown += OnKeyDown;
+    }
 
+    private void InitImGui()
+    {
+        // Init ImGui resource
+        _gl = GL.GetApi(_window);
+        _imGuiController = new ImGuiController(
+            _gl,
+            _window, // pass in our window
+            _inputContext // input context
+        );
+    }
+
+    private void InitMonitorAndStats()
+    {
         // Init Monitor ImGui resources 
-        _monitor = new SilkNetImgUIMonitor(_systemRunner, _monitorConfig);
+        _monitor = new SilkNetImGuiMonitor(_systemRunner, _monitorConfig);
         _monitor.MonitorStateChange += (s, monitorEnabled) => _silkNetInputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
         _monitor.MonitorStateChange += (s, monitorEnabled) =>
         {
@@ -236,18 +388,7 @@ public class SilkNetWindow
         };
 
         // Init StatsPanel ImGui resources
-        _statsPanel = new SilkNetImGuiStatsPanel(_systemRunner);
-
-        CreateImGuiController();
-    }
-
-    private void CreateImGuiController()
-    {
-        _imGuiController = new ImGuiController(
-            _gl,
-            s_window, // pass in our window
-            _inputContext // input context
-        );
+        _statsPanel = new SilkNetImGuiStatsPanel();
     }
 
     private void DestroyImGuiController()
@@ -259,40 +400,59 @@ public class SilkNetWindow
 
     private void OnKeyDown(IKeyboard keyboard, Key key, int x)
     {
-        if (key == Key.F11)
+        if (key == Key.F6)
         {
-            if (_monitor.Visible)
-                return;
+            _menu.Visible = !_menu.Visible;
+        }
 
-            if (_statsPanel.Visible)
+        if (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused)
+        {
+            if (key == Key.F11)
             {
-                _statsPanel.Disable();
-                _statsWasEnabled = false;
+                ToggleStatsPanel();
             }
-            else
+
+            if (key == Key.F12)
             {
+                ToggleMonitor();
+            }
+        }
+    }
+
+    public void ToggleStatsPanel()
+    {
+        if (_monitor.Visible)
+            return;
+
+        if (_statsPanel.Visible)
+        {
+            _statsPanel.Disable();
+            _statsWasEnabled = false;
+        }
+        else
+        {
+            _statsPanel.Enable();
+        }
+    }
+
+    public void ToggleMonitor()
+    {
+        if (_statsPanel.Visible)
+        {
+            _statsWasEnabled = true;
+            _statsPanel.Disable();
+        }
+
+        if (_monitor.Visible)
+        {
+            _monitor.Disable();
+            if (_statsWasEnabled)
                 _statsPanel.Enable();
-            }
         }
-
-        if (key == Key.F12)
+        else
         {
-            if (_statsPanel.Visible)
-            {
-                _statsWasEnabled = true;
-                _statsPanel.Disable();
-            }
-
-            if (_monitor.Visible)
-            {
-                _monitor.Disable();
-                if (_statsWasEnabled)
-                    _statsPanel.Enable();
-            }
-            else
-            {
-                _monitor.Enable();
-            }
+            _monitor.Enable();
         }
+
     }
 }

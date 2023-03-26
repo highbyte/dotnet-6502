@@ -1,34 +1,31 @@
-using System.Collections.Generic;
+namespace Highbyte.DotNet6502.Instructions;
 
-namespace Highbyte.DotNet6502.Instructions
+/// <summary>
+/// Push Accumulator.
+/// Pushes a copy of the accumulator on to the stack.
+/// </summary>
+public class PHA : Instruction, IInstructionUsesStack
 {
-    /// <summary>
-    /// Push Accumulator.
-    /// Pushes a copy of the accumulator on to the stack.
-    /// </summary>
-    public class PHA : Instruction, IInstructionUsesStack
+    private readonly List<OpCode> _opCodes;
+    public override List<OpCode> OpCodes => _opCodes;
+
+    public ulong ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
     {
-        private readonly List<OpCode> _opCodes;
-        public override List<OpCode> OpCodes => _opCodes;
+        cpu.PushByteToStack(cpu.A, mem);
+        return 0;
+    }        
 
-        public ulong ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
-        {
-            cpu.PushByteToStack(cpu.A, mem);
-            return 0;
-        }        
-
-        public PHA()
-        {
-            _opCodes = new List<OpCode>
+    public PHA()
+    {
+        _opCodes = new List<OpCode>
+            {
+                new OpCode
                 {
-                    new OpCode
-                    {
-                        Code = OpCodeId.PHA,
-                        AddressingMode = AddrMode.Implied,
-                        Size = 1,
-                        MinimumCycles = 3,
-                    }
-            };
-        }
+                    Code = OpCodeId.PHA,
+                    AddressingMode = AddrMode.Implied,
+                    Size = 1,
+                    MinimumCycles = 3,
+                }
+        };
     }
 }

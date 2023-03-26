@@ -1,5 +1,4 @@
 using Highbyte.DotNet6502.Systems;
-using SkiaSharp;
 
 namespace Highbyte.DotNet6502.Impl.Skia;
 
