@@ -4,7 +4,6 @@ using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
-using Silk.NET.OpenGL.Extensions.ImGui;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 
@@ -20,20 +19,18 @@ public class SilkNetWindow
     private readonly MonitorConfig _monitorConfig;
     private readonly IWindow _window;
 
-    private readonly SystemList _systemList;
-    public SystemList SystemList => _systemList;
+    private readonly SystemList<SkiaRenderContext, SilkNetInputHandlerContext> _systemList;
+    public SystemList<SkiaRenderContext, SilkNetInputHandlerContext> SystemList => _systemList;
 
     private float _canvasScale;
     private readonly string _defaultSystemName;
+    private string _currentSystemName;
 
     public float CanvasScale
     {
         get { return _canvasScale; }
         set { _canvasScale = value; }
     }
-
-    private ISystem? _system;
-    public ISystem? System => _system;
 
     public const int DEFAULT_WIDTH = 1000;
     public const int DEFAULT_HEIGHT = 700;
@@ -78,7 +75,7 @@ public class SilkNetWindow
     public SilkNetWindow(
         MonitorConfig monitorConfig,
         IWindow window,
-        SystemList systemList,
+        SystemList<SkiaRenderContext, SilkNetInputHandlerContext> systemList,
         float scale,
         string defaultSystemName)
     {
@@ -106,6 +103,8 @@ public class SilkNetWindow
 
         InitRendering();
         InitInput();
+
+        _systemList.InitContext(() => _skiaRenderContext, () => _silkNetInputHandlerContext);
 
         InitImGui();
 
@@ -175,24 +174,37 @@ public class SilkNetWindow
         if (EmulatorState != EmulatorState.Uninitialized)
             throw new Exception("Internal error. Cannot change system while running");
 
-        _system = _systemList.BuildSystem(systemName);
-        var screen = (IScreen)_system;
-        Window.Size = new Vector2D<int>((int)(screen.VisibleWidth * _canvasScale), (int)(screen.VisibleHeight * _canvasScale));
-        Window.UpdatesPerSecond = screen.RefreshFrequencyHz;
+        _currentSystemName = systemName;
 
-        InitRendering();
+        if (_systemList.IsValidConfig(systemName).Result)
+        {
+            var system = _systemList.GetSystem(systemName).Result;
+            var screen = (IScreen)system;
+            Window.Size = new Vector2D<int>((int)(screen.VisibleWidth * _canvasScale), (int)(screen.VisibleHeight * _canvasScale));
+            Window.UpdatesPerSecond = screen.RefreshFrequencyHz;
 
-        _systemRunner = _systemList.GetSystemRunner(_system, _skiaRenderContext, _silkNetInputHandlerContext);
+            InitRendering();
+        }
+        else
+        {
 
-        InitMonitorAndStats();
+        }
     }
 
     public void Start()
     {
         if (EmulatorState == EmulatorState.Running)
             return;
-        if (_system == null)
-            throw new Exception("Internal error. Current system not set.");
+
+        if (!_systemList.IsValidConfig(_currentSystemName).Result)
+            throw new Exception("Internal error. Cannot start emulator if current system config is invalid.");
+
+        // Only create a new instance of SystemRunner if we previously has not started (so resume after pause works).
+        if (EmulatorState == EmulatorState.Uninitialized)
+            _systemRunner = _systemList.BuildSystemRunner(_currentSystemName).Result;
+
+        InitMonitorAndStats();
+
         EmulatorState = EmulatorState.Running;
     }
 
@@ -207,9 +219,8 @@ public class SilkNetWindow
     {
         if (EmulatorState == EmulatorState.Uninitialized)
             return;
-        var currentSystemName = _system!.Name;
         Stop();
-        SetCurrentSystem(currentSystemName);
+        //SetCurrentSystem(_selectedSystemName);
         Start();
     }
 
@@ -217,7 +228,6 @@ public class SilkNetWindow
     {
         if (EmulatorState == EmulatorState.Running)
             Pause();
-        _system = null;
         _systemRunner = null;
         SetUninitializedWindow();
         InitRendering();

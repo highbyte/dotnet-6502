@@ -50,11 +50,6 @@ public class C64Setup
         return c64;
     }
 
-
-    // TODO: new method: ISystem GetSystem(string systemName, ISystemConfig systemConfig)
-    // TODO: change method SystemRunner GetSystemRunner(c64, renderContext, inputHandlerContext)
-    // TODO: change SystemList to have a Dictionary of <string, ISystem> instead of HashSet <string> for systems
-
     public SystemRunner BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,

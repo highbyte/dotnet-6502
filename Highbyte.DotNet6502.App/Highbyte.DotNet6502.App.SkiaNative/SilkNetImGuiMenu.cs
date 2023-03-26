@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.App.SkiaNative.ConfigUI;
+using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 
@@ -21,7 +24,7 @@ public class SilkNetImGuiMenu
 
     private string _screenScaleString = "";
     private int _selectedSystemItem = 0;
-    private string SelectedSystemName => SystemList.SystemNames.ToArray()[_selectedSystemItem];
+    private string SelectedSystemName => _silkNetWindow.SystemList.Systems.ToArray()[_selectedSystemItem];
 
     private SilkNetImGuiC64Config _c64ConfigUI;
     private SilkNetImGuiGenericComputerConfig _genericComputerConfigUI;
@@ -31,13 +34,7 @@ public class SilkNetImGuiMenu
         _silkNetWindow = silkNetWindow;
         _screenScaleString = silkNetWindow.CanvasScale.ToString();
 
-        _selectedSystemItem = SystemList.SystemNames.ToList().IndexOf(defaultSystemName);
-
-        _c64ConfigUI = new SilkNetImGuiC64Config();
-        _c64ConfigUI.Reset(_silkNetWindow.SystemList.C64Config);
-
-        _genericComputerConfigUI = new SilkNetImGuiGenericComputerConfig();
-        _genericComputerConfigUI.Reset(_silkNetWindow.SystemList.GenericComputerConfig);
+        _selectedSystemItem = _silkNetWindow.SystemList.Systems.ToList().IndexOf(defaultSystemName);
     }
 
     public void PostOnRender()
@@ -53,7 +50,7 @@ public class SilkNetImGuiMenu
         ImGui.SameLine();
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
         ImGui.PushItemWidth(120);
-        ImGui.Combo("", ref _selectedSystemItem, SystemList.SystemNames.ToArray(), SystemList.SystemNames.Count);
+        ImGui.Combo("", ref _selectedSystemItem, _silkNetWindow.SystemList.Systems.ToArray(), _silkNetWindow.SystemList.Systems.Count);
         ImGui.PopItemWidth();
         ImGui.EndDisabled();
         ImGui.PopStyleColor();
@@ -68,8 +65,8 @@ public class SilkNetImGuiMenu
         ImGui.BeginDisabled(disabled: !(EmulatorState != EmulatorState.Running && SelectedSystemConfigIsValid()));
         if (ImGui.Button("Start"))
         {
-            if(_silkNetWindow.System == null)
-               _silkNetWindow.SetCurrentSystem(SelectedSystemName);
+            if (_silkNetWindow.EmulatorState == EmulatorState.Uninitialized)
+                _silkNetWindow.SetCurrentSystem(SelectedSystemName);
             _silkNetWindow.Start();
             return;
         }
@@ -148,10 +145,23 @@ public class SilkNetImGuiMenu
         if (SelectedSystemName == "C64")
         {
             ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
+
+            if (_c64ConfigUI == null)
+            {
+                _c64ConfigUI = new SilkNetImGuiC64Config();
+                ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
+                var c64Config = (C64Config)systemConfig;
+                _c64ConfigUI.Reset(c64Config);
+            }
+
             if (ImGui.Button("C64 config"))
             {
                 if (!_c64ConfigUI.Visible)
-                    _c64ConfigUI.Init(_silkNetWindow.SystemList.C64Config);
+                {
+                    ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
+                    var c64Config = (C64Config)systemConfig;
+                    _c64ConfigUI.Init(c64Config);
+                }
             }
             ImGui.EndDisabled();
 
@@ -168,13 +178,17 @@ public class SilkNetImGuiMenu
                 if (_c64ConfigUI.Ok)
                 {
                     Debug.WriteLine("Ok pressed");
-                    _silkNetWindow.SystemList.C64Config = _c64ConfigUI.UpdatedConfig;
-                    _c64ConfigUI.Reset(_silkNetWindow.SystemList.C64Config);
+                    C64Config c64Config = _c64ConfigUI.UpdatedConfig;
+                    var systemConfig = (ISystemConfig)c64Config;
+                    _silkNetWindow.SystemList.ChangeCurrentSystemConfig(SelectedSystemName, systemConfig);
+                    _c64ConfigUI.Reset(c64Config);
                 }
                 else if (_c64ConfigUI.Cancel)
                 {
                     Debug.WriteLine("Cancel pressed");
-                    _c64ConfigUI.Reset(_silkNetWindow.SystemList.C64Config);
+                    ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
+                    var c64Config = (C64Config)systemConfig;
+                    _c64ConfigUI.Reset(c64Config);
                 }
             }
         }
@@ -186,10 +200,23 @@ public class SilkNetImGuiMenu
         if (SelectedSystemName == "Generic")
         {
             ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
+
+            if (_genericComputerConfigUI == null)
+            {
+                _genericComputerConfigUI = new SilkNetImGuiGenericComputerConfig();
+                ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
+                var genericComputerConfig = (GenericComputerConfig)systemConfig;
+                _genericComputerConfigUI.Reset(genericComputerConfig);
+            }
+
             if (ImGui.Button("GenericComputer config"))
             {
                 if (!_genericComputerConfigUI.Visible)
-                    _genericComputerConfigUI.Init(_silkNetWindow.SystemList.GenericComputerConfig);
+                {
+                    ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
+                    var genericComputerConfig = (GenericComputerConfig)systemConfig;
+                    _genericComputerConfigUI.Init(genericComputerConfig);
+                }
             }
             ImGui.EndDisabled();
 
@@ -206,13 +233,17 @@ public class SilkNetImGuiMenu
                 if (_genericComputerConfigUI.Ok)
                 {
                     Debug.WriteLine("Ok pressed");
-                    _silkNetWindow.SystemList.GenericComputerConfig = _genericComputerConfigUI.UpdatedConfig;
-                    _genericComputerConfigUI.Reset(_silkNetWindow.SystemList.GenericComputerConfig);
+                    GenericComputerConfig genericComputerConfig = _genericComputerConfigUI.UpdatedConfig;
+                    var systemConfig = (ISystemConfig)genericComputerConfig;
+                    _silkNetWindow.SystemList.ChangeCurrentSystemConfig(SelectedSystemName, systemConfig);
+                    _genericComputerConfigUI.Reset(genericComputerConfig);
                 }
                 else if (_genericComputerConfigUI.Cancel)
                 {
                     Debug.WriteLine("Cancel pressed");
-                    _genericComputerConfigUI.Reset(_silkNetWindow.SystemList.GenericComputerConfig);
+                    ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
+                    var genericComputerConfig = (GenericComputerConfig)systemConfig;
+                    _genericComputerConfigUI.Reset(genericComputerConfig);
                 }
             }
         }
@@ -220,15 +251,7 @@ public class SilkNetImGuiMenu
 
     private bool SelectedSystemConfigIsValid()
     {
-        switch (SelectedSystemName)
-        {
-            case "C64":
-                return _c64ConfigUI.IsValidConfig;
-            case "Generic":
-                return _genericComputerConfigUI.IsValidConfig;
-            default:
-                throw new Exception($"System not handled: {SelectedSystemName}");
-        }
+        return _silkNetWindow.SystemList.IsValidConfig(SelectedSystemName).Result;
     }
 
     public void Run()
