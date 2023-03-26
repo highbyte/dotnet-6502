@@ -13,15 +13,14 @@ public class WasmHost : IDisposable
     private readonly IJSRuntime _jsRuntime;
 
     private SystemRunner _systemRunner;
-
     private SKCanvas _skCanvas;
     private GRContext _grContext;
     private SkiaRenderContext _skiaRenderContext;
     private PeriodicAsyncTimer? _updateTimer;
 
     public AspNetInputHandlerContext InputHandlerContext { get; private set; }
-    private readonly ISystem _system;
-    private readonly Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, Task<SystemRunner>> _getSystemRunner;
+    private readonly string _systemName;
+    private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext> _systemList;
     private readonly Action<string> _updateStats;
     private readonly Action<string> _updateDebug;
     private readonly Func<bool, Task> _setMonitorState;
@@ -45,8 +44,8 @@ public class WasmHost : IDisposable
 
     public WasmHost(
         IJSRuntime jsRuntime,
-        ISystem system,
-        Func<ISystem, SkiaRenderContext, AspNetInputHandlerContext, Task<SystemRunner>> getSystemRunner,
+        string systemName,
+        SystemList<SkiaRenderContext, AspNetInputHandlerContext> systemList,
         Action<string> updateStats,
         Action<string> updateDebug,
         Func<bool, Task> setMonitorState,
@@ -55,8 +54,8 @@ public class WasmHost : IDisposable
         float scale = 1.0f)
     {
         _jsRuntime = jsRuntime;
-        _system = system;
-        _getSystemRunner = getSystemRunner;
+        _systemName = systemName;
+        _systemList = systemList;
         _updateStats = updateStats;
         _updateDebug = updateDebug;
         _setMonitorState = setMonitorState;
@@ -82,12 +81,18 @@ public class WasmHost : IDisposable
 
         _skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
         InputHandlerContext = new AspNetInputHandlerContext();
-        _systemRunner = await _getSystemRunner(_system, _skiaRenderContext, InputHandlerContext);
+
+        _systemList.InitContext(GetSkiaRenderContext, GetAspNetInputHandlerContext);
+
+        _systemRunner = await _systemList.BuildSystemRunner(_systemName);
 
         Monitor = new WasmMonitor(_jsRuntime, _systemRunner, _monitorConfig, _setMonitorState);
 
         Initialized = true;
     }
+
+    private SkiaRenderContext GetSkiaRenderContext() => _skiaRenderContext;
+    private AspNetInputHandlerContext GetAspNetInputHandlerContext() => InputHandlerContext;
 
     public void Stop()
     {
@@ -103,7 +108,7 @@ public class WasmHost : IDisposable
         }
         else
         {
-            var screen = (IScreen)_system;
+            var screen = (IScreen)_systemList.GetSystem(_systemName).Result;
             // Number of milliseconds between each invokation of the main loop. 60 fps -> (1/60) * 1000  -> approx 16.6667ms
             double updateIntervalMS = (1 / screen.RefreshFrequencyHz) * 1000;
             _updateTimer = new PeriodicAsyncTimer();

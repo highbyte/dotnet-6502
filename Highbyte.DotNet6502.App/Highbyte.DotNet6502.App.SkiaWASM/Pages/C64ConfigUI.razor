@@ -61,13 +61,13 @@ else
 
 [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
-[Parameter] public Dictionary<string, object>? UserSettings { get; set; }
+[Parameter] public ISystemConfig SystemConfig { get; set; }
 
 public C64Config C64Config
 {
     get
     {
-        return (C64Config)UserSettings![SystemList.CONFIG_KEY];
+            return (C64Config)SystemConfig;
     }
 }
 
@@ -77,7 +77,7 @@ protected override void OnInitialized() => BlazoredModal.SetTitle("C64 config");
 private async Task UnloadROMs() => C64Config.ROMs = new List<ROM>();
 
 
-private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(UserSettings));
+private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(SystemConfig));
 
 private bool _isLoadingC64Roms;
 private long _maxC64RomFileSize = 1024 * 8;

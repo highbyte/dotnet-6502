@@ -2,7 +2,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Models;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Config;
 
-public class C64Config
+public class C64Config : ISystemConfig
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.C64";
 
@@ -149,11 +149,11 @@ public class C64Config
 
     public void Validate()
     {
-        if (!Validate(out List<string> validationErrors))
+        if (!IsValid(out List<string> validationErrors))
             throw new Exception($"Config errors: {string.Join(',', validationErrors)}");
     }
 
-    public bool Validate(out List<string> validationErrors)
+    public bool IsValid(out List<string> validationErrors)
     {
         validationErrors = new List<string>();
 
@@ -168,9 +168,17 @@ public class C64Config
         if (!c64Model.Vic2Models.Exists(x => x.Name == Vic2Model))
             validationErrors.Add($"{nameof(Vic2Model)} value {Vic2Model} is not supported for the specified C64Variant. Valid values are: {string.Join(',', c64Model.Vic2Models.Select(x => x.Name))}");
 
-        var allRequiredROMSconfigured = RequiredROMs.Intersect(ROMs.Select(x => x.Name)).Count() == RequiredROMs.Count();
-        if (!allRequiredROMSconfigured)
-            validationErrors.Add($"{nameof(ROMs)} must contain at least all required ROMs: {string.Join(',', RequiredROMs)}");
+        var loadedRoms = ROMs.Select(x => x.Name).ToList();
+        List<string> missingRoms = new();
+        foreach (var romName in RequiredROMs)
+        {
+            if (!loadedRoms.Contains(romName))
+                missingRoms.Add(romName);
+        }
+        if (missingRoms.Count > 0)
+        {
+            validationErrors.Add($"Missing ROMs: {string.Join(", ", missingRoms)}.");
+        }
 
         var romDir = PathHelper.ExpandOSEnvironmentVariables(ROMDirectory);
         if (!string.IsNullOrEmpty(romDir))

@@ -1,6 +1,5 @@
 namespace Highbyte.DotNet6502.Systems;
 
-
 public class SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext>
     where TSystem : ISystem
     where TRenderContext : IRenderContext

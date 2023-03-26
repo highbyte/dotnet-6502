@@ -3,59 +3,35 @@ using Highbyte.DotNet6502.Impl.AspNet.Generic;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Generic;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Skia;
 
-public static class GenericComputerSetup
+public class GenericComputerSetup
 {
     private const string DEFAULT_PRG_URL = "6502binaries/hostinteraction_scroll_text_and_cycle_colors.prg";
     //private const string DEFAULT_PRG_URL = "6502binaries/snake6502.prg";
 
-    public static GenericComputer BuildGenericComputer(GenericComputerConfig genericComputerConfig)
+    private readonly BrowserContext _browserContext;
+
+    public GenericComputerSetup(BrowserContext browserContext)
     {
-        return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig);
-    }
-    public static IRenderer<GenericComputer, SkiaRenderContext> BuildGenericComputerRenderer(GenericComputerConfig genericComputerConfig)
-    {
-        var renderer = new GenericComputerSkiaRenderer(genericComputerConfig.Memory.Screen);
-        return renderer;
-    }
-    public static IInputHandler<GenericComputer, AspNetInputHandlerContext> BuildGenericComputerInputHander(GenericComputerConfig genericComputerConfig)
-    {
-        var inputHandler = new GenericComputerAspNetInputHandler(genericComputerConfig.Memory.Input);
-        return inputHandler;
+        _browserContext = browserContext;
     }
 
-    public static SystemRunner BuildSystemRunner(
-        GenericComputer genericComputer,
-        IRenderer<GenericComputer, SkiaRenderContext> renderer,
-        IInputHandler<GenericComputer, AspNetInputHandlerContext> inputHandler,
-        SkiaRenderContext skiaRenderContext,
-        AspNetInputHandlerContext inputHandlerContext)
-    {
-        renderer.Init(genericComputer, skiaRenderContext);
-        inputHandler.Init(genericComputer, inputHandlerContext);
-
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, AspNetInputHandlerContext>(genericComputer);
-        var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer)
-            .WithInputHandler(inputHandler)
-            .Build();
-        return systemRunner;
-    }
-
-    public static async Task<GenericComputerConfig> BuildGenericComputerConfig(BrowserContext browserContext)
+    public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
         // Create default GenericComputerConfig object
 
         // Load 6502 program binary specified in url
-        var prgBytes = await Load6502Binary(browserContext.HttpClient, browserContext.Uri);
+        var prgBytes = await Load6502Binary(_browserContext.HttpClient, _browserContext.Uri);
 
         // Get screen size specified in url
-        (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) = GetScreenSize(browserContext.Uri);
+        (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) = GetScreenSize(_browserContext.Uri);
 
         cols = cols ?? 40;
         rows = rows ?? 25;
@@ -98,7 +74,44 @@ public static class GenericComputerSetup
         return genericComputerConfig;
     }
 
-    private static (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) GetScreenSize(Uri uri)
+    public async Task PersistConfig(ISystemConfig systemConfig)
+    {
+        var genericComputerConfig = (GenericComputerConfig)systemConfig;
+        // TODO: Save config settings to browser local storage
+    }
+
+    public ISystem BuildSystem(ISystemConfig systemConfig)
+    {
+        var genericComputerConfig = (GenericComputerConfig)systemConfig;
+        return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig);
+    }
+
+    public SystemRunner BuildSystemRunner(
+        ISystem system,
+        ISystemConfig systemConfig,
+        SkiaRenderContext skiaRenderContext,
+        AspNetInputHandlerContext inputHandlerContext)
+    {
+        var genericComputerConfig = (GenericComputerConfig)systemConfig;
+
+        var renderer = new GenericComputerSkiaRenderer(genericComputerConfig.Memory.Screen);
+        var inputHandler = new GenericComputerAspNetInputHandler(genericComputerConfig.Memory.Input);
+
+        var genericComputer = (GenericComputer)system;
+
+        renderer.Init(genericComputer, skiaRenderContext);
+        inputHandler.Init(genericComputer, inputHandlerContext);
+
+        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, AspNetInputHandlerContext>(genericComputer);
+        var systemRunner = systemRunnerBuilder
+            .WithRenderer(renderer)
+            .WithInputHandler(inputHandler)
+            .Build();
+        return systemRunner;
+    }
+
+
+    private (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) GetScreenSize(Uri uri)
     {
         int? cols = null;
         int? rows = null;
@@ -138,7 +151,7 @@ public static class GenericComputerSetup
 
     }
 
-    private static async Task<byte[]> Load6502Binary(HttpClient httpClient, Uri uri)
+    private async Task<byte[]> Load6502Binary(HttpClient httpClient, Uri uri)
     {
         byte[] prgBytes;
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("prgEnc", out var prgEnc))
@@ -184,7 +197,7 @@ public static class GenericComputerSetup
     /// </summary>
     /// <param name="arg"></param>
     /// <returns></returns>
-    private static byte[] Base64UrlDecode(string arg)
+    private byte[] Base64UrlDecode(string arg)
     {
         string s = arg;
         s = s.Replace('-', '+'); // 62nd char of encoding

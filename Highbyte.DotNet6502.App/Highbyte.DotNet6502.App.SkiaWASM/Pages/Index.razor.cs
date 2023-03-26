@@ -4,6 +4,14 @@ using Highbyte.DotNet6502.App.SkiaWASM.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.AspNetCore.Components;
+using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Impl.AspNet;
+using Highbyte.DotNet6502.Systems.Commodore64;
+using Microsoft.AspNetCore.Components.RenderTree;
+using Highbyte.DotNet6502.Impl.Skia.Commodore64;
+using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Generic;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
@@ -36,14 +44,14 @@ public partial class Index
         }
     }
 
-    private bool IsSelectedSystemConfigOk => string.IsNullOrEmpty(_selectedSystemUserConfigValidationMessage);
+    private bool IsSelectedSystemConfigOk => string.IsNullOrEmpty(_selectedSystemConfigValidationMessage);
 
-    private string _selectedSystemUserConfigValidationMessage = "";
-    public string GetSelectedSystemUserConfigValidationMessage()
+    private string _selectedSystemConfigValidationMessage = "";
+    public string GetSelectedSystemConfigValidationMessage()
     {
-        if (string.IsNullOrEmpty(_selectedSystemUserConfigValidationMessage))
+        if (string.IsNullOrEmpty(_selectedSystemConfigValidationMessage))
             return "";
-        return _selectedSystemUserConfigValidationMessage;
+        return _selectedSystemConfigValidationMessage;
     }
 
     private double _scale = 2.0f;
@@ -65,7 +73,7 @@ public partial class Index
     protected ElementReference? _monitorInputRef;
 
     private MonitorConfig _monitorConfig;
-    private SystemList _systemList;
+    private SystemList<SkiaRenderContext, AspNetInputHandlerContext> _systemList;
     private WasmHost? _wasmHost;
 
     private string _statsString = "Stats: calculating...";
@@ -105,19 +113,28 @@ public partial class Index
         };
         _monitorConfig.Validate();
 
-        _systemList = new SystemList(_browserContext);
+
+        _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext>();
+
+        var c64Setup = new C64Setup(_browserContext);
+        await _systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);
+
+        var genericComputerSetup = new GenericComputerSetup(_browserContext);
+        await _systemList.AddSystem(GenericComputer.SystemName, genericComputerSetup.BuildSystem, genericComputerSetup.BuildSystemRunner, genericComputerSetup.GetNewConfig, genericComputerSetup.PersistConfig);
 
         // Default system
-        SelectedSystemName = "C64";
+        SelectedSystemName = C64.SystemName;
     }
+
+
 
     private async void OnSelectedEmulatorChanged()
     {
-        (bool isOk, string valError) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
+        (bool isOk, List<string> validationErrors) = await _systemList.IsValidConfigWithDetails(_selectedSystemName);
         if (!isOk)
-            _selectedSystemUserConfigValidationMessage = valError;
+            _selectedSystemConfigValidationMessage = string.Join(",", validationErrors);
         else
-            _selectedSystemUserConfigValidationMessage = "";
+            _selectedSystemConfigValidationMessage = "";
 
         UpdateCanvasSize();
         this.StateHasChanged();
@@ -125,7 +142,7 @@ public partial class Index
 
     private async void UpdateCanvasSize()
     {
-        (bool isOk, _) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
+        bool isOk = await _systemList.IsValidConfig(_selectedSystemName);
         if (!isOk)
         {
             _windowWidthStyle = $"{DEFAULT_WINDOW_WIDTH}px";
@@ -133,9 +150,9 @@ public partial class Index
         }
         else
         {
-            var selectedSystem = await _systemList.GetSystemData(_selectedSystemName);
+            var system = await _systemList.GetSystem(_selectedSystemName);
             // Set SKGLView dimensions
-            var screen = (IScreen)selectedSystem.System!;
+            var screen = (IScreen)system;
             _windowWidthStyle = $"{screen.VisibleWidth * Scale}px";
             _windowHeightStyle = $"{screen.VisibleHeight * Scale}px";
         }
@@ -145,8 +162,7 @@ public partial class Index
 
     private async Task InitEmulator()
     {
-        var selectedSystem = await _systemList.GetSystemData(_selectedSystemName);
-        _wasmHost = new WasmHost(Js, selectedSystem.System!, _systemList.GetSystemRunner, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale);
+        _wasmHost = new WasmHost(Js, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale);
         _emulatorState = EmulatorState.Paused;
     }
 
@@ -197,9 +213,9 @@ public partial class Index
 
     private async Task ShowConfigUI<T>() where T : IComponent
     {
-        var systemConfig = await _systemList.GetSystemUserConfig(_selectedSystemName);
+        var systemConfig = await _systemList.GetCurrentSystemConfig(_selectedSystemName);
         var parameters = new ModalParameters()
-            .Add("UserSettings", systemConfig.UserSettings);
+            .Add("SystemConfig", systemConfig);
 
         var result = await Modal.Show<T>("Config", parameters).Result;
 
@@ -218,22 +234,24 @@ public partial class Index
                 Console.WriteLine($"Returned null data");
                 return;
             }
-            if (result.Data is not Dictionary<string, object>)
-            {
-                Console.WriteLine($"Returned unrecongnized type: {result.Data.GetType()}");
-                return;
-            }
-            Dictionary<string, object> userSettings = (Dictionary<string, object>)result.Data;
-            Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
+            //if (result.Data is not Dictionary<string, object>)
+            //{
+            //    Console.WriteLine($"Returned unrecongnized type: {result.Data.GetType()}");
+            //    return;
+            //}
+            //Dictionary<string, object> userSettings = (Dictionary<string, object>)result.Data;
+            //Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
 
-            await _systemList.PersistSystemUserConfig(_selectedSystemName, systemConfig);
+            var updatedSystemConfig = (ISystemConfig)result.Data;
+
+            await _systemList.PersistNewSystemConfig(_selectedSystemName, updatedSystemConfig);
         }
 
-        (bool isOk, string valError) = await _systemList.IsSystemUserConfigOk(_selectedSystemName);
-        _selectedSystemUserConfigValidationMessage = "";
+        (bool isOk, List<string> validationErrors) = await _systemList.IsValidConfigWithDetails(_selectedSystemName);
+        _selectedSystemConfigValidationMessage = "";
         if (!isOk)
         {
-            _selectedSystemUserConfigValidationMessage = valError;
+            _selectedSystemConfigValidationMessage = string.Join(",", validationErrors);
         }
 
         UpdateCanvasSize();

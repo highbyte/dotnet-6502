@@ -36,7 +36,7 @@ public class SilkNetImGuiGenericComputerConfig
     internal void Init(GenericComputerConfig config)
     {
         _config = config.Clone();
-        _isValidConfig = _config.Validate(out _validationErrors);
+        _isValidConfig = _config.IsValid(out _validationErrors);
 
         _programBinaryFile = _config.ProgramBinaryFile;
 
@@ -46,7 +46,7 @@ public class SilkNetImGuiGenericComputerConfig
     public void Reset(GenericComputerConfig config)
     {
         _config = config;
-        _isValidConfig = _config!.Validate(out _validationErrors);
+        _isValidConfig = _config!.IsValid(out _validationErrors);
 
         Visible = false;
         Cancel = false;
@@ -158,7 +158,7 @@ public class SilkNetImGuiGenericComputerConfig
         if (_config!.IsDirty)
         {
             _config.ClearDirty();
-            _isValidConfig = _config!.Validate(out _validationErrors);
+            _isValidConfig = _config!.IsValid(out _validationErrors);
         }
         if (!_isValidConfig)
         {

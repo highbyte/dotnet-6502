@@ -1,6 +1,6 @@
 namespace Highbyte.DotNet6502.Systems.Generic.Config;
 
-public class GenericComputerConfig
+public class GenericComputerConfig : ISystemConfig
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.GenericComputer";
 
@@ -98,11 +98,11 @@ public class GenericComputerConfig
 
     public void Validate()
     {
-        if (!Validate(out List<string> validationErrors))
+        if (!IsValid(out List<string> validationErrors))
             throw new Exception($"Config errors: {string.Join(',', validationErrors)}");
     }
 
-    public bool Validate(out List<string> validationErrors)
+    public bool IsValid(out List<string> validationErrors)
     {
         validationErrors = new List<string>();
 

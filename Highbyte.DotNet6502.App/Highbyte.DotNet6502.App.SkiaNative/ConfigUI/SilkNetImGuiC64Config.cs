@@ -38,7 +38,7 @@ public class SilkNetImGuiC64Config
     internal void Init(C64Config c64Config)
     {
         _config = c64Config.Clone();
-        _isValidConfig = _config.Validate(out _validationErrors);
+        _isValidConfig = _config.IsValid(out _validationErrors);
 
         _romDirectory = _config.ROMDirectory;
         _kernalRomFile = _config.HasROM(C64Config.KERNAL_ROM_NAME) ? _config.GetROM(C64Config.KERNAL_ROM_NAME).File : "";
@@ -52,7 +52,7 @@ public class SilkNetImGuiC64Config
     public void Reset(C64Config c64Config)
     {
         _config = c64Config;
-        _isValidConfig = _config!.Validate(out _validationErrors);
+        _isValidConfig = _config!.IsValid(out _validationErrors);
 
         Visible = false;
         Cancel = false;
@@ -99,7 +99,7 @@ public class SilkNetImGuiC64Config
         if (_config!.IsDirty)
         {
             _config.ClearDirty();
-            _isValidConfig = _config!.Validate(out _validationErrors);
+            _isValidConfig = _config!.IsValid(out _validationErrors);
         }
         if (!_isValidConfig)
         {
