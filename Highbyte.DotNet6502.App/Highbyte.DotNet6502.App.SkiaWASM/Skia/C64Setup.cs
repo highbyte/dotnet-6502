@@ -54,20 +54,24 @@ public class C64Setup
         ISystem system,
         ISystemConfig systemConfig,
         SkiaRenderContext renderContext,
-        AspNetInputHandlerContext inputHandlerContext
+        AspNetInputHandlerContext inputHandlerContext,
+        C64WASMSoundHandlerContext soundHandlerContext
         )
     {
         var renderer = new C64SkiaRenderer();
         var inputHandler = new C64AspNetInputHandler();
+        var soundHandler = new C64WASMSoundHandler();
 
         var c64 = (C64)system;
         renderer.Init(c64, renderContext);
         inputHandler.Init(c64, inputHandlerContext);
+        soundHandler.Init(c64, soundHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, AspNetInputHandlerContext>(c64);
+        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, AspNetInputHandlerContext, C64WASMSoundHandlerContext>(c64);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)
+            .WithSoundHandler(soundHandler)
             .Build();
         return systemRunner;
     }

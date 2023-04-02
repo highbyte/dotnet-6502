@@ -2,6 +2,7 @@
 @using Highbyte.DotNet6502.Systems.Commodore64.Config;
 @using Highbyte.DotNet6502.Systems.Commodore64;
 @using Highbyte.DotNet6502.Systems.Generic;
+
 @using SkiaSharp.Views.Blazor
 @*@implements IDisposable*@
 
@@ -37,6 +38,7 @@
             <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
             <button @onclick="OnMonitorToggle" disabled=@OnStopDisabled>Monitor</button>
             <button @onclick="OnStatsToggle" disabled=@OnStopDisabled>Stats</button>
+
             <p></p>
             <span>Screen scale: <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
         </div>
@@ -338,7 +340,6 @@
     {
         await ToggleDebugStatsState();
     }
-
 
     protected override async void OnAfterRender(bool firstRender)
     {

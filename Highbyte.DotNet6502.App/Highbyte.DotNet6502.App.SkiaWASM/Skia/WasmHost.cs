@@ -1,8 +1,10 @@
 using Highbyte.DotNet6502.App.SkiaWASM.Instrumentation.Stats;
 using Highbyte.DotNet6502.Impl.AspNet;
+using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using KristofferStrube.Blazor.WebAudio;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Skia;
 
@@ -12,15 +14,18 @@ public class WasmHost : IDisposable
 
     private readonly IJSRuntime _jsRuntime;
 
+    private PeriodicAsyncTimer? _updateTimer;
+
     private SystemRunner _systemRunner;
     private SKCanvas _skCanvas;
     private GRContext _grContext;
-    private SkiaRenderContext _skiaRenderContext;
-    private PeriodicAsyncTimer? _updateTimer;
 
+    private SkiaRenderContext _skiaRenderContext;
+    private C64WASMSoundHandlerContext _soundHandlerContext;
     public AspNetInputHandlerContext InputHandlerContext { get; private set; }
+
     private readonly string _systemName;
-    private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext> _systemList;
+    private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext, C64WASMSoundHandlerContext> _systemList;
     private readonly Action<string> _updateStats;
     private readonly Action<string> _updateDebug;
     private readonly Func<bool, Task> _setMonitorState;
@@ -45,7 +50,7 @@ public class WasmHost : IDisposable
     public WasmHost(
         IJSRuntime jsRuntime,
         string systemName,
-        SystemList<SkiaRenderContext, AspNetInputHandlerContext> systemList,
+        SystemList<SkiaRenderContext, AspNetInputHandlerContext, C64WASMSoundHandlerContext> systemList,
         Action<string> updateStats,
         Action<string> updateDebug,
         Func<bool, Task> setMonitorState,
@@ -74,15 +79,16 @@ public class WasmHost : IDisposable
         Initialized = false;
     }
 
-    public async Task Init(SKCanvas canvas, GRContext grContext)
+    public async Task Init(SKCanvas canvas, GRContext grContext, AudioContext audioContext, IJSRuntime jsRuntime)
     {
         _skCanvas = canvas;
         _grContext = grContext;
 
         _skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
         InputHandlerContext = new AspNetInputHandlerContext();
+        _soundHandlerContext = new C64WASMSoundHandlerContext(audioContext, jsRuntime);
 
-        _systemList.InitContext(GetSkiaRenderContext, GetAspNetInputHandlerContext);
+        _systemList.InitContext(() => _skiaRenderContext, () => InputHandlerContext, () => _soundHandlerContext);
 
         _systemRunner = await _systemList.BuildSystemRunner(_systemName);
 
@@ -90,9 +96,6 @@ public class WasmHost : IDisposable
 
         Initialized = true;
     }
-
-    private SkiaRenderContext GetSkiaRenderContext() => _skiaRenderContext;
-    private AspNetInputHandlerContext GetAspNetInputHandlerContext() => InputHandlerContext;
 
     public void Stop()
     {

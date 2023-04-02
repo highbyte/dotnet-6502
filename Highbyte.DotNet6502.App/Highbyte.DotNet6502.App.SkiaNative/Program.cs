@@ -14,7 +14,7 @@ Environment.CurrentDirectory = currentAppDir;
 // ----------
 // Systems
 // ----------
-var systemList = new SystemList<SkiaRenderContext, SilkNetInputHandlerContext>();
+var systemList = new SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NullSoundHandlerContext>();
 
 var c64Setup = new C64Setup();
 await systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);

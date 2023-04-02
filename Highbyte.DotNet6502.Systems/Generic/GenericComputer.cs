@@ -57,7 +57,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
             execEvaluator);
     }
 
-    public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
+    public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null, Action<ISystem>? postInstructionCallback = null)
     {
         // If we already executed cycles in current frame, reduce it from total.
         _oneFrameExecEvaluator.ExecOptions.CyclesRequested = CPUCyclesPerFrame - CyclesConsumedCurrentVblank;
@@ -81,6 +81,10 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         // If an unhandled instruction, return false
         if (!execState.LastOpCodeWasHandled)
             return false;
+
+        if (postInstructionCallback != null)
+            postInstructionCallback(this);
+
         // If the custom ExecEvaluator said we shouldn't contine (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
         if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
             return false;

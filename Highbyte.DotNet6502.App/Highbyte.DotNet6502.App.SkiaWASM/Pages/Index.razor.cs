@@ -1,17 +1,17 @@
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.RenderTree;
 using Blazored.Modal.Services;
 using Blazored.Modal;
 using Highbyte.DotNet6502.App.SkiaWASM.Skia;
+using Highbyte.DotNet6502.Impl.AspNet;
+using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
-using Microsoft.AspNetCore.Components;
-using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using Microsoft.AspNetCore.Components.RenderTree;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64;
-using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic;
+
+using KristofferStrube.Blazor.WebAudio;
+using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
@@ -21,6 +21,8 @@ public partial class Index
     public string Version => Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
 
     private BrowserContext _browserContext;
+
+    private AudioContext _audioContext;
 
     public enum EmulatorState
     {
@@ -73,7 +75,7 @@ public partial class Index
     protected ElementReference? _monitorInputRef;
 
     private MonitorConfig _monitorConfig;
-    private SystemList<SkiaRenderContext, AspNetInputHandlerContext> _systemList;
+    private SystemList<SkiaRenderContext, AspNetInputHandlerContext, C64WASMSoundHandlerContext> _systemList;
     private WasmHost? _wasmHost;
 
     private string _statsString = "Stats: calculating...";
@@ -94,7 +96,7 @@ public partial class Index
     [Inject]
     public NavigationManager? NavManager { get; set; }
 
-    protected async override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _browserContext = new()
         {
@@ -113,8 +115,7 @@ public partial class Index
         };
         _monitorConfig.Validate();
 
-
-        _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext>();
+        _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, C64WASMSoundHandlerContext>();
 
         var c64Setup = new C64Setup(_browserContext);
         await _systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);
@@ -124,9 +125,9 @@ public partial class Index
 
         // Default system
         SelectedSystemName = C64.SystemName;
+
+        _audioContext = await AudioContext.CreateAsync(Js);
     }
-
-
 
     private async void OnSelectedEmulatorChanged()
     {
@@ -190,7 +191,7 @@ public partial class Index
 
         if (!_wasmHost.Initialized)
         {
-            await _wasmHost.Init(e.Surface.Canvas, grContext);
+            await _wasmHost.Init(e.Surface.Canvas, grContext, _audioContext, Js);
         }
 
         //_emulatorRenderer!.SetSize(e.Info.Width, e.Info.Height);

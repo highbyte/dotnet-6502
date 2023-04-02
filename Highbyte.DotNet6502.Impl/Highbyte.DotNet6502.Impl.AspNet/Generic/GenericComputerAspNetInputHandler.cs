@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Generic;
 public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, AspNetInputHandlerContext>, IInputHandler
 {
     private readonly EmulatorInputConfig _emulatorInputConfig;
-    private AspNetInputHandlerContext _inputHandlerContext;
+    private AspNetInputHandlerContext? _inputHandlerContext;
 
     public GenericComputerAspNetInputHandler(Systems.Generic.Config.EmulatorInputConfig emulatorInputConfig)
     {

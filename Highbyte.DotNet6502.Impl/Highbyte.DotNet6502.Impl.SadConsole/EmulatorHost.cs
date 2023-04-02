@@ -75,7 +75,7 @@ public class EmulatorHost
         var inputHandler = new C64SadConsoleInputHandler();
         inputHandler.Init(c64, sadConsoleInputHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SadConsoleRenderContext, SadConsoleInputHandlerContext>(c64);
+        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SadConsoleRenderContext, SadConsoleInputHandlerContext, NullSoundHandlerContext>(c64);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)
@@ -94,7 +94,7 @@ public class EmulatorHost
         var inputHandler = new GenericSadConsoleInputHandler(_genericComputerConfig.Memory.Input);
         inputHandler.Init(genericComputer, sadConsoleInputHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SadConsoleRenderContext, SadConsoleInputHandlerContext>(genericComputer);
+        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SadConsoleRenderContext, SadConsoleInputHandlerContext, NullSoundHandlerContext>(genericComputer);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)

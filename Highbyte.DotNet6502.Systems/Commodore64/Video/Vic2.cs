@@ -54,7 +54,7 @@ public class Vic2
 
     public static Vic2 BuildVic2(byte[] ram, Dictionary<string, byte[]> romData, Vic2ModelBase vic2Model)
     {
-        var vic2Mem = CreateSid2Memory(ram, romData);
+        var vic2Mem = CreateVic2Memory(ram, romData);
 
         var vic2 = new Vic2()
         {
@@ -70,7 +70,7 @@ public class Vic2
     /// <param name="ram"></param>
     /// <param name="roms"></param>
     /// <returns></returns>
-    private static Memory CreateSid2Memory(byte[] ram, Dictionary<string, byte[]> romData)
+    private static Memory CreateVic2Memory(byte[] ram, Dictionary<string, byte[]> romData)
     {
         var chargen = romData[C64Config.CHARGEN_ROM_NAME];
 

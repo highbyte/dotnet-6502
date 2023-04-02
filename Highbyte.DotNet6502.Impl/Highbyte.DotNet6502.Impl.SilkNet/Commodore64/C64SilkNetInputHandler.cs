@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
 
 public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerContext>, IInputHandler
 {
-    private SilkNetInputHandlerContext _inputHandlerContext;
+    private SilkNetInputHandlerContext? _inputHandlerContext;
 
     public C64SilkNetInputHandler()
     {

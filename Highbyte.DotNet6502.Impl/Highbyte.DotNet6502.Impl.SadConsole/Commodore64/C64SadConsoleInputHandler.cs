@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64;
 
 public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandlerContext>, IInputHandler
 {
-    private SadConsoleInputHandlerContext _inputHandlerContext;
+    private SadConsoleInputHandlerContext? _inputHandlerContext;
 
     public C64SadConsoleInputHandler()
     {

@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 
 public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>, IInputHandler
 {
-    private AspNetInputHandlerContext _inputHandlerContext;
+    private AspNetInputHandlerContext? _inputHandlerContext;
 
     public C64AspNetInputHandler()
     {

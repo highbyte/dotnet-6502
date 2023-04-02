@@ -5,10 +5,12 @@ public class SystemRunner
     private readonly ISystem _system;
     private IRenderer _renderer;
     private IInputHandler _inputHandler;
+    private ISoundHandler _soundHandler;
 
     public ISystem System => _system;
     public IRenderer Renderer { get => _renderer; set => _renderer = value; }
     public IInputHandler InputHandler { get => _inputHandler; set => _inputHandler = value; }
+    public ISoundHandler SoundHandler { get => _soundHandler; set => _soundHandler = value; }
 
     private IExecEvaluator? _customExecEvaluator;
     public IExecEvaluator? CustomExecEvaluator => _customExecEvaluator;
@@ -67,21 +69,26 @@ public class SystemRunner
 
     public void ProcessInput()
     {
-        if (_inputHandler != null)
-            _inputHandler.ProcessInput(_system);
+        _inputHandler?.ProcessInput(_system);
     }
 
     public bool RunEmulatorOneFrame()
     {
-        bool shouldContinue = _system.ExecuteOneFrame(_customExecEvaluator);
+        bool shouldContinue = _system.ExecuteOneFrame(_customExecEvaluator, PostInstruction);
         if (!shouldContinue)
             return false;
         return true;
     }
 
+    // PostInstruction is meant to be called after each instruction has executed.
+    private void PostInstruction(ISystem system)
+    {
+        // Generate sound by inspecting the current system state
+        _soundHandler?.GenerateSound(system);
+    }
+
     public void Draw()
     {
-        if (_renderer != null)
-            _renderer.Draw(_system);
+        _renderer?.Draw(_system);
     }
 }

@@ -71,7 +71,8 @@ public class C64Setup
         ISystem system,
         ISystemConfig systemConfig,
         SkiaRenderContext renderContext,
-        SilkNetInputHandlerContext inputHandlerContext
+        SilkNetInputHandlerContext inputHandlerContext,
+        NullSoundHandlerContext soundHandlerContext
         )
     {
         var renderer = new C64SkiaRenderer();
@@ -81,7 +82,7 @@ public class C64Setup
         renderer.Init(c64, renderContext);
         inputHandler.Init(c64, inputHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, SilkNetInputHandlerContext>(c64);
+        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, SilkNetInputHandlerContext, NullSoundHandlerContext>(c64);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)

@@ -64,7 +64,8 @@ public class GenericComputerSetup
         ISystem system,
         ISystemConfig systemConfig,
         SkiaRenderContext skiaRenderContext,
-        SilkNetInputHandlerContext inputHandlerContext)
+        SilkNetInputHandlerContext inputHandlerContext,
+        NullSoundHandlerContext soundHandlerContext)
     {
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
 
@@ -76,7 +77,7 @@ public class GenericComputerSetup
         renderer.Init(genericComputer, skiaRenderContext);
         inputHandler.Init(genericComputer, inputHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext>(genericComputer);
+        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext, NullSoundHandlerContext>(genericComputer);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)

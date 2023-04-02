@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Generic;
 
 public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadConsoleInputHandlerContext>, IInputHandler
 {
-    private SadConsoleInputHandlerContext _inputHandlerContext;
+    private SadConsoleInputHandlerContext? _inputHandlerContext;
 
     private readonly EmulatorInputConfig _emulatorInputConfig;
 

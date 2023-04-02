@@ -1,9 +1,10 @@
 namespace Highbyte.DotNet6502.Systems;
 
-public class SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext>
+public class SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TSoundHandlerContext>
     where TSystem : ISystem
     where TRenderContext : IRenderContext
     where TInputHandlerContext : IInputHandlerContext
+    where TSoundHandlerContext: ISoundHandlerContext
 {
     private readonly SystemRunner _systemRunner;
 
@@ -12,15 +13,21 @@ public class SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext>
         _systemRunner = new SystemRunner(system);
     }
 
-    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext> WithRenderer(IRenderer<TSystem, TRenderContext> renderer)
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TSoundHandlerContext> WithRenderer(IRenderer<TSystem, TRenderContext> renderer)
     {
         _systemRunner.Renderer = renderer;
         return this;
     }
 
-    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext> WithInputHandler(IInputHandler<TSystem, TInputHandlerContext> inputHandler)
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TSoundHandlerContext> WithInputHandler(IInputHandler<TSystem, TInputHandlerContext> inputHandler)
     {
         _systemRunner.InputHandler = inputHandler;
+        return this;
+    }
+
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TSoundHandlerContext> WithSoundHandler(ISoundHandler<TSystem, TSoundHandlerContext> soundHandler)
+    {
+        _systemRunner.SoundHandler = soundHandler;
         return this;
     }
 

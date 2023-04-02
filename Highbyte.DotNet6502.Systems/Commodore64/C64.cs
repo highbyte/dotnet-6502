@@ -1,3 +1,4 @@
+using System.Reflection.Metadata.Ecma335;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
@@ -21,7 +22,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     public byte CurrentBank { get; set; }
     public Vic2 Vic2 { get; set; }
     public Keyboard Keyboard { get; set; }
-
+    public Sid Sid { get; set; }
     public Dictionary<string, byte[]> ROMData { get; set; }
 
     public int Cols => Vic2.COLS;
@@ -52,7 +53,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     //};
 
     // Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
-    public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
+    public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null, Action<ISystem>? postInstructionCallback = null)
     {
         var cyclesToExecute = Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
 
@@ -65,6 +66,9 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
 
             Vic2.CPUCyclesConsumed(CPU, Mem, instructionCyclesConsumed);
             totalCyclesConsumed += instructionCyclesConsumed;
+
+            if (postInstructionCallback != null)
+                postInstructionCallback(this);
 
             // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
             if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
@@ -140,6 +144,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
         var vic2Model = c64Model.Vic2Models.Single(x => x.Name == c64Config.Vic2Model);
         var vic2 = Vic2.BuildVic2(ram, romData, vic2Model);
         var kb = new Keyboard();
+        var sid = Sid.BuildSid();
 
         var cpu = CreateC64CPU(vic2, mem);
         var c64 = new C64
@@ -151,6 +156,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
             IO = io,
             Vic2 = vic2,
             Keyboard = kb,
+            Sid = sid,
             ROMData = romData,
         };
 
@@ -171,6 +177,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
         var mem = c64.Mem;
         var vic2 = c64.Vic2;
         var kb = c64.Keyboard;
+        var sid = c64.Sid;
 
         for (int bank = 0; bank < 32; bank++)
         {
@@ -205,6 +212,85 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
             // Address: 0x0091: Stop key flag
             mem.MapReader(0x0091, kb.StopKeyFlagLoad);
             mem.MapWriter(0x0091, kb.StopKeyFlagStore);
+
+
+
+            // ----------
+            // SID audio registers
+            // Note: Most SID registers are write-only.
+            // ----------
+            // Voice 1 registers
+            mem.MapReader(SidAddr.FRELO1, (_) => 0);
+            mem.MapWriter(SidAddr.FRELO1, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.FREHI1, (_) => 0);
+            mem.MapWriter(SidAddr.FREHI1, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.PWLO1, (_) => 0);
+            mem.MapWriter(SidAddr.PWLO1, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.PWHI1, (_) => 0);
+            mem.MapWriter(SidAddr.PWHI1, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.VCREG1, (_) => 0);
+            mem.MapWriter(SidAddr.VCREG1, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.ATDCY1, (_) => 0);
+            mem.MapWriter(SidAddr.ATDCY1, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.SUREL1, (_) => 0);
+            mem.MapWriter(SidAddr.SUREL1, sid.InternalSidState.SetSidRegValue);
+
+
+            // Voice 2 registers
+            mem.MapReader(SidAddr.FRELO2, (_) => 0);
+            mem.MapWriter(SidAddr.FRELO2, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.FREHI2, (_) => 0);
+            mem.MapWriter(SidAddr.FREHI2, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.PWLO2, (_) => 0);
+            mem.MapWriter(SidAddr.PWLO2, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.PWHI2, (_) => 0);
+            mem.MapWriter(SidAddr.PWHI2, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.VCREG2, (_) => 0);
+            mem.MapWriter(SidAddr.VCREG2, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.ATDCY2, (_) => 0);
+            mem.MapWriter(SidAddr.ATDCY2, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.SUREL2, (_) => 0);
+            mem.MapWriter(SidAddr.SUREL2, sid.InternalSidState.SetSidRegValue);
+
+
+            // Voice 3 registers
+            mem.MapReader(SidAddr.FRELO3, (_) => 0);
+            mem.MapWriter(SidAddr.FRELO3, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.FREHI3, (_) => 0);
+            mem.MapWriter(SidAddr.FREHI3, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.PWLO3, (_) => 0);
+            mem.MapWriter(SidAddr.PWLO3, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.PWHI3, (_) => 0);
+            mem.MapWriter(SidAddr.PWHI3, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.VCREG3, (_) => 0);
+            mem.MapWriter(SidAddr.VCREG3, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.ATDCY3, (_) => 0);
+            mem.MapWriter(SidAddr.ATDCY3, sid.InternalSidState.SetSidRegValue);
+
+            mem.MapReader(SidAddr.SUREL3, (_) => 0);
+            mem.MapWriter(SidAddr.SUREL3, sid.InternalSidState.SetSidRegValue);
+
+
+            // Common audio registers
+            mem.MapReader(SidAddr.SIGVOL, (_) => 0);
+            mem.MapWriter(SidAddr.SIGVOL, sid.InternalSidState.SetSidRegValue);
 
         }
     }

@@ -18,7 +18,7 @@ public class EmulatorConfig
         DefaultDrawScale = 3.0f;
     }
 
-    public void Validate(SystemList<SkiaRenderContext, SilkNetInputHandlerContext> systemList)
+    public void Validate(SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NullSoundHandlerContext> systemList)
     {
         if (!systemList.Systems.Contains(DefaultEmulator))
             throw new Exception($"Setting {nameof(DefaultEmulator)} value {DefaultEmulator} is not supported. Valid values are: {string.Join(',', systemList.Systems)}");

@@ -1,12 +1,10 @@
-using System.IO.Enumeration;
-using System.Linq;
-
 namespace Highbyte.DotNet6502.Systems;
 
-public class SystemList<TRenderContext, TInputHandlerContext>
+public class SystemList<TRenderContext, TInputHandlerContext, TSoundHandlerContext>
 {
     private Func<TRenderContext> _getRenderContext;
     private Func<TInputHandlerContext> _getInputHandlerContext;
+    private Func<TSoundHandlerContext> _getSoundHandlerContext;
 
     public HashSet<string> Systems = new();
 
@@ -16,7 +14,7 @@ public class SystemList<TRenderContext, TInputHandlerContext>
     private Dictionary<string, ISystem> _systemsCache = new();
 
     private Dictionary<string, Func<ISystemConfig, ISystem>> _buildSystem = new();
-    private Dictionary<string, Func<ISystem, ISystemConfig, TRenderContext, TInputHandlerContext, SystemRunner>> _buildSystemRunner = new();
+    private Dictionary<string, Func<ISystem, ISystemConfig, TRenderContext, TInputHandlerContext, TSoundHandlerContext, SystemRunner>> _buildSystemRunner = new();
     private Dictionary<string, Func<string, Task<ISystemConfig>>> _getNewSystemConfig = new();
     private Dictionary<string, Func<ISystemConfig, Task>> _persistSystemConfig = new();
 
@@ -25,10 +23,14 @@ public class SystemList<TRenderContext, TInputHandlerContext>
     {
     }
 
-    public void InitContext(Func<TRenderContext> getRenderContext, Func<TInputHandlerContext> getInputHandlerContext)
+    public void InitContext(
+        Func<TRenderContext> getRenderContext,
+        Func<TInputHandlerContext> getInputHandlerContext,
+        Func<TSoundHandlerContext> getSoundHandlerContext)
     {
         _getRenderContext = getRenderContext;
         _getInputHandlerContext = getInputHandlerContext;
+        _getSoundHandlerContext = getSoundHandlerContext;
     }
 
     /// <summary>
@@ -45,7 +47,7 @@ public class SystemList<TRenderContext, TInputHandlerContext>
     public async Task AddSystem(
         string systemName,
         Func<ISystemConfig, ISystem> buildSystem,
-        Func<ISystem, ISystemConfig, TRenderContext, TInputHandlerContext, SystemRunner> buildSystemRunner,
+        Func<ISystem, ISystemConfig, TRenderContext, TInputHandlerContext, TSoundHandlerContext, SystemRunner> buildSystemRunner,
         Func<string, Task<ISystemConfig>> getNewSystemConfig,
         Func<ISystemConfig, Task> persistSystemConfig
         )
@@ -127,11 +129,13 @@ public class SystemList<TRenderContext, TInputHandlerContext>
             throw new Exception("RenderContext has not been initialized. Call InitContext to initialize.");
         if (_getInputHandlerContext == null)
             throw new Exception("InputHandlerContext has not been initialized. Call InitContext to initialize.");
+        if (_getSoundHandlerContext == null)
+            throw new Exception("SoundHandlerContext has not been initialized. Call InitContext to initialize.");
 
         await BuildAndCacheSystem(systemName, configuraitonVariant);
         var system = await GetSystem(systemName, configuraitonVariant);
         var systemConfig = await GetCurrentSystemConfig(systemName, configuraitonVariant);
-        var systemRunner = _buildSystemRunner[systemName](system, systemConfig, _getRenderContext(), _getInputHandlerContext());
+        var systemRunner = _buildSystemRunner[systemName](system, systemConfig, _getRenderContext(), _getInputHandlerContext(), _getSoundHandlerContext());
         return systemRunner;
     }
 
