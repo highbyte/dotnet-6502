@@ -47,7 +47,7 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
     }
 
     private void HandleNonPrintedKeys(
-        Systems.Commodore64.Keyboard c64Keyboard,
+        Systems.Commodore64.Keyboard.C64Keyboard c64Keyboard,
         global::SadConsole.Input.Keyboard sadConsoleKeyboard)
     {
         // STOP (ESC) down

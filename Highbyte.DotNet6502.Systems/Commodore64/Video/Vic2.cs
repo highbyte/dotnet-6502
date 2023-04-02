@@ -65,6 +65,24 @@ public class Vic2
         return vic2;
     }
 
+    public void MapIOLocations(Memory mem)
+    {
+        // Address 0xd0180: "Memory setup" (VIC2 pointer for charset/bitmap & screen memory)
+        mem.MapReader(Vic2Addr.MEMORY_SETUP, MemorySetupLoad);
+        mem.MapWriter(Vic2Addr.MEMORY_SETUP, MemorySetupStore);
+
+        // Address 0xd020: Border color
+        mem.MapReader(Vic2Addr.BORDER_COLOR, BorderColorLoad);
+        mem.MapWriter(Vic2Addr.BORDER_COLOR, BorderColorStore);
+        // Address 0xd021: Background color
+        mem.MapReader(Vic2Addr.BACKGROUND_COLOR, BackgroundColorLoad);
+        mem.MapWriter(Vic2Addr.BACKGROUND_COLOR, BackgroundColorStore);
+
+        // Address 0xdd00: "Port A" (VIC2 bank & serial bus)
+        mem.MapReader(Vic2Addr.PORT_A, PortALoad);
+        mem.MapWriter(Vic2Addr.PORT_A, PortAStore);
+    }
+
     /// <summary>
     /// </summary>
     /// <param name="ram"></param>

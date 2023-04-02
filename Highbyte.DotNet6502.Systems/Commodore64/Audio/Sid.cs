@@ -17,6 +17,87 @@ public class Sid
         return sid;
     }
 
+    public void MapIOLocations(Memory mem)
+    {
+        // Note: Most SID registers are write-only.
+
+        // Voice 1 registers
+        mem.MapReader(SidAddr.FRELO1, (_) => 0);
+        mem.MapWriter(SidAddr.FRELO1, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.FREHI1, (_) => 0);
+        mem.MapWriter(SidAddr.FREHI1, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.PWLO1, (_) => 0);
+        mem.MapWriter(SidAddr.PWLO1, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.PWHI1, (_) => 0);
+        mem.MapWriter(SidAddr.PWHI1, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.VCREG1, (_) => 0);
+        mem.MapWriter(SidAddr.VCREG1, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.ATDCY1, (_) => 0);
+        mem.MapWriter(SidAddr.ATDCY1, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.SUREL1, (_) => 0);
+        mem.MapWriter(SidAddr.SUREL1, InternalSidState.SetSidRegValue);
+
+
+        // Voice 2 registers
+        mem.MapReader(SidAddr.FRELO2, (_) => 0);
+        mem.MapWriter(SidAddr.FRELO2, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.FREHI2, (_) => 0);
+        mem.MapWriter(SidAddr.FREHI2, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.PWLO2, (_) => 0);
+        mem.MapWriter(SidAddr.PWLO2, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.PWHI2, (_) => 0);
+        mem.MapWriter(SidAddr.PWHI2, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.VCREG2, (_) => 0);
+        mem.MapWriter(SidAddr.VCREG2, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.ATDCY2, (_) => 0);
+        mem.MapWriter(SidAddr.ATDCY2, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.SUREL2, (_) => 0);
+        mem.MapWriter(SidAddr.SUREL2, InternalSidState.SetSidRegValue);
+
+
+        // Voice 3 registers
+        mem.MapReader(SidAddr.FRELO3, (_) => 0);
+        mem.MapWriter(SidAddr.FRELO3, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.FREHI3, (_) => 0);
+        mem.MapWriter(SidAddr.FREHI3, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.PWLO3, (_) => 0);
+        mem.MapWriter(SidAddr.PWLO3, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.PWHI3, (_) => 0);
+        mem.MapWriter(SidAddr.PWHI3, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.VCREG3, (_) => 0);
+        mem.MapWriter(SidAddr.VCREG3, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.ATDCY3, (_) => 0);
+        mem.MapWriter(SidAddr.ATDCY3, InternalSidState.SetSidRegValue);
+
+        mem.MapReader(SidAddr.SUREL3, (_) => 0);
+        mem.MapWriter(SidAddr.SUREL3, InternalSidState.SetSidRegValue);
+
+
+        // Common audio registers
+        mem.MapReader(SidAddr.SIGVOL, (_) => 0);
+        mem.MapWriter(SidAddr.SIGVOL, InternalSidState.SetSidRegValue);
+
+
+    }
+
+
     /// <summary>
     /// Lookup table that maps SID attack duration value (0-15) to milliseconds
     /// </summary>
