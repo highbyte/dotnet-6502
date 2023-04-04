@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 /// <summary>
@@ -8,136 +6,142 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// </summary>
 public class InternalSidState
 {
+    public static Queue<InternalSidState> StateChanges = new();
 
-    public Dictionary<ushort, byte> _sidRegValues = new Dictionary<ushort, byte>();
+    private Dictionary<ushort, byte> _sidRegValues = new();
+    private HashSet<ushort> _changedSidRegisters = new();
 
-    public enum SidVoiceActionType { GateSet, GateClear, WaveFormSet, WaveFormClear, FrequencySet }
-    public enum SidCommonActionType { VolumeSet }
+    /// <summary>
+    /// Get volume 0-15.
+    /// Common for all voices.
+    /// </summary>
+    /// <returns></returns>
+    public int GetVolume() => (GetRawSidRegValue(SidAddr.SIGVOL) & 0b00001111);
 
+    /// <summary>
+    /// Returns true if volume register has been changed
+    /// </summary>
+    /// <param name="voice"></param>
+    /// <returns></returns>
+    public bool IsVolumeChanged => IsRawSidRegChanged(SidAddr.SIGVOL);
 
-    private Dictionary<byte, List<SidVoiceActionType>> _channelAudioActions = new()
+    /// <summary>
+    /// Get frequency 0-65535.
+    /// 
+    /// The actual frequency is calculated as follows:
+    /// 
+    /// FREQUENCY=(REGISTER VALUE * CLOCK / 16777216)Hz
+    /// 
+    /// where CLOCK equals the system clock frequency, 1022730 for American (NTSC) systems, 985250 for European(PAL)
+    /// </summary>
+    /// <param name="voice"></param>
+    /// <returns></returns>
+    public ushort GetFrequency(byte voice)
     {
-        {1, new List<SidVoiceActionType>() },
-        {2, new List<SidVoiceActionType>() },
-        {3, new List<SidVoiceActionType>() }
-    };
-    public Dictionary<byte, List<SidVoiceActionType>> ChannelAudioActions => _channelAudioActions;
-
-    private List<SidCommonActionType> _commonAudioActions = new();
-    public List<SidCommonActionType> CommonAudioActions => _commonAudioActions;
-
-    public InternalSidState Clone()
-    {
-        return new InternalSidState
-        {
-            _sidRegValues = _sidRegValues.ToDictionary(entry => entry.Key, entry => entry.Value),
-            _channelAudioActions = _channelAudioActions.ToDictionary(entry => entry.Key, entry => entry.Value),
-            _commonAudioActions = new(_commonAudioActions)
-        };
+        var frelo = GetRawSidRegValue(SidAddr.VoiceRegisterMap[$"{SidVoiceRegisterType.FRELO}{voice}"]);
+        var frehi = GetRawSidRegValue(SidAddr.VoiceRegisterMap[$"{SidVoiceRegisterType.FREHI}{voice}"]);
+        return ByteHelpers.ToLittleEndianWord(frelo, frehi);
     }
 
-    private void MagRegisterChangeToSidAudioAction(ushort address, byte value)
+    /// <summary>
+    /// Returns true if either lo or hi frequency register for the specified voice has changed.
+    /// </summary>
+    /// <param name="voice"></param>
+    /// <returns></returns>
+    public bool IsFrequencyChanged(byte voice)
     {
-        // Check voice control
-        // - if gate is set or cleared (start/stop sound)
-        // - if waveform is set or cleared (if cleared sound stops)
-        if (address == SidAddr.VCREG1)
-        {
-            if (value.IsBitSet(0))
-                _channelAudioActions[1].Add(SidVoiceActionType.GateSet);
-            else
-                _channelAudioActions[1].Add(SidVoiceActionType.GateClear);
-
-            if ((value & 0b11110000) == 0)
-                _channelAudioActions[1].Add(SidVoiceActionType.WaveFormClear);
-            else
-                _channelAudioActions[1].Add(SidVoiceActionType.WaveFormSet);
-        }
-        else if (address == SidAddr.VCREG2)
-        {
-            if (value.IsBitSet(0))
-                _channelAudioActions[2].Add(SidVoiceActionType.GateSet);
-            else
-                _channelAudioActions[2].Add(SidVoiceActionType.GateClear);
-
-            if ((value & 0b11110000) == 0)
-                _channelAudioActions[2].Add(SidVoiceActionType.WaveFormClear);
-            else
-                _channelAudioActions[2].Add(SidVoiceActionType.WaveFormSet);
-        }
-        else if (address == SidAddr.VCREG3)
-        {
-            if (value.IsBitSet(0))
-                _channelAudioActions[3].Add(SidVoiceActionType.GateSet);
-            else
-                _channelAudioActions[3].Add(SidVoiceActionType.GateClear);
-
-            if ((value & 0b11110000) == 0)
-                _channelAudioActions[3].Add(SidVoiceActionType.WaveFormClear);
-            else
-                _channelAudioActions[3].Add(SidVoiceActionType.WaveFormSet);
-        }
-
-        // Check if voice frequency is set. If set during play, frequency will be changed.
-        else if (address == SidAddr.FRELO1)
-        {
-            _channelAudioActions[1].Add(SidVoiceActionType.FrequencySet);
-        }
-        else if (address == SidAddr.FRELO2)
-        {
-            _channelAudioActions[2].Add(SidVoiceActionType.FrequencySet);
-        }
-        else if (address == SidAddr.FRELO3)
-        {
-            _channelAudioActions[3].Add(SidVoiceActionType.FrequencySet);
-        }
-
-        else if (address == SidAddr.FREHI1)
-        {
-            _channelAudioActions[1].Add(SidVoiceActionType.FrequencySet);
-        }
-        else if (address == SidAddr.FREHI2)
-        {
-            _channelAudioActions[2].Add(SidVoiceActionType.FrequencySet);
-        }
-        else if (address == SidAddr.FREHI3)
-        {
-            _channelAudioActions[3].Add(SidVoiceActionType.FrequencySet);
-        }
-
-        // Check if volume is set (common to all voices). If set during play, volume will be changed
-        else if (address == SidAddr.SIGVOL)
-        {
-            _commonAudioActions.Add(SidCommonActionType.VolumeSet);
-        }
+        return IsRawSidRegChanged(SidAddr.VoiceRegisterMap[$"{SidVoiceRegisterType.FRELO}{voice}"])
+                || IsRawSidRegChanged(SidAddr.VoiceRegisterMap[$"{SidVoiceRegisterType.FREHI}{voice}"]);
     }
 
-    public bool HasAudioChanged => _channelAudioActions.Sum(x => x.Value.Count) > 0
-                                    || _commonAudioActions.Count > 0;
-    public void ClearAudioChanged()
+    public bool IsGateOn(byte voice)
     {
-        foreach (var voice in _channelAudioActions.Keys)
-            _channelAudioActions[voice].Clear();
-        _commonAudioActions.Clear();
+        var reg = SidAddr.VoiceRegisterMap[$"{SidVoiceRegisterType.VCREG}{voice}"];
+        var isGateOn = GetRawSidRegValue(reg).IsBitSet(0);
+        return isGateOn;
     }
 
-    public byte this[ushort index]
+    public SidVoiceWaveForm GetWaveForm(byte voice)
     {
-        get
-        {
-            return GetSidRegValue(index);
-        }
+        var reg = SidAddr.VoiceRegisterMap[$"{SidVoiceRegisterType.VCREG}{voice}"];
+        var vcregVal = GetRawSidRegValue(reg);
+        if (vcregVal.IsBitSet(4))
+            return SidVoiceWaveForm.Triangle;
+        if (vcregVal.IsBitSet(5))
+            return SidVoiceWaveForm.Sawtooth;
+        if (vcregVal.IsBitSet(6))
+            return SidVoiceWaveForm.Pulse;
+        if (vcregVal.IsBitSet(7))
+            return SidVoiceWaveForm.Pulse;
+        return SidVoiceWaveForm.None;
     }
-    public byte GetSidRegValue(ushort address)
+
+    /// <summary>
+    /// Get attack duration in ms.
+    /// </summary>
+    /// <param name="voice"></param>
+    /// <returns></returns>
+    public int GetAttackDuration(byte voice) => Sid.AttackDurationMs[GetRawVoiceReg(voice, SidVoiceRegisterType.ATDCY) >> 4];
+
+    /// <summary>
+    /// Get decay duration in ms.
+    /// </summary>
+    /// <param name="voice"></param>
+    /// <returns></returns>
+    public int GetDecayDuration(byte voice) => Sid.DecayDurationMs[GetRawVoiceReg(voice, SidVoiceRegisterType.ATDCY) & 0b00001111];
+
+    /// <summary>
+    /// Sustain gain (volume) 0-15.
+    /// </summary>
+    /// <param name="voice"></param>
+    /// <returns></returns>
+    public int GetSustainGain(byte voice) => GetRawVoiceReg(voice, SidVoiceRegisterType.SUREL) >> 4;
+
+    /// <summary>
+    /// Get decay duration in ms.
+    /// </summary>
+    /// <param name="voice"></param>
+    /// <returns></returns>
+    public int GetReleaseDuration(byte voice) => Sid.DecayDurationMs[GetRawVoiceReg(voice, SidVoiceRegisterType.SUREL) & 0b00001111];
+
+    /// <summary>
+    /// Get raw SID register value for a specific voice and register type.
+    /// </summary>
+    /// <param name="voice"></param>
+    /// <param name="regType"></param>
+    /// <returns></returns>
+    public byte GetRawVoiceReg(byte voice, SidVoiceRegisterType regType) => GetRawSidRegValue(SidAddr.VoiceRegisterMap[$"{regType}{voice}"]);
+
+
+    public bool IsAudioChanged => _changedSidRegisters.Count > 0;
+    public void ClearAudioChanged() => _changedSidRegisters.Clear();
+
+    public byte this[ushort index] => GetRawSidRegValue(index);
+
+    public byte GetRawSidRegValue(ushort address)
     {
         if (!_sidRegValues.ContainsKey(address))
             _sidRegValues.Add(address, 0);
         return _sidRegValues[address];
     }
 
+    public bool IsRawSidRegChanged(ushort address) => _changedSidRegisters.Contains(address);
+
     public void SetSidRegValue(ushort address, byte value)
     {
+        // Log sid register has changed since _changedSidRegisters last has been cleared.
+        if (_sidRegValues.ContainsKey(address) && _sidRegValues[address] != value)
+            _changedSidRegisters.Add(address);
+
         _sidRegValues[address] = value;
-        MagRegisterChangeToSidAudioAction(address, value);
+    }
+
+    public InternalSidState Clone()
+    {
+        return new InternalSidState
+        {
+            _sidRegValues = _sidRegValues.ToDictionary(entry => entry.Key, entry => entry.Value),
+            _changedSidRegisters = new HashSet<ushort>(_changedSidRegisters)
+        };
     }
 }

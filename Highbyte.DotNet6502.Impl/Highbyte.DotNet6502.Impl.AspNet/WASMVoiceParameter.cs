@@ -1,10 +1,10 @@
 using KristofferStrube.Blazor.WebAudio;
 
-namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
+namespace Highbyte.DotNet6502.Impl.AspNet
 {
-    public class C64WASMVoiceParameter
+    public class WASMVoiceParameter
     {
-        public C64SoundCommand SoundCommand { get; set; }
+        public SoundCommand SoundCommand { get; set; }
         public OscillatorType? Type { get; set; }
 
         public float Gain { get; set; }
@@ -15,7 +15,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
         public double ReleaseDurationSeconds { get; set; }
     }
 
-    public enum C64SoundStatus
+    public enum SoundStatus
     {
         /// <summary>
         /// Attack/Sustain/Decay cycle has been started.
@@ -38,7 +38,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
         Stopped
     }
 
-    public enum C64SoundCommand
+    public enum SoundCommand
     {
         None,
         StartADS,           // Start attack/decay/sustain cycle.

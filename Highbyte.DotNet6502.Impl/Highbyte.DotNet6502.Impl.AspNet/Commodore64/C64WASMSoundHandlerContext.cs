@@ -39,7 +39,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
     {
         private readonly byte _voice;
         public byte Voice => _voice;
-        public C64SoundStatus Status = C64SoundStatus.Stopped;
+        public SoundStatus Status = SoundStatus.Stopped;
         public OscillatorNode? Oscillator;
         public GainNode? GainNode;
 
@@ -53,7 +53,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 
         public void Init()
         {
-            Status = C64SoundStatus.Stopped;
+            Status = SoundStatus.Stopped;
             Oscillator = null;
             GainNode = null;
         }

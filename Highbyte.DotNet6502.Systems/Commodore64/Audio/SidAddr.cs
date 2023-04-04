@@ -86,3 +86,12 @@ public enum SidVoiceRegisterType
     SUREL
 }
 
+public enum SidVoiceWaveForm
+{
+    None,
+    Triangle,
+    Sawtooth,
+    Pulse,
+    RandomNoise
+}
+
