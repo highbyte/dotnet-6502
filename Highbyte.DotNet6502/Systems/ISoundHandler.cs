@@ -3,7 +3,10 @@ namespace Highbyte.DotNet6502.Systems;
 public interface ISoundHandler
 {
     void Init(ISystem system, ISoundHandlerContext soundHandlerContext);
-    Task GenerateSound(ISystem system);
+    void GenerateSound(ISystem system);
+
+    List<string> GetDebugMessages();
+
 }
 
 public interface ISoundHandler<TSystem, TSoundHandlerContext> : ISoundHandler
@@ -12,7 +15,7 @@ public interface ISoundHandler<TSystem, TSoundHandlerContext> : ISoundHandler
 {
     void Init(TSystem system, TSoundHandlerContext soundHandlerContext);
 
-    Task GenerateSound(TSystem system);
+    void GenerateSound(TSystem system);
 }
 
 public class NullSoundHandler : ISoundHandler<ISystem, NullSoundHandlerContext>, ISoundHandler
@@ -29,7 +32,11 @@ public class NullSoundHandler : ISoundHandler<ISystem, NullSoundHandlerContext>,
     {
     }
 
-    public async Task GenerateSound(ISystem system)
+    public void GenerateSound(ISystem system)
     {
     }
+
+    private readonly List<string> _debugMessages = new List<string>();
+
+    public List<string> GetDebugMessages() => _debugMessages;
 }

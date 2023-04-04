@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using Highbyte.DotNet6502.App.SkiaWASM.Instrumentation.Stats;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
@@ -158,7 +159,7 @@ public class WasmHost : IDisposable
         if (_debugFrameCount >= DEBUGMESSAGE_EVERY_X_FRAME)
         {
             _debugFrameCount = 0;
-            var debugString = GetDebugMessage();
+            var debugString = GetDebugMessages();
             _updateDebug(debugString);
         }
 
@@ -233,11 +234,29 @@ public class WasmHost : IDisposable
         return stats;
     }
 
-    private string GetDebugMessage()
+    private string GetDebugMessages()
     {
-        string msg = "DEBUG: ";
-        msg += _systemRunner.InputHandler.GetDebugMessage();
-        return BuildHtmlString(msg, "header");
+        string debugMessages = "";
+
+        var inputDebugMessages = _systemRunner.InputHandler.GetDebugMessages();
+        var inputDebugMessagesOneString = string.Join(" # ", inputDebugMessages);
+        debugMessages += $"{BuildHtmlString("INPUT", "header")}: {BuildHtmlString(inputDebugMessagesOneString, "value")} ";
+        //foreach (var message in inputDebugMessages)
+        //{
+        //    if (debugMessages != "")
+        //        debugMessages += "<br />";
+        //    debugMessages += $"{BuildHtmlString("DEBUG INPUT", "header")}: {BuildHtmlString(message, "value")} ";
+        //}
+
+        var soundDebugMessages = _systemRunner.SoundHandler.GetDebugMessages();
+        foreach (var message in soundDebugMessages)
+        {
+            if (debugMessages != "")
+                debugMessages += "<br />";
+            debugMessages += $"{BuildHtmlString("AUDIO", "header")}: {BuildHtmlString(message, "value")} ";
+        }
+
+        return debugMessages;
     }
 
     private string BuildHtmlString(string message, string cssClass, bool startNewLine = false)

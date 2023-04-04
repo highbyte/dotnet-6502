@@ -4,7 +4,6 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// </summary>
 public class Sid
 {
-
     private readonly InternalSidState _sidSoundData = new InternalSidState();
     public InternalSidState InternalSidState => _sidSoundData;
 
@@ -93,10 +92,7 @@ public class Sid
         // Common audio registers
         mem.MapReader(SidAddr.SIGVOL, (_) => 0);
         mem.MapWriter(SidAddr.SIGVOL, InternalSidState.SetSidRegValue);
-
-
     }
-
 
     /// <summary>
     /// Lookup table that maps SID attack duration value (0-15) to milliseconds

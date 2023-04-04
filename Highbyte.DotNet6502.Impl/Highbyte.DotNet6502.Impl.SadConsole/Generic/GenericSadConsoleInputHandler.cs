@@ -10,6 +10,8 @@ public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadC
 
     private readonly EmulatorInputConfig _emulatorInputConfig;
 
+    private readonly List<string> _debugMessages = new();
+
     public GenericSadConsoleInputHandler(
         EmulatorInputConfig emulatorInputConfig)
     {
@@ -66,8 +68,8 @@ public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadC
         byte rnd = (byte)new Random().Next(0, 255);
         emulatorMem[_emulatorInputConfig.RandomValueAddress] = rnd;
     }
-    public string GetDebugMessage()
+    public List<string> GetDebugMessages()
     {
-        return "";
+        return _debugMessages;
     }
 }

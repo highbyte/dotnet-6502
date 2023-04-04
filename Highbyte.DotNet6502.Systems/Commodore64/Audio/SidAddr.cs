@@ -39,4 +39,50 @@ public class SidAddr
     public const ushort RESON =  0xd417;    // 54295
     public const ushort SIGVOL = 0xd418;    // 54296
 
+
+    /// <summary>
+    /// Map a voice register "typ" and it's voice number to an actual Sid address.
+    /// Note: This does not contain all sid registers, only the ones that are per voice.
+    /// </summary>
+    public static Dictionary<string, ushort> VoiceRegisterMap = new()
+    {
+        // Voice 1
+        { $"{SidVoiceRegisterType.FRELO}1", FRELO1 },
+        { $"{SidVoiceRegisterType.FREHI}1", FREHI1 },
+        { $"{SidVoiceRegisterType.PWLO}1",  PWLO1 },
+        { $"{SidVoiceRegisterType.PWHI}1",  PWHI1 },
+        { $"{SidVoiceRegisterType.VCREG}1", VCREG1 },
+        { $"{SidVoiceRegisterType.ATDCY}1", ATDCY1 },
+        { $"{SidVoiceRegisterType.SUREL}1", SUREL1 },
+
+        // Voice 2
+        { $"{SidVoiceRegisterType.FRELO}2", FRELO2 },
+        { $"{SidVoiceRegisterType.FREHI}2", FREHI2 },
+        { $"{SidVoiceRegisterType.PWLO}2",  PWLO2 },
+        { $"{SidVoiceRegisterType.PWHI}2",  PWHI2 },
+        { $"{SidVoiceRegisterType.VCREG}2", VCREG2 },
+        { $"{SidVoiceRegisterType.ATDCY}2", ATDCY2 },
+        { $"{SidVoiceRegisterType.SUREL}2", SUREL2 },
+
+        // Voice 3
+        { $"{SidVoiceRegisterType.FRELO}3", SidAddr.FRELO3 },
+        { $"{SidVoiceRegisterType.FREHI}3", SidAddr.FREHI3 },
+        { $"{SidVoiceRegisterType.PWLO}3",  SidAddr.PWLO3 },
+        { $"{SidVoiceRegisterType.PWHI}3",  SidAddr.PWHI3 },
+        { $"{SidVoiceRegisterType.VCREG}3", SidAddr.VCREG3 },
+        { $"{SidVoiceRegisterType.ATDCY}3", SidAddr.ATDCY3 },
+        { $"{SidVoiceRegisterType.SUREL}3", SidAddr.SUREL3 },
+    };
 }
+
+public enum SidVoiceRegisterType
+{
+    FRELO,
+    FREHI,
+    PWLO,
+    PWHI,
+    VCREG,
+    ATDCY,
+    SUREL
+}
+

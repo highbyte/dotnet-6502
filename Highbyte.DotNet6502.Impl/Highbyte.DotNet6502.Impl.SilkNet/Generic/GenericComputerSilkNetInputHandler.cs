@@ -8,6 +8,7 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
 {
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private SilkNetInputHandlerContext? _inputHandlerContext;
+    private readonly List<string> _debugMessages = new();
 
     public GenericComputerSilkNetInputHandler(Systems.Generic.Config.EmulatorInputConfig emulatorInputConfig)
     {
@@ -60,8 +61,8 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
         }
     }
 
-    public string GetDebugMessage()
+    public List<string> GetDebugMessages()
     {
-        return "";
+        return _debugMessages;
     }
 }

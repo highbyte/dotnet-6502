@@ -19,15 +19,21 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
     {
         /// <summary>
         /// Attack/Sustain/Decay cycle has been started.
-        /// Is started by setting the Gate bit to 1, and a waveform has been selected.
+        /// It's started by setting the Gate bit to 1 (and a waveform has been selected).
         /// </summary>
         ASDCycleStarted,
         /// <summary>
-        /// Release cycle has been started or sound has been stopped right away.
-        /// - The Release cycle is started by setting the Gate bit to 0.
-        /// - Stopping a sound right away is by setting no waveform.
-        /// 
-        /// In either case (even if Release has to reached 0 gain), a new sound can be started by again setting Gate bit to 1
+        /// Release cycle has been started.
+        /// It's started by setting the Gate bit to 0.
+        /// During relase cycle, a new sound can be started by setting the Gate bit to 1 (this will stop current sound and start a new one)
+        /// </summary>
+        ReleaseCycleStarted,
+
+        /// <summary>
+        /// The sound has stopped playing.
+        /// Happens by
+        /// - release cycle has completed.
+        /// - or stopping the sound right away by clearing all waveform selection bits
         /// </summary>
         Stopped
     }
@@ -35,9 +41,10 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
     public enum C64SoundCommand
     {
         None,
-        StartADS,       // Start attack/decay/sustain cycle
-        StartRelease,   // Start release cycle
-        ChangeGainAndFrequency, // Change Gain and/or Frequency on currently playing sound
-        Stop
+        StartADS,           // Start attack/decay/sustain cycle.
+        StartRelease,       // Start release cycle, which will fade volume down to 0 during the release period.
+        ChangeFrequency,    // Change frequency on current playing sound.
+        ChangeVolume,       // Change volume on current playing sound.
+        Stop                // Stop current playing sound right away.
     }
 }

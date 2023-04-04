@@ -85,6 +85,8 @@ public class SystemRunner
     {
         // Generate sound by inspecting the current system state
         _soundHandler?.GenerateSound(system);
+        //var t = new Task(() => _soundHandler?.GenerateSound(system));
+        //t.RunSynchronously();
     }
 
     public void Draw()

@@ -46,9 +46,6 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
         private readonly SemaphoreSlim _semaphoreSlim = new(1);
         public SemaphoreSlim SemaphoreSlim => _semaphoreSlim;
 
-        public float? CurrentGain { get; set; }
-        public float? CurrentFrequency { get; set; }
-
         public C64WASMVoiceContext(byte voice)
         {
             _voice = voice;
@@ -59,8 +56,6 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             Status = C64SoundStatus.Stopped;
             Oscillator = null;
             GainNode = null;
-            CurrentGain = null;
-            CurrentFrequency = null;
         }
     }
 }
