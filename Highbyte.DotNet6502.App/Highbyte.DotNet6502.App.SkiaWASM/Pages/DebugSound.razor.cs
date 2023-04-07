@@ -1,93 +1,77 @@
-using Highbyte.DotNet6502.Instructions;
-using System.Reflection.Metadata;
-using KristofferStrube.Blazor.WebAudio;
-using static System.Formats.Asn1.AsnWriter;
+using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
+using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
 public partial class DebugSound
 {
-    private AudioContext _audioContext;
-
-    OscillatorNode? _oscillator;
-    GainNode? _gainNode;
+    private AudioContextSync _audioContext;
+    OscillatorNodeSync? _oscillator;
+    GainNodeSync? _gainNode;
     int? _currentOctave;
     int? _currentPitch;
-
     float _gain = 0.1f;
 
     private readonly SemaphoreSlim _semaphoreSlim = new(1);
 
     protected override async Task OnInitializedAsync()
     {
-        _audioContext = await AudioContext.CreateAsync(Js);
+        _audioContext = await AudioContextSync.CreateAsync(Js);
     }
 
-    protected async Task StartSound(MouseEventArgs mouseEventArgs)
+    protected void StartSound(MouseEventArgs mouseEventArgs)
     {
         int octave = 3;
         int pitch = 5;
 
-        await _semaphoreSlim.WaitAsync();
         if (_currentOctave != octave || _currentPitch != pitch)
         {
-            await StopSound(mouseEventArgs);
+            StopSound(mouseEventArgs);
             _currentOctave = octave;
             _currentPitch = pitch;
 
-            AudioDestinationNode destination = await _audioContext.GetDestinationAsync();
+            AudioDestinationNodeSync destination = _audioContext.GetDestination();
 
-            _gainNode = await GainNode.CreateAsync(Js, _audioContext, new() { Gain = _gain });
-            await _gainNode.ConnectAsync(destination);
+            _gainNode = GainNodeSync.Create(Js, _audioContext, new() { Gain = _gain });
+            _gainNode.Connect(destination);
 
             OscillatorOptions oscillatorOptions = new()
             {
                 Type = OscillatorType.Triangle,
                 Frequency = (float)Frequency(octave, pitch)
             };
-            _oscillator = await OscillatorNode.CreateAsync(Js, _audioContext, oscillatorOptions);
+            _oscillator = OscillatorNodeSync.Create(Js, _audioContext, oscillatorOptions);
 
-            await _oscillator.ConnectAsync(_gainNode);
-            await _oscillator.StartAsync();
+            _oscillator.Connect(_gainNode);
+            _oscillator.Start();
         }
-        _semaphoreSlim.Release();
     }
 
-    protected async Task StopSound(MouseEventArgs mouseEventArgs)
+    protected void StopSound(MouseEventArgs mouseEventArgs)
     {
         if (_oscillator is null || _gainNode is null) return;
-        var currentTime = await _audioContext.GetCurrentTimeAsync();
-        var audioParam = await _gainNode.GetGainAsync();
-        await audioParam.LinearRampToValueAtTimeAsync(0, currentTime + 0.3);
-        _oscillator = null;
-        _gainNode = null;
-        _currentOctave = null;
-        _currentPitch = null;
-    }
-    protected async Task StopSoundNow(MouseEventArgs mouseEventArgs)
-    {
-        if (_oscillator is null || _gainNode is null) return;
-        await _oscillator.StopAsync();
+        var currentTime = _audioContext.GetCurrentTime();
+        var audioParam = _gainNode.GetGain();
+        audioParam.LinearRampToValueAtTime(0, currentTime + 0.3);
         _oscillator = null;
         _gainNode = null;
         _currentOctave = null;
         _currentPitch = null;
     }
 
-
-    private double Frequency(int octave, int pitch)
+    protected void StopSoundNow(MouseEventArgs mouseEventArgs)
     {
-        var noteIndex = octave * 12 + pitch;
-        var a = Math.Pow(2, 1.0 / 12);
-        var A4 = 440;
-        var A4Index = 4 * 12 + 10;
-        var halfStepDifference = noteIndex - A4Index;
-        return A4 * Math.Pow(a, halfStepDifference);
+        if (_oscillator is null || _gainNode is null) return;
+        _oscillator.Stop();
+        _oscillator = null;
+        _gainNode = null;
+        _currentOctave = null;
+        _currentPitch = null;
     }
 
-    protected async Task StartSoundADSR(MouseEventArgs mouseEventArgs)
+    protected void StartSoundADSR(MouseEventArgs mouseEventArgs)
     {
-        await StopSoundNow(mouseEventArgs);
+        StopSoundNow(mouseEventArgs);
 
         int octave = 3;
         int pitch = 5;
@@ -116,16 +100,16 @@ public partial class DebugSound
         var sustainLevel = 0.5f; // 0.0 - 1.0
 
         // t_pressed  is the time the sound started playing
-        var t_pressed = await _audioContext.GetCurrentTimeAsync();
+        var t_pressed = _audioContext.GetCurrentTime();
 
         // Attack -> Decay -> Sustain
-        _gainNode = await GainNode.CreateAsync(Js, _audioContext);
-        var destination = await _audioContext.GetDestinationAsync();
-        await _gainNode.ConnectAsync(destination);
-        var gain = await _gainNode.GetGainAsync();
-        await gain.SetValueAtTimeAsync(0, t_pressed);
-        await gain.LinearRampToValueAtTimeAsync(volume, t_pressed + attackDuration);
-        await gain.SetTargetAtTimeAsync(sustainLevel * volume, t_pressed + attackDuration, decayDuration);
+        _gainNode = GainNodeSync.Create(Js, _audioContext);
+        var destination = _audioContext.GetDestination();
+        _gainNode.Connect(destination);
+        var gain = _gainNode.GetGain();
+        gain.SetValueAtTime(0, t_pressed);
+        gain.LinearRampToValueAtTime(volume, t_pressed + attackDuration);
+        gain.SetTargetAtTime(sustainLevel * volume, t_pressed + attackDuration, decayDuration);
 
         // Create oscillator
         OscillatorOptions oscillatorOptions = new()
@@ -133,26 +117,26 @@ public partial class DebugSound
             Type = type,
             Frequency = (float)Frequency(octave, pitch)
         };
-        _oscillator = await OscillatorNode.CreateAsync(Js, _audioContext, oscillatorOptions);
+        _oscillator = OscillatorNodeSync.Create(Js, _audioContext, oscillatorOptions);
         if (type == OscillatorType.Custom)
         {
-            //_oscillator.SetPeriodicWave(customWaveform);
+            //_oscillator2.SetPeriodicWave(customWaveform);
         }
-        await _oscillator.ConnectAsync(_gainNode);
+        _oscillator.Connect(_gainNode);
 
 
-        await _oscillator.StartAsync();
+        _oscillator.Start();
 
         //var keyID = note + octave;
         //oscillatorMap.set(keyID, oscillator);
         //gainNodeMap.set(keyID, gainNode);
     }
 
-    protected async Task StopSoundADSR(MouseEventArgs mouseEventArgs)
+    protected void StopSoundADSR(MouseEventArgs mouseEventArgs)
     {
         if (_oscillator == null || _gainNode == null) return;
 
-        var t_released = await _audioContext.GetCurrentTimeAsync();
+        var t_released = _audioContext.GetCurrentTime();
         // Time Scale (seconds). How long the sound will play.
         var timeScale = 1.0f; // 0.0 - x
 
@@ -161,15 +145,24 @@ public partial class DebugSound
         var releaseControl = 0.5f; // 0.0 - 1.0
         var releaseDuration = releaseControl * timeScale;
 
-        var gain = await _gainNode.GetGainAsync();
+        var gain = _gainNode.GetGain();
 
-        await gain.CancelScheduledValuesAsync(t_released);
+        gain.CancelScheduledValues(t_released);
 
-        var currentGainValue = await gain.GetCurrentValueAsync();
-        await gain.SetValueAtTimeAsync(currentGainValue, t_released);
-        await gain.LinearRampToValueAtTimeAsync(0, t_released + releaseDuration);
+        var currentGainValue = gain.GetCurrentValue();
+        gain.SetValueAtTime(currentGainValue, t_released);
+        gain.LinearRampToValueAtTime(0, t_released + releaseDuration);
 
-        await _oscillator.StopAsync(t_released + releaseDuration);
+        _oscillator.Stop(t_released + releaseDuration);
     }
 
+    private double Frequency(int octave, int pitch)
+    {
+        var noteIndex = octave * 12 + pitch;
+        var a = Math.Pow(2, 1.0 / 12);
+        var A4 = 440;
+        var A4Index = 4 * 12 + 10;
+        var halfStepDifference = noteIndex - A4Index;
+        return A4 * Math.Pow(a, halfStepDifference);
+    }
 }

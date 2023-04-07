@@ -9,9 +9,8 @@ using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
-
-using KristofferStrube.Blazor.WebAudio;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
+using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
@@ -22,7 +21,8 @@ public partial class Index
 
     private BrowserContext _browserContext;
 
-    private AudioContext _audioContext;
+    //private AudioContext _audioContext;
+    private AudioContextSync _audioContext;
 
     public enum EmulatorState
     {
@@ -126,8 +126,24 @@ public partial class Index
         // Default system
         SelectedSystemName = C64.SystemName;
 
-        _audioContext = await AudioContext.CreateAsync(Js);
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _audioContext = await AudioContextSync.CreateAsync(Js);
+        }
+    }
+
+    //protected override async void OnAfterRender(bool firstRender)
+    //{
+    //    if (firstRender)
+    //    {
+    //        //await FocusEmulator();
+    //    }
+    //}
+
 
     private async void OnSelectedEmulatorChanged()
     {

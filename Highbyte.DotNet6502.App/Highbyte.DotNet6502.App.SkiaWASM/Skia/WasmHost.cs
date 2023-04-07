@@ -2,10 +2,10 @@ using System.Xml.Linq;
 using Highbyte.DotNet6502.App.SkiaWASM.Instrumentation.Stats;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
+using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
-using KristofferStrube.Blazor.WebAudio;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Skia;
 
@@ -80,7 +80,7 @@ public class WasmHost : IDisposable
         Initialized = false;
     }
 
-    public async Task Init(SKCanvas canvas, GRContext grContext, AudioContext audioContext, IJSRuntime jsRuntime)
+    public async Task Init(SKCanvas canvas, GRContext grContext, AudioContextSync audioContext, IJSRuntime jsRuntime)
     {
         _skCanvas = canvas;
         _grContext = grContext;

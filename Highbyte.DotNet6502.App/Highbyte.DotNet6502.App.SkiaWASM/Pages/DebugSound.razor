@@ -3,7 +3,6 @@
 @using Highbyte.DotNet6502.Systems.Commodore64;
 @using Highbyte.DotNet6502.Systems.Generic;
 
-@using KristofferStrube.Blazor.WebAudio;
 @using SkiaSharp.Views.Blazor
 @*@implements IDisposable*@
 
@@ -15,11 +14,20 @@
         <a href="https://github.com/highbyte/dotnet-6502" target="_blank">DotNet 6502</a>
     </div>
     <div class="menu">
-        <div id="system-selector">
+@*        <div>
             <button @onclick="StartSound">Play sound</button>
             <button @onclick="StopSound">Stop sound</button>
             <button @onclick="StartSoundADSR">Play sound ADSR</button>
             <button @onclick="StopSoundADSR">Stop sound ADSR</button>
+            <input id="gain" type="range" min="0" max="1" step="0.01" style="width:min(200px, 100%);" @bind-value=_gain />
+            <p></p>
+        </div>
+*@
+        <div>
+            <button @onclick="StartSound">Play sound sync</button>
+            <button @onclick="StopSound">Stop sound sync</button>
+            <button @onclick="StartSoundADSR">Play sound ADSR sync</button>
+            <button @onclick="StopSoundADSR">Stop sound ADSR sync</button>
             <input id="gain" type="range" min="0" max="1" step="0.01" style="width:min(200px, 100%);" @bind-value=_gain />
             <p></p>
         </div>

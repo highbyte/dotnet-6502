@@ -1,4 +1,4 @@
-using KristofferStrube.Blazor.WebAudio;
+using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
 
 namespace Highbyte.DotNet6502.Impl.AspNet
 {

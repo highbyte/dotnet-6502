@@ -6,8 +6,6 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// </summary>
 public class InternalSidState
 {
-    public static Queue<InternalSidState> StateChanges = new();
-
     private Dictionary<ushort, byte> _sidRegValues = new();
     private HashSet<ushort> _changedSidRegisters = new();
 

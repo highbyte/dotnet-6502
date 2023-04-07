@@ -1,13 +1,13 @@
+using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Systems;
-using KristofferStrube.Blazor.WebAudio;
 using Microsoft.JSInterop;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 {
     public class C64WASMSoundHandlerContext : ISoundHandlerContext
     {
-        private readonly AudioContext _audioContext;
-        public AudioContext AudioContext => _audioContext;
+        private readonly AudioContextSync _audioContext;
+        public AudioContextSync AudioContext => _audioContext;
 
         private readonly IJSRuntime _jsRuntime;
         public IJSRuntime JSRuntime => _jsRuntime;
@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             {3, new C64WASMVoiceContext(3) },
         };
 
-        public C64WASMSoundHandlerContext(AudioContext audioContext, IJSRuntime jsRuntime)
+        public C64WASMSoundHandlerContext(AudioContextSync audioContext, IJSRuntime jsRuntime)
         {
             _audioContext = audioContext;
             _jsRuntime = jsRuntime;
@@ -40,8 +40,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
         private readonly byte _voice;
         public byte Voice => _voice;
         public SoundStatus Status = SoundStatus.Stopped;
-        public OscillatorNode? Oscillator;
-        public GainNode? GainNode;
+        public OscillatorNodeSync? Oscillator;
+        public GainNodeSync? GainNode;
 
         private readonly SemaphoreSlim _semaphoreSlim = new(1);
         public SemaphoreSlim SemaphoreSlim => _semaphoreSlim;
