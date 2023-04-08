@@ -2,7 +2,7 @@
 
 Example with ACME installed and added to system path.
 
-´´´acme -o build\ [sourcefile].asm´´´
+´´´acme -f cbm -o build\[sourcefile].prg [sourcefile].asm´´´
 
 
 Examples in PowerShell, with ACME installed and used from a specified path.
@@ -10,17 +10,17 @@ Examples in PowerShell, with ACME installed and used from a specified path.
 ´´´ pwsh
 cd C64/Text
 $ACME_APP = "c:\Users\highb\Documents\C64\ACME\acme.exe"
-& $ACME_APP -o build\hostinteraction_scroll_text_and_cycle_colors_c64.prg hostinteraction_scroll_text_and_cycle_colors_c64.asm
+& $ACME_APP -f cbm -o build\hostinteraction_scroll_text_and_cycle_colors_c64.prg hostinteraction_scroll_text_and_cycle_colors_c64.asm
 ´´´
 
 ´´´ pwsh
 cd C64/Text
 $ACME_APP = "c:\Users\highb\Documents\C64\ACME\acme.exe"
-& $ACME_APP -o build\hostinteraction_scroll_text_and_cycle_colors_c64.prg -r build\hostinteraction_scroll_text_and_cycle_colors_c64.report --vicelabels build\hostinteraction_scroll_text_and_cycle_colors_c64.labels hostinteraction_scroll_text_and_cycle_colors_c64.asm
+& $ACME_APP -f cbm -o build\hostinteraction_scroll_text_and_cycle_colors_c64.prg -r build\hostinteraction_scroll_text_and_cycle_colors_c64.report --vicelabels build\hostinteraction_scroll_text_and_cycle_colors_c64.labels hostinteraction_scroll_text_and_cycle_colors_c64.asm
 ´´´
 
 ´´´ pwsh
 cd C64/Music
 $ACME_APP = "c:\Users\highb\Documents\C64\ACME\acme.exe"
-& $ACME_APP -o build\irqmusplr.prg -r build\irqmusplr.report --vicelabels build\irqmusplr.labels irqmusplr.asm
+& $ACME_APP -f cbm -o build\irqmusplr.prg -r build\irqmusplr.report --vicelabels build\irqmusplr.labels irqmusplr.asm
 ´´´
