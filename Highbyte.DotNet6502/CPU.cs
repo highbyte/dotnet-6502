@@ -156,6 +156,29 @@ public class CPU
         out ulong cyclesConsumed
         )
     {
+#if DEBUG
+        // irqmusplr.prg
+        if (PC == 0x0835)
+        {
+        }
+        if (PC == 0x0838)
+        {
+        }
+        if (PC == 0x0840)
+        {
+        }
+
+        // irqmusplr_test.prg
+        //if (PC == 0x0832)
+        //{
+        //}
+        //if (PC == 0x0835)
+        //{
+        //}
+        //if (PC == 0x083a)
+        //{
+        //}
+#endif
         var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
         ProcessInterrupts(mem);

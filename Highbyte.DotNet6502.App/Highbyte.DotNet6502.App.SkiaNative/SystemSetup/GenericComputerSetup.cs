@@ -18,8 +18,8 @@ public class GenericComputerSetup
     {
         var genericComputerConfig = new GenericComputerConfig
         {
-            ProgramBinaryFile = "../../../../../.cache/Examples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.prg",
-            //ProgramBinaryFile = "%HOME%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.prg",
+            ProgramBinaryFile = "../../../../../Examples/Assembler/Generic/Build/hostinteraction_scroll_text_and_cycle_colors.prg",
+            //ProgramBinaryFile = "%HOME%/source/repos/dotnet-6502/Examples/Assembler/Generic/Build/hostinteraction_scroll_text_and_cycle_colors.prg",
             CPUCyclesPerFrame = 8000,
             Memory = new EmulatorMemoryConfig
             {

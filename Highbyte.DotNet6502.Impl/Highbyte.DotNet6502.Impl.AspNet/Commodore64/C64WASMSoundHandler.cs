@@ -179,8 +179,12 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
         {
             SidVoiceWaveForm.Triangle => OscillatorType.Triangle,
             SidVoiceWaveForm.Sawtooth => OscillatorType.Sawtooth,
-            SidVoiceWaveForm.Pulse => OscillatorType.Custom,
-            SidVoiceWaveForm.RandomNoise => OscillatorType.Custom,
+            // TODO: Implement custom waveform for pulse and random noise
+            //SidVoiceWaveForm.Pulse => OscillatorType.Custom,
+            //SidVoiceWaveForm.RandomNoise => OscillatorType.Custom,
+            // NOTE: Temporary use triangle wave for pulse and random noise
+            SidVoiceWaveForm.Pulse => OscillatorType.Triangle,
+            SidVoiceWaveForm.RandomNoise => OscillatorType.Triangle,
             SidVoiceWaveForm.None => null,
             _ => null
         };

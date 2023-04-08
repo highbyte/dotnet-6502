@@ -76,7 +76,7 @@ emulatorHost.Start();
 
 //    var emulatorConfig = new EmulatorConfig
 //    {
-//        ProgramBinaryFile = "../../../../../.cache/Examples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.prg",
+//        ProgramBinaryFile = "../../../../../Examples/Assembler/Generic/Build/hostinteraction_scroll_text_and_cycle_colors.prg",
 //        Memory = emulatorMemoryConfig
 //    };
 

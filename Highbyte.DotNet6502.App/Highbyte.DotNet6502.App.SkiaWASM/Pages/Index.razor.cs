@@ -109,9 +109,9 @@ public partial class Index
         {
             MaxLineLength = 100,        // TODO: This affects help text printout, should it be set dynamically?
 
-            //DefaultDirectory = "../../../../../.cache/Examples/Assembler/Generic"
-            //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic"
-            //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic"
+            //DefaultDirectory = "../../../../../Examples/Assembler/Generic/Build"
+            //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/Examples/Assembler/Generic/Build"
+            //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/Examples/Assembler/Generic/Build"
         };
         _monitorConfig.Validate();
 
