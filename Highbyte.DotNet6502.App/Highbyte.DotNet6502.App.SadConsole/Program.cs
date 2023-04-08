@@ -1,8 +1,12 @@
-// Host app for running Highbyte.DotNet6502 emulator together with SadConsole Game library.
+// Host app for running Highbyte.DotNet6502 emulator in a SadConsole Window
 // 
-// Source code for 6502 program (scroller and color cycler):
-// - AssemblerSource/hostinteraction_scroll_text_and_cycle_colors.asm
-// - Compiled with ACME cross-assembler (using VS Code extension vs64)
+// Generic 6502 example programs
+// - Source (.asm)in: Examples/Assembler/Generic
+// - Compiled with ACME cross-assembler: to Examples/Assembler/Generic/Build 
+//
+// C64 example programs
+// - Source (.asm)in: Examples/Assembler/C64
+// - Compiled with ACME cross-assembler: to Examples/Assembler/C64/Build 
 
 using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Systems.Generic.Config;

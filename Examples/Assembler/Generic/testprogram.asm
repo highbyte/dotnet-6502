@@ -1,7 +1,8 @@
+;ACME assembler
+
 ;code start address
 * = $c000
 
-;VSCode extension VS64 (ACME cross-assembler) will automatially set output path and filename to the .cache directory
 ;!to "./testprogram.prg"
 
 ;copy $1000-10ff to $2000-200ff

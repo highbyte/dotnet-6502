@@ -48,7 +48,7 @@ Example how to load binary with ```l``` command:
 
 _The machine code binary simple.prg adds two number from memory, divides by 2, stores it in another memory location_
 ```
-> l C:\Source\dotnet-6502\.cache\Example\ConsoleTestPrograms\AssemblerSource\simple.prg
+> l C:\Source\dotnet-6502\Examples\Assembler\Generic\Build\simple.prg
 File loaded at 0xC000
 ```
 

@@ -1,6 +1,6 @@
+;ACME assembler
 ;Example based on code from http://www.obelisk.me.uk/6502/maclib.inc and modified for ACME assembler syntax
 
-;VSCode extension VS64 (ACME cross-assembler) will automatially set output path and filename to the .cache directory
 ;!to "./multiply_2_16bit_numbers.prg"
 
 ;code start address

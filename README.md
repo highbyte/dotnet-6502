@@ -73,6 +73,7 @@ For requirements and local development setup, see [here](DEVELOP.md)
 ## Assemblers
 Was used during development to compile actual 6502 source code to a binary, and then run it through the emulator.
 
+- https://sourceforge.net/projects/acme-crossass/
 - https://marketplace.visualstudio.com/items?itemName=rosc.vs64
 - https://nurpax.github.io/c64jasm-browser/
 - https://skilldrick.github.io/easy6502/#first-program
@@ -85,7 +86,7 @@ Monitor commands: https://vice-emu.sourceforge.io/vice_12.html
 
 How to load and step through a program in the VICE monitor
 ```
-l "C:\Source\Repos\dotnet-6502\.cache\Examples\Assembler\Generic\testprogram.prg" 0 1000
+l "C:\Source\Repos\dotnet-6502\Examples\Assembler\Generic\Build\testprogram.prg" 0 1000
 d 1000
 r PC=1000
 z
