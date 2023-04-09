@@ -53,6 +53,9 @@ irq
 ;In some assemblers you can skip N number of bytes in the binary files directly, without having to do it with help of a hex editor or a tool such as “dd” or similar. 
 ;An example for ACME follows:
 * = $1000
+
+; Include the file Giana_Mix.sid from the same directory as this .asm file
+
 !binary "Giana_Mix.sid",, $7c+2
 ;!binary "Great_Giana_Sisters.sid",, $7c+2
 ;!binary "Raymond.sid",, $7c+2

@@ -1,6 +1,6 @@
 
-; ******** Source: c:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\Generic\hostinteraction_scroll_text_and_cycle_colors.asm
-     1                          ;VSCode extension VS64 (ACME cross-assembler) will automatially set output path and filename to the .cache directory
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\Generic\hostinteraction_scroll_text_and_cycle_colors.asm
+     1                          ;ACME assembler
      2                          ;!to "./hostinteraction_scroll_text.prg"
      3                          
      4                          ;code start address

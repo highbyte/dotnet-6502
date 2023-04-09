@@ -1,11 +1,15 @@
 # Build .asm source files to .prg binaries with ACME cross assembler
 
-Example with ACME installed and added to system path.
+Syntax to compile with ACME
 
 ´´´acme -f cbm -o build\[sourcefile].prg [sourcefile].asm´´´
 
+Build all examples (PowerShell)
+´´´ pwsh
+.\BuildAll.ps1
+´´´
 
-Examples in PowerShell, with ACME installed and used from a specified path.
+Other examples in PowerShell
 
 ´´´ pwsh
 cd C64/Text

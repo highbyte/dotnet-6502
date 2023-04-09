@@ -1,18 +1,19 @@
 
-; ******** Source: c:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\Generic\testprogram.asm
-     1                          ;code start address
-     2                          * = $c000
-     3                          
-     4                          ;VSCode extension VS64 (ACME cross-assembler) will automatially set output path and filename to the .cache directory
-     5                          ;!to "./testprogram.prg"
-     6                          
-     7                          ;copy $1000-10ff to $2000-200ff
-     8  c000 a200               	ldx #0
-     9                          loop:
-    10  c002 bd0010             	lda $1000,x
-    11  c005 9d0020             	sta $2000,x
-    12  c008 e8                 	inx
-    13  c009 d0f7               	bne loop
-    14                          	
-    15                          ;In emulator, setup hitting brk instruction to stop
-    16  c00b 00                 	brk
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\Generic\testprogram.asm
+     1                          ;ACME assembler
+     2                          
+     3                          ;code start address
+     4                          * = $c000
+     5                          
+     6                          ;!to "./testprogram.prg"
+     7                          
+     8                          ;copy $1000-10ff to $2000-200ff
+     9  c000 a200               	ldx #0
+    10                          loop:
+    11  c002 bd0010             	lda $1000,x
+    12  c005 9d0020             	sta $2000,x
+    13  c008 e8                 	inx
+    14  c009 d0f7               	bne loop
+    15                          	
+    16                          ;In emulator, setup hitting brk instruction to stop
+    17  c00b 00                 	brk

@@ -1,56 +1,63 @@
 
-; ******** Source: irqmusplr.asm
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\C64\Music\irqmusplr.asm
      1                          ;Sid play code from: https://codebase64.org/doku.php?id=base:simple_irq_music_player
      2                          ;Sid music file from: https://hvsc.c64.org/
      3                          ;--------------------------------
      4                          ;JCH, DMC, Whatever IRQ music plr
      5                          ;================================
      6                          
-     7                          ;Manual build: 
-     8                          ;acme.exe build/irqmusplr.asm
-     9                          ;or
-    10                          ;acme.exe -o build/irqmusplr.prg irqmusplr.asm
-    11                          
-    12                          ;!to "irqmusplr.prg",cbm
-    13                           
-    14                          ;Example for starting with SYS command from Basic
-    15                          ;* = $0810 ;Remember SYS 2064 to enable it
-    16                          
-    17                          ;Example for starting with a pre-build SYS command by entering RUN
-    18                          * = $0801   
-    19                          sysline:	
-    20  0801 0b0801009e323036...!byte $0b,$08,$01,$00,$9e,$32,$30,$36,$31,$00,$00,$00 ;= SYS 2061
-    21                          * = $080d ;=2061 (Instead of $0810 not to waste unnecessary bytes)
-    22                          
-    23  080d 78                              sei
-    24  080e a938                            lda #<irq
-    25  0810 a208                            ldx #>irq
-    26  0812 8d1403                          sta $314
-    27  0815 8e1503                          stx $315
-    28  0818 a91b                            lda #$1b
-    29  081a a200                            ldx #$00
-    30  081c a07f                            ldy #$7f 
-    31  081e 8d11d0                          sta $d011
-    32  0821 8e12d0                          stx $d012
-    33  0824 8c0ddc                          sty $dc0d
-    34  0827 a901                            lda #$01
-    35  0829 8d1ad0                          sta $d01a
-    36  082c 8d19d0                          sta $d019 ; ACK any raster IRQs
-    37  082f a900                            lda #$00
-    38  0831 200010                          jsr $1000 ;Initialize SID routine
-    39  0834 58                              cli
-    40  0835 4c3508             hold         jmp hold ;We don't want to do anything else here. :)
-    41                                                ; we could also RTS here, when also changing $ea81 to $ea31
-    42                          irq
-    43  0838 a901                            lda #$01
-    44  083a 8d19d0                          sta $d019 ; ACK any raster IRQs
-    45  083d 200310                          jsr $1003 ;Play the music
-    46  0840 4c31ea                          jmp $ea31
-    47                                      
-    48                          
-    49                          ;.sid files have a header of length $7c bytes. You must remove this header from the sid files before you can place them on $1000 in c64 memory (for sids that should indeed be placed on $1000, which is something like a standard, but not every tune follow this).
-    50                          ;In some assemblers you can skip N number of bytes in the binary files directly, without having to do it with help of a hex editor or a tool such as “dd” or similar. 
-    51                          ;An example for ACME follows:
-    52                          * = $1000
-    53  1000 4c40104cc1100102...!binary "Raymond.sid",, $7c+2
-    54                          
+     7                          ;Build with ACME cross assembler.
+     8                          ;
+     9                          ;Build with output and format specified in this file
+    10                          ;!to "irqmusplr.prg",cbm
+    11                          ;acme.exe build/irqmusplr.asm
+    12                          ;
+    13                          ;or specify output and format in command line
+    14                          ;acme.exe -f cbm -o build/irqmusplr.prg irqmusplr.asm
+    15                          
+    16                           
+    17                          ;Example for starting with SYS command from Basic
+    18                          ;* = $0810 ;Remember SYS 2064 to enable it
+    19                          
+    20                          ;Example for starting with a pre-build SYS command by entering RUN
+    21                          * = $0801
+    22                          sysline:
+    23  0801 0b0801009e323036...!byte $0b,$08,$01,$00,$9e,$32,$30,$36,$31,$00,$00,$00 ;= SYS 2061
+    24                          * = $080d ;=2061 (Instead of $0810 not to waste unnecessary bytes)
+    25                          
+    26  080d 78                              sei
+    27  080e a938                            lda #<irq
+    28  0810 a208                            ldx #>irq
+    29  0812 8d1403                          sta $314
+    30  0815 8e1503                          stx $315
+    31  0818 a91b                            lda #$1b
+    32  081a a200                            ldx #$00
+    33  081c a07f                            ldy #$7f 
+    34  081e 8d11d0                          sta $d011
+    35  0821 8e12d0                          stx $d012
+    36  0824 8c0ddc                          sty $dc0d
+    37  0827 a901                            lda #$01
+    38  0829 8d1ad0                          sta $d01a
+    39  082c 8d19d0                          sta $d019 ; ACK any raster IRQs
+    40  082f a900                            lda #$00
+    41  0831 200010                          jsr $1000 ;Initialize SID routine
+    42  0834 58                              cli
+    43  0835 4c3508             hold         jmp hold ;We don't want to do anything else here. :)
+    44                                                ; we could also RTS here, when also changing $ea81 to $ea31
+    45                          irq
+    46  0838 a901                            lda #$01
+    47  083a 8d19d0                          sta $d019 ; ACK any raster IRQs
+    48  083d 200310                          jsr $1003 ;Play the music
+    49  0840 4c31ea                          jmp $ea31
+    50                                      
+    51                          
+    52                          ;.sid files have a header of length $7c bytes. You must remove this header from the sid files before you can place them on $1000 in c64 memory (for sids that should indeed be placed on $1000, which is something like a standard, but not every tune follow this).
+    53                          ;In some assemblers you can skip N number of bytes in the binary files directly, without having to do it with help of a hex editor or a tool such as “dd” or similar. 
+    54                          ;An example for ACME follows:
+    55                          * = $1000
+    56                          
+    57                          ; Include the file Giana_Mix.sid from the same directory as this .asm file
+    58                          
+    59  1000 4cb2104cda100f01...!binary "Giana_Mix.sid",, $7c+2
+    60                          ;!binary "Great_Giana_Sisters.sid",, $7c+2
+    61                          ;!binary "Raymond.sid",, $7c+2
