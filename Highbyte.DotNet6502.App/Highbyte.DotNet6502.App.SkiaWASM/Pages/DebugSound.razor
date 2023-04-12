@@ -14,31 +14,78 @@
         <a href="https://github.com/highbyte/dotnet-6502" target="_blank">DotNet 6502</a>
     </div>
     <div class="menu">
-@*        <div>
-            <button @onclick="StartSound">Play sound</button>
-            <button @onclick="StopSound">Stop sound</button>
-            <button @onclick="StartSoundADSR">Play sound ADSR</button>
-            <button @onclick="StopSoundADSR">Stop sound ADSR</button>
-            <input id="gain" type="range" min="0" max="1" step="0.01" style="width:min(200px, 100%);" @bind-value=_gain />
-            <p></p>
-        </div>
-*@
-        <div>
-            <button @onclick="StartSound">Play sound sync</button>
-            <button @onclick="StopSound">Stop sound sync</button>
-            <button @onclick="StartSoundADSR">Play sound ADSR sync</button>
-            <button @onclick="StopSoundADSR">Stop sound ADSR sync</button>
-            <input id="gain" type="range" min="0" max="1" step="0.01" style="width:min(200px, 100%);" @bind-value=_gain />
-            <p></p>
-        </div>
-
     </div>
 
     <div class="menuFooter">
     </div>
 
-    @*Skia OpenGl View Blazor WASM component*@
     <div class="main">
+
+        <div class="table">
+            <div class="table-row">
+                <div class="table-cell">
+                    <label for="oscFrequency">Frequency (Hz)</label>
+                    <input @bind="_oscFrequency" @bind:event="oninput" type="range" id="oscFrequency" min="55" max="888" title="Frequency of the note (Hz)" />
+                    <input @bind="_oscFrequency" @bind:event="oninput" type="number"                  min="55" max="888" />
+                </div>
+            </div>
+            <div class="table-row">
+                Amplitude (Gain)
+            </div>
+            <div class="table-row">
+                <label for="_ampGain">Gain (max volume)</label>
+                @*style="width:min(200px, 100%)*@
+                <input @bind="_ampGain" @bind:event="oninput" type="range" id="ampGain" min="0" max="1" step="0.01" />
+                <input @bind="_ampGain" @bind:event="oninput" type="number"             min="0" max="1" step="0.01" />
+                <div class="panel-subcontrol">
+                    <label for="ampAttack">Attack (s)</label>
+                    <input @bind="_ampAttack" @bind:event="oninput" type="range" id="ampAttack" min="0" max="1" step="0.01" title="gain - attack time" />
+                    <input @bind="_ampAttack" @bind:event="oninput" type="number"               min="0" max="1" step="0.01" />
+                </div>
+                <div class="panel-subcontrol">
+                    <label for="ampDecay">Decay (s)</label>
+                    <input @bind="_ampDecay" @bind:event="oninput" type="range" id="ampDecay" min="0" max="1" step="0.01" title="gain - decay time" />
+                    <input @bind="_ampDecay" @bind:event="oninput" type="number"              min="0" max="1" step="0.01" />
+                </div>
+                <div class="panel-subcontrol">
+                    <label for="ampSustain">Sustain (factor of Gain)</label>
+                    <input @bind="_ampSustain" @bind:event="oninput" type="range" id="ampSustain" min="0" max="1" step="0.01" title="gain - sustain level" />
+                    <input @bind="_ampSustain" @bind:event="oninput" type="number"                min="0" max="1" step="0.01" />
+                </div>
+                <div class="panel-subcontrol">
+                    <label for="ampRelease">Release (s)</label>
+                    <input @bind="_ampRelease" @bind:event="oninput" type="range" id="ampRelease" min="0" max="1" step="0.01" title="gain - release time" />
+                    <input @bind="_ampRelease" @bind:event="oninput" type="number"                min="0" max="1" step="0.01" />
+                </div>
+            </div>
+
+            <div class="table-row">
+                Pulse oscillator width
+            </div>
+            <div class="table-row">
+                <div class="panel-subcontrol">
+                    <label for="_pulseWidth">Pulse width</label>
+                    <input @bind="_pulseWidth" @bind:event="oninput" type="range" id="pulseWidth" min="-1" max="1" step="0.01" title="Pulse oscillator - width" />
+                    <input @bind="_pulseWidth" @bind:event="oninput" type="number"                min="-1" max="1" step="0.01" />
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <label for="ampRelease">Automatic Gain Release phase</label>
+            <input @bind="_automaticRelease" @bind:event="oninput" type="checkbox" id="automaticRelease" />
+        </div>
+        <div>
+            <button @onclick="StartSound">Play normal oscillator</button>
+            <button @onclick="StartSoundPulse">Play pulse oscillator</button>
+            <button @onclick="StartSoundCustomPeriodicWave">Play periodic wave</button>
+            <button @onclick="StopAllSoundNow">Stop all sound now</button>
+            <button @onclick="StopSoundR">Initiate Release</button>
+            <p></p>
+        </div>
+
+
+
     </div>
     <div class="right">
     </div>

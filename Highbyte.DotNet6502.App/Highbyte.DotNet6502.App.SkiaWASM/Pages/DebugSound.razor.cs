@@ -5,12 +5,25 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
 public partial class DebugSound
 {
-    private AudioContextSync _audioContext;
+    AudioContextSync _audioContext;
     OscillatorNodeSync? _oscillator;
-    GainNodeSync? _gainNode;
-    int? _currentOctave;
-    int? _currentPitch;
-    float _gain = 0.1f;
+    CustomPulseOscillatorNodeSync? _customPulseOscillator;
+    GainNodeSync? _ampGainNode;
+
+    // Input
+    int _oscFrequency = 110;
+
+    //float _ampScale = 1.0f;
+
+    float _ampGain = 0.22f;
+    double _ampAttack = 0.05f;
+    double _ampDecay = 0.4f;
+    float _ampSustain = 0.4f;
+    double _ampRelease = 0.4f;
+
+    bool _automaticRelease = true;  // Set to false to not start Release phase after decay/sustain phase is finished. Sound will play until manually stopped.
+
+    float _pulseWidth = 0;
 
     private readonly SemaphoreSlim _semaphoreSlim = new(1);
 
@@ -21,139 +34,247 @@ public partial class DebugSound
 
     protected void StartSound(MouseEventArgs mouseEventArgs)
     {
-        int octave = 3;
-        int pitch = 5;
-
-        if (_currentOctave != octave || _currentPitch != pitch)
-        {
-            StopSound(mouseEventArgs);
-            _currentOctave = octave;
-            _currentPitch = pitch;
-
-            AudioDestinationNodeSync destination = _audioContext.GetDestination();
-
-            _gainNode = GainNodeSync.Create(Js, _audioContext, new() { Gain = _gain });
-            _gainNode.Connect(destination);
-
-            OscillatorOptions oscillatorOptions = new()
-            {
-                Type = OscillatorType.Triangle,
-                Frequency = (float)Frequency(octave, pitch)
-            };
-            _oscillator = OscillatorNodeSync.Create(Js, _audioContext, oscillatorOptions);
-
-            _oscillator.Connect(_gainNode);
-            _oscillator.Start();
-        }
-    }
-
-    protected void StopSound(MouseEventArgs mouseEventArgs)
-    {
-        if (_oscillator is null || _gainNode is null) return;
         var currentTime = _audioContext.GetCurrentTime();
-        var audioParam = _gainNode.GetGain();
-        audioParam.LinearRampToValueAtTime(0, currentTime + 0.3);
-        _oscillator = null;
-        _gainNode = null;
-        _currentOctave = null;
-        _currentPitch = null;
-    }
 
-    protected void StopSoundNow(MouseEventArgs mouseEventArgs)
-    {
-        if (_oscillator is null || _gainNode is null) return;
-        _oscillator.Stop();
-        _oscillator = null;
-        _gainNode = null;
-        _currentOctave = null;
-        _currentPitch = null;
-    }
+        StopAllSoundNow(mouseEventArgs);
 
-    protected void StartSoundADSR(MouseEventArgs mouseEventArgs)
-    {
-        StopSoundNow(mouseEventArgs);
-
-        int octave = 3;
-        int pitch = 5;
         var type = OscillatorType.Triangle;
 
-
-        // Volume level
-        var volume = _gain; // 0.0 - 1.0
-
-        // Time Scale (seconds). How long the sound will play.
-        var timeScale = 1.0f; // 0.0 - x
-
-        // Attack Control (time ratio) specifies the length ot the time between the keyboard pressing and the time when the gain reaches maximum.
-        // The Attack length is the Attack Control ratio multiplied by the the Time Scale value.
-        var attackControl = 0.12f;   // 0.0 - 1.0
-        var attackDuration = attackControl * timeScale;
-
-        // Decay Control (time ratio) is the time the gain to decrease from the maximum to the gain specified by Sustain.
-        // The Decay time is the Decay Control ratio multiplied by the Time Scale value.
-        var decayControl = 0.2f;   // 0.0 - 1.0
-        var decayDuration = decayControl * timeScale;
-
-        // The Sustain (volume) level is the gain level after Attack and Decay.
-        // The level is the Sustain Control multiplied by the Volume value.
-        // While Attack, Decay and Release specify the length of time, Sustain specifies the gain level.
-        var sustainLevel = 0.5f; // 0.0 - 1.0
-
-        // t_pressed  is the time the sound started playing
-        var t_pressed = _audioContext.GetCurrentTime();
-
-        // Attack -> Decay -> Sustain
-        _gainNode = GainNodeSync.Create(Js, _audioContext);
+        // Audio destination
         var destination = _audioContext.GetDestination();
-        _gainNode.Connect(destination);
-        var gain = _gainNode.GetGain();
-        gain.SetValueAtTime(0, t_pressed);
-        gain.LinearRampToValueAtTime(volume, t_pressed + attackDuration);
-        gain.SetTargetAtTime(sustainLevel * volume, t_pressed + attackDuration, decayDuration);
 
         // Create oscillator
         OscillatorOptions oscillatorOptions = new()
         {
             Type = type,
-            Frequency = (float)Frequency(octave, pitch)
+            //Frequency = (float)Frequency(octave, pitch)
+            Frequency = _oscFrequency
         };
         _oscillator = OscillatorNodeSync.Create(Js, _audioContext, oscillatorOptions);
-        if (type == OscillatorType.Custom)
-        {
-            //_oscillator2.SetPeriodicWave(customWaveform);
-        }
-        _oscillator.Connect(_gainNode);
 
+        // Gain node for oscillator volume
+        _ampGainNode = GainNodeSync.Create(Js, _audioContext);
+        _ampGainNode.Connect(destination);
 
+        var audioParam = _ampGainNode.GetGain();
+        // Attack -> Decay -> Sustain -> Release
+        SetADSR(audioParam, currentTime, out double? endTime,
+            _ampGain,
+            _ampAttack,
+            _ampDecay,
+            _ampSustain,
+            _ampRelease,
+            _automaticRelease);
+
+        _oscillator.Connect(_ampGainNode);
         _oscillator.Start();
-
-        //var keyID = note + octave;
-        //oscillatorMap.set(keyID, oscillator);
-        //gainNodeMap.set(keyID, gainNode);
+        if (_automaticRelease)
+            _oscillator!.Stop(endTime!.Value);
     }
 
-    protected void StopSoundADSR(MouseEventArgs mouseEventArgs)
+    protected void StartSoundCustomPeriodicWave(MouseEventArgs mouseEventArgs)
     {
-        if (_oscillator == null || _gainNode == null) return;
+        var currentTime = _audioContext.GetCurrentTime();
 
-        var t_released = _audioContext.GetCurrentTime();
-        // Time Scale (seconds). How long the sound will play.
-        var timeScale = 1.0f; // 0.0 - x
+        StopAllSoundNow(mouseEventArgs);
 
-        // Release (time) specifies the length of the time between the release of the key and the disappearance of the sound.
-        // The Release length is Release ratio multiplied by the Time Scale value.
-        var releaseControl = 0.5f; // 0.0 - 1.0
-        var releaseDuration = releaseControl * timeScale;
+        AudioDestinationNodeSync destination = _audioContext.GetDestination();
 
-        var gain = _gainNode.GetGain();
+        float[] real = new float[2] { 0, 1 };
+        float[] imag = new float[2] { 0, 0 };
+        PeriodicWaveSync wave = _audioContext.CreatePeriodicWave(real, imag);
 
-        gain.CancelScheduledValues(t_released);
+        OscillatorOptions oscillatorOptions = new()
+        {
+            //Type = OscillatorType.Custom, // Not working currently 
+            //Type = OscillatorType.Sine,  // Default Sine if not specified, changed to custom below by OscillatorNodeSync.SetPeriodicWave(wave)
+            // Frequency = (float)Frequency(octave, pitch)
+            Frequency = _oscFrequency,
+            //PeriodicWave = wave  // Not working currently, use OscillatorNodeSync.SetPeriodicWave(wave) instead
+        };
+        _oscillator = OscillatorNodeSync.Create(Js, _audioContext, oscillatorOptions);
+        _oscillator.SetPeriodicWave(wave);
 
-        var currentGainValue = gain.GetCurrentValue();
-        gain.SetValueAtTime(currentGainValue, t_released);
-        gain.LinearRampToValueAtTime(0, t_released + releaseDuration);
+        // Gain node for oscillator volume
+        _ampGainNode = GainNodeSync.Create(Js, _audioContext);
+        _ampGainNode.Connect(destination);
 
-        _oscillator.Stop(t_released + releaseDuration);
+        var audioParam = _ampGainNode.GetGain();
+        // Attack -> Decay -> Sustain -> Release
+        SetADSR(audioParam, currentTime, out double? endTime,
+            _ampGain,
+            _ampAttack,
+            _ampDecay,
+            _ampSustain,
+            _ampRelease,
+            _automaticRelease);
+
+        _oscillator.Connect(_ampGainNode);
+        _oscillator.Start();
+        if (_automaticRelease)
+            _oscillator!.Stop(endTime!.Value);
+    }
+
+    protected void StartSoundPulse(MouseEventArgs mouseEventArgs)
+    {
+        var currentTime = _audioContext.GetCurrentTime();
+
+        StopAllSoundNow(mouseEventArgs);
+
+        AudioDestinationNodeSync destination = _audioContext.GetDestination();
+
+        // Volume gain
+        _ampGainNode = GainNodeSync.Create(Js, _audioContext, new() { Gain = _ampGain });
+        _ampGainNode.Connect(destination);
+        var ampGainNodeAudioParam = _ampGainNode.GetGain();
+        // Attack -> Decay -> Sustain -> Release
+        SetADSR(ampGainNodeAudioParam, currentTime, out double? endTime,
+            _ampGain,
+            _ampAttack,
+            _ampDecay,
+            _ampSustain,
+            _ampRelease,
+            _automaticRelease);
+
+        // Pulse oscillator
+        CustomPulseOscillatorOptions customPulseOscillatorOptions = new()
+        {
+            Frequency = _oscFrequency,
+            DefaultWidth = 0
+        };
+        _customPulseOscillator = CustomPulseOscillatorNodeSync.Create(Js, _audioContext, customPulseOscillatorOptions);
+        _customPulseOscillator.Connect(_ampGainNode);
+
+        // Pulse width
+        var widthDepthGainNode = GainNodeSync.Create(Js, _audioContext, new() { Gain = _pulseWidth });
+        //widthDepthGainNode.Gain.Value = _pulseWidth;
+        widthDepthGainNode.Connect(_customPulseOscillator.WidthGainNode);
+        var widthDepthGainNodeAudioParam = widthDepthGainNode.GetGain();
+        // Pulse width: Attack->Decay->Sustain->Release
+        SetADSR(widthDepthGainNodeAudioParam, currentTime, out double? endTimeWidth,
+            0.5f * 0,       // 0.5 * Pulse width depth (LFO depth)
+            0.05f,          // Pulse width attack
+            0.4f,           // Pulse width decay
+            0.4f,           // Pulse width sustain
+            0.4f            // Pulse width release
+            );
+
+        // Low frequency oscillator
+        OscillatorOptions lfoOscillatorOptions = new()
+        {
+            Type = OscillatorType.Triangle,
+            Frequency = 10
+        };
+        var _lfoOscillator = OscillatorNodeSync.Create(Js, _audioContext, lfoOscillatorOptions);
+        //_lfoOscillator.Connect(detuneDepth);
+        _lfoOscillator.Connect(widthDepthGainNode);
+
+        _customPulseOscillator.Start();
+        _lfoOscillator.Start();
+
+        if (_automaticRelease)
+        {
+            _customPulseOscillator!.Stop(endTime!.Value);
+            _lfoOscillator!.Stop(endTime!.Value);
+        }
+    }
+
+    protected void StopSoundR(MouseEventArgs mouseEventArgs)
+    {
+        if (_oscillator == null || _ampGainNode == null) return;
+
+        var currentTime = _audioContext.GetCurrentTime();
+
+        var gainAudioParam = _ampGainNode.GetGain();
+        StartRelease(gainAudioParam, currentTime, out double _,
+            _ampRelease);
+    }
+
+    protected void StopAllSoundNow(MouseEventArgs mouseEventArgs)
+    {
+        var currentTime = _audioContext.GetCurrentTime();
+
+        if (_ampGainNode != null)
+            StopGain(_ampGainNode, currentTime);
+
+        //if (_gainNode2 != null)
+        //    StopSound(_gainNode2 , currentTime);
+    }
+
+
+    /// <summary>
+    /// Set Attack (duration), Decay (duration), Sustain (level), and Release (duration)
+    /// </summary>
+    /// <param name="audioParam"></param>
+    /// <param name="startTime"></param>
+    /// <param name="volume">
+    /// Volume range 0.0 - 1.0
+    /// </param>
+    /// <param name="attackDuration">
+    /// Time (s) when the gain reaches maximum volume (gain)
+    /// </param>
+    /// <param name="decayDuration">
+    /// Time (s) between reading the maximum volume (gain) until it reaches the sustain level.
+    /// </param>
+    /// <param name="sustainLevel">
+    /// The volume (gain) level at which the sound will sustain until the release phase.
+    /// </param>
+    /// <param name="releaseDuration">
+    /// Time (s) between between initiating the stop of the sound until it reaches 0 volume (gain)
+    /// </param>
+    private void SetADSR(
+        AudioParamSync gainAudioParam,
+        double startTime,
+        out double? endTime,
+        float volume,
+        double attackDuration = 0.1f,
+        double decayDuration = 0.2f,
+        float sustainLevel = 0.5f,
+        double releaseDuration = 0.5f,
+        bool automaticRelease = true)
+    {
+        gainAudioParam.SetValueAtTime(0, startTime);
+
+        // Attack -> Volume
+        var attackEndTime = startTime + attackDuration;
+        gainAudioParam.LinearRampToValueAtTime(volume, attackEndTime);
+
+        // Decay -> Sustain volume
+        var decayStartTime = attackEndTime;
+        gainAudioParam.SetTargetAtTime(sustainLevel * volume, decayStartTime, decayDuration);
+
+        if (automaticRelease)
+        {
+            // Release -> 0 volume
+            endTime = decayStartTime + releaseDuration;
+            gainAudioParam.LinearRampToValueAtTime(0, endTime!.Value);
+        }
+        else
+        {
+            endTime = null;
+        }
+    }
+
+    private void StartRelease(
+        AudioParamSync gainAudioParam,
+        double startTime,
+        out double endTime,
+        double releaseDuration = 0.5f)
+    {
+        gainAudioParam.CancelScheduledValues(startTime);
+
+        var currentGainValue = gainAudioParam.GetCurrentValue();
+        gainAudioParam.SetValueAtTime(currentGainValue, startTime);
+
+        endTime = startTime + releaseDuration;
+        gainAudioParam.LinearRampToValueAtTime(0, endTime);
+    }
+
+    protected void StopGain(GainNodeSync gainNode, double currentTime)
+    {
+        var audioParam = gainNode.GetGain();
+        audioParam.CancelScheduledValues(currentTime);
+        audioParam.LinearRampToValueAtTime(0, currentTime + 0.05);
     }
 
     private double Frequency(int octave, int pitch)

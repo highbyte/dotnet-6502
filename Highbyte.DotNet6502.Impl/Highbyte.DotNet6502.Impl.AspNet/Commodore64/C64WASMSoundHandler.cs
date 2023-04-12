@@ -131,13 +131,17 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
         // ----------
         // Map SID register values to sound parameters usable by Web Audio, and what to do with the sound.
         // ----------
+        var oscillatorType = GetOscillatorType(sidState, voice);
         var soundParameters = new WASMVoiceParameter
         {
             // What to do with the sound (Start ADS cycle, start Release cycle, stop sound, change frequency, change volume)
             SoundCommand = GetSoundCommand(voiceContext, sidState),
 
             // Oscillator type mapped from C64 SID wave form selection
-            Type = GetOscillatorType(sidState, voice),
+            Type = oscillatorType,
+
+            // PeriodicWave used for SID pulse and random noise wave forms (mapped to WebAudio OscillatorType.Custom)
+            PeriodicWaveOptions = (oscillatorType.HasValue && oscillatorType.Value == OscillatorType.Custom) ? GetPeriodicWaveOptions(voiceContext, sidState) : null,
 
             // Translate SID volume 0-15 to Gain 0.0-1.0
             // SID volume in lower 4 bits of SIGVOL register.
@@ -179,25 +183,27 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
         {
             SidVoiceWaveForm.Triangle => OscillatorType.Triangle,
             SidVoiceWaveForm.Sawtooth => OscillatorType.Sawtooth,
-            // TODO: Implement custom waveform for pulse and random noise
-            //SidVoiceWaveForm.Pulse => OscillatorType.Custom,
-            //SidVoiceWaveForm.RandomNoise => OscillatorType.Custom,
-            // NOTE: Temporary use triangle wave for pulse and random noise
-            SidVoiceWaveForm.Pulse => OscillatorType.Triangle,
-            SidVoiceWaveForm.RandomNoise => OscillatorType.Triangle,
+
+            // Note: You never set oscialltor type to custom manually; instead, use the setPeriodicWave() method to provide the data representing the waveform. Doing so automatically sets the type to custom.
+            SidVoiceWaveForm.Pulse => OscillatorType.Custom,
+            SidVoiceWaveForm.RandomNoise => OscillatorType.Custom,
+
             SidVoiceWaveForm.None => null,
             _ => null
         };
-        if (sidWaveForm == SidVoiceWaveForm.Pulse)
-        {
-            // TODO: Specify Oscillator custom waveform parameters for simulate pulse waveform
-        }
-        else if (sidWaveForm == SidVoiceWaveForm.RandomNoise)
-        {
-            // TODO: Specify Oscillator custom waveform parameters for simulate random noise waveform
-        }
-
         return oscillatorType;
+    }
+
+    private PeriodicWaveOptions GetPeriodicWaveOptions(C64WASMVoiceContext voiceContext, InternalSidState sidState)
+    {
+        // TODO
+        float[] real = new float[2] { 0, 1 };
+        float[] imag = new float[2] { 0, 0 };
+        return new PeriodicWaveOptions
+        {
+            Real = real,
+            Imag = imag,
+        };
     }
 
     private SoundCommand GetSoundCommand(C64WASMVoiceContext voiceContext, InternalSidState sidState)
@@ -284,19 +290,34 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
                 voiceContext.Oscillator.Disconnect();
             }
 
-            voiceContext.Oscillator = OscillatorNodeSync.Create(
-                _soundHandlerContext!.JSRuntime,
-                _soundHandlerContext.AudioContext,
-                new()
-                {
-                    Type = wasmSoundParameters.Type!.Value,
-                    Frequency = wasmSoundParameters.Frequency,
-                });
-
             if (wasmSoundParameters.Type == OscillatorType.Custom)
             {
-                // TODO: Set custom waveform
-                //_soundHandlerContext.Oscillator.SetPeriodicWave(customWaveform);
+                // Use custom waveform for SID pulse and random noise waveforms.
+                voiceContext.Oscillator = OscillatorNodeSync.Create(
+                    _soundHandlerContext!.JSRuntime,
+                    _soundHandlerContext.AudioContext,
+                    new()
+                    {
+                        Frequency = wasmSoundParameters.Frequency,
+                    });
+
+                var wave = _soundHandlerContext.AudioContext.CreatePeriodicWave(
+                    wasmSoundParameters.PeriodicWaveOptions!.Real,
+                    wasmSoundParameters.PeriodicWaveOptions!.Imag);
+
+                voiceContext.Oscillator.SetPeriodicWave(wave);
+            }
+            else
+            {
+                // Use built-in Triangle and Sawtooth for corresponding SID waveforms.
+                voiceContext.Oscillator = OscillatorNodeSync.Create(
+                    _soundHandlerContext!.JSRuntime,
+                    _soundHandlerContext.AudioContext,
+                    new()
+                    {
+                        Type = wasmSoundParameters.Type!.Value,
+                        Frequency = wasmSoundParameters.Frequency,
+                    });
             }
 
             var callback = EventListener<EventSync>.Create(_soundHandlerContext.AudioContext.WebAudioHelper, _soundHandlerContext.AudioContext.JSRuntime, (e) =>

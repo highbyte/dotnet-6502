@@ -11,5 +11,9 @@ public class OscillatorOptions
     public float Frequency { get; set; } = 440;
     public float Detune { get; set; } = 0;
 
-    // Missing PeriodicWave for now.
+    // Note: Set PeriodicWave using OscillatorNodeSync.SetPeriodicWave(wave) instead
+    ///// <summary>
+    ///// PeriodicWave is used when Type is set to Custom.
+    ///// </summary>
+    //public PeriodicWaveSync? PeriodicWave { get; set; }
 }

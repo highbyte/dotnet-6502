@@ -65,6 +65,12 @@ For requirements and local development setup, see [here](DEVELOP.md)
 - https://dustlayer.com/vic-ii/2013/4/22/when-visibility-matters
 - https://dustlayer.com/vic-ii/2013/4/25/vic-ii-for-beginners-beyond-the-screen-rasters-cycle
 
+## WebAudio
+- https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
+- https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques
+- https://github.com/pendragon-andyh/WebAudio-PulseOscillator
+- https://github.com/KristofferStrube/Blazor.WebAudio
+
 ## Test programs
 - http://visual6502.org/wiki/index.php?title=6502TestPrograms
 - https://github.com/Klaus2m5/6502_65C02_functional_tests/blob/master/6502_functional_test.a65

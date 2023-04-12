@@ -16,6 +16,15 @@ export function constructGainNode(context, options = null) {
     return new GainNode(context, options);
 }
 
+export function createPeriodicWave(context, options = null) {
+    return new PeriodicWave(context, options);
+}
+
+export function constructWaveShaperNode(context, options = null) {
+    return new WaveShaperNode(context, options);
+}
+
+
 // ----------
 // DOM
 // ----------

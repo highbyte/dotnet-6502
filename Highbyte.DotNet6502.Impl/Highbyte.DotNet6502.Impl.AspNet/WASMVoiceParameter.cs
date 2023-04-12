@@ -6,6 +6,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet
     {
         public SoundCommand SoundCommand { get; set; }
         public OscillatorType? Type { get; set; }
+        public PeriodicWaveOptions? PeriodicWaveOptions { get; internal set; }
 
         public float Gain { get; set; }
         public float Frequency { get; set; }

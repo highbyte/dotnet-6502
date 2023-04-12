@@ -14,16 +14,23 @@ public class OscillatorNodeSync : AudioScheduledSourceNodeSync
     {
         var helper = context.WebAudioHelper;
 
-        var jSInstance = options is null
-            ? helper.Invoke<IJSInProcessObjectReference>("constructOcillatorNode", context.JSReference)
-            : helper.Invoke<IJSInProcessObjectReference>("constructOcillatorNode", context.JSReference,
-            new
+        IJSInProcessObjectReference jSInstance;
+        if (options is null)
+        {
+            jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOcillatorNode", context.JSReference);
+        }
+        else
+        {
+            var args = new
             {
                 type = options!.Type.AsString(),
                 frequency = options!.Frequency,
-                detune = options!.Detune,
-                // Missing periodicWave
-            });
+                detune = options!.Detune
+                //periperiodicWave = options!.PeriodicWave! != null ? options!.PeriodicWave.JSReference : null
+            };
+            jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOcillatorNode", context.JSReference, args);
+        }
+
         return new OscillatorNodeSync(helper, jSRuntime, jSInstance);
     }
 
@@ -36,5 +43,10 @@ public class OscillatorNodeSync : AudioScheduledSourceNodeSync
         var helper = WebAudioHelper;
         var jSInstance = helper.Invoke<IJSInProcessObjectReference>("getAttribute", JSReference, "frequency");
         return AudioParamSync.Create(_helper, JSRuntime, jSInstance);
+    }
+
+    public void SetPeriodicWave(PeriodicWaveSync wave)
+    {
+        JSReference.InvokeVoid("setPeriodicWave", wave.JSReference);
     }
 }

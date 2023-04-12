@@ -4,6 +4,7 @@
 // --------------------------------------------------------------------------------
 
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorDOMSync;
+using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
 using Microsoft.JSInterop;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
@@ -22,5 +23,19 @@ public class BaseAudioContextSync : EventTargetSync
         var helperVal = _helper;
         var jSIntance = helperVal.Invoke<IJSInProcessObjectReference>("getAttribute", JSReference, "destination");
         return AudioDestinationNodeSync.Create(_helper, JSRuntime, jSIntance);
+    }
+
+    public PeriodicWaveSync CreatePeriodicWave(float[] real, float[] imag, PeriodicWaveConstraints? constraints = null)
+    {
+        var options = new PeriodicWaveOptions
+        {
+            Real = real,
+            Imag = imag,
+        };
+        if (constraints is not null)
+            options.DisableNormalization = constraints.DisableNormalization;
+
+        return PeriodicWaveSync.Create(JSRuntime, this, options);
+
     }
 }
