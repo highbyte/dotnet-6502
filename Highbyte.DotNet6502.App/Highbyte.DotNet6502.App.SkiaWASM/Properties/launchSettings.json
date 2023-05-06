@@ -3,7 +3,6 @@
     "IIS Express": {
       "commandName": "IISExpress",
       "launchBrowser": true,
-      "launchUrl": "DebugSound",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },

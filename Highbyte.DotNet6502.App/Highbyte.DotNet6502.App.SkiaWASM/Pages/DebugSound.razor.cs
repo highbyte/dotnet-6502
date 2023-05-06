@@ -9,6 +9,7 @@ public partial class DebugSound
     OscillatorNodeSync? _oscillator;
     CustomPulseOscillatorNodeSync? _customPulseOscillator;
     GainNodeSync? _ampGainNode;
+    GainNodeSync? _widthDepthGainNode;
 
     // Input
     int _oscFrequency = 110;
@@ -124,7 +125,7 @@ public partial class DebugSound
         AudioDestinationNodeSync destination = _audioContext.GetDestination();
 
         // Volume gain
-        _ampGainNode = GainNodeSync.Create(Js, _audioContext, new() { Gain = _ampGain });
+        _ampGainNode = GainNodeSync.Create(Js, _audioContext, new() { Gain = 0 });
         _ampGainNode.Connect(destination);
         var ampGainNodeAudioParam = _ampGainNode.GetGain();
         // Attack -> Decay -> Sustain -> Release
@@ -135,29 +136,126 @@ public partial class DebugSound
             _ampSustain,
             _ampRelease,
             _automaticRelease);
+        //var ampSustainTime = currentTime + _ampAttack + _ampRelease;
+        //ampGainNodeAudioParam.LinearRampToValueAtTime(_ampGain, currentTime + _ampAttack);
+        //ampGainNodeAudioParam.LinearRampToValueAtTime(_ampGain * _ampSustain, ampSustainTime);
+        //double? endTime = ampSustainTime + _ampRelease;
+        //ampGainNodeAudioParam.LinearRampToValueAtTime(0, endTime.Value);
 
         // Pulse oscillator
         CustomPulseOscillatorOptions customPulseOscillatorOptions = new()
         {
             Frequency = _oscFrequency,
-            DefaultWidth = 0
+            DefaultWidth = _pulseWidth
         };
         _customPulseOscillator = CustomPulseOscillatorNodeSync.Create(Js, _audioContext, customPulseOscillatorOptions);
         _customPulseOscillator.Connect(_ampGainNode);
 
-        // Pulse width
-        var widthDepthGainNode = GainNodeSync.Create(Js, _audioContext, new() { Gain = _pulseWidth });
-        //widthDepthGainNode.Gain.Value = _pulseWidth;
-        widthDepthGainNode.Connect(_customPulseOscillator.WidthGainNode);
-        var widthDepthGainNodeAudioParam = widthDepthGainNode.GetGain();
+        // Pulse width modulation
+        _widthDepthGainNode = GainNodeSync.Create(Js, _audioContext, new() { Gain = 0 });
+        _widthDepthGainNode.Connect(_customPulseOscillator.WidthGainNode);
+        var widthDepthGainNodeAudioParam = _widthDepthGainNode.GetGain();
         // Pulse width: Attack->Decay->Sustain->Release
         SetADSR(widthDepthGainNodeAudioParam, currentTime, out double? endTimeWidth,
-            0.5f * 0,       // 0.5 * Pulse width depth (LFO depth)
+            0.5f,       // Pulse width depth (LFO depth)
             0.05f,          // Pulse width attack
             0.4f,           // Pulse width decay
             0.4f,           // Pulse width sustain
             0.4f            // Pulse width release
             );
+        //var oscWidthDepth = 0.5f;   // LFO depth
+        //var oscWidthAttack = 0.05f;
+        //var oscWidthDecay = 0.4f;
+        //var oscWidthSustain = 0.4f;
+        //var oscWidthRelease = 0.4f;
+        //var widthDepthSustainTime = currentTime + oscWidthAttack + oscWidthRelease;
+        //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth, currentTime + oscWidthAttack);
+        //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth * oscWidthSustain, widthDepthSustainTime);
+        //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0, oscWidthSustain + oscWidthRelease);
+
+        // Low frequency oscillator
+        OscillatorOptions lfoOscillatorOptions = new()
+        {
+            Type = OscillatorType.Triangle,
+            Frequency = 10
+        };
+        var _lfoOscillator = OscillatorNodeSync.Create(Js, _audioContext, lfoOscillatorOptions);
+        //_lfoOscillator.Connect(detuneDepth);
+        _lfoOscillator.Connect(_widthDepthGainNode);
+
+        _customPulseOscillator.Start();
+        _lfoOscillator.Start();
+
+        if (_automaticRelease)
+        {
+            _customPulseOscillator!.Stop(endTime!.Value);
+            _lfoOscillator!.Stop(endTime!.Value);
+        }
+    }
+
+    protected void ChangePulseWidth(MouseEventArgs mouseEventArgs)
+    {
+        if (_widthDepthGainNode is null) return;
+        var widthDepthGainNodeAudioParam = _widthDepthGainNode.GetGain();
+        widthDepthGainNodeAudioParam.SetValueAtTime(_pulseWidth, _audioContext.GetCurrentTime());
+    }
+
+    protected void StartSoundPulse2(MouseEventArgs mouseEventArgs)
+    {
+        var currentTime = _audioContext.GetCurrentTime();
+
+        StopAllSoundNow(mouseEventArgs);
+
+        AudioDestinationNodeSync destination = _audioContext.GetDestination();
+
+        // Volume gain
+        _ampGainNode = GainNodeSync.Create(Js, _audioContext, new() { Gain = 0 });
+        _ampGainNode.Connect(destination);
+        var ampGainNodeAudioParam = _ampGainNode.GetGain();
+        // Attack -> Decay -> Sustain -> Release
+        //SetADSR(ampGainNodeAudioParam, currentTime, out double? endTime,
+        //    _ampGain,
+        //    _ampAttack,
+        //    _ampDecay,
+        //    _ampSustain,
+        //    _ampRelease,
+        //    _automaticRelease);
+        var ampSustainTime = currentTime + _ampAttack + _ampRelease;
+        ampGainNodeAudioParam.LinearRampToValueAtTime(_ampGain, currentTime + _ampAttack);
+        ampGainNodeAudioParam.LinearRampToValueAtTime(_ampGain * _ampSustain, ampSustainTime);
+        double? endTime = ampSustainTime + _ampRelease;
+        ampGainNodeAudioParam.LinearRampToValueAtTime(0, endTime.Value);
+
+        // Pulse oscillator
+        CustomPulseOscillatorOptions customPulseOscillatorOptions = new()
+        {
+            Frequency = _oscFrequency,
+            DefaultWidth = _pulseWidth
+        };
+        _customPulseOscillator = CustomPulseOscillatorNodeSync.Create(Js, _audioContext, customPulseOscillatorOptions);
+        _customPulseOscillator.Connect(_ampGainNode);
+
+        // Pulse width modulation
+        var widthDepthGainNode = GainNodeSync.Create(Js, _audioContext, new() { Gain = 0 });
+        widthDepthGainNode.Connect(_customPulseOscillator.WidthGainNode);
+        var widthDepthGainNodeAudioParam = widthDepthGainNode.GetGain();
+        // Pulse width: Attack->Decay->Sustain->Release
+        //SetADSR(widthDepthGainNodeAudioParam, currentTime, out double? endTimeWidth,
+        //0.5f * 0,       // 0.5 * Pulse width depth (LFO depth)
+        //0.05f,          // Pulse width attack
+        //0.4f,           // Pulse width decay
+        //0.4f,           // Pulse width sustain
+        //0.4f            // Pulse width release
+        //);
+        var oscWidthDepth = 0.5f;   // LFO depth
+        var oscWidthAttack = 0.05f;
+        var oscWidthDecay = 0.4f;
+        var oscWidthSustain = 0.4f;
+        var oscWidthRelease = 0.4f;
+        var widthDepthSustainTime = currentTime + oscWidthAttack + oscWidthRelease;
+        widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth, currentTime + oscWidthAttack);
+        widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth * oscWidthSustain, widthDepthSustainTime);
+        widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0, oscWidthSustain + oscWidthRelease);
 
         // Low frequency oscillator
         OscillatorOptions lfoOscillatorOptions = new()
@@ -246,7 +344,7 @@ public partial class DebugSound
         if (automaticRelease)
         {
             // Release -> 0 volume
-            endTime = decayStartTime + releaseDuration;
+            endTime = decayStartTime + decayDuration + releaseDuration;
             gainAudioParam.LinearRampToValueAtTime(0, endTime!.Value);
         }
         else

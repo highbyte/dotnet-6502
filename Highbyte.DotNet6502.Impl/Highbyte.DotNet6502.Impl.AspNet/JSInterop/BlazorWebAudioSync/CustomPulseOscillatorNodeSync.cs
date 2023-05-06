@@ -63,6 +63,13 @@ public class CustomPulseOscillatorNodeSync : AudioScheduledSourceNodeSync
         _pulseShaper.Disconnect();
     }
 
+    public AudioParamSync GetFrequency()
+    {
+        var helper = WebAudioHelper;
+        var jSInstance = helper.Invoke<IJSInProcessObjectReference>("getAttribute", JSReference, "frequency");
+        return AudioParamSync.Create(_helper, JSRuntime, jSInstance);
+    }
+
     private static IJSInProcessObjectReference CreateOscillator(BaseAudioContextSync context, CustomPulseOscillatorOptions? options = null)
     {
         var helper = context.WebAudioHelper;

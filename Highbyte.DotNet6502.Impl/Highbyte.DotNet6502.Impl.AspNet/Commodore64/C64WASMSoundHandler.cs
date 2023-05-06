@@ -131,7 +131,8 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
         // ----------
         // Map SID register values to sound parameters usable by Web Audio, and what to do with the sound.
         // ----------
-        var oscillatorType = GetOscillatorType(sidState, voice);
+        var oscillatorType = GetOscillatorType(sidState, voice, out OscillatorSpecialType? oscillatorSpecialType);
+
         var soundParameters = new WASMVoiceParameter
         {
             // What to do with the sound (Start ADS cycle, start Release cycle, stop sound, change frequency, change volume)
@@ -140,8 +141,11 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
             // Oscillator type mapped from C64 SID wave form selection
             Type = oscillatorType,
 
+            // Custom oscillator type (pulse or noise)
+            SpecialType = oscillatorSpecialType,
+
             // PeriodicWave used for SID pulse and random noise wave forms (mapped to WebAudio OscillatorType.Custom)
-            PeriodicWaveOptions = (oscillatorType.HasValue && oscillatorType.Value == OscillatorType.Custom) ? GetPeriodicWaveOptions(voiceContext, sidState) : null,
+            PeriodicWaveOptions = (oscillatorSpecialType.HasValue && oscillatorSpecialType.Value == OscillatorSpecialType.Noise) ? GetPeriodicWaveNoiseOptions(voiceContext, sidState) : null,
 
             // Translate SID volume 0-15 to Gain 0.0-1.0
             // SID volume in lower 4 bits of SIGVOL register.
@@ -151,6 +155,14 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
             // Frequency = (REGISTER VALUE * CLOCK / 16777216) Hz
             // where CLOCK equals the system clock frequency, 1022730 for American (NTSC)systems, 985250 for European(PAL)
             Frequency = sidState.GetFrequency(voice) * clockSpeed / 16777216.0f,
+
+            // Translate 12 bit Pulse width (0 - 4095) to percentage
+            // Pulse width % = (REGISTER VALUE / 40.95) %
+            // The percentage is then transformed into a value between -1 and +1 that the .NET PulseOscillator uses.
+            // Example: Register value of 0 => 0% => 0 value => (0 * 2) -1 => -1
+            // Example: Register value of 2047 => approx 50% => 0.5 value => (0.5 * 2) -1 => 0
+            // Example: Register value of 4095 => 100% => 1.0 value => (1.0 * 2) -1 => 1
+            PulseWidth = (((sidState.GetPulseWidth(voice) / 40.95f) / 100.0f) * 2) - 1,
 
             // Translate SID attack duration in ms to seconds
             // Attack: 0-15, highest 4 bits in ATDCY
@@ -176,7 +188,10 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
         return soundParameters;
     }
 
-    private static OscillatorType? GetOscillatorType(InternalSidState sidState, byte voice)
+    private static OscillatorType? GetOscillatorType(
+        InternalSidState sidState,
+        byte voice,
+        out OscillatorSpecialType? oscillatorCustomType)
     {
         var sidWaveForm = sidState.GetWaveForm(voice);
         OscillatorType? oscillatorType = sidWaveForm switch
@@ -184,17 +199,24 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
             SidVoiceWaveForm.Triangle => OscillatorType.Triangle,
             SidVoiceWaveForm.Sawtooth => OscillatorType.Sawtooth,
 
+            SidVoiceWaveForm.Pulse => null, // See oscillatorCustomType
             // Note: You never set oscialltor type to custom manually; instead, use the setPeriodicWave() method to provide the data representing the waveform. Doing so automatically sets the type to custom.
-            SidVoiceWaveForm.Pulse => OscillatorType.Custom,
             SidVoiceWaveForm.RandomNoise => OscillatorType.Custom,
 
             SidVoiceWaveForm.None => null,
             _ => null
         };
+
+        oscillatorCustomType = sidWaveForm switch
+        {
+            SidVoiceWaveForm.Pulse => OscillatorSpecialType.Pulse,   // Special CustomPulseOcillatorNode
+            SidVoiceWaveForm.RandomNoise => OscillatorSpecialType.Noise, // Standard WebAudio OscillatorNode with type Custom, and PeriodicWave.
+            _ => null
+        };
         return oscillatorType;
     }
 
-    private PeriodicWaveOptions GetPeriodicWaveOptions(C64WASMVoiceContext voiceContext, InternalSidState sidState)
+    private PeriodicWaveOptions GetPeriodicWaveNoiseOptions(C64WASMVoiceContext voiceContext, InternalSidState sidState)
     {
         // TODO
         float[] real = new float[2] { 0, 1 };
@@ -214,6 +236,7 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
         var isGateOn = sidState.IsGateOn(voice);
         var waveForm = sidState.GetWaveForm(voice);
         var isFrequencyChanged = sidState.IsFrequencyChanged(voice);
+        var isPulseWidthChanged = sidState.IsPulseWidthChanged(voice);
         var isVolumeChanged = sidState.IsVolumeChanged;
 
         // New sound (ADS cycle) is started when
@@ -253,6 +276,14 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
             command = SoundCommand.ChangeFrequency;
         }
 
+        // Check if frequency has changed, and if any sound is currently playing.
+        else if (isPulseWidthChanged
+                && (voiceContext.Status == SoundStatus.ASDCycleStarted
+                || voiceContext.Status == SoundStatus.ReleaseCycleStarted))
+        {
+            command = SoundCommand.ChangePulseWidth;
+        }
+
         // Check if volume has changed, and if any sound is currently playing.
         else if (isVolumeChanged
                 && (voiceContext.Status == SoundStatus.ASDCycleStarted
@@ -274,25 +305,44 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
 
     private void PlaySound(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters)
     {
+        var currentTime = _soundHandlerContext!.AudioContext.GetCurrentTime();
+
         if (wasmSoundParameters.SoundCommand == SoundCommand.Stop)
         {
             // Stop sound immediately
-            if (voiceContext.Oscillator is null) return;
-            voiceContext.Oscillator.Stop();
-            voiceContext.Init();
+            voiceContext.Stop();
         }
         else if (wasmSoundParameters.SoundCommand == SoundCommand.StartADS)
         {
-            if (voiceContext.Oscillator != null && voiceContext.GainNode != null)
-            {
-                voiceContext.Oscillator.Stop();
-                voiceContext.GainNode.Disconnect();
-                voiceContext.Oscillator.Disconnect();
-            }
+            // Stop any existing playing sound
+            voiceContext.Stop();
 
-            if (wasmSoundParameters.Type == OscillatorType.Custom)
+            // Create GainNode
+            voiceContext.GainNode = GainNodeSync.Create(_soundHandlerContext.JSRuntime, _soundHandlerContext.AudioContext);
+
+            // Set Attack/Decay/Sustain gain envelope
+            var gainAudioParam = voiceContext.GainNode!.GetGain();
+            gainAudioParam.SetValueAtTime(0, currentTime);
+            gainAudioParam.LinearRampToValueAtTime(wasmSoundParameters.Gain, currentTime + wasmSoundParameters.AttackDurationSeconds);
+            gainAudioParam.SetTargetAtTime(wasmSoundParameters.SustainGain, currentTime + wasmSoundParameters.AttackDurationSeconds, wasmSoundParameters.DecayDurationSeconds);
+
+            // Associate GainNode with AudioContext destination 
+            var destination = _soundHandlerContext.AudioContext.GetDestination();
+            voiceContext.GainNode.Connect(destination);
+
+            // Define callback handler to know when an oscillator has stopped playing.
+            var callback = EventListener<EventSync>.Create(_soundHandlerContext.AudioContext.WebAudioHelper, _soundHandlerContext.AudioContext.JSRuntime, (e) =>
             {
-                // Use custom waveform for SID pulse and random noise waveforms.
+                AddDebugMessage($"Sound stopped on voice {voiceContext.Voice}.");
+                voiceContext.Status = SoundStatus.Stopped;
+            });
+
+
+            if (wasmSoundParameters.Type == OscillatorType.Custom && wasmSoundParameters.SpecialType == OscillatorSpecialType.Noise)
+            {
+                voiceContext.PulseOscillator = null;
+
+                // Use standard WebAudio Oscialltor with custom waveform for random noise.
                 voiceContext.Oscillator = OscillatorNodeSync.Create(
                     _soundHandlerContext!.JSRuntime,
                     _soundHandlerContext.AudioContext,
@@ -306,10 +356,86 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
                     wasmSoundParameters.PeriodicWaveOptions!.Imag);
 
                 voiceContext.Oscillator.SetPeriodicWave(wave);
+
+                // Set callback on Oscillator
+                voiceContext.Oscillator.AddEndedEventListsner(callback);
+
+                // Associate volume gain with Oscillator
+                voiceContext.Oscillator.Connect(voiceContext.GainNode);
+
+                AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with freq {wasmSoundParameters.Frequency} with type {wasmSoundParameters.Type}");
+                voiceContext.Oscillator.Start();
             }
+
+            else if (wasmSoundParameters.Type is null && wasmSoundParameters.SpecialType == OscillatorSpecialType.Pulse)
+            {
+                // Use custom PulseOscialltor for pulse wave
+                voiceContext.PulseOscillator = CustomPulseOscillatorNodeSync.Create(
+                    _soundHandlerContext!.JSRuntime,
+                    _soundHandlerContext.AudioContext,
+                    new()
+                    {
+                        Frequency = wasmSoundParameters.Frequency,
+
+                        //Pulse width - 1 to + 1 = ratio of the waveform's duty (power) cycle /mark-space
+                        //DefaultWidth = -1.0   // 0% duty cycle  - silent
+                        //DefaultWidth = -0.5f  // 25% duty cycle
+                        //DefaultWidth = 0      // 50% duty cycle
+                        //DefaultWidth = 0.5f   // 75% duty cycle
+                        //DefaultWidth = 1.0f   // 100% duty cycle 
+                        DefaultWidth = wasmSoundParameters.PulseWidth
+                    });
+
+                // Pulse width modulation
+                voiceContext.PulseWidthGainNode = GainNodeSync.Create(
+                    _soundHandlerContext!.JSRuntime,
+                    _soundHandlerContext.AudioContext,
+                    new()
+                    {
+                        Gain = 0
+                    });
+                voiceContext.PulseWidthGainNode.Connect(voiceContext.PulseOscillator.WidthGainNode);
+
+                //var widthDepthGainNodeAudioParam = voiceContext.PulseWidthGainNode.GetGain();
+                //var oscWidthDepth = 0.5f;   // LFO depth - Pulse modulation depth (percent) 
+                //var oscWidthAttack = 0.05f;
+                //var oscWidthDecay = 0.4f;
+                //var oscWidthSustain = 0.4f;
+                //var oscWidthRelease = 0.4f;
+                //var widthDepthSustainTime = currentTime + oscWidthAttack + oscWidthRelease;
+                //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth, currentTime + oscWidthAttack);
+                //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth * oscWidthSustain, widthDepthSustainTime);
+                //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0, oscWidthSustain + oscWidthRelease);
+
+                // Low frequency oscillator, use as base for Pulse Oscilator.
+                // The Pulse Oscillator will transform the Triangle wave to a Square wave in the end.
+                voiceContext.Oscillator = OscillatorNodeSync.Create(
+                     _soundHandlerContext!.JSRuntime,
+                     _soundHandlerContext.AudioContext,
+                        new OscillatorOptions
+                        {
+                            Type = OscillatorType.Triangle,
+                            Frequency = 10
+                        });
+                //voiceContext.Oscillator.Connect(detuneDepth);
+                voiceContext.Oscillator.Connect(voiceContext.PulseWidthGainNode);
+
+                // Set callback on Pulse Oscillator (which is the primary oscillator in this case)
+                voiceContext.PulseOscillator.AddEndedEventListsner(callback);
+
+                // Associate volume gain with Pulse Oscillator
+                voiceContext.PulseOscillator.Connect(voiceContext.GainNode);
+
+                AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with freq {wasmSoundParameters.Frequency} with special type {wasmSoundParameters.SpecialType}");
+                voiceContext.PulseOscillator.Start();   // Primary oscillator
+                voiceContext.Oscillator.Start();        // Modulation oscillator
+            }
+
             else
             {
-                // Use built-in Triangle and Sawtooth for corresponding SID waveforms.
+                voiceContext.PulseOscillator = null;
+
+                // Use WebAudio Oscialltor with Triangle or Sawtooth waveforms.
                 voiceContext.Oscillator = OscillatorNodeSync.Create(
                     _soundHandlerContext!.JSRuntime,
                     _soundHandlerContext.AudioContext,
@@ -318,43 +444,22 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
                         Type = wasmSoundParameters.Type!.Value,
                         Frequency = wasmSoundParameters.Frequency,
                     });
+
+                // Set callback on Oscillator
+                voiceContext.Oscillator.AddEndedEventListsner(callback);
+
+                // Associate volume gain with Oscillator
+                voiceContext.Oscillator.Connect(voiceContext.GainNode);
+
+                AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with freq {wasmSoundParameters.Frequency} with type {wasmSoundParameters.Type}");
+                voiceContext.Oscillator.Start();
             }
 
-            var callback = EventListener<EventSync>.Create(_soundHandlerContext.AudioContext.WebAudioHelper, _soundHandlerContext.AudioContext.JSRuntime, (e) =>
-            {
-                AddDebugMessage($"Sound stopped on voice {voiceContext.Voice}.");
-                voiceContext.Status = SoundStatus.Stopped;
-            });
-            voiceContext.Oscillator.AddEndedEventListsner(callback);
-
-            // Create GainNode
-            voiceContext.GainNode = GainNodeSync.Create(_soundHandlerContext.JSRuntime, _soundHandlerContext.AudioContext);
-
-            // Associate GainNode with AudioContext destination
-            var destination = _soundHandlerContext.AudioContext.GetDestination();
-            voiceContext.GainNode.Connect(destination);
-
-            // Associate volume gain with Oscillator
-            voiceContext.Oscillator.Connect(voiceContext.GainNode);
-
-            // Set Attack/Decay/Sustain gain envelope
-            var gainAudioParam = voiceContext.GainNode!.GetGain();
-            var currentTime = _soundHandlerContext!.AudioContext.GetCurrentTime();
-            gainAudioParam.SetValueAtTime(0, currentTime);
-            gainAudioParam.LinearRampToValueAtTime(wasmSoundParameters.Gain, currentTime + wasmSoundParameters.AttackDurationSeconds);
-            gainAudioParam.SetTargetAtTime(wasmSoundParameters.SustainGain, currentTime + wasmSoundParameters.AttackDurationSeconds, wasmSoundParameters.DecayDurationSeconds);
-
-            AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with freq {wasmSoundParameters.Frequency} with type {wasmSoundParameters.Type}");
             voiceContext.Status = SoundStatus.ASDCycleStarted;
-            // Start sound 
-            voiceContext.Oscillator.Start();
         }
         else if (wasmSoundParameters.SoundCommand == SoundCommand.StartRelease)
         {
-            if (voiceContext.Oscillator == null || voiceContext.GainNode == null) return;
-
-            // The current time is where the Release cycle starts
-            var currentTime = _soundHandlerContext!.AudioContext.GetCurrentTime();
+            if (voiceContext.GainNode == null) return;
 
             var gainAudioParam = voiceContext.GainNode.GetGain();
             gainAudioParam.CancelScheduledValues(currentTime);
@@ -366,24 +471,31 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
 
             AddDebugMessage($"Stopping sound on voice {voiceContext.Voice} at time now + {wasmSoundParameters.ReleaseDurationSeconds} seconds.");
 
-            voiceContext.Status = SoundStatus.ReleaseCycleStarted;
-            // Schedule Stop for the time when the Release period if sover
-            voiceContext.Oscillator.Stop(currentTime + wasmSoundParameters.ReleaseDurationSeconds);
+            // Schedule Stop for oscillator when the Release period if over
+            voiceContext.Oscillator?.Stop(currentTime + wasmSoundParameters.ReleaseDurationSeconds);
+            voiceContext.PulseOscillator?.Stop(currentTime + wasmSoundParameters.ReleaseDurationSeconds);
 
+            voiceContext.Status = SoundStatus.ReleaseCycleStarted;
         }
         else if (wasmSoundParameters.SoundCommand == SoundCommand.ChangeVolume)
         {
-            if (voiceContext.Oscillator == null || voiceContext.GainNode == null) return;
+            if (voiceContext.GainNode == null) return;
 
-            var currentTime = _soundHandlerContext!.AudioContext.GetCurrentTime();
             ChangeVolume(voiceContext, wasmSoundParameters, currentTime);
         }
         else if (wasmSoundParameters.SoundCommand == SoundCommand.ChangeFrequency)
         {
-            if (voiceContext.Oscillator == null || voiceContext.GainNode == null) return;
+            if (voiceContext.GainNode == null) return;
+            if (voiceContext.Oscillator == null && voiceContext.PulseOscillator == null) return;
 
-            var currentTime = _soundHandlerContext!.AudioContext.GetCurrentTime();
             ChangeFrequency(voiceContext, wasmSoundParameters, currentTime);
+        }
+        else if (wasmSoundParameters.SoundCommand == SoundCommand.ChangePulseWidth)
+        {
+            if (voiceContext.PulseWidthGainNode == null) return;
+            if (voiceContext.PulseOscillator == null) return;
+
+            ChangePulseWidth(voiceContext, wasmSoundParameters, currentTime);
         }
     }
 
@@ -403,7 +515,10 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
 
     private void ChangeFrequency(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters, double changeTime)
     {
-        var frequencyAudioParam = voiceContext.Oscillator!.GetFrequency();
+        AudioParamSync frequencyAudioParam = voiceContext.PulseOscillator != null
+            ? voiceContext.PulseOscillator!.GetFrequency()
+            : voiceContext.Oscillator!.GetFrequency();
+
         // Check if the frequency of the actual oscillator is different from the new frequency
         // TODO: Is this necessary to check? Could the frequency have been changed in other way?
         var currentFrequencyValue = frequencyAudioParam.GetCurrentValue();
@@ -411,6 +526,20 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
         {
             AddDebugMessage($"Changing freq on voice {voiceContext.Voice} to {wasmSoundParameters.Frequency}.");
             frequencyAudioParam.SetValueAtTime(wasmSoundParameters.Frequency, changeTime);
+        }
+    }
+
+    private void ChangePulseWidth(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters, double changeTime)
+    {
+        var widthDepthGainNodeAudioParam = voiceContext.PulseWidthGainNode!.GetGain();
+
+        // Check if the pulse width of the actual oscillator is different from the new frequency
+        // TODO: Is this necessary to check? Could the pulse width have been changed in other way?
+        var currentPulseWidthValue = widthDepthGainNodeAudioParam.GetCurrentValue();
+        if (currentPulseWidthValue != wasmSoundParameters.PulseWidth)
+        {
+            AddDebugMessage($"Changing pulse width on voice {voiceContext.Voice} to {wasmSoundParameters.PulseWidth}.");
+            widthDepthGainNodeAudioParam.SetValueAtTime(wasmSoundParameters.PulseWidth, changeTime);
         }
     }
 

@@ -16,12 +16,18 @@ public class WaveShaperNodeSync : AudioNodeSync
 
     public float[] GetCurve()
     {
-        return WebAudioHelper.Invoke<float[]>("getAttribute", JSReference, "curve");
+        return WebAudioHelper.Invoke<float[]>("getAttributeFloat32Array", JSReference, "curve");
     }
 
+    /// <summary>
+    /// </summary>
+    /// <param name="curve"></param>
     public void SetCurve(float[] curve)
     {
-        WebAudioHelper.InvokeVoid("setAttribute", JSReference, new object[2] { "curve", curve });
+        // Curve should be a float array, but Blazor JS interop only handles double[].
+        var curveDouble = curve.Select(c => (double)c).ToArray();
+        // Also, we must call a special JS function to converts the array to Float32Array in JS.
+        WebAudioHelper.InvokeVoid("setAttributeFloat32Array", JSReference, "curve", curveDouble);
     }
 
     // TODO: Oversample

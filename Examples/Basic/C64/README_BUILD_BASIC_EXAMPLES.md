@@ -8,4 +8,6 @@ $PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
 & $PETCAT_APP -w2 -o "Build\PlaySound1b.prg" -- "PlaySound1b.txt"
 & $PETCAT_APP -w2 -o "Build\PlaySound2.prg" -- "PlaySound2.txt"
 & $PETCAT_APP -w2 -o "Build\PlaySound3.prg" -- "PlaySound3.txt"
+
+& $PETCAT_APP -w2 -o "Build\PlaySoundPulseLab.prg" -- "PlaySoundPulseLab.txt"
 ´´´

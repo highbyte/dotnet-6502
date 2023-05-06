@@ -29,7 +29,18 @@ export function constructWaveShaperNode(context, options = null) {
 // DOM
 // ----------
 //export function getAttribute(object, attribute) { return object[attribute]; }
+
+export function getAttributeFloat32Array(object, attribute) {
+    var float32Array = object[attribute];
+    return Array.from(float32Array);
+}
+
 export function setAttribute(object, attribute, value) { object[attribute] = value; }
+
+export function setAttributeFloat32Array(object, attribute, value) {
+    var float32array = new Float32Array(value);
+    object[attribute] = float32array;
+}
 
 export function getJSReference(element) { return element.valueOf(); }
 

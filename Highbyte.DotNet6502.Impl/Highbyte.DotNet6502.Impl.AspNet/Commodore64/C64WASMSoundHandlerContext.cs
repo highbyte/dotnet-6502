@@ -40,11 +40,16 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
         private readonly byte _voice;
         public byte Voice => _voice;
         public SoundStatus Status = SoundStatus.Stopped;
-        public OscillatorNodeSync? Oscillator;
         public GainNodeSync? GainNode;
+
+        public OscillatorNodeSync? Oscillator;
+
+        public CustomPulseOscillatorNodeSync? PulseOscillator;
+        public GainNodeSync? PulseWidthGainNode;
 
         private readonly SemaphoreSlim _semaphoreSlim = new(1);
         public SemaphoreSlim SemaphoreSlim => _semaphoreSlim;
+
 
         public C64WASMVoiceContext(byte voice)
         {
@@ -53,9 +58,39 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 
         public void Init()
         {
-            Status = SoundStatus.Stopped;
             Oscillator = null;
+            PulseOscillator = null;
             GainNode = null;
+            PulseWidthGainNode = null;
+            Status = SoundStatus.Stopped;
+        }
+
+        public void Stop()
+        {
+            if (Oscillator != null)
+            {
+                Oscillator.Stop();
+                Oscillator.Disconnect();
+                Oscillator = null;
+            }
+            if (PulseOscillator != null)
+            {
+                PulseOscillator.Stop();
+                PulseOscillator.Disconnect();
+                PulseOscillator = null;
+            }
+            if (GainNode != null)
+            {
+                GainNode.Disconnect();
+                GainNode = null;
+            }
+            if (PulseWidthGainNode != null)
+            {
+                PulseWidthGainNode.Disconnect();
+                PulseWidthGainNode = null;
+            }
+
+            Status = SoundStatus.Stopped;
         }
     }
 }
