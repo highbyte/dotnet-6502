@@ -12,8 +12,8 @@ public class OscillatorOptions
     public float Detune { get; set; } = 0;
 
     // Note: Set PeriodicWave using OscillatorNodeSync.SetPeriodicWave(wave) instead
-    ///// <summary>
-    ///// PeriodicWave is used when Type is set to Custom.
-    ///// </summary>
-    //public PeriodicWaveSync? PeriodicWave { get; set; }
+    /// <summary>
+    /// PeriodicWave is used when Type is set to Custom.
+    /// </summary>
+    public PeriodicWaveSync? PeriodicWave { get; set; }
 }

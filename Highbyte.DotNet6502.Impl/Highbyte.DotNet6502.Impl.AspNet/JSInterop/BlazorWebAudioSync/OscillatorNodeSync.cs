@@ -21,14 +21,27 @@ public class OscillatorNodeSync : AudioScheduledSourceNodeSync
         }
         else
         {
-            var args = new
+            if (options.PeriodicWave == null)
             {
-                type = options!.Type.AsString(),
-                frequency = options!.Frequency,
-                detune = options!.Detune
-                //periperiodicWave = options!.PeriodicWave! != null ? options!.PeriodicWave.JSReference : null
-            };
-            jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOcillatorNode", context.JSReference, args);
+                var args = new
+                {
+                    type = options!.Type.AsString(),
+                    frequency = options!.Frequency,
+                    detune = options!.Detune,
+                };
+                jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOcillatorNode", context.JSReference, args);
+            }
+            else
+            {
+                var args = new
+                {
+                    type = options!.Type.AsString(),
+                    frequency = options!.Frequency,
+                    detune = options!.Detune,
+                    periodicWave = options!.PeriodicWave.JSReference
+                };
+                jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOcillatorNode", context.JSReference, args);
+            }
         }
 
         return new OscillatorNodeSync(helper, jSRuntime, jSInstance);

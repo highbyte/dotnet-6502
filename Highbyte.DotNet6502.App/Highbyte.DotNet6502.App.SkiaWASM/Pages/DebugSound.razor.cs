@@ -1,5 +1,8 @@
+using System;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
+using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.WaveTables;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
@@ -73,7 +76,7 @@ public partial class DebugSound
             _oscillator!.Stop(endTime!.Value);
     }
 
-    protected void StartSoundCustomPeriodicWave(MouseEventArgs mouseEventArgs)
+    protected void StartSoundPeriodicWave(MouseEventArgs mouseEventArgs)
     {
         var currentTime = _audioContext.GetCurrentTime();
 
@@ -81,20 +84,16 @@ public partial class DebugSound
 
         AudioDestinationNodeSync destination = _audioContext.GetDestination();
 
-        float[] real = new float[2] { 0, 1 };
-        float[] imag = new float[2] { 0, 0 };
-        PeriodicWaveSync wave = _audioContext.CreatePeriodicWave(real, imag);
+        // Note: the "Noise" wavetable example is NOT white noise
+        PeriodicWaveSync wave = _audioContext.CreatePeriodicWave(Noise.Real, Noise.Imag);
 
         OscillatorOptions oscillatorOptions = new()
         {
-            //Type = OscillatorType.Custom, // Not working currently 
-            //Type = OscillatorType.Sine,  // Default Sine if not specified, changed to custom below by OscillatorNodeSync.SetPeriodicWave(wave)
-            // Frequency = (float)Frequency(octave, pitch)
+            Type = OscillatorType.Custom, // Not working currently 
             Frequency = _oscFrequency,
-            //PeriodicWave = wave  // Not working currently, use OscillatorNodeSync.SetPeriodicWave(wave) instead
+            PeriodicWave = wave 
         };
         _oscillator = OscillatorNodeSync.Create(Js, _audioContext, oscillatorOptions);
-        _oscillator.SetPeriodicWave(wave);
 
         // Gain node for oscillator volume
         _ampGainNode = GainNodeSync.Create(Js, _audioContext);
@@ -114,6 +113,42 @@ public partial class DebugSound
         _oscillator.Start();
         if (_automaticRelease)
             _oscillator!.Stop(endTime!.Value);
+    }
+
+    protected void StartSoundWhiteNoise(MouseEventArgs mouseEventArgs)
+    {
+        StopAllSoundNow(mouseEventArgs);
+        var currentTime = _audioContext.GetCurrentTime();
+        AudioDestinationNodeSync destination = _audioContext.GetDestination();
+
+        int noiseDuration = 2;
+
+        var sampleRate = _audioContext.GetSampleRate();
+        int bufferSize = (int)(sampleRate * noiseDuration);
+        // Create an empty buffer
+        var noiseBuffer = AudioBufferSync.Create(
+            _audioContext.WebAudioHelper,
+            _audioContext.JSRuntime,
+            new AudioBufferOptions
+            {
+                Length = bufferSize,
+                SampleRate = sampleRate,
+            });
+
+        var data = noiseBuffer.GetChannelData(0);
+        var random = new Random();
+        for (var i = 0; i < bufferSize; i++)
+        {
+            data[i] = ((float)random.NextDouble()) * 2 - 1;
+        }
+
+        var noise = AudioBufferSourceNodeSync.Create(
+            Js,
+            _audioContext,
+            new AudioBufferSourceNodeOptions
+            {
+                Buffer = noiseBuffer
+            });
     }
 
     protected void StartSoundPulse(MouseEventArgs mouseEventArgs)

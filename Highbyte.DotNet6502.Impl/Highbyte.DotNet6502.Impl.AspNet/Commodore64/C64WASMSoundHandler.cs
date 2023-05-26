@@ -218,7 +218,7 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
 
     private PeriodicWaveOptions GetPeriodicWaveNoiseOptions(C64WASMVoiceContext voiceContext, InternalSidState sidState)
     {
-        // TODO
+        // TODO: Can a PeriodicWave really be use to create white noise?
         float[] real = new float[2] { 0, 1 };
         float[] imag = new float[2] { 0, 0 };
         return new PeriodicWaveOptions
@@ -337,34 +337,16 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
                 voiceContext.Status = SoundStatus.Stopped;
             });
 
-
             if (wasmSoundParameters.Type == OscillatorType.Custom && wasmSoundParameters.SpecialType == OscillatorSpecialType.Noise)
             {
                 voiceContext.PulseOscillator = null;
 
-                // Use standard WebAudio Oscialltor with custom waveform for random noise.
-                voiceContext.Oscillator = OscillatorNodeSync.Create(
-                    _soundHandlerContext!.JSRuntime,
-                    _soundHandlerContext.AudioContext,
-                    new()
-                    {
-                        Frequency = wasmSoundParameters.Frequency,
-                    });
+                // TODO: investigate these for noise generation
+                //       https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques#the_noise_%E2%80%94_random_noise_buffer_with_a_biquad_filter
+                //       https://ui.dev/web-audio-api
+                //       https://codepen.io/2kool2/pen/xrLeMq
+                //       https://dev.opera.com/articles/drum-sounds-webaudio/
 
-                var wave = _soundHandlerContext.AudioContext.CreatePeriodicWave(
-                    wasmSoundParameters.PeriodicWaveOptions!.Real,
-                    wasmSoundParameters.PeriodicWaveOptions!.Imag);
-
-                voiceContext.Oscillator.SetPeriodicWave(wave);
-
-                // Set callback on Oscillator
-                voiceContext.Oscillator.AddEndedEventListsner(callback);
-
-                // Associate volume gain with Oscillator
-                voiceContext.Oscillator.Connect(voiceContext.GainNode);
-
-                AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with freq {wasmSoundParameters.Frequency} with type {wasmSoundParameters.Type}");
-                voiceContext.Oscillator.Start();
             }
 
             else if (wasmSoundParameters.Type is null && wasmSoundParameters.SpecialType == OscillatorSpecialType.Pulse)

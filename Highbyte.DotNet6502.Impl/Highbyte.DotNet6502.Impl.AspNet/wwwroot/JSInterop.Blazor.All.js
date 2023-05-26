@@ -16,7 +16,7 @@ export function constructGainNode(context, options = null) {
     return new GainNode(context, options);
 }
 
-export function createPeriodicWave(context, options = null) {
+export function constructPeriodicWave(context, options = null) {
     return new PeriodicWave(context, options);
 }
 
@@ -24,6 +24,9 @@ export function constructWaveShaperNode(context, options = null) {
     return new WaveShaperNode(context, options);
 }
 
+export function constructAudioBuffer(options = null) {
+    return new AudioBuffer(options);
+}
 
 // ----------
 // DOM
@@ -40,6 +43,16 @@ export function setAttribute(object, attribute, value) { object[attribute] = val
 export function setAttributeFloat32Array(object, attribute, value) {
     var float32array = new Float32Array(value);
     object[attribute] = float32array;
+}
+
+export function callMethodReturnFloat32Array(object, method, args) {
+    var float32Array = object[method](args);
+    return Array.from(float32Array);
+}
+
+export function callMethodVoidFloat32Array(object, method, floatArray, args) {
+    var float32Array = new Float32Array(floatArray);
+    object[method](float32Array, args);
 }
 
 export function getJSReference(element) { return element.valueOf(); }

@@ -19,10 +19,13 @@ public class BaseAudioContextSync : EventTargetSync
 
     public AudioDestinationNodeSync GetDestination()
     {
-        //var helperVal = helper.Value;
-        var helperVal = _helper;
-        var jSIntance = helperVal.Invoke<IJSInProcessObjectReference>("getAttribute", JSReference, "destination");
+        var jSIntance = WebAudioHelper.Invoke<IJSInProcessObjectReference>("getAttribute", JSReference, "destination");
         return AudioDestinationNodeSync.Create(_helper, JSRuntime, jSIntance);
+    }
+
+    public float GetSampleRate()
+    {
+        return WebAudioHelper.Invoke<float>("getAttribute", JSReference, "sampleRate");
     }
 
     public PeriodicWaveSync CreatePeriodicWave(float[] real, float[] imag, PeriodicWaveConstraints? constraints = null)
@@ -36,6 +39,5 @@ public class BaseAudioContextSync : EventTargetSync
             options.DisableNormalization = constraints.DisableNormalization;
 
         return PeriodicWaveSync.Create(JSRuntime, this, options);
-
     }
 }
