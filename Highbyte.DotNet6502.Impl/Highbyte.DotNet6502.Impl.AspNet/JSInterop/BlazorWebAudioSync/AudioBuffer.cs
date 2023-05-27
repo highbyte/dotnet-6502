@@ -16,14 +16,19 @@ public class AudioBufferSync : BaseJSWrapperSync
     {
     }
 
-    public float[] GetChannelData(int channel)
+    //public float[] GetChannelData(int channel)
+    //{
+    //    return _helper.Invoke<float[]>("callMethodReturnFloat32Array", JSReference, "getChannelData", channel);
+    //}
+
+    public Float32ArraySync GetChannelData(int channel)
     {
-        return _helper.Invoke<float[]>("callMethodReturnFloat32Array", JSReference, "getChannelData", channel);
+        var jSIntance = _helper.Invoke<IJSInProcessObjectReference>("callMethod", JSReference, "getChannelData", channel);
+        return Float32ArraySync.Create(_helper, JSRuntime, jSIntance);
     }
 
-    public void CopyToChannel(float[] source, int channel, int startInChannel)
-    {
-        JSReference.InvokeVoid("copyToChannel", JSReference, "getChannelData", channel);
-    }
-
+    //public void CopyToChannel(Float32Array source, int channel, int startInChannel)
+    //{
+    //    _helper.Invoke<IJSInProcessObjectReference>("callMethod", JSReference, "copyToChannel", source, channel, startInChannel);
+    //}
 }

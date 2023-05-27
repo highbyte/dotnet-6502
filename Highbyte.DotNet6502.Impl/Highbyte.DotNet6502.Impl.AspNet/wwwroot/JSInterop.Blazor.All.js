@@ -2,7 +2,7 @@
 // ----------
 // WebAudio
 // ----------
-export function getAttribute(object, attribute) { return object[attribute]; }
+//export function getAttribute(object, attribute) { return object[attribute]; }
 
 export function constructAudioContext(contextOptions = null) {
     return new AudioContext(contextOptions)
@@ -28,32 +28,17 @@ export function constructAudioBuffer(options = null) {
     return new AudioBuffer(options);
 }
 
+export function constructAudioBufferSourceNode(context, options = null) {
+    return new AudioBufferSourceNode(context, options);
+}
+
+
 // ----------
 // DOM
 // ----------
 //export function getAttribute(object, attribute) { return object[attribute]; }
 
-export function getAttributeFloat32Array(object, attribute) {
-    var float32Array = object[attribute];
-    return Array.from(float32Array);
-}
-
-export function setAttribute(object, attribute, value) { object[attribute] = value; }
-
-export function setAttributeFloat32Array(object, attribute, value) {
-    var float32array = new Float32Array(value);
-    object[attribute] = float32array;
-}
-
-export function callMethodReturnFloat32Array(object, method, args) {
-    var float32Array = object[method](args);
-    return Array.from(float32Array);
-}
-
-export function callMethodVoidFloat32Array(object, method, floatArray, args) {
-    var float32Array = new Float32Array(floatArray);
-    object[method](float32Array, args);
-}
+// export function setAttribute(object, attribute, value) { object[attribute] = value; }
 
 export function getJSReference(element) { return element.valueOf(); }
 
@@ -109,4 +94,38 @@ export function valuePropertiesType(obj) {
 
 export function valuePropertiesValue(obj) {
     return obj.value;
+}
+
+// ----------
+// Common helpers and built-in JavaScript types
+// ----------
+export function getAttribute(object, attribute) { return object[attribute]; }
+export function setAttribute(object, attribute, value) { object[attribute] = value; }
+export function callMethod(object, method, args) { return object[method](args); }
+
+export function getArrayValue(object, index) { return object[index]; }
+export function setArrayValue(object, index, value) { object[index] = value; }
+
+export function constructFloat32Array() {
+    return new Float32Array();
+}
+
+export function getAttributeFloat32Array(object, attribute) {
+    var float32Array = object[attribute];
+    return Array.from(float32Array);
+}
+
+export function setAttributeFloat32Array(object, attribute, value) {
+    var float32array = new Float32Array(value);
+    object[attribute] = float32array;
+}
+
+export function callMethodReturnFloat32Array(object, method, args) {
+    var float32Array = object[method](args);
+    return Array.from(float32Array);
+}
+
+export function callMethodVoidFloat32Array(object, method, floatArray, args) {
+    var float32Array = new Float32Array(floatArray);
+    object[method](float32Array, args);
 }

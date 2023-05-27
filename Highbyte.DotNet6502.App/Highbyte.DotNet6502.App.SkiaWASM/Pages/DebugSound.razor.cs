@@ -121,7 +121,7 @@ public partial class DebugSound
         var currentTime = _audioContext.GetCurrentTime();
         AudioDestinationNodeSync destination = _audioContext.GetDestination();
 
-        int noiseDuration = 2;
+        float noiseDuration = 1.0f;  // Seconds
 
         var sampleRate = _audioContext.GetSampleRate();
         int bufferSize = (int)(sampleRate * noiseDuration);
@@ -149,6 +149,10 @@ public partial class DebugSound
             {
                 Buffer = noiseBuffer
             });
+
+        //noise.Connect(bandpass).Connect(destination);
+        noise.Connect(destination);
+        noise.Start(currentTime);
     }
 
     protected void StartSoundPulse(MouseEventArgs mouseEventArgs)
