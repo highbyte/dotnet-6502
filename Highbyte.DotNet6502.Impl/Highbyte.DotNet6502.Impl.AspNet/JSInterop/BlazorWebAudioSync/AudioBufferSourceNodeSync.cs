@@ -49,4 +49,10 @@ public class AudioBufferSourceNodeSync : AudioScheduledSourceNodeSync
     protected AudioBufferSourceNodeSync(IJSInProcessObjectReference helper, IJSRuntime jSRuntime, IJSInProcessObjectReference jSReference) : base(helper, jSRuntime, jSReference)
     {
     }
+
+    public AudioParamSync GetPlaybackRate()
+    {
+        var jSInstance = WebAudioHelper.Invoke<IJSInProcessObjectReference>("getAttribute", JSReference, "playbackRate");
+        return AudioParamSync.Create(_helper, JSRuntime, jSInstance);
+    }
 }

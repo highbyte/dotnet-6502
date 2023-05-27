@@ -8,7 +8,7 @@ export function constructAudioContext(contextOptions = null) {
     return new AudioContext(contextOptions)
 }
 
-export function constructOcillatorNode(context, options = null) {
+export function constructOscillatorNode(context, options = null) {
     return new OscillatorNode(context, options);
 }
 

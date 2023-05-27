@@ -97,7 +97,7 @@ public class InternalSidState
         if (vcregVal.IsBitSet(6))
             return SidVoiceWaveForm.Pulse;
         if (vcregVal.IsBitSet(7))
-            return SidVoiceWaveForm.Pulse;
+            return SidVoiceWaveForm.RandomNoise;
         return SidVoiceWaveForm.None;
     }
 

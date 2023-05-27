@@ -24,7 +24,7 @@ $ACME_APP = "c:\Users\highb\Documents\C64\ACME\acme.exe"
 ´´´
 
 ´´´ pwsh
-cd C64/Music
+cd C64/Audio
 $ACME_APP = "c:\Users\highb\Documents\C64\ACME\acme.exe"
 & $ACME_APP -f cbm -o build\irqmusplr.prg -r build\irqmusplr.report --vicelabels build\irqmusplr.labels irqmusplr.asm
 ´´´

@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorDOMSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
+using Highbyte.DotNet6502.Instructions;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 
@@ -145,7 +146,7 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
             SpecialType = oscillatorSpecialType,
 
             // PeriodicWave used for SID pulse and random noise wave forms (mapped to WebAudio OscillatorType.Custom)
-            PeriodicWaveOptions = (oscillatorSpecialType.HasValue && oscillatorSpecialType.Value == OscillatorSpecialType.Noise) ? GetPeriodicWaveNoiseOptions(voiceContext, sidState) : null,
+            //PeriodicWaveOptions = (oscillatorSpecialType.HasValue && oscillatorSpecialType.Value == OscillatorSpecialType.Noise) ? GetPeriodicWaveNoiseOptions(voiceContext, sidState) : null,
 
             // Translate SID volume 0-15 to Gain 0.0-1.0
             // SID volume in lower 4 bits of SIGVOL register.
@@ -153,7 +154,8 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
 
             // Translate SID frequency (0 - 65536) to actual frequency number
             // Frequency = (REGISTER VALUE * CLOCK / 16777216) Hz
-            // where CLOCK equals the system clock frequency, 1022730 for American (NTSC)systems, 985250 for European(PAL)
+            // where CLOCK equals the system clock frequency, 1022730 for American (NTSC)systems, 985250 for European(PAL).
+            // Range 0 Hz to about 4000 Hz.
             Frequency = sidState.GetFrequency(voice) * clockSpeed / 16777216.0f,
 
             // Translate 12 bit Pulse width (0 - 4095) to percentage
@@ -200,8 +202,7 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
             SidVoiceWaveForm.Sawtooth => OscillatorType.Sawtooth,
 
             SidVoiceWaveForm.Pulse => null, // See oscillatorCustomType
-            // Note: You never set oscialltor type to custom manually; instead, use the setPeriodicWave() method to provide the data representing the waveform. Doing so automatically sets the type to custom.
-            SidVoiceWaveForm.RandomNoise => OscillatorType.Custom,
+            SidVoiceWaveForm.RandomNoise => null, // See oscillatorCustomType
 
             SidVoiceWaveForm.None => null,
             _ => null
@@ -210,23 +211,23 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
         oscillatorCustomType = sidWaveForm switch
         {
             SidVoiceWaveForm.Pulse => OscillatorSpecialType.Pulse,   // Special CustomPulseOcillatorNode
-            SidVoiceWaveForm.RandomNoise => OscillatorSpecialType.Noise, // Standard WebAudio OscillatorNode with type Custom, and PeriodicWave.
+            SidVoiceWaveForm.RandomNoise => OscillatorSpecialType.Noise, // Special AudioBuffer with random values (noise).
             _ => null
         };
         return oscillatorType;
     }
 
-    private PeriodicWaveOptions GetPeriodicWaveNoiseOptions(C64WASMVoiceContext voiceContext, InternalSidState sidState)
-    {
-        // TODO: Can a PeriodicWave really be use to create white noise?
-        float[] real = new float[2] { 0, 1 };
-        float[] imag = new float[2] { 0, 0 };
-        return new PeriodicWaveOptions
-        {
-            Real = real,
-            Imag = imag,
-        };
-    }
+    //private PeriodicWaveOptions GetPeriodicWaveNoiseOptions(C64WASMVoiceContext voiceContext, InternalSidState sidState)
+    //{
+    //    // TODO: Can a PeriodicWave really be use to create white noise?
+    //    float[] real = new float[2] { 0, 1 };
+    //    float[] imag = new float[2] { 0, 0 };
+    //    return new PeriodicWaveOptions
+    //    {
+    //        Real = real,
+    //        Imag = imag,
+    //    };
+    //}
 
     private SoundCommand GetSoundCommand(C64WASMVoiceContext voiceContext, InternalSidState sidState)
     {
@@ -337,21 +338,38 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
                 voiceContext.Status = SoundStatus.Stopped;
             });
 
-            if (wasmSoundParameters.Type == OscillatorType.Custom && wasmSoundParameters.SpecialType == OscillatorSpecialType.Noise)
+            if (wasmSoundParameters.Type is null && wasmSoundParameters.SpecialType == OscillatorSpecialType.Noise)
             {
+                voiceContext.Oscillator = null;
                 voiceContext.PulseOscillator = null;
 
-                // TODO: investigate these for noise generation
-                //       https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques#the_noise_%E2%80%94_random_noise_buffer_with_a_biquad_filter
-                //       https://ui.dev/web-audio-api
-                //       https://codepen.io/2kool2/pen/xrLeMq
-                //       https://dev.opera.com/articles/drum-sounds-webaudio/
+                // Hack: Set noise buffer sample playback rate to simulate change in noise frequency in SID.
+                float playbackRate = GetPlaybackRateFromFrequency(wasmSoundParameters.Frequency);
 
+                // Use AudioBufferSourceNode for noise generation
+                voiceContext.NoiseGenerator = AudioBufferSourceNodeSync.Create(
+                    _soundHandlerContext.JSRuntime,
+                    _soundHandlerContext.AudioContext,
+                    new AudioBufferSourceNodeOptions
+                    {
+                        PlaybackRate = playbackRate,    // Factor of sample rate. 1.0 = same speed as original.
+                        Loop = true,
+                        Buffer = _soundHandlerContext.NoiseBuffer
+                    }
+                );
+                voiceContext.NoiseGenerator.AddEndedEventListsner(callback);
+                voiceContext.NoiseGenerator.Connect(voiceContext.GainNode);
+
+                AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with special type {wasmSoundParameters.SpecialType}");
+                voiceContext.NoiseGenerator.Start();
             }
 
             else if (wasmSoundParameters.Type is null && wasmSoundParameters.SpecialType == OscillatorSpecialType.Pulse)
             {
-                // Use custom PulseOscialltor for pulse wave
+                voiceContext.Oscillator = null;
+                voiceContext.NoiseGenerator = null;
+
+                // Use custom PulseOscillator for pulse wave
                 voiceContext.PulseOscillator = CustomPulseOscillatorNodeSync.Create(
                     _soundHandlerContext!.JSRuntime,
                     _soundHandlerContext.AudioContext,
@@ -389,7 +407,7 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
                 //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth * oscWidthSustain, widthDepthSustainTime);
                 //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0, oscWidthSustain + oscWidthRelease);
 
-                // Low frequency oscillator, use as base for Pulse Oscilator.
+                // Low frequency oscillator, use as base for Pulse Oscillator.
                 // The Pulse Oscillator will transform the Triangle wave to a Square wave in the end.
                 voiceContext.Oscillator = OscillatorNodeSync.Create(
                      _soundHandlerContext!.JSRuntime,
@@ -416,8 +434,9 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
             else
             {
                 voiceContext.PulseOscillator = null;
+                voiceContext.NoiseGenerator = null;
 
-                // Use WebAudio Oscialltor with Triangle or Sawtooth waveforms.
+                // Use WebAudio Oscillator with Triangle or Sawtooth waveforms.
                 voiceContext.Oscillator = OscillatorNodeSync.Create(
                     _soundHandlerContext!.JSRuntime,
                     _soundHandlerContext.AudioContext,
@@ -453,9 +472,10 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
 
             AddDebugMessage($"Stopping sound on voice {voiceContext.Voice} at time now + {wasmSoundParameters.ReleaseDurationSeconds} seconds.");
 
-            // Schedule Stop for oscillator when the Release period if over
+            // Schedule Stop for oscillator and other audio sources) when the Release period if over
             voiceContext.Oscillator?.Stop(currentTime + wasmSoundParameters.ReleaseDurationSeconds);
             voiceContext.PulseOscillator?.Stop(currentTime + wasmSoundParameters.ReleaseDurationSeconds);
+            voiceContext.NoiseGenerator?.Stop(currentTime + wasmSoundParameters.ReleaseDurationSeconds);
 
             voiceContext.Status = SoundStatus.ReleaseCycleStarted;
         }
@@ -468,9 +488,14 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
         else if (wasmSoundParameters.SoundCommand == SoundCommand.ChangeFrequency)
         {
             if (voiceContext.GainNode == null) return;
-            if (voiceContext.Oscillator == null && voiceContext.PulseOscillator == null) return;
-
-            ChangeFrequency(voiceContext, wasmSoundParameters, currentTime);
+            if (voiceContext.Oscillator is not null || voiceContext.PulseOscillator is not null)
+            {
+                ChangeFrequencyOscillator(voiceContext, wasmSoundParameters, currentTime);
+            }
+            else if (voiceContext.NoiseGenerator is not null)
+            {
+                ChangeFrequencyAudioSample(voiceContext, wasmSoundParameters, currentTime);
+            }
         }
         else if (wasmSoundParameters.SoundCommand == SoundCommand.ChangePulseWidth)
         {
@@ -495,7 +520,7 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
         }
     }
 
-    private void ChangeFrequency(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters, double changeTime)
+    private void ChangeFrequencyOscillator(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters, double changeTime)
     {
         AudioParamSync frequencyAudioParam = voiceContext.PulseOscillator != null
             ? voiceContext.PulseOscillator!.GetFrequency()
@@ -509,6 +534,34 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
             AddDebugMessage($"Changing freq on voice {voiceContext.Voice} to {wasmSoundParameters.Frequency}.");
             frequencyAudioParam.SetValueAtTime(wasmSoundParameters.Frequency, changeTime);
         }
+    }
+
+    private void ChangeFrequencyAudioSample(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters, double changeTime)
+    {
+        if (voiceContext.NoiseGenerator == null) return;
+        AudioParamSync playbackRateAudioParam = voiceContext.NoiseGenerator.GetPlaybackRate();
+
+        // Hack: Set noise buffer sample playback rate to simulate change in noise frequency in SID.
+        var playbackRate = GetPlaybackRateFromFrequency(wasmSoundParameters.Frequency);
+
+        // Check if the playback rate of the actual audio buffer source is different from the new rate
+        // TODO: Is this necessary to check? Could the rate have been changed in other way?
+        var currentPlaybackRateValue = playbackRateAudioParam.GetCurrentValue();
+        if (currentPlaybackRateValue != playbackRate)
+        {
+            AddDebugMessage($"Changing playback rate on voice {voiceContext.Voice} to {playbackRate} based on freq {wasmSoundParameters.Frequency}");
+            playbackRateAudioParam.SetValueAtTime(playbackRate, changeTime);
+        }
+    }
+
+    private float GetPlaybackRateFromFrequency(float frequency)
+    {
+        const float playbackRateMin = 0.0f; // Should be used for the minimum SID frequency ( 0 Hz)
+        const float playbackRateMax = 1.0f; // Should be used for the maximum SID frequency ( ca 4000 Hz)
+        const float sidFreqMin = 0;
+        const float sidFreqMax = 4000;
+        float playbackRate = playbackRateMin + (float)(frequency - sidFreqMin) / (sidFreqMax - sidFreqMin) * (playbackRateMax - playbackRateMin);
+        return playbackRate;
     }
 
     private void ChangePulseWidth(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters, double changeTime)

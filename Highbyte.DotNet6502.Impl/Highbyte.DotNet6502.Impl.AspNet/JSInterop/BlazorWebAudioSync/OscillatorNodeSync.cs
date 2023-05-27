@@ -17,7 +17,7 @@ public class OscillatorNodeSync : AudioScheduledSourceNodeSync
         IJSInProcessObjectReference jSInstance;
         if (options is null)
         {
-            jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOcillatorNode", context.JSReference);
+            jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOscillatorNode", context.JSReference);
         }
         else
         {
@@ -29,7 +29,7 @@ public class OscillatorNodeSync : AudioScheduledSourceNodeSync
                     frequency = options!.Frequency,
                     detune = options!.Detune,
                 };
-                jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOcillatorNode", context.JSReference, args);
+                jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOscillatorNode", context.JSReference, args);
             }
             else
             {
@@ -40,7 +40,7 @@ public class OscillatorNodeSync : AudioScheduledSourceNodeSync
                     detune = options!.Detune,
                     periodicWave = options!.PeriodicWave.JSReference
                 };
-                jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOcillatorNode", context.JSReference, args);
+                jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOscillatorNode", context.JSReference, args);
             }
         }
 

@@ -8,10 +8,10 @@ namespace Highbyte.DotNet6502.Impl.AspNet
         public OscillatorType? Type { get; set; }
         public OscillatorSpecialType? SpecialType { get; set; }
 
-        /// <summary>
-        /// Used when Type is set to OscillatorType.Custom and SpecialType is set to OscillatorSpecialType.Noise.
-        /// </summary>
-        public PeriodicWaveOptions? PeriodicWaveOptions { get; internal set; }
+        ///// <summary>
+        ///// Used when Type is set to OscillatorType.Custom and SpecialType is set to OscillatorSpecialType.Noise.
+        ///// </summary>
+        //public PeriodicWaveOptions? PeriodicWaveOptions { get; internal set; }
 
         /// <summary>
         /// Used when Type is set to OscillatorType.Custom and SpecialType is set to OscillatorSpecialType.Pulse.

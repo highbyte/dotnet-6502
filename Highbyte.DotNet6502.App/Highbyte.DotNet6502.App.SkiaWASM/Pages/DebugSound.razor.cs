@@ -15,6 +15,9 @@ public partial class DebugSound
     GainNodeSync? _ampGainNode;
     GainNodeSync? _widthDepthGainNode;
 
+    AudioBufferSync? _noiseBuffer;
+    AudioBufferSourceNodeSync _noiseAudioBufferSourceNode;
+
     // Input
     int _oscFrequency = 110;
 
@@ -30,11 +33,15 @@ public partial class DebugSound
 
     float _pulseWidth = 0;
 
+    float _noiseSpeed = 1.0f;
+
     private readonly SemaphoreSlim _semaphoreSlim = new(1);
 
     protected override async Task OnInitializedAsync()
     {
         _audioContext = await AudioContextSync.CreateAsync(Js);
+
+        InitWhiteNoiseBuffer();
     }
 
     protected void StartSound(MouseEventArgs mouseEventArgs)
@@ -122,12 +129,49 @@ public partial class DebugSound
         var currentTime = _audioContext.GetCurrentTime();
         AudioDestinationNodeSync destination = _audioContext.GetDestination();
 
+        // Gain node for oscillator volume
+        _ampGainNode = GainNodeSync.Create(Js, _audioContext);
+        _ampGainNode.Connect(destination);
+
+        var audioParam = _ampGainNode.GetGain();
+        // Attack -> Decay -> Sustain -> Release
+        SetADSR(audioParam, currentTime, out double? endTime,
+            _ampGain,
+            _ampAttack,
+            _ampDecay,
+            _ampSustain,
+            _ampRelease,
+            _automaticRelease);
+
+        _noiseAudioBufferSourceNode = AudioBufferSourceNodeSync.Create(
+            Js,
+            _audioContext,
+            new AudioBufferSourceNodeOptions
+            {
+                PlaybackRate = _noiseSpeed, // Ex: 0.5 = half speed, 2.0 = double speed
+                Loop = true,
+                Buffer = _noiseBuffer
+            });
+
+        //_noiseAudioBufferSourceNode.Connect(bandpass).Connect(_ampGainNode);
+        _noiseAudioBufferSourceNode.Connect(_ampGainNode);
+        _noiseAudioBufferSourceNode.Start(currentTime);
+    }
+
+    protected void ChangeSoundWhiteNoiseSpeed(MouseEventArgs mouseEventArgs)
+    {
+        var playbackRateParam = _noiseAudioBufferSourceNode.GetPlaybackRate();
+        playbackRateParam.SetValueAtTime(_noiseSpeed, _audioContext.GetCurrentTime());
+    }
+
+    private void InitWhiteNoiseBuffer()
+    {
         float noiseDuration = 1.0f;  // Seconds
 
         var sampleRate = _audioContext.GetSampleRate();
         int bufferSize = (int)(sampleRate * noiseDuration);
         // Create an empty buffer
-        var noiseBuffer = AudioBufferSync.Create(
+        _noiseBuffer = AudioBufferSync.Create(
             _audioContext.WebAudioHelper,
             _audioContext.JSRuntime,
             new AudioBufferOptions
@@ -152,20 +196,9 @@ public partial class DebugSound
             values[i] = ((float)random.NextDouble()) * 2 - 1;
         }
         var data = Float32ArraySync.Create(_audioContext.WebAudioHelper, _audioContext.JSRuntime, values);
-        noiseBuffer.CopyToChannel(data, 0);
-
-        var noise = AudioBufferSourceNodeSync.Create(
-            Js,
-            _audioContext,
-            new AudioBufferSourceNodeOptions
-            {
-                Buffer = noiseBuffer
-            });
-
-        //noise.Connect(bandpass).Connect(destination);
-        noise.Connect(destination);
-        noise.Start(currentTime);
+        _noiseBuffer.CopyToChannel(data, 0);
     }
+
 
     protected void StartSoundPulse(MouseEventArgs mouseEventArgs)
     {

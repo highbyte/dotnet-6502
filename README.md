@@ -70,6 +70,9 @@ For requirements and local development setup, see [here](DEVELOP.md)
 - https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques
 - https://github.com/pendragon-andyh/WebAudio-PulseOscillator
 - https://github.com/KristofferStrube/Blazor.WebAudio
+- https://ui.dev/web-audio-api
+- https://codepen.io/2kool2/pen/xrLeMq
+- https://dev.opera.com/articles/drum-sounds-webaudio/
 
 ## Test programs
 - http://visual6502.org/wiki/index.php?title=6502TestPrograms

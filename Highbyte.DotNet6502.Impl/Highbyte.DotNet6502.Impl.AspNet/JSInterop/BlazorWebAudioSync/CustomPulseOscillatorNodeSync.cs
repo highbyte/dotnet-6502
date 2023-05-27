@@ -80,7 +80,7 @@ public class CustomPulseOscillatorNodeSync : AudioScheduledSourceNodeSync
 
         if (options is null)
         {
-            jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOcillatorNode", context.JSReference);
+            jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOscillatorNode", context.JSReference);
         }
         else
         {
@@ -91,7 +91,7 @@ public class CustomPulseOscillatorNodeSync : AudioScheduledSourceNodeSync
                 detune = options!.Detune
                 //periperiodicWave = options!.PeriodicWave! != null ? options!.PeriodicWave.JSReference : null
             };
-            jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOcillatorNode", context.JSReference, args);
+            jSInstance = helper.Invoke<IJSInProcessObjectReference>("constructOscillatorNode", context.JSReference, args);
         }
         return jSInstance;
     }

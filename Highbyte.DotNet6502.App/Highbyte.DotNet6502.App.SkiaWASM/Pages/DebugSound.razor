@@ -69,6 +69,18 @@
                     <input @bind="_pulseWidth" @bind:event="oninput" type="number"                min="-1" max="1" step="0.01" />
                 </div>
             </div>
+
+            <div class="table-row">
+                Noise speed (factor)
+            </div>
+            <div class="table-row">
+                <div class="panel-subcontrol">
+                    <label for="_noiseSpeed">Noise speed</label>
+                    <input @bind="_noiseSpeed" @bind:event="oninput" type="range" id="noiseSpeed" min="0" max="5" step="0.05" title="Noise speed - factor" />
+                    <input @bind="_noiseSpeed" @bind:event="oninput" type="number" min="0" max="5" step="0.05" />
+                </div>
+            </div>
+
         </div>
 
         <div>
@@ -82,6 +94,7 @@
             <button @onclick="ChangePulseWidth">Change current pulse width</button>
             <button @onclick="StartSoundPeriodicWave">Play periodic wave</button>
             <button @onclick="StartSoundWhiteNoise">Play noise</button>
+            <button @onclick="ChangeSoundWhiteNoiseSpeed">Change current White noise speed</button>
             <button @onclick="StopAllSoundNow">Stop all sound now</button>
             <button @onclick="StopSoundR">Initiate Release</button>
             <p></p>
