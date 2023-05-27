@@ -101,31 +101,32 @@ export function valuePropertiesValue(obj) {
 // ----------
 export function getAttribute(object, attribute) { return object[attribute]; }
 export function setAttribute(object, attribute, value) { object[attribute] = value; }
-export function callMethod(object, method, args) { return object[method](args); }
+export function callMethod(object, method, ...args) { return object[method](...args); }
 
 export function getArrayValue(object, index) { return object[index]; }
 export function setArrayValue(object, index, value) { object[index] = value; }
 
-export function constructFloat32Array() {
-    return new Float32Array();
+export function constructFloat32Array(values = null) {
+    return new Float32Array(values);
 }
 
-export function getAttributeFloat32Array(object, attribute) {
-    var float32Array = object[attribute];
-    return Array.from(float32Array);
-}
+// Old methods for transfering float arrays between .NET and JS. Replaced by actually using JS type "Float32Array" instead.
+//export function getAttributeFloat32Array(object, attribute) {
+//    var float32Array = object[attribute];
+//    return Array.from(float32Array);
+//}
 
-export function setAttributeFloat32Array(object, attribute, value) {
-    var float32array = new Float32Array(value);
-    object[attribute] = float32array;
-}
+//export function setAttributeFloat32Array(object, attribute, value) {
+//    var float32array = new Float32Array(value);
+//    object[attribute] = float32array;
+//}
 
-export function callMethodReturnFloat32Array(object, method, args) {
-    var float32Array = object[method](args);
-    return Array.from(float32Array);
-}
+//export function callMethodReturnFloat32Array(object, method, args) {
+//    var float32Array = object[method](args);
+//    return Array.from(float32Array);
+//}
 
-export function callMethodVoidFloat32Array(object, method, floatArray, args) {
-    var float32Array = new Float32Array(floatArray);
-    object[method](float32Array, args);
-}
+//export function callMethodVoidFloat32Array(object, method, floatArray, args) {
+//    var float32Array = new Float32Array(floatArray);
+//    object[method](float32Array, args);
+//}

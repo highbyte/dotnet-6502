@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Microsoft.JSInterop;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
@@ -14,20 +15,18 @@ public class WaveShaperNodeSync : AudioNodeSync
     {
     }
 
-    public float[] GetCurve()
+    public Float32ArraySync GetCurve()
     {
-        return WebAudioHelper.Invoke<float[]>("getAttributeFloat32Array", JSReference, "curve");
+        var jSIntance = WebAudioHelper.Invoke<IJSInProcessObjectReference>("getAttribute", JSReference, "curve");
+        return Float32ArraySync.Create(WebAudioHelper, JSRuntime, jSIntance);
     }
 
     /// <summary>
     /// </summary>
     /// <param name="curve"></param>
-    public void SetCurve(float[] curve)
+    public void SetCurve(Float32ArraySync curve)
     {
-        // Curve should be a float array, but Blazor JS interop only handles double[].
-        var curveDouble = curve.Select(c => (double)c).ToArray();
-        // Also, we must call a special JS function to converts the array to Float32Array in JS.
-        WebAudioHelper.InvokeVoid("setAttributeFloat32Array", JSReference, "curve", curveDouble);
+        WebAudioHelper.InvokeVoid("setAttribute", JSReference, "curve", curve.JSReference);
     }
 
     // TODO: Oversample

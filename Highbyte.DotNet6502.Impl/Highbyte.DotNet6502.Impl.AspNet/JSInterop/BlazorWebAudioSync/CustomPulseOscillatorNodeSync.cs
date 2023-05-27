@@ -11,8 +11,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 /// </summary>
 public class CustomPulseOscillatorNodeSync : AudioScheduledSourceNodeSync
 {
-    private static readonly float[] s_pulseCurve;
-    private static readonly float[] s_constantOneCurve;
+    private static Float32ArraySync? s_pulseCurve;
+    private static Float32ArraySync? s_constantOneCurve;
 
     private WaveShaperNodeSync _pulseShaper;
 
@@ -23,6 +23,9 @@ public class CustomPulseOscillatorNodeSync : AudioScheduledSourceNodeSync
         BaseAudioContextSync context,
         CustomPulseOscillatorOptions? options = null)
     {
+        // Pre-calculate curves
+        InitCurves(jSRuntime, context);
+
         var helper = context.WebAudioHelper;
 
         // Create a "normal" oscillator instance
@@ -31,7 +34,7 @@ public class CustomPulseOscillatorNodeSync : AudioScheduledSourceNodeSync
 
         //Shape the output into a pulse wave.
         oscillator._pulseShaper = WaveShaperNodeSync.Create(jSRuntime, context);
-        oscillator._pulseShaper.SetCurve(s_pulseCurve);
+        oscillator._pulseShaper.SetCurve(s_pulseCurve!);
         ((AudioNodeSync)oscillator).Connect(oscillator._pulseShaper);
 
         //Use a GainNode as our new "width" audio parameter.
@@ -44,7 +47,7 @@ public class CustomPulseOscillatorNodeSync : AudioScheduledSourceNodeSync
         //Pass a constant value of 1 into the widthGain – so the "width" setting is
         //duplicated to its output.
         var constantOneShaper = WaveShaperNodeSync.Create(jSRuntime, context);
-        constantOneShaper.SetCurve(s_constantOneCurve);
+        constantOneShaper.SetCurve(s_constantOneCurve!);
         ((AudioNodeSync)oscillator).Connect(constantOneShaper);
         constantOneShaper.Connect(widthGainNode);
 
@@ -93,17 +96,22 @@ public class CustomPulseOscillatorNodeSync : AudioScheduledSourceNodeSync
         return jSInstance;
     }
 
-    static CustomPulseOscillatorNodeSync()
+    private static void InitCurves(IJSRuntime jSRuntime, BaseAudioContextSync context)
     {
-        s_pulseCurve = new float[256];
+        // Skip if curves already pre-calculated
+        if (s_pulseCurve is not null)
+            return;
+
+        var pulseCurveValues = new float[256];
         for (var i = 0; i < 256; i++)
         {
-            s_pulseCurve[i] = i < 128 ? -1 : 1;
+            pulseCurveValues[i] = i < 128 ? -1 : 1;
         }
+        s_pulseCurve = Float32ArraySync.Create(context.WebAudioHelper, jSRuntime, pulseCurveValues);
 
-        s_constantOneCurve = new float[2] { 1, 1 };
+        var constantOneCurveValues = new float[2] { 1, 1 };
+        s_constantOneCurve = Float32ArraySync.Create(context.WebAudioHelper, jSRuntime, constantOneCurveValues);
     }
-
 
     protected CustomPulseOscillatorNodeSync(
         IJSInProcessObjectReference helper,
@@ -112,5 +120,4 @@ public class CustomPulseOscillatorNodeSync : AudioScheduledSourceNodeSync
         ) : base(helper, jSRuntime, jSReference)
     {
     }
-
 }

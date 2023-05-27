@@ -1,4 +1,5 @@
 using System;
+using Highbyte.DotNet6502.Impl.AspNet.JSInterop;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.WaveTables;
@@ -135,12 +136,23 @@ public partial class DebugSound
                 SampleRate = sampleRate,
             });
 
-        var data = noiseBuffer.GetChannelData(0);
+        // Note: Too slow to call Float32Array index in a loop
+        //var data = noiseBuffer.GetChannelData(0);
+        //var random = new Random();
+        //for (var i = 0; i < bufferSize; i++)
+        //{
+        //    data[i] = ((float)random.NextDouble()) * 2 - 1;
+        //}
+
+        // Optimized by filling a .NET array, and then creating a Float32Array from that array in one call.
+        float[] values = new float[bufferSize];
         var random = new Random();
         for (var i = 0; i < bufferSize; i++)
         {
-            data[i] = ((float)random.NextDouble()) * 2 - 1;
+            values[i] = ((float)random.NextDouble()) * 2 - 1;
         }
+        var data = Float32ArraySync.Create(_audioContext.WebAudioHelper, _audioContext.JSRuntime, values);
+        noiseBuffer.CopyToChannel(data, 0);
 
         var noise = AudioBufferSourceNodeSync.Create(
             Js,
