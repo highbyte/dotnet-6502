@@ -1,4 +1,4 @@
-using System.Reflection.Metadata.Ecma335;
+using System.Diagnostics;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Keyboard;
@@ -54,7 +54,10 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     //};
 
     // Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
-    public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null, Action<ISystem>? postInstructionCallback = null)
+    public bool ExecuteOneFrame(
+        IExecEvaluator? execEvaluator = null,
+        Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
+        Dictionary<string, double>? detailedStats = null)
     {
         var cyclesToExecute = Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
 
@@ -65,11 +68,13 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
             if (!knownInstruction)
                 return false;
 
-            Vic2.CPUCyclesConsumed(CPU, Mem, instructionCyclesConsumed);
             totalCyclesConsumed += instructionCyclesConsumed;
 
-            if (postInstructionCallback != null)
-                postInstructionCallback(this);
+            Vic2.AdvanceRaster(CPU, Mem, instructionCyclesConsumed);
+
+            // Handle processing needed after each instruction, such as generating audio etc.
+            //if (postInstructionCallback != null)
+            //    postInstructionCallback(this, detailedStats);
 
             // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
             if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
@@ -209,7 +214,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     private static CPU CreateC64CPU(Vic2 vic2, Memory mem)
     {
         var cpu = new CPU();
-        cpu.InstructionExecuted += (s, e) => vic2.CPUCyclesConsumed(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
+        cpu.InstructionExecuted += (s, e) => vic2.AdvanceRaster(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
         return cpu;
     }
 

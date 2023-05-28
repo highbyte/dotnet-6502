@@ -20,7 +20,7 @@ public class PerSecondTimedStat : AveragedStat
             var elapsedMs = _sw.Elapsed.TotalMilliseconds;
 #if DEBUG
             if (elapsedMs == 0)
-                throw new NotImplementedException("Elapsed 0.0 miliseconds, cannot handle division by 0");
+                throw new NotImplementedException("Elapsed 0.0 milliseconds, cannot handle division by 0");
 #endif
             double perSecond = 1000.0 / elapsedMs;
             SetValue(perSecond);

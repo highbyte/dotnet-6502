@@ -107,10 +107,12 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
 
             //await PlaySound(voiceContext, wasmSoundParameters);
             //var task = PlaySound(voiceContext, wasmSoundParameters);
+            var task = new Task(() => PlaySound(voiceContext, wasmSoundParameters));
+
             //var task = new Task(async () => await PlaySound(voiceContext, wasmSoundParameters));
 
             //var task = new Task(async () => await PlaySoundGated(voiceContext, wasmSoundParameters));
-            var task = new Task(() => PlaySoundGated(voiceContext, wasmSoundParameters));
+            //var task = new Task(() => PlaySoundGated(voiceContext, wasmSoundParameters));
             playSoundTasks.Add(task);
         }
 
@@ -297,12 +299,13 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
     }
 
     //private async Task PlaySoundGated(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters)
-    private void PlaySoundGated(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters)
-    {
-        voiceContext.SemaphoreSlim.Wait();
-        PlaySound(voiceContext, wasmSoundParameters);
-        voiceContext.SemaphoreSlim.Release();
-    }
+    //private void PlaySoundGated(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters)
+    //{
+    //    //voiceContext.SemaphoreSlim.Wait();
+    //    voiceContext.SemaphoreSlim.WaitAsync().RunSynchronously();
+    //    PlaySound(voiceContext, wasmSoundParameters);
+    //    voiceContext.SemaphoreSlim.Release();
+    //}
 
     private void PlaySound(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters)
     {

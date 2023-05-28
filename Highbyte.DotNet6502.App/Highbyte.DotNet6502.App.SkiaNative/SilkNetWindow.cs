@@ -258,7 +258,7 @@ public class SilkNetWindow
         bool cont;
         using (_systemTime.Measure())
         {
-            cont = _systemRunner.RunEmulatorOneFrame();
+            cont = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
         }
 
         // Show monitor if we encounter breakpoint or other break

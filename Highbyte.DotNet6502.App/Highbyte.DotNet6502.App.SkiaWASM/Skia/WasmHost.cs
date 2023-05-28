@@ -1,4 +1,3 @@
-using System.Xml.Linq;
 using Highbyte.DotNet6502.App.SkiaWASM.Instrumentation.Stats;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
@@ -38,6 +37,7 @@ public class WasmHost : IDisposable
 
     private readonly ElapsedMillisecondsTimedStat _inputTime;
     private readonly ElapsedMillisecondsTimedStat _systemTime;
+    private readonly ElapsedMillisecondsStat _systemTimeAudio;  // Part of systemTime, but we want to show it separately
     private readonly ElapsedMillisecondsTimedStat _renderTime;
     private readonly PerSecondTimedStat _updateFps;
     private readonly PerSecondTimedStat _renderFps;
@@ -72,7 +72,10 @@ public class WasmHost : IDisposable
         // Init stats
         InstrumentationBag.Clear();
         _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("WASM-InputTime");
+
         _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("Emulator-SystemTime");
+        _systemTimeAudio = InstrumentationBag.Add<ElapsedMillisecondsStat>("Emulator-SystemTime-Audio");
+
         _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("WASMSkiaSharp-RenderTime");
         _updateFps = InstrumentationBag.Add<PerSecondTimedStat>("WASMSkiaSharp-OnUpdateFPS");
         _renderFps = InstrumentationBag.Add<PerSecondTimedStat>("WASMSkiaSharp-OnRenderFPS");
@@ -172,7 +175,13 @@ public class WasmHost : IDisposable
         bool cont;
         using (_systemTime.Measure())
         {
-            cont = _systemRunner.RunEmulatorOneFrame();
+            cont = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
+
+            if (detailedStats.ContainsKey("Audio"))
+            {
+                _systemTimeAudio.Set(detailedStats["Audio"]);
+                _systemTimeAudio.UpdateStat();
+            }
         }
 
         _statsFrameCount++;

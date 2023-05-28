@@ -221,7 +221,7 @@ public class Vic2
         cpu.IRQ = true;
     }
 
-    public void CPUCyclesConsumed(CPU cpu, Memory mem, ulong cyclesConsumed)
+    public void AdvanceRaster(CPU cpu, Memory mem, ulong cyclesConsumed)
     {
         CyclesConsumedCurrentVblank += cyclesConsumed;
         //var cyclesUntilVBlank = VariantSetting.CyclesPerLine * (VariantSetting.Lines - (VariantSetting.VBlankLines / 2));

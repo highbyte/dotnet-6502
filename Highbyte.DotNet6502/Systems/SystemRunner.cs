@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Highbyte.DotNet6502.Systems;
 
 public class SystemRunner
@@ -14,6 +16,9 @@ public class SystemRunner
 
     private IExecEvaluator? _customExecEvaluator;
     public IExecEvaluator? CustomExecEvaluator => _customExecEvaluator;
+
+    // Detailed perf stat to audio generation that occurs after each instruction
+    private readonly Stopwatch _audioSw = new();
 
     public SystemRunner(ISystem system)
     {
@@ -40,17 +45,17 @@ public class SystemRunner
         bool quit = false;
         while (!quit)
         {
-            bool executeOk = RunOneFrame();
+            bool executeOk = RunOneFrame(out _);
             if (!executeOk)
                 quit = true;
         }
     }
 
-    public bool RunOneFrame()
+    public bool RunOneFrame(out Dictionary<string, double> detailedStats)
     {
         ProcessInput();
 
-        bool executeOk = RunEmulatorOneFrame();
+        bool executeOk = RunEmulatorOneFrame(out detailedStats);
         if (!executeOk)
             return false;
 
@@ -72,21 +77,33 @@ public class SystemRunner
         _inputHandler?.ProcessInput(_system);
     }
 
-    public bool RunEmulatorOneFrame()
+    public bool RunEmulatorOneFrame(out Dictionary<string, double> detailedStats)
     {
-        bool shouldContinue = _system.ExecuteOneFrame(_customExecEvaluator, PostInstruction);
+        detailedStats = new()
+        {
+            ["Audio"] = 0
+        };
+
+        bool shouldContinue = _system.ExecuteOneFrame(_customExecEvaluator, PostInstruction, detailedStats);
         if (!shouldContinue)
             return false;
         return true;
     }
 
     // PostInstruction is meant to be called after each instruction has executed.
-    private void PostInstruction(ISystem system)
+    private void PostInstruction(ISystem system, Dictionary<string, double> detailedStats)
     {
         // Generate sound by inspecting the current system state
-        _soundHandler?.GenerateSound(system);
-        //var t = new Task(() => _soundHandler?.GenerateSound(system));
-        //t.RunSynchronously();
+        if (_soundHandler is not null)
+        {
+            _audioSw.Restart();
+            _soundHandler.GenerateSound(system);
+            //var t = new Task(() => _soundHandler?.GenerateSound(system));
+            //t.RunSynchronously();
+            _audioSw.Stop();
+
+            detailedStats["Audio"] += _audioSw.Elapsed.TotalMilliseconds;
+        }
     }
 
     public void Draw()
