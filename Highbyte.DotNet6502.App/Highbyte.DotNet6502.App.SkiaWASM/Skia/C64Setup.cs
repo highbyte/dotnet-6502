@@ -32,7 +32,7 @@ public class C64Setup
             ROMs = romList,
 
             AudioSupported = true,
-            AudioEnabled = true,
+            AudioEnabled = false,   // Audio disabled by default until playback is more stable
         };
 
         //c64Config.Validate();
@@ -70,7 +70,7 @@ public class C64Setup
         inputHandler.Init(c64, inputHandlerContext);
         soundHandler.Init(c64, soundHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, AspNetInputHandlerContext, C64WASMSoundHandlerContext>(c64);
+        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, AspNetInputHandlerContext, WASMSoundHandlerContext>(c64);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)

@@ -17,15 +17,6 @@ namespace Highbyte.DotNet6502.Impl.AspNet
         private GainNodeSync _masterVolumeGainNode;
         public GainNodeSync MasterVolumeGainNode => _masterVolumeGainNode;
 
-        public void SetMasterVolume(float masterVolumePercent)
-        {
-            var currentTime = AudioContext.GetCurrentTime();
-            var gain = MasterVolumeGainNode.GetGain();
-            gain.CancelScheduledValues(currentTime);
-            float newGain = Math.Clamp(masterVolumePercent, 0f, 100f) / 100f;
-            gain.SetValueAtTime(newGain, currentTime);
-        }
-
         public WASMSoundHandlerContext(
             AudioContextSync audioContext,
             IJSRuntime jsRuntime,
@@ -37,13 +28,22 @@ namespace Highbyte.DotNet6502.Impl.AspNet
             _initialVolumePercent = initialVolumePercent;
         }
 
-        public virtual void Init()
+        public void Init()
         {
             // Create GainNode for master volume
             _masterVolumeGainNode = GainNodeSync.Create(JSRuntime, AudioContext);
 
             // Set initial master volume %
             SetMasterVolume(_initialVolumePercent);
+        }
+
+        public void SetMasterVolume(float masterVolumePercent)
+        {
+            var currentTime = AudioContext.GetCurrentTime();
+            var gain = MasterVolumeGainNode.GetGain();
+            gain.CancelScheduledValues(currentTime);
+            float newGain = Math.Clamp(masterVolumePercent, 0f, 100f) / 100f;
+            gain.SetValueAtTime(newGain, currentTime);
         }
     }
 }

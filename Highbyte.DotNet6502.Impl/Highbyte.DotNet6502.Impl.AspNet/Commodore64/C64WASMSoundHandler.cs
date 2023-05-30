@@ -4,20 +4,33 @@ using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorDOMSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
+using Highbyte.DotNet6502.Impl.AspNet.JSInterop;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 
-public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext>, ISoundHandler
+public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, ISoundHandler
 {
 
     public static Queue<InternalSidState> _sidStateChanges = new();
 
-    private C64WASMSoundHandlerContext? _soundHandlerContext;
+    private WASMSoundHandlerContext? _soundHandlerContext;
+    private AudioContextSync AudioContext => _soundHandlerContext!.AudioContext;
 
     private List<byte> _enabledVoices = new List<byte> { 1, 2, 3 }; // TODO: Set enabled voices via config.
 
+    private AudioBufferSync _noiseBuffer;
+    public AudioBufferSync NoiseBuffer => _noiseBuffer;
+
+    public Dictionary<byte, C64WASMVoiceContext> VoiceContexts = new()
+        {
+            {1, new C64WASMVoiceContext(1) },
+            {2, new C64WASMVoiceContext(2) },
+            {3, new C64WASMVoiceContext(3) },
+        };
+
     private List<string> _debugMessages = new();
     private const int MAX_DEBUG_MESSAGES = 20;
+
     private void AddDebugMessage(string msg)
     {
         var time = DateTime.Now.ToString("HH:mm:ss.fff");
@@ -31,22 +44,64 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
     {
     }
 
-    public void Init(C64 system, C64WASMSoundHandlerContext soundHandlerContext)
+    public void Init(C64 system, WASMSoundHandlerContext soundHandlerContext)
     {
         _soundHandlerContext = soundHandlerContext;
         _soundHandlerContext.Init();
+
+        PrepareNoiseGenerator();
+
+        foreach (var key in VoiceContexts.Keys)
+        {
+            var voice = VoiceContexts[key];
+            voice.Init();
+        }
     }
 
     public void Init(ISystem system, ISoundHandlerContext soundHandlerContext)
     {
-        Init((C64)system, (C64WASMSoundHandlerContext)soundHandlerContext);
+        Init((C64)system, (WASMSoundHandlerContext)soundHandlerContext);
+    }
+    private void PrepareNoiseGenerator()
+    {
+        float noiseDuration = 1.0f;  // Seconds
+
+        var sampleRate = AudioContext.GetSampleRate();
+        int bufferSize = (int)(sampleRate * noiseDuration);
+        // Create an empty buffer
+        _noiseBuffer = AudioBufferSync.Create(
+            AudioContext.WebAudioHelper,
+            AudioContext.JSRuntime,
+            new AudioBufferOptions
+            {
+                Length = bufferSize,
+                SampleRate = sampleRate,
+            });
+
+        // Note: Too slow to call Float32Array index in a loop
+        //var data = noiseBuffer.GetChannelData(0);
+        //var random = new Random();
+        //for (var i = 0; i < bufferSize; i++)
+        //{
+        //    data[i] = ((float)random.NextDouble()) * 2 - 1;
+        //}
+
+        // Optimized by filling a .NET array, and then creating a Float32Array from that array in one call.
+        float[] values = new float[bufferSize];
+        var random = new Random();
+        for (var i = 0; i < bufferSize; i++)
+        {
+            values[i] = ((float)random.NextDouble()) * 2 - 1;
+        }
+        var data = Float32ArraySync.Create(AudioContext.WebAudioHelper, AudioContext.JSRuntime, values);
+        _noiseBuffer.CopyToChannel(data, 0);
     }
 
     public void StopAllSounds()
     {
         if (_soundHandlerContext is null)
             return;
-        foreach (var voiceContext in _soundHandlerContext.VoiceContexts.Values)
+        foreach (var voiceContext in VoiceContexts.Values)
         {
             voiceContext.Stop();
         }
@@ -85,12 +140,12 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
     private void GenerateSound()
     {
         var sidInternalStateClone = _sidStateChanges.Peek();
-        foreach (var voice in _soundHandlerContext!.VoiceContexts.Keys)
+        foreach (var voice in VoiceContexts.Keys)
         {
             if (!_enabledVoices.Contains(voice))
                 continue;
 
-            var voiceContext = _soundHandlerContext!.VoiceContexts[voice];
+            var voiceContext = VoiceContexts[voice];
             var wasmSoundParameters = BuildWASMSoundParametersFromC64Sid(voiceContext, sidInternalStateClone);
             if (wasmSoundParameters.SoundCommand != SoundCommand.None)
             {
@@ -107,9 +162,9 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
     {
         var playSoundTasks = new List<Task>();
 
-        foreach (var voice in _soundHandlerContext!.VoiceContexts.Keys)
+        foreach (var voice in VoiceContexts.Keys)
         {
-            var voiceContext = _soundHandlerContext!.VoiceContexts[voice];
+            var voiceContext = VoiceContexts[voice];
             var wasmSoundParameters = BuildWASMSoundParametersFromC64Sid(voiceContext, sidInternalStateClone);
             if (wasmSoundParameters.SoundCommand == SoundCommand.None)
                 continue;
@@ -367,7 +422,7 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
                     {
                         PlaybackRate = playbackRate,    // Factor of sample rate. 1.0 = same speed as original.
                         Loop = true,
-                        Buffer = _soundHandlerContext.NoiseBuffer
+                        Buffer = NoiseBuffer
                     }
                 );
                 voiceContext.NoiseGenerator.AddEndedEventListsner(callback);

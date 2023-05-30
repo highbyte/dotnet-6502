@@ -94,7 +94,7 @@ public class WasmHost : IDisposable
         _skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
         InputHandlerContext = new AspNetInputHandlerContext();
         // TODO: Remove use of C64-specific WASMSoundHandlerContext. Move existing C64 code to WASMSoundHandler instead
-        SoundHandlerContext = new C64WASMSoundHandlerContext(audioContext, jsRuntime, _initialMasterVolume);
+        SoundHandlerContext = new WASMSoundHandlerContext(audioContext, jsRuntime, _initialMasterVolume);
 
         _systemList.InitContext(() => _skiaRenderContext, () => InputHandlerContext, () => SoundHandlerContext);
 
