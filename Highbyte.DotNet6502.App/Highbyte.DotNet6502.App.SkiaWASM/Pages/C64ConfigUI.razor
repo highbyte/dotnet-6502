@@ -3,6 +3,7 @@
 @using Highbyte.DotNet6502.Systems;
 @using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index
 
+<h2>ROMs</h2>
 <p>The C64 system requires the following types of ROM files: <strong>Kernal, Basic, and Character generator</strong>.</p>
 <br />
 <p>1. Use existing C64 ROM files on your computer, or download them to your computer from example <a href="https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/index-t.html" target="_blank">here</a></p>
@@ -53,6 +54,15 @@ else
     }
     </ul>
 }
+
+<p></p>
+<h2>General settings</h2>
+<div class="table">
+    <div class="table-row">
+        <div class="table-cell twocol">Audio enabled:</div>
+        <div class="table-cell twocol"><input @bind="C64Config.AudioEnabled" @bind:event="oninput" type="checkbox" id="audioEnabled" title="Enable audio"/></div>
+    </div>
+</div>
 
 <p></p>
 <button @onclick="Ok">Ok</button>

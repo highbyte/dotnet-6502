@@ -21,17 +21,18 @@ public class WasmHost : IDisposable
     private GRContext _grContext;
 
     private SkiaRenderContext _skiaRenderContext;
-    private C64WASMSoundHandlerContext _soundHandlerContext;
+    public WASMSoundHandlerContext SoundHandlerContext { get; private set; }
     public AspNetInputHandlerContext InputHandlerContext { get; private set; }
 
     private readonly string _systemName;
-    private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext, C64WASMSoundHandlerContext> _systemList;
+    private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMSoundHandlerContext> _systemList;
     private readonly Action<string> _updateStats;
     private readonly Action<string> _updateDebug;
     private readonly Func<bool, Task> _setMonitorState;
     private readonly MonitorConfig _monitorConfig;
     private readonly Func<Task> _toggleDebugStatsState;
     private readonly float _scale;
+    private readonly float _initialMasterVolume;
 
     public WasmMonitor Monitor { get; private set; }
 
@@ -51,13 +52,14 @@ public class WasmHost : IDisposable
     public WasmHost(
         IJSRuntime jsRuntime,
         string systemName,
-        SystemList<SkiaRenderContext, AspNetInputHandlerContext, C64WASMSoundHandlerContext> systemList,
+        SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMSoundHandlerContext> systemList,
         Action<string> updateStats,
         Action<string> updateDebug,
         Func<bool, Task> setMonitorState,
         MonitorConfig monitorConfig,
         Func<Task> toggleDebugStatsState,
-        float scale = 1.0f)
+        float scale = 1.0f,
+        float initialMasterVolume = 50.0f)
     {
         _jsRuntime = jsRuntime;
         _systemName = systemName;
@@ -68,6 +70,7 @@ public class WasmHost : IDisposable
         _monitorConfig = monitorConfig;
         _toggleDebugStatsState = toggleDebugStatsState;
         _scale = scale;
+        _initialMasterVolume = initialMasterVolume;
 
         // Init stats
         InstrumentationBag.Clear();
@@ -90,9 +93,10 @@ public class WasmHost : IDisposable
 
         _skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
         InputHandlerContext = new AspNetInputHandlerContext();
-        _soundHandlerContext = new C64WASMSoundHandlerContext(audioContext, jsRuntime);
+        // TODO: Remove use of C64-specific WASMSoundHandlerContext. Move existing C64 code to WASMSoundHandler instead
+        SoundHandlerContext = new C64WASMSoundHandlerContext(audioContext, jsRuntime, _initialMasterVolume);
 
-        _systemList.InitContext(() => _skiaRenderContext, () => InputHandlerContext, () => _soundHandlerContext);
+        _systemList.InitContext(() => _skiaRenderContext, () => InputHandlerContext, () => SoundHandlerContext);
 
         _systemRunner = await _systemList.BuildSystemRunner(_systemName);
 

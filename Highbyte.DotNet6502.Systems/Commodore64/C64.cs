@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Keyboard;
@@ -40,6 +39,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     public int BorderHeight => (int)Math.Ceiling((double)((VisibleHeight - Height) / 2.0d));
     public float RefreshFrequencyHz => (float)CpuFrequencyHz / Vic2.Vic2Model.CyclesPerFrame;
 
+    public bool AudioEnabled { get; private set; }
 
     private LegacyExecEvaluator _oneFrameExecEvaluator;
 
@@ -70,11 +70,11 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
 
             totalCyclesConsumed += instructionCyclesConsumed;
 
-            Vic2.AdvanceRaster(CPU, Mem, instructionCyclesConsumed);
+            Vic2.AdvanceRaster(CPU, Mem, instructionCyclesConsumed); 
 
             // Handle processing needed after each instruction, such as generating audio etc.
-            //if (postInstructionCallback != null)
-            //    postInstructionCallback(this, detailedStats);
+            if (AudioEnabled && postInstructionCallback != null)
+                postInstructionCallback(this, detailedStats);
 
             // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
             if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
@@ -164,6 +164,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
             Keyboard = kb,
             Sid = sid,
             ROMData = romData,
+            AudioEnabled = c64Config.AudioEnabled
         };
 
         // Map specific memory addresses to different emulator actions            

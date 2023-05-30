@@ -4,7 +4,6 @@ using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorDOMSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
-using Highbyte.DotNet6502.Instructions;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 
@@ -330,9 +329,10 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
             gainAudioParam.LinearRampToValueAtTime(wasmSoundParameters.Gain, currentTime + wasmSoundParameters.AttackDurationSeconds);
             gainAudioParam.SetTargetAtTime(wasmSoundParameters.SustainGain, currentTime + wasmSoundParameters.AttackDurationSeconds, wasmSoundParameters.DecayDurationSeconds);
 
-            // Associate GainNode with AudioContext destination 
+            // Associate GainNode -> MasterVolume -> AudioContext destination 
+            voiceContext.GainNode.Connect(_soundHandlerContext.MasterVolumeGainNode);
             var destination = _soundHandlerContext.AudioContext.GetDestination();
-            voiceContext.GainNode.Connect(destination);
+            _soundHandlerContext.MasterVolumeGainNode.Connect(destination);
 
             // Define callback handler to know when an oscillator has stopped playing.
             var callback = EventListener<EventSync>.Create(_soundHandlerContext.AudioContext.WebAudioHelper, _soundHandlerContext.AudioContext.JSRuntime, (e) =>

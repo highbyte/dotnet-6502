@@ -30,6 +30,9 @@ public class C64Setup
 
             ROMDirectory = "",  // Set ROMDirectory to skip loading ROMs from file system (ROMDirectory + File property), instead read from the Data property
             ROMs = romList,
+
+            AudioSupported = true,
+            AudioEnabled = true,
         };
 
         //c64Config.Validate();
@@ -55,7 +58,7 @@ public class C64Setup
         ISystemConfig systemConfig,
         SkiaRenderContext renderContext,
         AspNetInputHandlerContext inputHandlerContext,
-        C64WASMSoundHandlerContext soundHandlerContext
+        WASMSoundHandlerContext soundHandlerContext
         )
     {
         var renderer = new C64SkiaRenderer();

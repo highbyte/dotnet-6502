@@ -90,7 +90,7 @@ public class GenericComputerSetup
         ISystemConfig systemConfig,
         SkiaRenderContext skiaRenderContext,
         AspNetInputHandlerContext inputHandlerContext,
-        C64WASMSoundHandlerContext soundHandlerContext)
+        WASMSoundHandlerContext soundHandlerContext)
     {
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
 

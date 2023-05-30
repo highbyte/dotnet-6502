@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.RenderTree;
 using Blazored.Modal.Services;
 using Blazored.Modal;
 using Highbyte.DotNet6502.App.SkiaWASM.Skia;
@@ -9,7 +8,6 @@ using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
-using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
@@ -17,7 +15,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 public partial class Index
 {
     //public string Version => typeof(Program).Assembly.GetName().Version!.ToString();
-    public string Version => Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+    public string Version => Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
 
     private BrowserContext _browserContext;
 
@@ -56,6 +54,38 @@ public partial class Index
         return _selectedSystemConfigValidationMessage;
     }
 
+    private ISystemConfig? _currentConfig;
+    private bool AudioEnabledToggleDisabled => (
+            (!(_currentConfig?.AudioSupported ?? true)) ||
+            (_emulatorState == EmulatorState.Running || _emulatorState == EmulatorState.Paused)
+        );
+
+    private bool AudioEnabled
+    {
+        get
+        {
+            return _currentConfig?.AudioEnabled ?? false;
+        }
+        set
+        {
+            _currentConfig!.AudioEnabled = value;
+        }
+    }
+
+    private float _masterVolumePercent = 10.0f;
+    public float MasterVolumePercent
+    {
+        get
+        {
+            return _masterVolumePercent;
+        }
+        set
+        {
+            _masterVolumePercent = value;
+            _wasmHost?.SoundHandlerContext.SetMasterVolume(_masterVolumePercent);
+        }
+    }
+
     private double _scale = 2.0f;
     private double Scale
     {
@@ -75,7 +105,7 @@ public partial class Index
     protected ElementReference? _monitorInputRef;
 
     private MonitorConfig _monitorConfig;
-    private SystemList<SkiaRenderContext, AspNetInputHandlerContext, C64WASMSoundHandlerContext> _systemList;
+    private SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMSoundHandlerContext> _systemList;
     private WasmHost? _wasmHost;
 
     private string _statsString = "Stats: calculating...";
@@ -115,7 +145,7 @@ public partial class Index
         };
         _monitorConfig.Validate();
 
-        _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, C64WASMSoundHandlerContext>();
+        _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMSoundHandlerContext>();
 
         var c64Setup = new C64Setup(_browserContext);
         await _systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);
@@ -153,6 +183,8 @@ public partial class Index
         else
             _selectedSystemConfigValidationMessage = "";
 
+        _currentConfig = await _systemList.GetCurrentSystemConfig(_selectedSystemName);
+
         UpdateCanvasSize();
         this.StateHasChanged();
     }
@@ -179,7 +211,7 @@ public partial class Index
 
     private async Task InitEmulator()
     {
-        _wasmHost = new WasmHost(Js, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale);
+        _wasmHost = new WasmHost(Js, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale, MasterVolumePercent);
         _emulatorState = EmulatorState.Paused;
     }
 

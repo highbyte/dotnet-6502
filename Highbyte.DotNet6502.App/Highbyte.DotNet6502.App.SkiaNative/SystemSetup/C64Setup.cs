@@ -47,7 +47,10 @@ public class C64Setup
                     Data = null,
                     Checksum = "1d503e56df85a62fee696e7618dc5b4e781df1bb",
                 }
-            }
+            },
+
+            AudioSupported = true,
+            AudioEnabled = true,
         };
 
         c64Config.Validate();
