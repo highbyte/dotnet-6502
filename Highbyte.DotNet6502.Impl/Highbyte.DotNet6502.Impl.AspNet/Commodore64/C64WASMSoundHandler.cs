@@ -42,6 +42,16 @@ public class C64WASMSoundHandler : ISoundHandler<C64, C64WASMSoundHandlerContext
         Init((C64)system, (C64WASMSoundHandlerContext)soundHandlerContext);
     }
 
+    public void StopAllSounds()
+    {
+        if (_soundHandlerContext is null)
+            return;
+        foreach (var voiceContext in _soundHandlerContext.VoiceContexts.Values)
+        {
+            voiceContext.Stop();
+        }
+    }
+
     public void GenerateSound(C64 c64)
     {
         var sid = c64.Sid;

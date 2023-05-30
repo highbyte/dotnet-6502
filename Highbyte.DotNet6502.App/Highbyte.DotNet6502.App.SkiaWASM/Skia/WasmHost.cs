@@ -138,13 +138,16 @@ public class WasmHost : IDisposable
             _updateTimer = null;
         }
 
+        // Stop any playing sounds
+        _systemRunner.SoundHandler.StopAllSounds();
+
         // Clear canvas
         _skiaRenderContext.GetCanvas().Clear();
 
-        // Cleanup Skia resources
+        // Clean up Skia resources
         _skiaRenderContext?.Cleanup();
 
-        // Cleanup input handler resources
+        // Clean up input handler resources
         InputHandlerContext?.Cleanup();
     }
 

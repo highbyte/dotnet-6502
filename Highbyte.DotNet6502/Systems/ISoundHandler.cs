@@ -5,6 +5,8 @@ public interface ISoundHandler
     void Init(ISystem system, ISoundHandlerContext soundHandlerContext);
     void GenerateSound(ISystem system);
 
+    void StopAllSounds();
+
     List<string> GetDebugMessages();
 
 }
@@ -33,6 +35,10 @@ public class NullSoundHandler : ISoundHandler<ISystem, NullSoundHandlerContext>,
     }
 
     public void GenerateSound(ISystem system)
+    {
+    }
+
+    public void StopAllSounds()
     {
     }
 
