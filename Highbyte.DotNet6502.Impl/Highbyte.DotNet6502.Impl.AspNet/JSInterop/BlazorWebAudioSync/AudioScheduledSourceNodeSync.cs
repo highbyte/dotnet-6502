@@ -24,6 +24,27 @@ public class AudioScheduledSourceNodeSync : AudioNodeSync
     }
 
     /// <summary>
+    /// Schedules a sound to playback at an exact time.
+    /// </summary>
+    /// <param name="when">The when parameter describes at what time (in seconds) the sound should start playing. It is in the same time coordinate system as the AudioContext's currentTime attribute.</param>
+    /// <param name="offset">An offset, specified as the number of seconds in the same time coordinate system as the AudioContext, to the time within the audio buffer that playback should begin.</param>
+    public void Start(double when, double offset)
+    {
+        JSReference.InvokeVoid("start", when, offset);
+    }
+
+    /// <summary>
+    /// Schedules a sound to playback at an exact time.
+    /// </summary>
+    /// <param name="when">The when parameter describes at what time (in seconds) the sound should start playing. It is in the same time coordinate system as the AudioContext's currentTime attribute.</param>
+    /// <param name="offset">An offset, specified as the number of seconds in the same time coordinate system as the AudioContext, to the time within the audio buffer that playback should begin.</param>
+    /// <param name="duration">The duration of the sound to be played, specified in seconds.</param>
+    public void Start(double when, double offset, double duration)
+    {
+        JSReference.InvokeVoid("start", when, offset, duration);
+    }
+
+    /// <summary>
     /// Schedules a sound to stop playback at an exact time.
     /// </summary>
     /// <param name="when">The when parameter describes at what time (in seconds) the source should stop playing. It is in the same time coordinate system as the AudioContext's currentTime attribute.</param>

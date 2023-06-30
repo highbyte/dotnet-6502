@@ -54,7 +54,7 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
         foreach (var key in VoiceContexts.Keys)
         {
             var voice = VoiceContexts[key];
-            voice.Init();
+            voice.Init(soundHandlerContext, AddDebugMessage);
         }
     }
 
@@ -113,13 +113,13 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
         if (!sid.InternalSidState.IsAudioChanged)
             return;
 
-        var internalSidStateClone = sid.InternalSidState.Clone();
+        //var internalSidStateClone = sid.InternalSidState.Clone();
+        //sid.InternalSidState.ClearAudioChanged();
+        //_sidStateChanges.Enqueue(internalSidStateClone);
+        //GenerateSound();
+
+        GenerateSound(sid.InternalSidState);
         sid.InternalSidState.ClearAudioChanged();
-
-        //var internalSidStateClone = sid.InternalSidState;
-        _sidStateChanges.Enqueue(internalSidStateClone);
-
-        GenerateSound();
 
         //var soundTasks = CreateSoundTasks(internalSidStateClone);
         //if (soundTasks.Length > 0)
@@ -137,16 +137,18 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
         //}
     }
 
-    private void GenerateSound()
+    private void GenerateSound(InternalSidState internalSidState)
     {
-        var sidInternalStateClone = _sidStateChanges.Peek();
+        //var sidInternalStateClone = _sidStateChanges.Peek();
+
         foreach (var voice in VoiceContexts.Keys)
         {
             if (!_enabledVoices.Contains(voice))
                 continue;
 
             var voiceContext = VoiceContexts[voice];
-            var wasmSoundParameters = BuildWASMSoundParametersFromC64Sid(voiceContext, sidInternalStateClone);
+            //var wasmSoundParameters = BuildWASMSoundParametersFromC64Sid(voiceContext, sidInternalStateClone);
+            var wasmSoundParameters = BuildWASMSoundParametersFromC64Sid(voiceContext, internalSidState);
             if (wasmSoundParameters.SoundCommand != SoundCommand.None)
             {
                 AddDebugMessage($"BEGIN VOICE {voice}");
@@ -155,7 +157,7 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
             }
         }
 
-        _sidStateChanges.Dequeue();
+        //_sidStateChanges.Dequeue();
     }
 
     private Task[] CreateSoundTasks(InternalSidState sidInternalStateClone)
@@ -326,7 +328,7 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
             command = SoundCommand.StartRelease;
         }
 
-        // Sound is stopped immediatley when
+        // Sound is stopped immediately when
         // - Release cycle has already been started
         // - and no Waveform has been selected (= all SID waveform type selection bits are 0)
         else if (voiceContext.Status == SoundStatus.ASDCycleStarted
@@ -378,150 +380,194 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
         if (wasmSoundParameters.SoundCommand == SoundCommand.Stop)
         {
             // Stop sound immediately
-            voiceContext.Stop();
+            //voiceContext.Stop();
+            voiceContext.Pause();
         }
         else if (wasmSoundParameters.SoundCommand == SoundCommand.StartADS)
         {
             // Stop any existing playing sound
-            voiceContext.Stop();
+            //voiceContext.Stop();
+            voiceContext.Pause();
 
             // Create GainNode
-            voiceContext.GainNode = GainNodeSync.Create(_soundHandlerContext.JSRuntime, _soundHandlerContext.AudioContext);
+            if (voiceContext.GainNode is null)
+            {
+                voiceContext.GainNode = GainNodeSync.Create(_soundHandlerContext.JSRuntime, _soundHandlerContext.AudioContext);
+
+                // Associate GainNode -> MasterVolume -> AudioContext destination 
+                voiceContext.GainNode.Connect(_soundHandlerContext.MasterVolumeGainNode);
+                var destination = _soundHandlerContext.AudioContext.GetDestination();
+                _soundHandlerContext.MasterVolumeGainNode.Connect(destination);
+            }
 
             // Set Attack/Decay/Sustain gain envelope
             var gainAudioParam = voiceContext.GainNode!.GetGain();
+            gainAudioParam.CancelScheduledValues(currentTime);
             gainAudioParam.SetValueAtTime(0, currentTime);
             gainAudioParam.LinearRampToValueAtTime(wasmSoundParameters.Gain, currentTime + wasmSoundParameters.AttackDurationSeconds);
             gainAudioParam.SetTargetAtTime(wasmSoundParameters.SustainGain, currentTime + wasmSoundParameters.AttackDurationSeconds, wasmSoundParameters.DecayDurationSeconds);
 
-            // Associate GainNode -> MasterVolume -> AudioContext destination 
-            voiceContext.GainNode.Connect(_soundHandlerContext.MasterVolumeGainNode);
-            var destination = _soundHandlerContext.AudioContext.GetDestination();
-            _soundHandlerContext.MasterVolumeGainNode.Connect(destination);
-
-            // Define callback handler to know when an oscillator has stopped playing.
-            var callback = EventListener<EventSync>.Create(_soundHandlerContext.AudioContext.WebAudioHelper, _soundHandlerContext.AudioContext.JSRuntime, (e) =>
-            {
-                AddDebugMessage($"Sound stopped on voice {voiceContext.Voice}.");
-                voiceContext.Status = SoundStatus.Stopped;
-            });
-
             if (wasmSoundParameters.Type is null && wasmSoundParameters.SpecialType == OscillatorSpecialType.Noise)
             {
-                voiceContext.Oscillator = null;
-                voiceContext.PulseOscillator = null;
+                //voiceContext.Oscillator = null;
+                //voiceContext.PulseOscillator = null;
+                //voiceContext.LFOOscillator = null;
 
                 // Hack: Set noise buffer sample playback rate to simulate change in noise frequency in SID.
                 float playbackRate = GetPlaybackRateFromFrequency(wasmSoundParameters.Frequency);
 
                 // Use AudioBufferSourceNode for noise generation
-                voiceContext.NoiseGenerator = AudioBufferSourceNodeSync.Create(
-                    _soundHandlerContext.JSRuntime,
-                    _soundHandlerContext.AudioContext,
-                    new AudioBufferSourceNodeOptions
-                    {
-                        PlaybackRate = playbackRate,    // Factor of sample rate. 1.0 = same speed as original.
-                        Loop = true,
-                        Buffer = NoiseBuffer
-                    }
-                );
-                voiceContext.NoiseGenerator.AddEndedEventListsner(callback);
-                voiceContext.NoiseGenerator.Connect(voiceContext.GainNode);
+                if (voiceContext.NoiseGenerator is null)
+                {
+                    voiceContext.NoiseGenerator = AudioBufferSourceNodeSync.Create(
+                        _soundHandlerContext.JSRuntime,
+                        _soundHandlerContext.AudioContext,
+                        new AudioBufferSourceNodeOptions
+                        {
+                            PlaybackRate = playbackRate,    // Factor of sample rate. 1.0 = same speed as original.
+                            Loop = true,
+                            Buffer = NoiseBuffer
+                        });
 
-                AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with special type {wasmSoundParameters.SpecialType}");
-                voiceContext.NoiseGenerator.Start();
+                    voiceContext.NoiseGenerator.AddEndedEventListsner(voiceContext.SoundStoppedCallback);
+                    voiceContext.NoiseGenerator.Connect(voiceContext.GainNode);
+
+                    AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with special type {wasmSoundParameters.SpecialType}");
+                    voiceContext.NoiseGenerator.Start();
+                    //voiceContext.NoiseGenerator.Start(0, 0, currentTime + wasmSoundParameters.AttackDurationSeconds + wasmSoundParameters.ReleaseDurationSeconds);
+                }
+                else
+                {
+                    // TODO: Connect, Set playback rate?
+                }
+
             }
 
             else if (wasmSoundParameters.Type is null && wasmSoundParameters.SpecialType == OscillatorSpecialType.Pulse)
             {
-                voiceContext.Oscillator = null;
-                voiceContext.NoiseGenerator = null;
+                //voiceContext.Oscillator = null;
+                //voiceContext.NoiseGenerator = null;
 
                 // Use custom PulseOscillator for pulse wave
-                voiceContext.PulseOscillator = CustomPulseOscillatorNodeSync.Create(
-                    _soundHandlerContext!.JSRuntime,
-                    _soundHandlerContext.AudioContext,
-                    new()
-                    {
-                        Frequency = wasmSoundParameters.Frequency,
+                if (voiceContext.PulseOscillator is null)
+                {
+                    voiceContext.PulseOscillator = CustomPulseOscillatorNodeSync.Create(
+                        _soundHandlerContext!.JSRuntime,
+                        _soundHandlerContext.AudioContext,
+                        new()
+                        {
+                            Frequency = wasmSoundParameters.Frequency,
 
-                        //Pulse width - 1 to + 1 = ratio of the waveform's duty (power) cycle /mark-space
-                        //DefaultWidth = -1.0   // 0% duty cycle  - silent
-                        //DefaultWidth = -0.5f  // 25% duty cycle
-                        //DefaultWidth = 0      // 50% duty cycle
-                        //DefaultWidth = 0.5f   // 75% duty cycle
-                        //DefaultWidth = 1.0f   // 100% duty cycle 
-                        DefaultWidth = wasmSoundParameters.PulseWidth
-                    });
+                            //Pulse width - 1 to + 1 = ratio of the waveform's duty (power) cycle /mark-space
+                            //DefaultWidth = -1.0   // 0% duty cycle  - silent
+                            //DefaultWidth = -0.5f  // 25% duty cycle
+                            //DefaultWidth = 0      // 50% duty cycle
+                            //DefaultWidth = 0.5f   // 75% duty cycle
+                            //DefaultWidth = 1.0f   // 100% duty cycle 
+                            DefaultWidth = wasmSoundParameters.PulseWidth
+                        });
 
-                // Pulse width modulation
-                voiceContext.PulseWidthGainNode = GainNodeSync.Create(
-                    _soundHandlerContext!.JSRuntime,
-                    _soundHandlerContext.AudioContext,
-                    new()
-                    {
-                        Gain = 0
-                    });
-                voiceContext.PulseWidthGainNode.Connect(voiceContext.PulseOscillator.WidthGainNode);
+                    // Set callback on Pulse Oscillator (which is the primary oscillator in this case)
+                    voiceContext.PulseOscillator.AddEndedEventListsner(voiceContext.SoundStoppedCallback);
 
-                //var widthDepthGainNodeAudioParam = voiceContext.PulseWidthGainNode.GetGain();
-                //var oscWidthDepth = 0.5f;   // LFO depth - Pulse modulation depth (percent) 
-                //var oscWidthAttack = 0.05f;
-                //var oscWidthDecay = 0.4f;
-                //var oscWidthSustain = 0.4f;
-                //var oscWidthRelease = 0.4f;
-                //var widthDepthSustainTime = currentTime + oscWidthAttack + oscWidthRelease;
-                //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth, currentTime + oscWidthAttack);
-                //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth * oscWidthSustain, widthDepthSustainTime);
-                //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0, oscWidthSustain + oscWidthRelease);
+                    // Associate volume gain with Pulse Oscillator
+                    voiceContext.PulseOscillator.Connect(voiceContext.GainNode);
+                }
+                else
+                {
+                    // TODO: Connect, Set playback frequency, Set pulse width
+                }
+
+                if (voiceContext.PulseWidthGainNode is null)
+                {
+                    // Pulse width modulation
+                    voiceContext.PulseWidthGainNode = GainNodeSync.Create(
+                        _soundHandlerContext!.JSRuntime,
+                        _soundHandlerContext.AudioContext,
+                        new()
+                        {
+                            Gain = 0
+                        });
+
+                    voiceContext.PulseWidthGainNode.Connect(voiceContext.PulseOscillator.WidthGainNode);
+
+
+                    //var widthDepthGainNodeAudioParam = voiceContext.PulseWidthGainNode.GetGain();
+                    //var oscWidthDepth = 0.5f;   // LFO depth - Pulse modulation depth (percent) 
+                    //var oscWidthAttack = 0.05f;
+                    //var oscWidthDecay = 0.4f;
+                    //var oscWidthSustain = 0.4f;
+                    //var oscWidthRelease = 0.4f;
+                    //var widthDepthSustainTime = currentTime + oscWidthAttack + oscWidthRelease;
+                    //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth, currentTime + oscWidthAttack);
+                    //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth * oscWidthSustain, widthDepthSustainTime);
+                    //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0, oscWidthSustain + oscWidthRelease);
+
+                }
+                else
+                {
+                    // TODO: Set gain?
+                }
 
                 // Low frequency oscillator, use as base for Pulse Oscillator.
                 // The Pulse Oscillator will transform the Triangle wave to a Square wave in the end.
-                voiceContext.Oscillator = OscillatorNodeSync.Create(
-                     _soundHandlerContext!.JSRuntime,
-                     _soundHandlerContext.AudioContext,
-                        new OscillatorOptions
-                        {
-                            Type = OscillatorType.Triangle,
-                            Frequency = 10
-                        });
-                //voiceContext.Oscillator.Connect(detuneDepth);
-                voiceContext.Oscillator.Connect(voiceContext.PulseWidthGainNode);
+                if (voiceContext.LFOOscillator is null)
+                {
+                    voiceContext.LFOOscillator = OscillatorNodeSync.Create(
+                         _soundHandlerContext!.JSRuntime,
+                         _soundHandlerContext.AudioContext,
+                            new OscillatorOptions
+                            {
+                                Type = OscillatorType.Triangle,
+                                Frequency = 10
+                            });
 
-                // Set callback on Pulse Oscillator (which is the primary oscillator in this case)
-                voiceContext.PulseOscillator.AddEndedEventListsner(callback);
+                    //voiceContext.LFOOscillator.Connect(detuneDepth);
+                    voiceContext.LFOOscillator.Connect(voiceContext.PulseWidthGainNode);
 
-                // Associate volume gain with Pulse Oscillator
-                voiceContext.PulseOscillator.Connect(voiceContext.GainNode);
-
-                AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with freq {wasmSoundParameters.Frequency} with special type {wasmSoundParameters.SpecialType}");
-                voiceContext.PulseOscillator.Start();   // Primary oscillator
-                voiceContext.Oscillator.Start();        // Modulation oscillator
+                    AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with freq {wasmSoundParameters.Frequency} with special type {wasmSoundParameters.SpecialType}");
+                    voiceContext.PulseOscillator.Start();   // Primary oscillator
+                    voiceContext.LFOOscillator.Start();        // Modulation oscillator
+                }
+                else
+                {
+                    // TODO: Set frequency?
+                }
             }
 
             else
             {
-                voiceContext.PulseOscillator = null;
-                voiceContext.NoiseGenerator = null;
+                //voiceContext.PulseOscillator = null;
+                //voiceContext.LFOOscillator = null;
+                //voiceContext.NoiseGenerator = null;
 
                 // Use WebAudio Oscillator with Triangle or Sawtooth waveforms.
-                voiceContext.Oscillator = OscillatorNodeSync.Create(
-                    _soundHandlerContext!.JSRuntime,
-                    _soundHandlerContext.AudioContext,
-                    new()
-                    {
-                        Type = wasmSoundParameters.Type!.Value,
-                        Frequency = wasmSoundParameters.Frequency,
-                    });
+                if (voiceContext.Oscillator is null)
+                {
+                    voiceContext.Oscillator = OscillatorNodeSync.Create(
+                        _soundHandlerContext!.JSRuntime,
+                        _soundHandlerContext.AudioContext,
+                        new()
+                        {
+                            Type = wasmSoundParameters.Type!.Value,
+                            Frequency = wasmSoundParameters.Frequency,
+                        });
 
-                // Set callback on Oscillator
-                voiceContext.Oscillator.AddEndedEventListsner(callback);
+                    // Set callback on Oscillator
+                    voiceContext.Oscillator.AddEndedEventListsner(voiceContext.SoundStoppedCallback);
 
-                // Associate volume gain with Oscillator
-                voiceContext.Oscillator.Connect(voiceContext.GainNode);
+                    // Associate volume gain with Oscillator
+                    voiceContext.Oscillator.Connect(voiceContext.GainNode);
 
-                AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with freq {wasmSoundParameters.Frequency} with type {wasmSoundParameters.Type}");
-                voiceContext.Oscillator.Start();
+                    AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with freq {wasmSoundParameters.Frequency} with type {wasmSoundParameters.Type}");
+                    voiceContext.Oscillator.Start();
+
+                }
+                else
+                {
+                    // TODO: Set frequency?
+
+                }
             }
 
             voiceContext.Status = SoundStatus.ASDCycleStarted;
@@ -541,9 +587,9 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
             AddDebugMessage($"Stopping sound on voice {voiceContext.Voice} at time now + {wasmSoundParameters.ReleaseDurationSeconds} seconds.");
 
             // Schedule Stop for oscillator and other audio sources) when the Release period if over
-            voiceContext.Oscillator?.Stop(currentTime + wasmSoundParameters.ReleaseDurationSeconds);
-            voiceContext.PulseOscillator?.Stop(currentTime + wasmSoundParameters.ReleaseDurationSeconds);
-            voiceContext.NoiseGenerator?.Stop(currentTime + wasmSoundParameters.ReleaseDurationSeconds);
+            //voiceContext.Oscillator?.Stop(currentTime + wasmSoundParameters.ReleaseDurationSeconds);
+            //voiceContext.PulseOscillator?.Stop(currentTime + wasmSoundParameters.ReleaseDurationSeconds);
+            //voiceContext.NoiseGenerator?.Stop(currentTime + wasmSoundParameters.ReleaseDurationSeconds);
 
             voiceContext.Status = SoundStatus.ReleaseCycleStarted;
         }
