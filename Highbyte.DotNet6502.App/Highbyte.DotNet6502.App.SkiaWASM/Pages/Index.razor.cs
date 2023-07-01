@@ -9,6 +9,9 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
+using Microsoft.AspNetCore.WebUtilities;
+using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
@@ -40,7 +43,6 @@ public partial class Index
         set
         {
             _selectedSystemName = value;
-            OnSelectedEmulatorChanged();
         }
     }
 
@@ -151,11 +153,39 @@ public partial class Index
         await _systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);
 
         var genericComputerSetup = new GenericComputerSetup(_browserContext);
-        await _systemList.AddSystem(GenericComputer.SystemName, genericComputerSetup.BuildSystem, genericComputerSetup.BuildSystemRunner, genericComputerSetup.GetNewConfig, genericComputerSetup.PersistConfig);
+        await _systemList.AddSystem(
+            GenericComputer.SystemName,
+            genericComputerSetup.BuildSystem,
+            genericComputerSetup.BuildSystemRunner,
+            genericComputerSetup.GetNewConfig,
+            genericComputerSetup.PersistConfig);
 
         // Default system
         SelectedSystemName = C64.SystemName;
+        await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = SelectedSystemName });
 
+        await SetDefaultsFromQueryParams(_browserContext.Uri);
+    }
+
+    private async Task SetDefaultsFromQueryParams(Uri uri)
+    {
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("systemName", out var systemName))
+        {
+            var systemNameParsed = systemName.ToString();
+            if (systemNameParsed is not null && _systemList.Systems.Contains(systemNameParsed))
+            {
+                SelectedSystemName = systemNameParsed;
+                await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = SelectedSystemName });
+            }
+        }
+
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("audioEnabled", out var audioEnabled))
+        {
+            if (bool.TryParse(audioEnabled, out bool audioEnabledParsed))
+            {
+                AudioEnabled = audioEnabledParsed;
+            }
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -175,11 +205,13 @@ public partial class Index
     //}
 
 
-    private async void OnSelectedEmulatorChanged()
+    private async Task OnSelectedEmulatorChanged(ChangeEventArgs e)
     {
+        _selectedSystemName = e.Value?.ToString() ?? "";
         (bool isOk, List<string> validationErrors) = await _systemList.IsValidConfigWithDetails(_selectedSystemName);
+
         if (!isOk)
-            _selectedSystemConfigValidationMessage = string.Join(",", validationErrors);
+            _selectedSystemConfigValidationMessage = string.Join(",", validationErrors!);
         else
             _selectedSystemConfigValidationMessage = "";
 

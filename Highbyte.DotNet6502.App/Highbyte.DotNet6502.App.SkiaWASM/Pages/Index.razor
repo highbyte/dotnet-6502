@@ -24,7 +24,8 @@
         <div id="system-selector">
             <div>
                 System:
-                <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled autofocus>
+                @* <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled autofocus> *@
+                <select value="@SelectedSystemName" @onchange="OnSelectedEmulatorChanged" disabled=@OnSelectSystemNameDisabled autofocus>
                     @foreach (var systemName in _systemList.Systems)
                     {
                         <option value="@systemName"> @systemName </option>

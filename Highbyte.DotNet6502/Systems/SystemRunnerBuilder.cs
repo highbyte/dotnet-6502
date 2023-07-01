@@ -30,6 +30,11 @@ public class SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, 
         _systemRunner.SoundHandler = soundHandler;
         return this;
     }
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TSoundHandlerContext> WithSoundHandler(ISoundHandler soundHandler)
+    {
+        _systemRunner.SoundHandler = soundHandler;
+        return this;
+    }
 
     public SystemRunner Build()
     {
