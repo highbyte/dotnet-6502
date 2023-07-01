@@ -388,16 +388,16 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
             // Create GainNode
             voiceContext.GainNode = GainNodeSync.Create(_soundHandlerContext.JSRuntime, _soundHandlerContext.AudioContext);
 
+            // Associate GainNode -> MasterVolume -> AudioContext destination 
+            voiceContext.GainNode.Connect(_soundHandlerContext.MasterVolumeGainNode);
+            var destination = _soundHandlerContext.AudioContext.GetDestination();
+            _soundHandlerContext.MasterVolumeGainNode.Connect(destination);
+
             // Set Attack/Decay/Sustain gain envelope
             var gainAudioParam = voiceContext.GainNode!.GetGain();
             gainAudioParam.SetValueAtTime(0, currentTime);
             gainAudioParam.LinearRampToValueAtTime(wasmSoundParameters.Gain, currentTime + wasmSoundParameters.AttackDurationSeconds);
             gainAudioParam.SetTargetAtTime(wasmSoundParameters.SustainGain, currentTime + wasmSoundParameters.AttackDurationSeconds, wasmSoundParameters.DecayDurationSeconds);
-
-            // Associate GainNode -> MasterVolume -> AudioContext destination 
-            voiceContext.GainNode.Connect(_soundHandlerContext.MasterVolumeGainNode);
-            var destination = _soundHandlerContext.AudioContext.GetDestination();
-            _soundHandlerContext.MasterVolumeGainNode.Connect(destination);
 
             // Define callback handler to know when an oscillator has stopped playing.
             var callback = EventListener<EventSync>.Create(_soundHandlerContext.AudioContext.WebAudioHelper, _soundHandlerContext.AudioContext.JSRuntime, (e) =>
@@ -454,6 +454,10 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
                         DefaultWidth = wasmSoundParameters.PulseWidth
                     });
 
+                // Associate volume gain with Pulse Oscillator
+                voiceContext.PulseOscillator.Connect(voiceContext.GainNode);
+
+
                 // Pulse width modulation
                 voiceContext.PulseWidthGainNode = GainNodeSync.Create(
                     _soundHandlerContext!.JSRuntime,
@@ -464,16 +468,16 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
                     });
                 voiceContext.PulseWidthGainNode.Connect(voiceContext.PulseOscillator.WidthGainNode);
 
-                //var widthDepthGainNodeAudioParam = voiceContext.PulseWidthGainNode.GetGain();
-                //var oscWidthDepth = 0.5f;   // LFO depth - Pulse modulation depth (percent) 
-                //var oscWidthAttack = 0.05f;
-                //var oscWidthDecay = 0.4f;
-                //var oscWidthSustain = 0.4f;
-                //var oscWidthRelease = 0.4f;
-                //var widthDepthSustainTime = currentTime + oscWidthAttack + oscWidthRelease;
-                //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth, currentTime + oscWidthAttack);
-                //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth * oscWidthSustain, widthDepthSustainTime);
-                //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0, oscWidthSustain + oscWidthRelease);
+                var widthDepthGainNodeAudioParam = voiceContext.PulseWidthGainNode.GetGain();
+                var oscWidthDepth = 0.5f;   // LFO depth - Pulse modulation depth (percent) // TODO: Configurable?
+                var oscWidthAttack = 0.05f; // TODO: Configurable?
+                //var oscWidthDecay = 0.4f;   // TODO: Configurable?
+                var oscWidthSustain = 0.4f; // TODO: Configurable?
+                var oscWidthRelease = 0.4f; // TODO: Configurable?
+                var widthDepthSustainTime = currentTime + oscWidthAttack + oscWidthRelease;
+                widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth, currentTime + oscWidthAttack);
+                widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth * oscWidthSustain, widthDepthSustainTime);
+                widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0, oscWidthSustain + oscWidthRelease);
 
                 // Low frequency oscillator, use as base for Pulse Oscillator.
                 // The Pulse Oscillator will transform the Triangle wave to a Square wave in the end.
@@ -491,10 +495,7 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
                 // Set callback on Pulse Oscillator (which is the primary oscillator in this case)
                 voiceContext.PulseOscillator.AddEndedEventListsner(callback);
 
-                // Associate volume gain with Pulse Oscillator
-                voiceContext.PulseOscillator.Connect(voiceContext.GainNode);
-
-                AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with freq {wasmSoundParameters.Frequency} with special type {wasmSoundParameters.SpecialType}");
+                AddDebugMessage($"Starting sound on voice {voiceContext.Voice} with freq {wasmSoundParameters.Frequency} pulsewidth {wasmSoundParameters.PulseWidth} with special type {wasmSoundParameters.SpecialType}");
                 voiceContext.PulseOscillator.Start();   // Primary oscillator
                 voiceContext.Oscillator.Start();        // Modulation oscillator
             }
