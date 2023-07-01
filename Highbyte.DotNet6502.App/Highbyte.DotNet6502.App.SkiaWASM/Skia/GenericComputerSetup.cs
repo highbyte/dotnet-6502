@@ -104,10 +104,11 @@ public class GenericComputerSetup
         inputHandler.Init(genericComputer, inputHandlerContext);
         soundHandler.Init(genericComputer, soundHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, AspNetInputHandlerContext, NullSoundHandlerContext>(genericComputer);
+        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, AspNetInputHandlerContext, WASMSoundHandlerContext>(genericComputer);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)
+            .WithSoundHandler(soundHandler)
             .Build();
         return systemRunner;
     }

@@ -3,6 +3,7 @@
     "IIS Express": {
       "commandName": "IISExpress",
       "launchBrowser": true,
+      "launchUrl": "http://localhost:23744?audioEnabled=true",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },

@@ -20,17 +20,13 @@ public interface ISoundHandler<TSystem, TSoundHandlerContext> : ISoundHandler
     void GenerateSound(TSystem system);
 }
 
-public class NullSoundHandler : ISoundHandler<ISystem, NullSoundHandlerContext>, ISoundHandler
+public class NullSoundHandler : ISoundHandler
 {
     public NullSoundHandler()
     {
     }
 
     public void Init(ISystem system, ISoundHandlerContext soundHandlerContext)
-    {
-    }
-
-    public void Init(ISystem system, NullSoundHandlerContext soundHandlerContext)
     {
     }
 
