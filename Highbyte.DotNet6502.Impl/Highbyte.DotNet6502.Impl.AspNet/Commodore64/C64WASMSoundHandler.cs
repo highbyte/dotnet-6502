@@ -491,17 +491,16 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
 
                     voiceContext.PulseWidthGainNode.Connect(voiceContext.PulseOscillator.WidthGainNode);
 
-
-                    //var widthDepthGainNodeAudioParam = voiceContext.PulseWidthGainNode.GetGain();
-                    //var oscWidthDepth = 0.5f;   // LFO depth - Pulse modulation depth (percent) 
-                    //var oscWidthAttack = 0.05f;
-                    //var oscWidthDecay = 0.4f;
-                    //var oscWidthSustain = 0.4f;
-                    //var oscWidthRelease = 0.4f;
-                    //var widthDepthSustainTime = currentTime + oscWidthAttack + oscWidthRelease;
-                    //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth, currentTime + oscWidthAttack);
-                    //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth * oscWidthSustain, widthDepthSustainTime);
-                    //widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0, oscWidthSustain + oscWidthRelease);
+                var widthDepthGainNodeAudioParam = voiceContext.PulseWidthGainNode.GetGain();
+                var oscWidthDepth = 0.5f;   // LFO depth - Pulse modulation depth (percent) // TODO: Configurable?
+                var oscWidthAttack = 0.05f; // TODO: Configurable?
+                //var oscWidthDecay = 0.4f;   // TODO: Configurable?
+                var oscWidthSustain = 0.4f; // TODO: Configurable?
+                var oscWidthRelease = 0.4f; // TODO: Configurable?
+                var widthDepthSustainTime = currentTime + oscWidthAttack + oscWidthRelease;
+                widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth, currentTime + oscWidthAttack);
+                widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0.5f * oscWidthDepth * oscWidthSustain, widthDepthSustainTime);
+                widthDepthGainNodeAudioParam.LinearRampToValueAtTime(0, oscWidthSustain + oscWidthRelease);
 
                 }
                 else
