@@ -30,14 +30,14 @@ namespace Highbyte.DotNet6502.Impl.AspNet
     public enum SoundStatus
     {
         /// <summary>
-        /// Attack/Sustain/Decay cycle has been started.
+        /// Attack/Decay/Sustain cycle has been started.
         /// It's started by setting the Gate bit to 1 (and a waveform has been selected).
         /// </summary>
-        ASDCycleStarted,
+        ADSCycleStarted,
         /// <summary>
         /// Release cycle has been started.
         /// It's started by setting the Gate bit to 0.
-        /// During relase cycle, a new sound can be started by setting the Gate bit to 1 (this will stop current sound and start a new one)
+        /// During release cycle, a new sound can be started by setting the Gate bit to 1 (this will stop current sound and start a new one)
         /// </summary>
         ReleaseCycleStarted,
 

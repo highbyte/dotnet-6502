@@ -1,3 +1,6 @@
+using System.Linq;
+using static Highbyte.DotNet6502.Memory;
+
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 /// <summary>
@@ -8,6 +11,22 @@ public class InternalSidState
 {
     private Dictionary<ushort, byte> _sidRegValues = new();
     private HashSet<ushort> _changedSidRegisters = new();
+
+    private HashSet<ushort> _sidRegistersThatAlwaysAreConsideredChangeWhenWrittenTo = new()
+    {
+        SidAddr.SIGVOL,
+        SidAddr.VCREG1,
+        SidAddr.VCREG2,
+        SidAddr.VCREG3
+    };
+
+    public enum GateControl
+    {
+        StartAttackDecaySustain,
+        StartRelease,
+        StopSound,
+        None
+    }
 
     /// <summary>
     /// Get volume 0-15.
@@ -79,12 +98,36 @@ public class InternalSidState
                 || IsRawSidRegChanged(SidAddr.VoiceRegisterMap[$"{SidVoiceRegisterType.PWHI}{voice}"]);
     }
 
-    public bool IsGateOn(byte voice)
+    //public bool IsGateOn(byte voice)
+    //{
+    //    var reg = SidAddr.VoiceRegisterMap[$"{SidVoiceRegisterType.VCREG}{voice}"];
+    //    var isGateOn = GetRawSidRegValue(reg).IsBitSet(0);
+    //    return isGateOn;
+    //}
+
+    public GateControl GetGateControl(byte voice)
     {
         var reg = SidAddr.VoiceRegisterMap[$"{SidVoiceRegisterType.VCREG}{voice}"];
-        var isGateOn = GetRawSidRegValue(reg).IsBitSet(0);
-        return isGateOn;
+        if (!IsRawSidRegChanged(reg))
+            return GateControl.None;
+
+        var regValue = GetRawSidRegValue(reg);
+        bool anyWaveFormSelected = (regValue & 0b11110000) > 0; // bits 4-7 contains wave form selection
+        var isGateOn = regValue.IsBitSet(0);
+
+        switch (anyWaveFormSelected, isGateOn)
+        {
+            case (true, true):
+                return GateControl.StartAttackDecaySustain;
+            case (true, false):
+                return GateControl.StartRelease;
+            case (false, true):
+                return GateControl.None;
+            case (false, false):
+                return GateControl.StopSound;
+        }
     }
+
 
     public SidVoiceWaveForm GetWaveForm(byte voice)
     {
@@ -154,12 +197,20 @@ public class InternalSidState
 
     public void SetSidRegValue(ushort address, byte value)
     {
-        // Log sid register has changed since _changedSidRegisters last has been cleared.
-        if (_sidRegValues.ContainsKey(address) && _sidRegValues[address] != value)
+        if (_sidRegistersThatAlwaysAreConsideredChangeWhenWrittenTo.Contains(address))
+        {
             _changedSidRegisters.Add(address);
+        }
+        else
+        {
+            // Log sid register has changed since _changedSidRegisters last has been cleared.
+            if (_sidRegValues.ContainsKey(address) && _sidRegValues[address] != value)
+                _changedSidRegisters.Add(address);
+        }
 
         _sidRegValues[address] = value;
     }
+
 
     public InternalSidState Clone()
     {
