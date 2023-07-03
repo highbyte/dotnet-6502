@@ -1,12 +1,12 @@
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.AspNet
 {
     public class WASMVoiceParameter
     {
         public SoundCommand SoundCommand { get; set; }
-        public OscillatorType? Type { get; set; }
-        public OscillatorSpecialType? SpecialType { get; set; }
+        public SidVoiceWaveForm SIDOscillatorType { get; set; }
 
         ///// <summary>
         ///// Used when Type is set to OscillatorType.Custom and SpecialType is set to OscillatorSpecialType.Noise.
@@ -59,12 +59,6 @@ namespace Highbyte.DotNet6502.Impl.AspNet
         ChangePulseWidth,    // Change pulse width on curren playing sound (only for pulse oscillator)
         ChangeVolume,       // Change volume on current playing sound.
         Stop                // Stop current playing sound right away.
-    }
-
-    public enum OscillatorSpecialType
-    {
-        Noise,  // Using the built-in WebAudio OscillatorNode with type "custom" and a random periodicWave definition that generates noise.
-        Pulse   // Using a custom PulseOscillatorNode implementation.
     }
 
 }
