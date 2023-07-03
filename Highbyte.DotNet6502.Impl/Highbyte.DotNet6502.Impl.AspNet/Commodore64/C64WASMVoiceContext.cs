@@ -6,6 +6,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 {
     public class C64WASMVoiceContext
     {
+        private readonly bool _disconnectOscillatorOnStop = false;
+
         private WASMSoundHandlerContext _soundHandlerContext;
         public WASMSoundHandlerContext SoundHandlerContext => _soundHandlerContext;
         public AudioContextSync AudioContext => _soundHandlerContext.AudioContext;
@@ -150,9 +152,13 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                 AddDebugMessage($"Status already was Stopped");
             }
 
-            DisconnectOscillator(CurrentSidVoiceWaveForm);
 
-            CurrentSidVoiceWaveForm = SidVoiceWaveForm.None;
+            // If configured, disconnect the oscillator when stopping
+            if (_disconnectOscillatorOnStop)
+            {
+                DisconnectOscillator(CurrentSidVoiceWaveForm);
+                CurrentSidVoiceWaveForm = SidVoiceWaveForm.None;
+            }
         }
 
         private void DisconnectOscillator(SidVoiceWaveForm sidVoiceWaveForm)
@@ -183,8 +189,12 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 
         internal void ConnectOscillator(SidVoiceWaveForm sidVoiceWaveForm)
         {
-            // If any other oscillator is currently connected, stop its sound and disconnect oscillator
-            if (CurrentSidVoiceWaveForm != SidVoiceWaveForm.None && CurrentSidVoiceWaveForm != sidVoiceWaveForm)
+            // If current oscillator is the same as the requested one, do nothing (assume it's already connected)
+            if (sidVoiceWaveForm == CurrentSidVoiceWaveForm)
+                return;
+
+            // If any other oscillator is currently connected
+            if (CurrentSidVoiceWaveForm != SidVoiceWaveForm.None)
             {
                 // Stop any existing playing sound will also disconnect it's oscillator
                 Stop();
