@@ -1,10 +1,10 @@
 namespace Highbyte.DotNet6502.Systems;
 
-public class SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TSoundHandlerContext>
+public class SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     where TSystem : ISystem
     where TRenderContext : IRenderContext
     where TInputHandlerContext : IInputHandlerContext
-    where TSoundHandlerContext: ISoundHandlerContext
+    where TAudioHandlerContext: IAudioHandlerContext
 {
     private readonly SystemRunner _systemRunner;
 
@@ -13,26 +13,26 @@ public class SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, 
         _systemRunner = new SystemRunner(system);
     }
 
-    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TSoundHandlerContext> WithRenderer(IRenderer<TSystem, TRenderContext> renderer)
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithRenderer(IRenderer<TSystem, TRenderContext> renderer)
     {
         _systemRunner.Renderer = renderer;
         return this;
     }
 
-    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TSoundHandlerContext> WithInputHandler(IInputHandler<TSystem, TInputHandlerContext> inputHandler)
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithInputHandler(IInputHandler<TSystem, TInputHandlerContext> inputHandler)
     {
         _systemRunner.InputHandler = inputHandler;
         return this;
     }
 
-    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TSoundHandlerContext> WithSoundHandler(ISoundHandler<TSystem, TSoundHandlerContext> soundHandler)
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithAudioHandler(IAudioHandler<TSystem, TAudioHandlerContext> audioHandler)
     {
-        _systemRunner.SoundHandler = soundHandler;
+        _systemRunner.AudioHandler = audioHandler;
         return this;
     }
-    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TSoundHandlerContext> WithSoundHandler(ISoundHandler soundHandler)
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithAudioHandler(IAudioHandler audioHandler)
     {
-        _systemRunner.SoundHandler = soundHandler;
+        _systemRunner.AudioHandler = audioHandler;
         return this;
     }
 

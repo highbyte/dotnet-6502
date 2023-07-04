@@ -7,12 +7,12 @@ public class SystemRunner
     private readonly ISystem _system;
     private IRenderer _renderer;
     private IInputHandler _inputHandler;
-    private ISoundHandler _soundHandler;
+    private IAudioHandler _audioHandler;
 
     public ISystem System => _system;
     public IRenderer Renderer { get => _renderer; set => _renderer = value; }
     public IInputHandler InputHandler { get => _inputHandler; set => _inputHandler = value; }
-    public ISoundHandler SoundHandler { get => _soundHandler; set => _soundHandler = value; }
+    public IAudioHandler AudioHandler { get => _audioHandler; set => _audioHandler = value; }
 
     private IExecEvaluator? _customExecEvaluator;
     public IExecEvaluator? CustomExecEvaluator => _customExecEvaluator;
@@ -93,12 +93,12 @@ public class SystemRunner
     // PostInstruction is meant to be called after each instruction has executed.
     private void PostInstruction(ISystem system, Dictionary<string, double> detailedStats)
     {
-        // Generate sound by inspecting the current system state
-        if (_soundHandler is not null)
+        // Generate audio by inspecting the current system state
+        if (_audioHandler is not null)
         {
             _audioSw.Restart();
-            _soundHandler.GenerateSound(system);
-            //var t = new Task(() => _soundHandler?.GenerateSound(system));
+            _audioHandler.GenerateAudio(system);
+            //var t = new Task(() => _audioHandler?.GenerateAudio(system));
             //t.RunSynchronously();
             _audioSw.Stop();
 

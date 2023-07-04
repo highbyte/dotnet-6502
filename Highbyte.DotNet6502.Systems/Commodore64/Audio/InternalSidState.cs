@@ -24,7 +24,7 @@ public class InternalSidState
     {
         StartAttackDecaySustain,
         StartRelease,
-        StopSound,
+        StopAudio,
         None
     }
 
@@ -124,7 +124,7 @@ public class InternalSidState
             case (false, true):
                 return GateControl.None;
             case (false, false):
-                return GateControl.StopSound;
+                return GateControl.StopAudio;
         }
     }
 

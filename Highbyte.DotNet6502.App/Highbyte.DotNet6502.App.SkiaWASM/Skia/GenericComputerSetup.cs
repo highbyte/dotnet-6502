@@ -90,25 +90,25 @@ public class GenericComputerSetup
         ISystemConfig systemConfig,
         SkiaRenderContext skiaRenderContext,
         AspNetInputHandlerContext inputHandlerContext,
-        WASMSoundHandlerContext soundHandlerContext)
+        WASMAudioHandlerContext audioHandlerContext)
     {
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
 
         var renderer = new GenericComputerSkiaRenderer(genericComputerConfig.Memory.Screen);
         var inputHandler = new GenericComputerAspNetInputHandler(genericComputerConfig.Memory.Input);
-        var soundHandler = new NullSoundHandler();
+        var audioHandler = new NullAudioHandler();
 
         var genericComputer = (GenericComputer)system;
 
         renderer.Init(genericComputer, skiaRenderContext);
         inputHandler.Init(genericComputer, inputHandlerContext);
-        soundHandler.Init(genericComputer, soundHandlerContext);
+        audioHandler.Init(genericComputer, audioHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, AspNetInputHandlerContext, WASMSoundHandlerContext>(genericComputer);
+        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>(genericComputer);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)
-            .WithSoundHandler(soundHandler)
+            .WithAudioHandler(audioHandler)
             .Build();
         return systemRunner;
     }

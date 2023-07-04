@@ -4,11 +4,11 @@ using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 
-public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, ISoundHandler
+public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, IAudioHandler
 {
     private static Queue<InternalSidState> _sidStateChanges = new();
 
-    private WASMSoundHandlerContext? _soundHandlerContext;
+    private WASMAudioHandlerContext? _audioHandlerContext;
 
     private List<byte> _enabledVoices = new() { 1, 2, 3 }; // TODO: Set enabled voices via config.
     //private List<byte> _enabledVoices = new() { 1 }; // TODO: Set enabled voices via config.
@@ -26,7 +26,7 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
     private List<string> _debugMessages = new();
     private const int MAX_DEBUG_MESSAGES = 20;
 
-    public C64WASMSoundHandler()
+    public C64WASMAudioHandler()
     {
     }
     public List<string> GetDebugMessages()
@@ -34,28 +34,28 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
         return _debugMessages;
     }
 
-    public void Init(C64 system, WASMSoundHandlerContext soundHandlerContext)
+    public void Init(C64 system, WASMAudioHandlerContext audioHandlerContext)
     {
-        _soundHandlerContext = soundHandlerContext;
-        _soundHandlerContext.Init();
+        _audioHandlerContext = audioHandlerContext;
+        _audioHandlerContext.Init();
 
         foreach (var key in VoiceContexts.Keys)
         {
             var voice = VoiceContexts[key];
-            voice.Init(soundHandlerContext, AddDebugMessage);
+            voice.Init(audioHandlerContext, AddDebugMessage);
         }
     }
 
-    public void Init(ISystem system, ISoundHandlerContext soundHandlerContext)
+    public void Init(ISystem system, IAudioHandlerContext audioHandlerContext)
     {
-        Init((C64)system, (WASMSoundHandlerContext)soundHandlerContext);
+        Init((C64)system, (WASMAudioHandlerContext)audioHandlerContext);
     }
-    public void GenerateSound(ISystem system)
+    public void GenerateAudio(ISystem system)
     {
-        GenerateSound((C64)system);
+        GenerateAudio((C64)system);
     }
 
-    public void GenerateSound(C64 c64)
+    public void GenerateAudio(C64 c64)
     {
         var sid = c64.Sid;
         if (!sid.InternalSidState.IsAudioChanged)
@@ -64,30 +64,30 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
         //var internalSidStateClone = sid.InternalSidState.Clone();
         //sid.InternalSidState.ClearAudioChanged();
         //_sidStateChanges.Enqueue(internalSidStateClone);
-        //GenerateSound();
+        //GenerateAudio();
 
         PlayAllVoices(sid.InternalSidState);
         sid.InternalSidState.ClearAudioChanged();
 
-        //var soundTasks = CreateSoundTasks(internalSidStateClone);
-        //if (soundTasks.Length > 0)
+        //var audioTasks = CreateAudioTasks(internalSidStateClone);
+        //if (audioTasks.Length > 0)
         //{
-        //    //Task.WaitAll(soundTasks);
+        //    //Task.WaitAll(audioTasks);
 
-        //    //var allTasksComplete = Task.WhenAll(soundTasks);
+        //    //var allTasksComplete = Task.WhenAll(audioTasks);
         //    //allTasksComplete.GetAwaiter();
 
-        //    AddDebugMessage($"{Starting sound tasks for {soundTasks.Length} voices");
-        //    foreach (var task in soundTasks)
+        //    AddDebugMessage($"{Starting audio tasks for {audioTasks.Length} voices");
+        //    foreach (var task in audioTasks)
         //    {
         //        task.Start();
         //    }
         //}
     }
 
-    public void StopAllSounds()
+    public void StopAllAudio()
     {
-        if (_soundHandlerContext is null)
+        if (_audioHandlerContext is null)
             return;
         foreach (var voiceContext in VoiceContexts.Values)
         {
@@ -105,12 +105,12 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
                 continue;
 
             var voiceContext = VoiceContexts[voice];
-            //var wasmSoundParameters = BuildWASMSoundParametersFromC64Sid(voiceContext, sidInternalStateClone);
-            var wasmSoundParameters = BuildWASMSoundParametersFromC64Sid(voiceContext, internalSidState);
-            if (wasmSoundParameters.SoundCommand != SoundCommand.None)
+            //var wasmVoiceParameter = BuildWASMVoiceParameterFromC64Sid(voiceContext, sidInternalStateClone);
+            var wasmVoiceParameter = BuildWASMVoiceParameterFromC64Sid(voiceContext, internalSidState);
+            if (wasmVoiceParameter.AudioCommand != AudioCommand.None)
             {
                 AddDebugMessage($"BEGIN VOICE", voice);
-                PlayVoice(voiceContext, wasmSoundParameters);
+                PlayVoice(voiceContext, wasmVoiceParameter);
                 AddDebugMessage($"END VOICE", voice);
             }
         }
@@ -118,7 +118,7 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
         //_sidStateChanges.Dequeue();
     }
 
-    private WASMVoiceParameter BuildWASMSoundParametersFromC64Sid(C64WASMVoiceContext voiceContext, InternalSidState sidState)
+    private WASMVoiceParameter BuildWASMVoiceParameterFromC64Sid(C64WASMVoiceContext voiceContext, InternalSidState sidState)
     {
         // TODO: Read clock speed from config, different for NTSC and PAL.
         float clockSpeed = 1022730;
@@ -126,12 +126,12 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
         var voice = voiceContext.Voice;
 
         // ----------
-        // Map SID register values to sound parameters usable by Web Audio, and what to do with the sound.
+        // Map SID register values to audio parameters usable by Web Audio, and what to do with the audio.
         // ----------
-        var soundParameters = new WASMVoiceParameter
+        var wasmVoiceParameter = new WASMVoiceParameter
         {
-            // What to do with the sound (Start ADS cycle, start Release cycle, stop sound, change frequency, change volume)
-            SoundCommand = GetSoundCommand(voiceContext, sidState),
+            // What to do with the audio (Start ADS cycle, start Release cycle, stop audio, change frequency, change volume)
+            AudioCommand = GetAudioCommand(voiceContext, sidState),
 
             // Oscillator type mapped from C64 SID wave form selection
             SIDOscillatorType = sidState.GetWaveForm(voice),
@@ -178,12 +178,12 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
             ReleaseDurationSeconds = sidState.GetReleaseDuration(voice) / 1000.0,
         };
 
-        return soundParameters;
+        return wasmVoiceParameter;
     }
 
-    private SoundCommand GetSoundCommand(C64WASMVoiceContext voiceContext, InternalSidState sidState)
+    private AudioCommand GetAudioCommand(C64WASMVoiceContext voiceContext, InternalSidState sidState)
     {
-        SoundCommand command = SoundCommand.None;
+        AudioCommand command = AudioCommand.None;
 
         byte voice = voiceContext.Voice;
         var gateControl = sidState.GetGateControl(voice);
@@ -191,14 +191,14 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
         var isPulseWidthChanged = sidState.IsPulseWidthChanged(voice);
         var isVolumeChanged = sidState.IsVolumeChanged;
 
-        // New sound (ADS cycle) is started when
+        // New audio (ADS cycle) is started when
         // - Starting ADS is selected in the SID gate register
-        // - and no sound is playing (or when the release cycle has started)
+        // - and no audio is playing (or when the release cycle has started)
         if (gateControl == InternalSidState.GateControl.StartAttackDecaySustain
-            && (voiceContext.Status == SoundStatus.Stopped ||
-                voiceContext.Status == SoundStatus.ReleaseCycleStarted))
+            && (voiceContext.Status == AudioStatus.Stopped ||
+                voiceContext.Status == AudioStatus.ReleaseCycleStarted))
         {
-            command = SoundCommand.StartADS;
+            command = AudioCommand.StartADS;
         }
 
         // Release cycle can be started when
@@ -206,125 +206,125 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
         // - ADS cycle has already been started
         // - or ADS cycle has already stopped (which in case nothing will really happen
         else if (gateControl == InternalSidState.GateControl.StartRelease
-               && (voiceContext.Status == SoundStatus.ADSCycleStarted || voiceContext.Status == SoundStatus.Stopped))
+               && (voiceContext.Status == AudioStatus.ADSCycleStarted || voiceContext.Status == AudioStatus.Stopped))
         {
-            command = SoundCommand.StartRelease;
+            command = AudioCommand.StartRelease;
         }
 
-        // Sound is stopped immediately when
+        // Audio is stopped immediately when
         // - Gate is off (in gate register when gate bit is 0 and no waveform selected)
-        else if (gateControl == InternalSidState.GateControl.StopSound)
+        else if (gateControl == InternalSidState.GateControl.StopAudio)
         {
-            command = SoundCommand.Stop;
+            command = AudioCommand.Stop;
         }
 
-        // Check if frequency has changed, and if any sound is currently playing.
+        // Check if frequency has changed, and if any audio is currently playing.
         else if (isFrequencyChanged
-                && (voiceContext.Status == SoundStatus.ADSCycleStarted
-                || voiceContext.Status == SoundStatus.ReleaseCycleStarted))
+                && (voiceContext.Status == AudioStatus.ADSCycleStarted
+                || voiceContext.Status == AudioStatus.ReleaseCycleStarted))
         {
-            command = SoundCommand.ChangeFrequency;
+            command = AudioCommand.ChangeFrequency;
         }
 
-        // Check if frequency has changed, and if any sound is currently playing.
+        // Check if pulsewidth has changed, and if any audio is currently playing.
         else if (isPulseWidthChanged
-                && (voiceContext.Status == SoundStatus.ADSCycleStarted
-                || voiceContext.Status == SoundStatus.ReleaseCycleStarted))
+                && (voiceContext.Status == AudioStatus.ADSCycleStarted
+                || voiceContext.Status == AudioStatus.ReleaseCycleStarted))
         {
-            command = SoundCommand.ChangePulseWidth;
+            command = AudioCommand.ChangePulseWidth;
         }
 
-        // Check if volume has changed, and if any sound is currently playing.
+        // Check if volume has changed, and if any audio is currently playing.
         else if (isVolumeChanged
-                && (voiceContext.Status == SoundStatus.ADSCycleStarted
-                || voiceContext.Status == SoundStatus.ReleaseCycleStarted))
+                && (voiceContext.Status == AudioStatus.ADSCycleStarted
+                || voiceContext.Status == AudioStatus.ReleaseCycleStarted))
         {
-            command = SoundCommand.ChangeVolume;
+            command = AudioCommand.ChangeVolume;
         }
 
         return command;
     }
 
-    private void PlayVoice(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters)
+    private void PlayVoice(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmVoiceParameter)
     {
-        AddDebugMessage($"Processing command: {wasmSoundParameters.SoundCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
+        AddDebugMessage($"Processing command: {wasmVoiceParameter.AudioCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
 
-        if (wasmSoundParameters.SoundCommand == SoundCommand.Stop)
+        if (wasmVoiceParameter.AudioCommand == AudioCommand.Stop)
         {
-            // Stop sound immediately
+            // Stop audio immediately
             voiceContext.Stop();
         }
 
-        else if (wasmSoundParameters.SoundCommand == SoundCommand.StartADS)
+        else if (wasmVoiceParameter.AudioCommand == AudioCommand.StartADS)
         {
-            // Skip starting sound if specified oscillator is not enabled by config
-            if (!_enabledOscillators.Contains(wasmSoundParameters.SIDOscillatorType))
+            // Skip starting audio if specified oscillator is not enabled by config
+            if (!_enabledOscillators.Contains(wasmVoiceParameter.SIDOscillatorType))
                 return;
 
-            voiceContext.StartSoundADSPhase(wasmSoundParameters);
+            voiceContext.StartAudioADSPhase(wasmVoiceParameter);
         }
 
-        else if (wasmSoundParameters.SoundCommand == SoundCommand.StartRelease)
+        else if (wasmVoiceParameter.AudioCommand == AudioCommand.StartRelease)
         {
-            // Skip stopping sound if specified oscillator is not enabled by config
-            if (!_enabledOscillators.Contains(wasmSoundParameters.SIDOscillatorType))
+            // Skip stopping audio if specified oscillator is not enabled by config
+            if (!_enabledOscillators.Contains(wasmVoiceParameter.SIDOscillatorType))
                 return;
 
-            if (voiceContext.Status == SoundStatus.Stopped)
+            if (voiceContext.Status == AudioStatus.Stopped)
             {
                 AddDebugMessage($"Voice status is already Stopped, Release phase will be ignored", voiceContext.Voice);
                 return;
             }
 
-            voiceContext.StartSoundReleasePhase(wasmSoundParameters);
+            voiceContext.StartAudioReleasePhase(wasmVoiceParameter);
         }
 
-        else if (wasmSoundParameters.SoundCommand == SoundCommand.ChangeVolume)
+        else if (wasmVoiceParameter.AudioCommand == AudioCommand.ChangeVolume)
         {
-            var currentTime = _soundHandlerContext!.AudioContext.GetCurrentTime();
-            voiceContext.SetVolume(wasmSoundParameters.Gain, currentTime);
+            var currentTime = _audioHandlerContext!.AudioContext.GetCurrentTime();
+            voiceContext.SetVolume(wasmVoiceParameter.Gain, currentTime);
         }
 
-        else if (wasmSoundParameters.SoundCommand == SoundCommand.ChangeFrequency)
+        else if (wasmVoiceParameter.AudioCommand == AudioCommand.ChangeFrequency)
         {
             // Skip changing frequency if specified oscillator is not enabled by config
-            if (!_enabledOscillators.Contains(wasmSoundParameters.SIDOscillatorType))
+            if (!_enabledOscillators.Contains(wasmVoiceParameter.SIDOscillatorType))
                 return;
 
-            var currentTime = _soundHandlerContext!.AudioContext.GetCurrentTime();
-            voiceContext.SetFrequencyOnCurrentOscillator(wasmSoundParameters.Frequency, currentTime);
+            var currentTime = _audioHandlerContext!.AudioContext.GetCurrentTime();
+            voiceContext.SetFrequencyOnCurrentOscillator(wasmVoiceParameter.Frequency, currentTime);
         }
 
-        else if (wasmSoundParameters.SoundCommand == SoundCommand.ChangePulseWidth)
+        else if (wasmVoiceParameter.AudioCommand == AudioCommand.ChangePulseWidth)
         {
             // Skip changing frequency if specified oscillator is not enabled by config
-            if (!_enabledOscillators.Contains(wasmSoundParameters.SIDOscillatorType))
+            if (!_enabledOscillators.Contains(wasmVoiceParameter.SIDOscillatorType))
                 return;
 
             // Set pulse width. Only applicable if current oscillator is a pulse oscillator.
             if (voiceContext.CurrentSidVoiceWaveForm != SidVoiceWaveForm.Pulse) return;
-            var currentTime = _soundHandlerContext!.AudioContext.GetCurrentTime();
-            voiceContext.C64WASMPulseOscillator.SetPulseWidth(wasmSoundParameters.Frequency, currentTime);
+            var currentTime = _audioHandlerContext!.AudioContext.GetCurrentTime();
+            voiceContext.C64WASMPulseOscillator.SetPulseWidth(wasmVoiceParameter.Frequency, currentTime);
         }
 
-        AddDebugMessage($"Processing command done: {wasmSoundParameters.SoundCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
+        AddDebugMessage($"Processing command done: {wasmVoiceParameter.AudioCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
     }
 
-    private void AddDebugMessage(string msg, int voice, SidVoiceWaveForm? sidVoiceWaveForm = null, SoundStatus? soundStatus = null)
+    private void AddDebugMessage(string msg, int voice, SidVoiceWaveForm? sidVoiceWaveForm = null, AudioStatus? audioStatus = null)
     {
         var time = DateTime.Now.ToString("HH:mm:ss.fff");
         string formattedMsg;
-        if (sidVoiceWaveForm.HasValue && soundStatus.HasValue)
+        if (sidVoiceWaveForm.HasValue && audioStatus.HasValue)
         {
-            formattedMsg = $"{time} ({voice}-{sidVoiceWaveForm}-{soundStatus}): {msg}";
+            formattedMsg = $"{time} ({voice}-{sidVoiceWaveForm}-{audioStatus}): {msg}";
         }
-        else if (sidVoiceWaveForm.HasValue && !soundStatus.HasValue)
+        else if (sidVoiceWaveForm.HasValue && !audioStatus.HasValue)
         {
             formattedMsg = $"{time} ({voice}-{sidVoiceWaveForm}): {msg}";
         }
-        else if (!sidVoiceWaveForm.HasValue && soundStatus.HasValue)
+        else if (!sidVoiceWaveForm.HasValue && audioStatus.HasValue)
         {
-            formattedMsg = $"{time} ({voice}-{soundStatus}): {msg}";
+            formattedMsg = $"{time} ({voice}-{audioStatus}): {msg}";
         }
         else
         {
@@ -347,30 +347,30 @@ public class C64WASMSoundHandler : ISoundHandler<C64, WASMSoundHandlerContext>, 
     //    foreach (var voice in VoiceContexts.Keys)
     //    {
     //        var voiceContext = VoiceContexts[voice];
-    //        var wasmSoundParameters = BuildWASMSoundParametersFromC64Sid(voiceContext, sidInternalStateClone);
-    //        if (wasmSoundParameters.SoundCommand == SoundCommand.None)
+    //        var wasmVoiceParameter = BuildWASMVoiceParameterFromC64Sid(voiceContext, sidInternalStateClone);
+    //        if (wasmVoiceParameter.AudioCommand == AudioCommand.None)
     //            continue;
 
-    //        //await PlaySound(voiceContext, wasmSoundParameters);
-    //        //var task = PlaySound(voiceContext, wasmSoundParameters);
-    //        var task = new Task(() => PlaySound(voiceContext, wasmSoundParameters));
+    //        //await PlaySound(voiceContext, wasmVoiceParameter);
+    //        //var task = PlaySound(voiceContext, wasmVoiceParameter);
+    //        var task = new Task(() => PlaySound(voiceContext, wasmVoiceParameter));
 
-    //        //var task = new Task(async () => await PlaySound(voiceContext, wasmSoundParameters));
+    //        //var task = new Task(async () => await PlaySound(voiceContext, wasmVoiceParameter));
 
-    //        //var task = new Task(async () => await PlaySoundGated(voiceContext, wasmSoundParameters));
-    //        //var task = new Task(() => PlaySoundGated(voiceContext, wasmSoundParameters));
+    //        //var task = new Task(async () => await PlaySoundGated(voiceContext, wasmVoiceParameter));
+    //        //var task = new Task(() => PlaySoundGated(voiceContext, wasmVoiceParameter));
     //        playSoundTasks.Add(task);
     //    }
 
     //    return playSoundTasks.ToArray();
     //}
 
-    //private async Task PlayVoiceGated(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters)
-    //private void PlayVoiceGated(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmSoundParameters)
+    //private async Task PlayVoiceGated(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmVoiceParameter)
+    //private void PlayVoiceGated(C64WASMVoiceContext voiceContext, WASMVoiceParameter wasmVoiceParameter)
     //{
     //    //voiceContext.SemaphoreSlim.Wait();
     //    voiceContext.SemaphoreSlim.WaitAsync().RunSynchronously();
-    //    PlaySound(voiceContext, wasmSoundParameters);
+    //    PlaySound(voiceContext, wasmVoiceParameter);
     //    voiceContext.SemaphoreSlim.Release();
     //}
 }

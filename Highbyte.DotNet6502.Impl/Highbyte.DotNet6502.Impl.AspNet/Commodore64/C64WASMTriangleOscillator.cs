@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
     public class C64WASMTriangleOscillator
     {
         private readonly C64WASMVoiceContext _c64WASMVoiceContext;
-        private WASMSoundHandlerContext _soundHandlerContext => _c64WASMVoiceContext.SoundHandlerContext;
+        private WASMAudioHandlerContext _audioHandlerContext => _c64WASMVoiceContext.AudioHandlerContext;
 
         private Action<string> _addDebugMessage => _c64WASMVoiceContext.AddDebugMessage;
 
@@ -23,8 +23,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
         {
             // Create Triangle Oscillator
             TriangleOscillator = OscillatorNodeSync.Create(
-                _soundHandlerContext!.JSRuntime,
-                _soundHandlerContext.AudioContext,
+                _audioHandlerContext!.JSRuntime,
+                _audioHandlerContext.AudioContext,
                 new()
                 {
                     Type = OscillatorType.Triangle,

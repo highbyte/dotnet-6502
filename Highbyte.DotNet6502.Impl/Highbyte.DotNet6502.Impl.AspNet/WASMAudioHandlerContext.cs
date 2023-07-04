@@ -4,7 +4,7 @@ using Microsoft.JSInterop;
 
 namespace Highbyte.DotNet6502.Impl.AspNet
 {
-    public class WASMSoundHandlerContext : ISoundHandlerContext
+    public class WASMAudioHandlerContext : IAudioHandlerContext
     {
         private readonly AudioContextSync _audioContext;
         public AudioContextSync AudioContext => _audioContext;
@@ -17,7 +17,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet
         private GainNodeSync _masterVolumeGainNode;
         public GainNodeSync MasterVolumeGainNode => _masterVolumeGainNode;
 
-        public WASMSoundHandlerContext(
+        public WASMAudioHandlerContext(
             AudioContextSync audioContext,
             IJSRuntime jsRuntime,
             float initialVolumePercent

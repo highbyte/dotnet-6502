@@ -7,8 +7,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
     public class C64WASMNoiseOscillator
     {
         private readonly C64WASMVoiceContext _c64WASMVoiceContext;
-        private WASMSoundHandlerContext _soundHandlerContext => _c64WASMVoiceContext.SoundHandlerContext;
-        private AudioContextSync _audioContext => _c64WASMVoiceContext.SoundHandlerContext.AudioContext;
+        private WASMAudioHandlerContext _audioHandlerContext => _c64WASMVoiceContext.AudioHandlerContext;
+        private AudioContextSync _audioContext => _c64WASMVoiceContext.AudioHandlerContext.AudioContext;
 
         private Action<string> _addDebugMessage => _c64WASMVoiceContext.AddDebugMessage;
 
@@ -27,8 +27,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                 PrepareNoiseGenerator();
             _addDebugMessage($"Creating NoiseGenerator");
             NoiseGenerator = AudioBufferSourceNodeSync.Create(
-                _soundHandlerContext.JSRuntime,
-                _soundHandlerContext.AudioContext,
+                _audioHandlerContext.JSRuntime,
+                _audioHandlerContext.AudioContext,
                 new AudioBufferSourceNodeOptions
                 {
                     PlaybackRate = playbackRate,    // Factor of sample rate. 1.0 = same speed as original.
@@ -43,7 +43,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                 throw new Exception($"NoiseGenerator is null. Call Create() first.");
             _addDebugMessage($"Starting NoiseGenerator");
             NoiseGenerator!.Start();
-            //voiceContext!.NoiseGenerator.Start(0, 0, currentTime + wasmSoundParameters.AttackDurationSeconds + wasmSoundParameters.ReleaseDurationSeconds);
+            //voiceContext!.NoiseGenerator.Start(0, 0, currentTime + wasmVoiceParameter.AttackDurationSeconds + wasmVoiceParameter.ReleaseDurationSeconds);
         }
 
         internal void StopNow()

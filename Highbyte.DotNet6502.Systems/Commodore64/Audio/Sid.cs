@@ -4,8 +4,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// </summary>
 public class Sid
 {
-    private readonly InternalSidState _sidSoundData = new InternalSidState();
-    public InternalSidState InternalSidState => _sidSoundData;
+    private readonly InternalSidState _internalSidState = new InternalSidState();
+    public InternalSidState InternalSidState => _internalSidState;
 
     /// <summary>
     /// </summary>

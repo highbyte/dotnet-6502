@@ -84,7 +84,7 @@ public partial class Index
         set
         {
             _masterVolumePercent = value;
-            _wasmHost?.SoundHandlerContext.SetMasterVolume(_masterVolumePercent);
+            _wasmHost?.AudioHandlerContext.SetMasterVolume(_masterVolumePercent);
         }
     }
 
@@ -107,7 +107,7 @@ public partial class Index
     protected ElementReference? _monitorInputRef;
 
     private MonitorConfig _monitorConfig;
-    private SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMSoundHandlerContext> _systemList;
+    private SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
     private WasmHost? _wasmHost;
 
     private string _statsString = "Stats: calculating...";
@@ -147,7 +147,7 @@ public partial class Index
         };
         _monitorConfig.Validate();
 
-        _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMSoundHandlerContext>();
+        _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>();
 
         var c64Setup = new C64Setup(_browserContext);
         await _systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);

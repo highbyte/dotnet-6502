@@ -380,7 +380,7 @@ public partial class DebugSound
             StopGain(_ampGainNode, currentTime);
 
         //if (_gainNode2 != null)
-        //    StopSound(_gainNode2 , currentTime);
+        //    StopAudio(_gainNode2 , currentTime);
     }
 
 

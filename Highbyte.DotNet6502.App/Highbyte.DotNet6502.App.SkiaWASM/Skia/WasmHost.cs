@@ -21,11 +21,11 @@ public class WasmHost : IDisposable
     private GRContext _grContext;
 
     private SkiaRenderContext _skiaRenderContext;
-    public WASMSoundHandlerContext SoundHandlerContext { get; private set; }
+    public WASMAudioHandlerContext AudioHandlerContext { get; private set; }
     public AspNetInputHandlerContext InputHandlerContext { get; private set; }
 
     private readonly string _systemName;
-    private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMSoundHandlerContext> _systemList;
+    private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
     private readonly Action<string> _updateStats;
     private readonly Action<string> _updateDebug;
     private readonly Func<bool, Task> _setMonitorState;
@@ -52,7 +52,7 @@ public class WasmHost : IDisposable
     public WasmHost(
         IJSRuntime jsRuntime,
         string systemName,
-        SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMSoundHandlerContext> systemList,
+        SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> systemList,
         Action<string> updateStats,
         Action<string> updateDebug,
         Func<bool, Task> setMonitorState,
@@ -93,10 +93,9 @@ public class WasmHost : IDisposable
 
         _skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
         InputHandlerContext = new AspNetInputHandlerContext();
-        // TODO: Remove use of C64-specific WASMSoundHandlerContext. Move existing C64 code to WASMSoundHandler instead
-        SoundHandlerContext = new WASMSoundHandlerContext(audioContext, jsRuntime, _initialMasterVolume);
+        AudioHandlerContext = new WASMAudioHandlerContext(audioContext, jsRuntime, _initialMasterVolume);
 
-        _systemList.InitContext(() => _skiaRenderContext, () => InputHandlerContext, () => SoundHandlerContext);
+        _systemList.InitContext(() => _skiaRenderContext, () => InputHandlerContext, () => AudioHandlerContext);
 
         _systemRunner = await _systemList.BuildSystemRunner(_systemName);
 
@@ -138,8 +137,8 @@ public class WasmHost : IDisposable
             _updateTimer = null;
         }
 
-        // Stop any playing sounds
-        _systemRunner.SoundHandler.StopAllSounds();
+        // Stop any playing audio
+        _systemRunner.AudioHandler.StopAllAudio();
 
         // Clear canvas
         _skiaRenderContext.GetCanvas().Clear();
@@ -264,8 +263,8 @@ public class WasmHost : IDisposable
         //    debugMessages += $"{BuildHtmlString("DEBUG INPUT", "header")}: {BuildHtmlString(message, "value")} ";
         //}
 
-        var soundDebugMessages = _systemRunner.SoundHandler.GetDebugMessages();
-        foreach (var message in soundDebugMessages)
+        var audioDebugMessages = _systemRunner.AudioHandler.GetDebugMessages();
+        foreach (var message in audioDebugMessages)
         {
             if (debugMessages != "")
                 debugMessages += "<br />";

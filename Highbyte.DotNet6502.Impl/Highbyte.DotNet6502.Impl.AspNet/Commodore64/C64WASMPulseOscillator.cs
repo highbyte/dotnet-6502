@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
     public class C64WASMPulseOscillator
     {
         private readonly C64WASMVoiceContext _c64WASMVoiceContext;
-        private WASMSoundHandlerContext _soundHandlerContext => _c64WASMVoiceContext.SoundHandlerContext;
+        private WASMAudioHandlerContext _audioHandlerContext => _c64WASMVoiceContext.AudioHandlerContext;
 
         private Action<string> _addDebugMessage => _c64WASMVoiceContext.AddDebugMessage;
 
@@ -25,8 +25,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
         {
             // Create Pulse Oscillator
             PulseOscillator = CustomPulseOscillatorNodeSync.Create(
-                _soundHandlerContext!.JSRuntime,
-                _soundHandlerContext.AudioContext,
+                _audioHandlerContext!.JSRuntime,
+                _audioHandlerContext.AudioContext,
                 new()
                 {
                     Frequency = frequency,
@@ -42,8 +42,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 
             // Create Pulse Width GainNode for pulse width modulation
             PulseWidthGainNode = GainNodeSync.Create(
-                _soundHandlerContext!.JSRuntime,
-                _soundHandlerContext.AudioContext,
+                _audioHandlerContext!.JSRuntime,
+                _audioHandlerContext.AudioContext,
                 new()
                 {
                     Gain = 0
@@ -52,8 +52,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 
             // Create low frequency oscillator, use as base for Pulse Oscillator.
             LFOOscillator = OscillatorNodeSync.Create(
-                 _soundHandlerContext!.JSRuntime,
-                 _soundHandlerContext.AudioContext,
+                 _audioHandlerContext!.JSRuntime,
+                 _audioHandlerContext.AudioContext,
                     new OscillatorOptions
                     {
                         Type = OscillatorType.Triangle,
