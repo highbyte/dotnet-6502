@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 
 public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>, IInputHandler
 {
-    private AspNetInputHandlerContext _inputHandlerContext;
+    private AspNetInputHandlerContext? _inputHandlerContext;
 
     public C64AspNetInputHandler()
     {
@@ -134,18 +134,16 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
         return (char)0; // No key found
     }
 
-    public string GetDebugMessage()
+    public List<string> GetDebugMessages()
     {
-        string msg = "";
-        if (_inputHandlerContext.KeysDown.Count > 0)
-            msg += $"KeysDown: {string.Join(',', _inputHandlerContext.KeysDown)}";
+        List<string> list = new();
+        if (_inputHandlerContext == null)
+            return list;
 
+        if (_inputHandlerContext.KeysDown.Count > 0)
+            list.Add($"KeysDown: {string.Join(',', _inputHandlerContext.KeysDown)}");
         if (_inputHandlerContext.KeysUp.Count > 0)
-        {
-            if (msg.Length == 0)
-                msg += " # ";
-            msg += $"KeysUp: {string.Join(',', _inputHandlerContext.KeysUp)}";
-        }
-        return msg;
+            list.Add($"KeysUp: {string.Join(',', _inputHandlerContext.KeysUp)}");
+        return list;
     }
 }

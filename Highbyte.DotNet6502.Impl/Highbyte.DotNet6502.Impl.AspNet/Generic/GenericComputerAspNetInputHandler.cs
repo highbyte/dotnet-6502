@@ -7,7 +7,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Generic;
 public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, AspNetInputHandlerContext>, IInputHandler
 {
     private readonly EmulatorInputConfig _emulatorInputConfig;
-    private AspNetInputHandlerContext _inputHandlerContext;
+    private AspNetInputHandlerContext? _inputHandlerContext;
+    private readonly List<string> _debugMessages = new();
 
     public GenericComputerAspNetInputHandler(Systems.Generic.Config.EmulatorInputConfig emulatorInputConfig)
     {
@@ -64,8 +65,8 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
         }
     }
 
-    public string GetDebugMessage()
+    public List<string> GetDebugMessages()
     {
-        return "";
+        return _debugMessages;
     }
 }

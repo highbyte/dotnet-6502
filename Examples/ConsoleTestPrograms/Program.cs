@@ -1,5 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using Highbyte.DotNet6502.Tests.Helpers;
+﻿using Highbyte.DotNet6502.Tests.Helpers;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 

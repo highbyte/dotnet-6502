@@ -1,0 +1,71 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\Generic\multiply_2_16bit_numbers.asm
+     1                          ;ACME assembler
+     2                          ;Example based on code from http://www.obelisk.me.uk/6502/maclib.inc and modified for ACME assembler syntax
+     3                          
+     4                          ;!to "./multiply_2_16bit_numbers.prg"
+     5                          
+     6                          ;code start address
+     7                          * = $c000
+     8                          
+     9                          ;Input value A. Values is 16-bit unsigned, lowbyte first
+    10                          INPUT16A = $d000
+    11                          ;Input value B. Value is 16-bit unsigned, lowbyte first
+    12                          INPUT16B = $d002
+    13                          ;Calculation result store address. Value is 16-bit unsigned, lowbyte first. Any overflow over 16 bits during the calculation is lost.
+    14                          RESULT16 = $d004
+    15                          
+    16                          
+    17                          ;Define macros
+    18                          !macro clr16 .mem {
+    19                          	lda #0
+    20                          	sta .mem+0
+    21                          	sta .mem+1
+    22                          }
+    23                          
+    24                          !macro mul16 .vla, .vlb, .res {
+    25                          	+clr16 .res
+    26                          	ldx #15
+    27                          .loop	
+    28                          	+asl16 .res, .res
+    29                          	+asl16 .vla, .vla
+    30                          	bcc .next
+    31                          	+add16 .vlb, .res, .res
+    32                          .next 
+    33                          	dex
+    34                          	bpl .loop
+    35                          }
+    36                          
+    37                          !macro asl16 .vla, .res {
+    38                          	!if (.vla != .res) {
+    39                          		lda .vla+0
+    40                          		asl A
+    41                          		sta .res+0
+    42                          		lda .vla+1
+    43                          		rol A
+    44                          		sta .res+1
+    45                          	} else {
+    46                          		asl .vla+0
+    47                          		rol .vla+1
+    48                          	}
+    49                          }
+    50                          
+    51                          !macro add16 .vla, .vlb, .res {
+    52                          	!if (.vla != .vlb) {	
+    53                          		clc
+    54                          		lda .vla+0
+    55                          		adc .vlb+0
+    56                          		sta .res+0
+    57                          		lda .vla+1
+    58                          		adc .vlb+1
+    59                          		sta .res+1
+    60                          	} else {
+    61                          		+asl16 .vla, .res
+    62                          	}
+    63                          }
+    64                          
+    65                          ;Run calculation
+    66  c000 a9008d04d08d05d0...	+mul16 INPUT16A, INPUT16B, RESULT16
+    67                          
+    68                          ;When running code through emulator, a convinent way to end execution is to confiure brk instruction to stop execution.
+    69  c02e 00                 	brk

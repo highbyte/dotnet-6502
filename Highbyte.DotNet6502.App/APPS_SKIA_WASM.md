@@ -30,8 +30,22 @@ Open solution ```dotnet-6502.sln```.
 Set project ```Highbyte.DotNet6502.App.SkiaWASM``` as startup, and start with F5.
 
 ## From command line (Windows, Linux, Mac)
+### Run Debug build
 ``` 
 cd ./Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaWASM
 dotnet run
 ```
 Open browser at http://localhost:5000.
+
+### Run optimized Publish build
+Requires 
+- DotNet workload "wasm-tools" , install with ```dotnet workload install wasm-tools```
+- DotNet global tool "serve", install with ```dotnet tool install --global dotnet-serve```
+
+``` 
+cd ./Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaWASM
+if(Test-Path $publishDir) { del ./bin/Publish/ -r -force }
+dotnet publish -c Release -o ./bin/Publish/
+dotnet serve -o:$path --directory ./bin/Publish/wwwroot/
+```
+A browser is automatically opened.

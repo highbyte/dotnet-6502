@@ -8,6 +8,9 @@ public interface ISystem
     CPU CPU { get; }
     Memory Mem { get; }
 
-    public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null);
+    public bool ExecuteOneFrame(
+        IExecEvaluator? execEvaluator = null,
+        Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
+        Dictionary<string, double>? detailedStats = null);
     public bool ExecuteOneInstruction();
 }

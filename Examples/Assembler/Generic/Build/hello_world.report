@@ -1,0 +1,102 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\Generic\hello_world.asm
+     1                          ;ACME assembler
+     2                          ;hello_world.asm
+     3                          
+     4                          ;Code start address
+     5                          * = $c000
+     6                          
+     7                          ;------------------------------------------------------------
+     8                          ;Program settings
+     9                          ;------------------------------------------------------------
+    10                          STATIC_TEXT_ROW = 10;
+    11                          
+    12                          ;------------------------------------------------------------
+    13                          ;Memory address shared with emulator host for updating screen
+    14                          ;------------------------------------------------------------
+    15                          ;80 columns and 25 rows, 1 byte per character = 2000 (0x03e8) bytes. Laid out in memory as appears on screen.
+    16                          SCREEN_MEM = 0x0400					;0x0400 - 0x07e7
+    17                          SCREEN_MEM_COLS	= 80
+    18                          SCREEN_MEM_ROWS	= 25
+    19                          ;Colors, one byte per character = 1000 (0x03e8) bytes
+    20                          SCREEN_COLOR_MEM = 0xd800			;0xd800 - 0xdbe7
+    21                          ;Byte with status flags to communicate with emulator host. When host new frame, emulator done for frame, etc.
+    22                          SCREEN_REFRESH_STATUS = 0xd000
+    23                          ;Border color address
+    24                          SCREEN_BORDER_COLOR_ADDRESS = 0xd020
+    25                          ;Bg color address for entire screen
+    26                          SCREEN_BACKGROUND_COLOR_ADDRESS = 0xd021
+    27                          
+    28                          ;Currently pressed key on host (ASCII byte). If no key is pressed, value is 0x00
+    29                          KEY_PRESSED_ADDRESS = 0xd030
+    30                          ;Currently down key on host (ASCII byte). If no key is down, value is 0x00
+    31                          KEY_DOWN_ADDRESS = 0xd031
+    32                          ;Currently released key on host (ASCII byte). If no key is down, value is 0x00
+    33                          KEY_RELEASED_ADDRESS = 0xd031
+    34                          
+    35                          ;------------------------------------------------------------
+    36                          ;Code start
+    37                          ;------------------------------------------------------------
+    38                          ;Set screen background color
+    39  c000 a906               	lda #$06
+    40  c002 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+    41                          ;Set border color
+    42  c005 a90e               	lda #$0e
+    43  c007 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS	
+    44                          ;Initialize static text at row defined in STATIC_TEXT_ROW
+    45  c00a a200               	ldx #0
+    46                          .printchar:
+    47  c00c bd51c0             	lda STATIC_TEXT, X
+    48  c00f 9d2007             	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW), X
+    49  c012 bda2c0             	lda STATIC_TEXT_2, X
+    50  c015 9dc007             	sta SCREEN_MEM + (SCREEN_MEM_COLS * (STATIC_TEXT_ROW + 2)), X
+    51  c018 f004               	beq .endoftext
+    52  c01a e8                 	inx
+    53  c01b 4c0cc0             	jmp .printchar
+    54                          .endoftext
+    55                          
+    56                          mainloop:
+    57                          ;Wait for new frame (flag set by emulator host)
+    58  c01e 2040c0             	jsr waitforrefresh
+    59                          
+    60                          ;If space is pressed, cycle corder color
+    61  c021 ad31d0             	lda KEY_DOWN_ADDRESS			;Load currently down key
+    62  c024 c920               	cmp #$20						;32 ($20) = space
+    63  c026 d00d               	bne .spacenotpressed
+    64  c028 ae20d0             	ldx SCREEN_BORDER_COLOR_ADDRESS ;Get current border color
+    65  c02b e8                 	inx								;Next color
+    66  c02c e010               	cpx #$10						;Passed highest color (#$0f)?
+    67  c02e d002               	bne .notreachedhighestcolor		;If we haven't reached max color value
+    68  c030 a200               	ldx #$00						;Reset to lowest color (0)
+    69                          .notreachedhighestcolor
+    70  c032 8e20d0             	stx SCREEN_BORDER_COLOR_ADDRESS	;Update border color
+    71                          .spacenotpressed:
+    72                          
+    73                          ;Set bit flag that tells emulator that this 6502 code is done for current frame
+    74  c035 ad00d0             	lda SCREEN_REFRESH_STATUS
+    75  c038 0902               	ora #%00000010					;Bit 1 set signals that emulator is currently done
+    76  c03a 8d00d0             	sta SCREEN_REFRESH_STATUS 		;Update status to memory
+    77                          
+    78                          ;Loop forever
+    79  c03d 4c1ec0             	jmp mainloop
+    80                          
+    81                          !zone waitforrefresh
+    82                          waitforrefresh:
+    83                          .loop
+    84  c040 ad00d0             	lda SCREEN_REFRESH_STATUS
+    85  c043 aa                 	tax ; Store copy of current screen status in X
+    86  c044 2901               	and #%00000001	;Bit 0 set signals it time to refresh screen
+    87  c046 f0f8               	beq .loop	;Loop if bit 0 is not set (AND results in value 0, then zero flag set, BEQ branches zero flag is set)
+    88  c048 ad00d0             	lda SCREEN_REFRESH_STATUS
+    89  c04b 29fe               	and #%11111110 ;Clear bit 0.
+    90  c04d 8d00d0             	sta SCREEN_REFRESH_STATUS ;Update status to memory (will acknowledge that 6502 code is done waiting for the next frame)
+    91  c050 60                 	rts	
+    92                          
+    93                          ;------------------------------------------------------------
+    94                          ;Data
+    95                          ;------------------------------------------------------------
+    96                          STATIC_TEXT:
+    97  c051 2020202020202020...	!text "                      ***** Hello from DotNet6502 !! *****                      "
+    98  c0a1 00                 	!by 0 							;End of text indicator	
+    99                          STATIC_TEXT_2:
+   100  c0a2 2020202020202020...	!text "                        Press SPACE to cycle border color                       "

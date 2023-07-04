@@ -1,4 +1,4 @@
-;VSCode extension VS64 (ACME cross-assembler) will automatially set output path and filename to the .cache directory
+;ACME assembler
 ;!to "./hostinteraction_scroll_text.prg"
 
 ;code start address

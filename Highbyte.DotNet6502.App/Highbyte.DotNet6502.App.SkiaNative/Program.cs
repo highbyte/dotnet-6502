@@ -14,7 +14,7 @@ Environment.CurrentDirectory = currentAppDir;
 // ----------
 // Systems
 // ----------
-var systemList = new SystemList<SkiaRenderContext, SilkNetInputHandlerContext>();
+var systemList = new SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext>();
 
 var c64Setup = new C64Setup();
 await systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);
@@ -30,11 +30,11 @@ var emulatorConfig = new EmulatorConfig
     DefaultDrawScale = 3.0f,
     Monitor = new MonitorConfig
     {
-        //DefaultDirectory = "../../../../../.cache/Examples/Assembler/C64"
+        //DefaultDirectory = "../../../../../Examples/Assembler/C64/Build"
 
-        //DefaultDirectory = "../../../../../.cache/Examples/Assembler/Generic"
-        //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic"
-        //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic"
+        //DefaultDirectory = "../../../../../Examples/Assembler/Generic/Build"
+        //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/Examples/Assembler/Generic/Build"
+        //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/Examples/Assembler/Generic/Build"
     }
 };
 emulatorConfig.Validate(systemList);

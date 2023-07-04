@@ -77,6 +77,21 @@ public class C64Config : ISystemConfig
         }
     }
 
+    public bool AudioSupported { get; set; }
+
+    private bool _audioEnabled;
+    public bool AudioEnabled
+    {
+        get
+        {
+            return _audioEnabled;
+        }
+        set
+        {
+            _audioEnabled = value;
+            _isDirty = true;
+        }
+    }
 
     public C64Config()
     {
@@ -109,6 +124,9 @@ public class C64Config : ISystemConfig
 
         C64Model = "C64NTSC";
         Vic2Model = "NTSC";
+
+        AudioSupported = false; // Set to true after creating if the audio system is implemented for the host platform
+        AudioEnabled = false;
     }
 
     public bool HasROM(string romName) => ROMs.Any(x => x.Name == romName);
@@ -143,7 +161,8 @@ public class C64Config : ISystemConfig
             ROMDirectory = ROMDirectory,
             C64Model = C64Model,
             Vic2Model = Vic2Model,
-            ROMs = ROM.Clone(ROMs)
+            ROMs = ROM.Clone(ROMs),
+            AudioEnabled = AudioEnabled
         };
     }
 

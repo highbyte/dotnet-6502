@@ -2,6 +2,7 @@
 @using Highbyte.DotNet6502.Systems.Commodore64.Config;
 @using Highbyte.DotNet6502.Systems.Commodore64;
 @using Highbyte.DotNet6502.Systems.Generic;
+
 @using SkiaSharp.Views.Blazor
 @*@implements IDisposable*@
 
@@ -23,7 +24,8 @@
         <div id="system-selector">
             <div>
                 System:
-                <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled autofocus>
+                @* <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled autofocus> *@
+                <select value="@SelectedSystemName" @onchange="OnSelectedEmulatorChanged" disabled=@OnSelectSystemNameDisabled autofocus>
                     @foreach (var systemName in _systemList.Systems)
                     {
                         <option value="@systemName"> @systemName </option>
@@ -37,8 +39,20 @@
             <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
             <button @onclick="OnMonitorToggle" disabled=@OnStopDisabled>Monitor</button>
             <button @onclick="OnStatsToggle" disabled=@OnStopDisabled>Stats</button>
+
             <p></p>
             <span>Screen scale: <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
+
+            <p></p>
+            <label for="audioEnabled">Audio enabled (experimental)</label>
+            <input id="audioEnabled" type="checkbox" @bind="@AudioEnabled" disabled=@AudioEnabledToggleDisabled />
+
+            <p></p>
+            <div class="audioVolumeStyle">
+                Volume:
+                <input @bind="@MasterVolumePercent" @bind:event="oninput" type="range" id="masterVolume" min="0" max="100" step="0.02" />
+                @* <input @bind="@MasterVolumePercent" @bind:event="oninput" type="number" min="0" max="100" step="0.02" /> *@
+            </div>
         </div>
 
         <div class="system-help" style="display:inline;">
@@ -240,6 +254,9 @@
     .monitorStyle {
         display: @GetDisplayStyle("Monitor");
     }
+    .audioVolumeStyle {
+        display: @GetDisplayStyle("AudioVolume");
+    }
 </style>
 
 <InputFile id="monitorFilePicker" OnChange="@OnMonitorFilePickerChange" hidden/>
@@ -277,6 +294,10 @@
             case "Monitor":
                 {
                     return _monitorVisible ? VISIBLE : HIDDEN;
+                }
+            case "AudioVolume":
+                {
+                    return (_currentConfig?.AudioEnabled ?? false) ? VISIBLE : HIDDEN;
                 }
             default:
                 return VISIBLE;
@@ -339,14 +360,6 @@
         await ToggleDebugStatsState();
     }
 
-
-    protected override async void OnAfterRender(bool firstRender)
-    {
-        if (firstRender)
-        {
-            //await FocusEmulator();
-        }
-    }
 
     private void OnKeyPress(KeyboardEventArgs e)
     {

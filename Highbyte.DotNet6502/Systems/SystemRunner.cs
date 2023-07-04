@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Highbyte.DotNet6502.Systems;
 
 public class SystemRunner
@@ -5,13 +7,18 @@ public class SystemRunner
     private readonly ISystem _system;
     private IRenderer _renderer;
     private IInputHandler _inputHandler;
+    private IAudioHandler _audioHandler;
 
     public ISystem System => _system;
     public IRenderer Renderer { get => _renderer; set => _renderer = value; }
     public IInputHandler InputHandler { get => _inputHandler; set => _inputHandler = value; }
+    public IAudioHandler AudioHandler { get => _audioHandler; set => _audioHandler = value; }
 
     private IExecEvaluator? _customExecEvaluator;
     public IExecEvaluator? CustomExecEvaluator => _customExecEvaluator;
+
+    // Detailed perf stat to audio generation that occurs after each instruction
+    private readonly Stopwatch _audioSw = new();
 
     public SystemRunner(ISystem system)
     {
@@ -38,17 +45,17 @@ public class SystemRunner
         bool quit = false;
         while (!quit)
         {
-            bool executeOk = RunOneFrame();
+            bool executeOk = RunOneFrame(out _);
             if (!executeOk)
                 quit = true;
         }
     }
 
-    public bool RunOneFrame()
+    public bool RunOneFrame(out Dictionary<string, double> detailedStats)
     {
         ProcessInput();
 
-        bool executeOk = RunEmulatorOneFrame();
+        bool executeOk = RunEmulatorOneFrame(out detailedStats);
         if (!executeOk)
             return false;
 
@@ -67,21 +74,40 @@ public class SystemRunner
 
     public void ProcessInput()
     {
-        if (_inputHandler != null)
-            _inputHandler.ProcessInput(_system);
+        _inputHandler?.ProcessInput(_system);
     }
 
-    public bool RunEmulatorOneFrame()
+    public bool RunEmulatorOneFrame(out Dictionary<string, double> detailedStats)
     {
-        bool shouldContinue = _system.ExecuteOneFrame(_customExecEvaluator);
+        detailedStats = new()
+        {
+            ["Audio"] = 0
+        };
+
+        bool shouldContinue = _system.ExecuteOneFrame(_customExecEvaluator, PostInstruction, detailedStats);
         if (!shouldContinue)
             return false;
         return true;
     }
 
+    // PostInstruction is meant to be called after each instruction has executed.
+    private void PostInstruction(ISystem system, Dictionary<string, double> detailedStats)
+    {
+        // Generate audio by inspecting the current system state
+        if (_audioHandler is not null)
+        {
+            _audioSw.Restart();
+            _audioHandler.GenerateAudio(system);
+            //var t = new Task(() => _audioHandler?.GenerateAudio(system));
+            //t.RunSynchronously();
+            _audioSw.Stop();
+
+            detailedStats["Audio"] += _audioSw.Elapsed.TotalMilliseconds;
+        }
+    }
+
     public void Draw()
     {
-        if (_renderer != null)
-            _renderer.Draw(_system);
+        _renderer?.Draw(_system);
     }
 }

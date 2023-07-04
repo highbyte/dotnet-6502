@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Keyboard;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
@@ -20,8 +21,8 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     public byte[] IO { get; set; }
     public byte CurrentBank { get; set; }
     public Vic2 Vic2 { get; set; }
-    public Keyboard Keyboard { get; set; }
-
+    public C64Keyboard Keyboard { get; set; }
+    public Sid Sid { get; set; }
     public Dictionary<string, byte[]> ROMData { get; set; }
 
     public int Cols => Vic2.COLS;
@@ -38,6 +39,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     public int BorderHeight => (int)Math.Ceiling((double)((VisibleHeight - Height) / 2.0d));
     public float RefreshFrequencyHz => (float)CpuFrequencyHz / Vic2.Vic2Model.CyclesPerFrame;
 
+    public bool AudioEnabled { get; private set; }
 
     private LegacyExecEvaluator _oneFrameExecEvaluator;
 
@@ -52,7 +54,10 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     //};
 
     // Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
-    public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
+    public bool ExecuteOneFrame(
+        IExecEvaluator? execEvaluator = null,
+        Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
+        Dictionary<string, double>? detailedStats = null)
     {
         var cyclesToExecute = Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
 
@@ -63,8 +68,13 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
             if (!knownInstruction)
                 return false;
 
-            Vic2.CPUCyclesConsumed(CPU, Mem, instructionCyclesConsumed);
             totalCyclesConsumed += instructionCyclesConsumed;
+
+            Vic2.AdvanceRaster(CPU, Mem, instructionCyclesConsumed); 
+
+            // Handle processing needed after each instruction, such as generating audio etc.
+            if (AudioEnabled && postInstructionCallback != null)
+                postInstructionCallback(this, detailedStats);
 
             // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
             if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
@@ -139,7 +149,8 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
 
         var vic2Model = c64Model.Vic2Models.Single(x => x.Name == c64Config.Vic2Model);
         var vic2 = Vic2.BuildVic2(ram, romData, vic2Model);
-        var kb = new Keyboard();
+        var kb = new C64Keyboard();
+        var sid = Sid.BuildSid();
 
         var cpu = CreateC64CPU(vic2, mem);
         var c64 = new C64
@@ -151,7 +162,9 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
             IO = io,
             Vic2 = vic2,
             Keyboard = kb,
+            Sid = sid,
             ROMData = romData,
+            AudioEnabled = c64Config.AudioEnabled
         };
 
         // Map specific memory addresses to different emulator actions            
@@ -171,6 +184,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
         var mem = c64.Mem;
         var vic2 = c64.Vic2;
         var kb = c64.Keyboard;
+        var sid = c64.Sid;
 
         for (int bank = 0; bank < 32; bank++)
         {
@@ -180,32 +194,9 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
             mem.MapReader(0x01, c64.IoPortLoad);
             mem.MapWriter(0x01, c64.IoPortStore);
 
-
-            // Address 0xd0180: "Memory setup" (VIC2 pointer for charset/bitmap & screen memory)
-            mem.MapReader(Vic2Addr.MEMORY_SETUP, vic2.MemorySetupLoad);
-            mem.MapWriter(Vic2Addr.MEMORY_SETUP, vic2.MemorySetupStore);
-
-            // Address 0xd020: Border color
-            mem.MapReader(Vic2Addr.BORDER_COLOR, vic2.BorderColorLoad);
-            mem.MapWriter(Vic2Addr.BORDER_COLOR, vic2.BorderColorStore);
-            // Address 0xd021: Background color
-            mem.MapReader(Vic2Addr.BACKGROUND_COLOR, vic2.BackgroundColorLoad);
-            mem.MapWriter(Vic2Addr.BACKGROUND_COLOR, vic2.BackgroundColorStore);
-
-            // Address 0xdd00: "Port A" (VIC2 bank & serial bus)
-            mem.MapReader(Vic2Addr.PORT_A, vic2.PortALoad);
-            mem.MapWriter(Vic2Addr.PORT_A, vic2.PortAStore);
-
-
-            // Address: 0x00c6: Keyboard buffer index
-            mem.MapReader(0x00c6, kb.BufferIndexLoad);
-            mem.MapWriter(0x00c6, kb.BufferIndexStore);
-            // Address: 0x0277 - 0x0280: Keyboard buffer
-            mem.MapRAM(0x0277, kb.Buffer);
-            // Address: 0x0091: Stop key flag
-            mem.MapReader(0x0091, kb.StopKeyFlagLoad);
-            mem.MapWriter(0x0091, kb.StopKeyFlagStore);
-
+            vic2.MapIOLocations(mem);
+            kb.MapIOLocations(mem);
+            sid.MapIOLocations(mem);
         }
     }
 
@@ -224,7 +215,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     private static CPU CreateC64CPU(Vic2 vic2, Memory mem)
     {
         var cpu = new CPU();
-        cpu.InstructionExecuted += (s, e) => vic2.CPUCyclesConsumed(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
+        cpu.InstructionExecuted += (s, e) => vic2.AdvanceRaster(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
         return cpu;
     }
 

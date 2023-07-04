@@ -1,5 +1,5 @@
+;ACME assembler
 ;hello_world.asm
-;Written with ACME cross-assembler using VSCode extension VS64. Extension will compile on save to .cache directory.
 
 ;Code start address
 * = $c000

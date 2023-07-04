@@ -13,7 +13,7 @@ namespace ConsoleTestPrograms
             Console.WriteLine($"Run 6502 code that copies data between two addresses.");
             Console.WriteLine($"-----------------------------------------------------");
 
-            string prgFileName = "../../../../../.cache/Examples/Assembler/Generic/testprogram.prg";
+            string prgFileName = "../../../../../Examples/Assembler/Generic/Build/testprogram.prg";
             Console.WriteLine($"Program binary file: {prgFileName}");
             if(!File.Exists(prgFileName))
             {

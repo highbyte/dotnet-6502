@@ -75,6 +75,22 @@ public class GenericComputerConfig : ISystemConfig
         }
     }
 
+    public bool AudioSupported { get; set; }
+
+    private bool _audioEnabled;
+    public bool AudioEnabled
+    {
+        get
+        {
+            return _audioEnabled;
+        }
+        set
+        {
+            _audioEnabled = value;
+            _isDirty = true;
+        }
+    }
+
     public GenericComputerConfig()
     {
         Memory = new();
@@ -92,7 +108,9 @@ public class GenericComputerConfig : ISystemConfig
             StopAtBRK = StopAtBRK,
             CPUCyclesPerFrame = CPUCyclesPerFrame,
             ScreenRefreshFrequencyHz = ScreenRefreshFrequencyHz,
-            Memory = Memory.Clone()
+            Memory = Memory.Clone(),
+            AudioSupported = false,
+            AudioEnabled = false
         };
     }
 

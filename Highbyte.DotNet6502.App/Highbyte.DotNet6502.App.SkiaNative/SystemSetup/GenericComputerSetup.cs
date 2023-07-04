@@ -18,8 +18,8 @@ public class GenericComputerSetup
     {
         var genericComputerConfig = new GenericComputerConfig
         {
-            ProgramBinaryFile = "../../../../../.cache/Examples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.prg",
-            //ProgramBinaryFile = "%HOME%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.prg",
+            ProgramBinaryFile = "../../../../../Examples/Assembler/Generic/Build/hostinteraction_scroll_text_and_cycle_colors.prg",
+            //ProgramBinaryFile = "%HOME%/source/repos/dotnet-6502/Examples/Assembler/Generic/Build/hostinteraction_scroll_text_and_cycle_colors.prg",
             CPUCyclesPerFrame = 8000,
             Memory = new EmulatorMemoryConfig
             {
@@ -64,7 +64,8 @@ public class GenericComputerSetup
         ISystem system,
         ISystemConfig systemConfig,
         SkiaRenderContext skiaRenderContext,
-        SilkNetInputHandlerContext inputHandlerContext)
+        SilkNetInputHandlerContext inputHandlerContext,
+        NullAudioHandlerContext audioHandlerContext)
     {
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
 
@@ -76,7 +77,7 @@ public class GenericComputerSetup
         renderer.Init(genericComputer, skiaRenderContext);
         inputHandler.Init(genericComputer, inputHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext>(genericComputer);
+        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext>(genericComputer);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)

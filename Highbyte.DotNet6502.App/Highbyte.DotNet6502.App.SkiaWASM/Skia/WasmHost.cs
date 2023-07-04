@@ -1,5 +1,7 @@
 using Highbyte.DotNet6502.App.SkiaWASM.Instrumentation.Stats;
 using Highbyte.DotNet6502.Impl.AspNet;
+using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
+using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
@@ -12,26 +14,31 @@ public class WasmHost : IDisposable
 
     private readonly IJSRuntime _jsRuntime;
 
+    private PeriodicAsyncTimer? _updateTimer;
+
     private SystemRunner _systemRunner;
     private SKCanvas _skCanvas;
     private GRContext _grContext;
-    private SkiaRenderContext _skiaRenderContext;
-    private PeriodicAsyncTimer? _updateTimer;
 
+    private SkiaRenderContext _skiaRenderContext;
+    public WASMAudioHandlerContext AudioHandlerContext { get; private set; }
     public AspNetInputHandlerContext InputHandlerContext { get; private set; }
+
     private readonly string _systemName;
-    private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext> _systemList;
+    private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
     private readonly Action<string> _updateStats;
     private readonly Action<string> _updateDebug;
     private readonly Func<bool, Task> _setMonitorState;
     private readonly MonitorConfig _monitorConfig;
     private readonly Func<Task> _toggleDebugStatsState;
     private readonly float _scale;
+    private readonly float _initialMasterVolume;
 
     public WasmMonitor Monitor { get; private set; }
 
     private readonly ElapsedMillisecondsTimedStat _inputTime;
     private readonly ElapsedMillisecondsTimedStat _systemTime;
+    private readonly ElapsedMillisecondsStat _systemTimeAudio;  // Part of systemTime, but we want to show it separately
     private readonly ElapsedMillisecondsTimedStat _renderTime;
     private readonly PerSecondTimedStat _updateFps;
     private readonly PerSecondTimedStat _renderFps;
@@ -45,13 +52,14 @@ public class WasmHost : IDisposable
     public WasmHost(
         IJSRuntime jsRuntime,
         string systemName,
-        SystemList<SkiaRenderContext, AspNetInputHandlerContext> systemList,
+        SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> systemList,
         Action<string> updateStats,
         Action<string> updateDebug,
         Func<bool, Task> setMonitorState,
         MonitorConfig monitorConfig,
         Func<Task> toggleDebugStatsState,
-        float scale = 1.0f)
+        float scale = 1.0f,
+        float initialMasterVolume = 50.0f)
     {
         _jsRuntime = jsRuntime;
         _systemName = systemName;
@@ -62,11 +70,15 @@ public class WasmHost : IDisposable
         _monitorConfig = monitorConfig;
         _toggleDebugStatsState = toggleDebugStatsState;
         _scale = scale;
+        _initialMasterVolume = initialMasterVolume;
 
         // Init stats
         InstrumentationBag.Clear();
         _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("WASM-InputTime");
+
         _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("Emulator-SystemTime");
+        _systemTimeAudio = InstrumentationBag.Add<ElapsedMillisecondsStat>("Emulator-SystemTime-Audio");
+
         _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("WASMSkiaSharp-RenderTime");
         _updateFps = InstrumentationBag.Add<PerSecondTimedStat>("WASMSkiaSharp-OnUpdateFPS");
         _renderFps = InstrumentationBag.Add<PerSecondTimedStat>("WASMSkiaSharp-OnRenderFPS");
@@ -74,15 +86,16 @@ public class WasmHost : IDisposable
         Initialized = false;
     }
 
-    public async Task Init(SKCanvas canvas, GRContext grContext)
+    public async Task Init(SKCanvas canvas, GRContext grContext, AudioContextSync audioContext, IJSRuntime jsRuntime)
     {
         _skCanvas = canvas;
         _grContext = grContext;
 
         _skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
         InputHandlerContext = new AspNetInputHandlerContext();
+        AudioHandlerContext = new WASMAudioHandlerContext(audioContext, jsRuntime, _initialMasterVolume);
 
-        _systemList.InitContext(GetSkiaRenderContext, GetAspNetInputHandlerContext);
+        _systemList.InitContext(() => _skiaRenderContext, () => InputHandlerContext, () => AudioHandlerContext);
 
         _systemRunner = await _systemList.BuildSystemRunner(_systemName);
 
@@ -90,9 +103,6 @@ public class WasmHost : IDisposable
 
         Initialized = true;
     }
-
-    private SkiaRenderContext GetSkiaRenderContext() => _skiaRenderContext;
-    private AspNetInputHandlerContext GetAspNetInputHandlerContext() => InputHandlerContext;
 
     public void Stop()
     {
@@ -127,13 +137,16 @@ public class WasmHost : IDisposable
             _updateTimer = null;
         }
 
+        // Stop any playing audio
+        _systemRunner.AudioHandler.StopAllAudio();
+
         // Clear canvas
         _skiaRenderContext.GetCanvas().Clear();
 
-        // Cleanup Skia resources
+        // Clean up Skia resources
         _skiaRenderContext?.Cleanup();
 
-        // Cleanup input handler resources
+        // Clean up input handler resources
         InputHandlerContext?.Cleanup();
     }
 
@@ -155,7 +168,7 @@ public class WasmHost : IDisposable
         if (_debugFrameCount >= DEBUGMESSAGE_EVERY_X_FRAME)
         {
             _debugFrameCount = 0;
-            var debugString = GetDebugMessage();
+            var debugString = GetDebugMessages();
             _updateDebug(debugString);
         }
 
@@ -168,7 +181,13 @@ public class WasmHost : IDisposable
         bool cont;
         using (_systemTime.Measure())
         {
-            cont = _systemRunner.RunEmulatorOneFrame();
+            cont = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
+
+            if (detailedStats.ContainsKey("Audio"))
+            {
+                _systemTimeAudio.Set(detailedStats["Audio"]);
+                _systemTimeAudio.UpdateStat();
+            }
         }
 
         _statsFrameCount++;
@@ -230,11 +249,29 @@ public class WasmHost : IDisposable
         return stats;
     }
 
-    private string GetDebugMessage()
+    private string GetDebugMessages()
     {
-        string msg = "DEBUG: ";
-        msg += _systemRunner.InputHandler.GetDebugMessage();
-        return BuildHtmlString(msg, "header");
+        string debugMessages = "";
+
+        var inputDebugMessages = _systemRunner.InputHandler.GetDebugMessages();
+        var inputDebugMessagesOneString = string.Join(" # ", inputDebugMessages);
+        debugMessages += $"{BuildHtmlString("INPUT", "header")}: {BuildHtmlString(inputDebugMessagesOneString, "value")} ";
+        //foreach (var message in inputDebugMessages)
+        //{
+        //    if (debugMessages != "")
+        //        debugMessages += "<br />";
+        //    debugMessages += $"{BuildHtmlString("DEBUG INPUT", "header")}: {BuildHtmlString(message, "value")} ";
+        //}
+
+        var audioDebugMessages = _systemRunner.AudioHandler.GetDebugMessages();
+        foreach (var message in audioDebugMessages)
+        {
+            if (debugMessages != "")
+                debugMessages += "<br />";
+            debugMessages += $"{BuildHtmlString("AUDIO", "header")}: {BuildHtmlString(message, "value")} ";
+        }
+
+        return debugMessages;
     }
 
     private string BuildHtmlString(string message, string cssClass, bool startNewLine = false)

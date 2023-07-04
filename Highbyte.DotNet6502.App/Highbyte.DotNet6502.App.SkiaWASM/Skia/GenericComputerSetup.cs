@@ -1,10 +1,9 @@
 using Highbyte.DotNet6502.Impl.AspNet;
+using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 using Highbyte.DotNet6502.Impl.AspNet.Generic;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Generic;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Microsoft.AspNetCore.WebUtilities;
@@ -90,22 +89,26 @@ public class GenericComputerSetup
         ISystem system,
         ISystemConfig systemConfig,
         SkiaRenderContext skiaRenderContext,
-        AspNetInputHandlerContext inputHandlerContext)
+        AspNetInputHandlerContext inputHandlerContext,
+        WASMAudioHandlerContext audioHandlerContext)
     {
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
 
         var renderer = new GenericComputerSkiaRenderer(genericComputerConfig.Memory.Screen);
         var inputHandler = new GenericComputerAspNetInputHandler(genericComputerConfig.Memory.Input);
+        var audioHandler = new NullAudioHandler();
 
         var genericComputer = (GenericComputer)system;
 
         renderer.Init(genericComputer, skiaRenderContext);
         inputHandler.Init(genericComputer, inputHandlerContext);
+        audioHandler.Init(genericComputer, audioHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, AspNetInputHandlerContext>(genericComputer);
+        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>(genericComputer);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)
+            .WithAudioHandler(audioHandler)
             .Build();
         return systemRunner;
     }
@@ -212,5 +215,4 @@ public class GenericComputerSetup
         }
         return Convert.FromBase64String(s); // Standard base64 decoder
     }
-
 }

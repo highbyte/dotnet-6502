@@ -1,0 +1,9 @@
+10 for l=54272 to 54296: poke l,0:next
+20 poke 54296,15: rem set volume
+30 poke 54277,4: rem v1,d b0-3,a b4-7
+40 poke 54273,19: rem freq v1 (h)
+41 poke 54272,63: rem freq v1 (l)
+70 poke 54276,129: rem ctrl v1, noise
+99 stop
+100 poke 54276,128: rem ctrl v1, stop
+

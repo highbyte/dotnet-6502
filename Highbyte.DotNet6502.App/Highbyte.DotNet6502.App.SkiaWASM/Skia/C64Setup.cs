@@ -30,6 +30,9 @@ public class C64Setup
 
             ROMDirectory = "",  // Set ROMDirectory to skip loading ROMs from file system (ROMDirectory + File property), instead read from the Data property
             ROMs = romList,
+
+            AudioSupported = true,
+            AudioEnabled = false,   // Audio disabled by default until playback is more stable
         };
 
         //c64Config.Validate();
@@ -54,20 +57,24 @@ public class C64Setup
         ISystem system,
         ISystemConfig systemConfig,
         SkiaRenderContext renderContext,
-        AspNetInputHandlerContext inputHandlerContext
+        AspNetInputHandlerContext inputHandlerContext,
+        WASMAudioHandlerContext audioHandlerContext
         )
     {
         var renderer = new C64SkiaRenderer();
         var inputHandler = new C64AspNetInputHandler();
+        var audioHandler = new C64WASMAudioHandler();
 
         var c64 = (C64)system;
         renderer.Init(c64, renderContext);
         inputHandler.Init(c64, inputHandlerContext);
+        audioHandler.Init(c64, audioHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, AspNetInputHandlerContext>(c64);
+        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>(c64);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)
+            .WithAudioHandler(audioHandler)
             .Build();
         return systemRunner;
     }

@@ -7,7 +7,8 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64;
 
 public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandlerContext>, IInputHandler
 {
-    private SadConsoleInputHandlerContext _inputHandlerContext;
+    private SadConsoleInputHandlerContext? _inputHandlerContext;
+    private readonly List<string> _debugMessages = new();
 
     public C64SadConsoleInputHandler()
     {
@@ -47,7 +48,7 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
     }
 
     private void HandleNonPrintedKeys(
-        Systems.Commodore64.Keyboard c64Keyboard,
+        Systems.Commodore64.Keyboard.C64Keyboard c64Keyboard,
         global::SadConsole.Input.Keyboard sadConsoleKeyboard)
     {
         // STOP (ESC) down
@@ -124,9 +125,8 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
         return petsciiCode;
     }
 
-    public string GetDebugMessage()
+    public List<string> GetDebugMessages()
     {
-        return "";
+        return _debugMessages;
     }
-
 }

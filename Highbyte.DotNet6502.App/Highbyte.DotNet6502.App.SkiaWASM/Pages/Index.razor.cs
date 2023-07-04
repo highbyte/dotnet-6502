@@ -1,26 +1,29 @@
+using Microsoft.AspNetCore.Components;
 using Blazored.Modal.Services;
 using Blazored.Modal;
 using Highbyte.DotNet6502.App.SkiaWASM.Skia;
+using Highbyte.DotNet6502.Impl.AspNet;
+using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
-using Microsoft.AspNetCore.Components;
-using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using Microsoft.AspNetCore.Components.RenderTree;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64;
-using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic;
+using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
+using Microsoft.AspNetCore.WebUtilities;
+using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
 public partial class Index
 {
     //public string Version => typeof(Program).Assembly.GetName().Version!.ToString();
-    public string Version => Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+    public string Version => Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
 
     private BrowserContext _browserContext;
+
+    //private AudioContext _audioContext;
+    private AudioContextSync _audioContext;
 
     public enum EmulatorState
     {
@@ -40,7 +43,6 @@ public partial class Index
         set
         {
             _selectedSystemName = value;
-            OnSelectedEmulatorChanged();
         }
     }
 
@@ -52,6 +54,38 @@ public partial class Index
         if (string.IsNullOrEmpty(_selectedSystemConfigValidationMessage))
             return "";
         return _selectedSystemConfigValidationMessage;
+    }
+
+    private ISystemConfig? _currentConfig;
+    private bool AudioEnabledToggleDisabled => (
+            (!(_currentConfig?.AudioSupported ?? true)) ||
+            (_emulatorState == EmulatorState.Running || _emulatorState == EmulatorState.Paused)
+        );
+
+    private bool AudioEnabled
+    {
+        get
+        {
+            return _currentConfig?.AudioEnabled ?? false;
+        }
+        set
+        {
+            _currentConfig!.AudioEnabled = value;
+        }
+    }
+
+    private float _masterVolumePercent = 10.0f;
+    public float MasterVolumePercent
+    {
+        get
+        {
+            return _masterVolumePercent;
+        }
+        set
+        {
+            _masterVolumePercent = value;
+            _wasmHost?.AudioHandlerContext.SetMasterVolume(_masterVolumePercent);
+        }
     }
 
     private double _scale = 2.0f;
@@ -73,7 +107,7 @@ public partial class Index
     protected ElementReference? _monitorInputRef;
 
     private MonitorConfig _monitorConfig;
-    private SystemList<SkiaRenderContext, AspNetInputHandlerContext> _systemList;
+    private SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
     private WasmHost? _wasmHost;
 
     private string _statsString = "Stats: calculating...";
@@ -94,7 +128,7 @@ public partial class Index
     [Inject]
     public NavigationManager? NavManager { get; set; }
 
-    protected async override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _browserContext = new()
         {
@@ -107,34 +141,81 @@ public partial class Index
         {
             MaxLineLength = 100,        // TODO: This affects help text printout, should it be set dynamically?
 
-            //DefaultDirectory = "../../../../../.cache/Examples/Assembler/Generic"
-            //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic"
-            //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/.cache/Examples/Assembler/Generic"
+            //DefaultDirectory = "../../../../../Examples/Assembler/Generic/Build"
+            //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/Examples/Assembler/Generic/Build"
+            //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/Examples/Assembler/Generic/Build"
         };
         _monitorConfig.Validate();
 
-
-        _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext>();
+        _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>();
 
         var c64Setup = new C64Setup(_browserContext);
         await _systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);
 
         var genericComputerSetup = new GenericComputerSetup(_browserContext);
-        await _systemList.AddSystem(GenericComputer.SystemName, genericComputerSetup.BuildSystem, genericComputerSetup.BuildSystemRunner, genericComputerSetup.GetNewConfig, genericComputerSetup.PersistConfig);
+        await _systemList.AddSystem(
+            GenericComputer.SystemName,
+            genericComputerSetup.BuildSystem,
+            genericComputerSetup.BuildSystemRunner,
+            genericComputerSetup.GetNewConfig,
+            genericComputerSetup.PersistConfig);
 
         // Default system
         SelectedSystemName = C64.SystemName;
+        await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = SelectedSystemName });
+
+        await SetDefaultsFromQueryParams(_browserContext.Uri);
     }
 
-
-
-    private async void OnSelectedEmulatorChanged()
+    private async Task SetDefaultsFromQueryParams(Uri uri)
     {
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("systemName", out var systemName))
+        {
+            var systemNameParsed = systemName.ToString();
+            if (systemNameParsed is not null && _systemList.Systems.Contains(systemNameParsed))
+            {
+                SelectedSystemName = systemNameParsed;
+                await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = SelectedSystemName });
+            }
+        }
+
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("audioEnabled", out var audioEnabled))
+        {
+            if (bool.TryParse(audioEnabled, out bool audioEnabledParsed))
+            {
+                AudioEnabled = audioEnabledParsed;
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _audioContext = await AudioContextSync.CreateAsync(Js);
+        }
+    }
+
+    //protected override async void OnAfterRender(bool firstRender)
+    //{
+    //    if (firstRender)
+    //    {
+    //        //await FocusEmulator();
+    //    }
+    //}
+
+
+    private async Task OnSelectedEmulatorChanged(ChangeEventArgs e)
+    {
+        _selectedSystemName = e.Value?.ToString() ?? "";
         (bool isOk, List<string> validationErrors) = await _systemList.IsValidConfigWithDetails(_selectedSystemName);
+
         if (!isOk)
-            _selectedSystemConfigValidationMessage = string.Join(",", validationErrors);
+            _selectedSystemConfigValidationMessage = string.Join(",", validationErrors!);
         else
             _selectedSystemConfigValidationMessage = "";
+
+        _currentConfig = await _systemList.GetCurrentSystemConfig(_selectedSystemName);
 
         UpdateCanvasSize();
         this.StateHasChanged();
@@ -162,7 +243,7 @@ public partial class Index
 
     private async Task InitEmulator()
     {
-        _wasmHost = new WasmHost(Js, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale);
+        _wasmHost = new WasmHost(Js, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale, MasterVolumePercent);
         _emulatorState = EmulatorState.Paused;
     }
 
@@ -190,7 +271,7 @@ public partial class Index
 
         if (!_wasmHost.Initialized)
         {
-            await _wasmHost.Init(e.Surface.Canvas, grContext);
+            await _wasmHost.Init(e.Surface.Canvas, grContext, _audioContext, Js);
         }
 
         //_emulatorRenderer!.SetSize(e.Info.Width, e.Info.Height);

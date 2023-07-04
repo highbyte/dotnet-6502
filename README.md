@@ -23,7 +23,7 @@
 
 - A library [```Highbyte.DotNet6502.Systems```](Highbyte.DotNet6502.Systems/SYSTEMS.md) containing implementations of specific computers ("Systems") that runs on a 6502 CPU.
 
-- Several libraries [```Highbyte.DotNet6502.Impl.*```](Highbyte.DotNet6502.Impl/RENDERERS_AND_INPUTHANDLERS.md) that implements rendering and input handling using different technologies (such as Skia, Blazor, SadConsole) per emulated System.
+- Several libraries [```Highbyte.DotNet6502.Impl.*```](Highbyte.DotNet6502.Impl/RENDER_INPUT_AUDIO.md) that implements rendering, input handling, and audio using different technologies (such as Skia, Blazor, SadConsole) per emulated System.
 
 - Several UI applications [```Highbyte.DotNet6502.Apps.*```](Highbyte.DotNet6502.App/APPS.md) that are the hosts for emulating the Systems above and their different rendering techniques.
 
@@ -65,6 +65,15 @@ For requirements and local development setup, see [here](DEVELOP.md)
 - https://dustlayer.com/vic-ii/2013/4/22/when-visibility-matters
 - https://dustlayer.com/vic-ii/2013/4/25/vic-ii-for-beginners-beyond-the-screen-rasters-cycle
 
+## WebAudio
+- https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
+- https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques
+- https://github.com/pendragon-andyh/WebAudio-PulseOscillator
+- https://github.com/KristofferStrube/Blazor.WebAudio
+- https://ui.dev/web-audio-api
+- https://codepen.io/2kool2/pen/xrLeMq
+- https://dev.opera.com/articles/drum-sounds-webaudio/
+
 ## Test programs
 - http://visual6502.org/wiki/index.php?title=6502TestPrograms
 - https://github.com/Klaus2m5/6502_65C02_functional_tests/blob/master/6502_functional_test.a65
@@ -73,6 +82,7 @@ For requirements and local development setup, see [here](DEVELOP.md)
 ## Assemblers
 Was used during development to compile actual 6502 source code to a binary, and then run it through the emulator.
 
+- https://sourceforge.net/projects/acme-crossass/
 - https://marketplace.visualstudio.com/items?itemName=rosc.vs64
 - https://nurpax.github.io/c64jasm-browser/
 - https://skilldrick.github.io/easy6502/#first-program
@@ -85,9 +95,12 @@ Monitor commands: https://vice-emu.sourceforge.io/vice_12.html
 
 How to load and step through a program in the VICE monitor
 ```
-l "C:\Source\Repos\dotnet-6502\.cache\Examples\Assembler\Generic\testprogram.prg" 0 1000
+l "C:\Source\Repos\dotnet-6502\Examples\Assembler\Generic\Build\testprogram.prg" 0 1000
 d 1000
 r PC=1000
 z
 r
 ```
+
+## Credits
+- [Kristoffer Strube](https://github.com/KristofferStrube) for the original Blazor WASM async interop code for [WebAudio](https://github.com/KristofferStrube/Blazor.WebAudio), [DOM](https://github.com/KristofferStrube/Blazor.DOM), and [IDL](https://github.com/KristofferStrube/Blazor.WebIDL) that was the basis for a synchronous implementation in this repo. Copyright notice [here](Highbyte.DotNet6502.Impl/Highbyte.DotNet6502.Impl.AspNet/JSInterop/JSInterop_OriginalLicense.MD).

@@ -13,7 +13,7 @@ namespace ConsoleTestPrograms
             Console.WriteLine($"Run 6502 code that multiplies two 16 bit signed numbers.");
             Console.WriteLine($"--------------------------------------------------------");
 
-            string prgFileName = "../../../../../.cache/Examples/Assembler/Generic/multiply_2_16bit_numbers.prg";
+            string prgFileName = "../../../../../Examples/Assembler/Generic/Build/multiply_2_16bit_numbers.prg";
 
             Console.WriteLine("");
             Console.WriteLine($"Loading binary into emulator memory...");

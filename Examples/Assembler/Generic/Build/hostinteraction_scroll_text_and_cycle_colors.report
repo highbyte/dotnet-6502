@@ -1,0 +1,354 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\Generic\hostinteraction_scroll_text_and_cycle_colors.asm
+     1                          ;ACME assembler
+     2                          ;!to "./hostinteraction_scroll_text.prg"
+     3                          
+     4                          ;code start address
+     5                          * = $c000
+     6                          
+     7                          ;------------------------------------------------------------
+     8                          ;Program settings
+     9                          ;------------------------------------------------------------
+    10                          STATIC_TEXT_ROW = 8;
+    11                          COLOR_CYCLE_EACH_X_FRAME = 2;
+    12                          
+    13                          SCROLLER_ROW = 14;
+    14                          SCROLL_EACH_X_FRAME = 4;
+    15                          
+    16                          ;------------------------------------------------------------
+    17                          ;Memory address shared with emulator host for updating screen
+    18                          ;------------------------------------------------------------
+    19                          ;40 columns and 25 rows, 1 byte per character = 1000 (0x03e8) bytes
+    20                          ;Laid out in memory as appears on screen.
+    21                          SCREEN_MEM = 0x0400			;0x0400 - 0x07e7
+    22                          SCREEN_MEM_COLS = 40
+    23                          SCREEN_MEM_ROWS = 25
+    24                          ;Colors, one byte per character = 1000 (0x03e8) bytes
+    25                          SCREEN_COLOR_MEM = 0xd800	;0xd800 - 0xdbe7
+    26                          ;Byte with status flags to communicate with emulator host. When host new frame, emulator done for frame, etc.
+    27                          SCREEN_REFRESH_STATUS = 0xd000
+    28                          ;Border color address
+    29                          SCREEN_BORDER_COLOR_ADDRESS = 0xd020
+    30                          ;Bg color address for entire screen
+    31                          SCREEN_BACKGROUND_COLOR_ADDRESS = 0xd021
+    32                          
+    33                          ;Currently pressed key on host (ASCII byte). If no key is pressed, value is 0x00
+    34                          KEY_PRESSED_ADDRESS = 0xd030
+    35                          ;Currently down key on host (ASCII byte). If no key is down, value is 0x00
+    36                          KEY_DOWN_ADDRESS = 0xd031
+    37                          ;Currently released key on host (ASCII byte). If no key is down, value is 0x00
+    38                          KEY_RELEASED_ADDRESS = 0xd031
+    39                          
+    40                          ;------------------------------------------------------------
+    41                          ;ZP memory locations used for calculations
+    42                          ;------------------------------------------------------------
+    43                          ;Zero Page address that will hold an 16 bit address (text start in memory + current scroll offset)
+    44                          ;Little endian:
+    45                          ;	0x40 will contain least significant byte, that is used in Indirect Indexed addressing mode
+    46                          ;	0x41 will contain most significant byte.
+    47                          ZP_SCROLL_TEXT_ADDRESS = 0x40
+    48                          
+    49                          ;Index to where in text color list we are
+    50                          ZP_TEXT_COLOR_CYCLE_INDEX = 0x42
+    51                          
+    52                          ;Index to where in background color list we are
+    53                          ZP_BG_COLOR_CYCLE_INDEX = 0x43
+    54                          
+    55                          ;Index to where in border color list we are
+    56                          ZP_BORDER_COLOR_CYCLE_INDEX = 0x44
+    57                          
+    58                          ;Frame counters
+    59                          ZP_SCROLL_FRAME_COUNT = 0x50
+    60                          ZP_COLOR_CYCLE_FRAME_COUNT = 0x51
+    61                          
+    62                          ;------------------------------------------------------------
+    63                          ;Code start
+    64                          ;------------------------------------------------------------
+    65                          ;Set screen background color
+    66  c000 a900               	lda #$0
+    67  c002 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+    68                          
+    69                          ;Set border color
+    70  c005 a900               	lda #$0
+    71  c007 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS	
+    72                          
+    73                          ;Init bg color cycle index
+    74  c00a a902               	lda #2
+    75  c00c 8543               	sta ZP_BG_COLOR_CYCLE_INDEX
+    76                          
+    77                          ;Init border color cycle index
+    78  c00e a900               	lda #0
+    79  c010 8544               	sta ZP_BORDER_COLOR_CYCLE_INDEX
+    80                          
+    81                          ;Initialize scroll text address to start of text.
+    82  c012 20b4c0             	jsr initscroll
+    83  c015 20bdc0             	jsr initscrollframecount
+    84                          
+    85                          ;Initialize static text and color cycle
+    86  c018 204fc0             	jsr printstatictext
+    87  c01b 208fc0             	jsr initcolorcycleframecount
+    88  c01e 208ac0             	jsr initcolorcycle
+    89                          
+    90                          !zone mainloop
+    91                          mainloop:
+    92                          ;Wait for new frame (flag set by emulator host)
+    93  c021 203ec0             	jsr waitforrefresh
+    94                          
+    95                          ;Cycle background color if key is pressed
+    96                          ;	jsr cyclebackgroundifkeyispressed
+    97                          ;Cycle border color if key is pressed
+    98  c024 20e0c0             	jsr cycleborderifkeyispressed
+    99                          
+   100                          
+   101                          ;Color cycle (evry frame)
+   102                          	;Check how often we should scroll (every x frame)
+   103  c027 c651                	dec ZP_COLOR_CYCLE_FRAME_COUNT
+   104  c029 d006                	bne skipcolorcycle
+   105  c02b 2060c0              	jsr colorcycle_statictext
+   106  c02e 208fc0              	jsr initcolorcycleframecount
+   107                          skipcolorcycle:
+   108                          
+   109                          ;Scroller
+   110                          	;Check how often we should scroll (every x frame)
+   111  c031 c650                	dec ZP_SCROLL_FRAME_COUNT
+   112  c033 d006                	bne skipscroll
+   113  c035 2094c0              	jsr scrolltext
+   114  c038 20bdc0              	jsr initscrollframecount
+   115                          
+   116                          skipscroll:
+   117                          
+   118                          	;brk	; In emulator, setup hitting brk instruction to stop	
+   119  c03b 4c21c0             	jmp mainloop
+   120                          	;brk	; In emulator, setup hitting brk instruction to stop
+   121                          ;-----------------
+   122                          
+   123                          !zone waitforrefresh
+   124                          waitforrefresh:
+   125                          .loop
+   126  c03e ad00d0             	lda SCREEN_REFRESH_STATUS
+   127  c041 aa                 	tax ; Store copy of current screen status in X
+   128  c042 2901               	and #%00000001	;Bit 0 set signals it time to refresh screen
+   129  c044 f0f8               	beq .loop	;Loop if bit 0 is not set (AND results in value 0, then zero flag set, BEQ branches zero flag is set)
+   130  c046 ad00d0             	lda SCREEN_REFRESH_STATUS
+   131  c049 29fe               	and #%11111110 ;Clear bit 0.
+   132  c04b 8d00d0             	sta SCREEN_REFRESH_STATUS ;Update status to memory (will acknowledge that 6502 code is done waiting for the next frame)
+   133  c04e 60                 	rts
+   134                          ;-----------------	
+   135                          
+   136                          !zone printstatictext
+   137                          printstatictext:
+   138  c04f a200               	ldx #0
+   139  c051 a000               	ldy #0
+   140                          .loop:
+   141  c053 bdfec0             	lda STATIC_TEXT, X
+   142  c056 f007               	beq .endoftext
+   143  c058 9d4005             	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
+   144  c05b e8                 	inx
+   145  c05c 4c53c0             	jmp .loop
+   146                          .endoftext
+   147  c05f 60                 	rts
+   148                          
+   149                          ;-----------------
+   150                          !zone colorcycle_statictext
+   151                          colorcycle_statictext:
+   152  c060 a200               	ldx #0
+   153  c062 a542               	lda ZP_TEXT_COLOR_CYCLE_INDEX
+   154  c064 a8                 	tay
+   155                          .loop:
+   156  c065 b927c1             	lda STATIC_TEXT_COLOR, Y
+   157  c068 c9ff               	cmp #$ff
+   158  c06a d005               	bne .notendofcolorlist
+   159  c06c a000               	ldy #0
+   160  c06e 4c65c0             	jmp .loop
+   161                          .notendofcolorlist
+   162  c071 c8                 	iny
+   163  c072 9d40d9             	sta SCREEN_COLOR_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Change color of character. A will contain current color to print, and X the column
+   164  c075 e8                 	inx
+   165  c076 e028               	cpx #SCREEN_MEM_COLS
+   166  c078 d0eb               	bne .loop	;Loop until we changed color for entire row of 80 characters
+   167                          
+   168                          	;Increase color cycle index starting point.
+   169  c07a e642               	inc ZP_TEXT_COLOR_CYCLE_INDEX
+   170  c07c a542               	lda ZP_TEXT_COLOR_CYCLE_INDEX
+   171  c07e a8                 	tay
+   172                          	;Check if we reached end, then reset
+   173  c07f b927c1             	lda STATIC_TEXT_COLOR, Y
+   174  c082 c9ff               	cmp #$ff
+   175  c084 d003               	bne .notendofcolorlist2
+   176  c086 208ac0             	jsr initcolorcycle
+   177                          .notendofcolorlist2
+   178  c089 60                 	rts
+   179                          
+   180                          ;-----------------
+   181                          !zone initcolorcycle
+   182                          initcolorcycle:
+   183  c08a a900               	lda #0
+   184  c08c 8542               	sta ZP_TEXT_COLOR_CYCLE_INDEX
+   185  c08e 60                 	rts
+   186                          
+   187                          initcolorcycleframecount:	
+   188                          	;Init framecounter (decrease from number to 0)
+   189  c08f a902               	lda #COLOR_CYCLE_EACH_X_FRAME
+   190  c091 8551               	sta ZP_COLOR_CYCLE_FRAME_COUNT
+   191  c093 60                 	rts
+   192                          
+   193                          ;-----------------
+   194                          !zone scrolltext
+   195                          scrolltext:
+   196  c094 a200               	ldx #0
+   197  c096 a000               	ldy #0
+   198                          .loop:
+   199  c098 b140               	lda (ZP_SCROLL_TEXT_ADDRESS), Y
+   200  c09a d008               	bne .notendofscroll
+   201  c09c 20b4c0             	jsr initscroll					; Reset scroll pointer to start of text
+   202  c09f a000               	ldy #0
+   203  c0a1 4c98c0             	jmp .loop
+   204                          .notendofscroll
+   205  c0a4 c8                 	iny
+   206  c0a5 9d3006             	sta SCREEN_MEM + (SCREEN_MEM_COLS * SCROLLER_ROW) , X				; Print character. A will contain current character to print, and X the column
+   207  c0a8 e8                 	inx
+   208  c0a9 e028               	cpx #SCREEN_MEM_COLS
+   209  c0ab d0eb               	bne .loop						;Loop until we printed 80 characters
+   210                          
+   211  c0ad e640               	inc ZP_SCROLL_TEXT_ADDRESS		;Increase scroll start pointer lowbyte
+   212  c0af d002               	bne .nohighbyteincrease			;Check if we reach 00 (wrap around), then Zero flag is set, which means we should also increase highbyte
+   213  c0b1 e641               	inc ZP_SCROLL_TEXT_ADDRESS + 1	;Increase scroll start pointer highbyte if we got carry from lowbyte
+   214                          .nohighbyteincrease
+   215  c0b3 60                 	rts
+   216                          ;-----------------
+   217                          
+   218                          !zone initscroll
+   219                          initscroll:
+   220  c0b4 a964               	lda #<SCROLL_TEXT	;Load lowbyte of scroll text start in memory. We start at -1 because code will start by increasing the address by 1
+   221  c0b6 8540               	sta ZP_SCROLL_TEXT_ADDRESS
+   222  c0b8 a9c1               	lda #>SCROLL_TEXT	;Load highbyte of scroll text start in memory. We start at -1 because code will start by increasing the address by 1
+   223  c0ba 8541               	sta ZP_SCROLL_TEXT_ADDRESS + 1
+   224  c0bc 60                 	rts
+   225                          
+   226                          initscrollframecount:	
+   227                          	;Init framecounter (decrease from number to 0)
+   228  c0bd a904               	lda #SCROLL_EACH_X_FRAME
+   229  c0bf 8550               	sta ZP_SCROLL_FRAME_COUNT
+   230  c0c1 60                 	rts
+   231                          ;-----------------
+   232                          
+   233                          !zone cyclebackgroundifkeyispressed
+   234                          cyclebackgroundifkeyispressed:
+   235                          
+   236                          ;Check if space is pressed, if so cycle background color
+   237  c0c2 ad31d0             	lda KEY_DOWN_ADDRESS
+   238  c0c5 c920               	cmp #$20	;32 ($20) = space
+   239  c0c7 d016               	bne .spacenotpressed
+   240                          .loop:
+   241  c0c9 a543               	lda ZP_BG_COLOR_CYCLE_INDEX
+   242  c0cb a8                 	tay
+   243  c0cc b91dc3             	lda BACKGROUND_COLOR, Y
+   244  c0cf c9ff               	cmp #$ff
+   245  c0d1 d007               	bne .notendofcolorlist
+   246  c0d3 a900               	lda #0
+   247  c0d5 8543               	sta ZP_BG_COLOR_CYCLE_INDEX	
+   248  c0d7 4cc9c0             	jmp .loop
+   249                          .notendofcolorlist
+   250  c0da 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   251                          	;Increase bg color cycle index starting point.
+   252  c0dd e643               	inc ZP_BG_COLOR_CYCLE_INDEX
+   253                          .spacenotpressed:	
+   254  c0df 60                 	rts
+   255                          
+   256                          ;-----------------
+   257                          
+   258                          !zone cycleborderifkeyispressed
+   259                          cycleborderifkeyispressed:
+   260                          
+   261                          ;Check if space is pressed, if so cycle border color
+   262  c0e0 ad31d0             	lda KEY_DOWN_ADDRESS
+   263  c0e3 c920               	cmp #$20	;32 ($20) = space
+   264  c0e5 d016               	bne .spacenotpressed
+   265                          .loop:
+   266  c0e7 a544               	lda ZP_BORDER_COLOR_CYCLE_INDEX
+   267  c0e9 a8                 	tay
+   268  c0ea b962c3             	lda BORDER_COLOR, Y
+   269  c0ed c9ff               	cmp #$ff
+   270  c0ef d007               	bne .notendofcolorlist
+   271  c0f1 a900               	lda #0
+   272  c0f3 8544               	sta ZP_BORDER_COLOR_CYCLE_INDEX	
+   273  c0f5 4ce7c0             	jmp .loop
+   274                          .notendofcolorlist
+   275  c0f8 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS
+   276                          	;Increase bg color cycle index starting point.
+   277  c0fb e644               	inc ZP_BORDER_COLOR_CYCLE_INDEX
+   278                          .spacenotpressed:	
+   279  c0fd 60                 	rts
+   280                          
+   281                          ;------------------------------------------------------------
+   282                          ;Data
+   283                          ;------------------------------------------------------------
+   284                          !zone data
+   285                          
+   286                          !convtab raw	;Text conversion setting: pet (PetSCII), raw (none), scr (C64 screen code)
+   287                          
+   288                          STATIC_TEXT:
+   289                          	;!text "       *** 6502 machine code running in Highbyte.DotNet6502 emulator! ***       "
+   290  c0fe 3635303220636f64...	!text "6502 code running in DotNet6502 emulator"
+   291  c126 00                 	!by 0 ;End of text indicator
+   292                          
+   293                          STATIC_TEXT_COLOR:
+   294                          	;!by 0x0b,0x0b,0x0b,0x0b,0x0c,0x0c,0x0c,0x0c,0x0f,0x0f,0x01,0x01,0x0f,0x0f,0x0c,0x0c,0x0c,0x0c,0x0c,0x0c,0x0c
+   295                          	;!by 0x02,0x02,0x02,0x02,0x04,0x04,0x04,0x04,0x0a,0x0a,0x0a,0x0a,0x07,0x07,0x07,0x07,0x0a,0x0a,0x0a,0x0a,0x04,0x04,0x04,0x04,0x02,0x02,0x02,0x02
+   296  c127 020202020a0a0a0a...	!by 0x02,0x02,0x02,0x02,0x0a,0x0a,0x0a,0x0a,0x07,0x07,0x07,0x07,0x0a,0x0a,0x0a,0x0a,0x02,0x02,0x02,0x02
+   297  c13b 060606060e0e0e0e...	!by 0x06,0x06,0x06,0x06,0x0e,0x0e,0x0e,0x0e,0x01,0x01,0x01,0x01,0x0e,0x0e,0x0e,0x0e,0x06,0x06,0x06,0x06
+   298  c14f 050505050d0d0d0d...	!by 0x05,0x05,0x05,0x05,0x0d,0x0d,0x0d,0x0d,0x01,0x01,0x01,0x01,0x0d,0x0d,0x0d,0x0d,0x05,0x05,0x05,0x05
+   299  c163 ff                 	!by 0xff ;End of color indicator (cannot be 0 which is black)
+   300                          
+   301                          SCROLL_TEXT:
+   302                          	;!text "                                                                                "
+   303  c164 2020202020202020...	!text "                                        "
+   304  c18c 4869676862797465...	!text "Highbyte, in 2022, proudly presents... A DotNet 6502 CPU emulator!    "
+   305  c1d2 5468697320287261...	!text "This (rather choppy) scroller and color cycler is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
+   306  c264 486f6c6420535041...	!text "Hold SPACE to flash border color.   "
+   307  c288 4772656574696e67...	!text "Greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups Them and Virtual!"
+   308                          	;!text "                                                                                "
+   309  c2f4 2020202020202020...	!text "                                        "
+   310  c31c 00                 	!by 0 ;End of text indicator
+   311                          
+   312                          BACKGROUND_COLOR:
+   313  c31d 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   314  c32d 0b0b0b0b0b0b0b0b   	!by 0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b
+   315  c335 0c0c0c0c           	!by 0x0c,0x0c,0x0c,0x0c
+   316  c339 0f0f0f0f           	!by 0x0f,0x0f,0x0f,0x0f
+   317  c33d 0c0c0c0c           	!by 0x0c,0x0c,0x0c,0x0c
+   318  c341 0b0b0b0b0b0b0b0b   	!by 0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b
+   319  c349 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   320  c359 0000000000000000   	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   321  c361 ff                 	!by 0xff ;End of color indicator (cannot be 0 which is black)
+   322                          
+   323                          
+   324                          BORDER_COLOR:
+   325  c362 020202             	!by 0x02,0x02,0x02
+   326  c365 0a0a0a             	!by 0x0a,0x0a,0x0a
+   327  c368 0f0f0f             	!by 0x0f,0x0f,0x0f
+   328  c36b 0a0a0a             	!by 0x0a,0x0a,0x0a
+   329  c36e 020202             	!by 0x02,0x02,0x02
+   330  c371 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   331  c381 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   332  c391 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   333  c3a1 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   334  c3b1 050505             	!by 0x05,0x05,0x05
+   335  c3b4 0d0d0d             	!by 0x0d,0x0d,0x0d
+   336  c3b7 0f0f0f             	!by 0x0f,0x0f,0x0f
+   337  c3ba 0d0d0d             	!by 0x0d,0x0d,0x0d
+   338  c3bd 050505             	!by 0x05,0x05,0x05
+   339  c3c0 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   340  c3d0 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   341  c3e0 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   342  c3f0 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   343  c400 060606             	!by 0x06,0x06,0x06
+   344  c403 0e0e0e             	!by 0x0e,0x0e,0x0e
+   345  c406 0f0f0f             	!by 0x0f,0x0f,0x0f
+   346  c409 0e0e0e             	!by 0x0e,0x0e,0x0e
+   347  c40c 060606             	!by 0x06,0x06,0x06
+   348  c40f 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   349  c41f 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   350  c42f 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   351  c43f 0000000000000000...	!by 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+   352  c44f ff                 	!by 0xff ;End of color indicator (cannot be 0 which is black)

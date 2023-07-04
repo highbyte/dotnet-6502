@@ -19,8 +19,8 @@ public class SilkNetWindow
     private readonly MonitorConfig _monitorConfig;
     private readonly IWindow _window;
 
-    private readonly SystemList<SkiaRenderContext, SilkNetInputHandlerContext> _systemList;
-    public SystemList<SkiaRenderContext, SilkNetInputHandlerContext> SystemList => _systemList;
+    private readonly SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext> _systemList;
+    public SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext> SystemList => _systemList;
 
     private float _canvasScale;
     private readonly string _defaultSystemName;
@@ -75,7 +75,7 @@ public class SilkNetWindow
     public SilkNetWindow(
         MonitorConfig monitorConfig,
         IWindow window,
-        SystemList<SkiaRenderContext, SilkNetInputHandlerContext> systemList,
+        SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext> systemList,
         float scale,
         string defaultSystemName)
     {
@@ -104,7 +104,7 @@ public class SilkNetWindow
         InitRendering();
         InitInput();
 
-        _systemList.InitContext(() => _skiaRenderContext, () => _silkNetInputHandlerContext);
+        _systemList.InitContext(() => _skiaRenderContext, () => _silkNetInputHandlerContext, () => new NullAudioHandlerContext());
 
         InitImGui();
 
@@ -258,7 +258,7 @@ public class SilkNetWindow
         bool cont;
         using (_systemTime.Measure())
         {
-            cont = _systemRunner.RunEmulatorOneFrame();
+            cont = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
         }
 
         // Show monitor if we encounter breakpoint or other break
