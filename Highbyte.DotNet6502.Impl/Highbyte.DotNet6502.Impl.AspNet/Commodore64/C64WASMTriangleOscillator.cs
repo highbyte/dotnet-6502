@@ -8,22 +8,18 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
     {
         private readonly C64WASMVoiceContext _c64WASMVoiceContext;
         private WASMSoundHandlerContext _soundHandlerContext => _c64WASMVoiceContext.SoundHandlerContext;
-        private AudioContextSync _audioContext => _c64WASMVoiceContext.AudioContext;
-        public byte _voice => _c64WASMVoiceContext.Voice;
 
         private Action<string> _addDebugMessage => _c64WASMVoiceContext.AddDebugMessage;
 
         // SID Triangle Oscillator
-        public OscillatorNodeSync? TriangleOscillator;
-
-        public EventListener<EventSync> SoundStoppedCallback => _c64WASMVoiceContext.SoundStoppedCallback;
+        internal OscillatorNodeSync? TriangleOscillator;
 
         public C64WASMTriangleOscillator(C64WASMVoiceContext c64WASMVoiceContext)
         {
             _c64WASMVoiceContext = c64WASMVoiceContext;
         }
 
-        public void Create(float frequency)
+        internal void Create(float frequency)
         {
             // Create Triangle Oscillator
             TriangleOscillator = OscillatorNodeSync.Create(
@@ -34,21 +30,26 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                     Type = OscillatorType.Triangle,
                     Frequency = frequency,
                 });
-
-            // Set callback on Oscillator
-            TriangleOscillator.AddEndedEventListsner(SoundStoppedCallback);
         }
 
-        public void Stop()
+        internal void StopNow()
+        {
+            if (TriangleOscillator == null)
+                return;
+            TriangleOscillator!.Stop();
+            TriangleOscillator = null;  // Make sure the oscillator is not reused. After .Stop() it isn't designed be used anymore.
+            _addDebugMessage($"Stopped and removed TriangleOscillator");
+        }
+
+        internal void StopLater(double when)
         {
             if (TriangleOscillator == null)
                 throw new Exception($"TriangleOscillator is null. Call Create() first.");
-            _addDebugMessage($"Stopping and removing TriangleOscillator");
-            TriangleOscillator!.Stop();
-            TriangleOscillator = null;  // Make sure the oscillator is not reused. After .Stop() it isn't designed be used anymore.
+            _addDebugMessage($"Planning stopp of TriangleOscillator: {when}");
+            TriangleOscillator!.Stop(when);
         }
 
-        public void Start()
+        internal void Start()
         {
             if (TriangleOscillator == null)
                 throw new Exception($"TriangleOscillator is null. Call Create() first.");
@@ -56,14 +57,14 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             TriangleOscillator!.Start();
         }
 
-        public void Connect()
+        internal void Connect()
         {
             if (TriangleOscillator == null)
                 throw new Exception($"TriangleOscillator is null. Call Create() first.");
             TriangleOscillator!.Connect(_c64WASMVoiceContext.GainNode!);
         }
 
-        public void Disconnect()
+        internal void Disconnect()
         {
             if (TriangleOscillator == null)
                 throw new Exception($"TriangleOscillator is null. Call Create() first.");

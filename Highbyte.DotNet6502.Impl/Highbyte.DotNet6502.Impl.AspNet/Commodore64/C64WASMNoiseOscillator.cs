@@ -1,5 +1,4 @@
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop;
-using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorDOMSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
 
@@ -9,23 +8,20 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
     {
         private readonly C64WASMVoiceContext _c64WASMVoiceContext;
         private WASMSoundHandlerContext _soundHandlerContext => _c64WASMVoiceContext.SoundHandlerContext;
-        private AudioContextSync _audioContext => _c64WASMVoiceContext.AudioContext;
-        public byte _voice => _c64WASMVoiceContext.Voice;
+        private AudioContextSync _audioContext => _c64WASMVoiceContext.SoundHandlerContext.AudioContext;
 
         private Action<string> _addDebugMessage => _c64WASMVoiceContext.AddDebugMessage;
 
         // SID noise oscillator
         private AudioBufferSync _noiseBuffer;
-        public AudioBufferSourceNodeSync? NoiseGenerator;
-
-        public EventListener<EventSync> SoundStoppedCallback => _c64WASMVoiceContext.SoundStoppedCallback;
+        internal AudioBufferSourceNodeSync? NoiseGenerator;
 
         public C64WASMNoiseOscillator(C64WASMVoiceContext c64WASMVoiceContext)
         {
             _c64WASMVoiceContext = c64WASMVoiceContext;
         }
 
-        public void Create(float playbackRate = 0.2f)
+        internal void Create(float playbackRate)
         {
             if (_noiseBuffer == null)
                 PrepareNoiseGenerator();
@@ -39,10 +35,9 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                     Loop = true,
                     Buffer = _noiseBuffer
                 });
-
-            NoiseGenerator.AddEndedEventListsner(SoundStoppedCallback);
         }
-        public void Start()
+
+        internal void Start()
         {
             if (NoiseGenerator == null)
                 throw new Exception($"NoiseGenerator is null. Call Create() first.");
@@ -51,23 +46,31 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             //voiceContext!.NoiseGenerator.Start(0, 0, currentTime + wasmSoundParameters.AttackDurationSeconds + wasmSoundParameters.ReleaseDurationSeconds);
         }
 
-        public void Stop()
+        internal void StopNow()
+        {
+            if (NoiseGenerator == null)
+                return;
+            NoiseGenerator!.Stop();
+            NoiseGenerator = null;  // Make sure the NoiseGenerator is not reused. After .Stop() it isn't designed be used anymore.
+            _addDebugMessage($"Stopped and removed NoiseGenerator.");
+        }
+
+        internal void StopLater(double when)
         {
             if (NoiseGenerator == null)
                 throw new Exception($"NoiseGenerator is null. Call Create() first.");
-            _addDebugMessage($"Stopping and removing NoiseGenerator");
-            NoiseGenerator!.Stop();
-            NoiseGenerator = null;  // Make sure the NoiseGenerator is not reused. After .Stop() it isn't designed be used anymore.
+            _addDebugMessage($"Planning stopp of NoiseGenerator: {when}");
+            NoiseGenerator!.Stop(when);
         }
 
-        public void Connect()
+        internal void Connect()
         {
             if (NoiseGenerator == null)
                 throw new Exception($"NoiseGenerator is null. Call Create() first.");
             NoiseGenerator!.Connect(_c64WASMVoiceContext.GainNode!);
         }
 
-        public void Disconnect()
+        internal void Disconnect()
         {
             if (NoiseGenerator == null)
                 throw new Exception($"NoiseGenerator is null. Call Create() first.");
@@ -107,6 +110,16 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             }
             var data = Float32ArraySync.Create(_audioContext.WebAudioHelper, _audioContext.JSRuntime, values);
             _noiseBuffer.CopyToChannel(data, 0);
+        }
+
+        internal float GetPlaybackRateFromFrequency(float frequency)
+        {
+            const float playbackRateMin = 0.0f; // Should be used for the minimum SID frequency ( 0 Hz)
+            const float playbackRateMax = 1.0f; // Should be used for the maximum SID frequency ( ca 4000 Hz)
+            const float sidFreqMin = 0;
+            const float sidFreqMax = 4000;
+            float playbackRate = playbackRateMin + (float)(frequency - sidFreqMin) / (sidFreqMax - sidFreqMin) * (playbackRateMax - playbackRateMin);
+            return playbackRate;
         }
     }
 }

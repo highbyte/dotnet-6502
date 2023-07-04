@@ -8,24 +8,20 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
     {
         private readonly C64WASMVoiceContext _c64WASMVoiceContext;
         private WASMSoundHandlerContext _soundHandlerContext => _c64WASMVoiceContext.SoundHandlerContext;
-        private AudioContextSync _audioContext => _c64WASMVoiceContext.AudioContext;
-        public byte _voice => _c64WASMVoiceContext.Voice;
 
         private Action<string> _addDebugMessage => _c64WASMVoiceContext.AddDebugMessage;
 
         // SID pulse oscillator
-        public CustomPulseOscillatorNodeSync? PulseOscillator;
-        public GainNodeSync? PulseWidthGainNode;
-        public OscillatorNodeSync? LFOOscillator;
-
-        public EventListener<EventSync> SoundStoppedCallback => _c64WASMVoiceContext.SoundStoppedCallback;
+        internal CustomPulseOscillatorNodeSync? PulseOscillator;
+        internal GainNodeSync? PulseWidthGainNode;
+        internal OscillatorNodeSync? LFOOscillator;
 
         public C64WASMPulseOscillator(C64WASMVoiceContext c64WASMVoiceContext)
         {
             _c64WASMVoiceContext = c64WASMVoiceContext;
         }
 
-        public void Create(float frequency, float defaultPulseWidth)
+        internal void Create(float frequency, float defaultPulseWidth)
         {
             // Create Pulse Oscillator
             PulseOscillator = CustomPulseOscillatorNodeSync.Create(
@@ -44,10 +40,6 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                     DefaultWidth = defaultPulseWidth
                 });
 
-            // Set callback on Pulse Oscillator (which is the primary oscillator in this case)
-            PulseOscillator.AddEndedEventListsner(SoundStoppedCallback);
-
-
             // Create Pulse Width GainNode for pulse width modulation
             PulseWidthGainNode = GainNodeSync.Create(
                 _soundHandlerContext!.JSRuntime,
@@ -57,7 +49,6 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                     Gain = 0
                 });
             PulseWidthGainNode.Connect(PulseOscillator.WidthGainNode);
-
 
             // Create low frequency oscillator, use as base for Pulse Oscillator.
             LFOOscillator = OscillatorNodeSync.Create(
@@ -74,7 +65,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 
         }
 
-        public void Start()
+        internal void Start()
         {
             if (PulseOscillator == null)
                 throw new Exception($"PulseOscillator is null. Call CreatePulseOscillator() first.");
@@ -83,27 +74,37 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             LFOOscillator!.Start();
         }
 
-        public void Stop()
+        internal void StopNow()
         {
             if (PulseOscillator == null)
-                throw new Exception($"PulseOscillator is null. Call Create() first.");
-            _addDebugMessage($"Stopping and removing PulseOscillator, LFOOscillator, and related resources.");
+                return;
             PulseOscillator!.Stop();
             LFOOscillator!.Stop();
             PulseWidthGainNode!.Disconnect();
             PulseOscillator = null;  // Make sure the oscillator is not reused. After .Stop() it isn't designed be used anymore.
             LFOOscillator = null;
             PulseWidthGainNode = null;
+            _addDebugMessage($"Stopped and removed PulseOscillator, LFOOscillator, and related resources.");
         }
 
-        public void Connect()
+        internal void StopLater(double when)
+        {
+            if (PulseOscillator == null)
+                throw new Exception($"PulseOscillator is null. Call Create() first.");
+            _addDebugMessage($"Planning stopp of PulseOscillator and LFOOscillator: {when}");
+            PulseOscillator!.Stop(when);
+            LFOOscillator!.Stop(when);
+        }
+
+
+        internal void Connect()
         {
             if (PulseOscillator == null)
                 throw new Exception($"PulseOscillator is null. Call Create() first.");
             PulseOscillator!.Connect(_c64WASMVoiceContext.GainNode!);
         }
 
-        public void Disconnect()
+        internal void Disconnect()
         {
             if (PulseOscillator == null)
                 throw new Exception($"PulseOscillator is null. Call Create() first.");
