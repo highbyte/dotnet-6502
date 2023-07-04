@@ -23,7 +23,7 @@
 
 - A library [```Highbyte.DotNet6502.Systems```](Highbyte.DotNet6502.Systems/SYSTEMS.md) containing implementations of specific computers ("Systems") that runs on a 6502 CPU.
 
-- Several libraries [```Highbyte.DotNet6502.Impl.*```](Highbyte.DotNet6502.Impl/RENDERERS_AND_INPUTHANDLERS.md) that implements rendering and input handling using different technologies (such as Skia, Blazor, SadConsole) per emulated System.
+- Several libraries [```Highbyte.DotNet6502.Impl.*```](Highbyte.DotNet6502.Impl/RENDER_INPUT_AUDIO.md) that implements rendering, input handling, and audio using different technologies (such as Skia, Blazor, SadConsole) per emulated System.
 
 - Several UI applications [```Highbyte.DotNet6502.Apps.*```](Highbyte.DotNet6502.App/APPS.md) that are the hosts for emulating the Systems above and their different rendering techniques.
 
