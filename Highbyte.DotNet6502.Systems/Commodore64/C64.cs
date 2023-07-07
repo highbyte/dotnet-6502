@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
+using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Keyboard;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;

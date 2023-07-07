@@ -1,7 +1,4 @@
-using System.Linq;
-using static Highbyte.DotNet6502.Memory;
-
-namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
+namespace Highbyte.DotNet6502.Systems.Commodore64.Audio;
 
 /// <summary>
 /// Internal storage of SID register values. The memory locations they are mapped are mostly write only, 

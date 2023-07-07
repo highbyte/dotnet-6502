@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
+namespace Highbyte.DotNet6502.Systems.Commodore64.Audio;
 
 /// <summary>
 /// </summary>
