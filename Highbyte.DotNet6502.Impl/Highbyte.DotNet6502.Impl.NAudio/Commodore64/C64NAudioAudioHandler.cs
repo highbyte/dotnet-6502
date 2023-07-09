@@ -1,25 +1,22 @@
-using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
+using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 
-namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64;
+namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64;
 
-public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, IAudioHandler
+public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContext>, IAudioHandler
 {
-    // Set to true to stop and recreate oscillator before each audio. Set to false to reuse oscillator.
-    // If true: for each audio played, the oscillator will be stopped, recreated, and started. This is the way WebAudio API is designed to work, but is very resource heavy if using the C#/.NET WebAudio wrapper classes, because new instances are created continuously.
-    // If false: the oscillator is only created and started once. When audio is stopped, the gain (volume) is set to 0.
-    public bool StopAndRecreateOscillator { get; private set; } = false;
+    private NAudioAudioHandlerContext? _audioHandlerContext;
 
-    // This setting is only used if _stopAndRecreateOscillator is true.
-    // If true: when audio is stopped (and gain/volume is set to 0), the oscillator is also disconnected from the audio context. This may help audio bleeding over when switching oscillator on same voice.
-    // If false: when audio is stopped (and gain/volume is set to 0), the oscillator stays connected to the audio context. This may increase performance, but may lead to audio bleeding over when switching oscillators on same voice.
-    public bool DisconnectOscillatorOnStop { get; private set; } = true;
+    private MixingSampleProvider _mixer;
+    public MixingSampleProvider Mixer => _mixer;
 
-    // private static Queue<InternalSidState> _sidStateChanges = new();
+    private VolumeSampleProvider _sidVolumeControl;
 
-    private WASMAudioHandlerContext? _audioHandlerContext;
-    internal WASMAudioHandlerContext? AudioHandlerContext => _audioHandlerContext;
+
+    //private static Queue<InternalSidState> _sidStateChanges = new();
 
     private List<byte> _enabledVoices = new() { 1, 2, 3 }; // TODO: Set enabled voices via config.
     //private List<byte> _enabledVoices = new() { 1 }; // TODO: Set enabled voices via config.
@@ -27,28 +24,36 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
     private List<SidVoiceWaveForm> _enabledOscillators = new() { SidVoiceWaveForm.Triangle, SidVoiceWaveForm.Sawtooth, SidVoiceWaveForm.Pulse, SidVoiceWaveForm.RandomNoise }; // TODO: Set enabled oscillators via config.
     //private List<SidVoiceWaveForm> _enabledOscillators = new() { SidVoiceWaveForm.RandomNoise }; // TODO: Set enabled oscillators via config.
 
-    public Dictionary<byte, C64WASMVoiceContext> VoiceContexts = new()
+    public Dictionary<byte, C64NAudioVoiceContext> VoiceContexts = new()
         {
-            {1, new C64WASMVoiceContext(1) },
-            {2, new C64WASMVoiceContext(2) },
-            {3, new C64WASMVoiceContext(3) },
+            {1, new C64NAudioVoiceContext(1) },
+            {2, new C64NAudioVoiceContext(2) },
+            {3, new C64NAudioVoiceContext(3) },
         };
 
     private List<string> _debugMessages = new();
     private const int MAX_DEBUG_MESSAGES = 20;
 
-    public C64WASMAudioHandler()
+    public C64NAudioAudioHandler()
     {
     }
+
     public List<string> GetDebugMessages()
     {
         return _debugMessages;
     }
 
-    public void Init(C64 system, WASMAudioHandlerContext audioHandlerContext)
+    public void Init(C64 system, NAudioAudioHandlerContext audioHandlerContext)
     {
         _audioHandlerContext = audioHandlerContext;
-        _audioHandlerContext.Init();
+
+        // Setup audio rendering pipeline: Mixer -> SID Volume -> WavePlayer
+        var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 1);
+        _mixer = new MixingSampleProvider(waveFormat) { ReadFully = true }; // Always produce samples
+        _sidVolumeControl = new VolumeSampleProvider(_mixer);
+
+        // Initialize NAudio WavePlayer with the last entity in the audio rendering pipeline
+        _audioHandlerContext.Init(_sidVolumeControl);
 
         foreach (var key in VoiceContexts.Keys)
         {
@@ -59,7 +64,7 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
 
     public void Init(ISystem system, IAudioHandlerContext audioHandlerContext)
     {
-        Init((C64)system, (WASMAudioHandlerContext)audioHandlerContext);
+        Init((C64)system, (NAudioAudioHandlerContext)audioHandlerContext);
     }
 
     public void GenerateAudio(ISystem system)
@@ -73,49 +78,28 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
         if (!sid.InternalSidState.IsAudioChanged)
             return;
 
-        //var internalSidStateClone = sid.InternalSidState.Clone();
-        //sid.InternalSidState.ClearAudioChanged();
-        //_sidStateChanges.Enqueue(internalSidStateClone);
-        //GenerateAudio();
-
         PlayAllVoices(sid.InternalSidState);
         sid.InternalSidState.ClearAudioChanged();
 
-        //var audioTasks = CreateAudioTasks(internalSidStateClone);
-        //if (audioTasks.Length > 0)
-        //{
-        //    //Task.WaitAll(audioTasks);
-
-        //    //var allTasksComplete = Task.WhenAll(audioTasks);
-        //    //allTasksComplete.GetAwaiter();
-
-        //    AddDebugMessage($"{Starting audio tasks for {audioTasks.Length} voices");
-        //    foreach (var task in audioTasks)
-        //    {
-        //        task.Start();
-        //    }
-        //}
     }
 
     public void StartPlaying()
     {
-        // TODO: Any extra needed when resuming play? Oscillators will already be created/connected when new notes are played.
+        _audioHandlerContext!.StartWavePlayer();
     }
 
     public void PausePlaying()
     {
-        foreach (var voiceContext in VoiceContexts.Values)
-        {
-            voiceContext.Stop();
-        }
+        _audioHandlerContext!.PauseWavePlayer();
     }
 
     public void StopPlaying()
     {
         foreach (var voiceContext in VoiceContexts.Values)
         {
-            voiceContext.StopAllOscillatorsNow();   // Force stop all oscillators now. No more audio will be able to play
+            voiceContext.StopAllOscillatorsNow();
         }
+        _audioHandlerContext!.StopWavePlayer();
     }
 
     private void PlayAllVoices(InternalSidState internalSidState)
@@ -145,13 +129,13 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
         //_sidStateChanges.Dequeue();
     }
 
-    private void PlayVoice(C64WASMVoiceContext voiceContext, AudioVoiceParameter audioVoiceParameter)
+    private void PlayVoice(C64NAudioVoiceContext voiceContext, AudioVoiceParameter audioVoiceParameter)
     {
         AddDebugMessage($"Processing command: {audioVoiceParameter.AudioCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
 
         if (audioVoiceParameter.AudioCommand == AudioCommand.Stop)
         {
-            // Stop audio immediately
+            // StopWavePlayer audio immediately
             voiceContext.Stop();
         }
 
@@ -181,8 +165,7 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
 
         else if (audioVoiceParameter.AudioCommand == AudioCommand.ChangeVolume)
         {
-            var currentTime = _audioHandlerContext!.AudioContext.GetCurrentTime();
-            voiceContext.SetVolume(audioVoiceParameter.Gain, currentTime);
+            // TODO: Move change volume to outside oscillator setting (as the C64 shared volume between all oscillators)    
         }
 
         else if (audioVoiceParameter.AudioCommand == AudioCommand.ChangeFrequency)
@@ -191,8 +174,7 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
             if (!_enabledOscillators.Contains(audioVoiceParameter.SIDOscillatorType))
                 return;
 
-            var currentTime = _audioHandlerContext!.AudioContext.GetCurrentTime();
-            voiceContext.SetFrequencyOnCurrentOscillator(audioVoiceParameter.Frequency, currentTime);
+            voiceContext.SetFrequencyOnCurrentOscillator(audioVoiceParameter.Frequency);
         }
 
         else if (audioVoiceParameter.AudioCommand == AudioCommand.ChangePulseWidth)
@@ -203,8 +185,8 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
 
             // Set pulse width. Only applicable if current oscillator is a pulse oscillator.
             if (voiceContext.CurrentSidVoiceWaveForm != SidVoiceWaveForm.Pulse) return;
-            var currentTime = _audioHandlerContext!.AudioContext.GetCurrentTime();
-            voiceContext.C64WASMPulseOscillator.SetPulseWidth(audioVoiceParameter.Frequency, currentTime);
+            // TODO:
+            //voiceContext.SetPulseWidth(audioVoiceParameter.Frequency);
         }
 
         AddDebugMessage($"Processing command done: {audioVoiceParameter.AudioCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
@@ -238,38 +220,4 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
         if (_debugMessages.Count > MAX_DEBUG_MESSAGES)
             _debugMessages.RemoveAt(MAX_DEBUG_MESSAGES);
     }
-
-    //private Task[] CreateSoundTasks(InternalSidState sidInternalStateClone)
-    //{
-    //    var playSoundTasks = new List<Task>();
-
-    //    foreach (var voice in VoiceContexts.Keys)
-    //    {
-    //        var voiceContext = VoiceContexts[voice];
-    //        var audioVoiceParameter = BuildWASMVoiceParameterFromC64Sid(voiceContext, sidInternalStateClone);
-    //        if (audioVoiceParameter.AudioCommand == AudioCommand.None)
-    //            continue;
-
-    //        //await PlaySound(voiceContext, audioVoiceParameter);
-    //        //var task = PlaySound(voiceContext, audioVoiceParameter);
-    //        var task = new Task(() => PlaySound(voiceContext, audioVoiceParameter));
-
-    //        //var task = new Task(async () => await PlaySound(voiceContext, audioVoiceParameter));
-
-    //        //var task = new Task(async () => await PlaySoundGated(voiceContext, audioVoiceParameter));
-    //        //var task = new Task(() => PlaySoundGated(voiceContext, audioVoiceParameter));
-    //        playSoundTasks.Add(task);
-    //    }
-
-    //    return playSoundTasks.ToArray();
-    //}
-
-    //private async Task PlayVoiceGated(C64WASMVoiceContext voiceContext, WASMVoiceParameter audioVoiceParameter)
-    //private void PlayVoiceGated(C64WASMVoiceContext voiceContext, WASMVoiceParameter audioVoiceParameter)
-    //{
-    //    //voiceContext.SemaphoreSlim.Wait();
-    //    voiceContext.SemaphoreSlim.WaitAsync().RunSynchronously();
-    //    PlaySound(voiceContext, audioVoiceParameter);
-    //    voiceContext.SemaphoreSlim.Release();
-    //}
 }

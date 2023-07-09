@@ -1,5 +1,7 @@
 using Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats;
 using Highbyte.DotNet6502.App.SkiaNative.Stats;
+using Highbyte.DotNet6502.Impl.NAudio;
+using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
@@ -19,8 +21,8 @@ public class SilkNetWindow
     private readonly MonitorConfig _monitorConfig;
     private readonly IWindow _window;
 
-    private readonly SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext> _systemList;
-    public SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext> SystemList => _systemList;
+    private readonly SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext> _systemList;
+    public SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext> SystemList => _systemList;
 
     private float _canvasScale;
     private readonly string _defaultSystemName;
@@ -42,6 +44,7 @@ public class SilkNetWindow
 
     private readonly ElapsedMillisecondsTimedStat _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("SilkNet-InputTime");
     private readonly ElapsedMillisecondsTimedStat _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("Emulator-SystemTime");
+    private readonly ElapsedMillisecondsStat _systemTimeAudio = InstrumentationBag.Add<ElapsedMillisecondsStat>("Emulator-SystemTime-Audio"); // Detailed part of system time
     private readonly ElapsedMillisecondsTimedStat _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("SkiaSharp-RenderTime");
     private readonly PerSecondTimedStat _updateFps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNetSkiaSharp-OnUpdateFPS");
     private readonly PerSecondTimedStat _renderFps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNetSkiaSharp-OnRenderFPS");
@@ -50,6 +53,8 @@ public class SilkNetWindow
     private SkiaRenderContext _skiaRenderContext;
     // SilkNet input handling
     private SilkNetInputHandlerContext _silkNetInputHandlerContext;
+    // NAudio audio handling
+    private NAudioAudioHandlerContext _naudioAudioHandlerContext;
 
     // Emulator    
     private SystemRunner _systemRunner;
@@ -75,7 +80,7 @@ public class SilkNetWindow
     public SilkNetWindow(
         MonitorConfig monitorConfig,
         IWindow window,
-        SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext> systemList,
+        SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext> systemList,
         float scale,
         string defaultSystemName)
     {
@@ -95,6 +100,8 @@ public class SilkNetWindow
         _window.Resize += OnResize;
 
         _window.Run();
+
+        _window.Dispose();
     }
 
     protected void OnLoad()
@@ -103,14 +110,14 @@ public class SilkNetWindow
 
         InitRendering();
         InitInput();
+        InitAudio();
 
-        _systemList.InitContext(() => _skiaRenderContext, () => _silkNetInputHandlerContext, () => new NullAudioHandlerContext());
+        _systemList.InitContext(() => _skiaRenderContext, () => _silkNetInputHandlerContext, () => _naudioAudioHandlerContext);
 
         InitImGui();
 
         // Init main menu
         _menu = new SilkNetImGuiMenu(this, _defaultSystemName);
-
     }
 
     protected void OnClosing()
@@ -126,8 +133,8 @@ public class SilkNetWindow
         // Cleanup SilkNet input resources
         _silkNetInputHandlerContext.Cleanup();
 
-        // Cleanup SilNet window resources
-        _window?.Dispose();
+        // Cleanup NAudio audio resources
+        _naudioAudioHandlerContext.Cleanup();
     }
 
     /// <summary>
@@ -205,6 +212,8 @@ public class SilkNetWindow
 
         InitMonitorAndStats();
 
+        _systemRunner.AudioHandler.StartPlaying();
+
         EmulatorState = EmulatorState.Running;
     }
 
@@ -212,6 +221,8 @@ public class SilkNetWindow
     {
         if (EmulatorState == EmulatorState.Paused || EmulatorState == EmulatorState.Uninitialized)
             return;
+
+        _systemRunner.AudioHandler.PausePlaying();
         EmulatorState = EmulatorState.Paused;
     }
 
@@ -259,6 +270,12 @@ public class SilkNetWindow
         using (_systemTime.Measure())
         {
             cont = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
+
+            if (detailedStats.ContainsKey("Audio"))
+            {
+                _systemTimeAudio.Set(detailedStats["Audio"]);
+                _systemTimeAudio.UpdateStat();
+            }
         }
 
         // Show monitor if we encounter breakpoint or other break
@@ -363,6 +380,27 @@ public class SilkNetWindow
 
         // Listen to special key that will show/hide overlays for monitor/stats
         primaryKeyboard.KeyDown += OnKeyDown;
+    }
+
+    private void InitAudio()
+    {
+        // Output to NAudio built-in output (Windows only)
+        //var wavePlayer = new WaveOutEvent
+        //{
+        //    NumberOfBuffers = 2,
+        //    DesiredLatency = 100,
+        //}
+
+        // Output to OpenAL (cross platform) instead of via NAudio built-in output (Windows only)
+        var wavePlayer = new SilkNetOpenALWavePlayer()
+        {
+            NumberOfBuffers = 2,
+            DesiredLatency = 40
+        };
+
+        _naudioAudioHandlerContext = new NAudioAudioHandlerContext(
+            wavePlayer,
+            initialVolumePercent: 20);
     }
 
     private void InitImGui()

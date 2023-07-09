@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Impl.NAudio;
+using Highbyte.DotNet6502.Impl.NAudio.Commodore64;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
 using Highbyte.DotNet6502.Impl.Skia;
@@ -75,20 +77,23 @@ public class C64Setup
         ISystemConfig systemConfig,
         SkiaRenderContext renderContext,
         SilkNetInputHandlerContext inputHandlerContext,
-        NullAudioHandlerContext audioHandlerContext
+        NAudioAudioHandlerContext audioHandlerContext
         )
     {
         var renderer = new C64SkiaRenderer();
         var inputHandler = new C64SilkNetInputHandler();
+        var audioHandler = new C64NAudioAudioHandler();
 
         var c64 = (C64)system;
         renderer.Init(c64, renderContext);
         inputHandler.Init(c64, inputHandlerContext);
+        audioHandler.Init(c64, audioHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext>(c64);
+        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>(c64);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)
+            .WithAudioHandler(audioHandler)
             .Build();
         return systemRunner;
     }

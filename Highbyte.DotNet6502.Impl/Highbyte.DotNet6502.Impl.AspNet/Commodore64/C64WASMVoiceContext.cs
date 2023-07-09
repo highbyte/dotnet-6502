@@ -6,19 +6,11 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 {
     public class C64WASMVoiceContext
     {
-        // Set to true to stop and recreate oscillator before each audio. Set to false to reuse oscillator.
-        // If true: for each audio played, the oscillator will be stopped, recreated, and started. This is the way WebAudio API is designed to work, but is very resource heavy if using the C#/.NET WebAudio wrapper classes, because new instances are created continuously.
-        // If false: the oscillator is only created and started once. When audio is stopped, the gain (volume) is set to 0.
-        private readonly bool _stopAndRecreateOscillator = false;
 
-        // This setting is only used if _stopAndRecreateOscillator is true.
-        // If true: when audio is stopped (and gain/volume is set to 0), the oscillator is also disconnected from the audio context. This may help audio bleeding over when switching oscillator on same voice.
-        // If false: when audio is stopped (and gain/volume is set to 0), the oscillator stays connected to the audio context. This may increase performance, but may lead to audio bleeding over when switching oscillators on same voice.
-        private readonly bool _disconnectOscillatorOnStop = true;
+        private C64WASMAudioHandler _audioHandler;
 
-        private WASMAudioHandlerContext _audioHandlerContext;
-        internal WASMAudioHandlerContext AudioHandlerContext => _audioHandlerContext;
-        private AudioContextSync _audioContext => _audioHandlerContext.AudioContext;
+        internal WASMAudioHandlerContext AudioHandlerContext => _audioHandler.AudioHandlerContext!;
+        private AudioContextSync _audioContext => AudioHandlerContext.AudioContext;
 
         private Action<string, int, SidVoiceWaveForm?, AudioStatus?> _addDebugMessage;
 
@@ -60,12 +52,12 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
         }
 
         internal void Init(
-            WASMAudioHandlerContext audioHandlerContext, 
+            C64WASMAudioHandler audioHandler, 
             Action<string, int, SidVoiceWaveForm?, AudioStatus?> addDebugMessage)
         {
             Status = AudioStatus.Stopped;
 
-            _audioHandlerContext = audioHandlerContext;
+            _audioHandler = audioHandler;
             _addDebugMessage = addDebugMessage;
 
             // Create shared GainNode used as volume by all oscillators
@@ -77,10 +69,10 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             C64WASMPulseOscillator = new C64WASMPulseOscillator(this);
             C64WASMNoiseOscillator = new C64WASMNoiseOscillator(this);
 
-            if (_stopAndRecreateOscillator)
+            if (_audioHandler.StopAndRecreateOscillator)
             {
                 // Define callback handler to know when an oscillator has stopped playing. Only used if creating + starting oscillators before each audio.
-                _audioStoppedCallback = EventListener<EventSync>.Create(_audioHandlerContext.AudioContext.WebAudioHelper, _audioHandlerContext.AudioContext.JSRuntime, (e) =>
+                _audioStoppedCallback = EventListener<EventSync>.Create(_audioContext.WebAudioHelper, _audioContext.JSRuntime, (e) =>
                 {
                     AddDebugMessage($"Oscillator Stop Callback triggered.");
                     Stop();
@@ -99,6 +91,9 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                     };
                     CreateOscillator(audioVoiceParameter);
                     //ConnectOscillator(audioVoiceParameter.SIDOscillatorType);
+
+                    // In this scenario the WebAudio oscilltor has to be running all the time (it can only be started/stopped once).
+                    // As the gain is 0, no sound will play. When a SID sound started to play, a ADS envelope (gain variation over time) is scheduled on the current time.
                     StartOscillator(audioVoiceParameter.SIDOscillatorType);
                 }
             }
@@ -108,11 +103,11 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 
         private void CreateGainNode()
         {
-            GainNode = GainNodeSync.Create(_audioHandlerContext.JSRuntime, _audioHandlerContext.AudioContext);
+            GainNode = GainNodeSync.Create(_audioContext.JSRuntime, _audioContext);
             // Associate GainNode -> MasterVolume -> AudioContext destination 
-            GainNode.Connect(_audioHandlerContext.MasterVolumeGainNode);
-            var destination = _audioHandlerContext.AudioContext.GetDestination();
-            _audioHandlerContext.MasterVolumeGainNode.Connect(destination);
+            GainNode.Connect(AudioHandlerContext.MasterVolumeGainNode);
+            var destination = _audioContext.GetDestination();
+            AudioHandlerContext.MasterVolumeGainNode.Connect(destination);
         }
 
         private void ScheduleAudioStopAfterDecay(int waitMs)
@@ -147,7 +142,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
         {
             AddDebugMessage($"Stop issued");
 
-            if (_stopAndRecreateOscillator)
+            if (_audioHandler.StopAndRecreateOscillator)
             {
                 // This is called either via callback when oscillator sent "ended" event, or manually stopped via turning off SID gate.
                 if (Status != AudioStatus.Stopped)
@@ -161,12 +156,12 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                 // In this scenario, the oscillator is still running. Set volume to 0 in the GainNode to ensure no audio is playing. 
                 AddDebugMessage($"Cancelling current GainNode schedule");
                 var gainAudioParam = GainNode!.GetGain();
-                var currentTime = _audioHandlerContext!.AudioContext.GetCurrentTime();
+                var currentTime = _audioContext.GetCurrentTime();
                 gainAudioParam.CancelScheduledValues(currentTime);
                 gainAudioParam.SetValueAtTime(0, currentTime);
 
                 // If configured, disconnect the oscillator when stopping
-                if (_disconnectOscillatorOnStop)
+                if (_audioHandler.DisconnectOscillatorOnStop)
                 {
                     DisconnectOscillator(CurrentSidVoiceWaveForm);
                     CurrentSidVoiceWaveForm = SidVoiceWaveForm.None;
@@ -304,23 +299,23 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                     break;
                 case SidVoiceWaveForm.Triangle:
                     C64WASMTriangleOscillator?.Create(audioVoiceParameter.Frequency);
-                    if (_stopAndRecreateOscillator)
+                    if (_audioHandler.StopAndRecreateOscillator)
                         C64WASMTriangleOscillator!.TriangleOscillator!.AddEndedEventListsner(_audioStoppedCallback);
                     break;
                 case SidVoiceWaveForm.Sawtooth:
                     C64WASMSawToothOscillator?.Create(audioVoiceParameter.Frequency);
-                    if (_stopAndRecreateOscillator)
+                    if (_audioHandler.StopAndRecreateOscillator)
                         C64WASMSawToothOscillator!.SawToothOscillator!.AddEndedEventListsner(_audioStoppedCallback);
                     break;
                 case SidVoiceWaveForm.Pulse:
                     C64WASMPulseOscillator?.Create(audioVoiceParameter.Frequency, audioVoiceParameter.PulseWidth);
-                    if (_stopAndRecreateOscillator)
+                    if (_audioHandler.StopAndRecreateOscillator)
                         C64WASMPulseOscillator!.PulseOscillator!.AddEndedEventListsner(_audioStoppedCallback);
                     break;
                 case SidVoiceWaveForm.RandomNoise:
                     var playbackRate = C64WASMNoiseOscillator.GetPlaybackRateFromFrequency(audioVoiceParameter.Frequency);
                     C64WASMNoiseOscillator?.Create(playbackRate);
-                    if (_stopAndRecreateOscillator)
+                    if (_audioHandler.StopAndRecreateOscillator)
                         C64WASMNoiseOscillator!.NoiseGenerator!.AddEndedEventListsner(_audioStoppedCallback);
                     break;
                 default:
@@ -412,7 +407,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
         {
             var currentTime = _audioContext.GetCurrentTime();
 
-            if (_stopAndRecreateOscillator)
+            if (_audioHandler.StopAndRecreateOscillator)
             {
                 // 1. Stop current oscillator (if any) and release it's resoruces.
                 // 2. Create new oscillator (even if same as before)
@@ -460,7 +455,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             var currentTime = _audioContext.GetCurrentTime();
             SetGainRelease(audioVoiceParameter, currentTime);
 
-            if (_stopAndRecreateOscillator)
+            if (_audioHandler.StopAndRecreateOscillator)
             {
                 // Plan oscillator built-in delayed stop with callback
                 StopOscillatorLater(CurrentSidVoiceWaveForm, currentTime + audioVoiceParameter.ReleaseDurationSeconds);

@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.App.SkiaNative;
 using Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
+using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
@@ -14,7 +15,7 @@ Environment.CurrentDirectory = currentAppDir;
 // ----------
 // Systems
 // ----------
-var systemList = new SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext>();
+var systemList = new SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>();
 
 var c64Setup = new C64Setup();
 await systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);

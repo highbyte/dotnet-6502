@@ -5,7 +5,9 @@ public interface IAudioHandler
     void Init(ISystem system, IAudioHandlerContext audioHandlerContext);
     void GenerateAudio(ISystem system);
 
-    void StopAllAudio();
+    void StartPlaying();
+    void StopPlaying();
+    void PausePlaying();
 
     List<string> GetDebugMessages();
 
@@ -34,11 +36,20 @@ public class NullAudioHandler : IAudioHandler
     {
     }
 
-    public void StopAllAudio()
+    public void StartPlaying()
+    {
+    }
+
+    public void PausePlaying()
+    {
+    }
+
+    public void StopPlaying()
     {
     }
 
     private readonly List<string> _debugMessages = new List<string>();
 
     public List<string> GetDebugMessages() => _debugMessages;
+
 }
