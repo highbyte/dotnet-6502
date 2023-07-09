@@ -19,7 +19,7 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
         private C64NAudioAudioHandler _audioHandler;
         internal C64NAudioAudioHandler AudioHandler => _audioHandler;
 
-        private Action<string, int, SidVoiceWaveForm?, AudioStatus?> _addDebugMessage;
+        private Action<string, int, SidVoiceWaveForm?, AudioVoiceStatus?> _addDebugMessage;
 
         internal void AddDebugMessage(string msg)
         {
@@ -28,7 +28,7 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
 
         private readonly byte _voice;
         public byte Voice => _voice;
-        public AudioStatus Status = AudioStatus.Stopped;
+        public AudioVoiceStatus Status = AudioVoiceStatus.Stopped;
         public SidVoiceWaveForm CurrentSidVoiceWaveForm = SidVoiceWaveForm.None;
 
 
@@ -70,9 +70,9 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
 
         internal void Init(
             C64NAudioAudioHandler audioHandler,
-            Action<string, int, SidVoiceWaveForm?, AudioStatus?> addDebugMessage)
+            Action<string, int, SidVoiceWaveForm?, AudioVoiceStatus?> addDebugMessage)
         {
-            Status = AudioStatus.Stopped;
+            Status = AudioVoiceStatus.Stopped;
 
             _audioHandler = audioHandler;
             _addDebugMessage = addDebugMessage;
@@ -141,7 +141,7 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
             if (_stopAndRecreateOscillator)
             {
                 // This is called either via callback when oscillator sent "ended" event, or manually stopped via turning off SID gate.
-                if (Status != AudioStatus.Stopped)
+                if (Status != AudioVoiceStatus.Stopped)
                     StopOscillatorNow(CurrentSidVoiceWaveForm);
                 CurrentSidVoiceWaveForm = SidVoiceWaveForm.None;
             }
@@ -161,9 +161,9 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
                 }
             }
 
-            if (Status != AudioStatus.Stopped)
+            if (Status != AudioVoiceStatus.Stopped)
             {
-                Status = AudioStatus.Stopped;
+                Status = AudioVoiceStatus.Stopped;
                 AddDebugMessage($"Status changed.");
             }
             else
@@ -360,7 +360,7 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
 
             StartAttackPhase(CurrentSidVoiceWaveForm);
 
-            Status = AudioStatus.ADSCycleStarted;
+            Status = AudioVoiceStatus.ADSCycleStarted;
             AddDebugMessage($"Status changed");
         }
 
@@ -377,13 +377,13 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
                 //ScheduleAudioStopAfterRelease(audioVoiceParameter.ReleaseDurationSeconds);
             //}
 
-            Status = AudioStatus.ReleaseCycleStarted;
+            Status = AudioVoiceStatus.ReleaseCycleStarted;
             AddDebugMessage($"Status changed");
         }
 
         private void SetGainADS(AudioVoiceParameter audioVoiceParameter)
         {
-            AddDebugMessage($"Setting Gain ({audioVoiceParameter.Gain}) Attack ({audioVoiceParameter.AttackDurationSeconds}) Decay ({audioVoiceParameter.DecayDurationSeconds}) Sustain ({audioVoiceParameter.SustainGain})");
+            AddDebugMessage($"Setting Attack ({audioVoiceParameter.AttackDurationSeconds}) Decay ({audioVoiceParameter.DecayDurationSeconds}) Sustain ({audioVoiceParameter.SustainGain})");
 
             // TODO: Set Attack/Decay/Sustain values
             var oscillator = CurrentOscillator;

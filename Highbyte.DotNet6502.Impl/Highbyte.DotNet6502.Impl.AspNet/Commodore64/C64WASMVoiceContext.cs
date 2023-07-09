@@ -8,11 +8,12 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
     {
 
         private C64WASMAudioHandler _audioHandler;
+        internal GainNodeSync? GainNode { get; private set; }
 
         internal WASMAudioHandlerContext AudioHandlerContext => _audioHandler.AudioHandlerContext!;
         private AudioContextSync _audioContext => AudioHandlerContext.AudioContext;
 
-        private Action<string, int, SidVoiceWaveForm?, AudioStatus?> _addDebugMessage;
+        private Action<string, int?, SidVoiceWaveForm?, AudioVoiceStatus?> _addDebugMessage;
 
         internal void AddDebugMessage(string msg)
         {
@@ -21,10 +22,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 
         private readonly byte _voice;
         public byte Voice => _voice;
-        public AudioStatus Status = AudioStatus.Stopped;
+        public AudioVoiceStatus Status = AudioVoiceStatus.Stopped;
         public SidVoiceWaveForm CurrentSidVoiceWaveForm = SidVoiceWaveForm.None;
-
-        public GainNodeSync? GainNode;
 
         // SID Triangle Oscillator
         public C64WASMTriangleOscillator C64WASMTriangleOscillator { get; private set; }
@@ -53,15 +52,17 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
 
         internal void Init(
             C64WASMAudioHandler audioHandler, 
-            Action<string, int, SidVoiceWaveForm?, AudioStatus?> addDebugMessage)
+            Action<string, int?, SidVoiceWaveForm?, AudioVoiceStatus?> addDebugMessage)
         {
-            Status = AudioStatus.Stopped;
+            Status = AudioVoiceStatus.Stopped;
 
             _audioHandler = audioHandler;
             _addDebugMessage = addDebugMessage;
 
-            // Create shared GainNode used as volume by all oscillators
-            CreateGainNode();
+            // Create gain node to use for a specfic voice. Used internally to be able to turn off audio without stopping the oscillator.
+            GainNode = GainNodeSync.Create(_audioContext.JSRuntime, _audioContext);
+            // Connect the gain node to the common SID volume gain node
+            GainNode.Connect(_audioHandler.CommonSIDGainNode);
 
             // Create implementations of the different oscillators
             C64WASMTriangleOscillator = new C64WASMTriangleOscillator(this);
@@ -101,15 +102,6 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             CurrentSidVoiceWaveForm = SidVoiceWaveForm.None;
         }
 
-        private void CreateGainNode()
-        {
-            GainNode = GainNodeSync.Create(_audioContext.JSRuntime, _audioContext);
-            // Associate GainNode -> MasterVolume -> AudioContext destination 
-            GainNode.Connect(AudioHandlerContext.MasterVolumeGainNode);
-            var destination = _audioContext.GetDestination();
-            AudioHandlerContext.MasterVolumeGainNode.Connect(destination);
-        }
-
         private void ScheduleAudioStopAfterDecay(int waitMs)
         {
             // Set timer to stop audio after a while via a .NET timer
@@ -145,7 +137,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             if (_audioHandler.StopAndRecreateOscillator)
             {
                 // This is called either via callback when oscillator sent "ended" event, or manually stopped via turning off SID gate.
-                if (Status != AudioStatus.Stopped)
+                if (Status != AudioVoiceStatus.Stopped)
                 {
                     StopOscillatorNow(CurrentSidVoiceWaveForm);
                 }
@@ -153,8 +145,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             }
             else
             {
-                // In this scenario, the oscillator is still running. Set volume to 0 in the GainNode to ensure no audio is playing. 
-                AddDebugMessage($"Cancelling current GainNode schedule");
+                // In this scenario, the oscillator is still running. Set volume to 0 in the CommonSIDGainNode to ensure no audio is playing. 
+                AddDebugMessage($"Cancelling current CommonSIDGainNode schedule");
                 var gainAudioParam = GainNode!.GetGain();
                 var currentTime = _audioContext.GetCurrentTime();
                 gainAudioParam.CancelScheduledValues(currentTime);
@@ -168,9 +160,9 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                 }
             }
 
-            if (Status != AudioStatus.Stopped)
+            if (Status != AudioVoiceStatus.Stopped)
             {
-                Status = AudioStatus.Stopped;
+                Status = AudioVoiceStatus.Stopped;
                 AddDebugMessage($"Status changed.");
             }
             else
@@ -446,7 +438,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                 }
             }
 
-            Status = AudioStatus.ADSCycleStarted;
+            Status = AudioVoiceStatus.ADSCycleStarted;
             AddDebugMessage($"Status changed");
         }
 
@@ -466,19 +458,19 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
                 ScheduleAudioStopAfterRelease(audioVoiceParameter.ReleaseDurationSeconds);
             }
 
-            Status = AudioStatus.ReleaseCycleStarted;
+            Status = AudioVoiceStatus.ReleaseCycleStarted;
             AddDebugMessage($"Status changed");
         }
 
         private void SetGainADS(AudioVoiceParameter audioVoiceParameter, double currentTime)
         {
-            AddDebugMessage($"Setting Gain ({audioVoiceParameter.Gain}) Attack ({audioVoiceParameter.AttackDurationSeconds}) Decay ({audioVoiceParameter.DecayDurationSeconds}) Sustain ({audioVoiceParameter.SustainGain})");
+            AddDebugMessage($"Setting Attack ({audioVoiceParameter.AttackDurationSeconds}) Decay ({audioVoiceParameter.DecayDurationSeconds}) Sustain ({audioVoiceParameter.SustainGain})");
 
             // Set Attack/Decay/Sustain gain envelope
             var gainAudioParam = GainNode!.GetGain();
             gainAudioParam.CancelScheduledValues(currentTime);
             gainAudioParam.SetValueAtTime(0, currentTime);
-            gainAudioParam.LinearRampToValueAtTime(audioVoiceParameter.Gain, currentTime + audioVoiceParameter.AttackDurationSeconds);
+            gainAudioParam.LinearRampToValueAtTime(1.0f, currentTime + audioVoiceParameter.AttackDurationSeconds);
             gainAudioParam.LinearRampToValueAtTime(audioVoiceParameter.SustainGain, currentTime + audioVoiceParameter.AttackDurationSeconds + audioVoiceParameter.DecayDurationSeconds);
             //gainAudioParam.SetTargetAtTime(audioVoiceParameter.SustainGain, currentTime + audioVoiceParameter.AttackDurationSeconds, audioVoiceParameter.DecayDurationSeconds);
         }
@@ -493,25 +485,6 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             gainAudioParam.CancelScheduledValues(currentTime);
             gainAudioParam.SetValueAtTime(currentGainValue, currentTime);
             gainAudioParam.LinearRampToValueAtTime(0, currentTime + audioVoiceParameter.ReleaseDurationSeconds);
-        }
-
-        /// <summary>
-        /// Set volume of the GainNode used by all oscillators
-        /// </summary>
-        /// <param name="gain"></param>
-        /// <param name="changeTime"></param>
-        internal void SetVolume(float gain, double changeTime)
-        {
-            // The current time is where the gain change starts
-            var gainAudioParam = GainNode!.GetGain();
-            // Check if the gain of the actual oscillator is different from the new gain
-            // (the gain could have changed by ADSR cycle, LinearRampToValueAtTimeAsync)
-            var currentGainValue = gainAudioParam.GetCurrentValue();
-            if (currentGainValue != gain)
-            {
-                AddDebugMessage($"Changing vol to {gain}.");
-                gainAudioParam.SetValueAtTime(gain, changeTime);
-            }
         }
 
         internal void SetFrequencyOnCurrentOscillator(float frequency, double changeTime)
@@ -558,7 +531,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             if (currentFrequencyValue != frequency)
             {
                 // DEBUG START
-                //var gainAudioParam = GainNode!.GetGain();
+                //var gainAudioParam = CommonSIDGainNode!.GetGain();
                 //var currentGainValue = gainAudioParam.GetCurrentValue();
                 // END DEBUG
 

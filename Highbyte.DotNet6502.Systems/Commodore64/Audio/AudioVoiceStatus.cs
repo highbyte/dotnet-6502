@@ -1,6 +1,6 @@
 namespace Highbyte.DotNet6502.Systems.Commodore64.Audio
 {
-    public enum AudioStatus
+    public enum AudioVoiceStatus
     {
         /// <summary>
         /// Attack/Decay/Sustain cycle has been started.

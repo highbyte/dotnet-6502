@@ -2,10 +2,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio
 {
     public class AudioVoiceParameter
     {
-        public AudioCommand AudioCommand { get; set; }
+        public AudioVoiceCommand AudioCommand { get; set; }
         public SidVoiceWaveForm SIDOscillatorType { get; set; }
 
-        public float Gain { get; set; }
         public float Frequency { get; set; }
         public float PulseWidth { get; set; }
         public double AttackDurationSeconds { get; set; }
@@ -15,7 +14,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio
 
         public static AudioVoiceParameter BuildAudioVoiceParameter(
             byte voice,
-            AudioStatus audioStatus,
+            AudioVoiceStatus currentVoiceAudioStatus,
             InternalSidState sidState
             )
         {
@@ -28,9 +27,9 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio
             var audioVoiceParameter = new AudioVoiceParameter
             {
                 // What to do with the audio (Start ADS cycle, start Release cycle, stop audio, change frequency, change volume)
-                AudioCommand = AudioCommandBuilder.GetAudioCommand(
+                AudioCommand = AudioVoiceCommandBuilder.GetAudioCommand(
                     voice,
-                    audioStatus,
+                    currentVoiceAudioStatus,
                     sidState),
 
                 // Oscillator type mapped from C64 SID wave form selection
@@ -38,10 +37,6 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio
 
                 // PeriodicWave used for SID pulse and random noise wave forms (mapped to WebAudio OscillatorType.Custom)
                 //PeriodicWaveOptions = (oscillatorSpecialType.HasValue && oscillatorSpecialType.Value == OscillatorSpecialType.Noise) ? GetPeriodicWaveNoiseOptions(voiceContext, sidState) : null,
-
-                // Translate SID volume 0-15 to Gain 0.0-1.0
-                // SID volume in lower 4 bits of SIGVOL register.
-                Gain = Math.Clamp((float)(sidState.GetVolume() / 15.0f), 0.0f, 1.0f),
 
                 // Translate SID frequency (0 - 65536) to actual frequency number
                 // Frequency = (REGISTER VALUE * CLOCK / 16777216) Hz

@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
+using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 
@@ -18,8 +19,12 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
 
     // private static Queue<InternalSidState> _sidStateChanges = new();
 
-    private WASMAudioHandlerContext? _audioHandlerContext;
-    internal WASMAudioHandlerContext? AudioHandlerContext => _audioHandlerContext;
+    private WASMAudioHandlerContext _audioHandlerContext;
+    internal WASMAudioHandlerContext AudioHandlerContext => _audioHandlerContext!;
+    private AudioContextSync _audioContext => AudioHandlerContext!.AudioContext;
+
+    internal GainNodeSync? CommonSIDGainNode { get; private set; }
+
 
     private List<byte> _enabledVoices = new() { 1, 2, 3 }; // TODO: Set enabled voices via config.
     //private List<byte> _enabledVoices = new() { 1 }; // TODO: Set enabled voices via config.
@@ -49,6 +54,9 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
     {
         _audioHandlerContext = audioHandlerContext;
         _audioHandlerContext.Init();
+
+        // Create common gain node for all oscillators, which represent the SID volume.
+        CreateGainNode();
 
         foreach (var key in VoiceContexts.Keys)
         {
@@ -118,9 +126,25 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
         }
     }
 
+    private void CreateGainNode()
+    {
+        CommonSIDGainNode = GainNodeSync.Create(_audioContext.JSRuntime, _audioContext);
+        // Associate CommonSIDGainNode (SID volume) -> MasterVolume -> AudioContext destination 
+        CommonSIDGainNode.Connect(_audioHandlerContext.MasterVolumeGainNode);
+        var destination = _audioContext.GetDestination();
+        AudioHandlerContext.MasterVolumeGainNode.Connect(destination);
+    }
+
     private void PlayAllVoices(InternalSidState internalSidState)
     {
         //var sidInternalStateClone = _sidStateChanges.Peek();
+
+        var audioGlobalParameter = AudioGlobalParameter.BuildAudioGlobalParameter(internalSidState);
+        if (audioGlobalParameter.AudioCommand == AudioGlobalCommand.ChangeVolume)
+        {
+            SetVolume(audioGlobalParameter.Gain);
+            return;
+        }
 
         foreach (var voice in VoiceContexts.Keys)
         {
@@ -134,7 +158,7 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
                 voiceContext.Status,
                 internalSidState);
 
-            if (audioVoiceParameter.AudioCommand != AudioCommand.None)
+            if (audioVoiceParameter.AudioCommand != AudioVoiceCommand.None)
             {
                 AddDebugMessage($"BEGIN VOICE", voice);
                 PlayVoice(voiceContext, audioVoiceParameter);
@@ -145,17 +169,33 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
         //_sidStateChanges.Dequeue();
     }
 
+    private void SetVolume(float gain)
+    {
+        // The current time is where the gain change starts
+        var currentTime = _audioHandlerContext!.AudioContext.GetCurrentTime();
+
+        var gainAudioParam = CommonSIDGainNode!.GetGain();
+        // Check if the gain of the actual oscillator is different from the new gain
+        // (the gain could have changed by ADSR cycle, LinearRampToValueAtTimeAsync)
+        var currentGainValue = gainAudioParam.GetCurrentValue();
+        if (currentGainValue != gain)
+        {
+            AddDebugMessage($"Changing vol to {gain}.");
+            gainAudioParam.SetValueAtTime(gain, currentTime);
+        }
+    }
+
     private void PlayVoice(C64WASMVoiceContext voiceContext, AudioVoiceParameter audioVoiceParameter)
     {
         AddDebugMessage($"Processing command: {audioVoiceParameter.AudioCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
 
-        if (audioVoiceParameter.AudioCommand == AudioCommand.Stop)
+        if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.Stop)
         {
             // Stop audio immediately
             voiceContext.Stop();
         }
 
-        else if (audioVoiceParameter.AudioCommand == AudioCommand.StartADS)
+        else if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.StartADS)
         {
             // Skip starting audio if specified oscillator is not enabled by config
             if (!_enabledOscillators.Contains(audioVoiceParameter.SIDOscillatorType))
@@ -164,13 +204,13 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
             voiceContext.StartAudioADSPhase(audioVoiceParameter);
         }
 
-        else if (audioVoiceParameter.AudioCommand == AudioCommand.StartRelease)
+        else if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.StartRelease)
         {
             // Skip stopping audio if specified oscillator is not enabled by config
             if (!_enabledOscillators.Contains(audioVoiceParameter.SIDOscillatorType))
                 return;
 
-            if (voiceContext.Status == AudioStatus.Stopped)
+            if (voiceContext.Status == AudioVoiceStatus.Stopped)
             {
                 AddDebugMessage($"Voice status is already Stopped, Release phase will be ignored", voiceContext.Voice);
                 return;
@@ -179,13 +219,7 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
             voiceContext.StartAudioReleasePhase(audioVoiceParameter);
         }
 
-        else if (audioVoiceParameter.AudioCommand == AudioCommand.ChangeVolume)
-        {
-            var currentTime = _audioHandlerContext!.AudioContext.GetCurrentTime();
-            voiceContext.SetVolume(audioVoiceParameter.Gain, currentTime);
-        }
-
-        else if (audioVoiceParameter.AudioCommand == AudioCommand.ChangeFrequency)
+        else if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.ChangeFrequency)
         {
             // Skip changing frequency if specified oscillator is not enabled by config
             if (!_enabledOscillators.Contains(audioVoiceParameter.SIDOscillatorType))
@@ -195,7 +229,7 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
             voiceContext.SetFrequencyOnCurrentOscillator(audioVoiceParameter.Frequency, currentTime);
         }
 
-        else if (audioVoiceParameter.AudioCommand == AudioCommand.ChangePulseWidth)
+        else if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.ChangePulseWidth)
         {
             // Skip changing frequency if specified oscillator is not enabled by config
             if (!_enabledOscillators.Contains(audioVoiceParameter.SIDOscillatorType))
@@ -210,7 +244,7 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
         AddDebugMessage($"Processing command done: {audioVoiceParameter.AudioCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
     }
 
-    private void AddDebugMessage(string msg, int voice, SidVoiceWaveForm? sidVoiceWaveForm = null, AudioStatus? audioStatus = null)
+    private void AddDebugMessage(string msg, int? voice = null, SidVoiceWaveForm? sidVoiceWaveForm = null, AudioVoiceStatus? audioStatus = null)
     {
         var time = DateTime.Now.ToString("HH:mm:ss.fff");
         string formattedMsg;
@@ -226,9 +260,13 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
         {
             formattedMsg = $"{time} ({voice}-{audioStatus}): {msg}";
         }
-        else
+        else if (voice.HasValue)
         {
             formattedMsg = $"{time} ({voice}): {msg}";
+        }
+        else
+        {
+            formattedMsg = $"{time}: {msg}";
         }
 
         //var threadId = Environment.CurrentManagedThreadId;
@@ -247,7 +285,7 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
     //    {
     //        var voiceContext = VoiceContexts[voice];
     //        var audioVoiceParameter = BuildWASMVoiceParameterFromC64Sid(voiceContext, sidInternalStateClone);
-    //        if (audioVoiceParameter.AudioCommand == AudioCommand.None)
+    //        if (audioVoiceParameter.AudioVoiceCommand == AudioVoiceCommand.None)
     //            continue;
 
     //        //await PlaySound(voiceContext, audioVoiceParameter);

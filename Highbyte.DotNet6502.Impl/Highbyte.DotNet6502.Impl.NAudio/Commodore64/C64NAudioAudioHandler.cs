@@ -106,6 +106,13 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
     {
         //var sidInternalStateClone = _sidStateChanges.Peek();
 
+        var audioGlobalParameter = AudioGlobalParameter.BuildAudioGlobalParameter(internalSidState);
+        if (audioGlobalParameter.AudioCommand == AudioGlobalCommand.ChangeVolume)
+        {
+            _sidVolumeControl.Volume = audioGlobalParameter.Gain;
+            return;
+        }
+
         foreach (var voice in VoiceContexts.Keys)
         {
             if (!_enabledVoices.Contains(voice))
@@ -118,7 +125,7 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
                 voiceContext.Status,
                 internalSidState);
 
-            if (audioVoiceParameter.AudioCommand != AudioCommand.None)
+            if (audioVoiceParameter.AudioCommand != AudioVoiceCommand.None)
             {
                 AddDebugMessage($"BEGIN VOICE", voice);
                 PlayVoice(voiceContext, audioVoiceParameter);
@@ -133,13 +140,13 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
     {
         AddDebugMessage($"Processing command: {audioVoiceParameter.AudioCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
 
-        if (audioVoiceParameter.AudioCommand == AudioCommand.Stop)
+        if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.Stop)
         {
             // StopWavePlayer audio immediately
             voiceContext.Stop();
         }
 
-        else if (audioVoiceParameter.AudioCommand == AudioCommand.StartADS)
+        else if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.StartADS)
         {
             // Skip starting audio if specified oscillator is not enabled by config
             if (!_enabledOscillators.Contains(audioVoiceParameter.SIDOscillatorType))
@@ -148,13 +155,13 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
             voiceContext.StartAudioADSPhase(audioVoiceParameter);
         }
 
-        else if (audioVoiceParameter.AudioCommand == AudioCommand.StartRelease)
+        else if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.StartRelease)
         {
             // Skip stopping audio if specified oscillator is not enabled by config
             if (!_enabledOscillators.Contains(audioVoiceParameter.SIDOscillatorType))
                 return;
 
-            if (voiceContext.Status == AudioStatus.Stopped)
+            if (voiceContext.Status == AudioVoiceStatus.Stopped)
             {
                 AddDebugMessage($"Voice status is already Stopped, Release phase will be ignored", voiceContext.Voice);
                 return;
@@ -163,12 +170,7 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
             voiceContext.StartAudioReleasePhase(audioVoiceParameter);
         }
 
-        else if (audioVoiceParameter.AudioCommand == AudioCommand.ChangeVolume)
-        {
-            // TODO: Move change volume to outside oscillator setting (as the C64 shared volume between all oscillators)    
-        }
-
-        else if (audioVoiceParameter.AudioCommand == AudioCommand.ChangeFrequency)
+        else if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.ChangeFrequency)
         {
             // Skip changing frequency if specified oscillator is not enabled by config
             if (!_enabledOscillators.Contains(audioVoiceParameter.SIDOscillatorType))
@@ -177,7 +179,7 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
             voiceContext.SetFrequencyOnCurrentOscillator(audioVoiceParameter.Frequency);
         }
 
-        else if (audioVoiceParameter.AudioCommand == AudioCommand.ChangePulseWidth)
+        else if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.ChangePulseWidth)
         {
             // Skip changing frequency if specified oscillator is not enabled by config
             if (!_enabledOscillators.Contains(audioVoiceParameter.SIDOscillatorType))
@@ -192,7 +194,7 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
         AddDebugMessage($"Processing command done: {audioVoiceParameter.AudioCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
     }
 
-    private void AddDebugMessage(string msg, int voice, SidVoiceWaveForm? sidVoiceWaveForm = null, AudioStatus? audioStatus = null)
+    private void AddDebugMessage(string msg, int voice, SidVoiceWaveForm? sidVoiceWaveForm = null, AudioVoiceStatus? audioStatus = null)
     {
         var time = DateTime.Now.ToString("HH:mm:ss.fff");
         string formattedMsg;
