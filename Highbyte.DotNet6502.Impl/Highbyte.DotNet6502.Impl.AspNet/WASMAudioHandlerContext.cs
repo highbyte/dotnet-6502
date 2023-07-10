@@ -34,10 +34,10 @@ namespace Highbyte.DotNet6502.Impl.AspNet
             _masterVolumeGainNode = GainNodeSync.Create(JSRuntime, AudioContext);
 
             // Set initial master volume %
-            SetMasterVolume(_initialVolumePercent);
+            SetMasterVolumePercent(_initialVolumePercent);
         }
 
-        public void SetMasterVolume(float masterVolumePercent)
+        public void SetMasterVolumePercent(float masterVolumePercent)
         {
             var currentTime = AudioContext.GetCurrentTime();
             var gain = MasterVolumeGainNode.GetGain();

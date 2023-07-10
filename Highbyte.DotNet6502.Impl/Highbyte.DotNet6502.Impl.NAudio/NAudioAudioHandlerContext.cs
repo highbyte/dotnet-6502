@@ -33,9 +33,10 @@ namespace Highbyte.DotNet6502.Impl.NAudio
             StartWavePlayer();
         }
 
-        public void SetMasterVolume(float masterVolumePercent)
+        public void SetMasterVolumePercent(float masterVolumePercent)
         {
-            _masterVolumeControl.Volume = masterVolumePercent / 100f;
+            if(_masterVolumeControl != null)
+                _masterVolumeControl.Volume = masterVolumePercent / 100f;
         }
 
         public void StartWavePlayer()

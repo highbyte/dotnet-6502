@@ -27,6 +27,8 @@ public class SilkNetWindow
     private float _canvasScale;
     private readonly string _defaultSystemName;
     private string _currentSystemName;
+    private readonly bool _defaultAudioEnabled;
+    private float _defaultAudioVolumePercent;
 
     public float CanvasScale
     {
@@ -89,6 +91,8 @@ public class SilkNetWindow
         _systemList = systemList;
         _canvasScale = scale;
         _defaultSystemName = defaultSystemName;
+        _defaultAudioEnabled = true;
+        _defaultAudioVolumePercent = 20.0f;
     }
 
     public void Run()
@@ -117,7 +121,7 @@ public class SilkNetWindow
         InitImGui();
 
         // Init main menu
-        _menu = new SilkNetImGuiMenu(this, _defaultSystemName);
+        _menu = new SilkNetImGuiMenu(this, _defaultSystemName, _defaultAudioEnabled, _defaultAudioVolumePercent);
     }
 
     protected void OnClosing()
@@ -196,6 +200,12 @@ public class SilkNetWindow
         {
 
         }
+    }
+
+    public void SetVolumePercent(float volumePercent)
+    {
+        _defaultAudioVolumePercent = volumePercent;
+        _naudioAudioHandlerContext.SetMasterVolumePercent(masterVolumePercent: volumePercent);
     }
 
     public void Start()

@@ -317,13 +317,13 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
             if (disposing)
             {
                 // dispose managed state (managed objects)
-                eventWaitHandle.Dispose();
+                eventWaitHandle?.Dispose();
                 //ALC.MakeContextCurrent(ALContext.Null);
-                Alc.MakeContextCurrent(null);
+                Alc?.MakeContextCurrent(null);
                 //ALC.DestroyContext(context);
-                Alc.DestroyContext(context);
+                Alc?.DestroyContext(context);
                 //ALC.CloseDevice(device);
-                Alc.CloseDevice(device);
+                Alc?.CloseDevice(device);
             }
 
             // free unmanaged resources (unmanaged objects) and override finalizer

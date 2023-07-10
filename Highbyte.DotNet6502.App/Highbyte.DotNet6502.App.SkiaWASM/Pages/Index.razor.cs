@@ -84,7 +84,7 @@ public partial class Index
         set
         {
             _masterVolumePercent = value;
-            _wasmHost?.AudioHandlerContext.SetMasterVolume(_masterVolumePercent);
+            _wasmHost?.AudioHandlerContext.SetMasterVolumePercent(_masterVolumePercent);
         }
     }
 
