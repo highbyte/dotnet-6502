@@ -150,7 +150,7 @@ public class SilkNetImGuiMenu
             ImGui.PushItemWidth(40);
             if (systemConfig.AudioSupported)
             {
-                if (ImGui.Checkbox("Audio enabled", ref _audioEnabled))
+                if (ImGui.Checkbox("Audio enabled (experimental)", ref _audioEnabled))
                 {
                     systemConfig.AudioEnabled = _audioEnabled;
                 }
