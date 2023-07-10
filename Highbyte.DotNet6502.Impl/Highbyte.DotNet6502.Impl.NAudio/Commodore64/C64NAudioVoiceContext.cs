@@ -6,14 +6,6 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
 {
     public class C64NAudioVoiceContext
     {
-        // Set to true to stop and recreate oscillator before each audio. Set to false to reuse oscillator.
-        // If true: for each audio played, the oscillator will be stopped, recreated, and started. This is the way WebAudio API is designed to work, but is very resource heavy if using the C#/.NET WebAudio wrapper classes, because new instances are created continuously.
-        // If false: the oscillator is only created and started once. When audio is stopped, the gain (volume) is set to 0.
-        private readonly bool _stopAndRecreateOscillator = false;
-
-        // This setting is only used if _stopAndRecreateOscillator is true.
-        // If true: when audio is stopped (and gain/volume is set to 0), the oscillator is also disconnected from the audio context. This may help audio bleeding over when switching oscillator on same voice.
-        // If false: when audio is stopped (and gain/volume is set to 0), the oscillator stays connected to the audio context. This may increase performance, but may lead to audio bleeding over when switching oscillators on same voice.
         private readonly bool _disconnectOscillatorOnStop = true;
 
         private C64NAudioAudioHandler _audioHandler;
@@ -30,7 +22,6 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
         public byte Voice => _voice;
         public AudioVoiceStatus Status = AudioVoiceStatus.Stopped;
         public SidVoiceWaveForm CurrentSidVoiceWaveForm = SidVoiceWaveForm.None;
-
 
         public SynthEnvelopeProvider? GetOscillator(SidVoiceWaveForm sidVoiceWaveForm) => sidVoiceWaveForm switch
         {
@@ -77,30 +68,17 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
             _audioHandler = audioHandler;
             _addDebugMessage = addDebugMessage;
 
-            if (_stopAndRecreateOscillator)
+            // Create oscillators in advance 
+            foreach (var sidWaveFormType in Enum.GetValues<SidVoiceWaveForm>())
             {
-                // TODO?
-                //// Define callback handler to know when an oscillator has stopped playing. Only used if creating + starting oscillators before each audio.
-                //_audioStoppedCallback = EventListener<EventSync>.Create(_audioHandlerContext.AudioContext.WebAudioHelper, _audioHandlerContext.AudioContext.JSRuntime, (e) =>
-                //{
-                //    AddDebugMessage($"Oscillator StopWavePlayer Callback triggered.");
-                //    StopWavePlayer();
-                //});
-            }
-            else
-            {
-                // Unless we won't recreate/start the oscillator before each audio, create and start oscillators in advance 
-                foreach (var sidWaveFormType in Enum.GetValues<SidVoiceWaveForm>())
+                var audioVoiceParameter = new AudioVoiceParameter
                 {
-                    var audioVoiceParameter = new AudioVoiceParameter
-                    {
-                        SIDOscillatorType = sidWaveFormType,
-                        Frequency = 300f,
-                        PulseWidth = -0.22f,
-                    };
-                    CreateOscillator(audioVoiceParameter);
-                    //ConnectOscillator(audioVoiceParameter.SIDOscillatorType);
-                }
+                    SIDOscillatorType = sidWaveFormType,
+                    Frequency = 300f,
+                    PulseWidth = -0.22f,
+                };
+                CreateOscillator(audioVoiceParameter);
+                //ConnectOscillator(audioVoiceParameter.SIDOscillatorType);
             }
 
             CurrentSidVoiceWaveForm = SidVoiceWaveForm.None;
@@ -138,27 +116,17 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
         {
             AddDebugMessage($"StopWavePlayer issued");
 
-            if (_stopAndRecreateOscillator)
+            // In this scenario, the oscillator is still running. Set volume to 0 
+            AddDebugMessage($"Mute oscillator");
+
+            // Set ADSR state to idle
+            ResetOscillatorADSR(CurrentSidVoiceWaveForm);
+
+            // If configured, disconnect the oscillator when stopping
+            if (_disconnectOscillatorOnStop)
             {
-                // This is called either via callback when oscillator sent "ended" event, or manually stopped via turning off SID gate.
-                if (Status != AudioVoiceStatus.Stopped)
-                    StopOscillatorNow(CurrentSidVoiceWaveForm);
+                DisconnectOscillator(CurrentSidVoiceWaveForm);
                 CurrentSidVoiceWaveForm = SidVoiceWaveForm.None;
-            }
-            else
-            {
-                // In this scenario, the oscillator is still running. Set volume to 0 
-                AddDebugMessage($"Mute oscillator");
-
-                // Set ADSR state to idle
-                ResetOscillatorADSR(CurrentSidVoiceWaveForm);
-
-                // If configured, disconnect the oscillator when stopping
-                if (_disconnectOscillatorOnStop)
-                {
-                    DisconnectOscillator(CurrentSidVoiceWaveForm);
-                    CurrentSidVoiceWaveForm = SidVoiceWaveForm.None;
-                }
             }
 
             if (Status != AudioVoiceStatus.Stopped)
@@ -236,23 +204,15 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
                     break;
                 case SidVoiceWaveForm.Triangle:
                     TriangleOscillator = new SynthEnvelopeProvider(SignalGeneratorType.Triangle);
-                    //if (_stopAndRecreateOscillator)
-                    //    C64WASMTriangleOscillator!.TriangleOscillator!.AddEndedEventListsner(_audioStoppedCallback);
                     break;
                 case SidVoiceWaveForm.Sawtooth:
                     SawToothOscillator = new SynthEnvelopeProvider(SignalGeneratorType.SawTooth);
-                    //if (_stopAndRecreateOscillator)
-                    //    C64WASMSawToothOscillator!.SawToothOscillator!.AddEndedEventListsner(_audioStoppedCallback);
                     break;
                 case SidVoiceWaveForm.Pulse:
                     PulseOscillator = new SynthEnvelopeProvider(SignalGeneratorType.Square);
-                    //if (_stopAndRecreateOscillator)
-                    //    C64WASMPulseOscillator!.PulseOscillator!.AddEndedEventListsner(_audioStoppedCallback);
                     break;
                 case SidVoiceWaveForm.RandomNoise:
                     NoiseOscillator = new SynthEnvelopeProvider(SignalGeneratorType.White);
-                    //if (_stopAndRecreateOscillator)
-                    //    C64WASMNoiseOscillator!.NoiseGenerator!.AddEndedEventListsner(_audioStoppedCallback);
                     break;
                 default:
                     break;
@@ -320,42 +280,23 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
 
         internal void StartAudioADSPhase(AudioVoiceParameter audioVoiceParameter)
         {
-            if (_stopAndRecreateOscillator)
+            // Assume oscillator is already created and started
+            // 1. Add oscillator to Mixer (and remove previous oscillator if different)
+            // 2. Set parameters on existing oscillator such as Frequency, PulseWidth, etc.
+            // 3. Set Gain ADSR envelope -> This will start the audio
+            // 4. ? Set Callback to stop audio by setting Gain to 0 when envelope is finished
+
+            SwitchOscillatorConnection(audioVoiceParameter.SIDOscillatorType);
+            SetOscillatorParameters(audioVoiceParameter);
+            SetGainADS(audioVoiceParameter);
+
+            // If SustainGain is 0, then we need to schedule a stop of the audio
+            // when the attack + decay period is over.
+            if (audioVoiceParameter.SustainGain == 0)
             {
-                // 1. StopWavePlayer current oscillator (if any) and release it's resoruces.
-                // 2. Create new oscillator (even if same as before)
-                //      With parameters such as Frequency, PulseWidth, etc.
-                //      With Callback when ADSR envelope is finished to stop audio by stopping the oscillator (which then cannot be used anymore)
-                // 3. Connect oscillator to gain node
-                // 4. Set Gain ADSR envelope
-                // 5. Start oscillator -> This will start the audio
-
-                StopOscillatorNow(CurrentSidVoiceWaveForm);
-                CurrentSidVoiceWaveForm = audioVoiceParameter.SIDOscillatorType;
-                CreateOscillator(audioVoiceParameter);
-                ConnectOscillator(CurrentSidVoiceWaveForm);
-                SetGainADS(audioVoiceParameter);
-            }
-            else
-            {
-                // Assume oscillator is already created and started
-                // 1. Connect oscillator to gain node (and disconnect previous oscillator if different)
-                // 2. Set parameters on existing oscillator such as Frequency, PulseWidth, etc.
-                // 3. Set Gain ADSR envelope -> This will start the audio
-                // 4. Set Callback to stop audio by setting Gain to 0 when envelope is finished
-
-                SwitchOscillatorConnection(audioVoiceParameter.SIDOscillatorType);
-                SetOscillatorParameters(audioVoiceParameter);
-                SetGainADS(audioVoiceParameter);
-
-                // If SustainGain is 0, then we need to schedule a stop of the audio
-                // when the attack + decay period is over.
-                if (audioVoiceParameter.SustainGain == 0)
-                {
-                    //var waitSeconds = audioVoiceParameter.AttackDurationSeconds + audioVoiceParameter.DecayDurationSeconds;
-                    //AddDebugMessage($"Scheduling voice stop now + {waitSeconds} seconds.");
-                    //ScheduleAudioStopAfterDecay(waitMs: (int)(waitSeconds * 1000.0d));
-                }
+                //var waitSeconds = audioVoiceParameter.AttackDurationSeconds + audioVoiceParameter.DecayDurationSeconds;
+                //AddDebugMessage($"Scheduling voice stop now + {waitSeconds} seconds.");
+                //ScheduleAudioStopAfterDecay(waitMs: (int)(waitSeconds * 1000.0d));
             }
 
             StartAttackPhase(CurrentSidVoiceWaveForm);
@@ -368,14 +309,7 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
         {
             SetGainRelease(audioVoiceParameter);
 
-            //if (_stopAndRecreateOscillator)
-                // Plan oscillator built-in delayed stop with callback
-                StopOscillatorLater(CurrentSidVoiceWaveForm);
-            //else
-            //{
-                // Plan manual callback after release duration (as we don't stop the oscillator in this scenario, as it cannot be started again)
-                //ScheduleAudioStopAfterRelease(audioVoiceParameter.ReleaseDurationSeconds);
-            //}
+            StopOscillatorLater(CurrentSidVoiceWaveForm);
 
             Status = AudioVoiceStatus.ReleaseCycleStarted;
             AddDebugMessage($"Status changed");
@@ -404,7 +338,6 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64
             {
                 oscillator.ReleaseSeconds = (float)audioVoiceParameter.ReleaseDurationSeconds;
             }
-
         }
 
         internal void SetFrequencyOnCurrentOscillator(float frequency)

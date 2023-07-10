@@ -186,9 +186,9 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
                 return;
 
             // Set pulse width. Only applicable if current oscillator is a pulse oscillator.
-            if (voiceContext.CurrentSidVoiceWaveForm != SidVoiceWaveForm.Pulse) return;
-            // TODO:
-            //voiceContext.SetPulseWidth(audioVoiceParameter.Frequency);
+            if (voiceContext.CurrentSidVoiceWaveForm != SidVoiceWaveForm.Pulse)
+                return;
+            voiceContext.SetPulseWidthOnCurrentOscillator(audioVoiceParameter.PulseWidth);
         }
 
         AddDebugMessage($"Processing command done: {audioVoiceParameter.AudioCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
