@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Impl.NAudio
         private readonly IWavePlayer _wavePlayer;
         private VolumeSampleProvider _masterVolumeControl;
 
-        private readonly float _initialVolumePercent;
+        private float _initialVolumePercent;
 
         public NAudioAudioHandlerContext(
             IWavePlayer wavePlayer,
@@ -35,7 +35,8 @@ namespace Highbyte.DotNet6502.Impl.NAudio
 
         public void SetMasterVolumePercent(float masterVolumePercent)
         {
-            if(_masterVolumeControl != null)
+            _initialVolumePercent = masterVolumePercent;
+            if (_masterVolumeControl != null)
                 _masterVolumeControl.Volume = masterVolumePercent / 100f;
         }
 
