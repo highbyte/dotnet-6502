@@ -33,7 +33,9 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     public int Width => Vic2.WIDTH;
     public int Height => Vic2.HEIGHT;
     public int VisibleWidth => (int)Vic2.Vic2Model.PixelsPerLineVisible;
+    //public int VisibleWidth => (int)Vic2.Vic2Model.PixelsPerLine;
     public int VisibleHeight => (int)Vic2.Vic2Model.LinesVisible;
+    //public int VisibleHeight => (int)Vic2.Vic2Model.Lines;
     public bool HasBorder => true;
     public int BorderWidth => (int)Math.Ceiling((double)((VisibleWidth - Width) / 2.0d));
     public int BorderHeight => (int)Math.Ceiling((double)((VisibleHeight - Height) / 2.0d));
@@ -70,7 +72,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
 
             totalCyclesConsumed += instructionCyclesConsumed;
 
-            Vic2.AdvanceRaster(CPU, Mem, instructionCyclesConsumed); 
+            Vic2.AdvanceRaster(CPU, Mem, instructionCyclesConsumed);
 
             // Handle processing needed after each instruction, such as generating audio etc.
             if (AudioEnabled && postInstructionCallback != null)

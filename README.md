@@ -62,8 +62,16 @@ For requirements and local development setup, see [here](DEVELOP.md)
 - https://sta.c64.org/cbm64mem.html
 - https://github.com/mist64/c64ref/blob/master/Source/c64io/c64io_mapc64.txt
 - https://www.c64-wiki.com/wiki/PETSCII_Codes_in_Listings
+- https://dustlayer.com/c64-architecture/2013/5/7/hardware-basics-part-1-tick-tock-know-your-clock
 - https://dustlayer.com/vic-ii/2013/4/22/when-visibility-matters
 - https://dustlayer.com/vic-ii/2013/4/25/vic-ii-for-beginners-beyond-the-screen-rasters-cycle
+- http://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt
+- https://codebase64.org/doku.php?id=base:detect_pal_ntsc
+- https://www.lemon64.com/forum/viewtopic.php?p=667448#p667448
+- https://www.c64-wiki.com/wiki/ADSR
+- https://www.atarimagazines.com/compute/issue49/424_1_Programming_64_Sound.php
+- https://celso.io/retrocomputing/2019/12/23/c64-assembly
+
 
 ## WebAudio
 - https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API

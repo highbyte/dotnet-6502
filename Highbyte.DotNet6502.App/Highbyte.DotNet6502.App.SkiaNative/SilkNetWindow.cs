@@ -95,6 +95,8 @@ public class SilkNetWindow
         _window.Resize += OnResize;
 
         _window.Run();
+        // Cleanup SilNet window resources
+        _window?.Dispose();
     }
 
     protected void OnLoad()
@@ -126,8 +128,6 @@ public class SilkNetWindow
         // Cleanup SilkNet input resources
         _silkNetInputHandlerContext.Cleanup();
 
-        // Cleanup SilNet window resources
-        _window?.Dispose();
     }
 
     /// <summary>

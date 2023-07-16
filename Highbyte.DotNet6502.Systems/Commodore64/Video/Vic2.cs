@@ -28,6 +28,7 @@ public class Vic2
 
 
     public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
+    public ushort? CurrentRasterLine { get; private set; } = null;
 
     public byte CurrentVIC2Bank { get; private set; }
     private ushort _currentVIC2BankOffset = 0;
@@ -50,19 +51,34 @@ public class Vic2
         handler?.Invoke(this, e);
     }
 
+    public Dictionary<ushort, byte> ScreenLineBorderColor { get; private set; }
+
     private Vic2() { }
 
     public static Vic2 BuildVic2(byte[] ram, Dictionary<string, byte[]> romData, Vic2ModelBase vic2Model)
     {
         var vic2Mem = CreateVic2Memory(ram, romData);
 
+        var screenLineBorderColorLookup = InitializeScreenLineBorderColorLookup(vic2Model);
+
         var vic2 = new Vic2()
         {
             Mem = vic2Mem,
             Vic2Model = vic2Model,
+            ScreenLineBorderColor = screenLineBorderColorLookup
         };
 
         return vic2;
+    }
+
+    private static Dictionary<ushort, byte> InitializeScreenLineBorderColorLookup(Vic2ModelBase vic2Model)
+    {
+        var screenLineBorderColor = new Dictionary<ushort, byte>();
+        for (ushort i = 0; i < vic2Model.Lines; i++)
+        {
+            screenLineBorderColor.Add(i, 0);
+        }
+        return screenLineBorderColor;
     }
 
     public void MapIOLocations(Memory mem)
@@ -224,30 +240,46 @@ public class Vic2
     public void AdvanceRaster(CPU cpu, Memory mem, ulong cyclesConsumed)
     {
         CyclesConsumedCurrentVblank += cyclesConsumed;
+
+        // Raster line housekeeping.
+        // Calculate the raster line based on how man CPU cycles has been executed this frame
+        var newLine = (ushort)(CyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine);
+        if (newLine != CurrentRasterLine)
+        {
+            CurrentRasterLine = newLine;
+            UpdateCurrentRasterLine(mem, CurrentRasterLine.Value);
+        }
+
+        // Remember colors for each raster line
+        StoreBorderColorForRasterLine(CurrentRasterLine.Value);
+
+        // Check if we have reached the end of the frame. If so, issue vertical blank signal to CPU
         //var cyclesUntilVBlank = VariantSetting.CyclesPerLine * (VariantSetting.Lines - (VariantSetting.VBlankLines / 2));
-        var cyclesUntilVBlank = Vic2Model.CyclesPerFrame;
-        if (CyclesConsumedCurrentVblank >= cyclesUntilVBlank)
+        if (CyclesConsumedCurrentVblank >= Vic2Model.CyclesPerFrame)
         {
             CyclesConsumedCurrentVblank = 0;
             VerticalBlank(cpu);
         }
-        UpdateCurrentRasterLine(mem, CyclesConsumedCurrentVblank);
     }
 
-    private void UpdateCurrentRasterLine(Memory mem, ulong cyclesConsumedCurrentVblank)
+    private void UpdateCurrentRasterLine(Memory mem, ushort rasterLine)
     {
-        // Calculate the current raster line based on how man CPU cycles has been executed this frame
-        var line = (cyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine);
         // Bits 0-7 of current line stored in 0xd012
-        mem[Vic2Addr.CURRENT_RASTER_LINE] = (byte)(line & 0xff);
+        mem[Vic2Addr.CURRENT_RASTER_LINE] = (byte)(rasterLine & 0xff);
         // Bit 8 of current line stored in 0xd011 bit #7
         var screenControlReg1Value = mem[Vic2Addr.SCREEN_CONTROL_REGISTER_1];
-        if (line > Vic2Model.Lines)
-            throw new Exception($"Internal error. Unreachable scan line: {line}. The CPU probably executed more cycles current frame than allowed.");
-        if (line <= 255)
+        if (rasterLine > Vic2Model.Lines)
+            throw new Exception($"Internal error. Unreachable scan line: {rasterLine}. The CPU probably executed more cycles current frame than allowed.");
+        if (rasterLine <= 255)
             screenControlReg1Value.ClearBit(7);
         else
             screenControlReg1Value.SetBit(7);
         mem[Vic2Addr.SCREEN_CONTROL_REGISTER_1] = screenControlReg1Value;
+    }
+
+    private void StoreBorderColorForRasterLine(ushort rasterLine)
+    {
+        var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
+        ScreenLineBorderColor[screenLine] = BorderColor;
     }
 }

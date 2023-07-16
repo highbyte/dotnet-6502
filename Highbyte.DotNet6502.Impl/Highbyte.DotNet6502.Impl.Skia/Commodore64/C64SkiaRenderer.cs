@@ -1,3 +1,4 @@
+using System.Runtime.Intrinsics;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -127,22 +128,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         var emulatorMem = c64.Mem;
         var canvas = _getSkCanvas();
 
-        // Draw 4 rectangles for border
-        byte borderColor = emulatorMem[Vic2Addr.BORDER_COLOR];
-        SKPaint borderPaint;
-        if (C64SkiaPaint.C64ToFillPaintMap.ContainsKey(borderColor))
-        {
-            borderPaint = C64SkiaPaint.C64ToFillPaintMap[borderColor];
-        }
-        else
-        {
-            // Debug.WriteLine($"Warning: Invalid border  color value: {borderColor}");
-            borderPaint = C64SkiaPaint.C64ToFillPaintMap[(byte)C64Colors.Black];
-        }
-        canvas.DrawRect(0, 0, c64.VisibleWidth, c64.BorderHeight, borderPaint);
-        canvas.DrawRect(0, (c64.BorderHeight + c64.Height), c64.VisibleWidth, c64.BorderHeight, borderPaint);
-        canvas.DrawRect(0, c64.BorderHeight, c64.BorderWidth, c64.Height, borderPaint);
-        canvas.DrawRect(c64.BorderWidth + c64.Width, c64.BorderHeight, c64.BorderWidth, c64.Height, borderPaint);
+        //DrawSimpleBorder(c64, canvas);
+        DrawRasterLinesBorder(c64, canvas);
 
         // Draw 1 rectangles for background
         byte backgroundColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR];
@@ -158,6 +145,45 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         }
 
         canvas.DrawRect(c64.BorderWidth, c64.BorderHeight, c64.Width, c64.Height, bgPaint);
+    }
+
+    // Draw border per line across screen. Assumes the screen in the middle is drawn afterwards and will overwrite.
+    // Slower, but more accurate (though not completley, becasuse border color changes within a line is not accounted for).
+    private void DrawRasterLinesBorder(C64 c64, SKCanvas canvas)
+    {
+        var visibleLinesDifference = (int)c64.Vic2.Vic2Model.Lines - c64.VisibleHeight;
+        var visibleLinesStart = visibleLinesDifference / 2;
+        var visibleLinesEnd = (int)c64.Vic2.Vic2Model.Lines - visibleLinesStart;
+        foreach (var c64ScreenLine in c64.Vic2.ScreenLineBorderColor.Keys)
+        {
+            if (c64ScreenLine < visibleLinesStart || c64ScreenLine > visibleLinesEnd)
+                continue;
+            ushort canvasLine = (ushort)(c64ScreenLine - visibleLinesStart);
+            var borderColor = c64.Vic2.ScreenLineBorderColor[canvasLine];
+            canvas.DrawRect(0, canvasLine, c64.VisibleWidth, 1, C64SkiaPaint.C64ToFillPaintMap[borderColor]);
+        }
+    }
+
+    // Simple approximation, draw 4 rectangles for border. Fast, but does not handle changes in border color per raster line.
+    private void DrawSimpleBorder(C64 c64, SKCanvas canvas)
+    {
+        var emulatorMem = c64.Mem;
+
+        byte borderColor = emulatorMem[Vic2Addr.BORDER_COLOR];
+        SKPaint borderPaint;
+        if (C64SkiaPaint.C64ToFillPaintMap.ContainsKey(borderColor))
+        {
+            borderPaint = C64SkiaPaint.C64ToFillPaintMap[borderColor];
+        }
+        else
+        {
+            // Debug.WriteLine($"Warning: Invalid border  color value: {borderColor}");
+            borderPaint = C64SkiaPaint.C64ToFillPaintMap[(byte)C64Colors.Black];
+        }
+        canvas.DrawRect(0, 0, c64.VisibleWidth, c64.BorderHeight, borderPaint);
+        canvas.DrawRect(0, (c64.BorderHeight + c64.Height), c64.VisibleWidth, c64.BorderHeight, borderPaint);
+        canvas.DrawRect(0, c64.BorderHeight, c64.BorderWidth, c64.Height, borderPaint);
+        canvas.DrawRect(c64.BorderWidth + c64.Width, c64.BorderHeight, c64.BorderWidth, c64.Height, borderPaint);
     }
 
     /// <summary>
