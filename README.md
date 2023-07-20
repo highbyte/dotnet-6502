@@ -65,7 +65,8 @@ For requirements and local development setup, see [here](DEVELOP.md)
 - https://dustlayer.com/c64-architecture/2013/5/7/hardware-basics-part-1-tick-tock-know-your-clock
 - https://dustlayer.com/vic-ii/2013/4/22/when-visibility-matters
 - https://dustlayer.com/vic-ii/2013/4/25/vic-ii-for-beginners-beyond-the-screen-rasters-cycle
-- http://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt
+- https://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt
+- https://www.c64-wiki.com/wiki/Raster_interrupt
 - https://codebase64.org/doku.php?id=base:detect_pal_ntsc
 - https://www.lemon64.com/forum/viewtopic.php?p=667448#p667448
 - https://www.c64-wiki.com/wiki/ADSR

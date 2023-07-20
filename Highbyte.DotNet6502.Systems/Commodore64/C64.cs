@@ -3,6 +3,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Keyboard;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
+using Highbyte.DotNet6502.Systems.Commodore64.Timer;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
@@ -21,6 +22,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     public byte[] IO { get; set; }
     public byte CurrentBank { get; set; }
     public Vic2 Vic2 { get; set; }
+    public Cia Cia { get; set; }
     public C64Keyboard Keyboard { get; set; }
     public Sid Sid { get; set; }
     public Dictionary<string, byte[]> ROMData { get; set; }
@@ -61,17 +63,28 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
         Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
         Dictionary<string, double>? detailedStats = null)
     {
+
+        //Cia.ResumeAllTimers();
+
         var cyclesToExecute = Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
 
         ulong totalCyclesConsumed = 0;
+        bool exitValue = true;
         while (totalCyclesConsumed < cyclesToExecute)
         {
             var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out var instructionCyclesConsumed);
             if (!knownInstruction)
-                return false;
+            {
+                exitValue = false;
+                break;
+            }
 
             totalCyclesConsumed += instructionCyclesConsumed;
 
+            // Process timers
+            Cia.ProcessTimers(instructionCyclesConsumed);
+
+            // Process video raster
             Vic2.AdvanceRaster(CPU, Mem, instructionCyclesConsumed);
 
             // Handle processing needed after each instruction, such as generating audio etc.
@@ -80,9 +93,14 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
 
             // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
             if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
-                return false;
+            {
+                exitValue = false;
+                break;
+            }
         }
-        return true;
+
+        //Cia.PauseAllTimers();
+        return exitValue;
     }
 
 
@@ -168,6 +186,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
             ROMData = romData,
             AudioEnabled = c64Config.AudioEnabled
         };
+        c64.Cia = new Cia(c64);
 
         // Map specific memory addresses to different emulator actions            
         MapIOLocations(c64);
@@ -185,6 +204,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     {
         var mem = c64.Mem;
         var vic2 = c64.Vic2;
+        var cia = c64.Cia;
         var kb = c64.Keyboard;
         var sid = c64.Sid;
 
@@ -197,6 +217,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
             mem.MapWriter(0x01, c64.IoPortStore);
 
             vic2.MapIOLocations(mem);
+            cia.MapIOLocations(mem);
             kb.MapIOLocations(mem);
             sid.MapIOLocations(mem);
         }

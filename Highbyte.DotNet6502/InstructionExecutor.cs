@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Highbyte.DotNet6502;
 
 /// <summary>
@@ -17,6 +19,9 @@ public class InstructionExecutor
     /// <returns></returns>
     public InstructionExecResult Execute(CPU cpu, Memory mem)
     {
+        //if (cpu.PC == 0xff63 || cpu.PC == 0xE5AD)
+        //    Debugger.Break();
+
         byte opCode = cpu.FetchInstruction(mem);
 
         if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))

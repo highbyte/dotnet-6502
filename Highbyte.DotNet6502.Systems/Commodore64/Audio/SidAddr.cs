@@ -4,7 +4,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// C64 SID chip audio related addresses: 0xd400 0xd41c
 /// Ref: https://github.com/mist64/c64ref/blob/master/Source/c64io/c64io_mapc64.txt
 /// </summary>
-public class SidAddr
+public static class SidAddr
 {
     // Voice 1 registers
     public const ushort FRELO1 = 0xd400;    // 54272
