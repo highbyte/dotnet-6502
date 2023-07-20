@@ -44,6 +44,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     public float RefreshFrequencyHz => (float)CpuFrequencyHz / Vic2.Vic2Model.CyclesPerFrame;
 
     public bool AudioEnabled { get; private set; }
+    public TimerMode TimerMode { get; private set; }
 
     private LegacyExecEvaluator _oneFrameExecEvaluator;
 
@@ -81,11 +82,11 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
 
             totalCyclesConsumed += instructionCyclesConsumed;
 
-            // Process timers
-            Cia.ProcessTimers(instructionCyclesConsumed);
+            if (TimerMode == TimerMode.UpdateEachInstruction)
+                Cia.ProcessTimers(instructionCyclesConsumed);
 
             // Process video raster
-            Vic2.AdvanceRaster(CPU, Mem, instructionCyclesConsumed);
+            Vic2.AdvanceRaster(instructionCyclesConsumed);
 
             // Handle processing needed after each instruction, such as generating audio etc.
             if (AudioEnabled && postInstructionCallback != null)
@@ -168,24 +169,26 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
         var mem = CreateC64Memory(ram, io, romData);
 
         var vic2Model = c64Model.Vic2Models.Single(x => x.Name == c64Config.Vic2Model);
-        var vic2 = Vic2.BuildVic2(ram, romData, vic2Model);
         var kb = new C64Keyboard();
         var sid = Sid.BuildSid();
 
-        var cpu = CreateC64CPU(vic2, mem);
         var c64 = new C64
         {
             Model = c64Model,
             Mem = mem,
-            CPU = cpu,
             RAM = ram,
             IO = io,
-            Vic2 = vic2,
             Keyboard = kb,
             Sid = sid,
             ROMData = romData,
-            AudioEnabled = c64Config.AudioEnabled
+            AudioEnabled = c64Config.AudioEnabled,
+            TimerMode = c64Config.TimerMode,
         };
+        var vic2 = Vic2.BuildVic2(ram, romData, vic2Model, c64);
+        var cpu = CreateC64CPU(vic2, mem);
+        c64.Vic2 = vic2;
+        c64.CPU = cpu;
+
         c64.Cia = new Cia(c64);
 
         // Map specific memory addresses to different emulator actions            
@@ -238,7 +241,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     private static CPU CreateC64CPU(Vic2 vic2, Memory mem)
     {
         var cpu = new CPU();
-        cpu.InstructionExecuted += (s, e) => vic2.AdvanceRaster(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
+        //cpu.InstructionExecuted += (s, e) => vic2.AdvanceRaster(e.InstructionExecState.CyclesConsumed);
         return cpu;
     }
 

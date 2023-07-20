@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
+using Highbyte.DotNet6502.Systems.Commodore64.Timer;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 
@@ -14,7 +15,8 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 ///
 /// </summary>
 public class Vic2
-{
+{ 
+    public C64 C64 { get; private set; }
     public Vic2ModelBase Vic2Model { get; private set; }
     public Memory Mem { get; private set; }
 
@@ -63,7 +65,7 @@ public class Vic2
 
     private Vic2() { }
 
-    public static Vic2 BuildVic2(byte[] ram, Dictionary<string, byte[]> romData, Vic2ModelBase vic2Model)
+    public static Vic2 BuildVic2(byte[] ram, Dictionary<string, byte[]> romData, Vic2ModelBase vic2Model, C64 c64)
     {
         var vic2Mem = CreateVic2Memory(ram, romData);
 
@@ -73,6 +75,7 @@ public class Vic2
 
         var vic2 = new Vic2()
         {
+            C64 = c64,
             Mem = vic2Mem,
             Vic2Model = vic2Model,
             Vic2IRQ = vic2IRQ,
@@ -358,8 +361,11 @@ public class Vic2
         return (byte)(IRQMASK | 0b11110000);    // Bits 4-7 are unused and always set to 1.
     }
 
-    public void AdvanceRaster(CPU cpu, Memory mem, ulong cyclesConsumed)
+    public void AdvanceRaster(ulong cyclesConsumed)
     {
+        var cpu = C64.CPU;
+        var mem = C64.Mem;
+
         CyclesConsumedCurrentVblank += cyclesConsumed;
 
         // Raster line housekeeping.
@@ -373,13 +379,16 @@ public class Vic2
 #endif
             _currentRasterLineInternal = newLine;
 
+            // Process timers
+            if (C64.TimerMode == TimerMode.UpdateEachRasterLine)
+                C64.Cia.ProcessTimers(Vic2Model.CyclesPerLine);
+
             // Check if a IRQ should be issued for current raster line, and issue it.
             RaiseRasterIRQ(cpu);
         }
 
         // Remember colors for each raster line
         StoreBorderColorForRasterLine(_currentRasterLineInternal);
-
 
         // Check if we have reached the end of the frame.
         if (CyclesConsumedCurrentVblank >= Vic2Model.CyclesPerFrame)
