@@ -93,24 +93,22 @@ Irq1:
 
 Irq2:
 	LDA NEXT_IRQ_BORDER_COLOR
-	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to yellow
+	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to brown
 
 	; Setup third IRQ to raster line a few lines after the middle
 	+set_irq Irq3, WAIT_LINE1+3, BORDER_COLOR_AFTER_BAR
 
 	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
 
-	JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.
+	JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc
 
 Irq3:
 	LDA NEXT_IRQ_BORDER_COLOR
-	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to yellow
+	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to orange
 
 	; Setup IRQ back to first one
 	+set_irq Irq1, 0, BORDER_COLOR_AFTER_VBLANK
 
 	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
 
-	;JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.
 	JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc
-	

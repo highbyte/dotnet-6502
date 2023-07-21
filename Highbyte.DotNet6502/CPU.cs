@@ -235,16 +235,15 @@ public class CPU
 
     private void ProcessInterrupts(Memory mem)
     {
-        // Check if a hardware IRQ has been raised (could have been done in a delegate callback OnInstructionExecuted above)    
-        if (IRQ)
+        // Check if a hardware IRQ has been raised.
+        // Only process the IRQ as long we don't have set the Interrupt Disable status flag.
+        if (IRQ & !ProcessorStatus.InterruptDisable)
         {
             IRQ = false;
-            // Only process the IRQ as long we don't have set the Interrupt Disable status flag.
-            if (!ProcessorStatus.InterruptDisable)
-                ProcessHardwareIRQ(mem);
+            ProcessHardwareIRQ(mem);
         }
 
-        // Check if a hardware NMI has been raised (could have been done in a delegate callback OnInstructionExecuted above)    
+        // Check if a hardware NMI has been raised.
         if (NMI)
         {
             NMI = false;

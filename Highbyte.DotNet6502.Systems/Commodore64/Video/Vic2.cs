@@ -51,6 +51,7 @@ public class Vic2
     public byte ScrCtrl1 { get; private set; }
 
     private ushort _currentRasterLineInternal = ushort.MaxValue;
+    public ushort CurrentRasterLine => _currentRasterLineInternal;
 
     public byte IRQMASK { get; private set; }
 
@@ -313,14 +314,31 @@ public class Vic2
 
     public void VICIRQStore(ushort _, byte value)
     {
-        // Setting IRQ flags to 1 in this register will clear the latch it may have active.
-        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+        // "Any" flag does not have a separate latch. Setting this bit means clearing all latches.
+        if (value.IsBitSet((int)IRQSource.Any))
         {
-            // "Any" flag does not have a separate latch.
-            if (source == IRQSource.Any)
-                continue;
-            if (value.IsBitSet((int)source))
-                Vic2IRQ.ClearLatch(source);
+            foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+            {
+                // "Any" flag, does not have a separate latch.
+                if (source == IRQSource.Any)
+                    continue;
+                // Clear all individual latches.
+                if (Vic2IRQ.IsLatched(source))
+                    Vic2IRQ.ClearLatch(source);
+            }
+        }
+        else
+        {
+            // Clear the individual latches that are specified.
+            foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+            {
+                // "Any" flag, does not have a separate latch.
+                if (source == IRQSource.Any)
+                    continue;
+                // Clear individual latch.
+                if (value.IsBitSet((int)source) && Vic2IRQ.IsLatched(source))
+                    Vic2IRQ.ClearLatch(source);
+            }
         }
     }
 
@@ -401,7 +419,7 @@ public class Vic2
     {
         // Check if a IRQ should be issued
         if ((_currentRasterLineInternal == Vic2IRQ.ConfiguredIRQRasterLine
-            || !Vic2IRQ.ConfiguredIRQRasterLine.HasValue & _currentRasterLineInternal >= Vic2Model.Lines)
+            || (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue & _currentRasterLineInternal >= Vic2Model.Lines))
             && IRQMASK.IsBitSet((int)IRQSource.RasterCompare)
             && !Vic2IRQ.IsLatched(IRQSource.RasterCompare))
         {

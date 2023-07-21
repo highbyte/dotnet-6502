@@ -1,36 +1,35 @@
-namespace Highbyte.DotNet6502.Systems.Commodore64.Timer;
+namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 public class CiaIRQ
 {
 
-    private readonly Dictionary<IRQSource, bool> _latches = new();
+    private readonly Dictionary<IRQSource, bool> _sourceStatus = new();
 
     public CiaIRQ()
     {
         foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
         {
-            _latches.Add(source, false);
+            _sourceStatus.Add(source, false);
         }
     }
 
     public void Raise(IRQSource source, CPU cpu)
     {
-        _latches[source] = true;
         cpu.IRQ = true;
     }
 
-    public bool IsLatched(IRQSource source)
+    public bool IsEnabled(IRQSource source)
     {
-        return _latches[source];
+        return _sourceStatus[source];
     }
 
-    public void SetLatch(IRQSource source)
+    public void Enable(IRQSource source)
     {
-        _latches[source] = true;
+        _sourceStatus[source] = true;
     }
-    public void ClearLatch(IRQSource source)
+    public void Disable(IRQSource source)
     {
-        _latches[source] = false;
+        _sourceStatus[source] = false;
     }
 }
 

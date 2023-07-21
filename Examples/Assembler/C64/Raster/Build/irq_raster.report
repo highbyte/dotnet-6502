@@ -95,23 +95,22 @@
     93                          
     94                          Irq2:
     95  c07e a5fd               	LDA NEXT_IRQ_BORDER_COLOR
-    96  c080 8d20d0             	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to yellow
+    96  c080 8d20d0             	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to brown
     97                          
     98                          	; Setup third IRQ to raster line a few lines after the middle
     99  c083 a9998d12d0a900c9...	+set_irq Irq3, WAIT_LINE1+3, BORDER_COLOR_AFTER_BAR
    100                          
    101  c0af 0e19d0             	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
    102                          
-   103  c0b2 4c31ea             	JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.
+   103  c0b2 4c81ea             	JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc
    104                          
    105                          Irq3:
    106  c0b5 a5fd               	LDA NEXT_IRQ_BORDER_COLOR
-   107  c0b7 8d20d0             	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to yellow
+   107  c0b7 8d20d0             	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to orange
    108                          
    109                          	; Setup IRQ back to first one
    110  c0ba a9008d12d0a900c9...	+set_irq Irq1, 0, BORDER_COLOR_AFTER_VBLANK
    111                          
    112  c0e6 0e19d0             	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
    113                          
-   114                          	;JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.
-   115  c0e9 4c81ea             	JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc
+   114  c0e9 4c81ea             	JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc

@@ -128,6 +128,7 @@ public class C64Config : ISystemConfig
         Vic2Model = "NTSC";
 
         TimerMode = TimerMode.UpdateEachRasterLine;
+        //TimerMode = TimerMode.UpdateEachInstruction;
 
         AudioSupported = false; // Set to true after creating if the audio system is implemented for the host platform
         AudioEnabled = false;

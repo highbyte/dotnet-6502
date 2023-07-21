@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.Systems.Commodore64.Timer;
+namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 /// <summary>
 /// CIA #1 io chip addresses: 0xdc00-0xdc0f
@@ -7,6 +7,10 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Timer;
 /// </summary>
 public static class CiaAddr
 {
+    // CIA #1 Data Port A & B (Keyboard)
+    public const ushort CIA1_DATAA = 0xdc00;
+    public const ushort CIA1_DATAB = 0xdc01;
+
     // CIA #1 Timer Register A
     public const ushort CIA1_TIMALO = 0xdc04;
     public const ushort CIA1_TIMAHI = 0xdc05;

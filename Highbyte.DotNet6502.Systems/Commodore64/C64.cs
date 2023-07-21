@@ -3,7 +3,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Keyboard;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
-using Highbyte.DotNet6502.Systems.Commodore64.Timer;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
@@ -64,9 +64,6 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
         Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
         Dictionary<string, double>? detailedStats = null)
     {
-
-        //Cia.ResumeAllTimers();
-
         var cyclesToExecute = Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
 
         ulong totalCyclesConsumed = 0;
@@ -100,7 +97,6 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
             }
         }
 
-        //Cia.PauseAllTimers();
         return exitValue;
     }
 
@@ -241,6 +237,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     private static CPU CreateC64CPU(Vic2 vic2, Memory mem)
     {
         var cpu = new CPU();
+        // The CPU execute method uses will not raise any events (like after instruction executed). Therefore advance VIC2 raster line etc needs to be manually called instead (see ExecuteOneFrame)
         //cpu.InstructionExecuted += (s, e) => vic2.AdvanceRaster(e.InstructionExecState.CyclesConsumed);
         return cpu;
     }
@@ -392,7 +389,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
 
     private string BuildSystemInfo()
     {
-        return $"Model: {Model.Name} Freq: {Model.CPUFrequencyHz} CPU bank: {CurrentBank} VIC2 Model: {Vic2.Vic2Model.Name} VIC2 bank: {Vic2.CurrentVIC2Bank} VblankCY: {Vic2.CyclesConsumedCurrentVblank}";
+        return $"Line: {Vic2.CurrentRasterLine} VblankCY: {Vic2.CyclesConsumedCurrentVblank} Model: {Model.Name} Freq: {Model.CPUFrequencyHz} CPU bank: {CurrentBank} VIC2 Model: {Vic2.Vic2Model.Name} VIC2 bank: {Vic2.CurrentVIC2Bank}";
     }
 
     public ISystemMonitorCommands GetSystemMonitorCommands()
