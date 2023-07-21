@@ -1,7 +1,5 @@
-using System.Diagnostics;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
-using Highbyte.DotNet6502.Systems.Commodore64.Timer;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 

@@ -1,0 +1,11 @@
+
+al C:0002 .COUNTER
+
+al C:c001 .main
+al C:c003 .raster
+al C:c03e .delayTable
+al C:c01e .idle2
+al C:c00d .idle1
+al C:c035 .colorTable
+al C:c012 .loop
+al C:c047 .sinusTable
