@@ -157,7 +157,7 @@ public class WasmMonitor : MonitorBase
         _lastTriggeredLoadBinaryForceLoadAddress = forceLoadAddress;
         _lastTriggeredAfterLoadCallback = afterLoadCallback;
 
-        // Trigger the html file picker dialog to open. After the file is picked and uploaded, LoadBinaryFromUser below will be called.
+        // ConditionSet the html file picker dialog to open. After the file is picked and uploaded, LoadBinaryFromUser below will be called.
         _jsRuntime.InvokeVoidAsync("clickId", "monitorFilePicker");
 
         WriteOutput($"Waiting for file to be selected by user.");

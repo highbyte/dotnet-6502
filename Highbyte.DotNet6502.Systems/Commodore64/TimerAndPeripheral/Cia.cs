@@ -16,9 +16,6 @@ public class Cia
     private ushort _internalTimer_CIA1_A;
     private ushort _internalTimer_CIA1_B;
 
-    private bool _internalTimer_CIA1_A_Reached_0 = false;
-    private bool _internalTimer_CIA1_B_Reached_0 = false;
-
     // Latch contains the value was written to timer registers, and is used as start value when timer is started.
     private ushort _internalTimer_CIA1_A_Latch;
     private ushort _internalTimer_CIA1_B_Latch;
@@ -26,10 +23,13 @@ public class Cia
     private readonly Stopwatch _realTimer_CIA1_A_Stopwatch = new();
     private readonly Stopwatch _realTimer_CIA1_B_Stopwatch = new();
 
-
     public byte Cia1TimerAControl { get; private set; }
 
     public byte Cia1TimerBControl { get; private set; }
+
+
+    public byte Cia1DataA { get; private set; }
+    public byte Cia1DataB { get; private set; } = 0xff; // 0xff = no key down
 
     public Cia(C64 c64)
     {
@@ -42,8 +42,7 @@ public class Cia
         // Timer CIA1 A
         if (Cia1TimerAControl.IsBitSet((int)TimerAControl.StartTimerA) && _realTimer_CIA1_A_Stopwatch.IsRunning)
         {
-            // -- VARIANT: Use .NET Stopwatch to count ticks. More accurate than counting cycles.
-            // Convert ticks to milliseconds
+            var source = IRQSource.TimerA;
             var elapsedMs = _realTimer_CIA1_A_Stopwatch.ElapsedMilliseconds;
             var startValueMs = CalculateTimerMS(_internalTimer_CIA1_A_Latch);
             var remainingMs = startValueMs - elapsedMs;
@@ -52,13 +51,13 @@ public class Cia
             _internalTimer_CIA1_A = CalculateTimerValue(remainingMs);
 
             if (_internalTimer_CIA1_A == 0)
-                _internalTimer_CIA1_A_Reached_0 = true;
+                CiaIRQ.ConditionSet(source);
 
-            if (_internalTimer_CIA1_A_Reached_0)
+            if (CiaIRQ.IsConditionSet(source))
             {
-                // Timer has reached zero. Raise interrupt if enabled.
-                if (CiaIRQ.IsEnabled(IRQSource.TimerA))
-                    CiaIRQ.Raise(IRQSource.TimerA, _c64.CPU);
+                // Timer has reached zero. Trigger interrupt if enabled.
+                if (CiaIRQ.IsEnabled(source))
+                    CiaIRQ.Trigger(source, _c64.CPU);
 
                 // Check if timer should be reloaded from latch. If Timer A RunMode bit is clear, timer should be continously reloaded from latch.
                 if (!Cia1TimerAControl.IsBitSet((int)TimerAControl.TimerARunMode))
@@ -121,9 +120,9 @@ public class Cia
 
     // TODO: Implement "real" C64 keyboard operation emulation.
     //       Right now, keys are being placed directly into the ring buffer, and not via Cia1 Data Ports A & B
-    //       Returning 0xff in data port B means no key down (temporary solution).
-    public byte Cia1DataBLoad(ushort _) => 0xff;
-    public void Cia1DataBStore(ushort _, byte value) { }
+    //       Returning 0xff in data port B means no key down (temporary solution, which is useful to not get extremely long execution of Kernal routines inspecting keyboard.
+    public byte Cia1DataBLoad(ushort _) => Cia1DataB;
+    public void Cia1DataBStore(ushort _, byte value) => Cia1DataB = value;
 
     public byte Cia1TimerAHILoad(ushort _) => _internalTimer_CIA1_A.Highbyte();
     public void Cia1TimerAHIStore(ushort _, byte value) => _internalTimer_CIA1_A_Latch.SetHighbyte(value);
@@ -141,11 +140,11 @@ public class Cia
         byte value = 0;
 
         // If timer A has counted down to zero, set bit 0.
-        if (_internalTimer_CIA1_A_Reached_0)
+        if (CiaIRQ.IsConditionSet(IRQSource.TimerA))
             value.SetBit((int)IRQSource.TimerA);
 
         // If timer B has counted down to zero, set bit 1.
-        if (_internalTimer_CIA1_B_Reached_0)
+        if (CiaIRQ.IsConditionSet(IRQSource.TimerB))
             value.SetBit((int)IRQSource.TimerB);
 
         // If any IRQ source is set, also set bit 7.
@@ -153,8 +152,7 @@ public class Cia
             value.SetBit((int)IRQSource.Any);
 
         // If this address is read, it's contents is automatically cleared ( = all IRQ states are cleared).
-        _internalTimer_CIA1_A_Reached_0 = false;
-        _internalTimer_CIA1_B_Reached_0 = false;
+        CiaIRQ.ConditionClearAll();
 
         return value;
     }
@@ -212,7 +210,7 @@ public class Cia
     private void StartTimer_CIA1_A()
     {
         _internalTimer_CIA1_A = _internalTimer_CIA1_A_Latch;
-        _internalTimer_CIA1_A_Reached_0 = false;
+        CiaIRQ.ConditionClear(IRQSource.TimerA);
         _realTimer_CIA1_A_Stopwatch.Restart();
     }
     private void StopTimer_CIA1_A()

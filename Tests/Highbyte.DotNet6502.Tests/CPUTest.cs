@@ -20,7 +20,7 @@ public class CPUTest
         cpu.ProcessorStatus.Unused = false;
         cpu.ProcessorStatus.InterruptDisable = false;
 
-        cpu.IRQ = true; // Tell CPU that a hardware IRQ occurred.
+        cpu.CPUInterrupts.SetIRQSourceInactive("dummy"); // Tell CPU that a hardware IRQ occurred.
 
         // Act
         var execState = cpu.Execute(
@@ -69,7 +69,7 @@ public class CPUTest
         cpu.ProcessorStatus.Unused = false;
         cpu.ProcessorStatus.InterruptDisable = true;
 
-        cpu.IRQ = true; // Tell CPU that a hardware IRQ occurred.
+        cpu.CPUInterrupts.SetIRQSourceInactive("dummy"); // Tell CPU that a hardware IRQ occurred.
 
         // Act
         var execState = cpu.Execute(
@@ -97,7 +97,7 @@ public class CPUTest
         cpu.ProcessorStatus.Unused = false;
         cpu.ProcessorStatus.InterruptDisable = true;
 
-        cpu.NMI = true; // Tell CPU that a hardware NMI occurred.
+        cpu.CPUInterrupts.SetNMISourceActive("dummy"); // Tell CPU that a hardware NMI occurred.
 
         // Act
         var execState = cpu.Execute(

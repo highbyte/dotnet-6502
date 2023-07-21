@@ -49,22 +49,6 @@ public class CPU
     public ProcessorStatus ProcessorStatus;
 
     /// <summary>
-    /// Set to True when IRQ (Interrupt Request) shall be raised. 
-    /// 
-    /// Will trigger IRQ processing after current instruction has been executed, which will end in the ProgramCounter (PC) being set to the IRQ vector address defined in 0xfffe and the flag reset to false.
-    /// </summary>
-    /// <value></value>
-    public bool IRQ { get; set; }
-
-    /// <summary>
-    /// Set to True when NMI (non-maskable interrupt) shall be raised. 
-    /// 
-    /// Will trigger NMI processing after current instruction has been executed, which will end in the ProgramCounter (PC) being set to the IRQ vector address defined in 0xfffa and the flag reset to false.
-    /// </summary>
-    /// <value></value>
-    public bool NMI { get; set; }
-
-    /// <summary>
     /// Address for vector to Non-maskable interrupt handler at 0xfffa/0xfffb
     /// </summary>
     public const ushort StackBaseAddress = 0x0100; // Stack memory: 0x0100 - 0x01ff
@@ -85,13 +69,35 @@ public class CPU
     /// </summary>
     public const ushort BrkIRQHandlerVector = 0xfffe; // + 0xffff
 
+    public CPUInterrupts CPUInterrupts { get; private set; } = new CPUInterrupts();
+
+    /// <summary>
+    /// Is True when a IRQ (Interrupt Request) has been raised.
+    /// Raising a NMI is done by setting a NMI source active, which is done by calling CPUInterrupts.SetNMISourceActive(source).
+    /// 
+    /// Will trigger IRQ processing after current instruction has been executed, which will end in the ProgramCounter (PC) being set to the IRQ vector address defined in 0xfffe.
+    /// </summary>
+    /// <value></value>
+
+    public bool IRQ => CPUInterrupts.IRQLineEnabled;
+
+    /// <summary>
+    /// Is True when a NMI (non-maskable interrupt) has been raised.
+    /// Raising a NMI is done by setting a NMI source active, which is done by calling CPUInterrupts.SetNMISourceActive(source).
+    /// 
+    /// Will trigger NMI processing after current instruction has been executed, which will end in the ProgramCounter (PC) being set to the IRQ vector address defined in 0xfffa.
+    /// </summary>
+    /// <value></value>
+
+    public bool NMI => CPUInterrupts.NMILineEnabled;
+
     /// <summary>
     /// Aggregated stats and info for all invocations of Execute()
     /// </summary>
     /// <value></value>
-    public ExecState ExecState {get; private set;}
+    public ExecState ExecState { get; private set; }
 
-    public InstructionList InstructionList {get; private set;}
+    public InstructionList InstructionList { get; private set; }
 
     public event EventHandler<CPUInstructionExecutedEventArgs> InstructionExecuted;
     protected virtual void OnInstructionExecuted(CPUInstructionExecutedEventArgs e)
@@ -115,7 +121,7 @@ public class CPU
 
     private readonly InstructionExecutor _instructionExecutor;
 
-    public CPU(): this (new ExecState())
+    public CPU() : this(new ExecState())
     {
     }
     public CPU(ExecState execState)
@@ -126,11 +132,11 @@ public class CPU
         InstructionList = InstructionList.GetAllInstructions();
         // TODO: Inject InstructionExecutor?
         _instructionExecutor = new InstructionExecutor();
-    }        
+    }
 
     public CPU Clone()
     {
-        return new CPU 
+        return new CPU
         {
             PC = this.PC,
             SP = this.SP,
@@ -235,20 +241,26 @@ public class CPU
 
     private void ProcessInterrupts(Memory mem)
     {
-        // Check if a hardware IRQ has been raised.
-        // Only process the IRQ as long we don't have set the Interrupt Disable status flag.
-        if (IRQ & !ProcessorStatus.InterruptDisable)
+        if (CPUInterrupts.NMILineEnabled)
         {
-            IRQ = false;
-            ProcessHardwareIRQ(mem);
-        }
-
-        // Check if a hardware NMI has been raised.
-        if (NMI)
-        {
-            NMI = false;
-            // Always process is it, regardless if InterruptDisable status flag has been set.
+            // TODO: Should all NMI sources be cleared here?
+            foreach (var source in CPUInterrupts.ActiveNMISources)
+            {
+                CPUInterrupts.SetNMISourceInactive(source);
+            }
             ProcessHardwareNMI(mem);
+        }
+        else if (CPUInterrupts.IRQLineEnabled && !ProcessorStatus.InterruptDisable)
+        {
+            foreach (var source in CPUInterrupts.ActiveIRQSources.Keys)
+            {
+                // Automatically remove IRQ sources that should not manually be acknowledged.
+                if (CPUInterrupts.ActiveIRQSources[source])
+                {
+                    CPUInterrupts.SetIRQSourceInactive(source);
+                }
+            }
+            ProcessHardwareIRQ(mem);
         }
     }
 
@@ -317,11 +329,11 @@ public class CPU
         var zeroPageAddressX = (ushort)(zeroPageAddress + X);
 
         // Wrap around when Zero Page Address + X is greater than one byte (0xff)
-        if(wrapZeroPage)
-            zeroPageAddressX = (ushort)(zeroPageAddressX & 0xff); 
+        if (wrapZeroPage)
+            zeroPageAddressX = (ushort)(zeroPageAddressX & 0xff);
 
         return zeroPageAddressX;
-    }  
+    }
 
     /// <summary>
     /// Gets the Zero Page address at the current PC with Y offset.
@@ -335,11 +347,11 @@ public class CPU
         var zeroPageAddressY = (ushort)(zeroPageAddress + Y);
 
         // Wrap around when Zero Page Address + Y is greater than one byte (0xff)
-        if(wrapZeroPage)
-            zeroPageAddressY = (ushort)(zeroPageAddressY & 0xff); 
+        if (wrapZeroPage)
+            zeroPageAddressY = (ushort)(zeroPageAddressY & 0xff);
 
         return zeroPageAddressY;
-    }         
+    }
 
     /// <summary>
     /// Get instruction opcode from the byte on current PC (Program Counter).
@@ -350,7 +362,7 @@ public class CPU
     public byte FetchInstruction(Memory mem)
     {
         var data = FetchByte(mem, PC);
-        PC ++;
+        PC++;
         return data;
     }
 
@@ -363,7 +375,7 @@ public class CPU
     public byte FetchOperand(Memory mem)
     {
         var data = FetchByte(mem, PC);
-        PC ++;
+        PC++;
         return data;
     }
 
@@ -420,7 +432,7 @@ public class CPU
         // Memory locations 0x0100-0x01ff.  SP is relative to 0x0100 and decreases for every value put on the stack.
         // As SP currently points to the next free position, well go back one byte where the previous data was stored.
         // We will read one bytes from that position (SP+1), and later below update the SP to SP+1 (as that is now the next free position)
-        ushort address = (ushort) (StackBaseAddress + (byte)(SP + 1)); 
+        ushort address = (ushort)(StackBaseAddress + (byte)(SP + 1));
         byte data = FetchByte(mem, address);
 
         // Move SP back to latest stored byte (the current SP position always points to the currently free position)
@@ -456,7 +468,7 @@ public class CPU
     {
         // Calculate absolute address for Stack Pointer.
         // Memory locations 0x0100-0x01ff.  SP is relative to 0x0100 and decreases for every value put on the stack.
-        ushort address = (ushort) (StackBaseAddress + SP);    
+        ushort address = (ushort)(StackBaseAddress + SP);
         StoreByte(byteData, mem, address);
 
         // Update Stack Pointer so it points to next free location
@@ -540,7 +552,7 @@ public class CPU
         didCrossPageBoundary = (fullAddress & 0x00ff) + Y > 0xff;
         var fullAddressY = (ushort)(fullAddress + Y);
         return fullAddressY;
-    }        
+    }
 
     /// <summary>
     /// Stores one byte in memory.

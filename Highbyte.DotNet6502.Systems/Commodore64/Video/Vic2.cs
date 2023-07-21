@@ -51,7 +51,6 @@ public class Vic2
     private ushort _currentRasterLineInternal = ushort.MaxValue;
     public ushort CurrentRasterLine => _currentRasterLineInternal;
 
-    public byte IRQMASK { get; private set; }
 
     public event EventHandler<CharsetAddressChangedEventArgs> CharsetAddressChanged;
     protected virtual void OnCharsetAddressChanged(CharsetAddressChangedEventArgs e)
@@ -321,8 +320,8 @@ public class Vic2
                 if (source == IRQSource.Any)
                     continue;
                 // Clear all individual latches.
-                if (Vic2IRQ.IsLatched(source))
-                    Vic2IRQ.ClearLatch(source);
+                if (Vic2IRQ.IsTriggered(source, C64.CPU))
+                    Vic2IRQ.ClearTrigger(source, C64.CPU);
             }
         }
         else
@@ -334,33 +333,31 @@ public class Vic2
                 if (source == IRQSource.Any)
                     continue;
                 // Clear individual latch.
-                if (value.IsBitSet((int)source) && Vic2IRQ.IsLatched(source))
-                    Vic2IRQ.ClearLatch(source);
+                if (value.IsBitSet((int)source) && Vic2IRQ.IsTriggered(source, C64.CPU))
+                    Vic2IRQ.ClearTrigger(source, C64.CPU);
             }
         }
     }
 
     public byte VICIRQLoad(ushort _)
     {
-        // TODO: What should be returned? The state of latches? Or some internal state of which IRQ source have been triggered?
-
         byte value = 0b01110000;    // Bits 4-7 are unused and always set to 1.
 
-        bool anyIRQSourceLatched = false;
-        // Set bit 0-3 based on which IRQ sources have been latched.
+        bool anyIRQSourceTriggered = false;
+        // Set bit 0-3 based on which IRQ sources have been triggered
         foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
         {
-            // "Any" flag does not have a separate latch.
+            // "Any" flag does not have a separate trigger.
             if (source == IRQSource.Any)
                 continue;
-            if (Vic2IRQ.IsLatched(source))
+            if (Vic2IRQ.IsTriggered(source, C64.CPU))
             {
                 value.SetBit((int)source);
-                anyIRQSourceLatched = true;
+                anyIRQSourceTriggered = true;
             }
         }
         // If any of the individual IRQ flags are set, also set the "Any" flag (bit 7)
-        if (anyIRQSourceLatched)
+        if (anyIRQSourceTriggered)
             value.SetBit((int)IRQSource.Any);
         else
             value.ClearBit((int)IRQSource.Any);
@@ -370,11 +367,28 @@ public class Vic2
 
     public void IRQMASKStore(ushort _, byte value)
     {
-        IRQMASK = value;
+        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+        {
+            if (source == IRQSource.Any)
+                continue;
+            if (value.IsBitSet((int)source))
+                Vic2IRQ.Enable(source);
+            else
+                Vic2IRQ.Disable(source);
+        }
     }
     public byte IRQMASKLoad(ushort _)
     {
-        return (byte)(IRQMASK | 0b11110000);    // Bits 4-7 are unused and always set to 1.
+        byte value = 0b11110000; // Bits 4-7 are unused and always set to 1.
+
+        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+        {
+            if (source == IRQSource.Any)
+                continue;
+            if (Vic2IRQ.IsEnabled(source))
+                value.SetBit((int)source);
+        }
+        return value;
     }
 
     public void AdvanceRaster(ulong cyclesConsumed)
@@ -416,12 +430,13 @@ public class Vic2
     private void RaiseRasterIRQ(CPU cpu)
     {
         // Check if a IRQ should be issued
+        var source = IRQSource.RasterCompare;
         if ((_currentRasterLineInternal == Vic2IRQ.ConfiguredIRQRasterLine
             || (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue & _currentRasterLineInternal >= Vic2Model.Lines))
-            && IRQMASK.IsBitSet((int)IRQSource.RasterCompare)
-            && !Vic2IRQ.IsLatched(IRQSource.RasterCompare))
+            && Vic2IRQ.IsEnabled(source)
+            && !Vic2IRQ.IsTriggered(source, C64.CPU))
         {
-            Vic2IRQ.Raise(IRQSource.RasterCompare, cpu);
+            Vic2IRQ.Trigger(source, cpu);
         }
     }
 

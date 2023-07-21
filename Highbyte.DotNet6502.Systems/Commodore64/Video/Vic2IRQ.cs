@@ -5,34 +5,41 @@ public class Vic2IRQ
     // ConfiguredIRQRasterLine = null means not configured yet, and raster IRQ should occur when raster line wraps around from it's max (defined by C64/VIC2 model) to 0.
     public ushort? ConfiguredIRQRasterLine { get; set; } = null;
 
-    private readonly Dictionary<IRQSource, bool> _latches = new();
+    private readonly Dictionary<IRQSource, bool> _sourceEnableStatus = new();
 
     public Vic2IRQ()
     {
         foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
         {
-            _latches.Add(source, false);
+            _sourceEnableStatus.Add(source, false);
         }
     }
 
-    public void Raise(IRQSource source, CPU cpu)
+    public bool IsEnabled(IRQSource source)
     {
-        _latches[source] = true;
-        cpu.IRQ = true;
+        return _sourceEnableStatus[source];
+    }
+    public void Enable(IRQSource source)
+    {
+        _sourceEnableStatus[source] = true;
+    }
+    public void Disable(IRQSource source)
+    {
+        _sourceEnableStatus[source] = false;
     }
 
-    public bool IsLatched(IRQSource source)
+    public bool IsTriggered(IRQSource source, CPU cpu)
     {
-        return _latches[source];
+        return cpu.CPUInterrupts.IsIRQSourceActive(source.ToString());
     }
 
-    public void SetLatch(IRQSource source)
+    public void Trigger(IRQSource source, CPU cpu)
     {
-        _latches[source] = true;
+        cpu.CPUInterrupts.SetIRQSourceActive(source.ToString(), autoAcknowledge: false);
     }
-    public void ClearLatch(IRQSource source)
+    public void ClearTrigger(IRQSource source, CPU cpu)
     {
-        _latches[source] = false;
+        cpu.CPUInterrupts.SetIRQSourceInactive(source.ToString());
     }
 }
 
