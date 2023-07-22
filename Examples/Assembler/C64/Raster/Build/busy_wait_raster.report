@@ -51,7 +51,7 @@
     49                          ; WAIT_LINE1 = (287 - 256);	// PAL last line of bottom border
     50                          ; WAIT_LINE_HIGHBIT1 = 1;
     51                          
-    52                          WAIT_LINE1 = 150;
+    52                          WAIT_LINE1 = 51;
     53                          WAIT_LINE_HIGHBIT1 = 0;
     54                          
     55                          BORDER_COLOR_AFTER_VBLANK = $07;
@@ -115,13 +115,13 @@
    113  c019 a907               	lda #BORDER_COLOR_AFTER_VBLANK
    114  c01b 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS
    115                          
-   116  c01e a996               	lda #WAIT_LINE1
+   116  c01e a933               	lda #WAIT_LINE1
    117  c020 a200               	ldx #WAIT_LINE_HIGHBIT1
    118  c022 e000f0052c11d010...	+wait_line
    119  c030 a909               	lda #BORDER_COLOR_BAR
    120  c032 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS	
    121                          
-   122  c035 a999               	lda #WAIT_LINE1+3
+   122  c035 a936               	lda #WAIT_LINE1+3
    123  c037 a200               	ldx #WAIT_LINE_HIGHBIT1
    124  c039 e000f0052c11d010...	+wait_line
    125  c047 a908               	lda #BORDER_COLOR_AFTER_BAR

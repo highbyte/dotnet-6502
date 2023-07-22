@@ -103,6 +103,13 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     {
         var emulatorMem = c64.Mem;
 
+        var firstScreenLineOfMainScreen = c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine((ushort)c64.Vic2.Vic2Model.FirstRasterLineOfMainScreen);
+
+        var visibleLinesDifference = (int)c64.Vic2.Vic2Model.Lines - c64.VisibleHeight;
+        var halfVisibleLinesDifference = (int)Math.Floor((double)(visibleLinesDifference / 2.0d));
+        var visibleLinesStart = visibleLinesDifference > 2 ? halfVisibleLinesDifference : 0;
+
+
         // Build screen data characters based on emulator memory contents (byte)
         ushort currentScreenAddress = Vic2Addr.SCREEN_RAM_START;
         ushort currentColorAddress = Vic2Addr.COLOR_RAM_START;
@@ -118,7 +125,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
                     charByte,
                     colorByte,
                     c64,
-                    adjustForBorder: true
+                    firstScreenLineOfMainScreen,
+                    visibleLinesStart
                     );
             }
         }
@@ -225,15 +233,26 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     /// <param name="y"></param>
     /// <param name="character"></param>
     /// <param name="characterColor"></param>
-    public void DrawEmulatorCharacterOnScreen(int col, int row, byte character, byte characterColor, C64 c64, bool adjustForBorder)
+    public void DrawEmulatorCharacterOnScreen(
+        int col,
+        int row,
+        byte character,
+        byte characterColor,
+        C64 c64,
+        int firstScreenLineOfMainScreen,
+        int visibleLinesStart)
     {
         int pixelPosX = col * c64.CharacterWidth;
         int pixelPosY = row * c64.CharacterHeight;
-        if (adjustForBorder)
-        {
-            pixelPosX += c64.BorderWidth;
-            pixelPosY += c64.BorderHeight;
-        }
+
+        // Adjust for border
+        pixelPosX += c64.BorderWidth;
+        //pixelPosY += c64.BorderHeight;
+        pixelPosY += firstScreenLineOfMainScreen;
+
+        // Adjust for visisible area
+        pixelPosY = (ushort)(pixelPosY - visibleLinesStart);
+
 
         // Draw character image from chargen ROM to a Skia surface
         // The chargen ROM has been loaded to a SKImage with 16 characters per row (each character 8 x 8 pixels).

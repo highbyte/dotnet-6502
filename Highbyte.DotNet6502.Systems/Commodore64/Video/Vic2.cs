@@ -287,10 +287,11 @@ public class Vic2
             ushort bit7HighestRasterLineBitIRQ = (ushort)(value & 0b1000_0000);
             bit7HighestRasterLineBitIRQ = (ushort)(bit7HighestRasterLineBitIRQ << 1);
 
-            if (Vic2IRQ.ConfiguredIRQRasterLine.HasValue)
-                Vic2IRQ.ConfiguredIRQRasterLine = (ushort?)(Vic2IRQ.ConfiguredIRQRasterLine | bit7HighestRasterLineBitIRQ);
-            else
+            if (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue)
                 Vic2IRQ.ConfiguredIRQRasterLine = 0;
+            Vic2IRQ.ConfiguredIRQRasterLine = (ushort?)(Vic2IRQ.ConfiguredIRQRasterLine & 0b1111_1111);
+            Vic2IRQ.ConfiguredIRQRasterLine = (ushort?)(Vic2IRQ.ConfiguredIRQRasterLine | bit7HighestRasterLineBitIRQ);
+
         }
 
 #if DEBUG
