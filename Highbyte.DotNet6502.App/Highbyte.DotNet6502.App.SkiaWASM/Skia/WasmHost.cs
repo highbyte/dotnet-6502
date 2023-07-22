@@ -118,7 +118,7 @@ public class WasmHost : IDisposable
         }
         else
         {
-            var screen = (IScreen)_systemList.GetSystem(_systemName).Result;
+            var screen = _systemList.GetSystem(_systemName).Result.Screen;
             // Number of milliseconds between each invokation of the main loop. 60 fps -> (1/60) * 1000  -> approx 16.6667ms
             double updateIntervalMS = (1 / screen.RefreshFrequencyHz) * 1000;
             _updateTimer = new PeriodicAsyncTimer();

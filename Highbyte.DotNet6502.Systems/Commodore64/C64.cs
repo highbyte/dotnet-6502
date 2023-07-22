@@ -8,7 +8,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
+public class C64 : ISystem, ISystemMonitor
 {
     public const string SystemName = "C64";
     public string Name => SystemName;
@@ -18,6 +18,8 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     public float CpuFrequencyHz => Model.CPUFrequencyHz;
     public CPU CPU { get; set; }
     public Memory Mem { get; set; }
+    public IScreen Screen => Vic2.Vic2Screen;
+
     public byte[] RAM { get; set; }
     public byte[] IO { get; set; }
     public byte CurrentBank { get; set; }
@@ -27,21 +29,6 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     public Sid Sid { get; set; }
     public Dictionary<string, byte[]> ROMData { get; set; }
 
-    public int Cols => Vic2.COLS;
-    public int Rows => Vic2.ROWS;
-    public int CharacterWidth => 8;
-    public int CharacterHeight => 8;
-
-    public int Width => Vic2.WIDTH;
-    public int Height => Vic2.HEIGHT;
-    public int VisibleWidth => (int)Vic2.Vic2Model.PixelsPerLineVisible;
-    //public int VisibleWidth => (int)Vic2.Vic2Model.PixelsPerLine;
-    public int VisibleHeight => (int)Vic2.Vic2Model.LinesVisible;
-    //public int VisibleHeight => (int)Vic2.Vic2Model.Lines;
-    public bool HasBorder => true;
-    public int BorderWidth => (int)Math.Floor((double)((VisibleWidth - Width) / 2.0d));
-    public int BorderHeight => (int)Math.Floor((double)((VisibleHeight - Height) / 2.0d));
-    public float RefreshFrequencyHz => (float)CpuFrequencyHz / Vic2.Vic2Model.CyclesPerFrame;
 
     public bool AudioEnabled { get; private set; }
     public TimerMode TimerMode { get; private set; }

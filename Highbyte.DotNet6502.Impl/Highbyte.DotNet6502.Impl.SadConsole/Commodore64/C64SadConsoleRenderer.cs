@@ -37,6 +37,8 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
     private void RenderMainScreen(C64 c64)
     {
         var emulatorMem = c64.Mem;
+        var vic2Screen = c64.Vic2.Vic2Screen;
+
         // // Top Left
         // DrawEmulatorCharacterOnScreen(0, 0, 65, 0x01, 0x05);
         // // Bottom Right
@@ -48,9 +50,9 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
         // Build screen data characters based on emulator memory contents (byte)
         ushort currentScreenAddress = Vic2Addr.SCREEN_RAM_START;
         ushort currentColorAddress = Vic2Addr.COLOR_RAM_START;
-        for (int row = 0; row < Vic2.ROWS; row++)
+        for (int row = 0; row < vic2Screen.Rows; row++)
         {
-            for (int col = 0; col < Vic2.COLS; col++)
+            for (int col = 0; col < vic2Screen.Cols; col++)
             {
                 byte charByte = emulatorMem[currentScreenAddress++];
                 byte colorByte = emulatorMem[currentColorAddress++];
@@ -70,6 +72,7 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
     private void RenderBorder(C64 c64)
     {
         var emulatorMem = c64.Mem;
+        var vic2Screen = c64.Vic2.Vic2Screen;
 
         byte borderCharacter = 0;    // 0 = no character
         byte borderBgColor = emulatorMem[Vic2Addr.BORDER_COLOR];
@@ -78,12 +81,12 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
         int border_cols = GetBorderCols(c64);
         int border_rows = GetBorderRows(c64);
 
-        for (int row = 0; row < (Vic2.ROWS + (border_rows * 2)); row++)
+        for (int row = 0; row < (vic2Screen.Rows + (border_rows * 2)); row++)
         {
-            for (int col = 0; col < (Vic2.COLS + (border_cols * 2)); col++)
+            for (int col = 0; col < (vic2Screen.Cols + (border_cols * 2)); col++)
             {
-                if (row < border_rows || row >= (Vic2.ROWS + border_rows)
-                    || col < border_cols || col >= (Vic2.COLS + border_cols))
+                if (row < border_rows || row >= (vic2Screen.Rows + border_rows)
+                    || col < border_cols || col >= (vic2Screen.Cols + border_cols))
                 {
                     DrawEmulatorCharacterOnScreen(
                         col,
@@ -150,11 +153,11 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
 
     private int GetBorderCols(C64 c64)
     {
-        return c64.BorderWidth / c64.CharacterWidth;
+        return c64.Vic2.Vic2Screen.BorderWidth / c64.Vic2.Vic2Screen.CharacterWidth;
     }
     private int GetBorderRows(C64 c64)
     {
-        return c64.BorderHeight / c64.CharacterHeight;
+        return c64.Vic2.Vic2Screen.BorderHeight / c64.Vic2.Vic2Screen.CharacterHeight;
     }
 
 }

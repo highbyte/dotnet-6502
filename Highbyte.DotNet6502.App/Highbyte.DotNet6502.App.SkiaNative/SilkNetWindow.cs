@@ -179,7 +179,7 @@ public class SilkNetWindow
         if (_systemList.IsValidConfig(systemName).Result)
         {
             var system = _systemList.GetSystem(systemName).Result;
-            var screen = (IScreen)system;
+            var screen = system.Screen;
             Window.Size = new Vector2D<int>((int)(screen.VisibleWidth * _canvasScale), (int)(screen.VisibleHeight * _canvasScale));
             Window.UpdatesPerSecond = screen.RefreshFrequencyHz;
 

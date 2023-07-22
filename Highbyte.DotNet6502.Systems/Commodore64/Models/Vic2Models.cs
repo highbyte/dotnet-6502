@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
+
 namespace Highbyte.DotNet6502.Systems.Commodore64.Models;
 
 /// <summary>
@@ -159,9 +161,18 @@ public class Vic2ModelPAL : Vic2ModelBase
 
 public abstract class Vic2ModelBase
 {
+
     public abstract string Name { get; }
 
-    public abstract ulong CyclesPerFrame { get; }          // CyclesPerLine * Lines;
+    public virtual int Cols => 40;           // # characters per line in text mode
+    public virtual int Rows => 25;           // # rows in text mode
+    public virtual int Width => 320;         // # pixels in drawable area (text mode and bitmap graphics mode)
+    public virtual int Height => 200;        // # pixels in drawable area  (text mode and bitmap graphics mode)
+    public virtual int CharacterWidth => 8;
+    public virtual int CharacterHeight => 8;
+
+
+    public abstract ulong CyclesPerFrame { get; }       // CyclesPerLine * Lines;
     public abstract ulong CyclesPerLine { get; }
     public abstract ulong Lines { get; }
 
@@ -171,9 +182,16 @@ public abstract class Vic2ModelBase
 
     public abstract ulong FirstRasterLineOfMainScreen { get; }    // The raster line where the main screen with background starts.
 
-    public ulong PixelsPerCPUCycle => 8;
+    public virtual ulong PixelsPerCPUCycle => 8;
     public abstract ulong HBlankPixels { get; }
     public abstract ulong VBlankLines { get; }
 
     public abstract ushort ConvertRasterLineToScreenLine(ushort rasterLine);
+
+
+    public bool IsRasterLineInMainScreen(ulong rasterLine)
+    {
+        return rasterLine >= FirstRasterLineOfMainScreen
+            && rasterLine < FirstRasterLineOfMainScreen + (ulong)Height;
+    }
 }

@@ -24,8 +24,8 @@ public class SadConsoleMain
 
         // Setup the SadConsole engine and create the main window. 
         // If font is null or empty, the default SadConsole font will be used.
-        var textMode = _systemRunner.System as ITextMode;
-        var screen = _systemRunner.System as IScreen;
+        var screen = _systemRunner.System.Screen;
+        var textMode = screen as ITextMode;
 
         // int totalCols = (textMode.Cols + (textMode.BorderCols * 2));
         // int totalRows = (textMode.Rows + (textMode.BorderRows * 2));
@@ -64,8 +64,8 @@ public class SadConsoleMain
     private void InitSadConsole()
     {
         // Create a SadConsole screen
-        var textMode = _systemRunner.System as ITextMode;
-        var screen = _systemRunner.System as IScreen;
+        var screen = _systemRunner.System.Screen;
+        var textMode = screen as ITextMode;
         _sadConsoleScreen = new SadConsoleScreenObject(textMode, screen, _sadConsoleConfig);
 
         global::SadConsole.Game.Instance.Screen = _sadConsoleScreen;

@@ -13,22 +13,18 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 ///
 /// </summary>
 public class Vic2
-{ 
+{
     public C64 C64 { get; private set; }
     public Vic2ModelBase Vic2Model { get; private set; }
+    public Vic2Screen Vic2Screen { get; private set; }
     public Memory Mem { get; private set; }
 
     public Vic2IRQ Vic2IRQ { get; private set; }
 
-    public const ushort COLS = 40;      // # characters per line in text mode
-    public const ushort ROWS = 25;      // # rows in text mode
-    public const ushort WIDTH = 320;    // # pixels in drawable area (text mode and bitmap graphics mode)
-    public const ushort HEIGHT = 200;   // # pixels in drawable area  (text mode and bitmap graphics mode)
 
     public const int CHARACTERSET_NUMBER_OF_CHARCTERS = 256;
     public const int CHARACTERSET_ONE_CHARACTER_BYTES = 8;      // 8 bytes (one line per byte) for each character.
     public const int CHARACTERSET_SIZE = CHARACTERSET_NUMBER_OF_CHARCTERS * CHARACTERSET_ONE_CHARACTER_BYTES;    // = 1024 (0x0400) bytes. 256 characters, where each character takes up 8 bytes (1 byte per character line)
-
 
     public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
 
@@ -67,11 +63,10 @@ public class Vic2
     public static Vic2 BuildVic2(byte[] ram, Dictionary<string, byte[]> romData, Vic2ModelBase vic2Model, C64 c64)
     {
         var vic2Mem = CreateVic2Memory(ram, romData);
+        var vic2IRQ = new Vic2IRQ();
 
         var screenLineBorderColorLookup = InitializeScreenLineBorderColorLookup(vic2Model);
-        var screenLineBackgroundColorLookup = InitializeScreenLineBackgroundColorLookup(c64, vic2Model);
-
-        var vic2IRQ = new Vic2IRQ();
+        var screenLineBackgroundColorLookup = InitializeScreenLineBackgroundColorLookup(vic2Model);
 
         var vic2 = new Vic2()
         {
@@ -82,6 +77,9 @@ public class Vic2
             ScreenLineBorderColor = screenLineBorderColorLookup,
             ScreenLineBackgroundColor = screenLineBackgroundColorLookup
         };
+
+        var vic2Screen = new Vic2Screen(vic2Model, c64.CpuFrequencyHz);
+        vic2.Vic2Screen = vic2Screen;
 
         return vic2;
     }
@@ -96,18 +94,17 @@ public class Vic2
         return screenLineBorderColor;
     }
 
-    private static Dictionary<ushort, byte> InitializeScreenLineBackgroundColorLookup(C64 c64, Vic2ModelBase vic2Model)
+    private static Dictionary<ushort, byte> InitializeScreenLineBackgroundColorLookup(Vic2ModelBase vic2Model)
     {
         var screenLineBackgroundColor = new Dictionary<ushort, byte>();
         for (ushort i = 0; i < vic2Model.Lines; i++)
         {
-            if (!IsRasterLineInMainScreen(c64, vic2Model, i))
+            if (!vic2Model.IsRasterLineInMainScreen(i))
                 continue;
             screenLineBackgroundColor.Add(i, 0);
         }
         return screenLineBackgroundColor;
     }
-
 
     public void MapIOLocations(Memory mem)
     {
@@ -466,16 +463,10 @@ public class Vic2
 
     private void StoreBackgroundColorForRasterLine(ushort rasterLine)
     {
-        if (!IsRasterLineInMainScreen(C64, C64.Vic2.Vic2Model, rasterLine))
+        if (!C64.Vic2.Vic2Model.IsRasterLineInMainScreen(rasterLine))
             return;
 
         var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
         ScreenLineBackgroundColor[screenLine] = BackgroundColor;
-    }
-
-    private static bool IsRasterLineInMainScreen(C64 c64, Vic2ModelBase vic2Model, ulong rasterLine)
-    {
-        return rasterLine >= vic2Model.FirstRasterLineOfMainScreen
-            && rasterLine < vic2Model.FirstRasterLineOfMainScreen + (ulong)c64.Height;
     }
 }

@@ -7,5 +7,4 @@ public interface ITextMode
 
     public int CharacterWidth { get; }
     public int CharacterHeight { get; }
-
 }

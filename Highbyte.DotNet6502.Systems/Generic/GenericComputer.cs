@@ -16,6 +16,8 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 
     public Memory Mem { get; set; }
     public CPU CPU { get; set; }
+    public IScreen Screen => this;
+
     public ExecOptions DefaultExecOptions { get; set; }
 
     public int Cols => _genericComputerConfig.Memory.Screen.Cols;

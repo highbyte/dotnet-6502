@@ -7,6 +7,7 @@ public interface ISystem
 
     CPU CPU { get; }
     Memory Mem { get; }
+    IScreen Screen { get; }
 
     public bool ExecuteOneFrame(
         IExecEvaluator? execEvaluator = null,
