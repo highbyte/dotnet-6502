@@ -33,6 +33,8 @@ public class C64 : ISystem, ISystemMonitor
     public bool AudioEnabled { get; private set; }
     public TimerMode TimerMode { get; private set; }
 
+    public string ColorMapName { get; private set; }
+
     private LegacyExecEvaluator _oneFrameExecEvaluator;
 
     private C64MonitorCommands _c64MonitorCommands = new C64MonitorCommands();
@@ -166,6 +168,7 @@ public class C64 : ISystem, ISystemMonitor
             ROMData = romData,
             AudioEnabled = c64Config.AudioEnabled,
             TimerMode = c64Config.TimerMode,
+            ColorMapName = c64Config.ColorMapName
         };
         var vic2 = Vic2.BuildVic2(ram, romData, vic2Model, c64);
         var cpu = CreateC64CPU(vic2, mem);

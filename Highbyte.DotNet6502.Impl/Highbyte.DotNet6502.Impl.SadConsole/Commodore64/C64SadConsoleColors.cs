@@ -2,29 +2,29 @@ using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64;
 
-public static class C64SadConsoleColors
+public class C64SadConsoleColors
 {
-    public static Dictionary<System.Drawing.Color, SadRogue.Primitives.Color> SystemToSadConsoleColorMap = new();
+    private Dictionary<System.Drawing.Color, SadRogue.Primitives.Color> _systemToSadConsoleColorMap = new();
 
-    static C64SadConsoleColors()
+    public C64SadConsoleColors(string colorMapName)
     {
-        foreach (var systemColor in ColorMaps.GetAllSystemColors())
+        foreach (var systemColor in ColorMaps.GetAllSystemColors(colorMapName))
         {
-            SystemToSadConsoleColorMap.Add(systemColor, systemColor.ToSadConsoleColor());
+            _systemToSadConsoleColorMap.Add(systemColor, ToSadConsoleColor(systemColor));
         }
     }
 
-    public static SadRogue.Primitives.Color GetSadConsoleColor(System.Drawing.Color systemColorValue)
+    public SadRogue.Primitives.Color GetSadConsoleColor(System.Drawing.Color systemColorValue)
     {
         SadRogue.Primitives.Color color;
-        if (!SystemToSadConsoleColorMap.ContainsKey(systemColorValue))
-            color = SystemToSadConsoleColorMap.Values.First();
+        if (!_systemToSadConsoleColorMap.ContainsKey(systemColorValue))
+            color = _systemToSadConsoleColorMap.Values.First();
         else
-            color = SystemToSadConsoleColorMap[systemColorValue];
+            color = _systemToSadConsoleColorMap[systemColorValue];
         return color;
     }
 
-    private static SadRogue.Primitives.Color ToSadConsoleColor(this System.Drawing.Color color)
+    private SadRogue.Primitives.Color ToSadConsoleColor(System.Drawing.Color color)
     {
         return new Color(color.R, color.G, color.B, color.A);
     }

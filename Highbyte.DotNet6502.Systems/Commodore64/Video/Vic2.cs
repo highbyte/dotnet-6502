@@ -17,7 +17,7 @@ public class Vic2
     public C64 C64 { get; private set; }
     public Vic2ModelBase Vic2Model { get; private set; }
     public Vic2Screen Vic2Screen { get; private set; }
-    public Memory Mem { get; private set; }
+    public Memory Vic2Mem { get; private set; }
 
     public Vic2IRQ Vic2IRQ { get; private set; }
 
@@ -71,7 +71,7 @@ public class Vic2
         var vic2 = new Vic2()
         {
             C64 = c64,
-            Mem = vic2Mem,
+            Vic2Mem = vic2Mem,
             Vic2Model = vic2Model,
             Vic2IRQ = vic2IRQ,
             ScreenLineBorderColor = screenLineBorderColorLookup,
@@ -150,28 +150,28 @@ public class Vic2
         var chargen = romData[C64Config.CHARGEN_ROM_NAME];
 
         // Vic2 can use 4 different banks of 16KB of memory each. They map into C64 RAM or Chargen ROM depending on bank.
-        var mem = new Memory(memorySize: 16 * 1024, numberOfConfigurations: 4, mapToDefaultRAM: false);
+        var vic2Mem = new Memory(memorySize: 16 * 1024, numberOfConfigurations: 4, mapToDefaultRAM: false);
 
-        mem.SetMemoryConfiguration(0);
-        mem.MapRAM(0x0000, ram, 0, 0x1000);
-        mem.MapRAM(0x1000, chargen);    // Chargen ROM "shadow" appear here.  Assume chargen is 0x1000 (4096) bytes length.
-        mem.MapRAM(0x2000, ram, 0x2000, 0x2000);
+        vic2Mem.SetMemoryConfiguration(0);
+        vic2Mem.MapRAM(0x0000, ram, 0, 0x1000);
+        vic2Mem.MapRAM(0x1000, chargen);    // Chargen ROM "shadow" appear here.  Assume chargen is 0x1000 (4096) bytes length.
+        vic2Mem.MapRAM(0x2000, ram, 0x2000, 0x2000);
 
-        mem.SetMemoryConfiguration(1);
-        mem.MapRAM(0x0000, ram, 0x4000, 0x4000);
+        vic2Mem.SetMemoryConfiguration(1);
+        vic2Mem.MapRAM(0x0000, ram, 0x4000, 0x4000);
 
-        mem.SetMemoryConfiguration(2);
-        mem.MapRAM(0x0000, ram, 0x8000, 0x1000);
-        mem.MapRAM(0x1000, chargen);    // Chargen ROM "shadow" appear here. Assume chargen is 0x1000 (4096) bytes length.
-        mem.MapRAM(0x2000, ram, 0xa000, 0x2000);
+        vic2Mem.SetMemoryConfiguration(2);
+        vic2Mem.MapRAM(0x0000, ram, 0x8000, 0x1000);
+        vic2Mem.MapRAM(0x1000, chargen);    // Chargen ROM "shadow" appear here. Assume chargen is 0x1000 (4096) bytes length.
+        vic2Mem.MapRAM(0x2000, ram, 0xa000, 0x2000);
 
-        mem.SetMemoryConfiguration(3);
-        mem.MapRAM(0x0000, ram, 0xc000, 0x4000);
+        vic2Mem.SetMemoryConfiguration(3);
+        vic2Mem.MapRAM(0x0000, ram, 0xc000, 0x4000);
 
         // Default to bank 0
-        mem.SetMemoryConfiguration(0);
+        vic2Mem.SetMemoryConfiguration(0);
 
-        return mem;
+        return vic2Mem;
     }
 
     public void BorderColorStore(ushort _, byte value)

@@ -21,10 +21,14 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     private SKRect _drawImageSource = new SKRect();
     private SKRect _drawImageDest = new SKRect();
 
+    private C64SkiaPaint _c64SkiaPaint;
+
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
     {
         _getSkCanvas = skiaRenderContext.GetCanvas;
         _getGRContext = skiaRenderContext.GetGRContext;
+
+        _c64SkiaPaint = new C64SkiaPaint(c64.ColorMapName);
 
         InitCharset(c64, _getGRContext());
     }
@@ -92,7 +96,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
             return;
         }
         // Pointing to a location where a custom character set is located. Create a image for it.
-        var characterSet = c64.Vic2.Mem.ReadData(c64.Vic2.CharacterSetAddressInVIC2Bank, Vic2.CHARACTERSET_SIZE);
+        var characterSet = c64.Vic2.Vic2Mem.ReadData(c64.Vic2.CharacterSetAddressInVIC2Bank, Vic2.CHARACTERSET_SIZE);
         var chargen = new Chargen();
         _characterSetCurrent = chargen.GenerateChargenImage(grContext, characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
     }
@@ -152,7 +156,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
                 continue;
             var borderColor = c64.Vic2.ScreenLineBorderColor[c64ScreenLine];
             ushort canvasLine = (ushort)(c64ScreenLine - vic2Screen.FirstVisibleScreenLineOfMainScreen);
-            canvas.DrawRect(0, canvasLine, vic2Screen.VisibleWidth, 1, C64SkiaPaint.C64ToFillPaintMap[borderColor]);
+            canvas.DrawRect(0, canvasLine, vic2Screen.VisibleWidth, 1, _c64SkiaPaint.GetFillPaint(borderColor));
         }
     }
 
@@ -168,7 +172,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
                 continue;
             var backgroundColor = c64.Vic2.ScreenLineBackgroundColor[c64ScreenLine];
             ushort canvasLine = (ushort)(c64ScreenLine - vic2Screen.FirstVisibleScreenLineOfMainScreen);
-            canvas.DrawRect(vic2Screen.BorderWidth, canvasLine, vic2Screen.Width, 1, C64SkiaPaint.C64ToFillPaintMap[backgroundColor]);
+            canvas.DrawRect(vic2Screen.BorderWidth, canvasLine, vic2Screen.Width, 1, _c64SkiaPaint.GetFillPaint(backgroundColor));
         }
     }
 
@@ -179,16 +183,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         var vic2Screen = c64.Vic2.Vic2Screen;
 
         byte borderColor = emulatorMem[Vic2Addr.BORDER_COLOR];
-        SKPaint borderPaint;
-        if (C64SkiaPaint.C64ToFillPaintMap.ContainsKey(borderColor))
-        {
-            borderPaint = C64SkiaPaint.C64ToFillPaintMap[borderColor];
-        }
-        else
-        {
-            // Debug.WriteLine($"Warning: Invalid border  color value: {borderColor}");
-            borderPaint = C64SkiaPaint.C64ToFillPaintMap[(byte)C64Colors.Black];
-        }
+        SKPaint borderPaint = _c64SkiaPaint.GetFillPaint(borderColor);
+
         canvas.DrawRect(0, 0, vic2Screen.VisibleWidth, vic2Screen.BorderHeight, borderPaint);
         canvas.DrawRect(0, (vic2Screen.BorderHeight + vic2Screen.Height), vic2Screen.VisibleWidth, vic2Screen.BorderHeight, borderPaint);
         canvas.DrawRect(0, vic2Screen.BorderHeight, vic2Screen.BorderWidth, vic2Screen.Height, borderPaint);
@@ -203,16 +199,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
         // Draw 1 rectangle for background
         byte backgroundColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR];
-        SKPaint bgPaint;
-        if (C64SkiaPaint.C64ToFillPaintMap.ContainsKey(backgroundColor))
-        {
-            bgPaint = C64SkiaPaint.C64ToFillPaintMap[backgroundColor];
-        }
-        else
-        {
-            // Debug.WriteLine($"Warning: Invalid background color value: {backgroundColor}");
-            bgPaint = C64SkiaPaint.C64ToFillPaintMap[(byte)C64Colors.Black];
-        }
+        SKPaint bgPaint = _c64SkiaPaint.GetFillPaint(backgroundColor);
 
         canvas.DrawRect(vic2Screen.BorderWidth, vic2Screen.BorderHeight, vic2Screen.Width, vic2Screen.Height, bgPaint);
     }
@@ -262,7 +249,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         _drawImageDest.Right = pixelPosX + 8;
         _drawImageDest.Bottom = pixelPosY + 8;
 
-        var paint = C64SkiaPaint.C64ToDrawChargenCharacterMap[characterColor];
+        var paint = _c64SkiaPaint.C64ToDrawChargenCharacterMap[characterColor];
         canvas.DrawImage(_characterSetCurrent,
             //source: new SKRect(romImageX, romImageY, romImageX + 8, romImageY + 8),
             //dest: new SKRect(pixelPosX, pixelPosY, pixelPosX + 8, pixelPosY + 8),

@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Config;
 
@@ -95,6 +96,20 @@ public class C64Config : ISystemConfig
         }
     }
 
+    private string _colorMapName;
+    public string ColorMapName
+    {
+        get
+        {
+            return _colorMapName;
+        }
+        set
+        {
+            _colorMapName = value;
+            _isDirty = true;
+        }
+    }
+
     public C64Config()
     {
         // Defaults
@@ -132,6 +147,8 @@ public class C64Config : ISystemConfig
 
         AudioSupported = false; // Set to true after creating if the audio system is implemented for the host platform
         AudioEnabled = false;
+
+        ColorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
     }
 
     public bool HasROM(string romName) => ROMs.Any(x => x.Name == romName);

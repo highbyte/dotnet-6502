@@ -8,6 +8,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64;
 public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IRenderer
 {
     private SadConsoleRenderContext _sadConsoleRenderContext;
+    private C64SadConsoleColors _c64SadConsoleColors;
 
     public C64SadConsoleRenderer()
     {
@@ -16,6 +17,7 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
     public void Init(C64 c64, SadConsoleRenderContext sadConsoleRenderContext)
     {
         _sadConsoleRenderContext = sadConsoleRenderContext;
+        _c64SadConsoleColors = new C64SadConsoleColors(c64.ColorMapName);
     }
 
     public void Init(ISystem system, IRenderContext renderContext)
@@ -127,8 +129,8 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
             x,
             y,
             sadConsoleCharacter,
-            C64SadConsoleColors.GetSadConsoleColor(ColorMaps.GetSystemColor(emulatorFgColor)),
-            C64SadConsoleColors.GetSadConsoleColor(ColorMaps.GetSystemColor(emulatorBgColor))
+            _c64SadConsoleColors.GetSadConsoleColor(ColorMaps.GetSystemColor(emulatorFgColor, c64.ColorMapName)),
+            _c64SadConsoleColors.GetSadConsoleColor(ColorMaps.GetSystemColor(emulatorBgColor, c64.ColorMapName))
             );
     }
 
