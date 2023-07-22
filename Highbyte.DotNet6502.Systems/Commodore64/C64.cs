@@ -39,8 +39,8 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     public int VisibleHeight => (int)Vic2.Vic2Model.LinesVisible;
     //public int VisibleHeight => (int)Vic2.Vic2Model.Lines;
     public bool HasBorder => true;
-    public int BorderWidth => (int)Math.Ceiling((double)((VisibleWidth - Width) / 2.0d));
-    public int BorderHeight => (int)Math.Ceiling((double)((VisibleHeight - Height) / 2.0d));
+    public int BorderWidth => (int)Math.Floor((double)((VisibleWidth - Width) / 2.0d));
+    public int BorderHeight => (int)Math.Floor((double)((VisibleHeight - Height) / 2.0d));
     public float RefreshFrequencyHz => (float)CpuFrequencyHz / Vic2.Vic2Model.CyclesPerFrame;
 
     public bool AudioEnabled { get; private set; }

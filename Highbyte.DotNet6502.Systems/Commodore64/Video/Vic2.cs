@@ -60,6 +60,7 @@ public class Vic2
     }
 
     public Dictionary<ushort, byte> ScreenLineBorderColor { get; private set; }
+    public Dictionary<ushort, byte> ScreenLineBackgroundColor { get; private set; }
 
     private Vic2() { }
 
@@ -68,6 +69,7 @@ public class Vic2
         var vic2Mem = CreateVic2Memory(ram, romData);
 
         var screenLineBorderColorLookup = InitializeScreenLineBorderColorLookup(vic2Model);
+        var screenLineBackgroundColorLookup = InitializeScreenLineBackgroundColorLookup(c64, vic2Model);
 
         var vic2IRQ = new Vic2IRQ();
 
@@ -77,7 +79,8 @@ public class Vic2
             Mem = vic2Mem,
             Vic2Model = vic2Model,
             Vic2IRQ = vic2IRQ,
-            ScreenLineBorderColor = screenLineBorderColorLookup
+            ScreenLineBorderColor = screenLineBorderColorLookup,
+            ScreenLineBackgroundColor = screenLineBackgroundColorLookup
         };
 
         return vic2;
@@ -92,6 +95,19 @@ public class Vic2
         }
         return screenLineBorderColor;
     }
+
+    private static Dictionary<ushort, byte> InitializeScreenLineBackgroundColorLookup(C64 c64, Vic2ModelBase vic2Model)
+    {
+        var screenLineBackgroundColor = new Dictionary<ushort, byte>();
+        for (ushort i = 0; i < vic2Model.Lines; i++)
+        {
+            if (!IsRasterLineInMainScreen(c64, vic2Model, i))
+                continue;
+            screenLineBackgroundColor.Add(i, 0);
+        }
+        return screenLineBackgroundColor;
+    }
+
 
     public void MapIOLocations(Memory mem)
     {
@@ -419,6 +435,7 @@ public class Vic2
 
         // Remember colors for each raster line
         StoreBorderColorForRasterLine(_currentRasterLineInternal);
+        StoreBackgroundColorForRasterLine(_currentRasterLineInternal);
 
         // Check if we have reached the end of the frame.
         if (CyclesConsumedCurrentVblank >= Vic2Model.CyclesPerFrame)
@@ -444,5 +461,20 @@ public class Vic2
     {
         var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
         ScreenLineBorderColor[screenLine] = BorderColor;
+    }
+
+    private void StoreBackgroundColorForRasterLine(ushort rasterLine)
+    {
+        if (!IsRasterLineInMainScreen(C64, C64.Vic2.Vic2Model, rasterLine))
+            return;
+
+        var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
+        ScreenLineBackgroundColor[screenLine] = BackgroundColor;
+    }
+
+    private static bool IsRasterLineInMainScreen(C64 c64, Vic2ModelBase vic2Model, ulong rasterLine)
+    {
+        return rasterLine >= vic2Model.FirstRasterLineOfMainScreen
+            && rasterLine < vic2Model.FirstRasterLineOfMainScreen + (ulong)c64.Height;
     }
 }

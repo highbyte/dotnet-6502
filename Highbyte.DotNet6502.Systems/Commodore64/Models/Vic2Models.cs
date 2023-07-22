@@ -15,6 +15,8 @@ public class Vic2ModelNTSC_old : Vic2ModelBase
     public override ulong LinesVisible => 234;
     public override ulong PixelsPerLineVisible => 411;
 
+    public override ulong FirstRasterLineOfMainScreen => 51; // TODO: Verify
+
     public override ulong HBlankPixels => PixelsPerLine - PixelsPerLineVisible;
     public override ulong VBlankLines => Lines - LinesVisible;
 
@@ -39,6 +41,8 @@ public class Vic2ModelNTSC : Vic2ModelBase
 
     public override ulong LinesVisible => 235;
     public override ulong PixelsPerLineVisible => 418;
+
+    public override ulong FirstRasterLineOfMainScreen => 51;
 
     public override ulong HBlankPixels => PixelsPerLine - PixelsPerLineVisible;
     public override ulong VBlankLines => Lines - LinesVisible;
@@ -105,6 +109,9 @@ public class Vic2ModelPAL : Vic2ModelBase
 
     public override ulong PixelsPerLineVisible => 403;
 
+    public override ulong FirstRasterLineOfMainScreen => 51;
+
+
     public override ulong HBlankPixels => PixelsPerLine - PixelsPerLineVisible;
     // Should be 312 - 284 = 28  (or "around" 30 as stated in some docs)
     public override ulong VBlankLines => Lines - LinesVisible;
@@ -161,6 +168,8 @@ public abstract class Vic2ModelBase
     public abstract ulong PixelsPerLineVisible { get; }    // PixelsPerLine - HBlankPixels;
     public abstract ulong PixelsPerLine { get; }           // CyclesPerLine * PixelsPerCPUCycle;
     public abstract ulong LinesVisible { get; }             // Lines - VBlankLines;
+
+    public abstract ulong FirstRasterLineOfMainScreen { get; }    // The raster line where the main screen with background starts.
 
     public ulong PixelsPerCPUCycle => 8;
     public abstract ulong HBlankPixels { get; }

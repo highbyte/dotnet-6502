@@ -20,9 +20,10 @@ public class C64Setup
         {
             C64Model = "C64NTSC",   // C64NTSC, C64PAL
             Vic2Model = "NTSC",     // NTSC, NTSC_old, PAL
-                                    // C64Model = "C64PAL",   // C64NTSC, C64PAL
-                                    // Vic2Model = "PAL",     // NTSC, NTSC_old, PAL
-                                    //ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64",
+            //C64Model = "C64PAL",   // C64NTSC, C64PAL
+            //Vic2Model = "PAL",     // NTSC, NTSC_old, PAL
+
+            //ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64",
             ROMDirectory = "%HOME%/Downloads/C64",
             ROMs = new List<ROM>
             {

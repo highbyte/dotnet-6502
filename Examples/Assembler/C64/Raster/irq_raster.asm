@@ -8,7 +8,7 @@
 ;Program settings
 ;------------------------------------------------------------
 
-WAIT_LINE1 = 150;
+WAIT_LINE1 = 51;
 
 BORDER_COLOR_AFTER_VBLANK = $07;
 BORDER_COLOR_BAR = $09;
@@ -83,6 +83,7 @@ Init:
 Irq1:
 	LDA NEXT_IRQ_BORDER_COLOR
 	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to yellow
+	;STA SCREEN_BACKGROUND_COLOR_ADDRESS       ; change background colour
 
 	; Setup second IRQ to raster line in the middle
 	+set_irq Irq2, WAIT_LINE1, BORDER_COLOR_BAR
@@ -94,6 +95,7 @@ Irq1:
 Irq2:
 	LDA NEXT_IRQ_BORDER_COLOR
 	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to brown
+	;STA SCREEN_BACKGROUND_COLOR_ADDRESS       ; change background colour
 
 	; Setup third IRQ to raster line a few lines after the middle
 	+set_irq Irq3, WAIT_LINE1+3, BORDER_COLOR_AFTER_BAR
@@ -105,6 +107,7 @@ Irq2:
 Irq3:
 	LDA NEXT_IRQ_BORDER_COLOR
 	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to orange
+	;STA SCREEN_BACKGROUND_COLOR_ADDRESS       ; change background colour
 
 	; Setup IRQ back to first one
 	+set_irq Irq1, 0, BORDER_COLOR_AFTER_VBLANK

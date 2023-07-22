@@ -10,7 +10,7 @@
      8                          ;Program settings
      9                          ;------------------------------------------------------------
     10                          
-    11                          WAIT_LINE1 = 150;
+    11                          WAIT_LINE1 = 51;
     12                          
     13                          BORDER_COLOR_AFTER_VBLANK = $07;
     14                          BORDER_COLOR_BAR = $09;
@@ -85,32 +85,35 @@
     83                          Irq1:
     84  c047 a5fd               	LDA NEXT_IRQ_BORDER_COLOR
     85  c049 8d20d0             	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to yellow
-    86                          
-    87                          	; Setup second IRQ to raster line in the middle
-    88  c04c a9968d12d0a900c9...	+set_irq Irq2, WAIT_LINE1, BORDER_COLOR_BAR
-    89                          
-    90  c078 0e19d0             	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
-    91                          
-    92  c07b 4c31ea             	JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.	
-    93                          
-    94                          Irq2:
-    95  c07e a5fd               	LDA NEXT_IRQ_BORDER_COLOR
-    96  c080 8d20d0             	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to brown
-    97                          
-    98                          	; Setup third IRQ to raster line a few lines after the middle
-    99  c083 a9998d12d0a900c9...	+set_irq Irq3, WAIT_LINE1+3, BORDER_COLOR_AFTER_BAR
-   100                          
-   101  c0af 0e19d0             	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+    86                          	;STA SCREEN_BACKGROUND_COLOR_ADDRESS       ; change background colour
+    87                          
+    88                          	; Setup second IRQ to raster line in the middle
+    89  c04c a9338d12d0a900c9...	+set_irq Irq2, WAIT_LINE1, BORDER_COLOR_BAR
+    90                          
+    91  c078 0e19d0             	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+    92                          
+    93  c07b 4c31ea             	JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.	
+    94                          
+    95                          Irq2:
+    96  c07e a5fd               	LDA NEXT_IRQ_BORDER_COLOR
+    97  c080 8d20d0             	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to brown
+    98                          	;STA SCREEN_BACKGROUND_COLOR_ADDRESS       ; change background colour
+    99                          
+   100                          	; Setup third IRQ to raster line a few lines after the middle
+   101  c083 a9368d12d0a900c9...	+set_irq Irq3, WAIT_LINE1+3, BORDER_COLOR_AFTER_BAR
    102                          
-   103  c0b2 4c81ea             	JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc
+   103  c0af 0e19d0             	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
    104                          
-   105                          Irq3:
-   106  c0b5 a5fd               	LDA NEXT_IRQ_BORDER_COLOR
-   107  c0b7 8d20d0             	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to orange
-   108                          
-   109                          	; Setup IRQ back to first one
-   110  c0ba a9008d12d0a900c9...	+set_irq Irq1, 0, BORDER_COLOR_AFTER_VBLANK
+   105  c0b2 4c81ea             	JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc
+   106                          
+   107                          Irq3:
+   108  c0b5 a5fd               	LDA NEXT_IRQ_BORDER_COLOR
+   109  c0b7 8d20d0             	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to orange
+   110                          	;STA SCREEN_BACKGROUND_COLOR_ADDRESS       ; change background colour
    111                          
-   112  c0e6 0e19d0             	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
-   113                          
-   114  c0e9 4c81ea             	JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc
+   112                          	; Setup IRQ back to first one
+   113  c0ba a9008d12d0a900c9...	+set_irq Irq1, 0, BORDER_COLOR_AFTER_VBLANK
+   114                          
+   115  c0e6 0e19d0             	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+   116                          
+   117  c0e9 4c81ea             	JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc
