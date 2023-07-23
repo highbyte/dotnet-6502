@@ -176,19 +176,19 @@ public class Vic2
 
     public void BorderColorStore(ushort _, byte value)
     {
-        BorderColor = value;
+        BorderColor = (byte)(value & 0b0000_1111); // Only bits 0-3 are stored;
     }
     public byte BorderColorLoad(ushort _)
     {
-        return BorderColor;
+        return (byte)(BorderColor | 0b1111_0000); // Bits 4-7 are unused and always 1
     }
     public void BackgroundColorStore(ushort _, byte value)
     {
-        BackgroundColor = value;
+        BackgroundColor = (byte)(value & 0b0000_1111); // Only bits 0-3 are stored
     }
     public byte BackgroundColorLoad(ushort _)
     {
-        return BackgroundColor;
+        return ((byte)(BackgroundColor | 0b1111_0000)); // Bits 4-7 are unused and always 1
     }
 
     public void MemorySetupStore(ushort _, byte value)
