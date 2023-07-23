@@ -1,0 +1,376 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\C64\Raster\scroller_and_raster.asm
+     1                          ;ACME assembler
+     2                          ;!to "./scroller_and_raster.prg"
+     3                          
+     4                          ;code start address
+     5                          * = $c000
+     6                          
+     7                          ;------------------------------------------------------------
+     8                          ;Program settings
+     9                          ;------------------------------------------------------------
+    10                          STATIC_TEXT_ROW = 8;
+    11                          COLOR_CYCLE_EACH_X_FRAME = 2;
+    12                          
+    13                          SCROLLER_ROW = 14;
+    14                          SCROLL_EACH_X_FRAME = 4;
+    15                          
+    16                          ;------------------------------------------------------------
+    17                          ;Memory address shared with emulator host for updating screen
+    18                          ;------------------------------------------------------------
+    19                          ;40 columns and 25 rows, 1 byte per character = 1000 (0x03e8) bytes
+    20                          ;Laid out in memory as appears on screen.
+    21                          SCREEN_MEM = 0x0400			;0x0400 - 0x07e7
+    22                          SCREEN_MEM_COLS = 40
+    23                          SCREEN_MEM_ROWS = 25
+    24                          ;Colors, one byte per character = 1000 (0x03e8) bytes
+    25                          SCREEN_COLOR_MEM = 0xd800	;0xd800 - 0xdbe7
+    26                          
+    27                          ;Bit 8 (highest bit) of the current video scan line is stored in bit #7 in this register
+    28                          SCREEN_CONTROL_REGISTER_1 = 0xd011
+    29                          ;Bits 0-7 the current video scan line bit
+    30                          SCREEN_RASTER_LINE = 0xd012
+    31                          
+    32                          ;Border color address
+    33                          SCREEN_BORDER_COLOR_ADDRESS = 0xd020
+    34                          ;Background color address for main screen
+    35                          SCREEN_BACKGROUND_COLOR_ADDRESS = 0xd021
+    36                          
+    37                          ;Check keyboard status
+    38                          CIA1_DATAB = 0xdc01
+    39                          
+    40                          ;------------------------------------------------------------
+    41                          ;ZP memory locations used for calculations
+    42                          ;------------------------------------------------------------
+    43                          ;Zero Page address that will hold an 16 bit address (text start in memory + current scroll offset)
+    44                          ;Little endian:
+    45                          ;	0xfb will contain least significant byte, that is used in Indirect Indexed addressing mode
+    46                          ;	0xfc will contain most significant byte.
+    47                          ZP_SCROLL_TEXT_ADDRESS = 0xfb
+    48                          
+    49                          ;Index to where in text color list
+    50                          ZP_TEXT_COLOR_CYCLE_INDEX = 0xfd
+    51                          
+    52                          ;Index to where in background color list 
+    53                          ZP_BG_COLOR_CYCLE_INDEX = 0xfe
+    54                          
+    55                          ;Index to where in border color list
+    56                          ZP_BORDER_COLOR_CYCLE_INDEX = 0x02
+    57                          
+    58                          ;Frame counters
+    59                          ZP_SCROLL_FRAME_COUNT = 0x03
+    60                          ZP_COLOR_CYCLE_FRAME_COUNT = 0x04
+    61                          
+    62                          ;Index in raster sine table
+    63                          RASTER_COUNTER = 0x05
+    64                          
+    65                          ;Macros
+    66                          !macro wait_vblank {
+    67                          ;Wait for vblank (if raster pos 255 already been waited for, set X to no-zero)
+    68                          	cpx #0
+    69                          	bne .wait_vblank2
+    70                          .wait_vblank1
+    71                          	bit SCREEN_CONTROL_REGISTER_1
+    72                          	bpl .wait_vblank1
+    73                          .wait_vblank2
+    74                          	bit SCREEN_CONTROL_REGISTER_1
+    75                          	bmi .wait_vblank2
+    76                          }
+    77                          
+    78                          ;------------------------------------------------------------
+    79                          ;Code start
+    80                          ;------------------------------------------------------------
+    81  c000 78                 	sei			;Disable interrupts;
+    82                          
+    83                          ;Set default border and background color
+    84  c001 a90b               	lda #0x0b
+    85  c003 8d40c3             	sta defaultBorderColor
+    86  c006 a900               	lda #0x00
+    87  c008 8d41c3             	sta defaultBackgroundColor
+    88                          
+    89                          ;Init bg color cycle index
+    90  c00b a902               	lda #2
+    91  c00d 85fe               	sta ZP_BG_COLOR_CYCLE_INDEX
+    92                          
+    93                          ;Init border color cycle index
+    94  c00f a900               	lda #0
+    95  c011 8502               	sta ZP_BORDER_COLOR_CYCLE_INDEX
+    96                          
+    97                          ;Clear text screen and set text color
+    98  c013 2054c0             	jsr cleartextscreen
+    99  c016 a901               	lda #1	;text color
+   100  c018 2068c0             	jsr settextcolors
+   101                          
+   102                          ;Initialize scroll text address to start of text.
+   103  c01b 20dfc0             	jsr initscroll
+   104  c01e 20e8c0             	jsr initscrollframecount
+   105                          
+   106                          ;Initialize static text and color cycle
+   107  c021 207ac0             	jsr printstatictext
+   108  c024 20bac0             	jsr initcolorcycleframecount
+   109  c027 20b5c0             	jsr initcolorcycle
+   110                          
+   111                          !zone mainloop
+   112                          mainloop:
+   113                          ;Wait for new frame (flag set by emulator host)
+   114  c02a a200               	ldx #0
+   115  c02c e000d0052c11d010...	+wait_vblank
+   116                          
+   117                          ;Cycle background color if key is pressed
+   118                          ;	jsr cyclebackgroundifkeyispressed
+   119                          ;Cycle border color if key is pressed
+   120                          ;	jsr cycleborderifkeyispressed
+   121                          
+   122                          ;Color cycle (evry frame)
+   123                          	;Check how often we should scroll (every x frame)
+   124  c03a c604                	dec ZP_COLOR_CYCLE_FRAME_COUNT
+   125  c03c d006                	bne skipcolorcycle
+   126  c03e 208bc0              	jsr colorcycle_statictext
+   127  c041 20bac0              	jsr initcolorcycleframecount
+   128                          skipcolorcycle:
+   129                          
+   130                          ;Scroller
+   131                          	;Check how often we should scroll (every x frame)
+   132  c044 c603                	dec ZP_SCROLL_FRAME_COUNT
+   133  c046 d006                	bne skipscroll
+   134  c048 20bfc0              	jsr scrolltext
+   135  c04b 20e8c0              	jsr initscrollframecount
+   136                          
+   137                          skipscroll:
+   138                          
+   139                          ;Raster bars
+   140  c04e 20edc0             	jsr rasterbars
+   141                          
+   142                          	;brk	; In emulator, setup hitting brk instruction to stop	
+   143  c051 4c2ac0             	jmp mainloop
+   144                          	;brk	; In emulator, setup hitting brk instruction to stop
+   145                          ;-----------------
+   146                          
+   147                          !zone cleartextscreen
+   148                          cleartextscreen:
+   149  c054 a920               	lda #$20
+   150  c056 a200               	ldx #0
+   151                          .loop:
+   152  c058 9d0004             	sta SCREEN_MEM,x
+   153  c05b 9d0005             	sta SCREEN_MEM + 0x100,x
+   154  c05e 9d0006             	sta SCREEN_MEM + 0x200,x
+   155  c061 9d0007             	sta SCREEN_MEM + 0x300,x
+   156  c064 ca                 	dex
+   157  c065 d0f1               	bne .loop
+   158  c067 60                 	rts
+   159                          
+   160                          !zone settextcolors
+   161                          ;Set color for each character on screen to the value in A
+   162                          settextcolors:
+   163  c068 a200               	ldx #0
+   164                          .loop:
+   165  c06a 9d00d8             	sta SCREEN_COLOR_MEM,x
+   166  c06d 9d00d9             	sta SCREEN_COLOR_MEM + 0x100,x
+   167  c070 9d00da             	sta SCREEN_COLOR_MEM + 0x200,x
+   168  c073 9d00db             	sta SCREEN_COLOR_MEM + 0x300,x
+   169  c076 ca                 	dex
+   170  c077 d0f1               	bne .loop
+   171  c079 60                 	rts
+   172                          
+   173                          
+   174                          !zone printstatictext
+   175                          printstatictext:
+   176  c07a a200               	ldx #0
+   177  c07c a000               	ldy #0
+   178                          .loop:
+   179  c07e bd21c1             	lda STATIC_TEXT, X
+   180  c081 f007               	beq .endoftext
+   181  c083 9d4005             	sta SCREEN_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Print character. A will contain current character to print, and X the column
+   182  c086 e8                 	inx
+   183  c087 4c7ec0             	jmp .loop
+   184                          .endoftext
+   185  c08a 60                 	rts
+   186                          
+   187                          ;-----------------
+   188                          !zone colorcycle_statictext
+   189                          colorcycle_statictext:
+   190  c08b a200               	ldx #0
+   191  c08d a5fd               	lda ZP_TEXT_COLOR_CYCLE_INDEX
+   192  c08f a8                 	tay
+   193                          .loop:
+   194  c090 b94ac1             	lda STATIC_TEXT_COLOR, Y
+   195  c093 c9ff               	cmp #$ff
+   196  c095 d005               	bne .notendofcolorlist
+   197  c097 a000               	ldy #0
+   198  c099 4c90c0             	jmp .loop
+   199                          .notendofcolorlist
+   200  c09c c8                 	iny
+   201  c09d 9d40d9             	sta SCREEN_COLOR_MEM + (SCREEN_MEM_COLS * STATIC_TEXT_ROW) , X	; Change color of character. A will contain current color to print, and X the column
+   202  c0a0 e8                 	inx
+   203  c0a1 e028               	cpx #SCREEN_MEM_COLS
+   204  c0a3 d0eb               	bne .loop	;Loop until we changed color for entire row of 80 characters
+   205                          
+   206                          	;Increase color cycle index starting point.
+   207  c0a5 e6fd               	inc ZP_TEXT_COLOR_CYCLE_INDEX
+   208  c0a7 a5fd               	lda ZP_TEXT_COLOR_CYCLE_INDEX
+   209  c0a9 a8                 	tay
+   210                          	;Check if we reached end, then reset
+   211  c0aa b94ac1             	lda STATIC_TEXT_COLOR, Y
+   212  c0ad c9ff               	cmp #$ff
+   213  c0af d003               	bne .notendofcolorlist2
+   214  c0b1 20b5c0             	jsr initcolorcycle
+   215                          .notendofcolorlist2
+   216  c0b4 60                 	rts
+   217                          
+   218                          ;-----------------
+   219                          !zone initcolorcycle
+   220                          initcolorcycle:
+   221  c0b5 a900               	lda #0
+   222  c0b7 85fd               	sta ZP_TEXT_COLOR_CYCLE_INDEX
+   223  c0b9 60                 	rts
+   224                          
+   225                          initcolorcycleframecount:	
+   226                          	;Init framecounter (decrease from number to 0)
+   227  c0ba a902               	lda #COLOR_CYCLE_EACH_X_FRAME
+   228  c0bc 8504               	sta ZP_COLOR_CYCLE_FRAME_COUNT
+   229  c0be 60                 	rts
+   230                          
+   231                          ;-----------------
+   232                          !zone scrolltext
+   233                          scrolltext:
+   234  c0bf a200               	ldx #0
+   235  c0c1 a000               	ldy #0
+   236                          .loop:
+   237  c0c3 b1fb               	lda (ZP_SCROLL_TEXT_ADDRESS), Y
+   238  c0c5 d008               	bne .notendofscroll
+   239  c0c7 20dfc0             	jsr initscroll					; Reset scroll pointer to start of text
+   240  c0ca a000               	ldy #0
+   241  c0cc 4cc3c0             	jmp .loop
+   242                          .notendofscroll
+   243  c0cf c8                 	iny
+   244  c0d0 9d3006             	sta SCREEN_MEM + (SCREEN_MEM_COLS * SCROLLER_ROW) , X				; Print character. A will contain current character to print, and X the column
+   245  c0d3 e8                 	inx
+   246  c0d4 e028               	cpx #SCREEN_MEM_COLS
+   247  c0d6 d0eb               	bne .loop						;Loop until we printed 80 characters
+   248                          
+   249  c0d8 e6fb               	inc ZP_SCROLL_TEXT_ADDRESS		;Increase scroll start pointer lowbyte
+   250  c0da d002               	bne .nohighbyteincrease			;Check if we reach 00 (wrap around), then Zero flag is set, which means we should also increase highbyte
+   251  c0dc e6fc               	inc ZP_SCROLL_TEXT_ADDRESS + 1	;Increase scroll start pointer highbyte if we got carry from lowbyte
+   252                          .nohighbyteincrease
+   253  c0de 60                 	rts
+   254                          ;-----------------
+   255                          
+   256                          !zone initscroll
+   257                          initscroll:
+   258  c0df a987               	lda #<SCROLL_TEXT	;Load lowbyte of scroll text start in memory. We start at -1 because code will start by increasing the address by 1
+   259  c0e1 85fb               	sta ZP_SCROLL_TEXT_ADDRESS
+   260  c0e3 a9c1               	lda #>SCROLL_TEXT	;Load highbyte of scroll text start in memory. We start at -1 because code will start by increasing the address by 1
+   261  c0e5 85fc               	sta ZP_SCROLL_TEXT_ADDRESS + 1
+   262  c0e7 60                 	rts
+   263                          
+   264                          initscrollframecount:	
+   265                          	;Init framecounter (decrease from number to 0)
+   266  c0e8 a904               	lda #SCROLL_EACH_X_FRAME
+   267  c0ea 8503               	sta ZP_SCROLL_FRAME_COUNT
+   268  c0ec 60                 	rts
+   269                          ;-----------------
+   270                          
+   271                          !zone rasterbars
+   272                          rasterbars:
+   273  c0ed a605               	ldx RASTER_COUNTER
+   274  c0ef bd54c3             	lda rasterSinusTable,x	;Grab new rasterline value  
+   275                          .rasterwait:
+   276  c0f2 cd12d0             	cmp SCREEN_RASTER_LINE	;from the table and wait
+   277  c0f5 d0fb                   bne .rasterwait		;for raster the line
+   278                          
+   279  c0f7 a00a               	ldy #10				;Loose time to hide the
+   280                          .idle1	
+   281  c0f9 88                 	dey					;flickering at the beginning 
+   282  c0fa d0fd               	bne .idle1			;of the effect
+   283                          
+   284                          ;------------------------------------------------------------------
+   285                          ; Main Loop to print raster bars
+   286                          ;------------------------------------------------------------------
+   287  c0fc a200               	ldx #00		
+   288                          .loop	
+   289  c0fe bd42c3             	lda rasterColorTable,x	;assign background and border
+   290  c101 8d20d0                	sta SCREEN_BORDER_COLOR_ADDRESS
+   291  c104 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   292                          
+   293  c107 bc4bc3             	ldy rasterDelayTable,x	;Loose time to hide the
+   294                          .idle2	
+   295  c10a 88                 	dey					;flickering at the end
+   296  c10b d0fd               	bne .idle2			;of the effect
+   297                          
+   298                          
+   299  c10d e8                 	inx 		
+   300  c10e e009               	cpx #09
+   301  c110 d0ec               	bne .loop
+   302                          ;------------------------------------------------------------------
+   303                          ; End of main loop
+   304                          ;------------------------------------------------------------------
+   305                          
+   306                          	;Assign default border and background colors
+   307  c112 ad40c3             	lda defaultBorderColor			
+   308  c115 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS
+   309  c118 ad41c3             	lda defaultBackgroundColor
+   310  c11b 8d21d0             	sta SCREEN_BACKGROUND_COLOR_ADDRESS
+   311                          	
+   312  c11e e605               	inc RASTER_COUNTER
+   313                          
+   314  c120 60                 	rts
+   315                          
+   316                          ;------------------------------------------------------------
+   317                          ;Data
+   318                          ;------------------------------------------------------------
+   319                          !zone data
+   320                          
+   321                          !convtab scr	;Text conversion setting: pet (PetSCII), raw (none), scr (C64 screen code)
+   322                          
+   323                          STATIC_TEXT:
+   324                          	;!text "       *** 6502 machine code running in highbyte.dotnet6502 emulator! ***       "
+   325  c121 3635303220030f04...	!text "6502 code running in dotnet6502 emulator"
+   326  c149 00                 	!by 0 ;End of text indicator
+   327                          
+   328                          STATIC_TEXT_COLOR:
+   329                          	;!by 0x0b,0x0b,0x0b,0x0b,0x0c,0x0c,0x0c,0x0c,0x0f,0x0f,0x01,0x01,0x0f,0x0f,0x0c,0x0c,0x0c,0x0c,0x0c,0x0c,0x0c
+   330                          	;!by 0x02,0x02,0x02,0x02,0x04,0x04,0x04,0x04,0x0a,0x0a,0x0a,0x0a,0x07,0x07,0x07,0x07,0x0a,0x0a,0x0a,0x0a,0x04,0x04,0x04,0x04,0x02,0x02,0x02,0x02
+   331  c14a 020202020a0a0a0a...	!by 0x02,0x02,0x02,0x02,0x0a,0x0a,0x0a,0x0a,0x07,0x07,0x07,0x07,0x0a,0x0a,0x0a,0x0a,0x02,0x02,0x02,0x02
+   332  c15e 060606060e0e0e0e...	!by 0x06,0x06,0x06,0x06,0x0e,0x0e,0x0e,0x0e,0x01,0x01,0x01,0x01,0x0e,0x0e,0x0e,0x0e,0x06,0x06,0x06,0x06
+   333  c172 050505050d0d0d0d...	!by 0x05,0x05,0x05,0x05,0x0d,0x0d,0x0d,0x0d,0x01,0x01,0x01,0x01,0x0d,0x0d,0x0d,0x0d,0x05,0x05,0x05,0x05
+   334  c186 ff                 	!by 0xff ;End of color indicator (cannot be 0 which is black)
+   335                          
+   336                          SCROLL_TEXT:
+   337                          	;!text "                                                                                "
+   338  c187 2020202020202020...	!text "                                        "
+   339  c1af 0809070802191405...	!text "highbyte, in 2022, proudly presents... a dotnet 6502 cpu emulator!    "
+   340  c1f5 1408091320281201...	!text "this (rather choppy) scroller and color cycler is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
+   341  c287 080f0c0420131001...	!text "hold space to flash border color.   "
+   342  c2ab 0712050514090e07...	!text "greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups them and virtual!"
+   343                          	;!text "                                                                                "
+   344  c317 2020202020202020...	!text "                                        "
+   345  c33f 00                 	!by 0 ;End of text indicator
+   346                          
+   347                          
+   348                          defaultBorderColor:
+   349  c340 0b                 	!by 0x0b
+   350                          
+   351                          defaultBackgroundColor:
+   352  c341 00                 	!by 0x00
+   353                          
+   354                          rasterColorTable:
+   355  c342 09080c0d010d0c08...!by 09,08,12,13,01,13,12,08,09
+   356                          
+   357                          rasterDelayTable:
+   358  c34b 080809080c080808...!by 08,08,09,08,12,08,08,08,09
+   359                          
+   360                          rasterSinusTable:
+   361  c354 8c8f9194979a9c9f...!by 140,143,145,148,151,154,156,159,162,164,167,169,172,175,177,180,182,185,187,190
+   362  c368 c0c2c5c7c9ccced0...!by 192,194,197,199,201,204,206,208,210,212,214,216,218,220,222,224,225,227,229,230
+   363  c37c e8e9ebecedeef0f1...!by 232,233,235,236,237,238,240,241,242,243,244,245,245,246,247,247,248,248,249,249
+   364  c390 fafafafafafafafa...!by 250,250,250,250,250,250,250,250,249,249,249,248,248,247,247,246,245,244,243,242
+   365  c3a4 f1f0efeeedebeae8...!by 241,240,239,238,237,235,234,232,231,229,228,226,224,223,221,219,217,215,213,211
+   366  c3b8 d1cfcdcac8c6c4c1...!by 209,207,205,202,200,198,196,193,191,188,186,183,181,178,176,173,171,168,166,163
+   367  c3cc a09e9b989593908d...!by 160,158,155,152,149,147,144,141,139,136,133,131,128,125,122,120,117,114,112,109
+   368  c3e0 6b686663615e5c59...!by 107,104,102,99,97,94,92,89,87,84,82,80,78,75,73,71,69,67,65,63
+   369  c3f4 3d3b393836343331...!by 61,59,57,56,54,52,51,49,48,46,45,43,42,41,40,39,38,37,36,35
+   370  c408 22212120201f1f1f...!by 34,33,33,32,32,31,31,31,30,30,30,30,30,30,30,30,31,31,32,32
+   371  c41c 2121222323242526...!by 33,33,34,35,35,36,37,38,39,40,42,43,44,45,47,48,50,51,53,55
+   372  c430 383a3c3e40424446...!by 56,58,60,62,64,66,68,70,72,74,76,79,81,83,86,88,90,93,95,98
+   373  c444 6467696c6f717476...!by 100,103,105,108,111,113,116,118,121,124,126,129,132,135,137,140
+   374                          

@@ -1,8 +1,8 @@
 
 al C:0002 .COUNTER
 
+al C:c006 .rasterwait
 al C:c001 .main
-al C:c003 .raster
 al C:c03e .delayTable
 al C:c01e .idle2
 al C:c00d .idle1

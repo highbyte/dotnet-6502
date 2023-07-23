@@ -11,41 +11,43 @@
 * = $c000
 COUNTER	= $02
 
-
 	sei
-	
-main	ldx COUNTER		
+main	
+	ldx COUNTER		
+	lda sinusTable,x	;Grab new rasterline value  
+rasterwait
+	cmp $D012			;from the table and wait
+    bne rasterwait		;for raster the line
 
-raster	lda sinusTable,x	;Grab new rasterline value  
-	cmp $D012		;from the table and wait
-        	bne raster+3	;for raster the line
-
-	ldy #10		;Loose time to hide the
-idle1	dey		;flickering at the beginning 
-	bne idle1		;of the effect
+	ldy #10				;Loose time to hide the
+idle1	
+	dey					;flickering at the beginning 
+	bne idle1			;of the effect
 
 ;------------------------------------------------------------------
 ; Main Loop to print raster bars
 ;------------------------------------------------------------------
 	ldx #00		
-loop	lda colorTable,x	;assign background and border
-   	sta $d020		;colors
+loop	
+	lda colorTable,x	;assign background and border
+   	sta $d020			;colors
 	sta $d021
 
 	ldy delayTable,x	;Loose time to hide the
-idle2	dey		;flickering at the end
-	bne idle2		;of the effect
+idle2	
+	dey					;flickering at the end
+	bne idle2			;of the effect
 
 
-	inx 		;
+	inx 		
 	cpx #09
 	bne loop
 ;------------------------------------------------------------------
 ; End of main loop
 ;------------------------------------------------------------------
 
-    	lda #$0e		;Assign default colors
-    	sta $d020
+	lda #$0e			;Assign default colors
+	sta $d020
 	lda #$06
 	sta $d021
 	
