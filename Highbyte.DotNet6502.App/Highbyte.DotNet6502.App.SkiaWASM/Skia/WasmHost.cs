@@ -1,6 +1,5 @@
 using Highbyte.DotNet6502.App.SkiaWASM.Instrumentation.Stats;
 using Highbyte.DotNet6502.Impl.AspNet;
-using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
@@ -17,6 +16,8 @@ public class WasmHost : IDisposable
     private PeriodicAsyncTimer? _updateTimer;
 
     private SystemRunner _systemRunner;
+    public SystemRunner SystemRunner => _systemRunner;
+
     private SKCanvas _skCanvas;
     private GRContext _grContext;
 

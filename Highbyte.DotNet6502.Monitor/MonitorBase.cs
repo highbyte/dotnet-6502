@@ -14,6 +14,9 @@ public abstract class MonitorBase
     public CPU Cpu => _systemRunner.System.CPU;
     public Memory Mem => _systemRunner.System.Mem;
 
+    public ISystem System => _systemRunner.System;
+
+
     private readonly Dictionary<ushort, BreakPoint> _breakPoints = new();
     public Dictionary<ushort, BreakPoint> BreakPoints => _breakPoints;
 

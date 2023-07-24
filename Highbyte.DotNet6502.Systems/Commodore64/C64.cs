@@ -39,6 +39,8 @@ public class C64 : ISystem, ISystemMonitor
 
     private C64MonitorCommands _c64MonitorCommands = new C64MonitorCommands();
 
+    public const ushort BASIC_LOAD_ADDRESS = 0x0801;
+
     //public static ROM[] ROMS = new ROM[]
     //{   
     //    // name, file, checksum 
@@ -47,7 +49,7 @@ public class C64 : ISystem, ISystemMonitor
     //    ROM.NewROM(C64Config.KERNAL_ROM_NAME,  "kernal",  "1d503e56df85a62fee696e7618dc5b4e781df1bb"),
     //};
 
-    // Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
+// Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
     public bool ExecuteOneFrame(
         IExecEvaluator? execEvaluator = null,
         Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
@@ -385,5 +387,24 @@ public class C64 : ISystem, ISystemMonitor
     public ISystemMonitorCommands GetSystemMonitorCommands()
     {
         return _c64MonitorCommands;
+    }
+
+    /// <summary>
+    /// Helper method to initialise the memory after a Basic program has been loaded to memory manually (outside of built-in C64 Kernal code).
+    /// </summary>
+    /// <param name="loadedAtAddress"></param>
+    /// <param name="fileLength"></param>
+    public void InitBasicMemoryVariables(ushort loadedAtAddress, int fileLength)
+    {
+        // The following memory locations are pointers to where Basic expects variables to be stored.
+        // The address should be one byte after the Basic program end address after it's been loaded
+        // VARTAB $002D-$002E   Pointer to the Start of the BASIC Variable Storage Area
+        // ARYTAB $002F-$0030   Pointer to the Start of the BASIC Array Storage Area
+        // STREND $0031-$0032   Pointer to End of the BASIC Array Storage Area (+1), and the Start of Free RAM
+        // Ref: https://www.pagetable.com/c64ref/c64mem/
+        ushort varStartAddress = (ushort)(loadedAtAddress + fileLength + 1);
+        Mem.WriteWord(0x2d, varStartAddress);
+        Mem.WriteWord(0x2f, varStartAddress);
+        Mem.WriteWord(0x31, varStartAddress);
     }
 }

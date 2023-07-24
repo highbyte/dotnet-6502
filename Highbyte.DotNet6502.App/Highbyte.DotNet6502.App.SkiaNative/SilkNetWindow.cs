@@ -53,6 +53,7 @@ public class SilkNetWindow
 
     // Emulator    
     private SystemRunner _systemRunner;
+    public SystemRunner SystemRunner => _systemRunner;
 
     // Monitor
     private SilkNetImGuiMonitor _monitor;

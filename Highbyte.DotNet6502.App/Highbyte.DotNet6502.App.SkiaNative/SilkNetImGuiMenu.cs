@@ -2,8 +2,10 @@ using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.App.SkiaNative.ConfigUI;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using NativeFileDialogSharp;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 
@@ -132,6 +134,31 @@ public class SilkNetImGuiMenu
         ImGui.Text("Toggle stats with F11");
         ImGui.PopStyleColor();
 
+        // Commond commands
+        ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
+        if (ImGui.Button("Load & start binary PRG file"))
+        {
+            if (_silkNetWindow.EmulatorState == EmulatorState.Running)
+                _silkNetWindow.Pause();
+
+            _silkNetWindow.Pause();
+            var dialogResult = Dialog.FileOpen(@"prg;*");
+            if (dialogResult.IsOk)
+            {
+                var fileName = dialogResult.Path;
+                BinaryLoader.Load(
+                    _silkNetWindow.SystemRunner.System.Mem,
+                    fileName,
+                    out ushort loadedAtAddress,
+                    out ushort fileLength);
+
+                _silkNetWindow.SystemRunner.System.CPU.PC = loadedAtAddress;
+            }
+
+            _silkNetWindow.Start();
+        }
+        ImGui.EndDisabled();
+
 
         DrawC64Config();
 
@@ -144,6 +171,44 @@ public class SilkNetImGuiMenu
     {
         if (SelectedSystemName == "C64")
         {
+            ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
+            if (ImGui.Button("Load Basic PRG file"))
+            {
+                bool wasRunning = false;
+                if (_silkNetWindow.EmulatorState == EmulatorState.Running)
+                {
+                    wasRunning = true;
+                    _silkNetWindow.Pause();
+                }
+                _silkNetWindow.Pause();
+                var dialogResult = Dialog.FileOpen(@"prg;*");
+                if (dialogResult.IsOk)
+                {
+                    var fileName = dialogResult.Path;
+                    BinaryLoader.Load(
+                        _silkNetWindow.SystemRunner.System.Mem,
+                        fileName,
+                        out ushort loadedAtAddress,
+                        out ushort fileLength);
+
+                    if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
+                    {
+                        // Probably not a Basic program that was loaded. Don't init BASIC memory variables.
+                        Debug.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
+                    }
+                    else
+                    {
+                        // Init C64 BASIC memory variables
+                        ((C64)_silkNetWindow.SystemRunner.System).InitBasicMemoryVariables(loadedAtAddress, fileLength);
+                    }
+                }
+
+                if (wasRunning)
+                    _silkNetWindow.Start();
+            }
+            ImGui.EndDisabled();
+
+
             ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
 
             if (_c64ConfigUI == null)

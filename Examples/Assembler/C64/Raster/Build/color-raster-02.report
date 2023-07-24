@@ -6,9 +6,9 @@
      4                          
      5                          ;!to "build/color-raster-02.prg",cbm
      6                          
-     7                          * = $0801                               ; BASIC start address (#2049)
-     8  0801 0d08dc079e203439   !byte $0d,$08,$dc,$07,$9e,$20,$34,$39   ; BASIC loader to start at $c000...
-     9  0809 313532000000       !byte $31,$35,$32,$00,$00,$00           ; puts BASIC line 2012 SYS 49152
+     7                          ; * = $0801                               ; BASIC start address (#2049)
+     8                          ; !byte $0d,$08,$dc,$07,$9e,$20,$34,$39   ; BASIC loader to start at $c000...
+     9                          ; !byte $31,$35,$32,$00,$00,$00           ; puts BASIC line 2012 SYS 49152
     10                          
     11                          * = $c000
     12                          COUNTER	= $02

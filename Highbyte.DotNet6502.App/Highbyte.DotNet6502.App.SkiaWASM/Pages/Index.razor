@@ -53,6 +53,11 @@
                 <input @bind="@MasterVolumePercent" @bind:event="oninput" type="range" id="masterVolume" min="0" max="100" step="0.02" />
                 @* <input @bind="@MasterVolumePercent" @bind:event="oninput" type="number" min="0" max="100" step="0.02" /> *@
             </div>
+
+            <p></p>
+            <div>
+                <button @onclick="OnFilePicker" disabled=@OnFilePickerDisabled>Load & start binary PRG file</button>
+            </div>
         </div>
 
         <div class="system-help" style="display:inline;">
@@ -60,12 +65,13 @@
             <button @onclick="ShowGeneralHelpUI">Help</button>
         </div>
 
-        <div class="system-help systemHelpC64Style">
+        <div class="system-help systemC64HelpStyle">
             <h4>Selected system: C64</h4>
+            <button @onclick="OnC64BasicFilePicker" disabled=@OnC64BasicFilePickerDisabled>Load C64 Basic PRG file</button>
             <button @onclick="ShowC64ConfigUI" disabled=@ShowConfigDisabled>C64 Config</button>
         </div>
 
-        <div class="system-help systemHelpGenericStyle">
+        <div class="system-help systemGenericHelpStyle">
             <h4>Selected system: Generic</h4>
             <button @onclick="ShowGenericConfigUI" disabled=@ShowConfigDisabled>Generic computer Config</button>
         </div>
@@ -158,7 +164,7 @@
 
     <div class="footer">
 
-        <div class="system-help systemHelpC64Style">
+        <div class="system-help systemC64HelpStyle">
             <div class="row">
                 <div class="column">
                     <div class="table">
@@ -208,7 +214,7 @@
             </div>
         </div>
 
-        <div class="system-help systemHelpGenericStyle">
+        <div class="system-help systemGenericHelpStyle">
             <div class="row">
                 <div class="column">
                     <p>
@@ -242,10 +248,14 @@
         height: 320px;
     }
 
-    .systemHelpC64Style {
+    .systemC64CommandsStyle {
+        display: @GetDisplayStyle("C64Commands");
+    }
+
+    .systemC64HelpStyle {
         display: @GetDisplayStyle("C64Help");
     }
-    .systemHelpGenericStyle {
+    .systemGenericHelpStyle {
         display: @GetDisplayStyle("GenericHelp");
     }
     .debugStyle {
@@ -260,6 +270,9 @@
 </style>
 
 <InputFile id="monitorFilePicker" OnChange="@OnMonitorFilePickerChange" hidden/>
+<InputFile id="filePicker" OnChange="@OnFilePickerChange" hidden/>
+
+<InputFile id="filePickerC64Basic" OnChange="@OnC64BasicFilePickerChange" hidden/>
 
 @code
 {
@@ -278,6 +291,10 @@
             case "CanvasUninitialized":
                 {
                     return _emulatorState == EmulatorState.Uninitialized ? VISIBLE_BLOCK : HIDDEN;
+                }
+            case "C64Commands":
+                {
+                    return SelectedSystemName == C64.SystemName && _emulatorState != EmulatorState.Uninitialized ? VISIBLE : HIDDEN;
                 }
             case "C64Help":
                 {
@@ -309,8 +326,13 @@
     protected bool OnPauseDisabled => _emulatorState == EmulatorState.Paused || _emulatorState == EmulatorState.Uninitialized;
     protected bool OnResetDisabled => _emulatorState == EmulatorState.Uninitialized;
     protected bool OnStopDisabled => _emulatorState == EmulatorState.Uninitialized;
-
+        
     protected bool ShowConfigDisabled => _emulatorState != EmulatorState.Uninitialized;
+
+    private bool _wasRunningBeforeFileDialog = false;
+    protected bool OnFilePickerDisabled => _emulatorState == EmulatorState.Uninitialized;
+    protected bool OnC64BasicFilePickerDisabled => _emulatorState == EmulatorState.Uninitialized;
+
 
     protected async Task OnStart(MouseEventArgs mouseEventArgs)
     {
@@ -433,6 +455,11 @@
                                                                                    //await _monitorInputRef.FocusAsync();
     }
 
+    /// <summary>
+    /// Callback from monitor when user has selected a file to load
+    /// </summary>
+    /// <param name="e"></param>
+    /// <returns></returns>
     private async Task OnMonitorFilePickerChange(InputFileChangeEventArgs e)
     {
         if (_wasmHost == null || _wasmHost.Monitor == null)
@@ -450,5 +477,113 @@
         var fileSize = fileBuffer.Length;
 
         _wasmHost.Monitor.LoadBinaryFromUser(fileBuffer);
+    }
+
+    /// <summary>
+    /// Open Load binary file dialog (from main UI, not monitor)
+    /// </summary>
+    /// <returns></returns>
+    private async Task OnFilePicker(MouseEventArgs mouseEventArgs)
+    {
+        await OnPause(mouseEventArgs);
+        Js.InvokeVoidAsync("clickId", "filePicker");
+    }
+
+    /// <summary>
+    /// Callback when binary file has been loaded from file pick dialog (from main UI, not monitor)
+    /// </summary>
+    /// <param name="e"></param>
+    /// <returns></returns>
+    private async Task OnFilePickerChange(InputFileChangeEventArgs e)
+    {
+        if (_wasmHost == null)
+            return;
+
+        if (_emulatorState == EmulatorState.Uninitialized)
+            return;
+
+        // Only expect one file
+        if (e.FileCount > 1)
+            return;
+        var file = e.File;
+        System.Diagnostics.Debug.WriteLine($"File picked: {file.Name} Size: {file.Size}");
+
+        var fileBuffer = new byte[file.Size];
+        //var fileStream = e.File.OpenReadStream(file.Size);
+        await file.OpenReadStream().ReadAsync(fileBuffer);
+        var fileSize = fileBuffer.Length;
+
+        // Load file into memory, assume starting at address specified in two first bytes of .prg file
+        BinaryLoader.Load(
+            _wasmHost.SystemRunner.System.Mem,
+            fileBuffer,
+            out ushort loadedAtAddress,
+            out ushort fileLength);
+
+        System.Diagnostics.Debug.WriteLine($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+
+        System.Diagnostics.Debug.WriteLine($"Starting loaded program by changing Program Counter to {loadedAtAddress.ToHex()}");
+        _wasmHost.SystemRunner.System.CPU.PC = loadedAtAddress;
+
+        await OnStart(new());
+    }
+
+    /// <summary>
+    /// Open Load C64 basic .prg file dialog (from main UI, not monitor)
+    /// </summary>
+    /// <returns></returns>
+    private async Task OnC64BasicFilePicker(MouseEventArgs mouseEventArgs)
+    {
+        _wasRunningBeforeFileDialog = _emulatorState == EmulatorState.Running;
+        await OnPause(mouseEventArgs);
+        Js.InvokeVoidAsync("clickId", "filePickerC64Basic");
+    }
+
+    /// <summary>
+    /// Callback when C64 basic file (.prg) has been loaded from file pick dialog (from main UI, not monitor)
+    /// </summary>
+    /// <param name="e"></param>
+    /// <returns></returns>
+    private async Task OnC64BasicFilePickerChange(InputFileChangeEventArgs e)
+    {
+        if (_wasmHost == null)
+            return;
+
+        if (_emulatorState == EmulatorState.Uninitialized)
+            return;
+
+        // Only expect one file
+        if (e.FileCount > 1)
+            return;
+        var file = e.File;
+        System.Diagnostics.Debug.WriteLine($"File picked: {file.Name} Size: {file.Size}");
+
+        var fileBuffer = new byte[file.Size];
+        //var fileStream = e.File.OpenReadStream(file.Size);
+        await file.OpenReadStream().ReadAsync(fileBuffer);
+        var fileSize = fileBuffer.Length;
+
+        // Load file into memory, assume starting at address specified in two first bytes of .prg file
+        BinaryLoader.Load(
+            _wasmHost.SystemRunner.System.Mem,
+            fileBuffer,
+            out ushort loadedAtAddress,
+            out ushort fileLength);
+
+        if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
+        {
+            // Probably not a Basic program that was loaded. Don't init BASIC memory variables.
+            Debug.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
+        }
+        else
+        {
+            // Init C64 BASIC memory variables
+            ((C64)_wasmHost.SystemRunner.System).InitBasicMemoryVariables(loadedAtAddress, fileLength);
+        }
+
+        System.Diagnostics.Debug.WriteLine($"Basic program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+
+        if(_wasRunningBeforeFileDialog)
+            await OnStart(new());
     }
 }
