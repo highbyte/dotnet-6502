@@ -153,9 +153,9 @@ public class SilkNetImGuiMenu
                     out ushort fileLength);
 
                 _silkNetWindow.SystemRunner.System.CPU.PC = loadedAtAddress;
-            }
 
-            _silkNetWindow.Start();
+                _silkNetWindow.Start();
+            }
         }
         ImGui.EndDisabled();
 
