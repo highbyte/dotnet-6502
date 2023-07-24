@@ -142,6 +142,7 @@ public class CiaTimer
     private void ResetTimerValue()
     {
         InternalTimer = _internalTimer_Latch;
+        StartTimer();
     }
 
     public void StartTimer()
