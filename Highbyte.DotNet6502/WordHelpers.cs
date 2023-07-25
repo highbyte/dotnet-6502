@@ -27,6 +27,26 @@ public static class WordHelpers
     }
 
     /// <summary>
+    /// Sets the high byte of specified word (aka ushort, aka UInt16)
+    /// </summary>
+    /// <param name="data"></param>
+    /// <param name="value"></param>
+    public static void SetHighbyte(this ref ushort data, byte value)
+    {
+        data = (ushort)((data & 0x00ff) | (value << 8));
+    }
+
+    /// <summary>
+    /// Sets the low byte of specified word (aka ushort, aka UInt16)
+    /// </summary>
+    /// <param name="data"></param>
+    /// <param name="value"></param>
+    public static void SetLowbyte(this ref ushort data, byte value)
+    {
+        data = (ushort)((data & 0xff00) | value);
+    }
+
+    /// <summary>
     /// Helps with writing bytes to memory in little endian systems (as 6502).
     /// 
     /// Returns the bytes from the specified word (aka ushort, aka UInt16) in reverse order.

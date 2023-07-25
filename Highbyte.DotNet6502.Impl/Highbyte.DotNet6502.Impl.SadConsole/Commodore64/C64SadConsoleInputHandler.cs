@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Config;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64;
@@ -38,9 +39,8 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
     private void CaptureKeyboard(C64 c64)
     {
         var sadConsoleKeyboard = GameHost.Instance.Keyboard;
-        var c64Keyboard = c64.Keyboard;
 
-        HandleNonPrintedKeys(c64Keyboard, sadConsoleKeyboard);
+        HandleNonPrintedKeys(c64, sadConsoleKeyboard);
 
         var petsciiCode = GetPetsciiCode(sadConsoleKeyboard);
         if (petsciiCode != 0)
@@ -48,20 +48,38 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
     }
 
     private void HandleNonPrintedKeys(
-        Systems.Commodore64.Keyboard.C64Keyboard c64Keyboard,
+        C64 c64,
         global::SadConsole.Input.Keyboard sadConsoleKeyboard)
     {
+        var c64Keyboard = c64.Keyboard;
+
         // STOP (ESC) down
         if (sadConsoleKeyboard.IsKeyDown(Keys.Escape))
         {
+            c64.Mem[CiaAddr.CIA1_DATAB] = 0x00;  // Hack: not yet handling the CIA Data B register to scan keyboard.
+
             c64Keyboard.StopKeyFlag = 0x7f;
+
+            // RESTORE (PageUp) down. Together with STOP it will issue a NMI (which will jump to code that detects STOP is pressed and resets any running program, and clears screen.)
+            if (sadConsoleKeyboard.IsKeyDown(Keys.PageUp))
+            {
+                c64.CPU.CPUInterrupts.SetNMISourceActive("KeyboardReset");
+            }
+            sadConsoleKeyboard.Clear();
             return;
         }
         // STOP (ESC) released
-        if (sadConsoleKeyboard.KeysReleased.Count == 1 && sadConsoleKeyboard.KeysReleased[0] == Keys.Escape)
+        if ((sadConsoleKeyboard.KeysReleased.Count == 1 || sadConsoleKeyboard.KeysReleased.Count == 2)
+            && sadConsoleKeyboard.KeysReleased.Select(x => x.Key).Contains(Keys.Escape))
         {
             c64Keyboard.StopKeyFlag = 0xff;
+            sadConsoleKeyboard.Clear();
             return;
+        }
+
+        if (sadConsoleKeyboard.KeysDown.Count == 0)
+        {
+            c64.Mem[CiaAddr.CIA1_DATAB] = 0xff; // Hack: not yet handling the CIA Data B register to scan keyboard.
         }
     }
 

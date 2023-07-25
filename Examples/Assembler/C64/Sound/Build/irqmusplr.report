@@ -1,5 +1,5 @@
 
-; ******** Source: C:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\C64\Music\irqmusplr.asm
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\C64\Sound\irqmusplr.asm
      1                          ;Sid play code from: https://codebase64.org/doku.php?id=base:simple_irq_music_player
      2                          ;Sid music file from: https://hvsc.c64.org/
      3                          ;--------------------------------

@@ -18,7 +18,7 @@ public static class ExecutionCommands
 
             var address = cmd.Argument("address", "Optional address (hex) to start executing code at.");
             address.Validators.Add(new MustBe16BitHexValueValidator());
-            var dontStopOnBRK = cmd.Option("--no-brk|-nb", "Prevent execution stop when BRK instruction encountered.", CommandOptionType.NoValue);
+            //var dontStopOnBRK = cmd.Option("--no-brk|-nb", "Prevent execution stop when BRK instruction encountered.", CommandOptionType.NoValue);
 
             cmd.OnValidationError((ValidationResult validationResult) =>
             {
@@ -31,20 +31,20 @@ public static class ExecutionCommands
                     return (int)CommandResult.Continue;
 
                 monitor.Cpu.PC = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
-                ExecOptions execOptions;
-                if (dontStopOnBRK.HasValue())
-                {
-                    execOptions = new ExecOptions();
-                    monitor.WriteOutput($"Will never stop.");
-                }
-                else
-                {
-                    execOptions = new ExecOptions
-                    {
-                        ExecuteUntilInstruction = OpCodeId.BRK,
-                    };
-                    monitor.WriteOutput($"Will stop on BRK instruction.");
-                }
+                //ExecOptions execOptions;
+                //if (dontStopOnBRK.HasValue())
+                //{
+                //    execOptions = new ExecOptions();
+                //    monitor.WriteOutput($"Will never stop.");
+                //}
+                //else
+                //{
+                //    execOptions = new ExecOptions
+                //    {
+                //        ExecuteUntilInstruction = OpCodeId.BRK,
+                //    };
+                //    monitor.WriteOutput($"Will stop on BRK instruction.");
+                //}
                 monitor.WriteOutput($"Staring executing code at {monitor.Cpu.PC.ToHex("", lowerCase: true)}");
                 // monitor.SystemRunner.Run();
                 // monitor.WriteOutput($"Stopped at                {monitor.Cpu.PC.ToHex("",lowerCase:true)}");

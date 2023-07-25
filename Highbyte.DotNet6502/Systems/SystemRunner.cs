@@ -45,31 +45,28 @@ public class SystemRunner
         bool quit = false;
         while (!quit)
         {
-            bool executeOk = RunOneFrame(out _);
-            if (!executeOk)
+            var execEvaluatorTriggerResult = RunOneFrame(out _);
+            if (execEvaluatorTriggerResult.Triggered)
                 quit = true;
         }
     }
 
-    public bool RunOneFrame(out Dictionary<string, double> detailedStats)
+    public ExecEvaluatorTriggerResult RunOneFrame(out Dictionary<string, double> detailedStats)
     {
         ProcessInput();
 
-        bool executeOk = RunEmulatorOneFrame(out detailedStats);
-        if (!executeOk)
-            return false;
+        var execEvaluatorTriggerResult = RunEmulatorOneFrame(out detailedStats);
+        if (execEvaluatorTriggerResult.Triggered)
+            return execEvaluatorTriggerResult;
 
         Draw();
 
-        return true;
+        return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
-    public bool RunOneInstruction()
+    public ExecEvaluatorTriggerResult RunOneInstruction()
     {
-        bool executeOk = _system.ExecuteOneInstruction();
-        if (!executeOk)
-            return false;
-        return true;
+        return _system.ExecuteOneInstruction();
     }
 
     public void ProcessInput()
@@ -77,17 +74,15 @@ public class SystemRunner
         _inputHandler?.ProcessInput(_system);
     }
 
-    public bool RunEmulatorOneFrame(out Dictionary<string, double> detailedStats)
+    public ExecEvaluatorTriggerResult RunEmulatorOneFrame(out Dictionary<string, double> detailedStats)
     {
         detailedStats = new()
         {
             ["Audio"] = 0
         };
 
-        bool shouldContinue = _system.ExecuteOneFrame(_customExecEvaluator, PostInstruction, detailedStats);
-        if (!shouldContinue)
-            return false;
-        return true;
+        var execEvaluatorTriggerResult = _system.ExecuteOneFrame(_customExecEvaluator, PostInstruction, detailedStats);
+        return execEvaluatorTriggerResult;
     }
 
     // PostInstruction is meant to be called after each instruction has executed.

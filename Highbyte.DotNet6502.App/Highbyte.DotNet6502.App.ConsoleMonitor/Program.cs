@@ -35,6 +35,9 @@ Monitor.ShowDescription();
 Monitor.WriteOutput("");
 Monitor.ShowHelp();
 
+Monitor.WriteOutput("Stop manually by pressing ESC.");
+Monitor.WriteOutput("");
+
 bool cont = true;
 bool startMonitor = true;
 while (cont)
@@ -50,15 +53,23 @@ while (cont)
     }
     else
     {
-        bool runOk = systemRunner.RunOneInstruction();
-        if (runOk != true || systemRunner.System.CPU.ExecState.LastInstructionExecResult.OpCodeByte == (byte)OpCodeId.BRK)
+        if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.Escape)
         {
-            Monitor.WriteOutput("Execution stopped.");
+            Monitor.WriteOutput("Manual stop.");
             startMonitor = true;
         }
         else
         {
-            Thread.Sleep(1);
+            var execEvaluatorTriggerResult = systemRunner.RunOneInstruction();
+            if (execEvaluatorTriggerResult.Triggered || systemRunner.System.CPU.ExecState.LastInstructionExecResult.OpCodeByte == (byte)OpCodeId.BRK)
+            {
+                Monitor.WriteOutput("Execution stopped.");
+                startMonitor = true;
+            }
+            else
+            {
+                Thread.Sleep(1);
+            }
         }
     }
 }

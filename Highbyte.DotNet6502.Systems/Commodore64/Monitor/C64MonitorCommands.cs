@@ -83,11 +83,9 @@ public class C64MonitorCommands : ISystemMonitorCommands
 
             cmd.OnExecute(() =>
             {
-                ushort startAddressValue = 0x0801;
-                var endAddressValue = (ushort)(monitor.Mem.FetchWord(0x2d) - 1);
+                ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
+                var endAddressValue = ((C64)monitor.System).GetBasicProgramEndAddress();
                 monitor.SaveBinary(fileName.Value, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress: true);
-
-                monitor.WriteOutput($"Basic program saved to {fileName.Value}");
                 return (int)CommandResult.Ok;
             });
         });
@@ -100,16 +98,6 @@ public class C64MonitorCommands : ISystemMonitorCommands
     public void AfterLoadBasic(MonitorBase monitor, ushort loadedAtAddress, ushort fileLength)
     {
         monitor.WriteOutput($"Basic program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
-
-        // The following memory locations are pointers to where Basic expects variables to be stored.
-        // The address should be one byte after the Basic program end address after it's been loaded
-        // VARTAB $002D-$002E   Pointer to the Start of the BASIC Variable Storage Area
-        // ARYTAB $002F-$0030   Pointer to the Start of the BASIC Array Storage Area
-        // STREND $0031-$0032   Pointer to End of the BASIC Array Storage Area (+1), and the Start of Free RAM
-        // Ref: https://www.pagetable.com/c64ref/c64mem/
-        ushort varStartAddress = (ushort)(loadedAtAddress + fileLength + 1);
-        monitor.Mem.WriteWord(0x2d, varStartAddress);
-        monitor.Mem.WriteWord(0x2f, varStartAddress);
-        monitor.Mem.WriteWord(0x31, varStartAddress);
+        ((C64)monitor.System).InitBasicMemoryVariables(loadedAtAddress, fileLength);
     }
 }

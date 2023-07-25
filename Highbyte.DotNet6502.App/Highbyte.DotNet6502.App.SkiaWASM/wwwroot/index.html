@@ -47,6 +47,11 @@
             elementToClick.click();
         }
 
+        window.scrollBottom = (id) => {
+            var elementToScroll = document.getElementById(id);
+            elementToScroll.scrollIntoView(false);
+        }
+
         window.downloadFileFromStream = async (fileName, contentStreamReference) => {
             const arrayBuffer = await contentStreamReference.arrayBuffer();
             const blob = new Blob([arrayBuffer]);

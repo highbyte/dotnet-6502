@@ -62,8 +62,8 @@ public static class BinaryLoader
             out ushort? fileHeaderLoadAddress,
             out fileLength
         );
-        if(fileHeaderLoadAddress.HasValue)
-            loadedAtAddress= fileHeaderLoadAddress.Value;
+        if (fileHeaderLoadAddress.HasValue)
+            loadedAtAddress = fileHeaderLoadAddress.Value;
         else
             loadedAtAddress = forceLoadAddress.Value;
 

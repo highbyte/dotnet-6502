@@ -10,8 +10,6 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Microsoft.AspNetCore.WebUtilities;
-using System.Threading.Tasks;
-using System.Runtime.CompilerServices;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
@@ -233,7 +231,7 @@ public partial class Index
         {
             var system = await _systemList.GetSystem(_selectedSystemName);
             // Set SKGLView dimensions
-            var screen = (IScreen)system;
+            var screen = system.Screen;
             _windowWidthStyle = $"{screen.VisibleWidth * Scale}px";
             _windowHeightStyle = $"{screen.VisibleHeight * Scale}px";
         }

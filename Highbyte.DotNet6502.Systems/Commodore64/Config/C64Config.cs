@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Config;
 
@@ -77,6 +78,8 @@ public class C64Config : ISystemConfig
         }
     }
 
+    public TimerMode TimerMode { get; set; }
+
     public bool AudioSupported { get; set; }
 
     private bool _audioEnabled;
@@ -89,6 +92,20 @@ public class C64Config : ISystemConfig
         set
         {
             _audioEnabled = value;
+            _isDirty = true;
+        }
+    }
+
+    private string _colorMapName;
+    public string ColorMapName
+    {
+        get
+        {
+            return _colorMapName;
+        }
+        set
+        {
+            _colorMapName = value;
             _isDirty = true;
         }
     }
@@ -125,8 +142,13 @@ public class C64Config : ISystemConfig
         C64Model = "C64NTSC";
         Vic2Model = "NTSC";
 
+        TimerMode = TimerMode.UpdateEachRasterLine;
+        //TimerMode = TimerMode.UpdateEachInstruction;
+
         AudioSupported = false; // Set to true after creating if the audio system is implemented for the host platform
         AudioEnabled = false;
+
+        ColorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
     }
 
     public bool HasROM(string romName) => ROMs.Any(x => x.Name == romName);
@@ -162,6 +184,7 @@ public class C64Config : ISystemConfig
             C64Model = C64Model,
             Vic2Model = Vic2Model,
             ROMs = ROM.Clone(ROMs),
+            TimerMode = TimerMode,
             AudioEnabled = AudioEnabled
         };
     }
@@ -214,4 +237,15 @@ public class C64Config : ISystemConfig
 
         return validationErrors.Count == 0;
     }
+}
+
+/// <summary>
+/// How often the C64 CIA timers are updated. 
+/// UpdateEachInstruction = more realistic, but affects performance.
+/// UpdateEachRasterLine = less realistic, but better performance.
+/// </summary>
+public enum TimerMode
+{
+    UpdateEachInstruction,
+    UpdateEachRasterLine
 }

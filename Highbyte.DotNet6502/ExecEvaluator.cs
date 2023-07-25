@@ -2,7 +2,7 @@ namespace Highbyte.DotNet6502;
 
 public interface IExecEvaluator
 {
-    public bool Check(ExecState execState, CPU cpu, Memory mem);
+    public ExecEvaluatorTriggerResult Check(ExecState execState, CPU cpu, Memory mem);
 }
 
 public class LegacyExecEvaluator : IExecEvaluator
@@ -23,9 +23,10 @@ public class LegacyExecEvaluator : IExecEvaluator
         _execOptions = execOptions;
     }
 
-    public bool Check(ExecState execState, CPU cpu, Memory mem)
+    public ExecEvaluatorTriggerResult Check(ExecState execState, CPU cpu, Memory mem)
     {
-        var cont = true;
+        ExecEvaluatorTriggerReasonType? execEvaluatorTriggerReasonType = null;
+        string? triggerDescription = null;
 
         var instructionExecutionResult = execState.LastInstructionExecResult;
 
@@ -35,23 +36,68 @@ public class LegacyExecEvaluator : IExecEvaluator
 
         // Check if we should continue executing instructions
         if (ExecOptions.CyclesRequested.HasValue && execState.CyclesConsumed >= ExecOptions.CyclesRequested.Value)
-            cont = false;
+        {
+            execEvaluatorTriggerReasonType = ExecEvaluatorTriggerReasonType.Other;
+            triggerDescription = "CyclesRequested";
+        }
         if (ExecOptions.MaxNumberOfInstructions.HasValue && execState.InstructionsExecutionCount >= ExecOptions.MaxNumberOfInstructions.Value)
-            cont = false;
+        {
+            execEvaluatorTriggerReasonType = ExecEvaluatorTriggerReasonType.Other;
+            triggerDescription = "MaxNumberOfInstruction";
+        }
         if (!instructionExecutionResult.UnknownInstruction && ExecOptions.ExecuteUntilInstruction.HasValue && instructionExecutionResult.OpCodeByte == ExecOptions.ExecuteUntilInstruction.Value.ToByte())
-            cont = false;
+        {
+            execEvaluatorTriggerReasonType = ExecEvaluatorTriggerReasonType.UnknownInstruction;
+        }
         if (ExecOptions.ExecuteUntilInstructions.Count > 0 && ExecOptions.ExecuteUntilInstructions.Contains(instructionExecutionResult.OpCodeByte))
-            cont = false;
+        {
+            execEvaluatorTriggerReasonType = ExecEvaluatorTriggerReasonType.Other;
+            triggerDescription = "Specified instruction encountered";
+        }
         if (ExecOptions.ExecuteUntilPC.HasValue && cpu.PC == ExecOptions.ExecuteUntilPC.Value)
-            cont = false;
+        {
+            execEvaluatorTriggerReasonType = ExecEvaluatorTriggerReasonType.Other;
+            triggerDescription = "PC reached (after)";
+        }
         if (ExecOptions.ExecuteUntilExecutedInstructionAtPC.HasValue && execState.PCBeforeLastOpCodeExecuted == ExecOptions.ExecuteUntilExecutedInstructionAtPC.Value)
-            cont = false;
+        {
+            execEvaluatorTriggerReasonType = ExecEvaluatorTriggerReasonType.Other;
+            triggerDescription = "PC reached (before)";
+        }
 
-        return cont;
+        if (!execEvaluatorTriggerReasonType.HasValue)
+            return ExecEvaluatorTriggerResult.NotTriggered;
+        else
+            return ExecEvaluatorTriggerResult.CreateTrigger(execEvaluatorTriggerReasonType.Value, triggerDescription);
     }
 }
 
 public class AlwaysExecEvaluator : IExecEvaluator
 {
-    public bool Check(ExecState execState, CPU cpu, Memory mem) => true;
+    public ExecEvaluatorTriggerResult Check(ExecState execState, CPU cpu, Memory mem) => ExecEvaluatorTriggerResult.NotTriggered;
+}
+
+public class ExecEvaluatorTriggerResult
+{
+    public bool Triggered { get; private set; }
+    public string? TriggerDescription { get; private set; }
+    public ExecEvaluatorTriggerReasonType? TriggerType { get; private set; }
+
+    public static ExecEvaluatorTriggerResult NotTriggered => new ExecEvaluatorTriggerResult { Triggered = false };
+    public static ExecEvaluatorTriggerResult CreateTrigger(ExecEvaluatorTriggerReasonType triggerReasonType, string? triggerDescription = null)
+    {
+        return new ExecEvaluatorTriggerResult
+        {
+            Triggered = true,
+            TriggerDescription = triggerDescription,
+            TriggerType = triggerReasonType
+        };
+    }
+}
+
+public enum ExecEvaluatorTriggerReasonType
+{
+    DebugBreakPoint,
+    UnknownInstruction,
+    Other
 }

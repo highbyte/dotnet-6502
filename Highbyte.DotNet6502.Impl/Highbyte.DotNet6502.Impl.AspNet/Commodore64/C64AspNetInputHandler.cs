@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64;
@@ -49,13 +50,14 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
         if (_inputHandlerContext.KeysDown.Contains("Escape"))
         //if (_inputHandlerContext.SpecialKeyReceived.Count == 1 && _inputHandlerContext.SpecialKeyReceived.First() == Key.Escape)
         {
+            c64.Mem[CiaAddr.CIA1_DATAB] = 0x00;  // Hack: not yet handling the CIA Data B register to scan keyboard.
+
             // Pressing STOP (RUN/STOP) will stop any running Basic program.
             c64Keyboard.StopKeyFlag = 0x7f;
 
             // RESTORE (PageUp) down. Together with STOP it will issue a NMI (which will jump to code that detects STOP is pressed and resets any running program, and clears screen.)
             if (_inputHandlerContext.KeysDown.Contains("PageUp"))
-                c64.CPU.NMI = true;
-
+                c64.CPU.CPUInterrupts.SetNMISourceActive("KeyboardReset");
             return;
         }
 
@@ -65,6 +67,12 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
             c64Keyboard.StopKeyFlag = 0xff;
             return;
         }
+
+        if (_inputHandlerContext.KeysDown.Count == 0)
+        {
+            c64.Mem[CiaAddr.CIA1_DATAB] = 0xff; // Hack: not yet handling the CIA Data B register to scan keyboard.
+        }
+
     }
 
     private void HandlePrintedC64Keys(C64 c64)

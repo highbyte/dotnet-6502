@@ -14,18 +14,17 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// </summary>
 public class Vic2
 {
+    public C64 C64 { get; private set; }
     public Vic2ModelBase Vic2Model { get; private set; }
-    public Memory Mem { get; set; }
+    public Vic2Screen Vic2Screen { get; private set; }
+    public Memory Vic2Mem { get; private set; }
 
-    public const ushort COLS = 40;      // # characters per line in text mode
-    public const ushort ROWS = 25;      // # rows in text mode
-    public const ushort WIDTH = 320;    // # pixels in drawable area (text mode and bitmap graphics mode)
-    public const ushort HEIGHT = 200;   // # pixels in drawable area  (text mode and bitmap graphics mode)
+    public Vic2IRQ Vic2IRQ { get; private set; }
+
 
     public const int CHARACTERSET_NUMBER_OF_CHARCTERS = 256;
     public const int CHARACTERSET_ONE_CHARACTER_BYTES = 8;      // 8 bytes (one line per byte) for each character.
     public const int CHARACTERSET_SIZE = CHARACTERSET_NUMBER_OF_CHARCTERS * CHARACTERSET_ONE_CHARACTER_BYTES;    // = 1024 (0x0400) bytes. 256 characters, where each character takes up 8 bytes (1 byte per character line)
-
 
     public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
 
@@ -43,6 +42,12 @@ public class Vic2
     public byte MemorySetup { get; private set; }
     public byte PortA { get; private set; }
 
+    public byte ScrCtrl1 { get; private set; }
+
+    private ushort _currentRasterLineInternal = ushort.MaxValue;
+    public ushort CurrentRasterLine => _currentRasterLineInternal;
+
+
     public event EventHandler<CharsetAddressChangedEventArgs> CharsetAddressChanged;
     protected virtual void OnCharsetAddressChanged(CharsetAddressChangedEventArgs e)
     {
@@ -50,26 +55,78 @@ public class Vic2
         handler?.Invoke(this, e);
     }
 
+    public Dictionary<ushort, byte> ScreenLineBorderColor { get; private set; }
+    public Dictionary<ushort, byte> ScreenLineBackgroundColor { get; private set; }
+
     private Vic2() { }
 
-    public static Vic2 BuildVic2(byte[] ram, Dictionary<string, byte[]> romData, Vic2ModelBase vic2Model)
+    public static Vic2 BuildVic2(byte[] ram, Dictionary<string, byte[]> romData, Vic2ModelBase vic2Model, C64 c64)
     {
         var vic2Mem = CreateVic2Memory(ram, romData);
+        var vic2IRQ = new Vic2IRQ();
+
+        var screenLineBorderColorLookup = InitializeScreenLineBorderColorLookup(vic2Model);
+        var screenLineBackgroundColorLookup = InitializeScreenLineBackgroundColorLookup(vic2Model);
 
         var vic2 = new Vic2()
         {
-            Mem = vic2Mem,
+            C64 = c64,
+            Vic2Mem = vic2Mem,
             Vic2Model = vic2Model,
+            Vic2IRQ = vic2IRQ,
+            ScreenLineBorderColor = screenLineBorderColorLookup,
+            ScreenLineBackgroundColor = screenLineBackgroundColorLookup
         };
+
+        var vic2Screen = new Vic2Screen(vic2Model, c64.CpuFrequencyHz);
+        vic2.Vic2Screen = vic2Screen;
 
         return vic2;
     }
 
+    private static Dictionary<ushort, byte> InitializeScreenLineBorderColorLookup(Vic2ModelBase vic2Model)
+    {
+        var screenLineBorderColor = new Dictionary<ushort, byte>();
+        for (ushort i = 0; i < vic2Model.Lines; i++)
+        {
+            screenLineBorderColor.Add(i, 0);
+        }
+        return screenLineBorderColor;
+    }
+
+    private static Dictionary<ushort, byte> InitializeScreenLineBackgroundColorLookup(Vic2ModelBase vic2Model)
+    {
+        var screenLineBackgroundColor = new Dictionary<ushort, byte>();
+        for (ushort i = 0; i < vic2Model.Lines; i++)
+        {
+            if (!vic2Model.IsRasterLineInMainScreen(i))
+                continue;
+            screenLineBackgroundColor.Add(i, 0);
+        }
+        return screenLineBackgroundColor;
+    }
+
     public void MapIOLocations(Memory mem)
     {
-        // Address 0xd0180: "Memory setup" (VIC2 pointer for charset/bitmap & screen memory)
+        // Address 0xd011: "Screen Control Register 1"
+        mem.MapReader(Vic2Addr.SCREEN_CONTROL_REGISTER_1, ScrCtrlReg1Load);
+        mem.MapWriter(Vic2Addr.SCREEN_CONTROL_REGISTER_1, ScrCtrlReg1Store);
+
+        // Address 0xd012: "Current Raster Line"
+        mem.MapReader(Vic2Addr.CURRENT_RASTER_LINE, RasterLoad);
+        mem.MapWriter(Vic2Addr.CURRENT_RASTER_LINE, RasterStore);
+
+        // Address 0xd018: "Memory setup" (VIC2 pointer for charset/bitmap & screen memory)
         mem.MapReader(Vic2Addr.MEMORY_SETUP, MemorySetupLoad);
         mem.MapWriter(Vic2Addr.MEMORY_SETUP, MemorySetupStore);
+
+        // Address 0xd019: "VIC Interrupt Flag Register"
+        mem.MapReader(Vic2Addr.VIC_IRQ, VICIRQLoad);
+        mem.MapWriter(Vic2Addr.VIC_IRQ, VICIRQStore);
+
+        // Address 0xd01a: "IRQ Mask Register"
+        mem.MapReader(Vic2Addr.IRQ_MASK, IRQMASKLoad);
+        mem.MapWriter(Vic2Addr.IRQ_MASK, IRQMASKStore);
 
         // Address 0xd020: Border color
         mem.MapReader(Vic2Addr.BORDER_COLOR, BorderColorLoad);
@@ -93,45 +150,45 @@ public class Vic2
         var chargen = romData[C64Config.CHARGEN_ROM_NAME];
 
         // Vic2 can use 4 different banks of 16KB of memory each. They map into C64 RAM or Chargen ROM depending on bank.
-        var mem = new Memory(memorySize: 16 * 1024, numberOfConfigurations: 4, mapToDefaultRAM: false);
+        var vic2Mem = new Memory(memorySize: 16 * 1024, numberOfConfigurations: 4, mapToDefaultRAM: false);
 
-        mem.SetMemoryConfiguration(0);
-        mem.MapRAM(0x0000, ram, 0, 0x1000);
-        mem.MapRAM(0x1000, chargen);    // Chargen ROM "shadow" appear here.  Assume chargen is 0x1000 (4096) bytes length.
-        mem.MapRAM(0x2000, ram, 0x2000, 0x2000);
+        vic2Mem.SetMemoryConfiguration(0);
+        vic2Mem.MapRAM(0x0000, ram, 0, 0x1000);
+        vic2Mem.MapRAM(0x1000, chargen);    // Chargen ROM "shadow" appear here.  Assume chargen is 0x1000 (4096) bytes length.
+        vic2Mem.MapRAM(0x2000, ram, 0x2000, 0x2000);
 
-        mem.SetMemoryConfiguration(1);
-        mem.MapRAM(0x0000, ram, 0x4000, 0x4000);
+        vic2Mem.SetMemoryConfiguration(1);
+        vic2Mem.MapRAM(0x0000, ram, 0x4000, 0x4000);
 
-        mem.SetMemoryConfiguration(2);
-        mem.MapRAM(0x0000, ram, 0x8000, 0x1000);
-        mem.MapRAM(0x1000, chargen);    // Chargen ROM "shadow" appear here. Assume chargen is 0x1000 (4096) bytes length.
-        mem.MapRAM(0x2000, ram, 0xa000, 0x2000);
+        vic2Mem.SetMemoryConfiguration(2);
+        vic2Mem.MapRAM(0x0000, ram, 0x8000, 0x1000);
+        vic2Mem.MapRAM(0x1000, chargen);    // Chargen ROM "shadow" appear here. Assume chargen is 0x1000 (4096) bytes length.
+        vic2Mem.MapRAM(0x2000, ram, 0xa000, 0x2000);
 
-        mem.SetMemoryConfiguration(3);
-        mem.MapRAM(0x0000, ram, 0xc000, 0x4000);
+        vic2Mem.SetMemoryConfiguration(3);
+        vic2Mem.MapRAM(0x0000, ram, 0xc000, 0x4000);
 
         // Default to bank 0
-        mem.SetMemoryConfiguration(0);
+        vic2Mem.SetMemoryConfiguration(0);
 
-        return mem;
+        return vic2Mem;
     }
 
     public void BorderColorStore(ushort _, byte value)
     {
-        BorderColor = value;
+        BorderColor = (byte)(value & 0b0000_1111); // Only bits 0-3 are stored;
     }
     public byte BorderColorLoad(ushort _)
     {
-        return BorderColor;
+        return (byte)(BorderColor | 0b1111_0000); // Bits 4-7 are unused and always 1
     }
     public void BackgroundColorStore(ushort _, byte value)
     {
-        BackgroundColor = value;
+        BackgroundColor = (byte)(value & 0b0000_1111); // Only bits 0-3 are stored
     }
     public byte BackgroundColorLoad(ushort _)
     {
-        return BackgroundColor;
+        return ((byte)(BackgroundColor | 0b1111_0000)); // Bits 4-7 are unused and always 1
     }
 
     public void MemorySetupStore(ushort _, byte value)
@@ -214,40 +271,202 @@ public class Vic2
         return PortA;
     }
 
-    public void VerticalBlank(CPU cpu)
+    public void ScrCtrlReg1Store(ushort _, byte value)
     {
-        // Issue vertical blank signal to CPU (typically issue a IRQ, will take effect next frame)
-        // TODO: This assumes the IRQ always occurs for raster line 0. In a real Vic2 (C64) the line to generate the IRQ is configurable in 0xd012
-        cpu.IRQ = true;
+        ScrCtrl1 = (byte)(value & 0b0111_1111);
+
+        // If the VIC2 model is PAL, then allow configuring the 8th bit of the raster line IRQ.
+        // Note: As the Kernal ROM initializes this 8th bit for both NTSC and PAL (same ROM for both), we need this workaround here.
+        // TODO: Should an enum be used for VIC2 model base type (PAL or NTSC)?
+        if (Vic2Model.LinesVisible > 256)
+        {
+            // When writing to this register (SCRCTRL1) the seventh bit is the highest (eigth) for the the raster line IRQ setting.
+            ushort bit7HighestRasterLineBitIRQ = (ushort)(value & 0b1000_0000);
+            bit7HighestRasterLineBitIRQ = (ushort)(bit7HighestRasterLineBitIRQ << 1);
+
+            if (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue)
+                Vic2IRQ.ConfiguredIRQRasterLine = 0;
+            Vic2IRQ.ConfiguredIRQRasterLine = (ushort?)(Vic2IRQ.ConfiguredIRQRasterLine & 0b1111_1111);
+            Vic2IRQ.ConfiguredIRQRasterLine = (ushort?)(Vic2IRQ.ConfiguredIRQRasterLine | bit7HighestRasterLineBitIRQ);
+
+        }
+
+#if DEBUG
+        if (Vic2IRQ.ConfiguredIRQRasterLine > Vic2Model.Lines)
+            throw new Exception($"Internal error. Setting unreachable scan line for IRQ: {Vic2IRQ.ConfiguredIRQRasterLine}. Incorrect ROM for Vic2 model: {Vic2Model.Name} ?");
+#endif
+
     }
 
-    public void AdvanceRaster(CPU cpu, Memory mem, ulong cyclesConsumed)
+    public byte ScrCtrlReg1Load(ushort _)
     {
+        // As the seventh bit in this register (SCRCTRL1), the highest (eigth) bit of the current raster line is returned.
+        byte bit7HighestRasterLineBit = (byte)((_currentRasterLineInternal & 0b0000_0001_0000_0000) >> 1);
+        return (byte)(ScrCtrl1 | bit7HighestRasterLineBit);
+    }
+
+    public void RasterStore(ushort _, byte value)
+    {
+        ushort newIRQRasterLine = 0;
+        if (Vic2IRQ.ConfiguredIRQRasterLine.HasValue)
+        {
+            // When writing to this register, the value is used to store the first 8 bits of the raster line IRQ setting.
+            newIRQRasterLine = (ushort)(Vic2IRQ.ConfiguredIRQRasterLine & 0b0000_0001_0000_0000);
+        }
+
+        Vic2IRQ.ConfiguredIRQRasterLine = newIRQRasterLine |= value;
+    }
+
+    public byte RasterLoad(ushort _)
+    {
+        // When reding from this register, the lowest 8 bits of the current raster line is returned.
+        return (byte)(_currentRasterLineInternal & 0xff);
+    }
+
+    public void VICIRQStore(ushort _, byte value)
+    {
+        // "Any" flag does not have a separate latch. Setting this bit means clearing all latches.
+        if (value.IsBitSet((int)IRQSource.Any))
+        {
+            foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+            {
+                // "Any" flag, does not have a separate latch.
+                if (source == IRQSource.Any)
+                    continue;
+                // Clear all individual latches.
+                if (Vic2IRQ.IsTriggered(source, C64.CPU))
+                    Vic2IRQ.ClearTrigger(source, C64.CPU);
+            }
+        }
+        else
+        {
+            // Clear the individual latches that are specified.
+            foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+            {
+                // "Any" flag, does not have a separate latch.
+                if (source == IRQSource.Any)
+                    continue;
+                // Clear individual latch.
+                if (value.IsBitSet((int)source) && Vic2IRQ.IsTriggered(source, C64.CPU))
+                    Vic2IRQ.ClearTrigger(source, C64.CPU);
+            }
+        }
+    }
+
+    public byte VICIRQLoad(ushort _)
+    {
+        byte value = 0b01110000;    // Bits 4-7 are unused and always set to 1.
+
+        bool anyIRQSourceTriggered = false;
+        // Set bit 0-3 based on which IRQ sources have been triggered
+        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+        {
+            // "Any" flag does not have a separate trigger.
+            if (source == IRQSource.Any)
+                continue;
+            if (Vic2IRQ.IsTriggered(source, C64.CPU))
+            {
+                value.SetBit((int)source);
+                anyIRQSourceTriggered = true;
+            }
+        }
+        // If any of the individual IRQ flags are set, also set the "Any" flag (bit 7)
+        if (anyIRQSourceTriggered)
+            value.SetBit((int)IRQSource.Any);
+        else
+            value.ClearBit((int)IRQSource.Any);
+
+        return value;
+    }
+
+    public void IRQMASKStore(ushort _, byte value)
+    {
+        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+        {
+            if (source == IRQSource.Any)
+                continue;
+            if (value.IsBitSet((int)source))
+                Vic2IRQ.Enable(source);
+            else
+                Vic2IRQ.Disable(source);
+        }
+    }
+    public byte IRQMASKLoad(ushort _)
+    {
+        byte value = 0b11110000; // Bits 4-7 are unused and always set to 1.
+
+        foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
+        {
+            if (source == IRQSource.Any)
+                continue;
+            if (Vic2IRQ.IsEnabled(source))
+                value.SetBit((int)source);
+        }
+        return value;
+    }
+
+    public void AdvanceRaster(ulong cyclesConsumed)
+    {
+        var cpu = C64.CPU;
+        var mem = C64.Mem;
+
         CyclesConsumedCurrentVblank += cyclesConsumed;
-        //var cyclesUntilVBlank = VariantSetting.CyclesPerLine * (VariantSetting.Lines - (VariantSetting.VBlankLines / 2));
-        var cyclesUntilVBlank = Vic2Model.CyclesPerFrame;
-        if (CyclesConsumedCurrentVblank >= cyclesUntilVBlank)
+
+        // Raster line housekeeping.
+        // Calculate the raster line based on how man CPU cycles has been executed this frame
+        var newLine = (ushort)(CyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine);
+        if (newLine != _currentRasterLineInternal)
+        {
+#if DEBUG
+            if (newLine > Vic2Model.Lines)
+                throw new Exception($"Internal error. Unreachable scan line: {newLine}. The CPU probably executed more cycles current frame than allowed.");
+#endif
+            _currentRasterLineInternal = newLine;
+
+            // Process timers
+            if (C64.TimerMode == TimerMode.UpdateEachRasterLine)
+                C64.Cia.ProcessTimers(Vic2Model.CyclesPerLine);
+
+            // Check if a IRQ should be issued for current raster line, and issue it.
+            RaiseRasterIRQ(cpu);
+        }
+
+        // Remember colors for each raster line
+        StoreBorderColorForRasterLine(_currentRasterLineInternal);
+        StoreBackgroundColorForRasterLine(_currentRasterLineInternal);
+
+        // Check if we have reached the end of the frame.
+        if (CyclesConsumedCurrentVblank >= Vic2Model.CyclesPerFrame)
         {
             CyclesConsumedCurrentVblank = 0;
-            VerticalBlank(cpu);
         }
-        UpdateCurrentRasterLine(mem, CyclesConsumedCurrentVblank);
     }
 
-    private void UpdateCurrentRasterLine(Memory mem, ulong cyclesConsumedCurrentVblank)
+    private void RaiseRasterIRQ(CPU cpu)
     {
-        // Calculate the current raster line based on how man CPU cycles has been executed this frame
-        var line = (cyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine);
-        // Bits 0-7 of current line stored in 0xd012
-        mem[Vic2Addr.CURRENT_RASTER_LINE] = (byte)(line & 0xff);
-        // Bit 8 of current line stored in 0xd011 bit #7
-        var screenControlReg1Value = mem[Vic2Addr.SCREEN_CONTROL_REGISTER_1];
-        if (line > Vic2Model.Lines)
-            throw new Exception($"Internal error. Unreachable scan line: {line}. The CPU probably executed more cycles current frame than allowed.");
-        if (line <= 255)
-            screenControlReg1Value.ClearBit(7);
-        else
-            screenControlReg1Value.SetBit(7);
-        mem[Vic2Addr.SCREEN_CONTROL_REGISTER_1] = screenControlReg1Value;
+        // Check if a IRQ should be issued
+        var source = IRQSource.RasterCompare;
+        if ((_currentRasterLineInternal == Vic2IRQ.ConfiguredIRQRasterLine
+            || (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue & _currentRasterLineInternal >= Vic2Model.Lines))
+            && Vic2IRQ.IsEnabled(source)
+            && !Vic2IRQ.IsTriggered(source, C64.CPU))
+        {
+            Vic2IRQ.Trigger(source, cpu);
+        }
+    }
+
+    private void StoreBorderColorForRasterLine(ushort rasterLine)
+    {
+        var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
+        ScreenLineBorderColor[screenLine] = BorderColor;
+    }
+
+    private void StoreBackgroundColorForRasterLine(ushort rasterLine)
+    {
+        if (!C64.Vic2.Vic2Model.IsRasterLineInMainScreen(rasterLine))
+            return;
+
+        var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
+        ScreenLineBackgroundColor[screenLine] = BackgroundColor;
     }
 }

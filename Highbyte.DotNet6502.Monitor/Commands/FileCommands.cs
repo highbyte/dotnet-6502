@@ -41,6 +41,8 @@ public static class FileCommands
                 }
 
                 monitor.WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+                // Set PC to start of loaded file.
+                monitor.Cpu.PC = loadedAtAddress;
                 return (int)CommandResult.Ok;
 
             });
@@ -80,6 +82,8 @@ public static class FileCommands
                 }
 
                 monitor.WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+                // Set PC to start of loaded file.
+                monitor.Cpu.PC = loadedAtAddress;
                 return (int)CommandResult.Ok;
 
             });
@@ -121,7 +125,6 @@ public static class FileCommands
 
                 monitor.SaveBinary(fileName.Value, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress);
 
-                monitor.WriteOutput($"File saved to {fileName.Value}");
                 return (int)CommandResult.Ok;
             });
         });
