@@ -131,12 +131,17 @@ public class SilkNetImGuiMonitor : MonitorBase
         ImGui.End();
     }
 
-    public void Enable()
+    public void Enable(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
         Quit = false;
         Visible = true;
         _setFocusOnInput = true;
         base.Reset();   // Reset monitor working variables (like last disassembly location)
+
+        if (execEvaluatorTriggerResult != null)
+            base.ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
+        //else
+        //    WriteOutput($"Monitor enabled manually.", MessageSeverity.Information);
         OnMonitorStateChange(true);
     }
 

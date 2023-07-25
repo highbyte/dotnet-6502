@@ -1,3 +1,5 @@
+using System.Data;
+using System.Threading;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 
@@ -34,11 +36,8 @@ public class WasmMonitor : MonitorBase
         _setMonitorState = setMonitorState;
     }
 
-    public async Task Enable()
+    public async Task Enable(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
-        Visible = true;
-        await _setMonitorState(true);
-
         if (!_hasBeenInitializedOnce)
         {
             // Show description and general help text first time
@@ -49,7 +48,15 @@ public class WasmMonitor : MonitorBase
             _hasBeenInitializedOnce = true;
         }
 
+        if (execEvaluatorTriggerResult != null)
+            base.ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
+        //else
+        //    WriteOutput("Monitor enabled manually.");
+
         DisplayStatus();
+
+        Visible = true;
+        await _setMonitorState(true);
     }
 
     public async Task Disable()
@@ -172,7 +179,7 @@ public class WasmMonitor : MonitorBase
     /// Called after Blazor InputFile component callback has uploaded the user selected local file.
     /// </summary>
     /// <param name="fileData"></param>
-    public void LoadBinaryFromUser(byte[] fileData)
+    public async Task LoadBinaryFromUser(byte[] fileData)
     {
         BinaryLoader.Load(
             Mem,
@@ -183,8 +190,13 @@ public class WasmMonitor : MonitorBase
 
         WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
 
+        // Set PC to start of loaded file.
+        Cpu.PC = loadedAtAddress;
+
         if (_lastTriggeredAfterLoadCallback != null)
             _lastTriggeredAfterLoadCallback(this, loadedAtAddress, fileLength);
+
+        DisplayStatus();
     }
 
     public override async void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
@@ -217,6 +229,8 @@ public class WasmMonitor : MonitorBase
             Output += BuildHtmlString(message, "error", startNewLine: true);
         else if (severity == MessageSeverity.Warning)
             Output += BuildHtmlString(message, "warning", startNewLine: true);
+
+        _jsRuntime.InvokeVoidAsync("scrollBottom", "monitor-output");
     }
 
     private string BuildHtmlString(string message, string cssClass, bool startNewLine = false)

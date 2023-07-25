@@ -256,15 +256,15 @@ public class SilkNetWindow
         }
 
         // Run emulator for one frame worth of emulated CPU cycles 
-        bool cont;
+        ExecEvaluatorTriggerResult execEvaluatorTriggerResult;
         using (_systemTime.Measure())
         {
-            cont = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
+            execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
         }
 
         // Show monitor if we encounter breakpoint or other break
-        if (!cont)
-            _monitor.Enable();
+        if (execEvaluatorTriggerResult.Triggered)
+            _monitor.Enable(execEvaluatorTriggerResult);
     }
 
     /// <summary>

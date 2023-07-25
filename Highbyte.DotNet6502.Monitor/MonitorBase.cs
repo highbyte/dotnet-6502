@@ -1,3 +1,4 @@
+using System.Threading;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems;
 using McMaster.Extensions.CommandLineUtils;
@@ -65,6 +66,31 @@ public abstract class MonitorBase
         }
     }
 
+    public void ShowInfoAfterBreakTriggerEnabled(ExecEvaluatorTriggerResult execEvaluatorTriggerResult)
+    {
+        if (!execEvaluatorTriggerResult.Triggered)
+            return;
+
+        switch (execEvaluatorTriggerResult.TriggerType)
+        {
+            case ExecEvaluatorTriggerReasonType.DebugBreakPoint:
+                WriteOutput($"Breakpoint triggered at {Cpu.PC.ToHex()}");
+                break;
+            case ExecEvaluatorTriggerReasonType.UnknownInstruction:
+                WriteOutput($"Unknown instruction detected");
+                WriteOutput(execEvaluatorTriggerResult.TriggerDescription ?? "");
+                break;
+            case ExecEvaluatorTriggerReasonType.Other:
+                WriteOutput($"Other reason execution stopped");
+                WriteOutput(execEvaluatorTriggerResult.TriggerDescription ?? "");
+                break;
+            default:
+                throw new DotNet6502Exception($"Internal error. Unknown ExecEvaluatorTriggerReasonType: {execEvaluatorTriggerResult.TriggerType}");
+        }
+
+        // Show disassembly of next instruction
+        WriteOutput($"{OutputGen.GetNextInstructionDisassembly(Cpu, Mem)}");
+    }
     public void ShowDescription()
     {
         if (_commandLineApp.Description != null)

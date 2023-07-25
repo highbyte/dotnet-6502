@@ -183,7 +183,8 @@ public class CPUTest
         // Act
         var knownInstruction = cpu.ExecuteOneInstructionMinimal(
             mem,
-            out ulong cyclesConsumed
+            out ulong cyclesConsumed,
+            out ushort pcBeforeInstructionExecuted
             );
 
         // Assert
@@ -203,7 +204,8 @@ public class CPUTest
         // Act
         var knownInstruction = cpu.ExecuteOneInstructionMinimal(
             mem,
-            out ulong cyclesConsumed
+            out ulong cyclesConsumed,
+            out ushort pcBeforeInstructionExecuted
             );
 
         // Assert

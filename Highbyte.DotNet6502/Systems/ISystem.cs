@@ -9,9 +9,9 @@ public interface ISystem
     Memory Mem { get; }
     IScreen Screen { get; }
 
-    public bool ExecuteOneFrame(
+    public ExecEvaluatorTriggerResult ExecuteOneFrame(
         IExecEvaluator? execEvaluator = null,
         Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
         Dictionary<string, double>? detailedStats = null);
-    public bool ExecuteOneInstruction();
+    public ExecEvaluatorTriggerResult ExecuteOneInstruction(IExecEvaluator? execEvaluator = null);
 }

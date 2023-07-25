@@ -84,8 +84,8 @@ public class SadConsoleMain
     private void UpdateSadConsole(object sender, GameHost e)
     {
         // Run emulator for one frame
-        bool shouldContinue = _systemRunner.RunOneFrame(out _);
-        if (!shouldContinue)
+        var execEvaluatorTriggerResult = _systemRunner.RunOneFrame(out _);
+        if (execEvaluatorTriggerResult.Triggered)
         {
             // Exit program
             Environment.Exit(0);

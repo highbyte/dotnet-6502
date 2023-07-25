@@ -179,10 +179,10 @@ public class WasmHost : IDisposable
             _systemRunner.ProcessInput();
         }
 
-        bool cont;
+        ExecEvaluatorTriggerResult execEvaluatorTriggerResult;
         using (_systemTime.Measure())
         {
-            cont = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
+            execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
 
             if (detailedStats.ContainsKey("Audio"))
             {
@@ -200,8 +200,10 @@ public class WasmHost : IDisposable
         }
 
         // Show monitor if we encounter breakpoint or other break
-        if (!cont)
-            Monitor.Enable();
+        if (execEvaluatorTriggerResult.Triggered)
+        {
+            Monitor.Enable(execEvaluatorTriggerResult);
+        }
     }
 
     public void Render(SKCanvas canvas, GRContext grContext)

@@ -59,7 +59,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
             execEvaluator);
     }
 
-    public bool ExecuteOneFrame(
+    public ExecEvaluatorTriggerResult ExecuteOneFrame(
         IExecEvaluator? execEvaluator = null,
         Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
         Dictionary<string, double>? detailedStats = null)
@@ -85,14 +85,19 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 
         // If an unhandled instruction, return false
         if (!execState.LastOpCodeWasHandled)
-            return false;
+            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unkown instruction {Mem[execState.PCBeforeLastOpCodeExecuted!.Value].ToHex()} at {execState.PCBeforeLastOpCodeExecuted!.Value.ToHex()}");
+
 
         if (postInstructionCallback != null)
             postInstructionCallback(this, detailedStats);
 
         // If the custom ExecEvaluator said we shouldn't contine (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
-        if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
-            return false;
+        if (execEvaluator != null)
+        {
+            var execEvaluatorTriggerResult = execEvaluator.Check(null, CPU, Mem);
+            if (execEvaluatorTriggerResult.Triggered)
+                return execEvaluatorTriggerResult;
+        }
 
         // Tell CPU 6502 code that one frame worth of CPU cycles has been executed
         SetFrameCompleted();
@@ -100,20 +105,31 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         // Wait for CPU 6502 code has acknowledged that it knows a frame has completed.
         bool waitOk = WaitFrameCompletedAcknowledged();
         if (!waitOk)
-            return false;
+            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.Other, "WaitFrame failed"); ;
 
         // Return true to indicate execution was successfull and we should continue
-        return true;
+        return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
-    public bool ExecuteOneInstruction()
+    public ExecEvaluatorTriggerResult ExecuteOneInstruction(
+        IExecEvaluator? execEvaluator = null)
     {
         var execState = CPU.ExecuteOneInstruction(Mem);
         // If an unhandled instruction, return false
         if (!execState.LastOpCodeWasHandled)
-            return false;
-        // Return true to indicate execution was successfull
-        return true;
+            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unkown instruction {Mem[execState.PCBeforeLastOpCodeExecuted!.Value].ToHex()} at {execState.PCBeforeLastOpCodeExecuted!.Value.ToHex()}");
+
+        // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
+        if (execEvaluator != null)
+        {
+            var execEvaluatorTriggerResult = execEvaluator.Check(null, CPU, Mem);
+            if (execEvaluatorTriggerResult.Triggered)
+            {
+                return execEvaluatorTriggerResult;
+            }
+        }
+
+        return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
     private void SetFrameCompleted()
@@ -126,9 +142,9 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         // Keep on executing instructions until CPU 6502 code has cleared bit 0 in ScreenRefreshStatusAddress
         while (Mem.IsBitSet(_genericComputerConfig.Memory.Screen.ScreenRefreshStatusAddress, (int)ScreenStatusBitFlags.HostNewFrame))
         {
-            var ok = ExecuteOneInstruction();
+            var execEvaluatorTriggerResult = ExecuteOneInstruction();
             // If an unhandled instruction, return false
-            if (!ok)
+            if (execEvaluatorTriggerResult.Triggered)
                 return false;
         }
         return true;

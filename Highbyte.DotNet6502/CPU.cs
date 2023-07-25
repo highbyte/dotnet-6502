@@ -159,9 +159,11 @@ public class CPU
     /// <returns>True if instruction was known, False if not</returns>
     public bool ExecuteOneInstructionMinimal(
         Memory mem,
-        out ulong cyclesConsumed
-        )
+        out ulong cyclesConsumed,
+        out ushort pcBeforeInstructionExecuted)
     {
+        pcBeforeInstructionExecuted = PC;
+
         var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
         ProcessInterrupts(mem);
@@ -226,8 +228,8 @@ public class CPU
             // Will continue only if all of the ExecEvaluators reports true.
             foreach (var execEvaluator in execEvaluators)
             {
-                var cont = execEvaluator.Check(thisExecState, this, mem);
-                if (!cont)
+                var execEvaluatorTriggerResult = execEvaluator.Check(thisExecState, this, mem);
+                if (execEvaluatorTriggerResult.Triggered)
                 {
                     doNextInstruction = false;
                     break;

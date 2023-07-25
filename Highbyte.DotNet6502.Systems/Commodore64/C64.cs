@@ -13,6 +13,7 @@ public class C64 : ISystem, ISystemMonitor
     public const string SystemName = "C64";
     public string Name => SystemName;
     public string SystemInfo => BuildSystemInfo();
+
     public C64ModelBase Model { get; private set; }
 
     public float CpuFrequencyHz => Model.CPUFrequencyHz;
@@ -50,7 +51,7 @@ public class C64 : ISystem, ISystemMonitor
     //};
 
     // Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
-    public bool ExecuteOneFrame(
+    public ExecEvaluatorTriggerResult ExecuteOneFrame(
         IExecEvaluator? execEvaluator = null,
         Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
         Dictionary<string, double>? detailedStats = null)
@@ -58,17 +59,13 @@ public class C64 : ISystem, ISystemMonitor
         var cyclesToExecute = Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
 
         ulong totalCyclesConsumed = 0;
-        bool exitValue = true;
         while (totalCyclesConsumed < cyclesToExecute)
         {
-            var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out var instructionCyclesConsumed);
-            if (!knownInstruction)
-            {
-                exitValue = false;
-                break;
-            }
-
+            var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out var instructionCyclesConsumed, out var pcBeforeInstructionExecuted);
             totalCyclesConsumed += instructionCyclesConsumed;
+
+            if (!knownInstruction)
+                return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unkown instruction {Mem[pcBeforeInstructionExecuted].ToHex()} at {pcBeforeInstructionExecuted.ToHex()}");
 
             if (TimerMode == TimerMode.UpdateEachInstruction)
                 Cia.ProcessTimers(instructionCyclesConsumed);
@@ -81,14 +78,17 @@ public class C64 : ISystem, ISystemMonitor
                 postInstructionCallback(this, detailedStats);
 
             // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
-            if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
+            if (execEvaluator != null)
             {
-                exitValue = false;
-                break;
+                var execEvaluatorTriggerResult = execEvaluator.Check(null, CPU, Mem);
+                if (execEvaluatorTriggerResult.Triggered)
+                {
+                    return execEvaluatorTriggerResult;
+                }
             }
         }
 
-        return exitValue;
+        return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
 
@@ -128,10 +128,23 @@ public class C64 : ISystem, ISystemMonitor
     //    return true;
     //}
 
-    public bool ExecuteOneInstruction()
+    public ExecEvaluatorTriggerResult ExecuteOneInstruction(
+        IExecEvaluator? execEvaluator = null)
     {
-        var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out ulong cyclesConsumed);
-        return knownInstruction;
+        var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out ulong cyclesConsumed, out ushort pcBeforeInstructionExecuted);
+        if (!knownInstruction)
+            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unkown instruction {Mem[pcBeforeInstructionExecuted].ToHex()} at {pcBeforeInstructionExecuted.ToHex()}");
+
+        // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
+        if (execEvaluator != null)
+        {
+            var execEvaluatorTriggerResult = execEvaluator.Check(null, CPU, Mem);
+            if (execEvaluatorTriggerResult.Triggered)
+            {
+                return execEvaluatorTriggerResult;
+            }
+        }
+        return ExecEvaluatorTriggerResult.NotTriggered;
 
         //var execState = CPU.ExecuteOneInstruction(Mem);
         //// If an unhandled instruction, return false
