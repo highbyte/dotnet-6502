@@ -107,13 +107,16 @@ public class WasmHost : IDisposable
 
     public void Stop()
     {
-        if (_updateTimer == null)
-            return;
-        _updateTimer!.Stop();
+        _updateTimer?.Stop();
+
+        _systemRunner.AudioHandler.PausePlaying();
     }
 
     public void Start()
     {
+        if (_systemRunner != null && _systemRunner.AudioHandler != null)
+            _systemRunner.AudioHandler.StartPlaying();
+
         if (_updateTimer != null)
         {
         }
@@ -126,7 +129,6 @@ public class WasmHost : IDisposable
             _updateTimer.IntervalMilliseconds = updateIntervalMS;
             _updateTimer.Elapsed += UpdateTimerElapsed;
         }
-
         _updateTimer!.Start();
     }
 
@@ -138,9 +140,6 @@ public class WasmHost : IDisposable
             _updateTimer = null;
         }
 
-        // Stop any playing audio
-        _systemRunner.AudioHandler.StopAllAudio();
-
         // Clear canvas
         _skiaRenderContext.GetCanvas().Clear();
 
@@ -149,6 +148,11 @@ public class WasmHost : IDisposable
 
         // Clean up input handler resources
         InputHandlerContext?.Cleanup();
+
+        // Stop any playing audio
+        _systemRunner.AudioHandler.StopPlaying();
+        // Clean up audio resources
+        //AudioHandlerContext?.Cleanup();
     }
 
     private void UpdateTimerElapsed(object? sender, EventArgs e) => EmulatorRunOneFrame();

@@ -8,7 +8,6 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
     {
         private readonly C64WASMVoiceContext _c64WASMVoiceContext;
         private WASMAudioHandlerContext _audioHandlerContext => _c64WASMVoiceContext.AudioHandlerContext;
-        private AudioContextSync _audioContext => _c64WASMVoiceContext.AudioHandlerContext.AudioContext;
 
         private Action<string> _addDebugMessage => _c64WASMVoiceContext.AddDebugMessage;
 
@@ -81,12 +80,12 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
         {
             float noiseDuration = 1.0f;  // Seconds
 
-            var sampleRate = _audioContext.GetSampleRate();
+            var sampleRate = _audioHandlerContext.AudioContext.GetSampleRate();
             int bufferSize = (int)(sampleRate * noiseDuration);
             // Create an empty buffer
             _noiseBuffer = AudioBufferSync.Create(
-                _audioContext.WebAudioHelper,
-                _audioContext.JSRuntime,
+                _audioHandlerContext.AudioContext.WebAudioHelper,
+                _audioHandlerContext.JSRuntime,
                 new AudioBufferOptions
                 {
                     Length = bufferSize,
@@ -108,7 +107,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
             {
                 values[i] = ((float)random.NextDouble()) * 2 - 1;
             }
-            var data = Float32ArraySync.Create(_audioContext.WebAudioHelper, _audioContext.JSRuntime, values);
+            var data = Float32ArraySync.Create(_audioHandlerContext.AudioContext.WebAudioHelper, _audioHandlerContext.JSRuntime, values);
             _noiseBuffer.CopyToChannel(data, 0);
         }
 

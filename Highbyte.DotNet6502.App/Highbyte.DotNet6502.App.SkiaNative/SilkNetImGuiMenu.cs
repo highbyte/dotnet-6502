@@ -19,24 +19,30 @@ public class SilkNetImGuiMenu
     private const int POS_X = 10;
     private const int POS_Y = 10;
     private const int WIDTH = 400;
-    private const int HEIGHT = 300;
+    private const int HEIGHT = 350;
     static Vector4 s_InformationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
     static Vector4 s_ErrorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
     static Vector4 s_WarningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
 
     private string _screenScaleString = "";
     private int _selectedSystemItem = 0;
+
+    private bool _audioEnabled;
+    private float _audioVolumePercent;
     private string SelectedSystemName => _silkNetWindow.SystemList.Systems.ToArray()[_selectedSystemItem];
 
     private SilkNetImGuiC64Config _c64ConfigUI;
     private SilkNetImGuiGenericComputerConfig _genericComputerConfigUI;
 
-    public SilkNetImGuiMenu(SilkNetWindow silkNetWindow, string defaultSystemName)
+    public SilkNetImGuiMenu(SilkNetWindow silkNetWindow, string defaultSystemName, bool defaultAudioEnabled, float defaultAudioVolumePercent)
     {
         _silkNetWindow = silkNetWindow;
         _screenScaleString = silkNetWindow.CanvasScale.ToString();
 
         _selectedSystemItem = _silkNetWindow.SystemList.Systems.ToList().IndexOf(defaultSystemName);
+
+        _audioEnabled = defaultAudioEnabled;
+        _audioVolumePercent = defaultAudioVolumePercent;
     }
 
     public void PostOnRender()
@@ -128,68 +134,56 @@ public class SilkNetImGuiMenu
         ImGui.PopItemWidth();
         ImGui.EndDisabled();
 
-        ImGui.PushStyleColor(ImGuiCol.Text, s_WarningColor);
-        ImGui.Text("Toggle menu with F6");
-        ImGui.Text("Toggle monitor with F12");
-        ImGui.Text("Toggle stats with F11");
-        ImGui.PopStyleColor();
-
-        // Commond commands
-        ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
-        if (ImGui.Button("Load & start binary PRG file"))
+        // System settings
+        if (!string.IsNullOrEmpty(SelectedSystemName))
         {
-            bool wasRunning = false;
-            if (_silkNetWindow.EmulatorState == EmulatorState.Running)
+            // Common audio settings
+            ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
+
+            ImGui.BeginDisabled(disabled: !(systemConfig.AudioSupported && EmulatorState == EmulatorState.Uninitialized));
+            ImGui.PushStyleColor(ImGuiCol.Text, s_InformationColor);
+            //ImGui.SetKeyboardFocusHere(0);
+            ImGui.PushItemWidth(40);
+            if (systemConfig.AudioSupported)
             {
-                wasRunning = true;
-                _silkNetWindow.Pause();
-
+                if (ImGui.Checkbox("Audio enabled (experimental)", ref _audioEnabled))
+                {
+                    systemConfig.AudioEnabled = _audioEnabled;
+                }
             }
+            ImGui.PopStyleColor();
+            ImGui.PopItemWidth();
+            ImGui.EndDisabled();
 
-            var dialogResult = Dialog.FileOpen(@"prg;*");
-            if (dialogResult.IsOk)
+
+            ImGui.BeginDisabled(disabled: !(systemConfig.AudioSupported));
+            ImGui.PushStyleColor(ImGuiCol.Text, s_InformationColor);
+            //ImGui.SetKeyboardFocusHere(0);
+            ImGui.PushItemWidth(40);
+            if (systemConfig.AudioSupported)
             {
-                var fileName = dialogResult.Path;
-                BinaryLoader.Load(
-                    _silkNetWindow.SystemRunner.System.Mem,
-                    fileName,
-                    out ushort loadedAtAddress,
-                    out ushort fileLength);
-
-                _silkNetWindow.SystemRunner.System.CPU.PC = loadedAtAddress;
-
-                _silkNetWindow.Start();
+                if (ImGui.SliderFloat("Volume", ref _audioVolumePercent, 0f, 100f, ""))
+                {
+                    _silkNetWindow.SetVolumePercent(_audioVolumePercent);
+                }
             }
-            else
-            {
-                if (wasRunning)
-                    _silkNetWindow.Start();
-            }
-        }
-        ImGui.EndDisabled();
+            ImGui.PopStyleColor();
+            ImGui.PopItemWidth();
+            ImGui.EndDisabled();
 
 
-        DrawC64Config();
-
-        DrawGenericComputerConfig();
-
-        ImGui.End();
-    }
-
-    private void DrawC64Config()
-    {
-        if (SelectedSystemName == "C64")
-        {
+            // Common load/save commands
             ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
-            if (ImGui.Button("Load Basic PRG file"))
+            if (ImGui.Button("Load & start binary PRG file"))
             {
                 bool wasRunning = false;
                 if (_silkNetWindow.EmulatorState == EmulatorState.Running)
                 {
                     wasRunning = true;
                     _silkNetWindow.Pause();
+
                 }
-                _silkNetWindow.Pause();
+
                 var dialogResult = Dialog.FileOpen(@"prg;*");
                 if (dialogResult.IsOk)
                 {
@@ -200,153 +194,201 @@ public class SilkNetImGuiMenu
                         out ushort loadedAtAddress,
                         out ushort fileLength);
 
-                    if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
-                    {
-                        // Probably not a Basic program that was loaded. Don't init BASIC memory variables.
-                        Debug.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
-                    }
-                    else
-                    {
-                        // Init C64 BASIC memory variables
-                        ((C64)_silkNetWindow.SystemRunner.System).InitBasicMemoryVariables(loadedAtAddress, fileLength);
-                    }
-                }
+                    _silkNetWindow.SystemRunner.System.CPU.PC = loadedAtAddress;
 
-                if (wasRunning)
                     _silkNetWindow.Start();
-            }
-            ImGui.EndDisabled();
-
-            ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
-            if (ImGui.Button("Save Basic PRG file"))
-            {
-                bool wasRunning = false;
-                if (_silkNetWindow.EmulatorState == EmulatorState.Running)
-                {
-                    wasRunning = true;
-                    _silkNetWindow.Pause();
                 }
-                _silkNetWindow.Pause();
-                var dialogResult = Dialog.FileSave(@"prg;*");
-                if (dialogResult.IsOk)
+                else
                 {
-                    var fileName = dialogResult.Path;
-                    ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
-                    var endAddressValue = ((C64)_silkNetWindow.SystemRunner.System).GetBasicProgramEndAddress();
-                    BinarySaver.Save(
-                        _silkNetWindow.SystemRunner.System.Mem,
-                        fileName,
-                        startAddressValue,
-                        endAddressValue,
-                        addFileHeaderWithLoadAddress: true);
-                }
-
-                if (wasRunning)
-                    _silkNetWindow.Start();
-            }
-            ImGui.EndDisabled();
-
-
-            ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
-            if (_c64ConfigUI == null)
-            {
-                _c64ConfigUI = new SilkNetImGuiC64Config();
-                ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
-                var c64Config = (C64Config)systemConfig;
-                _c64ConfigUI.Reset(c64Config);
-            }
-
-            if (ImGui.Button("C64 config"))
-            {
-                if (!_c64ConfigUI.Visible)
-                {
-                    ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
-                    var c64Config = (C64Config)systemConfig;
-                    _c64ConfigUI.Init(c64Config);
+                    if (wasRunning)
+                        _silkNetWindow.Start();
                 }
             }
             ImGui.EndDisabled();
 
-            if (!_c64ConfigUI.IsValidConfig)
+            // System specific settings
+            switch (SelectedSystemName)
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, s_ErrorColor);
-                ImGui.TextWrapped($"Config has errors. Press C64 Config button.");
-                ImGui.PopStyleColor();
-            }
-
-            if (_c64ConfigUI.Visible)
-            {
-                _c64ConfigUI.PostOnRender();
-                if (_c64ConfigUI.Ok)
-                {
-                    Debug.WriteLine("Ok pressed");
-                    C64Config c64Config = _c64ConfigUI.UpdatedConfig;
-                    var systemConfig = (ISystemConfig)c64Config;
-                    _silkNetWindow.SystemList.ChangeCurrentSystemConfig(SelectedSystemName, systemConfig);
-                    _c64ConfigUI.Reset(c64Config);
-                }
-                else if (_c64ConfigUI.Cancel)
-                {
-                    Debug.WriteLine("Cancel pressed");
-                    ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
-                    var c64Config = (C64Config)systemConfig;
-                    _c64ConfigUI.Reset(c64Config);
-                }
+                case "C64":
+                    DrawC64Config(systemConfig);
+                    break;
+                case "Generic":
+                    DrawGenericComputerConfig(systemConfig);
+                    break;
+                default:
+                    break;
             }
         }
 
+        ImGui.PushStyleColor(ImGuiCol.Text, s_WarningColor);
+        ImGui.Text("Toggle menu with F6");
+        ImGui.Text("Toggle monitor with F12");
+        ImGui.Text("Toggle stats with F11");
+        ImGui.PopStyleColor();
+
+        ImGui.End();
     }
 
-    private void DrawGenericComputerConfig()
+    private void DrawC64Config(ISystemConfig systemConfig)
     {
-        if (SelectedSystemName == "Generic")
+        // Basic load/save commands
+        ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
+        if (ImGui.Button("Load Basic PRG file"))
         {
-            ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
-
-            if (_genericComputerConfigUI == null)
+            bool wasRunning = false;
+            if (_silkNetWindow.EmulatorState == EmulatorState.Running)
             {
-                _genericComputerConfigUI = new SilkNetImGuiGenericComputerConfig();
-                ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
+                wasRunning = true;
+                _silkNetWindow.Pause();
+            }
+            _silkNetWindow.Pause();
+            var dialogResult = Dialog.FileOpen(@"prg;*");
+            if (dialogResult.IsOk)
+            {
+                var fileName = dialogResult.Path;
+                BinaryLoader.Load(
+                    _silkNetWindow.SystemRunner.System.Mem,
+                    fileName,
+                    out ushort loadedAtAddress,
+                    out ushort fileLength);
+
+                if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
+                {
+                    // Probably not a Basic program that was loaded. Don't init BASIC memory variables.
+                    Debug.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
+                }
+                else
+                {
+                    // Init C64 BASIC memory variables
+                    ((C64)_silkNetWindow.SystemRunner.System).InitBasicMemoryVariables(loadedAtAddress, fileLength);
+                }
+            }
+
+            if (wasRunning)
+                _silkNetWindow.Start();
+        }
+        ImGui.EndDisabled();
+
+        ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
+        if (ImGui.Button("Save Basic PRG file"))
+        {
+            bool wasRunning = false;
+            if (_silkNetWindow.EmulatorState == EmulatorState.Running)
+            {
+                wasRunning = true;
+                _silkNetWindow.Pause();
+            }
+            _silkNetWindow.Pause();
+            var dialogResult = Dialog.FileSave(@"prg;*");
+            if (dialogResult.IsOk)
+            {
+                var fileName = dialogResult.Path;
+                ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
+                var endAddressValue = ((C64)_silkNetWindow.SystemRunner.System).GetBasicProgramEndAddress();
+                BinarySaver.Save(
+                    _silkNetWindow.SystemRunner.System.Mem,
+                    fileName,
+                    startAddressValue,
+                    endAddressValue,
+                    addFileHeaderWithLoadAddress: true);
+            }
+
+            if (wasRunning)
+                _silkNetWindow.Start();
+        }
+        ImGui.EndDisabled();
+
+        // C64 config
+        ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
+
+        if (_c64ConfigUI == null)
+        {
+            _c64ConfigUI = new SilkNetImGuiC64Config();
+            var c64Config = (C64Config)systemConfig;
+            _c64ConfigUI.Reset(c64Config);
+        }
+
+        if (ImGui.Button("C64 config"))
+        {
+            if (!_c64ConfigUI.Visible)
+            {
+                var c64Config = (C64Config)systemConfig;
+                _c64ConfigUI.Init(c64Config);
+            }
+        }
+        ImGui.EndDisabled();
+
+        if (!_c64ConfigUI.IsValidConfig)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, s_ErrorColor);
+            ImGui.TextWrapped($"Config has errors. Press C64 Config button.");
+            ImGui.PopStyleColor();
+        }
+
+        if (_c64ConfigUI.Visible)
+        {
+            _c64ConfigUI.PostOnRender();
+            if (_c64ConfigUI.Ok)
+            {
+                Debug.WriteLine("Ok pressed");
+                C64Config c64Config = _c64ConfigUI.UpdatedConfig;
+                var updatedSystemConfig = (ISystemConfig)c64Config;
+                _silkNetWindow.SystemList.ChangeCurrentSystemConfig(SelectedSystemName, updatedSystemConfig);
+                _c64ConfigUI.Reset(c64Config);
+            }
+            else if (_c64ConfigUI.Cancel)
+            {
+                Debug.WriteLine("Cancel pressed");
+                var c64Config = (C64Config)systemConfig;
+                _c64ConfigUI.Reset(c64Config);
+            }
+        }
+    }
+
+    private void DrawGenericComputerConfig(ISystemConfig systemConfig)
+    {
+        ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
+
+        if (_genericComputerConfigUI == null)
+        {
+            _genericComputerConfigUI = new SilkNetImGuiGenericComputerConfig();
+            var genericComputerConfig = (GenericComputerConfig)systemConfig;
+            _genericComputerConfigUI.Reset(genericComputerConfig);
+        }
+
+        if (ImGui.Button("GenericComputer config"))
+        {
+            if (!_genericComputerConfigUI.Visible)
+            {
                 var genericComputerConfig = (GenericComputerConfig)systemConfig;
+                _genericComputerConfigUI.Init(genericComputerConfig);
+            }
+        }
+        ImGui.EndDisabled();
+
+        if (!_genericComputerConfigUI.IsValidConfig)
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, s_ErrorColor);
+            ImGui.TextWrapped($"Config has errors. Press GenericComputerConfig button.");
+            ImGui.PopStyleColor();
+        }
+
+        if (_genericComputerConfigUI.Visible)
+        {
+            _genericComputerConfigUI.PostOnRender();
+            if (_genericComputerConfigUI.Ok)
+            {
+                Debug.WriteLine("Ok pressed");
+                GenericComputerConfig genericComputerConfig = _genericComputerConfigUI.UpdatedConfig;
+                var updateSystemConfig = (ISystemConfig)genericComputerConfig;
+                _silkNetWindow.SystemList.ChangeCurrentSystemConfig(SelectedSystemName, updateSystemConfig);
                 _genericComputerConfigUI.Reset(genericComputerConfig);
             }
-
-            if (ImGui.Button("GenericComputer config"))
+            else if (_genericComputerConfigUI.Cancel)
             {
-                if (!_genericComputerConfigUI.Visible)
-                {
-                    ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
-                    var genericComputerConfig = (GenericComputerConfig)systemConfig;
-                    _genericComputerConfigUI.Init(genericComputerConfig);
-                }
-            }
-            ImGui.EndDisabled();
-
-            if (!_genericComputerConfigUI.IsValidConfig)
-            {
-                ImGui.PushStyleColor(ImGuiCol.Text, s_ErrorColor);
-                ImGui.TextWrapped($"Config has errors. Press GenericComputerConfig button.");
-                ImGui.PopStyleColor();
-            }
-
-            if (_genericComputerConfigUI.Visible)
-            {
-                _genericComputerConfigUI.PostOnRender();
-                if (_genericComputerConfigUI.Ok)
-                {
-                    Debug.WriteLine("Ok pressed");
-                    GenericComputerConfig genericComputerConfig = _genericComputerConfigUI.UpdatedConfig;
-                    var systemConfig = (ISystemConfig)genericComputerConfig;
-                    _silkNetWindow.SystemList.ChangeCurrentSystemConfig(SelectedSystemName, systemConfig);
-                    _genericComputerConfigUI.Reset(genericComputerConfig);
-                }
-                else if (_genericComputerConfigUI.Cancel)
-                {
-                    Debug.WriteLine("Cancel pressed");
-                    ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
-                    var genericComputerConfig = (GenericComputerConfig)systemConfig;
-                    _genericComputerConfigUI.Reset(genericComputerConfig);
-                }
+                Debug.WriteLine("Cancel pressed");
+                var genericComputerConfig = (GenericComputerConfig)systemConfig;
+                _genericComputerConfigUI.Reset(genericComputerConfig);
             }
         }
     }

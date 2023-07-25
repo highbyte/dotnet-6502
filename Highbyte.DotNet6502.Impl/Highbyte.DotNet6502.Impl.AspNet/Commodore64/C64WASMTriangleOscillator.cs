@@ -1,4 +1,3 @@
-using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorDOMSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
 
@@ -67,9 +66,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
         internal void Disconnect()
         {
             if (TriangleOscillator == null)
-                throw new Exception($"TriangleOscillator is null. Call Create() first.");
+                return;
             TriangleOscillator!.Disconnect();
         }
-
     }
 }

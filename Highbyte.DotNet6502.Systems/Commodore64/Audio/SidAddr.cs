@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
+namespace Highbyte.DotNet6502.Systems.Commodore64.Audio;
 
 /// <summary>
 /// C64 SID chip audio related addresses: 0xd400 0xd41c
@@ -84,14 +84,5 @@ public enum SidVoiceRegisterType
     VCREG,
     ATDCY,
     SUREL
-}
-
-public enum SidVoiceWaveForm
-{
-    None,
-    Triangle,
-    Sawtooth,
-    Pulse,
-    RandomNoise
 }
 
