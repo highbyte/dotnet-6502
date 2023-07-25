@@ -9,11 +9,11 @@ public class BreakPointExecEvaluator : IExecEvaluator
         _breakPoints = breakPoints;
     }
 
-    public bool Check(ExecState execState, CPU cpu, Memory mem)
+    public ExecEvaluatorTriggerResult Check(ExecState execState, CPU cpu, Memory mem)
     {
         var pc = cpu.PC;
         if (_breakPoints.ContainsKey(pc) && _breakPoints[pc].Enabled)
-            return false;
-        return true;
+            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.DebugBreakPoint);
+        return ExecEvaluatorTriggerResult.NotTriggered;
     }
 }

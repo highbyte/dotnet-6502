@@ -1,3 +1,5 @@
+using System.Data;
+using System.Threading;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 
@@ -34,11 +36,8 @@ public class WasmMonitor : MonitorBase
         _setMonitorState = setMonitorState;
     }
 
-    public async Task Enable()
+    public async Task Enable(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
-        Visible = true;
-        await _setMonitorState(true);
-
         if (!_hasBeenInitializedOnce)
         {
             // Show description and general help text first time
@@ -49,7 +48,15 @@ public class WasmMonitor : MonitorBase
             _hasBeenInitializedOnce = true;
         }
 
+        if (execEvaluatorTriggerResult != null)
+            base.ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
+        //else
+        //    WriteOutput("Monitor enabled manually.");
+
         DisplayStatus();
+
+        Visible = true;
+        await _setMonitorState(true);
     }
 
     public async Task Disable()
@@ -157,7 +164,7 @@ public class WasmMonitor : MonitorBase
         _lastTriggeredLoadBinaryForceLoadAddress = forceLoadAddress;
         _lastTriggeredAfterLoadCallback = afterLoadCallback;
 
-        // Trigger the html file picker dialog to open. After the file is picked and uploaded, LoadBinaryFromUser below will be called.
+        // ConditionSet the html file picker dialog to open. After the file is picked and uploaded, LoadBinaryFromUser below will be called.
         _jsRuntime.InvokeVoidAsync("clickId", "monitorFilePicker");
 
         WriteOutput($"Waiting for file to be selected by user.");
@@ -172,7 +179,7 @@ public class WasmMonitor : MonitorBase
     /// Called after Blazor InputFile component callback has uploaded the user selected local file.
     /// </summary>
     /// <param name="fileData"></param>
-    public void LoadBinaryFromUser(byte[] fileData)
+    public async Task LoadBinaryFromUser(byte[] fileData)
     {
         BinaryLoader.Load(
             Mem,
@@ -183,18 +190,30 @@ public class WasmMonitor : MonitorBase
 
         WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
 
+        // Set PC to start of loaded file.
+        Cpu.PC = loadedAtAddress;
+
         if (_lastTriggeredAfterLoadCallback != null)
             _lastTriggeredAfterLoadCallback(this, loadedAtAddress, fileLength);
+
+        DisplayStatus();
     }
 
-    public async override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
+    public override async void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
     {
+        // Ensure file has .prg extension if not specfied. When saving by issuing a browser file download, and saving a file with no extension, the browser will add .txt extension.
+        string ext = Path.GetExtension(fileName);
+        if (string.IsNullOrEmpty(ext))
+            fileName += ".prg";
+
         var saveData = BinarySaver.BuildSaveData(Mem, startAddress, endAddress, addFileHeaderWithLoadAddress);
         var fileStream = new MemoryStream(saveData);
         using var streamRef = new DotNetStreamReference(stream: fileStream);
 
         // Invoke JS helper script to trigger save dialog to users browser downloads folder
         await _jsRuntime.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+
+        WriteOutput($"Program downloaded to {fileName}");
     }
 
     public override void WriteOutput(string message)
@@ -210,6 +229,8 @@ public class WasmMonitor : MonitorBase
             Output += BuildHtmlString(message, "error", startNewLine: true);
         else if (severity == MessageSeverity.Warning)
             Output += BuildHtmlString(message, "warning", startNewLine: true);
+
+        _jsRuntime.InvokeVoidAsync("scrollBottom", "monitor-output");
     }
 
     private string BuildHtmlString(string message, string cssClass, bool startNewLine = false)

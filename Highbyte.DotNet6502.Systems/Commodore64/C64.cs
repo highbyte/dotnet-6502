@@ -4,47 +4,44 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Keyboard;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
-public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
+public class C64 : ISystem, ISystemMonitor
 {
     public const string SystemName = "C64";
     public string Name => SystemName;
     public string SystemInfo => BuildSystemInfo();
+
     public C64ModelBase Model { get; private set; }
 
     public float CpuFrequencyHz => Model.CPUFrequencyHz;
     public CPU CPU { get; set; }
     public Memory Mem { get; set; }
+    public IScreen Screen => Vic2.Vic2Screen;
+
     public byte[] RAM { get; set; }
     public byte[] IO { get; set; }
     public byte CurrentBank { get; set; }
     public Vic2 Vic2 { get; set; }
+    public Cia Cia { get; set; }
     public C64Keyboard Keyboard { get; set; }
     public Sid Sid { get; set; }
     public Dictionary<string, byte[]> ROMData { get; set; }
 
-    public int Cols => Vic2.COLS;
-    public int Rows => Vic2.ROWS;
-    public int CharacterWidth => 8;
-    public int CharacterHeight => 8;
-
-    public int Width => Vic2.WIDTH;
-    public int Height => Vic2.HEIGHT;
-    public int VisibleWidth => (int)Vic2.Vic2Model.PixelsPerLineVisible;
-    public int VisibleHeight => (int)Vic2.Vic2Model.LinesVisible;
-    public bool HasBorder => true;
-    public int BorderWidth => (int)Math.Ceiling((double)((VisibleWidth - Width) / 2.0d));
-    public int BorderHeight => (int)Math.Ceiling((double)((VisibleHeight - Height) / 2.0d));
-    public float RefreshFrequencyHz => (float)CpuFrequencyHz / Vic2.Vic2Model.CyclesPerFrame;
 
     public bool AudioEnabled { get; private set; }
+    public TimerMode TimerMode { get; private set; }
+
+    public string ColorMapName { get; private set; }
 
     private LegacyExecEvaluator _oneFrameExecEvaluator;
 
     private C64MonitorCommands _c64MonitorCommands = new C64MonitorCommands();
+
+    public const ushort BASIC_LOAD_ADDRESS = 0x0801;
 
     //public static ROM[] ROMS = new ROM[]
     //{   
@@ -55,7 +52,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     //};
 
     // Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
-    public bool ExecuteOneFrame(
+    public ExecEvaluatorTriggerResult ExecuteOneFrame(
         IExecEvaluator? execEvaluator = null,
         Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
         Dictionary<string, double>? detailedStats = null)
@@ -65,23 +62,34 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < cyclesToExecute)
         {
-            var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out var instructionCyclesConsumed);
-            if (!knownInstruction)
-                return false;
-
+            var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out var instructionCyclesConsumed, out var pcBeforeInstructionExecuted);
             totalCyclesConsumed += instructionCyclesConsumed;
 
-            Vic2.AdvanceRaster(CPU, Mem, instructionCyclesConsumed); 
+            if (!knownInstruction)
+                return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unkown instruction {Mem[pcBeforeInstructionExecuted].ToHex()} at {pcBeforeInstructionExecuted.ToHex()}");
+
+            if (TimerMode == TimerMode.UpdateEachInstruction)
+                Cia.ProcessTimers(instructionCyclesConsumed);
+
+            // Process video raster
+            Vic2.AdvanceRaster(instructionCyclesConsumed);
 
             // Handle processing needed after each instruction, such as generating audio etc.
             if (AudioEnabled && postInstructionCallback != null)
                 postInstructionCallback(this, detailedStats);
 
             // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
-            if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
-                return false;
+            if (execEvaluator != null)
+            {
+                var execEvaluatorTriggerResult = execEvaluator.Check(null, CPU, Mem);
+                if (execEvaluatorTriggerResult.Triggered)
+                {
+                    return execEvaluatorTriggerResult;
+                }
+            }
         }
-        return true;
+
+        return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
 
@@ -121,10 +129,23 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     //    return true;
     //}
 
-    public bool ExecuteOneInstruction()
+    public ExecEvaluatorTriggerResult ExecuteOneInstruction(
+        IExecEvaluator? execEvaluator = null)
     {
-        var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out ulong cyclesConsumed);
-        return knownInstruction;
+        var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out ulong cyclesConsumed, out ushort pcBeforeInstructionExecuted);
+        if (!knownInstruction)
+            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unkown instruction {Mem[pcBeforeInstructionExecuted].ToHex()} at {pcBeforeInstructionExecuted.ToHex()}");
+
+        // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
+        if (execEvaluator != null)
+        {
+            var execEvaluatorTriggerResult = execEvaluator.Check(null, CPU, Mem);
+            if (execEvaluatorTriggerResult.Triggered)
+            {
+                return execEvaluatorTriggerResult;
+            }
+        }
+        return ExecEvaluatorTriggerResult.NotTriggered;
 
         //var execState = CPU.ExecuteOneInstruction(Mem);
         //// If an unhandled instruction, return false
@@ -149,24 +170,28 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
         var mem = CreateC64Memory(ram, io, romData);
 
         var vic2Model = c64Model.Vic2Models.Single(x => x.Name == c64Config.Vic2Model);
-        var vic2 = Vic2.BuildVic2(ram, romData, vic2Model);
         var kb = new C64Keyboard();
         var sid = Sid.BuildSid();
 
-        var cpu = CreateC64CPU(vic2, mem);
         var c64 = new C64
         {
             Model = c64Model,
             Mem = mem,
-            CPU = cpu,
             RAM = ram,
             IO = io,
-            Vic2 = vic2,
             Keyboard = kb,
             Sid = sid,
             ROMData = romData,
-            AudioEnabled = c64Config.AudioEnabled
+            AudioEnabled = c64Config.AudioEnabled,
+            TimerMode = c64Config.TimerMode,
+            ColorMapName = c64Config.ColorMapName
         };
+        var vic2 = Vic2.BuildVic2(ram, romData, vic2Model, c64);
+        var cpu = CreateC64CPU(vic2, mem);
+        c64.Vic2 = vic2;
+        c64.CPU = cpu;
+
+        c64.Cia = new Cia(c64);
 
         // Map specific memory addresses to different emulator actions            
         MapIOLocations(c64);
@@ -184,6 +209,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     {
         var mem = c64.Mem;
         var vic2 = c64.Vic2;
+        var cia = c64.Cia;
         var kb = c64.Keyboard;
         var sid = c64.Sid;
 
@@ -196,6 +222,7 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
             mem.MapWriter(0x01, c64.IoPortStore);
 
             vic2.MapIOLocations(mem);
+            cia.MapIOLocations(mem);
             kb.MapIOLocations(mem);
             sid.MapIOLocations(mem);
         }
@@ -216,7 +243,8 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
     private static CPU CreateC64CPU(Vic2 vic2, Memory mem)
     {
         var cpu = new CPU();
-        cpu.InstructionExecuted += (s, e) => vic2.AdvanceRaster(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
+        // The CPU execute method uses will not raise any events (like after instruction executed). Therefore advance VIC2 raster line etc needs to be manually called instead (see ExecuteOneFrame)
+        //cpu.InstructionExecuted += (s, e) => vic2.AdvanceRaster(e.InstructionExecState.CyclesConsumed);
         return cpu;
     }
 
@@ -367,11 +395,39 @@ public class C64 : ISystem, ITextMode, IScreen, ISystemMonitor
 
     private string BuildSystemInfo()
     {
-        return $"Model: {Model.Name} Freq: {Model.CPUFrequencyHz} CPU bank: {CurrentBank} VIC2 Model: {Vic2.Vic2Model.Name} VIC2 bank: {Vic2.CurrentVIC2Bank} VblankCY: {Vic2.CyclesConsumedCurrentVblank}";
+        return $"Line: {Vic2.CurrentRasterLine} VblankCY: {Vic2.CyclesConsumedCurrentVblank} Model: {Model.Name} Freq: {Model.CPUFrequencyHz} CPU bank: {CurrentBank} VIC2 Model: {Vic2.Vic2Model.Name} VIC2 bank: {Vic2.CurrentVIC2Bank}";
     }
 
     public ISystemMonitorCommands GetSystemMonitorCommands()
     {
         return _c64MonitorCommands;
+    }
+
+    /// <summary>
+    /// Helper method to initialise the memory after a Basic program has been loaded to memory manually (outside of built-in C64 Kernal code).
+    /// </summary>
+    /// <param name="loadedAtAddress"></param>
+    /// <param name="fileLength"></param>
+    public void InitBasicMemoryVariables(ushort loadedAtAddress, int fileLength)
+    {
+        // The following memory locations are pointers to where Basic expects variables to be stored.
+        // The address should be one byte after the Basic program end address after it's been loaded
+        // VARTAB $002D-$002E   Pointer to the Start of the BASIC Variable Storage Area
+        // ARYTAB $002F-$0030   Pointer to the Start of the BASIC Array Storage Area
+        // STREND $0031-$0032   Pointer to End of the BASIC Array Storage Area (+1), and the Start of Free RAM
+        // Ref: https://www.pagetable.com/c64ref/c64mem/
+        ushort varStartAddress = (ushort)(loadedAtAddress + fileLength + 1);
+        Mem.WriteWord(0x2d, varStartAddress);
+        Mem.WriteWord(0x2f, varStartAddress);
+        Mem.WriteWord(0x31, varStartAddress);
+    }
+
+    /// <summary>
+    /// Returns the end address of the current Basic program in memory.
+    /// </summary>
+    /// <returns></returns>
+    public ushort GetBasicProgramEndAddress()
+    {
+        return (ushort)(Mem.FetchWord(0x2d) - 1);
     }
 }

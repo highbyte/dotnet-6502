@@ -2,8 +2,10 @@ using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.App.SkiaNative.ConfigUI;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using NativeFileDialogSharp;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 
@@ -158,6 +160,39 @@ public class SilkNetImGuiMenu
             ImGui.PopStyleColor();
             ImGui.PopItemWidth();
             ImGui.EndDisabled();
+        // Commond commands
+        ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
+        if (ImGui.Button("Load & start binary PRG file"))
+        {
+            bool wasRunning = false;
+            if (_silkNetWindow.EmulatorState == EmulatorState.Running)
+            {
+                wasRunning = true;
+                _silkNetWindow.Pause();
+
+            }
+
+            var dialogResult = Dialog.FileOpen(@"prg;*");
+            if (dialogResult.IsOk)
+            {
+                var fileName = dialogResult.Path;
+                BinaryLoader.Load(
+                    _silkNetWindow.SystemRunner.System.Mem,
+                    fileName,
+                    out ushort loadedAtAddress,
+                    out ushort fileLength);
+
+                _silkNetWindow.SystemRunner.System.CPU.PC = loadedAtAddress;
+
+                _silkNetWindow.Start();
+            }
+            else
+            {
+                if (wasRunning)
+                    _silkNetWindow.Start();
+            }
+        }
+        ImGui.EndDisabled();
 
             ImGui.BeginDisabled(disabled: !(systemConfig.AudioSupported));
             ImGui.PushStyleColor(ImGuiCol.Text, s_InformationColor);
@@ -202,6 +237,7 @@ public class SilkNetImGuiMenu
             var c64Config = (C64Config)systemConfig;
             _c64ConfigUI.Reset(c64Config);
         }
+            }
 
         if (ImGui.Button("C64 config"))
         {

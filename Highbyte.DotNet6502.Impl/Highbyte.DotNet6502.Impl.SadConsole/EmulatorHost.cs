@@ -48,7 +48,7 @@ public class EmulatorHost
                 throw new Exception($"Unknown emulator name: {_sadConsoleConfig.Emulator}");
         }
 
-        if (systemRunner.System is not ITextMode)
+        if (systemRunner.System.Screen is not ITextMode)
             throw new Exception("SadConsole host only supports running emulator systems that supports text mode.");
 
         // Create the main SadConsole class that is responsible for configuring and starting up SadConsole and running the emulator code every frame with our preferred configuration.

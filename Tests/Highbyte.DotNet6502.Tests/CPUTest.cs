@@ -20,7 +20,7 @@ public class CPUTest
         cpu.ProcessorStatus.Unused = false;
         cpu.ProcessorStatus.InterruptDisable = false;
 
-        cpu.IRQ = true; // Tell CPU that a hardware IRQ occurred.
+        cpu.CPUInterrupts.SetIRQSourceActive("dummy", autoAcknowledge: true); // Tell CPU that a hardware IRQ occurred.
 
         // Act
         var execState = cpu.Execute(
@@ -28,7 +28,7 @@ public class CPUTest
             new LegacyExecEvaluator(new ExecOptions { MaxNumberOfInstructions = 1, UnknownInstructionThrowsException = false }));
 
         // Assert
-        // The NMI flag cleared
+        // The IRQ flag cleared
         Assert.False(cpu.IRQ);
         // The current PS should have InterruptDisable set
         Assert.True(cpu.ProcessorStatus.InterruptDisable);
@@ -69,7 +69,7 @@ public class CPUTest
         cpu.ProcessorStatus.Unused = false;
         cpu.ProcessorStatus.InterruptDisable = true;
 
-        cpu.IRQ = true; // Tell CPU that a hardware IRQ occurred.
+        cpu.CPUInterrupts.SetIRQSourceInactive("dummy"); // Tell CPU that a hardware IRQ occurred.
 
         // Act
         var execState = cpu.Execute(
@@ -97,7 +97,7 @@ public class CPUTest
         cpu.ProcessorStatus.Unused = false;
         cpu.ProcessorStatus.InterruptDisable = true;
 
-        cpu.NMI = true; // Tell CPU that a hardware NMI occurred.
+        cpu.CPUInterrupts.SetNMISourceActive("dummy"); // Tell CPU that a hardware NMI occurred.
 
         // Act
         var execState = cpu.Execute(
@@ -183,7 +183,8 @@ public class CPUTest
         // Act
         var knownInstruction = cpu.ExecuteOneInstructionMinimal(
             mem,
-            out ulong cyclesConsumed
+            out ulong cyclesConsumed,
+            out ushort pcBeforeInstructionExecuted
             );
 
         // Assert
@@ -203,7 +204,8 @@ public class CPUTest
         // Act
         var knownInstruction = cpu.ExecuteOneInstructionMinimal(
             mem,
-            out ulong cyclesConsumed
+            out ulong cyclesConsumed,
+            out ushort pcBeforeInstructionExecuted
             );
 
         // Assert

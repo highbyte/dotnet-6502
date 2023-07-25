@@ -16,6 +16,8 @@ public class WasmHost : IDisposable
     private PeriodicAsyncTimer? _updateTimer;
 
     private SystemRunner _systemRunner;
+    public SystemRunner SystemRunner => _systemRunner;
+
     private SKCanvas _skCanvas;
     private GRContext _grContext;
 
@@ -120,7 +122,7 @@ public class WasmHost : IDisposable
         }
         else
         {
-            var screen = (IScreen)_systemList.GetSystem(_systemName).Result;
+            var screen = _systemList.GetSystem(_systemName).Result.Screen;
             // Number of milliseconds between each invokation of the main loop. 60 fps -> (1/60) * 1000  -> approx 16.6667ms
             double updateIntervalMS = (1 / screen.RefreshFrequencyHz) * 1000;
             _updateTimer = new PeriodicAsyncTimer();
@@ -181,10 +183,10 @@ public class WasmHost : IDisposable
             _systemRunner.ProcessInput();
         }
 
-        bool cont;
+        ExecEvaluatorTriggerResult execEvaluatorTriggerResult;
         using (_systemTime.Measure())
         {
-            cont = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
+            execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
 
             if (detailedStats.ContainsKey("Audio"))
             {
@@ -202,8 +204,10 @@ public class WasmHost : IDisposable
         }
 
         // Show monitor if we encounter breakpoint or other break
-        if (!cont)
-            Monitor.Enable();
+        if (execEvaluatorTriggerResult.Triggered)
+        {
+            Monitor.Enable(execEvaluatorTriggerResult);
+        }
     }
 
     public void Render(SKCanvas canvas, GRContext grContext)

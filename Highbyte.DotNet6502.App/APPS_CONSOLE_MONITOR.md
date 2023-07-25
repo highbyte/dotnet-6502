@@ -5,3 +5,5 @@
 
 # Features
 Stand-alone console monitor app, no other UI.
+
+Can be used for running general 6502 code with no system-specific requirements.

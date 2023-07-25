@@ -60,6 +60,7 @@ public class SilkNetWindow
 
     // Emulator    
     private SystemRunner _systemRunner;
+    public SystemRunner SystemRunner => _systemRunner;
 
     // Monitor
     private SilkNetImGuiMonitor _monitor;
@@ -104,8 +105,8 @@ public class SilkNetWindow
         _window.Resize += OnResize;
 
         _window.Run();
-
-        _window.Dispose();
+        // Cleanup SilNet window resources
+        _window?.Dispose();
     }
 
     protected void OnLoad()
@@ -190,7 +191,7 @@ public class SilkNetWindow
         if (_systemList.IsValidConfig(systemName).Result)
         {
             var system = _systemList.GetSystem(systemName).Result;
-            var screen = (IScreen)system;
+            var screen = system.Screen;
             Window.Size = new Vector2D<int>((int)(screen.VisibleWidth * _canvasScale), (int)(screen.VisibleHeight * _canvasScale));
             Window.UpdatesPerSecond = screen.RefreshFrequencyHz;
 
@@ -276,10 +277,10 @@ public class SilkNetWindow
         }
 
         // Run emulator for one frame worth of emulated CPU cycles 
-        bool cont;
+        ExecEvaluatorTriggerResult execEvaluatorTriggerResult;
         using (_systemTime.Measure())
         {
-            cont = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
+            execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
 
             if (detailedStats.ContainsKey("Audio"))
             {
@@ -289,8 +290,8 @@ public class SilkNetWindow
         }
 
         // Show monitor if we encounter breakpoint or other break
-        if (!cont)
-            _monitor.Enable();
+        if (execEvaluatorTriggerResult.Triggered)
+            _monitor.Enable(execEvaluatorTriggerResult);
     }
 
     /// <summary>

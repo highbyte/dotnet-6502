@@ -1,0 +1,130 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\Examples\Assembler\C64\Raster\busy_wait_raster.asm
+     1                          ;ACME assembler
+     2                          ;!to "./busy_wait_raster.prg"
+     3                          
+     4                          ;code start address
+     5                          * = $c000
+     6                          
+     7                          ;------------------------------------------------------------
+     8                          ;Program settings
+     9                          ;------------------------------------------------------------
+    10                          ; NTSC new, RSEL1 (25 lines)
+    11                          ;WAIT_LINE1 = 0;   // Raster line 0 is within the bottom border...
+    12                          ;WAIT_LINE1 = 11;  // Last NORMALLY VISIBLE line of bottom border
+    13                          ;WAIT_LINE1 = 28;  // First NORMALLY VISIBLE line of top border
+    14                          ;WAIT_LINE1 = 50;  // Last line of top border
+    15                          ;WAIT_LINE1 = 51;  // First line of screen
+    16                          ;WAIT_LINE1 = 250; // Last line of screen
+    17                          ;WAIT_LINE1 = 251; // Fist line of bottom border
+    18                          
+    19                          ; NTSC new, RSEL2 (24 lines)
+    20                          ;WAIT_LINE1 = 0;   // Raster line 0 is within the bottom border...
+    21                          ;WAIT_LINE1 = 11;  // Last NORMALLY VISIBLE line of bottom border
+    22                          ;WAIT_LINE1 = 28;  // First NORMALLY VISIBLE line of top border
+    23                          ;WAIT_LINE1 = 54;  // Last line of top border
+    24                          ;WAIT_LINE1 = 55;  // First line of screen
+    25                          ;WAIT_LINE1 = 246; // Last line of screen
+    26                          ;WAIT_LINE1 = 247; // Fist line of bottom border
+    27                          
+    28                          ; PAL new, RSEL1 (25 lines)
+    29                          ;WAIT_LINE1 = 0;   // Raster line 0 within vertical blank area (not visible)
+    30                          ;WAIT_LINE1 = 16;  // First NORMALLY VISIBLE line of top border
+    31                          ;WAIT_LINE1 = 50;  // Last line of top border
+    32                          ;WAIT_LINE1 = 51;  // First line of screen
+    33                          ;WAIT_LINE1 = 250; // Last line of screen
+    34                          ;WAIT_LINE1 = 251; // Fist line of bottom border
+    35                          ;WAIT_LINE1 = 287; // Last NORMALLY VISIBLE line of bottom border
+    36                          
+    37                          ; WAIT_LINE1 = (262 - 256); // NTSC Last raster line before wraparound back to 0
+    38                          ; WAIT_LINE_HIGHBIT1 = 1
+    39                          
+    40                          ; WAIT_LINE1 = 120;			// NTSC/PAL some line in the screen
+    41                          ; WAIT_LINE_HIGHBIT1 = 0;
+    42                          
+    43                          ; WAIT_LINE1 = 3;			// NTSC some line in the bottom border (before raster starts over to 0, also within bottom border)
+    44                          ; WAIT_LINE_HIGHBIT1 = 1;
+    45                          
+    46                          ; WAIT_LINE1 = (311-256);		// PAL last real(?) line, seen in Vice 64 VIC2 Debug mode
+    47                          ; WAIT_LINE_HIGHBIT1 = 1;
+    48                          
+    49                          ; WAIT_LINE1 = (287 - 256);	// PAL last line of bottom border
+    50                          ; WAIT_LINE_HIGHBIT1 = 1;
+    51                          
+    52                          WAIT_LINE1 = 51;
+    53                          WAIT_LINE_HIGHBIT1 = 0;
+    54                          
+    55                          BORDER_COLOR_AFTER_VBLANK = $07;
+    56                          BORDER_COLOR_BAR = $09;
+    57                          BORDER_COLOR_AFTER_BAR = $08;
+    58                          
+    59                          ;Bit 8 (highest bit) of the current video scan line is stored in bit #7 in this register
+    60                          SCREEN_CONTROL_REGISTER_1 = 0xd011
+    61                          ;Bits 0-7 the current video scan line bit
+    62                          SCREEN_RASTER_LINE = 0xd012
+    63                          ;Border color address
+    64                          SCREEN_BORDER_COLOR_ADDRESS = 0xd020
+    65                          ;Bg color address for entire screen
+    66                          SCREEN_BACKGROUND_COLOR_ADDRESS = 0xd021
+    67                          
+    68                          ;Macros
+    69                          !macro wait_vblank {
+    70                          ;Wait for vblank (if raster pos 255 already been waited for, set X to no-zero)
+    71                          	cpx #0
+    72                          	bne .wait_vblank2
+    73                          .wait_vblank1
+    74                          	bit SCREEN_CONTROL_REGISTER_1
+    75                          	bpl .wait_vblank1
+    76                          .wait_vblank2
+    77                          	bit SCREEN_CONTROL_REGISTER_1
+    78                          	bmi .wait_vblank2
+    79                          }
+    80                          
+    81                          !macro wait_line {
+    82                          ;Wait for line (low byte in A, high byte in X)
+    83                          .wait_line
+    84                          	cpx #0
+    85                          	beq .wait_lower
+    86                          .wait_higher
+    87                          	bit SCREEN_CONTROL_REGISTER_1	; Bit 7 is set when raster line is 256 or higher
+    88                          	bpl .wait_higher					; Bit 7 clear = positive number
+    89                          .wait_lower
+    90                          	cmp SCREEN_RASTER_LINE
+    91                          	bne .wait_lower
+    92                          }
+    93                          
+    94                          ;------------------------------------------------------------
+    95                          ;Code start
+    96                          ;------------------------------------------------------------
+    97                          
+    98  c000 78                 	sei
+    99                          
+   100                          	; Set 25 (default) line mode by setting bit 3 of D011
+   101  c001 ad11d0             	lda SCREEN_CONTROL_REGISTER_1
+   102  c004 0908               	ora #$08
+   103  c006 8d11d0             	sta SCREEN_CONTROL_REGISTER_1
+   104                          
+   105                          	; OR Set 24 line mode by clearing bit 3 of D011
+   106                          	; lda SCREEN_CONTROL_REGISTER_1
+   107                          	; and #$f7
+   108                          	; sta SCREEN_CONTROL_REGISTER_1
+   109                          
+   110                          mainloop:
+   111  c009 a200               	ldx #0
+   112  c00b e000d0052c11d010...	+wait_vblank
+   113  c019 a907               	lda #BORDER_COLOR_AFTER_VBLANK
+   114  c01b 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS
+   115                          
+   116  c01e a933               	lda #WAIT_LINE1
+   117  c020 a200               	ldx #WAIT_LINE_HIGHBIT1
+   118  c022 e000f0052c11d010...	+wait_line
+   119  c030 a909               	lda #BORDER_COLOR_BAR
+   120  c032 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS	
+   121                          
+   122  c035 a936               	lda #WAIT_LINE1+3
+   123  c037 a200               	ldx #WAIT_LINE_HIGHBIT1
+   124  c039 e000f0052c11d010...	+wait_line
+   125  c047 a908               	lda #BORDER_COLOR_AFTER_BAR
+   126  c049 8d20d0             	sta SCREEN_BORDER_COLOR_ADDRESS	
+   127                          
+   128  c04c 4c09c0             	jmp mainloop	
