@@ -84,10 +84,8 @@ public class C64MonitorCommands : ISystemMonitorCommands
             cmd.OnExecute(() =>
             {
                 ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
-                var endAddressValue = (ushort)(monitor.Mem.FetchWord(0x2d) - 1);
+                var endAddressValue = ((C64)monitor.System).GetBasicProgramEndAddress();
                 monitor.SaveBinary(fileName.Value, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress: true);
-
-                monitor.WriteOutput($"Basic program saved to {fileName.Value}");
                 return (int)CommandResult.Ok;
             });
         });

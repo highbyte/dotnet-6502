@@ -49,7 +49,7 @@ public class C64 : ISystem, ISystemMonitor
     //    ROM.NewROM(C64Config.KERNAL_ROM_NAME,  "kernal",  "1d503e56df85a62fee696e7618dc5b4e781df1bb"),
     //};
 
-// Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
+    // Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
     public bool ExecuteOneFrame(
         IExecEvaluator? execEvaluator = null,
         Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
@@ -406,5 +406,14 @@ public class C64 : ISystem, ISystemMonitor
         Mem.WriteWord(0x2d, varStartAddress);
         Mem.WriteWord(0x2f, varStartAddress);
         Mem.WriteWord(0x31, varStartAddress);
+    }
+
+    /// <summary>
+    /// Returns the end address of the current Basic program in memory.
+    /// </summary>
+    /// <returns></returns>
+    public ushort GetBasicProgramEndAddress()
+    {
+        return (ushort)(Mem.FetchWord(0x2d) - 1);
     }
 }

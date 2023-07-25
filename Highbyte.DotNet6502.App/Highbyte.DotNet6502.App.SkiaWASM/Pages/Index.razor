@@ -32,7 +32,9 @@
                     }
                 </select>
             </div>
-            <div>Status: @(_emulatorState)</div>
+            <div>Status: @(
+                _emulatorState
+                )</div>
             <button @onclick="OnStart" disabled=@OnStartDisabled>Start</button>
             <button @onclick="OnPause" disabled=@OnPauseDisabled>Pause</button>
             <button @onclick="OnReset" disabled=@OnResetDisabled>Reset</button>
@@ -68,6 +70,8 @@
         <div class="system-help systemC64HelpStyle">
             <h4>Selected system: C64</h4>
             <button @onclick="OnC64BasicFilePicker" disabled=@OnC64BasicFilePickerDisabled>Load C64 Basic PRG file</button>
+            <button @onclick="OnC64SaveBasicFile" disabled=@OnC64BasicFilePickerDisabled>Save C64 Basic PRG file</button>
+            
             <button @onclick="ShowC64ConfigUI" disabled=@ShowConfigDisabled>C64 Config</button>
         </div>
 
@@ -99,20 +103,20 @@
     @*Skia OpenGl View Blazor WASM component*@
     <div class="main">
         <SKGLView class="skGLViewStyle"
-                  IgnorePixelScaling="true"
-                  EnableRenderLoop="true"
-                  OnPaintSurface="OnPaintSurface"
-                  id="emulatorSKGLView"
-                  tabindex="0"
-                  oncontextmenu="return false;"
-                  @onkeypress="OnKeyPress"
-                  @onkeydown="OnKeyDown"
-                  @onkeyup="OnKeyUp"
-                  @ref="_emulatorSKGLViewRef"
-                  />
+        IgnorePixelScaling="true"
+        EnableRenderLoop="true"
+        OnPaintSurface="OnPaintSurface"
+        id="emulatorSKGLView"
+        tabindex="0"
+        oncontextmenu="return false;"
+        @onkeypress="OnKeyPress"
+        @onkeydown="OnKeyDown"
+        @onkeyup="OnKeyUp"
+        @ref="_emulatorSKGLViewRef"
+        />
 
         <div id="canvasUninitialized"
-             class="canvasUninitializedStyle">
+        class="canvasUninitializedStyle">
 
             <h2>
                 The DotNet 6502 emulator!
@@ -138,16 +142,22 @@
     </div>
     <div class="right">
         <div class="infobox debugStyle">
-            <div class="infobox-output">@((MarkupString)_statsString)</div>
+            <div class="infobox-output">@(
+                (MarkupString)_statsString
+                )</div>
         </div>
         <div class="infobox debugStyle">
-            <div class="infobox-output">@((MarkupString)_debugString)</div>
+            <div class="infobox-output">@(
+                (MarkupString)_debugString
+                )</div>
         </div>
 
         <div class="monitorStyle">
             <div id="monitor-outer-screen">
                 <div id="monitor-inner-screen">
-                    <div id="monitor-output-outer"><div id="monitor-output">@((MarkupString)_monitorOutput)</div></div>
+                    <div id="monitor-output-outer"><div id="monitor-output">@(
+                            (MarkupString)_monitorOutput
+                            )</div></div>
                     <div id="monitor-blank-line">&nbsp;</div>
                     <div id="monitor-input-row">
                         <span>&gt;&nbsp;</span><input id="monitor-input" @bind="_monitorInput" type="text" @onkeydown="OnKeyDownMonitor" @onkeyup="OnKeyUpMonitor" @ref="_monitorInputRef" />
@@ -157,7 +167,9 @@
 
             @*Monitor status*@
             <div class="infobox">
-                <div class="infobox-output">@((MarkupString)_monitorStatus)</div>
+                <div class="infobox-output">@(
+                    (MarkupString)_monitorStatus
+                    )</div>
             </div>
         </div>
     </div>
@@ -237,35 +249,35 @@
 
 <style>
     .skGLViewStyle {
-        display: @GetDisplayStyle("Canvas");
-        width: @_windowWidthStyle;
-        height: @_windowHeightStyle;
+    display: @GetDisplayStyle("Canvas");
+    width: @_windowWidthStyle;
+    height: @_windowHeightStyle;
     }
 
     .canvasUninitializedStyle {
-        display: @GetDisplayStyle("CanvasUninitialized");
-        width: 806px;
-        height: 320px;
+    display: @GetDisplayStyle("CanvasUninitialized");
+    width: 806px;
+    height: 320px;
     }
 
     .systemC64CommandsStyle {
-        display: @GetDisplayStyle("C64Commands");
+    display: @GetDisplayStyle("C64Commands");
     }
 
     .systemC64HelpStyle {
-        display: @GetDisplayStyle("C64Help");
+    display: @GetDisplayStyle("C64Help");
     }
     .systemGenericHelpStyle {
-        display: @GetDisplayStyle("GenericHelp");
+    display: @GetDisplayStyle("GenericHelp");
     }
     .debugStyle {
-        display: @GetDisplayStyle("Debug");
+    display: @GetDisplayStyle("Debug");
     }
     .monitorStyle {
-        display: @GetDisplayStyle("Monitor");
+    display: @GetDisplayStyle("Monitor");
     }
     .audioVolumeStyle {
-        display: @GetDisplayStyle("AudioVolume");
+    display: @GetDisplayStyle("AudioVolume");
     }
 </style>
 
@@ -286,7 +298,7 @@
         {
             case "Canvas":
                 {
-                    return _emulatorState != EmulatorState.Uninitialized ? VISIBLE: HIDDEN;
+                    return _emulatorState != EmulatorState.Uninitialized ? VISIBLE : HIDDEN;
                 }
             case "CanvasUninitialized":
                 {
@@ -322,11 +334,11 @@
     }
 
     protected bool OnSelectSystemNameDisabled => _emulatorState == EmulatorState.Running || _emulatorState == EmulatorState.Paused;
-    protected bool OnStartDisabled => _emulatorState == EmulatorState.Running ||!IsSelectedSystemConfigOk;
+    protected bool OnStartDisabled => _emulatorState == EmulatorState.Running || !IsSelectedSystemConfigOk;
     protected bool OnPauseDisabled => _emulatorState == EmulatorState.Paused || _emulatorState == EmulatorState.Uninitialized;
     protected bool OnResetDisabled => _emulatorState == EmulatorState.Uninitialized;
     protected bool OnStopDisabled => _emulatorState == EmulatorState.Uninitialized;
-        
+
     protected bool ShowConfigDisabled => _emulatorState != EmulatorState.Uninitialized;
 
     private bool _wasRunningBeforeFileDialog = false;
@@ -573,7 +585,7 @@
         if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
         {
             // Probably not a Basic program that was loaded. Don't init BASIC memory variables.
-            Debug.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
+            System.Diagnostics.Debug.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
         }
         else
         {
@@ -583,7 +595,36 @@
 
         System.Diagnostics.Debug.WriteLine($"Basic program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
 
-        if(_wasRunningBeforeFileDialog)
+        if (_wasRunningBeforeFileDialog)
             await OnStart(new());
+    }
+
+    private async Task OnC64SaveBasicFile(MouseEventArgs mouseEventArgs)
+    {
+        if (_wasmHost == null)
+            return;
+        if (_emulatorState == EmulatorState.Uninitialized)
+            return;
+
+        var result = await Modal.Show<EnterFileName>().Result;
+        if (result.Confirmed)
+        {
+            if (result.Data is null)
+                return;
+            var fileName = (string)result.Data;
+            if (string.IsNullOrEmpty(fileName))
+                return;
+            string ext = Path.GetExtension(fileName);
+            if (string.IsNullOrEmpty(ext))
+                fileName += ".prg";
+
+            var startAddress = C64.BASIC_LOAD_ADDRESS;
+            var endAddress = ((C64)_wasmHost.SystemRunner.System).GetBasicProgramEndAddress();
+            var saveData = BinarySaver.BuildSaveData(_wasmHost.SystemRunner.System.Mem, startAddress, endAddress, addFileHeaderWithLoadAddress: true);
+            var fileStream = new MemoryStream(saveData);
+            using var streamRef = new DotNetStreamReference(stream: fileStream);
+            // Invoke JS helper script to trigger save dialog to users browser downloads folder
+            await Js.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+        }
     }
 }

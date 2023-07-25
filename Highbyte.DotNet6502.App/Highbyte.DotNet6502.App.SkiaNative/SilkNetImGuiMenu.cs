@@ -138,10 +138,14 @@ public class SilkNetImGuiMenu
         ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
         if (ImGui.Button("Load & start binary PRG file"))
         {
+            bool wasRunning = false;
             if (_silkNetWindow.EmulatorState == EmulatorState.Running)
+            {
+                wasRunning = true;
                 _silkNetWindow.Pause();
 
-            _silkNetWindow.Pause();
+            }
+
             var dialogResult = Dialog.FileOpen(@"prg;*");
             if (dialogResult.IsOk)
             {
@@ -155,6 +159,11 @@ public class SilkNetImGuiMenu
                 _silkNetWindow.SystemRunner.System.CPU.PC = loadedAtAddress;
 
                 _silkNetWindow.Start();
+            }
+            else
+            {
+                if (wasRunning)
+                    _silkNetWindow.Start();
             }
         }
         ImGui.EndDisabled();
@@ -208,9 +217,37 @@ public class SilkNetImGuiMenu
             }
             ImGui.EndDisabled();
 
+            ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
+            if (ImGui.Button("Save Basic PRG file"))
+            {
+                bool wasRunning = false;
+                if (_silkNetWindow.EmulatorState == EmulatorState.Running)
+                {
+                    wasRunning = true;
+                    _silkNetWindow.Pause();
+                }
+                _silkNetWindow.Pause();
+                var dialogResult = Dialog.FileSave(@"prg;*");
+                if (dialogResult.IsOk)
+                {
+                    var fileName = dialogResult.Path;
+                    ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
+                    var endAddressValue = ((C64)_silkNetWindow.SystemRunner.System).GetBasicProgramEndAddress();
+                    BinarySaver.Save(
+                        _silkNetWindow.SystemRunner.System.Mem,
+                        fileName,
+                        startAddressValue,
+                        endAddressValue,
+                        addFileHeaderWithLoadAddress: true);
+                }
+
+                if (wasRunning)
+                    _silkNetWindow.Start();
+            }
+            ImGui.EndDisabled();
+
 
             ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
-
             if (_c64ConfigUI == null)
             {
                 _c64ConfigUI = new SilkNetImGuiC64Config();

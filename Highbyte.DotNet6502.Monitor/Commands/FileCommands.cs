@@ -121,7 +121,6 @@ public static class FileCommands
 
                 monitor.SaveBinary(fileName.Value, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress);
 
-                monitor.WriteOutput($"File saved to {fileName.Value}");
                 return (int)CommandResult.Ok;
             });
         });

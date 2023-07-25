@@ -50,6 +50,8 @@ public class NativeConsoleMonitor : MonitorBase
             startAddress,
             endAddress,
             addFileHeaderWithLoadAddress: addFileHeaderWithLoadAddress);
+
+        WriteOutput($"Program saved to {fileName}");
     }
 
     public override void WriteOutput(string message)

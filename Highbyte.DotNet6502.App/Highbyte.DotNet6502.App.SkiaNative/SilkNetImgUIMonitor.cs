@@ -1,6 +1,7 @@
 using System.Numerics;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using NativeFileDialogSharp;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 
@@ -159,11 +160,11 @@ public class SilkNetImGuiMonitor : MonitorBase
         }
 
         BinaryLoader.Load(
-        Mem,
-        fileName,
-        out loadedAtAddress,
-        out fileLength,
-        forceLoadAddress);
+            Mem,
+            fileName,
+            out loadedAtAddress,
+            out fileLength,
+            forceLoadAddress);
 
         return true;
     }
@@ -171,12 +172,27 @@ public class SilkNetImGuiMonitor : MonitorBase
     public override bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null, Action<MonitorBase, ushort, ushort>? afterLoadCallback = null)
     {
         WriteOutput($"Loading file via file picker dialog not implemented.", MessageSeverity.Warning);
-
-        fileLength = 0;
         loadedAtAddress = 0;
+        fileLength = 0;
         return false;
-    }
 
+        // TODO: Opening native Dialog here leads to endless Enter keypress events being sent to inputtext field.
+        //var dialogResult = Dialog.FileOpen(@"prg;*");
+        //if (dialogResult.IsOk)
+        //{
+        //    var fileName = dialogResult.Path;
+        //    BinaryLoader.Load(
+        //        SystemRunner.System.Mem,
+        //        fileName,
+        //        out loadedAtAddress,
+        //        out fileLength);
+        //    return true;
+        //}
+
+        //loadedAtAddress = 0;
+        //fileLength = 0;
+        //return false;
+    }
 
     public override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
     {
@@ -189,6 +205,8 @@ public class SilkNetImGuiMonitor : MonitorBase
             startAddress,
             endAddress,
             addFileHeaderWithLoadAddress: addFileHeaderWithLoadAddress);
+
+        WriteOutput($"Program saved to {fileName}");
     }
 
     public override void WriteOutput(string message)

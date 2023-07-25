@@ -187,14 +187,21 @@ public class WasmMonitor : MonitorBase
             _lastTriggeredAfterLoadCallback(this, loadedAtAddress, fileLength);
     }
 
-    public async override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
+    public override async void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
     {
+        // Ensure file has .prg extension if not specfied. When saving by issuing a browser file download, and saving a file with no extension, the browser will add .txt extension.
+        string ext = Path.GetExtension(fileName);
+        if (string.IsNullOrEmpty(ext))
+            fileName += ".prg";
+
         var saveData = BinarySaver.BuildSaveData(Mem, startAddress, endAddress, addFileHeaderWithLoadAddress);
         var fileStream = new MemoryStream(saveData);
         using var streamRef = new DotNetStreamReference(stream: fileStream);
 
         // Invoke JS helper script to trigger save dialog to users browser downloads folder
         await _jsRuntime.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+
+        WriteOutput($"Program downloaded to {fileName}");
     }
 
     public override void WriteOutput(string message)
