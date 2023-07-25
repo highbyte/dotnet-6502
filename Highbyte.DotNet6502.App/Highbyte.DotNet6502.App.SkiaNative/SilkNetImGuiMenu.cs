@@ -19,7 +19,7 @@ public class SilkNetImGuiMenu
     private const int POS_X = 10;
     private const int POS_Y = 10;
     private const int WIDTH = 400;
-    private const int HEIGHT = 300;
+    private const int HEIGHT = 350;
     static Vector4 s_InformationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
     static Vector4 s_ErrorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
     static Vector4 s_WarningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
@@ -134,12 +134,6 @@ public class SilkNetImGuiMenu
         ImGui.PopItemWidth();
         ImGui.EndDisabled();
 
-        ImGui.PushStyleColor(ImGuiCol.Text, s_WarningColor);
-        ImGui.Text("Toggle menu with F6");
-        ImGui.Text("Toggle monitor with F12");
-        ImGui.Text("Toggle stats with F11");
-        ImGui.PopStyleColor();
-
         // System settings
         if (!string.IsNullOrEmpty(SelectedSystemName))
         {
@@ -225,6 +219,12 @@ public class SilkNetImGuiMenu
                     break;
             }
         }
+
+        ImGui.PushStyleColor(ImGuiCol.Text, s_WarningColor);
+        ImGui.Text("Toggle menu with F6");
+        ImGui.Text("Toggle monitor with F12");
+        ImGui.Text("Toggle stats with F11");
+        ImGui.PopStyleColor();
 
         ImGui.End();
     }
