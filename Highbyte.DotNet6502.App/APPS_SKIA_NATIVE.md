@@ -15,6 +15,8 @@ A directory containing the C64 ROM files (Kernal, Basic, Chargen) is supplied by
 
 Rendering of raster lines for border and background colors. 
 
+Generation of sound via NAudio with custom OpenAL (Silk.NET) provider (for cross platform compatibility).
+
 # System: Generic computer 
 TODO
 
