@@ -160,39 +160,7 @@ public class SilkNetImGuiMenu
             ImGui.PopStyleColor();
             ImGui.PopItemWidth();
             ImGui.EndDisabled();
-        // Commond commands
-        ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
-        if (ImGui.Button("Load & start binary PRG file"))
-        {
-            bool wasRunning = false;
-            if (_silkNetWindow.EmulatorState == EmulatorState.Running)
-            {
-                wasRunning = true;
-                _silkNetWindow.Pause();
 
-            }
-
-            var dialogResult = Dialog.FileOpen(@"prg;*");
-            if (dialogResult.IsOk)
-            {
-                var fileName = dialogResult.Path;
-                BinaryLoader.Load(
-                    _silkNetWindow.SystemRunner.System.Mem,
-                    fileName,
-                    out ushort loadedAtAddress,
-                    out ushort fileLength);
-
-                _silkNetWindow.SystemRunner.System.CPU.PC = loadedAtAddress;
-
-                _silkNetWindow.Start();
-            }
-            else
-            {
-                if (wasRunning)
-                    _silkNetWindow.Start();
-            }
-        }
-        ImGui.EndDisabled();
 
             ImGui.BeginDisabled(disabled: !(systemConfig.AudioSupported));
             ImGui.PushStyleColor(ImGuiCol.Text, s_InformationColor);
@@ -209,6 +177,40 @@ public class SilkNetImGuiMenu
             ImGui.PopItemWidth();
             ImGui.EndDisabled();
 
+
+            // Common load/save commands
+            ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
+            if (ImGui.Button("Load & start binary PRG file"))
+            {
+                bool wasRunning = false;
+                if (_silkNetWindow.EmulatorState == EmulatorState.Running)
+                {
+                    wasRunning = true;
+                    _silkNetWindow.Pause();
+
+                }
+
+                var dialogResult = Dialog.FileOpen(@"prg;*");
+                if (dialogResult.IsOk)
+                {
+                    var fileName = dialogResult.Path;
+                    BinaryLoader.Load(
+                        _silkNetWindow.SystemRunner.System.Mem,
+                        fileName,
+                        out ushort loadedAtAddress,
+                        out ushort fileLength);
+
+                    _silkNetWindow.SystemRunner.System.CPU.PC = loadedAtAddress;
+
+                    _silkNetWindow.Start();
+                }
+                else
+                {
+                    if (wasRunning)
+                        _silkNetWindow.Start();
+                }
+            }
+            ImGui.EndDisabled();
 
             // System specific settings
             switch (SelectedSystemName)
@@ -229,6 +231,74 @@ public class SilkNetImGuiMenu
 
     private void DrawC64Config(ISystemConfig systemConfig)
     {
+        // Basic load/save commands
+        ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
+        if (ImGui.Button("Load Basic PRG file"))
+        {
+            bool wasRunning = false;
+            if (_silkNetWindow.EmulatorState == EmulatorState.Running)
+            {
+                wasRunning = true;
+                _silkNetWindow.Pause();
+            }
+            _silkNetWindow.Pause();
+            var dialogResult = Dialog.FileOpen(@"prg;*");
+            if (dialogResult.IsOk)
+            {
+                var fileName = dialogResult.Path;
+                BinaryLoader.Load(
+                    _silkNetWindow.SystemRunner.System.Mem,
+                    fileName,
+                    out ushort loadedAtAddress,
+                    out ushort fileLength);
+
+                if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
+                {
+                    // Probably not a Basic program that was loaded. Don't init BASIC memory variables.
+                    Debug.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
+                }
+                else
+                {
+                    // Init C64 BASIC memory variables
+                    ((C64)_silkNetWindow.SystemRunner.System).InitBasicMemoryVariables(loadedAtAddress, fileLength);
+                }
+            }
+
+            if (wasRunning)
+                _silkNetWindow.Start();
+        }
+        ImGui.EndDisabled();
+
+        ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
+        if (ImGui.Button("Save Basic PRG file"))
+        {
+            bool wasRunning = false;
+            if (_silkNetWindow.EmulatorState == EmulatorState.Running)
+            {
+                wasRunning = true;
+                _silkNetWindow.Pause();
+            }
+            _silkNetWindow.Pause();
+            var dialogResult = Dialog.FileSave(@"prg;*");
+            if (dialogResult.IsOk)
+            {
+                var fileName = dialogResult.Path;
+                ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
+                var endAddressValue = ((C64)_silkNetWindow.SystemRunner.System).GetBasicProgramEndAddress();
+                BinarySaver.Save(
+                    _silkNetWindow.SystemRunner.System.Mem,
+                    fileName,
+                    startAddressValue,
+                    endAddressValue,
+                    addFileHeaderWithLoadAddress: true);
+            }
+
+            if (wasRunning)
+                _silkNetWindow.Start();
+        }
+        ImGui.EndDisabled();
+
+        // C64 config
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
 
         if (_c64ConfigUI == null)
@@ -237,7 +307,6 @@ public class SilkNetImGuiMenu
             var c64Config = (C64Config)systemConfig;
             _c64ConfigUI.Reset(c64Config);
         }
-            }
 
         if (ImGui.Button("C64 config"))
         {
