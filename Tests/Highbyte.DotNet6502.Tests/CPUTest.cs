@@ -20,7 +20,7 @@ public class CPUTest
         cpu.ProcessorStatus.Unused = false;
         cpu.ProcessorStatus.InterruptDisable = false;
 
-        cpu.CPUInterrupts.SetIRQSourceInactive("dummy"); // Tell CPU that a hardware IRQ occurred.
+        cpu.CPUInterrupts.SetIRQSourceActive("dummy", autoAcknowledge: true); // Tell CPU that a hardware IRQ occurred.
 
         // Act
         var execState = cpu.Execute(
@@ -28,7 +28,7 @@ public class CPUTest
             new LegacyExecEvaluator(new ExecOptions { MaxNumberOfInstructions = 1, UnknownInstructionThrowsException = false }));
 
         // Assert
-        // The NMI flag cleared
+        // The IRQ flag cleared
         Assert.False(cpu.IRQ);
         // The current PS should have InterruptDisable set
         Assert.True(cpu.ProcessorStatus.InterruptDisable);
