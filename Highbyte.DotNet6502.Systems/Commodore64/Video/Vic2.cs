@@ -49,10 +49,10 @@ public class Vic2
     private ushort _currentRasterLineInternal = ushort.MaxValue;
     public ushort CurrentRasterLine => _currentRasterLineInternal;
 
-    public bool Is38ColumnDisplayEnabled => (ScrollX.IsBitSet(3));
-    public byte FineScrollXValue => ((byte)(ScrollX & 0b0000_0111));    // Value 0-7
-    public bool Is24RowDisplayEnabled => (ScrCtrl1.IsBitSet(3));
-    public byte FineScrollYValue => ((byte)(ScrCtrl1 & 0b0000_0111));    // Value 0-7
+    public bool Is38ColumnDisplayEnabled => !ScrollX.IsBitSet(3);
+    public byte FineScrollXValue => (byte)(ScrollX & 0b0000_0111);    // Value 0-7
+    public bool Is24RowDisplayEnabled => !ScrCtrl1.IsBitSet(3);
+    public byte FineScrollYValue => (byte)(ScrCtrl1 & 0b0000_0111);    // Value 0-7
 
     public event EventHandler<CharsetAddressChangedEventArgs> CharsetAddressChanged;
     protected virtual void OnCharsetAddressChanged(CharsetAddressChangedEventArgs e)

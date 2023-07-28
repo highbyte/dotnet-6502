@@ -44,7 +44,7 @@ public class Vic2Screen : ITextMode, IScreen
         VisibleHeight = (int)vic2Model.LinesVisible;
         //VisibleHeight = (int)vic2Model.Lines;
 
-        RefreshFrequencyHz = (float) cpuFrequencyHz / vic2Model.CyclesPerFrame;
+        RefreshFrequencyHz = (float)cpuFrequencyHz / vic2Model.CyclesPerFrame;
 
         // Entire screen (including border) first/last line in emulators screen buffer.
         var visibleLinesDifference = (int)vic2Model.Lines - VisibleHeight;

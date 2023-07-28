@@ -236,7 +236,7 @@ scrolltext:
 	tax
 .storescrollxreg
 	lda XSHIFT
-	ora #0x08	;Bit 3: 1 = 40 characters per line, 0 = 38 characters per line
+	;ora #0x08	;Bit 3: 1 = 40 characters per line, 0 = 38 characters per line
 	sta SCROLLX	;Update smooth scroll X register
 
 ;If we haven't wrapped arounb to scroll pos 7, then skip moving any text
