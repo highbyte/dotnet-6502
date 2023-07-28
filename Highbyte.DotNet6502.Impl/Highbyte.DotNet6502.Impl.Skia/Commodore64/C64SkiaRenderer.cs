@@ -124,8 +124,13 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         {
             clippedFirstVisibleScreenXPos += 8;
             clippedLastVisibleScreenXPos -= 8;
-
             scrollX += 1;   // Note: In 38 column mode, the screen is shifted 1 pixel to the right (at least as it's shown in VICE emulator)
+        }
+        if (c64.Vic2.Is24RowDisplayEnabled)
+        {
+            clippedFirstVisibleScreenYPos += 4;
+            clippedLastVisibleScreenYPos -= 4;
+            scrollY += 1;   // Note: In 24 row mode, the screen is shifted 1 pixel down (at least as it's shown in VICE emulator)
         }
 
         // Remember original canvas adjustments
@@ -199,16 +204,24 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         var vic2Screen = c64.Vic2.Vic2Screen;
         var firstVisibleScreenXPos = vic2Screen.BorderWidth;
         var screenWidth = vic2Screen.Width;
+        var firstScreenLineOfMainScreen = vic2Screen.FirstScreenLineOfMainScreen;
+        var lastScreenLineOfMainScreen = vic2Screen.LastScreenLineOfMainScreen;
 
         if (c64.Vic2.Is38ColumnDisplayEnabled)
         {
             firstVisibleScreenXPos += 8;
             screenWidth -= 16;
         }
+        if (c64.Vic2.Is24RowDisplayEnabled)
+        {
+            firstScreenLineOfMainScreen += 4;
+            lastScreenLineOfMainScreen -= 4;
+        }
+
 
         foreach (var c64ScreenLine in c64.Vic2.ScreenLineBackgroundColor.Keys)
         {
-            if (c64ScreenLine < vic2Screen.FirstScreenLineOfMainScreen || c64ScreenLine > vic2Screen.LastScreenLineOfMainScreen)
+            if (c64ScreenLine < firstScreenLineOfMainScreen || c64ScreenLine > lastScreenLineOfMainScreen)
                 continue;
             var backgroundColor = c64.Vic2.ScreenLineBackgroundColor[c64ScreenLine];
             ushort canvasLine = (ushort)(c64ScreenLine - vic2Screen.FirstVisibleScreenLineOfMainScreen);
