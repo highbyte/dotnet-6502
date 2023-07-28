@@ -39,6 +39,8 @@ public class Vic2
 
     public byte BorderColor { get; private set; }
     public byte BackgroundColor { get; private set; }
+
+    public byte ScrollX { get; private set; }
     public byte MemorySetup { get; private set; }
     public byte PortA { get; private set; }
 
@@ -47,6 +49,10 @@ public class Vic2
     private ushort _currentRasterLineInternal = ushort.MaxValue;
     public ushort CurrentRasterLine => _currentRasterLineInternal;
 
+    public bool Is38ColumnDisplayEnabled => (ScrollX.IsBitSet(3));
+    public byte FineScrollXValue => ((byte)(ScrollX & 0b0000_0111));    // Value 0-7
+    public bool Is24RowDisplayEnabled => (ScrCtrl1.IsBitSet(3));
+    public byte FineScrollYValue => ((byte)(ScrCtrl1 & 0b0000_0111));    // Value 0-7
 
     public event EventHandler<CharsetAddressChangedEventArgs> CharsetAddressChanged;
     protected virtual void OnCharsetAddressChanged(CharsetAddressChangedEventArgs e)
@@ -115,6 +121,10 @@ public class Vic2
         // Address 0xd012: "Current Raster Line"
         mem.MapReader(Vic2Addr.CURRENT_RASTER_LINE, RasterLoad);
         mem.MapWriter(Vic2Addr.CURRENT_RASTER_LINE, RasterStore);
+
+        // Address 0xd016: "Horizontal Fine Scrolling and Control Register"
+        mem.MapReader(Vic2Addr.SCROLL_X, ScrollXLoad);
+        mem.MapWriter(Vic2Addr.SCROLL_X, ScrollXStore);
 
         // Address 0xd018: "Memory setup" (VIC2 pointer for charset/bitmap & screen memory)
         mem.MapReader(Vic2Addr.MEMORY_SETUP, MemorySetupLoad);
@@ -189,6 +199,15 @@ public class Vic2
     public byte BackgroundColorLoad(ushort _)
     {
         return ((byte)(BackgroundColor | 0b1111_0000)); // Bits 4-7 are unused and always 1
+    }
+
+    public void ScrollXStore(ushort _, byte value)
+    {
+        ScrollX = (byte)(value & 0b0011_1111); // Only bits 0-5 are stored
+    }
+    public byte ScrollXLoad(ushort _)
+    {
+        return ((byte)(ScrollX | 0b1100_0000)); // Bits 6-7 are unused and always 1
     }
 
     public void MemorySetupStore(ushort _, byte value)

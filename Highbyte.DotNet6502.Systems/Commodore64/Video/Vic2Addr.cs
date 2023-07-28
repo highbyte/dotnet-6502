@@ -22,6 +22,8 @@ public static class Vic2Addr
     public const ushort SCREEN_CONTROL_REGISTER_1 = 0xd011;
     public const ushort CURRENT_RASTER_LINE = 0xd012;
 
+    public const ushort SCROLL_X = 0xd016;
+
     public const ushort MEMORY_SETUP = 0xd018;
 
     public const ushort VIC_IRQ = 0xd019;

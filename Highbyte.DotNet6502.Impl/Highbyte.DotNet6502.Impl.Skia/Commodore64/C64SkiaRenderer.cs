@@ -1,8 +1,8 @@
+using System.Diagnostics;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
-using static Highbyte.DotNet6502.Systems.Commodore64.Video.ColorMaps;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64;
 
@@ -106,6 +106,19 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         var emulatorMem = c64.Mem;
         var vic2Screen = c64.Vic2.Vic2Screen;
 
+        var firstVisibleScreenXPos = vic2Screen.BorderWidth;
+        var firstVisibleScreenYPos = vic2Screen.FirstScreenLineOfMainScreen - vic2Screen.FirstVisibleScreenLineOfMainScreen;
+
+        // Remember original canvas adjustments
+        var canvas = _getSkCanvas();
+        canvas.Save();
+        // Clip to the visible character screen area
+        canvas.ClipRect(new SKRect(firstVisibleScreenXPos, firstVisibleScreenYPos, firstVisibleScreenXPos + vic2Screen.Width, firstVisibleScreenYPos + vic2Screen.Height), SKClipOperation.Intersect);
+        // Offset based on horizontal and vertical scrolling settings
+        var scrollX = c64.Vic2.FineScrollXValue;
+        var scrollY = c64.Vic2.FineScrollYValue - 3;// Note: VIC2 Y scroll value is by default 3 (=no offset)
+        canvas.Translate(scrollX, scrollY);
+
         // Build screen data characters based on emulator memory contents (byte)
         ushort currentScreenAddress = Vic2Addr.SCREEN_RAM_START;
         ushort currentColorAddress = Vic2Addr.COLOR_RAM_START;
@@ -116,6 +129,9 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
                 byte charByte = emulatorMem[currentScreenAddress++];
                 byte colorByte = emulatorMem[currentColorAddress++];
                 DrawEmulatorCharacterOnScreen(
+                    canvas,
+                    firstVisibleScreenXPos,
+                    firstVisibleScreenYPos,
                     col,
                     row,
                     charByte,
@@ -124,6 +140,9 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
                     );
             }
         }
+
+        // Restore canvas adjustments
+        canvas.Restore();
     }
 
     private void RenderBackgroundAndBorder(C64 c64)
@@ -212,6 +231,9 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     /// <param name="character"></param>
     /// <param name="characterColor"></param>
     public void DrawEmulatorCharacterOnScreen(
+        SKCanvas canvas,
+        int firstVisibleScreenXPos,
+        int firstVisibleScreenYPos,
         int col,
         int row,
         byte character,
@@ -223,21 +245,17 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         int pixelPosX = col * vic2Screen.CharacterWidth;
         int pixelPosY = row * vic2Screen.CharacterHeight;
 
-        // Adjust for border
-        pixelPosX += vic2Screen.BorderWidth;
-        //pixelPosY += c64.BorderHeight;
-        pixelPosY += vic2Screen.FirstScreenLineOfMainScreen;
+        // Adjust for left border
+        pixelPosX += firstVisibleScreenXPos;
 
-        // Adjust for visisible area
-        pixelPosY = (ushort)(pixelPosY - vic2Screen.FirstVisibleScreenLineOfMainScreen);
-
+        // Adjust for top border
+        pixelPosY += firstVisibleScreenYPos;
+        //pixelPosY += vic2Screen.BorderHeight;
 
         // Draw character image from chargen ROM to a Skia surface
         // The chargen ROM has been loaded to a SKImage with 16 characters per row (each character 8 x 8 pixels).
         int romImageX = (character % CHARGEN_IMAGE_CHARACTERS_PER_ROW) * 8;
         int romImageY = (character / CHARGEN_IMAGE_CHARACTERS_PER_ROW) * 8;
-
-        var canvas = _getSkCanvas();
 
         _drawImageSource.Left = romImageX;
         _drawImageSource.Top = romImageY;
