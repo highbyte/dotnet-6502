@@ -48,7 +48,7 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
         // Draw border
         byte borderColor = mem[_emulatorScreenConfig.ScreenBorderColorAddress];
         var borderPaint = _skPaintMaps.GetSKBackgroundPaint(borderColor);
-        canvas.DrawRect(0, 0, genericComputer.Cols * TextPixelSize + BorderPixels * 2, genericComputer.Rows * TextPixelSize + BorderPixels * 2, borderPaint);
+        canvas.DrawRect(0, 0, genericComputer.TextCols * TextPixelSize + BorderPixels * 2, genericComputer.TextRows * TextPixelSize + BorderPixels * 2, borderPaint);
 
         // Draw background
         using (new SKAutoCanvasRestore(canvas))
@@ -56,7 +56,7 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
             byte bgColor = mem[_emulatorScreenConfig.ScreenBackgroundColorAddress];
             var bgPaint = _skPaintMaps.GetSKBackgroundPaint(bgColor);
             canvas.Translate(BorderPixels, BorderPixels);
-            canvas.DrawRect(0, 0, genericComputer.Cols * TextPixelSize, genericComputer.Rows * TextPixelSize, bgPaint);
+            canvas.DrawRect(0, 0, genericComputer.TextCols * TextPixelSize, genericComputer.TextRows * TextPixelSize, bgPaint);
         }
 
         var screenMemoryAddress = _emulatorScreenConfig.ScreenStartAddress;
@@ -65,12 +65,12 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
         {
             canvas.Translate(BorderPixels, BorderPixels);
             // Draw characters
-            for (var row = 0; row < genericComputer.Rows; row++)
+            for (var row = 0; row < genericComputer.TextRows; row++)
             {
-                for (var col = 0; col < genericComputer.Cols; col++)
+                for (var col = 0; col < genericComputer.TextCols; col++)
                 {
-                    var chr = mem[(ushort)(screenMemoryAddress + row * genericComputer.Cols + col)];
-                    var chrColor = mem[(ushort)(colorMemoryAddress + row * genericComputer.Cols + col)];;
+                    var chr = mem[(ushort)(screenMemoryAddress + row * genericComputer.TextCols + col)];
+                    var chrColor = mem[(ushort)(colorMemoryAddress + row * genericComputer.TextCols + col)];;
                     var drawText = GetDrawTextFromCharacter(chr);
                     var textPaint = _skPaintMaps.GetSKTextPaint(chrColor);
                     DrawCharacter(canvas, drawText, col, row, textPaint);

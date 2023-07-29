@@ -52,9 +52,9 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
         // Build screen data characters based on emulator memory contents (byte)
         ushort currentScreenAddress = Vic2Addr.SCREEN_RAM_START;
         ushort currentColorAddress = Vic2Addr.COLOR_RAM_START;
-        for (int row = 0; row < vic2Screen.Rows; row++)
+        for (int row = 0; row < vic2Screen.TextRows; row++)
         {
-            for (int col = 0; col < vic2Screen.Cols; col++)
+            for (int col = 0; col < vic2Screen.TextCols; col++)
             {
                 byte charByte = emulatorMem[currentScreenAddress++];
                 byte colorByte = emulatorMem[currentColorAddress++];
@@ -83,12 +83,12 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
         int border_cols = GetBorderCols(c64);
         int border_rows = GetBorderRows(c64);
 
-        for (int row = 0; row < (vic2Screen.Rows + (border_rows * 2)); row++)
+        for (int row = 0; row < (vic2Screen.TextRows + (border_rows * 2)); row++)
         {
-            for (int col = 0; col < (vic2Screen.Cols + (border_cols * 2)); col++)
+            for (int col = 0; col < (vic2Screen.TextCols + (border_cols * 2)); col++)
             {
-                if (row < border_rows || row >= (vic2Screen.Rows + border_rows)
-                    || col < border_cols || col >= (vic2Screen.Cols + border_cols))
+                if (row < border_rows || row >= (vic2Screen.TextRows + border_rows)
+                    || col < border_cols || col >= (vic2Screen.TextCols + border_cols))
                 {
                     DrawEmulatorCharacterOnScreen(
                         col,
@@ -155,11 +155,11 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
 
     private int GetBorderCols(C64 c64)
     {
-        return c64.Vic2.Vic2Screen.BorderWidth / c64.Vic2.Vic2Screen.CharacterWidth;
+        return c64.Vic2.Vic2Screen.VisibleBorderWidth / c64.Vic2.Vic2Screen.CharacterWidth;
     }
     private int GetBorderRows(C64 c64)
     {
-        return c64.Vic2.Vic2Screen.BorderHeight / c64.Vic2.Vic2Screen.CharacterHeight;
+        return c64.Vic2.Vic2Screen.VisibleBorderHeight / c64.Vic2.Vic2Screen.CharacterHeight;
     }
 
 }

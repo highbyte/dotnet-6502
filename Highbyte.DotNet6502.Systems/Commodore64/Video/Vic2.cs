@@ -61,8 +61,8 @@ public class Vic2
         handler?.Invoke(this, e);
     }
 
-    public Dictionary<ushort, byte> ScreenLineBorderColor { get; private set; }
-    public Dictionary<ushort, byte> ScreenLineBackgroundColor { get; private set; }
+    public Dictionary<int, byte> ScreenLineBorderColor { get; private set; }
+    public Dictionary<int, byte> ScreenLineBackgroundColor { get; private set; }
 
     private Vic2() { }
 
@@ -90,20 +90,20 @@ public class Vic2
         return vic2;
     }
 
-    private static Dictionary<ushort, byte> InitializeScreenLineBorderColorLookup(Vic2ModelBase vic2Model)
+    private static Dictionary<int, byte> InitializeScreenLineBorderColorLookup(Vic2ModelBase vic2Model)
     {
-        var screenLineBorderColor = new Dictionary<ushort, byte>();
-        for (ushort i = 0; i < vic2Model.Lines; i++)
+        var screenLineBorderColor = new Dictionary<int, byte>();
+        for (ushort i = 0; i < vic2Model.TotalHeight; i++)
         {
             screenLineBorderColor.Add(i, 0);
         }
         return screenLineBorderColor;
     }
 
-    private static Dictionary<ushort, byte> InitializeScreenLineBackgroundColorLookup(Vic2ModelBase vic2Model)
+    private static Dictionary<int, byte> InitializeScreenLineBackgroundColorLookup(Vic2ModelBase vic2Model)
     {
-        var screenLineBackgroundColor = new Dictionary<ushort, byte>();
-        for (ushort i = 0; i < vic2Model.Lines; i++)
+        var screenLineBackgroundColor = new Dictionary<int, byte>();
+        for (ushort i = 0; i < vic2Model.TotalHeight; i++)
         {
             if (!vic2Model.IsRasterLineInMainScreen(i))
                 continue;
@@ -297,7 +297,7 @@ public class Vic2
         // If the VIC2 model is PAL, then allow configuring the 8th bit of the raster line IRQ.
         // Note: As the Kernal ROM initializes this 8th bit for both NTSC and PAL (same ROM for both), we need this workaround here.
         // TODO: Should an enum be used for VIC2 model base type (PAL or NTSC)?
-        if (Vic2Model.LinesVisible > 256)
+        if (Vic2Model.MaxVisibleHeight > 256)
         {
             // When writing to this register (SCRCTRL1) the seventh bit is the highest (eigth) for the the raster line IRQ setting.
             ushort bit7HighestRasterLineBitIRQ = (ushort)(value & 0b1000_0000);
@@ -311,7 +311,7 @@ public class Vic2
         }
 
 #if DEBUG
-        if (Vic2IRQ.ConfiguredIRQRasterLine > Vic2Model.Lines)
+        if (Vic2IRQ.ConfiguredIRQRasterLine > Vic2Model.TotalHeight)
             throw new Exception($"Internal error. Setting unreachable scan line for IRQ: {Vic2IRQ.ConfiguredIRQRasterLine}. Incorrect ROM for Vic2 model: {Vic2Model.Name} ?");
 #endif
 
@@ -437,7 +437,7 @@ public class Vic2
         if (newLine != _currentRasterLineInternal)
         {
 #if DEBUG
-            if (newLine > Vic2Model.Lines)
+            if (newLine > Vic2Model.TotalHeight)
                 throw new Exception($"Internal error. Unreachable scan line: {newLine}. The CPU probably executed more cycles current frame than allowed.");
 #endif
             _currentRasterLineInternal = newLine;
@@ -466,7 +466,7 @@ public class Vic2
         // Check if a IRQ should be issued
         var source = IRQSource.RasterCompare;
         if ((_currentRasterLineInternal == Vic2IRQ.ConfiguredIRQRasterLine
-            || (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue & _currentRasterLineInternal >= Vic2Model.Lines))
+            || (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue & _currentRasterLineInternal >= Vic2Model.TotalHeight))
             && Vic2IRQ.IsEnabled(source)
             && !Vic2IRQ.IsTriggered(source, C64.CPU))
         {

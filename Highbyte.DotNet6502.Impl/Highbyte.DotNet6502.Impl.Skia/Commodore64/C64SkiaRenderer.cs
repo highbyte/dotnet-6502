@@ -106,53 +106,50 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         var emulatorMem = c64.Mem;
         var vic2Screen = c64.Vic2.Vic2Screen;
 
-        var firstVisibleScreenXPos = vic2Screen.BorderWidth;
-        var firstVisibleScreenYPos = vic2Screen.FirstScreenLineOfMainScreen - vic2Screen.FirstVisibleScreenLineOfMainScreen;
-        var lastVisibleScreenXPos = firstVisibleScreenXPos + vic2Screen.Width;
-        var lastVisibleScreenYPos = firstVisibleScreenYPos + vic2Screen.Height;
-
         // Offset based on horizontal and vertical scrolling settings
         var scrollX = c64.Vic2.FineScrollXValue;
         var scrollY = c64.Vic2.FineScrollYValue - 3;// Note: VIC2 Y scroll value is by default 3 (=no offset)
-
-        // Clip main screen area if 38 column mode (default 40) or 24 (default 25) row mode is enabled
-        var clippedFirstVisibleScreenXPos = firstVisibleScreenXPos;
-        var clippedFirstVisibleScreenYPos = firstVisibleScreenYPos;
-        var clippedLastVisibleScreenXPos = lastVisibleScreenXPos;
-        var clippedLastVisibleScreenYPos = lastVisibleScreenYPos;
+        // Note: In 38 column mode, the screen is shifted 1 pixel to the right (at least as it's shown in VICE emulator)
         if (c64.Vic2.Is38ColumnDisplayEnabled)
-        {
-            clippedFirstVisibleScreenXPos += 8;
-            clippedLastVisibleScreenXPos -= 8;
-            scrollX += 1;   // Note: In 38 column mode, the screen is shifted 1 pixel to the right (at least as it's shown in VICE emulator)
-        }
+            scrollX += 1;
+        // Note: In 24 row mode, the screen is shifted 1 pixel down (at least as it's shown in VICE emulator)
         if (c64.Vic2.Is24RowDisplayEnabled)
-        {
-            clippedFirstVisibleScreenYPos += 4;
-            clippedLastVisibleScreenYPos -= 4;
-            scrollY += 1;   // Note: In 24 row mode, the screen is shifted 1 pixel down (at least as it's shown in VICE emulator)
-        }
+            scrollY += 1;
+
+        // Clip main screen area with consideration to 38 column and 24 row mode
+        var visibileClippedHorizontalPositions = vic2Screen.GetHorizontalPositions(c64, visible: true, normalizeToVisible: true, adjustIf38ColMode: true);
+        var visibileClippedVerticalPositions = vic2Screen.GetVerticalPositions(c64, visible: true, normalizeToVisible: true, adjustIf24RowMode: true);
+
+        // Main screen draw area for characters, without consideration to 38 column mode or 24 row mode.
+        var visibileHorizontalPositions = vic2Screen.GetHorizontalPositions(c64, visible: true, normalizeToVisible: true, adjustIf38ColMode: false);
+        var visibileVerticalPositions = vic2Screen.GetVerticalPositions(c64, visible: true, normalizeToVisible: true, adjustIf24RowMode: false);
 
         // Remember original canvas adjustments
         var canvas = _getSkCanvas();
         canvas.Save();
         // Clip to the visible character screen area
-        canvas.ClipRect(new SKRect(clippedFirstVisibleScreenXPos, clippedFirstVisibleScreenYPos, clippedLastVisibleScreenXPos, clippedLastVisibleScreenYPos), SKClipOperation.Intersect);
+        canvas.ClipRect(
+            new SKRect(
+                visibileClippedHorizontalPositions.screenStartX,
+                visibileClippedVerticalPositions.screenStartY,
+                visibileClippedHorizontalPositions.screenEndX,
+                visibileClippedVerticalPositions.screenEndY),
+            SKClipOperation.Intersect);
         canvas.Translate(scrollX, scrollY);
 
         // Build screen data characters based on emulator memory contents (byte)
         ushort currentScreenAddress = Vic2Addr.SCREEN_RAM_START;
         ushort currentColorAddress = Vic2Addr.COLOR_RAM_START;
-        for (int row = 0; row < vic2Screen.Rows; row++)
+        for (int row = 0; row < vic2Screen.TextRows; row++)
         {
-            for (int col = 0; col < vic2Screen.Cols; col++)
+            for (int col = 0; col < vic2Screen.TextCols; col++)
             {
                 byte charByte = emulatorMem[currentScreenAddress++];
                 byte colorByte = emulatorMem[currentColorAddress++];
                 DrawEmulatorCharacterOnScreen(
                     canvas,
-                    firstVisibleScreenXPos,
-                    firstVisibleScreenYPos,
+                    visibileHorizontalPositions.screenStartX,
+                    visibileVerticalPositions.screenStartY,
                     col,
                     row,
                     charByte,
@@ -184,16 +181,18 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     private void DrawRasterLinesBorder(C64 c64, SKCanvas canvas)
     {
         var vic2Screen = c64.Vic2.Vic2Screen;
-        var firstVisibleScreenLineOfMainScreen = vic2Screen.FirstVisibleScreenLineOfMainScreen;
-        var lastVisibleScreenLineOfMainScreen = vic2Screen.LastVisibleScreenLineOfMainScreen;
+
+        var visibileVerticalPositions = vic2Screen.GetVerticalPositions(c64, visible: true, normalizeToVisible: false);
+
+        var drawWidth = vic2Screen.VisibleWidth;
 
         foreach (var c64ScreenLine in c64.Vic2.ScreenLineBorderColor.Keys)
         {
-            if (c64ScreenLine < firstVisibleScreenLineOfMainScreen || c64ScreenLine > lastVisibleScreenLineOfMainScreen)
+            if (c64ScreenLine < visibileVerticalPositions.topBorderStartY || c64ScreenLine > visibileVerticalPositions.bottomBorderEndY)
                 continue;
             var borderColor = c64.Vic2.ScreenLineBorderColor[c64ScreenLine];
-            ushort canvasLine = (ushort)(c64ScreenLine - vic2Screen.FirstVisibleScreenLineOfMainScreen);
-            canvas.DrawRect(0, canvasLine, vic2Screen.VisibleWidth, 1, _c64SkiaPaint.GetFillPaint(borderColor));
+            ushort canvasYPos = (ushort)(c64ScreenLine - visibileVerticalPositions.topBorderStartY);
+            canvas.DrawRect(0, canvasYPos, drawWidth, 1, _c64SkiaPaint.GetFillPaint(borderColor));
         }
     }
 
@@ -202,30 +201,20 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     private void DrawRasterLinesBackground(C64 c64, SKCanvas canvas)
     {
         var vic2Screen = c64.Vic2.Vic2Screen;
-        var firstVisibleScreenXPos = vic2Screen.BorderWidth;
-        var screenWidth = vic2Screen.Width;
-        var firstScreenLineOfMainScreen = vic2Screen.FirstScreenLineOfMainScreen;
-        var lastScreenLineOfMainScreen = vic2Screen.LastScreenLineOfMainScreen;
 
-        if (c64.Vic2.Is38ColumnDisplayEnabled)
-        {
-            firstVisibleScreenXPos += 8;
-            screenWidth -= 16;
-        }
-        if (c64.Vic2.Is24RowDisplayEnabled)
-        {
-            firstScreenLineOfMainScreen += 4;
-            lastScreenLineOfMainScreen -= 4;
-        }
+        var visibileHorizontalPositions = vic2Screen.GetHorizontalPositions(c64, visible: true, normalizeToVisible: false);
+        var visibileVerticalPositions = vic2Screen.GetVerticalPositions(c64, visible: true, normalizeToVisible: false);
 
+        var canvasXPosStart = visibileHorizontalPositions.screenStartX - visibileHorizontalPositions.leftBorderStartX;
+        var drawWidth = visibileHorizontalPositions.screenEndX - visibileHorizontalPositions.screenStartX;
 
         foreach (var c64ScreenLine in c64.Vic2.ScreenLineBackgroundColor.Keys)
         {
-            if (c64ScreenLine < firstScreenLineOfMainScreen || c64ScreenLine > lastScreenLineOfMainScreen)
+            if (c64ScreenLine < visibileVerticalPositions.screenStartY || c64ScreenLine > visibileVerticalPositions.screenEndY)
                 continue;
             var backgroundColor = c64.Vic2.ScreenLineBackgroundColor[c64ScreenLine];
-            ushort canvasLine = (ushort)(c64ScreenLine - vic2Screen.FirstVisibleScreenLineOfMainScreen);
-            canvas.DrawRect(firstVisibleScreenXPos, canvasLine, screenWidth, 1, _c64SkiaPaint.GetFillPaint(backgroundColor));
+            ushort canvasYPos = (ushort)(c64ScreenLine - visibileVerticalPositions.topBorderStartY);
+            canvas.DrawRect(canvasXPosStart, canvasYPos, drawWidth, 1, _c64SkiaPaint.GetFillPaint(backgroundColor));
         }
     }
 
@@ -238,10 +227,10 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         byte borderColor = emulatorMem[Vic2Addr.BORDER_COLOR];
         SKPaint borderPaint = _c64SkiaPaint.GetFillPaint(borderColor);
 
-        canvas.DrawRect(0, 0, vic2Screen.VisibleWidth, vic2Screen.BorderHeight, borderPaint);
-        canvas.DrawRect(0, (vic2Screen.BorderHeight + vic2Screen.Height), vic2Screen.VisibleWidth, vic2Screen.BorderHeight, borderPaint);
-        canvas.DrawRect(0, vic2Screen.BorderHeight, vic2Screen.BorderWidth, vic2Screen.Height, borderPaint);
-        canvas.DrawRect(vic2Screen.BorderWidth + vic2Screen.Width, vic2Screen.BorderHeight, vic2Screen.BorderWidth, vic2Screen.Height, borderPaint);
+        canvas.DrawRect(0, 0, vic2Screen.VisibleWidth, vic2Screen.VisibleBorderHeight, borderPaint);
+        canvas.DrawRect(0, (vic2Screen.VisibleBorderHeight + vic2Screen.DrawHeight), vic2Screen.VisibleWidth, vic2Screen.VisibleBorderHeight, borderPaint);
+        canvas.DrawRect(0, vic2Screen.VisibleBorderHeight, vic2Screen.VisibleBorderWidth, vic2Screen.DrawHeight, borderPaint);
+        canvas.DrawRect(vic2Screen.VisibleBorderWidth + vic2Screen.DrawWidth, vic2Screen.VisibleBorderHeight, vic2Screen.VisibleBorderWidth, vic2Screen.DrawHeight, borderPaint);
     }
 
     // Simple approximation, draw 1 rectangle for border. Fast, but does not handle changes in background color per raster line.
@@ -254,7 +243,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         byte backgroundColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR];
         SKPaint bgPaint = _c64SkiaPaint.GetFillPaint(backgroundColor);
 
-        canvas.DrawRect(vic2Screen.BorderWidth, vic2Screen.BorderHeight, vic2Screen.Width, vic2Screen.Height, bgPaint);
+        canvas.DrawRect(vic2Screen.VisibleBorderWidth, vic2Screen.VisibleBorderHeight, vic2Screen.DrawWidth, vic2Screen.DrawHeight, bgPaint);
     }
 
     /// <summary>
@@ -284,7 +273,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
         // Adjust for top border
         pixelPosY += firstVisibleScreenYPos;
-        //pixelPosY += vic2Screen.BorderHeight;
+        //pixelPosY += vic2Screen.VisibleBorderHeight;
 
         // Draw character image from chargen ROM to a Skia surface
         // The chargen ROM has been loaded to a SKImage with 16 characters per row (each character 8 x 8 pixels).

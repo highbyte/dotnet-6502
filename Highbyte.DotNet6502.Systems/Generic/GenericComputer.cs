@@ -20,18 +20,18 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 
     public ExecOptions DefaultExecOptions { get; set; }
 
-    public int Cols => _genericComputerConfig.Memory.Screen.Cols;
-    public int Rows => _genericComputerConfig.Memory.Screen.Rows;
+    public int TextCols => _genericComputerConfig.Memory.Screen.Cols;
+    public int TextRows => _genericComputerConfig.Memory.Screen.Rows;
     public int CharacterWidth => 8;
     public int CharacterHeight => 8;
 
-    public int Width => Cols * CharacterWidth;
-    public int Height => Rows * CharacterHeight;
-    public int VisibleWidth => (Cols * CharacterWidth) + (2 * (_genericComputerConfig.Memory.Screen.BorderCols * CharacterWidth));
-    public int VisibleHeight => (Rows * CharacterHeight) + (2 * (_genericComputerConfig.Memory.Screen.BorderRows * CharacterHeight));
-    public bool HasBorder => (VisibleWidth > Width) || (VisibleHeight > Height);
-    public int BorderWidth => (VisibleWidth - Width) / 2;
-    public int BorderHeight => (VisibleHeight - Height) / 2;
+    public int DrawWidth => TextCols * CharacterWidth;
+    public int DrawHeight => TextRows * CharacterHeight;
+    public int VisibleWidth => (TextCols * CharacterWidth) + (2 * (_genericComputerConfig.Memory.Screen.BorderCols * CharacterWidth));
+    public int VisibleHeight => (TextRows * CharacterHeight) + (2 * (_genericComputerConfig.Memory.Screen.BorderRows * CharacterHeight));
+    public bool HasBorder => (VisibleWidth > DrawWidth) || (VisibleHeight > DrawHeight);
+    public int VisibleBorderWidth => (VisibleWidth - DrawWidth) / 2;
+    public int VisibleBorderHeight => (VisibleHeight - DrawHeight) / 2;
     public float RefreshFrequencyHz => _genericComputerConfig.ScreenRefreshFrequencyHz;
 
     private readonly GenericComputerConfig _genericComputerConfig;
