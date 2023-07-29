@@ -15,7 +15,7 @@ public class C64SkiaPaint
     /// C64 color to SKPaint (with SkiaColorFilter) for replacing color when copying characters from chargen rom image to screen.
     /// </summary>
     /// <returns></returns>
-    public Dictionary<byte, SKPaint> C64ToDrawChargenCharacterMap = new();
+    private Dictionary<byte, SKPaint> _c64ToDrawChargenCharacterMap = new();
 
     public C64SkiaPaint(string colorMapName)
     {
@@ -40,7 +40,7 @@ public class C64SkiaPaint
             var paint = new SKPaint { Style = SKPaintStyle.StrokeAndFill, ColorFilter = colorFilter };
             //var paint = new SKPaint { Style = SKPaintStyle.Stroke, ColorFilter = colorFilter };
 
-            C64ToDrawChargenCharacterMap.Add(c64ColorValue, paint);
+            _c64ToDrawChargenCharacterMap.Add(c64ColorValue, paint);
         }
     }
 
@@ -49,6 +49,13 @@ public class C64SkiaPaint
         c64Color &= 0x0f; // Color range is only use lower 4 bits (values 0-15)
         return _c64ToFillPaintMap[c64Color];
     }
+
+    public SKPaint GetDrawCharacterPaint(byte c64Color)
+    {
+        c64Color &= 0x0f; // Color range is only use lower 4 bits (values 0-15)
+        return _c64ToDrawChargenCharacterMap[c64Color];
+    }
+
     /// <summary>
     /// Color filter change the color the original character image was drawn in to a specified color.
     /// </summary>

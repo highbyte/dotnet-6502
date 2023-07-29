@@ -85,7 +85,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 
         // If an unhandled instruction, return false
         if (!execState.LastOpCodeWasHandled)
-            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unkown instruction {Mem[execState.PCBeforeLastOpCodeExecuted!.Value].ToHex()} at {execState.PCBeforeLastOpCodeExecuted!.Value.ToHex()}");
+            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[execState.PCBeforeLastOpCodeExecuted!.Value].ToHex()} at {execState.PCBeforeLastOpCodeExecuted!.Value.ToHex()}");
 
 
         if (postInstructionCallback != null)
@@ -117,7 +117,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         var execState = CPU.ExecuteOneInstruction(Mem);
         // If an unhandled instruction, return false
         if (!execState.LastOpCodeWasHandled)
-            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unkown instruction {Mem[execState.PCBeforeLastOpCodeExecuted!.Value].ToHex()} at {execState.PCBeforeLastOpCodeExecuted!.Value.ToHex()}");
+            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[execState.PCBeforeLastOpCodeExecuted!.Value].ToHex()} at {execState.PCBeforeLastOpCodeExecuted!.Value.ToHex()}");
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
         if (execEvaluator != null)

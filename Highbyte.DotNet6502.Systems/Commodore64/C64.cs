@@ -66,7 +66,7 @@ public class C64 : ISystem, ISystemMonitor
             totalCyclesConsumed += instructionCyclesConsumed;
 
             if (!knownInstruction)
-                return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unkown instruction {Mem[pcBeforeInstructionExecuted].ToHex()} at {pcBeforeInstructionExecuted.ToHex()}");
+                return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[pcBeforeInstructionExecuted].ToHex()} at {pcBeforeInstructionExecuted.ToHex()}");
 
             if (TimerMode == TimerMode.UpdateEachInstruction)
                 Cia.ProcessTimers(instructionCyclesConsumed);
@@ -134,7 +134,7 @@ public class C64 : ISystem, ISystemMonitor
     {
         var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out ulong cyclesConsumed, out ushort pcBeforeInstructionExecuted);
         if (!knownInstruction)
-            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unkown instruction {Mem[pcBeforeInstructionExecuted].ToHex()} at {pcBeforeInstructionExecuted.ToHex()}");
+            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[pcBeforeInstructionExecuted].ToHex()} at {pcBeforeInstructionExecuted.ToHex()}");
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
         if (execEvaluator != null)

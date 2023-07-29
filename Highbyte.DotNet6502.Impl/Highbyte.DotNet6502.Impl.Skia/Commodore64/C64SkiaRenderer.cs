@@ -301,7 +301,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         _drawImageDest.Right = pixelPosX + 8;
         _drawImageDest.Bottom = pixelPosY + 8;
 
-        var paint = _c64SkiaPaint.C64ToDrawChargenCharacterMap[characterColor];
+        var paint = _c64SkiaPaint.GetDrawCharacterPaint(characterColor);
         canvas.DrawImage(_characterSetCurrent,
             //source: new SKRect(romImageX, romImageY, romImageX + 8, romImageY + 8),
             //dest: new SKRect(pixelPosX, pixelPosY, pixelPosX + 8, pixelPosY + 8),
