@@ -1,5 +1,3 @@
-using Highbyte.DotNet6502.Systems.Commodore64.Video;
-
 namespace Highbyte.DotNet6502.Systems.Commodore64.Models;
 
 /// <summary>
@@ -8,21 +6,21 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Models;
 public class Vic2ModelNTSC_old : Vic2ModelBase
 {
     public override string Name => "NTSC_old";
-    public override ulong Lines => 262;               // Total lines, incl. normal draw area (200 lines), border, and VBlank.
-    public override ulong PixelsPerLine => 512;       // Total pixels per line, incl. normal draw area (320 pixels), border, and HBlank.
-
     public override ulong CyclesPerLine => 64;
-    public override ulong CyclesPerFrame => 64 * 262;   //CyclesPerLine * Lines;
+    public override ulong CyclesPerFrame => 64 * 262;   //CyclesPerLine * TotalHeight;
 
-    public override ulong LinesVisible => 234;
-    public override ulong PixelsPerLineVisible => 411;
+    public override int TotalWidth => 512;       // Total pixels per line, incl. normal draw area (320 pixels), border, and HBlank.
+    public override int TotalHeight => 262;               // Total lines, incl. normal draw area (200 lines), border, and VBlank.
 
-    public override ulong FirstRasterLineOfMainScreen => 51; // TODO: Verify
+    public override int MaxVisibleWidth => 411;
+    public override int MaxVisibleHeight => 234;
 
-    public override ulong HBlankPixels => PixelsPerLine - PixelsPerLineVisible;
-    public override ulong VBlankLines => Lines - LinesVisible;
+    public override int FirstRasterLineOfMainScreen => 51; // TODO: Verify
 
-    public override ushort ConvertRasterLineToScreenLine(ushort rasterLine)
+    public override int HBlankWidth => TotalWidth - MaxVisibleWidth;
+    public override int VBlankHeight => TotalHeight - MaxVisibleHeight;
+
+    public override int ConvertRasterLineToScreenLine(int rasterLine)
     {
         throw new NotImplementedException();
     }
@@ -35,19 +33,20 @@ public class Vic2ModelNTSC : Vic2ModelBase
 {
 
     public override string Name => "NTSC";
-    public override ulong Lines => 263;               // Total lines, incl. normal draw area (200 lines), border, and VBlank.
-    public override ulong PixelsPerLine => 520;       // Total pixels per line, incl. normal draw area (320 pixels), border, and HBlank.
-
     public override ulong CyclesPerLine => 65;
-    public override ulong CyclesPerFrame => 65 * 263;    // CyclesPerLine * Lines;
+    public override ulong CyclesPerFrame => 65 * 263;    // CyclesPerLine * TotalHeight;
 
-    public override ulong LinesVisible => 235;
-    public override ulong PixelsPerLineVisible => 418;
+    public override int TotalWidth => 520;       // Total pixels per line, incl. normal draw area (320 pixels), border, and HBlank.
+    public override int TotalHeight => 263;               // Total lines, incl. normal draw area (200 lines), border, and VBlank.
 
-    public override ulong FirstRasterLineOfMainScreen => 51;
 
-    public override ulong HBlankPixels => PixelsPerLine - PixelsPerLineVisible;
-    public override ulong VBlankLines => Lines - LinesVisible;
+    public override int MaxVisibleWidth => 418;
+    public override int MaxVisibleHeight => 235;
+
+    public override int FirstRasterLineOfMainScreen => 51;
+
+    public override int HBlankWidth => TotalWidth - MaxVisibleWidth;
+    public override int VBlankHeight => TotalHeight - MaxVisibleHeight;
 
     // NTSC (new) RSEL 1 (25 text lines/200 pixels = default) raster lines
     //
@@ -77,17 +76,17 @@ public class Vic2ModelNTSC : Vic2ModelBase
     //   246       | Last line of screen
     //   247       | Fist line of bottom border
 
-    public override ushort ConvertRasterLineToScreenLine(ushort rasterLine)
+    public override int ConvertRasterLineToScreenLine(int rasterLine)
     {
         // TODO: Is there difference in conversion between RSEL 0 (24 rows) and RSEL 1 (25 rows) mode ?
 
-        const ushort rasterLineForTopmostScreenLine = 20;
+        const int rasterLineForTopmostScreenLine = 20;
         if (rasterLine < rasterLineForTopmostScreenLine)
             //return (ushort)(rasterLine + 243);
-            return (ushort)(rasterLine + (Lines - rasterLineForTopmostScreenLine));
+            return (rasterLine + (TotalHeight - rasterLineForTopmostScreenLine));
         else
             //return (ushort)(rasterLine - 20);
-            return (ushort)(rasterLine - rasterLineForTopmostScreenLine);
+            return (rasterLine - rasterLineForTopmostScreenLine);
     }
 
     // Raster x coord where CSEL 1 (40 characters, 320 pixels) screen starts: 24
@@ -101,24 +100,23 @@ public class Vic2ModelNTSC : Vic2ModelBase
 public class Vic2ModelPAL : Vic2ModelBase
 {
     public override string Name => "PAL";
-    public override ulong Lines => 312;           // Total lines, incl. normal draw area (200 lines), border, and VBlank.
-    public override ulong PixelsPerLine => 504;   // Total pixels per line, incl. normal draw area (320 pixels), border, and HBlank.
-    public override ulong CyclesPerLine => 63;    // Total cycles per line, incl normal draw area (320 pixels), border, and HBlank
+    public override ulong CyclesPerLine => 63;          // Total cycles per line, incl normal draw area (320 pixels), border, and HBlank
 
-    public override ulong CyclesPerFrame => 63 * 312;   // CyclesPerLine * Lines;
+    public override ulong CyclesPerFrame => 63 * 312;   // CyclesPerLine * TotalHeight;
 
-    public override ulong LinesVisible => 284;      // Max visible, includes normal screen and top/bottom border
+    public override int TotalWidth => 504;            // Total pixels per line, incl. normal draw area (320 pixels), border, and HBlank.
+    public override int TotalHeight => 312;           // Total lines, incl. normal draw area (200 lines), border, and VBlank.
 
-    public override ulong PixelsPerLineVisible => 403;
+    public override int MaxVisibleWidth => 403;          // Max visible, includes normal screen and left/right border
+    public override int MaxVisibleHeight => 284;         // Max visible, includes normal screen and top/bottom border
 
-    public override ulong FirstRasterLineOfMainScreen => 51;
+    public override int FirstRasterLineOfMainScreen => 51;
 
-
-    public override ulong HBlankPixels => PixelsPerLine - PixelsPerLineVisible;
+    public override int HBlankWidth => TotalWidth - MaxVisibleWidth;
     // Should be 312 - 284 = 28  (or "around" 30 as stated in some docs)
-    public override ulong VBlankLines => Lines - LinesVisible;
+    public override int VBlankHeight => TotalHeight - MaxVisibleHeight;
 
-    public override ushort ConvertRasterLineToScreenLine(ushort rasterLine)
+    public override int ConvertRasterLineToScreenLine(int rasterLine)
     {
         return rasterLine;
     }
@@ -164,34 +162,35 @@ public abstract class Vic2ModelBase
 
     public abstract string Name { get; }
 
-    public virtual int Cols => 40;           // # characters per line in text mode
-    public virtual int Rows => 25;           // # rows in text mode
-    public virtual int Width => 320;         // # pixels in drawable area (text mode and bitmap graphics mode)
-    public virtual int Height => 200;        // # pixels in drawable area  (text mode and bitmap graphics mode)
-    public virtual int CharacterWidth => 8;
-    public virtual int CharacterHeight => 8;
+    public virtual int TextCols => 40;           // # characters per line in text mode
+    public virtual int TextRows => 25;           // # rows in text mode
+    public virtual int CharacterWidth => 8;      // # pixels width per character in text mode
+    public virtual int CharacterHeight => 8;     // # pixels height per character in text mode
+    public virtual int DrawableAreaWidth => 320;         // # pixels in drawable area (text mode and bitmap graphics mode)
+    public virtual int DrawableAreaHeight => 200;        // # pixels in drawable area  (text mode and bitmap graphics mode)
 
 
-    public abstract ulong CyclesPerFrame { get; }       // CyclesPerLine * Lines;
+    public abstract ulong CyclesPerFrame { get; }       // CyclesPerLine * TotalHeight;
     public abstract ulong CyclesPerLine { get; }
-    public abstract ulong Lines { get; }
-
-    public abstract ulong PixelsPerLineVisible { get; }    // PixelsPerLine - HBlankPixels;
-    public abstract ulong PixelsPerLine { get; }           // CyclesPerLine * PixelsPerCPUCycle;
-    public abstract ulong LinesVisible { get; }             // Lines - VBlankLines;
-
-    public abstract ulong FirstRasterLineOfMainScreen { get; }    // The raster line where the main screen with background starts.
-
-    public virtual ulong PixelsPerCPUCycle => 8;
-    public abstract ulong HBlankPixels { get; }
-    public abstract ulong VBlankLines { get; }
-
-    public abstract ushort ConvertRasterLineToScreenLine(ushort rasterLine);
+    public virtual int PixelsPerCPUCycle => 8;
 
 
-    public bool IsRasterLineInMainScreen(ulong rasterLine)
+    public abstract int TotalWidth { get; }           // CyclesPerLine * PixelsPerCPUCycle;
+    public abstract int TotalHeight { get; }
+
+    public abstract int MaxVisibleWidth { get; }         // TotalWidth - HBlankWidth;
+    public abstract int MaxVisibleHeight { get; }        // TotalHeight - VBlankHeight;
+
+    public abstract int FirstRasterLineOfMainScreen { get; }    // The raster line where the main screen with background starts. Note that raster line 0 in NTSC variant is within the bottom border.
+
+    public abstract int HBlankWidth { get; }
+    public abstract int VBlankHeight { get; }
+
+    public abstract int ConvertRasterLineToScreenLine(int rasterLine);
+
+    public bool IsRasterLineInMainScreen(int rasterLine)
     {
         return rasterLine >= FirstRasterLineOfMainScreen
-            && rasterLine < FirstRasterLineOfMainScreen + (ulong)Height;
+            && rasterLine < FirstRasterLineOfMainScreen + DrawableAreaHeight;
     }
 }

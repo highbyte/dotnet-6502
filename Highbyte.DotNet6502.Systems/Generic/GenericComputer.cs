@@ -20,18 +20,18 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 
     public ExecOptions DefaultExecOptions { get; set; }
 
-    public int Cols => _genericComputerConfig.Memory.Screen.Cols;
-    public int Rows => _genericComputerConfig.Memory.Screen.Rows;
+    public int TextCols => _genericComputerConfig.Memory.Screen.Cols;
+    public int TextRows => _genericComputerConfig.Memory.Screen.Rows;
     public int CharacterWidth => 8;
     public int CharacterHeight => 8;
 
-    public int Width => Cols * CharacterWidth;
-    public int Height => Rows * CharacterHeight;
-    public int VisibleWidth => (Cols * CharacterWidth) + (2 * (_genericComputerConfig.Memory.Screen.BorderCols * CharacterWidth));
-    public int VisibleHeight => (Rows * CharacterHeight) + (2 * (_genericComputerConfig.Memory.Screen.BorderRows * CharacterHeight));
-    public bool HasBorder => (VisibleWidth > Width) || (VisibleHeight > Height);
-    public int BorderWidth => (VisibleWidth - Width) / 2;
-    public int BorderHeight => (VisibleHeight - Height) / 2;
+    public int DrawableAreaWidth => TextCols * CharacterWidth;
+    public int DrawableAreaHeight => TextRows * CharacterHeight;
+    public int VisibleWidth => (TextCols * CharacterWidth) + (2 * (_genericComputerConfig.Memory.Screen.BorderCols * CharacterWidth));
+    public int VisibleHeight => (TextRows * CharacterHeight) + (2 * (_genericComputerConfig.Memory.Screen.BorderRows * CharacterHeight));
+    public bool HasBorder => (VisibleWidth > DrawableAreaWidth) || (VisibleHeight > DrawableAreaHeight);
+    public int VisibleLeftRightBorderWidth => (VisibleWidth - DrawableAreaWidth) / 2;
+    public int VisibleTopBottomBorderHeight => (VisibleHeight - DrawableAreaHeight) / 2;
     public float RefreshFrequencyHz => _genericComputerConfig.ScreenRefreshFrequencyHz;
 
     private readonly GenericComputerConfig _genericComputerConfig;
@@ -85,7 +85,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 
         // If an unhandled instruction, return false
         if (!execState.LastOpCodeWasHandled)
-            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unkown instruction {Mem[execState.PCBeforeLastOpCodeExecuted!.Value].ToHex()} at {execState.PCBeforeLastOpCodeExecuted!.Value.ToHex()}");
+            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[execState.PCBeforeLastOpCodeExecuted!.Value].ToHex()} at {execState.PCBeforeLastOpCodeExecuted!.Value.ToHex()}");
 
 
         if (postInstructionCallback != null)
@@ -117,7 +117,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         var execState = CPU.ExecuteOneInstruction(Mem);
         // If an unhandled instruction, return false
         if (!execState.LastOpCodeWasHandled)
-            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unkown instruction {Mem[execState.PCBeforeLastOpCodeExecuted!.Value].ToHex()} at {execState.PCBeforeLastOpCodeExecuted!.Value.ToHex()}");
+            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[execState.PCBeforeLastOpCodeExecuted!.Value].ToHex()} at {execState.PCBeforeLastOpCodeExecuted!.Value.ToHex()}");
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
         if (execEvaluator != null)

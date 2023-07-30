@@ -27,14 +27,14 @@ public class SadConsoleMain
         var screen = _systemRunner.System.Screen;
         var textMode = screen as ITextMode;
 
-        // int totalCols = (textMode.Cols + (textMode.BorderCols * 2));
-        // int totalRows = (textMode.Rows + (textMode.BorderRows * 2));
-        int totalCols = textMode.Cols;
-        int totalRows = textMode.Rows;
+        // int totalCols = (textMode.TextCols + (textMode.BorderCols * 2));
+        // int totalRows = (textMode.TextRows + (textMode.BorderRows * 2));
+        int totalCols = textMode.TextCols;
+        int totalRows = textMode.TextRows;
         if (screen.HasBorder)
         {
-            totalCols += (screen.BorderWidth / textMode.CharacterWidth) * 2;
-            totalRows += (screen.BorderHeight / textMode.CharacterHeight) * 2;
+            totalCols += (screen.VisibleLeftRightBorderWidth / textMode.CharacterWidth) * 2;
+            totalRows += (screen.VisibleTopBottomBorderHeight / textMode.CharacterHeight) * 2;
         }
         global::SadConsole.Game.Create(
             totalCols * _sadConsoleConfig.FontScale,

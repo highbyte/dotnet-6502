@@ -39,6 +39,8 @@ public class Vic2
 
     public byte BorderColor { get; private set; }
     public byte BackgroundColor { get; private set; }
+
+    public byte ScrollX { get; private set; }
     public byte MemorySetup { get; private set; }
     public byte PortA { get; private set; }
 
@@ -47,6 +49,10 @@ public class Vic2
     private ushort _currentRasterLineInternal = ushort.MaxValue;
     public ushort CurrentRasterLine => _currentRasterLineInternal;
 
+    public bool Is38ColumnDisplayEnabled => !ScrollX.IsBitSet(3);
+    public byte FineScrollXValue => (byte)(ScrollX & 0b0000_0111);    // Value 0-7
+    public bool Is24RowDisplayEnabled => !ScrCtrl1.IsBitSet(3);
+    public byte FineScrollYValue => (byte)(ScrCtrl1 & 0b0000_0111);    // Value 0-7
 
     public event EventHandler<CharsetAddressChangedEventArgs> CharsetAddressChanged;
     protected virtual void OnCharsetAddressChanged(CharsetAddressChangedEventArgs e)
@@ -55,8 +61,9 @@ public class Vic2
         handler?.Invoke(this, e);
     }
 
-    public Dictionary<ushort, byte> ScreenLineBorderColor { get; private set; }
-    public Dictionary<ushort, byte> ScreenLineBackgroundColor { get; private set; }
+    public Dictionary<int, byte> ScreenLineBorderColor { get; private set; }
+    public Dictionary<int, byte> ScreenLineBackgroundColor { get; private set; }
+    public Vic2ScreenLayouts ScreenLayouts { get; private set; }
 
     private Vic2() { }
 
@@ -75,29 +82,32 @@ public class Vic2
             Vic2Model = vic2Model,
             Vic2IRQ = vic2IRQ,
             ScreenLineBorderColor = screenLineBorderColorLookup,
-            ScreenLineBackgroundColor = screenLineBackgroundColorLookup
+            ScreenLineBackgroundColor = screenLineBackgroundColorLookup,
         };
 
         var vic2Screen = new Vic2Screen(vic2Model, c64.CpuFrequencyHz);
         vic2.Vic2Screen = vic2Screen;
 
+        var vic2ScreenLayouts = new Vic2ScreenLayouts(vic2);
+        vic2.ScreenLayouts = vic2ScreenLayouts;
+
         return vic2;
     }
 
-    private static Dictionary<ushort, byte> InitializeScreenLineBorderColorLookup(Vic2ModelBase vic2Model)
+    private static Dictionary<int, byte> InitializeScreenLineBorderColorLookup(Vic2ModelBase vic2Model)
     {
-        var screenLineBorderColor = new Dictionary<ushort, byte>();
-        for (ushort i = 0; i < vic2Model.Lines; i++)
+        var screenLineBorderColor = new Dictionary<int, byte>();
+        for (ushort i = 0; i < vic2Model.TotalHeight; i++)
         {
             screenLineBorderColor.Add(i, 0);
         }
         return screenLineBorderColor;
     }
 
-    private static Dictionary<ushort, byte> InitializeScreenLineBackgroundColorLookup(Vic2ModelBase vic2Model)
+    private static Dictionary<int, byte> InitializeScreenLineBackgroundColorLookup(Vic2ModelBase vic2Model)
     {
-        var screenLineBackgroundColor = new Dictionary<ushort, byte>();
-        for (ushort i = 0; i < vic2Model.Lines; i++)
+        var screenLineBackgroundColor = new Dictionary<int, byte>();
+        for (ushort i = 0; i < vic2Model.TotalHeight; i++)
         {
             if (!vic2Model.IsRasterLineInMainScreen(i))
                 continue;
@@ -115,6 +125,10 @@ public class Vic2
         // Address 0xd012: "Current Raster Line"
         mem.MapReader(Vic2Addr.CURRENT_RASTER_LINE, RasterLoad);
         mem.MapWriter(Vic2Addr.CURRENT_RASTER_LINE, RasterStore);
+
+        // Address 0xd016: "Horizontal Fine Scrolling and Control Register"
+        mem.MapReader(Vic2Addr.SCROLL_X, ScrollXLoad);
+        mem.MapWriter(Vic2Addr.SCROLL_X, ScrollXStore);
 
         // Address 0xd018: "Memory setup" (VIC2 pointer for charset/bitmap & screen memory)
         mem.MapReader(Vic2Addr.MEMORY_SETUP, MemorySetupLoad);
@@ -189,6 +203,15 @@ public class Vic2
     public byte BackgroundColorLoad(ushort _)
     {
         return ((byte)(BackgroundColor | 0b1111_0000)); // Bits 4-7 are unused and always 1
+    }
+
+    public void ScrollXStore(ushort _, byte value)
+    {
+        ScrollX = (byte)(value & 0b0011_1111); // Only bits 0-5 are stored
+    }
+    public byte ScrollXLoad(ushort _)
+    {
+        return ((byte)(ScrollX | 0b1100_0000)); // Bits 6-7 are unused and always 1
     }
 
     public void MemorySetupStore(ushort _, byte value)
@@ -278,7 +301,7 @@ public class Vic2
         // If the VIC2 model is PAL, then allow configuring the 8th bit of the raster line IRQ.
         // Note: As the Kernal ROM initializes this 8th bit for both NTSC and PAL (same ROM for both), we need this workaround here.
         // TODO: Should an enum be used for VIC2 model base type (PAL or NTSC)?
-        if (Vic2Model.LinesVisible > 256)
+        if (Vic2Model.MaxVisibleHeight > 256)
         {
             // When writing to this register (SCRCTRL1) the seventh bit is the highest (eigth) for the the raster line IRQ setting.
             ushort bit7HighestRasterLineBitIRQ = (ushort)(value & 0b1000_0000);
@@ -292,7 +315,7 @@ public class Vic2
         }
 
 #if DEBUG
-        if (Vic2IRQ.ConfiguredIRQRasterLine > Vic2Model.Lines)
+        if (Vic2IRQ.ConfiguredIRQRasterLine > Vic2Model.TotalHeight)
             throw new Exception($"Internal error. Setting unreachable scan line for IRQ: {Vic2IRQ.ConfiguredIRQRasterLine}. Incorrect ROM for Vic2 model: {Vic2Model.Name} ?");
 #endif
 
@@ -418,7 +441,7 @@ public class Vic2
         if (newLine != _currentRasterLineInternal)
         {
 #if DEBUG
-            if (newLine > Vic2Model.Lines)
+            if (newLine > Vic2Model.TotalHeight)
                 throw new Exception($"Internal error. Unreachable scan line: {newLine}. The CPU probably executed more cycles current frame than allowed.");
 #endif
             _currentRasterLineInternal = newLine;
@@ -447,7 +470,7 @@ public class Vic2
         // Check if a IRQ should be issued
         var source = IRQSource.RasterCompare;
         if ((_currentRasterLineInternal == Vic2IRQ.ConfiguredIRQRasterLine
-            || (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue & _currentRasterLineInternal >= Vic2Model.Lines))
+            || (!Vic2IRQ.ConfiguredIRQRasterLine.HasValue & _currentRasterLineInternal >= Vic2Model.TotalHeight))
             && Vic2IRQ.IsEnabled(source)
             && !Vic2IRQ.IsTriggered(source, C64.CPU))
         {
