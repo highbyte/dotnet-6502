@@ -153,32 +153,40 @@ public class CPU
     /// Executes one instruction with minimal overhead.
     /// Does not fire any events when instruction is executed.
     /// Does not update statistics (ExecState property).
+    /// Caller cannot specify any ExecEvaluators.
     /// </summary>
     /// <param name="mem"></param>
-    /// <param name="cyclesConsumed"></param>
-    /// <returns>True if instruction was known, False if not</returns>
-    public bool ExecuteOneInstructionMinimal(
-        Memory mem,
-        out ulong cyclesConsumed,
-        out ushort pcBeforeInstructionExecuted)
+    /// <returns></returns>
+    public InstructionExecResult ExecuteOneInstructionMinimal(
+        Memory mem)
     {
-        pcBeforeInstructionExecuted = PC;
-
         var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
         ProcessInterrupts(mem);
 
-        cyclesConsumed = instructionExecutionResult.CyclesConsumed;
-
-        return !instructionExecutionResult.UnknownInstruction;
+        return instructionExecutionResult;
     }
 
+    /// <summary>
+    /// Executes one instruction, and will fire events and collect statistics.
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <returns></returns>
     public ExecState ExecuteOneInstruction(
         Memory mem)
     {
         return Execute(mem, LegacyExecEvaluator.OneInstructionExecEvaluator);
     }
 
+    /// <summary>
+    /// Executes instructions in a loop until a condition is triggered in one of the specified ExecEvaluators.
+    /// Events are also triggered for different stages of the execution.
+    /// Statistics are collected.
+    /// This can be quite costly performance-wise. See the ExecuteOneInstructionMinimal method for a more performant alternative, but without events, statistics, and ExecEvaluators.
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <param name="execEvaluators"></param>
+    /// <returns></returns>
     public ExecState Execute(
         Memory mem,
         params IExecEvaluator[] execEvaluators)
@@ -194,16 +202,13 @@ public class CPU
             OnInstructionToBeExecuted(new CPUInstructionToBeExecutedEventArgs(this, mem));
 
             // Execute instruction
-            ushort PCBeforeInstructionExecuted = PC;
             var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
             // Collect stats for this instruction.
             // Whereas the property thisExecState contains the aggregate stats for this invocation of Execute().
             // and the property Cpu.ExecState contains the aggregate stats for all invocations of Execute().
             var instructionExecState = ExecState.ExecStateAfterInstruction(
-                lastinstructionExecutionResult: instructionExecutionResult,
-                lastPC: PCBeforeInstructionExecuted
-            );
+                lastinstructionExecutionResult: instructionExecutionResult);
 
             // Update/Aggregate total Cpu.ExecState stats
             ExecState.UpdateTotal(instructionExecState);

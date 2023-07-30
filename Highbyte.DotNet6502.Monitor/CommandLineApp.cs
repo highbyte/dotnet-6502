@@ -34,6 +34,7 @@ public class CommandLineApp
         app.ConfigureBreakpoints(monitor, monitorVariables);
         app.ConfigureFiles(monitor, monitorVariables);
         app.ConfigureReset(monitor, monitorVariables);
+        app.ConfigureOptions(monitor, monitorVariables);
 
         // Add any system-specific monitor commands if the system implements it.
         if (monitor.SystemRunner.System is ISystemMonitor systemWithMonitor)

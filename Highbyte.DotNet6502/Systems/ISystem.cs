@@ -13,5 +13,6 @@ public interface ISystem
         IExecEvaluator? execEvaluator = null,
         Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
         Dictionary<string, double>? detailedStats = null);
-    public ExecEvaluatorTriggerResult ExecuteOneInstruction(IExecEvaluator? execEvaluator = null);
+    public ExecEvaluatorTriggerResult ExecuteOneInstruction(
+        IExecEvaluator? execEvaluator = null);
 }

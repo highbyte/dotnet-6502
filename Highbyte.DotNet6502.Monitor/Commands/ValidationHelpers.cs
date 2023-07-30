@@ -74,3 +74,20 @@ public class GreaterThan16bitValidator : IArgumentValidator
         return value > otherValue ? ValidationResult.Success : new ValidationResult($"The 16 bit value {argument.Name} ({argument.Value}) must higher than {_otherArgument.Name} ({_otherArgument.Value})");
     }
 }
+
+public class MustBeIntegerFlag : IArgumentValidator
+{
+    public ValidationResult GetValidationResult(CommandArgument argument, ValidationContext context)
+    {
+        // This validator only runs if there is a value
+        if (string.IsNullOrEmpty(argument.Value))
+            return ValidationResult.Success;  //return new ValidationResult($"{argument.Name} cannot be empty");
+
+        bool validByte = byte.TryParse(argument.Value, NumberStyles.AllowHexSpecifier, null, out byte byteValue);
+        if (!validByte || byteValue > 1)
+        {
+            return new ValidationResult($"The value for {argument.Name} must be 0 or 1");
+        }
+        return ValidationResult.Success;
+    }
+}

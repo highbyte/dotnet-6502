@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace Highbyte.DotNet6502;
 
 /// <summary>
@@ -22,10 +20,12 @@ public class InstructionExecutor
         //if (cpu.PC == 0xff63 || cpu.PC == 0xE5AD)
         //    Debugger.Break();
 
+        var atPC = cpu.PC;  // Remember the PC where the instruction is located, so we can return it in the result.
+
         byte opCode = cpu.FetchInstruction(mem);
 
         if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
-            return InstructionExecResult.UnknownInstructionResult(opCode);
+            return InstructionExecResult.UnknownInstructionResult(opCode, atPC);
 
         var opCodeObject = cpu.InstructionList.GetOpCode(opCode);
         var instruction = cpu.InstructionList.GetInstruction(opCodeObject);
@@ -112,8 +112,8 @@ public class InstructionExecutor
                 // This mode has no value or address
                 break;
             }
-             default:
-                 return InstructionExecResult.UnknownInstructionResult(opCode);
+            default:
+                return InstructionExecResult.UnknownInstructionResult(opCode, atPC);
         }
 
         // Execute the instruction-specific logic, with final value calculated in addrModeCalcResult.
@@ -122,13 +122,11 @@ public class InstructionExecutor
         {
             // Instruction expects a byte directly or via a relative or absolute (word) address
             byte instructionValue;
-            if(addrModeCalcResult.InsAddress.HasValue)
-            {
+            if (addrModeCalcResult.InsAddress.HasValue)
                 instructionValue = cpu.FetchByte(mem, addrModeCalcResult.InsAddress.Value);
-            }
             else
                 instructionValue = addrModeCalcResult.InsValue.Value;
-            
+
             extraCyclesConsumed = instructionUsesByte.ExecuteWithByte(cpu, mem, instructionValue, addrModeCalcResult);
         }
         else if (instruction is IInstructionUsesAddress instructionUseAddress && addrModeCalcResult.InsAddress.HasValue)
@@ -140,17 +138,16 @@ public class InstructionExecutor
         {
             // Instruction is expected to push or pop stack
             extraCyclesConsumed = instructionUsesStack.ExecuteWithStack(cpu, mem, addrModeCalcResult);
-        }            
+        }
         else if (instruction is IInstructionUsesOnlyRegOrStatus instructionUseNone)
         {
             extraCyclesConsumed = instructionUseNone.Execute(cpu, addrModeCalcResult);
-           
         }
         else
         {
             throw new DotNet6502Exception($"Bug detected. Did not find a way to execute instruction: {instruction.Name} opcode: {opCode.ToHex()}"); 
         }
 
-        return InstructionExecResult.SuccessfulInstructionResult(opCode, opCodeObject.MinimumCycles + extraCyclesConsumed);
+        return InstructionExecResult.KnownInstructionResult(opCode, atPC, opCodeObject.MinimumCycles + extraCyclesConsumed);
     }
 }

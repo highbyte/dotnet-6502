@@ -1,5 +1,3 @@
-using System.Data;
-using System.Threading;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 

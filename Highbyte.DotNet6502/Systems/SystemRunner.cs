@@ -66,7 +66,7 @@ public class SystemRunner
 
     public ExecEvaluatorTriggerResult RunOneInstruction()
     {
-        return _system.ExecuteOneInstruction();
+        return _system.ExecuteOneInstruction(_customExecEvaluator);
     }
 
     public void ProcessInput()

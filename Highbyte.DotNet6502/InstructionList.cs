@@ -46,7 +46,7 @@ public class InstructionList
         };
     }
 
-    public static InstructionList GetAllInstructions() 
+    public static InstructionList GetAllInstructions()
     {
         // var insList = new List<Instruction>
         // {

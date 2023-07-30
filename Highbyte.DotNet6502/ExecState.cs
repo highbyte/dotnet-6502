@@ -8,7 +8,7 @@ public class ExecState
 
     public InstructionExecResult LastInstructionExecResult { get; private set; }
     public bool LastOpCodeWasHandled { get { return !LastInstructionExecResult.UnknownInstruction; } }
-    public ushort? PCBeforeLastOpCodeExecuted { get; private set; }
+    public ushort? PCBeforeLastOpCodeExecuted { get { return LastInstructionExecResult.AtPC; } }
 
     public ExecState()
     {
@@ -16,16 +16,15 @@ public class ExecState
         InstructionsExecutionCount = 0;
         UnknownOpCodeCount = 0;
         LastInstructionExecResult = default;
-        PCBeforeLastOpCodeExecuted = null;
     }
-    public static ExecState ExecStateAfterInstruction(InstructionExecResult lastinstructionExecutionResult, ushort? lastPC)
+
+    public static ExecState ExecStateAfterInstruction(InstructionExecResult lastinstructionExecutionResult)
     {
         var execState = new ExecState();
         execState.InstructionsExecutionCount = 1;
         execState.CyclesConsumed = lastinstructionExecutionResult.CyclesConsumed;
         execState.LastInstructionExecResult = lastinstructionExecutionResult;
         execState.UnknownOpCodeCount = lastinstructionExecutionResult.UnknownInstruction ? (ulong)1 : (ulong)0;
-        execState.PCBeforeLastOpCodeExecuted = lastPC;
         return execState;
     }
 
@@ -37,7 +36,6 @@ public class ExecState
             InstructionsExecutionCount = this.InstructionsExecutionCount,
             UnknownOpCodeCount = this.UnknownOpCodeCount,
             LastInstructionExecResult = this.LastInstructionExecResult,
-            PCBeforeLastOpCodeExecuted = this.PCBeforeLastOpCodeExecuted
         };
     }
 
@@ -47,6 +45,5 @@ public class ExecState
         InstructionsExecutionCount += newExecState.InstructionsExecutionCount;
         UnknownOpCodeCount += newExecState.UnknownOpCodeCount;
         LastInstructionExecResult = newExecState.LastInstructionExecResult;
-        PCBeforeLastOpCodeExecuted = newExecState.PCBeforeLastOpCodeExecuted;
     }
 }

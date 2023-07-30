@@ -181,11 +181,7 @@ public class CPUTest
         cpu.PC = originalPC;
 
         // Act
-        var knownInstruction = cpu.ExecuteOneInstructionMinimal(
-            mem,
-            out ulong cyclesConsumed,
-            out ushort pcBeforeInstructionExecuted
-            );
+        var execResult = cpu.ExecuteOneInstructionMinimal(mem);
 
         // Assert
         Assert.Equal(originalPC + 1, cpu.PC);   // NOP is 1 byte
@@ -202,14 +198,10 @@ public class CPUTest
         cpu.PC = 0x1000;
 
         // Act
-        var knownInstruction = cpu.ExecuteOneInstructionMinimal(
-            mem,
-            out ulong cyclesConsumed,
-            out ushort pcBeforeInstructionExecuted
-            );
+        var execResult = cpu.ExecuteOneInstructionMinimal(mem);
 
         // Assert
-        Assert.False(knownInstruction);
+        Assert.True(execResult.UnknownInstruction);
     }
 
     [Fact]

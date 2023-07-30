@@ -94,7 +94,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         // If the custom ExecEvaluator said we shouldn't contine (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
         if (execEvaluator != null)
         {
-            var execEvaluatorTriggerResult = execEvaluator.Check(null, CPU, Mem);
+            var execEvaluatorTriggerResult = execEvaluator.Check(execState, CPU, Mem);
             if (execEvaluatorTriggerResult.Triggered)
                 return execEvaluatorTriggerResult;
         }
@@ -122,7 +122,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
         if (execEvaluator != null)
         {
-            var execEvaluatorTriggerResult = execEvaluator.Check(null, CPU, Mem);
+            var execEvaluatorTriggerResult = execEvaluator.Check(execState, CPU, Mem);
             if (execEvaluatorTriggerResult.Triggered)
             {
                 return execEvaluatorTriggerResult;

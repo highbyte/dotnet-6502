@@ -37,8 +37,8 @@ public class OutputGenTest
     public void OutputGen_Returns_Correctly_Formatted_Disassembly_For_Last_Executed_Instruction()
     {
         // Arrange
-        var instructionExecutionResult = InstructionExecResult.SuccessfulInstructionResult(OpCodeId.LDX_I.ToByte(), 0);
-        var cpu = new CPU(ExecState.ExecStateAfterInstruction(instructionExecutionResult, 0xc0a0));
+        var instructionExecutionResult = InstructionExecResult.KnownInstructionResult(OpCodeId.LDX_I.ToByte(), 0xc0a0, 0);
+        var cpu = new CPU(ExecState.ExecStateAfterInstruction(instructionExecutionResult));
         var mem = new Memory();
         mem[0xc0a0] = OpCodeId.LDX_I.ToByte();
         mem[0xc0a1] = 0xee;
@@ -48,7 +48,7 @@ public class OutputGenTest
 
         // Assert
         Assert.Equal("c0a0  a2 ee     LDX #$EE   ", outputString);
-    }        
+    }
 
     [Theory]
     [InlineData(AddrMode.Accumulator,   new byte[]{},           "A")]

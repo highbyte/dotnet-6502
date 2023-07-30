@@ -37,8 +37,6 @@ public class C64 : ISystem, ISystemMonitor
 
     public string ColorMapName { get; private set; }
 
-    private LegacyExecEvaluator _oneFrameExecEvaluator;
-
     private C64MonitorCommands _c64MonitorCommands = new C64MonitorCommands();
 
     public const ushort BASIC_LOAD_ADDRESS = 0x0801;
@@ -52,27 +50,33 @@ public class C64 : ISystem, ISystemMonitor
     //};
 
     // Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
+
+    /// <summary>
+    /// Executes on frame worth of C64 instructions.
+    /// Uses the optimized CPU instruction execution (ExecuteOneInstructionMinimal).
+    /// </summary>
+    /// <param name="execEvaluator"></param>
+    /// <param name="postInstructionCallback"></param>
+    /// <param name="detailedStats"></param>
+    /// <returns></returns>
     public ExecEvaluatorTriggerResult ExecuteOneFrame(
         IExecEvaluator? execEvaluator = null,
         Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
         Dictionary<string, double>? detailedStats = null)
     {
-        ulong cyclesToExecute = (ulong)(Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
+        ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
 
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < cyclesToExecute)
         {
-            var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out var instructionCyclesConsumed, out var pcBeforeInstructionExecuted);
-            totalCyclesConsumed += instructionCyclesConsumed;
-
-            if (!knownInstruction)
-                return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[pcBeforeInstructionExecuted].ToHex()} at {pcBeforeInstructionExecuted.ToHex()}");
+            var execResult = CPU.ExecuteOneInstructionMinimal(Mem);
+            totalCyclesConsumed += execResult.CyclesConsumed;
 
             if (TimerMode == TimerMode.UpdateEachInstruction)
-                Cia.ProcessTimers(instructionCyclesConsumed);
+                Cia.ProcessTimers(execResult.CyclesConsumed);
 
             // Process video raster
-            Vic2.AdvanceRaster(instructionCyclesConsumed);
+            Vic2.AdvanceRaster(execResult.CyclesConsumed);
 
             // Handle processing needed after each instruction, such as generating audio etc.
             if (AudioEnabled && postInstructionCallback != null)
@@ -81,7 +85,7 @@ public class C64 : ISystem, ISystemMonitor
             // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
             if (execEvaluator != null)
             {
-                var execEvaluatorTriggerResult = execEvaluator.Check(null, CPU, Mem);
+                var execEvaluatorTriggerResult = execEvaluator.Check(execResult, CPU, Mem);
                 if (execEvaluatorTriggerResult.Triggered)
                 {
                     return execEvaluatorTriggerResult;
@@ -122,7 +126,7 @@ public class C64 : ISystem, ISystemMonitor
     //        return false;
 
     //    // If the custom ExecEvaluator said we shouldn't continue (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
-    //    if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
+    //    if (execEvaluator != null && !execEvaluator.Check(execState, CPU, Mem))
     //        return false;
 
     //    // Return true to indicate execution was successfull and we should continue
@@ -132,14 +136,15 @@ public class C64 : ISystem, ISystemMonitor
     public ExecEvaluatorTriggerResult ExecuteOneInstruction(
         IExecEvaluator? execEvaluator = null)
     {
-        var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out ulong cyclesConsumed, out ushort pcBeforeInstructionExecuted);
-        if (!knownInstruction)
-            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[pcBeforeInstructionExecuted].ToHex()} at {pcBeforeInstructionExecuted.ToHex()}");
+        //var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out ulong cyclesConsumed, out ushort pcBeforeInstructionExecuted);
+        var execResult = CPU.ExecuteOneInstructionMinimal(Mem);
+        if (execResult.UnknownInstruction)
+            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[execResult.AtPC].ToHex("", lowerCase: true)} at {execResult.AtPC.ToHex("", lowerCase: true)}");
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
         if (execEvaluator != null)
         {
-            var execEvaluatorTriggerResult = execEvaluator.Check(null, CPU, Mem);
+            var execEvaluatorTriggerResult = execEvaluator.Check(execResult, CPU, Mem);
             if (execEvaluatorTriggerResult.Triggered)
             {
                 return execEvaluatorTriggerResult;
