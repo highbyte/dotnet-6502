@@ -166,8 +166,8 @@ public abstract class Vic2ModelBase
     public virtual int TextRows => 25;           // # rows in text mode
     public virtual int CharacterWidth => 8;      // # pixels width per character in text mode
     public virtual int CharacterHeight => 8;     // # pixels height per character in text mode
-    public virtual int DrawWidth => 320;         // # pixels in drawable area (text mode and bitmap graphics mode)
-    public virtual int DrawHeight => 200;        // # pixels in drawable area  (text mode and bitmap graphics mode)
+    public virtual int DrawableAreaWidth => 320;         // # pixels in drawable area (text mode and bitmap graphics mode)
+    public virtual int DrawableAreaHeight => 200;        // # pixels in drawable area  (text mode and bitmap graphics mode)
 
 
     public abstract ulong CyclesPerFrame { get; }       // CyclesPerLine * TotalHeight;
@@ -191,6 +191,6 @@ public abstract class Vic2ModelBase
     public bool IsRasterLineInMainScreen(int rasterLine)
     {
         return rasterLine >= FirstRasterLineOfMainScreen
-            && rasterLine < FirstRasterLineOfMainScreen + DrawHeight;
+            && rasterLine < FirstRasterLineOfMainScreen + DrawableAreaHeight;
     }
 }

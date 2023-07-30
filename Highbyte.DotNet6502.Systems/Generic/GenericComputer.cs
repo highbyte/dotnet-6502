@@ -25,13 +25,13 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     public int CharacterWidth => 8;
     public int CharacterHeight => 8;
 
-    public int DrawWidth => TextCols * CharacterWidth;
-    public int DrawHeight => TextRows * CharacterHeight;
+    public int DrawableAreaWidth => TextCols * CharacterWidth;
+    public int DrawableAreaHeight => TextRows * CharacterHeight;
     public int VisibleWidth => (TextCols * CharacterWidth) + (2 * (_genericComputerConfig.Memory.Screen.BorderCols * CharacterWidth));
     public int VisibleHeight => (TextRows * CharacterHeight) + (2 * (_genericComputerConfig.Memory.Screen.BorderRows * CharacterHeight));
-    public bool HasBorder => (VisibleWidth > DrawWidth) || (VisibleHeight > DrawHeight);
-    public int VisibleBorderWidth => (VisibleWidth - DrawWidth) / 2;
-    public int VisibleBorderHeight => (VisibleHeight - DrawHeight) / 2;
+    public bool HasBorder => (VisibleWidth > DrawableAreaWidth) || (VisibleHeight > DrawableAreaHeight);
+    public int VisibleLeftRightBorderWidth => (VisibleWidth - DrawableAreaWidth) / 2;
+    public int VisibleTopBottomBorderHeight => (VisibleHeight - DrawableAreaHeight) / 2;
     public float RefreshFrequencyHz => _genericComputerConfig.ScreenRefreshFrequencyHz;
 
     private readonly GenericComputerConfig _genericComputerConfig;

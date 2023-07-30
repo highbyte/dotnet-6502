@@ -148,9 +148,7 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
             if (resourceStream == null)
                 throw new ArgumentException($"Cannot load font from embedded resource. Resource: {resourceName}", nameof(fullFontName));
 
-            var typeFace = SKTypeface.FromStream(resourceStream);
-            if (typeFace == null)
-                throw new ArgumentException($"Cannot load font as a Skia TypeFace from embedded resource. Resource: {resourceName}", nameof(fullFontName));
+            var typeFace = SKTypeface.FromStream(resourceStream) ?? throw new ArgumentException($"Cannot load font as a Skia TypeFace from embedded resource. Resource: {resourceName}", nameof(fullFontName));
             return typeFace;
         }
     }

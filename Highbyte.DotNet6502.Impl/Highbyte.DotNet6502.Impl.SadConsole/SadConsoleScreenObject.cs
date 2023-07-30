@@ -21,8 +21,8 @@ public class SadConsoleScreenObject : ScreenObject
         int totalRows = textMode.TextRows;
         if(screen.HasBorder)
         {
-            totalCols += (screen.VisibleBorderWidth / textMode.CharacterWidth) * 2;
-            totalRows += (screen.VisibleBorderHeight / textMode.CharacterHeight) * 2;
+            totalCols += (screen.VisibleLeftRightBorderWidth / textMode.CharacterWidth) * 2;
+            totalRows += (screen.VisibleTopBottomBorderHeight / textMode.CharacterHeight) * 2;
         }
 
         var console = new Console(totalCols, totalRows)
@@ -30,7 +30,7 @@ public class SadConsoleScreenObject : ScreenObject
             DefaultForeground = Color.White,
             DefaultBackground = Color.Black
         };
-        //screen.Position = new Point(VisibleBorderWidth, VisibleBorderHeight);
+        //screen.Position = new Point(VisibleLeftRightBorderWidth, VisibleTopBottomBorderHeight);
 
         // TODO: Better way to map numeric scale value to SadConsole.Font.FontSizes enum?
         var fontSize = sadConsoleConfig.FontScale switch

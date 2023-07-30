@@ -63,6 +63,7 @@ public class Vic2
 
     public Dictionary<int, byte> ScreenLineBorderColor { get; private set; }
     public Dictionary<int, byte> ScreenLineBackgroundColor { get; private set; }
+    public Vic2ScreenLayouts ScreenLayouts { get; private set; }
 
     private Vic2() { }
 
@@ -81,11 +82,14 @@ public class Vic2
             Vic2Model = vic2Model,
             Vic2IRQ = vic2IRQ,
             ScreenLineBorderColor = screenLineBorderColorLookup,
-            ScreenLineBackgroundColor = screenLineBackgroundColorLookup
+            ScreenLineBackgroundColor = screenLineBackgroundColorLookup,
         };
 
         var vic2Screen = new Vic2Screen(vic2Model, c64.CpuFrequencyHz);
         vic2.Vic2Screen = vic2Screen;
+
+        var vic2ScreenLayouts = new Vic2ScreenLayouts(vic2);
+        vic2.ScreenLayouts = vic2ScreenLayouts;
 
         return vic2;
     }

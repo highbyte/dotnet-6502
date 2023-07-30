@@ -33,8 +33,8 @@ public class SadConsoleMain
         int totalRows = textMode.TextRows;
         if (screen.HasBorder)
         {
-            totalCols += (screen.VisibleBorderWidth / textMode.CharacterWidth) * 2;
-            totalRows += (screen.VisibleBorderHeight / textMode.CharacterHeight) * 2;
+            totalCols += (screen.VisibleLeftRightBorderWidth / textMode.CharacterWidth) * 2;
+            totalRows += (screen.VisibleTopBottomBorderHeight / textMode.CharacterHeight) * 2;
         }
         global::SadConsole.Game.Create(
             totalCols * _sadConsoleConfig.FontScale,

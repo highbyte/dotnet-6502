@@ -155,11 +155,11 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
 
     private int GetBorderCols(C64 c64)
     {
-        return c64.Vic2.Vic2Screen.VisibleBorderWidth / c64.Vic2.Vic2Screen.CharacterWidth;
+        return c64.Vic2.Vic2Screen.VisibleLeftRightBorderWidth / c64.Vic2.Vic2Screen.CharacterWidth;
     }
     private int GetBorderRows(C64 c64)
     {
-        return c64.Vic2.Vic2Screen.VisibleBorderHeight / c64.Vic2.Vic2Screen.CharacterHeight;
+        return c64.Vic2.Vic2Screen.VisibleTopBottomBorderHeight / c64.Vic2.Vic2Screen.CharacterHeight;
     }
 
 }
