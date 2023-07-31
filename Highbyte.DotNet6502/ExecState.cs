@@ -46,4 +46,12 @@ public class ExecState
         UnknownOpCodeCount += newExecState.UnknownOpCodeCount;
         LastInstructionExecResult = newExecState.LastInstructionExecResult;
     }
+    internal void UpdateTotal(InstructionExecResult instructionExecResult)
+    {
+        CyclesConsumed += instructionExecResult.CyclesConsumed;
+        InstructionsExecutionCount += 1;
+        if (instructionExecResult.UnknownInstruction)
+            UnknownOpCodeCount += 1;
+        LastInstructionExecResult = instructionExecResult;
+    }
 }

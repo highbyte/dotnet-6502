@@ -162,6 +162,8 @@ public class CPU
     {
         var instructionExecutionResult = _instructionExecutor.Execute(this, mem);
 
+        ExecState.UpdateTotal(instructionExecutionResult);
+
         ProcessInterrupts(mem);
 
         return instructionExecutionResult;

@@ -3,7 +3,7 @@ namespace Highbyte.DotNet6502.Systems;
 public interface ISystem
 {
     string Name { get; }
-    string SystemInfo { get; }
+    List<string> SystemInfo { get; }
 
     CPU CPU { get; }
     Memory Mem { get; }

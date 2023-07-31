@@ -13,7 +13,7 @@ public class C64 : ISystem, ISystemMonitor
 {
     public const string SystemName = "C64";
     public string Name => SystemName;
-    public string SystemInfo => BuildSystemInfo();
+    public List<string> SystemInfo => BuildSystemInfo();
 
     public C64ModelBase Model { get; private set; }
 
@@ -362,9 +362,11 @@ public class C64 : ISystem, ISystemMonitor
         return (byte)(CurrentBank & 0x07);
     }
 
-    private string BuildSystemInfo()
+    private List<string> BuildSystemInfo()
     {
-        return $"Line: {Vic2.CurrentRasterLine} VblankCY: {Vic2.CyclesConsumedCurrentVblank} Model: {Model.Name} Freq: {Model.CPUFrequencyHz} CPU bank: {CurrentBank} VIC2 Model: {Vic2.Vic2Model.Name} VIC2 bank: {Vic2.CurrentVIC2Bank}";
+        var row1 = $"Line: {Vic2.CurrentRasterLine} VblankCY: {Vic2.CyclesConsumedCurrentVblank} CPU bank: {CurrentBank} VIC2 bank: {Vic2.CurrentVIC2Bank}";
+        var row2 = $"Model: {Model.Name} Freq: {Model.CPUFrequencyHz} VIC2 Model: {Vic2.Vic2Model.Name}";
+        return new List<string>() { row1, row2 };
     }
 
     public ISystemMonitorCommands GetSystemMonitorCommands()

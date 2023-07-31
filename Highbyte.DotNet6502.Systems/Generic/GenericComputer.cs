@@ -6,7 +6,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 {
     public const string SystemName = "Generic";
     public string Name => SystemName;
-    public string SystemInfo => "";
+    public List<string> SystemInfo => new List<string> { "" };
 
     // How many 6502 CPU cycles this generic (fictional) computer should be able to execute per frame.
     // This should be adjusted to the performance of the machine the emulator is running on.
