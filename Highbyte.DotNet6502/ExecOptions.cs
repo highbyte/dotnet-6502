@@ -10,6 +10,7 @@ public class ExecOptions
     public OpCodeId? ExecuteUntilInstruction { get; set; }
     public List<byte> ExecuteUntilInstructions { get; set; }
     public bool UnknownInstructionThrowsException { get; set; }
+    public bool BRKInstructionStopsExecution { get; set; }
 
     public ExecOptions()
     {
@@ -18,6 +19,7 @@ public class ExecOptions
         ExecuteUntilPC = null;
         ExecuteUntilExecutedInstructionAtPC = null;
         UnknownInstructionThrowsException = false;
+        BRKInstructionStopsExecution = false;
         ExecuteUntilInstruction = null;
         ExecuteUntilInstructions = new();
     }
@@ -31,6 +33,7 @@ public class ExecOptions
             ExecuteUntilPC = this.ExecuteUntilPC,
             ExecuteUntilExecutedInstructionAtPC = this.ExecuteUntilExecutedInstructionAtPC,
             UnknownInstructionThrowsException = this.UnknownInstructionThrowsException,
+            BRKInstructionStopsExecution = this.BRKInstructionStopsExecution,
             ExecuteUntilInstruction = this.ExecuteUntilInstruction,
             ExecuteUntilInstructions = this.ExecuteUntilInstructions
         };

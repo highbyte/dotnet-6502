@@ -13,7 +13,7 @@ public class C64 : ISystem, ISystemMonitor
 {
     public const string SystemName = "C64";
     public string Name => SystemName;
-    public string SystemInfo => BuildSystemInfo();
+    public List<string> SystemInfo => BuildSystemInfo();
 
     public C64ModelBase Model { get; private set; }
 
@@ -37,8 +37,6 @@ public class C64 : ISystem, ISystemMonitor
 
     public string ColorMapName { get; private set; }
 
-    private LegacyExecEvaluator _oneFrameExecEvaluator;
-
     private C64MonitorCommands _c64MonitorCommands = new C64MonitorCommands();
 
     public const ushort BASIC_LOAD_ADDRESS = 0x0801;
@@ -52,107 +50,78 @@ public class C64 : ISystem, ISystemMonitor
     //};
 
     // Faster CPU execution, don't uses all the customization with statistics and execution events as "old" pipeline used.
+
+    /// <summary>
+    /// Executes on frame worth of C64 instructions.
+    /// Uses the optimized CPU instruction execution (ExecuteOneInstructionMinimal).
+    /// </summary>
+    /// <param name="execEvaluator"></param>
+    /// <param name="postInstructionCallback"></param>
+    /// <param name="detailedStats"></param>
+    /// <returns></returns>
     public ExecEvaluatorTriggerResult ExecuteOneFrame(
-        IExecEvaluator? execEvaluator = null,
-        Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
-        Dictionary<string, double>? detailedStats = null)
+        SystemRunner systemRunner,
+        Dictionary<string, double> detailedStats,
+        IExecEvaluator? execEvaluator = null)
     {
-        ulong cyclesToExecute = (ulong)(Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
+        ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
 
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < cyclesToExecute)
         {
-            var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out var instructionCyclesConsumed, out var pcBeforeInstructionExecuted);
-            totalCyclesConsumed += instructionCyclesConsumed;
+            ExecEvaluatorTriggerResult execEvaluatorTriggerResult = ExecuteOneInstruction(systemRunner, out InstructionExecResult instructionExecResult, detailedStats, execEvaluator);
 
-            if (!knownInstruction)
-                return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[pcBeforeInstructionExecuted].ToHex()} at {pcBeforeInstructionExecuted.ToHex()}");
+            totalCyclesConsumed += instructionExecResult.CyclesConsumed;
 
-            if (TimerMode == TimerMode.UpdateEachInstruction)
-                Cia.ProcessTimers(instructionCyclesConsumed);
-
-            // Process video raster
-            Vic2.AdvanceRaster(instructionCyclesConsumed);
-
-            // Handle processing needed after each instruction, such as generating audio etc.
-            if (AudioEnabled && postInstructionCallback != null)
-                postInstructionCallback(this, detailedStats);
-
-            // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
-            if (execEvaluator != null)
+            if (execEvaluatorTriggerResult.Triggered)
             {
-                var execEvaluatorTriggerResult = execEvaluator.Check(null, CPU, Mem);
-                if (execEvaluatorTriggerResult.Triggered)
-                {
-                    return execEvaluatorTriggerResult;
-                }
+                return execEvaluatorTriggerResult;
             }
         }
+
+
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
-
-    // Slower CPU execution, with customization such as statistics and execution events.
-    //public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
-    //{
-    //    if (_oneFrameExecEvaluator == null)
-    //        _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = Vic2.Vic2Model.CyclesPerFrame });
-
-    //    // If we already executed cycles in current frame, reduce it from total.
-    //    _oneFrameExecEvaluator.ExecOptions.CyclesRequested = Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
-
-    //    ExecState execState;
-    //    if (execEvaluator == null)
-    //    {
-    //        execState = CPU.Execute(
-    //            Mem,
-    //            _oneFrameExecEvaluator);
-    //    }
-    //    else
-    //    {
-    //        execState = CPU.Execute(
-    //            Mem,
-    //            _oneFrameExecEvaluator,
-    //            execEvaluator
-    //            );
-    //    }
-
-    //    if (!execState.LastOpCodeWasHandled)
-    //        return false;
-
-    //    // If the custom ExecEvaluator said we shouldn't continue (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
-    //    if (execEvaluator != null && !execEvaluator.Check(null, CPU, Mem))
-    //        return false;
-
-    //    // Return true to indicate execution was successfull and we should continue
-    //    return true;
-    //}
-
+    /// <summary>
+    /// Executes on instruction, and all the processing needed after each instruction.
+    /// </summary>
+    /// <param name="systemRunner"></param>
+    /// <param name="instructionExecResult"></param>
+    /// <param name="detailedStats"></param>
+    /// <param name="execEvaluator"></param>
+    /// <returns></returns>
     public ExecEvaluatorTriggerResult ExecuteOneInstruction(
+        SystemRunner systemRunner,
+        out InstructionExecResult instructionExecResult,
+        Dictionary<string, double> detailedStats,
         IExecEvaluator? execEvaluator = null)
     {
-        var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out ulong cyclesConsumed, out ushort pcBeforeInstructionExecuted);
-        if (!knownInstruction)
-            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[pcBeforeInstructionExecuted].ToHex()} at {pcBeforeInstructionExecuted.ToHex()}");
+        // Execute one CPU instruction
+        instructionExecResult = CPU.ExecuteOneInstructionMinimal(Mem);
+
+        // Update CIA timers
+        if (TimerMode == TimerMode.UpdateEachInstruction)
+            Cia.ProcessTimers(instructionExecResult.CyclesConsumed);
+
+        // Advance video raster
+        Vic2.AdvanceRaster(instructionExecResult.CyclesConsumed);
+
+        // Handle output processing needed after each instruction.
+        if (AudioEnabled)
+            systemRunner.GenerateAudio(detailedStats);
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
         if (execEvaluator != null)
         {
-            var execEvaluatorTriggerResult = execEvaluator.Check(null, CPU, Mem);
+            var execEvaluatorTriggerResult = execEvaluator.Check(instructionExecResult, CPU, Mem);
             if (execEvaluatorTriggerResult.Triggered)
             {
                 return execEvaluatorTriggerResult;
             }
         }
         return ExecEvaluatorTriggerResult.NotTriggered;
-
-        //var execState = CPU.ExecuteOneInstruction(Mem);
-        //// If an unhandled instruction, return false
-        //if (!execState.LastOpCodeWasHandled)
-        //    return false;
-        //// Return true to indicate execution was successfull
-        //return true;
     }
 
     private C64() { }
@@ -393,9 +362,11 @@ public class C64 : ISystem, ISystemMonitor
         return (byte)(CurrentBank & 0x07);
     }
 
-    private string BuildSystemInfo()
+    private List<string> BuildSystemInfo()
     {
-        return $"Line: {Vic2.CurrentRasterLine} VblankCY: {Vic2.CyclesConsumedCurrentVblank} Model: {Model.Name} Freq: {Model.CPUFrequencyHz} CPU bank: {CurrentBank} VIC2 Model: {Vic2.Vic2Model.Name} VIC2 bank: {Vic2.CurrentVIC2Bank}";
+        var row1 = $"Line: {Vic2.CurrentRasterLine} VblankCY: {Vic2.CyclesConsumedCurrentVblank} CPU bank: {CurrentBank} VIC2 bank: {Vic2.CurrentVIC2Bank}";
+        var row2 = $"Model: {Model.Name} Freq: {Model.CPUFrequencyHz} VIC2 Model: {Vic2.Vic2Model.Name}";
+        return new List<string>() { row1, row2 };
     }
 
     public ISystemMonitorCommands GetSystemMonitorCommands()

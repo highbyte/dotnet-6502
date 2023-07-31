@@ -87,13 +87,11 @@ SP=00 PC=C000
 
 Example how to execute  ```g``` command:
 
-_Executes simple.prg, stops on BRK instruction_
+_Executes simple.prg, stops on BRK instruction. Note that PC has been changed to IRQ vector, which in this example is at 0000._
 ```
 > g c000
-Will stop on BRK instruction.
-Staring executing code at c000
-Stopped at                0000
-c00b  00        BRK
+BRK instruction at c00b triggered stop.
+0000  00        BRK
 ```
 
 Example how to show contents of bytes in memory with ```m``` command:

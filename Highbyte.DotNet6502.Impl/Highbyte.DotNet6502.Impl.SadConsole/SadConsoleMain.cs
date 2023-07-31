@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Highbyte.DotNet6502.Systems;
 namespace Highbyte.DotNet6502.Impl.SadConsole;
 
@@ -8,7 +9,6 @@ public class SadConsoleMain
     public SadConsoleScreenObject SadConsoleScreen => _sadConsoleScreen;
 
     private readonly SystemRunner _systemRunner;
-    private int _frameCounter;
 
     public SadConsoleMain(
         SadConsoleConfig sadConsoleConfig,
@@ -83,12 +83,20 @@ public class SadConsoleMain
     /// <param name="gameTime"></param>
     private void UpdateSadConsole(object sender, GameHost e)
     {
-        // Run emulator for one frame
-        var execEvaluatorTriggerResult = _systemRunner.RunOneFrame(out _);
+        // Capture SadConsole input
+        _systemRunner.ProcessInput();
+
+        // Run CPU for one frame
+        var execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame(out _);
+
+        // Update SadConsole screen
+        _systemRunner.Draw();
+
         if (execEvaluatorTriggerResult.Triggered)
         {
-            // Exit program
-            Environment.Exit(0);
+            // TODO: Show monitor?
+            Debugger.Break();
+            //Environment.Exit(0);
         }
     }
 }

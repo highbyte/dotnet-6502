@@ -84,7 +84,7 @@ public static class OutputGen
 
     public static string BuildOperandString(AddrMode addrMode, byte[] operand)
     {
-        switch(addrMode)
+        switch (addrMode)
         {
             case AddrMode.I:
             {
@@ -129,7 +129,7 @@ public static class OutputGen
             case AddrMode.Relative:
             {
                 var offset = (sbyte)operand[0];
-                return $"*{(offset>=0?"+":"")}{offset}";
+                return $"*{(offset >= 0 ? "+" : "")}{offset}";
             }
             case AddrMode.Accumulator:
             {
@@ -146,7 +146,7 @@ public static class OutputGen
 
     public static string GetProcessorState(CPU cpu, bool includeCycles = false)
     {
-        return $"{GetRegisters(cpu)} {GetStatus(cpu)} {GetPCandSP(cpu)}{(includeCycles?" CY="+cpu.ExecState.CyclesConsumed:"")}";
+        return $"{GetRegisters(cpu)} {GetStatus(cpu)} {GetPCandSP(cpu)}{(includeCycles ? " CY=" + cpu.ExecState.CyclesConsumed : "")}";
     }
 
     public static Dictionary<string, string> GetProcessorStateDictionary(CPU cpu, bool includeCycles = false)

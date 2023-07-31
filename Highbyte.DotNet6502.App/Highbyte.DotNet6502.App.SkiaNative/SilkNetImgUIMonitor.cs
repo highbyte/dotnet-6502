@@ -20,10 +20,10 @@ public class SilkNetImGuiMonitor : MonitorBase
 
     private const int POS_X = 300;
     private const int POS_Y = 2;
-    private const int WIDTH = 620;
-    private const int HEIGHT = 500;
+    private const int WIDTH = 720;
+    private const int HEIGHT = 450;
     const int MONITOR_CMD_HISTORY_VIEW_ROWS = 20;
-    const int MONITOR_CMD_LINE_LENGTH = 160;
+    const int MONITOR_CMD_LINE_LENGTH = 200;
     List<(string Message, MessageSeverity Severity)> _monitorCmdHistory = new();
 
     static Vector4 s_InformationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -49,7 +49,7 @@ public class SilkNetImGuiMonitor : MonitorBase
 
     public void PostOnRender()
     {
-        ImGui.SetNextWindowSize(new Vector2(WIDTH, HEIGHT), ImGuiCond.Once);
+        ImGui.SetNextWindowSize(new Vector2(WIDTH, HEIGHT));
         ImGui.SetNextWindowPos(new Vector2(POS_X, POS_Y), ImGuiCond.Once);
 
         //ImGui.SetWindowPos(new Vector2(POS_X, POS_Y));
@@ -125,7 +125,11 @@ public class SilkNetImGuiMonitor : MonitorBase
 
         // System status
         ImGui.PushStyleColor(ImGuiCol.Text, s_StatusColor);
-        ImGui.Text($"SYS: {SystemRunner.System.SystemInfo}");
+        foreach (var sysInfoRow in SystemRunner.System.SystemInfo)
+        {
+            ImGui.Text($"SYS: {sysInfoRow}");
+        }
+
         ImGui.PopStyleColor();
 
         ImGui.End();

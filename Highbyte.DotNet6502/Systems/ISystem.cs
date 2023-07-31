@@ -3,15 +3,20 @@ namespace Highbyte.DotNet6502.Systems;
 public interface ISystem
 {
     string Name { get; }
-    string SystemInfo { get; }
+    List<string> SystemInfo { get; }
 
     CPU CPU { get; }
     Memory Mem { get; }
     IScreen Screen { get; }
 
     public ExecEvaluatorTriggerResult ExecuteOneFrame(
-        IExecEvaluator? execEvaluator = null,
-        Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
-        Dictionary<string, double>? detailedStats = null);
-    public ExecEvaluatorTriggerResult ExecuteOneInstruction(IExecEvaluator? execEvaluator = null);
+        SystemRunner systemRunner,
+        Dictionary<string, double> detailedStats,
+        IExecEvaluator? execEvaluator = null);
+
+    public ExecEvaluatorTriggerResult ExecuteOneInstruction(
+        SystemRunner systemRunner,
+        out InstructionExecResult instructionExecResult,
+        Dictionary<string, double> detailedStats,
+        IExecEvaluator? execEvaluator = null);
 }

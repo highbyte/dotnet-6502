@@ -40,40 +40,19 @@ public class SystemRunner
         _customExecEvaluator = null;
     }
 
-    public void Run()
-    {
-        bool quit = false;
-        while (!quit)
-        {
-            var execEvaluatorTriggerResult = RunOneFrame(out _);
-            if (execEvaluatorTriggerResult.Triggered)
-                quit = true;
-        }
-    }
-
-    public ExecEvaluatorTriggerResult RunOneFrame(out Dictionary<string, double> detailedStats)
-    {
-        ProcessInput();
-
-        var execEvaluatorTriggerResult = RunEmulatorOneFrame(out detailedStats);
-        if (execEvaluatorTriggerResult.Triggered)
-            return execEvaluatorTriggerResult;
-
-        Draw();
-
-        return ExecEvaluatorTriggerResult.NotTriggered;
-    }
-
-    public ExecEvaluatorTriggerResult RunOneInstruction()
-    {
-        return _system.ExecuteOneInstruction();
-    }
-
+    /// <summary>
+    /// Called by host app that runs the emulator.
+    /// Typically before RunEmulatorOneFrame is called.
+    /// </summary>
     public void ProcessInput()
     {
         _inputHandler?.ProcessInput(_system);
     }
 
+    /// <summary>
+    /// Called by host app by a timer (or similar) that runs the emulator, tied to the update frequency of the emulated system.
+    /// Typically called before after ProcessInput is called.
+    /// </summary>
     public ExecEvaluatorTriggerResult RunEmulatorOneFrame(out Dictionary<string, double> detailedStats)
     {
         detailedStats = new()
@@ -81,28 +60,33 @@ public class SystemRunner
             ["Audio"] = 0
         };
 
-        var execEvaluatorTriggerResult = _system.ExecuteOneFrame(_customExecEvaluator, PostInstruction, detailedStats);
+        var execEvaluatorTriggerResult = _system.ExecuteOneFrame(this, detailedStats, _customExecEvaluator);
         return execEvaluatorTriggerResult;
     }
 
-    // PostInstruction is meant to be called after each instruction has executed.
-    private void PostInstruction(ISystem system, Dictionary<string, double> detailedStats)
+    /// <summary>
+    /// Called by host app that runs the emulator, typically once per frame tied to the host app rendering frequency.
+    /// </summary>
+    public void Draw()
     {
-        // Generate audio by inspecting the current system state
+        _renderer?.Draw(_system);
+    }
+
+    /// <summary>
+    /// Called by the specific ISystem implementation after each instruction or entire frame worth of instructions, depending how audio is implemented.
+    /// </summary>
+    /// <param name="detailedStats"></param>
+    public void GenerateAudio(Dictionary<string, double> detailedStats)
+    {
         if (_audioHandler is not null)
         {
             _audioSw.Restart();
-            _audioHandler.GenerateAudio(system);
+            _audioHandler.GenerateAudio(_system);
             //var t = new Task(() => _audioHandler?.GenerateAudio(system));
             //t.RunSynchronously();
             _audioSw.Stop();
 
             detailedStats["Audio"] += _audioSw.Elapsed.TotalMilliseconds;
         }
-    }
-
-    public void Draw()
-    {
-        _renderer?.Draw(_system);
     }
 }

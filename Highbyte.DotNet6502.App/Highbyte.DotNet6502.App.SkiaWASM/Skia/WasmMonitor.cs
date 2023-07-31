@@ -1,5 +1,3 @@
-using System.Data;
-using System.Threading;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 
@@ -142,10 +140,13 @@ public class WasmMonitor : MonitorBase
             Status += $"{BuildHtmlString(cpuState.Key, "header")}: {BuildHtmlString(cpuState.Value, "value")} ";
         }
 
-        var systemStatus = $"SYS: {SystemRunner.System.SystemInfo}";
-        if (Status != "")
-            Status += "<br />";
-        Status += BuildHtmlString(systemStatus, "header");
+        foreach (var sysInfoRow in SystemRunner.System.SystemInfo)
+        {
+            var systemStatus = $"SYS: {sysInfoRow}";
+            if (Status != "")
+                Status += "<br />";
+            Status += BuildHtmlString(systemStatus, "header");
+        }
     }
 
     public override bool LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null, Action<MonitorBase, ushort, ushort>? afterLoadCallback = null)

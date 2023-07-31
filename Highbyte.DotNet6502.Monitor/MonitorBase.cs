@@ -1,4 +1,3 @@
-using System.Threading;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems;
 using McMaster.Extensions.CommandLineUtils;
@@ -12,6 +11,10 @@ public abstract class MonitorBase
 
     private readonly SystemRunner _systemRunner;
     public SystemRunner SystemRunner => _systemRunner;
+
+    private readonly BreakPointExecEvaluator _breakPointExecEvaluator;
+    public BreakPointExecEvaluator BreakPointExecEvaluator => _breakPointExecEvaluator;
+
     public CPU Cpu => _systemRunner.System.CPU;
     public Memory Mem => _systemRunner.System.Mem;
 
@@ -26,11 +29,16 @@ public abstract class MonitorBase
     public MonitorBase(SystemRunner systemRunner, MonitorConfig options)
     {
         _systemRunner = systemRunner;
-        _systemRunner.SetCustomExecEvaluator(new BreakPointExecEvaluator(_breakPoints));
+
+        // Init systemrunner with a custom exec evaluator that can handle breakpoints
+        _breakPointExecEvaluator = new BreakPointExecEvaluator(_breakPoints);
+        _systemRunner.SetCustomExecEvaluator(_breakPointExecEvaluator);
+
         Options = options;
+        ApplyOptionsOnBreakPointExecEvaluator();
+
         _variables = new MonitorVariables();
         _commandLineApp = CommandLineApp.Build(this, _variables, options);
-
     }
 
     public CommandResult SendCommand(string command)
@@ -66,6 +74,12 @@ public abstract class MonitorBase
         }
     }
 
+    public void ApplyOptionsOnBreakPointExecEvaluator()
+    {
+        _breakPointExecEvaluator.StopAfterBRKInstruction = Options.StopAfterBRKInstruction;
+        _breakPointExecEvaluator.StopAfterUnknownInstruction = Options.StopAfterUnknownInstruction;
+    }
+
     public void ShowInfoAfterBreakTriggerEnabled(ExecEvaluatorTriggerResult execEvaluatorTriggerResult)
     {
         if (!execEvaluatorTriggerResult.Triggered)
@@ -74,14 +88,16 @@ public abstract class MonitorBase
         switch (execEvaluatorTriggerResult.TriggerType)
         {
             case ExecEvaluatorTriggerReasonType.DebugBreakPoint:
-                WriteOutput($"Breakpoint triggered at {Cpu.PC.ToHex()}");
+                WriteOutput($"Breakpoint triggered at {Cpu.PC.ToHex("", lowerCase: true)}");
                 break;
             case ExecEvaluatorTriggerReasonType.UnknownInstruction:
-                WriteOutput($"Unknown instruction detected");
+                WriteOutput(execEvaluatorTriggerResult.TriggerDescription ?? "");
+                break;
+            case ExecEvaluatorTriggerReasonType.BRKInstruction:
                 WriteOutput(execEvaluatorTriggerResult.TriggerDescription ?? "");
                 break;
             case ExecEvaluatorTriggerReasonType.Other:
-                WriteOutput($"Other reason execution stopped");
+                //WriteOutput($"Other reason execution stopped");
                 WriteOutput(execEvaluatorTriggerResult.TriggerDescription ?? "");
                 break;
             default:
@@ -104,6 +120,19 @@ public abstract class MonitorBase
         foreach (var line in helpTextLines)
             WriteOutput(line);
     }
+
+    public virtual void ShowOptions()
+    {
+        WriteOutput("Current options:");
+        WriteOutput("  Stop on BRK instruction:     " + FormatOptionValue(Options.StopAfterBRKInstruction));
+        WriteOutput("  Stop on unknown instruction: " + FormatOptionValue(Options.StopAfterUnknownInstruction));
+        //if (Options.DefaultDirectory != null)
+        //    WriteOutput("  Default directory:           " + Options.DefaultDirectory);
+        if (Options.MaxLineLength.HasValue)
+            WriteOutput("  Max line length:             " + Options.MaxLineLength);
+    }
+
+    private string FormatOptionValue(bool value) => value ? "1 (1=yes,0=no)" : "0 (1=yes,0=no)";
 
     public abstract bool LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null, Action<MonitorBase, ushort, ushort>? afterLoadCallback = null);
     public abstract bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null, Action<MonitorBase, ushort, ushort>? afterLoadCallback = null);

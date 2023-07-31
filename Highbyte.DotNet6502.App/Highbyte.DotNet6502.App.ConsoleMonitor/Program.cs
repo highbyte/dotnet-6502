@@ -26,6 +26,8 @@ var systemRunner = systemRunnerBuilder.Build();
 
 var monitorConfig = new MonitorConfig
 {
+    StopAfterBRKInstruction = true,
+    StopAfterUnknownInstruction = true,
     DefaultDirectory = Environment.CurrentDirectory
 };
 
@@ -40,10 +42,16 @@ Monitor.WriteOutput("");
 
 bool cont = true;
 bool startMonitor = true;
+ExecEvaluatorTriggerResult? lastExecEvaluatorTriggerResult = null;
 while (cont)
 {
     if (startMonitor)
     {
+        if (lastExecEvaluatorTriggerResult != null)
+            Monitor.ShowInfoAfterBreakTriggerEnabled(lastExecEvaluatorTriggerResult);
+
+        lastExecEvaluatorTriggerResult = null;
+
         var input = PromptInput();
         var commandResult = Monitor.SendCommand(input);
         if (commandResult == CommandResult.Quit)
@@ -55,15 +63,14 @@ while (cont)
     {
         if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.Escape)
         {
-            Monitor.WriteOutput("Manual stop.");
+            lastExecEvaluatorTriggerResult = ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.Other, "Manually stopped");
             startMonitor = true;
         }
         else
         {
-            var execEvaluatorTriggerResult = systemRunner.RunOneInstruction();
-            if (execEvaluatorTriggerResult.Triggered || systemRunner.System.CPU.ExecState.LastInstructionExecResult.OpCodeByte == (byte)OpCodeId.BRK)
+            lastExecEvaluatorTriggerResult = systemRunner.RunEmulatorOneFrame(out _);
+            if (lastExecEvaluatorTriggerResult.Triggered)
             {
-                Monitor.WriteOutput("Execution stopped.");
                 startMonitor = true;
             }
             else
