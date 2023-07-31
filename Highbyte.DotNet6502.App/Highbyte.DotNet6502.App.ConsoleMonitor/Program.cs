@@ -68,7 +68,7 @@ while (cont)
         }
         else
         {
-            lastExecEvaluatorTriggerResult = systemRunner.RunOneInstruction();
+            lastExecEvaluatorTriggerResult = systemRunner.RunEmulatorOneFrame(out _);
             if (lastExecEvaluatorTriggerResult.Triggered)
             {
                 startMonitor = true;

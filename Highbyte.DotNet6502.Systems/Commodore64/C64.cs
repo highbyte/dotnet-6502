@@ -60,104 +60,68 @@ public class C64 : ISystem, ISystemMonitor
     /// <param name="detailedStats"></param>
     /// <returns></returns>
     public ExecEvaluatorTriggerResult ExecuteOneFrame(
-        IExecEvaluator? execEvaluator = null,
-        Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
-        Dictionary<string, double>? detailedStats = null)
+        SystemRunner systemRunner,
+        Dictionary<string, double> detailedStats,
+        IExecEvaluator? execEvaluator = null)
     {
         ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
 
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < cyclesToExecute)
         {
-            var execResult = CPU.ExecuteOneInstructionMinimal(Mem);
-            totalCyclesConsumed += execResult.CyclesConsumed;
+            ExecEvaluatorTriggerResult execEvaluatorTriggerResult = ExecuteOneInstruction(systemRunner, out InstructionExecResult instructionExecResult, detailedStats, execEvaluator);
 
-            if (TimerMode == TimerMode.UpdateEachInstruction)
-                Cia.ProcessTimers(execResult.CyclesConsumed);
+            totalCyclesConsumed += instructionExecResult.CyclesConsumed;
 
-            // Process video raster
-            Vic2.AdvanceRaster(execResult.CyclesConsumed);
-
-            // Handle processing needed after each instruction, such as generating audio etc.
-            if (AudioEnabled && postInstructionCallback != null)
-                postInstructionCallback(this, detailedStats);
-
-            // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
-            if (execEvaluator != null)
+            if (execEvaluatorTriggerResult.Triggered)
             {
-                var execEvaluatorTriggerResult = execEvaluator.Check(execResult, CPU, Mem);
-                if (execEvaluatorTriggerResult.Triggered)
-                {
-                    return execEvaluatorTriggerResult;
-                }
+                return execEvaluatorTriggerResult;
             }
         }
+
+
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
-
-    // Slower CPU execution, with customization such as statistics and execution events.
-    //public bool ExecuteOneFrame(IExecEvaluator? execEvaluator = null)
-    //{
-    //    if (_oneFrameExecEvaluator == null)
-    //        _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = Vic2.Vic2Model.CyclesPerFrame });
-
-    //    // If we already executed cycles in current frame, reduce it from total.
-    //    _oneFrameExecEvaluator.ExecOptions.CyclesRequested = Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank;
-
-    //    ExecState execState;
-    //    if (execEvaluator == null)
-    //    {
-    //        execState = CPU.Execute(
-    //            Mem,
-    //            _oneFrameExecEvaluator);
-    //    }
-    //    else
-    //    {
-    //        execState = CPU.Execute(
-    //            Mem,
-    //            _oneFrameExecEvaluator,
-    //            execEvaluator
-    //            );
-    //    }
-
-    //    if (!execState.LastOpCodeWasHandled)
-    //        return false;
-
-    //    // If the custom ExecEvaluator said we shouldn't continue (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
-    //    if (execEvaluator != null && !execEvaluator.Check(execState, CPU, Mem))
-    //        return false;
-
-    //    // Return true to indicate execution was successfull and we should continue
-    //    return true;
-    //}
-
+    /// <summary>
+    /// Executes on instruction, and all the processing needed after each instruction.
+    /// </summary>
+    /// <param name="systemRunner"></param>
+    /// <param name="instructionExecResult"></param>
+    /// <param name="detailedStats"></param>
+    /// <param name="execEvaluator"></param>
+    /// <returns></returns>
     public ExecEvaluatorTriggerResult ExecuteOneInstruction(
+        SystemRunner systemRunner,
+        out InstructionExecResult instructionExecResult,
+        Dictionary<string, double> detailedStats,
         IExecEvaluator? execEvaluator = null)
     {
-        //var knownInstruction = CPU.ExecuteOneInstructionMinimal(Mem, out ulong cyclesConsumed, out ushort pcBeforeInstructionExecuted);
-        var execResult = CPU.ExecuteOneInstructionMinimal(Mem);
-        if (execResult.UnknownInstruction)
-            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[execResult.AtPC].ToHex("", lowerCase: true)} at {execResult.AtPC.ToHex("", lowerCase: true)}");
+        // Execute one CPU instruction
+        instructionExecResult = CPU.ExecuteOneInstructionMinimal(Mem);
+
+        // Update CIA timers
+        if (TimerMode == TimerMode.UpdateEachInstruction)
+            Cia.ProcessTimers(instructionExecResult.CyclesConsumed);
+
+        // Advance video raster
+        Vic2.AdvanceRaster(instructionExecResult.CyclesConsumed);
+
+        // Handle output processing needed after each instruction.
+        if (AudioEnabled)
+            systemRunner.GenerateAudio(detailedStats);
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
         if (execEvaluator != null)
         {
-            var execEvaluatorTriggerResult = execEvaluator.Check(execResult, CPU, Mem);
+            var execEvaluatorTriggerResult = execEvaluator.Check(instructionExecResult, CPU, Mem);
             if (execEvaluatorTriggerResult.Triggered)
             {
                 return execEvaluatorTriggerResult;
             }
         }
         return ExecEvaluatorTriggerResult.NotTriggered;
-
-        //var execState = CPU.ExecuteOneInstruction(Mem);
-        //// If an unhandled instruction, return false
-        //if (!execState.LastOpCodeWasHandled)
-        //    return false;
-        //// Return true to indicate execution was successfull
-        //return true;
     }
 
     private C64() { }

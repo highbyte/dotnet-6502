@@ -60,13 +60,14 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     }
 
     public ExecEvaluatorTriggerResult ExecuteOneFrame(
-        IExecEvaluator? execEvaluator = null,
-        Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
-        Dictionary<string, double>? detailedStats = null)
+        SystemRunner systemRunner,
+        Dictionary<string, double> detailedStats,
+        IExecEvaluator? execEvaluator = null)
     {
         // If we already executed cycles in current frame, reduce it from total.
         _oneFrameExecEvaluator.ExecOptions.CyclesRequested = CPUCyclesPerFrame - CyclesConsumedCurrentVblank;
 
+        // Execute one frame worth of CPU cycles
         ExecState execState;
         if (execEvaluator == null)
         {
@@ -83,14 +84,6 @@ public class GenericComputer : ISystem, ITextMode, IScreen
                 );
         }
 
-        // If an unhandled instruction, return false
-        if (!execState.LastOpCodeWasHandled)
-            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[execState.PCBeforeLastOpCodeExecuted!.Value].ToHex()} at {execState.PCBeforeLastOpCodeExecuted!.Value.ToHex()}");
-
-
-        if (postInstructionCallback != null)
-            postInstructionCallback(this, detailedStats);
-
         // If the custom ExecEvaluator said we shouldn't contine (for example a breakpoint), then indicate to caller that we shouldn't continue executing.
         if (execEvaluator != null)
         {
@@ -103,7 +96,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         SetFrameCompleted();
 
         // Wait for CPU 6502 code has acknowledged that it knows a frame has completed.
-        bool waitOk = WaitFrameCompletedAcknowledged();
+        bool waitOk = WaitFrameCompletedAcknowledged(systemRunner, detailedStats);
         if (!waitOk)
             return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.Other, "WaitFrame failed"); ;
 
@@ -112,12 +105,14 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     }
 
     public ExecEvaluatorTriggerResult ExecuteOneInstruction(
+        SystemRunner systemRunner,
+        out InstructionExecResult instructionExecResult,
+        Dictionary<string, double> detailedStats,
         IExecEvaluator? execEvaluator = null)
     {
         var execState = CPU.ExecuteOneInstruction(Mem);
-        // If an unhandled instruction, return false
-        if (!execState.LastOpCodeWasHandled)
-            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.UnknownInstruction, $"Unknown instruction {Mem[execState.PCBeforeLastOpCodeExecuted!.Value].ToHex()} at {execState.PCBeforeLastOpCodeExecuted!.Value.ToHex()}");
+
+        instructionExecResult = execState.LastInstructionExecResult;
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
         if (execEvaluator != null)
@@ -137,13 +132,13 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         Mem.SetBit(_genericComputerConfig.Memory.Screen.ScreenRefreshStatusAddress, (int)ScreenStatusBitFlags.HostNewFrame);
     }
 
-    private bool WaitFrameCompletedAcknowledged()
+    private bool WaitFrameCompletedAcknowledged(SystemRunner systemRunner, Dictionary<string, double> detailedStats)
     {
         // Keep on executing instructions until CPU 6502 code has cleared bit 0 in ScreenRefreshStatusAddress
         while (Mem.IsBitSet(_genericComputerConfig.Memory.Screen.ScreenRefreshStatusAddress, (int)ScreenStatusBitFlags.HostNewFrame))
         {
-            var execEvaluatorTriggerResult = ExecuteOneInstruction();
-            // If an unhandled instruction, return false
+            var execEvaluatorTriggerResult = ExecuteOneInstruction(systemRunner, out _, detailedStats);
+            // If an unhandled instruction or other configured trigger has activated, return false
             if (execEvaluatorTriggerResult.Triggered)
                 return false;
         }

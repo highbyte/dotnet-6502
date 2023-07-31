@@ -10,9 +10,13 @@ public interface ISystem
     IScreen Screen { get; }
 
     public ExecEvaluatorTriggerResult ExecuteOneFrame(
-        IExecEvaluator? execEvaluator = null,
-        Action<ISystem, Dictionary<string, double>>? postInstructionCallback = null,
-        Dictionary<string, double>? detailedStats = null);
+        SystemRunner systemRunner,
+        Dictionary<string, double> detailedStats,
+        IExecEvaluator? execEvaluator = null);
+
     public ExecEvaluatorTriggerResult ExecuteOneInstruction(
+        SystemRunner systemRunner,
+        out InstructionExecResult instructionExecResult,
+        Dictionary<string, double> detailedStats,
         IExecEvaluator? execEvaluator = null);
 }
