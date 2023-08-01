@@ -1,5 +1,4 @@
 using Highbyte.DotNet6502.Impl.AspNet;
-using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 using Highbyte.DotNet6502.Impl.AspNet.Generic;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Generic;
@@ -12,8 +11,8 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia;
 
 public class GenericComputerSetup
 {
-    private const string DEFAULT_PRG_URL = "6502binaries/hostinteraction_scroll_text_and_cycle_colors.prg";
-    //private const string DEFAULT_PRG_URL = "6502binaries/snake6502.prg";
+    private const string DEFAULT_PRG_URL = "6502binaries/Generic/Assembler/hostinteraction_scroll_text_and_cycle_colors.prg";
+    //private const string DEFAULT_PRG_URL = "6502binaries/Generic/Assembler/snake6502.prg";
 
     private readonly BrowserContext _browserContext;
 

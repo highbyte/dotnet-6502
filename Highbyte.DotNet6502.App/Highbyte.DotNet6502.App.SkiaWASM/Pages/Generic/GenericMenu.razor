@@ -1,0 +1,135 @@
+﻿@using Highbyte.DotNet6502.Systems.Generic;
+@using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index;
+
+<div class="system-commands systemCommandsStyle@(SYSTEM_NAME)">
+    <button @onclick="OnFilePicker" disabled=@OnFilePickerDisabled>Load & start binary PRG file</button>
+</div>
+
+<div class="system-help systemHelpStyle@(SYSTEM_NAME)">
+</div>
+
+<div class="system-config systemConfigStyle@(SYSTEM_NAME)">
+    <button @onclick="ShowConfigUI" disabled=@ShowConfigDisabled>Generic computer Config</button>
+</div>
+
+<style>
+    .systemCommandsStyle@(SYSTEM_NAME) {
+        display: @Parent.GetSystemVisibilityDisplayStyle("Commands", SYSTEM_NAME);
+    }
+    .systemHelpStyle@(SYSTEM_NAME) {
+        display: @Parent.GetSystemVisibilityDisplayStyle("Help", SYSTEM_NAME);
+    }
+    .systemConfigStyle@(SYSTEM_NAME) {
+        display: @Parent.GetSystemVisibilityDisplayStyle("Config", SYSTEM_NAME);
+    }
+</style>
+
+<InputFile id="filePicker" OnChange="@OnFilePickerChange" hidden />
+
+@code {
+    @inject IJSRuntime Js
+    @inject HttpClient? HttpClient
+
+    private string SYSTEM_NAME = GenericComputer.SystemName;
+
+    private readonly Dictionary<string, string> _assemblyExampleFiles = new()
+    {
+    };
+
+    public string SelectedAssemblyExample { get; set; }
+
+    private bool _wasRunningBeforeFileDialog = false;
+    private bool _startBinaryFileAfterLoad = false;
+
+    private async Task ShowConfigUI() => await Parent.ShowHelpUI<GenericHelpUI>();
+
+    [Parameter]
+    public Highbyte.DotNet6502.App.SkiaWASM.Pages.Index Parent { get; set; } = default!;
+
+    protected bool ShowConfigDisabled => Parent.CurrentEmulatorState != EmulatorState.Uninitialized;
+
+    protected bool OnFilePickerDisabled => Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
+
+
+    /// <summary>
+    /// Open Load binary file dialog
+    /// </summary>
+    /// <returns></returns>
+    private async Task OnFilePicker(MouseEventArgs mouseEventArgs)
+    {
+        await Parent.OnPause(mouseEventArgs);
+        _startBinaryFileAfterLoad = true;
+        Js.InvokeVoidAsync("clickId", "filePicker");
+    }
+
+    /// <summary>
+    /// Callback when binary file has been loaded from file pick dialog
+    /// </summary>
+    /// <param name="e"></param>
+    /// <returns></returns>
+    private async Task OnFilePickerChange(InputFileChangeEventArgs e)
+    {
+        if (Parent.WasmHost == null)
+            return;
+
+        if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
+            return;
+
+        // Only expect one file
+        if (e.FileCount > 1)
+            return;
+        var file = e.File;
+        System.Diagnostics.Debug.WriteLine($"File picked: {file.Name} Size: {file.Size}");
+
+        var fileBuffer = new byte[file.Size];
+        //var fileStream = e.File.OpenReadStream(file.Size);
+        await file.OpenReadStream().ReadAsync(fileBuffer);
+        var fileSize = fileBuffer.Length;
+
+        // Load file into memory, assume starting at address specified in two first bytes of .prg file
+        BinaryLoader.Load(
+            Parent.WasmHost.SystemRunner.System.Mem,
+            fileBuffer,
+            out ushort loadedAtAddress,
+            out ushort fileLength);
+
+        System.Diagnostics.Debug.WriteLine($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+
+        if (_startBinaryFileAfterLoad)
+        {
+            System.Diagnostics.Debug.WriteLine($"Starting loaded program by changing Program Counter to {loadedAtAddress.ToHex()}");
+            Parent.WasmHost.SystemRunner.System.CPU.PC = loadedAtAddress;
+        }
+
+        await Parent.OnStart(new());
+    }
+
+    private async Task OnAssemblyExampleChanged(ChangeEventArgs e)
+    {
+        SelectedAssemblyExample = e.Value?.ToString() ?? "";
+    }
+
+    private async Task OnLoadAssemblyExample(MouseEventArgs mouseEventArgs)
+    {
+        var url = SelectedAssemblyExample;
+        if (string.IsNullOrEmpty(url))
+            return;
+
+        await Parent.OnPause(new());
+
+        var prgBytes = await HttpClient.GetByteArrayAsync(url);
+        // Load file into memory, assume starting at address specified in two first bytes of .prg file
+        BinaryLoader.Load(
+            Parent.WasmHost.SystemRunner.System.Mem,
+            prgBytes,
+            out ushort loadedAtAddress,
+            out ushort fileLength);
+
+        System.Diagnostics.Debug.WriteLine($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+
+        System.Diagnostics.Debug.WriteLine($"Starting loaded program by changing Program Counter to {loadedAtAddress.ToHex()}");
+        Parent.WasmHost.SystemRunner.System.CPU.PC = loadedAtAddress;
+
+        await Parent.OnStart(new());
+    }
+}

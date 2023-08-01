@@ -20,10 +20,7 @@
     <WasmNativeStrip>false</WasmNativeStrip>
     <EmccCompileOptimizationFlag>-O1</EmccCompileOptimizationFlag>
   </PropertyGroup>
-  <ItemGroup>
-    <Content Remove="wwwroot\fonts\C64_Pro_Mono-STYLE.ttf" />
-  </ItemGroup>
-
+  
   <ItemGroup>
     <ProjectReference Include="..\..\Highbyte.DotNet6502.Impl\Highbyte.DotNet6502.Impl.AspNet\Highbyte.DotNet6502.Impl.AspNet.csproj" />
     <ProjectReference Include="..\..\Highbyte.DotNet6502.Impl\Highbyte.DotNet6502.Impl.Skia\Highbyte.DotNet6502.Impl.Skia.csproj" />
@@ -41,5 +38,22 @@
     <PackageReference Include="PublishSPAforGitHubPages.Build" Version="2.0.2" />
     <PackageReference Include="System.Net.Http.Json" Version="7.0.1" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\6502binaries\C64\Assembler\" />
+    <Folder Include="wwwroot\6502binaries\C64\Basic\" />
+  </ItemGroup>
+
+  <Target Name="CopyC64ExampleBinaries" AfterTargets="AfterBuild">
+    <Copy SourceFiles="..\..\Examples\Assembler\C64\Raster\Build\smooth_scroller_and_raster.prg" DestinationFolder="wwwroot\6502binaries\C64\Assembler" />
+    <Copy SourceFiles="..\..\Examples\Assembler\C64\Raster\Build\scroller_and_raster.prg" DestinationFolder="wwwroot\6502binaries\C64\Assembler" />
+
+    <Copy SourceFiles="..\..\Examples\Basic\C64\Sound\Build\PlaySoundVoice1TriangleScale.prg" DestinationFolder="wwwroot\6502binaries\C64\Basic" />
+  </Target>
+
+  <Target Name="CopyGenericExampleBinaries" AfterTargets="AfterBuild">
+    <Copy SourceFiles="..\..\Examples\Assembler\Generic\Build\hostinteraction_scroll_text_and_cycle_colors.prg" DestinationFolder="wwwroot\6502binaries\Generic\Assembler" />
+    <Copy SourceFiles="..\..\Examples\Assembler\Generic\Build\snake6502.prg" DestinationFolder="wwwroot\6502binaries\Generic\Assembler" />
+  </Target>
 
 </Project>
