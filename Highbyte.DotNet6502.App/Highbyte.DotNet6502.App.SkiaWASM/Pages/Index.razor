@@ -1,7 +1,6 @@
 @page "/"
-@using Highbyte.DotNet6502.Systems.Commodore64.Config;
-@using Highbyte.DotNet6502.Systems.Commodore64;
-@using Highbyte.DotNet6502.Systems.Generic;
+@using Highbyte.DotNet6502.App.SkiaWASM.Pages.Commodore64
+@using Highbyte.DotNet6502.App.SkiaWASM.Pages.Generic
 
 @using SkiaSharp.Views.Blazor
 @*@implements IDisposable*@
@@ -55,11 +54,6 @@
                 <input @bind="@MasterVolumePercent" @bind:event="oninput" type="range" id="masterVolume" min="0" max="100" step="0.02" />
                 @* <input @bind="@MasterVolumePercent" @bind:event="oninput" type="number" min="0" max="100" step="0.02" /> *@
             </div>
-
-            <p></p>
-            <div>
-                <button @onclick="OnFilePicker" disabled=@OnFilePickerDisabled>Load & start binary PRG file</button>
-            </div>
         </div>
 
         <div class="system-help" style="display:inline;">
@@ -67,18 +61,10 @@
             <button @onclick="ShowGeneralHelpUI">Help</button>
         </div>
 
-        <div class="system-help systemC64HelpStyle">
-            <h4>Selected system: C64</h4>
-            <button @onclick="OnC64BasicFilePicker" disabled=@OnC64BasicFilePickerDisabled>Load C64 Basic PRG file</button>
-            <button @onclick="OnC64SaveBasicFile" disabled=@OnC64BasicFilePickerDisabled>Save C64 Basic PRG file</button>
-            
-            <button @onclick="ShowC64ConfigUI" disabled=@ShowConfigDisabled>C64 Config</button>
-        </div>
+        <h4>Selected system: @SelectedSystemName</h4>
 
-        <div class="system-help systemGenericHelpStyle">
-            <h4>Selected system: Generic</h4>
-            <button @onclick="ShowGenericConfigUI" disabled=@ShowConfigDisabled>Generic computer Config</button>
-        </div>
+        <C64Menu Parent=this />
+        <GenericMenu Parent=this />
 
         <div class="validation-message">
             <span>@GetSelectedSystemConfigValidationMessage()</span>
@@ -175,75 +161,8 @@
     </div>
 
     <div class="footer">
-
-        <div class="system-help systemC64HelpStyle">
-            <div class="row">
-                <div class="column">
-                    <div class="table">
-                        <div class="table-caption">
-                            C64 keyboard mapping
-                        </div>
-                        <div class="table-header">
-                            <div class="table-header-cell">
-                                Command
-                            </div>
-                            <div class="table-header-cell">
-                                C64 key
-                            </div>
-                            <div class="table-header-cell">
-                                PC / Mac key
-                            </div>
-                        </div>
-
-                        <div class="table-body">
-                            <div class="table-row">
-                                <div class="table-cell">Stop running Basic program</div>
-                                <div class="table-cell">Run/Stop</div>
-                                <div class="table-cell">Esc</div>
-                            </div>
-                            <div class="table-row">
-                                <div class="table-cell">Soft reset</div>
-                                <div class="table-cell">Run/Stop + Restore</div>
-                                <div class="table-cell">Esc + PageUp (fn + ArrowUp on Mac)</div>
-                            </div>
-                            <div class="table-row">
-                                <div class="table-cell">Change text color 1-8</div>
-                                <div class="table-cell">CTRL + numbers 1-8</div>
-                                <div class="table-cell">Tab + numbers 1-8</div>
-                            </div>
-                            <div class="table-row">
-                                <div class="table-cell">Change text color 9-16</div>
-                                <div class="table-cell">C= + numbers 1-8</div>
-                                <div class="table-cell">LeftCtrl + numbers 1-8</div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-                <div class="column">
-                    <button @onclick="ShowC64HelpUI">Detailed help</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="system-help systemGenericHelpStyle">
-            <div class="row">
-                <div class="column">
-                    <p>
-                        A generic 6502 CPU computer, with custom defined memory layout.
-                    </p>
-                    <p>
-                        Currently configured in the application config and code.
-                        A future update could make it possible to configure such things as
-                        total memory, screen memory addres and IO memory addresses in
-                        the UI.
-                    </p>
-                </div>
-                <div class="column">
-                    <button @onclick="ShowGenericHelpUI">Detailed help</button>
-                </div>
-            </div>
-        </div>
+        <C64MenuHelp Parent=this />
+        <GenericMenuHelp Parent=this />
     </div>
 </div>
 
@@ -260,16 +179,6 @@
     height: 320px;
     }
 
-    .systemC64CommandsStyle {
-    display: @GetDisplayStyle("C64Commands");
-    }
-
-    .systemC64HelpStyle {
-    display: @GetDisplayStyle("C64Help");
-    }
-    .systemGenericHelpStyle {
-    display: @GetDisplayStyle("GenericHelp");
-    }
     .debugStyle {
     display: @GetDisplayStyle("Debug");
     }
@@ -282,9 +191,6 @@
 </style>
 
 <InputFile id="monitorFilePicker" OnChange="@OnMonitorFilePickerChange" hidden/>
-<InputFile id="filePicker" OnChange="@OnFilePickerChange" hidden/>
-
-<InputFile id="filePickerC64Basic" OnChange="@OnC64BasicFilePickerChange" hidden/>
 
 @code
 {
@@ -304,18 +210,6 @@
                 {
                     return _emulatorState == EmulatorState.Uninitialized ? VISIBLE_BLOCK : HIDDEN;
                 }
-            case "C64Commands":
-                {
-                    return SelectedSystemName == C64.SystemName && _emulatorState != EmulatorState.Uninitialized ? VISIBLE : HIDDEN;
-                }
-            case "C64Help":
-                {
-                    return SelectedSystemName == C64.SystemName ? VISIBLE : HIDDEN;
-                }
-            case "GenericHelp":
-                {
-                    return SelectedSystemName == GenericComputer.SystemName ? VISIBLE : HIDDEN;
-                }
             case "Debug":
                 {
                     return _debugVisible ? VISIBLE : HIDDEN;
@@ -333,20 +227,38 @@
         }
     }
 
+    public string GetSystemVisibilityDisplayStyle(string displayData, string systemName)
+    {
+        const string VISIBLE = "inline";
+        const string VISIBLE_BLOCK = "inline-block";
+        const string HIDDEN = "none";
+
+        switch (displayData)
+        {
+            case "Commands":
+                {
+                    return SelectedSystemName == systemName ? VISIBLE : HIDDEN;
+                }
+            case "Help":
+                {
+                    return SelectedSystemName == systemName ? VISIBLE : HIDDEN;
+                }
+            case "Config":
+                {
+                    return SelectedSystemName == systemName ? VISIBLE : HIDDEN;
+                }
+            default:
+                return VISIBLE;
+        }
+    }
+
     protected bool OnSelectSystemNameDisabled => _emulatorState == EmulatorState.Running || _emulatorState == EmulatorState.Paused;
     protected bool OnStartDisabled => _emulatorState == EmulatorState.Running || !IsSelectedSystemConfigOk;
     protected bool OnPauseDisabled => _emulatorState == EmulatorState.Paused || _emulatorState == EmulatorState.Uninitialized;
     protected bool OnResetDisabled => _emulatorState == EmulatorState.Uninitialized;
     protected bool OnStopDisabled => _emulatorState == EmulatorState.Uninitialized;
 
-    protected bool ShowConfigDisabled => _emulatorState != EmulatorState.Uninitialized;
-
-    private bool _wasRunningBeforeFileDialog = false;
-    protected bool OnFilePickerDisabled => _emulatorState == EmulatorState.Uninitialized;
-    protected bool OnC64BasicFilePickerDisabled => _emulatorState == EmulatorState.Uninitialized;
-
-
-    protected async Task OnStart(MouseEventArgs mouseEventArgs)
+    public async Task OnStart(MouseEventArgs mouseEventArgs)
     {
         if (_emulatorState == EmulatorState.Uninitialized)
         {
@@ -363,7 +275,7 @@
 
         this.StateHasChanged();
     }
-    protected async Task OnPause(MouseEventArgs mouseEventArgs)
+    public async Task OnPause(MouseEventArgs mouseEventArgs)
     {
         if (_emulatorState == EmulatorState.Uninitialized)
             return;
@@ -372,13 +284,13 @@
         _emulatorState = EmulatorState.Paused;
         this.StateHasChanged();
     }
-    protected async Task OnReset(MouseEventArgs mouseEventArgs)
+    public async Task OnReset(MouseEventArgs mouseEventArgs)
     {
         await OnPause(mouseEventArgs);
         await OnStop(mouseEventArgs);
         await OnStart(mouseEventArgs);
     }
-    protected async Task OnStop(MouseEventArgs mouseEventArgs)
+    public async Task OnStop(MouseEventArgs mouseEventArgs)
     {
         await CleanupEmulator();
         this.StateHasChanged();
@@ -489,142 +401,5 @@
         var fileSize = fileBuffer.Length;
 
         _wasmHost.Monitor.LoadBinaryFromUser(fileBuffer);
-    }
-
-    /// <summary>
-    /// Open Load binary file dialog (from main UI, not monitor)
-    /// </summary>
-    /// <returns></returns>
-    private async Task OnFilePicker(MouseEventArgs mouseEventArgs)
-    {
-        await OnPause(mouseEventArgs);
-        Js.InvokeVoidAsync("clickId", "filePicker");
-    }
-
-    /// <summary>
-    /// Callback when binary file has been loaded from file pick dialog (from main UI, not monitor)
-    /// </summary>
-    /// <param name="e"></param>
-    /// <returns></returns>
-    private async Task OnFilePickerChange(InputFileChangeEventArgs e)
-    {
-        if (_wasmHost == null)
-            return;
-
-        if (_emulatorState == EmulatorState.Uninitialized)
-            return;
-
-        // Only expect one file
-        if (e.FileCount > 1)
-            return;
-        var file = e.File;
-        System.Diagnostics.Debug.WriteLine($"File picked: {file.Name} Size: {file.Size}");
-
-        var fileBuffer = new byte[file.Size];
-        //var fileStream = e.File.OpenReadStream(file.Size);
-        await file.OpenReadStream().ReadAsync(fileBuffer);
-        var fileSize = fileBuffer.Length;
-
-        // Load file into memory, assume starting at address specified in two first bytes of .prg file
-        BinaryLoader.Load(
-            _wasmHost.SystemRunner.System.Mem,
-            fileBuffer,
-            out ushort loadedAtAddress,
-            out ushort fileLength);
-
-        System.Diagnostics.Debug.WriteLine($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
-
-        System.Diagnostics.Debug.WriteLine($"Starting loaded program by changing Program Counter to {loadedAtAddress.ToHex()}");
-        _wasmHost.SystemRunner.System.CPU.PC = loadedAtAddress;
-
-        await OnStart(new());
-    }
-
-    /// <summary>
-    /// Open Load C64 basic .prg file dialog (from main UI, not monitor)
-    /// </summary>
-    /// <returns></returns>
-    private async Task OnC64BasicFilePicker(MouseEventArgs mouseEventArgs)
-    {
-        _wasRunningBeforeFileDialog = _emulatorState == EmulatorState.Running;
-        await OnPause(mouseEventArgs);
-        Js.InvokeVoidAsync("clickId", "filePickerC64Basic");
-    }
-
-    /// <summary>
-    /// Callback when C64 basic file (.prg) has been loaded from file pick dialog (from main UI, not monitor)
-    /// </summary>
-    /// <param name="e"></param>
-    /// <returns></returns>
-    private async Task OnC64BasicFilePickerChange(InputFileChangeEventArgs e)
-    {
-        if (_wasmHost == null)
-            return;
-
-        if (_emulatorState == EmulatorState.Uninitialized)
-            return;
-
-        // Only expect one file
-        if (e.FileCount > 1)
-            return;
-        var file = e.File;
-        System.Diagnostics.Debug.WriteLine($"File picked: {file.Name} Size: {file.Size}");
-
-        var fileBuffer = new byte[file.Size];
-        //var fileStream = e.File.OpenReadStream(file.Size);
-        await file.OpenReadStream().ReadAsync(fileBuffer);
-        var fileSize = fileBuffer.Length;
-
-        // Load file into memory, assume starting at address specified in two first bytes of .prg file
-        BinaryLoader.Load(
-            _wasmHost.SystemRunner.System.Mem,
-            fileBuffer,
-            out ushort loadedAtAddress,
-            out ushort fileLength);
-
-        if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
-        {
-            // Probably not a Basic program that was loaded. Don't init BASIC memory variables.
-            System.Diagnostics.Debug.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
-        }
-        else
-        {
-            // Init C64 BASIC memory variables
-            ((C64)_wasmHost.SystemRunner.System).InitBasicMemoryVariables(loadedAtAddress, fileLength);
-        }
-
-        System.Diagnostics.Debug.WriteLine($"Basic program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
-
-        if (_wasRunningBeforeFileDialog)
-            await OnStart(new());
-    }
-
-    private async Task OnC64SaveBasicFile(MouseEventArgs mouseEventArgs)
-    {
-        if (_wasmHost == null)
-            return;
-        if (_emulatorState == EmulatorState.Uninitialized)
-            return;
-
-        var result = await Modal.Show<EnterFileName>().Result;
-        if (result.Confirmed)
-        {
-            if (result.Data is null)
-                return;
-            var fileName = (string)result.Data;
-            if (string.IsNullOrEmpty(fileName))
-                return;
-            string ext = Path.GetExtension(fileName);
-            if (string.IsNullOrEmpty(ext))
-                fileName += ".prg";
-
-            var startAddress = C64.BASIC_LOAD_ADDRESS;
-            var endAddress = ((C64)_wasmHost.SystemRunner.System).GetBasicProgramEndAddress();
-            var saveData = BinarySaver.BuildSaveData(_wasmHost.SystemRunner.System.Mem, startAddress, endAddress, addFileHeaderWithLoadAddress: true);
-            var fileStream = new MemoryStream(saveData);
-            using var streamRef = new DotNetStreamReference(stream: fileStream);
-            // Invoke JS helper script to trigger save dialog to users browser downloads folder
-            await Js.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
-        }
     }
 }

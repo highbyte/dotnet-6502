@@ -131,7 +131,6 @@ h4 {
         'menu       main    right'
         'menu       footer  right'
         'menuFooter footer  right';
-
     gap: 2px;
     padding: 4px;
     background-color: #142833;
@@ -154,6 +153,12 @@ h4 {
     box-sizing: border-box;
     margin: 0px;
     padding: 10px;
+}
+
+.system-commands {
+    color: white;
+    font-size: 0.9em;
+    text-align: left;
 }
 
 .system-config {

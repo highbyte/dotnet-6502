@@ -31,6 +31,8 @@ public partial class Index
     }
 
     private EmulatorState _emulatorState = EmulatorState.Uninitialized;
+    public EmulatorState CurrentEmulatorState => _emulatorState;
+
     private string _selectedSystemName;
     public string SelectedSystemName
     {
@@ -107,6 +109,7 @@ public partial class Index
     private MonitorConfig _monitorConfig;
     private SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
     private WasmHost? _wasmHost;
+    public WasmHost? WasmHost => _wasmHost;
 
     private string _statsString = "Stats: calculating...";
     private string _debugString = "";
@@ -119,6 +122,9 @@ public partial class Index
 
     private bool _debugVisible = false;
     private bool _monitorVisible = false;
+
+
+
 
     [Inject]
     public HttpClient? HttpClient { get; set; }
@@ -287,10 +293,7 @@ public partial class Index
     /// </summary>
     [CascadingParameter] public IModalService Modal { get; set; } = default!;
 
-    private async Task ShowC64ConfigUI() => await ShowConfigUI<C64ConfigUI>();
-    private async Task ShowGenericConfigUI() => await ShowConfigUI<GenericConfigUI>();
-
-    private async Task ShowConfigUI<T>() where T : IComponent
+    public async Task ShowConfigUI<T>() where T : IComponent
     {
         var systemConfig = await _systemList.GetCurrentSystemConfig(_selectedSystemName);
         var parameters = new ModalParameters()
@@ -337,11 +340,9 @@ public partial class Index
         this.StateHasChanged();
     }
 
-    private async Task ShowC64HelpUI() => await ShowHelpUI<C64HelpUI>();
-    private async Task ShowGenericHelpUI() => await ShowHelpUI<GenericHelpUI>();
     private async Task ShowGeneralHelpUI() => await ShowHelpUI<GeneralHelpUI>();
 
-    private async Task ShowHelpUI<T>() where T : IComponent
+    public async Task ShowHelpUI<T>() where T : IComponent
     {
         var result = await Modal.Show<T>("Help").Result;
 
