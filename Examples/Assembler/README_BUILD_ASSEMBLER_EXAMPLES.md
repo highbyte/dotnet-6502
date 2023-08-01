@@ -12,15 +12,15 @@ Build all examples (PowerShell)
 Other examples in PowerShell
 
 ´´´ pwsh
-cd C64/Text
+cd Generic
 $ACME_APP = "c:\Users\highb\Documents\C64\ACME\acme.exe"
-& $ACME_APP -f cbm -o build\hostinteraction_scroll_text_and_cycle_colors_c64.prg hostinteraction_scroll_text_and_cycle_colors_c64.asm
+& $ACME_APP -f cbm -o build\hostinteraction_scroll_text_and_cycle_colors.prg hostinteraction_scroll_text_and_cycle_colors.asm
 ´´´
 
 ´´´ pwsh
-cd C64/Text
+cd Generic
 $ACME_APP = "c:\Users\highb\Documents\C64\ACME\acme.exe"
-& $ACME_APP -f cbm -o build\hostinteraction_scroll_text_and_cycle_colors_c64.prg -r build\hostinteraction_scroll_text_and_cycle_colors_c64.report --vicelabels build\hostinteraction_scroll_text_and_cycle_colors_c64.labels hostinteraction_scroll_text_and_cycle_colors_c64.asm
+& $ACME_APP -f cbm -o build\hostinteraction_scroll_text_and_cycle_colors.prg -r build\hostinteraction_scroll_text_and_cycle_colors.report --vicelabels build\hostinteraction_scroll_text_and_cycle_colors.labels hostinteraction_scroll_text_and_cycle_colors.asm
 ´´´
 
 ´´´ pwsh

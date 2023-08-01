@@ -48,6 +48,7 @@
     <Copy SourceFiles="..\..\Examples\Assembler\C64\Raster\Build\smooth_scroller_and_raster.prg" DestinationFolder="wwwroot\6502binaries\C64\Assembler" />
     <Copy SourceFiles="..\..\Examples\Assembler\C64\Raster\Build\scroller_and_raster.prg" DestinationFolder="wwwroot\6502binaries\C64\Assembler" />
 
+    <Copy SourceFiles="..\..\Examples\Basic\C64\Text\Build\HelloWorld.prg" DestinationFolder="wwwroot\6502binaries\C64\Basic" />
     <Copy SourceFiles="..\..\Examples\Basic\C64\Sound\Build\PlaySoundVoice1TriangleScale.prg" DestinationFolder="wwwroot\6502binaries\C64\Basic" />
   </Target>
 
