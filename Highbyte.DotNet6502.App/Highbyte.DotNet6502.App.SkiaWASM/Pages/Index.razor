@@ -9,12 +9,6 @@
 @*<PageTitle>dotnet-6502 CPU emulator in Blazor WebAssembly with Skia rendering</PageTitle>
 *@
 
-@*Inject JS to be able to set focus on SKGLView from code*@
-@inject IJSRuntime Js
-
-@*Inject Local Storage helper services *@
-@inject Blazored.LocalStorage.ILocalStorageService _localStorage
-
 <div class="grid-container">
     <div class="header">
         <a href="https://github.com/highbyte/dotnet-6502" target="_blank">DotNet 6502</a>
@@ -24,7 +18,7 @@
             <div>
                 System:
                 @* <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled autofocus> *@
-                <select value="@SelectedSystemName" @onchange="OnSelectedEmulatorChanged" disabled=@OnSelectSystemNameDisabled autofocus>
+                <select value="@_selectedSystemName" @onchange="OnSelectedEmulatorChanged" disabled=@OnSelectSystemNameDisabled autofocus>
                     @foreach (var systemName in _systemList.Systems)
                     {
                         <option value="@systemName"> @systemName </option>
@@ -32,7 +26,7 @@
                 </select>
             </div>
             <div>Status: @(
-                _emulatorState
+                CurrentEmulatorState
                 )</div>
             <button @onclick="OnStart" disabled=@OnStartDisabled>Start</button>
             <button @onclick="OnPause" disabled=@OnPauseDisabled>Pause</button>
@@ -61,13 +55,13 @@
             <button @onclick="ShowGeneralHelpUI">Help</button>
         </div>
 
-        <h4>Selected system: @SelectedSystemName</h4>
+        <h4>Selected system: @_selectedSystemName</h4>
 
         <C64Menu Parent=this />
         <GenericMenu Parent=this />
 
         <div class="validation-message">
-            <span>@GetSelectedSystemConfigValidationMessage()</span>
+            <span>@_selectedSystemConfigValidationMessage</span>
         </div>
 
     </div>
@@ -98,7 +92,6 @@
         @onkeypress="OnKeyPress"
         @onkeydown="OnKeyDown"
         @onkeyup="OnKeyUp"
-        @ref="_emulatorSKGLViewRef"
         />
 
         <div id="canvasUninitialized"
@@ -191,215 +184,3 @@
 </style>
 
 <InputFile id="monitorFilePicker" OnChange="@OnMonitorFilePickerChange" hidden/>
-
-@code
-{
-    protected string GetDisplayStyle(string displayData)
-    {
-        const string VISIBLE = "inline";
-        const string VISIBLE_BLOCK = "inline-block";
-        const string HIDDEN = "none";
-
-        switch (displayData)
-        {
-            case "Canvas":
-                {
-                    return _emulatorState != EmulatorState.Uninitialized ? VISIBLE : HIDDEN;
-                }
-            case "CanvasUninitialized":
-                {
-                    return _emulatorState == EmulatorState.Uninitialized ? VISIBLE_BLOCK : HIDDEN;
-                }
-            case "Debug":
-                {
-                    return _debugVisible ? VISIBLE : HIDDEN;
-                }
-            case "Monitor":
-                {
-                    return _monitorVisible ? VISIBLE : HIDDEN;
-                }
-            case "AudioVolume":
-                {
-                    return (_currentConfig?.AudioEnabled ?? false) ? VISIBLE : HIDDEN;
-                }
-            default:
-                return VISIBLE;
-        }
-    }
-
-    public string GetSystemVisibilityDisplayStyle(string displayData, string systemName)
-    {
-        const string VISIBLE = "inline";
-        const string VISIBLE_BLOCK = "inline-block";
-        const string HIDDEN = "none";
-
-        switch (displayData)
-        {
-            case "Commands":
-                {
-                    return SelectedSystemName == systemName ? VISIBLE : HIDDEN;
-                }
-            case "Help":
-                {
-                    return SelectedSystemName == systemName ? VISIBLE : HIDDEN;
-                }
-            case "Config":
-                {
-                    return SelectedSystemName == systemName ? VISIBLE : HIDDEN;
-                }
-            default:
-                return VISIBLE;
-        }
-    }
-
-    protected bool OnSelectSystemNameDisabled => _emulatorState == EmulatorState.Running || _emulatorState == EmulatorState.Paused;
-    protected bool OnStartDisabled => _emulatorState == EmulatorState.Running || !IsSelectedSystemConfigOk;
-    protected bool OnPauseDisabled => _emulatorState == EmulatorState.Paused || _emulatorState == EmulatorState.Uninitialized;
-    protected bool OnResetDisabled => _emulatorState == EmulatorState.Uninitialized;
-    protected bool OnStopDisabled => _emulatorState == EmulatorState.Uninitialized;
-
-    public async Task OnStart(MouseEventArgs mouseEventArgs)
-    {
-        if (_emulatorState == EmulatorState.Uninitialized)
-        {
-            bool isOk = await _systemList.IsValidConfig(_selectedSystemName);
-            if (!isOk)
-                return;
-
-            await InitEmulator();
-        }
-
-        _wasmHost!.Start();
-        _emulatorState = EmulatorState.Running;
-        await FocusEmulator();
-
-        this.StateHasChanged();
-    }
-    public async Task OnPause(MouseEventArgs mouseEventArgs)
-    {
-        if (_emulatorState == EmulatorState.Uninitialized)
-            return;
-
-        _wasmHost!.Stop();
-        _emulatorState = EmulatorState.Paused;
-        this.StateHasChanged();
-    }
-    public async Task OnReset(MouseEventArgs mouseEventArgs)
-    {
-        await OnPause(mouseEventArgs);
-        await OnStop(mouseEventArgs);
-        await OnStart(mouseEventArgs);
-    }
-    public async Task OnStop(MouseEventArgs mouseEventArgs)
-    {
-        await CleanupEmulator();
-        this.StateHasChanged();
-    }
-    protected async Task OnMonitorToggle(MouseEventArgs mouseEventArgs)
-    {
-        await _wasmHost!.ToggleMonitor();
-        this.StateHasChanged();
-    }
-
-    protected async Task OnStatsToggle(MouseEventArgs mouseEventArgs)
-    {
-        await ToggleDebugStatsState();
-    }
-
-
-    private void OnKeyPress(KeyboardEventArgs e)
-    {
-        if (_wasmHost == null)
-            return;
-        _wasmHost.InputHandlerContext.KeyPress(e);
-
-        // Emulator host functions such as monitor and stats/debug
-        _wasmHost.OnKeyPress(e);
-    }
-
-    private void OnKeyDown(KeyboardEventArgs e)
-    {
-        if (_wasmHost == null)
-            return;
-        _wasmHost.InputHandlerContext.KeyDown(e);
-
-        // Emulator host functions such as monitor and stats/debug
-        _wasmHost.OnKeyDown(e);
-    }
-
-    private void OnKeyUp(KeyboardEventArgs e)
-    {
-        if (_wasmHost == null)
-            return;
-        _wasmHost.InputHandlerContext.KeyUp(e);
-    }
-
-    //private void OnPointerDown(PointerEventArgs e)
-    //{
-    //}
-
-    //private void OnPointerMove(PointerEventArgs e)
-    //{
-    //}
-
-    //private void OnPointerUp(PointerEventArgs e)
-    //{
-    //}
-
-    //private void OnTouchMove(TouchEventArgs e)
-    //{
-    //}
-
-    //private void OnMouseWheel(WheelEventArgs e)
-    //{
-    //}
-
-    private void OnKeyDownMonitor(KeyboardEventArgs e)
-    {
-        if (_wasmHost == null || _wasmHost.Monitor == null)
-            return;
-        _wasmHost.Monitor.OnKeyDown(e);
-    }
-
-    private void OnKeyUpMonitor(KeyboardEventArgs e)
-    {
-        if (_wasmHost == null || _wasmHost.Monitor == null)
-            return;
-        _wasmHost.Monitor.OnKeyUp(e);
-    }
-
-    private async Task FocusEmulator()
-    {
-        await Js.InvokeVoidAsync("focusId", "emulatorSKGLView", 100);  // Hack: Delay of x ms for focus to work.
-    }
-
-    private async Task FocusMonitor()
-    {
-        await Task.Run(async () => await _monitorInputRef!.Value.FocusAsync());    // Task.Run fix for focusing on a element that is not yet visible (but about to be)
-                                                                                   //await _monitorInputRef.FocusAsync();
-    }
-
-    /// <summary>
-    /// Callback from monitor when user has selected a file to load
-    /// </summary>
-    /// <param name="e"></param>
-    /// <returns></returns>
-    private async Task OnMonitorFilePickerChange(InputFileChangeEventArgs e)
-    {
-        if (_wasmHost == null || _wasmHost.Monitor == null)
-            return;
-
-        // Only expect one file
-        if (e.FileCount > 1)
-            return;
-        var file = e.File;
-        System.Diagnostics.Debug.WriteLine($"File picked: {file.Name} Size: {file.Size}");
-
-        var fileBuffer = new byte[file.Size];
-        //var fileStream = e.File.OpenReadStream(file.Size);
-        await file.OpenReadStream().ReadAsync(fileBuffer);
-        var fileSize = fileBuffer.Length;
-
-        _wasmHost.Monitor.LoadBinaryFromUser(fileBuffer);
-    }
-}
