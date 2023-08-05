@@ -8,10 +8,10 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio
     {
         private readonly bool _disconnectOscillatorOnStop = true;
 
-        private C64NAudioAudioHandler _audioHandler;
+        private C64NAudioAudioHandler _audioHandler = default!;
         internal C64NAudioAudioHandler AudioHandler => _audioHandler;
 
-        private Action<string, int, SidVoiceWaveForm?, AudioVoiceStatus?> _addDebugMessage;
+        private Action<string, int, SidVoiceWaveForm?, AudioVoiceStatus?> _addDebugMessage = default!;
 
         internal void AddDebugMessage(string msg)
         {
@@ -35,21 +35,21 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio
         public SynthEnvelopeProvider? CurrentOscillator => GetOscillator(CurrentSidVoiceWaveForm);
 
         // SID Triangle Oscillator
-        public SynthEnvelopeProvider TriangleOscillator { get; private set; }
+        public SynthEnvelopeProvider TriangleOscillator { get; private set; } = default!;
 
         // SID Sawtooth Oscillator
-        public SynthEnvelopeProvider SawToothOscillator { get; private set; }
+        public SynthEnvelopeProvider SawToothOscillator { get; private set; } = default!;
 
         // SID pulse oscillator
-        public SynthEnvelopeProvider PulseOscillator { get; private set; }
+        public SynthEnvelopeProvider PulseOscillator { get; private set; } = default!;
 
         // SID noise oscillator
-        public SynthEnvelopeProvider NoiseOscillator { get; private set; }
+        public SynthEnvelopeProvider NoiseOscillator { get; private set; } = default!;
 
         //private EventListener<EventSync> _audioStoppedCallback;
 
-        private Timer _adsCycleCompleteTimer;
-        private Timer _releaseCycleCompleteTimer;
+        private readonly Timer _adsCycleCompleteTimer = default!;
+        private readonly Timer _releaseCycleCompleteTimer = default!;
 
         //private readonly SemaphoreSlim _semaphoreSlim = new(1);
         //public SemaphoreSlim SemaphoreSlim => _semaphoreSlim;

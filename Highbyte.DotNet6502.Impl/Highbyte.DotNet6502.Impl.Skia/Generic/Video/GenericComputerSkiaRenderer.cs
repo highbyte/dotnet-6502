@@ -7,8 +7,8 @@ namespace Highbyte.DotNet6502.Impl.Skia.Generic.Video;
 
 public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRenderContext>, IRenderer
 {
-    private Func<SKCanvas> _getSkCanvas;
-    private SKPaintMaps _skPaintMaps;
+    private Func<SKCanvas> _getSkCanvas = default!;
+    private SKPaintMaps _skPaintMaps = default!;
 
     private const int TextSize = 8;
     private const int TextPixelSize = TextSize;
@@ -83,7 +83,6 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
     {
         Draw((GenericComputer)system);
     }
-
 
     private string GetDrawTextFromCharacter(byte chr)
     {

@@ -53,7 +53,6 @@ public class CPU
     /// </summary>
     public const ushort StackBaseAddress = 0x0100; // Stack memory: 0x0100 - 0x01ff
 
-
     /// <summary>
     /// Address for vector to Non-maskable interrupt handler at 0xfffa/0xfffb
     /// </summary>
@@ -99,20 +98,20 @@ public class CPU
 
     public InstructionList InstructionList { get; private set; }
 
-    public event EventHandler<CPUInstructionExecutedEventArgs> InstructionExecuted;
+    public event EventHandler<CPUInstructionExecutedEventArgs>? InstructionExecuted;
     protected virtual void OnInstructionExecuted(CPUInstructionExecutedEventArgs e)
     {
         var handler = InstructionExecuted;
         handler?.Invoke(this, e);
     }
-    public event EventHandler<CPUInstructionToBeExecutedEventArgs> InstructionToBeExecuted;
+    public event EventHandler<CPUInstructionToBeExecutedEventArgs>? InstructionToBeExecuted;
     protected virtual void OnInstructionToBeExecuted(CPUInstructionToBeExecutedEventArgs e)
     {
         var handler = InstructionToBeExecuted;
         handler?.Invoke(this, e);
     }
 
-    public event EventHandler<CPUUnknownOpCodeDetectedEventArgs> UnknownOpCodeDetected;
+    public event EventHandler<CPUUnknownOpCodeDetectedEventArgs>? UnknownOpCodeDetected;
     protected virtual void OnUnknownOpCodeDetected(CPUUnknownOpCodeDetectedEventArgs e)
     {
         var handler = UnknownOpCodeDetected;
@@ -324,7 +323,6 @@ public class CPU
         // Change PC to address found at BRK/IRQ handler vector
         PC = FetchWord(mem, CPU.ResetVector);
     }
-
 
     /// <summary>
     /// Gets the Zero Page address at the current PC with Y offset.

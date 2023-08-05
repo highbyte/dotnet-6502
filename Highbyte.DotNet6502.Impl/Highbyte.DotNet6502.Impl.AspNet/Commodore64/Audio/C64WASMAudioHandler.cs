@@ -19,17 +19,16 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
 
     // private static Queue<InternalSidState> _sidStateChanges = new();
 
-    private WASMAudioHandlerContext _audioHandlerContext;
+    private WASMAudioHandlerContext _audioHandlerContext = default!;
     internal WASMAudioHandlerContext AudioHandlerContext => _audioHandlerContext!;
     private AudioContextSync _audioContext => AudioHandlerContext!.AudioContext;
 
     internal GainNodeSync? CommonSIDGainNode { get; private set; }
 
-
-    private List<byte> _enabledVoices = new() { 1, 2, 3 }; // TODO: Set enabled voices via config.
+    private readonly List<byte> _enabledVoices = new() { 1, 2, 3 }; // TODO: Set enabled voices via config.
     //private List<byte> _enabledVoices = new() { 1 }; // TODO: Set enabled voices via config.
 
-    private List<SidVoiceWaveForm> _enabledOscillators = new() { SidVoiceWaveForm.Triangle, SidVoiceWaveForm.Sawtooth, SidVoiceWaveForm.Pulse, SidVoiceWaveForm.RandomNoise }; // TODO: Set enabled oscillators via config.
+    private readonly List<SidVoiceWaveForm> _enabledOscillators = new() { SidVoiceWaveForm.Triangle, SidVoiceWaveForm.Sawtooth, SidVoiceWaveForm.Pulse, SidVoiceWaveForm.RandomNoise }; // TODO: Set enabled oscillators via config.
     //private List<SidVoiceWaveForm> _enabledOscillators = new() { SidVoiceWaveForm.RandomNoise }; // TODO: Set enabled oscillators via config.
 
     public Dictionary<byte, C64WASMVoiceContext> VoiceContexts = new()
@@ -39,7 +38,7 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
             {3, new C64WASMVoiceContext(3) },
         };
 
-    private List<string> _debugMessages = new();
+    private readonly List<string> _debugMessages = new();
     private const int MAX_DEBUG_MESSAGES = 20;
 
     public C64WASMAudioHandler()
@@ -190,9 +189,10 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
         AddDebugMessage($"Processing command: {audioVoiceParameter.AudioCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
 
         if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.Stop)
+        {
             // Stop audio immediately
             voiceContext.Stop();
-
+        }
         else if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.StartADS)
         {
             // Skip starting audio if specified oscillator is not enabled by config
@@ -247,7 +247,9 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
         var time = DateTime.Now.ToString("HH:mm:ss.fff");
         string formattedMsg;
         if (sidVoiceWaveForm.HasValue && audioStatus.HasValue)
+        {
             formattedMsg = $"{time} ({voice}-{sidVoiceWaveForm}-{audioStatus}): {msg}";
+        }
         else if (sidVoiceWaveForm.HasValue && !audioStatus.HasValue)
         {
             formattedMsg = $"{time} ({voice}-{sidVoiceWaveForm}): {msg}";

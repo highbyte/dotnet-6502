@@ -1,8 +1,6 @@
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
-using Highbyte.DotNet6502.Impl.SadConsole.Commodore64;
-using Highbyte.DotNet6502.Impl.SadConsole.Generic;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Impl.SadConsole.Generic.Video;
@@ -17,7 +15,7 @@ public class EmulatorHost
     private readonly SadConsoleConfig _sadConsoleConfig;
     private readonly GenericComputerConfig _genericComputerConfig;
     private readonly C64Config _c64Config;
-    private static SadConsoleMain SadConsoleMain;
+    private static SadConsoleMain s_sadConsoleMain = default!;
 
     public EmulatorHost(
         SadConsoleConfig sadConsoleConfig,
@@ -36,7 +34,7 @@ public class EmulatorHost
         SystemRunner systemRunner;
 
         var sadConsoleRenderContext = new SadConsoleRenderContext(GetSadConsoleScreen);
-        var sadConsoleInputHandlerContext= new SadConsoleInputHandlerContext();
+        var sadConsoleInputHandlerContext = new SadConsoleInputHandlerContext();
 
         switch (_sadConsoleConfig.Emulator)
         {
@@ -56,20 +54,20 @@ public class EmulatorHost
             throw new Exception("SadConsole host only supports running emulator systems that supports text mode.");
 
         // Create the main SadConsole class that is responsible for configuring and starting up SadConsole and running the emulator code every frame with our preferred configuration.
-        SadConsoleMain = new SadConsoleMain(
+        s_sadConsoleMain = new SadConsoleMain(
             _sadConsoleConfig,
             systemRunner);
 
         // Start SadConsole. Will exit from this method after SadConsole window is closed.
-        SadConsoleMain.Run();
+        s_sadConsoleMain.Run();
     }
 
     private SadConsoleScreenObject GetSadConsoleScreen()
     {
-        return SadConsoleMain.SadConsoleScreen;
+        return s_sadConsoleMain.SadConsoleScreen;
     }
 
-    SystemRunner GetC64SystemRunner(SadConsoleRenderContext sadConsoleRenderContext, SadConsoleInputHandlerContext sadConsoleInputHandlerContext)
+    private SystemRunner GetC64SystemRunner(SadConsoleRenderContext sadConsoleRenderContext, SadConsoleInputHandlerContext sadConsoleInputHandlerContext)
     {
         var c64 = C64.BuildC64(_c64Config);
 
@@ -87,8 +85,7 @@ public class EmulatorHost
         return systemRunner;
     }
 
-
-    SystemRunner GetGenericSystemRunner(SadConsoleRenderContext sadConsoleRenderContext, SadConsoleInputHandlerContext sadConsoleInputHandlerContext)
+    private SystemRunner GetGenericSystemRunner(SadConsoleRenderContext sadConsoleRenderContext, SadConsoleInputHandlerContext sadConsoleInputHandlerContext)
     {
         var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(_genericComputerConfig);
 
@@ -105,5 +102,4 @@ public class EmulatorHost
             .Build();
         return systemRunner;
     }
-
 }

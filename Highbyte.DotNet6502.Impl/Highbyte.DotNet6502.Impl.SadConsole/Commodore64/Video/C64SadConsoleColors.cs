@@ -4,7 +4,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 
 public class C64SadConsoleColors
 {
-    private Dictionary<System.Drawing.Color, Color> _systemToSadConsoleColorMap = new();
+    private readonly Dictionary<System.Drawing.Color, Color> _systemToSadConsoleColorMap = new();
 
     public C64SadConsoleColors(string colorMapName)
     {

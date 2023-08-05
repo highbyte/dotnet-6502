@@ -3,12 +3,13 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.App.ConsoleMonitor;
 using Highbyte.DotNet6502;
+using Highbyte.DotNet6502.Systems.Generic.Config;
 
 NativeConsoleMonitor Monitor;
 
 var mem = new Memory();
 
-var computerBuilder = new GenericComputerBuilder();
+var computerBuilder = new GenericComputerBuilder(new GenericComputerConfig { WaitForHostToAcknowledgeFrame = false });
 computerBuilder
     .WithCPU()
     //.WithStartAddress()
@@ -53,11 +54,14 @@ while (cont)
         lastExecEvaluatorTriggerResult = null;
 
         var input = PromptInput();
-        var commandResult = Monitor.SendCommand(input);
-        if (commandResult == CommandResult.Quit)
-            cont = false;
-        if (commandResult == CommandResult.Continue)
-            startMonitor = false;
+        if (!string.IsNullOrEmpty(input))
+        {
+            var commandResult = Monitor.SendCommand(input);
+            if (commandResult == CommandResult.Quit)
+                cont = false;
+            if (commandResult == CommandResult.Continue)
+                startMonitor = false;
+        }
     }
     else
     {
@@ -81,7 +85,7 @@ while (cont)
     }
 }
 
-string PromptInput()
+string? PromptInput()
 {
     return Prompt.GetString(">",
         promptColor: ConsoleColor.Gray,

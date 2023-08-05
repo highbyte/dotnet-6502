@@ -30,7 +30,7 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
     {
         CaptureKeyboard(c64);
 
-        _inputHandlerContext.ClearKeys();   // Clear our captured keys so far
+        _inputHandlerContext!.ClearKeys();   // Clear our captured keys so far
     }
 
     public void ProcessInput(ISystem system)
@@ -48,7 +48,7 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
     {
         var c64Keyboard = c64.Keyboard;
         // STOP (ESC) down
-        if (_inputHandlerContext.IsKeyPressed(Key.Escape))
+        if (_inputHandlerContext!.IsKeyPressed(Key.Escape))
         //if (_inputHandlerContext.SpecialKeyReceived.Count == 1 && _inputHandlerContext.SpecialKeyReceived.First() == Key.Escape)
         {
             c64.Mem[CiaAddr.CIA1_DATAB] = 0x00;  // Hack: not yet handling the CIA Data B register to scan keyboard.
@@ -81,7 +81,7 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
         var modifierKeyDown = Key.Unknown;
         foreach (var modifierKey in C64SilkNetKeyboard.AllModifierKeys)
         {
-            var modifierKeyPressed = _inputHandlerContext.IsKeyPressed(modifierKey);
+            var modifierKeyPressed = _inputHandlerContext!.IsKeyPressed(modifierKey);
             if (modifierKeyPressed)
             {
                 modifierKeyDown = modifierKey;
@@ -95,7 +95,7 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
 
             foreach (var key in specialKeyMap.Keys)
             {
-                if (_inputHandlerContext.KeysDown.Contains(key))
+                if (_inputHandlerContext!.KeysDown.Contains(key))
                 {
                     var petsciiCode = specialKeyMap[key];
                     Debug.WriteLine($"SilkNet special key pressed: {key} with modifier: {modifierKeyDown} and mapped to Petscii: {petsciiCode}");
@@ -108,7 +108,7 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
         }
 
         // Check if nothing to do with captured characters.
-        if (_inputHandlerContext.CharactersReceived.Count == 0)
+        if (_inputHandlerContext!.CharactersReceived.Count == 0)
             return;
 
         foreach (var character in _inputHandlerContext.CharactersReceived)

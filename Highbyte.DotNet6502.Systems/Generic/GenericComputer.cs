@@ -35,7 +35,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     public float RefreshFrequencyHz => _genericComputerConfig.ScreenRefreshFrequencyHz;
 
     private readonly GenericComputerConfig _genericComputerConfig;
-    private LegacyExecEvaluator _oneFrameExecEvaluator;
+    private readonly LegacyExecEvaluator _oneFrameExecEvaluator;
 
     public GenericComputer() : this(new GenericComputerConfig()) { }
     public GenericComputer(GenericComputerConfig genericComputerConfig)
@@ -92,13 +92,16 @@ public class GenericComputer : ISystem, ITextMode, IScreen
                 return execEvaluatorTriggerResult;
         }
 
-        // Tell CPU 6502 code that one frame worth of CPU cycles has been executed
-        SetFrameCompleted();
+        if (_genericComputerConfig.WaitForHostToAcknowledgeFrame)
+        {
+            // Tell CPU 6502 code that one frame worth of CPU cycles has been executed
+            SetFrameCompleted();
 
-        // Wait for CPU 6502 code has acknowledged that it knows a frame has completed.
-        bool waitOk = WaitFrameCompletedAcknowledged(systemRunner, detailedStats);
-        if (!waitOk)
-            return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.Other, "WaitFrame failed"); ;
+            // Wait for CPU 6502 code has acknowledged that it knows a frame has completed.
+            bool waitOk = WaitFrameCompletedAcknowledged(systemRunner, detailedStats);
+            if (!waitOk)
+                return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.Other, "WaitFrame failed"); ;
+        }
 
         // Return true to indicate execution was successfull and we should continue
         return ExecEvaluatorTriggerResult.NotTriggered;

@@ -5,12 +5,13 @@ public class GenericComputerConfig : ISystemConfig
     public const string ConfigSectionName = "Highbyte.DotNet6502.GenericComputer";
 
     private bool _isDirty = false;
-    private string _programBinaryFile;
-    private byte[] _programBinary;
+    private string _programBinaryFile = default!;
+    private byte[] _programBinary = default!;
     private bool _stopAtBRK;
     private ulong _cPUCyclesPerFrame;
     private float _screenRefreshFrequencyHz;
-    private EmulatorMemoryConfig _memory;
+    private bool _waitForHostToAcknowledgeFrame;
+    private EmulatorMemoryConfig _memory = default!;
 
     public bool IsDirty => _isDirty;
     public void ClearDirty()
@@ -65,6 +66,16 @@ public class GenericComputerConfig : ISystemConfig
             _isDirty = true;
         }
     }
+    public bool WaitForHostToAcknowledgeFrame
+    {
+        get { return _waitForHostToAcknowledgeFrame; }
+        set
+        {
+            _waitForHostToAcknowledgeFrame = value;
+            _isDirty = true;
+        }
+    }
+
     public EmulatorMemoryConfig Memory
     {
         get { return _memory; }
@@ -97,6 +108,7 @@ public class GenericComputerConfig : ISystemConfig
         StopAtBRK = true;
         CPUCyclesPerFrame = 5000;
         ScreenRefreshFrequencyHz = 60.0f;
+        WaitForHostToAcknowledgeFrame = true;
     }
 
     public GenericComputerConfig Clone()
@@ -108,6 +120,7 @@ public class GenericComputerConfig : ISystemConfig
             StopAtBRK = StopAtBRK,
             CPUCyclesPerFrame = CPUCyclesPerFrame,
             ScreenRefreshFrequencyHz = ScreenRefreshFrequencyHz,
+            WaitForHostToAcknowledgeFrame = WaitForHostToAcknowledgeFrame,
             Memory = Memory.Clone(),
             AudioSupported = false,
             AudioEnabled = false

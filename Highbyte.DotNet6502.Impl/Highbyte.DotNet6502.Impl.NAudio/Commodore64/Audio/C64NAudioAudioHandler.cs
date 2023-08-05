@@ -10,18 +10,17 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
 {
     private NAudioAudioHandlerContext? _audioHandlerContext;
 
-    private MixingSampleProvider _mixer;
+    private MixingSampleProvider _mixer = default!;
     public MixingSampleProvider Mixer => _mixer;
 
-    private VolumeSampleProvider _sidVolumeControl;
-
+    private VolumeSampleProvider _sidVolumeControl = default!;
 
     //private static Queue<InternalSidState> _sidStateChanges = new();
 
-    private List<byte> _enabledVoices = new() { 1, 2, 3 }; // TODO: Set enabled voices via config.
+    private readonly List<byte> _enabledVoices = new() { 1, 2, 3 }; // TODO: Set enabled voices via config.
     //private List<byte> _enabledVoices = new() { 1 }; // TODO: Set enabled voices via config.
 
-    private List<SidVoiceWaveForm> _enabledOscillators = new() { SidVoiceWaveForm.Triangle, SidVoiceWaveForm.Sawtooth, SidVoiceWaveForm.Pulse, SidVoiceWaveForm.RandomNoise }; // TODO: Set enabled oscillators via config.
+    private readonly List<SidVoiceWaveForm> _enabledOscillators = new() { SidVoiceWaveForm.Triangle, SidVoiceWaveForm.Sawtooth, SidVoiceWaveForm.Pulse, SidVoiceWaveForm.RandomNoise }; // TODO: Set enabled oscillators via config.
     //private List<SidVoiceWaveForm> _enabledOscillators = new() { SidVoiceWaveForm.RandomNoise }; // TODO: Set enabled oscillators via config.
 
     public Dictionary<byte, C64NAudioVoiceContext> VoiceContexts = new()
@@ -31,7 +30,7 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
             {3, new C64NAudioVoiceContext(3) },
         };
 
-    private List<string> _debugMessages = new();
+    private readonly List<string> _debugMessages = new();
     private const int MAX_DEBUG_MESSAGES = 20;
 
     public C64NAudioAudioHandler()
@@ -141,8 +140,10 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
         AddDebugMessage($"Processing command: {audioVoiceParameter.AudioCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
 
         if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.Stop)
+        {
             // StopWavePlayer audio immediately
             voiceContext.Stop();
+        }
 
         else if (audioVoiceParameter.AudioCommand == AudioVoiceCommand.StartADS)
         {
@@ -197,7 +198,9 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
         var time = DateTime.Now.ToString("HH:mm:ss.fff");
         string formattedMsg;
         if (sidVoiceWaveForm.HasValue && audioStatus.HasValue)
+        {
             formattedMsg = $"{time} ({voice}-{sidVoiceWaveForm}-{audioStatus}): {msg}";
+        }
         else if (sidVoiceWaveForm.HasValue && !audioStatus.HasValue)
         {
             formattedMsg = $"{time} ({voice}-{sidVoiceWaveForm}): {msg}";
@@ -216,6 +219,8 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
         _debugMessages.Insert(0, formattedMsg);
 
         if (_debugMessages.Count > MAX_DEBUG_MESSAGES)
+        {
             _debugMessages.RemoveAt(MAX_DEBUG_MESSAGES);
+        }
     }
 }

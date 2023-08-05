@@ -1,9 +1,7 @@
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SilkNet;
-using Highbyte.DotNet6502.Impl.SilkNet.Generic;
 using Highbyte.DotNet6502.Impl.SilkNet.Generic.Input;
 using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Impl.Skia.Generic;
 using Highbyte.DotNet6502.Impl.Skia.Generic.Video;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;

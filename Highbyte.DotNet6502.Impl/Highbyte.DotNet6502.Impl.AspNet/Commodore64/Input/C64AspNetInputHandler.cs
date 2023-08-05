@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 
 public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>, IInputHandler
 {
-    private AspNetInputHandlerContext? _inputHandlerContext;
+    private AspNetInputHandlerContext? _inputHandlerContext = default!;
 
     public C64AspNetInputHandler()
     {
@@ -28,7 +28,7 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
     {
         CaptureKeyboard(c64);
 
-        _inputHandlerContext.ClearKeys();   // Clear our captured keys so far
+        _inputHandlerContext!.ClearKeys();   // Clear our captured keys so far
     }
 
     public void ProcessInput(ISystem system)
@@ -47,7 +47,7 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
         var c64Keyboard = c64.Keyboard;
 
         // STOP (ESC) down
-        if (_inputHandlerContext.KeysDown.Contains("Escape"))
+        if (_inputHandlerContext!.KeysDown.Contains("Escape"))
         //if (_inputHandlerContext.SpecialKeyReceived.Count == 1 && _inputHandlerContext.SpecialKeyReceived.First() == Key.Escape)
         {
             c64.Mem[CiaAddr.CIA1_DATAB] = 0x00;  // Hack: not yet handling the CIA Data B register to scan keyboard.
@@ -81,7 +81,7 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
         var modifierKeyDown = "";
         foreach (var modifierKey in C64AspNetKeyboard.AllModifierKeys)
         {
-            var modifierKeyPressed = _inputHandlerContext.KeysDown.Contains(modifierKey);
+            var modifierKeyPressed = _inputHandlerContext!.KeysDown.Contains(modifierKey);
             if (modifierKeyPressed)
             {
                 modifierKeyDown = modifierKey;
@@ -95,7 +95,7 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
 
             foreach (var key in specialKeyMap.Keys)
             {
-                if (_inputHandlerContext.KeysDown.Contains(key))
+                if (_inputHandlerContext!.KeysDown.Contains(key))
                 {
                     var petsciiCode = specialKeyMap[key];
                     c64Keyboard.KeyPressed(petsciiCode);
@@ -108,14 +108,16 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
         }
 
         // Check if nothing to do with captured characters.
-        if (_inputHandlerContext.KeysPressed.Count == 0)
+        if (_inputHandlerContext!.KeysPressed.Count == 0)
             return;
 
         foreach (var key in _inputHandlerContext.KeysPressed)
         {
             char character;
             if (key.Length == 1)
+            {
                 character = key[0];
+            }
             else
             {
                 character = MapAspNetKeyStringToCharacter(key);

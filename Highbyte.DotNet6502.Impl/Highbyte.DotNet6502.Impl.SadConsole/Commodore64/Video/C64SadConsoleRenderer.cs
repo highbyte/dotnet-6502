@@ -4,11 +4,10 @@ using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 
-
 public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IRenderer
 {
-    private SadConsoleRenderContext _sadConsoleRenderContext;
-    private C64SadConsoleColors _c64SadConsoleColors;
+    private SadConsoleRenderContext _sadConsoleRenderContext = default!;
+    private C64SadConsoleColors _c64SadConsoleColors = default!;
 
     public C64SadConsoleRenderer()
     {
@@ -161,5 +160,4 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
     {
         return c64.Vic2.Vic2Screen.VisibleTopBottomBorderHeight / c64.Vic2.Vic2Screen.CharacterHeight;
     }
-
 }

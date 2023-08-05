@@ -1,9 +1,7 @@
 using Highbyte.DotNet6502.Impl.AspNet;
-using Highbyte.DotNet6502.Impl.AspNet.Commodore64;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
@@ -13,7 +11,7 @@ namespace Highbyte.DotNet6502.App.SkiaWASM.Skia;
 
 public class C64Setup
 {
-    const string LOCAL_STORAGE_ROM_PREFIX = "rom_";
+    private const string LOCAL_STORAGE_ROM_PREFIX = "rom_";
     private readonly BrowserContext _browserContext;
 
     public C64Setup(BrowserContext browserContext)

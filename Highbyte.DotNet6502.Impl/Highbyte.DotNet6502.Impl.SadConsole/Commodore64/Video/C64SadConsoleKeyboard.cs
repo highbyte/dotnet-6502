@@ -19,8 +19,6 @@ public static class C64SadConsoleKeyboard
 
     public static Dictionary<Keys, Dictionary<Keys, byte>> SpecialKeyMaps;
 
-
-
     public static Dictionary<Keys, byte> SpecialKeys = new()
     {
         {Keys.Back,    0x14},

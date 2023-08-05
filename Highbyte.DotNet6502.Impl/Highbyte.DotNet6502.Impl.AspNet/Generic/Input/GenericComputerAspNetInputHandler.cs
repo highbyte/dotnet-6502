@@ -30,7 +30,7 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
     {
         CaptureKeyboard(genericComputer);
 
-        _inputHandlerContext.ClearKeys();   // Clear our captured keys so far
+        _inputHandlerContext!.ClearKeys();   // Clear our captured keys so far
     }
 
     public void ProcessInput(ISystem system)
@@ -48,7 +48,7 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
         //     genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = (byte)keyCode;
         // }
 
-        if (_inputHandlerContext.KeysDown.Count > 0)
+        if (_inputHandlerContext!.KeysDown.Count > 0)
         {
             var key = _inputHandlerContext.KeysDown.First();
             // TODO: Handle all kinds of keys
