@@ -14,7 +14,7 @@
         <a href="https://github.com/highbyte/dotnet-6502" target="_blank">DotNet 6502</a>
     </div>
     <div class="menu">
-        <div id="system-selector">
+        <div id="system-selector" class="command-panel">
             <div>
                 System:
                 @* <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled autofocus> *@
@@ -50,18 +50,20 @@
             </div>
         </div>
 
-        <div class="system-help" style="display:inline;">
-            <h4>About the emulator</h4>
-            <button @onclick="ShowGeneralHelpUI">Help</button>
+        <div class="command-panel">
+            <h4>@_selectedSystemName</h4>
+            <C64Menu Parent=this />
+            <GenericMenu Parent=this />
+            <div class="validation-message">
+                <span>@_selectedSystemConfigValidationMessage</span>
+            </div>
         </div>
 
-        <h4>Selected system: @_selectedSystemName</h4>
-
-        <C64Menu Parent=this />
-        <GenericMenu Parent=this />
-
-        <div class="validation-message">
-            <span>@_selectedSystemConfigValidationMessage</span>
+        <div class="command-panel">
+            <div class="system-help" style="display:inline;">
+                <h4>General info</h4>
+                <button @onclick="ShowGeneralHelpUI">Help</button>
+            </div>
         </div>
 
     </div>

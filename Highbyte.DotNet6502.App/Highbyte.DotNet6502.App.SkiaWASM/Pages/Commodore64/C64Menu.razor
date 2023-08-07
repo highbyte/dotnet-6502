@@ -3,10 +3,11 @@
 @using Highbyte.DotNet6502.Systems.Commodore64.Video;
 @using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index;
 
-<div class="system-commands systemCommandsStyle">
-    <button @onclick="OnBasicFilePicker" disabled=@OnBasicFilePickerDisabled>Load Basic PRG file</button>
-    <button @onclick="OnSaveBasicFile" disabled=@OnBasicFilePickerDisabled>Save Basic PRG file</button>
-    <button @onclick="OnFilePicker" disabled=@OnFilePickerDisabled>Load & start binary PRG file</button>
+<div class="system-command systemCommandsStyle">
+    <p>Load/save files</p>
+    <button @onclick="OnBasicFilePicker" disabled=@OnBasicFilePickerDisabled>Load Basic .prg</button>
+    <button @onclick="OnSaveBasicFile" disabled=@OnBasicFilePickerDisabled>Save Basic .prg</button>
+    <button @onclick="OnFilePicker" disabled=@OnFilePickerDisabled>Load & start binary .prg</button>
 
     <p>Assembly example files</p>
     <div>

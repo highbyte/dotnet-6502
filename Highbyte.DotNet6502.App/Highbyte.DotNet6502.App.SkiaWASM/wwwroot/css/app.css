@@ -143,7 +143,7 @@ h4 {
         font-family: 'Open Sans', sans-serif;
     }
 
-#system-selector {
+.command-panel {
     background-color: #212b39;
     color: #f8f8f8;
     font-family: 'Cascadia Code', "Courier New", monospace;
@@ -152,10 +152,11 @@ h4 {
     border-radius: 0.5vw;
     box-sizing: border-box;
     margin: 0px;
+    margin-bottom: 4px;
     padding: 10px;
 }
 
-.system-commands {
+.system-command {
     color: white;
     font-size: 0.9em;
     text-align: left;
