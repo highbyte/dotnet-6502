@@ -59,8 +59,8 @@ public class SilkNetWindow
     private NAudioAudioHandlerContext _naudioAudioHandlerContext;
 
     // Emulator    
-    private SystemRunner _systemRunner;
-    public SystemRunner SystemRunner => _systemRunner;
+    private SystemRunner? _systemRunner;
+    public SystemRunner SystemRunner => _systemRunner!;
 
     // Monitor
     private SilkNetImGuiMonitor _monitor;
@@ -223,7 +223,7 @@ public class SilkNetWindow
 
         InitMonitorAndStats();
 
-        _systemRunner.AudioHandler.StartPlaying();
+        _systemRunner!.AudioHandler.StartPlaying();
 
         EmulatorState = EmulatorState.Running;
     }
@@ -233,7 +233,7 @@ public class SilkNetWindow
         if (EmulatorState == EmulatorState.Paused || EmulatorState == EmulatorState.Uninitialized)
             return;
 
-        _systemRunner.AudioHandler.PausePlaying();
+        _systemRunner!.AudioHandler.PausePlaying();
         EmulatorState = EmulatorState.Paused;
     }
 
@@ -241,8 +241,10 @@ public class SilkNetWindow
     {
         if (EmulatorState == EmulatorState.Uninitialized)
             return;
-        Stop();
-        //SetCurrentSystem(_selectedSystemName);
+        if (EmulatorState == EmulatorState.Running)
+            Pause();
+        _systemRunner = null;
+        EmulatorState = EmulatorState.Uninitialized;
         Start();
     }
 
@@ -273,7 +275,7 @@ public class SilkNetWindow
         // Handle input
         using (_inputTime.Measure())
         {
-            _systemRunner.ProcessInput();
+            _systemRunner!.ProcessInput();
         }
 
         // Run emulator for one frame worth of emulated CPU cycles 
@@ -325,7 +327,7 @@ public class SilkNetWindow
             using (_renderTime.Measure())
             {
                 // Render emulator system screen
-                _systemRunner.Draw();
+                _systemRunner!.Draw();
 
                 // Flush the Skia Context
                 _skiaRenderContext.GetGRContext().Flush();
@@ -428,7 +430,7 @@ public class SilkNetWindow
     private void InitMonitorAndStats()
     {
         // Init Monitor ImGui resources 
-        _monitor = new SilkNetImGuiMonitor(_systemRunner, _monitorConfig);
+        _monitor = new SilkNetImGuiMonitor(_systemRunner!, _monitorConfig);
         _monitor.MonitorStateChange += (s, monitorEnabled) => _silkNetInputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
         _monitor.MonitorStateChange += (s, monitorEnabled) =>
         {
