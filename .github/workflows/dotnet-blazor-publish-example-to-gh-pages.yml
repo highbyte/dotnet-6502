@@ -13,7 +13,7 @@ env:
 
    #PROJECT_FILE: "Examples/BlazorWasmTest/BlazorWasmTest.csproj"
    PROJECT_FILE: "Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaWASM/Highbyte.DotNet6502.App.SkiaWASM.csproj"
-   PROJECT_GH_PAGES_DIR: "blazorexample"
+   PROJECT_GH_PAGES_DIR: "app"
    BUILD_OUTPUT_WORKING_DIR: "build"
    GH_PAGES_WORKING_DIR: "ghpages"
    GH_PAGES_BRANCH_NAME: "gh-pages" 
