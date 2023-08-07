@@ -25,13 +25,12 @@ public class EventSync : BaseJSWrapperSync, IJSWrapperSync<EventSync>, IJSWrappe
                 new object[2] { type, eventInitDict }));
     }
 
-
     protected EventSync(IJSInProcessObjectReference helper, IJSRuntime jSRuntime, IJSInProcessObjectReference jSReference)
         : base(helper, jSRuntime, jSReference)
     {
     }
 
-    public string GetType()
+    public new string GetType()
     {
         return _helper.Invoke<string>("getAttribute", new object[2] { JSReference, "type" });
     }

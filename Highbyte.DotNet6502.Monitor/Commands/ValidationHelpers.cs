@@ -24,7 +24,7 @@ public class MustBe16BitHexValueValidator : IArgumentValidator
     {
         // This validator only runs if there is a value
         if (string.IsNullOrEmpty(argument.Value))
-            return ValidationResult.Success;  //return new ValidationResult($"{argument.Name} cannot be empty");
+            return ValidationResult.Success!;  //return new ValidationResult($"{argument.Name} cannot be empty");
 
         var addressString = argument.Value;
         bool validAddress = ushort.TryParse(addressString, NumberStyles.AllowHexSpecifier, null, out ushort word);
@@ -32,7 +32,7 @@ public class MustBe16BitHexValueValidator : IArgumentValidator
         {
             return new ValidationResult($"The value for {argument.Name} must be a 16-bit hex address");
         }
-        return ValidationResult.Success;
+        return ValidationResult.Success!;
     }
 }
 
@@ -40,16 +40,37 @@ public class MustBe8BitHexValueValidator : IArgumentValidator
 {
     public ValidationResult GetValidationResult(CommandArgument argument, ValidationContext context)
     {
-        // This validator only runs if there is a value
-        if (string.IsNullOrEmpty(argument.Value))
-            return ValidationResult.Success;  //return new ValidationResult($"{argument.Name} cannot be empty");
-
-        bool validByte = byte.TryParse(argument.Value, NumberStyles.AllowHexSpecifier, null, out byte byteValue);
-        if (!validByte)
+        if (argument.MultipleValues)
         {
-            return new ValidationResult($"The value for {argument.Name} must be a 8-bit hex number");
+            bool atLeastOneValueIsInvalid = false;
+            foreach (var value in argument.Values)
+            {
+                if (!IsValidValue(value!))
+                {
+                    atLeastOneValueIsInvalid = true;
+                }
+            }
+
+            if (!atLeastOneValueIsInvalid)
+                return ValidationResult.Success!;
+            else
+                return new ValidationResult($"The value for {argument.Name} must be a space-separated list of 8-bit hex numbers");
         }
-        return ValidationResult.Success;
+        else
+        {
+            if (IsValidValue(argument.Value!))
+                return ValidationResult.Success!;
+            else
+                return new ValidationResult($"The value for {argument.Name} must be a 8-bit hex number");
+        }
+    }
+
+    private bool IsValidValue(string value)
+    {
+        // This validator only runs if there is a value
+        if (string.IsNullOrEmpty(value))
+            return true;
+        return byte.TryParse(value, NumberStyles.AllowHexSpecifier, null, out byte byteValue);
     }
 }
 
@@ -67,11 +88,11 @@ public class GreaterThan16bitValidator : IArgumentValidator
     public ValidationResult GetValidationResult(CommandArgument argument, ValidationContext context)
     {
         if (_ignoreUndefined && string.IsNullOrEmpty(argument.Value))
-            return ValidationResult.Success;
+            return ValidationResult.Success!;
 
-        var value = ushort.Parse(argument.Value, NumberStyles.AllowHexSpecifier, null);
-        var otherValue = ushort.Parse(_otherArgument.Value, NumberStyles.AllowHexSpecifier, null);
-        return value > otherValue ? ValidationResult.Success : new ValidationResult($"The 16 bit value {argument.Name} ({argument.Value}) must higher than {_otherArgument.Name} ({_otherArgument.Value})");
+        var value = ushort.Parse(argument.Value!, NumberStyles.AllowHexSpecifier, null);
+        var otherValue = ushort.Parse(_otherArgument.Value!, NumberStyles.AllowHexSpecifier, null);
+        return value > otherValue ? ValidationResult.Success! : new ValidationResult($"The 16 bit value {argument.Name} ({argument.Value}) must higher than {_otherArgument.Name} ({_otherArgument.Value})");
     }
 }
 
@@ -81,13 +102,13 @@ public class MustBeIntegerFlag : IArgumentValidator
     {
         // This validator only runs if there is a value
         if (string.IsNullOrEmpty(argument.Value))
-            return ValidationResult.Success;  //return new ValidationResult($"{argument.Name} cannot be empty");
+            return ValidationResult.Success!;  //return new ValidationResult($"{argument.Name} cannot be empty");
 
         bool validByte = byte.TryParse(argument.Value, NumberStyles.AllowHexSpecifier, null, out byte byteValue);
         if (!validByte || byteValue > 1)
         {
             return new ValidationResult($"The value for {argument.Name} must be 0 or 1");
         }
-        return ValidationResult.Success;
+        return ValidationResult.Success!;
     }
 }

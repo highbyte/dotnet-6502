@@ -20,7 +20,7 @@ public class C64 : ISystem, ISystemMonitor
     public float CpuFrequencyHz => Model.CPUFrequencyHz;
     public CPU CPU { get; set; } = default!;
     public Memory Mem { get; set; } = default!;
-    public IScreen Screen => Vic2.Vic2Screen;
+    public IScreen Screen => Vic2.Vic2Screen!;
 
     public byte[] RAM { get; set; } = default!;
     public byte[] IO { get; set; } = default!;

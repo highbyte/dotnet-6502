@@ -89,10 +89,10 @@ public static class MemoryCommands
 
             cmd.OnExecute(() =>
             {
-                var address = ushort.Parse(memAddress.Value, NumberStyles.AllowHexSpecifier, null);
+                var address = ushort.Parse(memAddress.Value!, NumberStyles.AllowHexSpecifier, null);
                 List<byte> bytes = new();
                 foreach (var val in memValues.Values)
-                    bytes.Add(byte.Parse(val, NumberStyles.AllowHexSpecifier, null));
+                    bytes.Add(byte.Parse(val!, NumberStyles.AllowHexSpecifier, null));
                 foreach (var val in bytes)
                     monitor.Mem[address++] = val;
                 return (int)CommandResult.Ok;

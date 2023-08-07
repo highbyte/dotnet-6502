@@ -12,7 +12,7 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
 {
     public float Volume { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-    public WaveFormat OutputWaveFormat => sourceProvider.WaveFormat;
+    public WaveFormat OutputWaveFormat => _sourceProvider!.WaveFormat;
 
     public PlaybackState PlaybackState { get; private set; }
 
@@ -32,7 +32,7 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
     /// </summary>
     public int DesiredLatency { get; set; }
 
-    public int bufferSizeByte;
+    private int _bufferSizeByte;
 
     /// <summary>
     /// Gets or sets the number of buffers used
@@ -40,95 +40,95 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
     /// </summary>
     public int NumberOfBuffers { get; set; }
 
-    private unsafe Device* device;
+    private unsafe Device* _device;
     public ALContext? Alc { get; private set; }
     public AL? Al { get; private set; }
 
-    private unsafe Context* context;
+    private unsafe Context* _context;
 
-    private FloatBufferFormat sourceALFormat;   // 32 bit floating point buffer
-                                                //private BufferFormat sourceALFormat_8_16;        // 8 or 16 bit buffer
+    private FloatBufferFormat _sourceALFormat;   // 32 bit floating point buffer
+    //private BufferFormat sourceALFormat_8_16;        // 8 or 16 bit buffer
 
-    private IWaveProvider? sourceProvider;
+    private IWaveProvider? _sourceProvider;
 
-    private readonly SynchronizationContext? syncContext;
-    private AutoResetEvent? eventWaitHandle;
+    private readonly SynchronizationContext? _syncContext;
+    private AutoResetEvent? _eventWaitHandle;
 
-    //private int alSource;
-    private uint alSource;
+    //private int _alSource;
+    private uint _alSource;
 
     //private int[] alBuffers;
-    private uint[]? alBuffers;
+    private uint[]? _alBuffers;
 
-    private byte[]? sourceBuffer;
+    private byte[]? _sourceBuffer;
     public SilkNetOpenALWavePlayer(string? deviceName = null)
     {
         DeviceName = deviceName;
-        syncContext = SynchronizationContext.Current;
+        _syncContext = SynchronizationContext.Current;
     }
 
     public unsafe void Init(IWaveProvider waveProvider)
     {
-        sourceProvider = waveProvider;
-        sourceALFormat = BufferFormatFloat32(sourceProvider.WaveFormat);
-        bufferSizeByte = sourceProvider.WaveFormat.ConvertLatencyToByteSize(DesiredLatency);
+        _sourceProvider = waveProvider;
+        _sourceALFormat = BufferFormatFloat32(_sourceProvider.WaveFormat);
+        _bufferSizeByte = _sourceProvider.WaveFormat.ConvertLatencyToByteSize(DesiredLatency);
 
-        eventWaitHandle = new AutoResetEvent(false);
+        _eventWaitHandle = new AutoResetEvent(false);
 
         Alc = ALContext.GetApi(soft: true);
         Al = AL.GetApi(true);
 
         CheckAndRaiseStopOnALError();
 
-        device = Alc.OpenDevice(DeviceName);
+        _device = Alc.OpenDevice(DeviceName);
         CheckAndRaiseStopOnALError();
 
-        context = Alc.CreateContext(device, null);
+        _context = Alc.CreateContext(_device, null);
         CheckAndRaiseStopOnALError();
 
-        Alc.MakeContextCurrent(context);
+        Alc.MakeContextCurrent(_context);
         CheckAndRaiseStopOnALError();
 
-        //Al.GenSource(out alSource);
-        alSource = Al.GenSource();
+        //Al.GenSource(out _alSource);
+        _alSource = Al.GenSource();
 
         CheckAndRaiseStopOnALError();
 
-        //Al.Source(alSource, ALSourcef.Gain, 1f);
-        Al.SetSourceProperty(alSource, SourceFloat.Gain, 1f);
+        //Al.Source(_alSource, ALSourcef.Gain, 1f);
+        Al.SetSourceProperty(_alSource, SourceFloat.Gain, 1f);
         CheckAndRaiseStopOnALError();
 
         //alBuffers = new int[NumberOfBuffers];
-        alBuffers = new uint[NumberOfBuffers];
+        _alBuffers = new uint[NumberOfBuffers];
         for (var i = 0; i < NumberOfBuffers; i++)
         {
             //AL.GenBuffer(out alBuffers[i]);
-            alBuffers[i] = Al.GenBuffer();
+            _alBuffers[i] = Al.GenBuffer();
 
             CheckAndRaiseStopOnALError();
         }
-        sourceBuffer = new byte[bufferSizeByte];
-        ReadAndQueueBuffers(alBuffers);
+        _sourceBuffer = new byte[_bufferSizeByte];
+        ReadAndQueueBuffers(_alBuffers);
     }
 
-    private void ReadAndQueueBuffers(uint[] _alBuffers)
+    private void ReadAndQueueBuffers(uint[] alBuffers)
     {
-        for (var i = 0; i < _alBuffers.Length; i++)
+        for (var i = 0; i < alBuffers.Length; i++)
         {
             //read source
-            sourceProvider.Read(sourceBuffer, 0, sourceBuffer.Length);
+            _sourceProvider!.Read(_sourceBuffer, 0, _sourceBuffer!.Length);
 
             CheckAndRaiseStopOnALError();
 
             //fill and queue buffer
-            //AL.BufferData(_alBuffers[i], sourceALFormat, sourceBuffer, sourceBuffer.Length, sourceProvider.WaveFormat.SampleRate);
-            Al.BufferData(_alBuffers[i], sourceALFormat, sourceBuffer, sourceProvider.WaveFormat.SampleRate);
+            //AL.BufferData(alBuffers[i], _sourceALFormat, _sourceBuffer, _sourceBuffer.Length, _sourceProvider.WaveFormat.SampleRate);
+            Al!.BufferData(alBuffers[i], _sourceALFormat, _sourceBuffer, _sourceProvider.WaveFormat.SampleRate);
 
             CheckAndRaiseStopOnALError();
 
-            // AL.SourceQueueBuffer(alSource, _alBuffers[i]);
-            var buffersToQueue = new uint[1] { _alBuffers[i] };
-            Al.SourceQueueBuffers(alSource, buffersToQueue);
+            // AL.SourceQueueBuffer(_alSource, alBuffers[i]);
+            var buffersToQueue = new uint[1] { alBuffers[i] };
+            Al!.SourceQueueBuffers(_alSource, buffersToQueue);
 
             CheckAndRaiseStopOnALError();
         }
@@ -142,25 +142,25 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
         PlaybackState = PlaybackState.Paused;
 
         //Context.Al.SourcePause(1, Source);
-        Al.SourcePause(alSource);
+        Al!.SourcePause(_alSource);
     }
 
     public void Play()
     {
-        if (alBuffers == null)
+        if (_alBuffers == null)
             throw new InvalidOperationException("Must call InitPlayer first");
         if (PlaybackState != PlaybackState.Playing)
         {
             if (PlaybackState == PlaybackState.Stopped)
             {
                 PlaybackState = PlaybackState.Playing;
-                eventWaitHandle.Set();
+                _eventWaitHandle!.Set();
                 ThreadPool.QueueUserWorkItem(state => PlaybackThread(), null);
             }
             else
             {
                 PlaybackState = PlaybackState.Playing;
-                eventWaitHandle.Set();
+                _eventWaitHandle!.Set();
             }
         }
     }
@@ -170,13 +170,13 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
         if (PlaybackState != PlaybackState.Stopped)
         {
             PlaybackState = PlaybackState.Stopped;
-            eventWaitHandle.Set();
+            _eventWaitHandle!.Set();
         }
     }
 
     private void PlaybackThread()
     {
-        Exception exception = null;
+        Exception? exception = null;
         try
         {
             DoPlayback();
@@ -200,29 +200,29 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
         {
             if (PlaybackState == PlaybackState.Paused)
             {
-                eventWaitHandle.WaitOne(1);
+                _eventWaitHandle!.WaitOne(1);
                 continue;
             }
 
             CheckAndRaiseStopOnALError();
 
-            //AL.GetSource(alSource, ALGetSourcei.BuffersProcessed, out processed);
-            Al.GetSourceProperty(alSource, GetSourceInteger.BuffersProcessed, out var processed);
+            //AL.GetSource(_alSource, ALGetSourcei.BuffersProcessed, out processed);
+            Al!.GetSourceProperty(_alSource, GetSourceInteger.BuffersProcessed, out var processed);
 
             CheckAndRaiseStopOnALError();
 
-            //AL.GetSource(alSource, ALGetSourcei.SourceState, out state);
-            Al.GetSourceProperty(alSource, GetSourceInteger.SourceState, out var state);
+            //AL.GetSource(_alSource, ALGetSourcei.SourceState, out state);
+            Al!.GetSourceProperty(_alSource, GetSourceInteger.SourceState, out var state);
 
             CheckAndRaiseStopOnALError();
 
             if (processed > 0) //there are processed buffers
             {
                 //unqueue
-                //int[] unqueueBuffers = AL.SourceUnqueueBuffers(alSource, processed);
+                //int[] unqueueBuffers = AL.SourceUnqueueBuffers(_alSource, processed);
 
                 var unqueueBuffers = new uint[processed];
-                Al.SourceUnqueueBuffers(alSource, unqueueBuffers);
+                Al.SourceUnqueueBuffers(_alSource, unqueueBuffers);
 
                 CheckAndRaiseStopOnALError();
                 //refill it back in
@@ -231,33 +231,33 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
 
             if ((SourceState)state != SourceState.Playing)
             {
-                //AL.SourcePlay(alSource);
-                Al.SourcePlay(alSource);
+                //AL.SourcePlay(_alSource);
+                Al.SourcePlay(_alSource);
                 CheckAndRaiseStopOnALError();
             }
 
-            eventWaitHandle.WaitOne(1);
+            _eventWaitHandle!.WaitOne(1);
         }
 
         // StartRelease playing do clean up
-        //AL.SourceStop(alSource);
-        Al.SourceStop(alSource);
+        //AL.SourceStop(_alSource);
+        Al!.SourceStop(_alSource);
         CheckAndRaiseStopOnALError();
 
         //detach buffer to be able to delete
-        //AL.Source(alSource, ALSourcei.Buffer, 0);
-        Al.SetSourceProperty(alSource, SourceInteger.Buffer, 0);
+        //AL.Source(_alSource, ALSourcei.Buffer, 0);
+        Al.SetSourceProperty(_alSource, SourceInteger.Buffer, 0);
 
         CheckAndRaiseStopOnALError();
 
         //AL.DeleteBuffers(alBuffers);
-        Al.DeleteBuffers(alBuffers);
+        Al.DeleteBuffers(_alBuffers);
         CheckAndRaiseStopOnALError();
 
-        alBuffers = null;
+        _alBuffers = null;
 
-        //AL.DeleteSource(alSource);
-        Al.DeleteSource(alSource);
+        //AL.DeleteSource(_alSource);
+        Al.DeleteSource(_alSource);
         CheckAndRaiseStopOnALError();
     }
 
@@ -269,9 +269,9 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
     public unsafe bool CheckALError(out string errStr)
     {
         //bool isErr;
-        //if (device == null)
+        //if (_device == null)
         //{
-        //    ContextError contextError = Alc.GetError(device);
+        //    ContextError contextError = Alc.GetError(_device);
         //    isErr = contextError != ContextError.NoError;
         //    errStr = isErr ? contextError.ToString() : string.Empty;
         //    return isErr;
@@ -282,7 +282,7 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
 
         // TODO: error is always illegalcommand, even though it seems to work?
         //ALError error = AL.GetError();
-        var error = Al.GetError();
+        var error = Al!.GetError();
         var isErr = error != AudioError.NoError;
         //errStr = isErr ? Al.GetErrorString(error) : string.Empty;
         errStr = isErr ? error.ToString() : string.Empty;
@@ -295,40 +295,42 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
             RaisePlaybackStoppedEvent(new Exception($"ALError:{errStr}"));
     }
 
-    private void RaisePlaybackStoppedEvent(Exception e)
+    private void RaisePlaybackStoppedEvent(Exception? e)
     {
         var handler = PlaybackStopped;
         if (handler != null)
         {
-            if (syncContext == null)
+            if (_syncContext == null)
+            {
                 handler(this, new StoppedEventArgs(e));
+            }
             else
             {
-                syncContext.Post(state => handler(this, new StoppedEventArgs(e)), null);
+                _syncContext.Post(state => handler(this, new StoppedEventArgs(e)), null);
             }
         }
     }
 
-    private bool disposedValue;
+    private bool _disposedValue;
     protected unsafe virtual void Dispose(bool disposing)
     {
-        if (!disposedValue)
+        if (!_disposedValue)
         {
             if (disposing)
             {
                 // dispose managed state (managed objects)
-                eventWaitHandle?.Dispose();
+                _eventWaitHandle?.Dispose();
                 //ALC.MakeContextCurrent(ALContext.Null);
                 Alc?.MakeContextCurrent(null);
-                //ALC.DestroyContext(context);
-                Alc?.DestroyContext(context);
-                //ALC.CloseDevice(device);
-                Alc?.CloseDevice(device);
+                //ALC.DestroyContext(_context);
+                Alc?.DestroyContext(_context);
+                //ALC.CloseDevice(_device);
+                Alc?.CloseDevice(_device);
             }
 
             // free unmanaged resources (unmanaged objects) and override finalizer
             // set large fields to null
-            disposedValue = true;
+            _disposedValue = true;
         }
     }
 
@@ -355,8 +357,10 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
             //    //return ALFormat.StereoFloat32Ext;
             //}
             if (format.BitsPerSample == 16)
+            {
                 //return ALFormat.Stereo16;
                 return BufferFormat.Stereo16;
+            }
             else if (format.BitsPerSample == 8)
             {
                 //return ALFormat.Stereo16;
@@ -370,8 +374,10 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
             //    //return ALFormat.MonoFloat32Ext;
             //}
             if (format.BitsPerSample == 16)
+            {
                 //return ALFormat.Mono16;
                 return BufferFormat.Mono16;
+            }
             else if (format.BitsPerSample == 8)
             {
                 //return ALFormat.Mono8;

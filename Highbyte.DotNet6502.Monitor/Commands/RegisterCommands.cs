@@ -29,7 +29,7 @@ public static class RegisterCommands
 
                     setRegisterCmd.OnExecute(() =>
                     {
-                        var value = regVal.Value;
+                        var value = regVal.Value!;
                         monitor.Cpu.A = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
                         monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
                         return (int)CommandResult.Ok;
@@ -49,7 +49,7 @@ public static class RegisterCommands
 
                     setRegisterCmd.OnExecute(() =>
                     {
-                        var value = regVal.Value;
+                        var value = regVal.Value!;
                         monitor.Cpu.X = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
                         monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
                         return (int)CommandResult.Ok;
@@ -69,7 +69,7 @@ public static class RegisterCommands
 
                     setRegisterCmd.OnExecute(() =>
                     {
-                        var value = regVal.Value;
+                        var value = regVal.Value!;
                         monitor.Cpu.Y = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
                         monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
                         return (int)CommandResult.Ok;
@@ -89,7 +89,7 @@ public static class RegisterCommands
 
                     setRegisterCmd.OnExecute(() =>
                     {
-                        var value = regVal.Value;
+                        var value = regVal.Value!;
                         monitor.Cpu.SP = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
                         monitor.WriteOutput($"{OutputGen.GetPCandSP(monitor.Cpu)}");
                         return (int)CommandResult.Ok;
@@ -109,7 +109,7 @@ public static class RegisterCommands
 
                     setRegisterCmd.OnExecute(() =>
                     {
-                        var value = regVal.Value;
+                        var value = regVal.Value!;
                         monitor.Cpu.ProcessorStatus.Value = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
                         monitor.WriteOutput($"PS={value}");
                         monitor.WriteOutput($"{OutputGen.GetStatus(monitor.Cpu)}");
@@ -131,7 +131,7 @@ public static class RegisterCommands
                     setRegisterCmd.OnExecute(() =>
                     {
                         var value = regVal.Value;
-                        monitor.Cpu.PC = ushort.Parse(value, NumberStyles.AllowHexSpecifier, null);
+                        monitor.Cpu.PC = ushort.Parse(value!, NumberStyles.AllowHexSpecifier, null);
                         monitor.WriteOutput($"{OutputGen.GetPCandSP(monitor.Cpu)}");
                         return (int)CommandResult.Ok;
                     });

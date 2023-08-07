@@ -12,7 +12,7 @@ public class EmulatorConfig
 
     public string DefaultEmulator { get; set; }
     public float DefaultDrawScale { get; set; }
-    public MonitorConfig Monitor { get; set; }
+    public MonitorConfig? Monitor { get; set; }
 
     public EmulatorConfig()
     {

@@ -13,7 +13,7 @@ public class CommandLineApp
     {
         //var app = new CommandLineApplication()
         //var app = new CommandLineApplication(NullConsole.Singleton, monitor.Options.DefaultDirectory)
-        var app = new CommandLineApplication(MonitorConsole.BuildSingleton(monitor), monitor.Options.DefaultDirectory)
+        var app = new CommandLineApplication(MonitorConsole.BuildSingleton(monitor), monitor.Options.DefaultDirectory!)
         {
             Name = "",
             Description = "DotNet 6502 machine code monitor for the DotNet 6502 emulator library." + Environment.NewLine +

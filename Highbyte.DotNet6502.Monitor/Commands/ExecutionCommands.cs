@@ -51,7 +51,7 @@ public static class ExecutionCommands
             cmd.OnExecute(() =>
             {
                 //monitor.WriteOutput($"Executing code at {monitor.Cpu.PC.ToHex("",lowerCase:true)} for {inscount.Value} instruction(s).");
-                monitor.Cpu.Execute(monitor.Mem, LegacyExecEvaluator.InstructionCountExecEvaluator(ulong.Parse(inscount.Value)));
+                monitor.Cpu.Execute(monitor.Mem, LegacyExecEvaluator.InstructionCountExecEvaluator(ulong.Parse(inscount.Value!)));
                 // Last instruction
                 // monitor.WriteOutput($"{OutputGen.GetLastInstructionDisassembly(monitor.Cpu, monitor.Mem)}");
                 // Next instruction

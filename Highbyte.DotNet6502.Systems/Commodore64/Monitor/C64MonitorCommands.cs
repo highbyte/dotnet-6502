@@ -45,7 +45,7 @@ public class C64MonitorCommands : ISystemMonitorCommands
 
             var fileName = cmd.Argument("filename", "Name of the Basic file.")
                 .IsRequired();
-                //.Accepts(v => v.ExistingFile()); // File exists check is done in LoadBinary(...) implementation.
+            //.Accepts(v => v.ExistingFile()); // File exists check is done in LoadBinary(...) implementation.
 
             cmd.OnValidationError((ValidationResult validationResult) =>
             {
@@ -55,7 +55,7 @@ public class C64MonitorCommands : ISystemMonitorCommands
             cmd.OnExecute(() =>
             {
                 // Basic file should have a start address of 0801 stored as the two first bytes (little endian order, 01 08).
-                bool loaded = monitor.LoadBinary(fileName.Value, out var loadedAtAddress, out var fileLength);
+                bool loaded = monitor.LoadBinary(fileName.Value!, out var loadedAtAddress, out var fileLength);
                 if (!loaded)
                 {
                     // If file could not be loaded, probably because it's not supported/implemented by the derived class.
@@ -85,7 +85,7 @@ public class C64MonitorCommands : ISystemMonitorCommands
             {
                 ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
                 var endAddressValue = ((C64)monitor.System).GetBasicProgramEndAddress();
-                monitor.SaveBinary(fileName.Value, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress: true);
+                monitor.SaveBinary(fileName.Value!, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress: true);
                 return (int)CommandResult.Ok;
             });
         });

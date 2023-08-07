@@ -14,13 +14,12 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// </summary>
 public class Vic2
 {
-    public C64 C64 { get; private set; }
-    public Vic2ModelBase Vic2Model { get; private set; }
-    public Vic2Screen Vic2Screen { get; private set; }
-    public Memory Vic2Mem { get; private set; }
+    public C64? C64 { get; private set; }
+    public Vic2ModelBase? Vic2Model { get; private set; }
+    public Vic2Screen? Vic2Screen { get; private set; }
+    public Memory? Vic2Mem { get; private set; }
 
-    public Vic2IRQ Vic2IRQ { get; private set; }
-
+    public Vic2IRQ? Vic2IRQ { get; private set; }
 
     public const int CHARACTERSET_NUMBER_OF_CHARCTERS = 256;
     public const int CHARACTERSET_ONE_CHARACTER_BYTES = 8;      // 8 bytes (one line per byte) for each character.
@@ -61,9 +60,9 @@ public class Vic2
         handler?.Invoke(this, e);
     }
 
-    public Dictionary<int, byte> ScreenLineBorderColor { get; private set; }
-    public Dictionary<int, byte> ScreenLineBackgroundColor { get; private set; }
-    public Vic2ScreenLayouts ScreenLayouts { get; private set; }
+    public Dictionary<int, byte>? ScreenLineBorderColor { get; private set; }
+    public Dictionary<int, byte>? ScreenLineBackgroundColor { get; private set; }
+    public Vic2ScreenLayouts? ScreenLayouts { get; private set; }
 
     private Vic2() { }
 

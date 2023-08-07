@@ -2,22 +2,21 @@ namespace Highbyte.DotNet6502.Systems;
 
 public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 {
-    private Func<TRenderContext> _getRenderContext;
-    private Func<TInputHandlerContext> _getInputHandlerContext;
-    private Func<TAudioHandlerContext> _getAudioHandlerContext;
+    private Func<TRenderContext>? _getRenderContext;
+    private Func<TInputHandlerContext>? _getInputHandlerContext;
+    private Func<TAudioHandlerContext>? _getAudioHandlerContext;
 
     public HashSet<string> Systems = new();
 
     private const string DEFAULT_CONFIGURATION_VARIANT = "DEFAULT";
 
-    private Dictionary<string, ISystemConfig> _systemConfigsCache = new();
-    private Dictionary<string, ISystem> _systemsCache = new();
+    private readonly Dictionary<string, ISystemConfig> _systemConfigsCache = new();
+    private readonly Dictionary<string, ISystem> _systemsCache = new();
 
-    private Dictionary<string, Func<ISystemConfig, ISystem>> _buildSystem = new();
-    private Dictionary<string, Func<ISystem, ISystemConfig, TRenderContext, TInputHandlerContext, TAudioHandlerContext, SystemRunner>> _buildSystemRunner = new();
-    private Dictionary<string, Func<string, Task<ISystemConfig>>> _getNewSystemConfig = new();
-    private Dictionary<string, Func<ISystemConfig, Task>> _persistSystemConfig = new();
-
+    private readonly Dictionary<string, Func<ISystemConfig, ISystem>> _buildSystem = new();
+    private readonly Dictionary<string, Func<ISystem, ISystemConfig, TRenderContext, TInputHandlerContext, TAudioHandlerContext, SystemRunner>> _buildSystemRunner = new();
+    private readonly Dictionary<string, Func<string, Task<ISystemConfig>>> _getNewSystemConfig = new();
+    private readonly Dictionary<string, Func<ISystemConfig, Task>> _persistSystemConfig = new();
 
     public SystemList()
     {
