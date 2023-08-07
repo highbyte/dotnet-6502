@@ -39,7 +39,7 @@ public static class BreakpointCommands
 
                     bpCmd.OnExecute(() =>
                     {
-                        var address = ushort.Parse(memAddress.Value, NumberStyles.AllowHexSpecifier, null);
+                        var address = ushort.Parse(memAddress.Value!, NumberStyles.AllowHexSpecifier, null);
                         if (!monitor.BreakPoints.ContainsKey(address))
                             monitor.BreakPoints.Add(address, new BreakPoint { Enabled = true });
                         else
@@ -61,7 +61,7 @@ public static class BreakpointCommands
 
                     bpCmd.OnExecute(() =>
                     {
-                        var address = ushort.Parse(memAddress.Value, NumberStyles.AllowHexSpecifier, null);
+                        var address = ushort.Parse(memAddress.Value!, NumberStyles.AllowHexSpecifier, null);
                         if (monitor.BreakPoints.ContainsKey(address))
                             monitor.BreakPoints.Remove(address);
                         return (int)CommandResult.Ok;

@@ -20,9 +20,9 @@ public class SilkNetImGuiMenu
     private const int POS_Y = 10;
     private const int WIDTH = 400;
     private const int HEIGHT = 350;
-    static Vector4 s_InformationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-    static Vector4 s_ErrorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
-    static Vector4 s_WarningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
+    private static Vector4 s_informationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+    private static Vector4 s_errorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
+    private static Vector4 s_warningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
 
     private string _screenScaleString = "";
     private int _selectedSystemItem = 0;
@@ -31,8 +31,8 @@ public class SilkNetImGuiMenu
     private float _audioVolumePercent;
     private string SelectedSystemName => _silkNetWindow.SystemList.Systems.ToArray()[_selectedSystemItem];
 
-    private SilkNetImGuiC64Config _c64ConfigUI;
-    private SilkNetImGuiGenericComputerConfig _genericComputerConfigUI;
+    private SilkNetImGuiC64Config? _c64ConfigUI;
+    private SilkNetImGuiGenericComputerConfig? _genericComputerConfigUI;
 
     public SilkNetImGuiMenu(SilkNetWindow silkNetWindow, string defaultSystemName, bool defaultAudioEnabled, float defaultAudioVolumePercent)
     {
@@ -53,7 +53,7 @@ public class SilkNetImGuiMenu
         //ImGui.Begin($"DotNet 6502 Emulator", ImGuiWindowFlags.NoResize);
         ImGui.Begin($"DotNet 6502 Emulator");
 
-        ImGui.PushStyleColor(ImGuiCol.Text, s_InformationColor);
+        ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
         ImGui.Text("System: ");
         ImGui.SameLine();
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
@@ -63,12 +63,11 @@ public class SilkNetImGuiMenu
         ImGui.EndDisabled();
         ImGui.PopStyleColor();
 
-        ImGui.PushStyleColor(ImGuiCol.Text, s_InformationColor);
+        ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
         ImGui.Text("Status: ");
         ImGui.SameLine();
         ImGui.Text(EmulatorState.ToString());
         ImGui.PopStyleColor();
-
 
         ImGui.BeginDisabled(disabled: !(EmulatorState != EmulatorState.Running && SelectedSystemConfigIsValid()));
         if (ImGui.Button("Start"))
@@ -122,7 +121,7 @@ public class SilkNetImGuiMenu
         ImGui.EndDisabled();
 
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
-        ImGui.PushStyleColor(ImGuiCol.Text, s_InformationColor);
+        ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
         //ImGui.SetKeyboardFocusHere(0);
         ImGui.PushItemWidth(40);
         if (ImGui.InputText("Scale", ref _screenScaleString, 4))
@@ -141,7 +140,7 @@ public class SilkNetImGuiMenu
             ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
 
             ImGui.BeginDisabled(disabled: !(systemConfig.AudioSupported && EmulatorState == EmulatorState.Uninitialized));
-            ImGui.PushStyleColor(ImGuiCol.Text, s_InformationColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
             //ImGui.SetKeyboardFocusHere(0);
             ImGui.PushItemWidth(40);
             if (systemConfig.AudioSupported)
@@ -155,9 +154,8 @@ public class SilkNetImGuiMenu
             ImGui.PopItemWidth();
             ImGui.EndDisabled();
 
-
             ImGui.BeginDisabled(disabled: !(systemConfig.AudioSupported));
-            ImGui.PushStyleColor(ImGuiCol.Text, s_InformationColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
             //ImGui.SetKeyboardFocusHere(0);
             ImGui.PushItemWidth(40);
             if (systemConfig.AudioSupported)
@@ -170,7 +168,6 @@ public class SilkNetImGuiMenu
             ImGui.PopStyleColor();
             ImGui.PopItemWidth();
             ImGui.EndDisabled();
-
 
             // Common load/save commands
             ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
@@ -220,7 +217,7 @@ public class SilkNetImGuiMenu
             }
         }
 
-        ImGui.PushStyleColor(ImGuiCol.Text, s_WarningColor);
+        ImGui.PushStyleColor(ImGuiCol.Text, s_warningColor);
         ImGui.Text("Toggle menu with F6");
         ImGui.Text("Toggle monitor with F12");
         ImGui.Text("Toggle stats with F11");
@@ -320,7 +317,7 @@ public class SilkNetImGuiMenu
 
         if (!_c64ConfigUI.IsValidConfig)
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, s_ErrorColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, s_errorColor);
             ImGui.TextWrapped($"Config has errors. Press C64 Config button.");
             ImGui.PopStyleColor();
         }
@@ -368,7 +365,7 @@ public class SilkNetImGuiMenu
 
         if (!_genericComputerConfigUI.IsValidConfig)
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, s_ErrorColor);
+            ImGui.PushStyleColor(ImGuiCol.Text, s_errorColor);
             ImGui.TextWrapped($"Config has errors. Press GenericComputerConfig button.");
             ImGui.PopStyleColor();
         }

@@ -3,7 +3,6 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Systems.Generic;
 
-
 public class GenericComputerBuilder
 {
     private readonly GenericComputer _genericComputer;

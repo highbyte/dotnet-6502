@@ -5,9 +5,9 @@ namespace Highbyte.DotNet6502.Systems;
 public class SystemRunner
 {
     private readonly ISystem _system;
-    private IRenderer _renderer;
-    private IInputHandler _inputHandler;
-    private IAudioHandler _audioHandler;
+    private IRenderer _renderer = default!;
+    private IInputHandler _inputHandler = default!;
+    private IAudioHandler _audioHandler = default!;
 
     public ISystem System => _system;
     public IRenderer Renderer { get => _renderer; set => _renderer = value; }

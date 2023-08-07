@@ -154,6 +154,7 @@ public static class Petscii
             >= 160 and <= 191 => screenCode - 128,
             >= 192 and <= 223 => screenCode - 64,
             >= 224 and <= 254 => screenCode - 64,
+            _ => throw new NotImplementedException(),
         };
         return (byte)petsciiCode;
     }
@@ -161,13 +162,17 @@ public static class Petscii
     public static byte PetscIIToAscII(byte petsciiCode)
     {
         // Ref: https://thec64community.online/thread/77/petscii-ascii-tool?page=1&scrollTo=438
-        byte asciiCode;
+        byte asciiCode = default!;
         // If the PETSCII character is A-Z, make it a-z (PETSCII 97-122, subtract 32)
         if (petsciiCode >= 97 && petsciiCode <= 122)
+        {
             asciiCode = (byte)(petsciiCode - 32);
+        }
         // If the PETSCII character is a-z, make it A-Z (PETSCII 65-90, add 32)
         else if (petsciiCode >= 65 && petsciiCode <= 90)
+        {
             asciiCode = (byte)(petsciiCode + 32);
+        }
         // If the PETSCII character is 192-223, subtract 96. Then subtract 32 if the resultant value is 97-122.                    
         else if (petsciiCode >= 192 && petsciiCode <= 223)
         {
@@ -176,8 +181,10 @@ public static class Petscii
                 asciiCode = (byte)(asciiCode - 32);
         }
         else
+        {
             asciiCode = petsciiCode;
+        }
+
         return asciiCode;
     }
-
 }

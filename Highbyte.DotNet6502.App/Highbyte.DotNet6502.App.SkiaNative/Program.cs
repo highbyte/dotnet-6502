@@ -40,7 +40,6 @@ var emulatorConfig = new EmulatorConfig
 };
 emulatorConfig.Validate(systemList);
 
-
 // ----------
 // Silk.NET Window
 // ----------

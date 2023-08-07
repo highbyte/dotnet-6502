@@ -10,18 +10,19 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.AspNetCore.Components.Forms;
+using Blazored.LocalStorage;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
 public partial class Index
 {
-    //public string Version => typeof(Program).Assembly.GetName().Version!.ToString();
-    public string Version => Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
+    //private string Version => typeof(Program).Assembly.GetName().Version!.ToString();
+    private string Version => Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
 
-    private BrowserContext _browserContext;
+    private BrowserContext _browserContext = default!;
 
-    //private AudioContext _audioContext;
-    private AudioContextSync _audioContext;
+    private AudioContextSync _audioContext = default!;
 
     public enum EmulatorState
     {
@@ -29,37 +30,17 @@ public partial class Index
         Running,
         Paused
     }
+    public EmulatorState CurrentEmulatorState { get; private set; } = EmulatorState.Uninitialized;
 
-    private EmulatorState _emulatorState = EmulatorState.Uninitialized;
-    public EmulatorState CurrentEmulatorState => _emulatorState;
-
-    private string _selectedSystemName;
-    public string SelectedSystemName
-    {
-        get
-        {
-            return _selectedSystemName;
-        }
-        set
-        {
-            _selectedSystemName = value;
-        }
-    }
+    private string _selectedSystemName = default!;
 
     private bool IsSelectedSystemConfigOk => string.IsNullOrEmpty(_selectedSystemConfigValidationMessage);
-
     private string _selectedSystemConfigValidationMessage = "";
-    public string GetSelectedSystemConfigValidationMessage()
-    {
-        if (string.IsNullOrEmpty(_selectedSystemConfigValidationMessage))
-            return "";
-        return _selectedSystemConfigValidationMessage;
-    }
 
-    private ISystemConfig? _currentConfig;
+    private ISystemConfig _currentConfig = default!;
     private bool AudioEnabledToggleDisabled => (
             (!(_currentConfig?.AudioSupported ?? true)) ||
-            (_emulatorState == EmulatorState.Running || _emulatorState == EmulatorState.Paused)
+            (CurrentEmulatorState == EmulatorState.Running || CurrentEmulatorState == EmulatorState.Paused)
         );
 
     private bool AudioEnabled
@@ -70,12 +51,12 @@ public partial class Index
         }
         set
         {
-            _currentConfig!.AudioEnabled = value;
+            _currentConfig.AudioEnabled = value;
         }
     }
 
     private float _masterVolumePercent = 10.0f;
-    public float MasterVolumePercent
+    private float MasterVolumePercent
     {
         get
         {
@@ -102,14 +83,12 @@ public partial class Index
         }
     }
 
-    protected SKGLView? _emulatorSKGLViewRef;
-    protected ElementReference? _mainRef;
-    protected ElementReference? _monitorInputRef;
+    private ElementReference _monitorInputRef = default!;
 
-    private MonitorConfig _monitorConfig;
-    private SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
-    private WasmHost? _wasmHost;
-    public WasmHost? WasmHost => _wasmHost;
+    private MonitorConfig _monitorConfig = default!;
+    private SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList = default!;
+    private WasmHost? _wasmHost = default!;
+    public WasmHost WasmHost => _wasmHost!;
 
     private string _statsString = "Stats: calculating...";
     private string _debugString = "";
@@ -123,8 +102,8 @@ public partial class Index
     private bool _debugVisible = false;
     private bool _monitorVisible = false;
 
-
-
+    [Inject]
+    public IJSRuntime? Js { get; set; }
 
     [Inject]
     public HttpClient? HttpClient { get; set; }
@@ -132,13 +111,16 @@ public partial class Index
     [Inject]
     public NavigationManager? NavManager { get; set; }
 
+    [Inject]
+    public ILocalStorageService? LocalStorage { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         _browserContext = new()
         {
             Uri = NavManager!.ToAbsoluteUri(NavManager.Uri),
             HttpClient = HttpClient!,
-            LocalStorage = _localStorage
+            LocalStorage = LocalStorage!
         };
 
         _monitorConfig = new()
@@ -165,8 +147,8 @@ public partial class Index
             genericComputerSetup.PersistConfig);
 
         // Default system
-        SelectedSystemName = C64.SystemName;
-        await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = SelectedSystemName });
+        _selectedSystemName = C64.SystemName;
+        await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = _selectedSystemName });
 
         await SetDefaultsFromQueryParams(_browserContext.Uri);
     }
@@ -178,8 +160,8 @@ public partial class Index
             var systemNameParsed = systemName.ToString();
             if (systemNameParsed is not null && _systemList.Systems.Contains(systemNameParsed))
             {
-                SelectedSystemName = systemNameParsed;
-                await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = SelectedSystemName });
+                _selectedSystemName = systemNameParsed;
+                await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = _selectedSystemName });
             }
         }
 
@@ -196,7 +178,7 @@ public partial class Index
     {
         if (firstRender)
         {
-            _audioContext = await AudioContextSync.CreateAsync(Js);
+            _audioContext = await AudioContextSync.CreateAsync(Js!);
         }
     }
 
@@ -247,8 +229,8 @@ public partial class Index
 
     private async Task InitEmulator()
     {
-        _wasmHost = new WasmHost(Js, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale, MasterVolumePercent);
-        _emulatorState = EmulatorState.Paused;
+        _wasmHost = new WasmHost(Js!, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale, MasterVolumePercent);
+        CurrentEmulatorState = EmulatorState.Paused;
     }
 
     private async Task CleanupEmulator()
@@ -256,15 +238,15 @@ public partial class Index
         _debugVisible = false;
         await _wasmHost!.Monitor.Disable();
 
-        _emulatorState = EmulatorState.Paused;
+        CurrentEmulatorState = EmulatorState.Paused;
         _wasmHost?.Cleanup();
         _wasmHost = null;
-        _emulatorState = EmulatorState.Uninitialized;
+        CurrentEmulatorState = EmulatorState.Uninitialized;
     }
 
     protected async void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
     {
-        if (_emulatorState != EmulatorState.Running)
+        if (CurrentEmulatorState != EmulatorState.Running)
             return;
 
         if (!(e.Surface.Context is GRContext grContext && grContext != null))
@@ -275,10 +257,10 @@ public partial class Index
 
         if (!_wasmHost.Initialized)
         {
-            await _wasmHost.Init(e.Surface.Canvas, grContext, _audioContext, Js);
+            await _wasmHost.Init(e.Surface.Canvas, grContext, _audioContext, Js!);
         }
 
-        //_emulatorRenderer!.SetSize(e.Info.Width, e.Info.Height);
+        //_emulatorRenderer.SetSize(e.Info.Width, e.Info.Height);
         //if (e.Surface.Context is GRContext context && context != null)
         //{
         //    // If we draw our own images (not directly on the canvas provided), make sure it's within the same contxt
@@ -356,26 +338,26 @@ public partial class Index
         }
     }
 
-    protected void UpdateStats(string stats)
+    private void UpdateStats(string stats)
     {
         _statsString = stats;
         this.StateHasChanged();
     }
 
-    protected void UpdateDebug(string debug)
+    private void UpdateDebug(string debug)
     {
         _debugString = debug;
         this.StateHasChanged();
     }
 
-    protected async Task ToggleDebugStatsState()
+    private async Task ToggleDebugStatsState()
     {
         _debugVisible = !_debugVisible;
         await FocusEmulator();
         this.StateHasChanged();
     }
 
-    protected async Task SetMonitorState(bool visible)
+    private async Task SetMonitorState(bool visible)
     {
         _monitorVisible = visible;
         if (visible)
@@ -439,5 +421,214 @@ public partial class Index
                 return;
             _wasmHost.Monitor.Status = value;
         }
+    }
+
+    private string GetDisplayStyle(string displayData)
+    {
+        const string VISIBLE = "inline";
+        const string VISIBLE_BLOCK = "inline-block";
+        const string HIDDEN = "none";
+
+        switch (displayData)
+        {
+            case "Canvas":
+            {
+                return CurrentEmulatorState != EmulatorState.Uninitialized ? VISIBLE : HIDDEN;
+            }
+            case "CanvasUninitialized":
+            {
+                return CurrentEmulatorState == EmulatorState.Uninitialized ? VISIBLE_BLOCK : HIDDEN;
+            }
+            case "Debug":
+            {
+                return _debugVisible ? VISIBLE : HIDDEN;
+            }
+            case "Monitor":
+            {
+                return _monitorVisible ? VISIBLE : HIDDEN;
+            }
+            case "AudioVolume":
+            {
+                return (_currentConfig?.AudioEnabled ?? false) ? VISIBLE : HIDDEN;
+            }
+            default:
+                return VISIBLE;
+        }
+    }
+
+    public string GetSystemVisibilityDisplayStyle(string displayData, string systemName)
+    {
+        const string VISIBLE = "inline";
+        const string VISIBLE_BLOCK = "inline-block";
+        const string HIDDEN = "none";
+
+        switch (displayData)
+        {
+            case "Commands":
+            {
+                return _selectedSystemName == systemName ? VISIBLE : HIDDEN;
+            }
+            case "Help":
+            {
+                return _selectedSystemName == systemName ? VISIBLE : HIDDEN;
+            }
+            case "Config":
+            {
+                return _selectedSystemName == systemName ? VISIBLE : HIDDEN;
+            }
+            default:
+                return VISIBLE;
+        }
+    }
+
+    private bool OnSelectSystemNameDisabled => CurrentEmulatorState == EmulatorState.Running || CurrentEmulatorState == EmulatorState.Paused;
+    private bool OnStartDisabled => CurrentEmulatorState == EmulatorState.Running || !IsSelectedSystemConfigOk;
+    private bool OnPauseDisabled => CurrentEmulatorState == EmulatorState.Paused || CurrentEmulatorState == EmulatorState.Uninitialized;
+    private bool OnResetDisabled => CurrentEmulatorState == EmulatorState.Uninitialized;
+    private bool OnStopDisabled => CurrentEmulatorState == EmulatorState.Uninitialized;
+
+    public async Task OnStart(MouseEventArgs mouseEventArgs)
+    {
+        if (CurrentEmulatorState == EmulatorState.Uninitialized)
+        {
+            bool isOk = await _systemList.IsValidConfig(_selectedSystemName);
+            if (!isOk)
+                return;
+
+            await InitEmulator();
+        }
+
+        _wasmHost.Start();
+        CurrentEmulatorState = EmulatorState.Running;
+        await FocusEmulator();
+
+        this.StateHasChanged();
+    }
+    public async Task OnPause(MouseEventArgs mouseEventArgs)
+    {
+        if (CurrentEmulatorState == EmulatorState.Uninitialized)
+            return;
+
+        _wasmHost!.Stop();
+        CurrentEmulatorState = EmulatorState.Paused;
+        this.StateHasChanged();
+    }
+    public async Task OnReset(MouseEventArgs mouseEventArgs)
+    {
+        await OnPause(mouseEventArgs);
+        await OnStop(mouseEventArgs);
+        await OnStart(mouseEventArgs);
+    }
+    public async Task OnStop(MouseEventArgs mouseEventArgs)
+    {
+        await CleanupEmulator();
+        this.StateHasChanged();
+    }
+    private async Task OnMonitorToggle(MouseEventArgs mouseEventArgs)
+    {
+        await _wasmHost!.ToggleMonitor();
+        this.StateHasChanged();
+    }
+
+    private async Task OnStatsToggle(MouseEventArgs mouseEventArgs)
+    {
+        await ToggleDebugStatsState();
+    }
+
+
+    private void OnKeyPress(KeyboardEventArgs e)
+    {
+        if (_wasmHost == null)
+            return;
+        _wasmHost.InputHandlerContext.KeyPress(e);
+
+        // Emulator host functions such as monitor and stats/debug
+        _wasmHost.OnKeyPress(e);
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (_wasmHost == null)
+            return;
+        _wasmHost.InputHandlerContext.KeyDown(e);
+
+        // Emulator host functions such as monitor and stats/debug
+        _wasmHost.OnKeyDown(e);
+    }
+
+    private void OnKeyUp(KeyboardEventArgs e)
+    {
+        if (_wasmHost == null)
+            return;
+        _wasmHost.InputHandlerContext.KeyUp(e);
+    }
+
+    //private void OnPointerDown(PointerEventArgs e)
+    //{
+    //}
+
+    //private void OnPointerMove(PointerEventArgs e)
+    //{
+    //}
+
+    //private void OnPointerUp(PointerEventArgs e)
+    //{
+    //}
+
+    //private void OnTouchMove(TouchEventArgs e)
+    //{
+    //}
+
+    //private void OnMouseWheel(WheelEventArgs e)
+    //{
+    //}
+
+    private void OnKeyDownMonitor(KeyboardEventArgs e)
+    {
+        if (_wasmHost == null || _wasmHost.Monitor == null)
+            return;
+        _wasmHost.Monitor.OnKeyDown(e);
+    }
+
+    private void OnKeyUpMonitor(KeyboardEventArgs e)
+    {
+        if (_wasmHost == null || _wasmHost.Monitor == null)
+            return;
+        _wasmHost.Monitor.OnKeyUp(e);
+    }
+
+    private async Task FocusEmulator()
+    {
+        await Js!.InvokeVoidAsync("focusId", "emulatorSKGLView", 100);  // Hack: Delay of x ms for focus to work.
+    }
+
+    private async Task FocusMonitor()
+    {
+        await Task.Run(async () => await _monitorInputRef.FocusAsync());    // Task.Run fix for focusing on a element that is not yet visible (but about to be)
+                                                                                   //await _monitorInputRef.FocusAsync();
+    }
+
+    /// <summary>
+    /// Callback from monitor when user has selected a file to load
+    /// </summary>
+    /// <param name="e"></param>
+    /// <returns></returns>
+    private async Task OnMonitorFilePickerChange(InputFileChangeEventArgs e)
+    {
+        if (_wasmHost == null || _wasmHost.Monitor == null)
+            return;
+
+        // Only expect one file
+        if (e.FileCount > 1)
+            return;
+        var file = e.File;
+        System.Diagnostics.Debug.WriteLine($"File picked: {file.Name} Size: {file.Size}");
+
+        var fileBuffer = new byte[file.Size];
+        //var fileStream = e.File.OpenReadStream(file.Size);
+        await file.OpenReadStream().ReadAsync(fileBuffer);
+        var fileSize = fileBuffer.Length;
+
+        _wasmHost.Monitor.LoadBinaryFromUser(fileBuffer);
     }
 }

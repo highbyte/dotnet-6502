@@ -125,7 +125,7 @@ public class InstructionExecutor
             if (addrModeCalcResult.InsAddress.HasValue)
                 instructionValue = cpu.FetchByte(mem, addrModeCalcResult.InsAddress.Value);
             else
-                instructionValue = addrModeCalcResult.InsValue.Value;
+                instructionValue = addrModeCalcResult.InsValue!.Value;
 
             extraCyclesConsumed = instructionUsesByte.ExecuteWithByte(cpu, mem, instructionValue, addrModeCalcResult);
         }
@@ -145,7 +145,7 @@ public class InstructionExecutor
         }
         else
         {
-            throw new DotNet6502Exception($"Bug detected. Did not find a way to execute instruction: {instruction.Name} opcode: {opCode.ToHex()}"); 
+            throw new DotNet6502Exception($"Bug detected. Did not find a way to execute instruction: {instruction.Name} opcode: {opCode.ToHex()}");
         }
 
         return InstructionExecResult.KnownInstructionResult(opCode, atPC, opCodeObject.MinimumCycles + extraCyclesConsumed);

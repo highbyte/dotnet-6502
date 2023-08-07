@@ -15,29 +15,28 @@ public class C64 : ISystem, ISystemMonitor
     public string Name => SystemName;
     public List<string> SystemInfo => BuildSystemInfo();
 
-    public C64ModelBase Model { get; private set; }
+    public C64ModelBase Model { get; private set; } = default!;
 
     public float CpuFrequencyHz => Model.CPUFrequencyHz;
-    public CPU CPU { get; set; }
-    public Memory Mem { get; set; }
-    public IScreen Screen => Vic2.Vic2Screen;
+    public CPU CPU { get; set; } = default!;
+    public Memory Mem { get; set; } = default!;
+    public IScreen Screen => Vic2.Vic2Screen!;
 
-    public byte[] RAM { get; set; }
-    public byte[] IO { get; set; }
+    public byte[] RAM { get; set; } = default!;
+    public byte[] IO { get; set; } = default!;
     public byte CurrentBank { get; set; }
-    public Vic2 Vic2 { get; set; }
-    public Cia Cia { get; set; }
-    public C64Keyboard Keyboard { get; set; }
-    public Sid Sid { get; set; }
-    public Dictionary<string, byte[]> ROMData { get; set; }
-
+    public Vic2 Vic2 { get; set; } = default!;
+    public Cia Cia { get; set; } = default!;
+    public C64Keyboard Keyboard { get; set; } = default!;
+    public Sid Sid { get; set; } = default!;
+    public Dictionary<string, byte[]> ROMData { get; set; } = default!;
 
     public bool AudioEnabled { get; private set; }
     public TimerMode TimerMode { get; private set; }
 
-    public string ColorMapName { get; private set; }
+    public string ColorMapName { get; private set; } = default!;
 
-    private C64MonitorCommands _c64MonitorCommands = new C64MonitorCommands();
+    private readonly C64MonitorCommands _c64MonitorCommands = new C64MonitorCommands();
 
     public const ushort BASIC_LOAD_ADDRESS = 0x0801;
 
@@ -78,8 +77,6 @@ public class C64 : ISystem, ISystemMonitor
                 return execEvaluatorTriggerResult;
             }
         }
-
-
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }

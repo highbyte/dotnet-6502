@@ -55,7 +55,7 @@ public static class FileCommands
 
             var fileName = cmd.Argument("filename", "Name of the binary file.")
                 .IsRequired();
-                //.Accepts(v => v.ExistingFile());  // Check file is done in LoadBinary(...) implementation
+            //.Accepts(v => v.ExistingFile());  // Check file is done in LoadBinary(...) implementation
 
             var address = cmd.Argument("address", "Memory address (hex) to load the file into. If not specified, it's assumed the first two bytes of the file contains the load address.");
             address.Validators.Add(new MustBe16BitHexValueValidator());
@@ -74,7 +74,7 @@ public static class FileCommands
                 else
                     forceLoadAtAddress = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
 
-                bool loaded = monitor.LoadBinary(fileName.Value, out var loadedAtAddress, out var fileLength, forceLoadAddress: forceLoadAtAddress);
+                bool loaded = monitor.LoadBinary(fileName.Value!, out var loadedAtAddress, out var fileLength, forceLoadAddress: forceLoadAtAddress);
                 if (!loaded)
                 {
                     // If file could not be loaded, probably because it's not supported/implemented by the derived class.
@@ -88,7 +88,6 @@ public static class FileCommands
 
             });
         });
-
 
         app.Command("s", cmd =>
         {
@@ -117,13 +116,13 @@ public static class FileCommands
 
             cmd.OnExecute(() =>
             {
-                ushort startAddressValue = ushort.Parse(startAddress.Value, NumberStyles.AllowHexSpecifier, null);
-                ushort endAddressValue = ushort.Parse(endAddress.Value, NumberStyles.AllowHexSpecifier, null);
+                ushort startAddressValue = ushort.Parse(startAddress.Value!, NumberStyles.AllowHexSpecifier, null);
+                ushort endAddressValue = ushort.Parse(endAddress.Value!, NumberStyles.AllowHexSpecifier, null);
 
                 bool addFileHeaderWithLoadAddress = string.IsNullOrEmpty(addFileHeader.Value)
                                                     || (addFileHeader.Value.ToLower() == "y" && addFileHeader.Value.ToLower() == "yes");
 
-                monitor.SaveBinary(fileName.Value, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress);
+                monitor.SaveBinary(fileName.Value!, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress);
 
                 return (int)CommandResult.Ok;
             });

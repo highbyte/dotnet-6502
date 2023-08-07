@@ -1,7 +1,7 @@
 using Highbyte.DotNet6502.Impl.AspNet;
-using Highbyte.DotNet6502.Impl.AspNet.Generic;
+using Highbyte.DotNet6502.Impl.AspNet.Generic.Input;
 using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Impl.Skia.Generic;
+using Highbyte.DotNet6502.Impl.Skia.Generic.Video;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
@@ -111,7 +111,6 @@ public class GenericComputerSetup
             .Build();
         return systemRunner;
     }
-
 
     private (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) GetScreenSize(Uri uri)
     {
