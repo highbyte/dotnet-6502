@@ -63,5 +63,5 @@ jobs:
           # token: ${{ secrets.ACCESS_TOKEN }} # Use if custom token needed to another repo
           branch: ${{ env.GH_PAGES_BRANCH_NAME }}  # The branch the action should deploy to.
           folder: ${{ env.GH_PAGES_WORKING_DIR }} # The folder the action should deploy.
-          #target-folder: blazorexample #If not specified, the contents for folder above is copied to the root of the GH pages branch.
+          #target-folder: app #If not specified, the contents for folder above is copied to the root of the GH pages branch.
           single-commit: true

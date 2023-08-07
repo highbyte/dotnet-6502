@@ -5,7 +5,7 @@
 
 <img src="../Examples/Screenshots/SkiaWASM_Monitor.png" width="100%" height="100%" title="SkiaSharp rendering in a Blazor WASM browser host">
 
-A deployed version can be found here [https://highbyte.se/dotnet-6502/blazorexample](https://highbyte.se/dotnet-6502/blazorexample)
+A deployed version can be found here [https://highbyte.se/dotnet-6502/app](https://highbyte.se/dotnet-6502/app)
 
 # Features
 A web app written in Blazor WASM (Web Assembly), using [```SkiaSharp.Views.Blazor```](https://www.nuget.org/packages/SkiaSharp.Views.Blazor) library to provide a Canvas for drawing on with main [```SkiaSharp```](https://www.nuget.org/packages/SkiaSharp) library.
