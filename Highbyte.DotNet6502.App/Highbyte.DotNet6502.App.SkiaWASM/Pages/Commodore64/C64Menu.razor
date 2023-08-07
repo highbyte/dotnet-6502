@@ -77,7 +77,6 @@
     public string SelectedBasicExample { get; set; }
 
     private bool _wasRunningBeforeFileDialog = false;
-    private bool _startBinaryFileAfterLoad = false;
 
     private async Task ShowConfigUI() => await Parent.ShowConfigUI<C64ConfigUI>();
 
@@ -97,9 +96,7 @@
     /// <returns></returns>
     private async Task OnFilePicker(MouseEventArgs mouseEventArgs)
     {
-        await Parent.OnPause(mouseEventArgs);
-        _startBinaryFileAfterLoad = true;
-        Js.InvokeVoidAsync("clickId", "filePicker");
+        await Js.InvokeVoidAsync("clickId", "filePicker");
     }
 
     /// <summary>
@@ -135,11 +132,8 @@
 
         System.Diagnostics.Debug.WriteLine($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
 
-        if (_startBinaryFileAfterLoad)
-        {
-            System.Diagnostics.Debug.WriteLine($"Starting loaded program by changing Program Counter to {loadedAtAddress.ToHex()}");
-            Parent.WasmHost.SystemRunner.System.CPU.PC = loadedAtAddress;
-        }
+        System.Diagnostics.Debug.WriteLine($"Starting loaded program by changing Program Counter to {loadedAtAddress.ToHex()}");
+        Parent.WasmHost.SystemRunner.System.CPU.PC = loadedAtAddress;
 
         await Parent.OnStart(new());
     }
@@ -151,8 +145,7 @@
     private async Task OnBasicFilePicker(MouseEventArgs mouseEventArgs)
     {
         _wasRunningBeforeFileDialog = Parent.CurrentEmulatorState == EmulatorState.Running;
-        await Parent.OnPause(mouseEventArgs);
-        Js.InvokeVoidAsync("clickId", "filePickerBasic");
+        await Js.InvokeVoidAsync("clickId", "filePickerBasic");
     }
 
     /// <summary>
@@ -246,7 +239,7 @@
 
         await Parent.OnPause(new());
 
-        var prgBytes = await HttpClient.GetByteArrayAsync(url);
+        var prgBytes = await HttpClient!.GetByteArrayAsync(url);
         // Load file into memory, assume starting at address specified in two first bytes of .prg file
         BinaryLoader.Load(
             Parent.WasmHost.SystemRunner.System.Mem,
@@ -275,7 +268,7 @@
 
         await Parent.OnPause(new());
 
-        var prgBytes = await HttpClient.GetByteArrayAsync(url);
+        var prgBytes = await HttpClient!.GetByteArrayAsync(url);
 
         // Load file into memory, assume starting at address specified in two first bytes of .prg file
         BinaryLoader.Load(

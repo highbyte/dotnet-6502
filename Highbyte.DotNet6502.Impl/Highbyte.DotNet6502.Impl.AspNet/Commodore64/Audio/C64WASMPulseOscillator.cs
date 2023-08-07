@@ -106,7 +106,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void Disconnect()
         {
             if (PulseOscillator == null)
-                throw new Exception($"PulseOscillator is null. Call Create() first.");
+                return;
             PulseOscillator!.Disconnect();
         }
 

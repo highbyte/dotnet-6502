@@ -67,7 +67,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void Disconnect()
         {
             if (SawToothOscillator == null)
-                throw new Exception($"SawToothOscillator is null. Call Create() first.");
+                return;
             SawToothOscillator!.Disconnect();
         }
     }
