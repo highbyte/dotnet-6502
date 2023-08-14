@@ -5,6 +5,6 @@
 A generic computer, with configurable screen sizes and IO memory locations.
 
 # Implementation
-Class [```Highbyte.DotNet6502.Generic.GenericComputer```](Generic/GenericComputer.cs)
+Class [```Highbyte.DotNet6502.Generic.GenericComputer```](../src/libraries/Highbyte.DotNet6502.Systems/Generic/GenericComputer.cs)
 
 TODO

@@ -2,12 +2,15 @@
 
 # Overview
 
-A partial implementation of a Commodore 64, with just about much functionality to be able to run Commodore Basic 2.0 from ROM
+A partial implementation of a Commodore 64.
 
-The user supplies binary ROM files for Kernal, Basic, and Chargen.
+Current capabilities
+- Run Commodore Basic 2.0 from ROM (user supplied Kernal, Basic, and Chargen ROM files) in text mode.
+- Limited VIC2 video (and timer) chip support (WASM and native)
+- Limited SID 6581 audio chip support (WASM and native)
 
 # Implementation
-Class [```Highbyte.DotNet6502.Systems.Commodore64.C64```](Commodore64/C64.cs)
+Class [```Highbyte.DotNet6502.Systems.Commodore64.C64```](../src/libraries/Highbyte.DotNet6502.Systems/Commodore64/C64.cs)
 
 TODO
 
