@@ -1,4 +1,4 @@
-name: .NET Blazor WASM app to GitHub Pages
+name: Publish .NET Blazor WASM app to GitHub Pages
 
 on:
 #  push:

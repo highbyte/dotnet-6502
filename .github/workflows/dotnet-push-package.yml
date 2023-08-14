@@ -1,4 +1,4 @@
-name: .NET build & push package
+name: Build & push .NET library
 
 on:
   # Triggers the workflow on push for the master branch
