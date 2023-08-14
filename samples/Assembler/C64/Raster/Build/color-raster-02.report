@@ -1,0 +1,77 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\samples\Assembler\C64\Raster\color-raster-02.asm
+     1                          ; Example by https://github.com/wizofwor/
+     2                          ; Below code copied from :https://github.com/wizofwor/C64-assembly-examples/blob/master/tutorials/raster-effects/color-bar-02.asm
+     3                          
+     4                          
+     5                          ;!to "build/color-raster-02.prg",cbm
+     6                          
+     7                          ; * = $0801                               ; BASIC start address (#2049)
+     8                          ; !byte $0d,$08,$dc,$07,$9e,$20,$34,$39   ; BASIC loader to start at $c000...
+     9                          ; !byte $31,$35,$32,$00,$00,$00           ; puts BASIC line 2012 SYS 49152
+    10                          
+    11                          * = $c000
+    12                          COUNTER	= $02
+    13                          
+    14  c000 78                 	sei
+    15                          main	
+    16  c001 a602               	ldx COUNTER		
+    17  c003 bd47c0             	lda sinusTable,x	;Grab new rasterline value  
+    18                          rasterwait
+    19  c006 cd12d0             	cmp $D012			;from the table and wait
+    20  c009 d0fb                   bne rasterwait		;for raster the line
+    21                          
+    22  c00b a00a               	ldy #10				;Loose time to hide the
+    23                          idle1	
+    24  c00d 88                 	dey					;flickering at the beginning 
+    25  c00e d0fd               	bne idle1			;of the effect
+    26                          
+    27                          ;------------------------------------------------------------------
+    28                          ; Main Loop to print raster bars
+    29                          ;------------------------------------------------------------------
+    30  c010 a200               	ldx #00		
+    31                          loop	
+    32  c012 bd35c0             	lda colorTable,x	;assign background and border
+    33  c015 8d20d0                	sta $d020			;colors
+    34  c018 8d21d0             	sta $d021
+    35                          
+    36  c01b bc3ec0             	ldy delayTable,x	;Loose time to hide the
+    37                          idle2	
+    38  c01e 88                 	dey					;flickering at the end
+    39  c01f d0fd               	bne idle2			;of the effect
+    40                          
+    41                          
+    42  c021 e8                 	inx 		
+    43  c022 e009               	cpx #09
+    44  c024 d0ec               	bne loop
+    45                          ;------------------------------------------------------------------
+    46                          ; End of main loop
+    47                          ;------------------------------------------------------------------
+    48                          
+    49  c026 a90e               	lda #$0e			;Assign default colors
+    50  c028 8d20d0             	sta $d020
+    51  c02b a906               	lda #$06
+    52  c02d 8d21d0             	sta $d021
+    53                          	
+    54  c030 e602               	inc COUNTER
+    55  c032 4c01c0             	JMP main
+    56                          
+    57                          colorTable:
+    58  c035 09080c0d010d0c08...!by 09,08,12,13,01,13,12,08,09
+    59                          
+    60                          delayTable:
+    61  c03e 080809080c080808...!by 08,08,09,08,12,08,08,08,09
+    62                          
+    63                          sinusTable:
+    64  c047 8c8f9194979a9c9f...!by 140,143,145,148,151,154,156,159,162,164,167,169,172,175,177,180,182,185,187,190
+    65  c05b c0c2c5c7c9ccced0...!by 192,194,197,199,201,204,206,208,210,212,214,216,218,220,222,224,225,227,229,230
+    66  c06f e8e9ebecedeef0f1...!by 232,233,235,236,237,238,240,241,242,243,244,245,245,246,247,247,248,248,249,249
+    67  c083 fafafafafafafafa...!by 250,250,250,250,250,250,250,250,249,249,249,248,248,247,247,246,245,244,243,242
+    68  c097 f1f0efeeedebeae8...!by 241,240,239,238,237,235,234,232,231,229,228,226,224,223,221,219,217,215,213,211
+    69  c0ab d1cfcdcac8c6c4c1...!by 209,207,205,202,200,198,196,193,191,188,186,183,181,178,176,173,171,168,166,163
+    70  c0bf a09e9b989593908d...!by 160,158,155,152,149,147,144,141,139,136,133,131,128,125,122,120,117,114,112,109
+    71  c0d3 6b686663615e5c59...!by 107,104,102,99,97,94,92,89,87,84,82,80,78,75,73,71,69,67,65,63
+    72  c0e7 3d3b393836343331...!by 61,59,57,56,54,52,51,49,48,46,45,43,42,41,40,39,38,37,36,35
+    73  c0fb 22212120201f1f1f...!by 34,33,33,32,32,31,31,31,30,30,30,30,30,30,30,30,31,31,32,32
+    74  c10f 2121222323242526...!by 33,33,34,35,35,36,37,38,39,40,42,43,44,45,47,48,50,51,53,55
+    75  c123 383a3c3e40424446...!by 56,58,60,62,64,66,68,70,72,74,76,79,81,83,86,88,90,93,95,98

@@ -8,13 +8,13 @@ on:
   workflow_dispatch:
   
 env:
-   PROJECT_FILE: "Highbyte.DotNet6502/Highbyte.DotNet6502.csproj"
-  #  PROJECT_FILE2: "Highbyte.DotNet6502.Systems/Highbyte.DotNet6502.Systems.csproj"
-  #  PROJECT_FILE3: "Highbyte.DotNet6502.Monitor/Highbyte.DotNet6502.Monitor.csproj"
-  #  PROJECT_FILE4: "Highbyte.DotNet6502.Impl.SadConsole/Highbyte.DotNet6502.Impl.SadConsole.csproj"
-  #  PROJECT_FILE5: "Highbyte.DotNet6502.Impl.AspNet/Highbyte.DotNet6502.Impl.AspNet.csproj"
-  #  PROJECT_FILE6: "Highbyte.DotNet6502.Impl.SilkNet/Highbyte.DotNet6502.Impl.SilkNet.csproj"
-  #  PROJECT_FILE7: "Highbyte.DotNet6502.Impl.Skia/Highbyte.DotNet6502.Impl.Skia.csproj"
+   PROJECT_FILE: "src/libraries/Highbyte.DotNet6502/Highbyte.DotNet6502.csproj"
+  #  PROJECT_FILE2: "src/libraries/Highbyte.DotNet6502.Systems/Highbyte.DotNet6502.Systems.csproj"
+  #  PROJECT_FILE3: "src/libraries/Highbyte.DotNet6502.Monitor/Highbyte.DotNet6502.Monitor.csproj"
+  #  PROJECT_FILE4: "src/libraries/Highbyte.DotNet6502.Impl.SadConsole/Highbyte.DotNet6502.Impl.SadConsole.csproj"
+  #  PROJECT_FILE5: "src/libraries/Highbyte.DotNet6502.Impl.AspNet/Highbyte.DotNet6502.Impl.AspNet.csproj"
+  #  PROJECT_FILE6: "src/libraries/Highbyte.DotNet6502.Impl.SilkNet/Highbyte.DotNet6502.Impl.SilkNet.csproj"
+  #  PROJECT_FILE7: "src/libraries/Highbyte.DotNet6502.Impl.Skia/Highbyte.DotNet6502.Impl.Skia.csproj"
    CONFIGURATION: "Release"
    VERSION: "0.8.0"  #Major.Minor[.Rev]
    VERSION_SUFFIX: "-alpha"

@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Impl.NAudio\Highbyte.DotNet6502.Impl.NAudio.csproj" />
+    <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+    <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj" />
+    <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Impl.Skia\Highbyte.DotNet6502.Impl.Skia.csproj" />
+    <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Impl.SilkNet\Highbyte.DotNet6502.Impl.SilkNet.csproj" />
+    <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NativeFileDialogSharp" Version="0.5.0" />
+    <PackageReference Include="Silk.NET.Input" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.Windowing" Version="2.17.1" />
+    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.17.1" />
+  </ItemGroup>
+
+</Project>

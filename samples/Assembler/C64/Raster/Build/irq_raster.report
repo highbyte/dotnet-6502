@@ -1,0 +1,119 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\samples\Assembler\C64\Raster\irq_raster.asm
+     1                          ;ACME assembler
+     2                          ;!to "./irq_raster.prg"
+     3                          
+     4                          ;code start address
+     5                          * = $c000
+     6                          
+     7                          ;------------------------------------------------------------
+     8                          ;Program settings
+     9                          ;------------------------------------------------------------
+    10                          
+    11                          WAIT_LINE1 = 51;
+    12                          
+    13                          BORDER_COLOR_AFTER_VBLANK = $07;
+    14                          BORDER_COLOR_BAR = $09;
+    15                          BORDER_COLOR_AFTER_BAR = $08;
+    16                          
+    17                          ;Bit 8 (highest bit) of the current video scan line is stored in bit #7 in this register
+    18                          SCREEN_CONTROL_REGISTER_1 = 0xd011
+    19                          ;Bits 0-7 the current video scan line bit
+    20                          SCREEN_RASTER_LINE = 0xd012
+    21                          ;Border color address
+    22                          SCREEN_BORDER_COLOR_ADDRESS = 0xd020
+    23                          ;Bg color address for entire screen
+    24                          SCREEN_BACKGROUND_COLOR_ADDRESS = 0xd021
+    25                          
+    26                          NEXT_IRQ_BORDER_COLOR = 0xfd	; Unused zero page address
+    27                          
+    28                          ;------------------------------------------------------------
+    29                          ;Code start
+    30                          ;------------------------------------------------------------
+    31                          
+    32                          !macro set_irq .irqhandler, .line, .color {
+    33                          
+    34                          	; Set next IRQ raster line
+    35                          	lda #<.line ; Bits 0-7 of current raster line
+    36                          	sta SCREEN_RASTER_LINE	; $d012
+    37                          	lda #>.line ; 8th bit of current raster line
+    38                          	cmp #0
+    39                          	beq .no_highbit
+    40                          	;Set bit 7 of $d011, which is the 8th bit of the current raster line
+    41                          	lda SCREEN_CONTROL_REGISTER_1 ; $d011
+    42                          	ora #128
+    43                          	sta SCREEN_CONTROL_REGISTER_1 ; $d011
+    44                          	jmp .irq_addr_cont
+    45                          .no_highbit:
+    46                          	;Clear bit 7 of $d011, which is the 8th bit of the current raster line
+    47                          	lda SCREEN_CONTROL_REGISTER_1 ; $d011
+    48                          	and #127
+    49                          	sta SCREEN_CONTROL_REGISTER_1 ; $d011
+    50                          .irq_addr_cont:
+    51                          
+    52                          	; The handler that will be called during the IRQ
+    53                          	lda #<.irqhandler
+    54                          	sta $0314
+    55                          	lda #>.irqhandler
+    56                          	sta $0315
+    57                          
+    58                          	; Color to be set during the IRQ
+    59                          	lda #.color
+    60                          	sta NEXT_IRQ_BORDER_COLOR
+    61                          }
+    62                          
+    63                          Init:
+    64  c000 78                 	SEI                  ; set interrupt bit, make the CPU ignore interrupt requests
+    65  c001 a97f               	LDA #%01111111       ; switch off interrupt signals from CIA-1
+    66  c003 8d0ddc             	STA $DC0D
+    67                          
+    68  c006 2d11d0             	AND $D011            ; clear most significant bit of VIC's raster register
+    69  c009 8d11d0             	STA $D011
+    70                          
+    71  c00c ad0ddc             	LDA $DC0D            ; acknowledge pending interrupts from CIA-1
+    72  c00f ad0ddd             	LDA $DD0D            ; acknowledge pending interrupts from CIA-2
+    73                          
+    74                          	; Setup first IRQ to raster line 0
+    75  c012 a9008d12d0a900c9...	+set_irq Irq1, 0, BORDER_COLOR_AFTER_VBLANK
+    76                          
+    77  c03e a901               	LDA #%00000001       ; enable raster interrupt signals from VIC
+    78  c040 8d1ad0             	STA $D01A
+    79                          
+    80  c043 58                 	CLI                  ; clear interrupt flag, allowing the CPU to respond to interrupt requests
+    81  c044 4c44c0             	JMP *
+    82                          
+    83                          Irq1:
+    84  c047 a5fd               	LDA NEXT_IRQ_BORDER_COLOR
+    85  c049 8d20d0             	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to yellow
+    86                          	;STA SCREEN_BACKGROUND_COLOR_ADDRESS       ; change background colour
+    87                          
+    88                          	; Setup second IRQ to raster line in the middle
+    89  c04c a9338d12d0a900c9...	+set_irq Irq2, WAIT_LINE1, BORDER_COLOR_BAR
+    90                          
+    91  c078 0e19d0             	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+    92                          
+    93  c07b 4c31ea             	JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.	
+    94                          
+    95                          Irq2:
+    96  c07e a5fd               	LDA NEXT_IRQ_BORDER_COLOR
+    97  c080 8d20d0             	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to brown
+    98                          	;STA SCREEN_BACKGROUND_COLOR_ADDRESS       ; change background colour
+    99                          
+   100                          	; Setup third IRQ to raster line a few lines after the middle
+   101  c083 a9368d12d0a900c9...	+set_irq Irq3, WAIT_LINE1+3, BORDER_COLOR_AFTER_BAR
+   102                          
+   103  c0af 0e19d0             	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+   104                          
+   105  c0b2 4c81ea             	JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc
+   106                          
+   107                          Irq3:
+   108  c0b5 a5fd               	LDA NEXT_IRQ_BORDER_COLOR
+   109  c0b7 8d20d0             	STA SCREEN_BORDER_COLOR_ADDRESS           ; change border colour to orange
+   110                          	;STA SCREEN_BACKGROUND_COLOR_ADDRESS       ; change background colour
+   111                          
+   112                          	; Setup IRQ back to first one
+   113  c0ba a9008d12d0a900c9...	+set_irq Irq1, 0, BORDER_COLOR_AFTER_VBLANK
+   114                          
+   115  c0e6 0e19d0             	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+   116                          
+   117  c0e9 4c81ea             	JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc

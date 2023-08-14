@@ -9,7 +9,7 @@
 
 ## A [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) emulator for .NET
 
-[<img align="top" src="Examples/Screenshots/SkiaWASM_C64.png" width="50%" height="50%" title="SkiaSharp rendering in a Blazor WASM browser host"/>](https://highbyte.se/dotnet-6502/app)<img align="top" src="Examples/Screenshots/SkiaNative_Monitor.png" width="50%" height="50%" title="SkiaSharp rendering in a native SkiaSharp/Silk.NET host">
+[<img align="top" src="doc/Screenshots/SkiaWASM_C64.png" width="50%" height="50%" title="SkiaSharp rendering in a Blazor WASM browser host"/>](https://highbyte.se/dotnet-6502/app)<img align="top" src="doc/Screenshots/SkiaNative_Monitor.png" width="50%" height="50%" title="SkiaSharp rendering in a native SkiaSharp/Silk.NET host">
 
 # Overview / purpose
 
@@ -17,15 +17,15 @@
 
 - **_A programming exercise, that may or may not turn into something more_**
 
-- A main library [```Highbyte.DotNet6502```](Highbyte.DotNet6502/CPU_LIBRARY.md) for executing 6502 machine code, not bound to any specific computer, and does not have any UI code.
+- A main library [```Highbyte.DotNet6502```](doc/CPU_LIBRARY.md) for executing 6502 machine code, not bound to any specific computer, and does not have any UI code.
 
-- A machine code monitor library [```Highbyte.DotNet6502.Monitor```](Highbyte.DotNet6502.Monitor/MONITOR.md) used as a base for specific UI implementations.
+- A machine code monitor library [```Highbyte.DotNet6502.Monitor```](doc/MONITOR.md) used as a base for specific UI implementations.
 
-- A library [```Highbyte.DotNet6502.Systems```](Highbyte.DotNet6502.Systems/SYSTEMS.md) containing implementations of specific computers ("Systems") that runs on a 6502 CPU.
+- A library [```Highbyte.DotNet6502.Systems```](doc/SYSTEMS.md) containing implementations of specific computers ("Systems") that runs on a 6502 CPU.
 
-- Several libraries [```Highbyte.DotNet6502.Impl.*```](Highbyte.DotNet6502.Impl/RENDER_INPUT_AUDIO.md) that implements rendering, input handling, and audio using different technologies (such as Skia, Blazor, SadConsole) per emulated System.
+- Several libraries [```Highbyte.DotNet6502.Impl.*```](doc/RENDER_INPUT_AUDIO.md) that implements rendering, input handling, and audio using different technologies (such as Skia, Blazor, SadConsole) per emulated System.
 
-- Several UI applications [```Highbyte.DotNet6502.Apps.*```](Highbyte.DotNet6502.App/APPS.md) that are the hosts for emulating the Systems above and their different rendering techniques.
+- Several UI applications [```Highbyte.DotNet6502.Apps.*```](doc/APPS.md) that are the hosts for emulating the Systems above and their different rendering techniques.
 
 # What's currently missing
 Including but not limited to:
@@ -40,7 +40,7 @@ Including but not limited to:
 - The fastest emulator.
 
 # How to develop
-For requirements and local development setup, see [here](DEVELOP.md)
+For requirements and local development setup, see [here](doc/DEVELOP.md)
 
 # Inspiration, references & resources
 
@@ -104,7 +104,7 @@ Monitor commands: https://vice-emu.sourceforge.io/vice_12.html
 
 How to load and step through a program in the VICE monitor
 ```
-l "C:\Source\Repos\dotnet-6502\Examples\Assembler\Generic\Build\testprogram.prg" 0 1000
+l "C:\Source\Repos\dotnet-6502\samples\Assembler\Generic\Build\testprogram.prg" 0 1000
 d 1000
 r PC=1000
 z

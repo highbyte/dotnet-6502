@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+    <ProjectReference Include="..\..\src\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
   </ItemGroup>
 
 </Project>

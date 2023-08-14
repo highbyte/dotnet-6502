@@ -275,7 +275,7 @@ __pycache__/
 nuget.config
 
 # covergereport from dotnet global tool "reportgenerator"
-coveragereport/
+**/coveragereport/
 
 **/wwwroot/ROM/
 **/out/
