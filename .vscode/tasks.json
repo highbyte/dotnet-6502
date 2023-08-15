@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Highbyte.DotNet6502.Systems/Highbyte.DotNet6502.Systems.csproj",
+                "${workspaceFolder}/src/libraries/Highbyte.DotNet6502.Systems/Highbyte.DotNet6502.Systems.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -23,7 +23,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.ConsoleMonitor/Highbyte.DotNet6502.App.ConsoleMonitor.csproj",
+                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/Highbyte.DotNet6502.App.ConsoleMonitor.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -39,7 +39,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaWASM/Highbyte.DotNet6502.App.SkiaWASM.csproj",
+                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SkiaWASM/Highbyte.DotNet6502.App.SkiaWASM.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -55,7 +55,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SkiaNative/Highbyte.DotNet6502.App.SkiaNative.csproj",
+                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SkiaNative/Highbyte.DotNet6502.App.SkiaNative.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -71,7 +71,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Examples/ConsoleTestPrograms/ConsoleTestPrograms.csproj",
+                "${workspaceFolder}/samples/ConsoleTestPrograms/ConsoleTestPrograms.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -87,7 +87,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Highbyte.DotNet6502.App/Highbyte.DotNet6502.App.SadConsole/Highbyte.DotNet6502.App.SadConsole.csproj",
+                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SadConsole/Highbyte.DotNet6502.App.SadConsole.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -103,7 +103,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Examples/BlazorWasmTest/BlazorWasmTest.csproj",
+                "${workspaceFolder}/samples/BlazorWasmTest/BlazorWasmTest.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -120,7 +120,7 @@
             "args": [
                 "watch",
                 "run",
-                "${workspaceFolder}/Examples/ConsoleTestPrograms/ConsoleTestPrograms.csproj",
+                "${workspaceFolder}/samples/ConsoleTestPrograms/ConsoleTestPrograms.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -132,7 +132,7 @@
             "type": "process",
             "args": [
                 "test",
-                "${workspaceFolder}/Highbyte.DotNet6502.Tests/Highbyte.DotNet6502.Tests.csproj",
+                "${workspaceFolder}/tests/Highbyte.DotNet6502.Tests/Highbyte.DotNet6502.Tests.csproj",
                 "--filter",
                 "TestType!=Integration",
                 "/property:GenerateFullPaths=true",
@@ -150,7 +150,7 @@
             "type": "process",
             "args": [
                 "test",
-                "${workspaceFolder}/Highbyte.DotNet6502.Tests/Highbyte.DotNet6502.Tests.csproj",
+                "${workspaceFolder}/tests/Highbyte.DotNet6502.Tests/Highbyte.DotNet6502.Tests.csproj",
                 "--filter",
                 "TestType=Integration",
                 "/property:GenerateFullPaths=true",
