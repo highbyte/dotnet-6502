@@ -11,7 +11,7 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio
         private C64NAudioAudioHandler _audioHandler = default!;
         internal C64NAudioAudioHandler AudioHandler => _audioHandler;
 
-        private Action<string, int, SidVoiceWaveForm?, AudioVoiceStatus?> _addDebugMessage = default!;
+        private Action<string, int?, SidVoiceWaveForm?, AudioVoiceStatus?> _addDebugMessage = default!;
 
         internal void AddDebugMessage(string msg)
         {
@@ -61,7 +61,7 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio
 
         internal void Init(
             C64NAudioAudioHandler audioHandler,
-            Action<string, int, SidVoiceWaveForm?, AudioVoiceStatus?> addDebugMessage)
+            Action<string, int?, SidVoiceWaveForm?, AudioVoiceStatus?> addDebugMessage)
         {
             Status = AudioVoiceStatus.Stopped;
 

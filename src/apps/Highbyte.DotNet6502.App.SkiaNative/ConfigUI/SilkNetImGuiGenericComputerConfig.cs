@@ -73,7 +73,7 @@ public class SilkNetImGuiGenericComputerConfig
 
         //ImGui.Text("ProgramBinary:  "); // Byte array, used if ProgramBinaryFile is not set.
         //ImGui.SameLine();
-        //ImGui.Text(_config!.ProgramBinary);
+        //ImGui.Text(Config!.ProgramBinary);
 
         ImGui.Text("StopAtBRK:                ");
         ImGui.SameLine();

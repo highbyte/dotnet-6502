@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerContext>, IInputHandler
 {
     private SilkNetInputHandlerContext? _inputHandlerContext;
-    private readonly List<string> _debugMessages = new();
+    private readonly List<string> _stats = new();
 
     public C64SilkNetInputHandler()
     {
@@ -123,8 +123,8 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
             c64Keyboard.KeyPressed(petsciiCode);
         }
     }
-    public List<string> GetDebugMessages()
+    public List<string> GetStats()
     {
-        return _debugMessages;
+        return _stats;
     }
 }

@@ -3,21 +3,33 @@ using Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Logging;
+using Highbyte.DotNet6502.Logging.InMem;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
+using Microsoft.Extensions.Logging;
 
 // Fix for starting in debug mode from VS Code. By default the OS current directory is set to the project folder, not the folder containing the built .exe file...
 var currentAppDir = AppDomain.CurrentDomain.BaseDirectory;
 Environment.CurrentDirectory = currentAppDir;
+
+DotNet6502InMemLogStore logStore = new();
+var logConfig = new DotNet6502InMemLoggerConfiguration(logStore);
+var loggerFactory = LoggerFactory.Create(builder =>
+{
+    logConfig.LogLevel = LogLevel.Information;
+    builder.AddInMem(logConfig);
+    builder.SetMinimumLevel(LogLevel.Debug);
+});
 
 // ----------
 // Systems
 // ----------
 var systemList = new SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>();
 
-var c64Setup = new C64Setup();
+var c64Setup = new C64Setup(loggerFactory);
 await systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);
 
 var genericComputerSetup = new GenericComputerSetup();
@@ -64,5 +76,5 @@ windowOptions.ShouldSwapAutomatically = true;
 //windowOptions.PreferredDepthBufferBits = 24;    // Depth buffer bits must be set explicitly on MacOS (tested on M1), otherwise there will be be no depth buffer (for OpenGL 3d).
 
 IWindow window = Window.Create(windowOptions);
-var silkNetWindow = new SilkNetWindow(emulatorConfig.Monitor, window, systemList, emulatorConfig.DefaultDrawScale, emulatorConfig.DefaultEmulator);
+var silkNetWindow = new SilkNetWindow(emulatorConfig.Monitor, window, systemList, emulatorConfig.DefaultDrawScale, emulatorConfig.DefaultEmulator, logStore, logConfig);
 silkNetWindow.Run();

@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
+using Microsoft.Extensions.Logging;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -30,16 +31,18 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
             {3, new C64NAudioVoiceContext(3) },
         };
 
-    private readonly List<string> _debugMessages = new();
-    private const int MAX_DEBUG_MESSAGES = 20;
+    private readonly List<string> _stats = new();
 
-    public C64NAudioAudioHandler()
+    private readonly ILogger _logger;
+
+    public C64NAudioAudioHandler(ILoggerFactory loggerFactory)
     {
+        _logger = loggerFactory.CreateLogger(typeof(C64NAudioAudioHandler).Name);
     }
 
-    public List<string> GetDebugMessages()
+    public List<string> GetStats()
     {
-        return _debugMessages;
+        return _stats;
     }
 
     public void Init(C64 system, NAudioAudioHandlerContext audioHandlerContext)
@@ -193,34 +196,30 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
         AddDebugMessage($"Processing command done: {audioVoiceParameter.AudioCommand}", voiceContext.Voice, voiceContext.CurrentSidVoiceWaveForm, voiceContext.Status);
     }
 
-    private void AddDebugMessage(string msg, int voice, SidVoiceWaveForm? sidVoiceWaveForm = null, AudioVoiceStatus? audioStatus = null)
+    private void AddDebugMessage(string msg, int? voice = null, SidVoiceWaveForm? sidVoiceWaveForm = null, AudioVoiceStatus? audioStatus = null)
     {
-        var time = DateTime.Now.ToString("HH:mm:ss.fff");
         string formattedMsg;
         if (sidVoiceWaveForm.HasValue && audioStatus.HasValue)
         {
-            formattedMsg = $"{time} ({voice}-{sidVoiceWaveForm}-{audioStatus}): {msg}";
+            formattedMsg = $"(Voice{voice}-{sidVoiceWaveForm}-{audioStatus}): {msg}";
         }
         else if (sidVoiceWaveForm.HasValue && !audioStatus.HasValue)
         {
-            formattedMsg = $"{time} ({voice}-{sidVoiceWaveForm}): {msg}";
+            formattedMsg = $"(Voice{voice}-{sidVoiceWaveForm}): {msg}";
         }
         else if (!sidVoiceWaveForm.HasValue && audioStatus.HasValue)
         {
-            formattedMsg = $"{time} ({voice}-{audioStatus}): {msg}";
+            formattedMsg = $"(Voice{voice}-{audioStatus}): {msg}";
+        }
+        else if (voice.HasValue)
+        {
+            formattedMsg = $"(Voice{voice}): {msg}";
         }
         else
         {
-            formattedMsg = $"{time} ({voice}): {msg}";
+            formattedMsg = $"{msg}";
         }
 
-        //var threadId = Environment.CurrentManagedThreadId;
-        //_debugMessages.Insert(0, $"{time} ({threadId}): {msg}");
-        _debugMessages.Insert(0, formattedMsg);
-
-        if (_debugMessages.Count > MAX_DEBUG_MESSAGES)
-        {
-            _debugMessages.RemoveAt(MAX_DEBUG_MESSAGES);
-        }
+        _logger.LogDebug(formattedMsg);
     }
 }

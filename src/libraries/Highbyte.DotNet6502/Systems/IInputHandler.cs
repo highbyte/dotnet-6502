@@ -5,7 +5,7 @@ public interface IInputHandler
     void Init(ISystem system, IInputHandlerContext inputContext);
     void ProcessInput(ISystem system);
 
-    List<string> GetDebugMessages();
+    List<string> GetStats();
 }
 
 public interface IInputHandler<TSystem, TInputHandlerContext> : IInputHandler
@@ -38,6 +38,6 @@ public class NullInputHandler<TSystem> : IInputHandler<TSystem, NullInputHandler
         ProcessInput((ISystem)system);
     }
 
-    private readonly List<string> _debugMessages = new List<string>();
-    public List<string> GetDebugMessages() => _debugMessages;
+    private readonly List<string> _stats = new List<string>();
+    public List<string> GetStats() => _stats;
 }

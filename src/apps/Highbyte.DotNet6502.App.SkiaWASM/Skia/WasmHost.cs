@@ -260,18 +260,18 @@ public class WasmHost : IDisposable
     {
         string debugMessages = "";
 
-        var inputDebugMessages = _systemRunner.InputHandler.GetDebugMessages();
-        var inputDebugMessagesOneString = string.Join(" # ", inputDebugMessages);
-        debugMessages += $"{BuildHtmlString("INPUT", "header")}: {BuildHtmlString(inputDebugMessagesOneString, "value")} ";
-        //foreach (var message in inputDebugMessages)
+        var inputStats = _systemRunner.InputHandler.GetStats();
+        var inputStatsOneString = string.Join(" # ", inputStats);
+        debugMessages += $"{BuildHtmlString("INPUT", "header")}: {BuildHtmlString(inputStatsOneString, "value")} ";
+        //foreach (var message in inputStats)
         //{
         //    if (debugMessages != "")
         //        debugMessages += "<br />";
         //    debugMessages += $"{BuildHtmlString("DEBUG INPUT", "header")}: {BuildHtmlString(message, "value")} ";
         //}
 
-        var audioDebugMessages = _systemRunner.AudioHandler.GetDebugMessages();
-        foreach (var message in audioDebugMessages)
+        var audioStats = _systemRunner.AudioHandler.GetStats();
+        foreach (var message in audioStats)
         {
             if (debugMessages != "")
                 debugMessages += "<br />";

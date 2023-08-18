@@ -12,6 +12,7 @@ using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.Components.Forms;
 using Blazored.LocalStorage;
+using Highbyte.DotNet6502.Logging.Console;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
@@ -114,8 +115,22 @@ public partial class Index
     [Inject]
     public ILocalStorageService? LocalStorage { get; set; }
 
+    [Inject]
+    public ILoggerFactory LoggerFactory { get; set; }
+
+    [Inject]
+    public DotNet6502ConsoleLoggerConfiguration LoggerConfiguration { get; set; }
+
+    private ILogger<Index> _logger;
+
     protected override async Task OnInitializedAsync()
     {
+        _logger = LoggerFactory.CreateLogger<Index>();
+        _logger.LogDebug("OnInitializedAsync() was called");
+
+        //LoggerConfiguration.LogLevels.Remove(LogLevel.Debug);
+        //_logger.LogDebug("OnInitializedAsync() was called again");
+
         _browserContext = new()
         {
             Uri = NavManager!.ToAbsoluteUri(NavManager.Uri),
@@ -135,7 +150,7 @@ public partial class Index
 
         _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>();
 
-        var c64Setup = new C64Setup(_browserContext);
+        var c64Setup = new C64Setup(_browserContext, LoggerFactory);
         await _systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);
 
         var genericComputerSetup = new GenericComputerSetup(_browserContext);
@@ -322,9 +337,10 @@ public partial class Index
         this.StateHasChanged();
     }
 
-    private async Task ShowGeneralHelpUI() => await ShowHelpUI<GeneralHelpUI>();
+    private async Task ShowGeneralHelpUI() => await ShowGeneralHelpUI<GeneralHelpUI>();
+    private async Task ShowGeneralSettingsUI() => await ShowGeneralSettingsUI<GeneralSettingsUI>();
 
-    public async Task ShowHelpUI<T>() where T : IComponent
+    public async Task ShowGeneralHelpUI<T>() where T : IComponent
     {
         var result = await Modal.Show<T>("Help").Result;
 
@@ -334,9 +350,22 @@ public partial class Index
         }
         else if (result.Confirmed)
         {
-            //Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
         }
     }
+
+    public async Task ShowGeneralSettingsUI<T>() where T : IComponent
+    {
+        var result = await Modal.Show<T>("Settings").Result;
+
+        if (result.Cancelled)
+        {
+            //Console.WriteLine("Modal was cancelled");
+        }
+        else if (result.Confirmed)
+        {
+        }
+    }
+
 
     private void UpdateStats(string stats)
     {

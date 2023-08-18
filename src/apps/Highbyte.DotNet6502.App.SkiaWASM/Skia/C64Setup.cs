@@ -13,10 +13,12 @@ public class C64Setup
 {
     private const string LOCAL_STORAGE_ROM_PREFIX = "rom_";
     private readonly BrowserContext _browserContext;
+    private readonly ILoggerFactory _loggerFactory;
 
-    public C64Setup(BrowserContext browserContext)
+    public C64Setup(BrowserContext browserContext, ILoggerFactory loggerFactory)
     {
         _browserContext = browserContext;
+        _loggerFactory = loggerFactory;
     }
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
@@ -64,7 +66,7 @@ public class C64Setup
     {
         var renderer = new C64SkiaRenderer();
         var inputHandler = new C64AspNetInputHandler();
-        var audioHandler = new C64WASMAudioHandler();
+        var audioHandler = new C64WASMAudioHandler(_loggerFactory);
 
         var c64 = (C64)system;
         renderer.Init(c64, renderContext);

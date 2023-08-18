@@ -10,7 +10,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
 public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandlerContext>, IInputHandler
 {
     private SadConsoleInputHandlerContext? _inputHandlerContext;
-    private readonly List<string> _debugMessages = new();
+    private readonly List<string> _stats = new();
 
     public C64SadConsoleInputHandler()
     {
@@ -138,8 +138,8 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
         return petsciiCode;
     }
 
-    public List<string> GetDebugMessages()
+    public List<string> GetStats()
     {
-        return _debugMessages;
+        return _stats;
     }
 }

@@ -120,6 +120,14 @@ public class SilkNetImGuiMenu
         }
         ImGui.EndDisabled();
 
+        ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused));
+        ImGui.SameLine();
+        if (ImGui.Button("Logs"))
+        {
+            _silkNetWindow.ToggleLogsPanel();
+        }
+        ImGui.EndDisabled();
+
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
         ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
         //ImGui.SetKeyboardFocusHere(0);
@@ -178,7 +186,6 @@ public class SilkNetImGuiMenu
                 {
                     wasRunning = true;
                     _silkNetWindow.Pause();
-
                 }
 
                 var dialogResult = Dialog.FileOpen(@"prg;*");
@@ -221,6 +228,7 @@ public class SilkNetImGuiMenu
         ImGui.Text("Toggle menu with F6");
         ImGui.Text("Toggle monitor with F12");
         ImGui.Text("Toggle stats with F11");
+        ImGui.Text("Toggle logs with F10");
         ImGui.PopStyleColor();
 
         ImGui.End();
