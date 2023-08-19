@@ -32,7 +32,7 @@ var systemList = new SystemList<SkiaRenderContext, SilkNetInputHandlerContext, N
 var c64Setup = new C64Setup(loggerFactory);
 await systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);
 
-var genericComputerSetup = new GenericComputerSetup();
+var genericComputerSetup = new GenericComputerSetup(loggerFactory);
 await systemList.AddSystem(GenericComputer.SystemName, genericComputerSetup.BuildSystem, genericComputerSetup.BuildSystemRunner, genericComputerSetup.GetNewConfig, genericComputerSetup.PersistConfig);
 
 // TODO: Read options from appsettings.json
@@ -76,5 +76,5 @@ windowOptions.ShouldSwapAutomatically = true;
 //windowOptions.PreferredDepthBufferBits = 24;    // Depth buffer bits must be set explicitly on MacOS (tested on M1), otherwise there will be be no depth buffer (for OpenGL 3d).
 
 IWindow window = Window.Create(windowOptions);
-var silkNetWindow = new SilkNetWindow(emulatorConfig.Monitor, window, systemList, emulatorConfig.DefaultDrawScale, emulatorConfig.DefaultEmulator, logStore, logConfig);
+var silkNetWindow = new SilkNetWindow(emulatorConfig.Monitor, window, systemList, emulatorConfig.DefaultDrawScale, emulatorConfig.DefaultEmulator, logStore, logConfig, loggerFactory);
 silkNetWindow.Run();

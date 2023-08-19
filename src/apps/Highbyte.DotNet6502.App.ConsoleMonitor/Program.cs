@@ -4,12 +4,13 @@ using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.App.ConsoleMonitor;
 using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using Microsoft.Extensions.Logging.Abstractions;
 
 NativeConsoleMonitor Monitor;
 
 var mem = new Memory();
 
-var computerBuilder = new GenericComputerBuilder(new GenericComputerConfig { WaitForHostToAcknowledgeFrame = false });
+var computerBuilder = new GenericComputerBuilder(new NullLoggerFactory(), new GenericComputerConfig { WaitForHostToAcknowledgeFrame = false });
 computerBuilder
     .WithCPU()
     //.WithStartAddress()

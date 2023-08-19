@@ -7,6 +7,7 @@ using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 
@@ -19,6 +20,7 @@ public enum EmulatorState
 
 public class SilkNetWindow
 {
+    private readonly ILogger _logger;
     private readonly MonitorConfig _monitorConfig;
     private readonly IWindow _window;
 
@@ -83,7 +85,7 @@ public class SilkNetWindow
     private bool _logsWasEnabled = false;
 
     readonly List<ISilkNetImGuiWindow> _imGuiWindows = new List<ISilkNetImGuiWindow>();
-    private bool _atLeastOneImGuiWindowHasFocus => _imGuiWindows.Any(x => x.WindowIsFocused);
+    private bool _atLeastOneImGuiWindowHasFocus => _imGuiWindows.Any(x => x.Visible && x.WindowIsFocused);
 
     // GL and other ImGui resources
     private GL _gl;
@@ -98,7 +100,8 @@ public class SilkNetWindow
         float scale,
         string defaultSystemName,
         DotNet6502InMemLogStore logStore,
-        DotNet6502InMemLoggerConfiguration logConfig)
+        DotNet6502InMemLoggerConfiguration logConfig,
+        Microsoft.Extensions.Logging.ILoggerFactory loggerFactory)
     {
         _monitorConfig = monitorConfig;
         _window = window;
@@ -109,6 +112,8 @@ public class SilkNetWindow
         _logConfig = logConfig;
         _defaultAudioEnabled = true;
         _defaultAudioVolumePercent = 20.0f;
+
+        _logger = loggerFactory.CreateLogger(typeof(SilkNetWindow).Name);
     }
 
     public void Run()
@@ -214,6 +219,8 @@ public class SilkNetWindow
 
         _currentSystemName = systemName;
 
+        _logger.LogInformation($"System selected: {_currentSystemName}");
+
         if (_systemList.IsValidConfig(systemName).Result)
         {
             var system = _systemList.GetSystem(systemName).Result;
@@ -225,7 +232,6 @@ public class SilkNetWindow
         }
         else
         {
-
         }
     }
 
@@ -252,6 +258,9 @@ public class SilkNetWindow
         _systemRunner!.AudioHandler.StartPlaying();
 
         EmulatorState = EmulatorState.Running;
+
+        _logger.LogInformation($"System started: {_currentSystemName}");
+
     }
 
     public void Pause()
@@ -261,6 +270,8 @@ public class SilkNetWindow
 
         _systemRunner!.AudioHandler.PausePlaying();
         EmulatorState = EmulatorState.Paused;
+
+        _logger.LogInformation($"System paused: {_currentSystemName}");
     }
 
     public void Reset()
@@ -281,6 +292,8 @@ public class SilkNetWindow
         _systemRunner = null;
         SetUninitializedWindow();
         InitRendering();
+
+        _logger.LogInformation($"System stopped: {_currentSystemName}");
     }
 
     private void RunEmulator()
@@ -382,13 +395,12 @@ public class SilkNetWindow
             {
                 _statsPanel.PostOnRender();
             }
+        }
 
-            // Render logs if enabled
-            if (_logsPanel.Visible)
-            {
-                _logsPanel.PostOnRender();
-            }
-
+        // Render logs if enabled
+        if (_logsPanel.Visible)
+        {
+            _logsPanel.PostOnRender();
         }
 
         if (!emulatorRendered)
@@ -498,13 +510,13 @@ public class SilkNetWindow
         {
             ToggleMainMenu();
         }
+        if (key == Key.F10)
+        {
+            ToggleLogsPanel();
+        }
 
         if (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused)
         {
-            if (key == Key.F10)
-            {
-                ToggleLogsPanel();
-            }
             if (key == Key.F11)
             {
                 ToggleStatsPanel();

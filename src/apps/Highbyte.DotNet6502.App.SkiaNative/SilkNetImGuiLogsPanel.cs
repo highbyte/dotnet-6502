@@ -44,18 +44,39 @@ public class SilkNetImGuiLogsPanel : ISilkNetImGuiWindow
 
         ImGui.Begin($"Logs");
 
+        // Clear Log
+        ImGui.SameLine();
         ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
         if (ImGui.Button("Clear log"))
         {
             _logStore.Clear();
         }
+        ImGui.PopStyleColor();
 
+        // Set Log Level
         ImGui.SameLine();
         ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
-        //ImGui.SetKeyboardFocusHere(0);
-        ImGui.Text("Max messages:");
+        ImGui.Text("Log level:");
+        ImGui.PopStyleColor();
         ImGui.SameLine();
+        ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
+        ImGui.PushItemWidth(120);
+        if (ImGui.Combo("##logLevel", ref _selectedLogLevel, _logLevelNames, _logLevelNames.Length))
+        {
+            _logConfig.LogLevel = Enum.Parse<LogLevel>(_logLevelNames[_selectedLogLevel]);
+        }
+        ImGui.PopItemWidth();
+        ImGui.PopStyleColor();
+
+        // Set Max Message count
+        ImGui.SameLine();
+        ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
+        ImGui.Text("Max messages:");
+        ImGui.PopStyleColor();
+        ImGui.SameLine();
+        ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
         ImGui.PushItemWidth(40);
+        //ImGui.SetKeyboardFocusHere(0);
         if (ImGui.InputText("", ref _maxLogMessages, 5, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.CharsDecimal | ImGuiInputTextFlags.CharsNoBlank))
         {
             if (int.TryParse(_maxLogMessages, out int maxLogMessages))
@@ -64,19 +85,7 @@ public class SilkNetImGuiLogsPanel : ISilkNetImGuiWindow
         ImGui.PopItemWidth();
         ImGui.PopStyleColor();
 
-
-        ImGui.SameLine();
-        ImGui.Text("Log level:");
-        ImGui.SameLine();
-        ImGui.PushItemWidth(100);
-        if (ImGui.Combo("", ref _selectedLogLevel, _logLevelNames, _logLevelNames.Length))
-        {
-            _logConfig.LogLevel = Enum.Parse<LogLevel>(_logLevelNames[_selectedLogLevel]);
-        }
-        ImGui.PopItemWidth();
-        ImGui.PopStyleColor();
-
-
+        // List log messages
         ImGui.PushStyleColor(ImGuiCol.Text, s_labelColor);
         foreach (var line in _logStore.GetLogMessages())
         {

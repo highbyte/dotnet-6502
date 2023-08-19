@@ -122,13 +122,13 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         }
         ImGui.EndDisabled();
 
-        ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused));
+        //ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused));
         ImGui.SameLine();
         if (ImGui.Button("Logs"))
         {
             _silkNetWindow.ToggleLogsPanel();
         }
-        ImGui.EndDisabled();
+        //ImGui.EndDisabled();
 
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
         ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);

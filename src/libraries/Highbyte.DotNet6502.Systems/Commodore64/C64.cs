@@ -6,6 +6,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
@@ -37,7 +38,7 @@ public class C64 : ISystem, ISystemMonitor
     public string ColorMapName { get; private set; } = default!;
 
     private readonly C64MonitorCommands _c64MonitorCommands = new C64MonitorCommands();
-
+    private readonly ILogger _logger;
     public const ushort BASIC_LOAD_ADDRESS = 0x0801;
 
     //public static ROM[] ROMS = new ROM[]
@@ -64,6 +65,8 @@ public class C64 : ISystem, ISystemMonitor
         IExecEvaluator? execEvaluator = null)
     {
         ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
+
+        _logger.LogDebug($"Executing one frame, {cyclesToExecute} CPU cycles.");
 
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < cyclesToExecute)
@@ -121,9 +124,12 @@ public class C64 : ISystem, ISystemMonitor
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
-    private C64() { }
+    private C64(ILogger logger)
+    {
+        _logger = logger;
+    }
 
-    public static C64 BuildC64(C64Config c64Config)
+    public static C64 BuildC64(C64Config c64Config, ILoggerFactory loggerFactory)
     {
         var c64Model = C64ModelInventory.C64Models[c64Config.C64Model];
 
@@ -139,7 +145,8 @@ public class C64 : ISystem, ISystemMonitor
         var kb = new C64Keyboard();
         var sid = Sid.BuildSid();
 
-        var c64 = new C64
+        var logger = loggerFactory.CreateLogger(typeof(C64).Name);
+        var c64 = new C64(logger)
         {
             Model = c64Model,
             Mem = mem,
@@ -168,6 +175,7 @@ public class C64 : ISystem, ISystemMonitor
         // Set program counter on startup to the address specified at the 6502 reset vector.
         c64.CPU.Reset(c64.Mem);
 
+        logger.LogInformation("C64 created.");
         return c64;
     }
 

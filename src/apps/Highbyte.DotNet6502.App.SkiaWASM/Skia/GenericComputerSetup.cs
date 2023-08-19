@@ -15,10 +15,12 @@ public class GenericComputerSetup
     //private const string DEFAULT_PRG_URL = "6502binaries/Generic/Assembler/snake6502.prg";
 
     private readonly BrowserContext _browserContext;
+    private readonly ILoggerFactory _loggerFactory;
 
-    public GenericComputerSetup(BrowserContext browserContext)
+    public GenericComputerSetup(BrowserContext browserContext, ILoggerFactory loggerFactory)
     {
         _browserContext = browserContext;
+        _loggerFactory = loggerFactory;
     }
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
@@ -81,7 +83,7 @@ public class GenericComputerSetup
     public ISystem BuildSystem(ISystemConfig systemConfig)
     {
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
-        return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig);
+        return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
     }
 
     public SystemRunner BuildSystemRunner(

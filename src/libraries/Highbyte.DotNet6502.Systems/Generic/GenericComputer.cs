@@ -1,4 +1,6 @@
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502.Systems.Generic;
 
@@ -34,12 +36,17 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     public int VisibleTopBottomBorderHeight => (VisibleHeight - DrawableAreaHeight) / 2;
     public float RefreshFrequencyHz => _genericComputerConfig.ScreenRefreshFrequencyHz;
 
+    private readonly ILogger _logger;
     private readonly GenericComputerConfig _genericComputerConfig;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly LegacyExecEvaluator _oneFrameExecEvaluator;
 
-    public GenericComputer() : this(new GenericComputerConfig()) { }
-    public GenericComputer(GenericComputerConfig genericComputerConfig)
+    public GenericComputer() : this(new GenericComputerConfig(), new NullLoggerFactory()) { }
+    public GenericComputer(GenericComputerConfig genericComputerConfig, ILoggerFactory loggerFactory)
     {
+        _loggerFactory = loggerFactory;
+        _logger = loggerFactory.CreateLogger(typeof(GenericComputer).Name);
+
         _genericComputerConfig = genericComputerConfig;
         Mem = new Memory();
         CPU = new CPU();
@@ -48,6 +55,8 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = CPUCyclesPerFrame });
 
         CPU.InstructionExecuted += (s, e) => CPUCyclesConsumed(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
+
+        _logger.LogInformation($"Generic computer created.");
     }
 
     public void Run(IExecEvaluator? execEvaluator = null)
@@ -164,7 +173,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 
     public GenericComputer Clone()
     {
-        return new GenericComputer(this._genericComputerConfig)
+        return new GenericComputer(this._genericComputerConfig, this._loggerFactory)
         {
             CPU = this.CPU.Clone(),
             Mem = this.Mem.Clone(),

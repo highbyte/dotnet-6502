@@ -153,7 +153,7 @@ public partial class Index
         var c64Setup = new C64Setup(_browserContext, LoggerFactory);
         await _systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);
 
-        var genericComputerSetup = new GenericComputerSetup(_browserContext);
+        var genericComputerSetup = new GenericComputerSetup(_browserContext, LoggerFactory);
         await _systemList.AddSystem(
             GenericComputer.SystemName,
             genericComputerSetup.BuildSystem,

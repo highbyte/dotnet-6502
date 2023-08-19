@@ -7,6 +7,7 @@ using Highbyte.DotNet6502.Impl.SadConsole.Generic.Video;
 using Highbyte.DotNet6502.Impl.SadConsole.Generic.Input;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole;
 
@@ -69,7 +70,7 @@ public class EmulatorHost
 
     private SystemRunner GetC64SystemRunner(SadConsoleRenderContext sadConsoleRenderContext, SadConsoleInputHandlerContext sadConsoleInputHandlerContext)
     {
-        var c64 = C64.BuildC64(_c64Config);
+        var c64 = C64.BuildC64(_c64Config, new NullLoggerFactory());
 
         var renderer = new C64SadConsoleRenderer();
         renderer.Init(c64, sadConsoleRenderContext);
@@ -87,7 +88,7 @@ public class EmulatorHost
 
     private SystemRunner GetGenericSystemRunner(SadConsoleRenderContext sadConsoleRenderContext, SadConsoleInputHandlerContext sadConsoleInputHandlerContext)
     {
-        var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(_genericComputerConfig);
+        var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(_genericComputerConfig, new NullLoggerFactory());
 
         var renderer = new GenericSadConsoleRenderer(_genericComputerConfig.Memory.Screen);
         renderer.Init(genericComputer, sadConsoleRenderContext);

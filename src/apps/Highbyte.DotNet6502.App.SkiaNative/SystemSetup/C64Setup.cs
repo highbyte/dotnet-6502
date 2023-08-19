@@ -73,7 +73,7 @@ public class C64Setup
     public ISystem BuildSystem(ISystemConfig systemConfig)
     {
         var c64Config = (C64Config)systemConfig;
-        var c64 = C64.BuildC64(c64Config);
+        var c64 = C64.BuildC64(c64Config, _loggerFactory);
         return c64;
     }
 
