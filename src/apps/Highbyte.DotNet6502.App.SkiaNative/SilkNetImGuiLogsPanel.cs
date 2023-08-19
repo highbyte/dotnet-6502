@@ -4,12 +4,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 
-public class SilkNetImGuiLogsPanel
+public class SilkNetImGuiLogsPanel : ISilkNetImGuiWindow
 {
     private readonly DotNet6502InMemLogStore _logStore;
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
 
-    public bool Visible = false;
+    public bool Visible { get; private set; }
+    public bool WindowIsFocused { get; private set; }
 
     private const int POS_X = 300;
     private const int POS_Y = 2;
@@ -20,9 +21,9 @@ public class SilkNetImGuiLogsPanel
     private static Vector4 s_errorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
     private static Vector4 s_warningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
 
-    private string[] _logLevelNames = Enum.GetNames<LogLevel>();
+    private readonly string[] _logLevelNames = Enum.GetNames<LogLevel>();
     private int _selectedLogLevel;
-
+    private string _maxLogMessages = "";
 
     public SilkNetImGuiLogsPanel(DotNet6502InMemLogStore logStore, DotNet6502InMemLoggerConfiguration logConfig)
     {
@@ -30,6 +31,7 @@ public class SilkNetImGuiLogsPanel
         _logConfig = logConfig;
 
         _selectedLogLevel = _logLevelNames.ToList().IndexOf(logConfig.LogLevel.ToString());
+        _maxLogMessages = _logStore.MaxLogMessages.ToString();
     }
 
     public void PostOnRender()
@@ -47,10 +49,26 @@ public class SilkNetImGuiLogsPanel
         {
             _logStore.Clear();
         }
+
         ImGui.SameLine();
-        ImGui.Text("Log level: ");
+        ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
+        //ImGui.SetKeyboardFocusHere(0);
+        ImGui.Text("Max messages:");
         ImGui.SameLine();
-        ImGui.PushItemWidth(200);
+        ImGui.PushItemWidth(40);
+        if (ImGui.InputText("", ref _maxLogMessages, 5, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.CharsDecimal | ImGuiInputTextFlags.CharsNoBlank))
+        {
+            if (int.TryParse(_maxLogMessages, out int maxLogMessages))
+                _logStore.MaxLogMessages = maxLogMessages;
+        }
+        ImGui.PopItemWidth();
+        ImGui.PopStyleColor();
+
+
+        ImGui.SameLine();
+        ImGui.Text("Log level:");
+        ImGui.SameLine();
+        ImGui.PushItemWidth(100);
         if (ImGui.Combo("", ref _selectedLogLevel, _logLevelNames, _logLevelNames.Length))
         {
             _logConfig.LogLevel = Enum.Parse<LogLevel>(_logLevelNames[_selectedLogLevel]);
@@ -65,6 +83,8 @@ public class SilkNetImGuiLogsPanel
             ImGui.Text(line);
         }
         ImGui.PopStyleColor();
+
+        WindowIsFocused = ImGui.IsWindowFocused();
 
         ImGui.End();
     }

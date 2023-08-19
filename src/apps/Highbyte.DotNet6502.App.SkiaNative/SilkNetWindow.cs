@@ -82,6 +82,9 @@ public class SilkNetWindow
     private bool _statsWasEnabled = false;
     private bool _logsWasEnabled = false;
 
+    readonly List<ISilkNetImGuiWindow> _imGuiWindows = new List<ISilkNetImGuiWindow>();
+    private bool _atLeastOneImGuiWindowHasFocus => _imGuiWindows.Any(x => x.WindowIsFocused);
+
     // GL and other ImGui resources
     private GL _gl;
     private IInputContext _inputContext;
@@ -133,10 +136,19 @@ public class SilkNetWindow
 
         InitImGui();
 
-        // Init main menu
+        // Init main menu UI
         _menu = new SilkNetImGuiMenu(this, _defaultSystemName, _defaultAudioEnabled, _defaultAudioVolumePercent);
 
-        InitLogs();
+        // Create other UI windows
+        _statsPanel = CreateStatsUI();
+        _monitor = CreateMonitorUI(_statsPanel, _monitorConfig);
+        _logsPanel = CreateLogsUI(_logStore, _logConfig);
+
+        // Add all ImGui windows to a list
+        _imGuiWindows.Add(_menu);
+        _imGuiWindows.Add(_statsPanel);
+        _imGuiWindows.Add(_monitor);
+        _imGuiWindows.Add(_logsPanel);
     }
 
     protected void OnClosing()
@@ -235,7 +247,7 @@ public class SilkNetWindow
         if (EmulatorState == EmulatorState.Uninitialized)
             _systemRunner = _systemList.BuildSystemRunner(_currentSystemName).Result;
 
-        InitMonitorAndStats();
+        _monitor.Init(_systemRunner!);
 
         _systemRunner!.AudioHandler.StartPlaying();
 
@@ -285,11 +297,13 @@ public class SilkNetWindow
             return;
         }
 
-        // Run emulator.
         // Handle input
-        using (_inputTime.Measure())
+        if (!_atLeastOneImGuiWindowHasFocus)
         {
-            _systemRunner!.ProcessInput();
+            using (_inputTime.Measure())
+            {
+                _systemRunner!.ProcessInput();
+            }
         }
 
         // Run emulator for one frame worth of emulated CPU cycles 
@@ -448,25 +462,27 @@ public class SilkNetWindow
         );
     }
 
-    private void InitMonitorAndStats()
+    private SilkNetImGuiMonitor CreateMonitorUI(SilkNetImGuiStatsPanel statsPanel, MonitorConfig monitorConfig)
     {
         // Init Monitor ImGui resources 
-        _monitor = new SilkNetImGuiMonitor(_systemRunner!, _monitorConfig);
-        _monitor.MonitorStateChange += (s, monitorEnabled) => _silkNetInputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
-        _monitor.MonitorStateChange += (s, monitorEnabled) =>
+        var monitor = new SilkNetImGuiMonitor(monitorConfig);
+        monitor.MonitorStateChange += (s, monitorEnabled) => _silkNetInputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
+        monitor.MonitorStateChange += (s, monitorEnabled) =>
         {
             if (monitorEnabled)
-                _statsPanel.Disable();
+                statsPanel.Disable();
         };
-
-        // Init StatsPanel ImGui resources
-        _statsPanel = new SilkNetImGuiStatsPanel();
+        return monitor;
     }
 
-    private void InitLogs()
+    private SilkNetImGuiStatsPanel CreateStatsUI()
     {
-        // Init LogsPanel ImGui resources
-        _logsPanel = new SilkNetImGuiLogsPanel(_logStore, _logConfig);
+        return new SilkNetImGuiStatsPanel();
+    }
+
+    private SilkNetImGuiLogsPanel CreateLogsUI(DotNet6502InMemLogStore logStore, DotNet6502InMemLoggerConfiguration logConfig)
+    {
+        return new SilkNetImGuiLogsPanel(logStore, logConfig);
     }
 
     private void DestroyImGuiController()
@@ -480,7 +496,7 @@ public class SilkNetWindow
     {
         if (key == Key.F6)
         {
-            _menu.Visible = !_menu.Visible;
+            ToggleMainMenu();
         }
 
         if (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused)
@@ -497,6 +513,18 @@ public class SilkNetWindow
             {
                 ToggleMonitor();
             }
+        }
+    }
+
+    public void ToggleMainMenu()
+    {
+        if (_menu.Visible)
+        {
+            _menu.Disable();
+        }
+        else
+        {
+            _menu.Enable();
         }
     }
 

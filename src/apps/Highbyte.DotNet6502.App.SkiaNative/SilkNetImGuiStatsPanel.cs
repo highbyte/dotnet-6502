@@ -4,9 +4,10 @@ using Highbyte.DotNet6502.App.SkiaNative.Stats;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 
-public class SilkNetImGuiStatsPanel
+public class SilkNetImGuiStatsPanel : ISilkNetImGuiWindow
 {
-    public bool Visible = false;
+    public bool Visible { get; private set; }
+    public bool WindowIsFocused { get; private set; }
 
     private const int POS_X = 600;
     private const int POS_Y = 2;
@@ -43,6 +44,9 @@ public class SilkNetImGuiStatsPanel
             ImGui.Text(line);
         }
         ImGui.PopStyleColor();
+
+        WindowIsFocused = ImGui.IsWindowFocused();
+
         ImGui.End();
     }
 
