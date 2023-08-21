@@ -21,7 +21,7 @@ var loggerFactory = LoggerFactory.Create(builder =>
 {
     logConfig.LogLevel = LogLevel.Information;
     builder.AddInMem(logConfig);
-    builder.SetMinimumLevel(LogLevel.Debug);
+    builder.SetMinimumLevel(LogLevel.Trace);
 });
 
 // ----------

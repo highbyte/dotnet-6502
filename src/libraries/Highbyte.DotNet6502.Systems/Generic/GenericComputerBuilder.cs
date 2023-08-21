@@ -7,11 +7,13 @@ namespace Highbyte.DotNet6502.Systems.Generic;
 public class GenericComputerBuilder
 {
     private readonly GenericComputer _genericComputer;
+    private readonly ILoggerFactory _loggerFactory;
 
     public GenericComputerBuilder(ILoggerFactory loggerFactory)
     {
         var genericComputerConfig = new GenericComputerConfig();
         _genericComputer = new GenericComputer(genericComputerConfig, loggerFactory);
+        _loggerFactory = loggerFactory;
     }
 
     public GenericComputerBuilder(ILoggerFactory loggerFactory, GenericComputerConfig genericComputerConfig)
@@ -21,7 +23,7 @@ public class GenericComputerBuilder
 
     public GenericComputerBuilder WithCPU()
     {
-        _genericComputer.CPU = new CPU();
+        _genericComputer.CPU = new CPU(_loggerFactory);
         return this;
     }
 

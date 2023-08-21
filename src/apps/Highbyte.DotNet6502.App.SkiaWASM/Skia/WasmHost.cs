@@ -34,6 +34,7 @@ public class WasmHost : IDisposable
     private readonly Func<Task> _toggleDebugStatsState;
     private readonly float _scale;
     private readonly float _initialMasterVolume;
+    private readonly ILogger _logger;
 
     public WasmMonitor Monitor { get; private set; }
 
@@ -59,6 +60,7 @@ public class WasmHost : IDisposable
         Func<bool, Task> setMonitorState,
         MonitorConfig monitorConfig,
         Func<Task> toggleDebugStatsState,
+        ILoggerFactory loggerFactory,
         float scale = 1.0f,
         float initialMasterVolume = 50.0f)
     {
@@ -72,6 +74,7 @@ public class WasmHost : IDisposable
         _toggleDebugStatsState = toggleDebugStatsState;
         _scale = scale;
         _initialMasterVolume = initialMasterVolume;
+        _logger = loggerFactory.CreateLogger(typeof(WasmHost).Name);
 
         // Init stats
         InstrumentationBag.Clear();

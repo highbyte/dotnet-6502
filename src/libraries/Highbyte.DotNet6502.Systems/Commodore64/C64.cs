@@ -66,7 +66,7 @@ public class C64 : ISystem, ISystemMonitor
     {
         ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
 
-        _logger.LogDebug($"Executing one frame, {cyclesToExecute} CPU cycles.");
+        _logger.LogTrace($"Executing one frame, {cyclesToExecute} CPU cycles.");
 
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < cyclesToExecute)
@@ -160,7 +160,7 @@ public class C64 : ISystem, ISystemMonitor
             ColorMapName = c64Config.ColorMapName
         };
         var vic2 = Vic2.BuildVic2(ram, romData, vic2Model, c64);
-        var cpu = CreateC64CPU(vic2, mem);
+        var cpu = CreateC64CPU(vic2, mem, loggerFactory);
         c64.Vic2 = vic2;
         c64.CPU = cpu;
 
@@ -214,9 +214,9 @@ public class C64 : ISystem, ISystemMonitor
         mem.Write(1, 0x7);
     }
 
-    private static CPU CreateC64CPU(Vic2 vic2, Memory mem)
+    private static CPU CreateC64CPU(Vic2 vic2, Memory mem, ILoggerFactory loggerFactory)
     {
-        var cpu = new CPU();
+        var cpu = new CPU(loggerFactory);
         // The CPU execute method uses will not raise any events (like after instruction executed). Therefore advance VIC2 raster line etc needs to be manually called instead (see ExecuteOneFrame)
         //cpu.InstructionExecuted += (s, e) => vic2.AdvanceRaster(e.InstructionExecState.CyclesConsumed);
         return cpu;

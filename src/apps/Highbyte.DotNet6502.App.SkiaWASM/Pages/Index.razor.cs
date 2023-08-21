@@ -128,9 +128,6 @@ public partial class Index
         _logger = LoggerFactory.CreateLogger<Index>();
         _logger.LogDebug("OnInitializedAsync() was called");
 
-        //LoggerConfiguration.LogLevels.Remove(LogLevel.Debug);
-        //_logger.LogDebug("OnInitializedAsync() was called again");
-
         _browserContext = new()
         {
             Uri = NavManager!.ToAbsoluteUri(NavManager.Uri),
@@ -220,6 +217,8 @@ public partial class Index
 
         UpdateCanvasSize();
         this.StateHasChanged();
+
+        _logger.LogInformation($"System selected: {_selectedSystemName}");
     }
 
     private async void UpdateCanvasSize()
@@ -244,7 +243,7 @@ public partial class Index
 
     private async Task InitEmulator()
     {
-        _wasmHost = new WasmHost(Js!, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale, MasterVolumePercent);
+        _wasmHost = new WasmHost(Js!, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, LoggerFactory, (float)Scale, MasterVolumePercent);
         CurrentEmulatorState = EmulatorState.Paused;
     }
 
@@ -532,7 +531,10 @@ public partial class Index
         await FocusEmulator();
 
         this.StateHasChanged();
+
+        _logger.LogInformation($"System started: {_selectedSystemName}");
     }
+
     public async Task OnPause(MouseEventArgs mouseEventArgs)
     {
         if (CurrentEmulatorState == EmulatorState.Uninitialized)
@@ -541,7 +543,10 @@ public partial class Index
         _wasmHost!.Stop();
         CurrentEmulatorState = EmulatorState.Paused;
         this.StateHasChanged();
+
+        _logger.LogInformation($"System paused: {_selectedSystemName}");
     }
+
     public async Task OnReset(MouseEventArgs mouseEventArgs)
     {
         await OnPause(mouseEventArgs);
@@ -552,6 +557,8 @@ public partial class Index
     {
         await CleanupEmulator();
         this.StateHasChanged();
+        _logger.LogInformation($"System stopped: {_selectedSystemName}");
+
     }
     private async Task OnMonitorToggle(MouseEventArgs mouseEventArgs)
     {
@@ -563,7 +570,6 @@ public partial class Index
     {
         await ToggleDebugStatsState();
     }
-
 
     private void OnKeyPress(KeyboardEventArgs e)
     {
