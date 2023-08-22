@@ -131,9 +131,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         if (_getAudioHandlerContext == null)
             throw new Exception("AudioHandlerContext has not been initialized. Call InitContext to initialize.");
 
-        var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
-        if (!_systemsCache.ContainsKey(cacheKey))
-            await BuildAndCacheSystem(systemName, configurationVariant);
+        await BuildAndCacheSystem(systemName, configurationVariant);
 
         var system = await GetSystem(systemName, configurationVariant);
         var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
