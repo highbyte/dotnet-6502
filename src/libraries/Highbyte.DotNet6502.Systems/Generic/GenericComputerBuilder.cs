@@ -9,15 +9,11 @@ public class GenericComputerBuilder
     private readonly GenericComputer _genericComputer;
     private readonly ILoggerFactory _loggerFactory;
 
-    public GenericComputerBuilder(ILoggerFactory loggerFactory)
-    {
-        var genericComputerConfig = new GenericComputerConfig();
-        _genericComputer = new GenericComputer(genericComputerConfig, loggerFactory);
-        _loggerFactory = loggerFactory;
-    }
+    public GenericComputerBuilder(ILoggerFactory loggerFactory) : this(loggerFactory, new GenericComputerConfig()) { }
 
     public GenericComputerBuilder(ILoggerFactory loggerFactory, GenericComputerConfig genericComputerConfig)
     {
+        _loggerFactory = loggerFactory;
         _genericComputer = new GenericComputer(genericComputerConfig, loggerFactory);
     }
 
