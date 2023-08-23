@@ -10,20 +10,6 @@ public class DotNet6502InMemLoggerConfiguration
 
     public LogLevel LogLevel { get; set; } = LogLevel.Information;
 
-    public Dictionary<LogLevel, LogFormat> LogLevelFormatMap { get; set; } =
-        new()
-        {
-            [LogLevel.Debug] = LogFormat.Short,
-            [LogLevel.Information] = LogFormat.Short,
-            [LogLevel.Warning] = LogFormat.Short,
-            [LogLevel.Error] = LogFormat.Long
-        };
-    public enum LogFormat
-    {
-        Short,
-        Long
-    }
-
     public DotNet6502InMemLoggerConfiguration(DotNet6502InMemLogStore logStore)
     {
         _logStore = logStore;
