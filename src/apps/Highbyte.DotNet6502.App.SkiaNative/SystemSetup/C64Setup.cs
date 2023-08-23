@@ -11,8 +11,10 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
 
-public class C64Setup
+public class C64Setup : SystemConfigurer<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
+    public string SystemName => C64.SystemName;
+
     private readonly ILoggerFactory _loggerFactory;
 
     public C64Setup(ILoggerFactory loggerFactory)

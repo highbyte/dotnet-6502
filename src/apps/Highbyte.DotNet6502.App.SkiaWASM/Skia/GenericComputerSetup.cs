@@ -9,8 +9,10 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Skia;
 
-public class GenericComputerSetup
+public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
+    public string SystemName => GenericComputer.SystemName;
+
     private const string DEFAULT_PRG_URL = "6502binaries/Generic/Assembler/hostinteraction_scroll_text_and_cycle_colors.prg";
     //private const string DEFAULT_PRG_URL = "6502binaries/Generic/Assembler/snake6502.prg";
 

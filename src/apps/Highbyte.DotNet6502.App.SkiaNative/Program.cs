@@ -7,8 +7,6 @@ using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Logging.InMem;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Systems.Generic;
 using Microsoft.Extensions.Logging;
 
 // Fix for starting in debug mode from VS Code. By default the OS current directory is set to the project folder, not the folder containing the built .exe file...
@@ -30,16 +28,16 @@ var loggerFactory = LoggerFactory.Create(builder =>
 var systemList = new SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>();
 
 var c64Setup = new C64Setup(loggerFactory);
-await systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);
+await systemList.AddSystem(c64Setup);
 
 var genericComputerSetup = new GenericComputerSetup(loggerFactory);
-await systemList.AddSystem(GenericComputer.SystemName, genericComputerSetup.BuildSystem, genericComputerSetup.BuildSystemRunner, genericComputerSetup.GetNewConfig, genericComputerSetup.PersistConfig);
+await systemList.AddSystem(genericComputerSetup);
 
 // TODO: Read options from appsettings.json
 var emulatorConfig = new EmulatorConfig
 {
-    DefaultEmulator = "C64",
-    //DefaultEmulator  = "Generic",
+    DefaultEmulator = c64Setup.SystemName,
+    //DefaultEmulator  = genericComputerSetup.SystemName,
     DefaultDrawScale = 3.0f,
     Monitor = new MonitorConfig
     {

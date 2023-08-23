@@ -149,18 +149,13 @@ public partial class Index
         _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>();
 
         var c64Setup = new C64Setup(_browserContext, LoggerFactory);
-        await _systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);
+        await _systemList.AddSystem(c64Setup);
 
         var genericComputerSetup = new GenericComputerSetup(_browserContext, LoggerFactory);
-        await _systemList.AddSystem(
-            GenericComputer.SystemName,
-            genericComputerSetup.BuildSystem,
-            genericComputerSetup.BuildSystemRunner,
-            genericComputerSetup.GetNewConfig,
-            genericComputerSetup.PersistConfig);
+        await _systemList.AddSystem(genericComputerSetup);
 
         // Default system
-        _selectedSystemName = C64.SystemName;
+        _selectedSystemName = c64Setup.SystemName;
         await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = _selectedSystemName });
 
         await SetDefaultsFromQueryParams(_browserContext.Uri);

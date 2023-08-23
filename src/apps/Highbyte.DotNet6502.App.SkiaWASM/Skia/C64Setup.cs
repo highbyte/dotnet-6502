@@ -9,8 +9,10 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Skia;
 
-public class C64Setup
+public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
+    public string SystemName => C64.SystemName;
+
     private const string LOCAL_STORAGE_ROM_PREFIX = "rom_";
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;
@@ -20,6 +22,7 @@ public class C64Setup
         _browserContext = browserContext;
         _loggerFactory = loggerFactory;
     }
+
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {

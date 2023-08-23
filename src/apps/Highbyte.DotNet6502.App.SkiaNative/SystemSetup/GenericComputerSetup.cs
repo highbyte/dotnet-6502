@@ -10,8 +10,10 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
 
-public class GenericComputerSetup
+public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
+    public string SystemName => GenericComputer.SystemName;
+
     private readonly ILoggerFactory _loggerFactory;
 
     public GenericComputerSetup(ILoggerFactory loggerFactory)
