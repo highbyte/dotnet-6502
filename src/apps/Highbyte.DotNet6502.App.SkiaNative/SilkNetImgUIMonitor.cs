@@ -5,12 +5,17 @@ using NativeFileDialogSharp;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 
-public class SilkNetImGuiMonitor : MonitorBase
+public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
 {
     private readonly MonitorConfig _monitorConfig;
 
-    public bool Visible = false;
+    private SkiaNativeMonitor _skiaNativeMonitor = null!;
+
+    public bool Visible { get; private set; }
+    public bool WindowIsFocused { get; private set; }
+
     public bool Quit = false;
+
 
     private string _monitorCmdString = "";
 
@@ -22,9 +27,7 @@ public class SilkNetImGuiMonitor : MonitorBase
     private const int POS_Y = 2;
     private const int WIDTH = 720;
     private const int HEIGHT = 450;
-    const int MONITOR_CMD_HISTORY_VIEW_ROWS = 20;
     const int MONITOR_CMD_LINE_LENGTH = 200;
-    List<(string Message, MessageSeverity Severity)> _monitorCmdHistory = new();
 
     static Vector4 s_InformationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
     static Vector4 s_ErrorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
@@ -39,16 +42,22 @@ public class SilkNetImGuiMonitor : MonitorBase
         handler?.Invoke(this, monitorEnabled);
     }
 
-    public SilkNetImGuiMonitor(
-        SystemRunner systemRunner,
-        MonitorConfig monitorConfig
-        ) : base(systemRunner, monitorConfig)
+    public SilkNetImGuiMonitor(MonitorConfig monitorConfig)
     {
         _monitorConfig = monitorConfig;
     }
 
+    public void Init(SystemRunner systemRunner)
+    {
+        _skiaNativeMonitor = new SkiaNativeMonitor(systemRunner, _monitorConfig);
+        _hasBeenInitializedOnce = false;
+    }
+
     public void PostOnRender()
     {
+        if (_skiaNativeMonitor == null || !Visible)
+            return;
+
         ImGui.SetNextWindowSize(new Vector2(WIDTH, HEIGHT));
         ImGui.SetNextWindowPos(new Vector2(POS_X, POS_Y), ImGuiCond.Once);
 
@@ -58,18 +67,18 @@ public class SilkNetImGuiMonitor : MonitorBase
         if (!_hasBeenInitializedOnce)
         {
             // Init monitor list of history commands with blanks
-            for (int i = 0; i < MONITOR_CMD_HISTORY_VIEW_ROWS; i++)
-                WriteOutput("");
+            for (int i = 0; i < SkiaNativeMonitor.MONITOR_CMD_HISTORY_VIEW_ROWS; i++)
+                _skiaNativeMonitor.WriteOutput("");
 
             // Show description and general help text first time
-            ShowDescription();
-            WriteOutput("");
-            ShowHelp();
+            _skiaNativeMonitor.ShowDescription();
+            _skiaNativeMonitor.WriteOutput("");
+            _skiaNativeMonitor.ShowHelp();
 
             _hasBeenInitializedOnce = true;
         }
 
-        ImGui.Begin($"6502 Monitor: {SystemRunner.System.Name}");
+        ImGui.Begin($"6502 Monitor: {_skiaNativeMonitor.System.Name}");
 
         if (ImGui.IsWindowFocused())
         {
@@ -77,7 +86,7 @@ public class SilkNetImGuiMonitor : MonitorBase
         }
 
         Vector4 textColor;
-        foreach (var cmd in _monitorCmdHistory)
+        foreach (var cmd in _skiaNativeMonitor.MonitorCmdHistory)
         {
             textColor = cmd.Severity switch
             {
@@ -99,8 +108,8 @@ public class SilkNetImGuiMonitor : MonitorBase
         ImGui.PushItemWidth(600);
         if (ImGui.InputText("", ref _monitorCmdString, MONITOR_CMD_LINE_LENGTH, ImGuiInputTextFlags.EnterReturnsTrue))
         {
-            WriteOutput(_monitorCmdString, MessageSeverity.Information);
-            var commandResult = SendCommand(_monitorCmdString);
+            _skiaNativeMonitor.WriteOutput(_monitorCmdString, MessageSeverity.Information);
+            var commandResult = _skiaNativeMonitor.SendCommand(_monitorCmdString);
             _monitorCmdString = "";
             if (commandResult == CommandResult.Quit)
             {
@@ -120,17 +129,19 @@ public class SilkNetImGuiMonitor : MonitorBase
 
         // CPU status
         ImGui.PushStyleColor(ImGuiCol.Text, s_StatusColor);
-        ImGui.Text($"CPU: {OutputGen.GetProcessorState(Cpu, includeCycles: true)}");
+        ImGui.Text($"CPU: {OutputGen.GetProcessorState(_skiaNativeMonitor.Cpu, includeCycles: true)}");
         ImGui.PopStyleColor();
 
         // System status
         ImGui.PushStyleColor(ImGuiCol.Text, s_StatusColor);
-        foreach (var sysInfoRow in SystemRunner.System.SystemInfo)
+        foreach (var sysInfoRow in _skiaNativeMonitor.System.SystemInfo)
         {
             ImGui.Text($"SYS: {sysInfoRow}");
         }
 
         ImGui.PopStyleColor();
+
+        WindowIsFocused = ImGui.IsWindowFocused();
 
         ImGui.End();
     }
@@ -140,10 +151,10 @@ public class SilkNetImGuiMonitor : MonitorBase
         Quit = false;
         Visible = true;
         _setFocusOnInput = true;
-        base.Reset();   // Reset monitor working variables (like last disassembly location)
+        _skiaNativeMonitor.Reset();   // Reset monitor working variables (like last disassembly location)
 
         if (execEvaluatorTriggerResult != null)
-            base.ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
+            _skiaNativeMonitor.ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
         //else
         //    WriteOutput($"Monitor enabled manually.", MessageSeverity.Information);
         OnMonitorStateChange(true);
@@ -153,80 +164,5 @@ public class SilkNetImGuiMonitor : MonitorBase
     {
         Visible = false;
         OnMonitorStateChange(false);
-    }
-
-    public override bool LoadBinary(string fileName, out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null, Action<MonitorBase, ushort, ushort>? afterLoadCallback = null)
-    {
-        if (!Path.IsPathFullyQualified(fileName))
-            fileName = $"{_monitorConfig.DefaultDirectory}/{fileName}";
-
-        if (!File.Exists(fileName))
-        {
-            WriteOutput($"File not found: {fileName}", MessageSeverity.Error);
-            loadedAtAddress = 0;
-            fileLength = 0;
-            return false;
-        }
-
-        BinaryLoader.Load(
-            Mem,
-            fileName,
-            out loadedAtAddress,
-            out fileLength,
-            forceLoadAddress);
-
-        return true;
-    }
-
-    public override bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null, Action<MonitorBase, ushort, ushort>? afterLoadCallback = null)
-    {
-        WriteOutput($"Loading file via file picker dialog not implemented.", MessageSeverity.Warning);
-        loadedAtAddress = 0;
-        fileLength = 0;
-        return false;
-
-        // TODO: Opening native Dialog here leads to endless Enter keypress events being sent to inputtext field.
-        //var dialogResult = Dialog.FileOpen(@"prg;*");
-        //if (dialogResult.IsOk)
-        //{
-        //    var fileName = dialogResult.Path;
-        //    BinaryLoader.Load(
-        //        SystemRunner.System.Mem,
-        //        fileName,
-        //        out loadedAtAddress,
-        //        out fileLength);
-        //    return true;
-        //}
-
-        //loadedAtAddress = 0;
-        //fileLength = 0;
-        //return false;
-    }
-
-    public override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
-    {
-        if (!Path.IsPathFullyQualified(fileName))
-            fileName = $"{_monitorConfig.DefaultDirectory}/{fileName}";
-
-        BinarySaver.Save(
-            Mem,
-            fileName,
-            startAddress,
-            endAddress,
-            addFileHeaderWithLoadAddress: addFileHeaderWithLoadAddress);
-
-        WriteOutput($"Program saved to {fileName}");
-    }
-
-    public override void WriteOutput(string message)
-    {
-        WriteOutput(message, MessageSeverity.Information);
-    }
-
-    public override void WriteOutput(string message, MessageSeverity severity)
-    {
-        _monitorCmdHistory.Add((message, severity));
-        if (_monitorCmdHistory.Count > MONITOR_CMD_HISTORY_VIEW_ROWS)
-            _monitorCmdHistory.RemoveAt(0);
     }
 }

@@ -40,5 +40,5 @@
     [Parameter]
     public Highbyte.DotNet6502.App.SkiaWASM.Pages.Index Parent { get; set; } = default!;
 
-    private async Task ShowHelpUI() => await Parent.ShowHelpUI<GenericHelpUI>();
+    private async Task ShowHelpUI() => await Parent.ShowGeneralHelpUI<GenericHelpUI>();
 }

@@ -8,7 +8,7 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
 {
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private AspNetInputHandlerContext? _inputHandlerContext;
-    private readonly List<string> _debugMessages = new();
+    private readonly List<string> _stats = new();
 
     public GenericComputerAspNetInputHandler(EmulatorInputConfig emulatorInputConfig)
     {
@@ -63,8 +63,8 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
             genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = 0x00;
     }
 
-    public List<string> GetDebugMessages()
+    public List<string> GetStats()
     {
-        return _debugMessages;
+        return _stats;
     }
 }

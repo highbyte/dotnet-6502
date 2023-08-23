@@ -4,8 +4,10 @@ using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 
@@ -18,6 +20,7 @@ public enum EmulatorState
 
 public class SilkNetWindow
 {
+    private readonly ILogger _logger;
     private readonly MonitorConfig _monitorConfig;
     private readonly IWindow _window;
 
@@ -26,6 +29,8 @@ public class SilkNetWindow
 
     private float _canvasScale;
     private readonly string _defaultSystemName;
+    private readonly DotNet6502InMemLogStore _logStore;
+    private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private string _currentSystemName;
     private readonly bool _defaultAudioEnabled;
     private float _defaultAudioVolumePercent;
@@ -70,9 +75,17 @@ public class SilkNetWindow
     private SilkNetImGuiStatsPanel _statsPanel;
     public SilkNetImGuiStatsPanel StatsPanel => _statsPanel;
 
+    // Logs panel
+    private SilkNetImGuiLogsPanel _logsPanel;
+    public SilkNetImGuiLogsPanel LogsPanel => _logsPanel;
+
     // Menu
     private SilkNetImGuiMenu _menu;
     private bool _statsWasEnabled = false;
+    private bool _logsWasEnabled = false;
+
+    readonly List<ISilkNetImGuiWindow> _imGuiWindows = new List<ISilkNetImGuiWindow>();
+    private bool _atLeastOneImGuiWindowHasFocus => _imGuiWindows.Any(x => x.Visible && x.WindowIsFocused);
 
     // GL and other ImGui resources
     private GL _gl;
@@ -85,15 +98,22 @@ public class SilkNetWindow
         IWindow window,
         SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext> systemList,
         float scale,
-        string defaultSystemName)
+        string defaultSystemName,
+        DotNet6502InMemLogStore logStore,
+        DotNet6502InMemLoggerConfiguration logConfig,
+        Microsoft.Extensions.Logging.ILoggerFactory loggerFactory)
     {
         _monitorConfig = monitorConfig;
         _window = window;
         _systemList = systemList;
         _canvasScale = scale;
         _defaultSystemName = defaultSystemName;
+        _logStore = logStore;
+        _logConfig = logConfig;
         _defaultAudioEnabled = true;
         _defaultAudioVolumePercent = 20.0f;
+
+        _logger = loggerFactory.CreateLogger(typeof(SilkNetWindow).Name);
     }
 
     public void Run()
@@ -121,8 +141,19 @@ public class SilkNetWindow
 
         InitImGui();
 
-        // Init main menu
+        // Init main menu UI
         _menu = new SilkNetImGuiMenu(this, _defaultSystemName, _defaultAudioEnabled, _defaultAudioVolumePercent);
+
+        // Create other UI windows
+        _statsPanel = CreateStatsUI();
+        _monitor = CreateMonitorUI(_statsPanel, _monitorConfig);
+        _logsPanel = CreateLogsUI(_logStore, _logConfig);
+
+        // Add all ImGui windows to a list
+        _imGuiWindows.Add(_menu);
+        _imGuiWindows.Add(_statsPanel);
+        _imGuiWindows.Add(_monitor);
+        _imGuiWindows.Add(_logsPanel);
     }
 
     protected void OnClosing()
@@ -188,6 +219,8 @@ public class SilkNetWindow
 
         _currentSystemName = systemName;
 
+        _logger.LogInformation($"System selected: {_currentSystemName}");
+
         if (_systemList.IsValidConfig(systemName).Result)
         {
             var system = _systemList.GetSystem(systemName).Result;
@@ -199,7 +232,6 @@ public class SilkNetWindow
         }
         else
         {
-
         }
     }
 
@@ -221,11 +253,14 @@ public class SilkNetWindow
         if (EmulatorState == EmulatorState.Uninitialized)
             _systemRunner = _systemList.BuildSystemRunner(_currentSystemName).Result;
 
-        InitMonitorAndStats();
+        _monitor.Init(_systemRunner!);
 
         _systemRunner!.AudioHandler.StartPlaying();
 
         EmulatorState = EmulatorState.Running;
+
+        _logger.LogInformation($"System started: {_currentSystemName}");
+
     }
 
     public void Pause()
@@ -235,6 +270,8 @@ public class SilkNetWindow
 
         _systemRunner!.AudioHandler.PausePlaying();
         EmulatorState = EmulatorState.Paused;
+
+        _logger.LogInformation($"System paused: {_currentSystemName}");
     }
 
     public void Reset()
@@ -255,6 +292,8 @@ public class SilkNetWindow
         _systemRunner = null;
         SetUninitializedWindow();
         InitRendering();
+
+        _logger.LogInformation($"System stopped: {_currentSystemName}");
     }
 
     private void RunEmulator()
@@ -271,11 +310,13 @@ public class SilkNetWindow
             return;
         }
 
-        // Run emulator.
         // Handle input
-        using (_inputTime.Measure())
+        if (!_atLeastOneImGuiWindowHasFocus)
         {
-            _systemRunner!.ProcessInput();
+            using (_inputTime.Measure())
+            {
+                _systemRunner!.ProcessInput();
+            }
         }
 
         // Run emulator for one frame worth of emulated CPU cycles 
@@ -319,7 +360,7 @@ public class SilkNetWindow
 
         if (EmulatorState == EmulatorState.Running)
         {
-            if (_monitor.Visible || _statsPanel.Visible)
+            if (_monitor.Visible || _statsPanel.Visible || _logsPanel.Visible)
             {
                 _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
             }
@@ -354,6 +395,12 @@ public class SilkNetWindow
             {
                 _statsPanel.PostOnRender();
             }
+        }
+
+        // Render logs if enabled
+        if (_logsPanel.Visible)
+        {
+            _logsPanel.PostOnRender();
         }
 
         if (!emulatorRendered)
@@ -427,19 +474,27 @@ public class SilkNetWindow
         );
     }
 
-    private void InitMonitorAndStats()
+    private SilkNetImGuiMonitor CreateMonitorUI(SilkNetImGuiStatsPanel statsPanel, MonitorConfig monitorConfig)
     {
         // Init Monitor ImGui resources 
-        _monitor = new SilkNetImGuiMonitor(_systemRunner!, _monitorConfig);
-        _monitor.MonitorStateChange += (s, monitorEnabled) => _silkNetInputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
-        _monitor.MonitorStateChange += (s, monitorEnabled) =>
+        var monitor = new SilkNetImGuiMonitor(monitorConfig);
+        monitor.MonitorStateChange += (s, monitorEnabled) => _silkNetInputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
+        monitor.MonitorStateChange += (s, monitorEnabled) =>
         {
             if (monitorEnabled)
-                _statsPanel.Disable();
+                statsPanel.Disable();
         };
+        return monitor;
+    }
 
-        // Init StatsPanel ImGui resources
-        _statsPanel = new SilkNetImGuiStatsPanel();
+    private SilkNetImGuiStatsPanel CreateStatsUI()
+    {
+        return new SilkNetImGuiStatsPanel();
+    }
+
+    private SilkNetImGuiLogsPanel CreateLogsUI(DotNet6502InMemLogStore logStore, DotNet6502InMemLoggerConfiguration logConfig)
+    {
+        return new SilkNetImGuiLogsPanel(logStore, logConfig);
     }
 
     private void DestroyImGuiController()
@@ -453,7 +508,11 @@ public class SilkNetWindow
     {
         if (key == Key.F6)
         {
-            _menu.Visible = !_menu.Visible;
+            ToggleMainMenu();
+        }
+        if (key == Key.F10)
+        {
+            ToggleLogsPanel();
         }
 
         if (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused)
@@ -462,11 +521,22 @@ public class SilkNetWindow
             {
                 ToggleStatsPanel();
             }
-
             if (key == Key.F12)
             {
                 ToggleMonitor();
             }
+        }
+    }
+
+    public void ToggleMainMenu()
+    {
+        if (_menu.Visible)
+        {
+            _menu.Disable();
+        }
+        else
+        {
+            _menu.Enable();
         }
     }
 
@@ -483,6 +553,22 @@ public class SilkNetWindow
         else
         {
             _statsPanel.Enable();
+        }
+    }
+
+    public void ToggleLogsPanel()
+    {
+        if (_monitor.Visible)
+            return;
+
+        if (_logsPanel.Visible)
+        {
+            _logsPanel.Disable();
+            _logsWasEnabled = false;
+        }
+        else
+        {
+            _logsPanel.Enable();
         }
     }
 

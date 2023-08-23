@@ -6,13 +6,19 @@ using Highbyte.DotNet6502.Impl.Skia.Generic.Video;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
 
-public class GenericComputerSetup
+public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
-    public GenericComputerSetup()
+    public string SystemName => GenericComputer.SystemName;
+
+    private readonly ILoggerFactory _loggerFactory;
+
+    public GenericComputerSetup(ILoggerFactory loggerFactory)
     {
+        _loggerFactory = loggerFactory;
     }
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
@@ -58,7 +64,7 @@ public class GenericComputerSetup
     public ISystem BuildSystem(ISystemConfig systemConfig)
     {
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
-        return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig);
+        return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
     }
 
     public SystemRunner BuildSystemRunner(

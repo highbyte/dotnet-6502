@@ -1,4 +1,6 @@
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502.Systems.Generic;
 
@@ -34,20 +36,25 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     public int VisibleTopBottomBorderHeight => (VisibleHeight - DrawableAreaHeight) / 2;
     public float RefreshFrequencyHz => _genericComputerConfig.ScreenRefreshFrequencyHz;
 
-    private readonly GenericComputerConfig _genericComputerConfig;
+    private ILogger _logger;
+    private GenericComputerConfig _genericComputerConfig;
     private readonly LegacyExecEvaluator _oneFrameExecEvaluator;
 
-    public GenericComputer() : this(new GenericComputerConfig()) { }
-    public GenericComputer(GenericComputerConfig genericComputerConfig)
+    public GenericComputer() : this(new GenericComputerConfig(), new NullLoggerFactory()) { }
+    public GenericComputer(GenericComputerConfig genericComputerConfig, ILoggerFactory loggerFactory)
     {
+        _logger = loggerFactory.CreateLogger(typeof(GenericComputer).Name);
+
         _genericComputerConfig = genericComputerConfig;
         Mem = new Memory();
-        CPU = new CPU();
+        CPU = new CPU(loggerFactory);
         DefaultExecOptions = new ExecOptions();
 
         _oneFrameExecEvaluator = new LegacyExecEvaluator(new ExecOptions { CyclesRequested = CPUCyclesPerFrame });
 
         CPU.InstructionExecuted += (s, e) => CPUCyclesConsumed(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
+
+        _logger.LogInformation($"Generic computer created.");
     }
 
     public void Run(IExecEvaluator? execEvaluator = null)
@@ -66,6 +73,8 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     {
         // If we already executed cycles in current frame, reduce it from total.
         _oneFrameExecEvaluator.ExecOptions.CyclesRequested = CPUCyclesPerFrame - CyclesConsumedCurrentVblank;
+
+        _logger.LogTrace($"Executing one frame, {_oneFrameExecEvaluator.ExecOptions.CyclesRequested} CPU cycles.");
 
         // Execute one frame worth of CPU cycles
         ExecState execState;
@@ -164,11 +173,13 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 
     public GenericComputer Clone()
     {
-        return new GenericComputer(this._genericComputerConfig)
+        return new GenericComputer()
         {
             CPU = this.CPU.Clone(),
             Mem = this.Mem.Clone(),
-            DefaultExecOptions = this.DefaultExecOptions.Clone()
+            DefaultExecOptions = this.DefaultExecOptions.Clone(),
+            _genericComputerConfig = this._genericComputerConfig,
+            _logger = this._logger
         };
     }
 

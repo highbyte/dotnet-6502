@@ -138,7 +138,7 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
         return (char)0; // No key found
     }
 
-    public List<string> GetDebugMessages()
+    public List<string> GetStats()
     {
         List<string> list = new();
         if (_inputHandlerContext == null)

@@ -9,15 +9,20 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Skia;
 
-public class C64Setup
+public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
+    public string SystemName => C64.SystemName;
+
     private const string LOCAL_STORAGE_ROM_PREFIX = "rom_";
     private readonly BrowserContext _browserContext;
+    private readonly ILoggerFactory _loggerFactory;
 
-    public C64Setup(BrowserContext browserContext)
+    public C64Setup(BrowserContext browserContext, ILoggerFactory loggerFactory)
     {
         _browserContext = browserContext;
+        _loggerFactory = loggerFactory;
     }
+
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
@@ -50,7 +55,7 @@ public class C64Setup
     public ISystem BuildSystem(ISystemConfig systemConfig)
     {
         var c64Config = (C64Config)systemConfig;
-        var c64 = C64.BuildC64(c64Config);
+        var c64 = C64.BuildC64(c64Config, _loggerFactory);
         return c64;
     }
 
@@ -64,7 +69,7 @@ public class C64Setup
     {
         var renderer = new C64SkiaRenderer();
         var inputHandler = new C64AspNetInputHandler();
-        var audioHandler = new C64WASMAudioHandler();
+        var audioHandler = new C64WASMAudioHandler(_loggerFactory);
 
         var c64 = (C64)system;
         renderer.Init(c64, renderContext);

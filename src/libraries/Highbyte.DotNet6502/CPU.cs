@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502;
 
@@ -120,22 +122,27 @@ public class CPU
 
     private readonly InstructionExecutor _instructionExecutor;
 
-    public CPU() : this(new ExecState())
+    private ILogger _logger;
+
+    public CPU() : this(new ExecState(), new NullLoggerFactory()) { }
+    public CPU(ExecState execState) : this(execState, new NullLoggerFactory()) { }
+    public CPU(ILoggerFactory loggerFactory) : this(new ExecState(), loggerFactory) { }
+
+    public CPU(ExecState execState, ILoggerFactory loggerFactory)
     {
-    }
-    public CPU(ExecState execState)
-    {
+        _logger = loggerFactory.CreateLogger(typeof(CPU).Name);
+
         ProcessorStatus = new ProcessorStatus();
         ExecState = execState;
         // TODO: Inject instruction list?
         InstructionList = InstructionList.GetAllInstructions();
         // TODO: Inject InstructionExecutor?
-        _instructionExecutor = new InstructionExecutor();
+        _instructionExecutor = new InstructionExecutor(loggerFactory);
     }
 
     public CPU Clone()
     {
-        return new CPU
+        return new CPU()
         {
             PC = this.PC,
             SP = this.SP,
@@ -145,6 +152,7 @@ public class CPU
             ProcessorStatus = this.ProcessorStatus.Clone(),
             ExecState = this.ExecState.Clone(),
             InstructionList = this.InstructionList.Clone(),
+            _logger = this._logger
         };
     }
 

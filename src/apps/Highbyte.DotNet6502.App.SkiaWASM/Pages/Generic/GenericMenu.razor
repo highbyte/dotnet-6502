@@ -40,7 +40,7 @@
 
     private bool _wasRunningBeforeFileDialog = false;
 
-    private async Task ShowConfigUI() => await Parent.ShowHelpUI<GenericHelpUI>();
+    private async Task ShowConfigUI() => await Parent.ShowConfigUI<GenericHelpUI>();
 
     [Parameter]
     public Highbyte.DotNet6502.App.SkiaWASM.Pages.Index Parent { get; set; } = default!;

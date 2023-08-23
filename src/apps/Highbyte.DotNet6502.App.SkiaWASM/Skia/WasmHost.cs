@@ -34,6 +34,7 @@ public class WasmHost : IDisposable
     private readonly Func<Task> _toggleDebugStatsState;
     private readonly float _scale;
     private readonly float _initialMasterVolume;
+    private readonly ILogger _logger;
 
     public WasmMonitor Monitor { get; private set; }
 
@@ -59,6 +60,7 @@ public class WasmHost : IDisposable
         Func<bool, Task> setMonitorState,
         MonitorConfig monitorConfig,
         Func<Task> toggleDebugStatsState,
+        ILoggerFactory loggerFactory,
         float scale = 1.0f,
         float initialMasterVolume = 50.0f)
     {
@@ -72,6 +74,7 @@ public class WasmHost : IDisposable
         _toggleDebugStatsState = toggleDebugStatsState;
         _scale = scale;
         _initialMasterVolume = initialMasterVolume;
+        _logger = loggerFactory.CreateLogger(typeof(WasmHost).Name);
 
         // Init stats
         InstrumentationBag.Clear();
@@ -260,18 +263,18 @@ public class WasmHost : IDisposable
     {
         string debugMessages = "";
 
-        var inputDebugMessages = _systemRunner.InputHandler.GetDebugMessages();
-        var inputDebugMessagesOneString = string.Join(" # ", inputDebugMessages);
-        debugMessages += $"{BuildHtmlString("INPUT", "header")}: {BuildHtmlString(inputDebugMessagesOneString, "value")} ";
-        //foreach (var message in inputDebugMessages)
+        var inputStats = _systemRunner.InputHandler.GetStats();
+        var inputStatsOneString = string.Join(" # ", inputStats);
+        debugMessages += $"{BuildHtmlString("INPUT", "header")}: {BuildHtmlString(inputStatsOneString, "value")} ";
+        //foreach (var message in inputStats)
         //{
         //    if (debugMessages != "")
         //        debugMessages += "<br />";
         //    debugMessages += $"{BuildHtmlString("DEBUG INPUT", "header")}: {BuildHtmlString(message, "value")} ";
         //}
 
-        var audioDebugMessages = _systemRunner.AudioHandler.GetDebugMessages();
-        foreach (var message in audioDebugMessages)
+        var audioStats = _systemRunner.AudioHandler.GetStats();
+        foreach (var message in audioStats)
         {
             if (debugMessages != "")
                 debugMessages += "<br />";

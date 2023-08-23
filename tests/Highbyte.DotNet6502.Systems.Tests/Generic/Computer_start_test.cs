@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Generic;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502.Systems.Tests.Generic;
 
@@ -8,7 +9,7 @@ public class Computer_start_test
     public void Computer_Can_Be_Reset_And_Restart_At_ResetVector()
     {
         // Arrange
-        var builder = new GenericComputerBuilder()
+        var builder = new GenericComputerBuilder(new NullLoggerFactory())
         .WithCPU()
         .WithMemory(1024*64);
 

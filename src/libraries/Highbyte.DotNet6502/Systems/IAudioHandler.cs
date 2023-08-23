@@ -9,7 +9,7 @@ public interface IAudioHandler
     void StopPlaying();
     void PausePlaying();
 
-    List<string> GetDebugMessages();
+    List<string> GetStats();
 
 }
 
@@ -48,8 +48,8 @@ public class NullAudioHandler : IAudioHandler
     {
     }
 
-    private readonly List<string> _debugMessages = new List<string>();
+    private readonly List<string> _stats = new List<string>();
 
-    public List<string> GetDebugMessages() => _debugMessages;
+    public List<string> GetStats() => _stats;
 
 }

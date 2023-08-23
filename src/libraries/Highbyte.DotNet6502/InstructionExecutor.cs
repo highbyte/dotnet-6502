@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace Highbyte.DotNet6502;
 
 /// <summary>
@@ -5,6 +7,13 @@ namespace Highbyte.DotNet6502;
 /// </summary>
 public class InstructionExecutor
 {
+    private ILogger _logger;
+
+    public InstructionExecutor(ILoggerFactory loggerFactory)
+    {
+        _logger = loggerFactory.CreateLogger(typeof(InstructionExecutor).Name);
+    }
+
     /// <summary>
     /// Executes the specified instruction.
     /// PC is assumed to point at the instruction operand, or the the next instruction, depending on instruction.
@@ -25,7 +34,10 @@ public class InstructionExecutor
         byte opCode = cpu.FetchInstruction(mem);
 
         if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
+        {
+            _logger.LogWarning($"Unknown instruction {opCode.ToHex()} at {atPC.ToHex()}");
             return InstructionExecResult.UnknownInstructionResult(opCode, atPC);
+        }
 
         var opCodeObject = cpu.InstructionList.GetOpCode(opCode);
         var instruction = cpu.InstructionList.GetInstruction(opCodeObject);

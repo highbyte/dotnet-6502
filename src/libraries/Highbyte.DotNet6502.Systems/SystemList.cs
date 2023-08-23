@@ -7,16 +7,12 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     private Func<TAudioHandlerContext>? _getAudioHandlerContext;
 
     public HashSet<string> Systems = new();
+    private readonly Dictionary<string, SystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext>> _systemConfigurers = new();
 
     private const string DEFAULT_CONFIGURATION_VARIANT = "DEFAULT";
 
     private readonly Dictionary<string, ISystemConfig> _systemConfigsCache = new();
     private readonly Dictionary<string, ISystem> _systemsCache = new();
-
-    private readonly Dictionary<string, Func<ISystemConfig, ISystem>> _buildSystem = new();
-    private readonly Dictionary<string, Func<ISystem, ISystemConfig, TRenderContext, TInputHandlerContext, TAudioHandlerContext, SystemRunner>> _buildSystemRunner = new();
-    private readonly Dictionary<string, Func<string, Task<ISystemConfig>>> _getNewSystemConfig = new();
-    private readonly Dictionary<string, Func<ISystemConfig, Task>> _persistSystemConfig = new();
 
     public SystemList()
     {
@@ -44,21 +40,14 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     public async Task AddSystem(
-        string systemName,
-        Func<ISystemConfig, ISystem> buildSystem,
-        Func<ISystem, ISystemConfig, TRenderContext, TInputHandlerContext, TAudioHandlerContext, SystemRunner> buildSystemRunner,
-        Func<string, Task<ISystemConfig>> getNewSystemConfig,
-        Func<ISystemConfig, Task> persistSystemConfig
-        )
+        SystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext> systemConfigurer)
     {
+        var systemName = systemConfigurer.SystemName;
         if (Systems.Contains(systemName))
             throw new Exception($"System already added: {systemName}");
         Systems.Add(systemName);
 
-        _buildSystem[systemName] = buildSystem;
-        _buildSystemRunner[systemName] = buildSystemRunner;
-        _getNewSystemConfig[systemName] = getNewSystemConfig;
-        _persistSystemConfig[systemName] = persistSystemConfig;
+        _systemConfigurers[systemName] = systemConfigurer;
     }
 
     /// <summary>
@@ -101,7 +90,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
             _systemsCache.Remove(cacheKey);
 
         var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
-        var system = _buildSystem[systemName](systemConfig);
+        var system = _systemConfigurers[systemName].BuildSystem(systemConfig);
         _systemsCache[cacheKey] = system;
     }
 
@@ -132,9 +121,10 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
             throw new Exception("AudioHandlerContext has not been initialized. Call InitContext to initialize.");
 
         await BuildAndCacheSystem(systemName, configurationVariant);
+
         var system = await GetSystem(systemName, configurationVariant);
         var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
-        var systemRunner = _buildSystemRunner[systemName](system, systemConfig, _getRenderContext(), _getInputHandlerContext(), _getAudioHandlerContext());
+        var systemRunner = _systemConfigurers[systemName].BuildSystemRunner(system, systemConfig, _getRenderContext(), _getInputHandlerContext(), _getAudioHandlerContext());
         return systemRunner;
     }
 
@@ -146,7 +136,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
         if (!_systemConfigsCache.ContainsKey(cacheKey))
         {
-            var systemConfig = await _getNewSystemConfig[systemName](configurationVariant);
+            var systemConfig = await _systemConfigurers[systemName].GetNewConfig(configurationVariant);
             ChangeCurrentSystemConfig(systemName, systemConfig, configurationVariant);
         }
         return _systemConfigsCache[cacheKey];
@@ -166,7 +156,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     public async Task PersistCurrentSystemConfig(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
     {
         var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
-        await _persistSystemConfig[systemName](systemConfig);
+        await _systemConfigurers[systemName].PersistConfig(systemConfig);
     }
 
     public async Task<bool> IsValidConfig(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)

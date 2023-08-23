@@ -8,7 +8,7 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
 {
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private SilkNetInputHandlerContext? _inputHandlerContext;
-    private readonly List<string> _debugMessages = new();
+    private readonly List<string> _stats = new();
 
     public GenericComputerSilkNetInputHandler(EmulatorInputConfig emulatorInputConfig)
     {
@@ -59,8 +59,8 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
             genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = 0x00;
     }
 
-    public List<string> GetDebugMessages()
+    public List<string> GetStats()
     {
-        return _debugMessages;
+        return _stats;
     }
 }

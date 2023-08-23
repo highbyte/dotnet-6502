@@ -1,26 +1,25 @@
 using System.Diagnostics;
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Generic;
 
 public class GenericComputerBuilder
 {
     private readonly GenericComputer _genericComputer;
+    private readonly ILoggerFactory _loggerFactory;
 
-    public GenericComputerBuilder()
-    {
-        var genericComputerConfig = new GenericComputerConfig();
-        _genericComputer = new GenericComputer(genericComputerConfig);
-    }
+    public GenericComputerBuilder(ILoggerFactory loggerFactory) : this(loggerFactory, new GenericComputerConfig()) { }
 
-    public GenericComputerBuilder(GenericComputerConfig genericComputerConfig)
+    public GenericComputerBuilder(ILoggerFactory loggerFactory, GenericComputerConfig genericComputerConfig)
     {
-        _genericComputer = new GenericComputer(genericComputerConfig);
+        _loggerFactory = loggerFactory;
+        _genericComputer = new GenericComputer(genericComputerConfig, loggerFactory);
     }
 
     public GenericComputerBuilder WithCPU()
     {
-        _genericComputer.CPU = new CPU();
+        _genericComputer.CPU = new CPU(_loggerFactory);
         return this;
     }
 
@@ -82,7 +81,7 @@ public class GenericComputerBuilder
         return _genericComputer;
     }
 
-    public static GenericComputer SetupGenericComputerFromConfig(GenericComputerConfig emulatorConfig)
+    public static GenericComputer SetupGenericComputerFromConfig(GenericComputerConfig emulatorConfig, ILoggerFactory loggerFactory)
     {
         emulatorConfig.Validate();
 
@@ -117,7 +116,7 @@ public class GenericComputerBuilder
         }
 
         // Initialize emulator with CPU, memory, and execution parameters
-        var computerBuilder = new GenericComputerBuilder(emulatorConfig);
+        var computerBuilder = new GenericComputerBuilder(loggerFactory, emulatorConfig);
         computerBuilder
             .WithCPU()
             .WithStartAddress(loadedAtAddress)

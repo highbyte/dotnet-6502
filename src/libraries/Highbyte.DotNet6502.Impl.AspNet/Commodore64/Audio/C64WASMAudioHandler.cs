@@ -2,6 +2,7 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 
@@ -38,15 +39,18 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
             {3, new C64WASMVoiceContext(3) },
         };
 
-    private readonly List<string> _debugMessages = new();
-    private const int MAX_DEBUG_MESSAGES = 20;
+    private readonly List<string> _stats = new();
 
-    public C64WASMAudioHandler()
+    private readonly ILogger _logger;
+
+    public C64WASMAudioHandler(ILoggerFactory loggerFactory)
     {
+        _logger = loggerFactory.CreateLogger(typeof(C64WASMAudioHandler).Name);
     }
-    public List<string> GetDebugMessages()
+
+    public List<string> GetStats()
     {
-        return _debugMessages;
+        return _stats;
     }
 
     public void Init(C64 system, WASMAudioHandlerContext audioHandlerContext)
@@ -244,35 +248,38 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, 
 
     private void AddDebugMessage(string msg, int? voice = null, SidVoiceWaveForm? sidVoiceWaveForm = null, AudioVoiceStatus? audioStatus = null)
     {
-        var time = DateTime.Now.ToString("HH:mm:ss.fff");
         string formattedMsg;
         if (sidVoiceWaveForm.HasValue && audioStatus.HasValue)
         {
-            formattedMsg = $"{time} ({voice}-{sidVoiceWaveForm}-{audioStatus}): {msg}";
+            formattedMsg = $"(Voice{voice}-{sidVoiceWaveForm}-{audioStatus}): {msg}";
         }
         else if (sidVoiceWaveForm.HasValue && !audioStatus.HasValue)
         {
-            formattedMsg = $"{time} ({voice}-{sidVoiceWaveForm}): {msg}";
+            formattedMsg = $"(Voice{voice}-{sidVoiceWaveForm}): {msg}";
         }
         else if (!sidVoiceWaveForm.HasValue && audioStatus.HasValue)
         {
-            formattedMsg = $"{time} ({voice}-{audioStatus}): {msg}";
+            formattedMsg = $"(Voice{voice}-{audioStatus}): {msg}";
         }
         else if (voice.HasValue)
         {
-            formattedMsg = $"{time} ({voice}): {msg}";
+            formattedMsg = $"(Voice{voice}): {msg}";
         }
         else
         {
-            formattedMsg = $"{time}: {msg}";
+            formattedMsg = $"{msg}";
         }
 
-        //var threadId = Environment.CurrentManagedThreadId;
-        //_debugMessages.Insert(0, $"{time} ({threadId}): {msg}");
-        _debugMessages.Insert(0, formattedMsg);
+        _logger.LogDebug(formattedMsg);
 
-        if (_debugMessages.Count > MAX_DEBUG_MESSAGES)
-            _debugMessages.RemoveAt(MAX_DEBUG_MESSAGES);
+        //var time = DateTime.Now.ToString("HH:mm:ss.fff");
+        //formattedMsg = $"{time}: {formattedMsg}";
+        ////var threadId = Environment.CurrentManagedThreadId;
+        ////_stats.Insert(0, $"{time} ({threadId}): {msg}");
+        //_stats.Insert(0, formattedMsg);
+
+        //if (_stats.Count > MAX_DEBUG_MESSAGES)
+        //    _stats.RemoveAt(MAX_DEBUG_MESSAGES);
     }
 
     //private Task[] CreateSoundTasks(InternalSidState sidInternalStateClone)

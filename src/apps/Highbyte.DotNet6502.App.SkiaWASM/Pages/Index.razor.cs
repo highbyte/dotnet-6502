@@ -12,6 +12,7 @@ using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.Components.Forms;
 using Blazored.LocalStorage;
+using Highbyte.DotNet6502.Logging.Console;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
@@ -37,6 +38,7 @@ public partial class Index
     private bool IsSelectedSystemConfigOk => string.IsNullOrEmpty(_selectedSystemConfigValidationMessage);
     private string _selectedSystemConfigValidationMessage = "";
 
+    // Note: The current config object (reference) is stored in this variable so that the UI can bind it's properties (not possible to use async call to _systemList.GetSystemConfig() in property )
     private ISystemConfig _currentConfig = default!;
     private bool AudioEnabledToggleDisabled => (
             (!(_currentConfig?.AudioSupported ?? true)) ||
@@ -114,8 +116,19 @@ public partial class Index
     [Inject]
     public ILocalStorageService? LocalStorage { get; set; }
 
+    [Inject]
+    public ILoggerFactory LoggerFactory { get; set; }
+
+    [Inject]
+    public DotNet6502ConsoleLoggerConfiguration LoggerConfiguration { get; set; }
+
+    private ILogger<Index> _logger;
+
     protected override async Task OnInitializedAsync()
     {
+        _logger = LoggerFactory.CreateLogger<Index>();
+        _logger.LogDebug("OnInitializedAsync() was called");
+
         _browserContext = new()
         {
             Uri = NavManager!.ToAbsoluteUri(NavManager.Uri),
@@ -135,19 +148,14 @@ public partial class Index
 
         _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>();
 
-        var c64Setup = new C64Setup(_browserContext);
-        await _systemList.AddSystem(C64.SystemName, c64Setup.BuildSystem, c64Setup.BuildSystemRunner, c64Setup.GetNewConfig, c64Setup.PersistConfig);
+        var c64Setup = new C64Setup(_browserContext, LoggerFactory);
+        await _systemList.AddSystem(c64Setup);
 
-        var genericComputerSetup = new GenericComputerSetup(_browserContext);
-        await _systemList.AddSystem(
-            GenericComputer.SystemName,
-            genericComputerSetup.BuildSystem,
-            genericComputerSetup.BuildSystemRunner,
-            genericComputerSetup.GetNewConfig,
-            genericComputerSetup.PersistConfig);
+        var genericComputerSetup = new GenericComputerSetup(_browserContext, LoggerFactory);
+        await _systemList.AddSystem(genericComputerSetup);
 
         // Default system
-        _selectedSystemName = C64.SystemName;
+        _selectedSystemName = c64Setup.SystemName;
         await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = _selectedSystemName });
 
         await SetDefaultsFromQueryParams(_browserContext.Uri);
@@ -205,6 +213,8 @@ public partial class Index
 
         UpdateCanvasSize();
         this.StateHasChanged();
+
+        _logger.LogInformation($"System selected: {_selectedSystemName}");
     }
 
     private async void UpdateCanvasSize()
@@ -229,7 +239,7 @@ public partial class Index
 
     private async Task InitEmulator()
     {
-        _wasmHost = new WasmHost(Js!, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, (float)Scale, MasterVolumePercent);
+        _wasmHost = new WasmHost(Js!, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, LoggerFactory, (float)Scale, MasterVolumePercent);
         CurrentEmulatorState = EmulatorState.Paused;
     }
 
@@ -322,9 +332,10 @@ public partial class Index
         this.StateHasChanged();
     }
 
-    private async Task ShowGeneralHelpUI() => await ShowHelpUI<GeneralHelpUI>();
+    private async Task ShowGeneralHelpUI() => await ShowGeneralHelpUI<GeneralHelpUI>();
+    private async Task ShowGeneralSettingsUI() => await ShowGeneralSettingsUI<GeneralSettingsUI>();
 
-    public async Task ShowHelpUI<T>() where T : IComponent
+    public async Task ShowGeneralHelpUI<T>() where T : IComponent
     {
         var result = await Modal.Show<T>("Help").Result;
 
@@ -334,9 +345,22 @@ public partial class Index
         }
         else if (result.Confirmed)
         {
-            //Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
         }
     }
+
+    public async Task ShowGeneralSettingsUI<T>() where T : IComponent
+    {
+        var result = await Modal.Show<T>("Settings").Result;
+
+        if (result.Cancelled)
+        {
+            //Console.WriteLine("Modal was cancelled");
+        }
+        else if (result.Confirmed)
+        {
+        }
+    }
+
 
     private void UpdateStats(string stats)
     {
@@ -503,7 +527,10 @@ public partial class Index
         await FocusEmulator();
 
         this.StateHasChanged();
+
+        _logger.LogInformation($"System started: {_selectedSystemName}");
     }
+
     public async Task OnPause(MouseEventArgs mouseEventArgs)
     {
         if (CurrentEmulatorState == EmulatorState.Uninitialized)
@@ -512,7 +539,10 @@ public partial class Index
         _wasmHost!.Stop();
         CurrentEmulatorState = EmulatorState.Paused;
         this.StateHasChanged();
+
+        _logger.LogInformation($"System paused: {_selectedSystemName}");
     }
+
     public async Task OnReset(MouseEventArgs mouseEventArgs)
     {
         await OnPause(mouseEventArgs);
@@ -523,6 +553,8 @@ public partial class Index
     {
         await CleanupEmulator();
         this.StateHasChanged();
+        _logger.LogInformation($"System stopped: {_selectedSystemName}");
+
     }
     private async Task OnMonitorToggle(MouseEventArgs mouseEventArgs)
     {
@@ -534,7 +566,6 @@ public partial class Index
     {
         await ToggleDebugStatsState();
     }
-
 
     private void OnKeyPress(KeyboardEventArgs e)
     {

@@ -9,12 +9,13 @@ using NativeFileDialogSharp;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
 
-public class SilkNetImGuiMenu
+public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 {
     private readonly SilkNetWindow _silkNetWindow;
     private EmulatorState EmulatorState => _silkNetWindow.EmulatorState;
 
-    public bool Visible = true;
+    public bool Visible { get; private set; } = true;
+    public bool WindowIsFocused { get; private set; }
 
     private const int POS_X = 10;
     private const int POS_Y = 10;
@@ -30,6 +31,7 @@ public class SilkNetImGuiMenu
     private bool _audioEnabled;
     private float _audioVolumePercent;
     private string SelectedSystemName => _silkNetWindow.SystemList.Systems.ToArray()[_selectedSystemItem];
+
 
     private SilkNetImGuiC64Config? _c64ConfigUI;
     private SilkNetImGuiGenericComputerConfig? _genericComputerConfigUI;
@@ -120,6 +122,14 @@ public class SilkNetImGuiMenu
         }
         ImGui.EndDisabled();
 
+        //ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused));
+        ImGui.SameLine();
+        if (ImGui.Button("Logs"))
+        {
+            _silkNetWindow.ToggleLogsPanel();
+        }
+        //ImGui.EndDisabled();
+
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
         ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
         //ImGui.SetKeyboardFocusHere(0);
@@ -129,8 +139,8 @@ public class SilkNetImGuiMenu
             if (float.TryParse(_screenScaleString, out float scale))
                 _silkNetWindow.CanvasScale = scale;
         }
-        ImGui.PopStyleColor();
         ImGui.PopItemWidth();
+        ImGui.PopStyleColor();
         ImGui.EndDisabled();
 
         // System settings
@@ -178,7 +188,6 @@ public class SilkNetImGuiMenu
                 {
                     wasRunning = true;
                     _silkNetWindow.Pause();
-
                 }
 
                 var dialogResult = Dialog.FileOpen(@"prg;*");
@@ -221,7 +230,10 @@ public class SilkNetImGuiMenu
         ImGui.Text("Toggle menu with F6");
         ImGui.Text("Toggle monitor with F12");
         ImGui.Text("Toggle stats with F11");
+        ImGui.Text("Toggle logs with F10");
         ImGui.PopStyleColor();
+
+        WindowIsFocused = ImGui.IsWindowFocused();
 
         ImGui.End();
     }
@@ -404,4 +416,15 @@ public class SilkNetImGuiMenu
     {
         _silkNetWindow.EmulatorState = EmulatorState.Paused;
     }
+
+    public void Enable()
+    {
+        Visible = true;
+    }
+
+    public void Disable()
+    {
+        Visible = false;
+    }
+
 }
