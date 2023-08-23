@@ -38,6 +38,7 @@ public partial class Index
     private bool IsSelectedSystemConfigOk => string.IsNullOrEmpty(_selectedSystemConfigValidationMessage);
     private string _selectedSystemConfigValidationMessage = "";
 
+    // Note: The current config object (reference) is stored in this variable so that the UI can bind it's properties (not possible to use async call to _systemList.GetSystemConfig() in property )
     private ISystemConfig _currentConfig = default!;
     private bool AudioEnabledToggleDisabled => (
             (!(_currentConfig?.AudioSupported ?? true)) ||
