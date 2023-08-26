@@ -32,7 +32,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
         _c64SkiaPaint = new C64SkiaPaint(c64.ColorMapName);
 
-        InitCharset(c64, _getGRContext());
+        InitCharset(c64);
     }
 
     public void Init(ISystem system, IRenderContext renderContext)
@@ -42,10 +42,13 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
     public void Draw(C64 c64)
     {
-        RenderBackgroundAndBorder(c64);
-        RenderMainScreen(c64);
+        var canvas = _getSkCanvas();
+        canvas.Clear();
 
-        RenderSprites(c64);
+        RenderBackgroundAndBorder(c64, canvas);
+        RenderMainScreen(c64, canvas);
+
+        RenderSprites(c64, canvas);
     }
 
     public void Draw(ISystem system)
@@ -53,17 +56,17 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         Draw((C64)system);
     }
 
-    private void InitCharset(C64 c64, GRContext grContext)
+    private void InitCharset(C64 c64)
     {
         // Generate and remember images of the Chargen ROM charset.
-        GenerateROMChargenImages(c64, grContext);
+        GenerateROMChargenImages(c64);
         // Default to shifted ROM character set
         _characterSetCurrent = _characterSetROMShiftedImage;
         // Listen to event when the VIC2 charset address is changed to recreate a image for the charset
-        c64.Vic2.CharsetAddressChanged += (s, e) => GenerateCurrentChargenImage(c64, grContext);
+        c64.Vic2.CharsetAddressChanged += (s, e) => GenerateCurrentChargenImage(c64);
     }
 
-    private void GenerateROMChargenImages(C64 c64, GRContext grContext)
+    private void GenerateROMChargenImages(C64 c64)
     {
         // Get the two character sets (shifted & unshifted) from VIC2 view of memory (considering selected 16KB bank and charset start offset)
 
@@ -75,8 +78,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
         var chargen = new Chargen();
         // Generate and save the images for the two Chargen ROM character sets
-        _characterSetROMShiftedImage = chargen.GenerateChargenImage(grContext, characterSetShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
-        _characterSetROMUnshiftedImage = chargen.GenerateChargenImage(grContext, characterSetUnShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
+        _characterSetROMShiftedImage = chargen.GenerateChargenImage(characterSetShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
+        _characterSetROMUnshiftedImage = chargen.GenerateChargenImage(characterSetUnShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
 
 #if DEBUG
         chargen.DumpChargenFileToImageFile(_characterSetROMShiftedImage, $"{Path.GetTempPath()}/c64_chargen_shifted_dump.png");
@@ -87,7 +90,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     // TODO: Vic2 class should generate event when VIC2 bank (in 0xdd00) or VIC2 character set offset (in 0x
     // d018) is changed, so we can generate new character set image.
     //       Detect if the VIC2 address is a Chargen ROM shadow location (bank 0 and 2, offset 0x1000 or 0x1800), if so we don't need to generate new image, instead use pre-generated images we did on Init()
-    private void GenerateCurrentChargenImage(C64 c64, GRContext grContext)
+    private void GenerateCurrentChargenImage(C64 c64)
     {
         // If the current address points to a location in where the Chargen ROM character sets are located, we can use pre-rendered images for the character set.
         if (c64.Vic2.CharacterSetAddressInVIC2BankIsChargenROMUnshifted)
@@ -103,10 +106,10 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         // Pointing to a location where a custom character set is located. Create a image for it.
         var characterSet = c64.Vic2.Vic2Mem.ReadData(c64.Vic2.CharacterSetAddressInVIC2Bank, Vic2.CHARACTERSET_SIZE);
         var chargen = new Chargen();
-        _characterSetCurrent = chargen.GenerateChargenImage(grContext, characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
+        _characterSetCurrent = chargen.GenerateChargenImage(characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
     }
 
-    private void RenderMainScreen(C64 c64)
+    private void RenderMainScreen(C64 c64, SKCanvas canvas)
     {
         var emulatorMem = c64.Mem;
         var vic2Screen = c64.Vic2.Vic2Screen;
@@ -129,7 +132,6 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         var visibleMainScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
         // Remember original canvas adjustments
-        var canvas = _getSkCanvas();
         canvas.Save();
         // Clip to the visible character screen area
         canvas.ClipRect(
@@ -167,11 +169,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         canvas.Restore();
     }
 
-    private void RenderBackgroundAndBorder(C64 c64)
+    private void RenderBackgroundAndBorder(C64 c64, SKCanvas canvas)
     {
-        var emulatorMem = c64.Mem;
-        var canvas = _getSkCanvas();
-
         //DrawSimpleBorder(c64, canvas);
         DrawRasterLinesBorder(c64, canvas);
 
@@ -304,9 +303,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
             );
     }
 
-    private void RenderSprites(C64 c64)
+    private void RenderSprites(C64 c64, SKCanvas canvas)
     {
-        var canvas = _getSkCanvas();
         var spriteGen = new SpriteGen();
 
         var vic2Screen = c64.Vic2.Vic2Screen;
@@ -315,17 +313,20 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         var visibileLayout = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);
         //var visibileLayout = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
+        canvas.Save();
         foreach (var sprite in c64.Vic2.SpriteManager.Sprites)
         {
             if (!sprite.Visible)
                 continue;
+
             if (_spriteImages[sprite.SpriteNumber] == null)
             {
-                _spriteImages[sprite.SpriteNumber] = spriteGen.GenerateSpriteImage(_getGRContext(), sprite);
-//#if DEBUG
-//                spriteGen.DumpSpriteToImageFile(_spriteImages[sprite.SpriteNumber], $"{Path.GetTempPath()}/c64_sprite_{sprite.SpriteNumber}.png");
-//#endif
+                _spriteImages[sprite.SpriteNumber] = spriteGen.GenerateSpriteImage(sprite);
+                //#if DEBUG
+                //                spriteGen.DumpSpriteToImageFile(_spriteImages[sprite.SpriteNumber], $"{Path.GetTempPath()}/c64_sprite_{sprite.SpriteNumber}.png");
+                //#endif
             }
+            var spriteImage = _spriteImages[sprite.SpriteNumber];
 
             var spriteCanvasX = sprite.X + visibileLayout.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X;
             var spriteCanvasY = sprite.Y + visibileLayout.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y;
@@ -338,8 +339,9 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
             var imageDest = new SKRect(spriteCanvasX, spriteCanvasY, spriteCanvasX + spriteWidth, spriteCanvasY + spriteHeight);
             var paint = _c64SkiaPaint.GetDrawSpritePaint(sprite.Color);
 
-            canvas.DrawImage(_spriteImages[sprite.SpriteNumber], imageSource, imageDest, paint);
+            canvas.DrawImage(spriteImage, imageSource, imageDest, paint);
         }
-    }
 
+        canvas.Restore();
+    }
 }

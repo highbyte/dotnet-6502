@@ -6,16 +6,17 @@ public class SpriteGen
 {
     public static SKColor SpriteImageDrawColor = SKColors.White;
 
-    public SKImage GenerateSpriteImage(GRContext grContext, Vic2Sprite sprite)
+    public SKImage GenerateSpriteImage(Vic2Sprite sprite)
     {
-        using (var surface = SKSurface.Create(grContext, true, new SKImageInfo(Vic2Sprite.DEFAULT_WIDTH, Vic2Sprite.DEFAULT_HEIGTH)))
+        using (var surface = SKSurface.Create(new SKImageInfo(Vic2Sprite.DEFAULT_WIDTH, Vic2Sprite.DEFAULT_HEIGTH)))
         {
             var canvas = surface.Canvas;
 
             var paint = new SKPaint
             {
-                Style = SKPaintStyle.Stroke,
-                Color = SpriteImageDrawColor
+                Style = SKPaintStyle.StrokeAndFill,
+                Color = SpriteImageDrawColor,
+                StrokeWidth = 1
             };
 
             foreach (var spriteRow in sprite.Data.Rows)
@@ -23,8 +24,8 @@ public class SpriteGen
                 DrawSpriteLine(canvas, paint, spriteRow.Bytes);
                 canvas.Translate(0, 1);
             }
-
             var image = surface.Snapshot();
+
             return image;
         }
     }
