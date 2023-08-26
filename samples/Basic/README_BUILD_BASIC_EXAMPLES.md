@@ -21,3 +21,8 @@ cd C64/Text
 & $PETCAT_APP -w2 -o "Build\HelloWorld.prg" -- "HelloWorld.txt"
 ´´´
 
+´´´ pwsh
+$PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
+cd C64/Sprites
+& $PETCAT_APP -w2 -o "Build\SingleColorSprite.prg" -- "SingleColorSprite.txt"
+´´´

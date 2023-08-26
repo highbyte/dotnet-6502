@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -11,17 +12,18 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     private Func<SKCanvas> _getSkCanvas;
     private Func<GRContext> _getGRContext;
 
+    private C64SkiaPaint _c64SkiaPaint;
+
+    // Character drawing variables
     private const int CHARGEN_IMAGE_CHARACTERS_PER_ROW = 16;
-
     private SKImage _characterSetCurrent;
-
     private SKImage _characterSetROMShiftedImage;
     private SKImage _characterSetROMUnshiftedImage;
-
     private SKRect _drawImageSource = new SKRect();
     private SKRect _drawImageDest = new SKRect();
 
-    private C64SkiaPaint _c64SkiaPaint;
+    // Sprite drawing variables
+    private readonly SKImage[] _spriteImages = new SKImage[Vic2SpriteManager.NUMBERS_OF_SPRITES];
 
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
     {
@@ -42,6 +44,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     {
         RenderBackgroundAndBorder(c64);
         RenderMainScreen(c64);
+
+        RenderSprites(c64);
     }
 
     public void Draw(ISystem system)
@@ -80,7 +84,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 #endif
     }
 
-    // TODO: Vic2 class should generate event when VIC2 bank (in 0xdd00) or VIC2 character set offset (in 0xd018) is changed, so we can generate new character set image.
+    // TODO: Vic2 class should generate event when VIC2 bank (in 0xdd00) or VIC2 character set offset (in 0x
+    // d018) is changed, so we can generate new character set image.
     //       Detect if the VIC2 address is a Chargen ROM shadow location (bank 0 and 2, offset 0x1000 or 0x1800), if so we don't need to generate new image, instead use pre-generated images we did on Init()
     private void GenerateCurrentChargenImage(C64 c64, GRContext grContext)
     {
@@ -118,13 +123,9 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
             scrollY += 1;
 
         // Clip main screen area with consideration to possible 38 column and 24 row mode
-        //var visibileClippedHorizontalPositions = vic2Screen.GetHorizontalPositions(visible: true, normalizeToVisible: true, for38ColMode: c64.Vic2.Is38ColumnDisplayEnabled);
-        //var visibileClippedVerticalPositions = vic2Screen.GetVerticalPositions(visible: true, normalizeToVisible: true, for24RowMode: c64.Vic2.Is24RowDisplayEnabled);
         var visibleClippedScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);
 
         // Main screen draw area for characters, without consideration to 38 column mode or 24 row mode.
-        //var visibileHorizontalPositions = vic2Screen.GetHorizontalPositions(visible: true, normalizeToVisible: true, for38ColMode: false);
-        //var visibileVerticalPositions = vic2Screen.GetVerticalPositions(visible: true, normalizeToVisible: true, for24RowMode: false);
         var visibleMainScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
         // Remember original canvas adjustments
@@ -302,4 +303,43 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
             paint
             );
     }
+
+    private void RenderSprites(C64 c64)
+    {
+        var canvas = _getSkCanvas();
+        var spriteGen = new SpriteGen();
+
+        var vic2Screen = c64.Vic2.Vic2Screen;
+        var vic2ScreenLayouts = c64.Vic2.ScreenLayouts;
+
+        var visibileLayout = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);
+        //var visibileLayout = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        foreach (var sprite in c64.Vic2.SpriteManager.Sprites)
+        {
+            if (!sprite.Visible)
+                continue;
+            if (_spriteImages[sprite.SpriteNumber] == null)
+            {
+                _spriteImages[sprite.SpriteNumber] = spriteGen.GenerateSpriteImage(_getGRContext(), sprite);
+//#if DEBUG
+//                spriteGen.DumpSpriteToImageFile(_spriteImages[sprite.SpriteNumber], $"{Path.GetTempPath()}/c64_sprite_{sprite.SpriteNumber}.png");
+//#endif
+            }
+
+            var spriteCanvasX = sprite.X + visibileLayout.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X;
+            var spriteCanvasY = sprite.Y + visibileLayout.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y;
+
+            var spriteWidth = Vic2Sprite.DEFAULT_WIDTH;
+            var spriteHeight = Vic2Sprite.DEFAULT_HEIGTH;
+
+            // TODO: Optimize by using pre-created SKRect objects with sprite dimensions
+            var imageSource = new SKRect(0, 0, spriteWidth, spriteHeight);
+            var imageDest = new SKRect(spriteCanvasX, spriteCanvasY, spriteCanvasX + spriteWidth, spriteCanvasY + spriteHeight);
+            var paint = _c64SkiaPaint.GetDrawSpritePaint(sprite.Color);
+
+            canvas.DrawImage(_spriteImages[sprite.SpriteNumber], imageSource, imageDest, paint);
+        }
+    }
+
 }

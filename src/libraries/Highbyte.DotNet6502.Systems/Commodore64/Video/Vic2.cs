@@ -63,6 +63,7 @@ public class Vic2
     public Dictionary<int, byte>? ScreenLineBorderColor { get; private set; }
     public Dictionary<int, byte>? ScreenLineBackgroundColor { get; private set; }
     public Vic2ScreenLayouts? ScreenLayouts { get; private set; }
+    public Vic2SpriteManager? SpriteManager { get; private set; }
 
     private Vic2() { }
 
@@ -89,6 +90,9 @@ public class Vic2
 
         var vic2ScreenLayouts = new Vic2ScreenLayouts(vic2);
         vic2.ScreenLayouts = vic2ScreenLayouts;
+
+        var spriteManager = new Vic2SpriteManager(vic2);
+        vic2.SpriteManager = spriteManager;
 
         return vic2;
     }
@@ -284,6 +288,7 @@ public class Vic2
             0b00 => 3,
             _ => throw new NotImplementedException(),
         };
+        // TODO: Make sure to switch current VIC2 bank via vic2Mem.SetMemoryConfiguration(x), and just updating the internal variable CurrentVIC2Bank?
         if (CurrentVIC2Bank != oldVIC2Bank)
             OnCharsetAddressChanged(new());
     }

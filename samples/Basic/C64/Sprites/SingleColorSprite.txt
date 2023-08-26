@@ -1,0 +1,92 @@
+10 print chr$(147)
+
+15 rem poke 53280,1: rem change the border color to white
+
+17 poke 53281,1: rem change the background color to white
+
+20 poke53269,128
+
+30 poke2047,192
+
+35 poke 2046,192:rem set sprite 6 data pointer to 12288
+
+37 poke 2045,192:rem set sprite 5 data pointer to 12288
+
+43 poke 53293,6:rem color sprite 6 blue
+
+45 poke 53292,2:rem color sprite 5 red
+
+50 forn=0to62
+
+55 poke53271,128
+
+57 poke 53277,128
+
+60 read q
+
+70 poke12288+n, q
+
+80 next
+
+85 forz=1to200
+
+90 poke53262, z
+
+92 poke 53260, z:rem set sprite 6 horizontal position
+
+94 poke 53258,100:rem set sprite 5 horizontal position
+
+95 poke53263, z
+
+96 poke 53261,100:rem set sprite 6 vertical position
+
+97 poke 53259, z:rem set sprite 6 vertical position
+
+98 next
+
+99 goto 85
+
+100 data 255,255,255
+
+110 data 0,126,0
+
+120 data 1,129,128
+
+130 data 2,0,64
+
+140 data 12,0,48
+
+150 data 8,0,16
+
+160 data 19,197,200
+
+170 data 16,0,8
+
+180 data 160,195,5
+
+190 data 160,195,5
+
+200 data 160,24,5
+
+210 data 160,24,5
+
+220 data 160,24,5
+
+230 data 16,126,8
+
+240 data 17,60,136
+
+250 data 8,129,16
+
+260 data 8,126,16
+
+270 data 4,0,32
+
+280 data 2,0,64
+
+290 data 1,129,128
+
+300 data 255,255,255
+
+400 rem show sprite at top/left
+410 poke 53262, 24: poke 53263, 50
