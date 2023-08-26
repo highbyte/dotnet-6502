@@ -25,6 +25,8 @@ public class Vic2
     public const int CHARACTERSET_ONE_CHARACTER_BYTES = 8;      // 8 bytes (one line per byte) for each character.
     public const int CHARACTERSET_SIZE = CHARACTERSET_NUMBER_OF_CHARCTERS * CHARACTERSET_ONE_CHARACTER_BYTES;    // = 1024 (0x0400) bytes. 256 characters, where each character takes up 8 bytes (1 byte per character line)
 
+    public const int SPRITE_POINTERS_START_ADDRESS = 0x07f8;    // Range 0x07f8 - 0x07ff are offset from start of VIC2 screen memory (which can be relocated) to sprite pointers 0-7
+
     public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
 
     public byte CurrentVIC2Bank { get; private set; }

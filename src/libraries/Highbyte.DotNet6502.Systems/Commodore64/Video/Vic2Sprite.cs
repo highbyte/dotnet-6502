@@ -38,7 +38,26 @@ public class Vic2Sprite
         if (_data == null)
             _data = new Vic2SpriteData();
 
-        // TEST: Fake sprite data
+        var spritePointer = _vic2.Vic2Mem[(ushort)(Vic2.SPRITE_POINTERS_START_ADDRESS + SpriteNumber)];
+        var spritePointerAddress = (ushort)(spritePointer * 64);
+
+        var bytesPerRow = DEFAULT_WIDTH / 8;
+        for (int row = 0; row < DEFAULT_HEIGTH; row++)
+        {
+            for (int rowByte = 0; rowByte < bytesPerRow; rowByte++)
+            {
+                var byteAddr = spritePointerAddress + (row * bytesPerRow) + rowByte;
+                var spriteRowByte = _vic2.Vic2Mem[(ushort)(byteAddr)];
+                _data.Rows[row].Bytes[rowByte] = spriteRowByte;
+            }
+        }
+
+        return _data;
+    }
+
+    private void CreateTestSpriteImage()
+    {
+        // Fake sprite data
         _data.Rows[00].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
         _data.Rows[01].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
         _data.Rows[02].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
@@ -62,8 +81,6 @@ public class Vic2Sprite
         _data.Rows[19].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
 
         _data.Rows[20].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
-
-        return _data;
     }
 
     public class Vic2SpriteData
