@@ -310,10 +310,20 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         var vic2Screen = c64.Vic2.Vic2Screen;
         var vic2ScreenLayouts = c64.Vic2.ScreenLayouts;
 
-        var visibileLayout = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);
-        //var visibileLayout = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        // Clip main screen area with consideration to possible 38 column and 24 row mode
+        var visibleClippedScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);
+
+        // Main screen draw area for characters, without consideration to 38 column mode or 24 row mode.
+        var visibleMainScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
         canvas.Save();
+
+        // Clip to visible area (normal text screen area, or including borders if they are opened)
+        var clipRect = GetSpriteClipping(vic2Screen, visibleClippedScreenArea);
+        canvas.ClipRect(
+            clipRect,
+            SKClipOperation.Intersect);
+
         foreach (var sprite in c64.Vic2.SpriteManager.Sprites)
         {
             if (!sprite.Visible)
@@ -322,14 +332,14 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
             if (_spriteImages[sprite.SpriteNumber] == null)
             {
                 _spriteImages[sprite.SpriteNumber] = spriteGen.GenerateSpriteImage(sprite);
-                //#if DEBUG
-                //                spriteGen.DumpSpriteToImageFile(_spriteImages[sprite.SpriteNumber], $"{Path.GetTempPath()}/c64_sprite_{sprite.SpriteNumber}.png");
-                //#endif
+#if DEBUG
+                spriteGen.DumpSpriteToImageFile(_spriteImages[sprite.SpriteNumber], $"{Path.GetTempPath()}/c64_sprite_{sprite.SpriteNumber}.png");
+#endif
             }
             var spriteImage = _spriteImages[sprite.SpriteNumber];
 
-            var spriteCanvasX = sprite.X + visibileLayout.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X;
-            var spriteCanvasY = sprite.Y + visibileLayout.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y;
+            var spriteCanvasX = sprite.X + visibleMainScreenArea.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X;
+            var spriteCanvasY = sprite.Y + visibleMainScreenArea.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y;
 
             var spriteWidth = Vic2Sprite.DEFAULT_WIDTH;
             var spriteHeight = Vic2Sprite.DEFAULT_HEIGTH;
@@ -343,5 +353,36 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         }
 
         canvas.Restore();
+    }
+
+    private SKRect GetSpriteClipping(Vic2Screen vic2Screen, Vic2ScreenLayout visibileLayout)
+    {
+        // TODO: Detect if borders are opened
+        bool verticalBorderOpened = false;
+        bool horizontalBorderOpened = false;
+        // Clip to main screen area, or if borders are opened (VIC2 trick) skip clipping
+        int clipXStart, clipXEnd, clipYStart, clipYEnd;
+        if (verticalBorderOpened)
+        {
+            clipXStart = 0;
+            clipXEnd = vic2Screen.VisibleWidth;
+        }
+        else
+        {
+            clipXStart = visibileLayout.Screen.Start.X;
+            clipXEnd = visibileLayout.Screen.End.X + 1;
+        }
+        if (horizontalBorderOpened)
+        {
+            clipYStart = 0;
+            clipYEnd = vic2Screen.VisibleHeight;
+        }
+        else
+        {
+            clipYStart = visibileLayout.Screen.Start.Y;
+            clipYEnd = visibileLayout.Screen.End.Y + 1;
+        }
+
+        return new SKRect(clipXStart, clipYStart, clipXEnd, clipYEnd);
     }
 }
