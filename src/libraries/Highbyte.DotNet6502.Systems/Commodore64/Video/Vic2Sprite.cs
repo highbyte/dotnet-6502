@@ -24,8 +24,12 @@ public class Vic2Sprite
     public bool DoubleHeight => false;
     public bool PriorityOverForeground => true;
 
-    private Vic2SpriteData _data;
+    private Vic2SpriteData _data = new Vic2SpriteData();
     public Vic2SpriteData Data => BuildSpriteData();
+
+    public bool IsDirty => _isDirty;
+
+    private bool _isDirty = true;
 
     public Vic2Sprite(int spriteNumber, Vic2SpriteManager spriteManager)
     {
@@ -35,9 +39,6 @@ public class Vic2Sprite
 
     private Vic2SpriteData BuildSpriteData()
     {
-        if (_data == null)
-            _data = new Vic2SpriteData();
-
         var spritePointer = _vic2.Vic2Mem[(ushort)(Vic2.SPRITE_POINTERS_START_ADDRESS + SpriteNumber)];
         var spritePointerAddress = (ushort)(spritePointer * 64);
 
@@ -55,33 +56,40 @@ public class Vic2Sprite
         return _data;
     }
 
+    public void SetDirty(bool dirty)
+    {
+        _isDirty = dirty;
+    }
+
     private void CreateTestSpriteImage()
     {
         // Fake sprite data
         _data.Rows[00].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
-        _data.Rows[01].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
-        _data.Rows[02].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
-        _data.Rows[03].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
-        _data.Rows[04].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
-        _data.Rows[05].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
-        _data.Rows[06].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
-        _data.Rows[07].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
+        _data.Rows[01].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+        _data.Rows[02].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+        _data.Rows[03].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+        _data.Rows[04].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+        _data.Rows[05].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+        _data.Rows[06].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+        _data.Rows[07].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
         _data.Rows[08].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
         _data.Rows[09].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
 
         _data.Rows[10].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
         _data.Rows[11].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
-        _data.Rows[12].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
-        _data.Rows[13].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
-        _data.Rows[14].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
-        _data.Rows[15].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
-        _data.Rows[16].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
-        _data.Rows[17].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
-        _data.Rows[18].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
-        _data.Rows[19].Bytes = new byte[] { 0b00000000, 0b00111100, 0b00000000 };
+        _data.Rows[12].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+        _data.Rows[13].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+        _data.Rows[14].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+        _data.Rows[15].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+        _data.Rows[16].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+        _data.Rows[17].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+        _data.Rows[18].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+        _data.Rows[19].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
 
         _data.Rows[20].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
     }
+
+
 
     public class Vic2SpriteData
     {

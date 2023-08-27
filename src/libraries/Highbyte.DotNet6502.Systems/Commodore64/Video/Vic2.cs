@@ -1,5 +1,7 @@
+using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 
@@ -121,45 +123,57 @@ public class Vic2
         return screenLineBackgroundColor;
     }
 
-    public void MapIOLocations(Memory mem)
+    public void MapIOLocations(Memory c64Mem)
     {
         // Address 0xd011: "Screen Control Register 1"
-        mem.MapReader(Vic2Addr.SCREEN_CONTROL_REGISTER_1, ScrCtrlReg1Load);
-        mem.MapWriter(Vic2Addr.SCREEN_CONTROL_REGISTER_1, ScrCtrlReg1Store);
+        c64Mem.MapReader(Vic2Addr.SCREEN_CONTROL_REGISTER_1, ScrCtrlReg1Load);
+        c64Mem.MapWriter(Vic2Addr.SCREEN_CONTROL_REGISTER_1, ScrCtrlReg1Store);
 
         // Address 0xd012: "Current Raster Line"
-        mem.MapReader(Vic2Addr.CURRENT_RASTER_LINE, RasterLoad);
-        mem.MapWriter(Vic2Addr.CURRENT_RASTER_LINE, RasterStore);
+        c64Mem.MapReader(Vic2Addr.CURRENT_RASTER_LINE, RasterLoad);
+        c64Mem.MapWriter(Vic2Addr.CURRENT_RASTER_LINE, RasterStore);
 
         // Address 0xd016: "Horizontal Fine Scrolling and Control Register"
-        mem.MapReader(Vic2Addr.SCROLL_X, ScrollXLoad);
-        mem.MapWriter(Vic2Addr.SCROLL_X, ScrollXStore);
+        c64Mem.MapReader(Vic2Addr.SCROLL_X, ScrollXLoad);
+        c64Mem.MapWriter(Vic2Addr.SCROLL_X, ScrollXStore);
 
         // Address 0xd018: "Memory setup" (VIC2 pointer for charset/bitmap & screen memory)
-        mem.MapReader(Vic2Addr.MEMORY_SETUP, MemorySetupLoad);
-        mem.MapWriter(Vic2Addr.MEMORY_SETUP, MemorySetupStore);
+        c64Mem.MapReader(Vic2Addr.MEMORY_SETUP, MemorySetupLoad);
+        c64Mem.MapWriter(Vic2Addr.MEMORY_SETUP, MemorySetupStore);
 
         // Address 0xd019: "VIC Interrupt Flag Register"
-        mem.MapReader(Vic2Addr.VIC_IRQ, VICIRQLoad);
-        mem.MapWriter(Vic2Addr.VIC_IRQ, VICIRQStore);
+        c64Mem.MapReader(Vic2Addr.VIC_IRQ, VICIRQLoad);
+        c64Mem.MapWriter(Vic2Addr.VIC_IRQ, VICIRQStore);
 
         // Address 0xd01a: "IRQ Mask Register"
-        mem.MapReader(Vic2Addr.IRQ_MASK, IRQMASKLoad);
-        mem.MapWriter(Vic2Addr.IRQ_MASK, IRQMASKStore);
+        c64Mem.MapReader(Vic2Addr.IRQ_MASK, IRQMASKLoad);
+        c64Mem.MapWriter(Vic2Addr.IRQ_MASK, IRQMASKStore);
 
         // Address 0xd020: Border color
-        mem.MapReader(Vic2Addr.BORDER_COLOR, BorderColorLoad);
-        mem.MapWriter(Vic2Addr.BORDER_COLOR, BorderColorStore);
+        c64Mem.MapReader(Vic2Addr.BORDER_COLOR, BorderColorLoad);
+        c64Mem.MapWriter(Vic2Addr.BORDER_COLOR, BorderColorStore);
         // Address 0xd021: Background color
-        mem.MapReader(Vic2Addr.BACKGROUND_COLOR, BackgroundColorLoad);
-        mem.MapWriter(Vic2Addr.BACKGROUND_COLOR, BackgroundColorStore);
+        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR, BackgroundColorLoad);
+        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR, BackgroundColorStore);
 
         // Address 0xdd00: "Port A" (VIC2 bank & serial bus)
-        mem.MapReader(Vic2Addr.PORT_A, PortALoad);
-        mem.MapWriter(Vic2Addr.PORT_A, PortAStore);
+        c64Mem.MapReader(Vic2Addr.PORT_A, PortALoad);
+        c64Mem.MapWriter(Vic2Addr.PORT_A, PortAStore);
+
+        MapVic2MemoryLocations();
     }
 
     /// <summary>
+    /// Map special VIC2 memory locations seen by the CPU that should be mapped to reader/writer functions (instead of directly to memory).
+    /// </summary>
+    private void MapVic2MemoryLocations()
+    {
+        SpriteManager.MapSpriteDataReadWrite();
+    }
+
+
+    /// <summary>
+    /// Map VIC2 IO locations to C64 memory locations.
     /// </summary>
     /// <param name="ram"></param>
     /// <param name="roms"></param>
@@ -170,6 +184,9 @@ public class Vic2
 
         // Vic2 can use 4 different banks of 16KB of memory each. They map into C64 RAM or Chargen ROM depending on bank.
         var vic2Mem = new Memory(memorySize: 16 * 1024, numberOfConfigurations: 4, mapToDefaultRAM: false);
+
+        // Map C64 RAM locations and ROM images to Vic2 memory banks.
+        // Note: As the C64 RAM is sent as a array (which is a reference type in .NET), any change to the C64 RAM array will be reflected in the mapped VIC2 memory location (and vice versa).
 
         vic2Mem.SetMemoryConfiguration(0);
         vic2Mem.MapRAM(0x0000, ram, 0, 0x1000);
@@ -290,7 +307,7 @@ public class Vic2
             0b00 => 3,
             _ => throw new NotImplementedException(),
         };
-        // TODO: Make sure to switch current VIC2 bank via vic2Mem.SetMemoryConfiguration(x), and just updating the internal variable CurrentVIC2Bank?
+        // TODO: Make sure to switch current VIC2 bank via mem.SetMemoryConfiguration(x), and just updating the internal variable CurrentVIC2Bank?
         if (CurrentVIC2Bank != oldVIC2Bank)
             OnCharsetAddressChanged(new());
     }

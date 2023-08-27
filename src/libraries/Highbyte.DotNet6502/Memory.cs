@@ -1,4 +1,4 @@
-﻿namespace Highbyte.DotNet6502;
+namespace Highbyte.DotNet6502;
 
 public class Memory
 {
@@ -18,9 +18,13 @@ public class Memory
 
     private LoadByte[] _readers;
     private StoreByte[] _writers;
+    private LoadByte[] _originalReaders;
+    private StoreByte[] _originalWriters;
 
     private LoadByte[][] _readersPerConfiguration;
     private StoreByte[][] _writersPerConfiguration;
+    private LoadByte[][] _originalReadersPerConfiguration;
+    private StoreByte[][] _originalWritersPerConfiguration;
 
     public Memory(int memorySize = MAX_MEMORY_SIZE, int numberOfConfigurations=1, bool mapToDefaultRAM = true) 
     {
@@ -35,12 +39,16 @@ public class Memory
         NumberOfConfigurations = numberOfConfigurations;
         _readersPerConfiguration = new LoadByte[numberOfConfigurations][];
         _writersPerConfiguration = new StoreByte[numberOfConfigurations][];
+        _originalReadersPerConfiguration = new LoadByte[numberOfConfigurations][];
+        _originalWritersPerConfiguration = new StoreByte[numberOfConfigurations][];
 
         for (int i = 0; i < numberOfConfigurations; i++)
         {
             _readersPerConfiguration[i] = new LoadByte[memorySize];
             _writersPerConfiguration[i] = new StoreByte[memorySize];
-            if(mapToDefaultRAM)
+            _originalReadersPerConfiguration[i] = new LoadByte[memorySize];
+            _originalWritersPerConfiguration[i] = new StoreByte[memorySize];
+            if (mapToDefaultRAM)
             {
                 SetMemoryConfiguration(i);
                 MapRAM(0x0000, new byte[Size]);
@@ -56,9 +64,11 @@ public class Memory
         CurrentConfiguration = configuration;
         _readers = _readersPerConfiguration[CurrentConfiguration];
         _writers = _writersPerConfiguration[CurrentConfiguration];
+        _originalReaders = _originalReadersPerConfiguration[CurrentConfiguration];
+        _originalWriters = _originalWritersPerConfiguration[CurrentConfiguration];
     }
 
-    public byte this[ushort index] 
+    public byte this[ushort index]
     {
         get
         {
@@ -80,6 +90,11 @@ public class Memory
         {
             data[(address + dataOffset) - baseAddress] = value;
         };
+        StoreByte originalWriter = delegate (ushort address, byte value)
+        {
+            data[(address + dataOffset) - baseAddress] = value;
+        };
+
         // Func<ushort, byte> reader = (ushort address) =>
         // {
         //     return data[baseAddress - address];
@@ -94,6 +109,7 @@ public class Memory
         {
             _readers[baseAddress + i] = reader;
             _writers[baseAddress + i] = writer;
+            _originalWriters[baseAddress + i] = originalWriter;
         }
     }
 
@@ -176,6 +192,26 @@ public class Memory
         _writers[address](address, value);
     }
 
+    /// <summary>
+    /// Returns value at a memory location as originally configured, even if another map (RAM or ROM) has been created to the same location afterwards.
+    /// </summary>
+    /// <param name="address"></param>
+    /// <returns></returns>
+    public byte ReadOriginal(ushort address)
+    {
+        return _originalReaders[address](address);
+    }
+
+    /// <summary>
+    /// Writes a value to a memory location as originally configured, even if another map (RAM or ROM) has been created to the same location afterwards.
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    public void WriteOriginal(ushort address, byte value)
+    {
+        _originalWriters[address](address, value);
+    }
+
     public Memory Clone()
     {
         var memoryClone = new Memory
@@ -184,6 +220,8 @@ public class Memory
             _writers = this._writers,
             _readersPerConfiguration = this._readersPerConfiguration,
             _writersPerConfiguration = this._writersPerConfiguration,
+            _originalReadersPerConfiguration = this._originalReadersPerConfiguration,
+            _originalWritersPerConfiguration = this._originalWritersPerConfiguration,
             CurrentConfiguration = this.CurrentConfiguration,
             NumberOfConfigurations = this.NumberOfConfigurations,
         };

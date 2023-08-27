@@ -4,13 +4,18 @@
 
 17 poke 53281,1: rem change the background color to white
 
-30 poke2047,192:rem set sprite 7 data pointer to 12288
+20 rem poke53269,128:rem enable sprite 7
+
+30 fors=0to7:rem set sprite pointers to 12288
+32 poke2040+s,192:rem sprite 7 data pointer is at 2047
+34 next
 
 43 poke 53294,5:rem set sprite 7 color to green
 
 45 poke53271,128:rem set sprite 7 double height 
 
 47 poke 53277,128:rem set sprite 7 double width 
+
 
 50 forn=0to62:rem load sprite 7 data
 
