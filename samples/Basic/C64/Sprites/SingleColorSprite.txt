@@ -1,9 +1,17 @@
 10 print chr$(147) :rem clear screen
 
-15 rem poke 53280,1 :rem change the border color to white
-17 poke 53281,1 :rem change the background color to white
+15 poke 53280,1 :rem change the border color to white
+16 poke 53281,6 :rem change the background color to blue
 
-20 rem poke 53269,128+64 :rem enable sprite 6 and 7
+18 rem change text color to Yellow with chr$(14)
+19 print chr$(158) :rem change text color to yellow
+
+20 print "": print ""
+21 print "            ***************            "
+22 print "            * sprite demo *            "
+23 print "            ***************            " 
+
+25 rem poke 53269,128+64 :rem enable sprite 6 and 7
 
 30 for s=0 to 7 :rem set sprite ptrs to 12288
 32 poke 2040+s,192

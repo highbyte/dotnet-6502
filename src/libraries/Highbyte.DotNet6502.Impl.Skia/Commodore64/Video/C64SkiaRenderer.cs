@@ -342,15 +342,14 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
             var spriteCanvasX = sprite.X + visibleMainScreenArea.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X;
             var spriteCanvasY = sprite.Y + visibleMainScreenArea.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y;
 
-            var spriteWidth = Vic2Sprite.DEFAULT_WIDTH;
-            var spriteHeight = Vic2Sprite.DEFAULT_HEIGTH;
+            var spriteWidth = sprite.DoubleWidth ? Vic2Sprite.DEFAULT_WIDTH * 2 : Vic2Sprite.DEFAULT_WIDTH;
+            var spriteHeight = sprite.DoubleHeight ? Vic2Sprite.DEFAULT_HEIGTH * 2 : Vic2Sprite.DEFAULT_HEIGTH;
 
             // TODO: Optimize by using pre-created SKRect objects with sprite dimensions
-            var imageSource = new SKRect(0, 0, spriteWidth, spriteHeight);
             var imageDest = new SKRect(spriteCanvasX, spriteCanvasY, spriteCanvasX + spriteWidth, spriteCanvasY + spriteHeight);
             var paint = _c64SkiaPaint.GetDrawSpritePaint(sprite.Color);
 
-            canvas.DrawImage(spriteImage, imageSource, imageDest, paint);
+            canvas.DrawImage(spriteImage, imageDest, paint);
         }
 
         canvas.Restore();

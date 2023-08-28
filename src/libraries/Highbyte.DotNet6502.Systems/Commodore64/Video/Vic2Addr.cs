@@ -47,10 +47,14 @@ public static class Vic2Addr
 
     public const ushort SCROLL_X = 0xd016;
 
+    public const ushort SPRITE_Y_EXPAND = 0xd017;
+
     public const ushort MEMORY_SETUP = 0xd018;
 
     public const ushort VIC_IRQ = 0xd019;
     public const ushort IRQ_MASK = 0xd01a;
+
+    public const ushort SPRITE_X_EXPAND = 0xd01d;
 
     public const ushort BORDER_COLOR = 0xd020;
     public const ushort BACKGROUND_COLOR = 0xd021;

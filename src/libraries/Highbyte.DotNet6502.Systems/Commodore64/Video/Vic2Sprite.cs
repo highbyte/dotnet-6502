@@ -20,8 +20,8 @@ public class Vic2Sprite
     public int Y => _c64Mem[(ushort)(Vic2Addr.SPRITE_0_Y + SpriteNumber * 2)];
     public byte Color => _c64Mem[(ushort)(Vic2Addr.SPRITE_0_COLOR + SpriteNumber)];
     public bool Multicolor => false;
-    public bool DoubleWidth => false;
-    public bool DoubleHeight => false;
+    public bool DoubleWidth => _c64Mem[Vic2Addr.SPRITE_X_EXPAND].IsBitSet(SpriteNumber);
+    public bool DoubleHeight => _c64Mem[Vic2Addr.SPRITE_Y_EXPAND].IsBitSet(SpriteNumber);
     public bool PriorityOverForeground => true;
 
     private Vic2SpriteData _data = new Vic2SpriteData();
