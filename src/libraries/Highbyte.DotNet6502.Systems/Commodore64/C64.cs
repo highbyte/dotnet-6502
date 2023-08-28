@@ -134,12 +134,8 @@ public class C64 : ISystem, ISystemMonitor
         var c64Model = C64ModelInventory.C64Models[c64Config.C64Model];
 
         var ram = new byte[64 * 1024];  // C64 has 64KB of RAM
-
         var romData = ROM.LoadROMS(c64Config.ROMDirectory, c64Config.ROMs.ToArray());
-
         var io = new byte[1 * 1024];  // 1KB of C64 IO addresses that is mapped to memory address range 0xd000 - 0xdfff in certain memory configuration.
-
-        var mem = CreateC64Memory(ram, io, romData);
 
         var vic2Model = c64Model.Vic2Models.Single(x => x.Name == c64Config.Vic2Model);
         var kb = new C64Keyboard();
@@ -149,7 +145,6 @@ public class C64 : ISystem, ISystemMonitor
         var c64 = new C64(logger)
         {
             Model = c64Model,
-            Mem = mem,
             RAM = ram,
             IO = io,
             Keyboard = kb,
@@ -159,6 +154,9 @@ public class C64 : ISystem, ISystemMonitor
             TimerMode = c64Config.TimerMode,
             ColorMapName = c64Config.ColorMapName
         };
+        var mem = c64.CreateC64Memory(ram, io, romData);
+        c64.Mem = mem;
+
         var vic2 = Vic2.BuildVic2(ram, romData, vic2Model, c64);
         var cpu = CreateC64CPU(vic2, mem, loggerFactory);
         c64.Vic2 = vic2;
@@ -222,7 +220,7 @@ public class C64 : ISystem, ISystemMonitor
         return cpu;
     }
 
-    private static Memory CreateC64Memory(byte[] ram, byte[] io, Dictionary<string, byte[]> roms)
+    private Memory CreateC64Memory(byte[] ram, byte[] io, Dictionary<string, byte[]> roms)
     {
         var basic = roms[C64Config.BASIC_ROM_NAME];
         var chargen = roms[C64Config.CHARGEN_ROM_NAME];
@@ -231,7 +229,7 @@ public class C64 : ISystem, ISystemMonitor
         var mem = new Memory(numberOfConfigurations: 32, mapToDefaultRAM: false);
 
         mem.SetMemoryConfiguration(31);
-        mem.MapRAM(0x0000, ram);
+        mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
         mem.MapROM(0xa000, basic);
         mem.MapRAM(0xd000, io);
         mem.MapROM(0xe000, kernal);
@@ -239,25 +237,25 @@ public class C64 : ISystem, ISystemMonitor
         foreach (var bank in new int[] { 30, 14 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
         }
         foreach (var bank in new int[] { 29, 13 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
         }
         foreach (var bank in new int[] { 28, 24 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
         }
         foreach (var bank in new int[] { 27 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xa000, basic);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
@@ -265,28 +263,28 @@ public class C64 : ISystem, ISystemMonitor
         foreach (var bank in new int[] { 26, 10 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
         }
         foreach (var bank in new int[] { 25, 9 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xd000, chargen);
         }
 
         foreach (var bank in new int[] { 23, 22, 21, 20, 19, 18, 17, 16 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             // TODO: Cartridge low + high mapping
         }
         foreach (var bank in new int[] { 15 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xa000, basic);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
@@ -295,12 +293,12 @@ public class C64 : ISystem, ISystemMonitor
         foreach (var bank in new int[] { 12, 8, 4, 0 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
         }
         foreach (var bank in new int[] { 11 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xa000, basic);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
@@ -309,7 +307,7 @@ public class C64 : ISystem, ISystemMonitor
         foreach (var bank in new int[] { 7 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
             // TODO: Cartridge low + high mapping
@@ -317,7 +315,7 @@ public class C64 : ISystem, ISystemMonitor
         foreach (var bank in new int[] { 6 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
             // TODO: Cartridge high mapping
@@ -325,13 +323,13 @@ public class C64 : ISystem, ISystemMonitor
         foreach (var bank in new int[] { 5 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
         }
         foreach (var bank in new int[] { 3 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
             // TODO: Cartridge low + high mapping
@@ -339,7 +337,7 @@ public class C64 : ISystem, ISystemMonitor
         foreach (var bank in new int[] { 2 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
             // TODO: Cartridge high mapping
@@ -347,9 +345,15 @@ public class C64 : ISystem, ISystemMonitor
         foreach (var bank in new int[] { 1 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
         }
         return mem;
+    }
+
+    private bool RamPreWriteIntercept(ushort address, byte value)
+    {
+        Vic2.InspectVic2MemoryValueUpdateFromCPU(address, value);
+        return true;
     }
 
     private void IoPortStore(ushort _, byte value)

@@ -1,7 +1,7 @@
-using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 
@@ -159,18 +159,77 @@ public class Vic2
         // Address 0xdd00: "Port A" (VIC2 bank & serial bus)
         c64Mem.MapReader(Vic2Addr.PORT_A, PortALoad);
         c64Mem.MapWriter(Vic2Addr.PORT_A, PortAStore);
-
-        MapVic2MemoryLocations();
     }
 
     /// <summary>
-    /// Map special VIC2 memory locations seen by the CPU that should be mapped to reader/writer functions (instead of directly to memory).
+    /// Method to be called before each write to memory by the CPU.
+    /// It's used for optimization to detect changes in VIC2 video memory.
     /// </summary>
-    private void MapVic2MemoryLocations()
+    /// <param name="c64Address"></param>
+    /// <param name="value"></param>
+    public void InspectVic2MemoryValueUpdateFromCPU(ushort c64Address, byte value)
     {
-        SpriteManager.MapSpriteDataReadWrite();
+        var vic2Address = GetVic2FromC64Address(c64Address);
+        if (vic2Address.HasValue)
+        {
+            SpriteManager.DetectChangesToSpriteData(vic2Address.Value, value);
+        }
     }
 
+    /// <summary>
+    /// Converts a address seen by the CPU (64K) to a VIC2 video memory address (16K).
+    /// If address is not mapped by the VIC2 it returns null.
+    /// </summary>
+    /// <param name="c64Address"></param>
+    /// <returns></returns>
+    /// <exception cref="NotImplementedException"></exception>
+    private ushort? GetVic2FromC64Address(ushort c64Address)
+    {
+        ushort? vic2Address;
+
+        switch (CurrentVIC2Bank)
+        {
+            case 0:
+                vic2Address = c64Address switch
+                {
+                    >= 0x0000 and < 0x0fff => c64Address,   // video ram
+                    >= 0x1000 and < 0x1fff => c64Address,   // chargen ROM
+                    >= 0x2000 and < 0x3fff => c64Address,   // video ram
+                    _ => null,  // not a address mapped by VIC2
+                };
+                break;
+
+            case 1:
+                vic2Address = c64Address switch
+                {
+                    >= 0x4000 and < 0x7fff => (ushort)(c64Address - 0x4000),   // video ram
+                    _ => null,  // not a address mapped by VIC2
+                };
+                break;
+
+            case 2:
+                vic2Address = c64Address switch
+                {
+                    >= 0x8000 and < 0x8fff => (ushort)(c64Address - 0x8000),   // video ram
+                    >= 0x9000 and < 0x9fff => (ushort)(c64Address - 0x8000),   // chargen rom
+                    >= 0xa000 and < 0xbfff => (ushort)(c64Address - 0x8000),   // video ram
+                    _ => null,  // not a address mapped by VIC2
+                };
+                break;
+
+            case 3:
+                vic2Address = c64Address switch
+                {
+                    >= 0xc000 and < 0xffff => (ushort)(c64Address - 0xc000),   // video ram
+                    _ => null,  // not a address mapped by VIC2
+                };
+                break;
+
+            default:
+                throw new NotImplementedException($"VIC2 bank {CurrentVIC2Bank} not implemented yet");
+        }
+        return vic2Address;
+    }
 
     /// <summary>
     /// Map VIC2 IO locations to C64 memory locations.

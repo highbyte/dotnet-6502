@@ -5,6 +5,7 @@ public class Memory
     public delegate byte LoadByte(ushort address);
     public delegate void StoreByte(ushort address, byte value);
 
+    public delegate bool PreWriteIntercept(ushort address, byte value);
     public class MemValue
     {
         public byte Value { get; set; }
@@ -80,20 +81,43 @@ public class Memory
         }
     }
 
-    public void MapRAM(ushort baseAddress, byte[] data, ushort dataOffset = 0, ushort? length = null)
+    public void MapRAM(ushort baseAddress, byte[] data, ushort dataOffset = 0, ushort? length = null, PreWriteIntercept? preWriteIntercept = null)
     {
         LoadByte reader = delegate(ushort address)
         {
             return data[(address + dataOffset) - baseAddress];
         };
-        StoreByte writer = delegate(ushort address, byte value)
+        StoreByte writer;
+        StoreByte originalWriter;
+        if (preWriteIntercept == null)
         {
-            data[(address + dataOffset) - baseAddress] = value;
-        };
-        StoreByte originalWriter = delegate (ushort address, byte value)
+            writer = delegate (ushort address, byte value)
+            {
+                data[(address + dataOffset) - baseAddress] = value;
+            };
+            originalWriter = delegate (ushort address, byte value)
+            {
+                data[(address + dataOffset) - baseAddress] = value;
+            };
+        }
+        else
         {
-            data[(address + dataOffset) - baseAddress] = value;
-        };
+            writer = delegate (ushort address, byte value)
+            {
+                var actualAddress = (ushort)((address + dataOffset) - baseAddress);
+                var shouldWrite = preWriteIntercept(actualAddress, value);
+                if (shouldWrite)
+                    data[actualAddress] = value;
+            };
+            originalWriter = delegate (ushort address, byte value)
+            {
+                var actualAddress = (ushort)((address + dataOffset) - baseAddress);
+                var shouldWrite = preWriteIntercept(actualAddress, value);
+                if (shouldWrite)
+                    data[actualAddress] = value;
+            };
+
+        }
 
         // Func<ushort, byte> reader = (ushort address) =>
         // {

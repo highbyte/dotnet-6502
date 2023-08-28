@@ -1,37 +1,34 @@
-10 print chr$(147)
+10 print chr$(147) :rem clear screen
 
-15 rem poke 53280,1: rem change the border color to white
+15 rem poke 53280,1 :rem change the border color to white
+17 poke 53281,1 :rem change the background color to white
 
-17 poke 53281,1: rem change the background color to white
+20 rem poke 53269,128+64 :rem enable sprite 6 and 7
 
-20 rem poke53269,128:rem enable sprite 7
-
-30 fors=0to7:rem set sprite pointers to 12288
-32 poke2040+s,192:rem sprite 7 data pointer is at 2047
+30 for s=0 to 7 :rem set sprite ptrs to 12288
+32 poke 2040+s,192
 34 next
 
-43 poke 53294,5:rem set sprite 7 color to green
+42 poke 53293,2 :rem set sprite 6 color to red
+43 poke 53294,5 :rem set sprite 7 color to green
 
-45 poke53271,128:rem set sprite 7 double height 
+45 poke 53271,128 :rem set sprite 7 double height 
+47 poke 53277,128 :rem set sprite 7 double width 
 
-47 poke 53277,128:rem set sprite 7 double width 
-
-
-50 forn=0to62:rem load sprite 7 data
-
+50 for n=0 to 62 :rem load sprite data
 60 read q
-
 70 poke12288+n, q
-
 80 next
 
-83 poke53269,128:rem enable sprite 7
+83 poke 53269,128+64 :rem enable sprite 6 and 7
 
-85 forz=1to200:rem move sprite 7 around
+85 for z=1 to 200 :rem move sprites around
 
-90 poke53262, z:rem set sprite 7 horizontal position
+91 poke 53260, ((z*2))+80 and 255 :rem set sprite 6 horizontal position
+91 poke 53261, ((z/2)+40) and 255 :rem set sprite 6 vertical position
 
-95 poke53263, z:rem set sprite 7 vertical position
+92 poke 53262, z :rem set sprite 7 horizontal position
+93 poke 53263, z :rem set sprite 7 vertical position
 
 98 next
 
@@ -79,5 +76,5 @@
 
 300 data 255,255,255
 
-400 rem show sprite at top/left
+400 rem show sprite 7 at top/left
 410 poke 53262, 24: poke 53263, 50
