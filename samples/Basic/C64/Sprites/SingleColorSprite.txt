@@ -86,5 +86,6 @@
 
 300 data 255,255,255
 
-400 rem show sprite 7 at top/left
+400 rem show sprite 6 and 7 at top/left
+405 poke 53260, 24: poke 53261, 50
 410 poke 53262, 24: poke 53263, 50

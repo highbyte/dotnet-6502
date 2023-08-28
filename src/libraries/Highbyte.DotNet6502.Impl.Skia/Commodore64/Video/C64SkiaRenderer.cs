@@ -327,7 +327,10 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
             clipRect,
             SKClipOperation.Intersect);
 
-        foreach (var sprite in c64.Vic2.SpriteManager.Sprites.Where(s => s.PriorityOverForeground == spritesWithPriorityOverForeground))
+        // Draw sprites in reverse order, so that sprite 0 is drawn last and is on top of other sprites.
+        foreach (var sprite in c64.Vic2.SpriteManager.Sprites
+            .Where(s => s.PriorityOverForeground == spritesWithPriorityOverForeground)
+            .OrderByDescending(s => s.SpriteNumber))
         {
             if (!sprite.Visible)
                 continue;
