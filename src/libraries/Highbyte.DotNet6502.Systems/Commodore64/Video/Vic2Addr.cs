@@ -54,6 +54,8 @@ public static class Vic2Addr
     public const ushort VIC_IRQ = 0xd019;
     public const ushort IRQ_MASK = 0xd01a;
 
+    public const ushort SPRITE_FOREGROUND_PRIO = 0xd01b;
+
     public const ushort SPRITE_X_EXPAND = 0xd01d;
 
     public const ushort BORDER_COLOR = 0xd020;

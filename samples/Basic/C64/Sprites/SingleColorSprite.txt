@@ -23,6 +23,8 @@
 45 poke 53271,128 :rem set sprite 7 double height 
 47 poke 53277,128 :rem set sprite 7 double width 
 
+48 poke 53275,128 :rem set sprite 7 appear in background
+
 50 for n=0 to 62 :rem load sprite data
 60 read q
 70 poke12288+n, q

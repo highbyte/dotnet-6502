@@ -22,7 +22,7 @@ public class Vic2Sprite
     public bool Multicolor => false;
     public bool DoubleWidth => _c64Mem[Vic2Addr.SPRITE_X_EXPAND].IsBitSet(SpriteNumber);
     public bool DoubleHeight => _c64Mem[Vic2Addr.SPRITE_Y_EXPAND].IsBitSet(SpriteNumber);
-    public bool PriorityOverForeground => true;
+    public bool PriorityOverForeground => !_c64Mem[Vic2Addr.SPRITE_FOREGROUND_PRIO].IsBitSet(SpriteNumber);
 
     private Vic2SpriteData _data = new Vic2SpriteData();
     public Vic2SpriteData Data => BuildSpriteData();

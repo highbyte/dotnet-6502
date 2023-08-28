@@ -46,9 +46,12 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         canvas.Clear();
 
         RenderBackgroundAndBorder(c64, canvas);
+
+        RenderSprites(c64, canvas, spritesWithPriorityOverForeground: false);
+
         RenderMainScreen(c64, canvas);
 
-        RenderSprites(c64, canvas);
+        RenderSprites(c64, canvas, spritesWithPriorityOverForeground: true);
     }
 
     public void Draw(ISystem system)
@@ -303,7 +306,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
             );
     }
 
-    private void RenderSprites(C64 c64, SKCanvas canvas)
+    private void RenderSprites(C64 c64, SKCanvas canvas, bool spritesWithPriorityOverForeground)
     {
         var spriteGen = new SpriteGen();
 
@@ -324,7 +327,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
             clipRect,
             SKClipOperation.Intersect);
 
-        foreach (var sprite in c64.Vic2.SpriteManager.Sprites)
+        foreach (var sprite in c64.Vic2.SpriteManager.Sprites.Where(s => s.PriorityOverForeground == spritesWithPriorityOverForeground))
         {
             if (!sprite.Visible)
                 continue;
