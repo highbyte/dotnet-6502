@@ -1,0 +1,17 @@
+
+al C:0001 .scrolldelay
+al C:008c .spriteypos
+al C:0080 .spritexpos
+al C:d000 .charsetromlocation
+al C:3000 .charsetramlocation
+al C:3300 .spritechar
+al C:00fa .scrolldelaycounter
+
+al C:0869 .irq
+al C:0907 .spritescroll
+al C:087a .copycharset
+al C:0891 .loop
+al C:0997 .text
+al C:0874 .skipscroll
+al C:08a5 .sprscrollinit
+al C:0864 .waitloop

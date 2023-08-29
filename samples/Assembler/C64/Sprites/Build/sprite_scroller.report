@@ -1,0 +1,334 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\samples\Assembler\C64\Sprites\sprite_scroller.asm
+     1                          ;ACME assembler
+     2                          ;!to "./build/sprite_scroller.prg"
+     3                          
+     4                          ;Example below is based on code from from https://codebase64.org/doku.php?id=base:scrolltext_using_sprites
+     5                          ;and adapted to work as a complete program.
+     6                          
+     7                          	; ----------------------------------------------------------------------------------------------------
+     8                          	;
+     9                          	;	Sprite-Scroller Routine
+    10                          	;	----------------------------
+    11                          	;
+    12                          	;	coding: testicle/payday
+    13                          	;	logo: fabu/payday
+    14                          	;
+    15                          	;
+    16                          	;	contact and payday-releases:
+    17                          	;	------------------------------------
+    18                          	;
+    19                          	;	daniel@popelganda.de
+    20                          	;	www.popelganda.de
+    21                          	;
+    22                          	;
+    23                          	;	this source code is part of an intro, so many code is missing here,
+    24                          	;	while only the interesting parts for the sprite scroller are shown.
+    25                          	;	it shows how to use sprites for text scrolling, so the scroll text
+    26                          	;	can easily be placed above pictures.
+    27                          	;
+    28                          	;	this sourcecode is best view with the font "tahoma", font size 9.
+    29                          	;	you can compile this code using the ACME crossassembler.
+    30                          	;
+    31                          	;	the code was written with Relaunch64, the c64-crossassembler-tool
+    32                          	;	for windows-pc. grab it at www.popelganda.de!
+    33                          	;
+    34                          	; ----------------------------------------------------------------------------------------------------
+    35                          
+    36                          ;--------------------------------------------------
+    37                          ;----- Paragraph @Globale Variablen@ -----
+    38                          ;--------------------------------------------------
+    39                          
+    40                          scrolldelay = 1 	;how many frames to wait before scrolling, the higher the slower
+    41                          scrolldelaycounter = $fa
+    42                          charsetromlocation = $d000
+    43                          charsetramlocation = $3000
+    44                          spritexpos = 128
+    45                          spriteypos = 140	;sprite y-position
+    46                          spritechar = $3300	;here's the char located, that "rolls" into the spritescroller
+    47                          
+    48                          ;*=$c000
+    49                          *=$0800
+    50                          ; encode SYS 2064 ($0810) line
+    51                          ; in BASIC program space
+    52  0800 000c080a009e2032   !byte $00 ,$0c, $08, $0a, $00, $9e, $20, $32 
+    53  0808 3036340000000000   !byte $30, $36, $34, $00, $00, $00, $00, $00
+    54                           
+    55                          ;--------------------------------------------------
+    56                          ;----- Paragraph @Includes@ -----
+    57                          ;--------------------------------------------------
+    58                          
+    59                          ; disable interrupts during irq setup
+    60  0810 78                 		sei					 
+    61                          
+    62                          ;	init text pointer
+    63                          
+    64  0811 a997               		lda #<text
+    65  0813 8550               		sta $50
+    66  0815 a909               		lda #>text
+    67  0817 8551               		sta $51
+    68                          
+    69                          ;--------------------------------------------------
+    70                          ;----- Paragraph @clear sprite-memory@ -----
+    71                          ;--------------------------------------------------
+    72                          
+    73  0819 a200               		ldx #0
+    74  081b a900               		lda #$00
+    75  081d 9d0038             .loop4	sta $3800,x
+    76  0820 e8                 		inx
+    77  0821 d0fa               		bne .loop4
+    78  0823 a200               		ldx #0
+    79  0825 a900               		lda #$00
+    80  0827 9d0039             .loop6	sta $3900,x
+    81  082a e8                 		inx
+    82  082b e040               		cpx #64
+    83  082d d0f8               		bne .loop6
+    84                          
+    85  082f a207               		ldx #7
+    86  0831 a900               		lda #0
+    87  0833 9d0033             .loop5	sta spritechar,x
+    88  0836 ca                 		dex
+    89  0837 10fa               		bpl .loop5
+    90                          
+    91                          
+    92                          ;--------------------------------------------------
+    93                          ;----- Paragraph @copy charset@ -----
+    94                          ;--------------------------------------------------
+    95  0839 207a08             		jsr copycharset	;jump to subroutine to copy charset from rom $d000 to ram $3000
+    96                          
+    97                          ;--------------------------------------------------
+    98                          ;----- Paragraph @init scroll variables@ -----
+    99                          ;--------------------------------------------------
+   100  083c 20a508             		jsr sprscrollinit	;jump to subroutine to initialize sprite positions
+   101                          
+   102                          		;Set scroll speed (how many frames to wait before scrolling, the higher the slower)
+   103  083f a901               		lda #scrolldelay	;load scrollspeed
+   104  0841 85fa               		sta scrolldelaycounter
+   105                          
+   106                          ;--------------------------------------------------
+   107                          ;----- Paragraph @init irq hander@ -----
+   108                          ;--------------------------------------------------
+   109                          
+   110                          		;Init IRQ
+   111  0843 a97f               		lda #%01111111       ; switch off interrupt signals from cia-1
+   112  0845 8d0ddc             		sta $dc0d
+   113                          
+   114  0848 2d11d0             		and $d011            ; clear most significant bit of vic's raster register
+   115  084b 8d11d0             		sta $d011
+   116                          
+   117  084e ad0ddc             		lda $dc0d            ; acknowledge pending interrupts from cia-1
+   118  0851 ad0ddd             		lda $dd0d            ; acknowledge pending interrupts from cia-2
+   119                          
+   120  0854 a901               		lda #%00000001       ; enable raster interrupt signals from vic
+   121  0856 8d1ad0             		sta $d01a
+   122                          
+   123  0859 a969               		lda #<irq
+   124  085b 8d1403             		sta $0314	;Lowbyte of IRQ handler address
+   125  085e a908               		lda #>irq
+   126  0860 8d1503             		sta $0315	;Highbyte of IRQ handler address
+   127                          
+   128                          ;enable interrupts after setup
+   129  0863 58                 		cli			
+   130                          
+   131                          waitloop
+   132  0864 a900               		lda #0
+   133  0866 f0fc               		beq waitloop	;endless branch, until lda #0 instruction "waitloop" changes it's operand to other than 0
+   134  0868 60                 		rts
+   135                          
+   136                          irq		;Irq handler called once each frame
+   137                          		;Check how often we should scroll (every x frame)
+   138  0869 c6fa               		dec scrolldelaycounter
+   139  086b d007               	 	bne skipscroll
+   140  086d 200709             		jsr spritescroll	;jump to the main routine
+   141  0870 a901               		lda #scrolldelay	;reset scrollspeed delay
+   142  0872 85fa               		sta scrolldelaycounter
+   143                          
+   144                          skipscroll
+   145  0874 0e19d0             		asl $d019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
+   146                          		;jmp $ea31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.	
+   147  0877 4c81ea             		jmp $ea81            ; jump into shorter ROM routine to only restore registers from the stack etc
+   148                          
+   149                          !zone
+   150                          copycharset
+   151  087a 78                         sei         ; disable interrupts while we copy 
+   152  087b a208                       ldx #$08    ; we loop 8 times (8x255 = 2Kb)
+   153  087d a933                       lda #$33    ; make the CPU see the Character Generator ROM...
+   154  087f 8501                       sta $01     ; ...at $D000 by storing %00110011 into location $01
+   155                          
+   156  0881 a9d0                       lda #>charsetromlocation    ; load high byte of $D000
+   157  0883 85fc                       sta $fc     ; store it in a free location we use as vector
+   158  0885 a000                       ldy #<charsetromlocation    ; init counter with 0
+   159  0887 84fb                       sty $fb     ; store it as low byte in the $FB/$FC vector
+   160                          
+   161  0889 a930                       lda #>charsetramlocation    ; load high byte of $3000
+   162  088b 85fe                       sta $fe     ; store it in a free location we use as vector
+   163  088d a000                       ldy #<charsetramlocation    ; init counter with 0
+   164  088f 84fd                       sty $fd     ; store it as low byte in the $FD/$FE vector
+   165                          
+   166  0891 b1fb               loop    lda ($fb),y ; read byte from vector stored in $fb/$fc
+   167  0893 91fd                       sta ($fd),y ; write to the RAM vector stored in $fd/$fe
+   168  0895 c8                         iny         ; do this 255 times...
+   169  0896 d0f9                       bne loop    ; ..for low byte $00 to $FF
+   170  0898 e6fc                       inc $fc     ; when we passed $FF increase high byte...
+   171  089a e6fe                       inc $fe     ; when we passed $FF increase high byte...
+   172  089c ca                         dex         ; ... and decrease X by one before restart
+   173  089d d0f2                       bne loop    ; We repeat this until X becomes Zero
+   174  089f a937                       lda #$37    ; switch in I/O mapped registers again...
+   175  08a1 8501                       sta $01     ; ... with %00110111 so CPU can see them
+   176  08a3 58                         cli         ; turn off interrupt disable flag
+   177  08a4 60                         rts         ; return from subroutine
+   178                          
+   179                          ;--------------------------------------------------
+   180                          ;
+   181                          ;----- Paragraph @init sprites above@ -----
+   182                          ;
+   183                          ;--------------------------------------------------
+   184                          
+   185                          !zone
+   186                          sprscrollinit	
+   187  08a5 a980               		lda #spritexpos
+   188  08a7 8d00d0             		sta $d000
+   189  08aa a998               		lda #spritexpos+24
+   190  08ac 8d02d0             		sta $d002
+   191  08af a9b0               		lda #spritexpos+48
+   192  08b1 8d04d0             		sta $d004
+   193  08b4 a9c8               		lda #spritexpos+72
+   194  08b6 8d06d0             		sta $d006
+   195  08b9 a9e0               		lda #spritexpos+96
+   196  08bb 8d08d0             		sta $d008
+   197  08be a98c               		lda #spriteypos
+   198  08c0 8d01d0             		sta $d001
+   199  08c3 8d03d0             		sta $d003
+   200  08c6 8d05d0             		sta $d005
+   201  08c9 8d07d0             		sta $d007
+   202  08cc 8d09d0             		sta $d009
+   203                          		
+   204  08cf a91f               		lda #%00011111	;switch on 5 sprites
+   205  08d1 8d15d0             		sta $d015
+   206  08d4 a900               		lda #0
+   207  08d6 8d1bd0             		sta $d01b
+   208  08d9 8d1cd0             		sta $d01c
+   209  08dc a907               		lda #7			;set sprite color
+   210  08de 8d27d0             		sta $d027
+   211  08e1 8d28d0             		sta $d028
+   212  08e4 8d29d0             		sta $d029
+   213  08e7 8d2ad0             		sta $d02a
+   214  08ea 8d2bd0             		sta $d02b
+   215                          
+   216                          ;--------------------------------------------------
+   217                          ;		sprites at $3800
+   218                          ;--------------------------------------------------
+   219                          		
+   220  08ed a9e0               		lda #224
+   221  08ef 8df807             		sta $07f8
+   222  08f2 a9e1               		lda #225
+   223  08f4 8df907             		sta $07f9
+   224  08f7 a9e2               		lda #226
+   225  08f9 8dfa07             		sta $07fa
+   226  08fc a9e3               		lda #227
+   227  08fe 8dfb07             		sta $07fb
+   228  0901 a9e4               		lda #228
+   229  0903 8dfc07             		sta $07fc
+   230  0906 60                 		rts
+   231                          
+   232                          
+   233                          ;--------------------------------------------------
+   234                          ;
+   235                          ;----- Paragraph @Sub-Route: Spritescrolling@ -----
+   236                          ;
+   237                          ;--------------------------------------------------
+   238                          
+   239                          	;this is the main routine which is responsible for scrolling
+   240                          	;a text through sprites
+   241                          
+   242                          !zone
+   243                          spritescroll	
+   244  0907 ce0b09             		dec .cnt+1
+   245  090a a908               .cnt	lda #8			;already 8 pixel moved?
+   246  090c f003               		beq .neuchar		;if yes, read in new char
+   247  090e 4c4f09             		jmp .softscroll		;else jump to the softscroller and return to the main routine
+   248                          
+   249                          .neuchar
+   250  0911 a000               		ldy #0			;read new char
+   251  0913 b150               		lda ($50),y		;this is the text-pointer
+   252  0915 d00a               		bne .undlos		;end-sign?
+   253                          
+   254  0917 a997               		lda #<text		;if yes, reset text-vector
+   255  0919 8550               		sta $50
+   256  091b a909               		lda #>text
+   257  091d 8551               		sta $51
+   258  091f a920               		lda #$20
+   259                          
+   260  0921 18                 .undlos	clc			;clear carry-bit
+   261  0922 2a                 		rol			;char-value * 8
+   262  0923 2a                 		rol			;(this is the offset for the pixeldata of a char in the charset)
+   263  0924 2a                 		rol
+   264  0925 8d3009             		sta .loop2+1
+   265  0928 9003               		bcc .weiter
+   266  092a ee3109             		inc .loop2+2
+   267                          
+   268  092d a207               .weiter	ldx #7			;read 8 bytes (one char from the charset)
+   269  092f bd0030             .loop2	lda charsetramlocation,x		;from charset-memory
+   270  0932 9d0033             		sta spritechar,x		;and store to that memory-adress where the char is located,
+   271  0935 ca                 		dex			;that "roles" next into the spritescroll
+   272  0936 10f7               		bpl .loop2
+   273                          
+   274  0938 a900               		lda #0			;reset adresses
+   275  093a 8d3009             		sta .loop2+1
+   276  093d a930               		lda #$30
+   277  093f 8d3109             		sta .loop2+2
+   278                          
+   279  0942 e650               		inc $50			;increase scrolltext-counter
+   280  0944 a550               		lda $50
+   281  0946 d002               		bne .nixneu
+   282  0948 e651               		inc $51
+   283                          
+   284  094a a908               .nixneu	lda #8			;reset scrolltext-counter
+   285  094c 8d0b09             		sta .cnt+1
+   286                          
+   287                          .softscroll	
+   288  094f a000               		ldy #0
+   289  0951 a200               		ldx #0
+   290                          
+   291                          ;--------------------------------------------------
+   292                          ;	move chars in sprites
+   293                          ;	to the left (soft-scrolling)
+   294                          ;--------------------------------------------------
+   295                          
+   296  0953 18                 .loop1	clc
+   297  0954 2e0033             .origin	rol spritechar		;"read" left bit of new sign
+   298  0957 3e0239             		rol $3902,x		;move sprite-char - sprite5
+   299  095a 3e0139             		rol $3901,x
+   300  095d 3e0039             		rol $3900,x
+   301  0960 3ec238             		rol $38c2,x		;move sprite-char - sprite4
+   302  0963 3ec138             		rol $38c1,x
+   303  0966 3ec038             		rol $38c0,x
+   304  0969 3e8238             		rol $3882,x		;move sprite-char - sprite3
+   305  096c 3e8138             		rol $3881,x
+   306  096f 3e8038             		rol $3880,x
+   307  0972 3e4238             		rol $3842,x		;move sprite-char - sprite2
+   308  0975 3e4138             		rol $3841,x
+   309  0978 3e4038             		rol $3840,x
+   310  097b 3e0238             		rol $3802,x		;move sprite-char - sprite1
+   311  097e 3e0138             		rol $3801,x
+   312  0981 3e0038             		rol $3800,x
+   313  0984 c8                 		iny
+   314  0985 ee5509             		inc .origin+1		;increase counter and set to next "pixel-row" of that char
+   315  0988 8a                 		txa
+   316  0989 18                 		clc
+   317  098a 6903               		adc #3
+   318  098c aa                 		tax
+   319  098d c008               		cpy #8
+   320  098f d0c2               		bne .loop1
+   321  0991 a900               		lda #<spritechar	;restore original value
+   322  0993 8d5509             		sta .origin+1
+   323  0996 60                 		rts
+   324                          
+   325                          ;--------------------------------------------------
+   326                          ;----- Paragraph @Scrolltext@ -----
+   327                          ;--------------------------------------------------
+   328                          text:
+   329                          !ct scr
+   330  0997 2020202020131012...!tx "     sprite scroller, uses character set copied from rom to scroll in as pixels on sprites. drawn over characters or graphics."
+   331  0a15 2020202020202020...!tx "                    "
+   332  0a29 00                 !byte 0

@@ -1,0 +1,16 @@
+al C:d010 .MIB_Y_MSB
+
+al C:d015 .MIB_ENABLE
+al C:d000 .VIC
+al C:d004 .MIB_X2
+al C:07f8 .MIB_POINTER
+al C:e544 .CLRSCN
+al C:0340 .MIB_MEM_SP2
+al C:d005 .MIB_Y2
+
+al C:081c .x0
+al C:0810 .init
+al C:0847 .spr0
+al C:082f .y0
+al C:0839 .y1
+al C:0837 .y11

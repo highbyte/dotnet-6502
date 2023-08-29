@@ -1,0 +1,72 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\samples\Assembler\C64\Sprites\ballon_demo.asm
+     1                          ;ACME assembler
+     2                          ;!to "./build/ballon_demo.prg"
+     3                          
+     4                          ;Example below is from https://codebase64.org/doku.php?id=base:ballon_demo_from_manual, adapted to work with ACME assembler.
+     5                          
+     6                          CLRSCN = $E544	; Clear Screen
+     7                          
+     8                          VIC = $D000		; VIC Basis 53248
+     9                          MIB_X2 = VIC+4		;
+    10                          MIB_Y2 = VIC+5		;
+    11                          MIB_Y_MSB = VIC+16
+    12                          
+    13                          MIB_ENABLE = VIC+21 	; register Sprite Enable 53269
+    14                          MIB_POINTER = $07F8	; Memory pointer Basis 2040
+    15                          
+    16                          MIB_MEM_SP2 = $0340	; begin memory area sprite2
+    17                          
+    18                          
+    19                          *=$0800
+    20                          	
+    21                          ; encode SYS 2064 ($0810) line
+    22                          ; in BASIC program space
+    23                          
+    24  0800 000c080a009e2032   !byte $00 ,$0c, $08, $0a, $00, $9e, $20, $32 
+    25  0808 3036340000000000   !byte $30, $36, $34, $00, $00, $00, $00, $00
+    26                          
+    27                          
+    28                          init	
+    29  0810 a904               	lda #$04	; Sprite 2
+    30  0812 8d15d0             	sta MIB_ENABLE	; Sprite enable register
+    31                          	
+    32  0815 a90d               	lda #MIB_MEM_SP2/64	; Store startaddress of Pointer 2
+    33  0817 8dfa07             	sta MIB_POINTER+2	; to Sprite pointer register
+    34                          	
+    35  081a a23e               	ldx #$3e	; max of sprite value => 63
+    36  081c bd4708             x0	lda spr0,x	; load sprite byte
+    37  081f 9d4003             	sta MIB_MEM_SP2,x; store to spritememory
+    38  0822 ca                 	dex		; x--
+    39  0823 d0f7               	bne x0		; last byte?
+    40  0825 ca                 	dex		; x--
+    41  0826 8e04d0             	stx MIB_X2	; set Sprite position x to zero minus one
+    42  0829 8e05d0             	stx MIB_Y2	; set Sprite position y to zero minus one
+    43                          	
+    44  082c 2044e5             	jsr CLRSCN	; C64 ROM Clear Screen
+    45                          	
+    46  082f ee04d0             y0	inc MIB_X2	; Sprite position x++
+    47  0832 ee05d0             	inc MIB_Y2	; Sprite position y++
+    48                          	
+    49                          	
+    50                          	; delay for sprite move
+    51  0835 a205               	ldx #$05	; set prescaler outer loop
+    52  0837 a0ff               y11	ldy #$ff	; set prescaler inner loop
+    53  0839 88                 y1	dey		; y--
+    54  083a d0fd               	bne y1		; no reached of zero
+    55  083c ca                 	dex		; x--
+    56  083d d0f8               	bne y11		;
+    57                          	
+    58  083f ad04d0             	lda MIB_X2	; Sprite position x
+    59  0842 c9c8               	cmp #$c8	; Sprite position x are 200?
+    60  0844 d0e9               	bne y0		; no, next position
+    61                          	
+    62  0846 60                 	rts
+    63                          	
+    64                          	
+    65                          spr0:
+    66                          	;!byte 128,127,0,1,255,192,3,255,224,3,231,224
+    67  0847 007f0001ffc003ff...	!byte 0,127,0,1,255,192,3,255,224,3,231,224
+    68  0853 07d9f007dff002d9...	!byte 7,217,240,7,223,240,2,217,240,3,231,224
+    69  085f 03ffe003ffe002ff...	!byte 3,255,224,3,255,224,2,255,160,1,127,64
+    70  086b 013e40009c80009c...	!byte 1,62,64,0,156,128,0,156,128,0,73,0,0,73,0,0
