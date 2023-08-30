@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Highbyte.DotNet6502;
 
 public class Memory
@@ -19,12 +21,10 @@ public class Memory
 
     private LoadByte[] _readers;
     private StoreByte[] _writers;
-    private LoadByte[] _originalReaders;
     private StoreByte[] _originalWriters;
 
     private LoadByte[][] _readersPerConfiguration;
     private StoreByte[][] _writersPerConfiguration;
-    private LoadByte[][] _originalReadersPerConfiguration;
     private StoreByte[][] _originalWritersPerConfiguration;
 
     public Memory(int memorySize = MAX_MEMORY_SIZE, int numberOfConfigurations=1, bool mapToDefaultRAM = true) 
@@ -40,14 +40,12 @@ public class Memory
         NumberOfConfigurations = numberOfConfigurations;
         _readersPerConfiguration = new LoadByte[numberOfConfigurations][];
         _writersPerConfiguration = new StoreByte[numberOfConfigurations][];
-        _originalReadersPerConfiguration = new LoadByte[numberOfConfigurations][];
         _originalWritersPerConfiguration = new StoreByte[numberOfConfigurations][];
 
         for (int i = 0; i < numberOfConfigurations; i++)
         {
             _readersPerConfiguration[i] = new LoadByte[memorySize];
             _writersPerConfiguration[i] = new StoreByte[memorySize];
-            _originalReadersPerConfiguration[i] = new LoadByte[memorySize];
             _originalWritersPerConfiguration[i] = new StoreByte[memorySize];
             if (mapToDefaultRAM)
             {
@@ -65,7 +63,6 @@ public class Memory
         CurrentConfiguration = configuration;
         _readers = _readersPerConfiguration[CurrentConfiguration];
         _writers = _writersPerConfiguration[CurrentConfiguration];
-        _originalReaders = _originalReadersPerConfiguration[CurrentConfiguration];
         _originalWriters = _originalWritersPerConfiguration[CurrentConfiguration];
     }
 
@@ -221,10 +218,10 @@ public class Memory
     /// </summary>
     /// <param name="address"></param>
     /// <returns></returns>
-    public byte ReadOriginal(ushort address)
-    {
-        return _originalReaders[address](address);
-    }
+    ////public byte ReadOriginal(ushort address)
+    ////{
+    ////    return _originalReaders[address](address);
+    ////}
 
     /// <summary>
     /// Writes a value to a memory location as originally configured, even if another map (RAM or ROM) has been created to the same location afterwards.
@@ -244,7 +241,6 @@ public class Memory
             _writers = this._writers,
             _readersPerConfiguration = this._readersPerConfiguration,
             _writersPerConfiguration = this._writersPerConfiguration,
-            _originalReadersPerConfiguration = this._originalReadersPerConfiguration,
             _originalWritersPerConfiguration = this._originalWritersPerConfiguration,
             CurrentConfiguration = this.CurrentConfiguration,
             NumberOfConfigurations = this.NumberOfConfigurations,
