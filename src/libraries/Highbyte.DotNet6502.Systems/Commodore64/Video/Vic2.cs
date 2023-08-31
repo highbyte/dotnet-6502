@@ -1,7 +1,7 @@
+using System.Net;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 
@@ -11,7 +11,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// But only if that is enabled by C64 IO port bank layout at address 0x0001.
 /// By default, the CPU sees IO control addresses in that range.
 /// 
-/// The VIC 2 sees the character set differently (below).
+/// The VIC 2 sees 16K of memory space, with different parts of CPU memory and ROM mapped at different locations.
 ///
 /// </summary>
 public class Vic2
@@ -19,7 +19,15 @@ public class Vic2
     public C64? C64 { get; private set; }
     public Vic2ModelBase? Vic2Model { get; private set; }
     public Vic2Screen? Vic2Screen { get; private set; }
+    /// <summary>
+    /// Vic2 screem memory for text, graphics and sprites.
+    /// </summary>
     public Memory? Vic2Mem { get; private set; }
+
+    /// <summary>
+    /// Vic2 IO registers and color mem storage.
+    /// </summary>
+    public Memory? Vic2IOStorage { get; private set; }
 
     public Vic2IRQ? Vic2IRQ { get; private set; }
 
@@ -40,22 +48,14 @@ public class Vic2
     public bool CharacterSetAddressInVIC2BankIsChargenROMShifted => _currentVIC2BankOffset == 0x1000;
     public bool CharacterSetAddressInVIC2BankIsChargenROMUnshifted => _currentVIC2BankOffset == 0x1800;
 
-    public byte BorderColor { get; private set; }
-    public byte BackgroundColor { get; private set; }
-
-    public byte ScrollX { get; private set; }
-    public byte MemorySetup { get; private set; }
-    public byte PortA { get; private set; }
-
-    public byte ScrCtrl1 { get; private set; }
 
     private ushort _currentRasterLineInternal = ushort.MaxValue;
     public ushort CurrentRasterLine => _currentRasterLineInternal;
 
-    public bool Is38ColumnDisplayEnabled => !ScrollX.IsBitSet(3);
-    public byte FineScrollXValue => (byte)(ScrollX & 0b0000_0111);    // Value 0-7
-    public bool Is24RowDisplayEnabled => !ScrCtrl1.IsBitSet(3);
-    public byte FineScrollYValue => (byte)(ScrCtrl1 & 0b0000_0111);    // Value 0-7
+    public bool Is38ColumnDisplayEnabled => !ReadIOStorage(Vic2Addr.SCROLL_X).IsBitSet(3);
+    public byte FineScrollXValue => (byte)(ReadIOStorage(Vic2Addr.SCROLL_X) & 0b0000_0111);    // Value 0-7
+    public bool Is24RowDisplayEnabled => !ReadIOStorage(Vic2Addr.SCREEN_CONTROL_REGISTER_1).IsBitSet(3);
+    public byte FineScrollYValue => (byte)(ReadIOStorage(Vic2Addr.SCREEN_CONTROL_REGISTER_1) & 0b0000_0111);    // Value 0-7
 
     public event EventHandler<CharsetAddressChangedEventArgs> CharsetAddressChanged;
     protected virtual void OnCharsetAddressChanged(CharsetAddressChangedEventArgs e)
@@ -71,9 +71,10 @@ public class Vic2
 
     private Vic2() { }
 
-    public static Vic2 BuildVic2(byte[] ram, Dictionary<string, byte[]> romData, Vic2ModelBase vic2Model, C64 c64)
+    public static Vic2 BuildVic2(Vic2ModelBase vic2Model, C64 c64)
     {
-        var vic2Mem = CreateVic2Memory(ram, romData);
+        var vic2Mem = CreateVic2Memory(c64);
+        var vic2IOStorage = CreateVic2IOStorage(c64);
         var vic2IRQ = new Vic2IRQ();
 
         var screenLineBorderColorLookup = InitializeScreenLineBorderColorLookup(vic2Model);
@@ -83,6 +84,7 @@ public class Vic2
         {
             C64 = c64,
             Vic2Mem = vic2Mem,
+            Vic2IOStorage = vic2IOStorage,
             Vic2Model = vic2Model,
             Vic2IRQ = vic2IRQ,
             ScreenLineBorderColor = screenLineBorderColorLookup,
@@ -232,13 +234,15 @@ public class Vic2
     }
 
     /// <summary>
-    /// Map VIC2 IO locations to C64 memory locations.
+    /// Map VIC2 16K addressable memory to different parts of the C64 64K RAM and chargen ROM
     /// </summary>
     /// <param name="ram"></param>
     /// <param name="roms"></param>
     /// <returns></returns>
-    private static Memory CreateVic2Memory(byte[] ram, Dictionary<string, byte[]> romData)
+    private static Memory CreateVic2Memory(C64 c64)
     {
+        var ram = c64.RAM;
+        var romData = c64.ROMData;
         var chargen = romData[C64Config.CHARGEN_ROM_NAME];
 
         // Vic2 can use 4 different banks of 16KB of memory each. They map into C64 RAM or Chargen ROM depending on bank.
@@ -269,35 +273,63 @@ public class Vic2
         return vic2Mem;
     }
 
-    public void BorderColorStore(ushort _, byte value)
+    private static Memory CreateVic2IOStorage(C64 c64)
     {
-        BorderColor = (byte)(value & 0b0000_1111); // Only bits 0-3 are stored;
-    }
-    public byte BorderColorLoad(ushort _)
-    {
-        return (byte)(BorderColor | 0b1111_0000); // Bits 4-7 are unused and always 1
-    }
-    public void BackgroundColorStore(ushort _, byte value)
-    {
-        BackgroundColor = (byte)(value & 0b0000_1111); // Only bits 0-3 are stored
-    }
-    public byte BackgroundColorLoad(ushort _)
-    {
-        return ((byte)(BackgroundColor | 0b1111_0000)); // Bits 4-7 are unused and always 1
+        var ram = c64.RAM;
+
+        // Vic2 IO Storage is 4K and is always mapped to address 0xd000 in the C64 memory map.
+        var vic2IOStorage = new Memory(memorySize: 4 * 1024, numberOfConfigurations: 1, mapToDefaultRAM: false);
+
+        vic2IOStorage.SetMemoryConfiguration(0);
+        vic2IOStorage.MapRAM(0x0000, ram, 0xd000, 0x1000);
+
+        return vic2IOStorage;
     }
 
-    public void ScrollXStore(ushort _, byte value)
+    /// <summary>
+    /// Writes byte to VIC2 IO Storage, with address specified as location C64 memory map, and translated to VIC2 IO Storage address (-0xd000).
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    private void WriteIOStorage(ushort address, byte value)
     {
-        ScrollX = (byte)(value & 0b0011_1111); // Only bits 0-5 are stored
+        Vic2IOStorage[(ushort)(address - 0xd000)] = value;
     }
-    public byte ScrollXLoad(ushort _)
+    public byte ReadIOStorage(ushort address)
     {
-        return ((byte)(ScrollX | 0b1100_0000)); // Bits 6-7 are unused and always 1
+        return Vic2IOStorage[(ushort)(address - 0xd000)];
     }
 
-    public void MemorySetupStore(ushort _, byte value)
+    public void BorderColorStore(ushort address, byte value)
     {
-        MemorySetup = value;
+        WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
+    }
+
+    public byte BorderColorLoad(ushort address)
+    {
+        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+    }
+    public void BackgroundColorStore(ushort address, byte value)
+    {
+        WriteIOStorage(address, (byte)(value & 0b0000_1111)); ; // Only bits 0-3 are stored
+    }
+    public byte BackgroundColorLoad(ushort address)
+    {
+        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+    }
+
+    public void ScrollXStore(ushort address, byte value)
+    {
+        WriteIOStorage(address, (byte)(value & 0b0011_1111)); // Only bits 0-5 are stored
+    }
+    public byte ScrollXLoad(ushort address)
+    {
+        return (byte)(ReadIOStorage(address) | 0b1100_0000); // Bits 6-7 are unused and always 1
+    }
+
+    public void MemorySetupStore(ushort address, byte value)
+    {
+        WriteIOStorage(address, value);
 
         // From VIC 2 perspective, IO address 0xd018 (bits 1-3) controls where within a VIC 2 "Bank" the character set is read from,
         // By default, these bits are %010, which is 0x1000-0x17ff offset from Bank below. 
@@ -328,14 +360,14 @@ public class Vic2
             OnCharsetAddressChanged(new());
     }
 
-    public byte MemorySetupLoad(ushort _)
+    public byte MemorySetupLoad(ushort address)
     {
-        return MemorySetup;
+        return ReadIOStorage(address);
     }
 
-    public void PortAStore(ushort _, byte value)
+    public void PortAStore(ushort address, byte value)
     {
-        PortA = value;
+        WriteIOStorage(address, value);
 
         // --- VIC 2 BANKS ---
         // Bits 0-1 of PortA (0xdd00) selects VIC2 bank (inverted order, the highest value 3 means bank 0, and value 0 means bank 3)
@@ -371,14 +403,14 @@ public class Vic2
             OnCharsetAddressChanged(new());
     }
 
-    public byte PortALoad(ushort _)
+    public byte PortALoad(ushort address)
     {
-        return PortA;
+        return ReadIOStorage(address);
     }
 
-    public void ScrCtrlReg1Store(ushort _, byte value)
+    public void ScrCtrlReg1Store(ushort address, byte value)
     {
-        ScrCtrl1 = (byte)(value & 0b0111_1111);
+        WriteIOStorage(address, (byte)(value & 0b0111_1111));
 
         // If the VIC2 model is PAL, then allow configuring the 8th bit of the raster line IRQ.
         // Note: As the Kernal ROM initializes this 8th bit for both NTSC and PAL (same ROM for both), we need this workaround here.
@@ -403,22 +435,23 @@ public class Vic2
 
     }
 
-    public byte ScrCtrlReg1Load(ushort _)
+    public byte ScrCtrlReg1Load(ushort address)
     {
         // As the seventh bit in this register (SCRCTRL1), the highest (eigth) bit of the current raster line is returned.
         byte bit7HighestRasterLineBit = (byte)((_currentRasterLineInternal & 0b0000_0001_0000_0000) >> 1);
-        return (byte)(ScrCtrl1 | bit7HighestRasterLineBit);
+        return (byte)(ReadIOStorage(address) | bit7HighestRasterLineBit);
     }
 
-    public void RasterStore(ushort _, byte value)
+    public void RasterStore(ushort address, byte value)
     {
+        WriteIOStorage(address, value);
+
         ushort newIRQRasterLine = 0;
         if (Vic2IRQ.ConfiguredIRQRasterLine.HasValue)
         {
             // When writing to this register, the value is used to store the first 8 bits of the raster line IRQ setting.
             newIRQRasterLine = (ushort)(Vic2IRQ.ConfiguredIRQRasterLine & 0b0000_0001_0000_0000);
         }
-
         Vic2IRQ.ConfiguredIRQRasterLine = newIRQRasterLine |= value;
     }
 
@@ -563,7 +596,7 @@ public class Vic2
     private void StoreBorderColorForRasterLine(ushort rasterLine)
     {
         var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
-        ScreenLineBorderColor[screenLine] = BorderColor;
+        ScreenLineBorderColor[screenLine] = ReadIOStorage(Vic2Addr.BORDER_COLOR);
     }
 
     private void StoreBackgroundColorForRasterLine(ushort rasterLine)
@@ -572,6 +605,6 @@ public class Vic2
             return;
 
         var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
-        ScreenLineBackgroundColor[screenLine] = BackgroundColor;
+        ScreenLineBackgroundColor[screenLine] = ReadIOStorage(Vic2Addr.BACKGROUND_COLOR);
     }
 }

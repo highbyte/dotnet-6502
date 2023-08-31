@@ -10,7 +10,6 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
 public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 {
     private Func<SKCanvas> _getSkCanvas;
-    private Func<GRContext> _getGRContext;
 
     private C64SkiaPaint _c64SkiaPaint;
 
@@ -28,7 +27,6 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
     {
         _getSkCanvas = skiaRenderContext.GetCanvas;
-        _getGRContext = skiaRenderContext.GetGRContext;
 
         _c64SkiaPaint = new C64SkiaPaint(c64.ColorMapName);
 
@@ -114,7 +112,9 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
     private void RenderMainScreen(C64 c64, SKCanvas canvas)
     {
-        var emulatorMem = c64.Mem;
+        var vic2Mem = c64.Vic2.Vic2Mem;
+        var vic2IOStorage = c64.Vic2.Vic2IOStorage;
+
         var vic2Screen = c64.Vic2.Vic2Screen;
         var vic2ScreenLayouts = c64.Vic2.ScreenLayouts;
 
@@ -147,14 +147,14 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         canvas.Translate(scrollX, scrollY);
 
         // Build screen data characters based on emulator memory contents (byte)
-        var currentScreenAddress = Vic2Addr.SCREEN_RAM_START;
+        var currentScreenAddress = Vic2Addr.SCREEN_RAM_START;   // TODO: Screen RAM start should be calculated based on current VIC2 bank and screen offset
         var currentColorAddress = Vic2Addr.COLOR_RAM_START;
         for (var row = 0; row < vic2Screen.TextRows; row++)
         {
             for (var col = 0; col < vic2Screen.TextCols; col++)
             {
-                var charByte = emulatorMem[currentScreenAddress++];
-                var colorByte = emulatorMem[currentColorAddress++];
+                var charByte = vic2Mem[currentScreenAddress++];
+                var colorByte = vic2IOStorage[currentColorAddress++];  // Note: Color RAM is always at fixed CPU location in CPU ram (not withing the 16K area mapped to the VIC2)
                 DrawEmulatorCharacterOnScreen(
                     canvas,
                     visibleMainScreenArea.Screen.Start.X,

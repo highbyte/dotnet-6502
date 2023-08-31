@@ -157,7 +157,7 @@ public class C64 : ISystem, ISystemMonitor
         };
 
         var cpu = CreateC64CPU(loggerFactory);
-        var vic2 = Vic2.BuildVic2(ram, romData, vic2Model, c64);
+        var vic2 = Vic2.BuildVic2(vic2Model, c64);
 
         c64.CPU = cpu;
         c64.Vic2 = vic2;
