@@ -40,14 +40,9 @@ public class Vic2SpriteManager
                 Sprites[spriteNumber].SetDirty(true);
 
             // Detect changes to the data the sprite pointer points to
-            for (int spriteDataAddressOffset = 0; spriteDataAddressOffset < 63; spriteDataAddressOffset++)
-            {
-                var spriteDataAddress = (ushort)((_vic2Mem[spritePointerAddress] * 64) + spriteDataAddressOffset);
-                //var spritePointer = _vic2Mem[spriteDataAddress];
-
-                if (vic2Address >= spriteDataAddress && vic2Address <= spriteDataAddress + 63)
-                    Sprites[spriteNumber].SetDirty(true);
-            }
+            var spriteDataAddress = (ushort)(_vic2Mem[spritePointerAddress] * 64);
+            if (vic2Address >= spriteDataAddress && vic2Address <= spriteDataAddress + 63)
+                Sprites[spriteNumber].SetDirty(true);
         }
     }
 }
