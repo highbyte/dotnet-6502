@@ -19,7 +19,7 @@ public class Vic2Sprite
                     (_c64Mem[Vic2Addr.SPRITE_MSB_X].IsBitSet(SpriteNumber) ? 256 : 0);
     public int Y => _c64Mem[(ushort)(Vic2Addr.SPRITE_0_Y + SpriteNumber * 2)];
     public byte Color => _c64Mem[(ushort)(Vic2Addr.SPRITE_0_COLOR + SpriteNumber)];
-    public bool Multicolor => false;
+    public bool Multicolor => _c64Mem[Vic2Addr.SPRITE_MULTICOLOR_ENABLE].IsBitSet(SpriteNumber);
     public bool DoubleWidth => _c64Mem[Vic2Addr.SPRITE_X_EXPAND].IsBitSet(SpriteNumber);
     public bool DoubleHeight => _c64Mem[Vic2Addr.SPRITE_Y_EXPAND].IsBitSet(SpriteNumber);
     public bool PriorityOverForeground => !_c64Mem[Vic2Addr.SPRITE_FOREGROUND_PRIO].IsBitSet(SpriteNumber);
@@ -56,9 +56,41 @@ public class Vic2Sprite
         return _data;
     }
 
-    public void SetDirty(bool dirty)
+    public void HasChanged(Vic2SpriteChangeType spriteChangeType)
     {
-        _isDirty = dirty;
+        switch (spriteChangeType)
+        {
+            case Vic2SpriteChangeType.Data:
+                SetDirty();
+                break;
+            case Vic2SpriteChangeType.Color:
+                if (Multicolor)
+                    SetDirty();
+                break;
+            case Vic2SpriteChangeType.MultiColor0:
+                if (Multicolor)
+                    SetDirty();
+                break;
+            case Vic2SpriteChangeType.MultiColor1:
+                if (Multicolor)
+                    SetDirty();
+                break;
+            case Vic2SpriteChangeType.All:
+                SetDirty();
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(spriteChangeType), spriteChangeType, null);
+        }
+    }
+
+    private void SetDirty()
+    {
+        _isDirty = true;
+    }
+
+    public void ClearDirty()
+    {
+        _isDirty = false;
     }
 
     private void CreateTestSpriteImage()
@@ -89,7 +121,38 @@ public class Vic2Sprite
         _data.Rows[20].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
     }
 
+    private void CreateTestMultiColorSpriteImage()
+    {
+        // Fake multi-color sprite data
+        // Each multi-color pixel is 2 pixels wide.
+        // 00 = Background color (transparent)
+        // 01 = Sprite multicolor register 0 (53285, $D025) shared by all sprites
+        // 10 = Sprite Color Registers (53287-94, $D027-E), color per sprite
+        // 11 = Sprite multicolor register 1 (53286, $D026) shared by all sprites
+        _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
+        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+        _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
+        _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
 
+        _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
+        _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
+        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+
+        _data.Rows[20].Bytes = new byte[] { 0b11_11_11_11, 0b11_11_11_11, 0b11_11_11_11 };
+    }
 
     public class Vic2SpriteData
     {
@@ -97,7 +160,7 @@ public class Vic2Sprite
 
         public Vic2SpriteData()
         {
-            for (int row = 0; row < Vic2Sprite.DEFAULT_HEIGTH; row++)
+            for (int row = 0; row < DEFAULT_HEIGTH; row++)
             {
                 Rows[row] = new Vic2SpriteRow();
             }
@@ -109,4 +172,12 @@ public class Vic2Sprite
         }
     }
 
+    public enum Vic2SpriteChangeType
+    {
+        Color,
+        MultiColor0,
+        MultiColor1,
+        Data,
+        All,
+    }
 }

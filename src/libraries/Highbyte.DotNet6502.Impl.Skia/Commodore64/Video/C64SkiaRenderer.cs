@@ -308,7 +308,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
     private void RenderSprites(C64 c64, SKCanvas canvas, bool spritesWithPriorityOverForeground)
     {
-        var spriteGen = new SpriteGen();
+        var spriteGen = new SpriteGen(_c64SkiaPaint, c64.Vic2);
 
         var vic2Screen = c64.Vic2.Vic2Screen;
         var vic2ScreenLayouts = c64.Vic2.ScreenLayouts;
@@ -338,9 +338,9 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
             if (_spriteImages[sprite.SpriteNumber] == null || sprite.IsDirty)
             {
                 _spriteImages[sprite.SpriteNumber] = spriteGen.GenerateSpriteImage(sprite);
-                sprite.SetDirty(false);
+                sprite.ClearDirty();
 #if DEBUG
-                //spriteGen.DumpSpriteToImageFile(_spriteImages[sprite.SpriteNumber], $"{Path.GetTempPath()}/c64_sprite_{sprite.SpriteNumber}.png");
+                spriteGen.DumpSpriteToImageFile(_spriteImages[sprite.SpriteNumber], $"{Path.GetTempPath()}/c64_sprite_{sprite.SpriteNumber}.png");
 #endif
             }
             var spriteImage = _spriteImages[sprite.SpriteNumber];
@@ -353,9 +353,16 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
             // TODO: Optimize by using pre-created SKRect objects with sprite dimensions
             var imageDest = new SKRect(spriteCanvasX, spriteCanvasY, spriteCanvasX + spriteWidth, spriteCanvasY + spriteHeight);
-            var paint = _c64SkiaPaint.GetDrawSpritePaint(sprite.Color);
 
-            canvas.DrawImage(spriteImage, imageDest, paint);
+            if (sprite.Multicolor)
+            {
+                canvas.DrawImage(spriteImage, imageDest);
+            }
+            else
+            {
+                var paint = _c64SkiaPaint.GetDrawSpritePaint(sprite.Color);
+                canvas.DrawImage(spriteImage, imageDest, paint);
+            }
         }
 
         canvas.Restore();

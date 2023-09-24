@@ -2,6 +2,7 @@ using System.Net;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
+using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 
@@ -151,12 +152,30 @@ public class Vic2
         c64Mem.MapReader(Vic2Addr.IRQ_MASK, IRQMASKLoad);
         c64Mem.MapWriter(Vic2Addr.IRQ_MASK, IRQMASKStore);
 
+        // Address 0xd01c: "Sprite multi-color enable"
+        c64Mem.MapReader(Vic2Addr.SPRITE_MULTICOLOR_ENABLE, SpriteMultiColorEnableLoad);
+        c64Mem.MapWriter(Vic2Addr.SPRITE_MULTICOLOR_ENABLE, SpriteMultiColorEnableStore);
+
         // Address 0xd020: Border color
         c64Mem.MapReader(Vic2Addr.BORDER_COLOR, BorderColorLoad);
         c64Mem.MapWriter(Vic2Addr.BORDER_COLOR, BorderColorStore);
         // Address 0xd021: Background color
         c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR, BackgroundColorLoad);
         c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR, BackgroundColorStore);
+
+        // Address 0xd025: Sprite multi-color 0
+        c64Mem.MapReader(Vic2Addr.SPRITE_MULTI_COLOR_0, SpriteMultiColor0Load);
+        c64Mem.MapWriter(Vic2Addr.SPRITE_MULTI_COLOR_0, SpriteMultiColor0Store);
+        // Address 0xd026: Sprite multi-color 1
+        c64Mem.MapReader(Vic2Addr.SPRITE_MULTI_COLOR_1, SpriteMultiColor1Load);
+        c64Mem.MapWriter(Vic2Addr.SPRITE_MULTI_COLOR_1, SpriteMultiColor1Store);
+
+        // Addresses 0xd027 - 0xd02e: Sprite colors
+        for (ushort address = Vic2Addr.SPRITE_0_COLOR; address <= Vic2Addr.SPRITE_7_COLOR; address++)
+        {
+            c64Mem.MapReader(address, SpriteColorLoad);
+            c64Mem.MapWriter(address, SpriteColorStore);
+        }
 
         // Address 0xdd00: "Port A" (VIC2 bank & serial bus)
         c64Mem.MapReader(Vic2Addr.PORT_A, PortALoad);
@@ -300,11 +319,26 @@ public class Vic2
         return Vic2IOStorage[(ushort)(address - 0xd000)];
     }
 
+
+    public void SpriteMultiColorEnableStore(ushort address, byte value)
+    {
+        var originalValue = ReadIOStorage(address);
+        WriteIOStorage(address, value);
+        for (int spriteNumber = 0; spriteNumber < 8; spriteNumber++)
+        {
+            if (originalValue.IsBitSet(spriteNumber) != value.IsBitSet(spriteNumber))
+                SpriteManager.Sprites[spriteNumber].HasChanged(Vic2SpriteChangeType.All);
+        }
+    }
+    public byte SpriteMultiColorEnableLoad(ushort address)
+    {
+        return ReadIOStorage(address);
+    }
+
     public void BorderColorStore(ushort address, byte value)
     {
         WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
     }
-
     public byte BorderColorLoad(ushort address)
     {
         return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
@@ -318,9 +352,40 @@ public class Vic2
         return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
     }
 
+    public void SpriteColorStore(ushort address, byte value)
+    {
+        WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
+        var spriteNumber = (address - Vic2Addr.SPRITE_0_COLOR);
+        SpriteManager.Sprites[spriteNumber].HasChanged(Vic2SpriteChangeType.Color);
+    }
+    public byte SpriteColorLoad(ushort address)
+    {
+        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+    }
+
+    public void SpriteMultiColor0Store(ushort address, byte value)
+    {
+        WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
+        SpriteManager.SetAllDirty();
+    }
+    public byte SpriteMultiColor0Load(ushort address)
+    {
+        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+    }
+    public void SpriteMultiColor1Store(ushort address, byte value)
+    {
+        WriteIOStorage(address, (byte)(value & 0b0000_1111)); ; // Only bits 0-3 are stored
+        SpriteManager.SetAllDirty();
+    }
+    public byte SpriteMultiColor1Load(ushort address)
+    {
+        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+    }
+
     public void ScrollXStore(ushort address, byte value)
     {
         WriteIOStorage(address, (byte)(value & 0b0011_1111)); // Only bits 0-5 are stored
+        SpriteManager.SetAllDirty();
     }
     public byte ScrollXLoad(ushort address)
     {

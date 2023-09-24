@@ -55,11 +55,15 @@ public static class Vic2Addr
     public const ushort IRQ_MASK = 0xd01a;
 
     public const ushort SPRITE_FOREGROUND_PRIO = 0xd01b;
+    public const ushort SPRITE_MULTICOLOR_ENABLE = 0xd01c;
 
     public const ushort SPRITE_X_EXPAND = 0xd01d;
 
     public const ushort BORDER_COLOR = 0xd020;
     public const ushort BACKGROUND_COLOR = 0xd021;
+
+    public const ushort SPRITE_MULTI_COLOR_0 = 0xd025;  // Common for all sprites
+    public const ushort SPRITE_MULTI_COLOR_1 = 0xd026;  // Common for all sprites
 
     public const ushort SPRITE_0_COLOR = 0xd027;
     public const ushort SPRITE_1_COLOR = 0xd028;

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 
@@ -29,20 +29,29 @@ public class Vic2SpriteManager
         }
     }
 
+    public void SetAllDirty()
+    {
+        foreach (var sprite in Sprites)
+        {
+            sprite.HasChanged(Vic2SpriteChangeType.All);
+        }
+    }
+
     public void DetectChangesToSpriteData(ushort vic2Address, byte value)
     {
+        // Detect changes in sprite pointers and data
         for (int spriteNumber = 0; spriteNumber < NUMBERS_OF_SPRITES; spriteNumber++)
         {
             var spritePointerAddress = (ushort)(Vic2.SPRITE_POINTERS_START_ADDRESS + spriteNumber);
 
             // Detect changes to sprite pointer
             if (vic2Address == spritePointerAddress)
-                Sprites[spriteNumber].SetDirty(true);
+                Sprites[spriteNumber].HasChanged(Vic2SpriteChangeType.Data);
 
             // Detect changes to the data the sprite pointer points to
             var spriteDataAddress = (ushort)(_vic2Mem[spritePointerAddress] * 64);
             if (vic2Address >= spriteDataAddress && vic2Address <= spriteDataAddress + 63)
-                Sprites[spriteNumber].SetDirty(true);
+                Sprites[spriteNumber].HasChanged(Vic2SpriteChangeType.Data);
         }
     }
 }
