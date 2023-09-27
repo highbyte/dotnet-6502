@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
@@ -30,12 +31,12 @@ public class Chargen
             while (index < characterSet.Length)
             {
                 // Loop 8 lines for one character
-                var charcterLines = new byte[8];
+                var characterLines = new byte[8];
                 for (var i = 0; i < 8; i++)
                 {
-                    charcterLines[i] = characterSet[index++];
+                    characterLines[i] = characterSet[index++];
                 }
-                DrawOneCharacter(canvas, paint, charcterLines);
+                DrawOneCharacter(canvas, paint, characterLines);
                 canvas.Translate(8, 0);
                 col++;
                 if (col == charactersPerRow)

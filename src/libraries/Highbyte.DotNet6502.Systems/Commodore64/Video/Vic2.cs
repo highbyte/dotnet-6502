@@ -156,6 +156,14 @@ public class Vic2
         c64Mem.MapReader(Vic2Addr.SPRITE_MULTICOLOR_ENABLE, SpriteMultiColorEnableLoad);
         c64Mem.MapWriter(Vic2Addr.SPRITE_MULTICOLOR_ENABLE, SpriteMultiColorEnableStore);
 
+        // Address 0xd01e: "Sprite-to-sprite collision"
+        c64Mem.MapReader(Vic2Addr.SPRITE_TO_SPRITE_COLLISION, SpriteToSpriteCollisionLoad);
+        c64Mem.MapWriter(Vic2Addr.SPRITE_TO_SPRITE_COLLISION, SpriteToSpriteCollisionStore);
+
+        // Address 0xd01f: "Sprite-to-background collision"
+        c64Mem.MapReader(Vic2Addr.SPRITE_TO_BACKGROUND_COLLISION, SpriteToBackgroundCollisionLoad);
+        c64Mem.MapWriter(Vic2Addr.SPRITE_TO_BACKGROUND_COLLISION, SpriteToBackgroundCollisionStore);
+
         // Address 0xd020: Border color
         c64Mem.MapReader(Vic2Addr.BORDER_COLOR, BorderColorLoad);
         c64Mem.MapWriter(Vic2Addr.BORDER_COLOR, BorderColorStore);
@@ -333,6 +341,24 @@ public class Vic2
     public byte SpriteMultiColorEnableLoad(ushort address)
     {
         return ReadIOStorage(address);
+    }
+
+    public void SpriteToSpriteCollisionStore(ushort address, byte value)
+    {
+        WriteIOStorage(address, value);
+    }
+    public byte SpriteToSpriteCollisionLoad(ushort address)
+    {
+        return SpriteManager.GetSpriteToSpriteCollision();
+    }
+
+    public void SpriteToBackgroundCollisionStore(ushort address, byte value)
+    {
+        WriteIOStorage(address, value);
+    }
+    public byte SpriteToBackgroundCollisionLoad(ushort address)
+    {
+        return SpriteManager.GetSpriteToBackgroundCollision();
     }
 
     public void BorderColorStore(ushort address, byte value)
@@ -671,5 +697,20 @@ public class Vic2
 
         var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
         ScreenLineBackgroundColor[screenLine] = ReadIOStorage(Vic2Addr.BACKGROUND_COLOR);
+    }
+
+    /// <summary>
+    /// Get 1 line (8 pixels, 1 byte) from current character for the character code at the specified column and row in screen memory
+    /// </summary>
+    /// <param name="characterCol"></param>
+    /// <param name="characterRow"></param>
+    /// <param name="line"></param>
+    /// <returns></returns>
+    public byte GetTextModeCharacterLine(int characterCol, int characterRow, int line)
+    {
+        var characterAddress = (ushort)(Vic2Addr.SCREEN_RAM_START + (characterRow * Vic2Screen.TextCols) + characterCol);
+        var characterCode = Vic2Mem[characterAddress];
+        var characterSetLineAddress = (ushort)(CharacterSetAddressInVIC2Bank + (characterCode * Vic2Screen.CharacterHeight) + line);
+        return Vic2Mem[characterSetLineAddress];
     }
 }

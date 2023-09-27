@@ -59,6 +59,9 @@ public static class Vic2Addr
 
     public const ushort SPRITE_X_EXPAND = 0xd01d;
 
+    public const ushort SPRITE_TO_SPRITE_COLLISION = 0xd01e;
+    public const ushort SPRITE_TO_BACKGROUND_COLLISION = 0xd01f;
+
     public const ushort BORDER_COLOR = 0xd020;
     public const ushort BACKGROUND_COLOR = 0xd021;
 
