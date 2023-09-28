@@ -29,12 +29,11 @@ public class Sprite_collitions_test
         var vic2 = c64.Vic2;
         var vic2Mem = vic2.Vic2Mem;
 
-        // Write a 'A' screen code to screen memory at col 0, row 0
-        byte characterCode = 1;
-        var characterCol = 0;
-        var characterRow = 0;
-        var characterAddress = (ushort)(Vic2Addr.SCREEN_RAM_START + (characterRow * vic2.Vic2Screen.TextCols) + characterCol);
-        vic2Mem[characterAddress] = characterCode;
+        // Write a 'A' screen code to some text screen memory locations
+        byte characterCode = 1; // 1 = 'A'
+        WriteToTextScreen(vic2, characterCode, col: 0, row: 0);
+        WriteToTextScreen(vic2, characterCode, col: 2, row: 0);
+        WriteToTextScreen(vic2, characterCode, col: 4, row: 0);
 
         // Write the shape of the 'A' character to character rom
         var characterSetLineAddress = (ushort)(vic2.CharacterSetAddressInVIC2Bank + (characterCode * vic2.Vic2Screen.CharacterHeight));
@@ -47,32 +46,58 @@ public class Sprite_collitions_test
         vic2Mem[characterSetLineAddress++] = 0b01100110;
         vic2Mem[characterSetLineAddress++] = 0b00000000;
 
-        // Set sprite position
+
+        // Set sprite position and size
         var spriteNumber = 0;
-        byte spritePosX = Vic2SpriteManager.SCREEN_OFFSET_X + 0;    // Actual horizontal screen position where sprites starts to be shown is at 24
-        byte spritePosY = Vic2SpriteManager.SCREEN_OFFSET_Y + 0;    // Actual vertical screen position where sprites starts to be shown is at 50
-        c64.Mem[(ushort)(Vic2Addr.SPRITE_0_X + spriteNumber * 2)] = spritePosX;
-        c64.Mem[(ushort)(Vic2Addr.SPRITE_0_Y + spriteNumber * 2)] = spritePosY;
+        var spriteScreenXOffset = 0;    // X positon from start of visible text screen area. Can be negative if starting before border ends.
+        var spriteScreenYOffset = 0;    // Y positon from start of visible text screen area. Can be negative if starting before border ends.
+        bool doubleWidth = false;
+        bool doubleHeight = false;
+        bool multiColor = true;
+        SetSpriteProperties(
+            c64,
+            spriteNumber,
+            (byte)(Vic2SpriteManager.SCREEN_OFFSET_X + spriteScreenXOffset),
+            (byte)(Vic2SpriteManager.SCREEN_OFFSET_Y + spriteScreenYOffset),
+            doubleWidth: doubleWidth,
+            doubleHeight: doubleHeight,
+            multiColor: multiColor);
 
         // Create sprite shape
-        FillSpriteShape(vic2Mem, spriteNumber, CreateTestSingleColorSpriteImage(), spritePointer: 192);
+        var spriteShape = multiColor ? CreateTestMultiColorSpriteImage() : CreateTestSingleColorSpriteImage();
+        FillSpriteShape(vic2Mem, spriteNumber, spriteShape, spritePointer: 192);
 
-        // Get sprite row line data (24 pixels, 3 bytes)
+        // Get sprite row line data (24 pixels/3 bytes or 48 pisels/6 bytes)
         var vic2SpriteManager = vic2.SpriteManager;
         var sprite = vic2SpriteManager.Sprites[spriteNumber];
-
 
         // Loop each sprite line
         var spriteLines = new List<byte[]>();
         var screenLines = new List<byte[]>();
+        int? collisionFoundSpriteScreenLine = null;
 
-        for (int spriteLineNumber = 0; spriteLineNumber < DEFAULT_HEIGTH; spriteLineNumber++)
+
+        int numberOfSpriteScreenLines = sprite.DoubleHeight ? DEFAULT_HEIGTH * 2 : DEFAULT_HEIGTH;
+        for (int spriteScreenLine = 0; spriteScreenLine < numberOfSpriteScreenLines; spriteScreenLine++)
         {
-            // Get sprite row line data (24 pixels, 3 bytes)
-            spriteLines.Add(sprite.Data.Rows[spriteLineNumber].Bytes);
-            // Get character ROM data for the corresponding line in the text screen (will match 24 pixels/3 bytes as the sprite)
-            screenLines.Add(vic2SpriteManager.GetCharacterRowLineDataMatchingSpritePosition(spritePosX, spritePosY, spriteLineNumber));
+            var spriteLineData = vic2SpriteManager.GetSpriteRowLineData(sprite, spriteScreenLine);
+            spriteLines.Add(spriteLineData);
+
+            byte[] screenLineData = vic2SpriteManager.GetCharacterRowLineDataMatchingSpritePosition(sprite, spriteScreenLine, spriteLineData.Length);
+            screenLines.Add(screenLineData);
+
+            // Check collision on line
+            bool collisionFound = vic2SpriteManager.CheckCollision(spriteLineData, screenLineData);
+            if (collisionFound)
+                collisionFoundSpriteScreenLine = spriteScreenLine;
         }
+
+        if(collisionFoundSpriteScreenLine.HasValue)
+            _output.WriteLine($"Collision found at line: {collisionFoundSpriteScreenLine}");
+        else
+            _output.WriteLine("No collision");
+
+        _output.WriteLine("");
 
         _output.WriteLine("Sprite row line data");
         foreach (var spriteLine in spriteLines)
@@ -83,6 +108,30 @@ public class Sprite_collitions_test
         _output.WriteLine("Character Rom row line data");
         foreach (var screenLine in screenLines)
             _output.WriteLine($"{string.Join(" ", screenLine.Select(b => Convert.ToString(b, 2).PadLeft(8, '0')))}");
+    }
+
+    private void WriteToTextScreen(Vic2 vic2, byte characterCode, int col, int row)
+    {
+        var characterAddress = (ushort)(Vic2Addr.SCREEN_RAM_START + (row * vic2.Vic2Screen.TextCols) + col);
+        vic2.Vic2Mem[characterAddress] = characterCode;
+    }
+
+    private void SetSpriteProperties(C64 c64, int spriteNumber, byte x, byte y, bool doubleWidth, bool doubleHeight, bool multiColor)
+    {
+        c64.Mem[(ushort)(Vic2Addr.SPRITE_0_X + spriteNumber * 2)] = x;
+        c64.Mem[(ushort)(Vic2Addr.SPRITE_0_Y + spriteNumber * 2)] = y;
+
+        var spriteXExpand = c64.Mem[Vic2Addr.SPRITE_X_EXPAND];
+        spriteXExpand.ChangeBit(spriteNumber, doubleWidth);
+        c64.Mem[Vic2Addr.SPRITE_X_EXPAND] = spriteXExpand;
+
+        var spriteYExpand = c64.Mem[Vic2Addr.SPRITE_Y_EXPAND];
+        spriteYExpand.ChangeBit(spriteNumber, doubleHeight);
+        c64.Mem[Vic2Addr.SPRITE_Y_EXPAND] = spriteYExpand;
+
+        var multiColorEnable = c64.Mem[Vic2Addr.SPRITE_MULTICOLOR_ENABLE];
+        multiColorEnable.ChangeBit(spriteNumber, multiColor);
+        c64.Mem[Vic2Addr.SPRITE_MULTICOLOR_ENABLE] = multiColorEnable;
 
     }
 
@@ -126,6 +175,39 @@ public class Sprite_collitions_test
 
             0b00000000, 0b00000000, 0b00000000,
         };
+    }
 
+    private byte[] CreateTestMultiColorSpriteImage()
+    {
+        // 24 x 21 pixels = 3 * 21 bytes = 63 bytes. 3 bytes per row.
+        // Each byte contains 4 pixels.
+        // Bit pairs 01,10, and 11 are used to 3 different select color.
+        // Bit pair 00 is used to select background color.
+        return new byte[]
+        {
+            0b01010000, 0b10100000, 0b11110000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+            0b00000000, 0b00000000, 0b00000000,
+
+            0b00000000, 0b00000000, 0b00000000,
+        };
     }
 }

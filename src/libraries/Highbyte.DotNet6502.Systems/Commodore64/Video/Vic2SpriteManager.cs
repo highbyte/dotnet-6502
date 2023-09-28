@@ -78,65 +78,130 @@ public class Vic2SpriteManager
             if (!sprite.Visible)
                 continue;
 
-            var spriteData = sprite.Data;
-            bool collisionFound = false;
+            var spriteCollided = CheckCollisionAgainstBackground(sprite);
 
-            // TODO: If sprite is expanded in Y (double height), duplicate the number of vertical lines
-
-            // Loop each sprite line
-            for (int spriteLine = 0; spriteLine < DEFAULT_HEIGTH; spriteLine++)
+            if (spriteCollided)
             {
-                // TODO: If sprite is expanded in X (double width), duplicate the number of horizontal pixels
-
-                // Get the pixels in the sprite line (24 pixels = 3 bytes)
-                byte[] spriteLineData = spriteData.Rows[spriteLine].Bytes;
-                // TODO: If multicolor sprite mode, then each pixel is 2 bits, otherwise 1 bit. Make sure if any bit in the pair (01,10,11) in variable spriteLineData is set to 1, then set both bits in pair to 1.
-
-                // Get the corresponding character row line data (adjusted to align with byte boundaries for easy comparison)
-                byte[] screenLineData = GetCharacterRowLineDataMatchingSpritePosition(sprite.X, sprite.Y, spriteLine);
-                // TODO: If multicolor screen mode, make similar modification to screenLineData as for sprite multicolor mode above?
-
-                // Check if any pixel in sprite line collides with any pixel in screen line (the similar bit in both places are 1)
-                for (int i = 0; i < 3; i++)
-                {
-                    if ((spriteLineData[i] & screenLineData[i]) != 0)
-                    {
-                        collision |= (byte)(1 << spriteNumber);
-                        collisionFound = true;
-                        break;
-                    }
-                }
-
-                if (collisionFound)
-                    break;
+                // Set bit in collision byte for sprite number
+                collision |= (byte)(1 << spriteNumber);
             }
         }
         return collision;
     }
 
-    public byte[] GetCharacterRowLineDataMatchingSpritePosition(int spritePosX, int spritePosY, int spriteLine)
+    public bool CheckCollisionAgainstBackground(Vic2Sprite sprite)
+    {
+        // TODO: If sprite is expanded in Y (double height), duplicate the number of vertical lines
+
+        // Loop each sprite line
+        int numberOfScreenLines = sprite.DoubleHeight ? DEFAULT_HEIGTH * 2 : DEFAULT_HEIGTH;
+        for (int screenLine = 0; screenLine < numberOfScreenLines; screenLine++)
+        {
+            // Get the pixels in the sprite line (24 pixels/3 bytes, or 48 pixels/ 6 bytes, depending if sprite is expanded vertically or not)
+            byte[] spriteLineData = GetSpriteRowLineData(sprite, screenLine);
+
+
+            // TODO: In GetCharacterRowLineDataMatchingSpritePosition, take into account
+            //       horizontal or vertical scroll values to adjust from where from screen memory to read...
+
+            // Get the corresponding character row line data (adjusted to align with byte boundaries for easy comparison)
+            byte[] screenLineData = GetCharacterRowLineDataMatchingSpritePosition(sprite, screenLine, spriteLineData.Length);
+            // TODO: If multicolor screen mode, make similar modification to pixelData2 as for sprite multicolor mode above?
+
+            // Check collision on line
+            bool collisionFound = CheckCollision(spriteLineData, screenLineData);
+            if (collisionFound)
+                return true;
+        }
+        return false;
+    }
+
+    public bool CheckCollision(byte[] pixelData1, byte[] pixelData2)
+    {
+        // Check if any same pixel (bit) is set in both set of bytes
+        for (int i = 0; i < pixelData1.Length; i++)
+        {
+            if ((pixelData1[i] & pixelData2[i]) != 0)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public byte[] GetSpriteRowLineData(Vic2Sprite sprite, int spriteScreenLine)
+    {
+        var spriteLine = sprite.DoubleHeight ? spriteScreenLine / 2 : spriteScreenLine;
+
+        var spriteData = sprite.Data;
+
+        // Get the pixels in the sprite line (24 pixels = 3 bytes)
+        byte[] spriteLineData = spriteData.Rows[spriteLine].Bytes;
+
+        if (sprite.Multicolor)
+        {
+            // If multicolor sprite mode, then each pixel is 2 bits, otherwise 1 bit.
+            // For collision detection sake, the color does not matter.
+            // Make sure if any bit in the pair (01,10,11) in variable pixelData1 is set to 1,
+            // then set both bits in pair to 1.
+            for (int i = 0; i < spriteLineData.Length; i++)
+            {
+                spriteLineData[i] = ChangeAnyBitPairsToSet(spriteLineData[i]);
+            }
+        }
+
+        if (sprite.DoubleWidth)
+        {
+            var spriteLineDataExpanded = new byte[6];
+            for (int i = 0; i < 3; i++)
+            {
+                var expandedPair = spriteLineData[i].StretchBits();
+                spriteLineDataExpanded[i * 2] = expandedPair[0];
+                spriteLineDataExpanded[i * 2 + 1] = expandedPair[1];
+            }
+            spriteLineData = spriteLineDataExpanded;
+        }
+
+        return spriteLineData;
+    }
+
+    private byte ChangeAnyBitPairsToSet(byte data)
+    {
+        byte newData = 0;
+        byte mask = 0b00000011;
+        for (int i = 0; i < 4; i++)
+        {
+            var bitPair = (byte)(data & mask);
+            if (bitPair != 0)
+                newData |= mask;
+            mask <<= 2;
+        }
+        return newData;
+    }
+
+    public byte[] GetCharacterRowLineDataMatchingSpritePosition(Vic2Sprite sprite, int spriteScreenLine, int spriteBytesWidth)
     {
         // Adjust sprite position to match text screen y pixel position
-        var textScreenPosY = spritePosY + spriteLine - SCREEN_OFFSET_Y;
+        var textScreenPosY = sprite.Y + spriteScreenLine - SCREEN_OFFSET_Y;
         if (textScreenPosY < 0 || textScreenPosY > (8 * 25))
-            return new byte[3]; // Y position is outside of text screen, so fill with 0
+            return new byte[spriteBytesWidth]; // Y position is outside of text screen, so fill with 0
 
         // Adjust sprite position to match text screen x pixel position
-        var textScreenPosX = spritePosX - SCREEN_OFFSET_X;
+        var textScreenPosX = sprite.X - SCREEN_OFFSET_X;
 
-        // A sprite is 24 pixels (3 bytes) wide.
+        // A sprite is 24 pixels/3 bytes or 48/6 bytes wide (depending if expanded in X or not). Note that actual defintion of expanded X sprite is till 3 bytes, it's only expanded when drawn on screen (double pixels).
         // Allocate one extra byte if character start x position does not align with sprite start x position (will be aligned after shifting bits afterwards)
         int scrollOffset;
         int numberOfBytesToRead;
         if (textScreenPosX < 0)
         {
             scrollOffset = (textScreenPosX % 8) + 8;
-            numberOfBytesToRead = 4;
+            numberOfBytesToRead = spriteBytesWidth + 1;
         }
         else
         {
             scrollOffset = textScreenPosX % 8;
-            numberOfBytesToRead = scrollOffset == 0 ? 3 : 4;
+            numberOfBytesToRead = scrollOffset == 0 ? spriteBytesWidth : spriteBytesWidth + 1;
         }
 
         var bytes = new byte[numberOfBytesToRead];
@@ -161,20 +226,20 @@ public class Vic2SpriteManager
 
         if (scrollOffset == 0)
         {
-            var firstThreeBytes = new byte[3];
-            for (int i = 0; i < 3; i++)
-                firstThreeBytes[i] = bytes[i];
-            return firstThreeBytes;
+            var allButLastByte = new byte[spriteBytesWidth];
+            for (int i = 0; i < spriteBytesWidth; i++)
+                allButLastByte[i] = bytes[i];
+            return allButLastByte;
         }
         else
         {
             int scrollPixelsRight = 8 - scrollOffset;
             var shiftedBytes = bytes.ShiftRight(scrollPixelsRight, out _);
 
-            var lastThreeBytes = new byte[3];
-            for (int i = 0; i < 3; i++)
-                lastThreeBytes[i] = shiftedBytes[i + 1];
-            return lastThreeBytes;
+            var allButFirstByte = new byte[spriteBytesWidth];
+            for (int i = 0; i < spriteBytesWidth; i++)
+                allButFirstByte[i] = shiftedBytes[i + 1];
+            return allButFirstByte;
         }
     }
 }
