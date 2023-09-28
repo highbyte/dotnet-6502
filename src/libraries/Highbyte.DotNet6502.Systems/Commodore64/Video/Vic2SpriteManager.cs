@@ -17,6 +17,9 @@ public class Vic2SpriteManager
     public const int SCREEN_OFFSET_Y = 50;
     public Vic2Sprite[] Sprites { get; private set; } = new Vic2Sprite[NUMBERS_OF_SPRITES];
 
+    public byte SpriteToSpriteCollisionStore { get; internal set; }
+    public byte SpriteToBackgroundCollisionStore { get; internal set; }
+
     private Vic2SpriteManager() { }
 
     public Vic2SpriteManager(Vic2 vic2)
@@ -53,6 +56,15 @@ public class Vic2SpriteManager
             if (vic2Address >= spriteDataAddress && vic2Address <= spriteDataAddress + 63)
                 Sprites[spriteNumber].HasChanged(Vic2SpriteChangeType.Data);
         }
+    }
+
+    public void SetCollitionDetectionStates()
+    {
+        // Store currently detected collisions only.
+        // Any previous collision that is no longer detected will remain set.
+        // It's cleared when reading from the sprite collision IO registers.
+        SpriteToSpriteCollisionStore = (byte)(SpriteToSpriteCollisionStore | GetSpriteToSpriteCollision());
+        SpriteToBackgroundCollisionStore = (byte)(SpriteToBackgroundCollisionStore | GetSpriteToBackgroundCollision());
     }
 
     public byte GetSpriteToSpriteCollision()
@@ -244,4 +256,5 @@ public class Vic2SpriteManager
         //       "The only exception to this rule is the 01 bit - pair of multicolor graphics data.
         //        This bit-pair is considered part of the background, and the dot it displays can never be involved in a collision."
     }
+
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats;
 using Highbyte.DotNet6502.App.SkiaNative.Stats;
 using Highbyte.DotNet6502.Impl.NAudio;
@@ -55,6 +56,9 @@ public class SilkNetWindow
     private readonly ElapsedMillisecondsTimedStat _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("SkiaSharp-RenderTime");
     private readonly PerSecondTimedStat _updateFps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNetSkiaSharp-OnUpdateFPS");
     private readonly PerSecondTimedStat _renderFps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNetSkiaSharp-OnRenderFPS");
+
+    private const string CustomSystemStatNamePrefix = "Emulator-SystemTime-Custom-";
+    private Dictionary<string, ElapsedMillisecondsStat> _customSystemStats = new();
 
     // SkipSharp context/surface/canvas
     private SkiaRenderContext _skiaRenderContext;
@@ -228,6 +232,21 @@ public class SilkNetWindow
             Window.Size = new Vector2D<int>((int)(screen.VisibleWidth * _canvasScale), (int)(screen.VisibleHeight * _canvasScale));
             Window.UpdatesPerSecond = screen.RefreshFrequencyHz;
 
+            // Remove any existing custom system stats
+            foreach (var existingCustomSystemStatName in _customSystemStats.Keys)
+            {
+                if (existingCustomSystemStatName.StartsWith(CustomSystemStatNamePrefix))
+                {
+                    InstrumentationBag.Remove(existingCustomSystemStatName);
+                    _customSystemStats.Remove(existingCustomSystemStatName);
+                }
+            }
+            // Add any custom system stats for selected system
+            foreach (var customSystemStatName in system.DetailedStatNames)
+            {
+                _customSystemStats.Add($"{CustomSystemStatNamePrefix}{customSystemStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomSystemStatNamePrefix}{customSystemStatName}"));
+            }
+
             InitRendering();
         }
         else
@@ -329,6 +348,18 @@ public class SilkNetWindow
             {
                 _systemTimeAudio.Set(detailedStats["Audio"]);
                 _systemTimeAudio.UpdateStat();
+            }
+
+            // Update custom system stats
+            // TODO: Make custom system stats less messy?
+            foreach (var detailedStatName in detailedStats.Keys)
+            {
+                var statLookup = _customSystemStats.Keys.SingleOrDefault(x => x.EndsWith(detailedStatName));
+                if (statLookup != null)
+                {
+                    _customSystemStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].Set(detailedStats[detailedStatName]);
+                    _customSystemStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].UpdateStat();
+                }
             }
         }
 

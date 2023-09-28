@@ -42,6 +42,18 @@ public class C64 : ISystem, ISystemMonitor
     private readonly ILogger _logger;
     public const ushort BASIC_LOAD_ADDRESS = 0x0801;
 
+    // Detailed stats
+    public bool HasDetailedStats => true;
+    public List<string> DetailedStatNames => new List<string>()
+    {
+        SpriteCollisionStatName
+    };
+    private const string SpriteCollisionStatName = "SpriteCollision";
+    private Dictionary<string, Stopwatch> _detailedStatStopwatches = new()
+    {
+        {SpriteCollisionStatName, new Stopwatch() }
+    };
+
     //public static ROM[] ROMS = new ROM[]
     //{   
     //    // name, file, checksum 
@@ -65,15 +77,20 @@ public class C64 : ISystem, ISystemMonitor
         Dictionary<string, double> detailedStats,
         IExecEvaluator? execEvaluator = null)
     {
+        foreach (var detailedStatName in DetailedStatNames)
+        {
+            detailedStats[detailedStatName] = 0;
+        }
+
         ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
 
         _logger.LogTrace($"Executing one frame, {cyclesToExecute} CPU cycles.");
+
 
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < cyclesToExecute)
         {
             ExecEvaluatorTriggerResult execEvaluatorTriggerResult = ExecuteOneInstruction(systemRunner, out InstructionExecResult instructionExecResult, detailedStats, execEvaluator);
-
             totalCyclesConsumed += instructionExecResult.CyclesConsumed;
 
             if (execEvaluatorTriggerResult.Triggered)
@@ -81,6 +98,13 @@ public class C64 : ISystem, ISystemMonitor
                 return execEvaluatorTriggerResult;
             }
         }
+
+        // Update sprite collision state
+        var sw = _detailedStatStopwatches[SpriteCollisionStatName];
+        sw.Restart();
+        Vic2.SpriteManager.SetCollitionDetectionStates();
+        sw.Stop();
+        detailedStats[SpriteCollisionStatName] += sw.Elapsed.TotalMilliseconds;
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }

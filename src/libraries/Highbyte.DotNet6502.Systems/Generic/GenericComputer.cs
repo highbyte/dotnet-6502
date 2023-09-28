@@ -36,6 +36,9 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     public int VisibleTopBottomBorderHeight => (VisibleHeight - DrawableAreaHeight) / 2;
     public float RefreshFrequencyHz => _genericComputerConfig.ScreenRefreshFrequencyHz;
 
+    public bool HasDetailedStats => false;
+    public List<string> DetailedStatNames => new();
+
     private ILogger _logger;
     private GenericComputerConfig _genericComputerConfig;
     private readonly LegacyExecEvaluator _oneFrameExecEvaluator;

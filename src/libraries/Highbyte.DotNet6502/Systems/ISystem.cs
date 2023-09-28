@@ -19,4 +19,7 @@ public interface ISystem
         out InstructionExecResult instructionExecResult,
         Dictionary<string, double> detailedStats,
         IExecEvaluator? execEvaluator = null);
+
+    public bool HasDetailedStats { get; }
+    public List<string> DetailedStatNames { get; }
 }

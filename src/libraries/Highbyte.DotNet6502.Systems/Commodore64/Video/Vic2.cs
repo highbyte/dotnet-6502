@@ -1,7 +1,6 @@
 using System.Net;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
-using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
@@ -363,20 +362,25 @@ public class Vic2
 
     public void SpriteToSpriteCollisionStore(ushort address, byte value)
     {
-        WriteIOStorage(address, value);
+        // TODO: Is it supposed to be able to write to this value from programs
     }
+
     public byte SpriteToSpriteCollisionLoad(ushort address)
     {
-        return SpriteManager.GetSpriteToSpriteCollision();
+        var val = SpriteManager.SpriteToSpriteCollisionStore;
+        SpriteManager.SpriteToSpriteCollisionStore = 0; // Collision state is cleared after reading
+        return val;
     }
 
     public void SpriteToBackgroundCollisionStore(ushort address, byte value)
     {
-        WriteIOStorage(address, value);
+        // TODO: Is it supposed to be able to write to this value from programs
     }
     public byte SpriteToBackgroundCollisionLoad(ushort address)
     {
-        return SpriteManager.GetSpriteToBackgroundCollision();
+        var val = SpriteManager.SpriteToBackgroundCollisionStore;
+        SpriteManager.SpriteToBackgroundCollisionStore = 0; // Collision state is cleared after reading
+        return val;
     }
 
     public void BorderColorStore(ushort address, byte value)
