@@ -119,14 +119,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         var vic2ScreenLayouts = c64.Vic2.ScreenLayouts;
 
         // Offset based on horizontal and vertical scrolling settings
-        var scrollX = c64.Vic2.FineScrollXValue;
-        var scrollY = c64.Vic2.FineScrollYValue - 3;// Note: VIC2 Y scroll value is by default 3 (=no offset)
-        // Note: In 38 column mode, the screen is shifted 1 pixel to the right (at least as it's shown in VICE emulator)
-        if (c64.Vic2.Is38ColumnDisplayEnabled)
-            scrollX += 1;
-        // Note: In 24 row mode, the screen is shifted 1 pixel down (at least as it's shown in VICE emulator)
-        if (c64.Vic2.Is24RowDisplayEnabled)
-            scrollY += 1;
+        var scrollX = c64.Vic2.GetScrollX();
+        var scrollY = c64.Vic2.GetScrollY();
 
         // Clip main screen area with consideration to possible 38 column and 24 row mode
         var visibleClippedScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);

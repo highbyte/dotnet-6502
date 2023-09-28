@@ -67,15 +67,17 @@ public class Sprite_collitions_test
         var spriteShape = multiColor ? CreateTestMultiColorSpriteImage() : CreateTestSingleColorSpriteImage();
         FillSpriteShape(vic2Mem, spriteNumber, spriteShape, spritePointer: 192);
 
-        // Get sprite row line data (24 pixels/3 bytes or 48 pisels/6 bytes)
-        var vic2SpriteManager = vic2.SpriteManager;
-        var sprite = vic2SpriteManager.Sprites[spriteNumber];
+
+        // Get text screen scroll values
+        var scrollX = 0;
+        var scrollY = 0;
 
         // Loop each sprite line
+        var vic2SpriteManager = vic2.SpriteManager;
+        var sprite = vic2SpriteManager.Sprites[spriteNumber];
         var spriteLines = new List<byte[]>();
         var screenLines = new List<byte[]>();
         int? collisionFoundSpriteScreenLine = null;
-
 
         int numberOfSpriteScreenLines = sprite.DoubleHeight ? DEFAULT_HEIGTH * 2 : DEFAULT_HEIGTH;
         for (int spriteScreenLine = 0; spriteScreenLine < numberOfSpriteScreenLines; spriteScreenLine++)
@@ -83,7 +85,7 @@ public class Sprite_collitions_test
             var spriteLineData = vic2SpriteManager.GetSpriteRowLineData(sprite, spriteScreenLine);
             spriteLines.Add(spriteLineData);
 
-            byte[] screenLineData = vic2SpriteManager.GetCharacterRowLineDataMatchingSpritePosition(sprite, spriteScreenLine, spriteLineData.Length);
+            byte[] screenLineData = vic2SpriteManager.GetCharacterRowLineDataMatchingSpritePosition(sprite, spriteScreenLine, spriteLineData.Length, scrollX, scrollY);
             screenLines.Add(screenLineData);
 
             // Check collision on line

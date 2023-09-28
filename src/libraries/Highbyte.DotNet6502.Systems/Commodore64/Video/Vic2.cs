@@ -55,8 +55,26 @@ public class Vic2
 
     public bool Is38ColumnDisplayEnabled => !ReadIOStorage(Vic2Addr.SCROLL_X).IsBitSet(3);
     public byte FineScrollXValue => (byte)(ReadIOStorage(Vic2Addr.SCROLL_X) & 0b0000_0111);    // Value 0-7
+    public int GetScrollX()
+    {
+        var scrollX = FineScrollXValue;
+        // Note: In 38 column mode, the screen is shifted 1 pixel to the right (at least as it's shown in VICE emulator)
+        if (Is38ColumnDisplayEnabled)
+            scrollX += 1;
+        return scrollX;
+    }
+
     public bool Is24RowDisplayEnabled => !ReadIOStorage(Vic2Addr.SCREEN_CONTROL_REGISTER_1).IsBitSet(3);
     public byte FineScrollYValue => (byte)(ReadIOStorage(Vic2Addr.SCREEN_CONTROL_REGISTER_1) & 0b0000_0111);    // Value 0-7
+    public int GetScrollY()
+    {
+        var scrollY = FineScrollYValue - 3; // Note: VIC2 Y scroll value is by default 3 (=no offset)
+        // Note: In 24 row mode, the screen is shifted 1 pixel down (at least as it's shown in VICE emulator)
+        if (Is24RowDisplayEnabled)
+            scrollY += 1;
+        return scrollY;
+    }
+
 
     public event EventHandler<CharsetAddressChangedEventArgs> CharsetAddressChanged;
     protected virtual void OnCharsetAddressChanged(CharsetAddressChangedEventArgs e)

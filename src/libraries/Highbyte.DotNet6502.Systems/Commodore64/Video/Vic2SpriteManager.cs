@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
@@ -71,6 +70,10 @@ public class Vic2SpriteManager
 
     public byte GetSpriteToBackgroundCollision()
     {
+        // Offset based on screen horizontal and vertical scrolling settings (affects text and graphics mode, but not sprites)
+        var scrollX = Vic2.GetScrollX();
+        var scrollY = Vic2.GetScrollY();
+
         byte collision = 0;
         for (int spriteNumber = 0; spriteNumber < NUMBERS_OF_SPRITES; spriteNumber++)
         {
@@ -78,7 +81,7 @@ public class Vic2SpriteManager
             if (!sprite.Visible)
                 continue;
 
-            var spriteCollided = CheckCollisionAgainstBackground(sprite);
+            var spriteCollided = CheckCollisionAgainstBackground(sprite, scrollX, scrollY);
 
             if (spriteCollided)
             {
@@ -89,10 +92,8 @@ public class Vic2SpriteManager
         return collision;
     }
 
-    public bool CheckCollisionAgainstBackground(Vic2Sprite sprite)
+    public bool CheckCollisionAgainstBackground(Vic2Sprite sprite, int scrollX, int scrollY)
     {
-        // TODO: If sprite is expanded in Y (double height), duplicate the number of vertical lines
-
         // Loop each sprite line
         int numberOfScreenLines = sprite.DoubleHeight ? DEFAULT_HEIGTH * 2 : DEFAULT_HEIGTH;
         for (int screenLine = 0; screenLine < numberOfScreenLines; screenLine++)
@@ -100,13 +101,8 @@ public class Vic2SpriteManager
             // Get the pixels in the sprite line (24 pixels/3 bytes, or 48 pixels/ 6 bytes, depending if sprite is expanded vertically or not)
             byte[] spriteLineData = GetSpriteRowLineData(sprite, screenLine);
 
-
-            // TODO: In GetCharacterRowLineDataMatchingSpritePosition, take into account
-            //       horizontal or vertical scroll values to adjust from where from screen memory to read...
-
             // Get the corresponding character row line data (adjusted to align with byte boundaries for easy comparison)
-            byte[] screenLineData = GetCharacterRowLineDataMatchingSpritePosition(sprite, screenLine, spriteLineData.Length);
-            // TODO: If multicolor screen mode, make similar modification to pixelData2 as for sprite multicolor mode above?
+            byte[] screenLineData = GetCharacterRowLineDataMatchingSpritePosition(sprite, screenLine, spriteLineData.Length, scrollX, scrollY);
 
             // Check collision on line
             bool collisionFound = CheckCollision(spriteLineData, screenLineData);
@@ -179,29 +175,29 @@ public class Vic2SpriteManager
         return newData;
     }
 
-    public byte[] GetCharacterRowLineDataMatchingSpritePosition(Vic2Sprite sprite, int spriteScreenLine, int spriteBytesWidth)
+    public byte[] GetCharacterRowLineDataMatchingSpritePosition(Vic2Sprite sprite, int spriteScreenLine, int spriteBytesWidth, int scrollX, int scrollY)
     {
-        // Adjust sprite position to match text screen y pixel position
-        var textScreenPosY = sprite.Y + spriteScreenLine - SCREEN_OFFSET_Y;
+        // Find out which corresponding text screen Y coordinate of the sprite line
+        var textScreenPosY = sprite.Y + spriteScreenLine - SCREEN_OFFSET_Y - scrollY;
         if (textScreenPosY < 0 || textScreenPosY > (8 * 25))
             return new byte[spriteBytesWidth]; // Y position is outside of text screen, so fill with 0
 
-        // Adjust sprite position to match text screen x pixel position
-        var textScreenPosX = sprite.X - SCREEN_OFFSET_X;
+        // Find out which corresponding text screen X coordinate the sprite starts at
+        var textScreenPosX = sprite.X - SCREEN_OFFSET_X - scrollX;
 
         // A sprite is 24 pixels/3 bytes or 48/6 bytes wide (depending if expanded in X or not). Note that actual defintion of expanded X sprite is till 3 bytes, it's only expanded when drawn on screen (double pixels).
         // Allocate one extra byte if character start x position does not align with sprite start x position (will be aligned after shifting bits afterwards)
-        int scrollOffset;
+        int bitPositionAdjustOffset;
         int numberOfBytesToRead;
         if (textScreenPosX < 0)
         {
-            scrollOffset = (textScreenPosX % 8) + 8;
+            bitPositionAdjustOffset = (textScreenPosX % 8) + 8;
             numberOfBytesToRead = spriteBytesWidth + 1;
         }
         else
         {
-            scrollOffset = textScreenPosX % 8;
-            numberOfBytesToRead = scrollOffset == 0 ? spriteBytesWidth : spriteBytesWidth + 1;
+            bitPositionAdjustOffset = textScreenPosX % 8;
+            numberOfBytesToRead = bitPositionAdjustOffset == 0 ? spriteBytesWidth : spriteBytesWidth + 1;
         }
 
         var bytes = new byte[numberOfBytesToRead];
@@ -224,7 +220,7 @@ public class Vic2SpriteManager
             textScreenPosX += 8;
         }
 
-        if (scrollOffset == 0)
+        if (bitPositionAdjustOffset == 0)
         {
             var allButLastByte = new byte[spriteBytesWidth];
             for (int i = 0; i < spriteBytesWidth; i++)
@@ -233,7 +229,7 @@ public class Vic2SpriteManager
         }
         else
         {
-            int scrollPixelsRight = 8 - scrollOffset;
+            int scrollPixelsRight = 8 - bitPositionAdjustOffset;
             var shiftedBytes = bytes.ShiftRight(scrollPixelsRight, out _);
 
             var allButFirstByte = new byte[spriteBytesWidth];
@@ -241,5 +237,11 @@ public class Vic2SpriteManager
                 allButFirstByte[i] = shiftedBytes[i + 1];
             return allButFirstByte;
         }
+
+        // TODO: If multicolor screen mode, make adjustments to the 4 bit pair in each screen byte, so that every pair that is 
+        //       considered non-background color is set to 11.
+        //       Note from https://github.com/mist64/c64ref/blob/master/Source/c64io/c64io_mapc64.txt:
+        //       "The only exception to this rule is the 01 bit - pair of multicolor graphics data.
+        //        This bit-pair is considered part of the background, and the dot it displays can never be involved in a collision."
     }
 }
