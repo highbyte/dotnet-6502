@@ -18,7 +18,10 @@ public class Vic2SpriteManager
     public Vic2Sprite[] Sprites { get; private set; } = new Vic2Sprite[NUMBERS_OF_SPRITES];
 
     public byte SpriteToSpriteCollisionStore { get; internal set; }
+    public bool SpriteToSpriteCollisionIRQBlock { get; internal set; }
+
     public byte SpriteToBackgroundCollisionStore { get; internal set; }
+    public bool SpriteToBackgroundCollisionIRQBlock { get; internal set; }
 
     private Vic2SpriteManager() { }
 
@@ -58,13 +61,33 @@ public class Vic2SpriteManager
         }
     }
 
-    public void SetCollitionDetectionStates()
+    public void SetCollitionDetectionStatesAndIRQ()
     {
         // Store currently detected collisions only.
         // Any previous collision that is no longer detected will remain set.
         // It's cleared when reading from the sprite collision IO registers.
-        SpriteToSpriteCollisionStore = (byte)(SpriteToSpriteCollisionStore | GetSpriteToSpriteCollision());
-        SpriteToBackgroundCollisionStore = (byte)(SpriteToBackgroundCollisionStore | GetSpriteToBackgroundCollision());
+
+        // Sprite-to-sprite collision
+        var spriteToSpriteCollision = GetSpriteToSpriteCollision();
+        SpriteToSpriteCollisionStore = (byte)(SpriteToSpriteCollisionStore | spriteToSpriteCollision);
+
+        // Sprite-to-background collision
+        var spriteToBackgroundCollision = GetSpriteToBackgroundCollision();
+        SpriteToBackgroundCollisionStore = (byte)(SpriteToBackgroundCollisionStore | spriteToBackgroundCollision);
+
+        // Raise IRQ if any collision detected, and it's enabled, and not currently blocked (cleared by reading from collision registers)
+        var source = IRQSource.RasterCompare;
+        if (((SpriteToSpriteCollisionStore != 0 && !SpriteToSpriteCollisionIRQBlock)
+            || (SpriteToBackgroundCollisionStore != 0 && !SpriteToBackgroundCollisionIRQBlock))
+            && Vic2.Vic2IRQ.IsEnabled(source)
+            && !Vic2.Vic2IRQ.IsTriggered(source, Vic2.C64.CPU))
+        {
+            Vic2.Vic2IRQ.Trigger(source, Vic2.C64.CPU);
+            if (SpriteToSpriteCollisionStore != 0)
+                SpriteToSpriteCollisionIRQBlock = true;
+            if (SpriteToBackgroundCollisionStore != 0)
+                SpriteToBackgroundCollisionIRQBlock = true;
+        }
     }
 
     public byte GetSpriteToSpriteCollision()

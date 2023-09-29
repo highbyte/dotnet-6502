@@ -102,7 +102,7 @@ public class C64 : ISystem, ISystemMonitor
         // Update sprite collision state
         var sw = _detailedStatStopwatches[SpriteCollisionStatName];
         sw.Restart();
-        Vic2.SpriteManager.SetCollitionDetectionStates();
+        Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
         sw.Stop();
         detailedStats[SpriteCollisionStatName] += sw.Elapsed.TotalMilliseconds;
 

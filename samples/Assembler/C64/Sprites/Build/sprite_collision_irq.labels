@@ -1,0 +1,4 @@
+
+
+al C:c000 .Init
+al C:c018 .spritecollisionirqhandler

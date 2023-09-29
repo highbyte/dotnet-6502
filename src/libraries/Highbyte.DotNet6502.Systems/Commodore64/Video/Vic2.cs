@@ -369,6 +369,7 @@ public class Vic2
     {
         var val = SpriteManager.SpriteToSpriteCollisionStore;
         SpriteManager.SpriteToSpriteCollisionStore = 0; // Collision state is cleared after reading
+        SpriteManager.SpriteToSpriteCollisionIRQBlock = false; // Enable IRQs to be able to triggered again
         return val;
     }
 
@@ -380,6 +381,7 @@ public class Vic2
     {
         var val = SpriteManager.SpriteToBackgroundCollisionStore;
         SpriteManager.SpriteToBackgroundCollisionStore = 0; // Collision state is cleared after reading
+        SpriteManager.SpriteToBackgroundCollisionIRQBlock = false; // Enable IRQs to be able to triggered again
         return val;
     }
 
