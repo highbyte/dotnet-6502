@@ -1,7 +1,7 @@
 ;ACME assembler
-;!to "./build/sprite_collision_irq.prg"
+;!to "./build/sprite_collision_sprite_irq.prg"
 
-; Simple sprite to background collision detection with IRQ, changes background color when collision is detected
+; Simple sprite to srpite collision detection with IRQ, changes background color when collision is detected
 ; Can be used when running basic programs for testing.
 * = $c000
 
@@ -17,27 +17,27 @@ Init:
 	lda #>spritecollisionirqhandler
 	sta $0315
 
-	; Enable sprite to background interrupt signals from VIC
-	LDA #%00000010
+	; Enable sprite to sprite interrupt signals from VIC
+	LDA #%00000100
 	STA $D01A
 
 	CLI                  ; clear interrupt flag, allowing the CPU to respond to interrupt requests
 	RTS
 
 spritecollisionirqhandler:
-	; LDA $D019			; Check if the IRQ source is sprite to background collision
-	; AND #%00000010	;There can be other IRQ sources running at the same time (for example if we run it together with Basic)
+	; LDA $D019			; Check if the IRQ source is sprite to sprite collision
+	; AND #%00000100	;There can be other IRQ sources running at the same time (for example if we run it together with Basic)
 	; BEQ .no_collision
-	LDA $D01F			; Read sprite to background collision register. Can be inspected to see which sprite(s) collided with the background. Will be cleared by reading.
+	LDA $D01E			; Read sprite to sprite collision register. Can be inspected to see which sprite(s) collided with other sprite(s). Will be cleared by reading.
 	CMP #0
 	BEQ .no_collision
 	; TAX					; Store the value in X register for later use
-	; TXA					; Restore sprite to background collision register value from X register
+	; TXA					; Restore sprite to sprite collision register value from X register
 
 	INC $D020			; Change border color
 
-	LDA $D019			; Acknowledge the specific sprite to background IRQ by writing 1 to its interrupt flag
-	ORA #%00000010
+	LDA $D019			; Acknowledge the specific sprite to sprite IRQ by writing 1 to its interrupt flag
+	ORA #%00000100
 	STA $D019
 	jmp .exit_irq
 

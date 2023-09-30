@@ -4,12 +4,13 @@ namespace Highbyte.DotNet6502.Tests;
 
 public class MemoryTest
 {
+    [Fact]
     public void Initializing_Memory_With_Defaults_Should_Create_64K_Memory()
     {
         // Arrange
         var mem = new Memory();
         // Act / Assert
-        Assert.Equal(64*1024, mem.Size);
+        Assert.Equal(64 * 1024, mem.Size);
     }
 
     [Fact]

@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Highbyte.DotNet6502.Systems.Utils;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
@@ -93,12 +95,44 @@ public class Vic2SpriteManager
     public byte GetSpriteToSpriteCollision()
     {
         byte collision = 0;
-        for (int spriteNumber = 0; spriteNumber < NUMBERS_OF_SPRITES; spriteNumber++)
+
+        // Get all K-Combinations of sprite numbers (2)
+        // This will give us all possible combinations of sprite pairs
+        // (e.g. 0,1 0,2 0,3 0,4 0,5 0,6 0,7 1,2 1,3 1,4 1,5 1,6 1,7 2,3 2,4 2,5 2,6 2,7 3,4 3,5 3,6 3,7 4,5 4,6 4,7 5,6 5,7 6,7)
+        // TODO: This combination list could be pre-calculated or hardcoded, since it's always the same?
+        var spriteNumberCombinations = Combinations.CombinationsRosettaWoRecursion(2, NUMBERS_OF_SPRITES);
+
+        // Loop sprite combinations
+        foreach (var spriteNumberCombination in spriteNumberCombinations)
         {
-            var sprite = Sprites[spriteNumber];
-            if (!sprite.Visible)
+            var s0 = spriteNumberCombination[0];
+            var s1 = spriteNumberCombination[1];
+            var sprite = Sprites[s0];
+            var otherSprite = Sprites[s1];
+
+            // If any of the sprite in the combination isn't visible, then no need to check collision
+            if (!sprite.Visible || !otherSprite.Visible)
                 continue;
-            // TODO
+
+            // Loop each sprite line
+            for (int screenLine = 0; screenLine < sprite.HeightPixels; screenLine++)
+            {
+                // Get the pixels in the sprite line (24 pixels/3 bytes, or 48 pixels/ 6 bytes, depending if sprite is expanded vertically or not)
+                byte[] spriteLineData = GetSpriteRowLineData(sprite, screenLine);
+
+                // Get the corresponding character row line data (adjusted to align with byte boundaries for easy comparison)
+                byte[] otherSpriteLineData = GetSpriteRowLineDataMatchingOtherSpritePosition(sprite, otherSprite, screenLine, spriteLineData.Length);
+
+                // Check collision on line
+                bool collisionFound = CheckCollision(spriteLineData, otherSpriteLineData);
+                if (collisionFound)
+                {
+                    // Set bit in collision byte for both sprites
+                    collision |= (byte)(1 << sprite.SpriteNumber);
+                    collision |= (byte)(1 << otherSprite.SpriteNumber);
+                    continue;
+                }
+            }
         }
         return collision;
     }
@@ -130,8 +164,7 @@ public class Vic2SpriteManager
     public bool CheckCollisionAgainstBackground(Vic2Sprite sprite, int scrollX, int scrollY)
     {
         // Loop each sprite line
-        int numberOfScreenLines = sprite.DoubleHeight ? DEFAULT_HEIGTH * 2 : DEFAULT_HEIGTH;
-        for (int screenLine = 0; screenLine < numberOfScreenLines; screenLine++)
+        for (int screenLine = 0; screenLine < sprite.HeightPixels; screenLine++)
         {
             // Get the pixels in the sprite line (24 pixels/3 bytes, or 48 pixels/ 6 bytes, depending if sprite is expanded vertically or not)
             byte[] spriteLineData = GetSpriteRowLineData(sprite, screenLine);
@@ -164,11 +197,16 @@ public class Vic2SpriteManager
     {
         var spriteLine = sprite.DoubleHeight ? spriteScreenLine / 2 : spriteScreenLine;
 
-        var spriteData = sprite.Data;
-
         // Get the pixels in the sprite line (24 pixels = 3 bytes)
-        byte[] spriteLineData = spriteData.Rows[spriteLine].Bytes;
+        byte[] spriteLineData = sprite.Data.Rows[spriteLine].Bytes;
 
+        spriteLineData = AdjustSpriteLineDataForCollisionDetection(sprite, spriteLineData);
+
+        return spriteLineData;
+    }
+
+    private byte[] AdjustSpriteLineDataForCollisionDetection(Vic2Sprite sprite, byte[] spriteLineData)
+    {
         if (sprite.Multicolor)
         {
             // If multicolor sprite mode, then each pixel is 2 bits, otherwise 1 bit.
@@ -183,8 +221,8 @@ public class Vic2SpriteManager
 
         if (sprite.DoubleWidth)
         {
-            var spriteLineDataExpanded = new byte[6];
-            for (int i = 0; i < 3; i++)
+            var spriteLineDataExpanded = new byte[spriteLineData.Length * 2];
+            for (int i = 0; i < spriteLineData.Length; i++)
             {
                 var expandedPair = spriteLineData[i].StretchBits();
                 spriteLineDataExpanded[i * 2] = expandedPair[0];
@@ -196,18 +234,45 @@ public class Vic2SpriteManager
         return spriteLineData;
     }
 
-    private byte ChangeAnyBitPairsToSet(byte data)
+    public byte[] GetSpriteRowLineDataMatchingOtherSpritePosition(Vic2Sprite sprite0, Vic2Sprite sprite1, int sprite0ScreenLine, int spriteBytesWidth)
     {
-        byte newData = 0;
-        byte mask = 0b00000011;
-        for (int i = 0; i < 4; i++)
+        var bytes = new byte[spriteBytesWidth];
+
+        // Loop for each byte (8 pixels) in the sprite
+        var spriteScreenPosX = sprite0.X;
+        var spriteScreenPosY = sprite0.Y + sprite0ScreenLine;
+        for (int i = 0; i < bytes.Length; i++)
         {
-            var bitPair = (byte)(data & mask);
-            if (bitPair != 0)
-                newData |= mask;
-            mask <<= 2;
+            bytes[i] = GetSpritePixelByteForCoordinate(sprite1, spriteScreenPosX, spriteScreenPosY);
+            spriteScreenPosX += 8;
         }
-        return newData;
+        return bytes;
+    }
+
+    private byte GetSpritePixelByteForCoordinate(Vic2Sprite sprite, int x, int y)
+    {
+        // Check if the coordinate is outside of the sprite (byte boundary for x)
+        if (x < 0 || x >= (sprite.X + sprite.WidthPixels) || (x + 8) <= sprite.X
+            || y < 0 || y >= (sprite.Y + sprite.HeightPixels) || y < sprite.Y)
+        {
+            return 0;
+        }
+
+        var spriteScreenLine = y - sprite.Y;
+        var spriteRowByteIndex = (x - sprite.X) / 8;
+        var rowBytes = GetSpriteRowLineData(sprite, spriteScreenLine);
+        var rowByte = rowBytes[spriteRowByteIndex];
+
+        var bitPositionAdjustOffset = (x - sprite.X) % 8;
+        if (bitPositionAdjustOffset != 0)
+        {
+            var bytes = new byte[2];
+            bytes[0] = rowByte;
+            var shiftedBytes = bytes.ShiftRight(8 - bitPositionAdjustOffset, out _);
+            rowByte = shiftedBytes[1];
+        }
+
+        return rowByte;
     }
 
     public byte[] GetCharacterRowLineDataMatchingSpritePosition(Vic2Sprite sprite, int spriteScreenLine, int spriteBytesWidth, int scrollX, int scrollY)
@@ -280,4 +345,17 @@ public class Vic2SpriteManager
         //        This bit-pair is considered part of the background, and the dot it displays can never be involved in a collision."
     }
 
+    private byte ChangeAnyBitPairsToSet(byte data)
+    {
+        byte newData = 0;
+        byte mask = 0b00000011;
+        for (int i = 0; i < 4; i++)
+        {
+            var bitPair = (byte)(data & mask);
+            if (bitPair != 0)
+                newData |= mask;
+            mask <<= 2;
+        }
+        return newData;
+    }
 }

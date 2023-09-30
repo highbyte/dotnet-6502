@@ -24,6 +24,10 @@ public class Vic2Sprite
     public bool DoubleHeight => _c64Mem[Vic2Addr.SPRITE_Y_EXPAND].IsBitSet(SpriteNumber);
     public bool PriorityOverForeground => !_c64Mem[Vic2Addr.SPRITE_FOREGROUND_PRIO].IsBitSet(SpriteNumber);
 
+    public int WidthPixels => DoubleWidth ? DEFAULT_WIDTH * 2 : DEFAULT_WIDTH;
+    public int WidthBytes => WidthPixels / 8;
+    public int HeightPixels => DoubleHeight ? DEFAULT_HEIGTH * 2 : DEFAULT_HEIGTH;
+
     private Vic2SpriteData _data = new Vic2SpriteData();
     public Vic2SpriteData Data => BuildSpriteData();
 

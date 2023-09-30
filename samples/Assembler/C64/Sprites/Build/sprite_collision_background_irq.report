@@ -1,7 +1,7 @@
 
-; ******** Source: C:\Users\highb\source\repos\dotnet-6502\samples\Assembler\C64\Sprites\sprite_collision_irq.asm
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\samples\Assembler\C64\Sprites\sprite_collision_background_irq.asm
      1                          ;ACME assembler
-     2                          ;!to "./build/sprite_collision_irq.prg"
+     2                          ;!to "./build/sprite_collision_background_irq.prg"
      3                          
      4                          ; Simple sprite to background collision detection with IRQ, changes background color when collision is detected
      5                          ; Can be used when running basic programs for testing.
@@ -44,25 +44,8 @@
     42  c02a 4c30c0             	jmp .exit_irq
     43                          
     44                          .no_collision:
-    45  c02d 0e19d0             	ASL $D019          ; acknowledge the interrupt by clearing the VIC's interrupt flag
+    45  c02d 0e19d0             	ASL $D019          ; TODO: Is this needed here: acknowledge the interrupt by clearing the VIC's interrupt flag
     46                          
     47                          .exit_irq:
     48  c030 4c31ea             	JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.
     49                          	;JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc
-    50                          
-    51                          ; rasterirqhandler:
-    52                          ; 	LDA #$7
-    53                          ; 	STA $D020            ; change border colour to yellow
-    54                          
-    55                          ;     LDX #$90             ; empty loop to do nothing for just under half a millisecond
-    56                          ; .pause
-    57                          ;     DEX
-    58                          ; 	BNE .pause
-    59                          
-    60                          ; 	LDA #$0e
-    61                          ; 	STA $D020            ; change border colour to light blue
-    62                          
-    63                          ; 	ASL $D019            ; acknowledge the interrupt by clearing the VIC's interrupt flag
-    64                          
-    65                          ; 	JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.	
-    66                          ; 	;JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc
