@@ -232,25 +232,30 @@ public class SilkNetWindow
             Window.Size = new Vector2D<int>((int)(screen.VisibleWidth * _canvasScale), (int)(screen.VisibleHeight * _canvasScale));
             Window.UpdatesPerSecond = screen.RefreshFrequencyHz;
 
-            // Remove any existing custom system stats
-            foreach (var existingCustomSystemStatName in _customSystemStats.Keys)
-            {
-                if (existingCustomSystemStatName.StartsWith(CustomSystemStatNamePrefix))
-                {
-                    InstrumentationBag.Remove(existingCustomSystemStatName);
-                    _customSystemStats.Remove(existingCustomSystemStatName);
-                }
-            }
-            // Add any custom system stats for selected system
-            foreach (var customSystemStatName in system.DetailedStatNames)
-            {
-                _customSystemStats.Add($"{CustomSystemStatNamePrefix}{customSystemStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomSystemStatNamePrefix}{customSystemStatName}"));
-            }
+            InitCustomSystemStats(system);
 
             InitRendering();
         }
         else
         {
+        }
+    }
+
+    private void InitCustomSystemStats(ISystem system)
+    {
+        // Remove any existing custom system stats
+        foreach (var existingCustomSystemStatName in _customSystemStats.Keys)
+        {
+            if (existingCustomSystemStatName.StartsWith(CustomSystemStatNamePrefix))
+            {
+                InstrumentationBag.Remove(existingCustomSystemStatName);
+                _customSystemStats.Remove(existingCustomSystemStatName);
+            }
+        }
+        // Add any custom system stats for selected system
+        foreach (var customSystemStatName in system.DetailedStatNames)
+        {
+            _customSystemStats.Add($"{CustomSystemStatNamePrefix}{customSystemStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomSystemStatNamePrefix}{customSystemStatName}"));
         }
     }
 

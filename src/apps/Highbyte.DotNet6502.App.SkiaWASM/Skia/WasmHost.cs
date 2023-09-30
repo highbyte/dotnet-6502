@@ -45,6 +45,10 @@ public class WasmHost : IDisposable
     private readonly PerSecondTimedStat _updateFps;
     private readonly PerSecondTimedStat _renderFps;
 
+    private const string CustomSystemStatNamePrefix = "Emulator-SystemTime-Custom-";
+    private Dictionary<string, ElapsedMillisecondsStat> _customSystemStats = new();
+
+
     private const int STATS_EVERY_X_FRAME = 60 * 1;
     private int _statsFrameCount = 0;
 
@@ -105,6 +109,9 @@ public class WasmHost : IDisposable
 
         Monitor = new WasmMonitor(_jsRuntime, _systemRunner, _monitorConfig, _setMonitorState);
 
+        var system = await _systemList.GetSystem(_systemName);
+        InitCustomSystemStats(system);
+
         Initialized = true;
     }
 
@@ -133,6 +140,24 @@ public class WasmHost : IDisposable
             _updateTimer.Elapsed += UpdateTimerElapsed;
         }
         _updateTimer!.Start();
+    }
+
+    public void InitCustomSystemStats(ISystem system)
+    {
+        // Remove any existing custom system stats
+        foreach (var existingCustomSystemStatName in _customSystemStats.Keys)
+        {
+            if (existingCustomSystemStatName.StartsWith(CustomSystemStatNamePrefix))
+            {
+                InstrumentationBag.Remove(existingCustomSystemStatName);
+                _customSystemStats.Remove(existingCustomSystemStatName);
+            }
+        }
+        // Add any custom system stats for selected system
+        foreach (var customSystemStatName in system.DetailedStatNames)
+        {
+            _customSystemStats.Add($"{CustomSystemStatNamePrefix}{customSystemStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomSystemStatNamePrefix}{customSystemStatName}"));
+        }
     }
 
     public void Cleanup()
@@ -195,6 +220,18 @@ public class WasmHost : IDisposable
             {
                 _systemTimeAudio.Set(detailedStats["Audio"]);
                 _systemTimeAudio.UpdateStat();
+            }
+
+            // Update custom system stats
+            // TODO: Make custom system stats less messy?
+            foreach (var detailedStatName in detailedStats.Keys)
+            {
+                var statLookup = _customSystemStats.Keys.SingleOrDefault(x => x.EndsWith(detailedStatName));
+                if (statLookup != null)
+                {
+                    _customSystemStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].Set(detailedStats[detailedStatName]);
+                    _customSystemStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].UpdateStat();
+                }
             }
         }
 
