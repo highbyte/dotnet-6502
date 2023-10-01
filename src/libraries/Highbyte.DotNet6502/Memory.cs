@@ -233,18 +233,19 @@ public class Memory
         _originalWriters[address](address, value);
     }
 
-    public Memory Clone()
-    {
-        var memoryClone = new Memory
-        {
-            _readers = this._readers,
-            _writers = this._writers,
-            _readersPerConfiguration = this._readersPerConfiguration,
-            _writersPerConfiguration = this._writersPerConfiguration,
-            _originalWritersPerConfiguration = this._originalWritersPerConfiguration,
-            CurrentConfiguration = this.CurrentConfiguration,
-            NumberOfConfigurations = this.NumberOfConfigurations,
-        };
-        return memoryClone;
-    }
+    // TODO: Implement Clone() method correctly if this method is needed. Currently it won't clone the delegates correctly.
+    //public Memory Clone()
+    //{
+    //    var memoryClone = new Memory
+    //    {
+    //        _readers = (LoadByte[])this._readers.Clone(),
+    //        _writers = (StoreByte[])this._writers.Clone(),
+    //        _readersPerConfiguration = (LoadByte[][])this._readersPerConfiguration.Clone(),
+    //        _writersPerConfiguration = (StoreByte[][])this._writersPerConfiguration.Clone(),
+    //        _originalWritersPerConfiguration = (StoreByte[][])this._originalWritersPerConfiguration.Clone(),
+    //        CurrentConfiguration = this.CurrentConfiguration,
+    //        NumberOfConfigurations = this.NumberOfConfigurations,
+    //    };
+    //    return memoryClone;
+    //}
 }

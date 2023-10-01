@@ -1,3 +1,5 @@
+using System.Net;
+using System.Reflection.Metadata.Ecma335;
 using static Highbyte.DotNet6502.Memory;
 
 namespace Highbyte.DotNet6502.Tests;
@@ -174,8 +176,7 @@ public class MemoryTest
         // Act/Assert
         mem.Write(0x0010, 0x41);
         Assert.Equal(0x41, memValue.Value);
-    }        
-
+    }
 
     [Fact]
     public void Can_Map_Individual_Memory_Location_To_A_Single_Value_For_Reading_And_Writing()
@@ -239,4 +240,145 @@ public class MemoryTest
         mem.SetMemoryConfiguration(0);          // Switch back to config 0
         Assert.Equal(0x42, mem.Read(0x0000));   // Config 1 (currently from the second one)
     }
+
+    [Fact]
+    public void Using_MapRAM_With_PreWriteIntercept_Callback_Performs_Callback_With_The_Address_Within_The_Mapped_Block()
+    {
+        // Arrange
+        var mem = new Memory();
+
+        ushort baseAddress = 0x1000;
+        var data = new byte[4096];
+        var interceptCalled = false;
+        ushort interceptedAddress = 0;
+        byte interceptedValue = 0;
+        mem.MapRAM(baseAddress, data, preWriteIntercept: (address, value) =>
+        {
+            interceptCalled = true;
+            interceptedAddress = address;
+            interceptedValue = value;
+            return true;
+        });
+
+        // Act
+        int dataAddress = 10;
+        mem.Write((ushort)(baseAddress + dataAddress), 0x42);
+
+        // Assert
+        Assert.Equal(dataAddress, interceptedAddress);
+    }
+
+    [Fact]
+    public void Using_MapRAM_With_PreWriteIntercept_Callback_Performs_Callback_For_All_Mapped_Addresses()
+    {
+        // Arrange
+        var mem = new Memory();
+
+        ushort baseAddress = 0x1000;
+        var data = new byte[4096];
+        var interceptCalled = false;
+        ushort interceptedAddress = 0;
+        byte interceptedValue = 0;
+        mem.MapRAM(baseAddress, data, preWriteIntercept: (address, value) =>
+        {
+            interceptCalled = true;
+            interceptedAddress = address;
+            interceptedValue = value;
+            return true;
+        });
+
+        // Act / Assert
+        int dataAddress = 0;
+        for (ushort address = baseAddress; address < baseAddress + data.Length; address++)
+        {
+            interceptCalled = false;
+            interceptedAddress = 0;
+            interceptedValue = 0;
+            mem.Write(address, 0x42);
+            Assert.True(interceptCalled);
+            Assert.Equal(dataAddress, interceptedAddress);
+            Assert.Equal(0x42, interceptedValue);
+            dataAddress++;
+        }
+    }
+
+    [Fact]
+    public void Using_MapRAM_With_PreWriteIntercept_Callback_Does_Not_Perform_Callback_Other_Addresses()
+    {
+        // Arrange
+        var mem = new Memory();
+
+        ushort baseAddress = 0x1000;
+        var data = new byte[4096];
+        var interceptCallCount = 0;
+        mem.MapRAM(baseAddress, data, preWriteIntercept: (address, value) =>
+        {
+            interceptCallCount++;
+            return true;
+        });
+
+        // Act / Assert
+        for (ushort address = 0; address < baseAddress; address++)
+            mem.Write(address, 0x42);
+        Assert.Equal(0, interceptCallCount);
+
+        for (ushort address = (ushort)(baseAddress + data.Length); address < mem.Size - 1; address++)
+            mem.Write(address, 0x42);
+        Assert.Equal(0, interceptCallCount);
+    }
+
+    [Fact]
+    public void Creating_Memory_Throws_Exception_If_Size_Less_Than_0()
+    {
+        // Arrange
+        Memory mem;
+
+        // Act / Assert
+        var ex = Assert.Throws<ArgumentException>(() => mem = new Memory(memorySize: -1));
+
+        Assert.Contains($"Must be greater than 0", ex.Message);
+    }
+
+    [Fact]
+    public void Creating_Memory_Throws_Exception_If_Size_Exceeds_64K()
+    {
+        // Arrange
+        Memory mem;
+
+        // Act / Assert
+        var ex = Assert.Throws<ArgumentException>(() => mem = new Memory(memorySize: 64 * 1024 + 1));
+
+        Assert.Contains($"Must be less than or equal to {Memory.MAX_MEMORY_SIZE}", ex.Message);
+    }
+
+    [Fact]
+    public void Creating_Memory_Throws_Exception_If_Nr_Of_Configuration_Less_Than_1()
+    {
+        // Arrange
+        Memory mem;
+
+        // Act / Assert
+        var ex = Assert.Throws<ArgumentException>(() => mem = new Memory(numberOfConfigurations: 0));
+
+        Assert.Contains($"Must be equal to or greater than 1", ex.Message);
+    }
+
+    // TODO: Cloning Memory is not implemented correctly yet.
+    //[Fact]
+    //public void Cloning_Memory_Makes_Copy_Without_References_To_Original_Object()
+    //{
+    //    // Arrange
+    //    var originalRam = new byte[1024];
+    //    originalRam[0x0000] = 0x21;
+    //    Memory mem = new Memory();
+    //    mem.MapRAM(0x0000, originalRam);
+
+    //    // Act
+    //    var memClone = mem.Clone();
+    //    memClone[0x0000] = 0x42;    // Change memory in the clone, should not affect the original
+
+    //    // Assert
+    //    Assert.Equal(mem.Size, memClone.Size);
+    //    Assert.Equal(0x21, originalRam[0x0000]);
+    //}
 }
