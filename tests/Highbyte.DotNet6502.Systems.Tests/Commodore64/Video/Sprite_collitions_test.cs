@@ -24,6 +24,7 @@ public class Sprite_collitions_test
         {
             C64Model = "C64NTSC",   // C64NTSC, C64PAL
             Vic2Model = "NTSC",     // NTSC, NTSC_old, PAL
+            LoadROMs = false
         };
 
         _c64 = C64.BuildC64(c64Config, new NullLoggerFactory());

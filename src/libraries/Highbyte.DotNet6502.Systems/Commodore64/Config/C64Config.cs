@@ -1,3 +1,4 @@
+using System.Reflection.Metadata;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
@@ -22,6 +23,7 @@ public class C64Config : ISystemConfig
         KERNAL_ROM_NAME, BASIC_ROM_NAME, CHARGEN_ROM_NAME
     };
 
+    public bool LoadROMs { get; set; } = true;
     private List<ROM> _roms;
     public List<ROM> ROMs
     {

@@ -159,7 +159,22 @@ public class C64 : ISystem, ISystemMonitor
         var c64Model = C64ModelInventory.C64Models[c64Config.C64Model];
 
         var ram = new byte[64 * 1024];  // C64 has 64KB of RAM
-        var romData = ROM.LoadROMS(c64Config.ROMDirectory, c64Config.ROMs.ToArray());
+        Dictionary<string, byte[]> romData;
+        if (c64Config.LoadROMs)
+        {
+            romData = ROM.LoadROMS(c64Config.ROMDirectory, c64Config.ROMs.ToArray());
+        }
+        else
+        {
+            // For unit testing, use empty ROMs
+            romData = new Dictionary<string, byte[]>
+            {
+                {C64Config.KERNAL_ROM_NAME, new byte[8192] },
+                {C64Config.BASIC_ROM_NAME, new byte[8192] },
+                {C64Config.CHARGEN_ROM_NAME, new byte[4096] }
+            };
+        }
+
         var io = new byte[1 * 1024];  // 1KB of C64 IO addresses that is mapped to memory address range 0xd000 - 0xdfff in certain memory configuration.
 
         var vic2Model = c64Model.Vic2Models.Single(x => x.Name == c64Config.Vic2Model);
