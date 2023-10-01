@@ -59,6 +59,60 @@ public static class ByteHelpers
         return $"{value} ({ToHex(value, hexPrefix, lowerCase)})";
     }
 
+    /// <summary>
+    /// Shifts the bits in an array of bytes to the right a specified number of position.
+    /// </summary>
+    /// <param name="bytes">The byte array to shift</param>
+    /// <param name="numberOfBits">The number of bits to shift</param>
+    /// <returns>The Carry bit. Return True if bit 0 in the right-most byte in the array was 1 before the last shift.</returns>
+    public static byte[] ShiftRight(this byte[] bytes, int numberOfBits, out bool carryBit)
+    {
+        byte[] returnBytes = bytes;
+        carryBit = false;
+        for (int i = 0; i < numberOfBits; i++)
+        {
+            returnBytes = ShiftRight(returnBytes, out carryBit);
+        }
+        return returnBytes;
+    }
+
+    /// <summary>
+    /// Shifts the bits in an array of bytes to the right on position.
+    /// </summary>
+    /// <param name="bytes">The byte array to shift.</param>
+    /// <returns>The Carry bit. Return True if bit 0 in the right-most byte in the array was 1 before the shift.</returns>
+    public static byte[] ShiftRight(this byte[] bytes, out bool carryBit)
+    {
+        // Create a copy of the byte array where the shifting will be done (to avoid changing the original array)
+        var returnBytes = new byte[bytes.Length];
+        for (int i = 0; i < bytes.Length; i++)
+            returnBytes[i] = bytes[i];
+
+        bool rightMostCarryFlag = false;
+        int rightEnd = returnBytes.Length - 1;
+
+        // Iterate through the elements of the array right to left.
+        for (int index = rightEnd; index >= 0; index--)
+        {
+            // If the rightmost bit of the current byte is 1 then we have a carry.
+            bool carryFlag = (returnBytes[index] & 0x01) > 0;
+            if (index < rightEnd)
+            {
+                if (carryFlag == true)
+                {
+                    // Apply the carry to the leftmost bit of the current bytes neighbor to the right.
+                    returnBytes[index + 1] = (byte)(returnBytes[index + 1] | 0x80);
+                }
+            }
+            else
+            {
+                rightMostCarryFlag = carryFlag;
+            }
+            returnBytes[index] = (byte)(returnBytes[index] >> 1);
+        }
+        carryBit = rightMostCarryFlag;
+        return returnBytes;
+    }
 
     public static bool IsDefinedAsOpCodeId(this byte opCodeId)
     {
@@ -67,5 +121,5 @@ public static class ByteHelpers
     public static OpCodeId ToOpCodeId(this byte opCodeId)
     {
         return (OpCodeId)opCodeId;
-    }         
+    }
 }

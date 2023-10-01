@@ -1,0 +1,17 @@
+
+al C:0340 .sync
+al C:0350 .starpos
+
+al C:0880 .waitsync
+al C:0891 .expdpos
+al C:08bd .irq
+al C:08ac .moveloop
+al C:08df .starspeed
+al C:0878 .mainloop
+al C:08cd .postable
+al C:083d .setsprs
+al C:082e .clr2000
+al C:0893 .xpdloop
+al C:084e .positions
+al C:08aa .movestars
+al C:0888 .cont

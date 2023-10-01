@@ -33,7 +33,7 @@ Including but not limited to:
   - Decimal mode (Binary Coded Decimal) calculations
   - Support for unofficial opcodes
 - Systems
-  - C64: Emulation of graphics mode, sprites, cycle-exact rendering, etc.
+  - C64: Emulation of graphics mode, cycle-exact rendering, etc.
 
 # What this isn't (and probably never will be)
 - An emulation of all aspects of computers such as Apple II or Commodore 64.

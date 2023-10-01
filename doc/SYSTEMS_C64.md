@@ -6,8 +6,15 @@ A partial implementation of a Commodore 64.
 
 Current capabilities
 - Run Commodore Basic 2.0 from ROM (user supplied Kernal, Basic, and Chargen ROM files) in text mode.
-- Limited VIC2 video (and timer) chip support (WASM and native)
-- Limited SID 6581 audio chip support (WASM and native)
+- Limited VIC2 video chip support 
+    - Standard character mode
+    - Sprites (hi-res & multicolor)
+    - IRQ (raster, sprite collision)
+- Limited CIA chip support
+    - Timers
+    - IRQ
+- Limited SID 6581 audio chip support
+- WASM and native app UI
 
 # Implementation
 Class [```Highbyte.DotNet6502.Systems.Commodore64.C64```](../src/libraries/Highbyte.DotNet6502.Systems/Commodore64/C64.cs)

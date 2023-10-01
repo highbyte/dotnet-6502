@@ -13,4 +13,6 @@ public static class InstrumentationBag
         return stat;
     }
     public static T Add<T>(string name) where T : IStat, new() => Add<T>(name, new T());
+
+    public static void Remove(string name) => s_stats.RemoveAll(s => s.Name == name);
 }

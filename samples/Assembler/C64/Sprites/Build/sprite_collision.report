@@ -1,0 +1,162 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\samples\Assembler\C64\Sprites\sprite_collision.asm
+     1                          ;ACME assembler
+     2                          ;!to "./build/sprite_collision.prg"
+     3                          
+     4                          ;Example below is from https://github.com/C64CD/Collisions-C64/blob/master/collisions.asm
+     5                          ;
+     6                          ; SIMPLE HARDWARE SPRITE COLLISION EXAMPLE
+     7                          ;
+     8                          
+     9                          ; ; Select an output filename
+    10                          ; 		!to "collisions.prg",cbm
+    11                          
+    12                          
+    13                          ; Label assignments
+    14                          sprite_x	= $50
+    15                          sprite_dir	= $51
+    16                          
+    17                          coll_delay	= $52
+    18                          sprite_coll	= $53
+    19                          bgnd_coll	= $54
+    20                          
+    21                          
+    22                          ; Add a BASIC startline
+    23                          		* = $0801
+    24  0801 1008               		!word code_start-2
+    25  0803 40009e             		!byte $40,$00,$9e
+    26  0806 32303636           		!text "2066"
+    27  080a 000000             		!byte $00,$00,$00
+    28                          
+    29                          
+    30                          ; Entry point for the code
+    31                          		* = $0812
+    32                          
+    33                          ; Stop the interrupts
+    34  0812 78                 code_start	sei
+    35                          
+    36                          ; Clear the screen RAM
+    37  0813 a200               		ldx #$00
+    38  0815 a920               		lda #$20
+    39  0817 9d0004             screen_clear	sta $0400,x
+    40  081a 9d0005             		sta $0500,x
+    41  081d 9d0006             		sta $0600,x
+    42  0820 9de806             		sta $06e8,x
+    43  0823 e8                 		inx
+    44  0824 d0f1               		bne screen_clear
+    45                          
+    46                          ; Put the two blobs onto the screen and set their colours
+    47  0826 a951               		lda #$51
+    48  0828 8dca04             		sta $04ca
+    49  082b 8de104             		sta $04e1
+    50                          
+    51  082e a90e               		lda #$0e
+    52  0830 8dcad8             		sta $d8ca
+    53  0833 8de1d8             		sta $d8e1
+    54                          
+    55                          ; Fill the sprite at $3000 with $ff...
+    56  0836 a200               		ldx #$00
+    57  0838 a9ff               		lda #$ff
+    58  083a 9d0030             sprite_gen	sta $3000,x
+    59  083d e8                 		inx
+    60  083e e040               		cpx #$40
+    61  0840 d0f8               		bne sprite_gen
+    62                          
+    63                          ; ...and set the sprite data pointers
+    64  0842 a9c0               		lda #$c0
+    65  0844 8df807             		sta $07f8
+    66  0847 8df907             		sta $07f9
+    67                          
+    68                          ; Set sprite colours
+    69  084a a901               		lda #$01
+    70  084c 8d27d0             		sta $d027
+    71  084f a903               		lda #$03
+    72  0851 8d28d0             		sta $d028
+    73                          
+    74                          ; Set up the initial sprite X and Y positions
+    75  0854 a950               		lda #$50
+    76  0856 8550               		sta sprite_x
+    77  0858 8d00d0             		sta $d000
+    78                          
+    79  085b a97d               		lda #$7d
+    80  085d 8d02d0             		sta $d002
+    81                          
+    82  0860 a950               		lda #$50
+    83  0862 8d01d0             		sta $d001
+    84  0865 8d03d0             		sta $d003
+    85                          
+    86                          ; Initialise the remaining labels
+    87  0868 a901               		lda #$01
+    88  086a 8551               		sta sprite_dir
+    89                          
+    90  086c a900               		lda #$00
+    91  086e 8552               		sta coll_delay
+    92                          
+    93                          ; Enable the first two hardware sprites
+    94  0870 a903               		lda #$03
+    95  0872 8d15d0             		sta $d015
+    96                          
+    97                          
+    98                          ; Main loop - wait for raster line $fc for timing
+    99  0875 ad12d0             main_loop	lda $d012
+   100  0878 c9fc               		cmp #$fc
+   101  087a d0f9               		bne main_loop
+   102                          
+   103                          ; Grab the collision registers
+   104  087c ad1ed0             		lda $d01e
+   105  087f 8553               		sta sprite_coll
+   106                          
+   107  0881 ad1fd0             		lda $d01f
+   108  0884 8554               		sta bgnd_coll
+   109                          
+   110                          ; Update sprite 0's position
+   111  0886 a550               		lda sprite_x
+   112  0888 18                 		clc
+   113  0889 6551               		adc sprite_dir
+   114  088b 8550               		sta sprite_x
+   115  088d 8d00d0             		sta $d000
+   116                          
+   117                          ; Check to see if the background collisions need testing
+   118  0890 a552               		lda coll_delay
+   119  0892 f005               		beq bgnd_coll_check
+   120                          
+   121                          ; No, so decrease the timer and skip over the actual check
+   122  0894 c652               		dec coll_delay
+   123  0896 4cb808             		jmp bgnd_no_coll
+   124                          
+   125                          ; Read the background collision register
+   126  0899 a554               bgnd_coll_check	lda bgnd_coll
+   127  089b c901               		cmp #$01
+   128  089d d019               		bne bgnd_no_coll
+   129                          
+   130                          ; If there's a collision, reverse direction and set the delay
+   131  089f a0ff               		ldy #$ff
+   132  08a1 a551               		lda sprite_dir
+   133  08a3 c901               		cmp #$01
+   134  08a5 f002               		beq *+$04
+   135  08a7 a001               		ldy #$01
+   136  08a9 8451               		sty sprite_dir
+   137                          
+   138  08ab a914               		lda #$14
+   139  08ad 8552               		sta coll_delay
+   140                          
+   141                          ; Reset sprite 1's Y position for the next pass
+   142  08af ad03d0             		lda $d003
+   143  08b2 38                 		sec
+   144  08b3 e917               		sbc #$17
+   145  08b5 8d03d0             		sta $d003
+   146                          
+   147                          ; See if there's a sprite to sprite collision happening
+   148  08b8 a553               bgnd_no_coll	lda sprite_coll
+   149  08ba c903               		cmp #$03
+   150  08bc d003               		bne sprite_no_coll
+   151                          
+   152                          ; The sprites have collided so move sprite 1 down a pixel
+   153  08be ee03d0             		inc $d003
+   154                          
+   155                          ; A small delay to make sure the code only runs once per frame
+   156  08c1 a200               sprite_no_coll	ldx #$00
+   157  08c3 e8                 		inx
+   158  08c4 d0fd               		bne sprite_no_coll+$02
+   159                          
+   160                          ; All of the updates are done, so restart the loop

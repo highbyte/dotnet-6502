@@ -1,0 +1,59 @@
+10 print chr$(147) :rem clear screen
+
+15 poke 53280,1 :rem change the border color to white
+16 poke 53281,6 :rem change the background color to blue
+
+18 rem change text color to Yellow with chr$(14)
+19 print chr$(158) :rem change text color to yellow
+
+20 print "": print ""
+21 print "      ***************************      "
+22 print "      * multi color sprite demo *      "
+21 print "      ***************************      "
+
+25 rem poke 53269,128+64 :rem enable sprite 6 and 7
+
+30 for s=0 to 7 :rem set sprite ptrs to 12288
+32 poke 2040+s,192
+34 next
+
+40 poke 53276,128+64 :rem enable sprite 6 and 7 multi color
+41 poke 53285,11 :rem set multi color 0=dark gray
+42 poke 53286,12 :rem set multi color 1=gray
+
+43 poke 53293,2 :rem set sprite 6 color to red
+44 poke 53294,5 :rem set sprite 7 color to green
+
+45 poke 53271,128 :rem set sprite 7 double height 
+47 poke 53277,128 :rem set sprite 7 double width 
+
+
+48 poke 53275,128 :rem set sprite 7 appear in background
+
+50 for n=0 to 62 :rem load sprite data
+60 read q
+70 poke12288+n, q
+80 next
+
+83 poke 53269,128+64 :rem enable sprite 6 and 7
+
+85 for z=1 to 200 :rem move sprites around
+
+91 poke 53260, ((z*2))+80 and 255 :rem set sprite 6 horizontal position
+91 poke 53261, ((z/2)+40) and 255 :rem set sprite 6 vertical position
+
+92 poke 53262, z :rem set sprite 7 horizontal position
+93 poke 53263, z :rem set sprite 7 vertical position
+
+98 next
+
+99 goto 85
+
+300 data 0,40,0,0,40,0,0,40,0,0,40,0,0,235,0,0
+310 data 235,0,1,235,64,1,235,64,5,235,80,21,235,84,85,235
+320 data 85,85,235,85,85,235,85,85,235,85,85,170,85,85,170,85
+330 data 85,170,85,0,170,0,0,170,0,0,130,0,0,130,0,135
+
+400 rem show sprite 6 and 7 at top/left
+405 poke 53260, 24: poke 53261, 50
+410 poke 53262, 24: poke 53263, 50

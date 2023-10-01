@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -41,6 +42,18 @@ public class C64 : ISystem, ISystemMonitor
     private readonly ILogger _logger;
     public const ushort BASIC_LOAD_ADDRESS = 0x0801;
 
+    // Detailed stats
+    public bool HasDetailedStats => true;
+    public List<string> DetailedStatNames => new List<string>()
+    {
+        SpriteCollisionStatName
+    };
+    private const string SpriteCollisionStatName = "SpriteCollision";
+    private Dictionary<string, Stopwatch> _detailedStatStopwatches = new()
+    {
+        {SpriteCollisionStatName, new Stopwatch() }
+    };
+
     //public static ROM[] ROMS = new ROM[]
     //{   
     //    // name, file, checksum 
@@ -64,15 +77,20 @@ public class C64 : ISystem, ISystemMonitor
         Dictionary<string, double> detailedStats,
         IExecEvaluator? execEvaluator = null)
     {
+        foreach (var detailedStatName in DetailedStatNames)
+        {
+            detailedStats[detailedStatName] = 0;
+        }
+
         ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
 
         _logger.LogTrace($"Executing one frame, {cyclesToExecute} CPU cycles.");
+
 
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < cyclesToExecute)
         {
             ExecEvaluatorTriggerResult execEvaluatorTriggerResult = ExecuteOneInstruction(systemRunner, out InstructionExecResult instructionExecResult, detailedStats, execEvaluator);
-
             totalCyclesConsumed += instructionExecResult.CyclesConsumed;
 
             if (execEvaluatorTriggerResult.Triggered)
@@ -80,6 +98,13 @@ public class C64 : ISystem, ISystemMonitor
                 return execEvaluatorTriggerResult;
             }
         }
+
+        // Update sprite collision state
+        var sw = _detailedStatStopwatches[SpriteCollisionStatName];
+        sw.Restart();
+        Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
+        sw.Stop();
+        detailedStats[SpriteCollisionStatName] += sw.Elapsed.TotalMilliseconds;
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
@@ -134,12 +159,23 @@ public class C64 : ISystem, ISystemMonitor
         var c64Model = C64ModelInventory.C64Models[c64Config.C64Model];
 
         var ram = new byte[64 * 1024];  // C64 has 64KB of RAM
-
-        var romData = ROM.LoadROMS(c64Config.ROMDirectory, c64Config.ROMs.ToArray());
+        Dictionary<string, byte[]> romData;
+        if (c64Config.LoadROMs)
+        {
+            romData = ROM.LoadROMS(c64Config.ROMDirectory, c64Config.ROMs.ToArray());
+        }
+        else
+        {
+            // For unit testing, use empty ROMs
+            romData = new Dictionary<string, byte[]>
+            {
+                {C64Config.KERNAL_ROM_NAME, new byte[8192] },
+                {C64Config.BASIC_ROM_NAME, new byte[8192] },
+                {C64Config.CHARGEN_ROM_NAME, new byte[4096] }
+            };
+        }
 
         var io = new byte[1 * 1024];  // 1KB of C64 IO addresses that is mapped to memory address range 0xd000 - 0xdfff in certain memory configuration.
-
-        var mem = CreateC64Memory(ram, io, romData);
 
         var vic2Model = c64Model.Vic2Models.Single(x => x.Name == c64Config.Vic2Model);
         var kb = new C64Keyboard();
@@ -149,7 +185,6 @@ public class C64 : ISystem, ISystemMonitor
         var c64 = new C64(logger)
         {
             Model = c64Model,
-            Mem = mem,
             RAM = ram,
             IO = io,
             Keyboard = kb,
@@ -159,15 +194,16 @@ public class C64 : ISystem, ISystemMonitor
             TimerMode = c64Config.TimerMode,
             ColorMapName = c64Config.ColorMapName
         };
-        var vic2 = Vic2.BuildVic2(ram, romData, vic2Model, c64);
-        var cpu = CreateC64CPU(vic2, mem, loggerFactory);
-        c64.Vic2 = vic2;
-        c64.CPU = cpu;
 
+        var cpu = CreateC64CPU(loggerFactory);
+        var vic2 = Vic2.BuildVic2(vic2Model, c64);
+
+        c64.CPU = cpu;
+        c64.Vic2 = vic2;
         c64.Cia = new Cia(c64);
 
-        // Map specific memory addresses to different emulator actions            
-        MapIOLocations(c64);
+        var mem = c64.CreateC64Memory(ram, io, romData);
+        c64.Mem = mem;
 
         // Configure the current memory configuration on startup
         SetStartupBank(c64);
@@ -179,26 +215,19 @@ public class C64 : ISystem, ISystemMonitor
         return c64;
     }
 
-    private static void MapIOLocations(C64 c64)
+    private void MapLocationsOnCurrentCPUBank(Memory mem, bool mapIO)
     {
-        var mem = c64.Mem;
-        var vic2 = c64.Vic2;
-        var cia = c64.Cia;
-        var kb = c64.Keyboard;
-        var sid = c64.Sid;
+        // Address 0x01: IO Port. Controls bank switching and Cassette control
+        mem.MapReader(0x01, IoPortLoad);
+        mem.MapWriter(0x01, IoPortStore);
 
-        for (int bank = 0; bank < 32; bank++)
+        if (mapIO)
         {
-            mem.SetMemoryConfiguration(bank);
-
-            // Address 0x01: IO Port. Controls bank switching and Cassette control
-            mem.MapReader(0x01, c64.IoPortLoad);
-            mem.MapWriter(0x01, c64.IoPortStore);
-
-            vic2.MapIOLocations(mem);
-            cia.MapIOLocations(mem);
-            kb.MapIOLocations(mem);
-            sid.MapIOLocations(mem);
+            // Map IO addresses at d000
+            Vic2.MapIOLocations(mem);
+            Cia.MapIOLocations(mem);
+            Keyboard.MapIOLocations(mem);
+            Sid.MapIOLocations(mem);
         }
     }
 
@@ -214,7 +243,7 @@ public class C64 : ISystem, ISystemMonitor
         mem.Write(1, 0x7);
     }
 
-    private static CPU CreateC64CPU(Vic2 vic2, Memory mem, ILoggerFactory loggerFactory)
+    private static CPU CreateC64CPU( ILoggerFactory loggerFactory)
     {
         var cpu = new CPU(loggerFactory);
         // The CPU execute method uses will not raise any events (like after instruction executed). Therefore advance VIC2 raster line etc needs to be manually called instead (see ExecuteOneFrame)
@@ -222,7 +251,7 @@ public class C64 : ISystem, ISystemMonitor
         return cpu;
     }
 
-    private static Memory CreateC64Memory(byte[] ram, byte[] io, Dictionary<string, byte[]> roms)
+    private Memory CreateC64Memory(byte[] ram, byte[] io, Dictionary<string, byte[]> roms)
     {
         var basic = roms[C64Config.BASIC_ROM_NAME];
         var chargen = roms[C64Config.CHARGEN_ROM_NAME];
@@ -231,125 +260,149 @@ public class C64 : ISystem, ISystemMonitor
         var mem = new Memory(numberOfConfigurations: 32, mapToDefaultRAM: false);
 
         mem.SetMemoryConfiguration(31);
-        mem.MapRAM(0x0000, ram);
+        mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
         mem.MapROM(0xa000, basic);
         mem.MapRAM(0xd000, io);
         mem.MapROM(0xe000, kernal);
+        MapLocationsOnCurrentCPUBank(mem, mapIO: true);
 
         foreach (var bank in new int[] { 30, 14 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
+            MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 29, 13 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
+            MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 28, 24 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
+            MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
         foreach (var bank in new int[] { 27 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xa000, basic);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
+            MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
         foreach (var bank in new int[] { 26, 10 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
+            MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
         foreach (var bank in new int[] { 25, 9 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xd000, chargen);
+            MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
 
         foreach (var bank in new int[] { 23, 22, 21, 20, 19, 18, 17, 16 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             // TODO: Cartridge low + high mapping
+            MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 15 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xa000, basic);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
             // TODO: Cartridge low mapping
+            MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 12, 8, 4, 0 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
+            MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
         foreach (var bank in new int[] { 11 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xa000, basic);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
             // TODO: Cartridge low mapping
+            MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
         foreach (var bank in new int[] { 7 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
             // TODO: Cartridge low + high mapping
+            MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 6 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
             mem.MapROM(0xe000, kernal);
             // TODO: Cartridge high mapping
+            MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 5 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapRAM(0xd000, io);
+            MapLocationsOnCurrentCPUBank(mem, mapIO: true);
         }
         foreach (var bank in new int[] { 3 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
             // TODO: Cartridge low + high mapping
+            MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
         foreach (var bank in new int[] { 2 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
             mem.MapROM(0xd000, chargen);
             mem.MapROM(0xe000, kernal);
             // TODO: Cartridge high mapping
+            MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
         foreach (var bank in new int[] { 1 })
         {
             mem.SetMemoryConfiguration(bank);
-            mem.MapRAM(0x0000, ram);
+            mem.MapRAM(0x0000, ram, preWriteIntercept: RamPreWriteIntercept);
+            MapLocationsOnCurrentCPUBank(mem, mapIO: false);
         }
+
         return mem;
+    }
+
+    private bool RamPreWriteIntercept(ushort address, byte value)
+    {
+        Vic2.InspectVic2MemoryValueUpdateFromCPU(address, value);
+        return true;
     }
 
     private void IoPortStore(ushort _, byte value)

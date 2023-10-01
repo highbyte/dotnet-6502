@@ -1,0 +1,134 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\samples\Assembler\C64\Sprites\sprite_starfield.asm
+     1                          ;ACME assembler
+     2                          ;!to "./build/8spritefield.prg"
+     3                          
+     4                          ;Example below is from https://codebase64.org/doku.php?id=base:8_sprite_starfield
+     5                          
+     6                          ;===========================================================================
+     7                          ;Simple sprite starfield by Richard Bayliss
+     8                          ;===========================================================================
+     9                          
+    10                          sync = $0340
+    11                          starpos = $0350
+    12                          
+    13                          			;!to "8spritefield.prg",cbm
+    14                          			;* = $0900
+    15                          
+    16                          *=$0800
+    17                          ; encode SYS 2064 ($0810) line
+    18                          ; in BASIC program space
+    19  0800 000c080a009e2032   !byte $00 ,$0c, $08, $0a, $00, $9e, $20, $32 
+    20  0808 3036340000000000   !byte $30, $36, $34, $00, $00, $00, $00, $00
+    21                          
+    22  0810 78                 			sei
+    23  0811 2081ff             			jsr $ff81 ; Clear the screen
+    24  0814 a900               			lda #$00  ;Black border + screen
+    25  0816 8d20d0             			sta $d020
+    26  0819 8d21d0             			sta $d021
+    27  081c a9ff               			lda #$ff
+    28  081e 8d15d0             			sta $d015 ;Turn on all sprites
+    29  0821 a900               			lda #$00  
+    30  0823 8d17d0             			sta $d017 ;No sprite expansion X
+    31  0826 8d1bd0             			sta $d01b ;Sprites in front of chars
+    32  0829 8d1dd0             			sta $d01d ;No sprite expansion Y
+    33  082c a200               			ldx #$00
+    34  082e a900               clr2000	                lda #$00
+    35  0830 9d0020             			sta $2000,x ;Fill $2000 with zero
+    36  0833 e8                 			inx
+    37  0834 d0f8               			bne clr2000
+    38  0836 a901               			lda #$01    ;Create a dot for the sprite starfield
+    39  0838 8d0020             			sta $2000
+    40  083b a200               			ldx #$00
+    41  083d a980               setsprs	                lda #$80    ;Sprite object data from $2000-$2080
+    42  083f 9df807             			sta $07f8,x
+    43  0842 a901               			lda #$01    ;All sprites are white
+    44  0844 9d27d0             			sta $d027,x
+    45  0847 e8                 			inx
+    46  0848 e008               			cpx #$08    ;Do the sprite creation 8 times
+    47  084a d0f1               			bne setsprs
+    48  084c a200               			ldx #$00
+    49  084e bdcd08             positions	        lda postable,x ;Read label postable
+    50  0851 9d5003             			sta starpos+0,x ;Create data memory for current sprite position
+    51  0854 e8                 			inx
+    52  0855 e010               			cpx #$10
+    53  0857 d0f5               			bne positions
+    54                          			
+    55  0859 a9bd               			lda #<irq ;You should know this bit already ;)
+    56  085b 8d1403             			sta $0314
+    57  085e a908               			lda #>irq
+    58  0860 8d1503             			sta $0315
+    59  0863 a900               			lda #$00
+    60  0865 8d12d0             			sta $d012
+    61  0868 a97f               			lda #$7f
+    62  086a 8d0ddc             			sta $dc0d
+    63  086d a91b               			lda #$1b
+    64  086f 8d11d0             			sta $d011
+    65  0872 a901               			lda #$01
+    66  0874 8d1ad0             			sta $d01a
+    67  0877 58                 			cli
+    68  0878 a900               mainloop	        lda #$00 ;Synchronize the routines outside IRQ so that all routines run outside IRQ
+    69  087a 8d4003             			sta sync ;correctly
+    70  087d ad4003             			lda sync
+    71  0880 cd4003             waitsync	        cmp sync
+    72  0883 d003               			bne cont
+    73  0885 4c8008             			jmp waitsync
+    74  0888 209108             cont		        jsr expdpos     ;Call label xpdpos for sprite position x expansion
+    75  088b 20aa08             			jsr movestars   ;Call label movestars for virtual sprite movement
+    76  088e 4c7808             			jmp mainloop
+    77                          			
+    78  0891 a200               expdpos	                ldx #$00
+    79  0893 bd5103             xpdloop	                lda starpos+1,x ;Read virtual memory from starpos (odd number values)
+    80  0896 9d01d0             			sta $d001,x     ;Write memory to the actual sprite y position
+    81  0899 bd5003             			lda starpos+0,x ;Read virtual memory from starpos (odd number values)
+    82  089c 0a                 			asl
+    83  089d 6e10d0             			ror $d010 ;increase the screen limit for sprite x position
+    84  08a0 9d00d0             			sta $d000,x ;Write memory to the actual sprite x position
+    85  08a3 e8                 			inx
+    86  08a4 e8                 			inx
+    87  08a5 e010               			cpx #$10
+    88  08a7 d0ea               			bne xpdloop
+    89  08a9 60                 			rts
+    90                          			
+    91  08aa a200               movestars       	ldx #$00
+    92  08ac bd5003             moveloop	        lda starpos+0,x ;Read from data table (starpos)
+    93  08af 18                 			clc
+    94  08b0 7ddf08             			adc starspeed+0,x
+    95  08b3 9d5003             			sta starpos+0,x
+    96  08b6 e8                 			inx ; Add 2 to each value of the loop
+    97  08b7 e8                 			inx ;
+    98  08b8 e010               			cpx #$10 ;Once reached 16 times rts else repeat moveloop
+    99  08ba d0f0               			bne moveloop
+   100  08bc 60                 			rts
+   101                          			
+   102  08bd ee19d0             irq			inc $d019 ;You should also know this bit already
+   103  08c0 a900               			lda #$00
+   104  08c2 8d12d0             			sta $d012
+   105  08c5 a901               			lda #$01
+   106  08c7 8d4003             			sta sync
+   107  08ca 4c31ea             			jmp $ea31
+   108                          			
+   109                          ;Data tables for the sprite positions
+   110                                                       ; x    y
+   111                          postable
+   112  08cd 0038               			!byte $00,$38 ;We always keep x as zero, y is changeable
+   113  08cf 0040               			!byte $00,$40
+   114  08d1 0048               			!byte $00,$48
+   115  08d3 0050               			!byte $00,$50
+   116  08d5 0058               			!byte $00,$58
+   117  08d7 0060               			!byte $00,$60
+   118  08d9 0068               			!byte $00,$68
+   119  08db 0070               			!byte $00,$70
+   120  08dd 0078               			!byte $00,$78
+   121                          			
+   122                          ;Data tables for speed of the moving stars (erm dots)
+   123                                                       ;x     y
+   124                          starspeed
+   125  08df 0400               			!byte $04,$00 ;Important. Remember that Y should always be zero. X is changable for
+   126  08e1 0500               			!byte $05,$00 ;varied speeds of the moving stars. :)
+   127  08e3 0600               			!byte $06,$00
+   128  08e5 0700               			!byte $07,$00
+   129  08e7 0600               			!byte $06,$00
+   130  08e9 0400               			!byte $04,$00
+   131  08eb 0700               			!byte $07,$00
+   132  08ed 0500               			!byte $05,$00

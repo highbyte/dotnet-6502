@@ -1,0 +1,14 @@
+
+al C:0050 .sprite_x
+al C:0054 .bgnd_coll
+al C:0051 .sprite_dir
+al C:0052 .coll_delay
+al C:0053 .sprite_coll
+
+al C:0875 .main_loop
+al C:0817 .screen_clear
+al C:083a .sprite_gen
+al C:08b8 .bgnd_no_coll
+al C:08c1 .sprite_no_coll
+al C:0812 .code_start
+al C:0899 .bgnd_coll_check

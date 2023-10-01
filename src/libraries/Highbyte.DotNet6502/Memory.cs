@@ -1,10 +1,13 @@
-﻿namespace Highbyte.DotNet6502;
+using System.Diagnostics;
+
+namespace Highbyte.DotNet6502;
 
 public class Memory
 {
     public delegate byte LoadByte(ushort address);
     public delegate void StoreByte(ushort address, byte value);
 
+    public delegate bool PreWriteIntercept(ushort address, byte value);
     public class MemValue
     {
         public byte Value { get; set; }
@@ -18,9 +21,11 @@ public class Memory
 
     private LoadByte[] _readers;
     private StoreByte[] _writers;
+    private StoreByte[] _originalWriters;
 
     private LoadByte[][] _readersPerConfiguration;
     private StoreByte[][] _writersPerConfiguration;
+    private StoreByte[][] _originalWritersPerConfiguration;
 
     public Memory(int memorySize = MAX_MEMORY_SIZE, int numberOfConfigurations=1, bool mapToDefaultRAM = true) 
     {
@@ -35,12 +40,14 @@ public class Memory
         NumberOfConfigurations = numberOfConfigurations;
         _readersPerConfiguration = new LoadByte[numberOfConfigurations][];
         _writersPerConfiguration = new StoreByte[numberOfConfigurations][];
+        _originalWritersPerConfiguration = new StoreByte[numberOfConfigurations][];
 
         for (int i = 0; i < numberOfConfigurations; i++)
         {
             _readersPerConfiguration[i] = new LoadByte[memorySize];
             _writersPerConfiguration[i] = new StoreByte[memorySize];
-            if(mapToDefaultRAM)
+            _originalWritersPerConfiguration[i] = new StoreByte[memorySize];
+            if (mapToDefaultRAM)
             {
                 SetMemoryConfiguration(i);
                 MapRAM(0x0000, new byte[Size]);
@@ -56,9 +63,10 @@ public class Memory
         CurrentConfiguration = configuration;
         _readers = _readersPerConfiguration[CurrentConfiguration];
         _writers = _writersPerConfiguration[CurrentConfiguration];
+        _originalWriters = _originalWritersPerConfiguration[CurrentConfiguration];
     }
 
-    public byte this[ushort index] 
+    public byte this[ushort index]
     {
         get
         {
@@ -70,16 +78,44 @@ public class Memory
         }
     }
 
-    public void MapRAM(ushort baseAddress, byte[] data, ushort dataOffset = 0, ushort? length = null)
+    public void MapRAM(ushort baseAddress, byte[] data, ushort dataOffset = 0, ushort? length = null, PreWriteIntercept? preWriteIntercept = null)
     {
         LoadByte reader = delegate(ushort address)
         {
             return data[(address + dataOffset) - baseAddress];
         };
-        StoreByte writer = delegate(ushort address, byte value)
+        StoreByte writer;
+        StoreByte originalWriter;
+        if (preWriteIntercept == null)
         {
-            data[(address + dataOffset) - baseAddress] = value;
-        };
+            writer = delegate (ushort address, byte value)
+            {
+                data[(address + dataOffset) - baseAddress] = value;
+            };
+            originalWriter = delegate (ushort address, byte value)
+            {
+                data[(address + dataOffset) - baseAddress] = value;
+            };
+        }
+        else
+        {
+            writer = delegate (ushort address, byte value)
+            {
+                var actualAddress = (ushort)((address + dataOffset) - baseAddress);
+                var shouldWrite = preWriteIntercept(actualAddress, value);
+                if (shouldWrite)
+                    data[actualAddress] = value;
+            };
+            originalWriter = delegate (ushort address, byte value)
+            {
+                var actualAddress = (ushort)((address + dataOffset) - baseAddress);
+                var shouldWrite = preWriteIntercept(actualAddress, value);
+                if (shouldWrite)
+                    data[actualAddress] = value;
+            };
+
+        }
+
         // Func<ushort, byte> reader = (ushort address) =>
         // {
         //     return data[baseAddress - address];
@@ -94,6 +130,7 @@ public class Memory
         {
             _readers[baseAddress + i] = reader;
             _writers[baseAddress + i] = writer;
+            _originalWriters[baseAddress + i] = originalWriter;
         }
     }
 
@@ -176,17 +213,39 @@ public class Memory
         _writers[address](address, value);
     }
 
-    public Memory Clone()
+    /// <summary>
+    /// Returns value at a memory location as originally configured, even if another map (RAM or ROM) has been created to the same location afterwards.
+    /// </summary>
+    /// <param name="address"></param>
+    /// <returns></returns>
+    ////public byte ReadOriginal(ushort address)
+    ////{
+    ////    return _originalReaders[address](address);
+    ////}
+
+    /// <summary>
+    /// Writes a value to a memory location as originally configured, even if another map (RAM or ROM) has been created to the same location afterwards.
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    public void WriteOriginal(ushort address, byte value)
     {
-        var memoryClone = new Memory
-        {
-            _readers = this._readers,
-            _writers = this._writers,
-            _readersPerConfiguration = this._readersPerConfiguration,
-            _writersPerConfiguration = this._writersPerConfiguration,
-            CurrentConfiguration = this.CurrentConfiguration,
-            NumberOfConfigurations = this.NumberOfConfigurations,
-        };
-        return memoryClone;
+        _originalWriters[address](address, value);
     }
+
+    // TODO: Implement Clone() method correctly if this method is needed. Currently it won't clone the delegates correctly.
+    //public Memory Clone()
+    //{
+    //    var memoryClone = new Memory
+    //    {
+    //        _readers = (LoadByte[])this._readers.Clone(),
+    //        _writers = (StoreByte[])this._writers.Clone(),
+    //        _readersPerConfiguration = (LoadByte[][])this._readersPerConfiguration.Clone(),
+    //        _writersPerConfiguration = (StoreByte[][])this._writersPerConfiguration.Clone(),
+    //        _originalWritersPerConfiguration = (StoreByte[][])this._originalWritersPerConfiguration.Clone(),
+    //        CurrentConfiguration = this.CurrentConfiguration,
+    //        NumberOfConfigurations = this.NumberOfConfigurations,
+    //    };
+    //    return memoryClone;
+    //}
 }

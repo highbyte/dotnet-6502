@@ -1,0 +1,51 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\samples\Assembler\C64\Sprites\sprite_collision_background_irq.asm
+     1                          ;ACME assembler
+     2                          ;!to "./build/sprite_collision_background_irq.prg"
+     3                          
+     4                          ; Simple sprite to background collision detection with IRQ, changes background color when collision is detected
+     5                          ; Can be used when running basic programs for testing.
+     6                          * = $c000
+     7                          
+     8                          Init:
+     9  c000 78                 	SEI                  ; set interrupt bit, make the CPU ignore interrupt requests
+    10                          
+    11  c001 ad0ddc             	LDA $DC0D            ; acknowledge pending interrupts from CIA-1
+    12  c004 ad0ddd             	LDA $DD0D            ; acknowledge pending interrupts from CIA-2
+    13                          
+    14                          	; The handler that will be called during the IRQ
+    15  c007 a918               	lda #<spritecollisionirqhandler
+    16  c009 8d1403             	sta $0314
+    17  c00c a9c0               	lda #>spritecollisionirqhandler
+    18  c00e 8d1503             	sta $0315
+    19                          
+    20                          	; Enable sprite to background interrupt signals from VIC
+    21  c011 a902               	LDA #%00000010
+    22  c013 8d1ad0             	STA $D01A
+    23                          
+    24  c016 58                 	CLI                  ; clear interrupt flag, allowing the CPU to respond to interrupt requests
+    25  c017 60                 	RTS
+    26                          
+    27                          spritecollisionirqhandler:
+    28                          	; LDA $D019			; Check if the IRQ source is sprite to background collision
+    29                          	; AND #%00000010	;There can be other IRQ sources running at the same time (for example if we run it together with Basic)
+    30                          	; BEQ .no_collision
+    31  c018 ad1fd0             	LDA $D01F			; Read sprite to background collision register. Can be inspected to see which sprite(s) collided with the background. Will be cleared by reading.
+    32  c01b c900               	CMP #0
+    33  c01d f00e               	BEQ .no_collision
+    34                          	; TAX					; Store the value in X register for later use
+    35                          	; TXA					; Restore sprite to background collision register value from X register
+    36                          
+    37  c01f ee20d0             	INC $D020			; Change border color
+    38                          
+    39  c022 ad19d0             	LDA $D019			; Acknowledge the specific sprite to background IRQ by writing 1 to its interrupt flag
+    40  c025 0902               	ORA #%00000010
+    41  c027 8d19d0             	STA $D019
+    42  c02a 4c30c0             	jmp .exit_irq
+    43                          
+    44                          .no_collision:
+    45  c02d 0e19d0             	ASL $D019          ; TODO: Is this needed here: acknowledge the interrupt by clearing the VIC's interrupt flag
+    46                          
+    47                          .exit_irq:
+    48  c030 4c31ea             	JMP $EA31            ; jump into KERNAL's standard interrupt service routine to handle keyboard scan, cursor display etc.
+    49                          	;JMP $EA81            ; jump into shorter ROM routine to only restore registers from the stack etc

@@ -217,6 +217,8 @@ public partial class Index
         _logger.LogInformation($"System selected: {_selectedSystemName}");
     }
 
+
+
     private async void UpdateCanvasSize()
     {
         bool isOk = await _systemList.IsValidConfig(_selectedSystemName);

@@ -36,6 +36,9 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     public int VisibleTopBottomBorderHeight => (VisibleHeight - DrawableAreaHeight) / 2;
     public float RefreshFrequencyHz => _genericComputerConfig.ScreenRefreshFrequencyHz;
 
+    public bool HasDetailedStats => false;
+    public List<string> DetailedStatNames => new();
+
     private ILogger _logger;
     private GenericComputerConfig _genericComputerConfig;
     private readonly LegacyExecEvaluator _oneFrameExecEvaluator;
@@ -171,17 +174,18 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     {
     }
 
-    public GenericComputer Clone()
-    {
-        return new GenericComputer()
-        {
-            CPU = this.CPU.Clone(),
-            Mem = this.Mem.Clone(),
-            DefaultExecOptions = this.DefaultExecOptions.Clone(),
-            _genericComputerConfig = this._genericComputerConfig,
-            _logger = this._logger
-        };
-    }
+    // TODO: When Memory Clone() method is working correctly, this method can begin to be used
+    //public GenericComputer Clone()
+    //{
+    //    return new GenericComputer()
+    //    {
+    //        CPU = this.CPU.Clone(),
+    //        Mem = this.Mem.Clone(),
+    //        DefaultExecOptions = this.DefaultExecOptions.Clone(),
+    //        _genericComputerConfig = this._genericComputerConfig,
+    //        _logger = this._logger
+    //    };
+    //}
 
     public void Reset(ushort? cpuStartPos = null)
     {
