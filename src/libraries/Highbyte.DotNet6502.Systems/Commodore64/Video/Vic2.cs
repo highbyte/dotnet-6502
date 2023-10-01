@@ -1,3 +1,4 @@
+using System.ComponentModel.Design;
 using System.Net;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
@@ -48,12 +49,23 @@ public class Vic2
     public bool CharacterSetAddressInVIC2BankIsChargenROMShifted => _currentVIC2BankOffset == 0x1000;
     public bool CharacterSetAddressInVIC2BankIsChargenROMUnshifted => _currentVIC2BankOffset == 0x1800;
 
+    public CharMode CharacterMode
+    {
+        get
+        {
+            if (ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER).IsBitSet(6))
+                return CharMode.Extended;
+            return CharMode.Standard;
+        }
+    }
+
+    public enum CharMode { Standard, Extended, MultiColor };
 
     private ushort _currentRasterLineInternal = ushort.MaxValue;
     public ushort CurrentRasterLine => _currentRasterLineInternal;
 
-    public bool Is38ColumnDisplayEnabled => !ReadIOStorage(Vic2Addr.SCROLL_X).IsBitSet(3);
-    public byte FineScrollXValue => (byte)(ReadIOStorage(Vic2Addr.SCROLL_X) & 0b0000_0111);    // Value 0-7
+    public bool Is38ColumnDisplayEnabled => !ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER).IsBitSet(3);
+    public byte FineScrollXValue => (byte)(ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER) & 0b0000_0111);    // Value 0-7
     public int GetScrollX()
     {
         var scrollX = FineScrollXValue;
@@ -63,8 +75,8 @@ public class Vic2
         return scrollX;
     }
 
-    public bool Is24RowDisplayEnabled => !ReadIOStorage(Vic2Addr.SCREEN_CONTROL_REGISTER_1).IsBitSet(3);
-    public byte FineScrollYValue => (byte)(ReadIOStorage(Vic2Addr.SCREEN_CONTROL_REGISTER_1) & 0b0000_0111);    // Value 0-7
+    public bool Is24RowDisplayEnabled => !ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER).IsBitSet(3);
+    public byte FineScrollYValue => (byte)(ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER) & 0b0000_0111);    // Value 0-7
     public int GetScrollY()
     {
         var scrollY = FineScrollYValue - 3; // Note: VIC2 Y scroll value is by default 3 (=no offset)
@@ -145,17 +157,17 @@ public class Vic2
 
     public void MapIOLocations(Memory c64Mem)
     {
-        // Address 0xd011: "Screen Control Register 1"
-        c64Mem.MapReader(Vic2Addr.SCREEN_CONTROL_REGISTER_1, ScrCtrlReg1Load);
-        c64Mem.MapWriter(Vic2Addr.SCREEN_CONTROL_REGISTER_1, ScrCtrlReg1Store);
+        // Address 0xd011: "Vertical Fine Scrollling and Screen Control Register"
+        c64Mem.MapReader(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, ScrCtrlReg1Load);
+        c64Mem.MapWriter(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, ScrCtrlReg1Store);
 
         // Address 0xd012: "Current Raster Line"
         c64Mem.MapReader(Vic2Addr.CURRENT_RASTER_LINE, RasterLoad);
         c64Mem.MapWriter(Vic2Addr.CURRENT_RASTER_LINE, RasterStore);
 
-        // Address 0xd016: "Horizontal Fine Scrolling and Control Register"
-        c64Mem.MapReader(Vic2Addr.SCROLL_X, ScrollXLoad);
-        c64Mem.MapWriter(Vic2Addr.SCROLL_X, ScrollXStore);
+        // Address 0xd016: "Horizontal Fine Scrolling and Screen Control Register"
+        c64Mem.MapReader(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER, ScrollXLoad);
+        c64Mem.MapWriter(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER, ScrollXStore);
 
         // Address 0xd018: "Memory setup" (VIC2 pointer for charset/bitmap & screen memory)
         c64Mem.MapReader(Vic2Addr.MEMORY_SETUP, MemorySetupLoad);
@@ -184,9 +196,18 @@ public class Vic2
         // Address 0xd020: Border color
         c64Mem.MapReader(Vic2Addr.BORDER_COLOR, BorderColorLoad);
         c64Mem.MapWriter(Vic2Addr.BORDER_COLOR, BorderColorStore);
-        // Address 0xd021: Background color
-        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR, BackgroundColorLoad);
-        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR, BackgroundColorStore);
+        // Address 0xd021: Background color 0
+        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR_0, BackgroundColorLoad);
+        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR_0, BackgroundColorStore);
+        // Address 0xd022: Background color 1
+        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR_1, BackgroundColorLoad);
+        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR_1, BackgroundColorStore);
+        // Address 0xd023: Background color 2
+        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR_2, BackgroundColorLoad);
+        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR_2, BackgroundColorStore);
+        // Address 0xd024: Background color 3
+        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR_3, BackgroundColorLoad);
+        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR_3, BackgroundColorStore);
 
         // Address 0xd025: Sprite multi-color 0
         c64Mem.MapReader(Vic2Addr.SPRITE_MULTI_COLOR_0, SpriteMultiColor0Load);
@@ -720,7 +741,7 @@ public class Vic2
             return;
 
         var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
-        ScreenLineBackgroundColor[screenLine] = ReadIOStorage(Vic2Addr.BACKGROUND_COLOR);
+        ScreenLineBackgroundColor[screenLine] = ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
     }
 
     /// <summary>

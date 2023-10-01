@@ -3,6 +3,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
@@ -112,15 +113,16 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
     private void RenderMainScreen(C64 c64, SKCanvas canvas)
     {
-        var vic2Mem = c64.Vic2.Vic2Mem;
-        var vic2IOStorage = c64.Vic2.Vic2IOStorage;
+        var vic2 = c64.Vic2;
+        var vic2Mem = vic2.Vic2Mem;
+        var vic2IOStorage = vic2.Vic2IOStorage;
 
-        var vic2Screen = c64.Vic2.Vic2Screen;
-        var vic2ScreenLayouts = c64.Vic2.ScreenLayouts;
+        var vic2Screen = vic2.Vic2Screen;
+        var vic2ScreenLayouts = vic2.ScreenLayouts;
 
         // Offset based on horizontal and vertical scrolling settings
-        var scrollX = c64.Vic2.GetScrollX();
-        var scrollY = c64.Vic2.GetScrollY();
+        var scrollX = vic2.GetScrollX();
+        var scrollY = vic2.GetScrollY();
 
         // Clip main screen area with consideration to possible 38 column and 24 row mode
         var visibleClippedScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);
@@ -143,12 +145,19 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         // Build screen data characters based on emulator memory contents (byte)
         var currentScreenAddress = Vic2Addr.SCREEN_RAM_START;   // TODO: Screen RAM start should be calculated based on current VIC2 bank and screen offset
         var currentColorAddress = Vic2Addr.COLOR_RAM_START;
+
+        var characterMode = vic2.CharacterMode;
+        byte backgroundColor1 = vic2.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1); // Background color used for extended charcater mode
+        byte backgroundColor2 = vic2.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2); // Background color used for extended charcater mode
+        byte backgroundColor3 = vic2.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3); // Background color used for extended charcater mode
+
         for (var row = 0; row < vic2Screen.TextRows; row++)
         {
             for (var col = 0; col < vic2Screen.TextCols; col++)
             {
                 var charByte = vic2Mem[currentScreenAddress++];
                 var colorByte = vic2IOStorage[currentColorAddress++];  // Note: Color RAM is always at fixed CPU location in CPU ram (not withing the 16K area mapped to the VIC2)
+
                 DrawEmulatorCharacterOnScreen(
                     canvas,
                     visibleMainScreenArea.Screen.Start.X,
@@ -157,7 +166,11 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
                     row,
                     charByte,
                     colorByte,
-                    c64
+                    c64,
+                    characterMode,
+                    backgroundColor1,
+                    backgroundColor2,
+                    backgroundColor3
                     );
             }
         }
@@ -240,7 +253,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         var vic2Screen = c64.Vic2.Vic2Screen;
 
         // Draw 1 rectangle for background
-        var backgroundColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR];
+        var backgroundColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR_0];
         var bgPaint = _c64SkiaPaint.GetFillPaint(backgroundColor);
 
         canvas.DrawRect(vic2Screen.VisibleLeftRightBorderWidth, vic2Screen.VisibleTopBottomBorderHeight, vic2Screen.DrawableAreaWidth, vic2Screen.DrawableAreaHeight, bgPaint);
@@ -261,7 +274,12 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         int row,
         byte character,
         byte characterColor,
-        C64 c64)
+        C64 c64,
+        CharMode characterMode,
+        byte backgroundColor1,  // Extended mode, background color for each character
+        byte backgroundColor2,  // Extended mode, background color for each character
+        byte backgroundColor3   // Extended mode, background color for each character
+        )
     {
         var vic2Screen = c64.Vic2.Vic2Screen;
 
@@ -274,6 +292,29 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         // Adjust for top border
         pixelPosY += firstVisibleScreenYPos;
         //pixelPosY += vic2Screen.VisibleTopBottomBorderHeight;
+
+        // Check character mode: affects background color and usabe bits in character
+        byte? bgColor = null;
+        switch (characterMode)
+        {
+            case CharMode.Standard:
+                break;
+            case CharMode.Extended:
+                var bgColorSelector = character >> 6;   // Bit 6 and 7 of character byte is used to select background color (0-3)
+                bgColor = bgColorSelector switch
+                {
+                    0 => null,
+                    1 => backgroundColor1,
+                    2 => backgroundColor2,
+                    3 => backgroundColor3,
+                    _ => throw new NotImplementedException($"Background color selector {bgColorSelector} not implemented.")
+                };
+                character = (byte)(character & 0b00111111); // The actual usable character codes are in the lower 6 bits (0-63)
+                break;
+            default:
+                throw new NotImplementedException($"Character mode {characterMode} not implemented.");
+        }
+
 
         // Draw character image from chargen ROM to a Skia surface
         // The chargen ROM has been loaded to a SKImage with 16 characters per row (each character 8 x 8 pixels).
@@ -290,7 +331,10 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         _drawImageDest.Right = pixelPosX + 8;
         _drawImageDest.Bottom = pixelPosY + 8;
 
-        var paint = _c64SkiaPaint.GetDrawCharacterPaint(characterColor);
+        SKPaint paint = bgColor.HasValue
+            ? _c64SkiaPaint.GetDrawCharacterPaintWithBackground(characterColor, bgColor.Value)
+            : _c64SkiaPaint.GetDrawCharacterPaint(characterColor);
+
         canvas.DrawImage(_characterSetCurrent,
             //source: new SKRect(romImageX, romImageY, romImageX + 8, romImageY + 8),
             //dest: new SKRect(pixelPosX, pixelPosY, pixelPosX + 8, pixelPosY + 8),

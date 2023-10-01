@@ -40,12 +40,12 @@ public static class Vic2Addr
     // Sprite X position MSB (Most Significant Bit) for sprites 0-7
     public const ushort SPRITE_MSB_X = 0xd010;
 
-    public const ushort SCREEN_CONTROL_REGISTER_1 = 0xd011;
+    public const ushort SCROLL_Y_AND_SCREEN_CONTROL_REGISTER = 0xd011;
     public const ushort CURRENT_RASTER_LINE = 0xd012;
 
     public const ushort SPRITE_ENABLE = 0xd015;
 
-    public const ushort SCROLL_X = 0xd016;
+    public const ushort SCROLL_X_AND_SCREEN_CONTROL_REGISTER = 0xd016;
 
     public const ushort SPRITE_Y_EXPAND = 0xd017;
 
@@ -63,7 +63,10 @@ public static class Vic2Addr
     public const ushort SPRITE_TO_BACKGROUND_COLLISION = 0xd01f;
 
     public const ushort BORDER_COLOR = 0xd020;
-    public const ushort BACKGROUND_COLOR = 0xd021;
+    public const ushort BACKGROUND_COLOR_0 = 0xd021;
+    public const ushort BACKGROUND_COLOR_1 = 0xd022;
+    public const ushort BACKGROUND_COLOR_2 = 0xd023;
+    public const ushort BACKGROUND_COLOR_3 = 0xd024;
 
     public const ushort SPRITE_MULTI_COLOR_0 = 0xd025;  // Common for all sprites
     public const ushort SPRITE_MULTI_COLOR_1 = 0xd026;  // Common for all sprites

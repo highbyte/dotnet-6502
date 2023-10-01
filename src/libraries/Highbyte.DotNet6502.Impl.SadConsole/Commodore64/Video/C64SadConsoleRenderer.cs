@@ -48,7 +48,7 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
         // DrawEmulatorCharacterOnScreen(_emulatorMemoryConfig.Cols-1, _emulatorMemoryConfig.Rows-1 , 66, 0x01, 0x05);
         // return;
 
-        var bgColor = vic2.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR);
+        var bgColor = vic2.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
 
         // Build screen data characters based on emulator memory contents (byte)
         var currentScreenAddress = Vic2Addr.SCREEN_RAM_START;
