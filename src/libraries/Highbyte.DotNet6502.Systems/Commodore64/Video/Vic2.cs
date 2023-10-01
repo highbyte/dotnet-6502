@@ -55,6 +55,8 @@ public class Vic2
         {
             if (ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER).IsBitSet(6))
                 return CharMode.Extended;
+            if (ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER).IsBitSet(4))
+                return CharMode.MultiColor;
             return CharMode.Standard;
         }
     }
@@ -221,6 +223,13 @@ public class Vic2
         {
             c64Mem.MapReader(address, SpriteColorLoad);
             c64Mem.MapWriter(address, SpriteColorStore);
+        }
+
+        // Addresses 0xd800 - 0xdbe7:  Color RAM location. 1 byte per character in screen ram = 0x03e8 (1000) bytes)
+        for (ushort address = 0xd800; address <= 0xdbe7; address++)
+        {
+            c64Mem.MapReader(address, ColorRAMLoad);
+            c64Mem.MapWriter(address, ColorRAMStore);
         }
 
         // Address 0xdd00: "Port A" (VIC2 bank & serial bus)
@@ -451,6 +460,15 @@ public class Vic2
     public byte SpriteMultiColor1Load(ushort address)
     {
         return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+    }
+
+    public void ColorRAMStore(ushort address, byte value)
+    {
+        WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
+    }
+    public byte ColorRAMLoad(ushort address)
+    {
+        return ReadIOStorage(address);
     }
 
     public void ScrollXStore(ushort address, byte value)

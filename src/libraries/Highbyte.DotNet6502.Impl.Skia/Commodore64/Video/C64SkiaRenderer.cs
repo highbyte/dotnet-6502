@@ -17,8 +17,13 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     // Character drawing variables
     private const int CHARGEN_IMAGE_CHARACTERS_PER_ROW = 16;
     private SKImage _characterSetCurrent;
+    private SKImage _characterSetMultiColorCurrent;
+
     private SKImage _characterSetROMShiftedImage;
+    private SKImage _characterSetROMShiftedMultiColorImage;
     private SKImage _characterSetROMUnshiftedImage;
+    private SKImage _characterSetROMUnshiftedMultiColorImage;
+
     private SKRect _drawImageSource = new SKRect();
     private SKRect _drawImageDest = new SKRect();
 
@@ -62,8 +67,11 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     {
         // Generate and remember images of the Chargen ROM charset.
         GenerateROMChargenImages(c64);
+
         // Default to shifted ROM character set
         _characterSetCurrent = _characterSetROMShiftedImage;
+        _characterSetMultiColorCurrent = _characterSetROMShiftedMultiColorImage;
+
         // Listen to event when the VIC2 charset address is changed to recreate a image for the charset
         c64.Vic2.CharsetAddressChanged += (s, e) => GenerateCurrentChargenImage(c64);
     }
@@ -83,9 +91,16 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         _characterSetROMShiftedImage = chargen.GenerateChargenImage(characterSetShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
         _characterSetROMUnshiftedImage = chargen.GenerateChargenImage(characterSetUnShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
 
+        // Same for multi-color versions
+        _characterSetROMShiftedMultiColorImage = chargen.GenerateChargenImage(characterSetShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW, multiColor: true);
+        _characterSetROMUnshiftedMultiColorImage = chargen.GenerateChargenImage(characterSetUnShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW, multiColor: true);
+
 #if DEBUG
         chargen.DumpChargenFileToImageFile(_characterSetROMShiftedImage, $"{Path.GetTempPath()}/c64_chargen_shifted_dump.png");
         chargen.DumpChargenFileToImageFile(_characterSetROMUnshiftedImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_dump.png");
+
+        chargen.DumpChargenFileToImageFile(_characterSetROMShiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_shifted_multicolor_dump.png");
+        chargen.DumpChargenFileToImageFile(_characterSetROMUnshiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_multicolor_dump.png");
 #endif
     }
 
@@ -98,17 +113,20 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         if (c64.Vic2.CharacterSetAddressInVIC2BankIsChargenROMUnshifted)
         {
             _characterSetCurrent = _characterSetROMUnshiftedImage;
+            _characterSetMultiColorCurrent = _characterSetROMUnshiftedMultiColorImage;
             return;
         }
         else if (c64.Vic2.CharacterSetAddressInVIC2BankIsChargenROMShifted)
         {
             _characterSetCurrent = _characterSetROMShiftedImage;
+            _characterSetMultiColorCurrent = _characterSetROMShiftedMultiColorImage;
             return;
         }
         // Pointing to a location where a custom character set is located. Create a image for it.
         var characterSet = c64.Vic2.Vic2Mem.ReadData(c64.Vic2.CharacterSetAddressInVIC2Bank, Vic2.CHARACTERSET_SIZE);
         var chargen = new Chargen();
         _characterSetCurrent = chargen.GenerateChargenImage(characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
+        _characterSetMultiColorCurrent = chargen.GenerateChargenImage(characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW, multiColor: true);
     }
 
     private void RenderMainScreen(C64 c64, SKCanvas canvas)
@@ -273,11 +291,11 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         int col,
         int row,
         byte character,
-        byte characterColor,
+        byte characterColor,    // Standard and Extended mode text color. Also in MultiColor mode, the color of pixel-pair 11
         C64 c64,
         CharMode characterMode,
-        byte backgroundColor1,  // Extended mode, background color for each character
-        byte backgroundColor2,  // Extended mode, background color for each character
+        byte backgroundColor1,  // Extended mode, background color for each character. Also in MultiColor mode, the color of pixel-pair 01
+        byte backgroundColor2,  // Extended mode, background color for each character. Also in MultiColor mode, the color of pixel-pair 10
         byte backgroundColor3   // Extended mode, background color for each character
         )
     {
@@ -299,6 +317,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         {
             case CharMode.Standard:
                 break;
+
             case CharMode.Extended:
                 var bgColorSelector = character >> 6;   // Bit 6 and 7 of character byte is used to select background color (0-3)
                 bgColor = bgColorSelector switch
@@ -311,10 +330,24 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
                 };
                 character = (byte)(character & 0b00111111); // The actual usable character codes are in the lower 6 bits (0-63)
                 break;
+
+            case CharMode.MultiColor:
+                // When in MultiColor mode, a character can still be displayed in Standard mode depending on the value from color RAM.
+                if (characterColor <= 7)
+                {
+                    // If color RAM value is 0-7, normal Standard mode is used (not multi-color)
+                    characterMode = CharMode.Standard;
+                }
+                else
+                {
+                    // If displaying in MultiColor mode, the actual color used from color RAM will be values 0-7.
+                    // Thus color values 8-15 are transformed to 0-7
+                    characterColor = (byte)((characterColor & 0b00001111) - 8);
+                }
+                break;
             default:
                 throw new NotImplementedException($"Character mode {characterMode} not implemented.");
         }
-
 
         // Draw character image from chargen ROM to a Skia surface
         // The chargen ROM has been loaded to a SKImage with 16 characters per row (each character 8 x 8 pixels).
@@ -331,11 +364,23 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         _drawImageDest.Right = pixelPosX + 8;
         _drawImageDest.Bottom = pixelPosY + 8;
 
-        SKPaint paint = bgColor.HasValue
-            ? _c64SkiaPaint.GetDrawCharacterPaintWithBackground(characterColor, bgColor.Value)
-            : _c64SkiaPaint.GetDrawCharacterPaint(characterColor);
+        SKPaint paint = characterMode switch
+        {
+            CharMode.Standard => _c64SkiaPaint.GetDrawCharacterPaint(characterColor),
+            CharMode.Extended => _c64SkiaPaint.GetDrawCharacterPaintWithBackground(characterColor, bgColor.Value),
+            CharMode.MultiColor => _c64SkiaPaint.GetDrawCharacterPaintWithMultiColor(characterColor, backgroundColor1, backgroundColor2),
+            _ => throw new NotImplementedException($"Character mode {characterMode} not implemented.")
+        };
 
-        canvas.DrawImage(_characterSetCurrent,
+        var charSet = characterMode switch
+        {
+            CharMode.Standard => _characterSetCurrent,
+            CharMode.Extended => _characterSetCurrent,
+            CharMode.MultiColor => _characterSetMultiColorCurrent,
+            _ => throw new NotImplementedException($"Character mode {characterMode} not implemented.")
+        };
+
+        canvas.DrawImage(charSet,
             //source: new SKRect(romImageX, romImageY, romImageX + 8, romImageY + 8),
             //dest: new SKRect(pixelPosX, pixelPosY, pixelPosX + 8, pixelPosY + 8),
             source: _drawImageSource,

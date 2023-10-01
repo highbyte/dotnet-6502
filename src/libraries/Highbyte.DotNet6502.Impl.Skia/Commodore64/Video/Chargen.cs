@@ -6,7 +6,9 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
 public class Chargen
 {
     public static SKColor CharacterImageDrawColor = SKColors.White;
-    public SKImage GenerateChargenImage(byte[] characterSet, int charactersPerRow = 16)
+    public static SKColor CharacterImageDrawMultiColorBG1 = SKColors.Gray;
+    public static SKColor CharacterImageDrawMultiColorBG2 = SKColors.DarkGray;
+    public SKImage GenerateChargenImage(byte[] characterSet, int charactersPerRow = 16, bool multiColor = false)
     {
         if (characterSet.Length != Vic2.CHARACTERSET_SIZE)
             throw new ArgumentException($"Character set size must be {Vic2.CHARACTERSET_SIZE} bytes.", nameof(characterSet));
@@ -23,6 +25,20 @@ public class Chargen
                 Color = CharacterImageDrawColor,
                 StrokeWidth = 1
             };
+            var paintMultiColorBG1 = new SKPaint
+            {
+                Style = SKPaintStyle.StrokeAndFill,
+                Color = CharacterImageDrawMultiColorBG1,
+                StrokeWidth = 1
+            };
+            var paintMultiColorBG2 = new SKPaint
+            {
+                Style = SKPaintStyle.StrokeAndFill,
+                Color = CharacterImageDrawMultiColorBG2,
+                StrokeWidth = 1
+            };
+
+
 
             var charCode = 0;
             var index = 0;
@@ -36,7 +52,7 @@ public class Chargen
                 {
                     characterLines[i] = characterSet[index++];
                 }
-                DrawOneCharacter(canvas, paint, characterLines);
+                DrawOneCharacter(canvas, paint, paintMultiColorBG1, paintMultiColorBG2, characterLines, multiColor);
                 canvas.Translate(8, 0);
                 col++;
                 if (col == charactersPerRow)
@@ -68,7 +84,7 @@ public class Chargen
         }
     }
 
-    private void DrawOneCharacter(SKCanvas canvas, SKPaint paint, byte[] dataRows)
+    private void DrawOneCharacter(SKCanvas canvas, SKPaint paint, SKPaint paintMultiColorBG1, SKPaint paintMultiColorBG2, byte[] dataRows, bool multiColor)
     {
         using (new SKAutoCanvasRestore(canvas))
         {
@@ -76,24 +92,48 @@ public class Chargen
                 throw new Exception("A character in chargen must consist of 8 bytes.");
             foreach (var row in dataRows)
             {
-                DrawCharacterLine(canvas, paint, row);
+                DrawCharacterLine(canvas, paint, paintMultiColorBG1, paintMultiColorBG2, row, multiColor);
                 canvas.Translate(0, 1);
             }
         }
     }
 
-    private void DrawCharacterLine(SKCanvas canvas, SKPaint paint, byte dataRow)
+    private void DrawCharacterLine(SKCanvas canvas, SKPaint paint, SKPaint paintMultiColorBG1, SKPaint paintMultiColorBG2, byte dataRow, bool multiColor)
     {
         using (new SKAutoCanvasRestore(canvas))
         {
-            var mask = 0b10000000;
-            for (var pixel = 0; pixel < 8; pixel++)
+            if (multiColor)
             {
-                var pixelSet = (dataRow & mask) == mask;
-                if (pixelSet)
-                    canvas.DrawRect(0, 0, 1, 0, paint);
-                mask = mask >> 1;
-                canvas.Translate(1, 0);
+                var mask = 0b11000000;
+                for (var pixel = 0; pixel < 4; pixel++)
+                {
+                    var pixelPair = (dataRow & mask) >> (6 - pixel * 2);
+                    if (pixelPair != 0)
+                    {
+                        var pixelPairPaint = pixelPair switch
+                        {
+                            0b01 => paintMultiColorBG1,
+                            0b10 => paintMultiColorBG2,
+                            0b11 => paint,
+                            _ => throw new Exception("Invalid pixel pair value.")
+                        };
+                        canvas.DrawRect(0, 0, 2, 0, pixelPairPaint);
+                    }
+                    mask = mask >> 2;
+                    canvas.Translate(2, 0);
+                }
+            }
+            else
+            {
+                var mask = 0b10000000;
+                for (var pixel = 0; pixel < 8; pixel++)
+                {
+                    var pixelSet = (dataRow & mask) == mask;
+                    if (pixelSet)
+                        canvas.DrawRect(0, 0, 1, 0, paint);
+                    mask = mask >> 1;
+                    canvas.Translate(1, 0);
+                }
             }
         }
     }
