@@ -73,7 +73,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         _characterSetMultiColorCurrent = _characterSetROMShiftedMultiColorImage;
 
         // Listen to event when the VIC2 charset address is changed to recreate a image for the charset
-        c64.Vic2.CharsetAddressChanged += (s, e) => GenerateCurrentChargenImage(c64);
+        c64.Vic2.CharsetManager.CharsetAddressChanged += (s, e) => CharsetChangedHandler(c64, e);
     }
 
     private void GenerateROMChargenImages(C64 c64)
@@ -83,8 +83,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         var characterSets = c64.ROMData[C64Config.CHARGEN_ROM_NAME];
 
         // Chargen ROM data contains two character sets (1024 bytes each).
-        var characterSetShifted = characterSets.Take(Vic2.CHARACTERSET_SIZE).ToArray();
-        var characterSetUnShifted = characterSets.Skip(Vic2.CHARACTERSET_SIZE).Take(Vic2.CHARACTERSET_SIZE).ToArray();
+        var characterSetShifted = characterSets.Take(Vic2CharsetManager.CHARACTERSET_SIZE).ToArray();
+        var characterSetUnShifted = characterSets.Skip(Vic2CharsetManager.CHARACTERSET_SIZE).Take(Vic2CharsetManager.CHARACTERSET_SIZE).ToArray();
 
         var chargen = new Chargen();
         // Generate and save the images for the two Chargen ROM character sets
@@ -104,29 +104,68 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 #endif
     }
 
-    // TODO: Vic2 class should generate event when VIC2 bank (in 0xdd00) or VIC2 character set offset (in 0x
-    // d018) is changed, so we can generate new character set image.
-    //       Detect if the VIC2 address is a Chargen ROM shadow location (bank 0 and 2, offset 0x1000 or 0x1800), if so we don't need to generate new image, instead use pre-generated images we did on Init()
+    private void CharsetChangedHandler(C64 c64, Vic2CharsetManager.CharsetAddressChangedEventArgs e)
+    {
+        if (e.ChangeType == Vic2CharsetManager.CharsetAddressChangedEventArgs.CharsetChangeType.CharacterSetBaseAddress)
+        {
+            GenerateCurrentChargenImage(c64);
+        }
+        else if (e.ChangeType == Vic2CharsetManager.CharsetAddressChangedEventArgs.CharsetChangeType.CharacterSetData && e.CharacterIndex.HasValue)        {
+            UpdateChangedCharacterOnCurrentImage(c64, e.CharacterIndex.Value, e.CharacterLine);
+        }
+    }
+
+    private void UpdateChangedCharacterOnCurrentImage(C64 c64, byte characterIndex, byte? characterLine)
+    {
+        // TODO: Optimize updating only a specific character. For now the entire charset is genererated...
+        var charsetManager = c64.Vic2.CharsetManager;
+        var characterSet = c64.Vic2.Vic2Mem.ReadData(charsetManager.CharacterSetAddressInVIC2Bank, Vic2CharsetManager.CHARACTERSET_SIZE);
+
+        // TODO: create Chargen on class level, and not every time here
+        var chargen = new Chargen();
+        _characterSetCurrent = chargen.GenerateChargenImage(characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
+        _characterSetMultiColorCurrent = chargen.GenerateChargenImage(characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW, multiColor: true);
+
+#if DEBUG
+        chargen.DumpChargenFileToImageFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
+        chargen.DumpChargenFileToImageFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
+#endif
+    }
+
     private void GenerateCurrentChargenImage(C64 c64)
     {
+
+        var charsetManager = c64.Vic2.CharsetManager;
+
         // If the current address points to a location in where the Chargen ROM character sets are located, we can use pre-rendered images for the character set.
-        if (c64.Vic2.CharacterSetAddressInVIC2BankIsChargenROMUnshifted)
+        if (charsetManager.CharacterSetAddressInVIC2BankIsChargenROMUnshifted)
         {
             _characterSetCurrent = _characterSetROMUnshiftedImage;
             _characterSetMultiColorCurrent = _characterSetROMUnshiftedMultiColorImage;
             return;
         }
-        else if (c64.Vic2.CharacterSetAddressInVIC2BankIsChargenROMShifted)
+        else if (charsetManager.CharacterSetAddressInVIC2BankIsChargenROMShifted)
         {
             _characterSetCurrent = _characterSetROMShiftedImage;
             _characterSetMultiColorCurrent = _characterSetROMShiftedMultiColorImage;
             return;
         }
         // Pointing to a location where a custom character set is located. Create a image for it.
-        var characterSet = c64.Vic2.Vic2Mem.ReadData(c64.Vic2.CharacterSetAddressInVIC2Bank, Vic2.CHARACTERSET_SIZE);
+
+        // TODO: Is there a concept of "shifted" and "unshifted" character set for custom ones, or is it only relevant for the ones from Chargen ROM and the switching mechanism for them in Basic?
+        var characterSet = c64.Vic2.Vic2Mem.ReadData(charsetManager.CharacterSetAddressInVIC2Bank, Vic2CharsetManager.CHARACTERSET_SIZE);
+
+        // TODO: create Chargen on class level, and not every time here
         var chargen = new Chargen();
         _characterSetCurrent = chargen.GenerateChargenImage(characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
         _characterSetMultiColorCurrent = chargen.GenerateChargenImage(characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW, multiColor: true);
+
+
+#if DEBUG
+        chargen.DumpChargenFileToImageFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
+        chargen.DumpChargenFileToImageFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
+#endif
+
     }
 
     private void RenderMainScreen(C64 c64, SKCanvas canvas)

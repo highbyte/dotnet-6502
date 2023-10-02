@@ -43,7 +43,7 @@ public class Sprite_collitions_test
         WriteToTextScreen(characterCode, col: 4, row: 0);
 
         // Write the shape of the 'A' character to character rom
-        var characterSetLineAddress = (ushort)(_vic2.CharacterSetAddressInVIC2Bank + (characterCode * _vic2.Vic2Screen.CharacterHeight));
+        var characterSetLineAddress = (ushort)(_vic2.CharsetManager.CharacterSetAddressInVIC2Bank + (characterCode * _vic2.Vic2Screen.CharacterHeight));
         _vic2Mem[characterSetLineAddress++] = 0b00011000;
         _vic2Mem[characterSetLineAddress++] = 0b00111100;
         _vic2Mem[characterSetLineAddress++] = 0b01100110;
@@ -216,7 +216,7 @@ public class Sprite_collitions_test
 
     private void FillSpriteShape(int spriteNumber, byte[] shape, byte spritePointer)
     {
-        _vic2Mem[(ushort)(Vic2.SPRITE_POINTERS_START_ADDRESS + spriteNumber)] = spritePointer;
+        _vic2Mem[(ushort)(Vic2SpriteManager.SPRITE_POINTERS_START_ADDRESS + spriteNumber)] = spritePointer;
         //var spritePointer = vic2Mem[(ushort)(Vic2.SPRITE_POINTERS_START_ADDRESS + spriteNumber)];
         var spritePointerAddress = (ushort)(spritePointer * 64);
         for (int i = 0; i < shape.Length; i++)

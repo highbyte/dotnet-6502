@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
@@ -10,10 +11,10 @@ public class Chargen
     public static SKColor CharacterImageDrawMultiColorBG2 = SKColors.DarkGray;
     public SKImage GenerateChargenImage(byte[] characterSet, int charactersPerRow = 16, bool multiColor = false)
     {
-        if (characterSet.Length != Vic2.CHARACTERSET_SIZE)
-            throw new ArgumentException($"Character set size must be {Vic2.CHARACTERSET_SIZE} bytes.", nameof(characterSet));
+        if (characterSet.Length != Vic2CharsetManager.CHARACTERSET_SIZE)
+            throw new ArgumentException($"Character set size must be {Vic2CharsetManager.CHARACTERSET_SIZE} bytes.", nameof(characterSet));
 
-        var rows = characterSet.Length / Vic2.CHARACTERSET_ONE_CHARACTER_BYTES / charactersPerRow;    // Each character is defined by 8 bytes in the character set.
+        var rows = characterSet.Length / Vic2CharsetManager.CHARACTERSET_ONE_CHARACTER_BYTES / charactersPerRow;    // Each character is defined by 8 bytes in the character set.
 
         using (var surface = SKSurface.Create(new SKImageInfo(charactersPerRow * 8, rows * 8)))
         {
@@ -37,8 +38,6 @@ public class Chargen
                 Color = CharacterImageDrawMultiColorBG2,
                 StrokeWidth = 1
             };
-
-
 
             var charCode = 0;
             var index = 0;

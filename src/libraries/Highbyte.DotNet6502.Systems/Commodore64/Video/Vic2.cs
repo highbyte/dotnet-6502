@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.Design;
 using System.Net;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -32,22 +33,9 @@ public class Vic2
 
     public Vic2IRQ? Vic2IRQ { get; private set; }
 
-    public const int CHARACTERSET_NUMBER_OF_CHARCTERS = 256;
-    public const int CHARACTERSET_ONE_CHARACTER_BYTES = 8;      // 8 bytes (one line per byte) for each character.
-    public const int CHARACTERSET_SIZE = CHARACTERSET_NUMBER_OF_CHARCTERS * CHARACTERSET_ONE_CHARACTER_BYTES;    // = 1024 (0x0400) bytes. 256 characters, where each character takes up 8 bytes (1 byte per character line)
-
-    public const int SPRITE_POINTERS_START_ADDRESS = 0x07f8;    // Range 0x07f8 - 0x07ff are offset from start of VIC2 screen memory (which can be relocated) to sprite pointers 0-7
-
     public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
 
     public byte CurrentVIC2Bank { get; private set; }
-    private ushort _currentVIC2BankOffset = 0;
-
-    // Offset into the currently selected VIC2 bank (Mem.SetMemoryConfiguration(bank))
-    public ushort CharacterSetAddressInVIC2Bank => _currentVIC2BankOffset;
-    // True if CharacterSetAddressInVIC2Bank points to location where Chargen ROM (two charsets, unshifted & shifted) is "shadowed".
-    public bool CharacterSetAddressInVIC2BankIsChargenROMShifted => _currentVIC2BankOffset == 0x1000;
-    public bool CharacterSetAddressInVIC2BankIsChargenROMUnshifted => _currentVIC2BankOffset == 0x1800;
 
     public CharMode CharacterMode
     {
@@ -88,18 +76,11 @@ public class Vic2
         return scrollY;
     }
 
-
-    public event EventHandler<CharsetAddressChangedEventArgs> CharsetAddressChanged;
-    protected virtual void OnCharsetAddressChanged(CharsetAddressChangedEventArgs e)
-    {
-        var handler = CharsetAddressChanged;
-        handler?.Invoke(this, e);
-    }
-
     public Dictionary<int, byte>? ScreenLineBorderColor { get; private set; }
     public Dictionary<int, byte>? ScreenLineBackgroundColor { get; private set; }
     public Vic2ScreenLayouts? ScreenLayouts { get; private set; }
     public Vic2SpriteManager? SpriteManager { get; private set; }
+    public Vic2CharsetManager? CharsetManager { get; private set; }
 
     private Vic2() { }
 
@@ -131,6 +112,9 @@ public class Vic2
 
         var spriteManager = new Vic2SpriteManager(vic2);
         vic2.SpriteManager = spriteManager;
+
+        var charsetManager = new Vic2CharsetManager(vic2);
+        vic2.CharsetManager = charsetManager;
 
         return vic2;
     }
@@ -249,6 +233,8 @@ public class Vic2
         if (vic2Address.HasValue)
         {
             SpriteManager.DetectChangesToSpriteData(vic2Address.Value, value);
+
+            CharsetManager.DetectChangesToCharacterData(vic2Address.Value, value);
         }
     }
 
@@ -485,33 +471,16 @@ public class Vic2
     {
         WriteIOStorage(address, value);
 
-        // From VIC 2 perspective, IO address 0xd018 (bits 1-3) controls where within a VIC 2 "Bank" the character set is read from,
-        // By default, these bits are %010, which is 0x1000-0x17ff offset from Bank below. 
-        // If Bank 0 or bank 2 is selected, this points to a shadow copy of the Chargen ROM
-        // %000, 0: 0x0000-0x07FF, 0-2047.
-        // %001, 1: 0x0800-0x0FFF, 2048-4095.
-        // %010, 2: 0x1000-0x17FF, 4096-6143.
-        // %011, 3: 0x1800-0x1FFF, 6144-8191.
-        // %100, 4: 0x2000-0x27FF, 8192-10239.
-        // %101, 5: 0x2800-0x2FFF, 10240-12287.
-        // %110, 6: 0x3000-0x37FF, 12288-14335.
-        // %111, 7: 0x3800-0x3FFF, 14336-16383.
-        var oldVIC2BankOffset = _currentVIC2BankOffset;
-        var newTextModeMemOffset = (value & 0b00001110) >> 1;
-        _currentVIC2BankOffset = newTextModeMemOffset switch
-        {
-            0b000 => 0,
-            0b001 => 0x0800,
-            0b010 => 0x1000,    // Default.
-            0b011 => 0x1800,
-            0b100 => 0x2000,
-            0b101 => 0x2800,
-            0b110 => 0x3000,
-            0b111 => 0x3800,
-            _ => throw new NotImplementedException(),
-        };
-        if (_currentVIC2BankOffset != oldVIC2BankOffset)
-            OnCharsetAddressChanged(new());
+        // 0xd018, bit 0: Unused
+
+        // 0xd018, bits 1-3: Text character dot-data base address within VIC-II address space.
+        var characterBaseAddressSetting = (byte)((value & 0b00001110) >> 1);
+        CharsetManager.CharsetBaseAddressUpdate(characterBaseAddressSetting);
+
+        // 0xd018, bits 4-7: Video matrix base address within VIC-II address space
+        // ---------------------------------------------------------------------------
+        // TODO
+
     }
 
     public byte MemorySetupLoad(ushort address)
@@ -554,7 +523,7 @@ public class Vic2
         };
         // TODO: Make sure to switch current VIC2 bank via mem.SetMemoryConfiguration(x), and just updating the internal variable CurrentVIC2Bank?
         if (CurrentVIC2Bank != oldVIC2Bank)
-            OnCharsetAddressChanged(new());
+            CharsetManager.Vic2BankChanged(CurrentVIC2Bank);
     }
 
     public byte PortALoad(ushort address)
@@ -760,20 +729,5 @@ public class Vic2
 
         var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
         ScreenLineBackgroundColor[screenLine] = ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
-    }
-
-    /// <summary>
-    /// Get 1 line (8 pixels, 1 byte) from current character for the character code at the specified column and row in screen memory
-    /// </summary>
-    /// <param name="characterCol"></param>
-    /// <param name="characterRow"></param>
-    /// <param name="line"></param>
-    /// <returns></returns>
-    public byte GetTextModeCharacterLine(int characterCol, int characterRow, int line)
-    {
-        var characterAddress = (ushort)(Vic2Addr.SCREEN_RAM_START + (characterRow * Vic2Screen.TextCols) + characterCol);
-        var characterCode = Vic2Mem[characterAddress];
-        var characterSetLineAddress = (ushort)(CharacterSetAddressInVIC2Bank + (characterCode * Vic2Screen.CharacterHeight) + line);
-        return Vic2Mem[characterSetLineAddress];
     }
 }
