@@ -100,17 +100,11 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         _characterSetROMUnshiftedMultiColorImage = _charGen.GenerateChargenImages(characterSetUnShifted, multiColor: true);
 
 #if DEBUG
-        _charGen.DumpChargenFileToImageFile(characterSetShifted, $"{Path.GetTempPath()}/c64_chargen_shifted_dump.png", multiColor: false);
-        _charGen.DumpChargenFileToImageFile(characterSetUnShifted, $"{Path.GetTempPath()}/c64_chargen_unshifted_dump.png", multiColor: false);
+        _charGen.DumpChargenImagesToOneFile(_characterSetROMShiftedImage, $"{Path.GetTempPath()}/c64_chargen_shifted_dump.png");
+        _charGen.DumpChargenImagesToOneFile(_characterSetROMUnshiftedImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_dump.png");
 
-        _charGen.DumpChargenFileToImageFile(characterSetShifted, $"{Path.GetTempPath()}/c64_chargen_shifted_multicolor_dump.png", multiColor: true);
-        _charGen.DumpChargenFileToImageFile(characterSetUnShifted, $"{Path.GetTempPath()}/c64_chargen_unshifted_multicolor_dump.png", multiColor: true);
-
-        //chargen.DumpChargenFileToImageFile(_characterSetROMShiftedImage, $"{Path.GetTempPath()}/c64_chargen_shifted_dump.png");
-        //chargen.DumpChargenFileToImageFile(_characterSetROMUnshiftedImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_dump.png");
-
-        //chargen.DumpChargenFileToImageFile(_characterSetROMShiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_shifted_multicolor_dump.png");
-        //chargen.DumpChargenFileToImageFile(_characterSetROMUnshiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_multicolor_dump.png");
+        _charGen.DumpChargenImagesToOneFile(_characterSetROMShiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_shifted_multicolor_dump.png");
+        _charGen.DumpChargenImagesToOneFile(_characterSetROMUnshiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_multicolor_dump.png");
 #endif
     }
 
@@ -120,26 +114,24 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         {
             GenerateCurrentChargenImage(c64);
         }
-        else if (e.ChangeType == Vic2CharsetManager.CharsetAddressChangedEventArgs.CharsetChangeType.CharacterSetData && e.CharacterIndex.HasValue)        {
-            UpdateChangedCharacterOnCurrentImage(c64, e.CharacterIndex.Value, e.CharacterLine);
+        else if (e.ChangeType == Vic2CharsetManager.CharsetAddressChangedEventArgs.CharsetChangeType.CharacterSetCharacter && e.CharCode.HasValue)        {
+            UpdateChangedCharacterOnCurrentImage(c64, e.CharCode.Value);
         }
     }
 
-    private void UpdateChangedCharacterOnCurrentImage(C64 c64, byte characterIndex, byte? characterLine)
+    private void UpdateChangedCharacterOnCurrentImage(C64 c64, byte charCode)
     {
         var charsetManager = c64.Vic2.CharsetManager;
         var characterSet = c64.Vic2.Vic2Mem.ReadData(charsetManager.CharacterSetAddressInVIC2Bank, Vic2CharsetManager.CHARACTERSET_SIZE);
 
-        _characterSetCurrent[characterIndex] = _charGen.GenerateChargenImageForOneCharacter(characterSet, characterIndex, multiColor: false);
-        _characterSetMultiColorCurrent[characterIndex] = _charGen.GenerateChargenImageForOneCharacter(characterSet, characterIndex, multiColor: true);
+        _characterSetCurrent[charCode] = _charGen.GenerateChargenImageForOneCharacter(characterSet, charCode, multiColor: false);
+        _characterSetMultiColorCurrent[charCode] = _charGen.GenerateChargenImageForOneCharacter(characterSet, charCode, multiColor: true);
 
-#if DEBUG
-        _charGen.DumpChargenFileToImageFile(characterSet, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png", multiColor: false);
-        _charGen.DumpChargenFileToImageFile(characterSet, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png", multiColor: true);
+//#if DEBUG
+//        _charGen.DumpChargenImagesToOneFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
+//        _charGen.DumpChargenImagesToOneFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
+//#endif
 
-        //_charGen.DumpChargenFileToImageFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
-        //_charGen.DumpChargenFileToImageFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
-#endif
     }
 
     private void GenerateCurrentChargenImage(C64 c64)
@@ -164,19 +156,13 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         // TODO: Is there a concept of "shifted" and "unshifted" character set for custom ones, or is it only relevant for the ones from CharGen ROM and the switching mechanism for them in Basic?
         var characterSet = c64.Vic2.Vic2Mem.ReadData(charsetManager.CharacterSetAddressInVIC2Bank, Vic2CharsetManager.CHARACTERSET_SIZE);
 
-        // TODO: create CharGen on class level, and not every time here
-        var chargen = new CharGen();
-        _characterSetCurrent = chargen.GenerateChargenImages(characterSet);
-        _characterSetMultiColorCurrent = chargen.GenerateChargenImages(characterSet, multiColor: true);
+        _characterSetCurrent = _charGen.GenerateChargenImages(characterSet);
+        _characterSetMultiColorCurrent = _charGen.GenerateChargenImages(characterSet, multiColor: true);
 
 #if DEBUG
-        chargen.DumpChargenFileToImageFile(characterSet, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png", multiColor: false);
-        chargen.DumpChargenFileToImageFile(characterSet, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png", multiColor: true);
-
-        //chargen.DumpChargenFileToImageFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
-        //chargen.DumpChargenFileToImageFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
+        _charGen.DumpChargenImagesToOneFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
+        _charGen.DumpChargenImagesToOneFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
 #endif
-
     }
 
     private void RenderMainScreen(C64 c64, SKCanvas canvas)

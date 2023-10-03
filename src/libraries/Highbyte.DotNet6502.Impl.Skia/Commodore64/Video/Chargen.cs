@@ -5,8 +5,8 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
 public class CharGen
 {
     public static SKColor CharacterImageDrawColor = SKColors.White;
-    public static SKColor CharacterImageDrawMultiColorBG1 = SKColors.Gray;
-    public static SKColor CharacterImageDrawMultiColorBG2 = SKColors.DarkGray;
+    public static SKColor CharacterImageDrawMultiColorBG1 = SKColors.Blue;
+    public static SKColor CharacterImageDrawMultiColorBG2 = SKColors.Red;
 
     private static readonly SKPaint s_paint;
     private static readonly SKPaint s_paintMultiColorBG1;
@@ -159,20 +159,49 @@ public class CharGen
         }
     }
 
-    public void DumpChargenFileToImageFile(Dictionary<int, SKImage> images, string saveImageFile, int charactersPerRow = 16)
+    public void DumpChargenImagesToOneFile(Dictionary<int, SKImage> images, string saveImageFile, int charactersPerRow = 16)
     {
-        // TODO: Append all individual SKImages (one per char) to a 16 * 16 image.
-        //SKImage image = BuildTotalImage(images, charactersPerRow);
-        //DumpChargenFileToImageFile(image, saveImageFile);
+        SKImage totalImage = BuildTotalImage(images, charactersPerRow);
+        DumpImageToFile(totalImage, saveImageFile);
+    }
+
+    private SKImage BuildTotalImage(Dictionary<int, SKImage> images, int charactersPerRow)
+    {
+        var rows = images.Keys.Count / charactersPerRow;
+
+        using (var surface = SKSurface.Create(new SKImageInfo(charactersPerRow * 8, rows * 8)))
+        {
+            var canvas = surface.Canvas;
+
+            int col = 0;
+            int row = 0;
+            // Loop every totalImage in images
+            foreach (var charCode in images.Keys.OrderBy(x => x))
+            {
+                var image = images[charCode];
+                canvas.DrawImage(image, 0, 0);
+                canvas.Translate(8, 0);
+
+                col++;
+                if (col == charactersPerRow)
+                {
+                    col = 0;
+                    row++;
+                    canvas.Translate(-charactersPerRow * 8, 8);
+                }
+            }
+            var totalImage = surface.Snapshot();
+            return totalImage;
+        }
     }
 
     public void DumpChargenFileToImageFile(byte[] characterSet, string saveImageFile, bool multiColor, int charactersPerRow = 16)
     {
-        var image = GenerateChargenImageTotal(characterSet, charactersPerRow, multiColor);
-        DumpChargenFileToImageFileTotal(image, saveImageFile);
+        var totalImage = GenerateChargenImageTotal(characterSet, charactersPerRow, multiColor);
+        DumpImageToFile(totalImage, saveImageFile);
     }
 
-    public void DumpChargenFileToImageFileTotal(SKImage image, string saveImageFile)
+    public void DumpImageToFile(SKImage image, string saveImageFile)
     {
         using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
         using (var stream = File.OpenWrite(Path.Combine(Environment.CurrentDirectory, saveImageFile)))

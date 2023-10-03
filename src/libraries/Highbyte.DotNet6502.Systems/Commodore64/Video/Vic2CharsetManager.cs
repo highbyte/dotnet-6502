@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2CharsetManager.CharsetAddressChangedEventArgs;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
@@ -87,12 +86,10 @@ public class Vic2CharsetManager
             if (_vic2Mem[vic2Address] != value)
             {
                 // Raise event for the character and which line in it that changed
-                var characterIndex = (byte)((vic2Address - CharacterSetAddressInVIC2Bank) / CHARACTERSET_ONE_CHARACTER_BYTES);
-                var characterLine = (byte)((vic2Address - CharacterSetAddressInVIC2Bank) % CHARACTERSET_ONE_CHARACTER_BYTES);
+                var charCode = (byte)((vic2Address - CharacterSetAddressInVIC2Bank) / CHARACTERSET_ONE_CHARACTER_BYTES);
                 OnCharsetAddressChanged(new(
-                    charsetChangeType: CharsetChangeType.CharacterSetData,
-                    characterIndex: characterIndex,
-                    characterLine: characterLine));
+                    charsetChangeType: CharsetChangeType.CharacterSetCharacter,
+                    charCode: charCode));
             }
         }
     }
@@ -123,19 +120,17 @@ public class Vic2CharsetManager
     {
         public CharsetChangeType ChangeType { get; private set; }
 
-        public byte? CharacterIndex { get; private set; }
-        public byte? CharacterLine { get; private set; }
+        public byte? CharCode { get; private set; }
         public enum CharsetChangeType
         {
             CharacterSetBaseAddress,
-            CharacterSetData
+            CharacterSetCharacter
         }
 
-        public CharsetAddressChangedEventArgs(CharsetChangeType charsetChangeType, byte? characterIndex = null, byte? characterLine = null)
+        public CharsetAddressChangedEventArgs(CharsetChangeType charsetChangeType, byte? charCode = null)
         {
             ChangeType = charsetChangeType;
-            CharacterIndex = characterIndex;
-            CharacterLine = characterLine;
+            CharCode = charCode;
         }
     }
 }
