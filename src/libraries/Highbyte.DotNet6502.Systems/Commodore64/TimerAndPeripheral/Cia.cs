@@ -37,9 +37,10 @@ public class Cia
         mem.MapWriter(CiaAddr.CIA1_DATAA, Cia1DataAStore);
 
         // CIA #1 DataPort B
+        // Workaround set 0xff in data port B as initial value. Means no key down (temporary solution, which is useful to not get extremely long execution of Kernal routines inspecting keyboard.
+        _c64.WriteIOStorage(CiaAddr.CIA1_DATAB, 0xff);
         mem.MapReader(CiaAddr.CIA1_DATAB, Cia1DataBLoad);
         mem.MapWriter(CiaAddr.CIA1_DATAB, Cia1DataBStore);
-
 
         // CIA #1 Timer A
         mem.MapReader(CiaAddr.CIA1_TIMAHI, Cia1TimerAHILoad);
@@ -76,9 +77,8 @@ public class Cia
 
     // TODO: Implement "real" C64 keyboard operation emulation.
     //       Right now, keys are being placed directly into the ring buffer, and not via Cia1 Data Ports A & B
-    //       Returning 0xff in data port B means no key down (temporary solution, which is useful to not get extremely long execution of Kernal routines inspecting keyboard.
-    public byte Cia1DataBLoad(ushort _) => 0xff;
-    public void Cia1DataBStore(ushort _, byte value) { }
+    public byte Cia1DataBLoad(ushort address) => _c64.ReadIOStorage(address);
+    public void Cia1DataBStore(ushort address, byte value) { _c64.WriteIOStorage(address, value); }
 
     public byte Cia1TimerAHILoad(ushort _) => CiaTimers[CiaTimerType.Cia1_A].InternalTimer.Highbyte();
     public void Cia1TimerAHIStore(ushort _, byte value) => CiaTimers[CiaTimerType.Cia1_A].SetInternalTimer_Latch_HI(value);
