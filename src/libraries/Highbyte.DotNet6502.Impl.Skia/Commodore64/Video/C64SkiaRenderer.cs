@@ -196,8 +196,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         canvas.Translate(scrollX, scrollY);
 
         // Build screen data characters based on emulator memory contents (byte)
-        var currentScreenAddress = Vic2Addr.SCREEN_RAM_START;   // TODO: Screen RAM start should be calculated based on current VIC2 bank and screen offset
-        var currentColorAddress = Vic2Addr.COLOR_RAM_START;     // Note: Color RAM is always at fixed CPU location (not withing the 16K area mapped to the VIC2)
+        var currentScreenAddress = vic2.VideoMatrixBaseAddress;
+        var currentColorAddress = Vic2Addr.COLOR_RAM_START;
 
         var characterMode = vic2.CharacterMode;
         byte backgroundColor1 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1); // Background color used for extended charcater mode

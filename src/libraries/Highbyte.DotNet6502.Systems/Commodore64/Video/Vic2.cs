@@ -29,6 +29,8 @@ public class Vic2
 
     public byte CurrentVIC2Bank { get; private set; }
 
+    public ushort VideoMatrixBaseAddress { get; private set; }
+
     public CharMode CharacterMode
     {
         get
@@ -207,7 +209,7 @@ public class Vic2
             c64Mem.MapWriter(address, SpriteColorStore);
         }
 
-        // Addresses 0xd800 - 0xdbe7:  Color RAM location. 1 byte per character in screen ram = 0x03e8 (1000) bytes)
+        // Addresses 0xd800 - 0xdbe7:  Color RAM is always at fixed location. 1 byte per character in screen ram = 0x03e8 (1000) bytes)
         for (ushort address = 0xd800; address <= 0xdbe7; address++)
         {
             c64Mem.MapReader(address, ColorRAMLoad);
@@ -459,8 +461,37 @@ public class Vic2
 
         // 0xd018, bits 4-7: Video matrix base address within VIC-II address space
         // ---------------------------------------------------------------------------
-        // TODO
+        var videoMatrixBaseAddressSetting = (byte)((value & 0b11110000) >> 4);
+        VideoMatrixBaseAddressUpdate(videoMatrixBaseAddressSetting);
+    }
 
+    private void VideoMatrixBaseAddressUpdate(byte videoMatrixBaseAddressSetting)
+    {
+        // From VIC 2 perspective, IO address 0xd018 bits 4-7 controls where within a VIC 2 "Bank"
+        // the text screen and sprite pointeras are defined. It's a offset from the start of VIC 2 memory.
+        // 
+        // The parameter videoMatrixBaseAddressSetting contains that 4-bit value.
+        // 
+        // %0000, 0: Screen: 0x0000-0x03E7, 0-999.          Sprite Pointers: 0x03F8-0x03FF, 1016-1023.
+        // %0001, 1: Screen: 0x0400-0x07E7, 1024-2023.      Sprite Pointers: 0x07F8-0x07FF, 2040-2047.      (default)
+        // %0010, 2: Screen: 0x0800-0x0BE7, 2048-3047.      Sprite Pointers: 0x0BF8-0x0BFF, 3064-3071.
+        // %0011, 3: Screen: 0x0C00-0x0FE7, 3072-4071.      Sprite Pointers: 0x0FF8-0x0FFF, 4088-4095.
+        // %0100, 4: Screen: 0x1000-0x13E7, 4096-5095.      Sprite Pointers: 0x13F8-0x13FF, 5112-5119.
+        // %0101, 5: Screen: 0x1400-0x17E7, 5120-6123.      Sprite Pointers: 0x17F8-0x17FF, 6136-6143.
+        // %0110, 6: Screen: 0x1800-0x1BE7, 6144-7143.      Sprite Pointers: 0x1BF8-0x1BFF, 7160-7167.
+        // %0111, 7: Screen: 0x1C00-0x1FE7, 7168-8167.      Sprite Pointers: 0x1FF8-0x1FFF, 8184-8191.
+        // %1000, 8: Screen: 0x2000-0x23E7, 8192-9191.      Sprite Pointers: 0x23F8-0x23FF, 9208-9215.
+        // %1001, 9: Screen: 0x2400-0x27E7, 9216-10215.     Sprite Pointers: 0x27F8-0x27FF, 10232-10239.
+        // %1010, A: Screen: 0x2800-0x2BE7, 10240-11239.    Sprite Pointers: 0x2BF8-0x2BFF, 11256-11263.
+        // %1011, B: Screen: 0x2C00-0x2FE7, 11264-12263.    Sprite Pointers: 0x2FF8-0x2FFF, 12280-12287.
+        // %1100, C: Screen: 0x3000-0x33E7, 12288-13287.    Sprite Pointers: 0x33F8-0x33FF, 13304-13311.
+        // %1101, D: Screen: 0x3400-0x37E7, 13312-14311.    Sprite Pointers: 0x37F8-0x37FF, 14328-14335.
+        // %1110, E: Screen: 0x3800-0x3BE7, 14336-15335.    Sprite Pointers: 0x3BF8-0x3BFF, 15352-15359.
+        // %1111, F: Screen: 0x3C00-0x3FE7, 15336-16335.    Sprite Pointers: 0x3FF8-0x3FFF, 16352-16359.
+
+        VideoMatrixBaseAddress = (ushort)(videoMatrixBaseAddressSetting * 0x400);
+
+        SpriteManager.SetAllDirty();
     }
 
     public byte MemorySetupLoad(ushort address)
@@ -501,9 +532,13 @@ public class Vic2
             0b00 => 3,
             _ => throw new NotImplementedException(),
         };
-        // TODO: Make sure to switch current VIC2 bank via mem.SetMemoryConfiguration(x), and just updating the internal variable CurrentVIC2Bank?
         if (CurrentVIC2Bank != oldVIC2Bank)
-            CharsetManager.Vic2BankChanged(CurrentVIC2Bank);
+        {
+            Vic2Mem.SetMemoryConfiguration(CurrentVIC2Bank);
+
+            CharsetManager.NotifyCharsetAddressChanged();
+            SpriteManager.SetAllDirty();
+        }
     }
 
     public byte PortALoad(ushort address)

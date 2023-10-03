@@ -13,11 +13,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// </summary>
 public static class Vic2Addr
 {
-
-    // TODO: Start of screen ram is configurable in VIC-II chip memory bank select at location $DD00 (56576).
-    //       This should be variable that is calculated instead of a constant.
-    public const ushort SCREEN_RAM_START = 0x0400;
-    public const ushort COLOR_RAM_START = 0xd800;
+    public const ushort COLOR_RAM_START = 0xd800;   // Color RAM is always at 0xd800 (in the IO area of the C64 memory map)
 
     // Sprite X/Y coordinates
     public const ushort SPRITE_0_X = 0xd000;

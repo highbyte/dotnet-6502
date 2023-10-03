@@ -42,7 +42,7 @@ public class Vic2Sprite
 
     private Vic2SpriteData BuildSpriteData()
     {
-        var spritePointer = _vic2.Vic2Mem[(ushort)(Vic2SpriteManager.SPRITE_POINTERS_START_ADDRESS + SpriteNumber)];
+        var spritePointer = _vic2.Vic2Mem[(ushort)(_spriteManager.SpritePointerStartAddress + SpriteNumber)];
         var spritePointerAddress = (ushort)(spritePointer * 64);
 
         var bytesPerRow = DEFAULT_WIDTH / 8;

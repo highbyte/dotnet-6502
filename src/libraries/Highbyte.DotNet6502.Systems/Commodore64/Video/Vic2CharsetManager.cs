@@ -29,7 +29,7 @@ public class Vic2CharsetManager
         Vic2 = vic2;
     }
 
-    public void Vic2BankChanged(byte newBank)
+    public void NotifyCharsetAddressChanged()
     {
         OnCharsetAddressChanged(new(charsetChangeType: CharsetChangeType.CharacterSetBaseAddress));
     }
@@ -66,7 +66,7 @@ public class Vic2CharsetManager
             _ => throw new NotImplementedException(),
         };
         if (_characterSetAddressInVIC2Bank != oldCharacterSetAddressInVIC2Bank)
-            OnCharsetAddressChanged(new(charsetChangeType: CharsetChangeType.CharacterSetBaseAddress));
+            NotifyCharsetAddressChanged();
     }
 
     public void DetectChangesToCharacterData(ushort vic2Address, byte value)
@@ -110,7 +110,7 @@ public class Vic2CharsetManager
     /// <returns></returns>
     public byte GetTextModeCharacterLine(int characterCol, int characterRow, int line)
     {
-        var characterAddress = (ushort)(Vic2Addr.SCREEN_RAM_START + (characterRow * Vic2.Vic2Screen.TextCols) + characterCol);
+        var characterAddress = (ushort)(Vic2.VideoMatrixBaseAddress + (characterRow * Vic2.Vic2Screen.TextCols) + characterCol);
         var characterCode = _vic2Mem[characterAddress];
         var characterSetLineAddress = (ushort)(CharacterSetAddressInVIC2Bank + (characterCode * Vic2.Vic2Screen.CharacterHeight) + line);
         return _vic2Mem[characterSetLineAddress];

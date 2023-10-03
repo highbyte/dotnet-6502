@@ -12,7 +12,7 @@ public class Vic2SpriteManager
     public Vic2 Vic2 { get; private set; }
     private Memory _vic2Mem => Vic2.Vic2Mem;
 
-    public const int SPRITE_POINTERS_START_ADDRESS = 0x07f8;    // Range 0x07f8 - 0x07ff are offset from start of VIC2 screen memory (which can be relocated) to sprite pointers 0-7
+    public int SpritePointerStartAddress => Vic2.VideoMatrixBaseAddress + 0x03f8; // Default value is 0x07f8 (because Vic2.VideoMatrixBaseAddress is 0x0400 by default). 8 sprites, last is 0x07ff.
 
     public const int NUMBERS_OF_SPRITES = 8;
     //The Sprite top/left X position that appears on main screen (not border) position 0.
@@ -52,7 +52,7 @@ public class Vic2SpriteManager
         // Detect changes in sprite pointers and data
         for (int spriteNumber = 0; spriteNumber < NUMBERS_OF_SPRITES; spriteNumber++)
         {
-            var spritePointerAddress = (ushort)(SPRITE_POINTERS_START_ADDRESS + spriteNumber);
+            var spritePointerAddress = (ushort)(SpritePointerStartAddress + spriteNumber);
 
             // Detect changes to sprite pointer
             if (vic2Address == spritePointerAddress)
