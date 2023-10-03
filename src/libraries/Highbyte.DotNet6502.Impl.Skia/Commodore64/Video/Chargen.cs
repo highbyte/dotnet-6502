@@ -1,15 +1,71 @@
-using System.Diagnostics;
-using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
 
-public class Chargen
+public class CharGen
 {
     public static SKColor CharacterImageDrawColor = SKColors.White;
     public static SKColor CharacterImageDrawMultiColorBG1 = SKColors.Gray;
     public static SKColor CharacterImageDrawMultiColorBG2 = SKColors.DarkGray;
-    public SKImage GenerateChargenImage(byte[] characterSet, int charactersPerRow = 16, bool multiColor = false)
+
+    private static readonly SKPaint s_paint;
+    private static readonly SKPaint s_paintMultiColorBG1;
+    private static readonly SKPaint s_paintMultiColorBG2;
+
+    static CharGen()
+    {
+        s_paint = new SKPaint
+        {
+            Style = SKPaintStyle.StrokeAndFill,
+            Color = CharacterImageDrawColor,
+            StrokeWidth = 1
+        };
+        s_paintMultiColorBG1 = new SKPaint
+        {
+            Style = SKPaintStyle.StrokeAndFill,
+            Color = CharacterImageDrawMultiColorBG1,
+            StrokeWidth = 1
+        };
+        s_paintMultiColorBG2 = new SKPaint
+        {
+            Style = SKPaintStyle.StrokeAndFill,
+            Color = CharacterImageDrawMultiColorBG2,
+            StrokeWidth = 1
+        };
+    }
+
+    public Dictionary<int, SKImage> GenerateChargenImages(byte[] characterSet, bool multiColor = false)
+    {
+        if (characterSet.Length != Vic2CharsetManager.CHARACTERSET_SIZE)
+            throw new ArgumentException($"Character set size must be {Vic2CharsetManager.CHARACTERSET_SIZE} bytes.", nameof(characterSet));
+
+        Dictionary<int, SKImage> images = new();
+        for (int charCode = 0; charCode < Vic2CharsetManager.CHARACTERSET_NUMBER_OF_CHARCTERS; charCode++)
+        {
+            var image = GenerateChargenImageForOneCharacter(characterSet, charCode, multiColor);
+            images.Add(charCode, image);
+        }
+        return images;
+    }
+
+    public SKImage GenerateChargenImageForOneCharacter(byte[] characterSet, int charCode, bool multiColor = false)
+    {
+        using (var surface = SKSurface.Create(new SKImageInfo(8, 8)))
+        {
+            var canvas = surface.Canvas;
+
+            var characterLines = new byte[8];
+            for (int line = 0; line < 8; line++)
+                characterLines[line] = characterSet[(charCode * 8) + line];
+
+            DrawOneCharacter(canvas, s_paint, s_paintMultiColorBG1, s_paintMultiColorBG2, characterLines, multiColor);
+
+            var image = surface.Snapshot();
+            return image;
+        }
+    }
+
+    public SKImage GenerateChargenImageTotal(byte[] characterSet, int charactersPerRow = 16, bool multiColor = false)
     {
         if (characterSet.Length != Vic2CharsetManager.CHARACTERSET_SIZE)
             throw new ArgumentException($"Character set size must be {Vic2CharsetManager.CHARACTERSET_SIZE} bytes.", nameof(characterSet));
@@ -19,25 +75,6 @@ public class Chargen
         using (var surface = SKSurface.Create(new SKImageInfo(charactersPerRow * 8, rows * 8)))
         {
             var canvas = surface.Canvas;
-
-            var paint = new SKPaint
-            {
-                Style = SKPaintStyle.StrokeAndFill,
-                Color = CharacterImageDrawColor,
-                StrokeWidth = 1
-            };
-            var paintMultiColorBG1 = new SKPaint
-            {
-                Style = SKPaintStyle.StrokeAndFill,
-                Color = CharacterImageDrawMultiColorBG1,
-                StrokeWidth = 1
-            };
-            var paintMultiColorBG2 = new SKPaint
-            {
-                Style = SKPaintStyle.StrokeAndFill,
-                Color = CharacterImageDrawMultiColorBG2,
-                StrokeWidth = 1
-            };
 
             var charCode = 0;
             var index = 0;
@@ -51,7 +88,7 @@ public class Chargen
                 {
                     characterLines[i] = characterSet[index++];
                 }
-                DrawOneCharacter(canvas, paint, paintMultiColorBG1, paintMultiColorBG2, characterLines, multiColor);
+                DrawOneCharacter(canvas, s_paint, s_paintMultiColorBG1, s_paintMultiColorBG2, characterLines, multiColor);
                 canvas.Translate(8, 0);
                 col++;
                 if (col == charactersPerRow)
@@ -65,21 +102,6 @@ public class Chargen
 
             var image = surface.Snapshot();
             return image;
-        }
-    }
-
-    public void DumpChargenFileToImageFile(byte[] characterSet, string saveImageFile, int charactersPerRow = 16)
-    {
-        var image = GenerateChargenImage(characterSet, charactersPerRow);
-        DumpChargenFileToImageFile(image, saveImageFile);
-    }
-
-    public void DumpChargenFileToImageFile(SKImage image, string saveImageFile)
-    {
-        using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
-        using (var stream = File.OpenWrite(Path.Combine(Environment.CurrentDirectory, saveImageFile)))
-        {
-            data.SaveTo(stream);
         }
     }
 
@@ -136,4 +158,27 @@ public class Chargen
             }
         }
     }
+
+    public void DumpChargenFileToImageFile(Dictionary<int, SKImage> images, string saveImageFile, int charactersPerRow = 16)
+    {
+        // TODO: Append all individual SKImages (one per char) to a 16 * 16 image.
+        //SKImage image = BuildTotalImage(images, charactersPerRow);
+        //DumpChargenFileToImageFile(image, saveImageFile);
+    }
+
+    public void DumpChargenFileToImageFile(byte[] characterSet, string saveImageFile, bool multiColor, int charactersPerRow = 16)
+    {
+        var image = GenerateChargenImageTotal(characterSet, charactersPerRow, multiColor);
+        DumpChargenFileToImageFileTotal(image, saveImageFile);
+    }
+
+    public void DumpChargenFileToImageFileTotal(SKImage image, string saveImageFile)
+    {
+        using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+        using (var stream = File.OpenWrite(Path.Combine(Environment.CurrentDirectory, saveImageFile)))
+        {
+            data.SaveTo(stream);
+        }
+    }
+
 }

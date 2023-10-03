@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -14,21 +13,27 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
     private C64SkiaPaint _c64SkiaPaint;
 
-    // Character drawing variables
-    private const int CHARGEN_IMAGE_CHARACTERS_PER_ROW = 16;
-    private SKImage _characterSetCurrent;
-    private SKImage _characterSetMultiColorCurrent;
+    private Dictionary<int, SKImage> _characterSetCurrent;
+    private Dictionary<int, SKImage> _characterSetMultiColorCurrent;
 
-    private SKImage _characterSetROMShiftedImage;
-    private SKImage _characterSetROMShiftedMultiColorImage;
-    private SKImage _characterSetROMUnshiftedImage;
-    private SKImage _characterSetROMUnshiftedMultiColorImage;
+    private Dictionary<int, SKImage> _characterSetROMShiftedImage;
+    private Dictionary<int, SKImage> _characterSetROMShiftedMultiColorImage;
+    private Dictionary<int, SKImage> _characterSetROMUnshiftedImage;
+    private Dictionary<int, SKImage> _characterSetROMUnshiftedMultiColorImage;
 
     private SKRect _drawImageSource = new SKRect();
     private SKRect _drawImageDest = new SKRect();
 
+    private readonly CharGen _charGen;
+
     // Sprite drawing variables
-    private readonly SKImage[] _spriteImages = new SKImage[Vic2SpriteManager.NUMBERS_OF_SPRITES];
+    private readonly SKImage[] _spriteImages;
+
+    public C64SkiaRenderer()
+    {
+        _charGen = new CharGen();
+        _spriteImages = new SKImage[Vic2SpriteManager.NUMBERS_OF_SPRITES];
+    }
 
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
     {
@@ -65,7 +70,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
     private void InitCharset(C64 c64)
     {
-        // Generate and remember images of the Chargen ROM charset.
+        // Generate and remember images of the CharGen ROM charset.
         GenerateROMChargenImages(c64);
 
         // Default to shifted ROM character set
@@ -82,25 +87,30 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
         var characterSets = c64.ROMData[C64Config.CHARGEN_ROM_NAME];
 
-        // Chargen ROM data contains two character sets (1024 bytes each).
+        // CharGen ROM data contains two character sets (1024 bytes each).
         var characterSetShifted = characterSets.Take(Vic2CharsetManager.CHARACTERSET_SIZE).ToArray();
         var characterSetUnShifted = characterSets.Skip(Vic2CharsetManager.CHARACTERSET_SIZE).Take(Vic2CharsetManager.CHARACTERSET_SIZE).ToArray();
 
-        var chargen = new Chargen();
-        // Generate and save the images for the two Chargen ROM character sets
-        _characterSetROMShiftedImage = chargen.GenerateChargenImage(characterSetShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
-        _characterSetROMUnshiftedImage = chargen.GenerateChargenImage(characterSetUnShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
+        // Generate and save the images for the two CharGen ROM character sets
+        _characterSetROMShiftedImage = _charGen.GenerateChargenImages(characterSetShifted);
+        _characterSetROMUnshiftedImage = _charGen.GenerateChargenImages(characterSetUnShifted);
 
         // Same for multi-color versions
-        _characterSetROMShiftedMultiColorImage = chargen.GenerateChargenImage(characterSetShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW, multiColor: true);
-        _characterSetROMUnshiftedMultiColorImage = chargen.GenerateChargenImage(characterSetUnShifted, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW, multiColor: true);
+        _characterSetROMShiftedMultiColorImage = _charGen.GenerateChargenImages(characterSetShifted, multiColor: true);
+        _characterSetROMUnshiftedMultiColorImage = _charGen.GenerateChargenImages(characterSetUnShifted, multiColor: true);
 
 #if DEBUG
-        chargen.DumpChargenFileToImageFile(_characterSetROMShiftedImage, $"{Path.GetTempPath()}/c64_chargen_shifted_dump.png");
-        chargen.DumpChargenFileToImageFile(_characterSetROMUnshiftedImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_dump.png");
+        _charGen.DumpChargenFileToImageFile(characterSetShifted, $"{Path.GetTempPath()}/c64_chargen_shifted_dump.png", multiColor: false);
+        _charGen.DumpChargenFileToImageFile(characterSetUnShifted, $"{Path.GetTempPath()}/c64_chargen_unshifted_dump.png", multiColor: false);
 
-        chargen.DumpChargenFileToImageFile(_characterSetROMShiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_shifted_multicolor_dump.png");
-        chargen.DumpChargenFileToImageFile(_characterSetROMUnshiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_multicolor_dump.png");
+        _charGen.DumpChargenFileToImageFile(characterSetShifted, $"{Path.GetTempPath()}/c64_chargen_shifted_multicolor_dump.png", multiColor: true);
+        _charGen.DumpChargenFileToImageFile(characterSetUnShifted, $"{Path.GetTempPath()}/c64_chargen_unshifted_multicolor_dump.png", multiColor: true);
+
+        //chargen.DumpChargenFileToImageFile(_characterSetROMShiftedImage, $"{Path.GetTempPath()}/c64_chargen_shifted_dump.png");
+        //chargen.DumpChargenFileToImageFile(_characterSetROMUnshiftedImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_dump.png");
+
+        //chargen.DumpChargenFileToImageFile(_characterSetROMShiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_shifted_multicolor_dump.png");
+        //chargen.DumpChargenFileToImageFile(_characterSetROMUnshiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_multicolor_dump.png");
 #endif
     }
 
@@ -117,27 +127,26 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
     private void UpdateChangedCharacterOnCurrentImage(C64 c64, byte characterIndex, byte? characterLine)
     {
-        // TODO: Optimize updating only a specific character. For now the entire charset is genererated...
         var charsetManager = c64.Vic2.CharsetManager;
         var characterSet = c64.Vic2.Vic2Mem.ReadData(charsetManager.CharacterSetAddressInVIC2Bank, Vic2CharsetManager.CHARACTERSET_SIZE);
 
-        // TODO: create Chargen on class level, and not every time here
-        var chargen = new Chargen();
-        _characterSetCurrent = chargen.GenerateChargenImage(characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
-        _characterSetMultiColorCurrent = chargen.GenerateChargenImage(characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW, multiColor: true);
+        _characterSetCurrent[characterIndex] = _charGen.GenerateChargenImageForOneCharacter(characterSet, characterIndex, multiColor: false);
+        _characterSetMultiColorCurrent[characterIndex] = _charGen.GenerateChargenImageForOneCharacter(characterSet, characterIndex, multiColor: true);
 
 #if DEBUG
-        chargen.DumpChargenFileToImageFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
-        chargen.DumpChargenFileToImageFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
+        _charGen.DumpChargenFileToImageFile(characterSet, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png", multiColor: false);
+        _charGen.DumpChargenFileToImageFile(characterSet, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png", multiColor: true);
+
+        //_charGen.DumpChargenFileToImageFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
+        //_charGen.DumpChargenFileToImageFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
 #endif
     }
 
     private void GenerateCurrentChargenImage(C64 c64)
     {
-
         var charsetManager = c64.Vic2.CharsetManager;
 
-        // If the current address points to a location in where the Chargen ROM character sets are located, we can use pre-rendered images for the character set.
+        // If the current address points to a location in where the CharGen ROM character sets are located, we can use pre-rendered images for the character set.
         if (charsetManager.CharacterSetAddressInVIC2BankIsChargenROMUnshifted)
         {
             _characterSetCurrent = _characterSetROMUnshiftedImage;
@@ -152,18 +161,20 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         }
         // Pointing to a location where a custom character set is located. Create a image for it.
 
-        // TODO: Is there a concept of "shifted" and "unshifted" character set for custom ones, or is it only relevant for the ones from Chargen ROM and the switching mechanism for them in Basic?
+        // TODO: Is there a concept of "shifted" and "unshifted" character set for custom ones, or is it only relevant for the ones from CharGen ROM and the switching mechanism for them in Basic?
         var characterSet = c64.Vic2.Vic2Mem.ReadData(charsetManager.CharacterSetAddressInVIC2Bank, Vic2CharsetManager.CHARACTERSET_SIZE);
 
-        // TODO: create Chargen on class level, and not every time here
-        var chargen = new Chargen();
-        _characterSetCurrent = chargen.GenerateChargenImage(characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW);
-        _characterSetMultiColorCurrent = chargen.GenerateChargenImage(characterSet, charactersPerRow: CHARGEN_IMAGE_CHARACTERS_PER_ROW, multiColor: true);
-
+        // TODO: create CharGen on class level, and not every time here
+        var chargen = new CharGen();
+        _characterSetCurrent = chargen.GenerateChargenImages(characterSet);
+        _characterSetMultiColorCurrent = chargen.GenerateChargenImages(characterSet, multiColor: true);
 
 #if DEBUG
-        chargen.DumpChargenFileToImageFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
-        chargen.DumpChargenFileToImageFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
+        chargen.DumpChargenFileToImageFile(characterSet, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png", multiColor: false);
+        chargen.DumpChargenFileToImageFile(characterSet, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png", multiColor: true);
+
+        //chargen.DumpChargenFileToImageFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
+        //chargen.DumpChargenFileToImageFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
 #endif
 
     }
@@ -349,7 +360,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         pixelPosY += firstVisibleScreenYPos;
         //pixelPosY += vic2Screen.VisibleTopBottomBorderHeight;
 
-        // Check character mode: affects background color and usabe bits in character
+        // Check character mode: affects background color, usable bits in character, usable bits in color
         byte? bgColor = null;
         switch (characterMode)
         {
@@ -387,21 +398,16 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
                 throw new NotImplementedException($"Character mode {characterMode} not implemented.");
         }
 
-        // Draw character image from chargen ROM to a Skia surface
-        // The chargen ROM has been loaded to a SKImage with 16 characters per row (each character 8 x 8 pixels).
-        var romImageX = character % CHARGEN_IMAGE_CHARACTERS_PER_ROW * 8;
-        var romImageY = character / CHARGEN_IMAGE_CHARACTERS_PER_ROW * 8;
+        // Select correct pre-generated characters depending on character mode
+        var charImage = characterMode switch
+        {
+            CharMode.Standard => _characterSetCurrent[character],
+            CharMode.Extended => _characterSetCurrent[character],
+            CharMode.MultiColor => _characterSetMultiColorCurrent[character],
+            _ => throw new NotImplementedException($"Character mode {characterMode} not implemented.")
+        };
 
-        _drawImageSource.Left = romImageX;
-        _drawImageSource.Top = romImageY;
-        _drawImageSource.Right = romImageX + 8;
-        _drawImageSource.Bottom = romImageY + 8;
-
-        _drawImageDest.Left = pixelPosX;
-        _drawImageDest.Top = pixelPosY;
-        _drawImageDest.Right = pixelPosX + 8;
-        _drawImageDest.Bottom = pixelPosY + 8;
-
+        // The "paint" transforms fixed colors in the pre-generated image to the ones that should be used on screen.
         SKPaint paint = characterMode switch
         {
             CharMode.Standard => _c64SkiaPaint.GetDrawCharacterPaint(characterColor),
@@ -410,17 +416,18 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
             _ => throw new NotImplementedException($"Character mode {characterMode} not implemented.")
         };
 
-        var charSet = characterMode switch
-        {
-            CharMode.Standard => _characterSetCurrent,
-            CharMode.Extended => _characterSetCurrent,
-            CharMode.MultiColor => _characterSetMultiColorCurrent,
-            _ => throw new NotImplementedException($"Character mode {characterMode} not implemented.")
-        };
+        // Draw character image from chargen ROM to the Skia canvas
+        _drawImageDest.Left = pixelPosX;
+        _drawImageDest.Top = pixelPosY;
+        _drawImageDest.Right = pixelPosX + 8;
+        _drawImageDest.Bottom = pixelPosY + 8;
 
-        canvas.DrawImage(charSet,
-            //source: new SKRect(romImageX, romImageY, romImageX + 8, romImageY + 8),
-            //dest: new SKRect(pixelPosX, pixelPosY, pixelPosX + 8, pixelPosY + 8),
+        _drawImageSource.Left = 0;
+        _drawImageSource.Top = 0;
+        _drawImageSource.Right = 8;
+        _drawImageSource.Bottom = 8;
+
+        canvas.DrawImage(charImage,
             source: _drawImageSource,
             dest: _drawImageDest,
             paint

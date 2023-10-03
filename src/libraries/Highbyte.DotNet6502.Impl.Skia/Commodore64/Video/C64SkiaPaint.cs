@@ -1,5 +1,3 @@
-using Highbyte.DotNet6502.Systems.Commodore64.Video;
-using SkiaSharp;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.ColorMaps;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
@@ -45,7 +43,7 @@ public class C64SkiaPaint
             var c64ColorValue = (byte)c64Color; // Color 0-15
             var systemColor = GetSystemColor(c64ColorValue, colorMapName); // .NET "Color" type
             var skColor = c64SkiaColors.SystemToSkColorMap[systemColor];    // Skia "SKColor" type
-            var colorFilter = CreateReplaceColorFilter(skColor, Chargen.CharacterImageDrawColor);
+            var colorFilter = CreateReplaceColorFilter(skColor, CharGen.CharacterImageDrawColor);
             var paint = new SKPaint { Style = SKPaintStyle.StrokeAndFill, ColorFilter = colorFilter };
             //var paint = new SKPaint { Style = SKPaintStyle.Stroke, ColorFilter = colorFilter };
 
@@ -65,7 +63,7 @@ public class C64SkiaPaint
                 var systemColorBg = GetSystemColor(c64ColorValueBg, colorMapName); // .NET "Color" type
                 var skColorBg = c64SkiaColors.SystemToSkColorMap[systemColorBg];    // Skia "SKColor" type
 
-                var colorFilter = CreateReplaceColorFilter(skColorFg, Chargen.CharacterImageDrawColor, newBackgroundColor: skColorBg);
+                var colorFilter = CreateReplaceColorFilter(skColorFg, CharGen.CharacterImageDrawColor, newBackgroundColor: skColorBg);
                 var paint = new SKPaint { Style = SKPaintStyle.StrokeAndFill, ColorFilter = colorFilter };
                 //var paint = new SKPaint { Style = SKPaintStyle.Stroke, ColorFilter = colorFilter };
 
@@ -94,9 +92,9 @@ public class C64SkiaPaint
                     var skMultiColorBG2 = c64SkiaColors.SystemToSkColorMap[systemMultiColorBG2];    // Skia "SKColor" type
 
                     var colorFilter = CreateReplaceColorFilter(
-                        skColor, Chargen.CharacterImageDrawColor,
-                        skMultiColorBG1, Chargen.CharacterImageDrawMultiColorBG1,
-                        skMultiColorBG2, Chargen.CharacterImageDrawMultiColorBG2);
+                        skColor, CharGen.CharacterImageDrawColor,
+                        skMultiColorBG1, CharGen.CharacterImageDrawMultiColorBG1,
+                        skMultiColorBG2, CharGen.CharacterImageDrawMultiColorBG2);
 
                     var paint = new SKPaint { Style = SKPaintStyle.StrokeAndFill, ColorFilter = colorFilter };
                     //var paint = new SKPaint { Style = SKPaintStyle.Stroke, ColorFilter = colorFilter };
