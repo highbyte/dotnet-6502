@@ -12,9 +12,6 @@ public class Cia
 
     public Dictionary<CiaTimerType, CiaTimer> CiaTimers { get; private set; }
 
-    public byte Cia1DataA { get; private set; }
-    public byte Cia1DataB { get; private set; } = 0xff; // 0xff = no key down
-
     public Cia(C64 c64)
     {
         _c64 = c64;
@@ -80,8 +77,8 @@ public class Cia
     // TODO: Implement "real" C64 keyboard operation emulation.
     //       Right now, keys are being placed directly into the ring buffer, and not via Cia1 Data Ports A & B
     //       Returning 0xff in data port B means no key down (temporary solution, which is useful to not get extremely long execution of Kernal routines inspecting keyboard.
-    public byte Cia1DataBLoad(ushort _) => Cia1DataB;
-    public void Cia1DataBStore(ushort _, byte value) => Cia1DataB = value;
+    public byte Cia1DataBLoad(ushort _) => 0xff;
+    public void Cia1DataBStore(ushort _, byte value) { }
 
     public byte Cia1TimerAHILoad(ushort _) => CiaTimers[CiaTimerType.Cia1_A].InternalTimer.Highbyte();
     public void Cia1TimerAHIStore(ushort _, byte value) => CiaTimers[CiaTimerType.Cia1_A].SetInternalTimer_Latch_HI(value);

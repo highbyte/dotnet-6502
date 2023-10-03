@@ -10,19 +10,18 @@ public class Vic2Sprite
 
     private readonly Vic2SpriteManager _spriteManager;
     private Vic2 _vic2 => _spriteManager.Vic2;
-    private C64 _c64 => _vic2.C64;
-    private Memory _c64Mem => _c64.Mem;
+    private C64 _c64 => _spriteManager.Vic2.C64;
 
     public int SpriteNumber { get; private set; }
-    public bool Visible => _c64Mem[Vic2Addr.SPRITE_ENABLE].IsBitSet(SpriteNumber);
-    public int X => _c64Mem[(ushort)(Vic2Addr.SPRITE_0_X + SpriteNumber * 2)] +
-                    (_c64Mem[Vic2Addr.SPRITE_MSB_X].IsBitSet(SpriteNumber) ? 256 : 0);
-    public int Y => _c64Mem[(ushort)(Vic2Addr.SPRITE_0_Y + SpriteNumber * 2)];
-    public byte Color => _c64Mem[(ushort)(Vic2Addr.SPRITE_0_COLOR + SpriteNumber)];
-    public bool Multicolor => _c64Mem[Vic2Addr.SPRITE_MULTICOLOR_ENABLE].IsBitSet(SpriteNumber);
-    public bool DoubleWidth => _c64Mem[Vic2Addr.SPRITE_X_EXPAND].IsBitSet(SpriteNumber);
-    public bool DoubleHeight => _c64Mem[Vic2Addr.SPRITE_Y_EXPAND].IsBitSet(SpriteNumber);
-    public bool PriorityOverForeground => !_c64Mem[Vic2Addr.SPRITE_FOREGROUND_PRIO].IsBitSet(SpriteNumber);
+    public bool Visible => _c64.ReadIOStorage(Vic2Addr.SPRITE_ENABLE).IsBitSet(SpriteNumber);
+    public int X => _c64.ReadIOStorage((ushort)(Vic2Addr.SPRITE_0_X + SpriteNumber * 2)) +
+                    (_c64.ReadIOStorage(Vic2Addr.SPRITE_MSB_X).IsBitSet(SpriteNumber) ? 256 : 0);
+    public int Y => _c64.ReadIOStorage((ushort)(Vic2Addr.SPRITE_0_Y + SpriteNumber * 2));
+    public byte Color => _c64.ReadIOStorage((ushort)(Vic2Addr.SPRITE_0_COLOR + SpriteNumber));
+    public bool Multicolor => _c64.ReadIOStorage(Vic2Addr.SPRITE_MULTICOLOR_ENABLE).IsBitSet(SpriteNumber);
+    public bool DoubleWidth => _c64.ReadIOStorage(Vic2Addr.SPRITE_X_EXPAND).IsBitSet(SpriteNumber);
+    public bool DoubleHeight => _c64.ReadIOStorage(Vic2Addr.SPRITE_Y_EXPAND).IsBitSet(SpriteNumber);
+    public bool PriorityOverForeground => !_c64.ReadIOStorage(Vic2Addr.SPRITE_FOREGROUND_PRIO).IsBitSet(SpriteNumber);
 
     public int WidthPixels => DoubleWidth ? DEFAULT_WIDTH * 2 : DEFAULT_WIDTH;
     public int WidthBytes => WidthPixels / 8;

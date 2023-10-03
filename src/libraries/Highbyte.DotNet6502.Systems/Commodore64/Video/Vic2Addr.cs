@@ -17,7 +17,7 @@ public static class Vic2Addr
     // TODO: Start of screen ram is configurable in VIC-II chip memory bank select at location $DD00 (56576).
     //       This should be variable that is calculated instead of a constant.
     public const ushort SCREEN_RAM_START = 0x0400;
-    public const ushort COLOR_RAM_START = 0xd800 - 0xd000;
+    public const ushort COLOR_RAM_START = 0xd800;
 
     // Sprite X/Y coordinates
     public const ushort SPRITE_0_X = 0xd000;

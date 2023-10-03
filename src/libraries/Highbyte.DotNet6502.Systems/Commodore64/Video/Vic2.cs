@@ -1,6 +1,3 @@
-using System;
-using System.ComponentModel.Design;
-using System.Net;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
@@ -26,11 +23,6 @@ public class Vic2
     /// </summary>
     public Memory? Vic2Mem { get; private set; }
 
-    /// <summary>
-    /// Vic2 IO registers and color mem storage.
-    /// </summary>
-    public Memory? Vic2IOStorage { get; private set; }
-
     public Vic2IRQ? Vic2IRQ { get; private set; }
 
     public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
@@ -41,9 +33,9 @@ public class Vic2
     {
         get
         {
-            if (ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER).IsBitSet(6))
+            if (C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER).IsBitSet(6))
                 return CharMode.Extended;
-            if (ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER).IsBitSet(4))
+            if (C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER).IsBitSet(4))
                 return CharMode.MultiColor;
             return CharMode.Standard;
         }
@@ -54,8 +46,8 @@ public class Vic2
     private ushort _currentRasterLineInternal = ushort.MaxValue;
     public ushort CurrentRasterLine => _currentRasterLineInternal;
 
-    public bool Is38ColumnDisplayEnabled => !ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER).IsBitSet(3);
-    public byte FineScrollXValue => (byte)(ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER) & 0b0000_0111);    // Value 0-7
+    public bool Is38ColumnDisplayEnabled => !C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER).IsBitSet(3);
+    public byte FineScrollXValue => (byte)(C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER) & 0b0000_0111);    // Value 0-7
     public int GetScrollX()
     {
         var scrollX = FineScrollXValue;
@@ -65,8 +57,8 @@ public class Vic2
         return scrollX;
     }
 
-    public bool Is24RowDisplayEnabled => !ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER).IsBitSet(3);
-    public byte FineScrollYValue => (byte)(ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER) & 0b0000_0111);    // Value 0-7
+    public bool Is24RowDisplayEnabled => !C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER).IsBitSet(3);
+    public byte FineScrollYValue => (byte)(C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER) & 0b0000_0111);    // Value 0-7
     public int GetScrollY()
     {
         var scrollY = FineScrollYValue - 3; // Note: VIC2 Y scroll value is by default 3 (=no offset)
@@ -87,7 +79,6 @@ public class Vic2
     public static Vic2 BuildVic2(Vic2ModelBase vic2Model, C64 c64)
     {
         var vic2Mem = CreateVic2Memory(c64);
-        var vic2IOStorage = CreateVic2IOStorage(c64);
         var vic2IRQ = new Vic2IRQ();
 
         var screenLineBorderColorLookup = InitializeScreenLineBorderColorLookup(vic2Model);
@@ -97,7 +88,6 @@ public class Vic2
         {
             C64 = c64,
             Vic2Mem = vic2Mem,
-            Vic2IOStorage = vic2IOStorage,
             Vic2Model = vic2Model,
             Vic2IRQ = vic2IRQ,
             ScreenLineBorderColor = screenLineBorderColorLookup,
@@ -143,6 +133,10 @@ public class Vic2
 
     public void MapIOLocations(Memory c64Mem)
     {
+        // TODO: Map all IO locations to default behavior with read/write to IOStorage.
+        // TODO: Make common init like this that covers all IO locations, not only VIC2: SID, CIA, etc.
+        //       Then all that need specific logic writes special mapping below (will overwrite above).
+
         // Address 0xd011: "Vertical Fine Scrollling and Screen Control Register"
         c64Mem.MapReader(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, ScrCtrlReg1Load);
         c64Mem.MapWriter(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, ScrCtrlReg1Store);
@@ -150,6 +144,10 @@ public class Vic2
         // Address 0xd012: "Current Raster Line"
         c64Mem.MapReader(Vic2Addr.CURRENT_RASTER_LINE, RasterLoad);
         c64Mem.MapWriter(Vic2Addr.CURRENT_RASTER_LINE, RasterStore);
+
+        // Address 0xd015: "Sprite enable"
+        c64Mem.MapReader(Vic2Addr.SPRITE_ENABLE, SpriteEnableLoad);
+        c64Mem.MapWriter(Vic2Addr.SPRITE_ENABLE, SpriteEnableStore);
 
         // Address 0xd016: "Horizontal Fine Scrolling and Screen Control Register"
         c64Mem.MapReader(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER, ScrollXLoad);
@@ -333,38 +331,20 @@ public class Vic2
         return vic2Mem;
     }
 
-    private static Memory CreateVic2IOStorage(C64 c64)
+
+    public void SpriteEnableStore(ushort address, byte value)
     {
-        var ram = c64.RAM;
-
-        // Vic2 IO Storage is 4K and is always mapped to address 0xd000 in the C64 memory map.
-        var vic2IOStorage = new Memory(memorySize: 4 * 1024, numberOfConfigurations: 1, mapToDefaultRAM: false);
-
-        vic2IOStorage.SetMemoryConfiguration(0);
-        vic2IOStorage.MapRAM(0x0000, ram, 0xd000, 0x1000);
-
-        return vic2IOStorage;
+        C64.WriteIOStorage(address, value);
     }
-
-    /// <summary>
-    /// Writes byte to VIC2 IO Storage, with address specified as location C64 memory map, and translated to VIC2 IO Storage address (-0xd000).
-    /// </summary>
-    /// <param name="address"></param>
-    /// <param name="value"></param>
-    private void WriteIOStorage(ushort address, byte value)
+    public byte SpriteEnableLoad(ushort address)
     {
-        Vic2IOStorage[(ushort)(address - 0xd000)] = value;
+        return C64.ReadIOStorage(address);
     }
-    public byte ReadIOStorage(ushort address)
-    {
-        return Vic2IOStorage[(ushort)(address - 0xd000)];
-    }
-
 
     public void SpriteMultiColorEnableStore(ushort address, byte value)
     {
-        var originalValue = ReadIOStorage(address);
-        WriteIOStorage(address, value);
+        var originalValue = C64.ReadIOStorage(address);
+        C64.WriteIOStorage(address, value);
         for (int spriteNumber = 0; spriteNumber < 8; spriteNumber++)
         {
             if (originalValue.IsBitSet(spriteNumber) != value.IsBitSet(spriteNumber))
@@ -373,7 +353,7 @@ public class Vic2
     }
     public byte SpriteMultiColorEnableLoad(ushort address)
     {
-        return ReadIOStorage(address);
+        return C64.ReadIOStorage(address);
     }
 
     public void SpriteToSpriteCollisionStore(ushort address, byte value)
@@ -403,73 +383,73 @@ public class Vic2
 
     public void BorderColorStore(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
+        C64.WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
     }
     public byte BorderColorLoad(ushort address)
     {
-        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+        return (byte)(C64.ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
     }
     public void BackgroundColorStore(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0000_1111)); ; // Only bits 0-3 are stored
+        C64.WriteIOStorage(address, (byte)(value & 0b0000_1111)); ; // Only bits 0-3 are stored
     }
     public byte BackgroundColorLoad(ushort address)
     {
-        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+        return (byte)(C64.ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
     }
 
     public void SpriteColorStore(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
+        C64.WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
         var spriteNumber = (address - Vic2Addr.SPRITE_0_COLOR);
         SpriteManager.Sprites[spriteNumber].HasChanged(Vic2SpriteChangeType.Color);
     }
     public byte SpriteColorLoad(ushort address)
     {
-        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+        return (byte)(C64.ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
     }
 
     public void SpriteMultiColor0Store(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
+        C64.WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
         SpriteManager.SetAllDirty();
     }
     public byte SpriteMultiColor0Load(ushort address)
     {
-        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+        return (byte)(C64.ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
     }
     public void SpriteMultiColor1Store(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0000_1111)); ; // Only bits 0-3 are stored
+        C64.WriteIOStorage(address, (byte)(value & 0b0000_1111)); ; // Only bits 0-3 are stored
         SpriteManager.SetAllDirty();
     }
     public byte SpriteMultiColor1Load(ushort address)
     {
-        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+        return (byte)(C64.ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
     }
 
     public void ColorRAMStore(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
+        C64.WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
     }
     public byte ColorRAMLoad(ushort address)
     {
-        return ReadIOStorage(address);
+        return C64.ReadIOStorage(address);
     }
 
     public void ScrollXStore(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0011_1111)); // Only bits 0-5 are stored
+        C64.WriteIOStorage(address, (byte)(value & 0b0011_1111)); // Only bits 0-5 are stored
         SpriteManager.SetAllDirty();
     }
     public byte ScrollXLoad(ushort address)
     {
-        return (byte)(ReadIOStorage(address) | 0b1100_0000); // Bits 6-7 are unused and always 1
+        return (byte)(C64.ReadIOStorage(address) | 0b1100_0000); // Bits 6-7 are unused and always 1
     }
 
     public void MemorySetupStore(ushort address, byte value)
     {
-        WriteIOStorage(address, value);
+        C64.WriteIOStorage(address, value);
 
         // 0xd018, bit 0: Unused
 
@@ -485,12 +465,12 @@ public class Vic2
 
     public byte MemorySetupLoad(ushort address)
     {
-        return ReadIOStorage(address);
+        return C64.ReadIOStorage(address);
     }
 
     public void PortAStore(ushort address, byte value)
     {
-        WriteIOStorage(address, value);
+        C64.WriteIOStorage(address, value);
 
         // --- VIC 2 BANKS ---
         // Bits 0-1 of PortA (0xdd00) selects VIC2 bank (inverted order, the highest value 3 means bank 0, and value 0 means bank 3)
@@ -528,12 +508,12 @@ public class Vic2
 
     public byte PortALoad(ushort address)
     {
-        return ReadIOStorage(address);
+        return C64.ReadIOStorage(address);
     }
 
     public void ScrCtrlReg1Store(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0111_1111));
+        C64.WriteIOStorage(address, (byte)(value & 0b0111_1111));
 
         // If the VIC2 model is PAL, then allow configuring the 8th bit of the raster line IRQ.
         // Note: As the Kernal ROM initializes this 8th bit for both NTSC and PAL (same ROM for both), we need this workaround here.
@@ -562,12 +542,12 @@ public class Vic2
     {
         // As the seventh bit in this register (SCRCTRL1), the highest (eigth) bit of the current raster line is returned.
         byte bit7HighestRasterLineBit = (byte)((_currentRasterLineInternal & 0b0000_0001_0000_0000) >> 1);
-        return (byte)(ReadIOStorage(address) | bit7HighestRasterLineBit);
+        return (byte)(C64.ReadIOStorage(address) | bit7HighestRasterLineBit);
     }
 
     public void RasterStore(ushort address, byte value)
     {
-        WriteIOStorage(address, value);
+        C64.WriteIOStorage(address, value);
 
         ushort newIRQRasterLine = 0;
         if (Vic2IRQ.ConfiguredIRQRasterLine.HasValue)
@@ -719,7 +699,7 @@ public class Vic2
     private void StoreBorderColorForRasterLine(ushort rasterLine)
     {
         var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
-        ScreenLineBorderColor[screenLine] = ReadIOStorage(Vic2Addr.BORDER_COLOR);
+        ScreenLineBorderColor[screenLine] = C64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
     }
 
     private void StoreBackgroundColorForRasterLine(ushort rasterLine)
@@ -728,6 +708,6 @@ public class Vic2
             return;
 
         var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
-        ScreenLineBackgroundColor[screenLine] = ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
+        ScreenLineBackgroundColor[screenLine] = C64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
     }
 }

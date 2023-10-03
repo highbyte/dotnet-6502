@@ -39,7 +39,6 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
     {
         var vic2 = c64.Vic2;
         var vic2Mem = vic2.Vic2Mem;
-        var vic2IOStorage = vic2.Vic2IOStorage;
         var vic2Screen = vic2.Vic2Screen;
 
         // // Top Left
@@ -48,7 +47,7 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
         // DrawEmulatorCharacterOnScreen(_emulatorMemoryConfig.Cols-1, _emulatorMemoryConfig.Rows-1 , 66, 0x01, 0x05);
         // return;
 
-        var bgColor = vic2.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
+        var bgColor = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
 
         // Build screen data characters based on emulator memory contents (byte)
         var currentScreenAddress = Vic2Addr.SCREEN_RAM_START;
@@ -58,7 +57,7 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
             for (var col = 0; col < vic2Screen.TextCols; col++)
             {
                 var charByte = vic2Mem[currentScreenAddress++];
-                var colorByte = vic2IOStorage[currentColorAddress++];
+                var colorByte = c64.ReadIOStorage(currentColorAddress++);
                 DrawEmulatorCharacterOnScreen(
                     col,
                     row,
@@ -78,7 +77,7 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IR
         var vic2Screen = c64.Vic2.Vic2Screen;
 
         byte borderCharacter = 0;    // 0 = no character
-        var borderBgColor = emulatorMem[Vic2Addr.BORDER_COLOR];
+        var borderBgColor = c64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
         var borderFgColor = borderBgColor;
 
         var border_cols = GetBorderCols(c64);

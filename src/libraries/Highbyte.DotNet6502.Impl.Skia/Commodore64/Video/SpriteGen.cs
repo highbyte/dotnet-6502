@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
@@ -7,6 +8,7 @@ public class SpriteGen
     public static SKColor SpriteImageDrawColor = SKColors.White;
     private readonly C64SkiaPaint _c64SkiaPaint;
     private readonly Vic2 _vic2;
+    private C64 _c64 => _vic2.C64;
 
     public SpriteGen(C64SkiaPaint c64SkiaPaint, Vic2 vic2)
     {
@@ -26,8 +28,8 @@ public class SpriteGen
                 //       The actual image with with 3 colors (the sprite-specific one, and two common multi-color ones) is generated here, and should then be copied directly to screen.
                 //       If any of the used colors are changed, the image must be generated again by setting the Sprite Dirty flag (which is different from single-color ones due to optization).
                 var spritePaint = _c64SkiaPaint.GetFillPaint(sprite.Color);
-                var multiColorPaint0 = _c64SkiaPaint.GetFillPaint(_vic2.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0));
-                var multiColorPaint1 = _c64SkiaPaint.GetFillPaint(_vic2.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1));
+                var multiColorPaint0 = _c64SkiaPaint.GetFillPaint(_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0));
+                var multiColorPaint1 = _c64SkiaPaint.GetFillPaint(_c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1));
 
                 foreach (var spriteRow in sprite.Data.Rows)
                 {

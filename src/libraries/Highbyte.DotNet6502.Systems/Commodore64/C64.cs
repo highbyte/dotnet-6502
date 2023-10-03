@@ -175,11 +175,10 @@ public class C64 : ISystem, ISystemMonitor
             };
         }
 
-        var io = new byte[1 * 1024];  // 1KB of C64 IO addresses that is mapped to memory address range 0xd000 - 0xdfff in certain memory configuration.
+        var io = new byte[4 * 1024];  // 4KB of C64 IO addresses that is mapped to memory address range 0xd000 - 0xdfff in certain memory configurations.
 
         var vic2Model = c64Model.Vic2Models.Single(x => x.Name == c64Config.Vic2Model);
         var kb = new C64Keyboard();
-        var sid = Sid.BuildSid();
 
         var logger = loggerFactory.CreateLogger(typeof(C64).Name);
         var c64 = new C64(logger)
@@ -188,7 +187,6 @@ public class C64 : ISystem, ISystemMonitor
             RAM = ram,
             IO = io,
             Keyboard = kb,
-            Sid = sid,
             ROMData = romData,
             AudioEnabled = c64Config.AudioEnabled,
             TimerMode = c64Config.TimerMode,
@@ -197,10 +195,13 @@ public class C64 : ISystem, ISystemMonitor
 
         var cpu = CreateC64CPU(loggerFactory);
         var vic2 = Vic2.BuildVic2(vic2Model, c64);
+        var sid = Sid.BuildSid(c64);
+        var cia = new Cia(c64);
 
         c64.CPU = cpu;
         c64.Vic2 = vic2;
-        c64.Cia = new Cia(c64);
+        c64.Cia = cia;
+        c64.Sid = sid;
 
         var mem = c64.CreateC64Memory(ram, io, romData);
         c64.Mem = mem;
@@ -418,6 +419,24 @@ public class C64 : ISystem, ISystemMonitor
     {
         // For now, only the the first 3 bits which is the current bank
         return (byte)(CurrentBank & 0x07);
+    }
+
+    /// <summary>
+    /// Writes byte to IO Storage, with address specified as location C64 memory map, and translated to VIC2 IO Storage address (-0xd000).
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    public void WriteIOStorage(ushort address, byte value)
+    {
+        IO[(ushort)(address - 0xd000)] = value;
+    }
+    /// <summary>
+    /// Read byte to IO Storage, with address specified as location C64 memory map, and translated to VIC2 IO Storage address (-0xd000).
+    /// </summary>
+    /// <param name="address"></param>
+    public byte ReadIOStorage(ushort address)
+    {
+        return IO[(ushort)(address - 0xd000)];
     }
 
     private List<string> BuildSystemInfo()

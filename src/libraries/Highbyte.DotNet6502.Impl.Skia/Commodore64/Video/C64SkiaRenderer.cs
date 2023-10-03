@@ -172,7 +172,6 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     {
         var vic2 = c64.Vic2;
         var vic2Mem = vic2.Vic2Mem;
-        var vic2IOStorage = vic2.Vic2IOStorage;
 
         var vic2Screen = vic2.Vic2Screen;
         var vic2ScreenLayouts = vic2.ScreenLayouts;
@@ -201,19 +200,19 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
 
         // Build screen data characters based on emulator memory contents (byte)
         var currentScreenAddress = Vic2Addr.SCREEN_RAM_START;   // TODO: Screen RAM start should be calculated based on current VIC2 bank and screen offset
-        var currentColorAddress = Vic2Addr.COLOR_RAM_START;
+        var currentColorAddress = Vic2Addr.COLOR_RAM_START;     // Note: Color RAM is always at fixed CPU location (not withing the 16K area mapped to the VIC2)
 
         var characterMode = vic2.CharacterMode;
-        byte backgroundColor1 = vic2.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1); // Background color used for extended charcater mode
-        byte backgroundColor2 = vic2.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2); // Background color used for extended charcater mode
-        byte backgroundColor3 = vic2.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3); // Background color used for extended charcater mode
+        byte backgroundColor1 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1); // Background color used for extended charcater mode
+        byte backgroundColor2 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2); // Background color used for extended charcater mode
+        byte backgroundColor3 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3); // Background color used for extended charcater mode
 
         for (var row = 0; row < vic2Screen.TextRows; row++)
         {
             for (var col = 0; col < vic2Screen.TextCols; col++)
             {
                 var charByte = vic2Mem[currentScreenAddress++];
-                var colorByte = vic2IOStorage[currentColorAddress++];  // Note: Color RAM is always at fixed CPU location in CPU ram (not withing the 16K area mapped to the VIC2)
+                var colorByte = c64.ReadIOStorage(currentColorAddress++);
 
                 DrawEmulatorCharacterOnScreen(
                     canvas,
@@ -294,7 +293,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         var emulatorMem = c64.Mem;
         var vic2Screen = c64.Vic2.Vic2Screen;
 
-        var borderColor = emulatorMem[Vic2Addr.BORDER_COLOR];
+        var borderColor = c64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
         var borderPaint = _c64SkiaPaint.GetFillPaint(borderColor);
 
         canvas.DrawRect(0, 0, vic2Screen.VisibleWidth, vic2Screen.VisibleTopBottomBorderHeight, borderPaint);
@@ -310,7 +309,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
         var vic2Screen = c64.Vic2.Vic2Screen;
 
         // Draw 1 rectangle for background
-        var backgroundColor = emulatorMem[Vic2Addr.BACKGROUND_COLOR_0];
+        var backgroundColor = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
         var bgPaint = _c64SkiaPaint.GetFillPaint(backgroundColor);
 
         canvas.DrawRect(vic2Screen.VisibleLeftRightBorderWidth, vic2Screen.VisibleTopBottomBorderHeight, vic2Screen.DrawableAreaWidth, vic2Screen.DrawableAreaHeight, bgPaint);

@@ -197,21 +197,20 @@ public class Sprite_collitions_test
 
     private void SetSpriteProperties(int spriteNumber, byte x, byte y, bool doubleWidth, bool doubleHeight, bool multiColor)
     {
-        _c64.Mem[(ushort)(Vic2Addr.SPRITE_0_X + spriteNumber * 2)] = x;
-        _c64.Mem[(ushort)(Vic2Addr.SPRITE_0_Y + spriteNumber * 2)] = y;
+        _c64.WriteIOStorage((ushort)(Vic2Addr.SPRITE_0_X + spriteNumber * 2), x);
+        _c64.WriteIOStorage((ushort)(Vic2Addr.SPRITE_0_Y + spriteNumber * 2), y);
 
-        var spriteXExpand = _c64.Mem[Vic2Addr.SPRITE_X_EXPAND];
+        var spriteXExpand = _c64.ReadIOStorage(Vic2Addr.SPRITE_X_EXPAND);
         spriteXExpand.ChangeBit(spriteNumber, doubleWidth);
-        _c64.Mem[Vic2Addr.SPRITE_X_EXPAND] = spriteXExpand;
+        _c64.WriteIOStorage(Vic2Addr.SPRITE_X_EXPAND, spriteXExpand);
 
-        var spriteYExpand = _c64.Mem[Vic2Addr.SPRITE_Y_EXPAND];
+        var spriteYExpand = _c64.ReadIOStorage(Vic2Addr.SPRITE_Y_EXPAND);
         spriteYExpand.ChangeBit(spriteNumber, doubleHeight);
-        _c64.Mem[Vic2Addr.SPRITE_Y_EXPAND] = spriteYExpand;
+        _c64.WriteIOStorage(Vic2Addr.SPRITE_Y_EXPAND, spriteYExpand);
 
-        var multiColorEnable = _c64.Mem[Vic2Addr.SPRITE_MULTICOLOR_ENABLE];
+        var multiColorEnable = _c64.ReadIOStorage(Vic2Addr.SPRITE_MULTICOLOR_ENABLE);
         multiColorEnable.ChangeBit(spriteNumber, multiColor);
-        _c64.Mem[Vic2Addr.SPRITE_MULTICOLOR_ENABLE] = multiColorEnable;
-
+        _c64.WriteIOStorage(Vic2Addr.SPRITE_MULTICOLOR_ENABLE, multiColorEnable);
     }
 
     private void FillSpriteShape(int spriteNumber, byte[] shape, byte spritePointer)
