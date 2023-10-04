@@ -4,15 +4,20 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio;
 /// </summary>
 public class Sid
 {
-    private readonly InternalSidState _internalSidState = new InternalSidState();
+    private readonly InternalSidState _internalSidState;
     public InternalSidState InternalSidState => _internalSidState;
+
+    private Sid(C64 c64)
+    {
+        _internalSidState = new InternalSidState(c64);
+    }
 
     /// <summary>
     /// </summary>
     /// <returns></returns>
-    public static Sid BuildSid()
+    public static Sid BuildSid(C64 c64)
     {
-        var sid = new Sid();
+        var sid = new Sid(c64);
         return sid;
     }
 

@@ -12,6 +12,8 @@ public class Vic2SpriteManager
     public Vic2 Vic2 { get; private set; }
     private Memory _vic2Mem => Vic2.Vic2Mem;
 
+    public int SpritePointerStartAddress => Vic2.VideoMatrixBaseAddress + 0x03f8; // Default value is 0x07f8 (because Vic2.VideoMatrixBaseAddress is 0x0400 by default). 8 sprites, last is 0x07ff.
+
     public const int NUMBERS_OF_SPRITES = 8;
     //The Sprite top/left X position that appears on main screen (not border) position 0.
     public const int SCREEN_OFFSET_X = 24;
@@ -50,7 +52,7 @@ public class Vic2SpriteManager
         // Detect changes in sprite pointers and data
         for (int spriteNumber = 0; spriteNumber < NUMBERS_OF_SPRITES; spriteNumber++)
         {
-            var spritePointerAddress = (ushort)(Vic2.SPRITE_POINTERS_START_ADDRESS + spriteNumber);
+            var spritePointerAddress = (ushort)(SpritePointerStartAddress + spriteNumber);
 
             // Detect changes to sprite pointer
             if (vic2Address == spritePointerAddress)
@@ -259,20 +261,22 @@ public class Vic2SpriteManager
         }
 
         var spriteScreenLine = y - sprite.Y;
-        var spriteRowByteIndex = (x - sprite.X) / 8;
+        var deltaX = (x - sprite.X);
+        var spriteRowByteIndex = deltaX / 8;
         var rowBytes = GetSpriteRowLineData(sprite, spriteScreenLine);
-        var rowByte = rowBytes[spriteRowByteIndex];
 
-        var bitPositionAdjustOffset = (x - sprite.X) % 8;
-        if (bitPositionAdjustOffset != 0)
-        {
-            var bytes = new byte[2];
-            bytes[0] = rowByte;
-            var shiftedBytes = bytes.ShiftRight(8 - bitPositionAdjustOffset, out _);
-            rowByte = shiftedBytes[1];
-        }
+        var bitPositionAdjustOffset = deltaX % 8;
+        if (bitPositionAdjustOffset == 0)
+            return rowBytes[spriteRowByteIndex];
 
-        return rowByte;
+        var bytes = new byte[3];
+        bytes[0] = spriteRowByteIndex == 0 ? (byte)0 : rowBytes[spriteRowByteIndex - 1];
+        bytes[1] = rowBytes[spriteRowByteIndex];
+        bytes[2] = (spriteRowByteIndex + 1) >= rowBytes.Length ? (byte)0 : rowBytes[spriteRowByteIndex + 1];
+
+        var shiftedBytes = bytes.ShiftRight(8 - bitPositionAdjustOffset, out _);
+
+        return shiftedBytes[2];
     }
 
     public byte[] GetCharacterRowLineDataMatchingSpritePosition(Vic2Sprite sprite, int spriteScreenLine, int spriteBytesWidth, int scrollX, int scrollY)
@@ -315,7 +319,7 @@ public class Vic2SpriteManager
                 var characterCol = textScreenPosX / 8;
                 var characterRow = textScreenPosY / 8;
                 var characterLine = textScreenPosY % 8;
-                bytes[i] = Vic2.GetTextModeCharacterLine(characterCol, characterRow, characterLine);
+                bytes[i] = Vic2.CharsetManager.GetTextModeCharacterLine(characterCol, characterRow, characterLine);
             }
             textScreenPosX += 8;
         }

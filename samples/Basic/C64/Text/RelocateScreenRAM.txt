@@ -1,0 +1,18 @@
+200 poke 56334,peek(56334) and 254 : rem no keyscan interrupt
+210 poke 1, peek(1) and 251 : rem switch in rom chars at $d000 (53248)
+
+220 for i = 0 to 2047:poke i+49152,peek(i+53248):next : rem copy charset to $c000 (49152)
+
+230 poke 1, peek(1) or 4 : rem switch in i/o back at $d000
+240 poke 56334,peek(56334) or 1 : rem restart keyscan interrupt
+
+250 poke 56576,peek(56576) and 252: rem set vic2 bank start to $c000 (49152)
+
+260 poke 53272,32: rem set charset address offset to 0, and screen address offset to $0800 (2048), which means that the screen starts at 51200 (49152+2048)
+
+270 poke 648,200 : rem tell basic to write text to the new area (200*256=51200)
+
+280 rem dim c(33):fori=0to32:readj:c(i)=j:next
+290 rem for k=0 to 32
+300 rem fori=0to7:readj:poke49152+(8\*c(k))+i,j:nexti
+310 rem next k

@@ -13,11 +13,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// </summary>
 public static class Vic2Addr
 {
-
-    // TODO: Start of screen ram is configurable in VIC-II chip memory bank select at location $DD00 (56576).
-    //       This should be variable that is calculated instead of a constant.
-    public const ushort SCREEN_RAM_START = 0x0400;
-    public const ushort COLOR_RAM_START = 0xd800 - 0xd000;
+    public const ushort COLOR_RAM_START = 0xd800;   // Color RAM is always at 0xd800 (in the IO area of the C64 memory map)
 
     // Sprite X/Y coordinates
     public const ushort SPRITE_0_X = 0xd000;
@@ -40,12 +36,12 @@ public static class Vic2Addr
     // Sprite X position MSB (Most Significant Bit) for sprites 0-7
     public const ushort SPRITE_MSB_X = 0xd010;
 
-    public const ushort SCREEN_CONTROL_REGISTER_1 = 0xd011;
+    public const ushort SCROLL_Y_AND_SCREEN_CONTROL_REGISTER = 0xd011;
     public const ushort CURRENT_RASTER_LINE = 0xd012;
 
     public const ushort SPRITE_ENABLE = 0xd015;
 
-    public const ushort SCROLL_X = 0xd016;
+    public const ushort SCROLL_X_AND_SCREEN_CONTROL_REGISTER = 0xd016;
 
     public const ushort SPRITE_Y_EXPAND = 0xd017;
 
@@ -63,7 +59,10 @@ public static class Vic2Addr
     public const ushort SPRITE_TO_BACKGROUND_COLLISION = 0xd01f;
 
     public const ushort BORDER_COLOR = 0xd020;
-    public const ushort BACKGROUND_COLOR = 0xd021;
+    public const ushort BACKGROUND_COLOR_0 = 0xd021;
+    public const ushort BACKGROUND_COLOR_1 = 0xd022;
+    public const ushort BACKGROUND_COLOR_2 = 0xd023;
+    public const ushort BACKGROUND_COLOR_3 = 0xd024;
 
     public const ushort SPRITE_MULTI_COLOR_0 = 0xd025;  // Common for all sprites
     public const ushort SPRITE_MULTI_COLOR_1 = 0xd026;  // Common for all sprites

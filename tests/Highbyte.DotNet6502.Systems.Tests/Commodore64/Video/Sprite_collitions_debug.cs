@@ -4,11 +4,10 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit.Abstractions;
-using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
 
 namespace Highbyte.DotNet6502.Systems.Tests.Commodore64.Video;
 
-public class Sprite_collitions_test
+public class Sprite_collitions_debug
 {
     private readonly ITestOutputHelper _output;
     private readonly C64 _c64;
@@ -16,7 +15,7 @@ public class Sprite_collitions_test
     private readonly Memory? _vic2Mem;
     private readonly Vic2SpriteManager? _vic2SpriteManager;
 
-    public Sprite_collitions_test(ITestOutputHelper testOutputHelper)
+    public Sprite_collitions_debug(ITestOutputHelper testOutputHelper)
     {
         _output = testOutputHelper;
 
@@ -43,7 +42,7 @@ public class Sprite_collitions_test
         WriteToTextScreen(characterCode, col: 4, row: 0);
 
         // Write the shape of the 'A' character to character rom
-        var characterSetLineAddress = (ushort)(_vic2.CharacterSetAddressInVIC2Bank + (characterCode * _vic2.Vic2Screen.CharacterHeight));
+        var characterSetLineAddress = (ushort)(_vic2.CharsetManager.CharacterSetAddressInVIC2Bank + (characterCode * _vic2.Vic2Screen.CharacterHeight));
         _vic2Mem[characterSetLineAddress++] = 0b00011000;
         _vic2Mem[characterSetLineAddress++] = 0b00111100;
         _vic2Mem[characterSetLineAddress++] = 0b01100110;
@@ -174,7 +173,7 @@ public class Sprite_collitions_test
 
     private void WriteToTextScreen(byte characterCode, int col, int row)
     {
-        var characterAddress = (ushort)(Vic2Addr.SCREEN_RAM_START + (row * _vic2.Vic2Screen.TextCols) + col);
+        var characterAddress = (ushort)(_vic2.VideoMatrixBaseAddress + (row * _vic2.Vic2Screen.TextCols) + col);
         _vic2Mem[characterAddress] = characterCode;
     }
 
@@ -197,26 +196,25 @@ public class Sprite_collitions_test
 
     private void SetSpriteProperties(int spriteNumber, byte x, byte y, bool doubleWidth, bool doubleHeight, bool multiColor)
     {
-        _c64.Mem[(ushort)(Vic2Addr.SPRITE_0_X + spriteNumber * 2)] = x;
-        _c64.Mem[(ushort)(Vic2Addr.SPRITE_0_Y + spriteNumber * 2)] = y;
+        _c64.WriteIOStorage((ushort)(Vic2Addr.SPRITE_0_X + spriteNumber * 2), x);
+        _c64.WriteIOStorage((ushort)(Vic2Addr.SPRITE_0_Y + spriteNumber * 2), y);
 
-        var spriteXExpand = _c64.Mem[Vic2Addr.SPRITE_X_EXPAND];
+        var spriteXExpand = _c64.ReadIOStorage(Vic2Addr.SPRITE_X_EXPAND);
         spriteXExpand.ChangeBit(spriteNumber, doubleWidth);
-        _c64.Mem[Vic2Addr.SPRITE_X_EXPAND] = spriteXExpand;
+        _c64.WriteIOStorage(Vic2Addr.SPRITE_X_EXPAND, spriteXExpand);
 
-        var spriteYExpand = _c64.Mem[Vic2Addr.SPRITE_Y_EXPAND];
+        var spriteYExpand = _c64.ReadIOStorage(Vic2Addr.SPRITE_Y_EXPAND);
         spriteYExpand.ChangeBit(spriteNumber, doubleHeight);
-        _c64.Mem[Vic2Addr.SPRITE_Y_EXPAND] = spriteYExpand;
+        _c64.WriteIOStorage(Vic2Addr.SPRITE_Y_EXPAND, spriteYExpand);
 
-        var multiColorEnable = _c64.Mem[Vic2Addr.SPRITE_MULTICOLOR_ENABLE];
+        var multiColorEnable = _c64.ReadIOStorage(Vic2Addr.SPRITE_MULTICOLOR_ENABLE);
         multiColorEnable.ChangeBit(spriteNumber, multiColor);
-        _c64.Mem[Vic2Addr.SPRITE_MULTICOLOR_ENABLE] = multiColorEnable;
-
+        _c64.WriteIOStorage(Vic2Addr.SPRITE_MULTICOLOR_ENABLE, multiColorEnable);
     }
 
     private void FillSpriteShape(int spriteNumber, byte[] shape, byte spritePointer)
     {
-        _vic2Mem[(ushort)(Vic2.SPRITE_POINTERS_START_ADDRESS + spriteNumber)] = spritePointer;
+        _vic2Mem[(ushort)(_vic2SpriteManager.SpritePointerStartAddress + spriteNumber)] = spritePointer;
         //var spritePointer = vic2Mem[(ushort)(Vic2.SPRITE_POINTERS_START_ADDRESS + spriteNumber)];
         var spritePointerAddress = (ushort)(spritePointer * 64);
         for (int i = 0; i < shape.Length; i++)

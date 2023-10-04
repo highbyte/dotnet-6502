@@ -1,4 +1,3 @@
-using System.Net;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
@@ -24,36 +23,33 @@ public class Vic2
     /// </summary>
     public Memory? Vic2Mem { get; private set; }
 
-    /// <summary>
-    /// Vic2 IO registers and color mem storage.
-    /// </summary>
-    public Memory? Vic2IOStorage { get; private set; }
-
     public Vic2IRQ? Vic2IRQ { get; private set; }
-
-    public const int CHARACTERSET_NUMBER_OF_CHARCTERS = 256;
-    public const int CHARACTERSET_ONE_CHARACTER_BYTES = 8;      // 8 bytes (one line per byte) for each character.
-    public const int CHARACTERSET_SIZE = CHARACTERSET_NUMBER_OF_CHARCTERS * CHARACTERSET_ONE_CHARACTER_BYTES;    // = 1024 (0x0400) bytes. 256 characters, where each character takes up 8 bytes (1 byte per character line)
-
-    public const int SPRITE_POINTERS_START_ADDRESS = 0x07f8;    // Range 0x07f8 - 0x07ff are offset from start of VIC2 screen memory (which can be relocated) to sprite pointers 0-7
 
     public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
 
     public byte CurrentVIC2Bank { get; private set; }
-    private ushort _currentVIC2BankOffset = 0;
 
-    // Offset into the currently selected VIC2 bank (Mem.SetMemoryConfiguration(bank))
-    public ushort CharacterSetAddressInVIC2Bank => _currentVIC2BankOffset;
-    // True if CharacterSetAddressInVIC2Bank points to location where Chargen ROM (two charsets, unshifted & shifted) is "shadowed".
-    public bool CharacterSetAddressInVIC2BankIsChargenROMShifted => _currentVIC2BankOffset == 0x1000;
-    public bool CharacterSetAddressInVIC2BankIsChargenROMUnshifted => _currentVIC2BankOffset == 0x1800;
+    public ushort VideoMatrixBaseAddress { get; private set; }
 
+    public CharMode CharacterMode
+    {
+        get
+        {
+            if (C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER).IsBitSet(6))
+                return CharMode.Extended;
+            if (C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER).IsBitSet(4))
+                return CharMode.MultiColor;
+            return CharMode.Standard;
+        }
+    }
+
+    public enum CharMode { Standard, Extended, MultiColor };
 
     private ushort _currentRasterLineInternal = ushort.MaxValue;
     public ushort CurrentRasterLine => _currentRasterLineInternal;
 
-    public bool Is38ColumnDisplayEnabled => !ReadIOStorage(Vic2Addr.SCROLL_X).IsBitSet(3);
-    public byte FineScrollXValue => (byte)(ReadIOStorage(Vic2Addr.SCROLL_X) & 0b0000_0111);    // Value 0-7
+    public bool Is38ColumnDisplayEnabled => !C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER).IsBitSet(3);
+    public byte FineScrollXValue => (byte)(C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER) & 0b0000_0111);    // Value 0-7
     public int GetScrollX()
     {
         var scrollX = FineScrollXValue;
@@ -63,8 +59,8 @@ public class Vic2
         return scrollX;
     }
 
-    public bool Is24RowDisplayEnabled => !ReadIOStorage(Vic2Addr.SCREEN_CONTROL_REGISTER_1).IsBitSet(3);
-    public byte FineScrollYValue => (byte)(ReadIOStorage(Vic2Addr.SCREEN_CONTROL_REGISTER_1) & 0b0000_0111);    // Value 0-7
+    public bool Is24RowDisplayEnabled => !C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER).IsBitSet(3);
+    public byte FineScrollYValue => (byte)(C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER) & 0b0000_0111);    // Value 0-7
     public int GetScrollY()
     {
         var scrollY = FineScrollYValue - 3; // Note: VIC2 Y scroll value is by default 3 (=no offset)
@@ -74,25 +70,17 @@ public class Vic2
         return scrollY;
     }
 
-
-    public event EventHandler<CharsetAddressChangedEventArgs> CharsetAddressChanged;
-    protected virtual void OnCharsetAddressChanged(CharsetAddressChangedEventArgs e)
-    {
-        var handler = CharsetAddressChanged;
-        handler?.Invoke(this, e);
-    }
-
     public Dictionary<int, byte>? ScreenLineBorderColor { get; private set; }
     public Dictionary<int, byte>? ScreenLineBackgroundColor { get; private set; }
     public Vic2ScreenLayouts? ScreenLayouts { get; private set; }
     public Vic2SpriteManager? SpriteManager { get; private set; }
+    public Vic2CharsetManager? CharsetManager { get; private set; }
 
     private Vic2() { }
 
     public static Vic2 BuildVic2(Vic2ModelBase vic2Model, C64 c64)
     {
         var vic2Mem = CreateVic2Memory(c64);
-        var vic2IOStorage = CreateVic2IOStorage(c64);
         var vic2IRQ = new Vic2IRQ();
 
         var screenLineBorderColorLookup = InitializeScreenLineBorderColorLookup(vic2Model);
@@ -102,7 +90,6 @@ public class Vic2
         {
             C64 = c64,
             Vic2Mem = vic2Mem,
-            Vic2IOStorage = vic2IOStorage,
             Vic2Model = vic2Model,
             Vic2IRQ = vic2IRQ,
             ScreenLineBorderColor = screenLineBorderColorLookup,
@@ -117,6 +104,9 @@ public class Vic2
 
         var spriteManager = new Vic2SpriteManager(vic2);
         vic2.SpriteManager = spriteManager;
+
+        var charsetManager = new Vic2CharsetManager(vic2);
+        vic2.CharsetManager = charsetManager;
 
         return vic2;
     }
@@ -145,17 +135,25 @@ public class Vic2
 
     public void MapIOLocations(Memory c64Mem)
     {
-        // Address 0xd011: "Screen Control Register 1"
-        c64Mem.MapReader(Vic2Addr.SCREEN_CONTROL_REGISTER_1, ScrCtrlReg1Load);
-        c64Mem.MapWriter(Vic2Addr.SCREEN_CONTROL_REGISTER_1, ScrCtrlReg1Store);
+        // TODO: Map all IO locations to default behavior with read/write to IOStorage.
+        // TODO: Make common init like this that covers all IO locations, not only VIC2: SID, CIA, etc.
+        //       Then all that need specific logic writes special mapping below (will overwrite above).
+
+        // Address 0xd011: "Vertical Fine Scrollling and Screen Control Register"
+        c64Mem.MapReader(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, ScrCtrlReg1Load);
+        c64Mem.MapWriter(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER, ScrCtrlReg1Store);
 
         // Address 0xd012: "Current Raster Line"
         c64Mem.MapReader(Vic2Addr.CURRENT_RASTER_LINE, RasterLoad);
         c64Mem.MapWriter(Vic2Addr.CURRENT_RASTER_LINE, RasterStore);
 
-        // Address 0xd016: "Horizontal Fine Scrolling and Control Register"
-        c64Mem.MapReader(Vic2Addr.SCROLL_X, ScrollXLoad);
-        c64Mem.MapWriter(Vic2Addr.SCROLL_X, ScrollXStore);
+        // Address 0xd015: "Sprite enable"
+        c64Mem.MapReader(Vic2Addr.SPRITE_ENABLE, SpriteEnableLoad);
+        c64Mem.MapWriter(Vic2Addr.SPRITE_ENABLE, SpriteEnableStore);
+
+        // Address 0xd016: "Horizontal Fine Scrolling and Screen Control Register"
+        c64Mem.MapReader(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER, ScrollXLoad);
+        c64Mem.MapWriter(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER, ScrollXStore);
 
         // Address 0xd018: "Memory setup" (VIC2 pointer for charset/bitmap & screen memory)
         c64Mem.MapReader(Vic2Addr.MEMORY_SETUP, MemorySetupLoad);
@@ -184,9 +182,18 @@ public class Vic2
         // Address 0xd020: Border color
         c64Mem.MapReader(Vic2Addr.BORDER_COLOR, BorderColorLoad);
         c64Mem.MapWriter(Vic2Addr.BORDER_COLOR, BorderColorStore);
-        // Address 0xd021: Background color
-        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR, BackgroundColorLoad);
-        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR, BackgroundColorStore);
+        // Address 0xd021: Background color 0
+        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR_0, BackgroundColorLoad);
+        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR_0, BackgroundColorStore);
+        // Address 0xd022: Background color 1
+        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR_1, BackgroundColorLoad);
+        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR_1, BackgroundColorStore);
+        // Address 0xd023: Background color 2
+        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR_2, BackgroundColorLoad);
+        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR_2, BackgroundColorStore);
+        // Address 0xd024: Background color 3
+        c64Mem.MapReader(Vic2Addr.BACKGROUND_COLOR_3, BackgroundColorLoad);
+        c64Mem.MapWriter(Vic2Addr.BACKGROUND_COLOR_3, BackgroundColorStore);
 
         // Address 0xd025: Sprite multi-color 0
         c64Mem.MapReader(Vic2Addr.SPRITE_MULTI_COLOR_0, SpriteMultiColor0Load);
@@ -200,6 +207,13 @@ public class Vic2
         {
             c64Mem.MapReader(address, SpriteColorLoad);
             c64Mem.MapWriter(address, SpriteColorStore);
+        }
+
+        // Addresses 0xd800 - 0xdbe7:  Color RAM is always at fixed location. 1 byte per character in screen ram = 0x03e8 (1000) bytes)
+        for (ushort address = 0xd800; address <= 0xdbe7; address++)
+        {
+            c64Mem.MapReader(address, ColorRAMLoad);
+            c64Mem.MapWriter(address, ColorRAMStore);
         }
 
         // Address 0xdd00: "Port A" (VIC2 bank & serial bus)
@@ -219,6 +233,8 @@ public class Vic2
         if (vic2Address.HasValue)
         {
             SpriteManager.DetectChangesToSpriteData(vic2Address.Value, value);
+
+            CharsetManager.DetectChangesToCharacterData(vic2Address.Value, value);
         }
     }
 
@@ -317,38 +333,20 @@ public class Vic2
         return vic2Mem;
     }
 
-    private static Memory CreateVic2IOStorage(C64 c64)
+
+    public void SpriteEnableStore(ushort address, byte value)
     {
-        var ram = c64.RAM;
-
-        // Vic2 IO Storage is 4K and is always mapped to address 0xd000 in the C64 memory map.
-        var vic2IOStorage = new Memory(memorySize: 4 * 1024, numberOfConfigurations: 1, mapToDefaultRAM: false);
-
-        vic2IOStorage.SetMemoryConfiguration(0);
-        vic2IOStorage.MapRAM(0x0000, ram, 0xd000, 0x1000);
-
-        return vic2IOStorage;
+        C64.WriteIOStorage(address, value);
     }
-
-    /// <summary>
-    /// Writes byte to VIC2 IO Storage, with address specified as location C64 memory map, and translated to VIC2 IO Storage address (-0xd000).
-    /// </summary>
-    /// <param name="address"></param>
-    /// <param name="value"></param>
-    private void WriteIOStorage(ushort address, byte value)
+    public byte SpriteEnableLoad(ushort address)
     {
-        Vic2IOStorage[(ushort)(address - 0xd000)] = value;
+        return C64.ReadIOStorage(address);
     }
-    public byte ReadIOStorage(ushort address)
-    {
-        return Vic2IOStorage[(ushort)(address - 0xd000)];
-    }
-
 
     public void SpriteMultiColorEnableStore(ushort address, byte value)
     {
-        var originalValue = ReadIOStorage(address);
-        WriteIOStorage(address, value);
+        var originalValue = C64.ReadIOStorage(address);
+        C64.WriteIOStorage(address, value);
         for (int spriteNumber = 0; spriteNumber < 8; spriteNumber++)
         {
             if (originalValue.IsBitSet(spriteNumber) != value.IsBitSet(spriteNumber))
@@ -357,7 +355,7 @@ public class Vic2
     }
     public byte SpriteMultiColorEnableLoad(ushort address)
     {
-        return ReadIOStorage(address);
+        return C64.ReadIOStorage(address);
     }
 
     public void SpriteToSpriteCollisionStore(ushort address, byte value)
@@ -387,102 +385,123 @@ public class Vic2
 
     public void BorderColorStore(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
+        C64.WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
     }
     public byte BorderColorLoad(ushort address)
     {
-        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+        return (byte)(C64.ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
     }
     public void BackgroundColorStore(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0000_1111)); ; // Only bits 0-3 are stored
+        C64.WriteIOStorage(address, (byte)(value & 0b0000_1111)); ; // Only bits 0-3 are stored
     }
     public byte BackgroundColorLoad(ushort address)
     {
-        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+        return (byte)(C64.ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
     }
 
     public void SpriteColorStore(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
+        C64.WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
         var spriteNumber = (address - Vic2Addr.SPRITE_0_COLOR);
         SpriteManager.Sprites[spriteNumber].HasChanged(Vic2SpriteChangeType.Color);
     }
     public byte SpriteColorLoad(ushort address)
     {
-        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+        return (byte)(C64.ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
     }
 
     public void SpriteMultiColor0Store(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
+        C64.WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
         SpriteManager.SetAllDirty();
     }
     public byte SpriteMultiColor0Load(ushort address)
     {
-        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+        return (byte)(C64.ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
     }
     public void SpriteMultiColor1Store(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0000_1111)); ; // Only bits 0-3 are stored
+        C64.WriteIOStorage(address, (byte)(value & 0b0000_1111)); ; // Only bits 0-3 are stored
         SpriteManager.SetAllDirty();
     }
     public byte SpriteMultiColor1Load(ushort address)
     {
-        return (byte)(ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+        return (byte)(C64.ReadIOStorage(address) | 0b1111_0000); // Bits 4-7 are unused and always 1
+    }
+
+    public void ColorRAMStore(ushort address, byte value)
+    {
+        C64.WriteIOStorage(address, (byte)(value & 0b0000_1111));   // Only bits 0-3 are stored;
+    }
+    public byte ColorRAMLoad(ushort address)
+    {
+        return C64.ReadIOStorage(address);
     }
 
     public void ScrollXStore(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0011_1111)); // Only bits 0-5 are stored
+        C64.WriteIOStorage(address, (byte)(value & 0b0011_1111)); // Only bits 0-5 are stored
         SpriteManager.SetAllDirty();
     }
     public byte ScrollXLoad(ushort address)
     {
-        return (byte)(ReadIOStorage(address) | 0b1100_0000); // Bits 6-7 are unused and always 1
+        return (byte)(C64.ReadIOStorage(address) | 0b1100_0000); // Bits 6-7 are unused and always 1
     }
 
     public void MemorySetupStore(ushort address, byte value)
     {
-        WriteIOStorage(address, value);
+        C64.WriteIOStorage(address, value);
 
-        // From VIC 2 perspective, IO address 0xd018 (bits 1-3) controls where within a VIC 2 "Bank" the character set is read from,
-        // By default, these bits are %010, which is 0x1000-0x17ff offset from Bank below. 
-        // If Bank 0 or bank 2 is selected, this points to a shadow copy of the Chargen ROM
-        // %000, 0: 0x0000-0x07FF, 0-2047.
-        // %001, 1: 0x0800-0x0FFF, 2048-4095.
-        // %010, 2: 0x1000-0x17FF, 4096-6143.
-        // %011, 3: 0x1800-0x1FFF, 6144-8191.
-        // %100, 4: 0x2000-0x27FF, 8192-10239.
-        // %101, 5: 0x2800-0x2FFF, 10240-12287.
-        // %110, 6: 0x3000-0x37FF, 12288-14335.
-        // %111, 7: 0x3800-0x3FFF, 14336-16383.
-        var oldVIC2BankOffset = _currentVIC2BankOffset;
-        var newTextModeMemOffset = (value & 0b00001110) >> 1;
-        _currentVIC2BankOffset = newTextModeMemOffset switch
-        {
-            0b000 => 0,
-            0b001 => 0x0800,
-            0b010 => 0x1000,    // Default.
-            0b011 => 0x1800,
-            0b100 => 0x2000,
-            0b101 => 0x2800,
-            0b110 => 0x3000,
-            0b111 => 0x3800,
-            _ => throw new NotImplementedException(),
-        };
-        if (_currentVIC2BankOffset != oldVIC2BankOffset)
-            OnCharsetAddressChanged(new());
+        // 0xd018, bit 0: Unused
+
+        // 0xd018, bits 1-3: Text character dot-data base address within VIC-II address space.
+        var characterBaseAddressSetting = (byte)((value & 0b00001110) >> 1);
+        CharsetManager.CharsetBaseAddressUpdate(characterBaseAddressSetting);
+
+        // 0xd018, bits 4-7: Video matrix base address within VIC-II address space
+        // ---------------------------------------------------------------------------
+        var videoMatrixBaseAddressSetting = (byte)((value & 0b11110000) >> 4);
+        VideoMatrixBaseAddressUpdate(videoMatrixBaseAddressSetting);
+    }
+
+    private void VideoMatrixBaseAddressUpdate(byte videoMatrixBaseAddressSetting)
+    {
+        // From VIC 2 perspective, IO address 0xd018 bits 4-7 controls where within a VIC 2 "Bank"
+        // the text screen and sprite pointeras are defined. It's a offset from the start of VIC 2 memory.
+        // 
+        // The parameter videoMatrixBaseAddressSetting contains that 4-bit value.
+        // 
+        // %0000, 0: Screen: 0x0000-0x03E7, 0-999.          Sprite Pointers: 0x03F8-0x03FF, 1016-1023.
+        // %0001, 1: Screen: 0x0400-0x07E7, 1024-2023.      Sprite Pointers: 0x07F8-0x07FF, 2040-2047.      (default)
+        // %0010, 2: Screen: 0x0800-0x0BE7, 2048-3047.      Sprite Pointers: 0x0BF8-0x0BFF, 3064-3071.
+        // %0011, 3: Screen: 0x0C00-0x0FE7, 3072-4071.      Sprite Pointers: 0x0FF8-0x0FFF, 4088-4095.
+        // %0100, 4: Screen: 0x1000-0x13E7, 4096-5095.      Sprite Pointers: 0x13F8-0x13FF, 5112-5119.
+        // %0101, 5: Screen: 0x1400-0x17E7, 5120-6123.      Sprite Pointers: 0x17F8-0x17FF, 6136-6143.
+        // %0110, 6: Screen: 0x1800-0x1BE7, 6144-7143.      Sprite Pointers: 0x1BF8-0x1BFF, 7160-7167.
+        // %0111, 7: Screen: 0x1C00-0x1FE7, 7168-8167.      Sprite Pointers: 0x1FF8-0x1FFF, 8184-8191.
+        // %1000, 8: Screen: 0x2000-0x23E7, 8192-9191.      Sprite Pointers: 0x23F8-0x23FF, 9208-9215.
+        // %1001, 9: Screen: 0x2400-0x27E7, 9216-10215.     Sprite Pointers: 0x27F8-0x27FF, 10232-10239.
+        // %1010, A: Screen: 0x2800-0x2BE7, 10240-11239.    Sprite Pointers: 0x2BF8-0x2BFF, 11256-11263.
+        // %1011, B: Screen: 0x2C00-0x2FE7, 11264-12263.    Sprite Pointers: 0x2FF8-0x2FFF, 12280-12287.
+        // %1100, C: Screen: 0x3000-0x33E7, 12288-13287.    Sprite Pointers: 0x33F8-0x33FF, 13304-13311.
+        // %1101, D: Screen: 0x3400-0x37E7, 13312-14311.    Sprite Pointers: 0x37F8-0x37FF, 14328-14335.
+        // %1110, E: Screen: 0x3800-0x3BE7, 14336-15335.    Sprite Pointers: 0x3BF8-0x3BFF, 15352-15359.
+        // %1111, F: Screen: 0x3C00-0x3FE7, 15336-16335.    Sprite Pointers: 0x3FF8-0x3FFF, 16352-16359.
+
+        VideoMatrixBaseAddress = (ushort)(videoMatrixBaseAddressSetting * 0x400);
+
+        SpriteManager.SetAllDirty();
     }
 
     public byte MemorySetupLoad(ushort address)
     {
-        return ReadIOStorage(address);
+        return C64.ReadIOStorage(address);
     }
 
     public void PortAStore(ushort address, byte value)
     {
-        WriteIOStorage(address, value);
+        C64.WriteIOStorage(address, value);
 
         // --- VIC 2 BANKS ---
         // Bits 0-1 of PortA (0xdd00) selects VIC2 bank (inverted order, the highest value 3 means bank 0, and value 0 means bank 3)
@@ -513,19 +532,23 @@ public class Vic2
             0b00 => 3,
             _ => throw new NotImplementedException(),
         };
-        // TODO: Make sure to switch current VIC2 bank via mem.SetMemoryConfiguration(x), and just updating the internal variable CurrentVIC2Bank?
         if (CurrentVIC2Bank != oldVIC2Bank)
-            OnCharsetAddressChanged(new());
+        {
+            Vic2Mem.SetMemoryConfiguration(CurrentVIC2Bank);
+
+            CharsetManager.NotifyCharsetAddressChanged();
+            SpriteManager.SetAllDirty();
+        }
     }
 
     public byte PortALoad(ushort address)
     {
-        return ReadIOStorage(address);
+        return C64.ReadIOStorage(address);
     }
 
     public void ScrCtrlReg1Store(ushort address, byte value)
     {
-        WriteIOStorage(address, (byte)(value & 0b0111_1111));
+        C64.WriteIOStorage(address, (byte)(value & 0b0111_1111));
 
         // If the VIC2 model is PAL, then allow configuring the 8th bit of the raster line IRQ.
         // Note: As the Kernal ROM initializes this 8th bit for both NTSC and PAL (same ROM for both), we need this workaround here.
@@ -554,12 +577,12 @@ public class Vic2
     {
         // As the seventh bit in this register (SCRCTRL1), the highest (eigth) bit of the current raster line is returned.
         byte bit7HighestRasterLineBit = (byte)((_currentRasterLineInternal & 0b0000_0001_0000_0000) >> 1);
-        return (byte)(ReadIOStorage(address) | bit7HighestRasterLineBit);
+        return (byte)(C64.ReadIOStorage(address) | bit7HighestRasterLineBit);
     }
 
     public void RasterStore(ushort address, byte value)
     {
-        WriteIOStorage(address, value);
+        C64.WriteIOStorage(address, value);
 
         ushort newIRQRasterLine = 0;
         if (Vic2IRQ.ConfiguredIRQRasterLine.HasValue)
@@ -711,7 +734,7 @@ public class Vic2
     private void StoreBorderColorForRasterLine(ushort rasterLine)
     {
         var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
-        ScreenLineBorderColor[screenLine] = ReadIOStorage(Vic2Addr.BORDER_COLOR);
+        ScreenLineBorderColor[screenLine] = C64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
     }
 
     private void StoreBackgroundColorForRasterLine(ushort rasterLine)
@@ -720,21 +743,6 @@ public class Vic2
             return;
 
         var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
-        ScreenLineBackgroundColor[screenLine] = ReadIOStorage(Vic2Addr.BACKGROUND_COLOR);
-    }
-
-    /// <summary>
-    /// Get 1 line (8 pixels, 1 byte) from current character for the character code at the specified column and row in screen memory
-    /// </summary>
-    /// <param name="characterCol"></param>
-    /// <param name="characterRow"></param>
-    /// <param name="line"></param>
-    /// <returns></returns>
-    public byte GetTextModeCharacterLine(int characterCol, int characterRow, int line)
-    {
-        var characterAddress = (ushort)(Vic2Addr.SCREEN_RAM_START + (characterRow * Vic2Screen.TextCols) + characterCol);
-        var characterCode = Vic2Mem[characterAddress];
-        var characterSetLineAddress = (ushort)(CharacterSetAddressInVIC2Bank + (characterCode * Vic2Screen.CharacterHeight) + line);
-        return Vic2Mem[characterSetLineAddress];
+        ScreenLineBackgroundColor[screenLine] = C64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
     }
 }

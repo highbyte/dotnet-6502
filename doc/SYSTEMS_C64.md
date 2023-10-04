@@ -7,9 +7,10 @@ A partial implementation of a Commodore 64.
 Current capabilities
 - Run Commodore Basic 2.0 from ROM (user supplied Kernal, Basic, and Chargen ROM files) in text mode.
 - Limited VIC2 video chip support 
-    - Standard character mode
-    - Sprites (hi-res & multicolor)
+    - Standard, extended and multi-color character modes
+    - Sprites (hi-res & multi-color)
     - IRQ (raster, sprite collision)
+    - Background and border color possible to change per raster line
 - Limited CIA chip support
     - Timers
     - IRQ

@@ -6,7 +6,6 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Audio;
 /// </summary>
 public class InternalSidState
 {
-    private Dictionary<ushort, byte> _sidRegValues = new();
     private HashSet<ushort> _changedSidRegisters = new();
 
     private HashSet<ushort> _sidRegistersThatAlwaysAreConsideredChangeWhenWrittenTo = new()
@@ -16,6 +15,7 @@ public class InternalSidState
         SidAddr.VCREG2,
         SidAddr.VCREG3
     };
+    private readonly C64 _c64;
 
     public enum GateControl
     {
@@ -23,6 +23,11 @@ public class InternalSidState
         StartRelease,
         StopAudio,
         None
+    }
+
+    public InternalSidState(C64 c64)
+    {
+        _c64 = c64;
     }
 
     /// <summary>
@@ -185,9 +190,10 @@ public class InternalSidState
 
     public byte GetRawSidRegValue(ushort address)
     {
-        if (!_sidRegValues.ContainsKey(address))
-            _sidRegValues.Add(address, 0);
-        return _sidRegValues[address];
+        return _c64.ReadIOStorage(address);
+        //if (!_sidRegValues.ContainsKey(address))
+        //    _sidRegValues.Add(address, 0);
+        //return _sidRegValues[address];
     }
 
     public bool IsRawSidRegChanged(ushort address) => _changedSidRegisters.Contains(address);
@@ -201,20 +207,13 @@ public class InternalSidState
         else
         {
             // Log sid register has changed since _changedSidRegisters last has been cleared.
-            if (_sidRegValues.ContainsKey(address) && _sidRegValues[address] != value)
+            if (_c64.ReadIOStorage(address) != value)
                 _changedSidRegisters.Add(address);
+            //if (_sidRegValues.ContainsKey(address) && _sidRegValues[address] != value)
+            //    _changedSidRegisters.Add(address);
         }
 
-        _sidRegValues[address] = value;
-    }
-
-
-    public InternalSidState Clone()
-    {
-        return new InternalSidState
-        {
-            _sidRegValues = _sidRegValues.ToDictionary(entry => entry.Key, entry => entry.Value),
-            _changedSidRegisters = new HashSet<ushort>(_changedSidRegisters)
-        };
+        _c64.WriteIOStorage(address, value);
+        //_sidRegValues[address] = value;
     }
 }

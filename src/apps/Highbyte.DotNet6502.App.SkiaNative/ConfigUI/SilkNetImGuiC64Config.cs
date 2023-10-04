@@ -90,7 +90,7 @@ public class SilkNetImGuiC64Config
         {
             _config!.SetROM(C64Config.BASIC_ROM_NAME, _basicRomFile);
         }
-        if (ImGui.InputText("Chargen file", ref _chargenRomFile, 100))
+        if (ImGui.InputText("CharGen file", ref _chargenRomFile, 100))
         {
             _config!.SetROM(C64Config.CHARGEN_ROM_NAME, _chargenRomFile);
         }
