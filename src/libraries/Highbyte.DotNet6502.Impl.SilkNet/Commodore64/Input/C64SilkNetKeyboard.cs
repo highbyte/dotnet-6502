@@ -19,6 +19,7 @@ public static class C64SilkNetKeyboard
 
     public static Dictionary<Key, Dictionary<Key, byte>> SpecialKeyMaps;
 
+    // Map of special SilkNet keys to their PETSCII codes.
     public static Dictionary<Key, byte> SpecialKeys = new()
     {
         {Key.Backspace,     0x14},
@@ -30,6 +31,7 @@ public static class C64SilkNetKeyboard
         {Key.Up,            0x91},
     };
 
+    // Map of special SilkNet keys to their PETSCII codes.
     public static Dictionary<Key, byte> SpecialKeysControl = new()
     {
         {Key.Number1,               (byte)Petscii.Colors.Black},
@@ -42,6 +44,7 @@ public static class C64SilkNetKeyboard
         {Key.Number8,               (byte)Petscii.Colors.Yellow},
     };
 
+    // Map of special SilkNet keys to their PETSCII codes.
     public static Dictionary<Key, byte> SpecialKeysCommodore = new()
     {
         {Key.Number1,               (byte)Petscii.Colors.Orange},

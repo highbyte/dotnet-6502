@@ -1,5 +1,7 @@
+using System.Linq;
 using System.Numerics;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 
 namespace Highbyte.DotNet6502.App.SkiaNative.ConfigUI;
 
@@ -24,7 +26,7 @@ public class SilkNetImGuiC64Config
     private const int POS_X = 50;
     private const int POS_Y = 50;
     private const int WIDTH = 400;
-    private const int HEIGHT = 300;
+    private const int HEIGHT = 380;
     //private static Vector4 s_informationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
     private static Vector4 s_errorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
     //private static Vector4 s_warningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
@@ -67,21 +69,15 @@ public class SilkNetImGuiC64Config
         ImGui.Begin($"C64 config");
         //ImGui.BeginPopupModal($"C64 config");
 
-        ImGui.Text("C64 model:  ");
-        ImGui.SameLine();
-        ImGui.Text(_config!.C64Model);
-
-        ImGui.Text("VIC2 model: ");
-        ImGui.SameLine();
-        ImGui.Text(_config!.Vic2Model);
+        ImGui.Text("C64 model");
+        ImGui.LabelText("C64 model", $"{_config!.C64Model}");
+        ImGui.LabelText("VIC2 model", $"{_config!.Vic2Model}");
 
         ImGui.Text("ROMs");
-
         if (ImGui.InputText("Directory", ref _romDirectory, 255))
         {
             _config!.ROMDirectory = _romDirectory;
         }
-
         if (ImGui.InputText("Kernal file", ref _kernalRomFile, 100))
         {
             _config!.SetROM(C64Config.KERNAL_ROM_NAME, _kernalRomFile);
@@ -94,6 +90,17 @@ public class SilkNetImGuiC64Config
         {
             _config!.SetROM(C64Config.CHARGEN_ROM_NAME, _chargenRomFile);
         }
+
+        ImGui.Text("Keyboard joystick 2");
+        var keyToJoystickMap = _config!.KeyboardJoystickMap;
+        int joystick = 2;
+        ImGui.BeginDisabled(disabled: true);
+        ImGui.LabelText("Up", $"{string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Up))}");
+        ImGui.LabelText("Down", $"{string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Down))}");
+        ImGui.LabelText("Left", $"{string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Left))}");
+        ImGui.LabelText("Right", $"{string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Right))}");
+        ImGui.LabelText("Fire", $"{string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Fire)).Replace(" ", "SPACE")}");
+        ImGui.EndDisabled();
 
         if (_config!.IsDirty)
         {

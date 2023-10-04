@@ -3,6 +3,8 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
+using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 
@@ -29,6 +31,8 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
     public void ProcessInput(C64 c64)
     {
         CaptureKeyboard(c64);
+
+        CaptureJoystick(c64);
 
         _inputHandlerContext!.ClearKeys();   // Clear our captured keys so far
     }
@@ -123,6 +127,36 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
             c64Keyboard.KeyPressed(petsciiCode);
         }
     }
+
+    private void CaptureJoystick(C64 c64)
+    {
+        var joystick = c64.Cia.Joystick;
+
+        // Use keypresses as joystick input for now.
+        if (joystick.KeyboardJoystickEnabled)
+        {
+            var joystick1KeyboardMap = joystick.KeyboardJoystickMap.KeyToJoystick1Map;
+            var joystick1Actions = new HashSet<C64JoystickAction>();
+            foreach (var charCode in joystick1KeyboardMap.Keys)
+            {
+                Key key = (Key)charCode;
+                if (_inputHandlerContext!.IsKeyPressed(key))
+                    joystick1Actions.Add(joystick1KeyboardMap[charCode]);
+            }
+            c64.Cia.Joystick.SetJoystick1Actions(joystick1Actions);
+
+            var joystick2KeyboardMap = joystick.KeyboardJoystickMap.KeyToJoystick2Map;
+            var joystick2Actions = new HashSet<C64JoystickAction>();
+            foreach (var charCode in joystick2KeyboardMap.Keys)
+            {
+                Key key = (Key)charCode;
+                if (_inputHandlerContext!.IsKeyPressed(key))
+                    joystick2Actions.Add(joystick2KeyboardMap[charCode]);
+            }
+            c64.Cia.Joystick.SetJoystick2Actions(joystick2Actions);
+        }
+    }
+
     public List<string> GetStats()
     {
         return _stats;

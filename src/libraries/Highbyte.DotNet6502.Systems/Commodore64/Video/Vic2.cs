@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
@@ -216,9 +217,9 @@ public class Vic2
             c64Mem.MapWriter(address, ColorRAMStore);
         }
 
-        // Address 0xdd00: "Port A" (VIC2 bank & serial bus)
-        c64Mem.MapReader(Vic2Addr.PORT_A, PortALoad);
-        c64Mem.MapWriter(Vic2Addr.PORT_A, PortAStore);
+        // Address 0xdd00: "CIA 2 Port A" (VIC2 bank, serial bus, etc) actually belongs to CIA chip, but as it affects VIC2 bank selection it's added here
+        c64Mem.MapReader(CiaAddr.CIA2_DATAA, CIA2PortALoad);
+        c64Mem.MapWriter(CiaAddr.CIA2_DATAA, CIA2PortAStore);
     }
 
     /// <summary>
@@ -499,12 +500,12 @@ public class Vic2
         return C64.ReadIOStorage(address);
     }
 
-    public void PortAStore(ushort address, byte value)
+    public void CIA2PortAStore(ushort address, byte value)
     {
         C64.WriteIOStorage(address, value);
 
         // --- VIC 2 BANKS ---
-        // Bits 0-1 of PortA (0xdd00) selects VIC2 bank (inverted order, the highest value 3 means bank 0, and value 0 means bank 3)
+        // Bits 0-1 of CIA 2 Port A (0xdd00) selects VIC2 bank (inverted order, the highest value 3 means bank 0, and value 0 means bank 3)
         // The VIC 2 chip can be access the C64 RAM in 4 different banks, with 16K visible in each bank.
         // The bits 0 and 1 in IO address 0xdd00 controls which bank.
         // In two of the banks, the VIC 2 sees the "shadowed" ROM character set at one location within the 16K.
@@ -541,7 +542,7 @@ public class Vic2
         }
     }
 
-    public byte PortALoad(ushort address)
+    public byte CIA2PortALoad(ushort address)
     {
         return C64.ReadIOStorage(address);
     }

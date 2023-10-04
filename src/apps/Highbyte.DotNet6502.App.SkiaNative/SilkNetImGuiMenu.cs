@@ -20,7 +20,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     private const int POS_X = 10;
     private const int POS_Y = 10;
     private const int WIDTH = 400;
-    private const int HEIGHT = 350;
+    private const int HEIGHT = 380;
     private static Vector4 s_informationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
     private static Vector4 s_errorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
     private static Vector4 s_warningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
@@ -30,6 +30,8 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
     private bool _audioEnabled;
     private float _audioVolumePercent;
+
+    private bool _c64KeyboardJoystickEnabled;
     private string SelectedSystemName => _silkNetWindow.SystemList.Systems.ToArray()[_selectedSystemItem];
 
 
@@ -45,6 +47,12 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
         _audioEnabled = defaultAudioEnabled;
         _audioVolumePercent = defaultAudioVolumePercent;
+
+        ISystemConfig systemConfig = _silkNetWindow.SystemList.GetCurrentSystemConfig(SelectedSystemName).Result;
+        if (systemConfig is C64Config c64Config)
+        {
+            _c64KeyboardJoystickEnabled = c64Config.KeyboardJoystickEnabled;
+        }
     }
 
     public void PostOnRender()
@@ -240,6 +248,23 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
     private void DrawC64Config(ISystemConfig systemConfig)
     {
+        var c64Config = (C64Config)systemConfig;
+
+        // Joystick input with keyboard
+        ImGui.BeginDisabled(disabled: EmulatorState != EmulatorState.Uninitialized);
+        ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
+        //ImGui.SetKeyboardFocusHere(0);
+        ImGui.PushItemWidth(40);
+
+        if (ImGui.Checkbox("Keyboard Joystick", ref _c64KeyboardJoystickEnabled))
+        {
+            c64Config.KeyboardJoystickEnabled = _c64KeyboardJoystickEnabled;
+        }
+        ImGui.PopStyleColor();
+        ImGui.PopItemWidth();
+        ImGui.EndDisabled();
+
+
         // Basic load/save commands
         ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
         if (ImGui.Button("Load Basic PRG file"))
@@ -313,7 +338,6 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         if (_c64ConfigUI == null)
         {
             _c64ConfigUI = new SilkNetImGuiC64Config();
-            var c64Config = (C64Config)systemConfig;
             _c64ConfigUI.Reset(c64Config);
         }
 
@@ -321,7 +345,6 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         {
             if (!_c64ConfigUI.Visible)
             {
-                var c64Config = (C64Config)systemConfig;
                 _c64ConfigUI.Init(c64Config);
             }
         }
@@ -340,15 +363,13 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
             if (_c64ConfigUI.Ok)
             {
                 Debug.WriteLine("Ok pressed");
-                C64Config c64Config = _c64ConfigUI.UpdatedConfig;
-                var updatedSystemConfig = (ISystemConfig)c64Config;
+                var updatedSystemConfig = (ISystemConfig)_c64ConfigUI.UpdatedConfig;
                 _silkNetWindow.SystemList.ChangeCurrentSystemConfig(SelectedSystemName, updatedSystemConfig);
                 _c64ConfigUI.Reset(c64Config);
             }
             else if (_c64ConfigUI.Cancel)
             {
                 Debug.WriteLine("Cancel pressed");
-                var c64Config = (C64Config)systemConfig;
                 _c64ConfigUI.Reset(c64Config);
             }
         }

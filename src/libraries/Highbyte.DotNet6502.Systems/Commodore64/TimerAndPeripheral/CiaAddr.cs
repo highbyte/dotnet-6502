@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 /// </summary>
 public static class CiaAddr
 {
-    // CIA #1 Data Port A & B (Keyboard)
+    // CIA #1 Data Port A & B (Keyboard, Joystick)
     public const ushort CIA1_DATAA = 0xdc00;
     public const ushort CIA1_DATAB = 0xdc01;
 
@@ -27,5 +27,11 @@ public static class CiaAddr
 
     // CIA #1 Control Register B
     public const ushort CIA1_CIACRB = 0xdc0f;
+
+
+    // CIA #2 Data Port A & B (VIC2 bank selection ,serial bus, rs-232, user port)
+    public const ushort CIA2_DATAA = 0xdd00;
+    public const ushort CIA2_DATAB = 0xdd01;
+
 
 }
