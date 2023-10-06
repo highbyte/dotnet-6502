@@ -4,7 +4,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Generic.Input;
 
-public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, AspNetInputHandlerContext>, IInputHandler
+public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, AspNetInputHandlerContext>
 {
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private AspNetInputHandlerContext? _inputHandlerContext;

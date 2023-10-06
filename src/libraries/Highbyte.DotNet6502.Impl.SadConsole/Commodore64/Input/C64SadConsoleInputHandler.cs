@@ -7,7 +7,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
 
-public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandlerContext>, IInputHandler
+public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandlerContext>
 {
     private SadConsoleInputHandlerContext? _inputHandlerContext;
     private readonly List<string> _stats = new();

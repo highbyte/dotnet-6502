@@ -4,7 +4,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Generic.Input;
 
-public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer, SilkNetInputHandlerContext>, IInputHandler
+public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer, SilkNetInputHandlerContext>
 {
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private SilkNetInputHandlerContext? _inputHandlerContext;

@@ -7,7 +7,7 @@ using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joyst
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 
-public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>, IInputHandler
+public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>
 {
     private AspNetInputHandlerContext? _inputHandlerContext = default!;
 

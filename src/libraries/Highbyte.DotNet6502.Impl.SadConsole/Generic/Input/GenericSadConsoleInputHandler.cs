@@ -4,7 +4,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Generic.Input;
 
-public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadConsoleInputHandlerContext>, IInputHandler
+public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadConsoleInputHandlerContext>
 {
     private SadConsoleInputHandlerContext? _inputHandlerContext;
 

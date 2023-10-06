@@ -8,7 +8,7 @@ using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 
-public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerContext>, IInputHandler
+public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerContext>
 {
     private SilkNetInputHandlerContext? _inputHandlerContext;
     private readonly List<string> _stats = new();

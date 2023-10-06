@@ -7,7 +7,7 @@ using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
 
-public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
+public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 {
     private Func<SKCanvas> _getSkCanvas;
 

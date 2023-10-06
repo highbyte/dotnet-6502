@@ -4,7 +4,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 
-public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>, IRenderer
+public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>
 {
     private SadConsoleRenderContext _sadConsoleRenderContext = default!;
     private C64SadConsoleColors _c64SadConsoleColors = default!;
