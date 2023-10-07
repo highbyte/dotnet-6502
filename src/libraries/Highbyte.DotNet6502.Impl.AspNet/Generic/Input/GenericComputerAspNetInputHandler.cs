@@ -30,7 +30,7 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
     {
         CaptureKeyboard(genericComputer);
 
-        _inputHandlerContext!.ClearKeys();   // Clear our captured keys so far
+        //_inputHandlerContext!.ClearKeys();   // Clear our captured keys so far
     }
 
     public void ProcessInput(ISystem system)
@@ -58,7 +58,7 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
             genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = (byte)keyCode;
         }
 
-        if (_inputHandlerContext.KeysUp.Count > 0)
+        if (_inputHandlerContext.KeysDown.Count > 0)
             // Only way to tell the "GenericComputer" that a Key is no longer pressed is to set KeyDownAddress to 0...
             genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = 0x00;
     }

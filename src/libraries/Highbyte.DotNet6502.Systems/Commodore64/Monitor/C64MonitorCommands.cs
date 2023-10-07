@@ -16,7 +16,7 @@ public class C64MonitorCommands : ISystemMonitorCommands
         app.Command("lb", cmd =>
         {
             cmd.HelpOption(inherited: true);
-            cmd.Description = "C64 - Load a Commodore Basic 2.0 PRG file from file picker dialog.";
+            cmd.Description = "C64 - Load a CBM Basic 2.0 PRG file from file picker dialog.";
             cmd.AddName("loadbasic from filepicker");
 
             cmd.OnValidationError((ValidationResult validationResult) =>
@@ -40,7 +40,7 @@ public class C64MonitorCommands : ISystemMonitorCommands
         app.Command("llb", cmd =>
         {
             cmd.HelpOption(inherited: true);
-            cmd.Description = "C64 - Load a Commodore Basic 2.0 PRG file from host file system.";
+            cmd.Description = "C64 - Load a CBM Basic 2.0 PRG file from host file system.";
             cmd.AddName("loadbasic file");
 
             var fileName = cmd.Argument("filename", "Name of the Basic file.")
@@ -70,7 +70,7 @@ public class C64MonitorCommands : ISystemMonitorCommands
         app.Command("sb", cmd =>
         {
             cmd.HelpOption(inherited: true);
-            cmd.Description = "C64 - Save a Commodore Basic 2.0 PRG file to host file system.";
+            cmd.Description = "C64 - Save a CBM Basic 2.0 PRG file to host file system.";
             cmd.AddName("savebasic");
 
             var fileName = cmd.Argument("filename", "Name of the Basic file.")

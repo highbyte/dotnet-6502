@@ -2,8 +2,10 @@ using Highbyte.DotNet6502.Systems;
 
 namespace Highbyte.DotNet6502.Impl.AspNet;
 
-public class AspNetInputHandlerContext : IInputHandlerContext
+public class AspNetInputHandlerContext_old : IInputHandlerContext
 {
+
+    public HashSet<string> KeysUp = new();
     public HashSet<string> KeysDown = new();
     public HashSet<string> KeysPressed = new();
 
@@ -25,6 +27,10 @@ public class AspNetInputHandlerContext : IInputHandlerContext
     public void KeyUp(KeyboardEventArgs e)
     {
         var key = GetKey(e);
+        if (!KeysUp.Contains(key))
+        {
+            KeysUp.Add(key);
+        }
         if (KeysDown.Contains(key))
             KeysDown.Remove(key);
     }
@@ -47,14 +53,10 @@ public class AspNetInputHandlerContext : IInputHandlerContext
         }
     }
 
-    public void OnFocus(FocusEventArgs e)
-    {
-        ClearKeys();
-    }
-
     public void ClearKeys()
     {
-        KeysDown.Clear();
+        KeysUp.Clear();
+        //KeysDown.Clear(); // KeysDown individual keys are removed in KeyUp event.
         KeysPressed.Clear();
     }
 
@@ -77,5 +79,4 @@ public class AspNetInputHandlerContext : IInputHandlerContext
     public void Cleanup()
     {
     }
-
 }

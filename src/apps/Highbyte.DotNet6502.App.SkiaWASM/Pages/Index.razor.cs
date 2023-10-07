@@ -595,6 +595,13 @@ public partial class Index
         _wasmHost.InputHandlerContext.KeyUp(e);
     }
 
+    private void OnFocus(FocusEventArgs  e)
+    {
+        if (_wasmHost == null)
+            return;
+        _wasmHost.InputHandlerContext.OnFocus(e);
+    }
+
     //private void OnPointerDown(PointerEventArgs e)
     //{
     //}

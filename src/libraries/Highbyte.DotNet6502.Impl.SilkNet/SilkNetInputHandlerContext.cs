@@ -11,7 +11,6 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
     private IKeyboard _primaryKeyboard;
     public IKeyboard PrimaryKeyboard => _primaryKeyboard;
 
-    public HashSet<Key> KeysUp = new();
     public HashSet<Key> KeysDown = new();
     public HashSet<char> CharactersReceived = new();
 
@@ -48,35 +47,35 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
             // Unregister any existing handlers to avoid duplicates
             _primaryKeyboard.KeyUp -= KeyUp;
             _primaryKeyboard.KeyDown -= KeyDown;
-            _primaryKeyboard.KeyChar -= KeyReceived;
+            //_primaryKeyboard.KeyChar -= KeyReceived;
 
             _primaryKeyboard.KeyUp += KeyUp;
             _primaryKeyboard.KeyDown += KeyDown;
-            _primaryKeyboard.KeyChar += KeyReceived;
+            //_primaryKeyboard.KeyChar += KeyReceived;
 
         }
         else
         {
             _primaryKeyboard.KeyUp -= KeyUp;
             _primaryKeyboard.KeyDown -= KeyDown;
-            _primaryKeyboard.KeyChar -= KeyReceived;
+            //_primaryKeyboard.KeyChar -= KeyReceived;
         }
     }
 
-    private void KeyUp(IKeyboard keyboard, Key key, int x)
+    private void KeyUp(IKeyboard keyboard, Key key, int scanCode)
     {
-        if (!KeysUp.Contains(key))
+        if (KeysDown.Contains(key))
         {
-            Debug.WriteLine($"KeyUp captured for frame: {key}");
-            KeysUp.Add(key);
+            Debug.WriteLine($"KeyUp captured for frame: {key} ({scanCode})");
+            KeysDown.Remove(key);
         }
     }
 
-    private void KeyDown(IKeyboard keyboard, Key key, int x)
+    private void KeyDown(IKeyboard keyboard, Key key, int scanCode)
     {
         if (!KeysDown.Contains(key))
         {
-            Debug.WriteLine($"KeyDown captured for frame: {key}");
+            Debug.WriteLine($"KeyDown captured for frame: {key} ({scanCode})");
             KeysDown.Add(key);
         }
     }
@@ -90,7 +89,6 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
 
     public void ClearKeys()
     {
-        KeysUp.Clear();
         KeysDown.Clear();
         CharactersReceived.Clear();
     }

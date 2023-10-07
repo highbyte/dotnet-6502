@@ -1,6 +1,3 @@
-using System.Diagnostics;
-using System.Net;
-
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 /// <summary>
@@ -12,6 +9,7 @@ public class Cia
     private readonly C64 _c64;
 
     public CiaIRQ CiaIRQ { get; private set; }
+    public C64Keyboard Keyboard { get; private set; }
     public C64Joystick Joystick { get; private set; }
     public Dictionary<CiaTimerType, CiaTimer> CiaTimers { get; private set; }
 
@@ -19,6 +17,7 @@ public class Cia
     {
         _c64 = c64;
         CiaIRQ = new CiaIRQ();
+        Keyboard = new C64Keyboard(c64);
         Joystick = new C64Joystick(c64Config);
 
         CiaTimers = new();
@@ -58,15 +57,15 @@ public class Cia
         c64mem.MapReader(CiaAddr.CIA1_TIMBLO, Cia1TimerBLOLoad);
         c64mem.MapWriter(CiaAddr.CIA1_TIMBLO, Cia1TimerBLOStore);
 
-        // CIA Interrupt Control Register
+        // CIA #1 Interrupt Control Register
         c64mem.MapReader(CiaAddr.CIA1_CIAICR, Cia1InteruptControlLoad);
         c64mem.MapWriter(CiaAddr.CIA1_CIAICR, Cia1InteruptControlStore);
 
-        // CIA Control Register A
+        // CIA #1 Control Register A
         c64mem.MapReader(CiaAddr.CIA1_CIACRA, Cia1TimerAControlLoad);
         c64mem.MapWriter(CiaAddr.CIA1_CIACRA, Cia1TimerAControlStore);
 
-        // CIA Control Register B
+        // CIA #1 Control Register B
         c64mem.MapReader(CiaAddr.CIA1_CIACRB, Cia1TimerBControlLoad);
         c64mem.MapWriter(CiaAddr.CIA1_CIACRB, Cia1TimerBControlStore);
 
@@ -76,13 +75,12 @@ public class Cia
     // It's written to to control which keys can be read from Cia 1 Data Port B.
     public byte Cia1DataALoad(ushort _)
     {
-        // Temporary workaround, set the default state
-        byte value = 0x7f;
+        //// Temporary workaround, set the default state
+        //byte value = 0x7f;
 
-        // Keyboard. TODO: Implement "real" C64 keyboard operation emulation.
-        //                 Right now, keys are being placed directly into the ring buffer, and not via Cia1 Data Ports A & B
+        var value = Keyboard.GetSelectedMatrixRow();
 
-        // Joystick #2
+        // Also set Joystick #2 bits
         foreach (var action in Joystick.CurrentJoystick2Actions)
         {
             value.ClearBit((int)action);
@@ -94,22 +92,16 @@ public class Cia
     // Writing to Cia 1 Data Port A controls which keys can be read from Cia 1 Data Port B.
     public void Cia1DataAStore(ushort address, byte value)
     {
-        {
-            _c64.WriteIOStorage(address, value);
-        }
+        Keyboard.SetSelectedMatrixRow(value);
     }
 
-    // When reading from Cia 1 Data Port A you can get both keyboard and joystick (#1) input (which can be confusing).
+    // When reading from Cia 1 Data Port B you can get both keyboard and joystick (#1) input sharing the same bits (which can be confusing).
     public byte Cia1DataBLoad(ushort address)
     {
-        // Temporary workaround for keyboard input, letting the current state be controllable from the input handler.
-        var value = _c64.ReadIOStorage(address);
+        // Get the pressed keys for the selected matrix row (set by writing to Cia 1 Data Port A DC00)
+        var value = Keyboard.GetPressedKeysForSelectedMatrixRow();
 
-        // The default state when no joystick or key is pressed is that all bits are set to 1.
-        // Keyboard. TODO: Implement "real" C64 keyboard operation emulation.
-        //                 Right now, keys are being placed directly into the ring buffer, and not via Cia1 Data Ports A & B
-
-        // Joystick #1
+        // Also set Joystick #1 bits
         foreach (var action in Joystick.CurrentJoystick1Actions)
         {
             value.ClearBit((int)action);
@@ -118,7 +110,7 @@ public class Cia
     }
     public void Cia1DataBStore(ushort address, byte value)
     {
-        // Temporary workaround for keyboard input, letting the current state be controllable from the input handler.
+        // TODO: What will writing to this address affect?
         _c64.WriteIOStorage(address, value);
     }
 

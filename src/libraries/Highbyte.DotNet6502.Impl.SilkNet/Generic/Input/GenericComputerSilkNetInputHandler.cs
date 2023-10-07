@@ -30,7 +30,7 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
     {
         CaptureKeyboard(genericComputer);
 
-        _inputHandlerContext!.ClearKeys();   // Clear our captured keys so far
+        //_inputHandlerContext!.ClearKeys();   // Clear our captured keys so far
     }
 
     public void ProcessInput(ISystem system)
@@ -53,10 +53,11 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
             var keyDown = _inputHandlerContext.KeysDown.First();
             genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = (byte)keyDown;
         }
-
-        if (_inputHandlerContext.KeysUp.Count > 0)
+        else
+        {
             // Only way to tell the "GenericComputer" that a Key is no longer pressed is to set KeyDownAddress to 0...
             genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = 0x00;
+        }
     }
 
     public List<string> GetStats()

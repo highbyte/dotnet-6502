@@ -41,43 +41,9 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
     {
         var sadConsoleKeyboard = GameHost.Instance.Keyboard;
 
-        HandleNonPrintedKeys(c64, sadConsoleKeyboard);
-
-        var petsciiCode = GetPetsciiCode(sadConsoleKeyboard);
-        if (petsciiCode != 0)
-            c64.Keyboard.KeyPressed(petsciiCode);
-    }
-
-    private void HandleNonPrintedKeys(
-        C64 c64,
-        Keyboard sadConsoleKeyboard)
-    {
-        var c64Keyboard = c64.Keyboard;
-
-        // STOP (ESC) down
-        if (sadConsoleKeyboard.IsKeyDown(Keys.Escape))
-        {
-            c64.Mem[CiaAddr.CIA1_DATAB] = 0x00;  // Hack: not yet handling the CIA Data B register to scan keyboard.
-
-            c64Keyboard.StopKeyFlag = 0x7f;
-
-            // RESTORE (PageUp) down. Together with STOP it will issue a NMI (which will jump to code that detects STOP is pressed and resets any running program, and clears screen.)
-            if (sadConsoleKeyboard.IsKeyDown(Keys.PageUp))
-                c64.CPU.CPUInterrupts.SetNMISourceActive("KeyboardReset");
-            sadConsoleKeyboard.Clear();
-            return;
-        }
-        // STOP (ESC) released
-        if ((sadConsoleKeyboard.KeysReleased.Count == 1 || sadConsoleKeyboard.KeysReleased.Count == 2)
-            && sadConsoleKeyboard.KeysReleased.Select(x => x.Key).Contains(Keys.Escape))
-        {
-            c64Keyboard.StopKeyFlag = 0xff;
-            sadConsoleKeyboard.Clear();
-            return;
-        }
-
-        if (sadConsoleKeyboard.KeysDown.Count == 0)
-            c64.Mem[CiaAddr.CIA1_DATAB] = 0xff; // Hack: not yet handling the CIA Data B register to scan keyboard.
+        // TODO after implementing C64 keyboard matrix scanning
+        var c64Keyboard = c64.Cia.Keyboard;
+        //var petsciiCode = GetPetsciiCode(sadConsoleKeyboard);
     }
 
     private byte GetPetsciiCode(

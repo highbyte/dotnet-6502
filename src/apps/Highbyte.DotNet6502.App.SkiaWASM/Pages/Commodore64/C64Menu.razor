@@ -311,11 +311,14 @@
         }
 
         // Send "list" + Enter to the keyboard buffer to immediately list the loaded program
-        c64.Keyboard.KeyPressed(Petscii.CharToPetscii['l']);
-        c64.Keyboard.KeyPressed(Petscii.CharToPetscii['i']);
-        c64.Keyboard.KeyPressed(Petscii.CharToPetscii['s']);
-        c64.Keyboard.KeyPressed(Petscii.CharToPetscii['t']);
-        c64.Keyboard.KeyPressed(Petscii.CharToPetscii[(char)13]);
+        var c64Keyboard = c64.Cia.Keyboard;
+        // TODO after implementing C64 keyboard matrix scanning
+        // TODO: Bypass keyboard matrix scanning and send directly to keyboard buffer?
+        // c64Keyboard.KeyPressed(Petscii.CharToPetscii['l']);
+        // c64Keyboard.KeyPressed(Petscii.CharToPetscii['i']);
+        // c64Keyboard.KeyPressed(Petscii.CharToPetscii['s']);
+        // c64Keyboard.KeyPressed(Petscii.CharToPetscii['t']);
+        // c64Keyboard.KeyPressed(Petscii.CharToPetscii[(char)13]);
 
         await Parent.OnStart(new());
     }
