@@ -193,7 +193,8 @@ public class C64 : ISystem, ISystemMonitor
         var cpu = CreateC64CPU(loggerFactory);
         var vic2 = Vic2.BuildVic2(vic2Model, c64);
         var sid = Sid.BuildSid(c64);
-        var cia = new Cia(c64, c64Config);
+
+        var cia = new Cia(c64, c64Config, loggerFactory);
 
         c64.CPU = cpu;
         c64.Vic2 = vic2;

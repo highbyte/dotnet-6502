@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 /// <summary>
@@ -13,11 +15,11 @@ public class Cia
     public C64Joystick Joystick { get; private set; }
     public Dictionary<CiaTimerType, CiaTimer> CiaTimers { get; private set; }
 
-    public Cia(C64 c64, Config.C64Config c64Config)
+    public Cia(C64 c64, Config.C64Config c64Config, ILoggerFactory loggerFactory)
     {
         _c64 = c64;
         CiaIRQ = new CiaIRQ();
-        Keyboard = new C64Keyboard(c64);
+        Keyboard = new C64Keyboard(c64, loggerFactory);
         Joystick = new C64Joystick(c64Config);
 
         CiaTimers = new();

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
@@ -11,9 +12,12 @@ public class C64Keyboard
     private readonly List<C64Key> _pressedKeys = new List<C64Key>();
     private readonly C64 _c64;
     private List<int> _selectedMatrixRowBitPositions = new();
+    private readonly ILogger<C64Keyboard> _logger;
 
-    public C64Keyboard(C64 c64)
+    public C64Keyboard(C64 c64, ILoggerFactory loggerFactory)
     {
+        _logger = loggerFactory.CreateLogger<C64Keyboard>();
+
         _matrix = new C64Key[,]
         {
             //Rows: Bits 0-7, write 0 one of the bits in $DC00
@@ -56,6 +60,15 @@ public class C64Keyboard
             Debug.WriteLine($"C64 key pressed: {keys[0]}");
         foreach (var key in keys)
             _pressedKeys.Add(key);
+    }
+
+    /// <summary>
+    /// Tells the system that the RESTORE key is pressed, which is isn't in the Keyboard matrix,
+    /// but intead raises an NMI interrupt every time it's pressed.
+    /// </summary>
+    public void SetRestoreKeyPressed()
+    {
+        _c64.CPU.CPUInterrupts.SetNMISourceActive("KeyboardReset");
     }
 
     /// <summary>

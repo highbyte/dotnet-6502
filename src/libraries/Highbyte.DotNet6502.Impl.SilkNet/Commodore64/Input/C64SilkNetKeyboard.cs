@@ -6,7 +6,7 @@ public class C64SilkNetKeyboard
 {
     public C64SilkNetKeyboard(string hostKeyboardLayout)
     {
-        // TODO: Proper handling of different host keyboard layout
+        // TODO: Better way to store/handle different keyboard layouts that hard coded checks
         if (hostKeyboardLayout == "sv")
         {
             foreach (var keyMap in SilkNetToC64KeyMap_SV_specific)
@@ -14,15 +14,15 @@ public class C64SilkNetKeyboard
                 SilkNetToC64KeyMap[keyMap.Key] = keyMap.Value;
             }
         }
-        else if (hostKeyboardLayout == "us")
+        else // Default to US keyboard
         {
             foreach (var keyMap in SilkNetToC64KeyMap_US_specific)
             {
                 SilkNetToC64KeyMap[keyMap.Key] = keyMap.Value;
             }
         }
-
     }
+
     public Dictionary<Key[], C64Key[]> SilkNetToC64KeyMap = new()
     {
         { new[] { Key.Space }, new[] { C64Key.Space } },

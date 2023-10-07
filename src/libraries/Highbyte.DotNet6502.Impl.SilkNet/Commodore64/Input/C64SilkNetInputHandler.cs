@@ -1,7 +1,7 @@
-using System.Diagnostics;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
+using Microsoft.Extensions.Logging;
 using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
@@ -11,12 +11,20 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
     private SilkNetInputHandlerContext? _inputHandlerContext;
     private readonly List<string> _stats = new();
     private readonly C64SilkNetKeyboard _c64SilkNetKeyboard;
+    private readonly ILogger<C64SilkNetInputHandler> _logger;
 
-    public C64SilkNetInputHandler()
+    public C64SilkNetInputHandler(ILoggerFactory loggerFactory)
     {
-        // TODO: Proper handling of different host keyboard layout
-        _c64SilkNetKeyboard = new C64SilkNetKeyboard("sv");
-        //_c64SilkNetKeyboard = new C64SilkNetKeyboard("us");
+        _logger = loggerFactory.CreateLogger<C64SilkNetInputHandler>();
+
+        // TODO: Is there a better way to current keyboard input language?
+        var currentCulture = Thread.CurrentThread.CurrentCulture;
+        var keyboardLayoutId = currentCulture.KeyboardLayoutId;
+        var languageName = currentCulture.TwoLetterISOLanguageName;
+        _logger.LogInformation($"KbLayoutId: {keyboardLayoutId}");
+        _logger.LogInformation($"KbLanguage: {languageName}");
+
+        _c64SilkNetKeyboard = new C64SilkNetKeyboard(languageName);
     }
 
     public void Init(C64 system, SilkNetInputHandlerContext inputHandlerContext)
@@ -43,17 +51,23 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
 
     private void CaptureKeyboard(C64 c64)
     {
-        var c64KeysDown = GetC64KeysFromSilkNetKeys(_inputHandlerContext!.KeysDown);
+        var c64KeysDown = GetC64KeysFromSilkNetKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed);
         var keyboard = c64.Cia.Keyboard;
         keyboard.SetKeysPressed(c64KeysDown);
+        if (restoreKeyPressed)
+            keyboard.SetRestoreKeyPressed();
     }
 
-    private List<C64Key> GetC64KeysFromSilkNetKeys(HashSet<Key> keysDown)
+    private List<C64Key> GetC64KeysFromSilkNetKeys(HashSet<Key> keysDown, out bool restoreKeyPressed)
     {
         var c64KeysDown = new List<C64Key>();
         var foundMappings = new List<Key[]>();
 
-        //bool foundModifier = false;
+        if (keysDown.Contains(Key.PageUp))
+            restoreKeyPressed = true;
+        else
+            restoreKeyPressed = false;
+
         foreach (var mapKeys in _c64SilkNetKeyboard.SilkNetToC64KeyMap.Keys)
         {
             int matchCount = 0;
