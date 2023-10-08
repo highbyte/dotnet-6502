@@ -1,11 +1,8 @@
 using System.Globalization;
-using Highbyte.DotNet6502.Instructions;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
-using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Microsoft.Extensions.Logging;
-using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 

@@ -98,15 +98,19 @@ public class C64SilkNetKeyboard
     {
         // US specific host keyboard characters
 
-        // Numbers row
+        // Left of 1: GraveAccent
         { new[] { Key.GraveAccent }, new[] { C64Key.RShift, C64Key.Seven } },
         { new[] { Key.ShiftRight, Key.GraveAccent }, new[] { C64Key.UArrow } },
+
+        // Numbers row
         { new[] { Key.ShiftRight, Key.Number2 }, new[] {C64Key.At } },
         { new[] { Key.ShiftRight, Key.Number6 }, new[] {C64Key.UArrow} },
         { new[] { Key.ShiftRight, Key.Number7 }, new[] { C64Key.RShift, C64Key.Six } },
         { new[] { Key.ShiftRight, Key.Number8 }, new[] {C64Key.Astrix } },
         { new[] { Key.ShiftRight, Key.Number9 }, new[] {C64Key.RShift, C64Key.Eight } },
         { new[] { Key.ShiftRight, Key.Number0 }, new[] {C64Key.RShift, C64Key.Nine } },
+
+        // Right of 0: Minus, Equal
         { new[] { Key.Minus }, new[] { C64Key.Minus } },
         { new[] { Key.ShiftRight, Key.Minus }, new[] { C64Key.LArrow } },
         { new[] { Key.Equal }, new[] { C64Key.Equal } },
@@ -144,6 +148,8 @@ public class C64SilkNetKeyboard
         { new[] { Key.ShiftRight, Key.Number7}, new[] { C64Key.Slash } },
         // Shift 0 should be =
         { new[] { Key.ShiftRight, Key.Number0}, new[] { C64Key.Equal } },
+
+        // Right of 0: Minus, Equal
         // - should be +
         { new[] { Key.Minus }, new[] { C64Key.Plus } },
         // Shift - (which is + for sv) should be ? (which is / for sv)

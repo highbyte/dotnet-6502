@@ -1,4 +1,3 @@
-using Highbyte.DotNet6502.Instructions;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
@@ -17,10 +16,10 @@ public class C64AspNetKeyboard
         }
         else // Default to US keyboard
         {
-            //foreach (var keyMap in AspNetToC64KeyMap_US_specific)
-            //{
-            //    SilkNetToC64KeyMap[keyMap.Key] = keyMap.Value;
-            //}
+            foreach (var keyMap in AspNetToC64KeyMap_US_specific)
+            {
+                AspNetToC64KeyMap[keyMap.Key] = keyMap.Value;
+            }
         }
     }
 
@@ -95,46 +94,50 @@ public class C64AspNetKeyboard
         { new[] { "ShiftRight" }, new[] { C64Key.RShift } },
     };
 
-    //public Dictionary<Key[], C64Key[]> SilkNetToC64KeyMap_US_specific = new()
-    //{
-    //    // US specific host keyboard characters
+    public Dictionary<string[], C64Key[]> AspNetToC64KeyMap_US_specific = new()
+    {
+        // US specific host keyboard characters
 
-    //    // Numbers row
-    //    { new[] { Key.GraveAccent }, new[] { C64Key.RShift, C64Key.Seven } },
-    //    { new[] { Key.ShiftRight, Key.GraveAccent }, new[] { C64Key.UArrow } },
-    //    { new[] { Key.ShiftRight, Key.Number2 }, new[] {C64Key.At } },
-    //    { new[] { Key.ShiftRight, Key.Number6 }, new[] {C64Key.UArrow} },
-    //    { new[] { Key.ShiftRight, Key.Number7 }, new[] { C64Key.RShift, C64Key.Six } },
-    //    { new[] { Key.ShiftRight, Key.Number8 }, new[] {C64Key.Astrix } },
-    //    { new[] { Key.ShiftRight, Key.Number9 }, new[] {C64Key.RShift, C64Key.Eight } },
-    //    { new[] { Key.ShiftRight, Key.Number0 }, new[] {C64Key.RShift, C64Key.Nine } },
-    //    { new[] { Key.Minus }, new[] { C64Key.Minus } },
-    //    { new[] { Key.ShiftRight, Key.Minus }, new[] { C64Key.LArrow } },
-    //    { new[] { Key.Equal }, new[] { C64Key.Equal } },
-    //    { new[] { Key.ShiftRight, Key.Equal }, new[] { C64Key.Plus } },
+        // Left of 1: Backquote
+        { new[] { "Backquote" }, new[] { C64Key.RShift, C64Key.Seven } },
+        { new[] { "ShiftRight", "Backquote" }, new[] { C64Key.UArrow } },
 
-    //    // Right of P: LeftBracket, RightBracket
-    //    { new[] { Key.LeftBracket }, new[] { C64Key.RShift, C64Key.Colon } },
-    //    { new[] { Key.ShiftRight, Key.LeftBracket }, new[] { C64Key.None } },
-    //    { new[] { Key.RightBracket }, new[] { C64Key.RShift, C64Key.Semicol } },
-    //    { new[] { Key.ShiftRight, Key.RightBracket }, new[] { C64Key.None } },
-    //    { new[] { Key.BackSlash }, new[] { C64Key.Lira } },
+        // Numbers row
+        { new[] { "ShiftRight", "Digit2" }, new[] {C64Key.At } },
+        { new[] { "ShiftRight", "Digit6" }, new[] {C64Key.UArrow} },
+        { new[] { "ShiftRight", "Digit7" }, new[] { C64Key.RShift, C64Key.Six } },
+        { new[] { "ShiftRight", "Digit8" }, new[] {C64Key.Astrix } },
+        { new[] { "ShiftRight", "Digit9" }, new[] {C64Key.RShift, C64Key.Eight } },
+        { new[] { "ShiftRight", "Digit0" }, new[] {C64Key.RShift, C64Key.Nine } },
 
-    //    // Right of L: Semicolon, Apostrophe 
-    //    { new[] { Key.Semicolon }, new[] { C64Key.Semicol } },
-    //    { new[] { Key.ShiftRight, Key.Semicolon }, new[] { C64Key.Colon } },
-    //    { new[] { Key.Apostrophe }, new[] { C64Key.RShift, C64Key.Seven } },
-    //    { new[] { Key.ShiftRight, Key.Apostrophe }, new[] { C64Key.RShift, C64Key.Two } },
+        // Right of 0: Minus, Equal
+        { new[] { "Minus" }, new[] { C64Key.Minus } },
+        { new[] { "ShiftRight", "Minus" }, new[] { C64Key.LArrow } },
+        { new[] { "Equal" }, new[] { C64Key.Equal } },
+        { new[] { "ShiftRight", "Equal" }, new[] { C64Key.Plus } },
 
-    //    // Right of M: Comma, Period, Slash
-    //    { new[] { Key.Comma }, new[] { C64Key.Comma } },
-    //    //{ new[] { Key.ShiftRight, Key.Comma }, new[] { C64Key.RShift, C64Key.Comma } },
-    //    { new[] { Key.Period }, new[] { C64Key.Period } },
-    //    //{ new[] { Key.ShiftRight, Key.Period }, new[] { C64Key.RShift, C64Key.Period } },
-    //    { new[] { Key.Slash }, new[] { C64Key.Slash } },
-    //    //{ new[] { Key.ShiftRight, Key.Slash }, new[] { C64Key.RShift, C64Key.Slash } },
+        // Right of P: BracketLeft, BracketRight, Backslash (assummed, havent tested)
+        { new[] { "BracketLeft" }, new[] { C64Key.RShift, C64Key.Colon } },
+        { new[] { "ShiftRight", "BracketLeft" }, new[] { C64Key.None } },
+        { new[] { "BracketRight" }, new[] { C64Key.RShift, C64Key.Semicol } },
+        { new[] { "ShiftRight", "BracketRight" }, new[] { C64Key.None } },
+        { new[] { "Backslash" }, new[] { C64Key.Lira } },
 
-    //};
+        // Right of L: Semicolon, Quote
+        { new[] { "Semicolon" }, new[] { C64Key.Semicol } },
+        { new[] { "ShiftRight", "Semicolon" }, new[] { C64Key.Colon } },
+        { new[] { "Quote" }, new[] { C64Key.RShift, C64Key.Seven } },
+        { new[] { "ShiftRight", "Quote" }, new[] { C64Key.RShift, C64Key.Two } },
+
+        // Right of M: Comma, Period, Slash
+        { new[] { "Comma" }, new[] { C64Key.Comma } },
+        //{ new[] { "ShiftRight", "Comma" }, new[] { C64Key.RShift, C64Key.Comma } },
+        { new[] { "Period" }, new[] { C64Key.Period } },
+        //{ new[] { "ShiftRight", "Period" }, new[] { C64Key.RShift, C64Key.Period } },
+        { new[] { "Slash" }, new[] { C64Key.Slash } },
+        //{ new[] { "ShiftRight", "Slash" }, new[] { C64Key.RShift, C64Key.Slash } },
+
+    };
 
     public Dictionary<string[], C64Key[]> AspNetToC64KeyMap_SV_specific = new()
     {
@@ -145,6 +148,8 @@ public class C64AspNetKeyboard
         { new[] { "ShiftRight", "Digit7" }, new[] { C64Key.Slash } },
         // Shift 0 should be =
         { new[] { "ShiftRight", "Digit0" }, new[] { C64Key.Equal } },
+
+        // Right of 0: Minus, Equal
         // - should be +
         { new[] { "Minus" }, new[] { C64Key.Plus } },
         // Shift - (which is + for sv) should be ? (which is / for sv)
@@ -158,7 +163,7 @@ public class C64AspNetKeyboard
         { new[] { "BracketRight" }, new[] { C64Key.RShift, C64Key.Two } },
         { new[] { "ShiftRight", "BracketRight" }, new[] { C64Key.RShift, C64Key.UArrow } },
 
-        // Right of L: Semicolon, Quote, Backslash, 
+        // Right of L: Semicolon, Quote, Backslash
         { new[] { "Semicolon" }, new[] { C64Key.Lira } },
         { new[] { "ShiftRight", "Semicolon" }, new[] { C64Key.None } },
         { new[] { "Quote" }, new[] { C64Key.RShift, C64Key.Colon } },

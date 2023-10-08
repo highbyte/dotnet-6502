@@ -1,10 +1,7 @@
-using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Microsoft.Extensions.Logging;
-using Silk.NET.Input;
-using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 
@@ -20,9 +17,11 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
         _logger = loggerFactory.CreateLogger<C64SilkNetInputHandler>();
 
         // TODO: Is there a better way to current keyboard input language?
-        var currentUICulture = Thread.CurrentThread.CurrentUICulture;
-        var keyboardLayoutId = currentUICulture.KeyboardLayoutId;
-        var languageName = currentUICulture.TwoLetterISOLanguageName;
+        // Note: Using CurrentCulture instead of CurrentUICulture.
+        //       Why does CurrentUICulture not return correct keyboard as it does in SadConsole project?
+        var currentCulture = Thread.CurrentThread.CurrentCulture;
+        var keyboardLayoutId = currentCulture.KeyboardLayoutId;
+        var languageName = currentCulture.TwoLetterISOLanguageName;
         _logger.LogInformation($"KbLayoutId: {keyboardLayoutId}");
         _logger.LogInformation($"KbLanguage: {languageName}");
 
