@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Highbyte.DotNet6502.Logging
 {
     public class DotNet6502InMemLogStore
@@ -19,12 +21,26 @@ namespace Highbyte.DotNet6502.Logging
             }
         }
 
+        private bool _writeDebugMessage = false;
+        public bool WriteDebugMessage
+        {
+            get => _writeDebugMessage;
+            set
+            {
+                _writeDebugMessage = value;
+            }
+        }
+
         public void WriteLog(string logMessage)
         {
             _logMessages.Insert(0, logMessage);
 
             if (_logMessages.Count > MaxLogMessages)
                 _logMessages.RemoveAt(MaxLogMessages);
+
+            // Check if log also should be written to Debug output
+            if (WriteDebugMessage)
+                Debug.WriteLine(logMessage);
 
         }
         public List<string> GetLogMessages() => _logMessages;

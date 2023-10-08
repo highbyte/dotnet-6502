@@ -12,8 +12,21 @@ using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Microsoft.Extensions.Configuration;
+using Highbyte.DotNet6502.Logging;
+using Microsoft.Extensions.Logging;
+using Highbyte.DotNet6502.Logging.InMem;
 
 IConfiguration Configuration;
+
+// Create logging
+DotNet6502InMemLogStore logStore = new() { WriteDebugMessage = true };
+var logConfig = new DotNet6502InMemLoggerConfiguration(logStore);
+var loggerFactory = LoggerFactory.Create(builder =>
+{
+    logConfig.LogLevel = LogLevel.Information;  // LogLevel.Debug, LogLevel.Information, 
+    builder.AddInMem(logConfig);
+    builder.SetMinimumLevel(LogLevel.Trace);
+});
 
 // Get config options
 var builder = new ConfigurationBuilder()
@@ -42,7 +55,8 @@ Configuration.GetSection(C64Config.ConfigSectionName).Bind(c64Config);
 var emulatorHost = new EmulatorHost(
     sadConsoleConfig,
     genericComputerConfig,
-    c64Config
+    c64Config,
+    loggerFactory
     );
 emulatorHost.Start();
 

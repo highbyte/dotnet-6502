@@ -166,7 +166,7 @@ public class C64AspNetKeyboard
         { new[] { "Backslash" }, new[] { C64Key.RShift, C64Key.Seven } },
         { new[] { "ShiftRight", "Backslash" }, new[] {C64Key.Astrix } },
 
-        // Left of M: IntlBackslash
+        // Left of Z: IntlBackslash
         { new[] { "IntlBackslash" }, new[] {C64Key.RShift, C64Key.Comma} },
         { new[] { "ShiftLeft", "IntlBackslash" }, new[] {C64Key.RShift, C64Key.Period} },
         { new[] { "ShiftRight", "IntlBackslash" }, new[] {C64Key.RShift, C64Key.Period} },

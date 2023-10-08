@@ -89,9 +89,14 @@ public class C64Keyboard
     }
 
     /// <summary>
-    /// Set the value of $DC00
+    /// Set the value of $DC00, which is the row(s) of the keyboard matrix to read from when reading from $DC01.
+    /// Bit position (corresponding to row) should be set to 0 if it should be used.
     /// </summary>
     /// <param name="selectedMatrixRow"></param>
+    /// <remarks>
+    /// The documentation at https://github.com/mist64/c64ref/blob/master/Source/c64io/c64io_mapc64.txt 
+    /// describes the selection in $DC00 as the column(s) that should be selected, but in this implementation the value matches the rows instead.
+    /// </remarks>
     public void SetSelectedMatrixRow(byte selectedMatrixRow)
     {
         _c64.WriteIOStorage(CiaAddr.CIA1_DATAA, selectedMatrixRow);
@@ -119,9 +124,13 @@ public class C64Keyboard
     }
 
     /// <summary>
-    /// Return the value of $DC01
+    /// Return the value of $DC01, which is all keys the selected row(s) set in $DC00 that are pressed.
     /// </summary>
     /// <returns></returns>
+    /// <remarks>
+    /// The documentation at https://github.com/mist64/c64ref/blob/master/Source/c64io/c64io_mapc64.txt 
+    /// describes the selection in $DC00 as the column(s) that should be selected, but in this implementation the value matches the rows instead.
+    /// </remarks>
     public byte GetPressedKeysForSelectedMatrixRow()
     {
         byte pressedKeys = 0xff;    // All bits set to 1 means no keys pressed.

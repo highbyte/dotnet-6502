@@ -29,9 +29,9 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
         // There doesn't seem a way to determine the users keyboard layout in Javascript/WASM.
         // Best guess is to use the current UI culture (sent by the browser in the Accept-Language header).
         // This will be incorrect if for example the user as a Swedish keyboard layout, but the browser is set to English.
-        var uiCulture = CultureInfo.CurrentUICulture;
-        var keyboardLayoutId = uiCulture.KeyboardLayoutId;
-        var languageName = uiCulture.TwoLetterISOLanguageName;
+        var currentUICulture = CultureInfo.CurrentUICulture;
+        var keyboardLayoutId = currentUICulture.KeyboardLayoutId;
+        var languageName = currentUICulture.TwoLetterISOLanguageName;
         _logger.LogInformation($"KbLayoutId: {keyboardLayoutId}");
         _logger.LogInformation($"KbLanguage: {languageName}");
 

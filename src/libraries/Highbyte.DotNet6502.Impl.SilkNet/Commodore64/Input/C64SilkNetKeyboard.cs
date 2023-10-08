@@ -165,7 +165,7 @@ public class C64SilkNetKeyboard
         { new[] { Key.BackSlash }, new[] { C64Key.RShift, C64Key.Seven } },
         { new[] { Key.ShiftRight, Key.BackSlash }, new[] {C64Key.Astrix } },
 
-        // Left of M: World2
+        // Left of Z: World2
         { new[] { Key.World2 }, new[] {C64Key.RShift, C64Key.Comma} },
         { new[] { Key.ShiftLeft, Key.World2 }, new[] {C64Key.RShift, C64Key.Period} },
         { new[] { Key.ShiftRight, Key.World2 }, new[] {C64Key.RShift, C64Key.Period} },

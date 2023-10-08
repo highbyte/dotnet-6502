@@ -20,9 +20,9 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
         _logger = loggerFactory.CreateLogger<C64SilkNetInputHandler>();
 
         // TODO: Is there a better way to current keyboard input language?
-        var currentCulture = Thread.CurrentThread.CurrentCulture;
-        var keyboardLayoutId = currentCulture.KeyboardLayoutId;
-        var languageName = currentCulture.TwoLetterISOLanguageName;
+        var currentUICulture = Thread.CurrentThread.CurrentUICulture;
+        var keyboardLayoutId = currentUICulture.KeyboardLayoutId;
+        var languageName = currentUICulture.TwoLetterISOLanguageName;
         _logger.LogInformation($"KbLayoutId: {keyboardLayoutId}");
         _logger.LogInformation($"KbLanguage: {languageName}");
 

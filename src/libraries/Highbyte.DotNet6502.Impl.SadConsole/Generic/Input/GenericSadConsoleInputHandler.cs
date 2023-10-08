@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Generic.Input;
 
@@ -9,19 +10,19 @@ public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadC
     private SadConsoleInputHandlerContext? _inputHandlerContext;
 
     private readonly EmulatorInputConfig _emulatorInputConfig;
-
+    private readonly ILoggerFactory _loggerFactory;
     private readonly List<string> _stats = new();
 
-    public GenericSadConsoleInputHandler(
-        EmulatorInputConfig emulatorInputConfig)
+    public GenericSadConsoleInputHandler(EmulatorInputConfig emulatorInputConfig, ILoggerFactory loggerFactory)
     {
         _emulatorInputConfig = emulatorInputConfig;
+        _loggerFactory = loggerFactory;
     }
 
     public void Init(GenericComputer system, SadConsoleInputHandlerContext inputHandlerContext)
     {
         _inputHandlerContext = inputHandlerContext;
-        //_inputHandlerContext.Init();
+        _inputHandlerContext.Init();
     }
 
     public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
