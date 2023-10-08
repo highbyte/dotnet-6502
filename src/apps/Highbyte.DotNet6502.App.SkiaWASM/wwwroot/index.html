@@ -66,32 +66,40 @@
     </script>
 
     <script>
+        console.log("Disabling default key behavior for main canvas and monitor");
         setTimeout(() => {
             // Fix for some keys not working correctly in Emulator Canvas
             var emulatorCanvasElement = document.getElementById("emulatorSKGLView");
-            emulatorCanvasElement.onkeydown = handleSpecialKeysForCanvas
+            emulatorCanvasElement.addEventListener("keydown", handleSpecialKeysForCanvas, true);
 
             // Fix for some keys not working correctly in Monitor UI
-            var monitorElement = document.getElementById("monitor-input");
-            monitorElement.onkeydown = handleSpecialKeysForMonitor
+            var monitorElement = document.getElementById("monitor-outer-screen");
+            monitorElement.addEventListener("keydown", handleSpecialKeysForMonitor, true);
+
         }, 5000);
 
         function handleSpecialKeysForCanvas(event) {
-            if (event.key == "ArrowDown" || event.key == "ArrowUp" || event.key == "ArrowRight" || event.key == "ArrowLeft"
-                || event.key == "PageUp" || event.key == "PageDown" || event.key == "Home" || event.key == "End"
-                || event.key == "Tab" || event.key == "Control"
-                || (event.ctrlKey && (event.key == "1" || event.key == "2" || event.key == "3" || event.key == "4" || event.key == "5" || event.key == "6" || event.key == "7" || event.key == "8" || event.key == "9" || event.key == "0"))
-                || event.key == "F11" || event.key == "F12") {
+            //console.log("Index.html key event: " + event.key + " (" + event.code + ")");
+            if (event.code == "ArrowDown" || event.code == "ArrowUp" || event.code == "ArrowRight" || event.code == "ArrowLeft"
+                || event.code == "PageUp" || event.code == "PageDown" || event.code == "Home" || event.code == "End"
+                || event.code == "Tab" || event.code == "ControlLeft" || event.code == "ControlRight"
+                || event.code == "Space"
+                || (event.ctrlKey && (event.code == "Digit1" || event.code == "Digit2" || event.code == "Digit3" || event.code == "Digit4" || event.code == "Digit5" || event.code == "Digit6" || event.code == "Digit7" || event.code == "Digit8" || event.code == "Digit9" || event.code == "Digit0"))
+                || event.code == "F1" || event.code == "F2" || event.code == "F3" || event.code == "F4" || event.code == "F5" || event.code == "F6" || event.code == "F7" || event.code == "F8"  
+                || event.code == "F11" || event.code == "F12") {
+                //console.log("Prevent default for key: " + event.key + " (" + event.code + ")");
                 event.preventDefault();
             }
         }
 
         function handleSpecialKeysForMonitor(event) {
-            if (event.key == "ArrowDown" || event.key == "ArrowUp"
-                || event.key == "F11" || event.key == "F12") {
+            //console.log("Index.html key event: " + event.key + " (" + event.code + ")");
+            if (event.code == "ArrowDown" || event.code == "ArrowUp"
+                || event.code == "F11" || event.code == "F12") {
+                //console.log("Prevent default for key: " + event.key + " (" + event.code + ")");
                 event.preventDefault();
             }
-            else if (event.key == "Escape") {
+            else if (event.code == "Escape") {
                 event.srcElement.value = ""
             }
         }

@@ -92,7 +92,6 @@
         id="emulatorSKGLView"
         tabindex="0"
         oncontextmenu="return false;"
-        @onkeypress="OnKeyPress"
         @onkeydown="OnKeyDown"
         @onkeyup="OnKeyUp"
         @onfocus="OnFocus"
@@ -136,7 +135,7 @@
         </div>
 
         <div class="monitorStyle">
-            <div id="monitor-outer-screen">
+            <div id="monitor-outer-screen" >
                 <div id="monitor-inner-screen">
                     <div id="monitor-output-outer"><div id="monitor-output">@(
                             (MarkupString)_monitorOutput

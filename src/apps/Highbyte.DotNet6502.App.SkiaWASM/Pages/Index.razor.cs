@@ -568,16 +568,6 @@ public partial class Index
         await ToggleDebugStatsState();
     }
 
-    private void OnKeyPress(KeyboardEventArgs e)
-    {
-        if (_wasmHost == null)
-            return;
-        _wasmHost.InputHandlerContext.KeyPress(e);
-
-        // Emulator host functions such as monitor and stats/debug
-        _wasmHost.OnKeyPress(e);
-    }
-
     private void OnKeyDown(KeyboardEventArgs e)
     {
         if (_wasmHost == null)
@@ -595,7 +585,7 @@ public partial class Index
         _wasmHost.InputHandlerContext.KeyUp(e);
     }
 
-    private void OnFocus(FocusEventArgs  e)
+    private void OnFocus(FocusEventArgs e)
     {
         if (_wasmHost == null)
             return;
