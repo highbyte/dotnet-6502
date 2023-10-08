@@ -29,8 +29,6 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
     public void ProcessInput(GenericComputer genericComputer)
     {
         CaptureKeyboard(genericComputer);
-
-        //_inputHandlerContext!.ClearKeys();   // Clear our captured keys so far
     }
 
     public void ProcessInput(ISystem system)
@@ -41,13 +39,6 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
     private void CaptureKeyboard(GenericComputer genericComputer)
     {
         // Note: The simplistic "GenericComputer" don't have a Keyboard buffer, only can receive one character ...
-
-        // if (_inputHandlerContext.CharactersReceived.Count > 0)
-        // {
-        //     char keyCode = _inputHandlerContext.CharactersReceived.First();
-        //     genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = (byte)keyCode;
-        // }
-
         if (_inputHandlerContext!.KeysDown.Count > 0)
         {
             var keyDown = _inputHandlerContext.KeysDown.First();
