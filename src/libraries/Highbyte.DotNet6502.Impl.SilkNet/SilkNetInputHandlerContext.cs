@@ -1,26 +1,32 @@
-using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Systems;
+using Microsoft.Extensions.Logging;
+using Silk.NET.SDL;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet;
 
 public class SilkNetInputHandlerContext : IInputHandlerContext
 {
     private readonly IWindow _silkNetWindow;
+    private readonly ILogger<SilkNetInputHandlerContext> _logger;
     private static IInputContext s_inputcontext;
     public IInputContext InputContext => s_inputcontext;
     private IKeyboard _primaryKeyboard;
     public IKeyboard PrimaryKeyboard => _primaryKeyboard;
 
     public HashSet<Key> KeysDown = new();
-    public HashSet<char> CharactersReceived = new();
+
+    private bool _capsLockKeyDownCaptured;
+    private bool _capsLockOn;
 
     public bool Quit { get; private set; }
 
     public bool IsKeyPressed(Key key) => _primaryKeyboard.IsKeyPressed(key);
 
-    public SilkNetInputHandlerContext(IWindow silkNetWindow)
+    public SilkNetInputHandlerContext(IWindow silkNetWindow, ILoggerFactory loggerFactory)
     {
         _silkNetWindow = silkNetWindow;
+        _logger = loggerFactory.CreateLogger<SilkNetInputHandlerContext>();
     }
 
     public void Init()
@@ -38,6 +44,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
             throw new Exception("Keyboard not found");
 
         ListenForKeyboardInput(enabled: true);
+
     }
 
     public void ListenForKeyboardInput(bool enabled)
@@ -47,18 +54,15 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
             // Unregister any existing handlers to avoid duplicates
             _primaryKeyboard.KeyUp -= KeyUp;
             _primaryKeyboard.KeyDown -= KeyDown;
-            //_primaryKeyboard.KeyChar -= KeyReceived;
 
             _primaryKeyboard.KeyUp += KeyUp;
             _primaryKeyboard.KeyDown += KeyDown;
-            //_primaryKeyboard.KeyChar += KeyReceived;
 
         }
         else
         {
             _primaryKeyboard.KeyUp -= KeyUp;
             _primaryKeyboard.KeyDown -= KeyDown;
-            //_primaryKeyboard.KeyChar -= KeyReceived;
         }
     }
 
@@ -66,8 +70,13 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
     {
         if (KeysDown.Contains(key))
         {
-            Debug.WriteLine($"KeyUp captured for frame: {key} ({scanCode})");
+            _logger.LogDebug($"Host KeyUp event: {key} ({scanCode})");
             KeysDown.Remove(key);
+        }
+
+        if (key == Key.CapsLock)
+        {
+            _capsLockKeyDownCaptured = false;
         }
     }
 
@@ -75,22 +84,25 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
     {
         if (!KeysDown.Contains(key))
         {
-            Debug.WriteLine($"KeyDown captured for frame: {key} ({scanCode})");
+            _logger.LogDebug($"Host KeyDown event: {key} ({scanCode})");
             KeysDown.Add(key);
+        }
+
+        if (key == Key.CapsLock && !_capsLockKeyDownCaptured)
+        {
+            _capsLockKeyDownCaptured = true;
+            _capsLockOn = !_capsLockOn; // Toggle state
         }
     }
 
-    private void KeyReceived(IKeyboard keyboard, char character)
+    public bool GetCapsLockState()
     {
-        Debug.WriteLine($"Character received: {character}");
-        if (!CharactersReceived.Contains(character))
-            CharactersReceived.Add(character);
-    }
+        // On Windows, Console.CapsLock can be used to check if CapsLock is on.
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return Console.CapsLock;
 
-    public void ClearKeys()
-    {
-        KeysDown.Clear();
-        CharactersReceived.Clear();
+        // On Linux and Mac return our own captured caps lock state (which may be wrong if the user has pressed the caps lock key outside of the emulator).
+        return _capsLockOn;
     }
 
     public void Cleanup()

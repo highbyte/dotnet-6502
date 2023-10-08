@@ -12,6 +12,7 @@ public class C64Keyboard
     private readonly List<C64Key> _pressedKeys = new List<C64Key>();
     private readonly C64 _c64;
     private List<int> _selectedMatrixRowBitPositions = new();
+    private bool _capsLockOn;
     private readonly ILogger<C64Keyboard> _logger;
 
     public C64Keyboard(C64 c64, ILoggerFactory loggerFactory)
@@ -48,18 +49,26 @@ public class C64Keyboard
     /// Set currently pressed keys from the host system
     /// </summary>
     /// <param name="key"></param>
-    public void SetKeysPressed(List<C64Key> keys)
+    public void SetKeysPressed(List<C64Key> keys, bool restorePressed, bool capsLockOn)
     {
-        _pressedKeys.Clear();
-        if (keys.Count == 0)
-            return;
+        if (restorePressed)
+        {
+            SetRestoreKeyPressed();
+            _logger.LogDebug($"C64 restore key pressed, NMI is invokded.");
+        }
 
-        if (keys.Count > 1)
-            Debug.WriteLine($">1 C64 keys pressed: {string.Join(",", keys)}");
-        else
-            Debug.WriteLine($"C64 key pressed: {keys[0]}");
+        _pressedKeys.Clear();
         foreach (var key in keys)
             _pressedKeys.Add(key);
+        if (keys.Count > 0)
+            _logger.LogDebug($"C64 keys pressed: {string.Join(",", keys)}");
+
+        // Caps lock is not connected to the C64 keyboard matrix, it's connected to the left shift key (keeping it pressed)
+        if (capsLockOn != _capsLockOn)
+            _logger.LogDebug($"C64 caps lock changed to: {capsLockOn}");
+        _capsLockOn = capsLockOn;
+        if (capsLockOn)
+            _pressedKeys.Add(C64Key.LShift);
     }
 
     /// <summary>

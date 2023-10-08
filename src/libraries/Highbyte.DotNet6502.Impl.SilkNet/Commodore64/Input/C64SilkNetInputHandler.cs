@@ -1,7 +1,9 @@
+using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Microsoft.Extensions.Logging;
+using Silk.NET.Input;
 using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
@@ -51,23 +53,18 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
 
     private void CaptureKeyboard(C64 c64)
     {
-        var c64KeysDown = GetC64KeysFromSilkNetKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed);
+        var c64KeysDown = GetC64KeysFromSilkNetKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);
         var keyboard = c64.Cia.Keyboard;
-        keyboard.SetKeysPressed(c64KeysDown);
-        if (restoreKeyPressed)
-            keyboard.SetRestoreKeyPressed();
+        keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
     }
 
-    private List<C64Key> GetC64KeysFromSilkNetKeys(HashSet<Key> keysDown, out bool restoreKeyPressed)
+    private List<C64Key> GetC64KeysFromSilkNetKeys(HashSet<Key> keysDown, out bool restoreKeyPressed, out bool capsLockOn)
     {
+        restoreKeyPressed = keysDown.Contains(Key.PageUp) ? true : false;
+        capsLockOn = _inputHandlerContext!.GetCapsLockState();
+
         var c64KeysDown = new List<C64Key>();
         var foundMappings = new List<Key[]>();
-
-        if (keysDown.Contains(Key.PageUp))
-            restoreKeyPressed = true;
-        else
-            restoreKeyPressed = false;
-
         foreach (var mapKeys in _c64SilkNetKeyboard.SilkNetToC64KeyMap.Keys)
         {
             int matchCount = 0;
