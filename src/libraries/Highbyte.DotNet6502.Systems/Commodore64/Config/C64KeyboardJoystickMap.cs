@@ -1,23 +1,23 @@
-using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Config;
 
 public class C64KeyboardJoystickMap
 {
-    public Dictionary<char, C64JoystickAction> KeyToJoystick1Map = new()
+    public Dictionary<C64Key, C64JoystickAction> KeyToJoystick1Map = new()
     {
     };
-    public Dictionary<char, C64JoystickAction> KeyToJoystick2Map = new()
+    public Dictionary<C64Key, C64JoystickAction> KeyToJoystick2Map = new()
     {
-            {'W', C64JoystickAction.Up},
-            {'S', C64JoystickAction.Down},
-            {'A', C64JoystickAction.Left},
-            {'D', C64JoystickAction.Right},
-            {' ', C64JoystickAction.Fire},
+            {C64Key.W, C64JoystickAction.Up},
+            {C64Key.S, C64JoystickAction.Down},
+            {C64Key.A, C64JoystickAction.Left},
+            {C64Key.D, C64JoystickAction.Right},
+            {C64Key.Space, C64JoystickAction.Fire},
     };
 
-    public List<char> GetMappedKeysForJoystickAction(int joystick, C64JoystickAction action)
+    public List<C64Key> GetMappedKeysForJoystickAction(int joystick, C64JoystickAction action)
     {
         if (joystick != 1 && joystick != 2)
             throw new ArgumentException($"Invalid joystick number: {joystick}");

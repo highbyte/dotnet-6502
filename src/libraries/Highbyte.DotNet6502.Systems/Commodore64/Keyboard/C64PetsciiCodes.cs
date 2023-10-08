@@ -2,6 +2,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Keyboard;
 
 /// <summary>
 /// C64 keys with their corresponding PETSCII codes.
+/// TODO: Is this needed?
 /// </summary>
 public enum C64PetsciiCodes : byte
 {
@@ -113,5 +114,4 @@ public enum C64PetsciiCodes : byte
     LeftBracket = 0x5B,
     Pound = 0x5C,
     RightBracket = 0x5D,
-
 }

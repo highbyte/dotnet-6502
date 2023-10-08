@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using Highbyte.DotNet6502.Instructions;
 using Microsoft.Extensions.Logging;
+using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
@@ -51,24 +53,30 @@ public class C64Keyboard
     /// <param name="key"></param>
     public void SetKeysPressed(List<C64Key> keys, bool restorePressed, bool capsLockOn)
     {
+        // Check for special key: Restore
         if (restorePressed)
         {
             SetRestoreKeyPressed();
             _logger.LogDebug($"C64 restore key pressed, NMI is invokded.");
         }
 
+        // Set pressed keys
         _pressedKeys.Clear();
         foreach (var key in keys)
             _pressedKeys.Add(key);
         if (keys.Count > 0)
             _logger.LogDebug($"C64 keys pressed: {string.Join(",", keys)}");
 
-        // Caps lock is not connected to the C64 keyboard matrix, it's connected to the left shift key (keeping it pressed)
+        // Check for special key: Caps lock
+        // Not connected to the C64 keyboard matrix, it's connected to the left shift key (keeping it pressed)
         if (capsLockOn != _capsLockOn)
             _logger.LogDebug($"C64 caps lock changed to: {capsLockOn}");
         _capsLockOn = capsLockOn;
         if (capsLockOn)
             _pressedKeys.Add(C64Key.LShift);
+
+        // Handle joystick actions via keyboard presses
+        HandleJoystickKeyboard();
     }
 
     /// <summary>
@@ -129,7 +137,33 @@ public class C64Keyboard
         return pressedKeys;
     }
 
+    /// <summary>
+    /// Move joystick based on keyboard input (if configured).
+    /// </summary>
+    private void HandleJoystickKeyboard()
+    {
+        var joystick = _c64.Cia.Joystick;
+        if (joystick.KeyboardJoystickEnabled)
+        {
+            var joystick1KeyboardMap = joystick.KeyboardJoystickMap.KeyToJoystick1Map;
+            var joystick1Actions = new HashSet<C64JoystickAction>();
+            foreach (var c64Key in joystick1KeyboardMap.Keys)
+            {
+                if (_pressedKeys.Contains(c64Key))
+                    joystick1Actions.Add(joystick1KeyboardMap[c64Key]);
+            }
+            joystick.SetJoystick1Actions(joystick1Actions);
 
+            var joystick2KeyboardMap = joystick.KeyboardJoystickMap.KeyToJoystick2Map;
+            var joystick2Actions = new HashSet<C64JoystickAction>();
+            foreach (var c64Key in joystick2KeyboardMap.Keys)
+            {
+                if (_pressedKeys.Contains(c64Key))
+                    joystick2Actions.Add(joystick2KeyboardMap[c64Key]);
+            }
+            joystick.SetJoystick2Actions(joystick2Actions);
+        }
+    }
 }
 
 public enum C64Key

@@ -105,31 +105,9 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
 
     private void CaptureJoystick(C64 c64)
     {
-        var joystick = c64.Cia.Joystick;
-
-        // Use keypresses as joystick input for now.
-        if (joystick.KeyboardJoystickEnabled)
-        {
-            var joystick1KeyboardMap = joystick.KeyboardJoystickMap.KeyToJoystick1Map;
-            var joystick1Actions = new HashSet<C64JoystickAction>();
-            foreach (var charCode in joystick1KeyboardMap.Keys)
-            {
-                string key = charCode.ToString().ToLower();
-                if (_inputHandlerContext!.KeysDown.Contains(key))
-                    joystick1Actions.Add(joystick1KeyboardMap[charCode]);
-            }
-            c64.Cia.Joystick.SetJoystick1Actions(joystick1Actions);
-
-            var joystick2KeyboardMap = joystick.KeyboardJoystickMap.KeyToJoystick2Map;
-            var joystick2Actions = new HashSet<C64JoystickAction>();
-            foreach (var charCode in joystick2KeyboardMap.Keys)
-            {
-                string key = charCode.ToString().ToLower();
-                if (_inputHandlerContext!.KeysDown.Contains(key))
-                    joystick2Actions.Add(joystick2KeyboardMap[charCode]);
-            }
-            c64.Cia.Joystick.SetJoystick2Actions(joystick2Actions);
-        }
+        //var joystick = c64.Cia.Joystick;
+        // TODO: Capture joystick input via Javascript (connected USB controller?)
+        //       For now there is option to control C64 joystick via keyboard (see C64Keyboard class)
     }
 
     public List<string> GetStats()
