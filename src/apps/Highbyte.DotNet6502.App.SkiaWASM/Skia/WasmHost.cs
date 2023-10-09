@@ -27,6 +27,7 @@ public class WasmHost : IDisposable
 
     private readonly string _systemName;
     private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
+    public SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> SystemList => _systemList;
     private readonly Action<string> _updateStats;
     private readonly Action<string> _updateDebug;
     private readonly Func<bool, Task> _setMonitorState;

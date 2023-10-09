@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using Highbyte.DotNet6502.Instructions;
 using Microsoft.Extensions.Logging;
 using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 
@@ -77,6 +75,7 @@ public class C64Keyboard
 
         // Handle joystick actions via keyboard presses
         HandleJoystickKeyboard();
+
     }
 
     /// <summary>
@@ -154,23 +153,33 @@ public class C64Keyboard
         var joystick = _c64.Cia.Joystick;
         if (joystick.KeyboardJoystickEnabled)
         {
+            // Joystick 1
             var joystick1KeyboardMap = joystick.KeyboardJoystickMap.KeyToJoystick1Map;
             var joystick1Actions = new HashSet<C64JoystickAction>();
             foreach (var c64Key in joystick1KeyboardMap.Keys)
             {
                 if (_pressedKeys.Contains(c64Key))
+                {
                     joystick1Actions.Add(joystick1KeyboardMap[c64Key]);
+                    _pressedKeys.Remove(c64Key);    // Remove key from pressed keys to avoid duplicate actions  
+                }
             }
             joystick.SetJoystick1Actions(joystick1Actions);
 
+            // Joystick 2
             var joystick2KeyboardMap = joystick.KeyboardJoystickMap.KeyToJoystick2Map;
             var joystick2Actions = new HashSet<C64JoystickAction>();
             foreach (var c64Key in joystick2KeyboardMap.Keys)
             {
                 if (_pressedKeys.Contains(c64Key))
+                {
                     joystick2Actions.Add(joystick2KeyboardMap[c64Key]);
+                    _pressedKeys.Remove(c64Key);    // Remove key from pressed keys to avoid duplicate actions  
+                }
             }
             joystick.SetJoystick2Actions(joystick2Actions);
+
+
         }
     }
 }

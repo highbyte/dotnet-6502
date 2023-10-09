@@ -251,19 +251,26 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         var c64Config = (C64Config)systemConfig;
 
         // Joystick input with keyboard
-        ImGui.BeginDisabled(disabled: EmulatorState != EmulatorState.Uninitialized);
+        //ImGui.BeginDisabled(disabled: EmulatorState != EmulatorState.Uninitialized);
         ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
         //ImGui.SetKeyboardFocusHere(0);
         ImGui.PushItemWidth(40);
 
         if (ImGui.Checkbox("Keyboard Joystick", ref _c64KeyboardJoystickEnabled))
         {
-            c64Config.KeyboardJoystickEnabled = _c64KeyboardJoystickEnabled;
+            if (EmulatorState == EmulatorState.Uninitialized)
+            {
+                c64Config.KeyboardJoystickEnabled = _c64KeyboardJoystickEnabled;
+            }
+            else
+            {
+                C64 c64 = (C64)_silkNetWindow.SystemList.GetSystem(SelectedSystemName).Result;
+                c64.Cia.Joystick.KeyboardJoystickEnabled = _c64KeyboardJoystickEnabled;
+            }
         }
         ImGui.PopStyleColor();
         ImGui.PopItemWidth();
-        ImGui.EndDisabled();
-
+        //ImGui.EndDisabled();
 
         // Basic load/save commands
         ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);

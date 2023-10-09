@@ -155,9 +155,8 @@ public class C64Config : ISystemConfig
 
         ColorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
 
-        KeyboardJoystickEnabled = true;
+        KeyboardJoystickEnabled = false;
         KeyboardJoystickMap = new C64KeyboardJoystickMap();
-
     }
 
     public bool HasROM(string romName) => ROMs.Any(x => x.Name == romName);

@@ -6,7 +6,7 @@
 <div class="system-command systemCommandsStyle">
 
     <label for="JoystickKeyboardEnabled">Joystick Keyboard</label>
-    <input id="JoystickKeyboardEnabled" type="checkbox" @bind="@JoystickKeyboardEnabled" disabled=@JoystickKeyboardEnabledToggleDisabled />
+    <input id="JoystickKeyboardEnabled" type="checkbox" @bind="@JoystickKeyboardEnabled" />
 
     <p>Load/save files</p>
     <button @onclick="OnBasicFilePicker" disabled=@OnBasicFilePickerDisabled>Load Basic .prg</button>
@@ -76,6 +76,11 @@
         set
         {
             _c64Config.KeyboardJoystickEnabled = value;
+            if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
+            {
+                C64 c64 = (C64)Parent.WasmHost.SystemList.GetSystem(SYSTEM_NAME).Result;
+                c64.Cia.Joystick.KeyboardJoystickEnabled = value;
+            }
         }
     }
 
@@ -104,7 +109,6 @@
     [Parameter]
     public Highbyte.DotNet6502.App.SkiaWASM.Pages.Index Parent { get; set; } = default!;
 
-    protected bool JoystickKeyboardEnabledToggleDisabled => Parent.CurrentEmulatorState != EmulatorState.Uninitialized;
     protected bool ShowConfigDisabled => Parent.CurrentEmulatorState != EmulatorState.Uninitialized;
 
     protected bool OnFilePickerDisabled => Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
