@@ -7,7 +7,7 @@ using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
 
-public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
+public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 {
     private Func<SKCanvas> _getSkCanvas;
 
@@ -20,6 +20,9 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     private Dictionary<int, SKImage> _characterSetROMShiftedMultiColorImage;
     private Dictionary<int, SKImage> _characterSetROMUnshiftedImage;
     private Dictionary<int, SKImage> _characterSetROMUnshiftedMultiColorImage;
+
+    private bool _changedAllCharsetCodes = false;
+    private HashSet<byte> _changedCharsetCodes = new();
 
     private SKRect _drawImageSource = new SKRect();
     private SKRect _drawImageDest = new SKRect();
@@ -112,10 +115,14 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
     {
         if (e.ChangeType == Vic2CharsetManager.CharsetAddressChangedEventArgs.CharsetChangeType.CharacterSetBaseAddress)
         {
-            GenerateCurrentChargenImage(c64);
+            //GenerateCurrentChargenImage(c64);
+            _changedAllCharsetCodes = true;
         }
-        else if (e.ChangeType == Vic2CharsetManager.CharsetAddressChangedEventArgs.CharsetChangeType.CharacterSetCharacter && e.CharCode.HasValue)        {
-            UpdateChangedCharacterOnCurrentImage(c64, e.CharCode.Value);
+        else if (e.ChangeType == Vic2CharsetManager.CharsetAddressChangedEventArgs.CharsetChangeType.CharacterSetCharacter && e.CharCode.HasValue)
+        {
+            //UpdateChangedCharacterOnCurrentImage(c64, e.CharCode.Value);
+            if (!_changedCharsetCodes.Contains(e.CharCode.Value))
+                _changedCharsetCodes.Add(e.CharCode.Value);
         }
     }
 
@@ -194,6 +201,22 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>, IRenderer
                 visibleClippedScreenArea.Screen.End.Y + 1),
             SKClipOperation.Intersect);
         canvas.Translate(scrollX, scrollY);
+
+        // Re-create any changed characters in current charset since last frame
+        if (_changedAllCharsetCodes)
+        {
+            GenerateCurrentChargenImage(c64);
+            _changedAllCharsetCodes = false;
+            _changedCharsetCodes.Clear();
+        }
+        else if (_changedCharsetCodes.Count > 0)
+        {
+            foreach (var charCode in _changedCharsetCodes)
+            {
+                UpdateChangedCharacterOnCurrentImage(c64, charCode);
+            }
+            _changedCharsetCodes.Clear();
+        }
 
         // Build screen data characters based on emulator memory contents (byte)
         var currentScreenAddress = vic2.VideoMatrixBaseAddress;

@@ -8,6 +8,7 @@ using Highbyte.DotNet6502.Impl.SadConsole.Generic.Input;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole;
 
@@ -17,16 +18,20 @@ public class EmulatorHost
     private readonly GenericComputerConfig _genericComputerConfig;
     private readonly C64Config _c64Config;
     private static SadConsoleMain s_sadConsoleMain = default!;
+    private readonly ILoggerFactory _loggerFactory;
+
 
     public EmulatorHost(
         SadConsoleConfig sadConsoleConfig,
         GenericComputerConfig genericComputerConfig,
-        C64Config c64Config
+        C64Config c64Config,
+        ILoggerFactory loggerFactory
         )
     {
         _sadConsoleConfig = sadConsoleConfig;
         _genericComputerConfig = genericComputerConfig;
         _c64Config = c64Config;
+        _loggerFactory = loggerFactory;
     }
 
     public void Start()
@@ -35,7 +40,7 @@ public class EmulatorHost
         SystemRunner systemRunner;
 
         var sadConsoleRenderContext = new SadConsoleRenderContext(GetSadConsoleScreen);
-        var sadConsoleInputHandlerContext = new SadConsoleInputHandlerContext();
+        var sadConsoleInputHandlerContext = new SadConsoleInputHandlerContext(_loggerFactory);
 
         switch (_sadConsoleConfig.Emulator)
         {
@@ -70,12 +75,12 @@ public class EmulatorHost
 
     private SystemRunner GetC64SystemRunner(SadConsoleRenderContext sadConsoleRenderContext, SadConsoleInputHandlerContext sadConsoleInputHandlerContext)
     {
-        var c64 = C64.BuildC64(_c64Config, new NullLoggerFactory());
+        var c64 = C64.BuildC64(_c64Config, _loggerFactory);
 
         var renderer = new C64SadConsoleRenderer();
         renderer.Init(c64, sadConsoleRenderContext);
 
-        var inputHandler = new C64SadConsoleInputHandler();
+        var inputHandler = new C64SadConsoleInputHandler(_loggerFactory);
         inputHandler.Init(c64, sadConsoleInputHandlerContext);
 
         var systemRunnerBuilder = new SystemRunnerBuilder<C64, SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>(c64);
@@ -88,12 +93,12 @@ public class EmulatorHost
 
     private SystemRunner GetGenericSystemRunner(SadConsoleRenderContext sadConsoleRenderContext, SadConsoleInputHandlerContext sadConsoleInputHandlerContext)
     {
-        var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(_genericComputerConfig, new NullLoggerFactory());
+        var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(_genericComputerConfig, _loggerFactory);
 
         var renderer = new GenericSadConsoleRenderer(_genericComputerConfig.Memory.Screen);
         renderer.Init(genericComputer, sadConsoleRenderContext);
 
-        var inputHandler = new GenericSadConsoleInputHandler(_genericComputerConfig.Memory.Input);
+        var inputHandler = new GenericSadConsoleInputHandler(_genericComputerConfig.Memory.Input, _loggerFactory);
         inputHandler.Init(genericComputer, sadConsoleInputHandlerContext);
 
         var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>(genericComputer);

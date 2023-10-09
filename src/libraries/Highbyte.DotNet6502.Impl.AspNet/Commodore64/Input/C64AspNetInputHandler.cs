@@ -1,22 +1,38 @@
+using System.Globalization;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
-using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 
-public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>, IInputHandler
+public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>
 {
     private AspNetInputHandlerContext? _inputHandlerContext = default!;
+    private ILogger<C64AspNetInputHandler> _logger;
+    private C64AspNetKeyboard _c64AspNetKeyboard;
 
-    public C64AspNetInputHandler()
+    public C64AspNetInputHandler(ILoggerFactory loggerFactory)
     {
+        _logger = loggerFactory.CreateLogger<C64AspNetInputHandler>();
+
     }
 
     public void Init(C64 system, AspNetInputHandlerContext inputHandlerContext)
     {
         _inputHandlerContext = inputHandlerContext;
         _inputHandlerContext.Init();
+
+        // There doesn't seem a way to determine the users keyboard layout in Javascript/WASM.
+        // Best guess is to use the current UI culture (sent by the browser in the Accept-Language header).
+        // This will be incorrect if for example the user as a Swedish keyboard layout, but the browser is set to English.
+        var currentUICulture = CultureInfo.CurrentUICulture;
+        var keyboardLayoutId = currentUICulture.KeyboardLayoutId;
+        var languageName = currentUICulture.TwoLetterISOLanguageName;
+        _logger.LogInformation($"KbLayoutId: {keyboardLayoutId}");
+        _logger.LogInformation($"KbLanguage: {languageName}");
+
+        _c64AspNetKeyboard = new C64AspNetKeyboard(languageName);
     }
 
     public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
@@ -27,8 +43,7 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
     public void ProcessInput(C64 c64)
     {
         CaptureKeyboard(c64);
-
-        _inputHandlerContext!.ClearKeys();   // Clear our captured keys so far
+        CaptureJoystick(c64);
     }
 
     public void ProcessInput(ISystem system)
@@ -38,104 +53,58 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
 
     private void CaptureKeyboard(C64 c64)
     {
-        HandleNonPrintedC64Keys(c64);
-        HandlePrintedC64Keys(c64);
+        var c64KeysDown = GetC64KeysFromAspNetKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);
+        var keyboard = c64.Cia.Keyboard;
+        keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
     }
 
-    private void HandleNonPrintedC64Keys(C64 c64)
+    private List<C64Key> GetC64KeysFromAspNetKeys(HashSet<string> keysDown, out bool restoreKeyPressed, out bool capsLockOn)
     {
-        var c64Keyboard = c64.Keyboard;
+        restoreKeyPressed = keysDown.Contains("PageUp") ? true : false;
+        capsLockOn = _inputHandlerContext!.GetCapsLockState();
 
-        // STOP (ESC) down
-        if (_inputHandlerContext!.KeysDown.Contains("Escape"))
-        //if (_inputHandlerContext.SpecialKeyReceived.Count == 1 && _inputHandlerContext.SpecialKeyReceived.First() == Key.Escape)
+        var c64KeysDown = new List<C64Key>();
+        var foundMappings = new List<string[]>();
+        foreach (var mapKeys in _c64AspNetKeyboard.AspNetToC64KeyMap.Keys)
         {
-            c64.Mem[CiaAddr.CIA1_DATAB] = 0x00;  // Hack: not yet handling the CIA Data B register to scan keyboard.
-
-            // Pressing STOP (RUN/STOP) will stop any running Basic program.
-            c64Keyboard.StopKeyFlag = 0x7f;
-
-            // RESTORE (PageUp) down. Together with STOP it will issue a NMI (which will jump to code that detects STOP is pressed and resets any running program, and clears screen.)
-            if (_inputHandlerContext.KeysDown.Contains("PageUp"))
-                c64.CPU.CPUInterrupts.SetNMISourceActive("KeyboardReset");
-            return;
-        }
-
-        // STOP (ESC) released
-        if (_inputHandlerContext.KeysUp.Count == 1 && _inputHandlerContext.KeysUp.First() == "Escape")
-        {
-            c64Keyboard.StopKeyFlag = 0xff;
-            return;
-        }
-
-        if (_inputHandlerContext.KeysDown.Count == 0)
-            c64.Mem[CiaAddr.CIA1_DATAB] = 0xff; // Hack: not yet handling the CIA Data B register to scan keyboard.
-
-    }
-
-    private void HandlePrintedC64Keys(C64 c64)
-    {
-        var c64Keyboard = c64.Keyboard;
-
-        // Check if modifier key is down.
-        var modifierKeyDown = "";
-        foreach (var modifierKey in C64AspNetKeyboard.AllModifierKeys)
-        {
-            var modifierKeyPressed = _inputHandlerContext!.KeysDown.Contains(modifierKey);
-            if (modifierKeyPressed)
+            int matchCount = 0;
+            foreach (var mapKeysKey in mapKeys)
             {
-                modifierKeyDown = modifierKey;
-                break;
+                if (keysDown.Contains(mapKeysKey))
+                    matchCount++;
             }
-        }
-
-        if (C64AspNetKeyboard.SpecialKeyMaps.ContainsKey(modifierKeyDown))
-        {
-            var specialKeyMap = C64AspNetKeyboard.SpecialKeyMaps[modifierKeyDown];
-
-            foreach (var key in specialKeyMap.Keys)
+            if (matchCount == mapKeys.Length)
             {
-                if (_inputHandlerContext!.KeysDown.Contains(key))
+                // Remove any other mappings found that contains any of the keys in this mapping.
+                for (int i = foundMappings.Count - 1; i >= 0; i--)
                 {
-                    var petsciiCode = specialKeyMap[key];
-                    c64Keyboard.KeyPressed(petsciiCode);
-
-                    _inputHandlerContext.KeysDown.Remove(key);
-                    // If we detected a special Key/Combo pressed, don't process anymore. Some of them may also be in the _inputHandlerContext.CharactersReceived list processed below.
-                    return;
+                    var currentlyFoundMapKeys = foundMappings[i];
+                    if (currentlyFoundMapKeys.Any(x => mapKeys.Contains(x)))
+                    {
+                        foundMappings.RemoveAt(i);
+                    }
                 }
+                foundMappings.Add(mapKeys);
             }
         }
 
-        // Check if nothing to do with captured characters.
-        if (_inputHandlerContext!.KeysPressed.Count == 0)
-            return;
-
-        foreach (var key in _inputHandlerContext.KeysPressed)
+        foreach (var mapKeys in foundMappings)
         {
-            char character;
-            if (key.Length == 1)
+            var c64Keys = _c64AspNetKeyboard.AspNetToC64KeyMap[mapKeys];
+            foreach (var c64Key in c64Keys)
             {
-                character = key[0];
+                if (!c64KeysDown.Contains(c64Key))
+                    c64KeysDown.Add(c64Key);
             }
-            else
-            {
-                character = MapAspNetKeyStringToCharacter(key);
-                if (character == 0)
-                    continue;
-            }
-            if (!Petscii.CharToPetscii.ContainsKey(character))
-                continue;
-            var petsciiCode = Petscii.CharToPetscii[character];
-            c64Keyboard.KeyPressed(petsciiCode);
         }
+        return c64KeysDown;
     }
 
-    private char MapAspNetKeyStringToCharacter(string key)
+    private void CaptureJoystick(C64 c64)
     {
-        if (C64AspNetKeyboard.AspNetKeyStringToCharacter.ContainsKey(key))
-            return C64AspNetKeyboard.AspNetKeyStringToCharacter[key];
-        return (char)0; // No key found
+        //var joystick = c64.Cia.Joystick;
+        // TODO: Capture joystick input via Javascript (connected USB controller?)
+        //       For now there is option to control C64 joystick via keyboard (see C64Keyboard class)
     }
 
     public List<string> GetStats()
@@ -146,8 +115,6 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
 
         if (_inputHandlerContext.KeysDown.Count > 0)
             list.Add($"KeysDown: {string.Join(',', _inputHandlerContext.KeysDown)}");
-        if (_inputHandlerContext.KeysUp.Count > 0)
-            list.Add($"KeysUp: {string.Join(',', _inputHandlerContext.KeysUp)}");
         return list;
     }
 }

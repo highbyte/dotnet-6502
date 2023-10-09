@@ -4,6 +4,10 @@
 @using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index;
 
 <div class="system-command systemCommandsStyle">
+
+    <label for="JoystickKeyboardEnabled">Joystick Keyboard</label>
+    <input id="JoystickKeyboardEnabled" type="checkbox" @bind="@JoystickKeyboardEnabled" />
+
     <p>Load/save files</p>
     <button @onclick="OnBasicFilePicker" disabled=@OnBasicFilePickerDisabled>Load Basic .prg</button>
     <button @onclick="OnSaveBasicFile" disabled=@OnBasicFilePickerDisabled>Save Basic .prg</button>
@@ -59,6 +63,26 @@
     @inject HttpClient? HttpClient
 
     private string SYSTEM_NAME = C64.SystemName;
+
+    // Note: The current config object (reference) is stored in this variable so that the UI can bind it's properties (not possible to use async call to _systemList.GetSystemConfig() in property )
+    private C64Config _c64Config => (C64Config)Parent.SystemConfig;
+
+    private bool JoystickKeyboardEnabled
+    {
+        get
+        {
+            return _c64Config?.KeyboardJoystickEnabled ?? false;
+        }
+        set
+        {
+            _c64Config.KeyboardJoystickEnabled = value;
+            if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
+            {
+                C64 c64 = (C64)Parent.WasmHost.SystemList.GetSystem(SYSTEM_NAME).Result;
+                c64.Cia.Joystick.KeyboardJoystickEnabled = value;
+            }
+        }
+    }
 
     private readonly Dictionary<string, string> _assemblyExampleFiles = new()
     {
@@ -291,11 +315,14 @@
         }
 
         // Send "list" + Enter to the keyboard buffer to immediately list the loaded program
-        c64.Keyboard.KeyPressed(Petscii.CharToPetscii['l']);
-        c64.Keyboard.KeyPressed(Petscii.CharToPetscii['i']);
-        c64.Keyboard.KeyPressed(Petscii.CharToPetscii['s']);
-        c64.Keyboard.KeyPressed(Petscii.CharToPetscii['t']);
-        c64.Keyboard.KeyPressed(Petscii.CharToPetscii[(char)13]);
+        var c64Keyboard = c64.Cia.Keyboard;
+        // TODO after implementing C64 keyboard matrix scanning
+        // TODO: Bypass keyboard matrix scanning and send directly to keyboard buffer?
+        // c64Keyboard.KeyPressed(Petscii.CharToPetscii['l']);
+        // c64Keyboard.KeyPressed(Petscii.CharToPetscii['i']);
+        // c64Keyboard.KeyPressed(Petscii.CharToPetscii['s']);
+        // c64Keyboard.KeyPressed(Petscii.CharToPetscii['t']);
+        // c64Keyboard.KeyPressed(Petscii.CharToPetscii[(char)13]);
 
         await Parent.OnStart(new());
     }

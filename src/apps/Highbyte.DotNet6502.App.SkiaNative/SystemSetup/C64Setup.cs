@@ -88,7 +88,7 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, SilkNetInputHandlerC
         )
     {
         var renderer = new C64SkiaRenderer();
-        var inputHandler = new C64SilkNetInputHandler();
+        var inputHandler = new C64SilkNetInputHandler(_loggerFactory);
         var audioHandler = new C64NAudioAudioHandler(_loggerFactory);
 
         var c64 = (C64)system;

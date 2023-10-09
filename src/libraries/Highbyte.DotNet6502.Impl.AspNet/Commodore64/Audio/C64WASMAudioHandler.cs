@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 
-public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>, IAudioHandler
+public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>
 {
     // Set to true to stop and recreate oscillator before each audio. Set to false to reuse oscillator.
     // If true: for each audio played, the oscillator will be stopped, recreated, and started. This is the way WebAudio API is designed to work, but is very resource heavy if using the C#/.NET WebAudio wrapper classes, because new instances are created continuously.

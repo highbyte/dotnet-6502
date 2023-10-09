@@ -1,6 +1,7 @@
 ﻿@using Highbyte.DotNet6502.App.SkiaWASM.Skia
-@using Highbyte.DotNet6502.Systems.Commodore64.Config
 @using Highbyte.DotNet6502.Systems;
+@using Highbyte.DotNet6502.Systems.Commodore64.Config
+@using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 @using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index
 
 <h2>ROMs</h2>
@@ -61,6 +62,38 @@ else
     <div class="table-row">
         <div class="table-cell twocol">Audio enabled (experimental):</div>
         <div class="table-cell twocol"><input @bind="C64Config.AudioEnabled" @bind:event="oninput" type="checkbox" id="audioEnabled" title="Enable audio"/></div>
+    </div>
+</div>
+
+<h2>Joystick #2 keyboard map</h2>
+@{
+    var keyToJoystickMap = C64Config.KeyboardJoystickMap;
+    var joystick = 2;
+}
+<div class="table">
+    <div class="table-row">
+        <div class="table-cell twocol">Enabled</div>
+        <div class="table-cell twocol"><input @bind="C64Config.KeyboardJoystickEnabled" @bind:event="oninput" type="checkbox" id="keyboardJoystickEnabled" title="Enable Joystick Keyboard" /></div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">Up:</div>
+        <div class="table-cell twocol">@string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Up))</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">Down:</div>
+        <div class="table-cell twocol">@string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Down))</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">Left:</div>
+        <div class="table-cell twocol">@string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Left))</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">Right:</div>
+        <div class="table-cell twocol">@string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Right))</div>
+    </div>
+    <div class="table-row">
+        <div class="table-cell twocol">Fire:</div>
+        <div class="table-cell twocol">@string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Fire)).Replace(" ", "SPACE")</div>
     </div>
 </div>
 

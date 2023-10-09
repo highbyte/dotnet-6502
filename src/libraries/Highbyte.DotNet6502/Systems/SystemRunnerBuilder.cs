@@ -18,8 +18,18 @@ public class SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, 
         _systemRunner.Renderer = renderer;
         return this;
     }
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithRenderer(IRenderer renderer)
+    {
+        _systemRunner.Renderer = renderer;
+        return this;
+    }
 
     public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithInputHandler(IInputHandler<TSystem, TInputHandlerContext> inputHandler)
+    {
+        _systemRunner.InputHandler = inputHandler;
+        return this;
+    }
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithInputHandler(IInputHandler inputHandler)
     {
         _systemRunner.InputHandler = inputHandler;
         return this;

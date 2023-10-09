@@ -4,7 +4,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Generic.Input;
 
-public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, AspNetInputHandlerContext>, IInputHandler
+public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, AspNetInputHandlerContext>
 {
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private AspNetInputHandlerContext? _inputHandlerContext;
@@ -29,8 +29,6 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
     public void ProcessInput(GenericComputer genericComputer)
     {
         CaptureKeyboard(genericComputer);
-
-        _inputHandlerContext!.ClearKeys();   // Clear our captured keys so far
     }
 
     public void ProcessInput(ISystem system)
@@ -41,24 +39,21 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
     private void CaptureKeyboard(GenericComputer genericComputer)
     {
         // Note: The simplistic "GenericComputer" don't have a Keyboard buffer, only can receive one character ...
-
-        // if (_inputHandlerContext.CharactersReceived.Count > 0)
-        // {
-        //     char keyCode = _inputHandlerContext.CharactersReceived.First();
-        //     genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = (byte)keyCode;
-        // }
-
         if (_inputHandlerContext!.KeysDown.Count > 0)
         {
             var key = _inputHandlerContext.KeysDown.First();
             // TODO: Handle all kinds of keys
-            var keyCode = 0;
+            byte keyCode = 0;
             if (key.Length == 1)
-                keyCode = key[0];
-            genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = (byte)keyCode;
+                keyCode = (byte)key[0];
+            else if (key == "Space")
+                keyCode = 32;
+            else if (key == "Enter")
+                keyCode = 10;
+            genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = keyCode;
         }
 
-        if (_inputHandlerContext.KeysUp.Count > 0)
+        if (_inputHandlerContext.KeysDown.Count == 0)
             // Only way to tell the "GenericComputer" that a Key is no longer pressed is to set KeyDownAddress to 0...
             genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = 0x00;
     }

@@ -209,5 +209,4 @@ public class CharGen
             data.SaveTo(stream);
         }
     }
-
 }

@@ -4,7 +4,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Generic.Video;
 
-public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRenderContext>, IRenderer
+public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRenderContext>
 {
     private SadConsoleRenderContext _sadConsoleRenderContext;
 

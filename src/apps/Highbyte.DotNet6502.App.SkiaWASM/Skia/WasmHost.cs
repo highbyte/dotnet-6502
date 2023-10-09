@@ -27,11 +27,13 @@ public class WasmHost : IDisposable
 
     private readonly string _systemName;
     private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
+    public SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> SystemList => _systemList;
     private readonly Action<string> _updateStats;
     private readonly Action<string> _updateDebug;
     private readonly Func<bool, Task> _setMonitorState;
     private readonly MonitorConfig _monitorConfig;
     private readonly Func<Task> _toggleDebugStatsState;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly float _scale;
     private readonly float _initialMasterVolume;
     private readonly ILogger _logger;
@@ -78,6 +80,7 @@ public class WasmHost : IDisposable
         _toggleDebugStatsState = toggleDebugStatsState;
         _scale = scale;
         _initialMasterVolume = initialMasterVolume;
+        _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger(typeof(WasmHost).Name);
 
         // Init stats
@@ -100,7 +103,7 @@ public class WasmHost : IDisposable
         _grContext = grContext;
 
         _skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
-        InputHandlerContext = new AspNetInputHandlerContext();
+        InputHandlerContext = new AspNetInputHandlerContext(_loggerFactory);
         AudioHandlerContext = new WASMAudioHandlerContext(audioContext, jsRuntime, _initialMasterVolume);
 
         _systemList.InitContext(() => _skiaRenderContext, () => InputHandlerContext, () => AudioHandlerContext);

@@ -29,7 +29,6 @@ public class C64 : ISystem, ISystemMonitor
     public byte CurrentBank { get; set; }
     public Vic2 Vic2 { get; set; } = default!;
     public Cia Cia { get; set; } = default!;
-    public C64Keyboard Keyboard { get; set; } = default!;
     public Sid Sid { get; set; } = default!;
     public Dictionary<string, byte[]> ROMData { get; set; } = default!;
 
@@ -178,7 +177,6 @@ public class C64 : ISystem, ISystemMonitor
         var io = new byte[4 * 1024];  // 4KB of C64 IO addresses that is mapped to memory address range 0xd000 - 0xdfff in certain memory configurations.
 
         var vic2Model = c64Model.Vic2Models.Single(x => x.Name == c64Config.Vic2Model);
-        var kb = new C64Keyboard();
 
         var logger = loggerFactory.CreateLogger(typeof(C64).Name);
         var c64 = new C64(logger)
@@ -186,7 +184,6 @@ public class C64 : ISystem, ISystemMonitor
             Model = c64Model,
             RAM = ram,
             IO = io,
-            Keyboard = kb,
             ROMData = romData,
             AudioEnabled = c64Config.AudioEnabled,
             TimerMode = c64Config.TimerMode,
@@ -196,7 +193,8 @@ public class C64 : ISystem, ISystemMonitor
         var cpu = CreateC64CPU(loggerFactory);
         var vic2 = Vic2.BuildVic2(vic2Model, c64);
         var sid = Sid.BuildSid(c64);
-        var cia = new Cia(c64);
+
+        var cia = new Cia(c64, c64Config, loggerFactory);
 
         c64.CPU = cpu;
         c64.Vic2 = vic2;
@@ -227,7 +225,6 @@ public class C64 : ISystem, ISystemMonitor
             // Map IO addresses at d000
             Vic2.MapIOLocations(mem);
             Cia.MapIOLocations(mem);
-            Keyboard.MapIOLocations(mem);
             Sid.MapIOLocations(mem);
         }
     }

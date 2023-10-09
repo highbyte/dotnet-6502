@@ -7,7 +7,7 @@ using NAudio.Wave.SampleProviders;
 
 namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 
-public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContext>, IAudioHandler
+public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContext>
 {
     private NAudioAudioHandlerContext? _audioHandlerContext;
 

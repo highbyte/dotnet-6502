@@ -1,79 +1,66 @@
 using Highbyte.DotNet6502.Systems;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.AspNet;
 
 public class AspNetInputHandlerContext : IInputHandlerContext
 {
+    private readonly ILogger<AspNetInputHandlerContext> _logger;
 
-    public HashSet<string> KeysUp = new();
     public HashSet<string> KeysDown = new();
-    public HashSet<string> KeysPressed = new();
 
-    //public bool Quit { get; private set; }
+    private bool _capsLockKeyDownCaptured;
+    private bool _capsLockOn;
 
-    public bool IsKeyPressed(string key) => KeysPressed.Contains(key);
-
-    //public AspNetInputHandlerContext()
-    //{
-    //}
+    public AspNetInputHandlerContext(ILoggerFactory loggerFactory)
+    {
+        _logger = loggerFactory.CreateLogger<AspNetInputHandlerContext>();
+    }
 
     public void Init()
     {
-        //Quit = false;
-
-        //ListenForKeyboardInput(enabled: true);
     }
 
     public void KeyUp(KeyboardEventArgs e)
     {
-        var key = GetKey(e);
-        if (!KeysUp.Contains(key))
+        if (KeysDown.Contains(e.Code))
         {
-            KeysUp.Add(key);
+            _logger.LogDebug($"Host KeyUp event: {e.Key} ({e.Code})");
+            KeysDown.Remove(e.Code);
         }
-        if (KeysDown.Contains(key))
-            KeysDown.Remove(key);
+
+        if (e.Code == "CapsLock")
+        {
+            _capsLockKeyDownCaptured = false;
+        }
     }
 
     public void KeyDown(KeyboardEventArgs e)
     {
-        var key = GetKey(e);
-        if (!KeysDown.Contains(key))
+        if (!KeysDown.Contains(e.Code))
         {
-            KeysDown.Add(key);
+            _logger.LogDebug($"Host KeyDown event: {e.Key} ({e.Code})");
+            KeysDown.Add(e.Code);
+        }
+
+        if (e.Code == "CapsLock" && !_capsLockKeyDownCaptured)
+        {
+            _capsLockKeyDownCaptured = true;
+            _capsLockOn = !_capsLockOn; // Toggle state
         }
     }
 
-    public void KeyPress(KeyboardEventArgs e)
+    public void OnFocus(FocusEventArgs e)
     {
-        var key = GetKey(e);
-        if (!KeysPressed.Contains(key))
-        {
-            KeysPressed.Add(key);
-        }
+        _logger.LogDebug($"Host OnFocus event");
+        KeysDown.Clear();
     }
 
-    public void ClearKeys()
+    public bool GetCapsLockState()
     {
-        KeysUp.Clear();
-        //KeysDown.Clear(); // KeysDown individual keys are removed in KeyUp event.
-        KeysPressed.Clear();
-    }
-
-    private string GetKey(KeyboardEventArgs e)
-    {
-        if (e.Key == "Control" || e.Key == "Shift" || e.Key == "Alt")
-            return $"{e.Key}{GetLeftRightPosition(e)}";
-        return e.Key;
-    }
-
-    private string GetLeftRightPosition(KeyboardEventArgs e)
-    {
-        if (e.Location == 1)
-            return "Left";
-        else if (e.Location == 2)
-            return "Right";
-        return "";
+        // TODO: Is there a built-in way in Javascript/WASM to check if CapsLock is on?
+        //       That could improve the custom detection in this code, which might not match the actual caps lock state of the user. 
+        return _capsLockOn;
     }
 
     public void Cleanup()

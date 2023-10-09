@@ -1,25 +1,37 @@
 using Highbyte.DotNet6502;
-using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
-using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
 
-public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandlerContext>, IInputHandler
+public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandlerContext>
 {
     private SadConsoleInputHandlerContext? _inputHandlerContext;
     private readonly List<string> _stats = new();
+    private readonly C64SadConsoleKeyboard _c64SadConsoleKeyboard;
+    private readonly ILogger<C64SadConsoleInputHandler> _logger;
 
-    public C64SadConsoleInputHandler()
+    public C64SadConsoleInputHandler(ILoggerFactory loggerFactory)
     {
+        _logger = loggerFactory.CreateLogger<C64SadConsoleInputHandler>();
+
+        // TODO: Is there a better way to current keyboard input language?
+        var currentUICulture = Thread.CurrentThread.CurrentUICulture;
+        var keyboardLayoutId = currentUICulture.KeyboardLayoutId;
+        var languageName = currentUICulture.TwoLetterISOLanguageName;
+        _logger.LogInformation($"KbLayoutId: {keyboardLayoutId}");
+        _logger.LogInformation($"KbLanguage: {languageName}");
+
+        _c64SadConsoleKeyboard = new C64SadConsoleKeyboard(languageName);
+
     }
 
     public void Init(C64 system, SadConsoleInputHandlerContext inputHandlerContext)
     {
         _inputHandlerContext = inputHandlerContext;
-        //_inputHandlerContext.Init();
+        _inputHandlerContext.Init();
     }
 
     public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
@@ -39,103 +51,52 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
 
     private void CaptureKeyboard(C64 c64)
     {
-        var sadConsoleKeyboard = GameHost.Instance.Keyboard;
 
-        HandleNonPrintedKeys(c64, sadConsoleKeyboard);
-
-        var petsciiCode = GetPetsciiCode(sadConsoleKeyboard);
-        if (petsciiCode != 0)
-            c64.Keyboard.KeyPressed(petsciiCode);
+        var c64KeysDown = GetC64KeysFromSadConsoleKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);
+        var keyboard = c64.Cia.Keyboard;
+        keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
     }
 
-    private void HandleNonPrintedKeys(
-        C64 c64,
-        Keyboard sadConsoleKeyboard)
+    private List<C64Key> GetC64KeysFromSadConsoleKeys(List<Keys> keysDown, out bool restoreKeyPressed, out bool capsLockOn)
     {
-        var c64Keyboard = c64.Keyboard;
+        restoreKeyPressed = keysDown.Contains(Keys.PageUp) ? true : false;
+        capsLockOn = _inputHandlerContext!.GetCapsLockState();
 
-        // STOP (ESC) down
-        if (sadConsoleKeyboard.IsKeyDown(Keys.Escape))
+        var c64KeysDown = new List<C64Key>();
+        var foundMappings = new List<Keys[]>();
+        foreach (var mapKeys in _c64SadConsoleKeyboard.SadConsoleToC64KeyMap.Keys)
         {
-            c64.Mem[CiaAddr.CIA1_DATAB] = 0x00;  // Hack: not yet handling the CIA Data B register to scan keyboard.
-
-            c64Keyboard.StopKeyFlag = 0x7f;
-
-            // RESTORE (PageUp) down. Together with STOP it will issue a NMI (which will jump to code that detects STOP is pressed and resets any running program, and clears screen.)
-            if (sadConsoleKeyboard.IsKeyDown(Keys.PageUp))
-                c64.CPU.CPUInterrupts.SetNMISourceActive("KeyboardReset");
-            sadConsoleKeyboard.Clear();
-            return;
-        }
-        // STOP (ESC) released
-        if ((sadConsoleKeyboard.KeysReleased.Count == 1 || sadConsoleKeyboard.KeysReleased.Count == 2)
-            && sadConsoleKeyboard.KeysReleased.Select(x => x.Key).Contains(Keys.Escape))
-        {
-            c64Keyboard.StopKeyFlag = 0xff;
-            sadConsoleKeyboard.Clear();
-            return;
-        }
-
-        if (sadConsoleKeyboard.KeysDown.Count == 0)
-            c64.Mem[CiaAddr.CIA1_DATAB] = 0xff; // Hack: not yet handling the CIA Data B register to scan keyboard.
-    }
-
-    private byte GetPetsciiCode(
-        Keyboard sadConsoleKeyboard)
-    {
-        // NOTE ON CURRENT ISSUED WITH KEYBOARD
-        // - SadConsole doesn't return the character pressed on a international keyboard correct.
-        // - The character pressed is not what is returned. Ex: Pressing shift-0 which should return '=' character instead returns ')'. Seems no way to get a '=' on any key.
-        // - Some keys on a Swedish keyboard are not reported at all (returned as character 0)
-
-        // If no keys detected, skip
-        if (sadConsoleKeyboard.KeysReleased.Count == 0 && sadConsoleKeyboard.KeysPressed.Count == 0 && sadConsoleKeyboard.KeysDown.Count == 0)
-            return 0;
-
-        // Only handle the KeyPressed keys
-        if (sadConsoleKeyboard.KeysPressed.Count == 0)
-            return 0;
-
-        // Skip key presses of modifier keys (they will be checked together for "key down" in combination with key presses on normal keys)
-        var allPressedKeys = sadConsoleKeyboard.KeysPressed.Select(y => y.Key);
-        if (C64SadConsoleKeyboard.AllModifierKeys.Any(x => allPressedKeys.Contains(x)))
-            //System.Diagnostics.Debug.WriteLine($"Skipping KeyPressed modifier: {string.Join(',', allPressedKeys)}");
-            return 0;
-
-        var sadConsoleKey = sadConsoleKeyboard.KeysPressed[0];
-
-        // Check which modifier key is down.
-        var modifierKeyDown = Keys.None;
-        foreach (var modifierKey in C64SadConsoleKeyboard.AllModifierKeys)
-        {
-            if (sadConsoleKeyboard.IsKeyDown(modifierKey))
+            int matchCount = 0;
+            foreach (var mapKeysKey in mapKeys)
             {
-                modifierKeyDown = modifierKey;
-                break;
+                if (keysDown.Contains(mapKeysKey))
+                    matchCount++;
+            }
+            if (matchCount == mapKeys.Length)
+            {
+                // Remove any other mappings found that contains any of the keys in this mapping.
+                for (int i = foundMappings.Count - 1; i >= 0; i--)
+                {
+                    var currentlyFoundMapKeys = foundMappings[i];
+                    if (currentlyFoundMapKeys.Any(x => mapKeys.Contains(x)))
+                    {
+                        foundMappings.RemoveAt(i);
+                    }
+                }
+                foundMappings.Add(mapKeys);
             }
         }
 
-        // Check if any special key is pressed based on modifier key.
-        if (C64SadConsoleKeyboard.SpecialKeyMaps.ContainsKey(modifierKeyDown))
+        foreach (var mapKeys in foundMappings)
         {
-            var specialKeyMap = C64SadConsoleKeyboard.SpecialKeyMaps[modifierKeyDown];
-            if (specialKeyMap.ContainsKey(sadConsoleKey.Key))
+            var c64Keys = _c64SadConsoleKeyboard.SadConsoleToC64KeyMap[mapKeys];
+            foreach (var c64Key in c64Keys)
             {
-                var petsciiCodeSpecial = specialKeyMap[sadConsoleKey.Key];
-                System.Diagnostics.Debug.WriteLine($"SadConsole special key pressed: {sadConsoleKey.Key} with modifier: {modifierKeyDown} and mapped to Petscii: {petsciiCodeSpecial}");
-                return petsciiCodeSpecial;
+                if (!c64KeysDown.Contains(c64Key))
+                    c64KeysDown.Add(c64Key);
             }
         }
-
-        // "Normal" key is pressed, map via char-to-petscii table
-        if (!Petscii.CharToPetscii.ContainsKey(sadConsoleKey.Character))
-        {
-            System.Diagnostics.Debug.WriteLine($"SadConsole character pressed but not mapped: {sadConsoleKey.Character}");
-            return 0;
-        }
-        var petsciiCode = Petscii.CharToPetscii[sadConsoleKey.Character];
-        System.Diagnostics.Debug.WriteLine($"SadConsole normal character pressed {sadConsoleKey.Character} and mapped to Petscii: {petsciiCode}");
-        return petsciiCode;
+        return c64KeysDown;
     }
 
     public List<string> GetStats()

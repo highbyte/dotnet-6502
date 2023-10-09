@@ -21,6 +21,25 @@ public class DotNet6502InMemLogStoreTest
     }
 
     [Fact]
+    public void Writing_LogMessage_Stores_Message_And_Writes_DebugMessage_If_Configured()
+    {
+        // Arrange
+        var memLogStore = new DotNet6502InMemLogStore() { WriteDebugMessage = true };
+        var message = "Test message";
+
+        // Act
+        memLogStore.WriteLog(message);
+
+        // Assert
+        Assert.True(memLogStore.WriteDebugMessage);
+        // Cannot verify that an Debug.WriteLine is issued?
+
+        var actualMessages = memLogStore.GetLogMessages();
+        Assert.Single(actualMessages);
+        Assert.Equal(message, actualMessages[0]);
+    }
+
+    [Fact]
     public void Writing_LogMessage_Inserts_It_At_The_Top_Of_The_List()
     {
         // Arrange
@@ -56,6 +75,16 @@ public class DotNet6502InMemLogStoreTest
 
         Assert.Equal(memLogStore.MaxLogMessages, actualMessages.Count);
         Assert.Equal(newMessage, actualMessages[0]);
+    }
+
+    [Fact]
+    public void Setting_MaxLogMessages_To_Less_Than_Zero_Throws_Exception()
+    {
+        // Arrange
+        var memLogStore = new DotNet6502InMemLogStore();
+
+        // Act/Assert
+        Assert.Throws<ArgumentException>(() => memLogStore.MaxLogMessages = -1);
     }
 
     [Fact]

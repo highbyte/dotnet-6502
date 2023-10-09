@@ -5,7 +5,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Generic.Video;
 
-public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRenderContext>, IRenderer
+public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRenderContext>
 {
     private Func<SKCanvas> _getSkCanvas = default!;
     private SKPaintMaps _skPaintMaps = default!;

@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 /// <summary>
@@ -9,13 +11,16 @@ public class Cia
     private readonly C64 _c64;
 
     public CiaIRQ CiaIRQ { get; private set; }
-
+    public C64Keyboard Keyboard { get; private set; }
+    public C64Joystick Joystick { get; private set; }
     public Dictionary<CiaTimerType, CiaTimer> CiaTimers { get; private set; }
 
-    public Cia(C64 c64)
+    public Cia(C64 c64, Config.C64Config c64Config, ILoggerFactory loggerFactory)
     {
         _c64 = c64;
         CiaIRQ = new CiaIRQ();
+        Keyboard = new C64Keyboard(c64, loggerFactory);
+        Joystick = new C64Joystick(c64Config);
 
         CiaTimers = new();
         CiaTimers.Add(CiaTimerType.Cia1_A, new CiaTimer(CiaTimerType.Cia1_A, IRQSource.TimerA, _c64));
@@ -30,55 +35,86 @@ public class Cia
         }
     }
 
-    public void MapIOLocations(Memory mem)
+    public void MapIOLocations(Memory c64mem)
     {
         // CIA #1 DataPort A
-        mem.MapReader(CiaAddr.CIA1_DATAA, Cia1DataALoad);
-        mem.MapWriter(CiaAddr.CIA1_DATAA, Cia1DataAStore);
+        c64mem.MapReader(CiaAddr.CIA1_DATAA, Cia1DataALoad);
+        c64mem.MapWriter(CiaAddr.CIA1_DATAA, Cia1DataAStore);
 
         // CIA #1 DataPort B
-        // Workaround set 0xff in data port B as initial value. Means no key down (temporary solution, which is useful to not get extremely long execution of Kernal routines inspecting keyboard.
-        _c64.WriteIOStorage(CiaAddr.CIA1_DATAB, 0xff);
-        mem.MapReader(CiaAddr.CIA1_DATAB, Cia1DataBLoad);
-        mem.MapWriter(CiaAddr.CIA1_DATAB, Cia1DataBStore);
+        c64mem.MapReader(CiaAddr.CIA1_DATAB, Cia1DataBLoad);
+        c64mem.MapWriter(CiaAddr.CIA1_DATAB, Cia1DataBStore);
 
         // CIA #1 Timer A
-        mem.MapReader(CiaAddr.CIA1_TIMAHI, Cia1TimerAHILoad);
-        mem.MapWriter(CiaAddr.CIA1_TIMAHI, Cia1TimerAHIStore);
+        c64mem.MapReader(CiaAddr.CIA1_TIMAHI, Cia1TimerAHILoad);
+        c64mem.MapWriter(CiaAddr.CIA1_TIMAHI, Cia1TimerAHIStore);
 
-        mem.MapReader(CiaAddr.CIA1_TIMALO, Cia1TimerALOLoad);
-        mem.MapWriter(CiaAddr.CIA1_TIMALO, Cia1TimerALOStore);
+        c64mem.MapReader(CiaAddr.CIA1_TIMALO, Cia1TimerALOLoad);
+        c64mem.MapWriter(CiaAddr.CIA1_TIMALO, Cia1TimerALOStore);
 
         // CIA #1 Timer B
-        mem.MapReader(CiaAddr.CIA1_TIMBHI, Cia1TimerBHILoad);
-        mem.MapWriter(CiaAddr.CIA1_TIMBHI, Cia1TimerBHIStore);
+        c64mem.MapReader(CiaAddr.CIA1_TIMBHI, Cia1TimerBHILoad);
+        c64mem.MapWriter(CiaAddr.CIA1_TIMBHI, Cia1TimerBHIStore);
 
-        mem.MapReader(CiaAddr.CIA1_TIMBLO, Cia1TimerBLOLoad);
-        mem.MapWriter(CiaAddr.CIA1_TIMBLO, Cia1TimerBLOStore);
+        c64mem.MapReader(CiaAddr.CIA1_TIMBLO, Cia1TimerBLOLoad);
+        c64mem.MapWriter(CiaAddr.CIA1_TIMBLO, Cia1TimerBLOStore);
 
-        // CIA Interrupt Control Register
-        mem.MapReader(CiaAddr.CIA1_CIAICR, Cia1InteruptControlLoad);
-        mem.MapWriter(CiaAddr.CIA1_CIAICR, Cia1InteruptControlStore);
+        // CIA #1 Interrupt Control Register
+        c64mem.MapReader(CiaAddr.CIA1_CIAICR, Cia1InteruptControlLoad);
+        c64mem.MapWriter(CiaAddr.CIA1_CIAICR, Cia1InteruptControlStore);
 
-        // CIA Control Register A
-        mem.MapReader(CiaAddr.CIA1_CIACRA, Cia1TimerAControlLoad);
-        mem.MapWriter(CiaAddr.CIA1_CIACRA, Cia1TimerAControlStore);
+        // CIA #1 Control Register A
+        c64mem.MapReader(CiaAddr.CIA1_CIACRA, Cia1TimerAControlLoad);
+        c64mem.MapWriter(CiaAddr.CIA1_CIACRA, Cia1TimerAControlStore);
 
-        // CIA Control Register B
-        mem.MapReader(CiaAddr.CIA1_CIACRB, Cia1TimerBControlLoad);
-        mem.MapWriter(CiaAddr.CIA1_CIACRB, Cia1TimerBControlStore);
+        // CIA #1 Control Register B
+        c64mem.MapReader(CiaAddr.CIA1_CIACRB, Cia1TimerBControlLoad);
+        c64mem.MapWriter(CiaAddr.CIA1_CIACRB, Cia1TimerBControlStore);
 
     }
 
-    // TODO: Implement "real" C64 keyboard operation emulation.
-    //       Right now, keys are being placed directly into the ring buffer, and not via Cia1 Data Ports A & B
-    public byte Cia1DataALoad(ushort _) => 0;
-    public void Cia1DataAStore(ushort _, byte value) { }
+    // Cia 1 Data Port A is normally read from to get joystick (#2) input.
+    // It's written to to control which keys can be read from Cia 1 Data Port B.
+    public byte Cia1DataALoad(ushort _)
+    {
+        //// Temporary workaround, set the default state
+        //byte value = 0x7f;
 
-    // TODO: Implement "real" C64 keyboard operation emulation.
-    //       Right now, keys are being placed directly into the ring buffer, and not via Cia1 Data Ports A & B
-    public byte Cia1DataBLoad(ushort address) => _c64.ReadIOStorage(address);
-    public void Cia1DataBStore(ushort address, byte value) { _c64.WriteIOStorage(address, value); }
+        var value = Keyboard.GetSelectedMatrixRow();
+
+        // Also set Joystick #2 bits
+        foreach (var action in Joystick.CurrentJoystick2Actions)
+        {
+            value.ClearBit((int)action);
+        }
+
+        return value;
+    }
+
+    // Writing to Cia 1 Data Port A controls which keys can be read from Cia 1 Data Port B.
+    public void Cia1DataAStore(ushort address, byte value)
+    {
+        Keyboard.SetSelectedMatrixRow(value);
+    }
+
+    // When reading from Cia 1 Data Port B you can get both keyboard and joystick (#1) input sharing the same bits (which can be confusing).
+    public byte Cia1DataBLoad(ushort address)
+    {
+        // Get the pressed keys for the selected matrix row (set by writing to Cia 1 Data Port A DC00)
+        var value = Keyboard.GetPressedKeysForSelectedMatrixRow();
+
+        // Also set Joystick #1 bits
+        foreach (var action in Joystick.CurrentJoystick1Actions)
+        {
+            value.ClearBit((int)action);
+        }
+        return value;
+    }
+    public void Cia1DataBStore(ushort address, byte value)
+    {
+        // TODO: What will writing to this address affect?
+        _c64.WriteIOStorage(address, value);
+    }
 
     public byte Cia1TimerAHILoad(ushort _) => CiaTimers[CiaTimerType.Cia1_A].InternalTimer.Highbyte();
     public void Cia1TimerAHIStore(ushort _, byte value) => CiaTimers[CiaTimerType.Cia1_A].SetInternalTimer_Latch_HI(value);

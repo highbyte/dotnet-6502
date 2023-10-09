@@ -6,8 +6,6 @@ using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.Components.Forms;
@@ -40,6 +38,7 @@ public partial class Index
 
     // Note: The current config object (reference) is stored in this variable so that the UI can bind it's properties (not possible to use async call to _systemList.GetSystemConfig() in property )
     private ISystemConfig _currentConfig = default!;
+    public ISystemConfig SystemConfig => _currentConfig;
     private bool AudioEnabledToggleDisabled => (
             (!(_currentConfig?.AudioSupported ?? true)) ||
             (CurrentEmulatorState == EmulatorState.Running || CurrentEmulatorState == EmulatorState.Paused)
@@ -569,16 +568,6 @@ public partial class Index
         await ToggleDebugStatsState();
     }
 
-    private void OnKeyPress(KeyboardEventArgs e)
-    {
-        if (_wasmHost == null)
-            return;
-        _wasmHost.InputHandlerContext.KeyPress(e);
-
-        // Emulator host functions such as monitor and stats/debug
-        _wasmHost.OnKeyPress(e);
-    }
-
     private void OnKeyDown(KeyboardEventArgs e)
     {
         if (_wasmHost == null)
@@ -594,6 +583,13 @@ public partial class Index
         if (_wasmHost == null)
             return;
         _wasmHost.InputHandlerContext.KeyUp(e);
+    }
+
+    private void OnFocus(FocusEventArgs e)
+    {
+        if (_wasmHost == null)
+            return;
+        _wasmHost.InputHandlerContext.OnFocus(e);
     }
 
     //private void OnPointerDown(PointerEventArgs e)

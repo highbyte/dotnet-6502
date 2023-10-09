@@ -4,7 +4,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Generic.Input;
 
-public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer, SilkNetInputHandlerContext>, IInputHandler
+public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer, SilkNetInputHandlerContext>
 {
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private SilkNetInputHandlerContext? _inputHandlerContext;
@@ -29,8 +29,6 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
     public void ProcessInput(GenericComputer genericComputer)
     {
         CaptureKeyboard(genericComputer);
-
-        _inputHandlerContext!.ClearKeys();   // Clear our captured keys so far
     }
 
     public void ProcessInput(ISystem system)
@@ -41,22 +39,16 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
     private void CaptureKeyboard(GenericComputer genericComputer)
     {
         // Note: The simplistic "GenericComputer" don't have a Keyboard buffer, only can receive one character ...
-
-        // if (_inputHandlerContext.CharactersReceived.Count > 0)
-        // {
-        //     char keyCode = _inputHandlerContext.CharactersReceived.First();
-        //     genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = (byte)keyCode;
-        // }
-
         if (_inputHandlerContext!.KeysDown.Count > 0)
         {
             var keyDown = _inputHandlerContext.KeysDown.First();
             genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = (byte)keyDown;
         }
-
-        if (_inputHandlerContext.KeysUp.Count > 0)
+        else
+        {
             // Only way to tell the "GenericComputer" that a Key is no longer pressed is to set KeyDownAddress to 0...
             genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = 0x00;
+        }
     }
 
     public List<string> GetStats()

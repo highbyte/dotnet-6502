@@ -35,6 +35,7 @@ public class SilkNetWindow
     private string _currentSystemName;
     private readonly bool _defaultAudioEnabled;
     private float _defaultAudioVolumePercent;
+    private readonly ILoggerFactory _loggerFactory;
 
     public float CanvasScale
     {
@@ -117,6 +118,7 @@ public class SilkNetWindow
         _defaultAudioEnabled = true;
         _defaultAudioVolumePercent = 20.0f;
 
+        _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger(typeof(SilkNetWindow).Name);
     }
 
@@ -466,7 +468,7 @@ public class SilkNetWindow
 
     private void InitInput()
     {
-        _silkNetInputHandlerContext = new SilkNetInputHandlerContext(_window);
+        _silkNetInputHandlerContext = new SilkNetInputHandlerContext(_window, _loggerFactory);
 
         _inputContext = _window.CreateInput();
         // Listen to key to enable monitor

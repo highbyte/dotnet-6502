@@ -1,18 +1,31 @@
-using System.Diagnostics;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
-using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 
-public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerContext>, IInputHandler
+public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerContext>
 {
     private SilkNetInputHandlerContext? _inputHandlerContext;
     private readonly List<string> _stats = new();
+    private readonly C64SilkNetKeyboard _c64SilkNetKeyboard;
+    private readonly ILogger<C64SilkNetInputHandler> _logger;
 
-    public C64SilkNetInputHandler()
+    public C64SilkNetInputHandler(ILoggerFactory loggerFactory)
     {
+        _logger = loggerFactory.CreateLogger<C64SilkNetInputHandler>();
+
+        // TODO: Is there a better way to current keyboard input language?
+        // Note: Using CurrentCulture instead of CurrentUICulture.
+        //       Why does CurrentUICulture not return correct keyboard as it does in SadConsole project?
+        var currentCulture = Thread.CurrentThread.CurrentCulture;
+        var keyboardLayoutId = currentCulture.KeyboardLayoutId;
+        var languageName = currentCulture.TwoLetterISOLanguageName;
+        _logger.LogInformation($"KbLayoutId: {keyboardLayoutId}");
+        _logger.LogInformation($"KbLanguage: {languageName}");
+
+        _c64SilkNetKeyboard = new C64SilkNetKeyboard(languageName);
     }
 
     public void Init(C64 system, SilkNetInputHandlerContext inputHandlerContext)
@@ -29,8 +42,7 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
     public void ProcessInput(C64 c64)
     {
         CaptureKeyboard(c64);
-
-        _inputHandlerContext!.ClearKeys();   // Clear our captured keys so far
+        CaptureJoystick(c64);
     }
 
     public void ProcessInput(ISystem system)
@@ -40,89 +52,61 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
 
     private void CaptureKeyboard(C64 c64)
     {
-        HandleNonPrintedC64Keys(c64);
-        HandlePrintedC64Keys(c64);
+        var c64KeysDown = GetC64KeysFromSilkNetKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);
+        var keyboard = c64.Cia.Keyboard;
+        keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
     }
 
-    private void HandleNonPrintedC64Keys(C64 c64)
+    private List<C64Key> GetC64KeysFromSilkNetKeys(HashSet<Key> keysDown, out bool restoreKeyPressed, out bool capsLockOn)
     {
-        var c64Keyboard = c64.Keyboard;
-        // STOP (ESC) down
-        if (_inputHandlerContext!.IsKeyPressed(Key.Escape))
-        //if (_inputHandlerContext.SpecialKeyReceived.Count == 1 && _inputHandlerContext.SpecialKeyReceived.First() == Key.Escape)
+        restoreKeyPressed = keysDown.Contains(Key.PageUp) ? true : false;
+        capsLockOn = _inputHandlerContext!.GetCapsLockState();
+
+        var c64KeysDown = new List<C64Key>();
+        var foundMappings = new List<Key[]>();
+        foreach (var mapKeys in _c64SilkNetKeyboard.SilkNetToC64KeyMap.Keys)
         {
-            c64.Mem[CiaAddr.CIA1_DATAB] = 0x00;  // Hack: not yet handling the CIA Data B register to scan keyboard.
-
-            // Pressing STOP (RUN/STOP) will stop any running Basic program.
-            c64Keyboard.StopKeyFlag = 0x7f;
-
-            // RESTORE (PageUp) down. Together with STOP it will issue a NMI (which will jump to code that detects STOP is pressed and resets any running program, and clears screen.)
-            if (_inputHandlerContext.IsKeyPressed(Key.PageUp))
-                c64.CPU.CPUInterrupts.SetNMISourceActive("KeyboardReset");
-
-            return;
-        }
-        // STOP (ESC) released
-        if (_inputHandlerContext.KeysUp.Count == 1 && _inputHandlerContext.KeysUp.First() == Key.Escape)
-        {
-            c64Keyboard.StopKeyFlag = 0xff;
-            return;
-        }
-
-        if (_inputHandlerContext.KeysDown.Count == 0)
-            c64.Mem[CiaAddr.CIA1_DATAB] = 0xff; // Hack: not yet handling the CIA Data B register to scan keyboard.
-    }
-
-    private void HandlePrintedC64Keys(C64 c64)
-    {
-        var c64Keyboard = c64.Keyboard;
-
-        // Check if modifier key is down.
-        var modifierKeyDown = Key.Unknown;
-        foreach (var modifierKey in C64SilkNetKeyboard.AllModifierKeys)
-        {
-            var modifierKeyPressed = _inputHandlerContext!.IsKeyPressed(modifierKey);
-            if (modifierKeyPressed)
+            int matchCount = 0;
+            foreach (var mapKeysKey in mapKeys)
             {
-                modifierKeyDown = modifierKey;
-                break;
+                if (keysDown.Contains(mapKeysKey))
+                    matchCount++;
             }
-        }
-
-        if (C64SilkNetKeyboard.SpecialKeyMaps.ContainsKey(modifierKeyDown))
-        {
-            var specialKeyMap = C64SilkNetKeyboard.SpecialKeyMaps[modifierKeyDown];
-
-            foreach (var key in specialKeyMap.Keys)
+            if (matchCount == mapKeys.Length)
             {
-                if (_inputHandlerContext!.KeysDown.Contains(key))
+                // Remove any other mappings found that contains any of the keys in this mapping.
+                for (int i = foundMappings.Count - 1; i >= 0; i--)
                 {
-                    var petsciiCode = specialKeyMap[key];
-                    Debug.WriteLine($"SilkNet special key pressed: {key} with modifier: {modifierKeyDown} and mapped to Petscii: {petsciiCode}");
-                    c64Keyboard.KeyPressed(petsciiCode);
-
-                    // If we detected a special Key/Combo pressed, don't process anymore. Some of them may also be in the _inputHandlerContext.CharactersReceived list processed below.
-                    return;
+                    var currentlyFoundMapKeys = foundMappings[i];
+                    if (currentlyFoundMapKeys.Any(x => mapKeys.Contains(x)))
+                    {
+                        foundMappings.RemoveAt(i);
+                    }
                 }
+                foundMappings.Add(mapKeys);
             }
         }
 
-        // Check if nothing to do with captured characters.
-        if (_inputHandlerContext!.CharactersReceived.Count == 0)
-            return;
-
-        foreach (var character in _inputHandlerContext.CharactersReceived)
+        foreach (var mapKeys in foundMappings)
         {
-            if (!Petscii.CharToPetscii.ContainsKey(character))
+            var c64Keys = _c64SilkNetKeyboard.SilkNetToC64KeyMap[mapKeys];
+            foreach (var c64Key in c64Keys)
             {
-                Debug.WriteLine($"SilkNet normal character pressed {character} couldn't be found as a Petscii code.");
-                continue;
+                if (!c64KeysDown.Contains(c64Key))
+                    c64KeysDown.Add(c64Key);
             }
-            var petsciiCode = Petscii.CharToPetscii[character];
-            Debug.WriteLine($"SilkNet normal character pressed {character} and mapped to Petscii: {petsciiCode}");
-            c64Keyboard.KeyPressed(petsciiCode);
         }
+        return c64KeysDown;
     }
+
+    private void CaptureJoystick(C64 c64)
+    {
+        //var joystick = c64.Cia.Joystick;
+        // TODO: Capture joystick input via Silk.NET xbox controller?
+        //       For now there is option to control C64 joystick via keyboard (see C64Keyboard class)
+
+    }
+
     public List<string> GetStats()
     {
         return _stats;

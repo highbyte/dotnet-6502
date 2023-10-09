@@ -76,5 +76,4 @@ public static class Vic2Addr
     public const ushort SPRITE_6_COLOR = 0xd02d;
     public const ushort SPRITE_7_COLOR = 0xd02e;
 
-    public const ushort PORT_A = 0xdd00;
 }

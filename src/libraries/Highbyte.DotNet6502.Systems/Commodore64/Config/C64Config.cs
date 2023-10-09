@@ -112,6 +112,9 @@ public class C64Config : ISystemConfig
         }
     }
 
+    public bool KeyboardJoystickEnabled { get; set; }
+    public C64KeyboardJoystickMap KeyboardJoystickMap { get; private set; }
+
     public C64Config()
     {
         // Defaults
@@ -151,6 +154,9 @@ public class C64Config : ISystemConfig
         AudioEnabled = false;
 
         ColorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
+
+        KeyboardJoystickEnabled = false;
+        KeyboardJoystickMap = new C64KeyboardJoystickMap();
     }
 
     public bool HasROM(string romName) => ROMs.Any(x => x.Name == romName);
