@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.App.SkiaNative.ConfigUI;
+using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;

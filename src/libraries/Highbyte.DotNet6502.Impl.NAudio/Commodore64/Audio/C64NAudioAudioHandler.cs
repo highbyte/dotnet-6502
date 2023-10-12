@@ -220,6 +220,7 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
             formattedMsg = $"{msg}";
         }
 
-        _logger.LogDebug(formattedMsg);
+        //_logger.LogDebug(formattedMsg);
+        _logger.LogTrace(formattedMsg);
     }
 }
