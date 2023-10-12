@@ -16,7 +16,7 @@ env:
   #  PROJECT_FILE6: "src/libraries/Highbyte.DotNet6502.Impl.SilkNet/Highbyte.DotNet6502.Impl.SilkNet.csproj"
   #  PROJECT_FILE7: "src/libraries/Highbyte.DotNet6502.Impl.Skia/Highbyte.DotNet6502.Impl.Skia.csproj"
    CONFIGURATION: "Release"
-   VERSION: "0.12.0"  #Major.Minor[.Rev]
+   VERSION: "0.12.1"  #Major.Minor[.Rev]
    VERSION_SUFFIX: "-alpha"
    PACKAGE_REPO: "https://nuget.pkg.github.com/highbyte/index.json"
 

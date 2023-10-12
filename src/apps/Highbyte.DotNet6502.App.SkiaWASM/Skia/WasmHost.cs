@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using Toolbelt.Blazor.Gamepad;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Skia;
 
@@ -97,13 +98,13 @@ public class WasmHost : IDisposable
         Initialized = false;
     }
 
-    public async Task Init(SKCanvas canvas, GRContext grContext, AudioContextSync audioContext, IJSRuntime jsRuntime)
+    public async Task Init(SKCanvas canvas, GRContext grContext, AudioContextSync audioContext, GamepadList gamepadList, IJSRuntime jsRuntime)
     {
         _skCanvas = canvas;
         _grContext = grContext;
 
         _skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
-        InputHandlerContext = new AspNetInputHandlerContext(_loggerFactory);
+        InputHandlerContext = new AspNetInputHandlerContext(_loggerFactory, gamepadList);
         AudioHandlerContext = new WASMAudioHandlerContext(audioContext, jsRuntime, _initialMasterVolume);
 
         _systemList.InitContext(() => _skiaRenderContext, () => InputHandlerContext, () => AudioHandlerContext);

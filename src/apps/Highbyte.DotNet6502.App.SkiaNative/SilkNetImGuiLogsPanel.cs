@@ -14,7 +14,7 @@ public class SilkNetImGuiLogsPanel : ISilkNetImGuiWindow
 
     private const int POS_X = 300;
     private const int POS_Y = 2;
-    private const int WIDTH = 800;
+    private const int WIDTH = 950;
     private const int HEIGHT = 600;
     private static Vector4 s_labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
     private static Vector4 s_informationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);

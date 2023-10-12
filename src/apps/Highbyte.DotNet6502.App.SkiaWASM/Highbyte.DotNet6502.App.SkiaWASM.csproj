@@ -37,6 +37,7 @@
     <PackageReference Include="SkiaSharp.Views.Blazor" Version="2.88.6" />
     <PackageReference Include="PublishSPAforGitHubPages.Build" Version="2.1.0" />
     <PackageReference Include="System.Net.Http.Json" Version="7.0.1" />
+    <PackageReference Include="Toolbelt.Blazor.Gamepad" Version="8.0.0.1" />
   </ItemGroup>
 
   <ItemGroup>

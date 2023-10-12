@@ -102,10 +102,50 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
 
     private void CaptureJoystick(C64 c64)
     {
-        //var joystick = c64.Cia.Joystick;
-        // TODO: Capture joystick input via Javascript (connected USB controller?)
-        //       For now there is option to control C64 joystick via keyboard (see C64Keyboard class)
+        var c64JoystickActions = GetC64JoystickActionsFromAspNetGamepad(_inputHandlerContext!.GamepadButtonsDown);
+        c64.Cia.Joystick.SetJoystick2Actions(c64JoystickActions);
     }
+
+    private HashSet<C64JoystickAction> GetC64JoystickActionsFromAspNetGamepad(HashSet<int> gamepadButtonsDown)
+    {
+        var c64JoystickActions = new HashSet<C64JoystickAction>();
+        var foundMappings = new List<int[]>();
+        var map = C64AspNetGamepad.AspNetGamePadToC64JoystickMap;
+        foreach (var mapKeys in map.Keys)
+        {
+            int matchCount = 0;
+            foreach (var mapKeysKey in mapKeys)
+            {
+                if (gamepadButtonsDown.Contains(mapKeysKey))
+                    matchCount++;
+            }
+            if (matchCount == mapKeys.Length)
+            {
+                // Remove any other mappings found that contains any of the Gamepad buttons in this mapping.
+                for (int i = foundMappings.Count - 1; i >= 0; i--)
+                {
+                    var currentlyFoundMapKeys = foundMappings[i];
+                    if (currentlyFoundMapKeys.Any(x => mapKeys.Contains(x)))
+                    {
+                        foundMappings.RemoveAt(i);
+                    }
+                }
+                foundMappings.Add(mapKeys);
+            }
+        }
+
+        foreach (var mapKeys in foundMappings)
+        {
+            var c64Keys = map[mapKeys];
+            foreach (var c64Key in c64Keys)
+            {
+                if (!c64JoystickActions.Contains(c64Key))
+                    c64JoystickActions.Add(c64Key);
+            }
+        }
+        return c64JoystickActions;
+    }
+
 
     public List<string> GetStats()
     {

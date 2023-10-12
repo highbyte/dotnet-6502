@@ -20,7 +20,7 @@ public class Cia
         _c64 = c64;
         CiaIRQ = new CiaIRQ();
         Keyboard = new C64Keyboard(c64, loggerFactory);
-        Joystick = new C64Joystick(c64Config);
+        Joystick = new C64Joystick(c64Config, loggerFactory);
 
         CiaTimers = new();
         CiaTimers.Add(CiaTimerType.Cia1_A, new CiaTimer(CiaTimerType.Cia1_A, IRQSource.TimerA, _c64));

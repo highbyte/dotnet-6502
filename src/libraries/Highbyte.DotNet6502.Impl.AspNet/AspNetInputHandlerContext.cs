@@ -1,5 +1,7 @@
+using Highbyte.DotNet6502.Instructions;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Logging;
+using Toolbelt.Blazor.Gamepad;
 
 namespace Highbyte.DotNet6502.Impl.AspNet;
 
@@ -7,18 +9,63 @@ public class AspNetInputHandlerContext : IInputHandlerContext
 {
     private readonly ILogger<AspNetInputHandlerContext> _logger;
 
+    // Keyboard
     public HashSet<string> KeysDown = new();
-
     private bool _capsLockKeyDownCaptured;
     private bool _capsLockOn;
 
-    public AspNetInputHandlerContext(ILoggerFactory loggerFactory)
+    // Gamepad
+    private readonly GamepadList _gamepadList;
+    private readonly System.Timers.Timer _gamepadUpdateTimer = new System.Timers.Timer(50) { Enabled = true };
+    private Gamepad? _currentGamepad;
+    public HashSet<int> GamepadButtonsDown = new();
+
+    public AspNetInputHandlerContext(ILoggerFactory loggerFactory, GamepadList gamepadList)
     {
         _logger = loggerFactory.CreateLogger<AspNetInputHandlerContext>();
+        _gamepadList = gamepadList;
     }
 
     public void Init()
     {
+        _gamepadUpdateTimer.Elapsed += GamepadUpdateTimer_Elapsed;
+    }
+
+    private async void GamepadUpdateTimer_Elapsed(object sender, EventArgs args)
+    {
+        try
+        {
+            var gamepads = await _gamepadList.GetGamepadsAsync();
+
+            var gamePad = gamepads.LastOrDefault();
+            if (gamePad != _currentGamepad)
+            {
+                _currentGamepad = gamePad;
+                if (_currentGamepad != null && _currentGamepad.Connected)
+                    _logger.LogInformation($"Current gamepad changed to: {_currentGamepad.Id} ({_currentGamepad.Index})");
+                else
+                    _logger.LogInformation($"Gamepad disconnected");
+            }
+
+            GamepadButtonsDown.Clear();
+
+            if (_currentGamepad != null && _currentGamepad.Connected)
+            {
+                for (int buttonIndex = 0; buttonIndex < _currentGamepad.Buttons.Count; buttonIndex++)
+                {
+                    var button = _currentGamepad.Buttons[buttonIndex];
+                    if (!button.Pressed)
+                        continue;
+                    GamepadButtonsDown.Add(buttonIndex);
+                    _logger.LogInformation($"Gamepad button pressed: {buttonIndex} ({button.Pressed})");
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            System.Diagnostics.Debug.WriteLine(e.ToString());
+            throw;
+        }
     }
 
     public void KeyUp(KeyboardEventArgs e)
@@ -65,5 +112,10 @@ public class AspNetInputHandlerContext : IInputHandlerContext
 
     public void Cleanup()
     {
+    }
+
+    public void Dispose()
+    {
+        _gamepadUpdateTimer.Dispose();
     }
 }

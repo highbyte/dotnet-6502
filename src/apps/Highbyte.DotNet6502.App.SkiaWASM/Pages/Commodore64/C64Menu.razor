@@ -65,16 +65,21 @@
     private string SYSTEM_NAME = C64.SystemName;
 
     // Note: The current config object (reference) is stored in this variable so that the UI can bind it's properties (not possible to use async call to _systemList.GetSystemConfig() in property )
-    private C64Config _c64Config => (C64Config)Parent.SystemConfig;
+    private C64Config? _c64Config => Parent.SystemConfig as C64Config;
+
 
     private bool JoystickKeyboardEnabled
     {
         get
         {
+            if (_c64Config == null)
+                return false;
             return _c64Config?.KeyboardJoystickEnabled ?? false;
         }
         set
         {
+            if (_c64Config == null)
+                return;
             _c64Config.KeyboardJoystickEnabled = value;
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
             {
@@ -316,13 +321,12 @@
 
         // Send "list" + Enter to the keyboard buffer to immediately list the loaded program
         var c64Keyboard = c64.Cia.Keyboard;
-        // TODO after implementing C64 keyboard matrix scanning
-        // TODO: Bypass keyboard matrix scanning and send directly to keyboard buffer?
-        // c64Keyboard.KeyPressed(Petscii.CharToPetscii['l']);
-        // c64Keyboard.KeyPressed(Petscii.CharToPetscii['i']);
-        // c64Keyboard.KeyPressed(Petscii.CharToPetscii['s']);
-        // c64Keyboard.KeyPressed(Petscii.CharToPetscii['t']);
-        // c64Keyboard.KeyPressed(Petscii.CharToPetscii[(char)13]);
+        // Bypass keyboard matrix scanning and send directly to keyboard buffer?
+        c64Keyboard.InsertPetsciiCharIntoBuffer(Petscii.CharToPetscii['l']);
+        c64Keyboard.InsertPetsciiCharIntoBuffer(Petscii.CharToPetscii['i']);
+        c64Keyboard.InsertPetsciiCharIntoBuffer(Petscii.CharToPetscii['s']);
+        c64Keyboard.InsertPetsciiCharIntoBuffer(Petscii.CharToPetscii['t']);
+        c64Keyboard.InsertPetsciiCharIntoBuffer(Petscii.CharToPetscii[(char)13]);
 
         await Parent.OnStart(new());
     }

@@ -10,6 +10,8 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
     private SilkNetInputHandlerContext? _inputHandlerContext;
     private readonly List<string> _stats = new();
     private readonly C64SilkNetKeyboard _c64SilkNetKeyboard;
+    //private readonly C64SilkNetGamepad _c64SilkNetGamepad;
+
     private readonly ILogger<C64SilkNetInputHandler> _logger;
 
     public C64SilkNetInputHandler(ILoggerFactory loggerFactory)
@@ -26,6 +28,8 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
         _logger.LogInformation($"KbLanguage: {languageName}");
 
         _c64SilkNetKeyboard = new C64SilkNetKeyboard(languageName);
+
+        //_c64SilkNetGamepad = new C64SilkNetGamepad();
     }
 
     public void Init(C64 system, SilkNetInputHandlerContext inputHandlerContext)
@@ -61,10 +65,10 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
     {
         restoreKeyPressed = keysDown.Contains(Key.PageUp) ? true : false;
         capsLockOn = _inputHandlerContext!.GetCapsLockState();
-
         var c64KeysDown = new List<C64Key>();
         var foundMappings = new List<Key[]>();
-        foreach (var mapKeys in _c64SilkNetKeyboard.SilkNetToC64KeyMap.Keys)
+        var map = _c64SilkNetKeyboard.SilkNetToC64KeyMap;
+        foreach (var mapKeys in map.Keys)
         {
             int matchCount = 0;
             foreach (var mapKeysKey in mapKeys)
@@ -89,7 +93,7 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
 
         foreach (var mapKeys in foundMappings)
         {
-            var c64Keys = _c64SilkNetKeyboard.SilkNetToC64KeyMap[mapKeys];
+            var c64Keys = map[mapKeys];
             foreach (var c64Key in c64Keys)
             {
                 if (!c64KeysDown.Contains(c64Key))
@@ -101,10 +105,48 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
 
     private void CaptureJoystick(C64 c64)
     {
-        //var joystick = c64.Cia.Joystick;
-        // TODO: Capture joystick input via Silk.NET xbox controller?
-        //       For now there is option to control C64 joystick via keyboard (see C64Keyboard class)
+        var c64JoystickActions = GetC64JoystickActionsFromSilkNetGamepad(_inputHandlerContext!.GamepadButtonsDown);
+        c64.Cia.Joystick.SetJoystick2Actions(c64JoystickActions);
+    }
 
+    private HashSet<C64JoystickAction> GetC64JoystickActionsFromSilkNetGamepad(HashSet<ButtonName> gamepadButtonsDown)
+    {
+        var c64JoystickActions = new HashSet<C64JoystickAction>();
+        var foundMappings = new List<ButtonName[]>();
+        var map = C64SilkNetGamepad.SilkNetGamePadToC64JoystickMap;
+        foreach (var mapKeys in map.Keys)
+        {
+            int matchCount = 0;
+            foreach (var mapKeysKey in mapKeys)
+            {
+                if (gamepadButtonsDown.Contains(mapKeysKey))
+                    matchCount++;
+            }
+            if (matchCount == mapKeys.Length)
+            {
+                // Remove any other mappings found that contains any of the Gamepad buttons in this mapping.
+                for (int i = foundMappings.Count - 1; i >= 0; i--)
+                {
+                    var currentlyFoundMapKeys = foundMappings[i];
+                    if (currentlyFoundMapKeys.Any(x => mapKeys.Contains(x)))
+                    {
+                        foundMappings.RemoveAt(i);
+                    }
+                }
+                foundMappings.Add(mapKeys);
+            }
+        }
+
+        foreach (var mapKeys in foundMappings)
+        {
+            var c64Keys = map[mapKeys];
+            foreach (var c64Key in c64Keys)
+            {
+                if (!c64JoystickActions.Contains(c64Key))
+                    c64JoystickActions.Add(c64Key);
+            }
+        }
+        return c64JoystickActions;
     }
 
     public List<string> GetStats()

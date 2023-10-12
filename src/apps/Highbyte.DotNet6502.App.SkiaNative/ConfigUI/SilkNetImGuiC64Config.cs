@@ -1,7 +1,7 @@
-using System.Linq;
 using System.Numerics;
+using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
-using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 namespace Highbyte.DotNet6502.App.SkiaNative.ConfigUI;
 
@@ -20,13 +20,14 @@ public class SilkNetImGuiC64Config
     public bool Cancel { get; set; }
 
     private bool _isValidConfig = true;
+
     public bool IsValidConfig => _isValidConfig;
     private List<string>? _validationErrors;
 
     private const int POS_X = 50;
     private const int POS_Y = 50;
     private const int WIDTH = 400;
-    private const int HEIGHT = 380;
+    private const int HEIGHT = 550;
     //private static Vector4 s_informationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
     private static Vector4 s_errorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
     //private static Vector4 s_warningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
@@ -91,15 +92,22 @@ public class SilkNetImGuiC64Config
             _config!.SetROM(C64Config.CHARGEN_ROM_NAME, _chargenRomFile);
         }
 
-        ImGui.Text("Keyboard joystick 2");
-        var keyToJoystickMap = _config!.KeyboardJoystickMap;
         int joystick = 2;
+        ImGui.Text($"Joystick {joystick}");
         ImGui.BeginDisabled(disabled: true);
-        ImGui.LabelText("Up", $"{string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Up))}");
-        ImGui.LabelText("Down", $"{string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Down))}");
-        ImGui.LabelText("Left", $"{string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Left))}");
-        ImGui.LabelText("Right", $"{string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Right))}");
-        ImGui.LabelText("Fire", $"{string.Join(",", keyToJoystickMap.GetMappedKeysForJoystickAction(joystick, C64JoystickAction.Fire)).Replace(" ", "SPACE")}");
+        foreach (var mapKey in C64SilkNetGamepad.SilkNetGamePadToC64JoystickMap)
+        {
+            ImGui.LabelText($"{string.Join(",", mapKey.Key)}", $"{string.Join(",", mapKey.Value)}");
+        }
+        ImGui.EndDisabled();
+
+        ImGui.Text($"Keyboard Joystick {joystick}");
+        var keyToJoystickMap = _config!.KeyboardJoystickMap;
+        ImGui.BeginDisabled(disabled: true);
+        foreach (var mapKey in keyToJoystickMap.GetMap(joystick))
+        {
+            ImGui.LabelText($"{string.Join(",", mapKey.Key)}", $"{string.Join(",", mapKey.Value)}");
+        }
         ImGui.EndDisabled();
 
         if (_config!.IsDirty)

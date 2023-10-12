@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
@@ -55,7 +54,7 @@ public class C64Keyboard
         if (restorePressed)
         {
             SetRestoreKeyPressed();
-            _logger.LogDebug($"C64 restore key pressed, NMI is invokded.");
+            _logger.LogTrace($"C64 restore key pressed, NMI is invokded.");
         }
 
         // Set pressed keys
@@ -63,12 +62,12 @@ public class C64Keyboard
         foreach (var key in keys)
             _pressedKeys.Add(key);
         if (keys.Count > 0)
-            _logger.LogDebug($"C64 keys pressed: {string.Join(",", keys)}");
+            _logger.LogTrace($"C64 keys pressed: {string.Join(",", keys)}");
 
         // Check for special key: Caps lock
         // Not connected to the C64 keyboard matrix, it's connected to the left shift key (keeping it pressed)
         if (capsLockOn != _capsLockOn)
-            _logger.LogDebug($"C64 caps lock changed to: {capsLockOn}");
+            _logger.LogTrace($"C64 caps lock changed to: {capsLockOn}");
         _capsLockOn = capsLockOn;
         if (capsLockOn)
             _pressedKeys.Add(C64Key.LShift);
@@ -146,41 +145,46 @@ public class C64Keyboard
     }
 
     /// <summary>
+    /// Inserts a PETSCII character directly into the keyboard buffer, bypassing keyboard matrix.
+    /// Can be useful when wanting to type Basic commands on behalf of the user.
+    /// </summary>
+    /// <param name="petsciiChar"></param>
+    public void InsertPetsciiCharIntoBuffer(byte petsciiChar)
+    {
+        // Address: 0x00c6: Keyboard buffer index
+        // Address: 0x0277 - 0x0280: Keyboard buffer
+        var bufferIndex = _c64.Mem[0x00c6];
+        if (bufferIndex >= 10)
+            return;
+        _c64.Mem[0x00c6]++;
+        _c64.Mem[(ushort)(0x0277 + bufferIndex)] = petsciiChar;
+    }
+
+    /// <summary>
     /// Move joystick based on keyboard input (if configured).
     /// </summary>
     private void HandleJoystickKeyboard()
     {
-        var joystick = _c64.Cia.Joystick;
-        if (joystick.KeyboardJoystickEnabled)
+        if (_c64.Cia.Joystick.KeyboardJoystickEnabled)
         {
-            // Joystick 1
-            var joystick1KeyboardMap = joystick.KeyboardJoystickMap.KeyToJoystick1Map;
-            var joystick1Actions = new HashSet<C64JoystickAction>();
-            foreach (var c64Key in joystick1KeyboardMap.Keys)
-            {
-                if (_pressedKeys.Contains(c64Key))
-                {
-                    joystick1Actions.Add(joystick1KeyboardMap[c64Key]);
-                    _pressedKeys.Remove(c64Key);    // Remove key from pressed keys to avoid duplicate actions  
-                }
-            }
-            joystick.SetJoystick1Actions(joystick1Actions);
-
-            // Joystick 2
-            var joystick2KeyboardMap = joystick.KeyboardJoystickMap.KeyToJoystick2Map;
-            var joystick2Actions = new HashSet<C64JoystickAction>();
-            foreach (var c64Key in joystick2KeyboardMap.Keys)
-            {
-                if (_pressedKeys.Contains(c64Key))
-                {
-                    joystick2Actions.Add(joystick2KeyboardMap[c64Key]);
-                    _pressedKeys.Remove(c64Key);    // Remove key from pressed keys to avoid duplicate actions  
-                }
-            }
-            joystick.SetJoystick2Actions(joystick2Actions);
-
-
+            HandleJoystickKeyboard(1);
+            HandleJoystickKeyboard(2);
         }
+    }
+
+    private void HandleJoystickKeyboard(int joystick)
+    {
+        var joystickKeyboardMap = _c64.Cia.Joystick.KeyboardJoystickMap.GetMap(joystick);
+        var joystickActions = new HashSet<C64JoystickAction>();
+        foreach (var c64Key in joystickKeyboardMap.Keys)
+        {
+            if (_pressedKeys.Contains(c64Key))
+            {
+                joystickActions.Add(joystickKeyboardMap[c64Key]);
+                _pressedKeys.Remove(c64Key);    // Remove key from pressed keys to avoid duplicate actions  
+            }
+        }
+        _c64.Cia.Joystick.SetJoystick1Actions(joystickActions);
     }
 }
 
