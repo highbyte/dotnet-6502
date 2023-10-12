@@ -65,16 +65,21 @@
     private string SYSTEM_NAME = C64.SystemName;
 
     // Note: The current config object (reference) is stored in this variable so that the UI can bind it's properties (not possible to use async call to _systemList.GetSystemConfig() in property )
-    private C64Config _c64Config => (C64Config)Parent.SystemConfig;
+    private C64Config? _c64Config => Parent.SystemConfig as C64Config;
+
 
     private bool JoystickKeyboardEnabled
     {
         get
         {
+            if (_c64Config == null)
+                return false;
             return _c64Config?.KeyboardJoystickEnabled ?? false;
         }
         set
         {
+            if (_c64Config == null)
+                return;
             _c64Config.KeyboardJoystickEnabled = value;
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
             {
