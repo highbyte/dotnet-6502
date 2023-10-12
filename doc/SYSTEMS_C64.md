@@ -12,6 +12,8 @@ Current capabilities
     - IRQ (raster, sprite collision)
     - Background and border color possible to change per raster line
 - Limited CIA chip support
+    - Keyboard
+    - Joystick
     - Timers
     - IRQ
 - Limited SID 6581 audio chip support
