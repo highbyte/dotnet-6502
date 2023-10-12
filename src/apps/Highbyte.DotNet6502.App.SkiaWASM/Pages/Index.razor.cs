@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.Components.Forms;
 using Blazored.LocalStorage;
 using Highbyte.DotNet6502.Logging.Console;
+using Toolbelt.Blazor.Gamepad;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
@@ -120,6 +121,9 @@ public partial class Index
 
     [Inject]
     public DotNet6502ConsoleLoggerConfiguration LoggerConfiguration { get; set; }
+
+    [Inject]
+    public GamepadList GamepadList { get; set; }
 
     private ILogger<Index> _logger;
 
@@ -268,7 +272,7 @@ public partial class Index
 
         if (!_wasmHost.Initialized)
         {
-            await _wasmHost.Init(e.Surface.Canvas, grContext, _audioContext, Js!);
+            await _wasmHost.Init(e.Surface.Canvas, grContext, _audioContext, GamepadList, Js!);
         }
 
         //_emulatorRenderer.SetSize(e.Info.Width, e.Info.Height);

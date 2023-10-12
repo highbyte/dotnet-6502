@@ -1,4 +1,5 @@
 ﻿@using Highbyte.DotNet6502.App.SkiaWASM.Skia
+@using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 @using Highbyte.DotNet6502.Systems;
 @using Highbyte.DotNet6502.Systems.Commodore64.Config
 @using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
@@ -66,6 +67,28 @@ else
     </div>
 </div>
 
+
+<h2>Joystick</h2>
+@{
+    var gampadToJoystickMap = C64AspNetGamepad.AspNetGamePadToC64JoystickMap;
+    int joystick = 2;
+}
+<div class="table">
+    <div class="table-row">
+        <div class="table-cell twocol">Joystick @joystick action</div>
+        <div class="table-cell twocol">Gampad button</div>
+    </div>
+    @{
+        foreach (var mapKey in gampadToJoystickMap)
+        {
+            <div class="table-row">
+                <div class="table-cell twocol">@string.Join(",", mapKey.Value)</div>
+                <div class="table-cell twocol">@string.Join(",", mapKey.Key)</div>
+            </div>
+        }
+    }
+</div>
+
 <h2>Joystick keyboard</h2>
 @{
     var keyToJoystickMap = C64Config.KeyboardJoystickMap;
@@ -76,11 +99,11 @@ else
         <div class="table-cell twocol"><input @bind="C64Config.KeyboardJoystickEnabled" @bind:event="oninput" type="checkbox" id="keyboardJoystickEnabled" title="Enable Joystick Keyboard" /></div>
     </div>
     <div class="table-row">
-        <div class="table-cell twocol">Joystick 2 action</div>
+        <div class="table-cell twocol">Joystick @joystick action</div>
         <div class="table-cell twocol">Key</div>
     </div>
     @{
-        foreach (var mapKey in keyToJoystickMap.GetMap(2))
+        foreach (var mapKey in keyToJoystickMap.GetMap(joystick))
         {
             <div class="table-row">
                 <div class="table-cell twocol">@string.Join(",", mapKey.Value)</div>
