@@ -83,7 +83,7 @@ public class Cia
         var value = Keyboard.GetSelectedMatrixRow();
 
         // Also set Joystick #2 bits
-        foreach (var action in Joystick.CurrentJoystick2Actions)
+        foreach (var action in Joystick.CurrentJoystickActions[2])
         {
             value.ClearBit((int)action);
         }
@@ -104,7 +104,7 @@ public class Cia
         var value = Keyboard.GetPressedKeysForSelectedMatrixRow();
 
         // Also set Joystick #1 bits
-        foreach (var action in Joystick.CurrentJoystick1Actions)
+        foreach (var action in Joystick.CurrentJoystickActions[1])
         {
             value.ClearBit((int)action);
         }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AutoMapper;
 using Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats;
 using Highbyte.DotNet6502.App.SkiaNative.Stats;
 using Highbyte.DotNet6502.Impl.NAudio;
@@ -22,25 +23,26 @@ public enum EmulatorState
 public class SilkNetWindow
 {
     private readonly ILogger _logger;
-    private readonly MonitorConfig _monitorConfig;
     private readonly IWindow _window;
+
+    private readonly EmulatorConfig _emulatorConfig;
+    public EmulatorConfig EmulatorConfig => _emulatorConfig;
 
     private readonly SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext> _systemList;
     public SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext> SystemList => _systemList;
 
-    private float _canvasScale;
-    private readonly string _defaultSystemName;
     private readonly DotNet6502InMemLogStore _logStore;
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private string _currentSystemName;
     private readonly bool _defaultAudioEnabled;
     private float _defaultAudioVolumePercent;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IMapper _mapper;
 
     public float CanvasScale
     {
-        get { return _canvasScale; }
-        set { _canvasScale = value; }
+        get { return _emulatorConfig.CurrentDrawScale; }
+        set { _emulatorConfig.CurrentDrawScale = value; }
     }
 
     public const int DEFAULT_WIDTH = 1000;
@@ -99,26 +101,26 @@ public class SilkNetWindow
 
 
     public SilkNetWindow(
-        MonitorConfig monitorConfig,
+        EmulatorConfig emulatorConfig,
         IWindow window,
         SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext> systemList,
-        float scale,
-        string defaultSystemName,
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
-        Microsoft.Extensions.Logging.ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        IMapper mapper
+        )
     {
-        _monitorConfig = monitorConfig;
+        _emulatorConfig = emulatorConfig;
+        _emulatorConfig.CurrentDrawScale = _emulatorConfig.DefaultDrawScale;
         _window = window;
         _systemList = systemList;
-        _canvasScale = scale;
-        _defaultSystemName = defaultSystemName;
         _logStore = logStore;
         _logConfig = logConfig;
         _defaultAudioEnabled = true;
         _defaultAudioVolumePercent = 20.0f;
 
         _loggerFactory = loggerFactory;
+        _mapper = mapper;
         _logger = loggerFactory.CreateLogger(typeof(SilkNetWindow).Name);
     }
 
@@ -148,11 +150,11 @@ public class SilkNetWindow
         InitImGui();
 
         // Init main menu UI
-        _menu = new SilkNetImGuiMenu(this, _defaultSystemName, _defaultAudioEnabled, _defaultAudioVolumePercent);
+        _menu = new SilkNetImGuiMenu(this, _emulatorConfig.DefaultEmulator, _defaultAudioEnabled, _defaultAudioVolumePercent, _mapper);
 
         // Create other UI windows
         _statsPanel = CreateStatsUI();
-        _monitor = CreateMonitorUI(_statsPanel, _monitorConfig);
+        _monitor = CreateMonitorUI(_statsPanel, _emulatorConfig.Monitor);
         _logsPanel = CreateLogsUI(_logStore, _logConfig);
 
         // Add all ImGui windows to a list
@@ -215,7 +217,7 @@ public class SilkNetWindow
             getProcAddress,
             _window.FramebufferSize.X,
             _window.FramebufferSize.Y,
-            _canvasScale * (_window.FramebufferSize.X / _window.Size.X));
+            _emulatorConfig.CurrentDrawScale * (_window.FramebufferSize.X / _window.Size.X));
     }
 
     public void SetCurrentSystem(string systemName)
@@ -231,7 +233,7 @@ public class SilkNetWindow
         {
             var system = _systemList.GetSystem(systemName).Result;
             var screen = system.Screen;
-            Window.Size = new Vector2D<int>((int)(screen.VisibleWidth * _canvasScale), (int)(screen.VisibleHeight * _canvasScale));
+            Window.Size = new Vector2D<int>((int)(screen.VisibleWidth * CanvasScale), (int)(screen.VisibleHeight * CanvasScale));
             Window.UpdatesPerSecond = screen.RefreshFrequencyHz;
 
             InitCustomSystemStats(system);

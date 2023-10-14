@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices.ObjectiveC;
+
 namespace Highbyte.DotNet6502.Systems.Generic.Config;
 
 public class GenericComputerConfig : ISystemConfig
@@ -111,20 +113,11 @@ public class GenericComputerConfig : ISystemConfig
         WaitForHostToAcknowledgeFrame = true;
     }
 
-    public GenericComputerConfig Clone()
+    public object Clone()
     {
-        return new GenericComputerConfig
-        {
-            ProgramBinary = ProgramBinary,
-            ProgramBinaryFile = ProgramBinaryFile,
-            StopAtBRK = StopAtBRK,
-            CPUCyclesPerFrame = CPUCyclesPerFrame,
-            ScreenRefreshFrequencyHz = ScreenRefreshFrequencyHz,
-            WaitForHostToAcknowledgeFrame = WaitForHostToAcknowledgeFrame,
-            Memory = Memory.Clone(),
-            AudioSupported = false,
-            AudioEnabled = false
-        };
+        var clone = (GenericComputerConfig)this.MemberwiseClone();
+        clone.Memory = (EmulatorMemoryConfig)Memory.Clone();
+        return clone;
     }
 
     public void Validate()

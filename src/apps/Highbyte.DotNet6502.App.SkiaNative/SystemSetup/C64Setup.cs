@@ -16,10 +16,12 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, SilkNetInputHandlerC
     public string SystemName => C64.SystemName;
 
     private readonly ILoggerFactory _loggerFactory;
+    private readonly C64HostConfig _c64HostConfig;
 
-    public C64Setup(ILoggerFactory loggerFactory)
+    public C64Setup(ILoggerFactory loggerFactory, C64HostConfig c64HostConfig)
     {
         _loggerFactory = loggerFactory;
+        _c64HostConfig = c64HostConfig;
     }
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
@@ -62,7 +64,7 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, SilkNetInputHandlerC
             AudioEnabled = true,
         };
 
-        c64Config.Validate();
+        //c64Config.Validate();
         return c64Config;
     }
 
@@ -88,7 +90,7 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, SilkNetInputHandlerC
         )
     {
         var renderer = new C64SkiaRenderer();
-        var inputHandler = new C64SilkNetInputHandler(_loggerFactory);
+        var inputHandler = new C64SilkNetInputHandler(_loggerFactory, _c64HostConfig.InputConfig);
         var audioHandler = new C64NAudioAudioHandler(_loggerFactory);
 
         var c64 = (C64)system;

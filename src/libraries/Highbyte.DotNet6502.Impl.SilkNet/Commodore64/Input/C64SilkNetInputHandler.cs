@@ -13,10 +13,12 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
     //private readonly C64SilkNetGamepad _c64SilkNetGamepad;
 
     private readonly ILogger<C64SilkNetInputHandler> _logger;
+    private readonly C64SilkNetConfig _c64SilkNetConfig;
 
-    public C64SilkNetInputHandler(ILoggerFactory loggerFactory)
+    public C64SilkNetInputHandler(ILoggerFactory loggerFactory, C64SilkNetConfig c64SilkNetConfig)
     {
         _logger = loggerFactory.CreateLogger<C64SilkNetInputHandler>();
+        _c64SilkNetConfig = c64SilkNetConfig;
 
         // TODO: Is there a better way to current keyboard input language?
         // Note: Using CurrentCulture instead of CurrentUICulture.
@@ -45,6 +47,7 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
 
     public void ProcessInput(C64 c64)
     {
+        c64.Cia.Joystick.ClearJoystickActions();
         CaptureKeyboard(c64);
         CaptureJoystick(c64);
     }
@@ -106,14 +109,17 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
     private void CaptureJoystick(C64 c64)
     {
         var c64JoystickActions = GetC64JoystickActionsFromSilkNetGamepad(_inputHandlerContext!.GamepadButtonsDown);
-        c64.Cia.Joystick.SetJoystick2Actions(c64JoystickActions);
+        // Note: Assume Keyboard input has been processed before this, so that Joystick actions based on keypresses has resulted 
+        //       in the current joystick actions being initialized this frame (and may contain actions from keyboard).
+        //       Thus "overwrite" is set to false so that keyboard actions are not overwritten.
+        c64.Cia.Joystick.SetJoystickActions(_c64SilkNetConfig.CurrentJoystick, c64JoystickActions, overwrite: false);
     }
 
     private HashSet<C64JoystickAction> GetC64JoystickActionsFromSilkNetGamepad(HashSet<ButtonName> gamepadButtonsDown)
     {
         var c64JoystickActions = new HashSet<C64JoystickAction>();
         var foundMappings = new List<ButtonName[]>();
-        var map = C64SilkNetGamepad.SilkNetGamePadToC64JoystickMap;
+        var map = _c64SilkNetConfig.GamePadToC64JoystickMap[_c64SilkNetConfig.CurrentJoystick];
         foreach (var mapKeys in map.Keys)
         {
             int matchCount = 0;

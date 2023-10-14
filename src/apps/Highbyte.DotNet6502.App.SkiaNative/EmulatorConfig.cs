@@ -12,7 +12,10 @@ public class EmulatorConfig
 
     public string DefaultEmulator { get; set; }
     public float DefaultDrawScale { get; set; }
+    public float CurrentDrawScale { get; set; }
     public MonitorConfig? Monitor { get; set; }
+
+    public Dictionary<string, IHostSystemConfig> HostSystemConfigs = new();
 
     public EmulatorConfig()
     {
@@ -25,4 +28,14 @@ public class EmulatorConfig
             throw new Exception($"Setting {nameof(DefaultEmulator)} value {DefaultEmulator} is not supported. Valid values are: {string.Join(',', systemList.Systems)}");
         Monitor.Validate();
     }
+
+    //public IEmulatorSystemConfig GetEmulatorSystemConfig(string systemName)
+    //{
+    //    return systemName switch
+    //    {
+    //        C64.SystemName => new C64SilkNetConfig(),
+    //        GenericComputer.SystemName => new GenericComputerSilkNetConfig (),
+    //        _ => throw new Exception($"System {systemName} is not supported.")
+    //    };
+    //}
 }

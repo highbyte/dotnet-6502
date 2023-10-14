@@ -42,6 +42,7 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
 
     public void ProcessInput(C64 c64)
     {
+        c64.Cia.Joystick.ClearJoystickActions();
         CaptureKeyboard(c64);
         CaptureJoystick(c64);
     }
@@ -103,7 +104,7 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
     private void CaptureJoystick(C64 c64)
     {
         var c64JoystickActions = GetC64JoystickActionsFromAspNetGamepad(_inputHandlerContext!.GamepadButtonsDown);
-        c64.Cia.Joystick.SetJoystick2Actions(c64JoystickActions);
+        c64.Cia.Joystick.SetJoystickActions(joystick: 2, c64JoystickActions);
     }
 
     private HashSet<C64JoystickAction> GetC64JoystickActionsFromAspNetGamepad(HashSet<int> gamepadButtonsDown)

@@ -6,6 +6,11 @@ public class C64KeyboardJoystickMap
 {
     private Dictionary<C64Key, C64JoystickAction> KeyToJoystick1Map = new()
     {
+            {C64Key.Space, C64JoystickAction.Fire},
+            {C64Key.W, C64JoystickAction.Up},
+            {C64Key.S, C64JoystickAction.Down},
+            {C64Key.A, C64JoystickAction.Left},
+            {C64Key.D, C64JoystickAction.Right}
     };
 
     private Dictionary<C64Key, C64JoystickAction> KeyToJoystick2Map = new()
