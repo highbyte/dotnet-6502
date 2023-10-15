@@ -477,7 +477,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
                 _spriteImages[sprite.SpriteNumber] = spriteGen.GenerateSpriteImage(sprite);
                 sprite.ClearDirty();
 #if DEBUG
-                spriteGen.DumpSpriteToImageFile(_spriteImages[sprite.SpriteNumber], $"{Path.GetTempPath()}/c64_sprite_{sprite.SpriteNumber}.png");
+                //spriteGen.DumpSpriteToImageFile(_spriteImages[sprite.SpriteNumber], $"{Path.GetTempPath()}/c64_sprite_{sprite.SpriteNumber}.png");
 #endif
             }
             var spriteImage = _spriteImages[sprite.SpriteNumber];

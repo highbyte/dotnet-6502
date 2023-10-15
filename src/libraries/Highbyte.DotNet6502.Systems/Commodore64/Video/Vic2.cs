@@ -452,7 +452,7 @@ public class Vic2
 
     public void MemorySetupStore(ushort address, byte value)
     {
-        C64.WriteIOStorage(address, value);
+        C64.WriteIOStorage(address, (byte)(value | 0b0000001)); // Set unused bit 0 to 1 (as it seems to be on a real C64)
 
         // 0xd018, bit 0: Unused
 
@@ -469,7 +469,7 @@ public class Vic2
     private void VideoMatrixBaseAddressUpdate(byte videoMatrixBaseAddressSetting)
     {
         // From VIC 2 perspective, IO address 0xd018 bits 4-7 controls where within a VIC 2 "Bank"
-        // the text screen and sprite pointeras are defined. It's a offset from the start of VIC 2 memory.
+        // the text screen and sprite pointers are defined. It's a offset from the start of VIC 2 memory.
         // 
         // The parameter videoMatrixBaseAddressSetting contains that 4-bit value.
         // 
@@ -490,9 +490,12 @@ public class Vic2
         // %1110, E: Screen: 0x3800-0x3BE7, 14336-15335.    Sprite Pointers: 0x3BF8-0x3BFF, 15352-15359.
         // %1111, F: Screen: 0x3C00-0x3FE7, 15336-16335.    Sprite Pointers: 0x3FF8-0x3FFF, 16352-16359.
 
+        var oldVideoMatrixBaseAddress = VideoMatrixBaseAddress;
         VideoMatrixBaseAddress = (ushort)(videoMatrixBaseAddressSetting * 0x400);
-
-        SpriteManager.SetAllDirty();
+        if (oldVideoMatrixBaseAddress != VideoMatrixBaseAddress)
+        {
+            SpriteManager.SetAllDirty();
+        }
     }
 
     public byte MemorySetupLoad(ushort address)
