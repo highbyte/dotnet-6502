@@ -64,7 +64,7 @@ public class CiaTimer
 
         if (IsTimerStartFlagSet() && _realTimer_Stopwatch.IsRunning)
         {
-            var elapsedMs = _realTimer_Stopwatch.ElapsedMilliseconds;
+            var elapsedMs = _realTimer_Stopwatch.Elapsed.TotalMilliseconds;
             var startValueMs = CalculateTimerMS(_internalTimer_Latch);
             var remainingMs = startValueMs - elapsedMs;
             if (remainingMs < 0)
@@ -84,7 +84,6 @@ public class CiaTimer
                 if (IsTimerRunModeContinious())
                 {
                     ResetTimerValue();
-                    StartTimer();
                 }
                 else
                 {
