@@ -71,6 +71,31 @@ public class Cia
         c64mem.MapReader(CiaAddr.CIA1_CIACRB, Cia1TimerBControlLoad);
         c64mem.MapWriter(CiaAddr.CIA1_CIACRB, Cia1TimerBControlStore);
 
+        // CIA #1 TEMP DEBUG. TODO: Implement remaining CIA#1 registers such as Time Of Day
+        c64mem.MapReader(0xdc08, Cia1DebugLoad);
+        c64mem.MapWriter(0xdc08, Cia1DebugStore);
+        c64mem.MapReader(0xdc09, Cia1DebugLoad);
+        c64mem.MapWriter(0xdc09, Cia1DebugStore);
+        c64mem.MapReader(0xdc0a, Cia1DebugLoad);
+        c64mem.MapWriter(0xdc0a, Cia1DebugStore);
+        c64mem.MapReader(0xdc0b, Cia1DebugLoad);
+        c64mem.MapWriter(0xdc0b, Cia1DebugStore);
+
+
+        // TODO: Implement CIA #2 timers and registers
+        // CIA #2 Timer A
+        c64mem.MapReader(CiaAddr.CIA2_TIMAHI, Cia2TimerAHILoad);
+        c64mem.MapWriter(CiaAddr.CIA2_TIMAHI, Cia2TimerAHIStore);
+
+        c64mem.MapReader(CiaAddr.CIA2_TIMALO, Cia2TimerALOLoad);
+        c64mem.MapWriter(CiaAddr.CIA2_TIMALO, Cia2TimerALOStore);
+
+        // CIA #2 Timer B
+        c64mem.MapReader(CiaAddr.CIA2_TIMBHI, Cia2TimerBHILoad);
+        c64mem.MapWriter(CiaAddr.CIA2_TIMBHI, Cia2TimerBHIStore);
+
+        c64mem.MapReader(CiaAddr.CIA2_TIMBLO, Cia2TimerBLOLoad);
+        c64mem.MapWriter(CiaAddr.CIA2_TIMBLO, Cia2TimerBLOStore);
     }
 
     // Cia 1 Data Port A is normally read from to get joystick (#2) input.
@@ -186,4 +211,23 @@ public class Cia
 
     public byte Cia1TimerBControlLoad(ushort _) => CiaTimers[CiaTimerType.Cia1_B].TimerControl;
     public void Cia1TimerBControlStore(ushort _, byte value) => CiaTimers[CiaTimerType.Cia1_B].TimerControl = value;
+
+
+    public byte Cia1DebugLoad(ushort address) => _c64.ReadIOStorage(address);
+    public void Cia1DebugStore(ushort address, byte value) => _c64.WriteIOStorage(address, value);
+
+
+    // TODO: Implement CIA #2 timers and registers
+    public byte Cia2TimerAHILoad(ushort _) => CiaTimers[CiaTimerType.Cia2_A].InternalTimer.Highbyte();
+    public void Cia2TimerAHIStore(ushort _, byte value) => CiaTimers[CiaTimerType.Cia2_A].SetInternalTimer_Latch_HI(value);
+
+    public byte Cia2TimerALOLoad(ushort _) => CiaTimers[CiaTimerType.Cia2_A].InternalTimer.Lowbyte();
+    public void Cia2TimerALOStore(ushort _, byte value) => CiaTimers[CiaTimerType.Cia2_A].SetInternalTimer_Latch_LO(value);
+
+    public byte Cia2TimerBHILoad(ushort _) => CiaTimers[CiaTimerType.Cia2_B].InternalTimer.Highbyte();
+    public void Cia2TimerBHIStore(ushort _, byte value) => CiaTimers[CiaTimerType.Cia2_B].SetInternalTimer_Latch_HI(value);
+
+    public byte Cia2TimerBLOLoad(ushort _) => CiaTimers[CiaTimerType.Cia2_B].InternalTimer.Lowbyte();
+    public void Cia2TimerBLOStore(ushort _, byte value) => CiaTimers[CiaTimerType.Cia2_B].SetInternalTimer_Latch_LO(value);
+
 }

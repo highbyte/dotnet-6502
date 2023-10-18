@@ -29,9 +29,16 @@ public static class CiaAddr
     public const ushort CIA1_CIACRB = 0xdc0f;
 
 
-    // CIA #2 Data Port A & B (VIC2 bank selection ,serial bus, rs-232, user port)
+    // CIA #2 Data Port A & B (VIC2 bank selection, serial bus, rs-232, user port)
     public const ushort CIA2_DATAA = 0xdd00;
     public const ushort CIA2_DATAB = 0xdd01;
 
+    // CIA #2 Timer Register A
+    public const ushort CIA2_TIMALO = 0xdd04;
+    public const ushort CIA2_TIMAHI = 0xdd05;
+
+    // CIA #2 Timer Register B
+    public const ushort CIA2_TIMBLO = 0xdd06;
+    public const ushort CIA2_TIMBHI = 0xdd07;
 
 }
