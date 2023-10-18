@@ -83,19 +83,43 @@ public class Cia
 
 
         // TODO: Implement CIA #2 timers and registers
-        // CIA #2 Timer A
-        c64mem.MapReader(CiaAddr.CIA2_TIMAHI, Cia2TimerAHILoad);
-        c64mem.MapWriter(CiaAddr.CIA2_TIMAHI, Cia2TimerAHIStore);
+        //// CIA #2 Timer A
+        //c64mem.MapReader(CiaAddr.CIA2_TIMAHI, Cia2TimerAHILoad);
+        //c64mem.MapWriter(CiaAddr.CIA2_TIMAHI, Cia2TimerAHIStore);
 
-        c64mem.MapReader(CiaAddr.CIA2_TIMALO, Cia2TimerALOLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_TIMALO, Cia2TimerALOStore);
+        //c64mem.MapReader(CiaAddr.CIA2_TIMALO, Cia2TimerALOLoad);
+        //c64mem.MapWriter(CiaAddr.CIA2_TIMALO, Cia2TimerALOStore);
 
-        // CIA #2 Timer B
-        c64mem.MapReader(CiaAddr.CIA2_TIMBHI, Cia2TimerBHILoad);
-        c64mem.MapWriter(CiaAddr.CIA2_TIMBHI, Cia2TimerBHIStore);
+        //// CIA #2 Timer B
+        //c64mem.MapReader(CiaAddr.CIA2_TIMBHI, Cia2TimerBHILoad);
+        //c64mem.MapWriter(CiaAddr.CIA2_TIMBHI, Cia2TimerBHIStore);
 
-        c64mem.MapReader(CiaAddr.CIA2_TIMBLO, Cia2TimerBLOLoad);
-        c64mem.MapWriter(CiaAddr.CIA2_TIMBLO, Cia2TimerBLOStore);
+        //c64mem.MapReader(CiaAddr.CIA2_TIMBLO, Cia2TimerBLOLoad);
+        //c64mem.MapWriter(CiaAddr.CIA2_TIMBLO, Cia2TimerBLOStore);
+
+        // TODO: Implement CIA #2 timers and registers
+        c64mem.MapReader(0xdd01, Cia2DebugLoad);
+        c64mem.MapWriter(0xdd01, Cia2DebugStore);
+        c64mem.MapReader(0xdd02, Cia2DebugLoad);
+        c64mem.MapWriter(0xdd02, Cia2DebugStore);
+        c64mem.MapReader(0xdd03, Cia2DebugLoad);
+        c64mem.MapWriter(0xdd03, Cia2DebugStore);
+        c64mem.MapReader(0xdd04, Cia2DebugLoad);
+        c64mem.MapWriter(0xdd04, Cia2DebugStore);
+        c64mem.MapReader(0xdd05, Cia2DebugLoad);
+        c64mem.MapWriter(0xdd05, Cia2DebugStore);
+        c64mem.MapReader(0xdd06, Cia2DebugLoad);
+        c64mem.MapWriter(0xdd06, Cia2DebugStore);
+        c64mem.MapReader(0xdd07, Cia2DebugLoad);
+        c64mem.MapWriter(0xdd07, Cia2DebugStore);
+        c64mem.MapReader(0xdd08, Cia2DebugLoad);
+        c64mem.MapWriter(0xdd08, Cia2DebugStore);
+        c64mem.MapReader(0xdd09, Cia2DebugLoad);
+        c64mem.MapWriter(0xdd09, Cia2DebugStore);
+        c64mem.MapReader(0xdd0a, Cia2DebugLoad);
+        c64mem.MapWriter(0xdd0a, Cia2DebugStore);
+        c64mem.MapReader(0xdd0b, Cia2DebugLoad);
+        c64mem.MapWriter(0xdd0b, Cia2DebugStore);
     }
 
     // Cia 1 Data Port A is normally read from to get joystick (#2) input.
@@ -229,5 +253,9 @@ public class Cia
 
     public byte Cia2TimerBLOLoad(ushort _) => CiaTimers[CiaTimerType.Cia2_B].InternalTimer.Lowbyte();
     public void Cia2TimerBLOStore(ushort _, byte value) => CiaTimers[CiaTimerType.Cia2_B].SetInternalTimer_Latch_LO(value);
+
+    public byte Cia2DebugLoad(ushort address) => _c64.ReadIOStorage(address);
+    public void Cia2DebugStore(ushort address, byte value) => _c64.WriteIOStorage(address, value);
+
 
 }

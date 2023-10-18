@@ -420,7 +420,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         SKPaint paint = characterMode switch
         {
             CharMode.Standard => _c64SkiaPaint.GetDrawCharacterPaint(characterColor),
-            CharMode.Extended => _c64SkiaPaint.GetDrawCharacterPaintWithBackground(characterColor, bgColor.Value),
+            CharMode.Extended => bgColor == null ? _c64SkiaPaint.GetDrawCharacterPaint(characterColor) : _c64SkiaPaint.GetDrawCharacterPaintWithBackground(characterColor, bgColor.Value),
             CharMode.MultiColor => _c64SkiaPaint.GetDrawCharacterPaintWithMultiColor(characterColor, backgroundColor1, backgroundColor2),
             _ => throw new NotImplementedException($"Character mode {characterMode} not implemented.")
         };
