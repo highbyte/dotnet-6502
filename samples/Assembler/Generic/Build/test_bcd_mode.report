@@ -1,0 +1,296 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\samples\Assembler\Generic\test_bcd_mode.asm
+     1                          ; FROM http://www.6502.org/tutorials/decimal_mode.html
+     2                          ;
+     3                          ; Verify decimal mode behavior
+     4                          ; Written by Bruce Clark.  This code is public domain.
+     5                          ;
+     6                          ; Returns:
+     7                          ;   ERROR = 0 if the test passed
+     8                          ;   ERROR = 1 if the test failed
+     9                          ;
+    10                          ; This routine requires 17 bytes of RAM -- 1 byte each for:
+    11                          ;   AR, CF, DA, DNVZC, ERROR, HA, HNVZC, N1, N1H, N1L, N2, N2L, NF, VF, and ZF
+    12                          ; and 2 bytes for N2H
+    13                          ;
+    14                          ; Variables:
+    15                          ;   N1 and N2 are the two numbers to be added or subtracted
+    16                          ;   N1H, N1L, N2H, and N2L are the upper 4 bits and lower 4 bits of N1 and N2
+    17                          ;   DA and DNVZC are the actual accumulator and flag results in decimal mode
+    18                          ;   HA and HNVZC are the accumulator and flag results when N1 and N2 are
+    19                          ;     added or subtracted using binary arithmetic
+    20                          ;   AR, NF, VF, ZF, and CF are the predicted decimal mode accumulator and
+    21                          ;     flag results, calculated using binary arithmetic
+    22                          ;
+    23                          ; This program takes approximately 1 minute at 1 MHz (a few seconds more on
+    24                          ; a 65C02 than a 6502 or 65816)
+    25                          ;
+    26                          
+    27                          ;ACME assembler
+    28                          ;!to "./test_bcd_mode.prg"
+    29                          
+    30                          ;code start address
+    31                          * = $c000
+    32                          
+    33  c000 a001               TEST    LDY #1    ; initialize Y (used to loop through carry flag values)
+    34  c002 8cb0c1                     STY ERROR ; store 1 in ERROR until the test passes
+    35  c005 a900                       LDA #0    ; initialize N1 and N2
+    36  c007 8db3c1                     STA N1
+    37  c00a 8db6c1                     STA N2
+    38  c00d adb6c1             LOOP1   LDA N2    ; N2L = N2 & $0F
+    39  c010 290f                       AND #$0F  ; [1] see text
+    40  c012 8db7c1                     STA N2L
+    41  c015 adb6c1                     LDA N2    ; N2H = N2 & $F0
+    42  c018 29f0                       AND #$F0  ; [2] see text
+    43  c01a 8dbbc1                     STA N2H
+    44  c01d 090f                       ORA #$0F  ; N2H+1 = (N2 & $F0) + $0F
+    45  c01f 8dbcc1                     STA N2H+1
+    46  c022 adb3c1             LOOP2   LDA N1    ; N1L = N1 & $0F
+    47  c025 290f                       AND #$0F  ; [3] see text
+    48  c027 8db5c1                     STA N1L
+    49  c02a adb3c1                     LDA N1    ; N1H = N1 & $F0
+    50  c02d 29f0                       AND #$F0  ; [4] see text
+    51  c02f 8db4c1                     STA N1H
+    52  c032 205bc0                     JSR ADD
+    53  c035 2044c1                     JSR A6502
+    54  c038 2015c1                     JSR COMPARE
+    55  c03b d01d                       BNE DONE
+    56  c03d 20aec0                     JSR SUB
+    57  c040 2051c1                     JSR S6502
+    58  c043 2015c1                     JSR COMPARE
+    59  c046 d012                       BNE DONE
+    60  c048 eeb3c1                     INC N1    ; [5] see text
+    61  c04b d0d5                       BNE LOOP2 ; loop through all 256 values of N1
+    62  c04d eeb6c1                     INC N2    ; [6] see text
+    63  c050 d0bb                       BNE LOOP1 ; loop through all 256 values of N2
+    64  c052 88                         DEY
+    65  c053 10b8                       BPL LOOP1 ; loop through both values of the carry flag
+    66  c055 a900                       LDA #0    ; test passed, so store 0 in ERROR
+    67  c057 8db0c1                     STA ERROR
+    68  c05a 60                 DONE    RTS
+    69                          
+    70                          ; Calculate the actual decimal mode accumulator and flags, the accumulator
+    71                          ; and flag results when N1 is added to N2 using binary arithmetic, the
+    72                          ; predicted accumulator result, the predicted carry flag, and the predicted
+    73                          ; V flag
+    74                          ;
+    75  c05b f8                 ADD     SED       ; decimal mode
+    76  c05c c001                       CPY #1    ; set carry if Y = 1, clear carry if Y = 0
+    77  c05e adb3c1                     LDA N1
+    78  c061 6db6c1                     ADC N2
+    79  c064 8daec1                     STA DA    ; actual accumulator result in decimal mode
+    80  c067 08                         PHP
+    81  c068 68                         PLA
+    82  c069 8dafc1                     STA DNVZC ; actual flags result in decimal mode
+    83  c06c d8                         CLD       ; binary mode
+    84  c06d c001                       CPY #1    ; set carry if Y = 1, clear carry if Y = 0
+    85  c06f adb3c1                     LDA N1
+    86  c072 6db6c1                     ADC N2
+    87  c075 8db1c1                     STA HA    ; accumulator result of N1+N2 using binary arithmetic
+    88                          
+    89  c078 08                         PHP
+    90  c079 68                         PLA
+    91  c07a 8db2c1                     STA HNVZC ; flags result of N1+N2 using binary arithmetic
+    92  c07d c001                       CPY #1
+    93  c07f adb5c1                     LDA N1L
+    94  c082 6db7c1                     ADC N2L
+    95  c085 c90a                       CMP #$0A
+    96  c087 a200                       LDX #0
+    97  c089 9006                       BCC A1
+    98  c08b e8                         INX
+    99  c08c 6905                       ADC #5    ; add 6 (carry is set)
+   100  c08e 290f                       AND #$0F
+   101  c090 38                         SEC
+   102  c091 0db4c1             A1      ORA N1H
+   103                          ;
+   104                          ; if N1L + N2L <  $0A, then add N2 & $F0
+   105                          ; if N1L + N2L >= $0A, then add (N2 & $F0) + $0F + 1 (carry is set)
+   106                          ;
+   107  c094 7dbbc1                     ADC N2H,X
+   108  c097 08                         PHP
+   109  c098 b004                       BCS A2
+   110  c09a c9a0                       CMP #$A0
+   111  c09c 9003                       BCC A3
+   112  c09e 695f               A2      ADC #$5F  ; add $60 (carry is set)
+   113  c0a0 38                         SEC
+   114  c0a1 8dacc1             A3      STA AR    ; predicted accumulator result
+   115  c0a4 08                         PHP
+   116  c0a5 68                         PLA
+   117  c0a6 8dadc1                     STA CF    ; predicted carry result
+   118  c0a9 68                         PLA
+   119                          ;
+   120                          ; note that all 8 bits of the P register are stored in VF
+   121                          ;
+   122  c0aa 8db9c1                     STA VF    ; predicted V flags
+   123  c0ad 60                         RTS
+   124                          
+   125                          ; Calculate the actual decimal mode accumulator and flags, and the
+   126                          ; accumulator and flag results when N2 is subtracted from N1 using binary
+   127                          ; arithmetic
+   128                          ;
+   129  c0ae f8                 SUB     SED       ; decimal mode
+   130  c0af c001                       CPY #1    ; set carry if Y = 1, clear carry if Y = 0
+   131  c0b1 adb3c1                     LDA N1
+   132  c0b4 edb6c1                     SBC N2
+   133  c0b7 8daec1                     STA DA    ; actual accumulator result in decimal mode
+   134  c0ba 08                         PHP
+   135  c0bb 68                         PLA
+   136  c0bc 8dafc1                     STA DNVZC ; actual flags result in decimal mode
+   137  c0bf d8                         CLD       ; binary mode
+   138  c0c0 c001                       CPY #1    ; set carry if Y = 1, clear carry if Y = 0
+   139  c0c2 adb3c1                     LDA N1
+   140  c0c5 edb6c1                     SBC N2
+   141  c0c8 8db1c1                     STA HA    ; accumulator result of N1-N2 using binary arithmetic
+   142                          
+   143  c0cb 08                         PHP
+   144  c0cc 68                         PLA
+   145  c0cd 8db2c1                     STA HNVZC ; flags result of N1-N2 using binary arithmetic
+   146  c0d0 60                         RTS
+   147                          
+   148                          ; Calculate the predicted SBC accumulator result for the 6502 and 65816
+   149                          
+   150                          ;
+   151  c0d1 c001               SUB1    CPY #1    ; set carry if Y = 1, clear carry if Y = 0
+   152  c0d3 adb5c1                     LDA N1L
+   153  c0d6 edb7c1                     SBC N2L
+   154  c0d9 a200                       LDX #0
+   155  c0db b006                       BCS S11
+   156  c0dd e8                         INX
+   157  c0de e905                       SBC #5    ; subtract 6 (carry is clear)
+   158  c0e0 290f                       AND #$0F
+   159  c0e2 18                         CLC
+   160  c0e3 0db4c1             S11     ORA N1H
+   161                          ;
+   162                          ; if N1L - N2L >= 0, then subtract N2 & $F0
+   163                          ; if N1L - N2L <  0, then subtract (N2 & $F0) + $0F + 1 (carry is clear)
+   164                          ;
+   165  c0e6 fdbbc1                     SBC N2H,X
+   166  c0e9 b002                       BCS S12
+   167  c0eb e95f                       SBC #$5F  ; subtract $60 (carry is clear)
+   168  c0ed 8dacc1             S12     STA AR
+   169  c0f0 60                         RTS
+   170                          
+   171                          ; Calculate the predicted SBC accumulator result for the 6502 and 65C02
+   172                          
+   173                          ;
+   174  c0f1 c001               SUB2    CPY #1    ; set carry if Y = 1, clear carry if Y = 0
+   175  c0f3 adb5c1                     LDA N1L
+   176  c0f6 edb7c1                     SBC N2L
+   177  c0f9 a200                       LDX #0
+   178  c0fb b004                       BCS S21
+   179  c0fd e8                         INX
+   180  c0fe 290f                       AND #$0F
+   181  c100 18                         CLC
+   182  c101 0db4c1             S21     ORA N1H
+   183                          ;
+   184                          ; if N1L - N2L >= 0, then subtract N2 & $F0
+   185                          ; if N1L - N2L <  0, then subtract (N2 & $F0) + $0F + 1 (carry is clear)
+   186                          ;
+   187  c104 fdbbc1                     SBC N2H,X
+   188  c107 b002                       BCS S22
+   189  c109 e95f                       SBC #$5F   ; subtract $60 (carry is clear)
+   190  c10b e000               S22     CPX #0
+   191  c10d f002                       BEQ S23
+   192  c10f e906                       SBC #6
+   193  c111 8dacc1             S23     STA AR     ; predicted accumulator result
+   194  c114 60                         RTS
+   195                          
+   196                          ; Compare accumulator actual results to predicted results
+   197                          ;
+   198                          ; Return:
+   199                          ;   Z flag = 1 (BEQ branch) if same
+   200                          ;   Z flag = 0 (BNE branch) if different
+   201                          ;
+   202  c115 adaec1             COMPARE LDA DA
+   203  c118 cdacc1                     CMP AR
+   204  c11b d026                       BNE C1
+   205  c11d adafc1                     LDA DNVZC ; [7] see text
+   206  c120 4db8c1                     EOR NF
+   207  c123 2980                       AND #$80  ; mask off N flag
+   208  c125 d01c                       BNE C1
+   209  c127 adafc1                     LDA DNVZC ; [8] see text
+   210  c12a 4db9c1                     EOR VF
+   211  c12d 2940                       AND #$40  ; mask off V flag
+   212  c12f d012                       BNE C1    ; [9] see text
+   213  c131 adafc1                     LDA DNVZC
+   214  c134 4dbac1                     EOR ZF    ; mask off Z flag
+   215  c137 2902                       AND #2
+   216  c139 d008                       BNE C1    ; [10] see text
+   217  c13b adafc1                     LDA DNVZC
+   218  c13e 4dadc1                     EOR CF
+   219  c141 2901                       AND #1    ; mask off C flag
+   220  c143 60                 C1      RTS
+   221                          
+   222                          ; These routines store the predicted values for ADC and SBC for the 6502,
+   223                          ; 65C02, and 65816 in AR, CF, NF, VF, and ZF
+   224                          
+   225  c144 adb9c1             A6502   LDA VF
+   226                          ;
+   227                          ; since all 8 bits of the P register were stored in VF, bit 7 of VF contains
+   228                          ; the N flag for NF
+   229                          ;
+   230  c147 8db8c1                     STA NF
+   231  c14a adb2c1                     LDA HNVZC
+   232  c14d 8dbac1                     STA ZF
+   233  c150 60                         RTS
+   234                          
+   235  c151 20d1c0             S6502   JSR SUB1
+   236  c154 adb2c1                     LDA HNVZC
+   237  c157 8db8c1                     STA NF
+   238  c15a 8db9c1                     STA VF
+   239  c15d 8dbac1                     STA ZF
+   240  c160 8dadc1                     STA CF
+   241  c163 60                         RTS
+   242                          
+   243  c164 adacc1             A65C02  LDA AR
+   244  c167 08                         PHP
+   245  c168 68                         PLA
+   246  c169 8db8c1                     STA NF
+   247  c16c 8dbac1                     STA ZF
+   248  c16f 60                         RTS
+   249                          
+   250  c170 20f1c0             S65C02  JSR SUB2
+   251  c173 adacc1                     LDA AR
+   252  c176 08                         PHP
+   253  c177 68                         PLA
+   254  c178 8db8c1                     STA NF
+   255  c17b 8dbac1                     STA ZF
+   256  c17e adb2c1                     LDA HNVZC
+   257  c181 8db9c1                     STA VF
+   258  c184 8dadc1                     STA CF
+   259  c187 60                         RTS
+   260                          
+   261  c188 adacc1             A65816  LDA AR
+   262  c18b 08                         PHP
+   263  c18c 68                         PLA
+   264  c18d 8db8c1                     STA NF
+   265  c190 8dbac1                     STA ZF
+   266  c193 60                         RTS
+   267                          
+   268  c194 20d1c0             S65816  JSR SUB1
+   269  c197 adacc1                     LDA AR
+   270  c19a 08                         PHP
+   271  c19b 68                         PLA
+   272  c19c 8db8c1                     STA NF
+   273  c19f 8dbac1                     STA ZF
+   274  c1a2 adb2c1                     LDA HNVZC
+   275  c1a5 8db9c1                     STA VF
+   276  c1a8 8dadc1                     STA CF
+   277  c1ab 60                         RTS
+   278                          
+   279  c1ac 00                 AR      !by 0
+   280  c1ad 00                 CF      !by 0
+   281  c1ae 00                 DA      !by 0
+   282  c1af 00                 DNVZC   !by 0
+   283  c1b0 00                 ERROR   !by 0
+   284  c1b1 00                 HA      !by 0
+   285  c1b2 00                 HNVZC   !by 0
+   286  c1b3 00                 N1      !by 0
+   287  c1b4 00                 N1H     !by 0
+   288  c1b5 00                 N1L     !by 0
+   289  c1b6 00                 N2      !by 0
+   290  c1b7 00                 N2L     !by 0
+   291  c1b8 00                 NF      !by 0
+   292  c1b9 00                 VF      !by 0
+   293  c1ba 00                 ZF      !by 0
+   294  c1bb 0000               N2H     !by 0,0

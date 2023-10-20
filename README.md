@@ -28,9 +28,8 @@
 - Several UI applications [```Highbyte.DotNet6502.Apps.*```](doc/APPS.md) that are the hosts for emulating the Systems above and their different rendering techniques.
 
 # What's currently missing
-Including but not limited to:
+Missing features (but not limited to):
 - 6502 CPU
-  - Decimal mode (Binary Coded Decimal) calculations
   - Support for unofficial opcodes
 - Systems
   - C64: Emulation of graphics mode, cycle-exact rendering, etc.
@@ -54,6 +53,7 @@ For requirements and local development setup, see [here](doc/DEVELOP.md)
 - https://www.c64-wiki.com/wiki/BRK
 - http://www.emulator101.com/6502-addressing-modes.html
 - https://www.pagetable.com/?p=410
+- http://6502.org/tutorials/decimal_mode.html
 
 ## C64 specific references
 - https://www.c64-wiki.com/wiki/Reset_(Process)

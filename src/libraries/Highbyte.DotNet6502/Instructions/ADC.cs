@@ -9,7 +9,14 @@ public class ADC : Instruction, IInstructionUsesByte
     public override List<OpCode> OpCodes => _opCodes;
     public ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
     {
-        cpu.A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(cpu.A, value, cpu.ProcessorStatus);
+        if (cpu.ProcessorStatus.Decimal)
+        {
+            cpu.A = DecimalArithmeticHelpers.AddWithCarryAndOverFlowDecimalMode(cpu.A, value, cpu.ProcessorStatus);
+        }
+        else
+        {
+            cpu.A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(cpu.A, value, cpu.ProcessorStatus);
+        }
 
         return
             InstructionExtraCyclesCalculator.CalculateExtraCycles(
