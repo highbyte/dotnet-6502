@@ -697,4 +697,23 @@ public class SBC_test
         };
         test.Execute_And_Verify(AddrMode.I);
     }
+
+    [Fact]
+    public void SBC_I_Decimal_Mode_Can_Subtract_0_from_159()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,  // Carry must be set before SBC to perform a subtraction without borrow.
+            A = 0x6d,  // Invalid value?
+            OpCode = OpCodeId.SBC_I,
+            FinalValue = 0x00,
+            ExpectedA = 0x6d,
+            ExpectedC = true,
+            ExpectedZ = false,
+            ExpectedN = false,
+            ExpectedV = false
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
 }

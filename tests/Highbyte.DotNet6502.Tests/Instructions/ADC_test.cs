@@ -522,6 +522,46 @@ public class ADC_test
     }
 
     [Fact]
+    public void ADC_DecimalMode_Can_Add_0_Plus_0()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = false,
+            A = 0x00,
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x00,
+            ExpectedA = 0x00,
+            ExpectedC = false,
+            ExpectedZ = true,
+            ExpectedN = false,
+            ExpectedV = false
+
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void ADC_DecimalMode_Can_Add_0_Plus_0_With_Carry_Set()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,
+            A = 0x00,
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x00,
+            ExpectedA = 0x01,
+            ExpectedC = false,
+            ExpectedZ = false,
+            ExpectedN = false,
+            ExpectedV = false
+
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
     public void ADC_DecimalMode_Can_Add_1_Plus_1()
     {
         var test = new TestSpec
@@ -534,8 +574,47 @@ public class ADC_test
             ExpectedA = 0x02,
             ExpectedC = false,
             ExpectedZ = false,
+            ExpectedN = false,
             ExpectedV = false   // Overflow flag for binary values >= 127 (0x80)
 
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void ADC_DecimalMode_Can_Add_109_Plus_0_With_Carry_Set()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,
+            A = 0x6d,    // Decimal 109, invalid value?
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x00,
+            ExpectedA = 0x74,
+            ExpectedC = false,
+            ExpectedZ = false,
+            ExpectedN = false,
+            ExpectedV = false
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void ADC_DecimalMode_Can_Add_128_Plus_0_With_Carry_Set()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,
+            A = 0x80,    // Decimal 128
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x00,
+            ExpectedA = 0x81,
+            ExpectedC = false,
+            ExpectedZ = false,
+            ExpectedN = true,
+            ExpectedV = false
         };
         test.Execute_And_Verify(AddrMode.I);
     }

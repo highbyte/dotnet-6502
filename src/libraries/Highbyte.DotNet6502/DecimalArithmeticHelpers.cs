@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Instructions;
+using System.Diagnostics;
 using System.Drawing;
 
 namespace Highbyte.DotNet6502;
@@ -25,16 +26,17 @@ public static class DecimalArithmeticHelpers
         //1g.The carry result is 1 if A >= $100, and is 0 if A < $100
         //
         //2c. A2 = (A & $F0) + (B & $F0) + AL, using signed (twos complement) arithmetic
-        //2e.The N flag result is 1 if bit 7 of A2 is 1, and is 0 if bit 7 if A2 is 0
-        //2f.The V flag result is 1 if A < -128 or A2 > 127, and is 0 if -128 <= A2 <= 127
+        //2e. The N flag result is 1 if bit 7 of A2 is 1, and is 0 if bit 7 if A2 is 0
+        //2f. The V flag result is 1 if A2 < -128 or A2> 127, and is 0 if -128 <= A2 <= 127
 
         // Since the Z flag after ADC on the 6502 is "bin", that means the decimal mode Z flag is clear. Thus, to predict the value of the Z flag, simply perform the ADC using binary arithmetic.
+        var originalCarry = processorStatus.Carry;
 
-        var al = (value1 & 0x0f) + (value2 & 0x0f) + (byte)(processorStatus.Carry ? 1 : 0);
+        byte al = (byte)((value1 & 0x0f) + (value2 & 0x0f) + (byte)(processorStatus.Carry ? 1 : 0));
         if (al >= 0x0a)
-            al = ((al + 0x06) & 0x0f) + 0x10;
+            al = (byte)(((al + 0x06) & 0x0f) + 0x10);
         // Note that sum can be >= $100 at this point
-        ushort sum = ((ushort)((value1 & 0xf0) + (value2 & 0xf0) + al));
+        var sum = ((value1 & 0xf0) + (value2 & 0xf0) + al);
         if (sum >= 0xa0)
             sum += 0x60;
         processorStatus.Carry = sum >= 0x100;
@@ -42,12 +44,13 @@ public static class DecimalArithmeticHelpers
         // Use signed twos complement arithmetic to calculate a2, which will only be used to set N and V flags
         var value1Signed = (sbyte)value1;
         var value2Signed = (sbyte)value2;
-        var a2 = value1Signed + value2Signed + al;
+        short a2 = (short)((sbyte)(value1Signed & 0xf0) + (sbyte)(value2Signed & 0xf0) + (sbyte)al);
         processorStatus.Negative = (a2 & 0b10000000) == 0b10000000;
         processorStatus.Overflow = a2 < -128 || a2 > 127;
 
-        // Perform a subtraction in binary mode to get Z flag
+        // Perform a addition in binary mode to get Z flag
         var processorStatusBinary = new ProcessorStatus();
+        processorStatusBinary.Carry = originalCarry;
         BinaryArithmeticHelpers.AddWithCarryAndOverflow(value1, value2, processorStatusBinary);
         processorStatus.Zero = processorStatusBinary.Zero;
 
