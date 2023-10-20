@@ -29,7 +29,7 @@ public class SBC_test
         test.Execute_And_Verify(AddrMode.I);
     }
 
-            [Fact]
+    [Fact]
     public void SBC_I_Zero_Minus_Zero_Should_Be_Minus_One_With_Carry_Clear()
     {
         var test = new TestSpec
@@ -605,5 +605,115 @@ public class SBC_test
             ExpectedCycles = 6,
         };
         test.Execute_And_Verify(AddrMode.IND_IX, FullAddress_Should_Cross_Page_Boundary: true);
+    }
+
+    [Fact]
+    public void SBC_I_Decimal_Mode_Can_Subtract_8_from_10()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,  // Carry must be set before SBC to perform a subtraction without borrow.
+            A = 0x10,
+            OpCode = OpCodeId.SBC_I,
+            FinalValue = 0x08,
+            ExpectedA = 0x02,
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void SBC_I_Decimal_Mode_Can_Subtract_11_from_96()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,  // Carry must be set before SBC to perform a subtraction without borrow.
+            A = 0x96,
+            OpCode = OpCodeId.SBC_I,
+            FinalValue = 0x11,
+            ExpectedA = 0x85,
+            ExpectedC = true,
+            ExpectedZ = false,
+            ExpectedN = true,
+            ExpectedV = false
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void SBC_I_Decimal_Mode_Can_Subtract_11_from_5()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,  // Carry must be set before SBC to perform a subtraction without borrow.
+            A = 0x5,
+            OpCode = OpCodeId.SBC_I,
+            FinalValue = 0x11,
+            ExpectedA = 0x94,   // Wraps around 0 back to 99
+            ExpectedC = false,
+            ExpectedZ = false,
+            ExpectedN = true,
+            ExpectedV = false
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void SBC_I_Decimal_Mode_Can_Subtract_0_from_0()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,  // Carry must be set before SBC to perform a subtraction without borrow.
+            A = 0x0,
+            OpCode = OpCodeId.SBC_I,
+            FinalValue = 0x0,
+            ExpectedA = 0x0,
+            ExpectedC = true,
+            ExpectedZ = true,
+            ExpectedN = false,
+            ExpectedV = false
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void SBC_I_Decimal_Mode_Can_Subtract_81_from_1()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,  // Carry must be set before SBC to perform a subtraction without borrow.
+            A = 0x1,
+            OpCode = OpCodeId.SBC_I,
+            FinalValue = 0x81,
+            ExpectedA = 0x20,   // Wraps around 0 back to 99
+            ExpectedC = false,
+            ExpectedZ = false,
+            ExpectedN = true,
+            ExpectedV = true
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void SBC_I_Decimal_Mode_Can_Subtract_0_from_159()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,  // Carry must be set before SBC to perform a subtraction without borrow.
+            A = 0x6d,  // Invalid value?
+            OpCode = OpCodeId.SBC_I,
+            FinalValue = 0x00,
+            ExpectedA = 0x6d,
+            ExpectedC = true,
+            ExpectedZ = false,
+            ExpectedN = false,
+            ExpectedV = false
+        };
+        test.Execute_And_Verify(AddrMode.I);
     }
 }

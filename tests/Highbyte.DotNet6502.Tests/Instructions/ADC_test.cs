@@ -520,4 +520,178 @@ public class ADC_test
         };
         test.Execute_And_Verify(AddrMode.IND_IX, FullAddress_Should_Cross_Page_Boundary: true);
     }
+
+    [Fact]
+    public void ADC_DecimalMode_Can_Add_0_Plus_0()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = false,
+            A = 0x00,
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x00,
+            ExpectedA = 0x00,
+            ExpectedC = false,
+            ExpectedZ = true,
+            ExpectedN = false,
+            ExpectedV = false
+
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void ADC_DecimalMode_Can_Add_0_Plus_0_With_Carry_Set()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,
+            A = 0x00,
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x00,
+            ExpectedA = 0x01,
+            ExpectedC = false,
+            ExpectedZ = false,
+            ExpectedN = false,
+            ExpectedV = false
+
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void ADC_DecimalMode_Can_Add_1_Plus_1()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = false,
+            A = 0x01,
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x01,
+            ExpectedA = 0x02,
+            ExpectedC = false,
+            ExpectedZ = false,
+            ExpectedN = false,
+            ExpectedV = false   // Overflow flag for binary values >= 127 (0x80)
+
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void ADC_DecimalMode_Can_Add_109_Plus_0_With_Carry_Set()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,
+            A = 0x6d,    // Decimal 109, invalid value?
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x00,
+            ExpectedA = 0x74,
+            ExpectedC = false,
+            ExpectedZ = false,
+            ExpectedN = false,
+            ExpectedV = false
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void ADC_DecimalMode_Can_Add_128_Plus_0_With_Carry_Set()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = true,
+            A = 0x80,    // Decimal 128
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x00,
+            ExpectedA = 0x81,
+            ExpectedC = false,
+            ExpectedZ = false,
+            ExpectedN = true,
+            ExpectedV = false
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void ADC_DecimalMode_Can_Add_72_Plus_10()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = false,
+            A = 0x72,
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x10,
+            ExpectedA = 0x82,
+            ExpectedC = false,
+            ExpectedZ = false,
+            ExpectedN = true,       // Negative flag is set because the result has bit 7 set (same as for binary mode)
+            ExpectedV = true        // Overflow flag for binary values >= 127 (0x80)
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void ADC_DecimalMode_Can_Add_96_Plus_3()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = false,
+            A = 0x96,
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x03,
+            ExpectedA = 0x99,
+            ExpectedC = false,
+            ExpectedZ = false,
+            ExpectedN = true
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void ADC_DecimalMode_Can_Add_96_Plus_4_Which_Should_Be_0()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = false,
+            A = 0x96,
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x04,
+            ExpectedA = 0x00,
+            ExpectedC = true,
+            ExpectedZ = false,       // Zero flag is set as if a binary add was done. That would not be a sum 0, thus false.
+            ExpectedN = true,
+            ExpectedV = false
+
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
+
+    [Fact]
+    public void ADC_DecimalMode_Can_Add_96_Plus_5_Which_Should_Be_1()
+    {
+        var test = new TestSpec
+        {
+            D = true,
+            C = false,
+            A = 0x96,
+            OpCode = OpCodeId.ADC_I,
+            FinalValue = 0x05,
+            ExpectedA = 0x01,
+            ExpectedC = true,
+            ExpectedZ = false,
+            ExpectedN = true,
+            ExpectedV = false
+        };
+        test.Execute_And_Verify(AddrMode.I);
+    }
 }

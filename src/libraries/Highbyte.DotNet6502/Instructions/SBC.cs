@@ -1,7 +1,7 @@
 namespace Highbyte.DotNet6502.Instructions;
 
 /// <summary>
-/// Add with Carry
+/// Subtract with Carry
 /// </summary>
 public class SBC : Instruction, IInstructionUsesByte
 {
@@ -10,13 +10,20 @@ public class SBC : Instruction, IInstructionUsesByte
 
     public ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
     {
-        cpu.A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(cpu.A, value, cpu.ProcessorStatus);
+        if (cpu.ProcessorStatus.Decimal)
+        {
+            cpu.A = DecimalArithmeticHelpers.SubtractWithCarryAndOverflowDecimalMode(cpu.A, value, cpu.ProcessorStatus);
+        }
+        else
+        {
+            cpu.A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(cpu.A, value, cpu.ProcessorStatus);
+        }
 
-        return 
+        return
             InstructionExtraCyclesCalculator.CalculateExtraCycles(
-                    addrModeCalcResult.OpCode.AddressingMode, 
+                    addrModeCalcResult.OpCode.AddressingMode,
                     addrModeCalcResult.AddressCalculationCrossedPageBoundary);
-    }        
+    }
 
     public SBC()
     {
