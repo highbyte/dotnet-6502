@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 public class CiaTimer
@@ -8,8 +6,6 @@ public class CiaTimer
     private readonly IRQSource _iRQSource;
     private readonly C64 _c64;
 
-    // Current 16-bit value of the timer, decremented each cycle when timer is running.
-    public ushort InternalTimer { get; private set; } = 0;
 
     // Latch contains the value was written to timer registers, and is used as start value when timer is started.
     private ushort _internalTimer_Latch = 0;
@@ -49,7 +45,10 @@ public class CiaTimer
         }
     }
 
-    private readonly Stopwatch _realTimer_Stopwatch = new();
+    // Current 16-bit value of the timer, decremented each cycle when timer is running.
+    public ushort InternalTimer { get; private set; } = 0;
+
+    private bool _timerIsRunning = false;
 
     public CiaTimer(CiaTimerType ciaTimerType, IRQSource iRQSource, C64 c64)
     {
@@ -62,14 +61,12 @@ public class CiaTimer
     {
         var ciaIrq = _c64.Cia.CiaIRQ;
 
-        if (IsTimerStartFlagSet() && _realTimer_Stopwatch.IsRunning)
+        if (IsTimerStartFlagSet() && _timerIsRunning)
         {
-            var elapsedMs = _realTimer_Stopwatch.ElapsedMilliseconds;
-            var startValueMs = CalculateTimerMS(_internalTimer_Latch);
-            var remainingMs = startValueMs - elapsedMs;
-            if (remainingMs < 0)
-                remainingMs = 0;
-            InternalTimer = CalculateTimerValue(remainingMs);
+            if (InternalTimer >= cyclesExecuted)
+                InternalTimer -= (ushort)cyclesExecuted;
+            else
+                InternalTimer = 0;
 
             if (InternalTimer == 0)
                 ciaIrq.ConditionSet(_iRQSource);
@@ -84,7 +81,6 @@ public class CiaTimer
                 if (IsTimerRunModeContinious())
                 {
                     ResetTimerValue();
-                    StartTimer();
                 }
                 else
                 {
@@ -148,37 +144,12 @@ public class CiaTimer
     public void StartTimer()
     {
         _c64.Cia.CiaIRQ.ConditionClear(_iRQSource);
-        _realTimer_Stopwatch.Restart();
+        _timerIsRunning = true;
     }
 
     private void StopTimer()
     {
-        _realTimer_Stopwatch.Stop();
-    }
-
-    /// <summary>
-    /// Calculates the timer interval in milliseconds based on the latch value.
-    /// Formula: 
-    /// TIME (s) = LATCH VALUE / CLOCK SPEED
-    /// TIME (ms) = (LATCH VALUE / CLOCK SPEED) * 1000
-    /// </summary>
-    /// <param name="timerLatchValue"></param>
-    /// <returns></returns>
-    private double CalculateTimerMS(ushort timerLatchValue)
-    {
-        return timerLatchValue / _c64.Model.CPUFrequencyHz * 1000.0;
-    }
-
-    /// <summary>
-    /// Calculates the CIA timer value based on milliseconds. 
-    /// Formula: 
-    /// TIMER VALUE = (TIME (ms) * CLOCK SPEED) / 1000
-    /// </summary>
-    /// <param name="timerLatchValue"></param>
-    /// <returns></returns>
-    private ushort CalculateTimerValue(double milliseconds)
-    {
-        return (ushort)(milliseconds * _c64.Model.CPUFrequencyHz / 1000.0);
+        _timerIsRunning = false;
     }
 }
 

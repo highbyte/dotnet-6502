@@ -16,7 +16,6 @@ public class WasmMonitor : MonitorBase
     private bool _hasBeenInitializedOnce = false;
     private readonly IJSRuntime _jsRuntime;
     private readonly Func<bool, Task> _setMonitorState;
-    private readonly MonitorConfig _monitorConfig;
 
     private ushort? _lastTriggeredLoadBinaryForceLoadAddress = null;
     private Action<MonitorBase, ushort, ushort>? _lastTriggeredAfterLoadCallback = null;
@@ -24,13 +23,12 @@ public class WasmMonitor : MonitorBase
     public WasmMonitor(
         IJSRuntime jsRuntime,
         SystemRunner systemRunner,
-        MonitorConfig monitorConfig,
+        EmulatorConfig emulatorConfig,
         Func<bool, Task> setMonitorState
 
-        ) : base(systemRunner, monitorConfig)
+        ) : base(systemRunner, emulatorConfig.Monitor)
     {
         _jsRuntime = jsRuntime;
-        _monitorConfig = monitorConfig;
         _setMonitorState = setMonitorState;
     }
 

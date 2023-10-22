@@ -1,4 +1,3 @@
-using System.Reflection.Metadata;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
@@ -113,6 +112,8 @@ public class C64Config : ISystemConfig
     }
 
     public bool KeyboardJoystickEnabled { get; set; }
+    public int KeyboardJoystick { get; set; } = 2;
+
     public C64KeyboardJoystickMap KeyboardJoystickMap { get; private set; }
 
     public C64Config()
@@ -184,17 +185,11 @@ public class C64Config : ISystemConfig
         _isDirty = true;
     }
 
-    public C64Config Clone()
+    public object Clone()
     {
-        return new C64Config
-        {
-            ROMDirectory = ROMDirectory,
-            C64Model = C64Model,
-            Vic2Model = Vic2Model,
-            ROMs = ROM.Clone(ROMs),
-            TimerMode = TimerMode,
-            AudioEnabled = AudioEnabled
-        };
+        var clone = (C64Config)this.MemberwiseClone();
+        clone.ROMs = ROM.Clone(ROMs);
+        return clone;
     }
 
     public void Validate()

@@ -40,188 +40,241 @@ else
 {
     <p>@LoadedROMCount/@_maxC64AllowedRomFiles ROMs loaded</p>
     @if (!string.IsNullOrEmpty(_validationMessage))
-{
-    <p>@_validationMessage</p>
-}
+    {
+        <p>@_validationMessage</p>
+    }
     <ul>
         @foreach (var romName in C64Config.RequiredROMs)
-    {
-        @if (GetLoadedRoms().ContainsKey(romName))
         {
-            <li>@romName @GetLoadedRoms()[romName].Length bytes</li>
+            @if (GetLoadedRoms().ContainsKey(romName))
+            {
+                <li>@romName @GetLoadedRoms()[romName].Length bytes</li>
+            }
+            else
+            {
+                <li>@romName - not loaded</li>
+            }
         }
-        else
-        {
-            <li>@romName - not loaded</li>
-        }
-    }
     </ul>
 }
 
 <p></p>
-<h2>General settings</h2>
-<div class="table">
-    <div class="table-row">
-        <div class="table-cell twocol">Audio enabled (experimental):</div>
-        <div class="table-cell twocol"><input @bind="C64Config.AudioEnabled" @bind:event="oninput" type="checkbox" id="audioEnabled" title="Enable audio"/></div>
-    </div>
-</div>
 
-
-<h2>Joystick</h2>
-@{
-    var gampadToJoystickMap = C64AspNetGamepad.AspNetGamePadToC64JoystickMap;
-    int joystick = 2;
-}
-<div class="table">
-    <div class="table-row">
-        <div class="table-cell twocol">Joystick @joystick action</div>
-        <div class="table-cell twocol">Gampad button</div>
-    </div>
-    @{
-        foreach (var mapKey in gampadToJoystickMap)
-        {
+<div class="row">
+    <div class="col">
+        <h2>General settings</h2>
+        <div class="table">
             <div class="table-row">
-                <div class="table-cell twocol">@string.Join(",", mapKey.Value)</div>
-                <div class="table-cell twocol">@string.Join(",", mapKey.Key)</div>
+                <div class="table-cell twocol">Audio enabled (experimental):</div>
+                <div class="table-cell twocol"><input @bind="C64Config.AudioEnabled" @bind:event="oninput" type="checkbox" id="audioEnabled" title="Enable audio" /></div>
             </div>
-        }
-    }
+        </div>
+    </div>
 </div>
 
-<h2>Joystick keyboard</h2>
-@{
-    var keyToJoystickMap = C64Config.KeyboardJoystickMap;
-}
-<div class="table">
-    <div class="table-row">
-        <div class="table-cell twocol">Enabled</div>
-        <div class="table-cell twocol"><input @bind="C64Config.KeyboardJoystickEnabled" @bind:event="oninput" type="checkbox" id="keyboardJoystickEnabled" title="Enable Joystick Keyboard" /></div>
-    </div>
-    <div class="table-row">
-        <div class="table-cell twocol">Joystick @joystick action</div>
-        <div class="table-cell twocol">Key</div>
-    </div>
-    @{
-        foreach (var mapKey in keyToJoystickMap.GetMap(joystick))
-        {
-            <div class="table-row">
-                <div class="table-cell twocol">@string.Join(",", mapKey.Value)</div>
-                <div class="table-cell twocol">@string.Join(",", mapKey.Key)</div>
-            </div>
+<div class="row">
+    <div class="column">
+        <h2>Joystick</h2>
+        @{
+            var gampadToJoystickMap = C64HostConfig.InputConfig.GamePadToC64JoystickMap[C64HostConfig.InputConfig.CurrentJoystick];
         }
-    }
+        <div class="table">
+            <div class="table-row">
+                <div class="table-cell twocol">Select current joystick</div>
+                <div class="table-cell twocol">
+                    <select value="@C64HostConfig.InputConfig.CurrentJoystick" @onchange="OnSelectJoystickChanged">
+                        @foreach (var joystick in C64HostConfig.InputConfig.AvailableJoysticks.ToArray())
+                        {
+                            <option value="@joystick"> @joystick </option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="table-row">
+                <div class="table-cell twocol">Joystick @C64HostConfig.InputConfig.CurrentJoystick action</div>
+                <div class="table-cell twocol">Gampad button</div>
+            </div>
+            @{
+                foreach (var mapKey in gampadToJoystickMap)
+                {
+                    <div class="table-row">
+                        <div class="table-cell twocol">@string.Join(",", mapKey.Value)</div>
+                        <div class="table-cell twocol">@string.Join(",", mapKey.Key)</div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="column">
+
+        <h2>Joystick keyboard</h2>
+        @{
+            var keyToJoystickMap = C64Config.KeyboardJoystickMap;
+        }
+        <div class="table">
+            <div class="table-row">
+                <div class="table-cell twocol">Enabled</div>
+                <div class="table-cell twocol"><input @bind="C64Config.KeyboardJoystickEnabled" @bind:event="oninput" type="checkbox" id="keyboardJoystickEnabled" title="Enable Joystick Keyboard" /></div>
+            </div>
+
+            <div class="table-row">
+                <div class="table-cell twocol">Select current keyboard joystick</div>
+                <div class="table-cell twocol">
+                    <select value="@C64Config.KeyboardJoystick" @onchange="OnSelectKeyboardJoystickChanged">
+                        @foreach (var joystick in C64HostConfig.InputConfig.AvailableJoysticks.ToArray())
+                        {
+                            <option value="@joystick"> @joystick </option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-row">
+                <div class="table-cell twocol">Joystick @C64Config.KeyboardJoystick action</div>
+                <div class="table-cell twocol">Key</div>
+            </div>
+            @{
+                foreach (var mapKey in keyToJoystickMap.GetMap(C64Config.KeyboardJoystick))
+                {
+                    <div class="table-row">
+                        <div class="table-cell twocol">@string.Join(",", mapKey.Value)</div>
+                        <div class="table-cell twocol">@string.Join(",", mapKey.Key)</div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
 </div>
+
 
 <p></p>
 <button @onclick="Ok">Ok</button>
 
 @code {
 
-[CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
+    [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
-[Parameter] public ISystemConfig SystemConfig { get; set; }
+    [Parameter] public ISystemConfig SystemConfig { get; set; }
 
-public C64Config C64Config
-{
-    get
+    [Parameter] public IHostSystemConfig HostSystemConfig { get; set; }
+
+    public C64Config C64Config
     {
+        get
+        {
             return (C64Config)SystemConfig;
-    }
-}
-
-protected override void OnInitialized() => BlazoredModal.SetTitle("C64 config");
-
-
-private async Task UnloadROMs() => C64Config.ROMs = new List<ROM>();
-
-
-private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(SystemConfig));
-
-private bool _isLoadingC64Roms;
-private long _maxC64RomFileSize = 1024 * 8;
-private int _maxC64AllowedRomFiles = 3;
-
-private Dictionary<string, byte[]> GetLoadedRoms()
-{
-    var dict = new Dictionary<string, byte[]>();
-    foreach (var rom in C64Config.ROMs)
-    {
-        dict[rom.Name] = rom.Data == null ? new byte[]{} : rom.Data;
-    }
-    return dict;
-}
-
-private int LoadedROMCount => GetLoadedRoms().Count;
-
-private string _validationMessage = "";
-
-private async Task OnC64RomFilePickerChange(InputFileChangeEventArgs e)
-{
-    if (C64Config == null)
-        return;
-
-    _isLoadingC64Roms = true;
-    _validationMessage = "";
-
-    foreach (var file in e.GetMultipleFiles(_maxC64AllowedRomFiles))
-    {
-        try
-        {
-            if (file.Size > _maxC64RomFileSize)
-            {
-                _isLoadingC64Roms = false;
-                _validationMessage += $"File {file.Name} size {file.Size} is more than limit {_maxC64RomFileSize}. ";
-                continue;
-            }
-
-            bool isKernal = file.Name.Contains("kern", StringComparison.InvariantCultureIgnoreCase);
-            bool isBasic = file.Name.Contains("bas", StringComparison.InvariantCultureIgnoreCase);
-            bool isChargen = file.Name.Contains("char", StringComparison.InvariantCultureIgnoreCase);
-            if (!isKernal && !isBasic && !isChargen)
-            {
-                _isLoadingC64Roms = false;
-                _validationMessage = $"File name {file.Name} does not contain one of the following string: kern, bas, char ";
-                continue;
-            }
-
-            var fileBuffer = new byte[file.Size];
-            //var fileStream = e.File.OpenReadStream(file.Size);
-            await file.OpenReadStream().ReadAsync(fileBuffer);
-            var fileSize = fileBuffer.Length;
-
-            if (isKernal)
-                SetROM(C64Config.KERNAL_ROM_NAME, fileBuffer);
-            else if (isBasic)
-                SetROM(C64Config.BASIC_ROM_NAME, fileBuffer);
-            else if (isChargen)
-                SetROM(C64Config.CHARGEN_ROM_NAME, fileBuffer);
-        }
-        catch (Exception ex)
-        {
-            //Logger.LogError("File: {Filename} Error: {Error}",
-            //    file.Name, ex.Message);
         }
     }
-    _isLoadingC64Roms = false;
-    this.StateHasChanged();
-}
 
-private void SetROM(string romName, byte[] data)
-{
-    ROM rom;
-    if (!C64Config.ROMs.Exists(x => x.Name == romName))
+    public C64HostConfig C64HostConfig
     {
-        rom = new()
+        get
+        {
+            return (C64HostConfig)HostSystemConfig;
+        }
+    }
+
+    protected override void OnInitialized() => BlazoredModal.SetTitle("C64 config");
+
+
+    private async Task UnloadROMs() => C64Config.ROMs = new List<ROM>();
+
+
+    private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok((SystemConfig, HostSystemConfig)));
+
+    private bool _isLoadingC64Roms;
+    private long _maxC64RomFileSize = 1024 * 8;
+    private int _maxC64AllowedRomFiles = 3;
+
+    private Dictionary<string, byte[]> GetLoadedRoms()
+    {
+        var dict = new Dictionary<string, byte[]>();
+        foreach (var rom in C64Config.ROMs)
+        {
+            dict[rom.Name] = rom.Data == null ? new byte[] { } : rom.Data;
+        }
+        return dict;
+    }
+
+    private int LoadedROMCount => GetLoadedRoms().Count;
+
+    private string _validationMessage = "";
+
+    private async Task OnC64RomFilePickerChange(InputFileChangeEventArgs e)
+    {
+        if (C64Config == null)
+            return;
+
+        _isLoadingC64Roms = true;
+        _validationMessage = "";
+
+        foreach (var file in e.GetMultipleFiles(_maxC64AllowedRomFiles))
+        {
+            try
             {
-                Name = romName
-            };
-        C64Config.ROMs.Add(rom);
+                if (file.Size > _maxC64RomFileSize)
+                {
+                    _isLoadingC64Roms = false;
+                    _validationMessage += $"File {file.Name} size {file.Size} is more than limit {_maxC64RomFileSize}. ";
+                    continue;
+                }
+
+                bool isKernal = file.Name.Contains("kern", StringComparison.InvariantCultureIgnoreCase);
+                bool isBasic = file.Name.Contains("bas", StringComparison.InvariantCultureIgnoreCase);
+                bool isChargen = file.Name.Contains("char", StringComparison.InvariantCultureIgnoreCase);
+                if (!isKernal && !isBasic && !isChargen)
+                {
+                    _isLoadingC64Roms = false;
+                    _validationMessage = $"File name {file.Name} does not contain one of the following string: kern, bas, char ";
+                    continue;
+                }
+
+                var fileBuffer = new byte[file.Size];
+                //var fileStream = e.File.OpenReadStream(file.Size);
+                await file.OpenReadStream().ReadAsync(fileBuffer);
+                var fileSize = fileBuffer.Length;
+
+                if (isKernal)
+                    SetROM(C64Config.KERNAL_ROM_NAME, fileBuffer);
+                else if (isBasic)
+                    SetROM(C64Config.BASIC_ROM_NAME, fileBuffer);
+                else if (isChargen)
+                    SetROM(C64Config.CHARGEN_ROM_NAME, fileBuffer);
+            }
+            catch (Exception ex)
+            {
+                //Logger.LogError("File: {Filename} Error: {Error}",
+                //    file.Name, ex.Message);
+            }
+        }
+        _isLoadingC64Roms = false;
+        this.StateHasChanged();
     }
-    else
+
+    private void SetROM(string romName, byte[] data)
     {
-        rom = C64Config.ROMs.Single(x => x.Name == romName);
+        ROM rom;
+        if (!C64Config.ROMs.Exists(x => x.Name == romName))
+        {
+            rom = new()
+                {
+                    Name = romName
+                };
+            C64Config.ROMs.Add(rom);
+        }
+        else
+        {
+            rom = C64Config.ROMs.Single(x => x.Name == romName);
+        }
+        rom.Data = data;
     }
-    rom.Data = data;
-}
+
+    private async Task OnSelectJoystickChanged(ChangeEventArgs e) 
+        => C64HostConfig.InputConfig.CurrentJoystick = int.Parse(e.Value.ToString());
+
+    private async Task OnSelectKeyboardJoystickChanged(ChangeEventArgs e)
+        => C64Config.KeyboardJoystick = int.Parse(e.Value.ToString());
+    
 }

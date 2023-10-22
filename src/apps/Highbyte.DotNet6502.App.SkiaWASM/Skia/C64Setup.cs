@@ -13,16 +13,18 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
 {
     public string SystemName => C64.SystemName;
 
+
     private const string LOCAL_STORAGE_ROM_PREFIX = "rom_";
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly C64HostConfig _c64HostConfig;
 
-    public C64Setup(BrowserContext browserContext, ILoggerFactory loggerFactory)
+    public C64Setup(BrowserContext browserContext, ILoggerFactory loggerFactory, C64HostConfig c64HostConfig)
     {
         _browserContext = browserContext;
         _loggerFactory = loggerFactory;
+        _c64HostConfig = c64HostConfig;
     }
-
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
@@ -68,7 +70,7 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
         )
     {
         var renderer = new C64SkiaRenderer();
-        var inputHandler = new C64AspNetInputHandler(_loggerFactory);
+        var inputHandler = new C64AspNetInputHandler(_loggerFactory, _c64HostConfig.InputConfig);
         var audioHandler = new C64WASMAudioHandler(_loggerFactory);
 
         var c64 = (C64)system;

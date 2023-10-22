@@ -167,8 +167,7 @@ public class C64Keyboard
     {
         if (_c64.Cia.Joystick.KeyboardJoystickEnabled)
         {
-            HandleJoystickKeyboard(1);
-            HandleJoystickKeyboard(2);
+            HandleJoystickKeyboard(_c64.Cia.Joystick.KeyboardJoystick);
         }
     }
 
@@ -184,7 +183,7 @@ public class C64Keyboard
                 _pressedKeys.Remove(c64Key);    // Remove key from pressed keys to avoid duplicate actions  
             }
         }
-        _c64.Cia.Joystick.SetJoystick1Actions(joystickActions);
+        _c64.Cia.Joystick.SetJoystickActions(joystick, joystickActions);
     }
 }
 

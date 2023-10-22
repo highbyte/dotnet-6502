@@ -52,7 +52,7 @@ public class C64AspNetKeyboard
         { new[] { "KeyX" }, new[] { C64Key.X } },
         { new[] { "KeyY" }, new[] { C64Key.Y } },
         { new[] { "KeyZ" }, new[] { C64Key.Z } },
-        { new[] { "Key0" }, new[] { C64Key.Zero } },
+        { new[] { "Digit0" }, new[] { C64Key.Zero } },
         { new[] { "Digit1" }, new[] { C64Key.One } },
         { new[] { "Digit2" }, new[] { C64Key.Two } },
         { new[] { "Digit3" }, new[] { C64Key.Three } },

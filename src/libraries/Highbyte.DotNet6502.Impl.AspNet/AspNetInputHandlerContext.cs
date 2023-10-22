@@ -1,4 +1,3 @@
-using Highbyte.DotNet6502.Instructions;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Logging;
 using Toolbelt.Blazor.Gamepad;
@@ -17,6 +16,7 @@ public class AspNetInputHandlerContext : IInputHandlerContext
     // Gamepad
     private readonly GamepadList _gamepadList;
     private readonly System.Timers.Timer _gamepadUpdateTimer = new System.Timers.Timer(50) { Enabled = true };
+    private readonly System.Timers.Timer _gamepadConnectCheckTimer = new System.Timers.Timer(1000) { Enabled = true };
     private Gamepad? _currentGamepad;
     public HashSet<int> GamepadButtonsDown = new();
 
@@ -29,15 +29,21 @@ public class AspNetInputHandlerContext : IInputHandlerContext
     public void Init()
     {
         _gamepadUpdateTimer.Elapsed += GamepadUpdateTimer_Elapsed;
+        _gamepadConnectCheckTimer.Elapsed += GamepadConectCheckTimer_Elapsed;
     }
 
-    private async void GamepadUpdateTimer_Elapsed(object sender, EventArgs args)
+    private async void GamepadConectCheckTimer_Elapsed(object sender, EventArgs args)
+    {
+        await DetectConnectedGamepad();
+    }
+    private async Task DetectConnectedGamepad()
     {
         try
         {
             var gamepads = await _gamepadList.GetGamepadsAsync();
 
-            var gamePad = gamepads.LastOrDefault();
+            var gamePad = gamepads.FirstOrDefault(gp => gp.Id.Contains("xbox 360", StringComparison.InvariantCultureIgnoreCase))
+                ?? gamepads.LastOrDefault();
             if (gamePad != _currentGamepad)
             {
                 _currentGamepad = gamePad;
@@ -46,19 +52,30 @@ public class AspNetInputHandlerContext : IInputHandlerContext
                 else
                     _logger.LogInformation($"Gamepad disconnected");
             }
+        }
+        catch (Exception e)
+        {
+            System.Diagnostics.Debug.WriteLine(e.ToString());
+            throw;
+        }
+    }
 
+    private async void GamepadUpdateTimer_Elapsed(object sender, EventArgs args)
+    {
+        try
+        {
             GamepadButtonsDown.Clear();
 
-            if (_currentGamepad != null && _currentGamepad.Connected)
+            if (_currentGamepad == null || !_currentGamepad.Connected)
+                return;
+
+            for (int buttonIndex = 0; buttonIndex < _currentGamepad.Buttons.Count; buttonIndex++)
             {
-                for (int buttonIndex = 0; buttonIndex < _currentGamepad.Buttons.Count; buttonIndex++)
-                {
-                    var button = _currentGamepad.Buttons[buttonIndex];
-                    if (!button.Pressed)
-                        continue;
-                    GamepadButtonsDown.Add(buttonIndex);
-                    _logger.LogInformation($"Gamepad button pressed: {buttonIndex} ({button.Pressed})");
-                }
+                var button = _currentGamepad.Buttons[buttonIndex];
+                if (!button.Pressed)
+                    continue;
+                GamepadButtonsDown.Add(buttonIndex);
+                _logger.LogInformation($"Gamepad button pressed: {buttonIndex} ({button.Pressed})");
             }
         }
         catch (Exception e)

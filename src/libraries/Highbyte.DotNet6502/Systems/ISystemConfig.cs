@@ -1,6 +1,6 @@
 namespace Highbyte.DotNet6502.Systems;
 
-public interface ISystemConfig
+public interface ISystemConfig : ICloneable
 {
     void Validate();
 

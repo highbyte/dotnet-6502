@@ -1,12 +1,16 @@
+using AutoMapper;
 using Highbyte.DotNet6502.App.SkiaNative;
 using Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SilkNet;
+using Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Logging.InMem;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Generic;
 using Microsoft.Extensions.Logging;
 
 // Fix for starting in debug mode from VS Code. By default the OS current directory is set to the project folder, not the folder containing the built .exe file...
@@ -27,7 +31,8 @@ var loggerFactory = LoggerFactory.Create(builder =>
 // ----------
 var systemList = new SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>();
 
-var c64Setup = new C64Setup(loggerFactory);
+var c64HostConfig = new C64HostConfig();
+var c64Setup = new C64Setup(loggerFactory, c64HostConfig);
 await systemList.AddSystem(c64Setup);
 
 var genericComputerSetup = new GenericComputerSetup(loggerFactory);
@@ -46,9 +51,23 @@ var emulatorConfig = new EmulatorConfig
         //DefaultDirectory = "../../../../../../samples/Assembler/Generic/Build"
         //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/samples/Assembler/Generic/Build"
         //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/samples/Assembler/Generic/Build"
+    },
+    HostSystemConfigs = new Dictionary<string, IHostSystemConfig>
+    {
+        { C64.SystemName, c64HostConfig }
+        //{ GenericComputer.SystemName, new GenericComputerHostConfig() }
     }
 };
 emulatorConfig.Validate(systemList);
+
+// TODO: Make Automapper configuration more generic, incorporate in classes that need it?
+var mapperConfiguration = new MapperConfiguration(
+    cfg =>
+    {
+        cfg.CreateMap<C64HostConfig, C64HostConfig>();
+    }
+);
+var mapper = mapperConfiguration.CreateMapper();
 
 // ----------
 // Silk.NET Window
@@ -74,5 +93,5 @@ windowOptions.ShouldSwapAutomatically = true;
 //windowOptions.PreferredDepthBufferBits = 24;    // Depth buffer bits must be set explicitly on MacOS (tested on M1), otherwise there will be be no depth buffer (for OpenGL 3d).
 
 IWindow window = Window.Create(windowOptions);
-var silkNetWindow = new SilkNetWindow(emulatorConfig.Monitor, window, systemList, emulatorConfig.DefaultDrawScale, emulatorConfig.DefaultEmulator, logStore, logConfig, loggerFactory);
+var silkNetWindow = new SilkNetWindow(emulatorConfig, window, systemList, logStore, logConfig, loggerFactory, mapper);
 silkNetWindow.Run();

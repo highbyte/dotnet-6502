@@ -11,11 +11,12 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
     private AspNetInputHandlerContext? _inputHandlerContext = default!;
     private ILogger<C64AspNetInputHandler> _logger;
     private C64AspNetKeyboard _c64AspNetKeyboard;
+    private readonly C64AspNetConfig _c64AspNetConfig;
 
-    public C64AspNetInputHandler(ILoggerFactory loggerFactory)
+    public C64AspNetInputHandler(ILoggerFactory loggerFactory, C64AspNetConfig c64AspNetConfig)
     {
         _logger = loggerFactory.CreateLogger<C64AspNetInputHandler>();
-
+        _c64AspNetConfig = c64AspNetConfig;
     }
 
     public void Init(C64 system, AspNetInputHandlerContext inputHandlerContext)
@@ -42,6 +43,7 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
 
     public void ProcessInput(C64 c64)
     {
+        c64.Cia.Joystick.ClearJoystickActions();
         CaptureKeyboard(c64);
         CaptureJoystick(c64);
     }
@@ -103,14 +105,17 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
     private void CaptureJoystick(C64 c64)
     {
         var c64JoystickActions = GetC64JoystickActionsFromAspNetGamepad(_inputHandlerContext!.GamepadButtonsDown);
-        c64.Cia.Joystick.SetJoystick2Actions(c64JoystickActions);
+        // Note: Assume Keyboard input has been processed before this, so that Joystick actions based on keypresses has resulted 
+        //       in the current joystick actions being initialized this frame (and may contain actions from keyboard).
+        //       Thus "overwrite" is set to false so that keyboard actions are not overwritten.
+        c64.Cia.Joystick.SetJoystickActions(_c64AspNetConfig.CurrentJoystick, c64JoystickActions);
     }
 
     private HashSet<C64JoystickAction> GetC64JoystickActionsFromAspNetGamepad(HashSet<int> gamepadButtonsDown)
     {
         var c64JoystickActions = new HashSet<C64JoystickAction>();
         var foundMappings = new List<int[]>();
-        var map = C64AspNetGamepad.AspNetGamePadToC64JoystickMap;
+        var map = _c64AspNetConfig.GamePadToC64JoystickMap[_c64AspNetConfig.CurrentJoystick];
         foreach (var mapKeys in map.Keys)
         {
             int matchCount = 0;
@@ -155,6 +160,8 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
 
         if (_inputHandlerContext.KeysDown.Count > 0)
             list.Add($"KeysDown: {string.Join(',', _inputHandlerContext.KeysDown)}");
+        if (_inputHandlerContext.GamepadButtonsDown.Count > 0)
+            list.Add($"GamepadDown: {string.Join(',', _inputHandlerContext.GamepadButtonsDown)}");
         return list;
     }
 }
