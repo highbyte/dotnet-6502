@@ -60,11 +60,13 @@ Memory addresses
 
     [Parameter] public ISystemConfig SystemConfig { get; set; }
 
+    [Parameter] public IHostSystemConfig HostSystemConfig { get; set; }
+
     public GenericComputerConfig GenericComputerConfig => (GenericComputerConfig)SystemConfig;
 
     protected override void OnInitialized() => BlazoredModal.SetTitle("Generic config");
 
-    private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(SystemConfig));
+    private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok((SystemConfig, HostSystemConfig)));
 
     private string _validationMessage = "";
 

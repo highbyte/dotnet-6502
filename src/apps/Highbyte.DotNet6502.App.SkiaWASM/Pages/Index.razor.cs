@@ -4,7 +4,6 @@ using Blazored.Modal;
 using Highbyte.DotNet6502.App.SkiaWASM.Skia;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Microsoft.AspNetCore.WebUtilities;
@@ -12,6 +11,8 @@ using Microsoft.AspNetCore.Components.Forms;
 using Blazored.LocalStorage;
 using Highbyte.DotNet6502.Logging.Console;
 using Toolbelt.Blazor.Gamepad;
+using AutoMapper;
+using Highbyte.DotNet6502.Systems.Commodore64;
 
 namespace Highbyte.DotNet6502.App.SkiaWASM.Pages;
 
@@ -38,10 +39,14 @@ public partial class Index
     private string _selectedSystemConfigValidationMessage = "";
 
     // Note: The current config object (reference) is stored in this variable so that the UI can bind it's properties (not possible to use async call to _systemList.GetSystemConfig() in property )
-    private ISystemConfig _currentConfig = default!;
-    public ISystemConfig SystemConfig => _currentConfig;
+    private ISystemConfig _currentSystemConfig = default!;
+    public ISystemConfig SystemConfig => _currentSystemConfig;
+    private IHostSystemConfig _currentHostSystemConfig = default!;
+    public IHostSystemConfig HostSystemConfig => _currentHostSystemConfig;
+
+
     private bool AudioEnabledToggleDisabled => (
-            (!(_currentConfig?.AudioSupported ?? true)) ||
+            (!(_currentSystemConfig?.AudioSupported ?? true)) ||
             (CurrentEmulatorState == EmulatorState.Running || CurrentEmulatorState == EmulatorState.Paused)
         );
 
@@ -49,11 +54,11 @@ public partial class Index
     {
         get
         {
-            return _currentConfig?.AudioEnabled ?? false;
+            return _currentSystemConfig?.AudioEnabled ?? false;
         }
         set
         {
-            _currentConfig.AudioEnabled = value;
+            _currentSystemConfig.AudioEnabled = value;
         }
     }
 
@@ -71,32 +76,29 @@ public partial class Index
         }
     }
 
-    private double _scale = 2.0f;
     private double Scale
     {
         get
         {
-            return _scale;
+            return _emulatorConfig.CurrentDrawScale;
         }
         set
         {
-            _scale = value;
+            _emulatorConfig.CurrentDrawScale = value;
             UpdateCanvasSize();
         }
     }
 
     private ElementReference _monitorInputRef = default!;
 
-    private MonitorConfig _monitorConfig = default!;
+    private EmulatorConfig _emulatorConfig = default!;
     private SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList = default!;
+
     private WasmHost? _wasmHost = default!;
     public WasmHost WasmHost => _wasmHost!;
 
     private string _statsString = "Stats: calculating...";
     private string _debugString = "";
-
-    private const int DEFAULT_WINDOW_WIDTH = 640;
-    private const int DEFAULT_WINDOW_HEIGHT = 400;
 
     private string _windowWidthStyle = "0px";
     private string _windowHeightStyle = "0px";
@@ -126,6 +128,7 @@ public partial class Index
     public GamepadList GamepadList { get; set; }
 
     private ILogger<Index> _logger;
+    private IMapper _mapper;
 
     protected override async Task OnInitializedAsync()
     {
@@ -139,29 +142,52 @@ public partial class Index
             LocalStorage = LocalStorage!
         };
 
-        _monitorConfig = new()
-        {
-            MaxLineLength = 100,        // TODO: This affects help text printout, should it be set dynamically?
-
-            //DefaultDirectory = "../../../../../../samples/Assembler/Generic/Build"
-            //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/samples/Assembler/Generic/Build"
-            //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/samples/Assembler/Generic/Build"
-        };
-        _monitorConfig.Validate();
-
+        // Add systems
         _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>();
 
-        var c64Setup = new C64Setup(_browserContext, LoggerFactory);
+        var c64HostConfig = new C64HostConfig();
+        var c64Setup = new C64Setup(_browserContext, LoggerFactory, c64HostConfig);
         await _systemList.AddSystem(c64Setup);
 
         var genericComputerSetup = new GenericComputerSetup(_browserContext, LoggerFactory);
         await _systemList.AddSystem(genericComputerSetup);
 
+        // Add emulator config + system-specific host configs
+        _emulatorConfig = new EmulatorConfig
+        {
+            DefaultEmulator = "C64",
+            CurrentDrawScale = 2.0,
+            Monitor = new()
+            {
+                MaxLineLength = 100,        // TODO: This affects help text printout, should it be set dynamically?
+
+                //DefaultDirectory = "../../../../../../samples/Assembler/Generic/Build"
+                //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/samples/Assembler/Generic/Build"
+                //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/samples/Assembler/Generic/Build"
+            },
+            HostSystemConfigs = new Dictionary<string, IHostSystemConfig>
+            {
+                { C64.SystemName, c64HostConfig }
+                //{ GenericComputer.SystemName, new GenericComputerHostConfig() }
+            }
+        };
+        _emulatorConfig.Validate(_systemList);
+
         // Default system
-        _selectedSystemName = c64Setup.SystemName;
+        _selectedSystemName = _emulatorConfig.DefaultEmulator;
         await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = _selectedSystemName });
 
+        // Set parameters from query string
         await SetDefaultsFromQueryParams(_browserContext.Uri);
+
+        // TODO: Make Automapper configuration more generic, incorporate in classes that need it?
+        var mapperConfiguration = new MapperConfiguration(
+            cfg =>
+            {
+                cfg.CreateMap<C64HostConfig, C64HostConfig>();
+            }
+        );
+        _mapper = mapperConfiguration.CreateMapper();
     }
 
     private async Task SetDefaultsFromQueryParams(Uri uri)
@@ -212,7 +238,8 @@ public partial class Index
         else
             _selectedSystemConfigValidationMessage = "";
 
-        _currentConfig = await _systemList.GetCurrentSystemConfig(_selectedSystemName);
+        _currentSystemConfig = await _systemList.GetCurrentSystemConfig(_selectedSystemName);
+        _currentHostSystemConfig = _emulatorConfig.HostSystemConfigs[_selectedSystemName];
 
         UpdateCanvasSize();
         this.StateHasChanged();
@@ -227,8 +254,8 @@ public partial class Index
         bool isOk = await _systemList.IsValidConfig(_selectedSystemName);
         if (!isOk)
         {
-            _windowWidthStyle = $"{DEFAULT_WINDOW_WIDTH}px";
-            _windowHeightStyle = $"{DEFAULT_WINDOW_HEIGHT}px";
+            _windowWidthStyle = $"{EmulatorConfig.DEFAULT_CANVAS_WINDOW_WIDTH}px";
+            _windowHeightStyle = $"{EmulatorConfig.DEFAULT_CANVAS_WINDOW_HEIGHT}px";
         }
         else
         {
@@ -244,7 +271,7 @@ public partial class Index
 
     private async Task InitEmulator()
     {
-        _wasmHost = new WasmHost(Js!, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _monitorConfig, ToggleDebugStatsState, LoggerFactory, (float)Scale, MasterVolumePercent);
+        _wasmHost = new WasmHost(Js!, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _emulatorConfig, ToggleDebugStatsState, LoggerFactory, (float)Scale, MasterVolumePercent);
         CurrentEmulatorState = EmulatorState.Paused;
     }
 
@@ -285,6 +312,20 @@ public partial class Index
         _wasmHost.Render(e.Surface.Canvas, grContext);
     }
 
+    internal async Task UpdateCurrentSystemConfig(ISystemConfig config, IHostSystemConfig? hostSystemConfig)
+    {
+        // Update the system config
+        await _systemList.PersistNewSystemConfig(_selectedSystemName, config);
+        _currentSystemConfig = config;
+
+        // Update the existing host system config, it is referenced from different objects (thus we cannot replace it with a new one).
+        if (hostSystemConfig != null)
+        {
+            if (_currentHostSystemConfig != null && hostSystemConfig != null)
+                _mapper.Map(hostSystemConfig, _currentHostSystemConfig);
+        }
+    }
+
     /// <summary>
     /// Blazored.Modal instance required to open modal dialog.
     /// </summary>
@@ -292,9 +333,9 @@ public partial class Index
 
     public async Task ShowConfigUI<T>() where T : IComponent
     {
-        var systemConfig = await _systemList.GetCurrentSystemConfig(_selectedSystemName);
         var parameters = new ModalParameters()
-            .Add("SystemConfig", systemConfig);
+            .Add("SystemConfig", _currentSystemConfig)
+            .Add("HostSystemConfig", _currentHostSystemConfig);
 
         var result = await Modal.Show<T>("Config", parameters).Result;
 
@@ -321,9 +362,8 @@ public partial class Index
             //Dictionary<string, object> userSettings = (Dictionary<string, object>)result.Data;
             //Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
 
-            var updatedSystemConfig = (ISystemConfig)result.Data;
-
-            await _systemList.PersistNewSystemConfig(_selectedSystemName, updatedSystemConfig);
+            var resultData = ((ISystemConfig UpdatedSystemConfig, IHostSystemConfig UpdatedHostSystemConfig))result.Data;
+            await UpdateCurrentSystemConfig(resultData.UpdatedSystemConfig, resultData.UpdatedHostSystemConfig);
         }
 
         (bool isOk, List<string> validationErrors) = await _systemList.IsValidConfigWithDetails(_selectedSystemName);
@@ -478,7 +518,7 @@ public partial class Index
             }
             case "AudioVolume":
             {
-                return (_currentConfig?.AudioEnabled ?? false) ? VISIBLE : HIDDEN;
+                return (_currentSystemConfig?.AudioEnabled ?? false) ? VISIBLE : HIDDEN;
             }
             default:
                 return VISIBLE;

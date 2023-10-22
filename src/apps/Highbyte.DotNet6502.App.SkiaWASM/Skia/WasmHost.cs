@@ -2,7 +2,6 @@ using Highbyte.DotNet6502.App.SkiaWASM.Instrumentation.Stats;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Toolbelt.Blazor.Gamepad;
 
@@ -32,10 +31,9 @@ public class WasmHost : IDisposable
     private readonly Action<string> _updateStats;
     private readonly Action<string> _updateDebug;
     private readonly Func<bool, Task> _setMonitorState;
-    private readonly MonitorConfig _monitorConfig;
+    private readonly EmulatorConfig _emulatorConfig;
     private readonly Func<Task> _toggleDebugStatsState;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly float _scale;
     private readonly float _initialMasterVolume;
     private readonly ILogger _logger;
 
@@ -65,7 +63,7 @@ public class WasmHost : IDisposable
         Action<string> updateStats,
         Action<string> updateDebug,
         Func<bool, Task> setMonitorState,
-        MonitorConfig monitorConfig,
+        EmulatorConfig emulatorConfig,
         Func<Task> toggleDebugStatsState,
         ILoggerFactory loggerFactory,
         float scale = 1.0f,
@@ -77,9 +75,8 @@ public class WasmHost : IDisposable
         _updateStats = updateStats;
         _updateDebug = updateDebug;
         _setMonitorState = setMonitorState;
-        _monitorConfig = monitorConfig;
+        _emulatorConfig = emulatorConfig;
         _toggleDebugStatsState = toggleDebugStatsState;
-        _scale = scale;
         _initialMasterVolume = initialMasterVolume;
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger(typeof(WasmHost).Name);
@@ -111,7 +108,7 @@ public class WasmHost : IDisposable
 
         _systemRunner = await _systemList.BuildSystemRunner(_systemName);
 
-        Monitor = new WasmMonitor(_jsRuntime, _systemRunner, _monitorConfig, _setMonitorState);
+        Monitor = new WasmMonitor(_jsRuntime, _systemRunner, _emulatorConfig, _setMonitorState);
 
         var system = await _systemList.GetSystem(_systemName);
         InitCustomSystemStats(system);
@@ -263,7 +260,7 @@ public class WasmHost : IDisposable
 
         _grContext = grContext;
         _skCanvas = canvas;
-        _skCanvas.Scale(_scale);
+        _skCanvas.Scale((float)_emulatorConfig.CurrentDrawScale);
         using (_renderTime.Measure())
         {
             _systemRunner.Draw();
