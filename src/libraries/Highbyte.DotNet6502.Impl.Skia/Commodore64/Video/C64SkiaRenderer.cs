@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -32,6 +33,26 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
     // Sprite drawing variables
     private readonly SKImage[] _spriteImages;
 
+    public bool HasDetailedStats => true;
+    public List<string> DetailedStatNames => new List<string>()
+    {
+        DrawBorderStatName,
+        DrawBackgroundStatName,
+        DrawTextScreenStatName,
+        DrawSpritesStatName,
+    };
+    private const string DrawBorderStatName = "Border";
+    private const string DrawBackgroundStatName = "Background";
+    private const string DrawTextScreenStatName = "TextScreen";
+    private const string DrawSpritesStatName = "Sprites";
+    private Dictionary<string, Stopwatch> _detailedStatStopwatches = new()
+    {
+        {DrawBorderStatName, new Stopwatch() },
+        {DrawBackgroundStatName, new Stopwatch() },
+        {DrawTextScreenStatName, new Stopwatch() },
+        {DrawSpritesStatName, new Stopwatch() }
+    };
+
     public C64SkiaRenderer()
     {
         _charGen = new CharGen();
@@ -52,23 +73,51 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         Init((C64)system, (SkiaRenderContext)renderContext);
     }
 
-    public void Draw(C64 c64)
+    public void Draw(C64 c64, Dictionary<string, double> detailedStats)
     {
+        foreach (var detailedStatName in DetailedStatNames)
+        {
+            detailedStats[detailedStatName] = 0;
+        }
+
         var canvas = _getSkCanvas();
         canvas.Clear();
 
-        RenderBackgroundAndBorder(c64, canvas);
+        var swBorder = _detailedStatStopwatches[DrawBorderStatName];
+        swBorder.Restart();
+        //DrawSimpleBorder(c64, canvas);
+        DrawRasterLinesBorder(c64, canvas);
+        swBorder.Stop();
+        detailedStats[DrawBorderStatName] = swBorder.Elapsed.TotalMilliseconds;
 
+        var swBg = _detailedStatStopwatches[DrawBackgroundStatName];
+        swBg.Restart();
+        //DrawSimpleBackground(c64, canvas);
+        DrawRasterLinesBackground(c64, canvas);
+        swBg.Stop();
+        detailedStats[DrawBackgroundStatName] = swBg.Elapsed.TotalMilliseconds;
+
+        var swSprites = _detailedStatStopwatches[DrawSpritesStatName];
+        swSprites.Restart();
         RenderSprites(c64, canvas, spritesWithPriorityOverForeground: false);
+        swSprites.Stop();
+        detailedStats[DrawSpritesStatName] = swBg.Elapsed.TotalMilliseconds;
 
+        var swTextScreen = _detailedStatStopwatches[DrawTextScreenStatName];
+        swTextScreen.Restart();
         RenderMainScreen(c64, canvas);
+        swTextScreen.Stop();
+        detailedStats[DrawTextScreenStatName] = swTextScreen.Elapsed.TotalMilliseconds;
 
+        swSprites.Restart();
         RenderSprites(c64, canvas, spritesWithPriorityOverForeground: true);
+        swSprites.Stop();
+        detailedStats[DrawBackgroundStatName] += swSprites.Elapsed.TotalMilliseconds;
     }
 
-    public void Draw(ISystem system)
+    public void Draw(ISystem system, Dictionary<string, double> detailedStats)
     {
-        Draw((C64)system);
+        Draw((C64)system, detailedStats);
     }
 
     private void InitCharset(C64 c64)
@@ -255,15 +304,6 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         canvas.Restore();
     }
 
-    private void RenderBackgroundAndBorder(C64 c64, SKCanvas canvas)
-    {
-        //DrawSimpleBorder(c64, canvas);
-        DrawRasterLinesBorder(c64, canvas);
-
-        //DrawSimpleBackground(c64, canvas);
-        DrawRasterLinesBackground(c64, canvas);
-
-    }
 
     // Draw border per line across screen. Assumes the screen in the middle is drawn afterwards and will overwrite.
     // Slower, but more accurate (though not completley, becasuse border color changes within a line is not accounted for).

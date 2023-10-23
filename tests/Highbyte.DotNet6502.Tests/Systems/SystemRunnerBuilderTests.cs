@@ -130,10 +130,10 @@ public class TestSystem : ISystem
 
 public class TestRenderer : IRenderer<TestSystem, IRenderContext>
 {
-    public void Draw(TestSystem system)
+    public void Draw(TestSystem system, Dictionary<string, double> detailedStats)
     {
     }
-    public void Draw(ISystem system)
+    public void Draw(ISystem system, Dictionary<string, double> detailedStats)
     {
     }
     public void Init(TestSystem system, IRenderContext renderContext)
@@ -142,15 +142,21 @@ public class TestRenderer : IRenderer<TestSystem, IRenderContext>
     public void Init(ISystem system, IRenderContext renderContext)
     {
     }
+
+    public bool HasDetailedStats => false;
+    public List<string> DetailedStatNames => new List<string>();
 }
 public class TestRendererNonGeneric : IRenderer
 {
-    public void Draw(ISystem system)
+    public void Draw(ISystem system, Dictionary<string, double> detailedStats)
     {
     }
     public void Init(ISystem system, IRenderContext renderContext)
     {
     }
+
+    public bool HasDetailedStats => false;
+    public List<string> DetailedStatNames => new List<string>();
 }
 
 public class TestInputHandler : IInputHandler<TestSystem, IInputHandlerContext>

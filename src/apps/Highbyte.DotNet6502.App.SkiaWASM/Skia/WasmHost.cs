@@ -47,7 +47,8 @@ public class WasmHost : IDisposable
     private readonly PerSecondTimedStat _renderFps;
 
     private const string CustomSystemStatNamePrefix = "Emulator-SystemTime-Custom-";
-    private Dictionary<string, ElapsedMillisecondsStat> _customSystemStats = new();
+    private const string CustomRenderStatNamePrefix = "WASMSkiaSharp-RenderTime-Custom-";
+    private Dictionary<string, ElapsedMillisecondsStat> _customStats = new();
 
 
     private const int STATS_EVERY_X_FRAME = 60 * 1;
@@ -110,8 +111,7 @@ public class WasmHost : IDisposable
 
         Monitor = new WasmMonitor(_jsRuntime, _systemRunner, _emulatorConfig, _setMonitorState);
 
-        var system = await _systemList.GetSystem(_systemName);
-        InitCustomSystemStats(system);
+        InitCustomSystemStats();
 
         Initialized = true;
     }
@@ -143,21 +143,30 @@ public class WasmHost : IDisposable
         _updateTimer!.Start();
     }
 
-    public void InitCustomSystemStats(ISystem system)
+    private void InitCustomSystemStats()
     {
         // Remove any existing custom system stats
-        foreach (var existingCustomSystemStatName in _customSystemStats.Keys)
+        foreach (var existingCustomStatName in _customStats.Keys)
         {
-            if (existingCustomSystemStatName.StartsWith(CustomSystemStatNamePrefix))
+            if (existingCustomStatName.StartsWith(CustomSystemStatNamePrefix)
+                || existingCustomStatName.StartsWith(CustomRenderStatNamePrefix))
             {
-                InstrumentationBag.Remove(existingCustomSystemStatName);
-                _customSystemStats.Remove(existingCustomSystemStatName);
+                InstrumentationBag.Remove(existingCustomStatName);
+                _customStats.Remove(existingCustomStatName);
             }
         }
         // Add any custom system stats for selected system
-        foreach (var customSystemStatName in system.DetailedStatNames)
+        var system = _systemRunner.System;
+        foreach (var customStatName in system.DetailedStatNames)
         {
-            _customSystemStats.Add($"{CustomSystemStatNamePrefix}{customSystemStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomSystemStatNamePrefix}{customSystemStatName}"));
+            _customStats.Add($"{CustomSystemStatNamePrefix}{customStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomSystemStatNamePrefix}{customStatName}"));
+        }
+
+        // Add any custom system stats for selected renderer
+        var renderer = _systemRunner.Renderer;
+        foreach (var customStatName in renderer.DetailedStatNames)
+        {
+            _customStats.Add($"{CustomRenderStatNamePrefix}{customStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomRenderStatNamePrefix}{customStatName}"));
         }
     }
 
@@ -227,11 +236,11 @@ public class WasmHost : IDisposable
             // TODO: Make custom system stats less messy?
             foreach (var detailedStatName in detailedStats.Keys)
             {
-                var statLookup = _customSystemStats.Keys.SingleOrDefault(x => x.EndsWith(detailedStatName));
+                var statLookup = _customStats.Keys.SingleOrDefault(x => x.EndsWith(detailedStatName));
                 if (statLookup != null)
                 {
-                    _customSystemStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].Set(detailedStats[detailedStatName]);
-                    _customSystemStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].UpdateStat();
+                    _customStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].Set(detailedStats[detailedStatName]);
+                    _customStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].UpdateStat();
                 }
             }
         }
@@ -263,11 +272,23 @@ public class WasmHost : IDisposable
         _skCanvas.Scale((float)_emulatorConfig.CurrentDrawScale);
         using (_renderTime.Measure())
         {
-            _systemRunner.Draw();
+            _systemRunner.Draw(out Dictionary<string, double> detailedStats);
             //using (new SKAutoCanvasRestore(skCanvas))
             //{
             //    _systemRunner.Draw(skCanvas);
             //}
+
+            // Update custom system stats
+            // TODO: Make custom system stats less messy?
+            foreach (var detailedStatName in detailedStats.Keys)
+            {
+                var statLookup = _customStats.Keys.SingleOrDefault(x => x.EndsWith(detailedStatName));
+                if (statLookup != null)
+                {
+                    _customStats[$"{CustomRenderStatNamePrefix}{detailedStatName}"].Set(detailedStats[detailedStatName]);
+                    _customStats[$"{CustomRenderStatNamePrefix}{detailedStatName}"].UpdateStat();
+                }
+            }
         }
     }
 
