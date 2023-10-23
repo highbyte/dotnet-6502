@@ -68,6 +68,21 @@ public class MemoryHelperTest
         Assert.Contains("exceeds maximum memory limit", ex.Message);
     }
 
+    [Fact]
+    public void StoreData_Throws_Exception_If_Data_Length_Exceeds_64K()
+    {
+        // Arrange
+        var data = new byte[(64 * 1024) + 1];
+
+        ushort address = 0x0;
+        var mem = new Memory();
+
+        // Act / Assert
+        var ex = Assert.Throws<DotNet6502Exception>(() => mem.StoreData(address, data));
+
+        Assert.Contains("exceeds maximum memory limit", ex.Message);
+    }
+
 
     [Fact]
     public void ReadData_Loads_Data_From_Memory()

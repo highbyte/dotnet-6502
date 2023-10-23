@@ -150,7 +150,7 @@ public class SilkNetWindow
         InitImGui();
 
         // Init main menu UI
-        _menu = new SilkNetImGuiMenu(this, _emulatorConfig.DefaultEmulator, _defaultAudioEnabled, _defaultAudioVolumePercent, _mapper);
+        _menu = new SilkNetImGuiMenu(this, _emulatorConfig.DefaultEmulator, _defaultAudioEnabled, _defaultAudioVolumePercent, _mapper, _loggerFactory);
 
         // Create other UI windows
         _statsPanel = CreateStatsUI();
