@@ -281,7 +281,7 @@ h4 {
     background-color: #accaf2;
     color: #000;
     font-family: 'Open Sans', sans-serif;
-    font-size: 1.0em;
+    font-size: 0.9em;
     border-radius: 0.5vw;
     box-sizing: border-box;
     width: 800px;
@@ -293,6 +293,9 @@ h4 {
 
     .custom-modal a {
         color: #194f85
+    }
+    .custom-modal h4 {
+        color: #000;
     }
 
 .row {
