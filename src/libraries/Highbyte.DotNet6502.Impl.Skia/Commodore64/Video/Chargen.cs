@@ -162,6 +162,17 @@ public class CharGen
         }
     }
 
+    public SKImage CreateImageForByteBitPattern(byte dataRow, bool multiColor)
+    {
+        using (var surface = SKSurface.Create(new SKImageInfo(8, 1)))
+        {
+            var canvas = surface.Canvas;
+            DrawCharacterLine(canvas, s_paint, s_paintMultiColorBG1, s_paintMultiColorBG2, dataRow, multiColor);
+            var image = surface.Snapshot();
+            return image;
+        }
+    }
+
     public void DumpChargenImagesToOneFile(Dictionary<int, SKImage> images, string saveImageFile, int charactersPerRow = 16)
     {
         SKImage totalImage = BuildTotalImage(images, charactersPerRow);

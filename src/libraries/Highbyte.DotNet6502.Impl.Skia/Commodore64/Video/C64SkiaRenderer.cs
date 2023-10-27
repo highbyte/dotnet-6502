@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -14,13 +16,16 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 
     private C64SkiaPaint _c64SkiaPaint;
 
-    private Dictionary<int, SKImage> _characterSetCurrent;
-    private Dictionary<int, SKImage> _characterSetMultiColorCurrent;
+    private SKImage[] _bitPatternImages;
+    private SKImage[] _bitPatternMultiColorImages;
 
-    private Dictionary<int, SKImage> _characterSetROMShiftedImage;
-    private Dictionary<int, SKImage> _characterSetROMShiftedMultiColorImage;
-    private Dictionary<int, SKImage> _characterSetROMUnshiftedImage;
-    private Dictionary<int, SKImage> _characterSetROMUnshiftedMultiColorImage;
+    //private Dictionary<int, SKImage> _characterSetCurrent;
+    //private Dictionary<int, SKImage> _characterSetMultiColorCurrent;
+
+    //private Dictionary<int, SKImage> _characterSetROMShiftedImage;
+    //private Dictionary<int, SKImage> _characterSetROMShiftedMultiColorImage;
+    //private Dictionary<int, SKImage> _characterSetROMUnshiftedImage;
+    //private Dictionary<int, SKImage> _characterSetROMUnshiftedMultiColorImage;
 
     private bool _changedAllCharsetCodes = false;
     private HashSet<byte> _changedCharsetCodes = new();
@@ -122,15 +127,31 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 
     private void InitCharset(C64 c64)
     {
+        // Generate one image for each bit pattern (256 images), representing one row of pixels in a character.
+        GenerateBitPatternImages();
+
         // Generate and remember images of the CharGen ROM charset.
-        GenerateROMChargenImages(c64);
+        // GenerateROMChargenImages(c64);
 
-        // Default to shifted ROM character set
-        _characterSetCurrent = _characterSetROMShiftedImage;
-        _characterSetMultiColorCurrent = _characterSetROMShiftedMultiColorImage;
+        //// Default to shifted ROM character set
+        //_characterSetCurrent = _characterSetROMShiftedImage;
+        //_characterSetMultiColorCurrent = _characterSetROMShiftedMultiColorImage;
 
-        // Listen to event when the VIC2 charset address is changed to recreate a image for the charset
-        c64.Vic2.CharsetManager.CharsetAddressChanged += (s, e) => CharsetChangedHandler(c64, e);
+        //// Listen to event when the VIC2 charset address is changed to recreate a image for the charset
+        //c64.Vic2.CharsetManager.CharsetAddressChanged += (s, e) => CharsetChangedHandler(c64, e);
+    }
+
+    private void GenerateBitPatternImages()
+    {
+        _bitPatternImages = new SKImage[256];
+        _bitPatternMultiColorImages = new SKImage[256];
+
+        for (var i = 0; i <= 255; i++)
+        {
+            var bytePattern = (byte)i;
+            _bitPatternImages[i] = _charGen.CreateImageForByteBitPattern(bytePattern, multiColor: false);
+            _bitPatternMultiColorImages[i] = _charGen.CreateImageForByteBitPattern(bytePattern, multiColor: true);
+        }
     }
 
     private void GenerateROMChargenImages(C64 c64)
@@ -144,19 +165,19 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         var characterSetUnShifted = characterSets.Skip(Vic2CharsetManager.CHARACTERSET_SIZE).Take(Vic2CharsetManager.CHARACTERSET_SIZE).ToArray();
 
         // Generate and save the images for the two CharGen ROM character sets
-        _characterSetROMShiftedImage = _charGen.GenerateChargenImages(characterSetShifted);
-        _characterSetROMUnshiftedImage = _charGen.GenerateChargenImages(characterSetUnShifted);
+        var characterSetROMShiftedImage = _charGen.GenerateChargenImages(characterSetShifted);
+        var characterSetROMUnshiftedImage = _charGen.GenerateChargenImages(characterSetUnShifted);
 
         // Same for multi-color versions
-        _characterSetROMShiftedMultiColorImage = _charGen.GenerateChargenImages(characterSetShifted, multiColor: true);
-        _characterSetROMUnshiftedMultiColorImage = _charGen.GenerateChargenImages(characterSetUnShifted, multiColor: true);
+        var characterSetROMShiftedMultiColorImage = _charGen.GenerateChargenImages(characterSetShifted, multiColor: true);
+        var characterSetROMUnshiftedMultiColorImage = _charGen.GenerateChargenImages(characterSetUnShifted, multiColor: true);
 
 #if DEBUG
-        _charGen.DumpChargenImagesToOneFile(_characterSetROMShiftedImage, $"{Path.GetTempPath()}/c64_chargen_shifted_dump.png");
-        _charGen.DumpChargenImagesToOneFile(_characterSetROMUnshiftedImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_dump.png");
+        _charGen.DumpChargenImagesToOneFile(characterSetROMShiftedImage, $"{Path.GetTempPath()}/c64_chargen_shifted_dump.png");
+        _charGen.DumpChargenImagesToOneFile(characterSetROMUnshiftedImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_dump.png");
 
-        _charGen.DumpChargenImagesToOneFile(_characterSetROMShiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_shifted_multicolor_dump.png");
-        _charGen.DumpChargenImagesToOneFile(_characterSetROMUnshiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_multicolor_dump.png");
+        _charGen.DumpChargenImagesToOneFile(characterSetROMShiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_shifted_multicolor_dump.png");
+        _charGen.DumpChargenImagesToOneFile(characterSetROMUnshiftedMultiColorImage, $"{Path.GetTempPath()}/c64_chargen_unshifted_multicolor_dump.png");
 #endif
     }
 
@@ -175,49 +196,49 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         }
     }
 
-    private void UpdateChangedCharacterOnCurrentImage(C64 c64, byte charCode)
-    {
-        var charsetManager = c64.Vic2.CharsetManager;
-        var characterSet = c64.Vic2.Vic2Mem.ReadData(charsetManager.CharacterSetAddressInVIC2Bank, Vic2CharsetManager.CHARACTERSET_SIZE);
+    //    private void UpdateChangedCharacterOnCurrentImage(C64 c64, byte charCode)
+    //    {
+    //        var charsetManager = c64.Vic2.CharsetManager;
+    //        var characterSet = c64.Vic2.Vic2Mem.ReadData(charsetManager.CharacterSetAddressInVIC2Bank, Vic2CharsetManager.CHARACTERSET_SIZE);
 
-        _characterSetCurrent[charCode] = _charGen.GenerateChargenImageForOneCharacter(characterSet, charCode, multiColor: false);
-        _characterSetMultiColorCurrent[charCode] = _charGen.GenerateChargenImageForOneCharacter(characterSet, charCode, multiColor: true);
+    //        _characterSetCurrent[charCode] = _charGen.GenerateChargenImageForOneCharacter(characterSet, charCode, multiColor: false);
+    //        _characterSetMultiColorCurrent[charCode] = _charGen.GenerateChargenImageForOneCharacter(characterSet, charCode, multiColor: true);
 
-//#if DEBUG
-//        _charGen.DumpChargenImagesToOneFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
-//        _charGen.DumpChargenImagesToOneFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
-//#endif
+    ////#if DEBUG
+    ////        _charGen.DumpChargenImagesToOneFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
+    ////        _charGen.DumpChargenImagesToOneFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
+    ////#endif
 
-    }
+    //    }
 
     private void GenerateCurrentChargenImage(C64 c64)
     {
         var charsetManager = c64.Vic2.CharsetManager;
 
-        // If the current address points to a location in where the CharGen ROM character sets are located, we can use pre-rendered images for the character set.
-        if (charsetManager.CharacterSetAddressInVIC2BankIsChargenROMUnshifted)
-        {
-            _characterSetCurrent = _characterSetROMUnshiftedImage;
-            _characterSetMultiColorCurrent = _characterSetROMUnshiftedMultiColorImage;
-            return;
-        }
-        else if (charsetManager.CharacterSetAddressInVIC2BankIsChargenROMShifted)
-        {
-            _characterSetCurrent = _characterSetROMShiftedImage;
-            _characterSetMultiColorCurrent = _characterSetROMShiftedMultiColorImage;
-            return;
-        }
+        //// If the current address points to a location in where the CharGen ROM character sets are located, we can use pre-rendered images for the character set.
+        //if (charsetManager.CharacterSetAddressInVIC2BankIsChargenROMUnshifted)
+        //{
+        //    _characterSetCurrent = _characterSetROMUnshiftedImage;
+        //    _characterSetMultiColorCurrent = _characterSetROMUnshiftedMultiColorImage;
+        //    return;
+        //}
+        //else if (charsetManager.CharacterSetAddressInVIC2BankIsChargenROMShifted)
+        //{
+        //    _characterSetCurrent = _characterSetROMShiftedImage;
+        //    _characterSetMultiColorCurrent = _characterSetROMShiftedMultiColorImage;
+        //    return;
+        //}
         // Pointing to a location where a custom character set is located. Create a image for it.
 
         // TODO: Is there a concept of "shifted" and "unshifted" character set for custom ones, or is it only relevant for the ones from CharGen ROM and the switching mechanism for them in Basic?
         var characterSet = c64.Vic2.Vic2Mem.ReadData(charsetManager.CharacterSetAddressInVIC2Bank, Vic2CharsetManager.CHARACTERSET_SIZE);
 
-        _characterSetCurrent = _charGen.GenerateChargenImages(characterSet);
-        _characterSetMultiColorCurrent = _charGen.GenerateChargenImages(characterSet, multiColor: true);
+        var characterSetCurrent = _charGen.GenerateChargenImages(characterSet);
+        var characterSetMultiColorCurrent = _charGen.GenerateChargenImages(characterSet, multiColor: true);
 
 #if DEBUG
-        _charGen.DumpChargenImagesToOneFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
-        _charGen.DumpChargenImagesToOneFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
+        _charGen.DumpChargenImagesToOneFile(characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
+        _charGen.DumpChargenImagesToOneFile(characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
 #endif
     }
 
@@ -252,20 +273,20 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         canvas.Translate(scrollX, scrollY);
 
         // Re-create any changed characters in current charset since last frame
-        if (_changedAllCharsetCodes)
-        {
-            GenerateCurrentChargenImage(c64);
-            _changedAllCharsetCodes = false;
-            _changedCharsetCodes.Clear();
-        }
-        else if (_changedCharsetCodes.Count > 0)
-        {
-            foreach (var charCode in _changedCharsetCodes)
-            {
-                UpdateChangedCharacterOnCurrentImage(c64, charCode);
-            }
-            _changedCharsetCodes.Clear();
-        }
+        //if (_changedAllCharsetCodes)
+        //{
+        //    GenerateCurrentChargenImage(c64);
+        //    _changedAllCharsetCodes = false;
+        //    _changedCharsetCodes.Clear();
+        //}
+        //else if (_changedCharsetCodes.Count > 0)
+        //{
+        //    foreach (var charCode in _changedCharsetCodes)
+        //    {
+        //        UpdateChangedCharacterOnCurrentImage(c64, charCode);
+        //    }
+        //    _changedCharsetCodes.Clear();
+        //}
 
         // Build screen data characters based on emulator memory contents (byte)
         var currentScreenAddress = vic2.VideoMatrixBaseAddress;
@@ -276,29 +297,50 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         byte backgroundColor2 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2); // Background color used for extended charcater mode
         byte backgroundColor3 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3); // Background color used for extended charcater mode
 
-        for (var row = 0; row < vic2Screen.TextRows; row++)
+        // Loop each line
+        for (var line = 0; line < 200; line++)
         {
-            for (var col = 0; col < vic2Screen.TextCols; col++)
+            // Loop each character in line
+            for (var col = 0; col < 40; col++)
             {
-                var charByte = vic2Mem[currentScreenAddress++];
-                var colorByte = c64.ReadIOStorage(currentColorAddress++);
-
-                DrawEmulatorCharacterOnScreen(
+                DrawCharacterLineOnScreen(
                     canvas,
                     visibleMainScreenArea.Screen.Start.X,
                     visibleMainScreenArea.Screen.Start.Y,
                     col,
-                    row,
-                    charByte,
-                    colorByte,
+                    line,
                     c64,
                     characterMode,
                     backgroundColor1,
                     backgroundColor2,
                     backgroundColor3
-                    );
+                );
             }
         }
+
+        //for (var row = 0; row < vic2Screen.TextRows; row++)
+        //{
+        //    for (var col = 0; col < vic2Screen.TextCols; col++)
+        //    {
+        //        var charByte = vic2Mem[currentScreenAddress++];
+        //        var colorByte = c64.ReadIOStorage(currentColorAddress++);
+
+        //        DrawEmulatorCharacterOnScreen(
+        //            canvas,
+        //            visibleMainScreenArea.Screen.Start.X,
+        //            visibleMainScreenArea.Screen.Start.Y,
+        //            col,
+        //            row,
+        //            charByte,
+        //            colorByte,
+        //            c64,
+        //            characterMode,
+        //            backgroundColor1,
+        //            backgroundColor2,
+        //            backgroundColor3
+        //            );
+        //    }
+        //}
 
         // Restore canvas adjustments
         canvas.Restore();
@@ -375,21 +417,13 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         canvas.DrawRect(vic2Screen.VisibleLeftRightBorderWidth, vic2Screen.VisibleTopBottomBorderHeight, vic2Screen.DrawableAreaWidth, vic2Screen.DrawableAreaHeight, bgPaint);
     }
 
-    /// <summary>
-    /// Draw character to screen, with adjusted position for border.
-    /// </summary>
-    /// <param name="x"></param>
-    /// <param name="y"></param>
-    /// <param name="character"></param>
-    /// <param name="characterColor"></param>
-    public void DrawEmulatorCharacterOnScreen(
+
+    public void DrawCharacterLineOnScreen(
         SKCanvas canvas,
         int firstVisibleScreenXPos,
         int firstVisibleScreenYPos,
-        int col,
-        int row,
-        byte character,
-        byte characterColor,    // Standard and Extended mode text color. Also in MultiColor mode, the color of pixel-pair 11
+        int col,    // Col 0-39
+        int line,   // Line 0-199
         C64 c64,
         CharMode characterMode,
         byte backgroundColor1,  // Extended mode, background color for each character. Also in MultiColor mode, the color of pixel-pair 01
@@ -399,89 +433,156 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
     {
         var vic2Screen = c64.Vic2.Vic2Screen;
 
-        var pixelPosX = col * vic2Screen.CharacterWidth;
-        var pixelPosY = row * vic2Screen.CharacterHeight;
+        // Get character from screen memory
+        var row = line / 8;
+        var characterIndex = (row * 40) + col;
+        var character = c64.Vic2.Vic2Mem[(ushort)(c64.Vic2.VideoMatrixBaseAddress + characterIndex)];
 
+        // Get one line from character image from chargen ROM
+        var offsetInCharset = (character * 8) + line % 8;
+        ushort charsetAddress = (ushort)(c64.Vic2.CharsetManager.CharacterSetAddressInVIC2Bank + offsetInCharset);
+        var charLineData = c64.Vic2.Vic2Mem[charsetAddress];
+
+        // Get the pre-generated image for the character line (8 bit pattern)
+        var lineImage = _bitPatternImages[charLineData];
+
+        // Get screen x and y position for character line
+        var pixelPosX = col * vic2Screen.CharacterWidth;
+        var pixelPosY = line;
         // Adjust for left border
         pixelPosX += firstVisibleScreenXPos;
-
         // Adjust for top border
         pixelPosY += firstVisibleScreenYPos;
-        //pixelPosY += vic2Screen.VisibleTopBottomBorderHeight;
 
-        // Check character mode: affects background color, usable bits in character, usable bits in color
-        byte? bgColor = null;
-        switch (characterMode)
-        {
-            case CharMode.Standard:
-                break;
+        // Get character color
+        var characterColor = c64.ReadIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + characterIndex));
+        SKPaint paint = _c64SkiaPaint.GetDrawCharacterPaint(characterColor);
 
-            case CharMode.Extended:
-                var bgColorSelector = character >> 6;   // Bit 6 and 7 of character byte is used to select background color (0-3)
-                bgColor = bgColorSelector switch
-                {
-                    0 => null,
-                    1 => backgroundColor1,
-                    2 => backgroundColor2,
-                    3 => backgroundColor3,
-                    _ => throw new NotImplementedException($"Background color selector {bgColorSelector} not implemented.")
-                };
-                character = (byte)(character & 0b00111111); // The actual usable character codes are in the lower 6 bits (0-63)
-                break;
-
-            case CharMode.MultiColor:
-                // When in MultiColor mode, a character can still be displayed in Standard mode depending on the value from color RAM.
-                if (characterColor <= 7)
-                {
-                    // If color RAM value is 0-7, normal Standard mode is used (not multi-color)
-                    characterMode = CharMode.Standard;
-                }
-                else
-                {
-                    // If displaying in MultiColor mode, the actual color used from color RAM will be values 0-7.
-                    // Thus color values 8-15 are transformed to 0-7
-                    characterColor = (byte)((characterColor & 0b00001111) - 8);
-                }
-                break;
-            default:
-                throw new NotImplementedException($"Character mode {characterMode} not implemented.");
-        }
-
-        // Select correct pre-generated characters depending on character mode
-        var charImage = characterMode switch
-        {
-            CharMode.Standard => _characterSetCurrent[character],
-            CharMode.Extended => _characterSetCurrent[character],
-            CharMode.MultiColor => _characterSetMultiColorCurrent[character],
-            _ => throw new NotImplementedException($"Character mode {characterMode} not implemented.")
-        };
-
-        // The "paint" transforms fixed colors in the pre-generated image to the ones that should be used on screen.
-        SKPaint paint = characterMode switch
-        {
-            CharMode.Standard => _c64SkiaPaint.GetDrawCharacterPaint(characterColor),
-            CharMode.Extended => bgColor == null ? _c64SkiaPaint.GetDrawCharacterPaint(characterColor) : _c64SkiaPaint.GetDrawCharacterPaintWithBackground(characterColor, bgColor.Value),
-            CharMode.MultiColor => _c64SkiaPaint.GetDrawCharacterPaintWithMultiColor(characterColor, backgroundColor1, backgroundColor2),
-            _ => throw new NotImplementedException($"Character mode {characterMode} not implemented.")
-        };
-
-        // Draw character image from chargen ROM to the Skia canvas
+        // Draw character line image from chargen ROM to the Skia canvas
         _drawImageDest.Left = pixelPosX;
         _drawImageDest.Top = pixelPosY;
         _drawImageDest.Right = pixelPosX + 8;
-        _drawImageDest.Bottom = pixelPosY + 8;
+        _drawImageDest.Bottom = pixelPosY + 1;
 
         _drawImageSource.Left = 0;
         _drawImageSource.Top = 0;
         _drawImageSource.Right = 8;
-        _drawImageSource.Bottom = 8;
+        _drawImageSource.Bottom = 1;
 
-        canvas.DrawImage(charImage,
+        canvas.DrawImage(lineImage,
             source: _drawImageSource,
             dest: _drawImageDest,
             paint
             );
     }
+
+    /// <summary>
+    /// Draw character to screen, with adjusted position for border.
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <param name="character"></param>
+    /// <param name="characterColor"></param>
+    //public void DrawEmulatorCharacterOnScreen(
+    //    SKCanvas canvas,
+    //    int firstVisibleScreenXPos,
+    //    int firstVisibleScreenYPos,
+    //    int col,
+    //    int row,
+    //    byte character,
+    //    byte characterColor,    // Standard and Extended mode text color. Also in MultiColor mode, the color of pixel-pair 11
+    //    C64 c64,
+    //    CharMode characterMode,
+    //    byte backgroundColor1,  // Extended mode, background color for each character. Also in MultiColor mode, the color of pixel-pair 01
+    //    byte backgroundColor2,  // Extended mode, background color for each character. Also in MultiColor mode, the color of pixel-pair 10
+    //    byte backgroundColor3   // Extended mode, background color for each character
+    //    )
+    //{
+    //    var vic2Screen = c64.Vic2.Vic2Screen;
+
+    //    var pixelPosX = col * vic2Screen.CharacterWidth;
+    //    var pixelPosY = row * vic2Screen.CharacterHeight;
+
+    //    // Adjust for left border
+    //    pixelPosX += firstVisibleScreenXPos;
+
+    //    // Adjust for top border
+    //    pixelPosY += firstVisibleScreenYPos;
+    //    //pixelPosY += vic2Screen.VisibleTopBottomBorderHeight;
+
+    //    // Check character mode: affects background color, usable bits in character, usable bits in color
+    //    byte? bgColor = null;
+    //    switch (characterMode)
+    //    {
+    //        case CharMode.Standard:
+    //            break;
+
+    //        case CharMode.Extended:
+    //            var bgColorSelector = character >> 6;   // Bit 6 and 7 of character byte is used to select background color (0-3)
+    //            bgColor = bgColorSelector switch
+    //            {
+    //                0 => null,
+    //                1 => backgroundColor1,
+    //                2 => backgroundColor2,
+    //                3 => backgroundColor3,
+    //                _ => throw new NotImplementedException($"Background color selector {bgColorSelector} not implemented.")
+    //            };
+    //            character = (byte)(character & 0b00111111); // The actual usable character codes are in the lower 6 bits (0-63)
+    //            break;
+
+    //        case CharMode.MultiColor:
+    //            // When in MultiColor mode, a character can still be displayed in Standard mode depending on the value from color RAM.
+    //            if (characterColor <= 7)
+    //            {
+    //                // If color RAM value is 0-7, normal Standard mode is used (not multi-color)
+    //                characterMode = CharMode.Standard;
+    //            }
+    //            else
+    //            {
+    //                // If displaying in MultiColor mode, the actual color used from color RAM will be values 0-7.
+    //                // Thus color values 8-15 are transformed to 0-7
+    //                characterColor = (byte)((characterColor & 0b00001111) - 8);
+    //            }
+    //            break;
+    //        default:
+    //            throw new NotImplementedException($"Character mode {characterMode} not implemented.");
+    //    }
+
+    //    // Select correct pre-generated characters depending on character mode
+    //    var charImage = characterMode switch
+    //    {
+    //        CharMode.Standard => _characterSetCurrent[character],
+    //        CharMode.Extended => _characterSetCurrent[character],
+    //        CharMode.MultiColor => _characterSetMultiColorCurrent[character],
+    //        _ => throw new NotImplementedException($"Character mode {characterMode} not implemented.")
+    //    };
+
+    //    // The "paint" transforms fixed colors in the pre-generated image to the ones that should be used on screen.
+    //    SKPaint paint = characterMode switch
+    //    {
+    //        CharMode.Standard => _c64SkiaPaint.GetDrawCharacterPaint(characterColor),
+    //        CharMode.Extended => bgColor == null ? _c64SkiaPaint.GetDrawCharacterPaint(characterColor) : _c64SkiaPaint.GetDrawCharacterPaintWithBackground(characterColor, bgColor.Value),
+    //        CharMode.MultiColor => _c64SkiaPaint.GetDrawCharacterPaintWithMultiColor(characterColor, backgroundColor1, backgroundColor2),
+    //        _ => throw new NotImplementedException($"Character mode {characterMode} not implemented.")
+    //    };
+
+    //    // Draw character image from chargen ROM to the Skia canvas
+    //    _drawImageDest.Left = pixelPosX;
+    //    _drawImageDest.Top = pixelPosY;
+    //    _drawImageDest.Right = pixelPosX + 8;
+    //    _drawImageDest.Bottom = pixelPosY + 8;
+
+    //    _drawImageSource.Left = 0;
+    //    _drawImageSource.Top = 0;
+    //    _drawImageSource.Right = 8;
+    //    _drawImageSource.Bottom = 8;
+
+    //    canvas.DrawImage(charImage,
+    //        source: _drawImageSource,
+    //        dest: _drawImageDest,
+    //        paint
+    //        );
+    //}
 
     private void RenderSprites(C64 c64, SKCanvas canvas, bool spritesWithPriorityOverForeground)
     {
@@ -575,4 +676,5 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 
         return new SKRect(clipXStart, clipYStart, clipXEnd, clipYEnd);
     }
+
 }
