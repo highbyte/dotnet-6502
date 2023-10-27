@@ -16,6 +16,9 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
     private const int BorderPixels = TextPixelSize * BorderWidthFactor;
     private readonly EmulatorScreenConfig _emulatorScreenConfig;
 
+    public bool HasDetailedStats => false;
+    public List<string> DetailedStatNames => new List<string>();
+
     public GenericComputerSkiaRenderer(EmulatorScreenConfig emulatorScreenConfig)
     {
         _emulatorScreenConfig = emulatorScreenConfig;
@@ -40,7 +43,7 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
         Init((GenericComputer)system, (SkiaRenderContext)renderContext);
     }
 
-    public void Draw(GenericComputer genericComputer)
+    public void Draw(GenericComputer genericComputer, Dictionary<string, double> detailedStats)
     {
         var mem = genericComputer.Mem;
         var canvas = _getSkCanvas();
@@ -79,9 +82,9 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
         }
     }
 
-    public void Draw(ISystem system)
+    public void Draw(ISystem system, Dictionary<string, double> detailedStats)
     {
-        Draw((GenericComputer)system);
+        Draw((GenericComputer)system, detailedStats);
     }
 
     private string GetDrawTextFromCharacter(byte chr)

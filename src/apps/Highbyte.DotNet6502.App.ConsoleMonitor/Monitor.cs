@@ -25,13 +25,24 @@ public class NativeConsoleMonitor : MonitorBase
             return false;
         }
 
-        BinaryLoader.Load(
-            Mem,
-            fileName,
-            out loadedAtAddress,
-            out fileLength,
-            forceLoadAddress);
-        return true;
+        try
+        {
+            BinaryLoader.Load(
+                Mem,
+                fileName,
+                out loadedAtAddress,
+                out fileLength,
+                forceLoadAddress);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            WriteOutput($"Load error: {ex.Message}", MessageSeverity.Error);
+            loadedAtAddress = 0;
+            fileLength = 0;
+            return false;
+        }
+
     }
 
     public override bool LoadBinary(out ushort loadedAtAddress, out ushort fileLength, ushort? forceLoadAddress = null, Action<MonitorBase, ushort, ushort>? afterLoadCallback = null)
@@ -44,14 +55,21 @@ public class NativeConsoleMonitor : MonitorBase
 
     public override void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
     {
-        BinarySaver.Save(
-            Mem,
-            fileName,
-            startAddress,
-            endAddress,
-            addFileHeaderWithLoadAddress: addFileHeaderWithLoadAddress);
+        try
+        {
+            BinarySaver.Save(
+                Mem,
+                fileName,
+                startAddress,
+                endAddress,
+                addFileHeaderWithLoadAddress: addFileHeaderWithLoadAddress);
+            WriteOutput($"Program saved to {fileName}");
 
-        WriteOutput($"Program saved to {fileName}");
+        }
+        catch (Exception ex)
+        {
+            WriteOutput($"Save error: {ex.Message}", MessageSeverity.Error);
+        }
     }
 
     public override void WriteOutput(string message)

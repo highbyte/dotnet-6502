@@ -180,39 +180,54 @@ public class WasmMonitor : MonitorBase
     /// <param name="fileData"></param>
     public async Task LoadBinaryFromUser(byte[] fileData)
     {
-        BinaryLoader.Load(
-            Mem,
-            fileData,
-            out ushort loadedAtAddress,
-            out ushort fileLength,
-            _lastTriggeredLoadBinaryForceLoadAddress);
+        try
+        {
+            BinaryLoader.Load(
+                Mem,
+                fileData,
+                out ushort loadedAtAddress,
+                out ushort fileLength,
+                _lastTriggeredLoadBinaryForceLoadAddress);
 
-        WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+            WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
 
-        // Set PC to start of loaded file.
-        Cpu.PC = loadedAtAddress;
+            // Set PC to start of loaded file.
+            Cpu.PC = loadedAtAddress;
 
-        if (_lastTriggeredAfterLoadCallback != null)
-            _lastTriggeredAfterLoadCallback(this, loadedAtAddress, fileLength);
+            if (_lastTriggeredAfterLoadCallback != null)
+                _lastTriggeredAfterLoadCallback(this, loadedAtAddress, fileLength);
 
-        DisplayStatus();
+            DisplayStatus();
+
+        }
+        catch (Exception ex)
+        {
+            WriteOutput($"Load error: {ex.Message}", MessageSeverity.Error);
+        }
     }
 
     public override async void SaveBinary(string fileName, ushort startAddress, ushort endAddress, bool addFileHeaderWithLoadAddress)
     {
-        // Ensure file has .prg extension if not specfied. When saving by issuing a browser file download, and saving a file with no extension, the browser will add .txt extension.
-        string ext = Path.GetExtension(fileName);
-        if (string.IsNullOrEmpty(ext))
-            fileName += ".prg";
+        try
+        {
+            // Ensure file has .prg extension if not specfied. When saving by issuing a browser file download, and saving a file with no extension, the browser will add .txt extension.
+            string ext = Path.GetExtension(fileName);
+            if (string.IsNullOrEmpty(ext))
+                fileName += ".prg";
 
-        var saveData = BinarySaver.BuildSaveData(Mem, startAddress, endAddress, addFileHeaderWithLoadAddress);
-        var fileStream = new MemoryStream(saveData);
-        using var streamRef = new DotNetStreamReference(stream: fileStream);
+            var saveData = BinarySaver.BuildSaveData(Mem, startAddress, endAddress, addFileHeaderWithLoadAddress);
+            var fileStream = new MemoryStream(saveData);
+            using var streamRef = new DotNetStreamReference(stream: fileStream);
 
-        // Invoke JS helper script to trigger save dialog to users browser downloads folder
-        await _jsRuntime.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+            // Invoke JS helper script to trigger save dialog to users browser downloads folder
+            await _jsRuntime.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
 
-        WriteOutput($"Program downloaded to {fileName}");
+            WriteOutput($"Program downloaded to {fileName}");
+        }
+        catch (Exception ex)
+        {
+            WriteOutput($"Save error: {ex.Message}", MessageSeverity.Error);
+        }
     }
 
     public override void WriteOutput(string message)

@@ -6,63 +6,66 @@
 @using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 @using static Highbyte.DotNet6502.App.SkiaWASM.Pages.Index
 
-<h2>ROMs</h2>
+<h4>ROMs</h4>
 <p>The C64 system requires the following types of ROM files: <strong>Kernal, Basic, and Character generator</strong>.</p>
-<br />
-<p>1. Use existing C64 ROM files on your computer, or download them to your computer from example <a href="https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/index-t.html" target="_blank">here</a></p>
-<ul>
-    <li>
-        <a href="https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/kernal.901227-03.bin">kernal.901227-03.bin</a>
-    </li>
-    <li>
-        <a href="https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/basic.901226-01.bin">basic.901226-01.bin</a>
-    </li>
-    <li>
-        <a href="https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/characters.901225-01.bin">characters.901225-01.bin</a>
-    </li>
-</ul>
-
-<br />
-<p>2. Upload the ROM files from your computer to this emulator with the button below.</p>
-
-<InputFile id="c64RomFilePicker" OnChange="@OnC64RomFilePickerChange" multiple hidden />
-<button onclick="document.getElementById('c64RomFilePicker').click()">Load ROMs</button>
-
-<button @onclick="UnloadROMs">Unload ROMs</button>
-
-
-<p></p>
-@if (_isLoadingC64Roms)
-{
-    <p>Uploading ROMs...</p>
-}
-else
-{
-    <p>@LoadedROMCount/@_maxC64AllowedRomFiles ROMs loaded</p>
-    @if (!string.IsNullOrEmpty(_validationMessage))
-    {
-        <p>@_validationMessage</p>
-    }
-    <ul>
-        @foreach (var romName in C64Config.RequiredROMs)
+<p>- Use existing C64 ROM files on your computer, or download them to your computer from the internet.</p>
+<p>- Upload the ROM files from your computer to this emulator with the button below.</p>
+<div class="row">
+    <div class="column">
+        <InputFile id="c64RomFilePicker" OnChange="@OnC64RomFilePickerChange" multiple hidden />
+        <span>
+            <button onclick="document.getElementById('c64RomFilePicker').click()">Load ROMs</button>
+            <button @onclick="UnloadROMs">Unload ROMs</button>
+        </span>
+        @if (_isLoadingC64Roms)
         {
-            @if (GetLoadedRoms().ContainsKey(romName))
-            {
-                <li>@romName @GetLoadedRoms()[romName].Length bytes</li>
-            }
-            else
-            {
-                <li>@romName - not loaded</li>
-            }
+            <p>Uploading ROMs...</p>
         }
-    </ul>
-}
+        else
+        {
+            <p>@LoadedROMCount/@_maxC64AllowedRomFiles ROMs loaded</p>
+            @if (!string.IsNullOrEmpty(_validationMessage))
+            {
+                <p>@_validationMessage</p>
+            }
+            <ul>
+                @foreach (var romName in C64Config.RequiredROMs)
+                {
+                    @if (GetLoadedRoms().ContainsKey(romName))
+                    {
+                        <li>@romName @GetLoadedRoms()[romName].Length bytes</li>
+                    }
+                    else
+                    {
+                        <li>@romName - not loaded</li>
+                    }
+                }
+            </ul>
+        }
+    </div>
+
+    <div class="column">
+        <p>Direct download links from <a href="https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/index-t.html" target="_blank">here</a></p>
+        <ul>
+            <li>
+                <a href="https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/kernal.901227-03.bin">kernal.901227-03.bin</a>
+            </li>
+            <li>
+                <a href="https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/basic.901226-01.bin">basic.901226-01.bin</a>
+            </li>
+            <li>
+                <a href="https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/characters.901225-01.bin">characters.901225-01.bin</a>
+            </li>
+        </ul>
+    </div>
+
+</div>
 
 <p></p>
 
 <div class="row">
-    <div class="col">
-        <h2>General settings</h2>
+    <div class="column">
+        <h4>General settings</h4>
         <div class="table">
             <div class="table-row">
                 <div class="table-cell twocol">Audio enabled (experimental):</div>
@@ -74,7 +77,7 @@ else
 
 <div class="row">
     <div class="column">
-        <h2>Joystick</h2>
+        <h4>Joystick</h4>
         @{
             var gampadToJoystickMap = C64HostConfig.InputConfig.GamePadToC64JoystickMap[C64HostConfig.InputConfig.CurrentJoystick];
         }
@@ -108,7 +111,7 @@ else
 
     <div class="column">
 
-        <h2>Joystick keyboard</h2>
+        <h4>Joystick keyboard</h4>
         @{
             var keyToJoystickMap = C64Config.KeyboardJoystickMap;
         }

@@ -10,6 +10,9 @@ public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRe
 
     private readonly EmulatorScreenConfig _emulatorScreenConfig;
 
+    public bool HasDetailedStats => false;
+    public List<string> DetailedStatNames => new List<string>();
+
     public GenericSadConsoleRenderer(EmulatorScreenConfig emulatorScreenConfig)
     {
         _emulatorScreenConfig = emulatorScreenConfig;
@@ -27,16 +30,16 @@ public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRe
         Init((GenericComputer)system, (SadConsoleRenderContext)renderContext);
     }
 
-    public void Draw(GenericComputer system)
+    public void Draw(GenericComputer system, Dictionary<string, double> detailedStats)
     {
         RenderMainScreen(system);
         if (_emulatorScreenConfig.BorderCols > 0 || _emulatorScreenConfig.BorderRows > 0)
             RenderBorder(system);
     }
 
-    public void Draw(ISystem system)
+    public void Draw(ISystem system, Dictionary<string, double> detailedStats)
     {
-        Draw((GenericComputer)system);
+        Draw((GenericComputer)system, detailedStats);
     }
 
     private void RenderMainScreen(GenericComputer system)

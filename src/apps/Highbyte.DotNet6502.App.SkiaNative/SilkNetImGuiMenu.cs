@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Numerics;
 using AutoMapper;
 using Highbyte.DotNet6502.App.SkiaNative.ConfigUI;
@@ -7,6 +6,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using Microsoft.Extensions.Logging;
 using NativeFileDialogSharp;
 
 namespace Highbyte.DotNet6502.App.SkiaNative;
@@ -33,7 +33,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     private bool _audioEnabled;
     private float _audioVolumePercent;
     private readonly IMapper _mapper;
-
+    private readonly ILogger<SilkNetImGuiMenu> _logger;
     public bool C64KeyboardJoystickEnabled;
     public int C64KeyboardJoystick;
     public int C64SelectedJoystick;
@@ -47,7 +47,9 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     private SilkNetImGuiC64Config? _c64ConfigUI;
     private SilkNetImGuiGenericComputerConfig? _genericComputerConfigUI;
 
-    public SilkNetImGuiMenu(SilkNetWindow silkNetWindow, string defaultSystemName, bool defaultAudioEnabled, float defaultAudioVolumePercent, IMapper mapper)
+    private string _lastFileError = "";
+
+    public SilkNetImGuiMenu(SilkNetWindow silkNetWindow, string defaultSystemName, bool defaultAudioEnabled, float defaultAudioVolumePercent, IMapper mapper, ILoggerFactory loggerFactory)
     {
         _silkNetWindow = silkNetWindow;
         _screenScaleString = silkNetWindow.CanvasScale.ToString();
@@ -58,6 +60,8 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         _audioVolumePercent = defaultAudioVolumePercent;
 
         _mapper = mapper;
+        _logger = loggerFactory.CreateLogger<SilkNetImGuiMenu>();
+
 
         ISystemConfig systemConfig = GetSelectedSystemConfig();
         if (systemConfig is C64Config c64Config)
@@ -214,19 +218,27 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                     _silkNetWindow.Pause();
                 }
 
+                _lastFileError = "";
                 var dialogResult = Dialog.FileOpen(@"prg;*");
                 if (dialogResult.IsOk)
                 {
-                    var fileName = dialogResult.Path;
-                    BinaryLoader.Load(
-                        _silkNetWindow.SystemRunner.System.Mem,
-                        fileName,
-                        out ushort loadedAtAddress,
-                        out ushort fileLength);
+                    try
+                    {
+                        var fileName = dialogResult.Path;
+                        BinaryLoader.Load(
+                            _silkNetWindow.SystemRunner.System.Mem,
+                            fileName,
+                            out ushort loadedAtAddress,
+                            out ushort fileLength);
 
-                    _silkNetWindow.SystemRunner.System.CPU.PC = loadedAtAddress;
+                        _silkNetWindow.SystemRunner.System.CPU.PC = loadedAtAddress;
 
-                    _silkNetWindow.Start();
+                        _silkNetWindow.Start();
+                    }
+                    catch (Exception ex)
+                    {
+                        _lastFileError = ex.Message;
+                    }
                 }
                 else
                 {
@@ -248,6 +260,13 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                 default:
                     break;
             }
+        }
+
+        if (!string.IsNullOrEmpty(_lastFileError))
+        {
+            ImGui.PushStyleColor(ImGuiCol.Text, s_errorColor);
+            ImGui.Text($"File error: {_lastFileError}");
+            ImGui.PopStyleColor();
         }
 
         ImGui.PushStyleColor(ImGuiCol.Text, s_warningColor);
@@ -325,25 +344,33 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                 _silkNetWindow.Pause();
             }
             _silkNetWindow.Pause();
+            _lastFileError = "";
             var dialogResult = Dialog.FileOpen(@"prg;*");
             if (dialogResult.IsOk)
             {
-                var fileName = dialogResult.Path;
-                BinaryLoader.Load(
-                    _silkNetWindow.SystemRunner.System.Mem,
-                    fileName,
-                    out ushort loadedAtAddress,
-                    out ushort fileLength);
+                try
+                {
+                    var fileName = dialogResult.Path;
+                    BinaryLoader.Load(
+                        _silkNetWindow.SystemRunner.System.Mem,
+                        fileName,
+                        out ushort loadedAtAddress,
+                        out ushort fileLength);
 
-                if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
-                {
-                    // Probably not a Basic program that was loaded. Don't init BASIC memory variables.
-                    Debug.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
+                    if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
+                    {
+                        // Probably not a Basic program that was loaded. Don't init BASIC memory variables.
+                        _logger.LogWarning($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
+                    }
+                    else
+                    {
+                        // Init C64 BASIC memory variables
+                        ((C64)_silkNetWindow.SystemRunner.System).InitBasicMemoryVariables(loadedAtAddress, fileLength);
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    // Init C64 BASIC memory variables
-                    ((C64)_silkNetWindow.SystemRunner.System).InitBasicMemoryVariables(loadedAtAddress, fileLength);
+                    _lastFileError = ex.Message;
                 }
             }
 
@@ -362,18 +389,26 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                 _silkNetWindow.Pause();
             }
             _silkNetWindow.Pause();
+            _lastFileError = "";
             var dialogResult = Dialog.FileSave(@"prg;*");
             if (dialogResult.IsOk)
             {
-                var fileName = dialogResult.Path;
-                ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
-                var endAddressValue = ((C64)_silkNetWindow.SystemRunner.System).GetBasicProgramEndAddress();
-                BinarySaver.Save(
-                    _silkNetWindow.SystemRunner.System.Mem,
-                    fileName,
-                    startAddressValue,
-                    endAddressValue,
-                    addFileHeaderWithLoadAddress: true);
+                try
+                {
+                    var fileName = dialogResult.Path;
+                    ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
+                    var endAddressValue = ((C64)_silkNetWindow.SystemRunner.System).GetBasicProgramEndAddress();
+                    BinarySaver.Save(
+                        _silkNetWindow.SystemRunner.System.Mem,
+                        fileName,
+                        startAddressValue,
+                        endAddressValue,
+                        addFileHeaderWithLoadAddress: true);
+                }
+                catch (Exception ex)
+                {
+                    _lastFileError = ex.Message;
+                }
             }
 
             if (wasRunning)

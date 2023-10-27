@@ -61,7 +61,8 @@ public class SilkNetWindow
     private readonly PerSecondTimedStat _renderFps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNetSkiaSharp-OnRenderFPS");
 
     private const string CustomSystemStatNamePrefix = "Emulator-SystemTime-Custom-";
-    private Dictionary<string, ElapsedMillisecondsStat> _customSystemStats = new();
+    private const string CustomRenderStatNamePrefix = "SkiaSharp-RenderTime-Custom-";
+    private Dictionary<string, ElapsedMillisecondsStat> _customStats = new();
 
     // SkipSharp context/surface/canvas
     private SkiaRenderContext _skiaRenderContext;
@@ -150,7 +151,7 @@ public class SilkNetWindow
         InitImGui();
 
         // Init main menu UI
-        _menu = new SilkNetImGuiMenu(this, _emulatorConfig.DefaultEmulator, _defaultAudioEnabled, _defaultAudioVolumePercent, _mapper);
+        _menu = new SilkNetImGuiMenu(this, _emulatorConfig.DefaultEmulator, _defaultAudioEnabled, _defaultAudioVolumePercent, _mapper, _loggerFactory);
 
         // Create other UI windows
         _statsPanel = CreateStatsUI();
@@ -236,8 +237,6 @@ public class SilkNetWindow
             Window.Size = new Vector2D<int>((int)(screen.VisibleWidth * CanvasScale), (int)(screen.VisibleHeight * CanvasScale));
             Window.UpdatesPerSecond = screen.RefreshFrequencyHz;
 
-            InitCustomSystemStats(system);
-
             InitRendering();
         }
         else
@@ -245,21 +244,30 @@ public class SilkNetWindow
         }
     }
 
-    private void InitCustomSystemStats(ISystem system)
+    private void InitCustomSystemStats()
     {
         // Remove any existing custom system stats
-        foreach (var existingCustomSystemStatName in _customSystemStats.Keys)
+        foreach (var existingCustomStatName in _customStats.Keys)
         {
-            if (existingCustomSystemStatName.StartsWith(CustomSystemStatNamePrefix))
+            if (existingCustomStatName.StartsWith(CustomSystemStatNamePrefix)
+                || existingCustomStatName.StartsWith(CustomRenderStatNamePrefix))
             {
-                InstrumentationBag.Remove(existingCustomSystemStatName);
-                _customSystemStats.Remove(existingCustomSystemStatName);
+                InstrumentationBag.Remove(existingCustomStatName);
+                _customStats.Remove(existingCustomStatName);
             }
         }
         // Add any custom system stats for selected system
-        foreach (var customSystemStatName in system.DetailedStatNames)
+        var system = _systemRunner.System;
+        foreach (var customStatName in system.DetailedStatNames)
         {
-            _customSystemStats.Add($"{CustomSystemStatNamePrefix}{customSystemStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomSystemStatNamePrefix}{customSystemStatName}"));
+            _customStats.Add($"{CustomSystemStatNamePrefix}{customStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomSystemStatNamePrefix}{customStatName}"));
+        }
+
+        // Add any custom system stats for selected renderer
+        var renderer = _systemRunner.Renderer;
+        foreach (var customStatName in renderer.DetailedStatNames)
+        {
+            _customStats.Add($"{CustomRenderStatNamePrefix}{customStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomRenderStatNamePrefix}{customStatName}"));
         }
     }
 
@@ -280,6 +288,8 @@ public class SilkNetWindow
         // Only create a new instance of SystemRunner if we previously has not started (so resume after pause works).
         if (EmulatorState == EmulatorState.Uninitialized)
             _systemRunner = _systemList.BuildSystemRunner(_currentSystemName).Result;
+
+        InitCustomSystemStats();
 
         _monitor.Init(_systemRunner!);
 
@@ -363,11 +373,11 @@ public class SilkNetWindow
             // TODO: Make custom system stats less messy?
             foreach (var detailedStatName in detailedStats.Keys)
             {
-                var statLookup = _customSystemStats.Keys.SingleOrDefault(x => x.EndsWith(detailedStatName));
+                var statLookup = _customStats.Keys.SingleOrDefault(x => x.EndsWith(detailedStatName));
                 if (statLookup != null)
                 {
-                    _customSystemStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].Set(detailedStats[detailedStatName]);
-                    _customSystemStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].UpdateStat();
+                    _customStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].Set(detailedStats[detailedStatName]);
+                    _customStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].UpdateStat();
                 }
             }
         }
@@ -408,12 +418,27 @@ public class SilkNetWindow
             using (_renderTime.Measure())
             {
                 // Render emulator system screen
-                _systemRunner!.Draw();
+                _systemRunner!.Draw(out Dictionary<string, double> detailedStats);
 
                 // Flush the Skia Context
                 _skiaRenderContext.GetGRContext().Flush();
+
+                // Update custom system stats
+                // TODO: Make custom system stats less messy?
+                foreach (var detailedStatName in detailedStats.Keys)
+                {
+                    var statLookup = _customStats.Keys.SingleOrDefault(x => x.EndsWith(detailedStatName));
+                    if (statLookup != null)
+                    {
+                        _customStats[$"{CustomRenderStatNamePrefix}{detailedStatName}"].Set(detailedStats[detailedStatName]);
+                        _customStats[$"{CustomRenderStatNamePrefix}{detailedStatName}"].UpdateStat();
+                    }
+                }
+
             }
             emulatorRendered = true;
+
+
 
             // SilkNet windows are what's known as "double-buffered". In essence, the window manages two buffers.
             // One is rendered to while the other is currently displayed by the window.

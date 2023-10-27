@@ -67,9 +67,13 @@ public class SystemRunner
     /// <summary>
     /// Called by host app that runs the emulator, typically once per frame tied to the host app rendering frequency.
     /// </summary>
-    public void Draw()
+    public void Draw(out Dictionary<string, double> detailedStats)
     {
-        _renderer?.Draw(_system);
+        detailedStats = new()
+        {
+        };
+
+        _renderer?.Draw(_system, detailedStats);
     }
 
     /// <summary>

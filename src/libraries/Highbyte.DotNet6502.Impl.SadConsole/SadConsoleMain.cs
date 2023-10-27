@@ -90,7 +90,7 @@ public class SadConsoleMain
         var execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame(out _);
 
         // Update SadConsole screen
-        _systemRunner.Draw();
+        _systemRunner.Draw(out Dictionary<string, double> detailedStats);
 
         if (execEvaluatorTriggerResult.Triggered)
         {

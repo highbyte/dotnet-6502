@@ -9,6 +9,9 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>
     private SadConsoleRenderContext _sadConsoleRenderContext = default!;
     private C64SadConsoleColors _c64SadConsoleColors = default!;
 
+    public bool HasDetailedStats => false;
+    public List<string> DetailedStatNames => new List<string>();
+
     public C64SadConsoleRenderer()
     {
     }
@@ -24,15 +27,15 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>
         Init((C64)system, (SadConsoleRenderContext)renderContext);
     }
 
-    public void Draw(C64 c64)
+    public void Draw(C64 c64, Dictionary<string, double> detailedStats)
     {
         RenderMainScreen(c64);
         RenderBorder(c64);
     }
 
-    public void Draw(ISystem system)
+    public void Draw(ISystem system, Dictionary<string, double> detailedStats)
     {
-        Draw((C64)system);
+        Draw((C64)system, detailedStats);
     }
 
     private void RenderMainScreen(C64 c64)
