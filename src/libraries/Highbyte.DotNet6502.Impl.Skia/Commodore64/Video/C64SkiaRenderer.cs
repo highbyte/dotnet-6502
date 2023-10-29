@@ -272,9 +272,9 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         var currentColorAddress = Vic2Addr.COLOR_RAM_START;
 
         var characterMode = vic2.CharacterMode;
-        byte backgroundColor1 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1); // Background color used for extended charcater mode
-        byte backgroundColor2 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2); // Background color used for extended charcater mode
-        byte backgroundColor3 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3); // Background color used for extended charcater mode
+        byte backgroundColor1 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1); // Background color used for extended character mode
+        byte backgroundColor2 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2); // Background color used for extended character mode
+        byte backgroundColor3 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3); // Background color used for extended character mode
 
         for (var row = 0; row < vic2Screen.TextRows; row++)
         {

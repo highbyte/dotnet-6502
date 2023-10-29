@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
 
-public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
+public class GenericComputerSetup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => GenericComputer.SystemName;
 
@@ -70,7 +70,7 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, SilkNetI
     public SystemRunner BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
-        SkiaRenderContext skiaRenderContext,
+        SilkNetRenderContextContainer renderContext,
         SilkNetInputHandlerContext inputHandlerContext,
         NAudioAudioHandlerContext audioHandlerContext)
     {
@@ -82,7 +82,7 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, SilkNetI
 
         var genericComputer = (GenericComputer)system;
 
-        renderer.Init(genericComputer, skiaRenderContext);
+        renderer.Init(genericComputer, renderContext);
         inputHandler.Init(genericComputer, inputHandlerContext);
 
         var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext>(genericComputer);

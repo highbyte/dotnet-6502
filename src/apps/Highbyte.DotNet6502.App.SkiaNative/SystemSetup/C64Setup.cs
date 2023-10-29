@@ -2,6 +2,7 @@ using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
+using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
 using Highbyte.DotNet6502.Systems;
@@ -11,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
 
-public class C64Setup : SystemConfigurer<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
+public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
 
@@ -84,16 +85,24 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, SilkNetInputHandlerC
     public SystemRunner BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
-        SkiaRenderContext renderContext,
+        SilkNetRenderContextContainer renderContextContainer,
         SilkNetInputHandlerContext inputHandlerContext,
         NAudioAudioHandlerContext audioHandlerContext
         )
     {
-        var renderer = new C64SkiaRenderer();
+        // TODO: Move IHostSystemConfig into SystemConfigurer instead of existing in both Native and WASM host apps.
+        //var c64HostConfig = (C64HostConfig)hostSystemConfig;
+
+        //var renderer = new C64SkiaRenderer();
+        //var renderContext = renderContextContainer.SkiaRenderContext;
+        var renderer = new C64SilkNetOpenGlRenderer();
+        var renderContext = renderContextContainer.SilkNetOpenGlRenderContext;
+
         var inputHandler = new C64SilkNetInputHandler(_loggerFactory, _c64HostConfig.InputConfig);
         var audioHandler = new C64NAudioAudioHandler(_loggerFactory);
 
         var c64 = (C64)system;
+
         renderer.Init(c64, renderContext);
         inputHandler.Init(c64, inputHandlerContext);
         audioHandler.Init(c64, audioHandlerContext);

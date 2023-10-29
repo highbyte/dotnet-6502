@@ -3,7 +3,6 @@ using Highbyte.DotNet6502.App.SkiaNative;
 using Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SilkNet;
-using Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Logging.InMem;
@@ -29,7 +28,7 @@ var loggerFactory = LoggerFactory.Create(builder =>
 // ----------
 // Systems
 // ----------
-var systemList = new SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>();
+var systemList = new SystemList<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>();
 
 var c64HostConfig = new C64HostConfig();
 var c64Setup = new C64Setup(loggerFactory, c64HostConfig);
@@ -54,8 +53,8 @@ var emulatorConfig = new EmulatorConfig
     },
     HostSystemConfigs = new Dictionary<string, IHostSystemConfig>
     {
-        { C64.SystemName, c64HostConfig }
-        //{ GenericComputer.SystemName, new GenericComputerHostConfig() }
+        { C64.SystemName, c64HostConfig },
+        { GenericComputer.SystemName, null }
     }
 };
 emulatorConfig.Validate(systemList);

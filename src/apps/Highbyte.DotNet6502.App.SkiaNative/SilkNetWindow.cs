@@ -28,8 +28,8 @@ public class SilkNetWindow
     private readonly EmulatorConfig _emulatorConfig;
     public EmulatorConfig EmulatorConfig => _emulatorConfig;
 
-    private readonly SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext> _systemList;
-    public SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext> SystemList => _systemList;
+    private readonly SystemList<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext> _systemList;
+    public SystemList<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext> SystemList => _systemList;
 
     private readonly DotNet6502InMemLogStore _logStore;
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
@@ -64,8 +64,8 @@ public class SilkNetWindow
     private const string CustomRenderStatNamePrefix = "SkiaSharp-RenderTime-Custom-";
     private Dictionary<string, ElapsedMillisecondsStat> _customStats = new();
 
-    // SkipSharp context/surface/canvas
-    private SkiaRenderContext _skiaRenderContext;
+    // Render context container for SkipSharp (surface/canvas) and OpenGl
+    private SilkNetRenderContextContainer _silkNetRenderContextContainer;
     // SilkNet input handling
     private SilkNetInputHandlerContext _silkNetInputHandlerContext;
     // NAudio audio handling
@@ -104,7 +104,7 @@ public class SilkNetWindow
     public SilkNetWindow(
         EmulatorConfig emulatorConfig,
         IWindow window,
-        SystemList<SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext> systemList,
+        SystemList<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext> systemList,
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
@@ -146,7 +146,7 @@ public class SilkNetWindow
         InitInput();
         InitAudio();
 
-        _systemList.InitContext(() => _skiaRenderContext, () => _silkNetInputHandlerContext, () => _naudioAudioHandlerContext);
+        _systemList.InitContext(() => _silkNetRenderContextContainer, () => _silkNetInputHandlerContext, () => _naudioAudioHandlerContext);
 
         InitImGui();
 
@@ -173,7 +173,7 @@ public class SilkNetWindow
         DestroyImGuiController();
 
         // Cleanup Skia resources
-        _skiaRenderContext.Cleanup();
+        _silkNetRenderContextContainer.Cleanup();
 
         // Cleanup SilkNet input resources
         _silkNetInputHandlerContext.Cleanup();
@@ -214,11 +214,15 @@ public class SilkNetWindow
             return addrFound ? addr : 0;
         };
 
-        _skiaRenderContext = new SkiaRenderContext(
+        var skiaRenderContext = new SkiaRenderContext(
             getProcAddress,
             _window.FramebufferSize.X,
             _window.FramebufferSize.Y,
             _emulatorConfig.CurrentDrawScale * (_window.FramebufferSize.X / _window.Size.X));
+
+        var silkNetOpenGlRenderContext = new SilkNetOpenGlRenderContext(_window, _emulatorConfig.CurrentDrawScale);
+
+        _silkNetRenderContextContainer = new SilkNetRenderContextContainer(skiaRenderContext, silkNetOpenGlRenderContext);
     }
 
     public void SetCurrentSystem(string systemName)
@@ -421,7 +425,7 @@ public class SilkNetWindow
                 _systemRunner!.Draw(out Dictionary<string, double> detailedStats);
 
                 // Flush the Skia Context
-                _skiaRenderContext.GetGRContext().Flush();
+                _silkNetRenderContextContainer.SkiaRenderContext.GetGRContext().Flush();
 
                 // Update custom system stats
                 // TODO: Make custom system stats less messy?
@@ -475,9 +479,9 @@ public class SilkNetWindow
                 _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
             }
             // Seems the canvas has to be drawn & flushed for ImGui stuff to be visible on top
-            var canvas = _skiaRenderContext.GetCanvas();
+            var canvas = _silkNetRenderContextContainer.SkiaRenderContext.GetCanvas();
             canvas.Clear();
-            _skiaRenderContext.GetGRContext().Flush();
+            _silkNetRenderContextContainer.SkiaRenderContext.GetGRContext().Flush();
         }
 
         if (_menu.Visible)
