@@ -46,8 +46,8 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
         public uint ColMode40;   // 0 = 38 col mode, 1 = 40 col mode
         public uint RowMode25;   // 0 = 24 row mode, 1 = 25 row mode
-        public uint ScrollX;     // 0-7 horizontal fine scrolling
-        public uint ScrollY;     // 0-7 vertical fine scrolling
+        public uint ScrollX;     // 0 to 7 horizontal fine scrolling (+1 in 38 col mode)
+        public int ScrollY;      // -3 to 4 vertical fine scrolling (+1 in 24 row mode)
 
     }
     public struct ColorMapData
@@ -190,14 +190,14 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _uboTextData.Update(textScreenData, 0);
 
         // Raster line data UBO
-        var rasterLineColorData = new RasterLineData[c64.Vic2.Vic2Screen.VisibleHeight];
+        var rasterLineData = new RasterLineData[c64.Vic2.Vic2Screen.VisibleHeight];
         foreach (var c64ScreenLine in c64.Vic2.ScreenLineBorderColor.Keys)
         {
             if (c64ScreenLine < visibileLayout.TopBorder.Start.Y || c64ScreenLine > visibileLayout.BottomBorder.End.Y)
                 continue;
             var canvasYPos = (ushort)(c64ScreenLine - visibileLayout.TopBorder.Start.Y);
             var borderColor = c64.Vic2.ScreenLineBorderColor[c64ScreenLine];
-            rasterLineColorData[canvasYPos].BorderColorCode = borderColor;
+            rasterLineData[canvasYPos].BorderColorCode = borderColor;
         }
         foreach (var c64ScreenLine in c64.Vic2.ScreenLineBackgroundColor.Keys)
         {
@@ -205,17 +205,17 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
                 continue;
             var canvasYPos = (ushort)(c64ScreenLine - visibileLayout.TopBorder.Start.Y);
             var bgColor0 = c64.Vic2.ScreenLineBackgroundColor[c64ScreenLine];
-            rasterLineColorData[canvasYPos].BackgroundColor0Code = bgColor0;
+            rasterLineData[canvasYPos].BackgroundColor0Code = bgColor0;
         }
-        for (int i = 0; i < rasterLineColorData.Length; i++)
+        for (int i = 0; i < rasterLineData.Length; i++)
         {
-            rasterLineColorData[i].ColMode40 = vic2.Is38ColumnDisplayEnabled ? 0u : 1u;
-            rasterLineColorData[i].RowMode25 = vic2.Is24RowDisplayEnabled ? 0u : 1u;
-            rasterLineColorData[i].ScrollX = (uint)vic2.GetScrollX();
-            rasterLineColorData[i].ScrollY = (uint)vic2.GetScrollY();
+            rasterLineData[i].ColMode40 = vic2.Is38ColumnDisplayEnabled ? 0u : 1u;
+            rasterLineData[i].RowMode25 = vic2.Is24RowDisplayEnabled ? 0u : 1u;
+            rasterLineData[i].ScrollX = (uint)vic2.GetScrollX();
+            rasterLineData[i].ScrollY = vic2.GetScrollY();
         }
 
-        _uboRasterLineData.Update(rasterLineColorData, 0);
+        _uboRasterLineData.Update(rasterLineData, 0);
 
         // Setup shader for use in rendering
         _shader.Use();

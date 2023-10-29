@@ -39,8 +39,8 @@ struct RasterLineData
 
   uint colMode40;   // 0 = 38 col mode, 1 = 40 col mode
   uint rowMode25;   // 0 = 24 row mode, 1 = 25 row mode
-  uint scrollX;     // 0-7 horizontal fine scrolling
-  uint scrollY;     // 0-7 vertical fine scrolling
+  uint scrollX;     // 0 to 7 horizontal fine scrolling (+1 in 38 col mode). Default 0.
+  int scrollY;      // -3 to 4 vertical fine scrolling (+1 in 24 row mode). Default 0.
 };
 
 // Note: need total 16 bytes for each uniform value. Either a vec4, or a custom struct that adds up to 16.
@@ -71,6 +71,7 @@ layout (std140) uniform ubRasterLineData
 //
 const uint u0 = uint(0);
 const uint u1 = uint(1);
+const uint u4 = uint(4);
 const uint u7 = uint(7);
 const uint u8 = uint(8);
 const uint u15 = uint(15);
@@ -97,11 +98,14 @@ void main()
 
     // Detect border area, draw only border color
     uint horizontalBorderOffset = uRasterLineData[y].colMode40 == u1 ? u0 : u8;
-    uint verticalBorderOffset = uRasterLineData[y].rowMode25 == u1 ? u0 : u8;
+    uint verticalBorderOffset = uRasterLineData[y].rowMode25 == u1 ? u0 : u4;
 
     // Workaround for 38 col mode (to counter fine x scroll value is set to +1 in 38 col mode)
     if(horizontalBorderOffset!=u0)
         x=x+u1;
+    // Workaround for 24 row mode (to counter fine y scroll value is set to +1 in 24 row mode)
+    if(verticalBorderOffset!=u0)
+        y=y+u1;
 
     if((x < (uTextScreenStart.x+horizontalBorderOffset) || (x > (uTextScreenEnd.x-horizontalBorderOffset)))
          || (y < (uTextScreenStart.y+verticalBorderOffset) || (y > (uTextScreenEnd.y-verticalBorderOffset))) )
