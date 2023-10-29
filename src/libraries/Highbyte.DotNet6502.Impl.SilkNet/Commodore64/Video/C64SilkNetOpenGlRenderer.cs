@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers;
 using Highbyte.DotNet6502.Systems;
@@ -6,9 +5,6 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Silk.NET.OpenGL;
-using static Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video.C64SilkNetOpenGlRenderer;
-using static Highbyte.DotNet6502.Systems.Commodore64.Video.ColorMaps;
-using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
@@ -20,7 +16,6 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     private GL _gl => _silkNetOpenGlRenderContext.Gl;
 
     private bool _changedAllCharsetCodes = false;
-    private HashSet<byte> _changedCharsetCodes = new();
 
     public bool HasDetailedStats => true;
     public List<string> DetailedStatNames => new List<string>()
@@ -70,6 +65,9 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
         _gl.Viewport(silkNetOpenGlRenderContext.Window.FramebufferSize);
 
+        // Listen to event when the VIC2 charset address is changed to recreate a image for the charset
+        c64.Vic2.CharsetManager.CharsetAddressChanged += (s, e) => CharsetChangedHandler(c64, e);
+
         InitShader(c64);
     }
 
@@ -100,7 +98,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _uboTextData = new BufferObject<TextData>(_gl, textData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
 
         // Define character set & create Uniform Buffer Object for fragment shader
-        var charsetData = BuildCharsetData(c64);
+        var charsetData = BuildCharsetData(c64, fromROM: true);
         _uboCharsetData = new BufferObject<CharsetData>(_gl, charsetData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
 
         // Create Uniform Buffer Object for mapping C64 colors to OpenGl colorCode (Vector4) for fragment shader
@@ -173,7 +171,14 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         //_gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
         _gl.Clear((uint)(ClearBufferMask.ColorBufferBit));
 
+
         // Update shader uniform buffers that needs to be updated
+        if (_changedAllCharsetCodes)
+        {
+            var charsetData = BuildCharsetData(c64, fromROM: false);
+            _uboCharsetData.Update(charsetData);
+            _changedAllCharsetCodes = false;
+        }
         var textScreenData = BuildTextScreenData(c64);
         _uboTextData.Update(textScreenData, 0);
 
@@ -221,36 +226,41 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         return textData;
     }
 
-    private CharsetData[] BuildCharsetData(C64 c64)
+    private CharsetData[] BuildCharsetData(C64 c64, bool fromROM)
     {
-        var characterSetsROM = c64.ROMData[C64Config.CHARGEN_ROM_NAME];
-
+        var charsetManager = c64.Vic2.CharsetManager;
         // A character is defined by 8 bytes (1 line per byte), 256 total characters = 2048 items
         var charsetData = new CharsetData[Vic2CharsetManager.CHARACTERSET_SIZE];
-        for (int i = 0; i < charsetData.Length; i++)
+
+        if (fromROM)
         {
-            charsetData[i].CharLine = characterSetsROM[i];
-        };
+            var charsets = c64.ROMData[C64Config.CHARGEN_ROM_NAME];
+            for (int i = 0; i < charsetData.Length; i++)
+            {
+                charsetData[i].CharLine = charsets[(ushort)(i)];
+            };
+        }
+        else
+        {
+            for (int i = 0; i < charsetData.Length; i++)
+            {
+                charsetData[i].CharLine = c64.Vic2.Vic2Mem[(ushort)(charsetManager.CharacterSetAddressInVIC2Bank + i)];
+            };
+        }
 
         return charsetData;
-    }
-
-    private void InitCharset(C64 c64)
-    {
-        // Listen to event when the VIC2 charset address is changed to recreate a image for the charset
-        c64.Vic2.CharsetManager.CharsetAddressChanged += (s, e) => CharsetChangedHandler(c64, e);
     }
 
     private void CharsetChangedHandler(C64 c64, Vic2CharsetManager.CharsetAddressChangedEventArgs e)
     {
         if (e.ChangeType == Vic2CharsetManager.CharsetAddressChangedEventArgs.CharsetChangeType.CharacterSetBaseAddress)
-            //GenerateCurrentChargenImage(c64);
             _changedAllCharsetCodes = true;
         else if (e.ChangeType == Vic2CharsetManager.CharsetAddressChangedEventArgs.CharsetChangeType.CharacterSetCharacter && e.CharCode.HasValue)
         {
-            //UpdateChangedCharacterOnCurrentImage(c64, e.CharCode.Value);
-            if (!_changedCharsetCodes.Contains(e.CharCode.Value))
-                _changedCharsetCodes.Add(e.CharCode.Value);
+            // Updating individual characters in the UBO array probably take longer time than just updating the entire array.
+            _changedAllCharsetCodes = true;
+            //if (!_changedCharsetCodes.Contains(e.CharCode.Value))
+            //    _changedCharsetCodes.Add(e.CharCode.Value);
         }
     }
 
