@@ -88,9 +88,15 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetIn
         return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
     }
 
+    public Task<IHostSystemConfig> GetHostSystemConfig()
+    {
+        return Task.FromResult((IHostSystemConfig)null);
+    }
+
     public SystemRunner BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
+        IHostSystemConfig hostSystemConfig,
         SkiaRenderContext skiaRenderContext,
         AspNetInputHandlerContext inputHandlerContext,
         WASMAudioHandlerContext audioHandlerContext)

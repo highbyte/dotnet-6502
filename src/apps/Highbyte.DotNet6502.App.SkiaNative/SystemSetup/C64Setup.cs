@@ -82,21 +82,36 @@ public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetI
         return c64;
     }
 
+    public Task<IHostSystemConfig> GetHostSystemConfig()
+    {
+        return Task.FromResult((IHostSystemConfig)_c64HostConfig);
+    }
+
     public SystemRunner BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
+        IHostSystemConfig hostSystemConfig,
         SilkNetRenderContextContainer renderContextContainer,
         SilkNetInputHandlerContext inputHandlerContext,
         NAudioAudioHandlerContext audioHandlerContext
         )
     {
-        // TODO: Move IHostSystemConfig into SystemConfigurer instead of existing in both Native and WASM host apps.
-        //var c64HostConfig = (C64HostConfig)hostSystemConfig;
-
-        //var renderer = new C64SkiaRenderer();
-        //var renderContext = renderContextContainer.SkiaRenderContext;
-        var renderer = new C64SilkNetOpenGlRenderer();
-        var renderContext = renderContextContainer.SilkNetOpenGlRenderContext;
+        var c64HostConfig = (C64HostConfig)hostSystemConfig;
+        IRenderer renderer;
+        IRenderContext renderContext;
+        switch (c64HostConfig.Renderer)
+        {
+            case C64HostRenderer.SkiaSharp:
+                renderer = new C64SkiaRenderer();
+                renderContext = renderContextContainer.SkiaRenderContext;
+                break;
+            case C64HostRenderer.SilkNetOpenGl:
+                renderer = new C64SilkNetOpenGlRenderer();
+                renderContext = renderContextContainer.SilkNetOpenGlRenderContext;
+                break;
+            default:
+                throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
+        }
 
         var inputHandler = new C64SilkNetInputHandler(_loggerFactory, _c64HostConfig.InputConfig);
         var audioHandler = new C64NAudioAudioHandler(_loggerFactory);

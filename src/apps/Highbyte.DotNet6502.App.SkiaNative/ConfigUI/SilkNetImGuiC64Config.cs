@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SkiaNative.ConfigUI;
 
@@ -16,6 +17,9 @@ public class SilkNetImGuiC64Config
     private string? _kernalRomFile;
     private string? _basicRomFile;
     private string? _chargenRomFile;
+
+    private int _selectedRenderer = 0;
+    private string[] _availableRenderers = Enum.GetNames<C64HostRenderer>();
 
     private bool _open;
 
@@ -52,6 +56,8 @@ public class SilkNetImGuiC64Config
         _kernalRomFile = _config.HasROM(C64Config.KERNAL_ROM_NAME) ? _config.GetROM(C64Config.KERNAL_ROM_NAME).File! : "";
         _basicRomFile = _config.HasROM(C64Config.KERNAL_ROM_NAME) ? _config.GetROM(C64Config.BASIC_ROM_NAME).File! : "";
         _chargenRomFile = _config.HasROM(C64Config.KERNAL_ROM_NAME) ? _config.GetROM(C64Config.CHARGEN_ROM_NAME).File! : "";
+
+        _selectedRenderer = _availableRenderers.ToList().IndexOf(_hostConfig.Renderer.ToString());
     }
 
     public void PostOnRender(string dialogLabel)
@@ -80,6 +86,16 @@ public class SilkNetImGuiC64Config
             {
                 _config!.SetROM(C64Config.CHARGEN_ROM_NAME, _chargenRomFile);
             }
+
+            // Renderer
+            ImGui.Text("Renderer:");
+            ImGui.SameLine();
+            ImGui.PushItemWidth(140);
+            if (ImGui.Combo("##renderer", ref _selectedRenderer, _availableRenderers, _availableRenderers.Length))
+            {
+                _hostConfig.Renderer = Enum.Parse<C64HostRenderer>(_availableRenderers[_selectedRenderer]);
+            }
+            ImGui.PopItemWidth();
 
             // Joystick
             ImGui.Text("Joystick:");

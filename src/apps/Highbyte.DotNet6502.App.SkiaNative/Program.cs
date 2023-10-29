@@ -30,7 +30,10 @@ var loggerFactory = LoggerFactory.Create(builder =>
 // ----------
 var systemList = new SystemList<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>();
 
-var c64HostConfig = new C64HostConfig();
+var c64HostConfig = new C64HostConfig
+{
+    Renderer = C64HostRenderer.SilkNetOpenGl
+};
 var c64Setup = new C64Setup(loggerFactory, c64HostConfig);
 await systemList.AddSystem(c64Setup);
 

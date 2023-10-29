@@ -67,9 +67,16 @@ public class GenericComputerSetup : SystemConfigurer<SilkNetRenderContextContain
         return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
     }
 
+
+    public Task<IHostSystemConfig> GetHostSystemConfig()
+    {
+        return Task.FromResult((IHostSystemConfig)null);
+    }
+
     public SystemRunner BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
+        IHostSystemConfig hostSystemConfig,
         SilkNetRenderContextContainer renderContext,
         SilkNetInputHandlerContext inputHandlerContext,
         NAudioAudioHandlerContext audioHandlerContext)
@@ -82,7 +89,7 @@ public class GenericComputerSetup : SystemConfigurer<SilkNetRenderContextContain
 
         var genericComputer = (GenericComputer)system;
 
-        renderer.Init(genericComputer, renderContext);
+        renderer.Init(genericComputer, renderContext.SkiaRenderContext);
         inputHandler.Init(genericComputer, inputHandlerContext);
 
         var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext>(genericComputer);

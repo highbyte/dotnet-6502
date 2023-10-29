@@ -56,15 +56,15 @@ public class SilkNetWindow
     private readonly ElapsedMillisecondsTimedStat _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("SilkNet-InputTime");
     private readonly ElapsedMillisecondsTimedStat _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("Emulator-SystemTime");
     private readonly ElapsedMillisecondsStat _systemTimeAudio = InstrumentationBag.Add<ElapsedMillisecondsStat>("Emulator-SystemTime-Audio"); // Detailed part of system time
-    private readonly ElapsedMillisecondsTimedStat _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("SkiaSharp-RenderTime");
-    private readonly PerSecondTimedStat _updateFps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNetSkiaSharp-OnUpdateFPS");
-    private readonly PerSecondTimedStat _renderFps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNetSkiaSharp-OnRenderFPS");
+    private readonly ElapsedMillisecondsTimedStat _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("SilkNet-RenderTime");
+    private readonly PerSecondTimedStat _updateFps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNet-OnUpdateFPS");
+    private readonly PerSecondTimedStat _renderFps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNet-OnRenderFPS");
 
     private const string CustomSystemStatNamePrefix = "Emulator-SystemTime-Custom-";
-    private const string CustomRenderStatNamePrefix = "SkiaSharp-RenderTime-Custom-";
+    private const string CustomRenderStatNamePrefix = "SilkNet-RenderTime-Custom-";
     private Dictionary<string, ElapsedMillisecondsStat> _customStats = new();
 
-    // Render context container for SkipSharp (surface/canvas) and OpenGl
+    // Render context container for SkipSharp (surface/canvas) and SilkNetOpenGl
     private SilkNetRenderContextContainer _silkNetRenderContextContainer;
     // SilkNet input handling
     private SilkNetInputHandlerContext _silkNetInputHandlerContext;
@@ -172,7 +172,7 @@ public class SilkNetWindow
         // _statsPanel.Cleanup();
         DestroyImGuiController();
 
-        // Cleanup Skia resources
+        // Cleanup SkiaSharp resources
         _silkNetRenderContextContainer.Cleanup();
 
         // Cleanup SilkNet input resources
@@ -424,7 +424,7 @@ public class SilkNetWindow
                 // Render emulator system screen
                 _systemRunner!.Draw(out Dictionary<string, double> detailedStats);
 
-                // Flush the Skia Context
+                // Flush the SkiaSharp Context
                 _silkNetRenderContextContainer.SkiaRenderContext.GetGRContext().Flush();
 
                 // Update custom system stats

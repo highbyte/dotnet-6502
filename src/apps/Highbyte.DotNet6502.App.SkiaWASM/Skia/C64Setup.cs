@@ -61,9 +61,15 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
         return c64;
     }
 
+    public Task<IHostSystemConfig> GetHostSystemConfig()
+    {
+        return Task.FromResult((IHostSystemConfig)_c64HostConfig);
+    }
+
     public SystemRunner BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
+        IHostSystemConfig hostSystemConfig,
         SkiaRenderContext renderContext,
         AspNetInputHandlerContext inputHandlerContext,
         WASMAudioHandlerContext audioHandlerContext
