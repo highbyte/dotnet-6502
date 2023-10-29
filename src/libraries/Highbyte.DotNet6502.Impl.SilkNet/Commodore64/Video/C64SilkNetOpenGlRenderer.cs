@@ -9,7 +9,7 @@ using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
 
-public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContext>
+public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContext>, IDisposable
 {
 
     private SilkNetOpenGlRenderContext _silkNetOpenGlRenderContext;
@@ -37,6 +37,13 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         public uint __;         // unused
         public uint ___;        // unused
     }
+    public struct RasterLineColorData
+    {
+        public uint BorderColorCode;        // uint = 4 bytes, only using 1 byte
+        public uint BackgroundColor0Code;   // uint = 4 bytes, only using 1 byte
+        public uint __;         // unused
+        public uint ___;        // unused
+    }
     public struct ColorMapData
     {
         public uint ColorCode;   // uint = 4 bytes, only using 1 byte
@@ -54,6 +61,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     private BufferObject<TextData> _uboTextData;
     private BufferObject<CharsetData> _uboCharsetData;
     private BufferObject<ColorMapData> _uboColorMapData;
+    private BufferObject<RasterLineColorData> _uboRasterLineColorData;
 
     public C64SilkNetOpenGlRenderer()
     {
@@ -101,6 +109,10 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         var charsetData = BuildCharsetData(c64, fromROM: true);
         _uboCharsetData = new BufferObject<CharsetData>(_gl, charsetData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
 
+        // Rasterline colors Uniform Buffer Object for fragment shader
+        var rasterLineColorData = new RasterLineColorData[c64.Vic2.Vic2Screen.VisibleHeight];
+        _uboRasterLineColorData = new BufferObject<RasterLineColorData>(_gl, rasterLineColorData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
+
         // Create Uniform Buffer Object for mapping C64 colors to OpenGl colorCode (Vector4) for fragment shader
         var colorMapData = new ColorMapData[16];
         var colorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
@@ -120,6 +132,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _shader.BindUBO("ubTextData", _uboTextData, binding_point_index: 0);
         _shader.BindUBO("ubCharsetData", _uboCharsetData, binding_point_index: 1);
         _shader.BindUBO("ubColorMap", _uboColorMapData, binding_point_index: 2);
+        _shader.BindUBO("ubRasterLineColorData", _uboRasterLineColorData, binding_point_index: 3);
     }
 
     public void Init(ISystem system, IRenderContext renderContext)
@@ -142,6 +155,9 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         // Offset based on horizontal and vertical scrolling settings
         var scrollX = vic2.GetScrollX();
         var scrollY = vic2.GetScrollY();
+
+        // Visible screen area
+        var visibileLayout = vic2ScreenLayouts.GetLayout(LayoutType.Visible);
         // Clip main screen area with consideration to possible 38 column and 24 row mode
         var visibleClippedScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);
         // Main screen draw area for characters, without consideration to 38 column mode or 24 row mode.
@@ -160,7 +176,6 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         //canvas.Translate(scrollX, scrollY);
 
         var characterMode = vic2.CharacterMode;
-        var borderColor = c64.ReadIOStorage(Vic2Addr.BORDER_COLOR); // TODO: Replace with array per raster line
         var backgroundColor0 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0); // Background colorCode used for all modes
         var backgroundColor1 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1); // Background colorCode used for extended character mode
         var backgroundColor2 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2); // Background colorCode used for extended character mode
@@ -173,14 +188,38 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
 
         // Update shader uniform buffers that needs to be updated
+
+        // Charset UBO
         if (_changedAllCharsetCodes)
         {
             var charsetData = BuildCharsetData(c64, fromROM: false);
             _uboCharsetData.Update(charsetData);
             _changedAllCharsetCodes = false;
         }
+        // Text screen UBO
         var textScreenData = BuildTextScreenData(c64);
         _uboTextData.Update(textScreenData, 0);
+
+        // Border colors per raster line UBO
+        var rasterLineColorData = new RasterLineColorData[c64.Vic2.Vic2Screen.VisibleHeight];
+        foreach (var c64ScreenLine in c64.Vic2.ScreenLineBorderColor.Keys)
+        {
+            if (c64ScreenLine < visibileLayout.TopBorder.Start.Y || c64ScreenLine > visibileLayout.BottomBorder.End.Y)
+                continue;
+            var canvasYPos = (ushort)(c64ScreenLine - visibileLayout.TopBorder.Start.Y);
+            var borderColor = c64.Vic2.ScreenLineBorderColor[c64ScreenLine];
+            rasterLineColorData[canvasYPos].BorderColorCode = borderColor;
+        }
+        foreach (var c64ScreenLine in c64.Vic2.ScreenLineBackgroundColor.Keys)
+        {
+            if (c64ScreenLine < visibileLayout.Screen.Start.Y || c64ScreenLine > visibileLayout.Screen.End.Y)
+                continue;
+            var canvasYPos = (ushort)(c64ScreenLine - visibileLayout.TopBorder.Start.Y);
+            var bgColor0 = c64.Vic2.ScreenLineBackgroundColor[c64ScreenLine];
+            rasterLineColorData[canvasYPos].BackgroundColor0Code = bgColor0;
+        }
+
+        _uboRasterLineColorData.Update(rasterLineColorData, 0);
 
         // Setup shader for use in rendering
         _shader.Use();
@@ -193,9 +232,6 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
         _shader.SetUniform("uTextScreenStart", new Vector2(visibleClippedScreenArea.Screen.Start.X, visibleClippedScreenArea.Screen.Start.Y));
         _shader.SetUniform("uTextScreenEnd", new Vector2(visibleClippedScreenArea.Screen.End.X, visibleClippedScreenArea.Screen.End.Y));
-
-        _shader.SetUniform("uBorderColor0", (uint)borderColor);
-        _shader.SetUniform("uBgColor", (uint)backgroundColor0);
 
         // Draw triangles covering the entire screen, with the fragment shader doing the actual drawing of 2D pixels.
         _vba.Bind();
@@ -330,5 +366,18 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
                 var colorByte = c64.ReadIOStorage(currentColorAddress++);
             }
         }
+    }
+
+    public void Dispose()
+    {
+        _gl?.BindBuffer(GLEnum.ArrayBuffer, 0);
+        _gl?.BindVertexArray(0);
+        _gl?.UseProgram(0);
+
+        _uboCharsetData?.Dispose();
+        _uboTextData?.Dispose();
+        _uboColorMapData?.Dispose();
+        _vbo?.Dispose();
+        _vba?.Dispose();
     }
 }

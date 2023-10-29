@@ -6,8 +6,6 @@ uniform vec3 uWindowSize;
 uniform vec2 uScale;
 uniform vec2 uTextScreenStart;
 uniform vec2 uTextScreenEnd;
-uniform uint uBorderColor0;
-uniform uint uBgColor;
 
 // Must be at least 16 bytes for UBO to work
 struct TextData 
@@ -32,6 +30,13 @@ struct ColorMapData
   uint u4;          // unused   
   vec4 color;       // Shader color value
 };
+struct RasterLineColorData 
+{
+  uint borderColorCode;         // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+  uint backgroundColor0Code;    // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+  uint u3;          // unused   
+  uint u4;          // unused   
+};
 
 // Note: need total 16 bytes for each uniform value. Either a vec4, or a custom struct that adds up to 16.
 layout (std140) uniform ubTextData
@@ -45,6 +50,10 @@ layout (std140) uniform ubCharsetData
 layout (std140) uniform ubColorMap
 { 
   ColorMapData uColorMapData[16];
+};
+layout (std140) uniform ubRasterLineColorData
+{ 
+  RasterLineColorData uRasterLineColorData[312]; // Maximum used by any VIC2 chip (PAL?)
 };
 
 //uint borderStartX = uint(49);
@@ -63,9 +72,6 @@ const uint u40 = uint(40);
 
 void main()
 {
-    vec4 borderColor0 = uColorMapData[uBorderColor0 & u15].color;
-    FragColor = borderColor0;
-
     // Screen coordinate option #1, via built-in gl_FragCoord
     // gl_FragCoord has absolute screen coordinates, not affected by window size.
     uint x = uint(gl_FragCoord.x * 1/uScale.x);
@@ -74,14 +80,19 @@ void main()
     // Screen coordinate option #2, via input variable from vertex shader
     // fViewPortPos (passed from vertex shader) has viewport coordinates, affected by window sixe.
     // Change viewport ranges from -1 to +1, to 0 to 1.
-//    float viewX = (fViewPortPos.x + 1) / 2;
-//    float viewY = 1 - ((fViewPortPos.y + 1) / 2);  // Make sure top/left is 0,0
-//    uint x = uint(viewX * uWindowSize.x * 1/uScale.x);
-//    uint y = uint(viewY * uWindowSize.y * 1/uScale.y);
+    //    float viewX = (fViewPortPos.x + 1) / 2;
+    //    float viewY = 1 - ((fViewPortPos.y + 1) / 2);  // Make sure top/left is 0,0
+    //    uint x = uint(viewX * uWindowSize.x * 1/uScale.x);
+    //    uint y = uint(viewY * uWindowSize.y * 1/uScale.y);
+
+
+    uint borderColorCode = uRasterLineColorData[y].borderColorCode;
+    vec4 borderColor = uColorMapData[borderColorCode & u15].color;
+    FragColor = borderColor;
 
     // Don't draw any pixels in the border
-    if((x < uTextScreenStart.x || (x >= uTextScreenEnd.x))
-         || (y < uTextScreenStart.y || (y >= uTextScreenEnd.y)) )
+    if((x < uTextScreenStart.x || (x > uTextScreenEnd.x))
+         || (y < uTextScreenStart.y || (y > uTextScreenEnd.y)) )
       return;
 
 	uint screenx = x - uint(uTextScreenStart.x);    //TODO: uTextScreenStart is adjusted for 38/40 col mode. Here it should alwayws use 40 col start positon 
@@ -94,7 +105,9 @@ void main()
     if(screenMemIndex >= uTextData.length)
         return;
 
-    vec4 bgColor = uColorMapData[uBgColor & u15].color;
+    uint bgColorCode0 = uRasterLineColorData[y].backgroundColor0Code;
+    vec4 bgColor0 = uColorMapData[bgColorCode0 & u15].color;
+
     uint charColorCode = uTextData[screenMemIndex].color;
     vec4 fgColor = uColorMapData[charColorCode & u15].color;
 
@@ -108,5 +121,5 @@ void main()
     if((charLine & mask) == mask)
         FragColor = fgColor;
     else
-        FragColor = bgColor;
+        FragColor = bgColor0;
 }
