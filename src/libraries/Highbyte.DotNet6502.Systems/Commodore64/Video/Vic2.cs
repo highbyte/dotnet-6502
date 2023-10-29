@@ -44,7 +44,7 @@ public class Vic2
         }
     }
 
-    public enum CharMode { Standard, Extended, MultiColor };
+    public enum CharMode { Standard = 0, Extended = 1, MultiColor = 2 };
 
     private ushort _currentRasterLineInternal = ushort.MaxValue;
     public ushort CurrentRasterLine => _currentRasterLineInternal;

@@ -23,7 +23,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     };
 
     // Types for Uniform Buffer Objects, must align to 16 bytes.
-    public unsafe struct TextData
+    public struct TextData
     {
         public uint Character;  // uint = 4 bytes, only using 1 byte
         public uint Color;      // uint = 4 bytes, only using 1 byte
@@ -41,8 +41,13 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     {
         public uint BorderColorCode;        // uint = 4 bytes, only using 1 byte
         public uint BackgroundColor0Code;   // uint = 4 bytes, only using 1 byte
-        public uint ___;         // unused
-        public uint ____;        // unused
+        public uint BackgroundColor1Code;   // uint = 4 bytes, only using 1 byte
+        public uint BackgroundColor2Code;   // uint = 4 bytes, only using 1 byte
+
+        public uint BackgroundColor3Code;   // uint = 4 bytes, only using 1 byte
+        public uint _____;      // unused
+        public uint ______;     // unused
+        public uint _______;    // unused
 
         public uint ColMode40;   // 0 = 38 col mode, 1 = 40 col mode
         public uint RowMode25;   // 0 = 24 row mode, 1 = 25 row mode
@@ -166,9 +171,6 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         var visibleMainScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
         var characterMode = vic2.CharacterMode;
-        var backgroundColor1 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1); // Background colorCode used for extended character mode
-        var backgroundColor2 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2); // Background colorCode used for extended character mode
-        var backgroundColor3 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3); // Background colorCode used for extended character mode
 
         // Clear screen
         //_gl.Enable(EnableCap.DepthTest);
@@ -209,6 +211,10 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         }
         for (int i = 0; i < rasterLineData.Length; i++)
         {
+            rasterLineData[i].BackgroundColor1Code = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1);
+            rasterLineData[i].BackgroundColor2Code = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2);
+            rasterLineData[i].BackgroundColor3Code = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3);
+
             rasterLineData[i].ColMode40 = vic2.Is38ColumnDisplayEnabled ? 0u : 1u;
             rasterLineData[i].RowMode25 = vic2.Is24RowDisplayEnabled ? 0u : 1u;
             rasterLineData[i].ScrollX = (uint)vic2.GetScrollX();
@@ -228,6 +234,8 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
         _shader.SetUniform("uTextScreenStart", new Vector2(visibleMainScreenArea.Screen.Start.X, visibleMainScreenArea.Screen.Start.Y));
         _shader.SetUniform("uTextScreenEnd", new Vector2(visibleMainScreenArea.Screen.End.X, visibleMainScreenArea.Screen.End.Y));
+
+        _shader.SetUniform("uTextCharacterMode", (int)characterMode);
 
         // Draw triangles covering the entire screen, with the fragment shader doing the actual drawing of 2D pixels.
         _vba.Bind();
