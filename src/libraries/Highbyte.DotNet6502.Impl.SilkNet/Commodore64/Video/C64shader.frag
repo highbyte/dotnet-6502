@@ -30,12 +30,17 @@ struct ColorMapData
   uint u4;          // unused   
   vec4 color;       // Shader color value
 };
-struct RasterLineColorData 
+struct RasterLineData 
 {
   uint borderColorCode;         // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
   uint backgroundColor0Code;    // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
-  uint u3;          // unused   
-  uint u4;          // unused   
+  uint u3;          // unused
+  uint u4;          // unused
+
+  uint colMode40;   // 0 = 38 col mode, 1 = 40 col mode
+  uint rowMode25;   // 0 = 24 row mode, 1 = 25 row mode
+  uint scrollX;     // 0-7 horizontal fine scrolling
+  uint scrollY;     // 0-7 vertical fine scrolling
 };
 
 // Note: need total 16 bytes for each uniform value. Either a vec4, or a custom struct that adds up to 16.
@@ -51,9 +56,9 @@ layout (std140) uniform ubColorMap
 { 
   ColorMapData uColorMapData[16];
 };
-layout (std140) uniform ubRasterLineColorData
+layout (std140) uniform ubRasterLineData
 { 
-  RasterLineColorData uRasterLineColorData[312]; // Maximum used by any VIC2 chip (PAL?)
+  RasterLineData uRasterLineData[312]; // Maximum used by any VIC2 chip (PAL?)
 };
 
 //uint borderStartX = uint(49);
@@ -64,6 +69,7 @@ layout (std140) uniform ubRasterLineColorData
 //vec4 bgColor = vec4(0.5, 0.5, 0.5, 1.0);
 //vec4 fgColor = vec4(0.2, 0.2, 0.8, 1.0);
 //
+const uint u0 = uint(0);
 const uint u1 = uint(1);
 const uint u7 = uint(7);
 const uint u8 = uint(8);
@@ -85,18 +91,24 @@ void main()
     //    uint x = uint(viewX * uWindowSize.x * 1/uScale.x);
     //    uint y = uint(viewY * uWindowSize.y * 1/uScale.y);
 
-
-    uint borderColorCode = uRasterLineColorData[y].borderColorCode;
+    uint borderColorCode = uRasterLineData[y].borderColorCode;
     vec4 borderColor = uColorMapData[borderColorCode & u15].color;
     FragColor = borderColor;
 
-    // Don't draw any pixels in the border
-    if((x < uTextScreenStart.x || (x > uTextScreenEnd.x))
-         || (y < uTextScreenStart.y || (y > uTextScreenEnd.y)) )
+    // Detect border area, draw only border color
+    uint horizontalBorderOffset = uRasterLineData[y].colMode40 == u1 ? u0 : u8;
+    uint verticalBorderOffset = uRasterLineData[y].rowMode25 == u1 ? u0 : u8;
+
+    // Workaround for 38 col mode (to counter fine x scroll value is set to +1 in 38 col mode)
+    if(horizontalBorderOffset!=u0)
+        x=x+u1;
+
+    if((x < (uTextScreenStart.x+horizontalBorderOffset) || (x > (uTextScreenEnd.x-horizontalBorderOffset)))
+         || (y < (uTextScreenStart.y+verticalBorderOffset) || (y > (uTextScreenEnd.y-verticalBorderOffset))) )
       return;
 
-	uint screenx = x - uint(uTextScreenStart.x);    //TODO: uTextScreenStart is adjusted for 38/40 col mode. Here it should alwayws use 40 col start positon 
-	uint screeny = y - uint(uTextScreenStart.y);    //TODO: uTextScreenStart is adjusted for 24/25 row mode. Here it should alwayws use 25 row start positon
+	uint screenx = x - uint(uTextScreenStart.x + uRasterLineData[y].scrollX);
+	uint screeny = y - uint(uTextScreenStart.y + uRasterLineData[y].scrollY);
 	int col = int(screenx) / 8;
 	int row = int(screeny) / 8;
 	int screenMemIndex = (row * 40) + col;
@@ -105,7 +117,7 @@ void main()
     if(screenMemIndex >= uTextData.length)
         return;
 
-    uint bgColorCode0 = uRasterLineColorData[y].backgroundColor0Code;
+    uint bgColorCode0 = uRasterLineData[y].backgroundColor0Code;
     vec4 bgColor0 = uColorMapData[bgColorCode0 & u15].color;
 
     uint charColorCode = uTextData[screenMemIndex].color;
