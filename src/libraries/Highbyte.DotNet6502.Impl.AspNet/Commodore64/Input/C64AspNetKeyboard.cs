@@ -87,9 +87,8 @@ public class C64AspNetKeyboard
         // Misc
         { new[] { "Backspace" }, new[] { C64Key.Delete } },
         { new[] { "Enter" }, new[] { C64Key.Return } },
-        { new[] { "Tab" }, new[] { C64Key.CBM } },
-        { new[] { "ControlLeft" }, new[] { C64Key.Ctrl } },
-        { new[] { "ControlRight" }, new[] { C64Key.Ctrl } },
+        { new[] { "Tab" }, new[] { C64Key.Ctrl } },
+        { new[] { "ControlLeft" }, new[] { C64Key.CBM } },
         { new[] { "ShiftLeft" }, new[] { C64Key.LShift } },
         { new[] { "ShiftRight" }, new[] { C64Key.RShift } },
     };
