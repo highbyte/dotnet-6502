@@ -69,7 +69,57 @@ layout (std140) uniform ubRasterLineData
 
 const int TextMode_Standard = 0;
 const int TextMode_Extended = 1;
-const int TextMode_MultiColor = 0;
+const int TextMode_MultiColor = 2;
+
+vec4 GetStandardAndExtendedColor(uint charLine, uint charsetBitPosition, vec4 charColor, vec4 bgColor)
+{
+    // Select color for pixel
+    uint mask = 1u << charsetBitPosition;
+    if((charLine & mask) == mask)
+        return charColor;
+    else
+        return bgColor;
+}
+
+vec4 GetMultiColor(uint charLine, uint charsetBitPosition, vec4 charColor, vec4 bgColor0, vec4 bgColor1, vec4 bgColor2)
+{
+        uint mask;
+        uint value;
+        if(charsetBitPosition == 0u || charsetBitPosition == 1u)
+        {
+            mask = 3u;
+            value = charLine & mask;
+        }
+        else if(charsetBitPosition == 2u || charsetBitPosition == 3u)
+        {
+            mask = 12u;
+            value = (charLine & mask) >> 2;
+        }
+        else if(charsetBitPosition == 4u || charsetBitPosition == 5u)
+        {
+            mask = 48u;
+            value = (charLine & mask) >> 4; 
+        }
+        else if(charsetBitPosition == 6u || charsetBitPosition == 7u)
+        {
+            mask = 192u;
+            value = (charLine & mask) >> 6;
+        }
+
+        switch(value)
+        {
+            case 0u:
+                return bgColor0;
+            case 1u:
+                return bgColor1;
+            case 2u:
+                return bgColor2;
+            case 3u:
+                return charColor;
+            default:
+                return vec4(0,255,0,1);    // Shouldn't happen
+        }
+}
 
 void main()
 {
@@ -134,16 +184,21 @@ void main()
     vec4 bgColor0 = uColorMapData[bgColorCode0 & 15u].color;
 
     uint charColorCode = uTextData[screenMemIndex].color;
-    vec4 fgColor = uColorMapData[charColorCode & 15u].color;
 
-    vec4 bgColor;
+    vec4 pixelColor;
     if(uTextCharacterMode == TextMode_Standard)
     {
-        bgColor = bgColor0; 
+        vec4 charColor = uColorMapData[charColorCode & 15u].color;
+        vec4 bgColor = bgColor0;
+        pixelColor = GetStandardAndExtendedColor(charLine, charsetBitPosition, charColor, bgColor);
     }
     else if(uTextCharacterMode == TextMode_Extended)
     {
-        int bgColorSelector = int(uTextData[screenMemIndex].character) >> 6;   // Bit 6 and 7 of character byte is used to select background color (0-3)
+        vec4 charColor = uColorMapData[charColorCode & 15u].color;
+
+        // Bit 6 and 7 of character byte is used to select background color (0-3)
+        int bgColorSelector = int(uTextData[screenMemIndex].character) >> 6;
+        vec4 bgColor;
         switch (bgColorSelector) {
         case 0:
             bgColor = bgColor0;
@@ -164,15 +219,37 @@ void main()
             bgColor = uColorMapData[0].color;
             break;
         }
+
+        pixelColor = GetStandardAndExtendedColor(charLine, charsetBitPosition, charColor, bgColor);
+
     }
     else if(uTextCharacterMode == TextMode_MultiColor)
     {
+        // When in MultiColor mode, a character can still be displayed in Standard mode depending on the value from color RAM.
+        if(charColorCode <= 7u)
+        {   
+            // If color RAM value is 0-7, normal Standard mode is used (not multi-color)
+            vec4 charColor = uColorMapData[charColorCode & 15u].color;
+            pixelColor = GetStandardAndExtendedColor(charLine, charsetBitPosition, charColor, bgColor0);
+        }
+        else
+        {
+            // If displaying in MultiColor mode, the actual color used from color RAM will be values 0-7.
+            // Thus color values 8-15 are transformed to 0-7
+            charColorCode = ((charColorCode & 15u) - 8u);
+            vec4 charColor = uColorMapData[charColorCode & 15u].color;
+
+            uint bgColorCode1 = uRasterLineData[y].backgroundColor1Code;
+            vec4 bgColor1 = uColorMapData[bgColorCode1 & 15u].color;
+
+            uint bgColorCode2 = uRasterLineData[y].backgroundColor2Code;
+            vec4 bgColor2 = uColorMapData[bgColorCode2 & 15u].color;
+
+            pixelColor = GetMultiColor(charLine, charsetBitPosition, charColor, bgColor0, bgColor1, bgColor2);
+
+        }
     }
 
-    // Select color for pixel
-    uint mask = 1u << charsetBitPosition;
-    if((charLine & mask) == mask)
-        FragColor = fgColor;
-    else
-        FragColor = bgColor;
+    FragColor = pixelColor;
 }
+
