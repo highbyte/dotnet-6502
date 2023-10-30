@@ -37,6 +37,14 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         public uint __;         // unused
         public uint ___;        // unused
     }
+    public struct ColorMapData
+    {
+        public uint ColorCode;  // uint = 4 bytes, only using 1 byte
+        public uint __;         // unused
+        public uint ___;        // unused
+        public uint ____;       // unused
+        public Vector4 Color;   // Vector4 = 16 bytes
+    }
     public struct RasterLineData
     {
         public uint BorderColorCode;        // uint = 4 bytes, only using 1 byte
@@ -55,13 +63,19 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         public int ScrollY;      // -3 to 4 vertical fine scrolling (+1 in 24 row mode)
 
     }
-    public struct ColorMapData
+    public struct SpriteData
     {
-        public uint ColorCode;  // uint = 4 bytes, only using 1 byte
-        public uint __;         // unused
-        public uint ___;        // unused
-        public uint ____;       // unused
-        public Vector4 Color;   // Vector4 = 16 bytes
+        public uint Visible;    // 0 = not visible, 1 = visible 
+        public uint X;          // uint = 4 bytes, only using 2 bytes
+        public uint Y;          // uint = 4 bytes, only using 2 bytes
+        public uint Color;      // uint = 4 bytes, only using 1 byte
+    }
+    public struct SpriteContentData
+    {
+        public uint Content;  // 3 bytes (24 pixels) per row * 21 rows = 63 items.
+        public uint __;       // unused
+        public uint ___;      // unused 
+        public uint ____;     // unused  
     }
 
     private BufferObject<float> _vbo;
@@ -73,6 +87,8 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     private BufferObject<CharsetData> _uboCharsetData;
     private BufferObject<ColorMapData> _uboColorMapData;
     private BufferObject<RasterLineData> _uboRasterLineData;
+    private BufferObject<SpriteData> _uboSpriteData;
+    private BufferObject<SpriteContentData> _uboSpriteContentData;
 
     public C64SilkNetOpenGlRenderer()
     {
@@ -134,6 +150,14 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         }
         _uboColorMapData = new BufferObject<ColorMapData>(_gl, colorMapData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
 
+        // Sprite Uniform Buffer Object for sprite meta data
+        var spriteData = new SpriteData[Vic2SpriteManager.NUMBERS_OF_SPRITES];
+        _uboSpriteData = new BufferObject<SpriteData>(_gl, spriteData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
+
+        // Sprite Uniform Buffer Object for sprite content data (8 sprites * 3 bytes per row * 21 rows = 504 items)
+        var spriteContentData = new SpriteContentData[Vic2SpriteManager.NUMBERS_OF_SPRITES * (Vic2Sprite.DEFAULT_WIDTH / 8) * Vic2Sprite.DEFAULT_HEIGTH];
+        _uboSpriteContentData = new BufferObject<SpriteContentData>(_gl, spriteContentData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
+
         // Init shader with:
         // - Vertex shader to draw triangles covering the entire screen.
         // - Fragment shader does the actual drawing of 2D pixels.
@@ -144,6 +168,8 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _shader.BindUBO("ubCharsetData", _uboCharsetData, binding_point_index: 1);
         _shader.BindUBO("ubColorMap", _uboColorMapData, binding_point_index: 2);
         _shader.BindUBO("ubRasterLineData", _uboRasterLineData, binding_point_index: 3);
+        _shader.BindUBO("ubSpriteData", _uboSpriteData, binding_point_index: 4);
+        _shader.BindUBO("ubSpriteContentData", _uboSpriteContentData, binding_point_index: 5);
     }
 
     public void Init(ISystem system, IRenderContext renderContext)
@@ -209,6 +235,9 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
             var bgColor0 = c64.Vic2.ScreenLineBackgroundColor[c64ScreenLine];
             rasterLineData[canvasYPos].BackgroundColor0Code = bgColor0;
         }
+        // TODO: Add support in C64 emulator code (Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2)
+        //       for remembering VIC2 register values per raster line (such as background color 1,2,3, scroll x,y, 40 col/25 row mode.
+        //       For now, set the same value for all raster lines here.
         for (int i = 0; i < rasterLineData.Length; i++)
         {
             rasterLineData[i].BackgroundColor1Code = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1);
@@ -220,8 +249,45 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
             rasterLineData[i].ScrollX = (uint)vic2.GetScrollX();
             rasterLineData[i].ScrollY = vic2.GetScrollY();
         }
-
         _uboRasterLineData.Update(rasterLineData, 0);
+
+        // Sprite meta data UBO
+        var spriteData = new SpriteData[Vic2SpriteManager.NUMBERS_OF_SPRITES];
+        foreach (var sprite in c64.Vic2.SpriteManager.Sprites)
+        {
+            int si = sprite.SpriteNumber;
+            spriteData[si].Visible = sprite.Visible ? 1u : 0u;
+            spriteData[si].X = (uint)(sprite.X + visibleMainScreenArea.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X);
+            spriteData[si].Y = (uint)(sprite.Y + visibleMainScreenArea.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y);
+            spriteData[si].Color = (uint)sprite.Color;
+        }
+        _uboSpriteData.Update(spriteData, 0);
+
+
+        // Sprite content UBO
+        if (c64.Vic2.SpriteManager.Sprites.Any(s => s.IsDirty))
+        {
+            // TODO: Is best approach to upload all sprite content if any sprite is dirty? To minimize the number of separate UBO updates?
+            var spriteContentData = new SpriteContentData[Vic2SpriteManager.NUMBERS_OF_SPRITES * (Vic2Sprite.DEFAULT_WIDTH / 8) * Vic2Sprite.DEFAULT_HEIGTH];
+            int uboIndex = 0;
+            foreach (var sprite in c64.Vic2.SpriteManager.Sprites)
+            {
+                var spriteEmulatorData = sprite.Data;
+                foreach (var row in sprite.Data.Rows)
+                {
+                    foreach (var rowByte in row.Bytes)
+                    {
+                        spriteContentData[uboIndex++] = new SpriteContentData()
+                        {
+                            Content = rowByte
+                        };
+                    }
+                }
+                if (sprite.IsDirty)
+                    sprite.ClearDirty();
+            }
+            _uboSpriteContentData.Update(spriteContentData, 0);
+        }
 
         // Setup shader for use in rendering
         _shader.Use();

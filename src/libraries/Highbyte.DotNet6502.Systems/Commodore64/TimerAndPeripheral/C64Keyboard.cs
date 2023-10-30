@@ -54,7 +54,7 @@ public class C64Keyboard
         if (restorePressed)
         {
             SetRestoreKeyPressed();
-            _logger.LogTrace($"C64 restore key pressed, NMI is invokded.");
+            _logger.LogTrace($"C64 restore key pressed, NMI is invoked.");
         }
 
         // Set pressed keys

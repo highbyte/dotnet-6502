@@ -13,8 +13,8 @@ struct TextData
 {
   uint character;   // C64 screen character code 0-255. uint = 4 bytes, only using 1 byte. 
   uint color;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte
+  uint u2;          // unused
   uint u3;          // unused
-  uint u4;          // unused
 };
 struct CharsetData 
 {
@@ -26,9 +26,9 @@ struct CharsetData
 struct ColorMapData 
 {
   uint colorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+  uint u1;          // unused   
   uint u2;          // unused   
   uint u3;          // unused   
-  uint u4;          // unused   
   vec4 color;       // Shader color value
 };
 struct RasterLineData 
@@ -48,6 +48,20 @@ struct RasterLineData
   uint scrollX;     // 0 to 7 horizontal fine scrolling (+1 in 38 col mode). Default 0.
   int scrollY;      // -3 to 4 vertical fine scrolling (+1 in 24 row mode). Default 0.
 };
+struct SpriteData 
+{
+  uint visible;     // 0 = not visible, 1 = visible 
+  uint x;           // uint = 4 bytes, only using 2 bytes
+  uint y;           // uint = 4 bytes, only using 2 bytes
+  uint color;       // uint = 4 bytes, only using 1 byte
+};
+struct SpriteContentData 
+{
+  uint content;     // 1 byte. An entire sprite consists of 3 items (24 pixels) per row * 21 rows = 63 items
+  uint u1;          // unused
+  uint u2;          // unused
+  uint u3;          // unused
+};
 
 // Note: need total 16 bytes for each uniform value. Either a vec4, or a custom struct that adds up to 16.
 layout (std140) uniform ubTextData
@@ -66,22 +80,40 @@ layout (std140) uniform ubRasterLineData
 { 
   RasterLineData uRasterLineData[312]; // Maximum used by any VIC2 chip (PAL?)
 };
+layout (std140) uniform ubSpriteData
+{ 
+  SpriteData uSpriteData[8]; // 8 sprites
+};
+layout (std140) uniform ubSpriteContentData
+{ 
+  SpriteContentData uSpriteContentData[8*3*21];   // 3 items (24 pixels) per row * 21 rows * 8 sprites = 63 items * 8 sprites = 504 items
+};
 
 const int TextMode_Standard = 0;
 const int TextMode_Extended = 1;
 const int TextMode_MultiColor = 2;
 
-vec4 GetStandardAndExtendedColor(uint charLine, uint charsetBitPosition, vec4 charColor, vec4 bgColor)
+// Returns true if pixel is foreground, false if background.
+// If non-background color is used, pixelColor is not set.
+bool GetStandardAndExtendedColor(uint charLine, uint charsetBitPosition, vec4 charColor, vec4 bgColor, out vec4 pixelColor)
 {
     // Select color for pixel
     uint mask = 1u << charsetBitPosition;
     if((charLine & mask) == mask)
-        return charColor;
+    {
+        pixelColor = charColor;
+        return true;
+    }
     else
-        return bgColor;
+    {
+        pixelColor = bgColor;
+        return false;
+    }
 }
 
-vec4 GetMultiColor(uint charLine, uint charsetBitPosition, vec4 charColor, vec4 bgColor0, vec4 bgColor1, vec4 bgColor2)
+// Returns true if pixel is foreground, false if background.
+// If non-background color is used, pixelColor is not set.
+bool GetMultiColor(uint charLine, uint charsetBitPosition, vec4 charColor, vec4 bgColor0, vec4 bgColor1, vec4 bgColor2, out vec4 pixelColor)
 {
         uint mask;
         uint value;
@@ -109,37 +141,37 @@ vec4 GetMultiColor(uint charLine, uint charsetBitPosition, vec4 charColor, vec4 
         switch(value)
         {
             case 0u:
-                return bgColor0;
+                pixelColor = bgColor0;
+                return false;
             case 1u:
-                return bgColor1;
+                pixelColor = bgColor1;
+                return true;
             case 2u:
-                return bgColor2;
+                pixelColor =  bgColor2;
+                return true;
             case 3u:
-                return charColor;
+                pixelColor = charColor;
+                return true;
             default:
-                return vec4(0,255,0,1);    // Shouldn't happen
+                pixelColor = vec4(0,1,0,1);    // Shouldn't happen
+                return false;
         }
 }
 
-void main()
+// Return values description:
+// If x,y is in border:
+//  - border is set to true.
+//  - pixelColor is not set.
+//  - return value is false;
+//
+// If x,y is inside text screen:
+//  - border is set to false.
+//  - pixelColor is set to the color of the pixel.
+//  - return value is true if color is NOT the background color.
+//  - return value is false if color is the background color.
+//
+bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
 {
-    // Screen coordinate option #1, via built-in gl_FragCoord
-    // gl_FragCoord has absolute screen coordinates, not affected by window size.
-    uint x = uint(gl_FragCoord.x * 1/uScale.x);
-    uint y = uint((uWindowSize.y - gl_FragCoord.y) * 1/uScale.y); // Make sure top/left is 0,0
-
-    // Screen coordinate option #2, via input variable from vertex shader
-    // fViewPortPos (passed from vertex shader) has viewport coordinates, affected by window sixe.
-    // Change viewport ranges from -1 to +1, to 0 to 1.
-    //    float viewX = (fViewPortPos.x + 1) / 2;
-    //    float viewY = 1 - ((fViewPortPos.y + 1) / 2);  // Make sure top/left is 0,0
-    //    uint x = uint(viewX * uWindowSize.x * 1/uScale.x);
-    //    uint y = uint(viewY * uWindowSize.y * 1/uScale.y);
-
-    uint borderColorCode = uRasterLineData[y].borderColorCode;
-    vec4 borderColor = uColorMapData[borderColorCode & 15u].color;
-    FragColor = borderColor;
-
     // Detect border area, draw only border color
     uint horizontalBorderOffset = uRasterLineData[y].colMode40 == 1u ? 0u : 8u;
     uint verticalBorderOffset = uRasterLineData[y].rowMode25 == 1u ? 0u : 4u;
@@ -153,7 +185,12 @@ void main()
 
     if((x < (uTextScreenStart.x+horizontalBorderOffset) || (x > (uTextScreenEnd.x-horizontalBorderOffset)))
          || (y < (uTextScreenStart.y+verticalBorderOffset) || (y > (uTextScreenEnd.y-verticalBorderOffset))) )
-      return;
+    {
+        border = true;
+        return false;
+    }
+
+    border = false;
 
 	uint screenx = x - uint(uTextScreenStart.x + uRasterLineData[y].scrollX);
 	uint screeny = y - uint(uTextScreenStart.y + uRasterLineData[y].scrollY);
@@ -163,7 +200,7 @@ void main()
 
     // TODO: Shouldn't occur, remove?
     if(screenMemIndex >= uTextData.length)
-        return;
+        return false;
 
     // Get character code
     uint charCode = uTextData[screenMemIndex].character;
@@ -185,12 +222,12 @@ void main()
 
     uint charColorCode = uTextData[screenMemIndex].color;
 
-    vec4 pixelColor;
+    bool isForeground;
     if(uTextCharacterMode == TextMode_Standard)
     {
         vec4 charColor = uColorMapData[charColorCode & 15u].color;
         vec4 bgColor = bgColor0;
-        pixelColor = GetStandardAndExtendedColor(charLine, charsetBitPosition, charColor, bgColor);
+        isForeground = GetStandardAndExtendedColor(charLine, charsetBitPosition, charColor, bgColor, pixelColor);
     }
     else if(uTextCharacterMode == TextMode_Extended)
     {
@@ -220,8 +257,7 @@ void main()
             break;
         }
 
-        pixelColor = GetStandardAndExtendedColor(charLine, charsetBitPosition, charColor, bgColor);
-
+        isForeground = GetStandardAndExtendedColor(charLine, charsetBitPosition, charColor, bgColor, pixelColor);
     }
     else if(uTextCharacterMode == TextMode_MultiColor)
     {
@@ -230,7 +266,7 @@ void main()
         {   
             // If color RAM value is 0-7, normal Standard mode is used (not multi-color)
             vec4 charColor = uColorMapData[charColorCode & 15u].color;
-            pixelColor = GetStandardAndExtendedColor(charLine, charsetBitPosition, charColor, bgColor0);
+            isForeground = GetStandardAndExtendedColor(charLine, charsetBitPosition, charColor, bgColor0, pixelColor);
         }
         else
         {
@@ -245,11 +281,102 @@ void main()
             uint bgColorCode2 = uRasterLineData[y].backgroundColor2Code;
             vec4 bgColor2 = uColorMapData[bgColorCode2 & 15u].color;
 
-            pixelColor = GetMultiColor(charLine, charsetBitPosition, charColor, bgColor0, bgColor1, bgColor2);
-
+            isForeground = GetMultiColor(charLine, charsetBitPosition, charColor, bgColor0, bgColor1, bgColor2, pixelColor);
         }
     }
 
-    FragColor = pixelColor;
+    return isForeground;
 }
 
+bool GetSpritePixelColor(uint x, uint y, bool prioOverForground, out vec4 pixelColor)
+{
+    // Sprite/sprite priority is first sprite 0 (will be drawn over others), then 1, etc to 7. 
+    for(uint i=0u; i<8u; i++)
+    {
+        if(uSpriteData[i].visible == 0u)
+            continue;
+
+        // Check if x/y position possibly is covered by sprite
+        uint spriteX = uSpriteData[i].x;
+        uint spriteY = uSpriteData[i].y;
+        uint spriteWidth = 24u;  // TODO: Read from UBO. Is width adjusted for double, or should that be done here?
+        uint spriteHeight = 21u; // TODO: Read from UBO. Is height adjusted for double, or should that be done here?
+        if( !(x>=spriteX && x<(spriteX+spriteWidth) && y>=spriteY && y<(spriteY+spriteHeight)) )
+            continue;
+
+        // Check if sprite pixel is set
+        uint dx = x - spriteX;
+        uint dy = y - spriteY;
+
+        uint spriteContentByteIndexStart = i * 3u * 21u;   // i = sprite number, 3 = 3 bytes per row, 21 = 21 rows
+        uint byteIndex = (dy * 3u) + (dx / 8u);
+        uint bytePixelPosition = dx % 8u;
+        uint lineData = uSpriteContentData[spriteContentByteIndexStart + byteIndex].content;
+        uint mask = 1u << (7u - bytePixelPosition);
+        if((lineData & mask) != mask)
+            continue;
+
+        uint colorCode = uSpriteData[i].color;
+        pixelColor = uColorMapData[colorCode & 15u].color;
+        return true;
+    }
+
+    return false;
+}
+
+void main()
+{
+    // Screen coordinate option #1, via built-in gl_FragCoord
+    // gl_FragCoord has absolute screen coordinates, not affected by window size.
+    uint x = uint(gl_FragCoord.x * 1/uScale.x);
+    uint y = uint((uWindowSize.y - gl_FragCoord.y) * 1/uScale.y); // Make sure top/left is 0,0
+
+    // Screen coordinate option #2, via input variable from vertex shader
+    // fViewPortPos (passed from vertex shader) has viewport coordinates, affected by window sixe.
+    // Change viewport ranges from -1 to +1, to 0 to 1.
+    //    float viewX = (fViewPortPos.x + 1) / 2;
+    //    float viewY = 1 - ((fViewPortPos.y + 1) / 2);  // Make sure top/left is 0,0
+    //    uint x = uint(viewX * uWindowSize.x * 1/uScale.x);
+    //    uint y = uint(viewY * uWindowSize.y * 1/uScale.y);
+
+    // PRIO 1: Get pixel from sprites that have priority over foreground
+    vec4 prioSpritePixelColor;
+    bool prioSpritePixelSet = GetSpritePixelColor(x, y, true, prioSpritePixelColor);
+    if(prioSpritePixelSet)
+    {
+        FragColor = prioSpritePixelColor;
+        return;
+    }
+
+    // PRIO 2: Text screen pixels that are not background color
+    bool border;
+    vec4 textModePixelColor;
+    bool textModePixelSet = GetTextModePixelColor(x, y, border, textModePixelColor);
+    if(textModePixelSet)
+    {
+        FragColor = textModePixelColor;
+        return;
+    }
+
+    // PRIO 3: Get pixel from sprites that do not have priority over foreground (but will show above background color)
+    vec4 nonPrioSpritePixelColor;
+    bool nonPrioSpritePixelSet = GetSpritePixelColor(x, y, false, nonPrioSpritePixelColor);
+    if(nonPrioSpritePixelSet)
+    {
+        FragColor = nonPrioSpritePixelColor;
+        return;
+    }
+
+    // PRIO 4: Either text mode background color or border color
+    if(!border)
+    {
+        // textModePixelColor will contain the text mode background color here
+        FragColor = textModePixelColor;
+        return;
+    }
+
+    // Default to border color if neither text screen or sprite pixel was set
+    uint borderColorCode = uRasterLineData[y].borderColorCode;
+    vec4 borderColor = uColorMapData[borderColorCode & 15u].color;
+    FragColor = borderColor;
+}
