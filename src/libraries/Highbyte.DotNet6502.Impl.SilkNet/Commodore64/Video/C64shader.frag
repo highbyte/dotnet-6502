@@ -39,8 +39,8 @@ struct RasterLineData
   uint backgroundColor2Code;    // C64 color value 0-15. uint = 4 bytes, only using 1 byte. Used in Extended mode. 
 
   uint backgroundColor3Code;    // C64 color value 0-15. uint = 4 bytes, only using 1 byte. Used in Extended mode. 
-  uint u5;          // unused
-  uint u6;          // unused
+  uint spriteMultiColor0;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+  uint spriteMultiColor1;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
   uint u7;          // unused
 
   uint colMode40;   // 0 = 38 col mode, 1 = 40 col mode
@@ -99,26 +99,19 @@ const int TextMode_Extended = 1;
 const int TextMode_MultiColor = 2;
 
 // Returns true if pixel is foreground, false if background.
-// If non-background color is used, pixelColor is not set.
-bool GetStandardAndExtendedColor(uint charLine, uint charsetBitPosition, vec4 charColor, vec4 bgColor, out vec4 pixelColor)
+bool IsSinglePixelSet(uint charLine, uint pixelBitPosition)
 {
-    // Select color for pixel
-    uint mask = 1u << charsetBitPosition;
+    // Check if a forground pixel is set
+    uint mask = 1u << pixelBitPosition;
     if((charLine & mask) == mask)
-    {
-        pixelColor = charColor;
         return true;
-    }
     else
-    {
-        pixelColor = bgColor;
         return false;
-    }
 }
 
 // Returns true if pixel is foreground, false if background.
-// If non-background color is used, pixelColor is not set.
-bool GetMultiColor(uint charLine, uint charsetBitPosition, vec4 charColor, vec4 bgColor0, vec4 bgColor1, vec4 bgColor2, out vec4 pixelColor)
+// If non-background color is used, pixelColor is not set based on 2 bit pattern
+bool GetMultiColor(uint charLine, uint charsetBitPosition, vec4 color01, vec4 color10, vec4 color11, out vec4 pixelColor)
 {
         uint mask;
         uint value;
@@ -146,16 +139,15 @@ bool GetMultiColor(uint charLine, uint charsetBitPosition, vec4 charColor, vec4 
         switch(value)
         {
             case 0u:
-                pixelColor = bgColor0;
                 return false;
             case 1u:
-                pixelColor = bgColor1;
+                pixelColor = color01;
                 return true;
             case 2u:
-                pixelColor =  bgColor2;
+                pixelColor = color10;
                 return true;
             case 3u:
-                pixelColor = charColor;
+                pixelColor = color11;
                 return true;
             default:
                 pixelColor = vec4(0,1,0,1);    // Shouldn't happen
@@ -226,18 +218,19 @@ bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
     vec4 bgColor0 = uColorMapData[bgColorCode0 & 15u].color;
 
     uint charColorCode = uTextData[screenMemIndex].color;
+    vec4 charColor = uColorMapData[charColorCode & 15u].color;
 
     bool isForeground;
     if(uTextCharacterMode == TextMode_Standard)
     {
-        vec4 charColor = uColorMapData[charColorCode & 15u].color;
-        vec4 bgColor = bgColor0;
-        isForeground = GetStandardAndExtendedColor(charLine, charsetBitPosition, charColor, bgColor, pixelColor);
+        isForeground = IsSinglePixelSet(charLine, charsetBitPosition);
+        if(isForeground)
+            pixelColor = charColor;
+        else
+            pixelColor = bgColor0;
     }
     else if(uTextCharacterMode == TextMode_Extended)
     {
-        vec4 charColor = uColorMapData[charColorCode & 15u].color;
-
         // Bit 6 and 7 of character byte is used to select background color (0-3)
         int bgColorSelector = int(uTextData[screenMemIndex].character) >> 6;
         vec4 bgColor;
@@ -262,7 +255,12 @@ bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
             break;
         }
 
-        isForeground = GetStandardAndExtendedColor(charLine, charsetBitPosition, charColor, bgColor, pixelColor);
+        isForeground = IsSinglePixelSet(charLine, charsetBitPosition);
+        if(isForeground)
+            pixelColor = charColor;
+        else
+            pixelColor = bgColor;
+        
     }
     else if(uTextCharacterMode == TextMode_MultiColor)
     {
@@ -270,15 +268,18 @@ bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
         if(charColorCode <= 7u)
         {   
             // If color RAM value is 0-7, normal Standard mode is used (not multi-color)
-            vec4 charColor = uColorMapData[charColorCode & 15u].color;
-            isForeground = GetStandardAndExtendedColor(charLine, charsetBitPosition, charColor, bgColor0, pixelColor);
+            isForeground = IsSinglePixelSet(charLine, charsetBitPosition);
+            if(isForeground)
+                pixelColor = charColor;
+            else
+                pixelColor = bgColor0;
         }
         else
         {
             // If displaying in MultiColor mode, the actual color used from color RAM will be values 0-7.
             // Thus color values 8-15 are transformed to 0-7
-            charColorCode = ((charColorCode & 15u) - 8u);
-            vec4 charColor = uColorMapData[charColorCode & 15u].color;
+            uint charColorCode2 = ((charColorCode & 15u) - 8u);
+            vec4 charColor2 = uColorMapData[charColorCode2 & 15u].color;
 
             uint bgColorCode1 = uRasterLineData[y].backgroundColor1Code;
             vec4 bgColor1 = uColorMapData[bgColorCode1 & 15u].color;
@@ -286,7 +287,9 @@ bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
             uint bgColorCode2 = uRasterLineData[y].backgroundColor2Code;
             vec4 bgColor2 = uColorMapData[bgColorCode2 & 15u].color;
 
-            isForeground = GetMultiColor(charLine, charsetBitPosition, charColor, bgColor0, bgColor1, bgColor2, pixelColor);
+            isForeground = GetMultiColor(charLine, charsetBitPosition, bgColor1, bgColor2, charColor2, pixelColor);
+            if(!isForeground)
+                pixelColor = bgColor0;
         }
     }
 
@@ -349,13 +352,32 @@ bool GetSpritePixelColor(uint x, uint y, bool prioOverForground, out vec4 pixelC
         int byteIndex = (dy * 3) + (dx / 8);
         int bytePixelPosition = dx % 8;
         uint lineData = uSpriteContentData[spriteContentByteIndexStart + byteIndex].content;
-        uint mask = 1u << (7 - bytePixelPosition);
-        if((lineData & mask) != mask)
-            continue;
 
-        uint colorCode = uSpriteData[i].color;
-        pixelColor = uColorMapData[colorCode & 15u].color;
-        return true;
+        if(uSpriteData[i].multiColor == 0u)
+        {
+            bool foreground = IsSinglePixelSet(lineData, uint(7-bytePixelPosition));
+            if(!foreground)
+                continue;
+
+            uint colorCode = uSpriteData[i].color;
+            pixelColor = uColorMapData[colorCode & 15u].color;
+            return true;
+        }
+        else
+        {
+            bool foreground = GetMultiColor(
+                lineData,                 
+                uint(7 - bytePixelPosition), 
+                uColorMapData[uRasterLineData[y].spriteMultiColor0 & 15u].color, 
+                uColorMapData[uSpriteData[i].color & 15u].color, 
+                uColorMapData[uRasterLineData[y].spriteMultiColor1 & 15u].color, 
+                pixelColor);
+                
+            if(!foreground)
+                continue;
+            return true;
+        }
+
     }
 
     return false;

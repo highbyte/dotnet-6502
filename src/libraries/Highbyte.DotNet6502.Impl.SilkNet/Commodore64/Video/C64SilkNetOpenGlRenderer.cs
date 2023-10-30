@@ -53,8 +53,8 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         public uint BackgroundColor2Code;   // uint = 4 bytes, only using 1 byte
 
         public uint BackgroundColor3Code;   // uint = 4 bytes, only using 1 byte
-        public uint _____;      // unused
-        public uint ______;     // unused
+        public uint SpriteMultiColor0;      // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+        public uint SpriteMultiColor1;      // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
         public uint _______;    // unused
 
         public uint ColMode40;   // 0 = 38 col mode, 1 = 40 col mode
@@ -248,6 +248,9 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
             rasterLineData[i].BackgroundColor1Code = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1);
             rasterLineData[i].BackgroundColor2Code = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2);
             rasterLineData[i].BackgroundColor3Code = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3);
+
+            rasterLineData[i].SpriteMultiColor0 = c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0);
+            rasterLineData[i].SpriteMultiColor1 = c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1);
 
             rasterLineData[i].ColMode40 = vic2.Is38ColumnDisplayEnabled ? 0u : 1u;
             rasterLineData[i].RowMode25 = vic2.Is24RowDisplayEnabled ? 0u : 1u;
