@@ -51,9 +51,14 @@ struct RasterLineData
 struct SpriteData 
 {
   uint visible;     // 0 = not visible, 1 = visible 
-  uint x;           // uint = 4 bytes, only using 2 bytes
-  uint y;           // uint = 4 bytes, only using 2 bytes
+  int x;            // int = 4 bytes, only using 2 bytes
+  int y;            // int = 4 bytes, only using 2 bytes
   uint color;       // uint = 4 bytes, only using 1 byte
+
+  uint doubleWidth; // 0 = Normal width, 1 = Double width
+  uint doubleHeight;// 0 = Normal height, 1 = Double height
+  uint priorityOverForeground; // 0 = No priority, 1 = Priority over foreground
+  uint multiColor;  // 0 = Single color mode, 1 = MultiColor mode
 };
 struct SpriteContentData 
 {
@@ -290,29 +295,61 @@ bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
 
 bool GetSpritePixelColor(uint x, uint y, bool prioOverForground, out vec4 pixelColor)
 {
-    // Sprite/sprite priority is first sprite 0 (will be drawn over others), then 1, etc to 7. 
-    for(uint i=0u; i<8u; i++)
+    // Detect border area, don't draw sprites there (TODO: support opening border for sprites?) 
+    uint horizontalBorderOffset = uRasterLineData[y].colMode40 == 1u ? 0u : 8u;
+    uint verticalBorderOffset = uRasterLineData[y].rowMode25 == 1u ? 0u : 4u;
+
+    // Workaround for 38 col mode (to counter fine x scroll value is set to +1 in 38 col mode)
+    if(horizontalBorderOffset!=0u)
+        x=x+1u;
+    // Workaround for 24 row mode (to counter fine y scroll value is set to +1 in 24 row mode)
+    if(verticalBorderOffset!=0u)
+        y=y+1u;
+
+    if((x < (uTextScreenStart.x+horizontalBorderOffset) || (x > (uTextScreenEnd.x-horizontalBorderOffset)))
+         || (y < (uTextScreenStart.y+verticalBorderOffset) || (y > (uTextScreenEnd.y-verticalBorderOffset))) )
     {
+        return false;
+    }
+
+    // Sprite/sprite priority is first sprite 0 (will be drawn over others), then 1, etc to 7. 
+    for(int i=0; i<8; i++)
+    {
+        // Only process visible sprites
         if(uSpriteData[i].visible == 0u)
             continue;
 
-        // Check if x/y position possibly is covered by sprite
-        uint spriteX = uSpriteData[i].x;
-        uint spriteY = uSpriteData[i].y;
-        uint spriteWidth = 24u;  // TODO: Read from UBO. Is width adjusted for double, or should that be done here?
-        uint spriteHeight = 21u; // TODO: Read from UBO. Is height adjusted for double, or should that be done here?
-        if( !(x>=spriteX && x<(spriteX+spriteWidth) && y>=spriteY && y<(spriteY+spriteHeight)) )
+        // Only process sprites that matches the prioOverForground input parameter
+        if(uSpriteData[i].priorityOverForeground == 1u && !prioOverForground)
+            continue;
+        if(uSpriteData[i].priorityOverForeground == 0u && prioOverForground)
+            continue;
+
+        // Check if x/y position possibly is covered by sprite boundaries
+        int xi = int(x);
+        int yi = int(y);
+
+        int spriteX = uSpriteData[i].x;
+        int spriteY = uSpriteData[i].y;
+        int scaleFactorX = uSpriteData[i].doubleWidth == 0u ? 1 : 2;
+        int scaleFactorY = uSpriteData[i].doubleHeight == 0u ? 1 : 2;
+        const int defaultSpriteWidth = 24;  // TODO: Read from UBO or uniform?
+        const int defaultSpriteHeight = 21; // TODO: Read from UBO or uniform?
+        if( ! (xi>=spriteX && xi<(spriteX+(defaultSpriteWidth*scaleFactorX)) 
+            && yi>=spriteY && yi<(spriteY+(defaultSpriteHeight*scaleFactorY))) )
             continue;
 
         // Check if sprite pixel is set
-        uint dx = x - spriteX;
-        uint dy = y - spriteY;
+        int dx = (xi - spriteX) / scaleFactorX;
+        int dy = (yi - spriteY) / scaleFactorY;
+        if(dx<0 || dy<0)
+            continue;
 
-        uint spriteContentByteIndexStart = i * 3u * 21u;   // i = sprite number, 3 = 3 bytes per row, 21 = 21 rows
-        uint byteIndex = (dy * 3u) + (dx / 8u);
-        uint bytePixelPosition = dx % 8u;
+        int spriteContentByteIndexStart = i * 3 * 21;   // i = sprite number, 3 = 3 bytes per row, 21 = 21 rows
+        int byteIndex = (dy * 3) + (dx / 8);
+        int bytePixelPosition = dx % 8;
         uint lineData = uSpriteContentData[spriteContentByteIndexStart + byteIndex].content;
-        uint mask = 1u << (7u - bytePixelPosition);
+        uint mask = 1u << (7 - bytePixelPosition);
         if((lineData & mask) != mask)
             continue;
 

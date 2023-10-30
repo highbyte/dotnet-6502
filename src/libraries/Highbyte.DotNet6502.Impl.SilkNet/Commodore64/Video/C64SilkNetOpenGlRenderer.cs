@@ -66,9 +66,14 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     public struct SpriteData
     {
         public uint Visible;    // 0 = not visible, 1 = visible 
-        public uint X;          // uint = 4 bytes, only using 2 bytes
-        public uint Y;          // uint = 4 bytes, only using 2 bytes
+        public int X;           // int = 4 bytes, only using 2 bytes
+        public int Y;           // int = 4 bytes, only using 2 bytes
         public uint Color;      // uint = 4 bytes, only using 1 byte
+
+        public uint DoubleWidth; // 0 = Normal width, 1 = Double width
+        public uint DoubleHeight;// 0 = Normal height, 1 = Double height
+        public uint PriorityOverForeground; // 0 = No priority, 1 = Priority over foreground
+        public uint MultiColor;  // 0 = Single color mode, 1 = MultiColor mode
     }
     public struct SpriteContentData
     {
@@ -257,9 +262,13 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         {
             int si = sprite.SpriteNumber;
             spriteData[si].Visible = sprite.Visible ? 1u : 0u;
-            spriteData[si].X = (uint)(sprite.X + visibleMainScreenArea.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X);
-            spriteData[si].Y = (uint)(sprite.Y + visibleMainScreenArea.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y);
+            spriteData[si].X = (sprite.X + visibleMainScreenArea.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X);
+            spriteData[si].Y = (sprite.Y + visibleMainScreenArea.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y);
             spriteData[si].Color = (uint)sprite.Color;
+            spriteData[si].DoubleWidth = sprite.DoubleWidth ? 1u : 0u;
+            spriteData[si].DoubleHeight = sprite.DoubleHeight ? 1u : 0u;
+            spriteData[si].PriorityOverForeground = sprite.PriorityOverForeground ? 1u : 0u;
+            spriteData[si].MultiColor = sprite.Multicolor ? 1u : 0u;
         }
         _uboSpriteData.Update(spriteData, 0);
 
