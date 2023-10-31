@@ -1,16 +1,16 @@
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 
-namespace Highbyte.DotNet6502.App.SkiaNative;
+namespace Highbyte.DotNet6502.App.SilkNetNative;
 
-public class SkiaNativeMonitor : MonitorBase
+public class SilkNetNativeMonitor : MonitorBase
 {
     private readonly MonitorConfig _monitorConfig;
 
     public const int MONITOR_CMD_HISTORY_VIEW_ROWS = 20;
     public List<(string Message, MessageSeverity Severity)> MonitorCmdHistory { get; private set; } = new();
 
-    public SkiaNativeMonitor(
+    public SilkNetNativeMonitor(
         SystemRunner systemRunner,
         MonitorConfig monitorConfig
         ) : base(systemRunner, monitorConfig)

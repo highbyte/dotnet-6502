@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats;
+namespace Highbyte.DotNet6502.App.SilkNetNative.Instrumentation.Stats;
 
 public class ElapsedMillisecondsStat : AveragedStat
 {

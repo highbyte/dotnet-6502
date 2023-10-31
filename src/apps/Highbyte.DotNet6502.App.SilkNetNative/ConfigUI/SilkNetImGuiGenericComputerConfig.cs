@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 
-namespace Highbyte.DotNet6502.App.SkiaNative.ConfigUI;
+namespace Highbyte.DotNet6502.App.SilkNetNative.ConfigUI;
 
 public class SilkNetImGuiGenericComputerConfig
 {

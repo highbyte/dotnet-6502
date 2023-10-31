@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.App.SkiaNative;
+namespace Highbyte.DotNet6502.App.SilkNetNative;
 
 public interface ISilkNetImGuiWindow
 {

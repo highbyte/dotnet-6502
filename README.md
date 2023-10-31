@@ -9,7 +9,7 @@
 
 ## A [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) emulator for .NET
 
-[<img align="top" src="doc/Screenshots/SkiaWASM_C64.png" width="50%" height="50%" title="SkiaSharp rendering in a Blazor WASM browser host"/>](https://highbyte.se/dotnet-6502/app)<img align="top" src="doc/Screenshots/SkiaNative_Monitor.png" width="50%" height="50%" title="SkiaSharp rendering in a native SkiaSharp/Silk.NET host">
+[<img align="top" src="doc/Screenshots/SkiaWASM_C64.png" width="50%" height="50%" title="SkiaSharp rendering in a Blazor WASM browser host"/>](https://highbyte.se/dotnet-6502/app)<img align="top" src="doc/Screenshots/SilkNetNative_Monitor.png" width="50%" height="50%" title="SkiaSharp rendering in a native SkiaSharp/Silk.NET host">
 
 # Overview / purpose
 

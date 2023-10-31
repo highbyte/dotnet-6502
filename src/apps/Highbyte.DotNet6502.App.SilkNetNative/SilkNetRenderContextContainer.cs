@@ -2,7 +2,7 @@ using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Systems;
 
-namespace Highbyte.DotNet6502.App.SkiaNative;
+namespace Highbyte.DotNet6502.App.SilkNetNative;
 
 public class SilkNetRenderContextContainer : IRenderContext
 {

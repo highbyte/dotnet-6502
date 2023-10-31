@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats;
+namespace Highbyte.DotNet6502.App.SilkNetNative.Instrumentation.Stats;
 
 // Credit to instrumentation/stat code to: https://github.com/davidwengier/Trains.NET
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "Dispose is used to measure")]

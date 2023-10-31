@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using AutoMapper;
-using Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats;
-using Highbyte.DotNet6502.App.SkiaNative.Stats;
+using Highbyte.DotNet6502.App.SilkNetNative;
+using Highbyte.DotNet6502.App.SilkNetNative.Instrumentation.Stats;
+using Highbyte.DotNet6502.App.SilkNetNative.Stats;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SilkNet;
@@ -11,7 +12,7 @@ using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.App.SkiaNative;
+namespace Highbyte.DotNet6502.App.SilkNetNative;
 
 public enum EmulatorState
 {
@@ -208,9 +209,9 @@ public class SilkNetWindow
     {
         // Init SkipSharp resources (must be done in OnLoad, otherwise no OpenGL context will exist create by SilkNet.)
         //_skiaRenderContext = new SkiaRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
-        GRGlGetProcedureAddressDelegate getProcAddress = (string name) =>
+        GRGlGetProcedureAddressDelegate getProcAddress = (name) =>
         {
-            bool addrFound = _window.GLContext!.TryGetProcAddress(name, out var addr);
+            var addrFound = _window.GLContext!.TryGetProcAddress(name, out var addr);
             return addrFound ? addr : 0;
         };
 
@@ -342,9 +343,7 @@ public class SilkNetWindow
     {
         // Don't update emulator state when monitor is visible
         if (_monitor.Visible)
-        {
             return;
-        }
 
         if (_silkNetInputHandlerContext.Quit || _monitor.Quit)
         {
@@ -365,7 +364,7 @@ public class SilkNetWindow
         ExecEvaluatorTriggerResult execEvaluatorTriggerResult;
         using (_systemTime.Measure())
         {
-            execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
+            execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame(out var detailedStats);
 
             if (detailedStats.ContainsKey("Audio"))
             {
@@ -410,19 +409,17 @@ public class SilkNetWindow
         // Make sure ImGui is up-to-date
         _imGuiController.Update((float)deltaTime);
 
-        bool emulatorRendered = false;
+        var emulatorRendered = false;
 
         if (EmulatorState == EmulatorState.Running)
         {
             if (_monitor.Visible || _statsPanel.Visible || _logsPanel.Visible)
-            {
                 _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
-            }
 
             using (_renderTime.Measure())
             {
                 // Render emulator system screen
-                _systemRunner!.Draw(out Dictionary<string, double> detailedStats);
+                _systemRunner!.Draw(out var detailedStats);
 
                 // Flush the SkiaSharp Context
                 _silkNetRenderContextContainer.SkiaRenderContext.GetGRContext().Flush();
@@ -455,29 +452,21 @@ public class SilkNetWindow
 
             // Render monitor if enabled
             if (_monitor.Visible)
-            {
                 _monitor.PostOnRender();
-            }
 
             // Render stats if enabled
             if (_statsPanel.Visible)
-            {
                 _statsPanel.PostOnRender();
-            }
         }
 
         // Render logs if enabled
         if (_logsPanel.Visible)
-        {
             _logsPanel.PostOnRender();
-        }
 
         if (!emulatorRendered)
         {
             if (_menu.Visible)
-            {
                 _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
-            }
             // Seems the canvas has to be drawn & flushed for ImGui stuff to be visible on top
             var canvas = _silkNetRenderContextContainer.SkiaRenderContext.GetCanvas();
             canvas.Clear();
@@ -485,9 +474,7 @@ public class SilkNetWindow
         }
 
         if (_menu.Visible)
-        {
             _menu.PostOnRender();
-        }
 
         // Render any ImGui UI rendered above emulator.
         _imGuiController?.Render();
@@ -576,33 +563,23 @@ public class SilkNetWindow
     private void OnKeyDown(IKeyboard keyboard, Key key, int x)
     {
         if (key == Key.F6)
-        {
             ToggleMainMenu();
-        }
         if (key == Key.F10)
-        {
             ToggleLogsPanel();
-        }
 
         if (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused)
         {
             if (key == Key.F11)
-            {
                 ToggleStatsPanel();
-            }
             if (key == Key.F12)
-            {
                 ToggleMonitor();
-            }
         }
     }
 
     public void ToggleMainMenu()
     {
         if (_menu.Visible)
-        {
             _menu.Disable();
-        }
         else
         {
             _menu.Enable();

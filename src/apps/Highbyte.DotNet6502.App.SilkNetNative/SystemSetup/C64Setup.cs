@@ -10,7 +10,7 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
+namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 
 public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {

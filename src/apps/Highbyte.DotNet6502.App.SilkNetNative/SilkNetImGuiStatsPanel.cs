@@ -1,8 +1,8 @@
 using System.Numerics;
-using Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats;
-using Highbyte.DotNet6502.App.SkiaNative.Stats;
+using Highbyte.DotNet6502.App.SilkNetNative.Instrumentation.Stats;
+using Highbyte.DotNet6502.App.SilkNetNative.Stats;
 
-namespace Highbyte.DotNet6502.App.SkiaNative;
+namespace Highbyte.DotNet6502.App.SilkNetNative;
 
 public class SilkNetImGuiStatsPanel : ISilkNetImGuiWindow
 {

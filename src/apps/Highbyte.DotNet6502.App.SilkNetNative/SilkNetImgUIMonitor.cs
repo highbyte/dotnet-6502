@@ -3,13 +3,13 @@ using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using NativeFileDialogSharp;
 
-namespace Highbyte.DotNet6502.App.SkiaNative;
+namespace Highbyte.DotNet6502.App.SilkNetNative;
 
 public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
 {
     private readonly MonitorConfig _monitorConfig;
 
-    private SkiaNativeMonitor _skiaNativeMonitor = null!;
+    private SilkNetNativeMonitor _silkNetNativeMonitor = null!;
 
     public bool Visible { get; private set; }
     public bool WindowIsFocused { get; private set; }
@@ -49,13 +49,13 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
 
     public void Init(SystemRunner systemRunner)
     {
-        _skiaNativeMonitor = new SkiaNativeMonitor(systemRunner, _monitorConfig);
+        _silkNetNativeMonitor = new SilkNetNativeMonitor(systemRunner, _monitorConfig);
         _hasBeenInitializedOnce = false;
     }
 
     public void PostOnRender()
     {
-        if (_skiaNativeMonitor == null || !Visible)
+        if (_silkNetNativeMonitor == null || !Visible)
             return;
 
         ImGui.SetNextWindowSize(new Vector2(WIDTH, HEIGHT));
@@ -67,18 +67,18 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
         if (!_hasBeenInitializedOnce)
         {
             // Init monitor list of history commands with blanks
-            for (int i = 0; i < SkiaNativeMonitor.MONITOR_CMD_HISTORY_VIEW_ROWS; i++)
-                _skiaNativeMonitor.WriteOutput("");
+            for (int i = 0; i < SilkNetNativeMonitor.MONITOR_CMD_HISTORY_VIEW_ROWS; i++)
+                _silkNetNativeMonitor.WriteOutput("");
 
             // Show description and general help text first time
-            _skiaNativeMonitor.ShowDescription();
-            _skiaNativeMonitor.WriteOutput("");
-            _skiaNativeMonitor.ShowHelp();
+            _silkNetNativeMonitor.ShowDescription();
+            _silkNetNativeMonitor.WriteOutput("");
+            _silkNetNativeMonitor.ShowHelp();
 
             _hasBeenInitializedOnce = true;
         }
 
-        ImGui.Begin($"6502 Monitor: {_skiaNativeMonitor.System.Name}");
+        ImGui.Begin($"6502 Monitor: {_silkNetNativeMonitor.System.Name}");
 
         if (ImGui.IsWindowFocused())
         {
@@ -86,7 +86,7 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
         }
 
         Vector4 textColor;
-        foreach (var cmd in _skiaNativeMonitor.MonitorCmdHistory)
+        foreach (var cmd in _silkNetNativeMonitor.MonitorCmdHistory)
         {
             textColor = cmd.Severity switch
             {
@@ -108,8 +108,8 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
         ImGui.PushItemWidth(600);
         if (ImGui.InputText("", ref _monitorCmdString, MONITOR_CMD_LINE_LENGTH, ImGuiInputTextFlags.EnterReturnsTrue))
         {
-            _skiaNativeMonitor.WriteOutput(_monitorCmdString, MessageSeverity.Information);
-            var commandResult = _skiaNativeMonitor.SendCommand(_monitorCmdString);
+            _silkNetNativeMonitor.WriteOutput(_monitorCmdString, MessageSeverity.Information);
+            var commandResult = _silkNetNativeMonitor.SendCommand(_monitorCmdString);
             _monitorCmdString = "";
             if (commandResult == CommandResult.Quit)
             {
@@ -129,12 +129,12 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
 
         // CPU status
         ImGui.PushStyleColor(ImGuiCol.Text, s_StatusColor);
-        ImGui.Text($"CPU: {OutputGen.GetProcessorState(_skiaNativeMonitor.Cpu, includeCycles: true)}");
+        ImGui.Text($"CPU: {OutputGen.GetProcessorState(_silkNetNativeMonitor.Cpu, includeCycles: true)}");
         ImGui.PopStyleColor();
 
         // System status
         ImGui.PushStyleColor(ImGuiCol.Text, s_StatusColor);
-        foreach (var sysInfoRow in _skiaNativeMonitor.System.SystemInfo)
+        foreach (var sysInfoRow in _silkNetNativeMonitor.System.SystemInfo)
         {
             ImGui.Text($"SYS: {sysInfoRow}");
         }
@@ -151,10 +151,10 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
         Quit = false;
         Visible = true;
         _setFocusOnInput = true;
-        _skiaNativeMonitor.Reset();   // Reset monitor working variables (like last disassembly location)
+        _silkNetNativeMonitor.Reset();   // Reset monitor working variables (like last disassembly location)
 
         if (execEvaluatorTriggerResult != null)
-            _skiaNativeMonitor.ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
+            _silkNetNativeMonitor.ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
         //else
         //    WriteOutput($"Monitor enabled manually.", MessageSeverity.Information);
         OnMonitorStateChange(true);

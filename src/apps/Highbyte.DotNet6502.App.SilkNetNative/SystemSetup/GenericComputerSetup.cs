@@ -8,7 +8,7 @@ using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
+namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 
 public class GenericComputerSetup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {

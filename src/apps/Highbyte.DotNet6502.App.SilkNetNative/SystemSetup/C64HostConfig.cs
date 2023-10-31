@@ -1,7 +1,7 @@
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64;
 using Highbyte.DotNet6502.Systems;
 
-namespace Highbyte.DotNet6502.App.SkiaNative.SystemSetup
+namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup
 {
     public enum C64HostRenderer
     {

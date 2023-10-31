@@ -1,7 +1,8 @@
 using System.Numerics;
 using AutoMapper;
-using Highbyte.DotNet6502.App.SkiaNative.ConfigUI;
-using Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
+using Highbyte.DotNet6502.App.SilkNetNative;
+using Highbyte.DotNet6502.App.SilkNetNative.ConfigUI;
+using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -9,7 +10,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 using Microsoft.Extensions.Logging;
 using NativeFileDialogSharp;
 
-namespace Highbyte.DotNet6502.App.SkiaNative;
+namespace Highbyte.DotNet6502.App.SilkNetNative;
 
 public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 {

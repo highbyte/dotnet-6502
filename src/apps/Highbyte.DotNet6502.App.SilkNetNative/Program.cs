@@ -1,6 +1,7 @@
 using AutoMapper;
-using Highbyte.DotNet6502.App.SkiaNative;
-using Highbyte.DotNet6502.App.SkiaNative.SystemSetup;
+using Highbyte.DotNet6502.App.SilkNetNative;
+using Highbyte.DotNet6502.App.SilkNetNative;
+using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
@@ -86,7 +87,7 @@ windowOptions.FramesPerSecond = 60.0f;  // TODO: With Vsync=false the FramesPerS
 
 windowOptions.VSync = false;  // TODO: With Vsync=true Silk.NET seem to use incorrect UpdatePerSecond. The actual FPS its called is 10 lower than it should be (measured in the OnUpdate method)
 windowOptions.WindowState = WindowState.Normal;
-windowOptions.Title = "DotNet 6502 emulator hosted in native app using SkiaSharp drawing, with OpenGL context provided by Silk.NET.";
+windowOptions.Title = "DotNet 6502 emulator hosted in native Silk.NET window using SkiaSharp, OpenGL, and NAudio";
 windowOptions.Size = new Vector2D<int>(windowWidth, windowHeight);
 windowOptions.WindowBorder = WindowBorder.Fixed;
 windowOptions.API = GraphicsAPI.Default; // = Default = OpenGL 3.3 with forward compatibility

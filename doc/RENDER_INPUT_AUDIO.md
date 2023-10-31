@@ -9,7 +9,7 @@ Rendering, input handling, and audio libraries
 |                                      | Input:  `Blazor`,`ASP.NET`,`JavaScript`     | Input:  `Highbyte.DotNet6502.Impl.AspNet`     | x       | x       |
 |                                      | Audio:  `WebAudio API`, `Blazor JS interop` | Audio:  `Highbyte.DotNet6502.Impl.AspNet`     | x       |         |
 |                                      |                                             |                                               |         |         |
-| `Highbyte.DotNet6502.App.SkiaNative` | Render: `Silk.NET`,`OpenGL`,`SkiaSharp`     | Render: `Highbyte.DotNet6502.Impl.Skia`       | x       | x       |
+| `Highbyte.DotNet6502.App.SilkNetNative` | Render: `Silk.NET`,`OpenGL`,`SkiaSharp`     | Render: `Highbyte.DotNet6502.Impl.Skia`, `Highbyte.DotNet6502.Impl.OpenGl`       | x       | x       |
 |                                      | Input:  `Silk.NET`                          | Input:  `Highbyte.DotNet6502.Impl.SilkNet`    | x       | x       |
 |                                      | Audio:  -                                   | Audio:  -                                     |         |         |
 |                                      |                                             |                                               |         |         |

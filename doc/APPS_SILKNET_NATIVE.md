@@ -1,9 +1,9 @@
-<h1 align="center">Highbyte.DotNet6502.App.SkiaNative</h1>
+<h1 align="center">Highbyte.DotNet6502.App.SilkNetNative</h1>
 
 # Overview
-<img src="Screenshots/SkiaNative_C64.png" width="50%" height="50%" title="SkiaSharp rendering in native Silk.NET host window">
+<img src="Screenshots/SilkNetNative_C64.png" width="50%" height="50%" title="SkiaSharp rendering in native Silk.NET host window">
 
-<img src="Screenshots/SkiaNative_Monitor.png" width="100%" height="100%" title="SkiaSharp rendering in native Silk.NET host window">
+<img src="Screenshots/SilkNetNative_Monitor.png" width="100%" height="100%" title="SkiaSharp rendering in native Silk.NET host window">
 
 # Features
 Native cross-platform app written in .NET with a Window from Silk.NET, using a SkiaSharp renderer (from ```Highbyte.DotNet6502.Impl.Skia```) and a Silk.NET input handler (from ```Highbyte.DotNet6502.Impl.SilkNet```).

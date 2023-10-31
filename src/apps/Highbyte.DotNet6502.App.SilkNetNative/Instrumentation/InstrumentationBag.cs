@@ -1,6 +1,6 @@
-using Highbyte.DotNet6502.App.SkiaNative.Instrumentation.Stats;
+using Highbyte.DotNet6502.App.SilkNetNative.Instrumentation.Stats;
 
-namespace Highbyte.DotNet6502.App.SkiaNative.Stats;
+namespace Highbyte.DotNet6502.App.SilkNetNative.Stats;
 
 // Credit to instrumentation/stat code to: https://github.com/davidwengier/Trains.NET    
 public static class InstrumentationBag

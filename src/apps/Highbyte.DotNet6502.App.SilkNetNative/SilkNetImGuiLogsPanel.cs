@@ -2,7 +2,7 @@ using System.Numerics;
 using Highbyte.DotNet6502.Logging;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.App.SkiaNative;
+namespace Highbyte.DotNet6502.App.SilkNetNative;
 
 public class SilkNetImGuiLogsPanel : ISilkNetImGuiWindow
 {
