@@ -5,7 +5,7 @@ Rendering, input handling, and audio libraries
 
 | App                                  | Techniques                                  | Implementation libraries                      | C64     | Generic |
 | ------------------------------------ | ------------------------------------------- | --------------------------------------------- | :---:   | :---:   |
-| `Highbyte.DotNet6502.App.SkiaWASM`   | Render: `SkiaSharp.Blazor.View`,`OpenGL`    | Render: `Highbyte.DotNet6502.Impl.Skia`       | x       | x       |
+| `Highbyte.DotNet6502.App.WASM`   | Render: `SkiaSharp.Blazor.View`,`OpenGL`    | Render: `Highbyte.DotNet6502.Impl.Skia`       | x       | x       |
 |                                      | Input:  `Blazor`,`ASP.NET`,`JavaScript`     | Input:  `Highbyte.DotNet6502.Impl.AspNet`     | x       | x       |
 |                                      | Audio:  `WebAudio API`, `Blazor JS interop` | Audio:  `Highbyte.DotNet6502.Impl.AspNet`     | x       |         |
 |                                      |                                             |                                               |         |         |

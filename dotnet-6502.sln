@@ -19,7 +19,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Monitor
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "App", "App", "{179A14B2-B918-4B64-8314-3551D83551D0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.App.SkiaWASM", "src\apps\Highbyte.DotNet6502.App.SkiaWASM\Highbyte.DotNet6502.App.SkiaWASM.csproj", "{5B5CB1AE-3633-4431-8919-7AA5DD2F37CE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.App.WASM", "src\apps\Highbyte.DotNet6502.App.WASM\Highbyte.DotNet6502.App.WASM.csproj", "{5B5CB1AE-3633-4431-8919-7AA5DD2F37CE}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.App.ConsoleMonitor", "src\apps\Highbyte.DotNet6502.App.ConsoleMonitor\Highbyte.DotNet6502.App.ConsoleMonitor.csproj", "{3E070BB0-52CD-4B6B-ADE0-723C4F1AA847}"
 EndProject

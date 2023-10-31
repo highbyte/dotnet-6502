@@ -1,0 +1,44 @@
+﻿@using Highbyte.DotNet6502.Systems.Commodore64.Config;
+@using Highbyte.DotNet6502.Systems.Commodore64;
+@using Highbyte.DotNet6502.Systems.Commodore64.Video;
+@using Highbyte.DotNet6502.Systems.Generic;
+@using static Highbyte.DotNet6502.App.WASM.Pages.Index;
+
+<div class="system-help systemHelpStyle@(SYSTEM_NAME)">
+    <div class="row">
+        <div class="column" style="max-width:800px;word-wrap:break-word">
+            <p>
+                A generic 6502 CPU computer, with custom defined memory layout.
+            </p>
+            <p>
+                Currently configured in the application config and code.
+                A future update could make it possible to configure such things as
+                total memory, screen memory addres and IO memory addresses in
+                the UI.
+            </p>
+        </div>
+    </div>
+    <div class="row">
+        <div class="column">
+            <button @onclick="ShowHelpUI">Generic computer help</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .systemHelpStyle@(SYSTEM_NAME) {
+        display: @Parent.GetSystemVisibilityDisplayStyle("Help", SYSTEM_NAME);
+    }
+</style>
+
+@code {
+    @inject IJSRuntime Js
+    @inject HttpClient? HttpClient
+
+    private string SYSTEM_NAME = GenericComputer.SystemName;
+
+    [Parameter]
+    public Highbyte.DotNet6502.App.WASM.Pages.Index Parent { get; set; } = default!;
+
+    private async Task ShowHelpUI() => await Parent.ShowGeneralHelpUI<GenericHelpUI>();
+}

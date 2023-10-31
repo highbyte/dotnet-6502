@@ -21,7 +21,7 @@
             "name": "Blazor WASM Skia app - Launch and Debug",
             "type": "blazorwasm",
             "request": "launch",
-            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SkiaWASM",
+            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.WASM",
             "url": "http://localhost:5000",
             "browser": "chrome"
         },           

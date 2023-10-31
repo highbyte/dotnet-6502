@@ -11,7 +11,7 @@ env:
    VERSION_SUFFIX: "-alpha"
    CONFIGURATION: "Release"
 
-   PROJECT_FILE: "src/apps/Highbyte.DotNet6502.App.SkiaWASM/Highbyte.DotNet6502.App.SkiaWASM.csproj"
+   PROJECT_FILE: "src/apps/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj"
    PROJECT_GH_PAGES_DIR: "app"
    BUILD_OUTPUT_WORKING_DIR: "build"
    GH_PAGES_WORKING_DIR: "ghpages"
