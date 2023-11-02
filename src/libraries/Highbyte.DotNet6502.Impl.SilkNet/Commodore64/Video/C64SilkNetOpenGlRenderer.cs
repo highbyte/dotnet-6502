@@ -18,9 +18,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     private bool _changedAllCharsetCodes = false;
 
     public bool HasDetailedStats => true;
-    public List<string> DetailedStatNames => new List<string>()
-    {
-    };
+    public List<string> DetailedStatNames => new List<string>() { };
 
     // Types for Uniform Buffer Objects, must align to 16 bytes.
     public struct TextData
@@ -45,7 +43,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         public uint ____;       // unused
         public Vector4 Color;   // Vector4 = 16 bytes
     }
-    public struct RasterLineData
+    public struct ScreenLineData
     {
         public uint BorderColorCode;        // uint = 4 bytes, only using 1 byte
         public uint BackgroundColor0Code;   // uint = 4 bytes, only using 1 byte
@@ -57,11 +55,20 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         public uint SpriteMultiColor1;      // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
         public uint _______;    // unused
 
+        public uint Sprite0ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+        public uint Sprite1ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+        public uint Sprite2ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+        public uint Sprite3ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+
+        public uint Sprite4ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+        public uint Sprite5ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+        public uint Sprite6ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+        public uint Sprite7ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+
         public uint ColMode40;   // 0 = 38 col mode, 1 = 40 col mode
         public uint RowMode25;   // 0 = 24 row mode, 1 = 25 row mode
         public uint ScrollX;     // 0 to 7 horizontal fine scrolling (+1 in 38 col mode)
         public int ScrollY;      // -3 to 4 vertical fine scrolling (+1 in 24 row mode)
-
     }
     public struct SpriteData
     {
@@ -91,12 +98,14 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     private BufferObject<TextData> _uboTextData;
     private BufferObject<CharsetData> _uboCharsetData;
     private BufferObject<ColorMapData> _uboColorMapData;
-    private BufferObject<RasterLineData> _uboRasterLineData;
+    private BufferObject<ScreenLineData> _uboScreenLineData;
     private BufferObject<SpriteData> _uboSpriteData;
     private BufferObject<SpriteContentData> _uboSpriteContentData;
+    private readonly C64SilkNetOpenGlRendererConfig _config;
 
-    public C64SilkNetOpenGlRenderer()
+    public C64SilkNetOpenGlRenderer(C64SilkNetOpenGlRendererConfig config)
     {
+        _config = config;
     }
 
     public void Init(C64 c64, SilkNetOpenGlRenderContext silkNetOpenGlRenderContext)
@@ -141,9 +150,9 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         var charsetData = BuildCharsetData(c64, fromROM: true);
         _uboCharsetData = new BufferObject<CharsetData>(_gl, charsetData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
 
-        // Rasterline data Uniform Buffer Object for fragment shader
-        var rasterLineData = new RasterLineData[c64.Vic2.Vic2Screen.VisibleHeight];
-        _uboRasterLineData = new BufferObject<RasterLineData>(_gl, rasterLineData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
+        // Screen line data Uniform Buffer Object for fragment shader
+        var screenLineData = new ScreenLineData[c64.Vic2.Vic2Screen.VisibleHeight];
+        _uboScreenLineData = new BufferObject<ScreenLineData>(_gl, screenLineData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
 
         // Create Uniform Buffer Object for mapping C64 colors to OpenGl colorCode (Vector4) for fragment shader
         var colorMapData = new ColorMapData[16];
@@ -172,7 +181,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _shader.BindUBO("ubTextData", _uboTextData, binding_point_index: 0);
         _shader.BindUBO("ubCharsetData", _uboCharsetData, binding_point_index: 1);
         _shader.BindUBO("ubColorMap", _uboColorMapData, binding_point_index: 2);
-        _shader.BindUBO("ubRasterLineData", _uboRasterLineData, binding_point_index: 3);
+        _shader.BindUBO("ubScreenLineData", _uboScreenLineData, binding_point_index: 3);
         _shader.BindUBO("ubSpriteData", _uboSpriteData, binding_point_index: 4);
         _shader.BindUBO("ubSpriteContentData", _uboSpriteContentData, binding_point_index: 5);
     }
@@ -222,42 +231,44 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         var textScreenData = BuildTextScreenData(c64);
         _uboTextData.Update(textScreenData, 0);
 
-        // Raster line data UBO
-        var rasterLineData = new RasterLineData[c64.Vic2.Vic2Screen.VisibleHeight];
-        foreach (var c64ScreenLine in c64.Vic2.ScreenLineBorderColor.Keys)
+        // Screen line data UBO
+        var screenLineData = new ScreenLineData[c64.Vic2.Vic2Screen.VisibleHeight];
+        foreach (var c64ScreenLine in c64.Vic2.ScreenLineIORegisterValues.Keys)
         {
             if (c64ScreenLine < visibileLayout.TopBorder.Start.Y || c64ScreenLine > visibileLayout.BottomBorder.End.Y)
                 continue;
             var canvasYPos = (ushort)(c64ScreenLine - visibileLayout.TopBorder.Start.Y);
-            var borderColor = c64.Vic2.ScreenLineBorderColor[c64ScreenLine];
-            rasterLineData[canvasYPos].BorderColorCode = borderColor;
-        }
-        foreach (var c64ScreenLine in c64.Vic2.ScreenLineBackgroundColor.Keys)
-        {
-            if (c64ScreenLine < visibileLayout.Screen.Start.Y || c64ScreenLine > visibileLayout.Screen.End.Y)
-                continue;
-            var canvasYPos = (ushort)(c64ScreenLine - visibileLayout.TopBorder.Start.Y);
-            var bgColor0 = c64.Vic2.ScreenLineBackgroundColor[c64ScreenLine];
-            rasterLineData[canvasYPos].BackgroundColor0Code = bgColor0;
-        }
-        // TODO: Add support in C64 emulator code (Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2)
-        //       for remembering VIC2 register values per raster line (such as background color 1,2,3, scroll x,y, 40 col/25 row mode.
-        //       For now, set the same value for all raster lines here.
-        for (int i = 0; i < rasterLineData.Length; i++)
-        {
-            rasterLineData[i].BackgroundColor1Code = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1);
-            rasterLineData[i].BackgroundColor2Code = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2);
-            rasterLineData[i].BackgroundColor3Code = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3);
+            var screenLineIORegisters = c64.Vic2.ScreenLineIORegisterValues[c64ScreenLine];
+            screenLineData[canvasYPos].BorderColorCode = screenLineIORegisters.BorderColor;
+            screenLineData[canvasYPos].BackgroundColor0Code = screenLineIORegisters.BackgroundColor0;
+            screenLineData[canvasYPos].BackgroundColor1Code = screenLineIORegisters.BackgroundColor1;
+            screenLineData[canvasYPos].BackgroundColor2Code = screenLineIORegisters.BackgroundColor2;
+            screenLineData[canvasYPos].SpriteMultiColor0 = screenLineIORegisters.SpriteMultiColor0;
+            screenLineData[canvasYPos].SpriteMultiColor1 = screenLineIORegisters.SpriteMultiColor1;
+            screenLineData[canvasYPos].Sprite0ColorCode = screenLineIORegisters.Sprite0Color;
+            screenLineData[canvasYPos].Sprite1ColorCode = screenLineIORegisters.Sprite1Color;
+            screenLineData[canvasYPos].Sprite2ColorCode = screenLineIORegisters.Sprite2Color;
+            screenLineData[canvasYPos].Sprite3ColorCode = screenLineIORegisters.Sprite3Color;
+            screenLineData[canvasYPos].Sprite4ColorCode = screenLineIORegisters.Sprite4Color;
+            screenLineData[canvasYPos].Sprite5ColorCode = screenLineIORegisters.Sprite5Color;
+            screenLineData[canvasYPos].Sprite6ColorCode = screenLineIORegisters.Sprite6Color;
+            screenLineData[canvasYPos].Sprite7ColorCode = screenLineIORegisters.Sprite7Color;
+            screenLineData[canvasYPos].ColMode40 = screenLineIORegisters.ColMode40 ? 1u : 0u;
+            screenLineData[canvasYPos].RowMode25 = screenLineIORegisters.RowMode25 ? 1u : 0u;
 
-            rasterLineData[i].SpriteMultiColor0 = c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0);
-            rasterLineData[i].SpriteMultiColor1 = c64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1);
-
-            rasterLineData[i].ColMode40 = vic2.Is38ColumnDisplayEnabled ? 0u : 1u;
-            rasterLineData[i].RowMode25 = vic2.Is24RowDisplayEnabled ? 0u : 1u;
-            rasterLineData[i].ScrollX = (uint)vic2.GetScrollX();
-            rasterLineData[i].ScrollY = vic2.GetScrollY();
+            if (_config.UseFineScrollPerRasterLine)
+            {
+                screenLineData[canvasYPos].ScrollX = (uint)screenLineIORegisters.ScrollX;
+                screenLineData[canvasYPos].ScrollY = screenLineIORegisters.ScrollY;
+            }
+            else
+            {
+                screenLineData[canvasYPos].ScrollX = (uint)vic2.GetScrollX();
+                screenLineData[canvasYPos].ScrollY = vic2.GetScrollY();
+            }
         }
-        _uboRasterLineData.Update(rasterLineData, 0);
+
+        _uboScreenLineData.Update(screenLineData, 0);
 
         // Sprite meta data UBO
         var spriteData = new SpriteData[Vic2SpriteManager.NUMBERS_OF_SPRITES];
@@ -274,7 +285,6 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
             spriteData[si].MultiColor = sprite.Multicolor ? 1u : 0u;
         }
         _uboSpriteData.Update(spriteData, 0);
-
 
         // Sprite content UBO
         if (c64.Vic2.SpriteManager.Sprites.Any(s => s.IsDirty))

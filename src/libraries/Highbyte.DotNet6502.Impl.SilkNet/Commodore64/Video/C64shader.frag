@@ -31,7 +31,7 @@ struct ColorMapData
   uint u3;          // unused   
   vec4 color;       // Shader color value
 };
-struct RasterLineData 
+struct ScreenLineData 
 {
   uint borderColorCode;         // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
   uint backgroundColor0Code;    // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
@@ -41,7 +41,17 @@ struct RasterLineData
   uint backgroundColor3Code;    // C64 color value 0-15. uint = 4 bytes, only using 1 byte. Used in Extended mode. 
   uint spriteMultiColor0;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
   uint spriteMultiColor1;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
-  uint u7;          // unused
+  uint u7;                      // unused
+
+  uint sprite0ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+  uint sprite1ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+  uint sprite2ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+  uint sprite3ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+
+  uint sprite4ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+  uint sprite5ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+  uint sprite6ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte. 
+  uint sprite7ColorCode;       // C64 color value 0-15. uint = 4 bytes, only using 1 byte.
 
   uint colMode40;   // 0 = 38 col mode, 1 = 40 col mode
   uint rowMode25;   // 0 = 24 row mode, 1 = 25 row mode
@@ -81,9 +91,9 @@ layout (std140) uniform ubColorMap
 { 
   ColorMapData uColorMapData[16];
 };
-layout (std140) uniform ubRasterLineData
+layout (std140) uniform ubScreenLineData
 { 
-  RasterLineData uRasterLineData[312]; // Maximum used by any VIC2 chip (PAL?)
+  ScreenLineData uScreenLineData[312]; // Maximum used by any VIC2 chip (PAL?)
 };
 layout (std140) uniform ubSpriteData
 { 
@@ -170,8 +180,8 @@ bool GetMultiColor(uint charLine, uint charsetBitPosition, vec4 color01, vec4 co
 bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
 {
     // Detect border area, draw only border color
-    uint horizontalBorderOffset = uRasterLineData[y].colMode40 == 1u ? 0u : 8u;
-    uint verticalBorderOffset = uRasterLineData[y].rowMode25 == 1u ? 0u : 4u;
+    uint horizontalBorderOffset = uScreenLineData[y].colMode40 == 1u ? 0u : 8u;
+    uint verticalBorderOffset = uScreenLineData[y].rowMode25 == 1u ? 0u : 4u;
 
     // Workaround for 38 col mode (to counter fine x scroll value is set to +1 in 38 col mode)
     if(horizontalBorderOffset!=0u)
@@ -189,8 +199,8 @@ bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
 
     border = false;
 
-	uint screenx = x - uint(uTextScreenStart.x + uRasterLineData[y].scrollX);
-	uint screeny = y - uint(uTextScreenStart.y + uRasterLineData[y].scrollY);
+	uint screenx = x - uint(uTextScreenStart.x + uScreenLineData[y].scrollX);
+	uint screeny = y - uint(uTextScreenStart.y + uScreenLineData[y].scrollY);
 	int col = int(screenx) / 8;
 	int row = int(screeny) / 8;
 	int screenMemIndex = (row * 40) + col;
@@ -214,7 +224,7 @@ bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
     uint charLine = uCharsetData[charsetIndex + charsetLineIndex].charline;
 
     // Select colors
-    uint bgColorCode0 = uRasterLineData[y].backgroundColor0Code;
+    uint bgColorCode0 = uScreenLineData[y].backgroundColor0Code;
     vec4 bgColor0 = uColorMapData[bgColorCode0 & 15u].color;
 
     uint charColorCode = uTextData[screenMemIndex].color;
@@ -239,15 +249,15 @@ bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
             bgColor = bgColor0;
             break;
         case 1:
-            uint bgColorCode1 = uRasterLineData[y].backgroundColor1Code;
+            uint bgColorCode1 = uScreenLineData[y].backgroundColor1Code;
             bgColor = uColorMapData[bgColorCode1 & 15u].color;
             break;
         case 2:
-            uint bgColorCode2 = uRasterLineData[y].backgroundColor2Code;
+            uint bgColorCode2 = uScreenLineData[y].backgroundColor2Code;
             bgColor = uColorMapData[bgColorCode2 & 15u].color;
             break;
         case 3:
-            uint bgColorCode3 = uRasterLineData[y].backgroundColor3Code;
+            uint bgColorCode3 = uScreenLineData[y].backgroundColor3Code;
             bgColor = uColorMapData[bgColorCode3 & 15u].color;
             break;
         default:
@@ -281,10 +291,10 @@ bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
             uint charColorCode2 = ((charColorCode & 15u) - 8u);
             vec4 charColor2 = uColorMapData[charColorCode2 & 15u].color;
 
-            uint bgColorCode1 = uRasterLineData[y].backgroundColor1Code;
+            uint bgColorCode1 = uScreenLineData[y].backgroundColor1Code;
             vec4 bgColor1 = uColorMapData[bgColorCode1 & 15u].color;
 
-            uint bgColorCode2 = uRasterLineData[y].backgroundColor2Code;
+            uint bgColorCode2 = uScreenLineData[y].backgroundColor2Code;
             vec4 bgColor2 = uColorMapData[bgColorCode2 & 15u].color;
 
             isForeground = GetMultiColor(charLine, charsetBitPosition, bgColor1, bgColor2, charColor2, pixelColor);
@@ -299,8 +309,8 @@ bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
 bool GetSpritePixelColor(uint x, uint y, bool prioOverForground, out vec4 pixelColor)
 {
     // Detect border area, don't draw sprites there (TODO: support opening border for sprites?) 
-    uint horizontalBorderOffset = uRasterLineData[y].colMode40 == 1u ? 0u : 8u;
-    uint verticalBorderOffset = uRasterLineData[y].rowMode25 == 1u ? 0u : 4u;
+    uint horizontalBorderOffset = uScreenLineData[y].colMode40 == 1u ? 0u : 8u;
+    uint verticalBorderOffset = uScreenLineData[y].rowMode25 == 1u ? 0u : 4u;
 
     // Workaround for 38 col mode (to counter fine x scroll value is set to +1 in 38 col mode)
     if(horizontalBorderOffset!=0u)
@@ -368,9 +378,9 @@ bool GetSpritePixelColor(uint x, uint y, bool prioOverForground, out vec4 pixelC
             bool foreground = GetMultiColor(
                 lineData,                 
                 uint(7 - bytePixelPosition), 
-                uColorMapData[uRasterLineData[y].spriteMultiColor0 & 15u].color, 
+                uColorMapData[uScreenLineData[y].spriteMultiColor0 & 15u].color, 
                 uColorMapData[uSpriteData[i].color & 15u].color, 
-                uColorMapData[uRasterLineData[y].spriteMultiColor1 & 15u].color, 
+                uColorMapData[uScreenLineData[y].spriteMultiColor1 & 15u].color, 
                 pixelColor);
                 
             if(!foreground)
@@ -435,7 +445,7 @@ void main()
     }
 
     // Default to border color if neither text screen or sprite pixel was set
-    uint borderColorCode = uRasterLineData[y].borderColorCode;
+    uint borderColorCode = uScreenLineData[y].borderColorCode;
     vec4 borderColor = uColorMapData[borderColorCode & 15u].color;
     FragColor = borderColor;
 }

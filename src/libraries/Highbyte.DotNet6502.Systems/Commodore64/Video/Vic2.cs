@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
@@ -71,8 +72,36 @@ public class Vic2
         return scrollY;
     }
 
-    public Dictionary<int, byte>? ScreenLineBorderColor { get; private set; }
-    public Dictionary<int, byte>? ScreenLineBackgroundColor { get; private set; }
+    public class ScreenLineData : ICloneable
+    {
+        public byte BorderColor;
+        public byte BackgroundColor0;
+        public byte BackgroundColor1;
+        public byte BackgroundColor2;
+        public byte BackgroundColor3;
+        public byte Sprite0Color;
+        public byte Sprite1Color;
+        public byte Sprite2Color;
+        public byte Sprite3Color;
+        public byte Sprite4Color;
+        public byte Sprite5Color;
+        public byte Sprite6Color;
+        public byte Sprite7Color;
+        public byte SpriteMultiColor0;
+        public byte SpriteMultiColor1;
+        public int ScrollX;
+        public int ScrollY;
+        public bool ColMode40;
+        public bool RowMode25;
+
+        public object Clone()
+        {
+            return MemberwiseClone();
+        }
+    }
+
+    public Dictionary<int, ScreenLineData> ScreenLineIORegisterValues { get; private set; }
+
     public Vic2ScreenLayouts? ScreenLayouts { get; private set; }
     public Vic2SpriteManager? SpriteManager { get; private set; }
     public Vic2CharsetManager? CharsetManager { get; private set; }
@@ -82,10 +111,10 @@ public class Vic2
     public static Vic2 BuildVic2(Vic2ModelBase vic2Model, C64 c64)
     {
         var vic2Mem = CreateVic2Memory(c64);
+
         var vic2IRQ = new Vic2IRQ();
 
-        var screenLineBorderColorLookup = InitializeScreenLineBorderColorLookup(vic2Model);
-        var screenLineBackgroundColorLookup = InitializeScreenLineBackgroundColorLookup(vic2Model);
+        var screenLineData = BuildScreenLineDataLookup(vic2Model);
 
         var vic2 = new Vic2()
         {
@@ -93,8 +122,7 @@ public class Vic2
             Vic2Mem = vic2Mem,
             Vic2Model = vic2Model,
             Vic2IRQ = vic2IRQ,
-            ScreenLineBorderColor = screenLineBorderColorLookup,
-            ScreenLineBackgroundColor = screenLineBackgroundColorLookup,
+            ScreenLineIORegisterValues = screenLineData,
         };
 
         var vic2Screen = new Vic2Screen(vic2Model, c64.CpuFrequencyHz);
@@ -695,12 +723,17 @@ public class Vic2
         // Raster line housekeeping.
         // Calculate the raster line based on how man CPU cycles has been executed this frame
         var newLine = (ushort)(CyclesConsumedCurrentVblank / Vic2Model.CyclesPerLine);
+        //if (newLine >= Vic2Model.TotalHeight)
+        //    Debugger.Break(); // Rasterline overflow
+        newLine = (ushort)Math.Clamp(newLine, 0, Vic2Model.TotalHeight - 1);
+
         if (newLine != _currentRasterLineInternal)
         {
 #if DEBUG
             if (newLine > Vic2Model.TotalHeight)
                 throw new Exception($"Internal error. Unreachable scan line: {newLine}. The CPU probably executed more cycles current frame than allowed.");
 #endif
+
             _currentRasterLineInternal = newLine;
 
             // Process timers
@@ -709,11 +742,10 @@ public class Vic2
 
             // Check if a IRQ should be issued for current raster line, and issue it.
             RaiseRasterIRQ(cpu);
-        }
 
-        // Remember colors for each raster line
-        StoreBorderColorForRasterLine(_currentRasterLineInternal);
-        StoreBackgroundColorForRasterLine(_currentRasterLineInternal);
+            // Remember colors and other IO registers for each raster line
+            StoreRasterLineIORegisters(_currentRasterLineInternal);
+        }
 
         // Check if we have reached the end of the frame.
         if (CyclesConsumedCurrentVblank >= Vic2Model.CyclesPerFrame)
@@ -735,18 +767,41 @@ public class Vic2
         }
     }
 
-    private void StoreBorderColorForRasterLine(ushort rasterLine)
+    private static Dictionary<int, ScreenLineData> BuildScreenLineDataLookup(Vic2ModelBase vic2Model)
     {
-        var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
-        ScreenLineBorderColor[screenLine] = C64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
+        var screenLineDataLookup = new Dictionary<int, ScreenLineData>();
+        for (ushort i = 0; i < vic2Model.TotalHeight; i++)
+        {
+            //if (!vic2Model.IsRasterLineInMainScreen(i))
+            //    continue;
+            screenLineDataLookup.Add(i, new ScreenLineData());
+        }
+        return screenLineDataLookup;
     }
 
-    private void StoreBackgroundColorForRasterLine(ushort rasterLine)
+    private void StoreRasterLineIORegisters(ushort rasterLine)
     {
-        if (!C64.Vic2.Vic2Model.IsRasterLineInMainScreen(rasterLine))
-            return;
-
         var screenLine = Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
-        ScreenLineBackgroundColor[screenLine] = C64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
+        ScreenLineData screenLineData = ScreenLineIORegisterValues[screenLine];
+
+        screenLineData.BorderColor = C64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
+        screenLineData.BackgroundColor0 = C64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
+        screenLineData.BackgroundColor1 = C64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1);
+        screenLineData.BackgroundColor2 = C64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2);
+        screenLineData.BackgroundColor3 = C64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3);
+        screenLineData.Sprite0Color = C64.ReadIOStorage(Vic2Addr.SPRITE_0_COLOR);
+        screenLineData.Sprite1Color = C64.ReadIOStorage(Vic2Addr.SPRITE_1_COLOR);
+        screenLineData.Sprite2Color = C64.ReadIOStorage(Vic2Addr.SPRITE_2_COLOR);
+        screenLineData.Sprite3Color = C64.ReadIOStorage(Vic2Addr.SPRITE_3_COLOR);
+        screenLineData.Sprite4Color = C64.ReadIOStorage(Vic2Addr.SPRITE_4_COLOR);
+        screenLineData.Sprite5Color = C64.ReadIOStorage(Vic2Addr.SPRITE_5_COLOR);
+        screenLineData.Sprite6Color = C64.ReadIOStorage(Vic2Addr.SPRITE_6_COLOR);
+        screenLineData.Sprite7Color = C64.ReadIOStorage(Vic2Addr.SPRITE_7_COLOR);
+        screenLineData.SpriteMultiColor0 = C64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_0);
+        screenLineData.SpriteMultiColor1 = C64.ReadIOStorage(Vic2Addr.SPRITE_MULTI_COLOR_1);
+        screenLineData.ScrollX = GetScrollX();
+        screenLineData.ScrollY = GetScrollY();
+        screenLineData.ColMode40 = !Is38ColumnDisplayEnabled;
+        screenLineData.RowMode25 = !Is24RowDisplayEnabled;
     }
 }

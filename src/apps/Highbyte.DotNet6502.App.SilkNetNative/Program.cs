@@ -1,10 +1,9 @@
 using AutoMapper;
 using Highbyte.DotNet6502.App.SilkNetNative;
-using Highbyte.DotNet6502.App.SilkNetNative;
 using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SilkNet;
-using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
 using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Logging.InMem;
 using Highbyte.DotNet6502.Monitor;
@@ -33,7 +32,11 @@ var systemList = new SystemList<SilkNetRenderContextContainer, SilkNetInputHandl
 
 var c64HostConfig = new C64HostConfig
 {
-    Renderer = C64HostRenderer.SilkNetOpenGl
+    Renderer = C64HostRenderer.SilkNetOpenGl,
+    SilkNetOpenGlRendererConfig = new C64SilkNetOpenGlRendererConfig()
+    {
+        UseFineScrollPerRasterLine = false, // Setting to true may work, depending on how code is written. Full screen scroll may not work (actual screen memory is not rendered in sync with raster line).
+    }
 };
 var c64Setup = new C64Setup(loggerFactory, c64HostConfig);
 await systemList.AddSystem(c64Setup);

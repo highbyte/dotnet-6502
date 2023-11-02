@@ -106,7 +106,7 @@ public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetI
                 renderContext = renderContextContainer.SkiaRenderContext;
                 break;
             case C64HostRenderer.SilkNetOpenGl:
-                renderer = new C64SilkNetOpenGlRenderer();
+                renderer = new C64SilkNetOpenGlRenderer(c64HostConfig.SilkNetOpenGlRendererConfig);
                 renderContext = renderContextContainer.SilkNetOpenGlRenderContext;
                 break;
             default:
