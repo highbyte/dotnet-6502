@@ -38,7 +38,7 @@ public static class ColorMaps
     }
 
     /// <summary>
-    /// Same as Vice 64 emulator "C64HQ" pallete option
+    /// Same as Vice 64 emulator "C64HQ" palette option
     /// </summary>
     private static Dictionary<byte, Color> C64ColorMap_C64HQ = new()
     {
@@ -61,7 +61,7 @@ public static class ColorMaps
     };
 
     /// <summary>
-    /// Same as Vice 64 emulator "Godot" pallete option
+    /// Same as Vice 64 emulator "Godot" palette option
     /// </summary>
     private static Dictionary<byte, Color> C64ColorMap_Godot = new()
     {

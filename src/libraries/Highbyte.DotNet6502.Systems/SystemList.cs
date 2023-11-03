@@ -124,7 +124,8 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
 
         var system = await GetSystem(systemName, configurationVariant);
         var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
-        var systemRunner = _systemConfigurers[systemName].BuildSystemRunner(system, systemConfig, _getRenderContext(), _getInputHandlerContext(), _getAudioHandlerContext());
+        var hostSystemConfig = await _systemConfigurers[systemName].GetHostSystemConfig();
+        var systemRunner = _systemConfigurers[systemName].BuildSystemRunner(system, systemConfig, hostSystemConfig, _getRenderContext(), _getInputHandlerContext(), _getAudioHandlerContext());
         return systemRunner;
     }
 

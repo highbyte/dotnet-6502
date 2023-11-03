@@ -87,9 +87,8 @@ public class C64SilkNetKeyboard
         // Misc
         { new[] { Key.Backspace }, new[] { C64Key.Delete } },
         { new[] { Key.Enter }, new[] { C64Key.Return } },
-        { new[] { Key.Tab }, new[] { C64Key.CBM } },
-        { new[] { Key.ControlLeft }, new[] { C64Key.Ctrl } },
-        { new[] { Key.ControlRight }, new[] { C64Key.Ctrl } },
+        { new[] { Key.Tab }, new[] { C64Key.Ctrl } },
+        { new[] { Key.ControlLeft }, new[] { C64Key.CBM } },
         { new[] { Key.ShiftLeft }, new[] { C64Key.LShift } },
         { new[] { Key.ShiftRight }, new[] { C64Key.RShift } },
     };

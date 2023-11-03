@@ -5,13 +5,14 @@ Rendering, input handling, and audio libraries
 
 | App                                  | Techniques                                  | Implementation libraries                      | C64     | Generic |
 | ------------------------------------ | ------------------------------------------- | --------------------------------------------- | :---:   | :---:   |
-| `Highbyte.DotNet6502.App.SkiaWASM`   | Render: `SkiaSharp.Blazor.View`,`OpenGL`    | Render: `Highbyte.DotNet6502.Impl.Skia`       | x       | x       |
+| `Highbyte.DotNet6502.App.WASM`   | Render: `SkiaSharp.Blazor.View`,`OpenGL`    | Render: `Highbyte.DotNet6502.Impl.Skia`       | x       | x       |
 |                                      | Input:  `Blazor`,`ASP.NET`,`JavaScript`     | Input:  `Highbyte.DotNet6502.Impl.AspNet`     | x       | x       |
 |                                      | Audio:  `WebAudio API`, `Blazor JS interop` | Audio:  `Highbyte.DotNet6502.Impl.AspNet`     | x       |         |
 |                                      |                                             |                                               |         |         |
-| `Highbyte.DotNet6502.App.SkiaNative` | Render: `Silk.NET`,`OpenGL`,`SkiaSharp`     | Render: `Highbyte.DotNet6502.Impl.Skia`       | x       | x       |
+| `Highbyte.DotNet6502.App.SilkNetNative` | Render: `Silk.NET`,`OpenGL`,`SkiaSharp`     | Render: `Highbyte.DotNet6502.Impl.Skia`    | x       | x       |
+|                                      |                                             | Render (OpenGL/shaders):  `Highbyte.DotNet6502.Impl.SilkNet`    | x       |        |
 |                                      | Input:  `Silk.NET`                          | Input:  `Highbyte.DotNet6502.Impl.SilkNet`    | x       | x       |
-|                                      | Audio:  -                                   | Audio:  -                                     |         |         |
+|                                      | Audio:  `NAudio`                            | Audio:  `Highbyte.DotNet6502.Impl.NAudio`     | x       |         |
 |                                      |                                             |                                               |         |         |
 | `Highbyte.DotNet6502.App.SadConsole` | Render: `SadConsole`                        | Render: `Highbyte.DotNet6502.Impl.SadConsole` | x       | x       |
 |                                      | Input:  `SadConsole`                        | Input:  `Highbyte.DotNet6502.Impl.SadConsole` | x       | x       |
@@ -21,6 +22,7 @@ Rendering, input handling, and audio libraries
 
 [```Highbyte.DotNet6502.Impl.Skia```](#HighbyteDotNet6502ImplSkia)
 - Library with renderers implemented with the [```SkiaSharp```](https://github.com/mono/SkiaSharp) 2D drawing library. Can be used from both native and WASM applications.
+- Note: alternative renderers using only OpenGL + shaders can be found in [```Highbyte.DotNet6502.Impl.SilkNet```](#HighbyteDotNet6502ImplSilkNet), see below.
 
 ## Renderer
 ### C64
@@ -44,10 +46,20 @@ Experimental (non-complete) emulation of C64 SID audio chip.
 
 [```Highbyte.DotNet6502.Impl.SilkNet```](#HighbyteDotNet6502ImplSilkNet)
 - InputHandlers implemented with the [```Silk.NET```](https://github.com/dotnet/Silk.NET) windowing library. Can be used from native applications.
+- Renderers implemented with Silk.NET OpenGL bindings, together with custom shaders. Can be used from native applications.
+## Renderer
+### C64
 
 ## InputHandler
 ### C64
 ### Generic
+
+# Library: Highbyte.DotNet6502.Impl.NAudio
+
+[```Highbyte.DotNet6502.Impl.Naudio```](#HighbyteDotNet6502ImplNAudio)
+- AudioHandlers implemented with  [```NAudio```](https://github.com/naudio/NAudio) audio library using a custom `Silk.NET.OpenAL` provider for cross platform support. Can be used from native applications.
+## AudioHandler
+### C64
 
 # Library: Highbyte.DotNet6502.Impl.SadConsole
 

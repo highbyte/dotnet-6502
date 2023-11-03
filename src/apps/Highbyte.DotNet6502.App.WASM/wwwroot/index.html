@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>dotnet-6502 CPU emulator in Blazor WebAssembly with Skia rendering</title>
+    <base href="/" />
+    <!-- Custom app stylesheet-->
+    <link href="css/app.css" rel="stylesheet" />
+    <!-- Blazor auto-genereated stylesheet-->
+    <link href="Highbyte.DotNet6502.App.WASM.styles.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div id="app">
+        <svg class="loading-progress">
+            <circle r="40%" cx="50%" cy="50%" />
+            <circle r="40%" cx="50%" cy="50%" />
+        </svg>
+        <div class="loading-progress-text"></div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
+
+    <!-- Custom JS script functions for JS interop from C# code -->
+    <script>
+        window.focusElement = (element) => {
+            element.focus();
+        }
+
+        window.focusId = (id, delayMs) => {
+            setTimeout(() => {
+                var elementToFocus = document.getElementById(id);
+                elementToFocus.focus();
+            }, delayMs);
+
+        }
+
+        window.clickId = (id) => {
+            var elementToClick = document.getElementById(id);
+            elementToClick.click();
+        }
+
+        window.scrollBottom = (id) => {
+            var elementToScroll = document.getElementById(id);
+            elementToScroll.scrollIntoView(false);
+        }
+
+        window.downloadFileFromStream = async (fileName, contentStreamReference) => {
+            const arrayBuffer = await contentStreamReference.arrayBuffer();
+            const blob = new Blob([arrayBuffer]);
+            const url = URL.createObjectURL(blob);
+            const anchorElement = document.createElement('a');
+            anchorElement.href = url;
+            anchorElement.download = fileName ?? '';
+            anchorElement.click();
+            anchorElement.remove();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+
+    <script>
+        console.log("Disabling default key behavior for main canvas and monitor");
+        setTimeout(() => {
+            // Fix for some keys not working correctly in Emulator Canvas
+            var emulatorCanvasElement = document.getElementById("emulatorSKGLView");
+            emulatorCanvasElement.addEventListener("keydown", handleSpecialKeysForCanvas, true);
+
+            // Fix for some keys not working correctly in Monitor UI
+            var monitorElement = document.getElementById("monitor-outer-screen");
+            monitorElement.addEventListener("keydown", handleSpecialKeysForMonitor, true);
+
+        }, 5000);
+
+        function handleSpecialKeysForCanvas(event) {
+            //console.log("Index.html key event: " + event.key + " (" + event.code + ")");
+            if (event.code == "ArrowDown" || event.code == "ArrowUp" || event.code == "ArrowRight" || event.code == "ArrowLeft"
+                || event.code == "PageUp" || event.code == "PageDown" || event.code == "Home" || event.code == "End"
+                || event.code == "Tab" || event.code == "ControlLeft" || event.code == "ControlRight"
+                || event.code == "Space"
+                || (event.ctrlKey && (event.code == "Digit1" || event.code == "Digit2" || event.code == "Digit3" || event.code == "Digit4" || event.code == "Digit5" || event.code == "Digit6" || event.code == "Digit7" || event.code == "Digit8" || event.code == "Digit9" || event.code == "Digit0"))
+                || event.code == "F1" || event.code == "F2" || event.code == "F3" || event.code == "F4" || event.code == "F5" || event.code == "F6" || event.code == "F7" || event.code == "F8"  
+                || event.code == "F11" || event.code == "F12") {
+                //console.log("Prevent default for key: " + event.key + " (" + event.code + ")");
+                event.preventDefault();
+            }
+        }
+
+        function handleSpecialKeysForMonitor(event) {
+            //console.log("Index.html key event: " + event.key + " (" + event.code + ")");
+            if (event.code == "ArrowDown" || event.code == "ArrowUp"
+                || event.code == "F11" || event.code == "F12") {
+                //console.log("Prevent default for key: " + event.key + " (" + event.code + ")");
+                event.preventDefault();
+            }
+            else if (event.code == "Escape") {
+                event.srcElement.value = ""
+            }
+        }
+    </script>
+</body>
+
+</html>

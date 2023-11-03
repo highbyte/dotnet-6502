@@ -1,0 +1,189 @@
+@page "/"
+@using Highbyte.DotNet6502.App.WASM.Pages.Commodore64
+@using Highbyte.DotNet6502.App.WASM.Pages.Generic
+
+@using SkiaSharp.Views.Blazor
+@*@implements IDisposable*@
+
+@*Note: Page title set in index.html title element*@
+@*<PageTitle>dotnet-6502 CPU emulator in Blazor WebAssembly with Skia rendering</PageTitle>
+*@
+
+<div class="grid-container">
+    <div class="header">
+        <a href="https://github.com/highbyte/dotnet-6502" target="_blank">DotNet 6502</a>
+    </div>
+    <div class="menu">
+        <div id="system-selector" class="command-panel">
+            <div>
+                System:
+                @* <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled autofocus> *@
+                <select value="@_selectedSystemName" @onchange="OnSelectedEmulatorChanged" disabled=@OnSelectSystemNameDisabled autofocus>
+                    @foreach (var systemName in _systemList.Systems)
+                    {
+                        <option value="@systemName"> @systemName </option>
+                    }
+                </select>
+            </div>
+            <div>Status: @(
+                CurrentEmulatorState
+                )</div>
+            <button @onclick="OnStart" disabled=@OnStartDisabled>Start</button>
+            <button @onclick="OnPause" disabled=@OnPauseDisabled>Pause</button>
+            <button @onclick="OnReset" disabled=@OnResetDisabled>Reset</button>
+            <button @onclick="OnStop" disabled=@OnStopDisabled>Stop</button>
+            <button @onclick="OnMonitorToggle" disabled=@OnStopDisabled>Monitor</button>
+            <button @onclick="OnStatsToggle" disabled=@OnStopDisabled>Stats</button>
+
+            <p></p>
+            <span>Screen scale: <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
+
+            <p></p>
+            <label for="audioEnabled">Audio enabled (experimental)</label>
+            <input id="audioEnabled" type="checkbox" @bind="@AudioEnabled" disabled=@AudioEnabledToggleDisabled />
+
+            <p></p>
+            <div class="audioVolumeStyle">
+                Volume:
+                <input @bind="@MasterVolumePercent" @bind:event="oninput" type="range" id="masterVolume" min="0" max="100" step="0.02" />
+                @* <input @bind="@MasterVolumePercent" @bind:event="oninput" type="number" min="0" max="100" step="0.02" /> *@
+            </div>
+        </div>
+
+        <div class="command-panel">
+            <h4>@_selectedSystemName</h4>
+            <C64Menu Parent=this />
+            <GenericMenu Parent=this />
+            <div class="validation-message">
+                <span>@_selectedSystemConfigValidationMessage</span>
+            </div>
+        </div>
+
+        <div class="command-panel">
+            <div class="system-help" style="display:inline;">
+                <h4>General</h4>
+                <button @onclick="ShowGeneralHelpUI">Help</button>
+                <button @onclick="ShowGeneralSettingsUI">Settings</button>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="menuFooter">
+        <div id="versionInfo">
+            <p>
+                <a href="https://github.com/highbyte/dotnet-6502" target="_blank">dotnet-6502</a>
+            </p>
+            <p>
+                By: <a href="https://github.com/highbyte" target="_blank">Highbyte</a>
+            </p>
+            <p>
+                Version: @Version
+            </p>
+        </div>
+    </div>
+
+    @*Skia OpenGl View Blazor WASM component*@
+    <div class="main">
+        <SKGLView class="skGLViewStyle"
+        IgnorePixelScaling="true"
+        EnableRenderLoop="true"
+        OnPaintSurface="OnPaintSurface"
+        id="emulatorSKGLView"
+        tabindex="0"
+        oncontextmenu="return false;"
+        @onkeydown="OnKeyDown"
+        @onkeyup="OnKeyUp"
+        @onfocus="OnFocus"
+        />
+
+        <div id="canvasUninitialized"
+        class="canvasUninitializedStyle">
+
+            <h2>
+                The DotNet 6502 emulator!
+            </h2>
+
+            <p>
+                A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502" target="_blank">6502 CPU</a> emulator written in <a href="https://dotnet.microsoft.com/" target="_blank">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank">Blazor</a>, running in a browser.
+            </p>
+            <p>
+                Select the computer to emulate in the System drop down menu on the left.
+            </p>
+            <p>
+                For certain computers (like the C64) you have to provide ROM files via a Config button.
+            </p>
+            <p>
+                Press Start button to run.
+            </p>
+            <p>
+                When running, press F12 to start machine code monitor and F11 to show statistics.
+            </p>
+        </div>
+
+    </div>
+    <div class="right">
+        <div class="infobox debugStyle">
+            <div class="infobox-output">@(
+                (MarkupString)_statsString
+                )</div>
+        </div>
+        <div class="infobox debugStyle">
+            <div class="infobox-output">@(
+                (MarkupString)_debugString
+                )</div>
+        </div>
+
+        <div class="monitorStyle">
+            <div id="monitor-outer-screen" >
+                <div id="monitor-inner-screen">
+                    <div id="monitor-output-outer"><div id="monitor-output">@(
+                            (MarkupString)_monitorOutput
+                            )</div></div>
+                    <div id="monitor-blank-line">&nbsp;</div>
+                    <div id="monitor-input-row">
+                        <span>&gt;&nbsp;</span><input id="monitor-input" @bind="_monitorInput" type="text" @onkeydown="OnKeyDownMonitor" @onkeyup="OnKeyUpMonitor" @ref="_monitorInputRef" />
+                    </div>
+                </div>
+            </div>
+
+            @*Monitor status*@
+            <div class="infobox">
+                <div class="infobox-output">@(
+                    (MarkupString)_monitorStatus
+                    )</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <C64MenuHelp Parent=this />
+        <GenericMenuHelp Parent=this />
+    </div>
+</div>
+
+<style>
+    .skGLViewStyle {
+    display: @GetDisplayStyle("Canvas");
+    width: @_windowWidthStyle;
+    height: @_windowHeightStyle;
+    }
+
+    .canvasUninitializedStyle {
+    display: @GetDisplayStyle("CanvasUninitialized");
+    width: 806px;
+    height: 320px;
+    }
+
+    .debugStyle {
+    display: @GetDisplayStyle("Debug");
+    }
+    .monitorStyle {
+    display: @GetDisplayStyle("Monitor");
+    }
+    .audioVolumeStyle {
+    display: @GetDisplayStyle("AudioVolume");
+    }
+</style>
+
+<InputFile id="monitorFilePicker" OnChange="@OnMonitorFilePickerChange" hidden/>

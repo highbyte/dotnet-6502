@@ -1,26 +1,26 @@
 ```mermaid
 classDiagram
 
-App_SkiaWASM
-App_SkiaWASM --> SystemRunner
-App_SkiaWASM --> System_C64
-App_SkiaWASM --> Impl_Skia_C64
-App_SkiaWASM --> Impl_AspNet_C64
-App_SkiaWASM --> System_X
-App_SkiaWASM --> Impl_Skia_X
-App_SkiaWASM --> Impl_AspNet_X
-App_SkiaWASM --> App_WASM_Monitor
+App_WASM
+App_WASM --> SystemRunner
+App_WASM --> System_C64
+App_WASM --> Impl_Skia_C64
+App_WASM --> Impl_AspNet_C64
+App_WASM --> System_X
+App_WASM --> Impl_Skia_X
+App_WASM --> Impl_AspNet_X
+App_WASM --> App_WASM_Monitor
 App_WASM_Monitor --> MonitorBase
 
-App_SkiaNative
-App_SkiaNative --> SystemRunner
-App_SkiaNative --> System_C64
-App_SkiaNative --> Impl_Skia_C64
-App_SkiaNative --> Impl_SilkNet_C64
-App_SkiaNative --> System_X
-App_SkiaNative --> Impl_Skia_X
-App_SkiaNative --> Impl_SilkNet_X
-App_SkiaNative --> App_SilkNetImGui_Monitor
+App_SilkNetNative
+App_SilkNetNative --> SystemRunner
+App_SilkNetNative --> System_C64
+App_SilkNetNative --> Impl_Skia_C64
+App_SilkNetNative --> Impl_SilkNet_C64
+App_SilkNetNative --> System_X
+App_SilkNetNative --> Impl_Skia_X
+App_SilkNetNative --> Impl_SilkNet_X
+App_SilkNetNative --> App_SilkNetImGui_Monitor
 App_SilkNetImGui_Monitor --> MonitorBase
 
 App_SadConsole

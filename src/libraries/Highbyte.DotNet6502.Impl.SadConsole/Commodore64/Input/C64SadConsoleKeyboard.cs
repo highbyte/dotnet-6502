@@ -87,9 +87,8 @@ public class C64SadConsoleKeyboard
         // Misc
         { new[] { Keys.Back }, new[] { C64Key.Delete } },
         { new[] { Keys.Enter }, new[] { C64Key.Return } },
-        { new[] { Keys.Tab }, new[] { C64Key.CBM } },
-        { new[] { Keys.LeftControl }, new[] { C64Key.Ctrl } },
-        { new[] { Keys.RightControl }, new[] { C64Key.Ctrl } },
+        { new[] { Keys.Tab }, new[] { C64Key.Ctrl } },
+        { new[] { Keys.LeftControl }, new[] { C64Key.CBM } },
         { new[] { Keys.LeftShift }, new[] { C64Key.LShift } },
         { new[] { Keys.RightShift }, new[] { C64Key.RShift } },
     };

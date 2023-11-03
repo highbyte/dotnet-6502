@@ -183,10 +183,10 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         _characterSetCurrent[charCode] = _charGen.GenerateChargenImageForOneCharacter(characterSet, charCode, multiColor: false);
         _characterSetMultiColorCurrent[charCode] = _charGen.GenerateChargenImageForOneCharacter(characterSet, charCode, multiColor: true);
 
-//#if DEBUG
-//        _charGen.DumpChargenImagesToOneFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
-//        _charGen.DumpChargenImagesToOneFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
-//#endif
+        //#if DEBUG
+        //        _charGen.DumpChargenImagesToOneFile(_characterSetCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_dump.png");
+        //        _charGen.DumpChargenImagesToOneFile(_characterSetMultiColorCurrent, $"{Path.GetTempPath()}/c64_chargen_custom_multicolor_dump.png");
+        //#endif
 
     }
 
@@ -272,9 +272,9 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         var currentColorAddress = Vic2Addr.COLOR_RAM_START;
 
         var characterMode = vic2.CharacterMode;
-        byte backgroundColor1 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1); // Background color used for extended charcater mode
-        byte backgroundColor2 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2); // Background color used for extended charcater mode
-        byte backgroundColor3 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3); // Background color used for extended charcater mode
+        byte backgroundColor1 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1); // Background color used for extended character mode
+        byte backgroundColor2 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2); // Background color used for extended character mode
+        byte backgroundColor3 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3); // Background color used for extended character mode
 
         for (var row = 0; row < vic2Screen.TextRows; row++)
         {
@@ -317,12 +317,12 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 
         var drawWidth = vic2Screen.VisibleWidth;
 
-        foreach (var c64ScreenLine in c64.Vic2.ScreenLineBorderColor.Keys)
+        foreach (var c64ScreenLine in c64.Vic2.ScreenLineIORegisterValues.Keys)
         {
             if (c64ScreenLine < visibileLayout.TopBorder.Start.Y || c64ScreenLine > visibileLayout.BottomBorder.End.Y)
                 continue;
-            var borderColor = c64.Vic2.ScreenLineBorderColor[c64ScreenLine];
             var canvasYPos = (ushort)(c64ScreenLine - visibileLayout.TopBorder.Start.Y);
+            var borderColor = c64.Vic2.ScreenLineIORegisterValues[c64ScreenLine].BorderColor;
             canvas.DrawRect(0, canvasYPos, drawWidth, 1, _c64SkiaPaint.GetFillPaint(borderColor));
         }
     }
@@ -337,12 +337,12 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         var canvasXPosStart = visibleMainScreenArea.Screen.Start.X - visibleMainScreenArea.LeftBorder.Start.X;
         var drawWidth = visibleMainScreenArea.Screen.End.X - visibleMainScreenArea.Screen.Start.X + 1;
 
-        foreach (var c64ScreenLine in c64.Vic2.ScreenLineBackgroundColor.Keys)
+        foreach (var c64ScreenLine in c64.Vic2.ScreenLineIORegisterValues.Keys)
         {
             if (c64ScreenLine < visibleMainScreenArea.Screen.Start.Y || c64ScreenLine > visibleMainScreenArea.Screen.End.Y)
                 continue;
-            var backgroundColor = c64.Vic2.ScreenLineBackgroundColor[c64ScreenLine];
             var canvasYPos = (ushort)(c64ScreenLine - visibleMainScreenArea.TopBorder.Start.Y);
+            var backgroundColor = c64.Vic2.ScreenLineIORegisterValues[c64ScreenLine].BackgroundColor0;
             canvas.DrawRect(canvasXPosStart, canvasYPos, drawWidth, 1, _c64SkiaPaint.GetFillPaint(backgroundColor));
         }
     }

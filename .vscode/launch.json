@@ -5,14 +5,14 @@
    "version": "0.2.0",
    "configurations": [
         {
-            "name": "SkiaNative app - .NET Core Launch",
+            "name": "SilkNetNative app - .NET Core Launch",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build skia native app",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SkiaNative/bin/Debug/net7.0/Highbyte.DotNet6502.App.SkiaNative.dll",
+            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/bin/Debug/net7.0/Highbyte.DotNet6502.App.SilkNetNative.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SkiaNative/bin/Debug/net7.0",
+            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/bin/Debug/net7.0",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "integratedTerminal",
             "stopAtEntry": false
@@ -21,7 +21,7 @@
             "name": "Blazor WASM Skia app - Launch and Debug",
             "type": "blazorwasm",
             "request": "launch",
-            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SkiaWASM",
+            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.WASM",
             "url": "http://localhost:5000",
             "browser": "chrome"
         },           
