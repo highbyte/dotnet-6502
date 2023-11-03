@@ -6,7 +6,7 @@
 <img src="Screenshots/SilkNetNative_Monitor.png" width="100%" height="100%" title="SkiaSharp rendering in native Silk.NET host window">
 
 # Features
-Native cross-platform app written in .NET with a Window from Silk.NET, using a SkiaSharp renderer (from ```Highbyte.DotNet6502.Impl.Skia```) and a Silk.NET input handler (from ```Highbyte.DotNet6502.Impl.SilkNet```).
+Native cross-platform app written in .NET with a Window from Silk.NET, using a SkiaSharp (from ```Highbyte.DotNet6502.Impl.Skia```) or a OpenGL (from ```Highbyte.DotNet6502.Impl.SilkNet```) renderer, with a Silk.NET input handler (from ```Highbyte.DotNet6502.Impl.SilkNet```).
 
 Uses Silk.NET [ImGui extensions](https://www.nuget.org/packages/Silk.NET.OpenGL.Extensions.ImGui/) to render UI for interactive menu, monitor, and stats window.
 
