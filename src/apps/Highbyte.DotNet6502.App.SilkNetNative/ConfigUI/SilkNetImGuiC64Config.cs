@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
+using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Microsoft.Extensions.Logging;
 
@@ -20,6 +21,7 @@ public class SilkNetImGuiC64Config
 
     private int _selectedRenderer = 0;
     private string[] _availableRenderers = Enum.GetNames<C64HostRenderer>();
+    private bool _openGLFineScrollPerRasterLineEnabled;
 
     private bool _open;
 
@@ -58,6 +60,7 @@ public class SilkNetImGuiC64Config
         _chargenRomFile = _config.HasROM(C64Config.KERNAL_ROM_NAME) ? _config.GetROM(C64Config.CHARGEN_ROM_NAME).File! : "";
 
         _selectedRenderer = _availableRenderers.ToList().IndexOf(_hostConfig.Renderer.ToString());
+        _openGLFineScrollPerRasterLineEnabled = _hostConfig.SilkNetOpenGlRendererConfig.UseFineScrollPerRasterLine;
     }
 
     public void PostOnRender(string dialogLabel)
@@ -96,6 +99,15 @@ public class SilkNetImGuiC64Config
                 _hostConfig.Renderer = Enum.Parse<C64HostRenderer>(_availableRenderers[_selectedRenderer]);
             }
             ImGui.PopItemWidth();
+
+            // Renderer: OpenGL options
+            if (_hostConfig.Renderer == C64HostRenderer.SilkNetOpenGl)
+            {
+                if (ImGui.Checkbox("Fine scroll per raster line (experimental)", ref _openGLFineScrollPerRasterLineEnabled))
+                {
+                    _hostConfig.SilkNetOpenGlRendererConfig.UseFineScrollPerRasterLine = _openGLFineScrollPerRasterLineEnabled;
+                }
+            }
 
             // Joystick
             ImGui.Text("Joystick:");
