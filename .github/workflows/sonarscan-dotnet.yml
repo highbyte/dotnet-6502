@@ -31,8 +31,8 @@ jobs:
           fetch-depth: '0'
 
       # Runs a single command using the runners shell
-      - name: SonarScanner for .NET 7 with pull request decoration support
-        uses: highbyte/sonarscan-dotnet@v2.2.6
+      - name: SonarScanner for .NET 8 with pull request decoration support
+        uses: highbyte/sonarscan-dotnet@v2.3.0
         with:
           # The key of the SonarQube project
           sonarProjectKey: highbyte_dotnet-6502
