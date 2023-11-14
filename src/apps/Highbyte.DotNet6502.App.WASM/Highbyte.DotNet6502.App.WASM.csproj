@@ -5,14 +5,19 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <RunAOTCompilation>true</RunAOTCompilation> 
-
+    <RunAOTCompilation>true</RunAOTCompilation>
+    
     <!--<PublishIISAssets>true</PublishIISAssets>-->
 
     <!--<BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport>
     <BlazorWebAssemblyPreserveCollationData>false</BlazorWebAssemblyPreserveCollationData>-->
 
     <Version>1.0</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!--Temporary workaround for .NET 8 AOT: https://github.com/dotnet/runtime/issues/82481#issuecomment-1441911473-->
+    <WasmDedup>false</WasmDedup>
   </PropertyGroup>
 
   <!--In debug, make builds faster by reducing optimizations-->
