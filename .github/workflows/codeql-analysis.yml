@@ -37,7 +37,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # Add .NET 7.0 manually as github/codeql-action/autobuild below does not seem to support it.
+    # Add .NET manually as github/codeql-action/autobuild below does not seem to support it.
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:

@@ -34,7 +34,7 @@
             }
         },
         {
-            "label": "build skia blazor wasm app",
+            "label": "build blazor wasm app",
             "command": "dotnet",
             "type": "process",
             "args": [
@@ -50,7 +50,7 @@
             }            
         },        
         {
-            "label": "build skia native app",
+            "label": "build silk.net native app",
             "command": "dotnet",
             "type": "process",
             "args": [

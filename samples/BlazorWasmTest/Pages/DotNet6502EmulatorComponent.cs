@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Net.Http;
 using System.Text;
 using BlazorWasmTest.Helpers;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace BlazorWasmTest
 {
@@ -386,7 +387,7 @@ namespace BlazorWasmTest
             mem.StoreData(fileHeaderLoadAddress, codeAndDataActual);
 
             // Initialize emulator with CPU, memory, and execution parameters
-            var computerBuilder = new GenericComputerBuilder();
+            var computerBuilder = new GenericComputerBuilder(new NullLoggerFactory());
             computerBuilder
                 .WithCPU()
                 .WithStartAddress(fileHeaderLoadAddress)
