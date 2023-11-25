@@ -108,6 +108,8 @@ h4 {
 
 .menuFooter {
     grid-area: menuFooter;
+    width: 250px;
+    overflow-wrap: break-word;
 }
 
 .main {

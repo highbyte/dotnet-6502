@@ -1,10 +1,11 @@
-﻿ using System;
+ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
 using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Systems.Generic;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ConsoleTestPrograms
 {
@@ -29,7 +30,7 @@ namespace ConsoleTestPrograms
                 out ushort fileLength);
 
             // Initialize emulator with CPU, memory, and execution parameters
-            var computerBuilder = new GenericComputerBuilder();
+            var computerBuilder = new GenericComputerBuilder(new NullLoggerFactory());
             computerBuilder
                 .WithCPU()
                 .WithStartAddress(loadedAtAddress)

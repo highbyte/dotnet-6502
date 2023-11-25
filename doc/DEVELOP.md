@@ -2,14 +2,14 @@
 
 # Requirements
 - Windows, Linux, or Mac.
-- [.NET 7 SDK](https://dotnet.microsoft.com/download/dotnet/7.0) installed.
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) installed.
 - Develop in 
   - VSCode (Windows, Linux, Mac)
   - Visual Studio 2022 (Windows)
   - Or other preferred editor.
 - Specifics for Blazor WASM  (WebAssembly) projects
   - Visual Studio 2022: For building the WASM projects, add the component ".NET WebAssembly Build Tools" in Visual Studio Installer.
-  - VSCode / command line: For building the WASM projects, install the dotnet workload "wasm-tool", see instruction [here](https://learn.microsoft.com/en-us/aspnet/core/blazor/tooling?view=aspnetcore-7.0&pivots=windows#net-webassembly-build-tools).
+  - VSCode / command line: For building the WASM projects, install the dotnet workload "wasm-tool", see instruction [here](https://learn.microsoft.com/en-us/aspnet/core/blazor/tooling?view=aspnetcore-8.0&pivots=windows#net-webassembly-build-tools).
 
 # Class diagram overview
 See [here](SYSYEM_DIAGRAM.md)

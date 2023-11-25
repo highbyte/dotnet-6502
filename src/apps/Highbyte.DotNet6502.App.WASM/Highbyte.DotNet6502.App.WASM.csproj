@@ -1,18 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <RunAOTCompilation>true</RunAOTCompilation> 
-
+    <RunAOTCompilation>true</RunAOTCompilation>
+    
     <!--<PublishIISAssets>true</PublishIISAssets>-->
 
     <!--<BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport>
     <BlazorWebAssemblyPreserveCollationData>false</BlazorWebAssemblyPreserveCollationData>-->
 
     <Version>1.0</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!--Temporary workaround for .NET 8 AOT: https://github.com/dotnet/runtime/issues/82481#issuecomment-1441911473-->
+    <WasmDedup>false</WasmDedup>
   </PropertyGroup>
 
   <!--In debug, make builds faster by reducing optimizations-->
@@ -32,12 +37,12 @@
     <PackageReference Include="AutoMapper" Version="12.0.1" />
     <PackageReference Include="Blazored.LocalStorage" Version="4.4.0" />
     <PackageReference Include="Blazored.Modal" Version="7.1.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="7.0.11" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="7.0.11" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="2.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="8.0.0" />
     <PackageReference Include="SkiaSharp.Views.Blazor" Version="2.88.6" />
     <PackageReference Include="PublishSPAforGitHubPages.Build" Version="2.1.0" />
-    <PackageReference Include="System.Net.Http.Json" Version="7.0.1" />
+    <PackageReference Include="System.Net.Http.Json" Version="8.0.0" />
     <PackageReference Include="Toolbelt.Blazor.Gamepad" Version="8.0.0.1" />
   </ItemGroup>
 

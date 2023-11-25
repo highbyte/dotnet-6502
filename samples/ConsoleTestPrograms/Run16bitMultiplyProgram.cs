@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Systems.Generic;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ConsoleTestPrograms
 {
@@ -48,7 +49,7 @@ namespace ConsoleTestPrograms
             Console.WriteLine($"{((ushort)(sourceAddressB + 1)).ToHex()} : {mem[(ushort)(sourceAddressB + 1)].ToHex()}");
 
             // Initialize CPU, set PC to start position
-            var computerBuilder = new GenericComputerBuilder();
+            var computerBuilder = new GenericComputerBuilder(new NullLoggerFactory());
             computerBuilder
                 .WithCPU()
                 .WithStartAddress(loadedAtAddress)
