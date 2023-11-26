@@ -1,6 +1,5 @@
-using System.ComponentModel.DataAnnotations;
+using System.CommandLine;
 using System.Globalization;
-using McMaster.Extensions.CommandLineUtils;
 
 namespace Highbyte.DotNet6502.Monitor.Commands;
 
@@ -8,79 +7,87 @@ namespace Highbyte.DotNet6502.Monitor.Commands;
 /// </summary>
 public static class DisassemblyCommands
 {
-    public static CommandLineApplication ConfigureDisassembly(this CommandLineApplication app, MonitorBase monitor, MonitorVariables monitorVariables)
+    public static Command ConfigureDisassembly(this Command rootCommand, MonitorBase monitor, MonitorVariables monitorVariables)
     {
-        app.Command("d", cmd =>
+        rootCommand.AddCommand(BuildDisassemblyCommand(monitor, monitorVariables));
+        return rootCommand;
+    }
+
+    private static Command BuildDisassemblyCommand(MonitorBase monitor, MonitorVariables monitorVariables)
+    {
+        var startArg = new Argument<string>()
         {
-            cmd.HelpOption(inherited: true);
-            cmd.Description = "Disassembles 6502 code from emulator memory.";
+            Name = "start",
+            Description = "Start address (hex). If not specified, the current PC address is used.",
+            Arity = ArgumentArity.ZeroOrOne
+        }
+        .MustBe16BitHex();
 
-            var start = cmd.Argument("start", "Start address (hex). If not specified, the current PC address is used.");
-            start.Validators.Add(new MustBe16BitHexValueValidator());
+        var endArg = new Argument<string>()
+        {
+            Name = "end",
+            Description = "End address (hex). If not specified, a default number of addresses will be shown from start.",
+            Arity = ArgumentArity.ZeroOrOne
+        }
+        .MustBe16BitHex()
+        .GreaterThan16bit(startArg);
 
-            var end = cmd.Argument("end", "End address (hex). If not specified, a default number of addresses will be shown from start.");
-            end.Validators.Add(new MustBe16BitHexValueValidator());
-            end.Validators.Add(new GreaterThan16bitValidator(start));
+        var command = new Command("d", "Disassembles 6502 code from emulator memory.")
+        {
+            startArg,
+            endArg
+        };
 
-            cmd.OnValidationError((ValidationResult validationResult) =>
+        command.SetHandler((string start, string end) =>
+        {
+            ushort startAddress;
+            if (string.IsNullOrEmpty(start))
             {
-                return monitor.WriteValidationError(validationResult);
-            });
-
-            cmd.OnExecute(() =>
+                if (!monitorVariables.LatestDisassemblyAddress.HasValue)
+                    monitorVariables.LatestDisassemblyAddress = monitor.Cpu.PC;
+                startAddress = monitorVariables.LatestDisassemblyAddress.Value;
+            }
+            else
             {
-                ushort startAddress;
-                if (string.IsNullOrEmpty(start.Value))
+                startAddress = ushort.Parse(start, NumberStyles.AllowHexSpecifier, null);
+            }
+
+            ushort? endAddress = null;
+            int? instructionShowCount = null;
+            if (string.IsNullOrEmpty(end))
+            {
+                instructionShowCount = 10;
+            }
+            else
+            {
+                endAddress = ushort.Parse(end, NumberStyles.AllowHexSpecifier, null);
+                if (endAddress < startAddress)
+                    endAddress = startAddress;
+            }
+
+            ushort currentAddress = startAddress;
+            bool cont = true;
+            while (cont)
+            {
+                monitor.WriteOutput(OutputGen.GetInstructionDisassembly(monitor.Cpu, monitor.Mem, currentAddress));
+                var nextInstructionAddress = monitor.Cpu.GetNextInstructionAddress(monitor.Mem, currentAddress);
+
+                if (instructionShowCount.HasValue)
                 {
-                    if (!monitorVariables.LatestDisassemblyAddress.HasValue)
-                        monitorVariables.LatestDisassemblyAddress = monitor.Cpu.PC;
-                    startAddress = monitorVariables.LatestDisassemblyAddress.Value;
+                    instructionShowCount--;
+                    if (instructionShowCount == 0)
+                        cont = false;
                 }
                 else
                 {
-                    startAddress = ushort.Parse(start.Value, NumberStyles.AllowHexSpecifier, null);
+                    if (nextInstructionAddress > endAddress || (currentAddress >= nextInstructionAddress))
+                        cont = false;
                 }
+                currentAddress = nextInstructionAddress;
+            }
 
-                ushort? endAddress = null;
-                int? instructionShowCount = null;
-                if (string.IsNullOrEmpty(end.Value))
-                {
-                    instructionShowCount = 10;
-                }
-                else
-                {
-                    endAddress = ushort.Parse(end.Value, NumberStyles.AllowHexSpecifier, null);
-                    if (endAddress < startAddress)
-                        endAddress = startAddress;
-                }
-
-                ushort currentAddress = startAddress;
-                bool cont = true;
-                while (cont)
-                {
-                    monitor.WriteOutput(OutputGen.GetInstructionDisassembly(monitor.Cpu, monitor.Mem, currentAddress));
-                    var nextInstructionAddress = monitor.Cpu.GetNextInstructionAddress(monitor.Mem, currentAddress);
-
-                    if (instructionShowCount.HasValue)
-                    {
-                        instructionShowCount--;
-                        if (instructionShowCount == 0)
-                            cont = false;
-                    }
-                    else
-                    {
-                        if (nextInstructionAddress > endAddress || (currentAddress >= nextInstructionAddress))
-                            cont = false;
-                    }
-                    currentAddress = nextInstructionAddress;
-                }
-
-                monitorVariables.LatestDisassemblyAddress = currentAddress;
-
-                return (int)CommandResult.Ok;
-            });
-        });
-
-        return app;
+            monitorVariables.LatestDisassemblyAddress = currentAddress;
+        }, startArg, endArg);
+        return command;
     }
 }

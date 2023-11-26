@@ -88,10 +88,12 @@ while (cont)
 
 string? PromptInput()
 {
-    return Prompt.GetString(">",
-        promptColor: ConsoleColor.Gray,
-        promptBgColor: ConsoleColor.DarkBlue);
+    //return Prompt.GetString(">",
+    //    promptColor: ConsoleColor.Gray,
+    //    promptBgColor: ConsoleColor.DarkBlue);
 
-    // Console.Write(">");
-    // return Console.ReadLine();
+    Console.ForegroundColor = ConsoleColor.Gray;
+    //Console.BackgroundColor = ConsoleColor.DarkBlue;
+    Console.Write(">");
+    return Console.ReadLine();
 }

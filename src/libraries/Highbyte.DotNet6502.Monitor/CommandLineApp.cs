@@ -1,75 +1,72 @@
-using System.ComponentModel.DataAnnotations;
+using System.CommandLine;
+using System.CommandLine.Builder;
+using System.CommandLine.Parsing;
 using Highbyte.DotNet6502.Monitor.Commands;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
-using McMaster.Extensions.CommandLineUtils;
 
 namespace Highbyte.DotNet6502.Monitor;
 
 /// <summary>
 /// </summary>
-public class CommandLineApp
+public static class CommandLineApp
 {
-    public static CommandLineApplication Build(MonitorBase monitor, MonitorVariables monitorVariables, MonitorConfig options)
+    public static Parser Build(MonitorBase monitor, MonitorVariables monitorVariables, MonitorConfig options, IConsole console)
     {
-        //var app = new CommandLineApplication()
-        //var app = new CommandLineApplication(NullConsole.Singleton, monitor.Options.DefaultDirectory)
-        var app = new CommandLineApplication(MonitorConsole.BuildSingleton(monitor), monitor.Options.DefaultDirectory!)
+
+        Parser? parser = null;
+        //var root = new RootCommand()
+        //{
+        //    Name = "DotNet6502Monitor",
+        //    Description = "DotNet 6502 machine code monitor for the DotNet 6502 emulator library." + Environment.NewLine +
+        //                  "By Highbyte 2023" + Environment.NewLine +
+        //                  "Source at: https://github.com/highbyte/dotnet-6502"
+        //};
+        var root = new Command(
+            "DotNet6502Monitor",
+            "DotNet 6502 machine code monitor for the DotNet 6502 emulator library." + Environment.NewLine +
+            "By Highbyte 2023" + Environment.NewLine +
+            "Source at: https://github.com/highbyte/dotnet-6502")
         {
-            Name = "",
-            Description = "DotNet 6502 machine code monitor for the DotNet 6502 emulator library." + Environment.NewLine +
-                          "By Highbyte 2022" + Environment.NewLine +
-                          "Source at: https://github.com/highbyte/dotnet-6502",
-            UnrecognizedArgumentHandling = UnrecognizedArgumentHandling.StopParsingAndCollect
         };
 
-        // Fix: Use custom Help Text Generator to avoid name/description of the application to be shown each time help text is shown.
-        app.HelpTextGenerator = new CustomHelpTextGenerator(options.MaxLineLength);
-        // Fix: To avoid CommandLineUtils to the name of the application at the end of the help text: Don't use HelpOption on app-level, instead set it on each command below.
-        //app.HelpOption(inherited: true);
-
-        app.ConfigureRegisters(monitor, monitorVariables);
-        app.ConfigureMemory(monitor, monitorVariables);
-        app.ConfigureDisassembly(monitor, monitorVariables);
-        app.ConfigureExecution(monitor, monitorVariables);
-        app.ConfigureBreakpoints(monitor, monitorVariables);
-        app.ConfigureFiles(monitor, monitorVariables);
-        app.ConfigureReset(monitor, monitorVariables);
-        app.ConfigureOptions(monitor, monitorVariables);
+        root.ConfigureRegisters(monitor, monitorVariables);
+        root.ConfigureMemory(monitor, monitorVariables);
+        root.ConfigureDisassembly(monitor, monitorVariables);
+        root.ConfigureExecution(monitor, monitorVariables);
+        root.ConfigureBreakpoints(monitor, monitorVariables);
+        root.ConfigureFiles(monitor, monitorVariables);
+        root.ConfigureReset(monitor, monitorVariables);
+        root.ConfigureOptions(monitor, monitorVariables);
 
         // Add any system-specific monitor commands if the system implements it.
         if (monitor.SystemRunner.System is ISystemMonitor systemWithMonitor)
         {
             var monitorCommands = systemWithMonitor.GetSystemMonitorCommands();
-            monitorCommands.Configure(app, monitor);
+            monitorCommands.Configure(root, monitor);
         }
 
-        app.Command("q", cmd =>
+        var quitCmd = new Command("q", "Quit monitor");
+        quitCmd.AddAlias("quit");
+        quitCmd.AddAlias("exit");
+        quitCmd.SetHandler(() => Task.FromResult((int)CommandResult.Quit));
+        root.AddCommand(quitCmd);
+
+        var helpCmd = new Command("?", "Help");
+        helpCmd.SetHandler(() =>
         {
-            cmd.HelpOption(inherited: true);
-            cmd.Description = "Quit monitor.";
-            cmd.AddName("quit");
-            cmd.AddName("x");
-            cmd.AddName("exit");
-
-            cmd.OnValidationError((ValidationResult validationResult) =>
-            {
-                return monitor.WriteValidationError(validationResult);
-            });
-
-            cmd.OnExecute(() =>
-            {
-                return (int)CommandResult.Quit;
-            });
+            parser?.Invoke($"{root.Name} -?", console);
         });
+        root.AddCommand(helpCmd);
 
-        app.OnExecute(() =>
-        {
-            monitor.WriteOutput("Unknown command.", MessageSeverity.Error);
-            monitor.WriteOutput("Help: ?|help|-?|--help", MessageSeverity.Information);
-            monitor.WriteOutput("Help: command -?|-h|--help", MessageSeverity.Information);
-            return (int)CommandResult.Error;
-        });
+        int maxWidth = options.MaxLineLength ?? int.MaxValue;
+        var cmdLineBuilder = new CommandLineBuilder(root)
+            .UseHelpBuilder(_ =>
+            {
+                return new CustomHelpBuilderWithourRootCommand(LocalizationResources.Instance, root.Name, maxWidth: maxWidth);
+            })
+            .UseHelp();
 
-        return app;
+        parser = cmdLineBuilder.Build();
+        return parser;
     }
 }

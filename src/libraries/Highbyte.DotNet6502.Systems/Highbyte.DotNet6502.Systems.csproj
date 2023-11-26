@@ -26,8 +26,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
     <ProjectReference Include="..\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj" />
-    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="4.0.2" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
   </ItemGroup>
 
 </Project>

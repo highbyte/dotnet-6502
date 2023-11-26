@@ -1,5 +1,4 @@
-using System.ComponentModel.DataAnnotations;
-using McMaster.Extensions.CommandLineUtils;
+using System.CommandLine;
 
 namespace Highbyte.DotNet6502.Monitor.Commands;
 
@@ -7,68 +6,71 @@ namespace Highbyte.DotNet6502.Monitor.Commands;
 /// </summary>
 public static class OptionCommands
 {
-    public static CommandLineApplication ConfigureOptions(this CommandLineApplication app, MonitorBase monitor, MonitorVariables monitorVariables)
+    public static Command ConfigureOptions(this Command rootCommand, MonitorBase monitor, MonitorVariables monitorVariables)
     {
-        app.Command("o", cmd =>
+        rootCommand.AddCommand(BuildOptionsCommand(monitor, monitorVariables));
+        return rootCommand;
+    }
+
+    private static Command BuildOptionsCommand(MonitorBase monitor, MonitorVariables monitorVariables)
+    {
+
+        // o u
+        var uValArg = new Argument<string>()
         {
-            cmd.HelpOption(inherited: true);
-            cmd.Description = "Show global options";
-            cmd.AddName("options");
+            Name = "flag",
+            Description = "Unknown instruction flag",
+            Arity = ArgumentArity.ExactlyOne
+        }
+        .MustBeIntegerFlag();
 
-            cmd.Command("u", setRegisterCmd =>
-                {
-                    setRegisterCmd.Description = "Flag how to handle unknown instructions (0 = continue, 1 = stop).";
-                    var uVal = setRegisterCmd.Argument("flag", "Unknown instruction flag").IsRequired();
-                    uVal.Validators.Add(new MustBeIntegerFlag());
+        var unknownInsCommand = new Command("u", "Flag how to handle unknown instructions (0 = continue, 1 = stop).")
+        {
+            uValArg
+        };
+        unknownInsCommand.SetHandler((string uVal) =>
+        {
+            var value = uVal;
+            monitor.Options.StopAfterUnknownInstruction = value == "1";
+            monitor.ApplyOptionsOnBreakPointExecEvaluator();
+            monitor.ShowOptions();
+        }, uValArg);
 
-                    setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
-                    {
-                        return monitor.WriteValidationError(validationResult);
-                    });
 
-                    setRegisterCmd.OnExecute(() =>
-                    {
-                        var value = uVal.Value;
-                        monitor.Options.StopAfterUnknownInstruction = value == "1";
-                        monitor.ApplyOptionsOnBreakPointExecEvaluator();
-                        monitor.ShowOptions();
-                        return (int)CommandResult.Ok;
-                    });
-                });
+        // o b
+        var bValArg = new Argument<string>()
+        {
+            Name = "flag",
+            Description = "BRK instruction flag",
+            Arity = ArgumentArity.ExactlyOne
+        }
+        .MustBeIntegerFlag();
 
-            cmd.Command("b", setRegisterCmd =>
-            {
-                setRegisterCmd.Description = "Flag how to handle BRK instruction (0 = continue, 1 = stop).";
-                var bVal = setRegisterCmd.Argument("flag", "BRK instruction flag").IsRequired();
-                bVal.Validators.Add(new MustBeIntegerFlag());
+        var bpCommand = new Command("b", "Flag how to handle BRK instruction (0 = continue, 1 = stop).")
+        {
+            bValArg
+        };
+        bpCommand.SetHandler((string bVal) =>
+        {
+            var value = bVal;
+            monitor.Options.StopAfterBRKInstruction = value == "1";
+            monitor.ApplyOptionsOnBreakPointExecEvaluator();
+            monitor.ShowOptions();
+        }, bValArg);
 
-                setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
-                {
-                    return monitor.WriteValidationError(validationResult);
-                });
 
-                setRegisterCmd.OnExecute(() =>
-                {
-                    var value = bVal.Value;
-                    monitor.Options.StopAfterBRKInstruction = value == "1";
-                    monitor.ApplyOptionsOnBreakPointExecEvaluator();
-                    monitor.ShowOptions();
-                    return (int)CommandResult.Ok;
-                });
-            });
-
-            cmd.OnValidationError((ValidationResult validationResult) =>
-            {
-                return monitor.WriteValidationError(validationResult);
-            });
-
-            cmd.OnExecute(() =>
-            {
-                monitor.ShowOptions();
-                return (int)CommandResult.Ok;
-            });
+        // o
+        var command = new Command("o", "Show global options.")
+        {
+            unknownInsCommand,
+            bpCommand
+        };
+        command.AddAlias("options");
+        command.SetHandler(() =>
+        {
+            monitor.ShowOptions();
         });
 
-        return app;
+        return command;
     }
 }

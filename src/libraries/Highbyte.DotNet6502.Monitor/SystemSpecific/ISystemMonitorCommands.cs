@@ -1,4 +1,4 @@
-using McMaster.Extensions.CommandLineUtils;
+using System.CommandLine;
 
 namespace Highbyte.DotNet6502.Monitor.SystemSpecific;
 
@@ -6,6 +6,6 @@ namespace Highbyte.DotNet6502.Monitor.SystemSpecific;
 /// </summary>
 public interface ISystemMonitorCommands
 {
-    public void Configure(CommandLineApplication app, MonitorBase monitor);
+    public void Configure(Command rootCommand, MonitorBase monitor);
     public void Reset(MonitorBase monitor);
 }

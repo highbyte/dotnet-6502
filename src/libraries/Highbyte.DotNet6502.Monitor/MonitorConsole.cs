@@ -1,22 +1,34 @@
+using System.CommandLine;
+using System.CommandLine.IO;
 using System.Text;
-using McMaster.Extensions.CommandLineUtils;
 
 namespace Highbyte.DotNet6502.Monitor;
 
 /// <summary>
-/// McMaster CommandLine console implementation that does nothing except prints to our MonitorBase.
+/// System.CommandLine.IConsole implementation that does nothing except prints to our MonitorBase.
 /// This is for output that cannot be controlled by our application, like help texts details per command.
-/// By default McMaster CommandLine writes to a system console, which doesn't exist unless hosted in a .NET Console app.
+/// By default System.CommandLine writes to a system console, which doesn't exist unless hosted in a .NET Console app.
 /// </summary>
 public class MonitorConsole : IConsole
 {
     private readonly MonitorBase _monitor;
+    private readonly MonitorStandardStreamWriter _monitorStandardStreamWriter;
 
     private MonitorConsole(MonitorBase monitor)
     {
-        Error = Out = new MonitorTextWriter(monitor);
         _monitor = monitor;
+        _monitorStandardStreamWriter = new MonitorStandardStreamWriter(_monitor);
     }
+
+    public IStandardStreamWriter Out => _monitorStandardStreamWriter;
+
+    public IStandardStreamWriter Error => _monitorStandardStreamWriter;
+
+    public bool IsOutputRedirected { get; protected set; }
+
+    public bool IsErrorRedirected { get; protected set; }
+
+    public bool IsInputRedirected { get; protected set; }
 
     /// <summary>
     /// A shared instance of <see cref="MonitorConsole"/>.
@@ -26,80 +38,17 @@ public class MonitorConsole : IConsole
         return new MonitorConsole(monitor);
     }
 
-    /// <summary>
-    /// A writer that does nothing. 
-    /// </summary>
-    public TextWriter Out { get; }
-
-    /// <summary>
-    /// A writer that does nothing. 
-    /// </summary>
-    public TextWriter Error { get; }
-
-    /// <summary>
-    /// An empty reader.
-    /// </summary>
-    public TextReader In { get; } = new StringReader(string.Empty);
-
-    /// <summary>
-    /// Always <c>false</c>.
-    /// </summary>
-    public bool IsInputRedirected => false;
-
-    /// <summary>
-    /// Always <c>false</c>.
-    /// </summary>
-    public bool IsOutputRedirected => false;
-
-    /// <summary>
-    /// Always <c>false</c>.
-    /// </summary>
-    public bool IsErrorRedirected => false;
-
-    public ConsoleColor ForegroundColor { get; set; }
-
-    public ConsoleColor BackgroundColor { get; set; }
-
-    /// <summary>
-    /// This event never fires.
-    /// </summary>
-    public event ConsoleCancelEventHandler? CancelKeyPress
+    internal class MonitorStandardStreamWriter : TextWriter, IStandardStreamWriter
     {
-        add { }
-        remove { }
-    }
-
-    // public override bool Equals(object? obj)
-    // {
-    //     return base.Equals(obj);
-    // }
-
-    // public override int GetHashCode()
-    // {
-    //     return base.GetHashCode();
-    // }
-
-    public void ResetColor()
-    {
-    }
-
-    public override string? ToString()
-    {
-        return base.ToString();
-    }
-
-    private sealed class MonitorTextWriter : TextWriter
-    {
-        List<char> _printedChars = new();
+        readonly List<char> _printedChars = new();
 
         private readonly MonitorBase _monitor;
 
-        public override Encoding Encoding => Encoding.Unicode;
-
-        public MonitorTextWriter(MonitorBase monitor)
+        public MonitorStandardStreamWriter(MonitorBase monitor)
         {
             _monitor = monitor;
         }
+
         public override void Write(char value)
         {
             _printedChars.Add(value);
@@ -114,6 +63,22 @@ public class MonitorConsole : IConsole
                     _printedChars.Clear();
                 }
             }
+        }
+
+        public override void Write(string? value)
+        {
+            if (value is null)
+                return;
+            foreach (var c in value)
+                Write(c);
+        }
+
+        public override Encoding Encoding { get; } = Encoding.Unicode;
+
+        public override string ToString()
+        {
+            var str = _printedChars.ToString();
+            return str is null ? "" : str;
         }
     }
 }

@@ -1,6 +1,5 @@
-using System.ComponentModel.DataAnnotations;
+using System.CommandLine;
 using System.Globalization;
-using McMaster.Extensions.CommandLineUtils;
 
 namespace Highbyte.DotNet6502.Monitor.Commands;
 
@@ -8,86 +7,91 @@ namespace Highbyte.DotNet6502.Monitor.Commands;
 /// </summary>
 public static class BreakpointCommands
 {
-    public static CommandLineApplication ConfigureBreakpoints(this CommandLineApplication app, MonitorBase monitor, MonitorVariables monitorVariables)
+    public static Command ConfigureBreakpoints(this Command rootCommand, MonitorBase monitor, MonitorVariables monitorVariables)
     {
-        app.Command("b", cmd =>
-        {
-            cmd.HelpOption(inherited: true);
-            cmd.Description = "Breakpoints";
-            cmd.AddName("bp");
-            cmd.AddName("breakpoint");
-
-            cmd.Command("l", bpCmd =>
-                {
-                    bpCmd.Description = "Lists all breakpoints.";
-                    bpCmd.OnExecute(() =>
-                    {
-                        return ListBreakpoints(monitor);
-                    });
-                });
-
-            cmd.Command("a", bpCmd =>
-                {
-                    bpCmd.Description = "Add a breakpoint.";
-                    var memAddress = bpCmd.Argument("address", "Memory address 16 bits (hex).").IsRequired();
-                    memAddress.Validators.Add(new MustBe16BitHexValueValidator());
-
-                    bpCmd.OnValidationError((ValidationResult validationResult) =>
-                    {
-                        return monitor.WriteValidationError(validationResult);
-                    });
-
-                    bpCmd.OnExecute(() =>
-                    {
-                        var address = ushort.Parse(memAddress.Value!, NumberStyles.AllowHexSpecifier, null);
-                        if (!monitor.BreakPoints.ContainsKey(address))
-                            monitor.BreakPoints.Add(address, new BreakPoint { Enabled = true });
-                        else
-                            monitor.BreakPoints[address].Enabled = true;
-                        return (int)CommandResult.Ok;
-                    });
-                });
-
-            cmd.Command("d", bpCmd =>
-                {
-                    bpCmd.Description = "Delete a breakpoint.";
-                    var memAddress = bpCmd.Argument("address", "Memory address 16 bits (hex).").IsRequired();
-                    memAddress.Validators.Add(new MustBe16BitHexValueValidator());
-
-                    bpCmd.OnValidationError((ValidationResult validationResult) =>
-                    {
-                        return monitor.WriteValidationError(validationResult);
-                    });
-
-                    bpCmd.OnExecute(() =>
-                    {
-                        var address = ushort.Parse(memAddress.Value!, NumberStyles.AllowHexSpecifier, null);
-                        if (monitor.BreakPoints.ContainsKey(address))
-                            monitor.BreakPoints.Remove(address);
-                        return (int)CommandResult.Ok;
-                    });
-                });
-
-            cmd.Command("da", bpCmd =>
-                {
-                    bpCmd.Description = "Delete all breakpoints.";
-                    bpCmd.OnExecute(() =>
-                    {
-                        monitor.BreakPoints.Clear();
-                        return (int)CommandResult.Ok;
-                    });
-                });
-
-            cmd.OnExecute(() =>
-            {
-                return ListBreakpoints(monitor);
-            });
-        });
-
-        return app;
+        rootCommand.AddCommand(BuildBreakpointCommand(monitor, monitorVariables));
+        return rootCommand;
     }
 
-    private static int ListBreakpoints(MonitorBase monitor)
+    private static Command BuildBreakpointCommand(MonitorBase monitor, MonitorVariables monitorVariables)
+    {
+
+        // b l
+        var listSubCommand = new Command("l", "Lists all breakpoints.")
+        {
+        };
+        listSubCommand.SetHandler(() =>
+        {
+            return ListBreakpoints(monitor);
+        });
+
+        // b a
+        var addressArg = new Argument<string>()
+        {
+            Name = "address",
+            Description = "Memory address 16 bits (hex).",
+            Arity = ArgumentArity.ExactlyOne
+        }
+        .MustBe16BitHex();
+
+        var addSubCommand = new Command("a", "Add a breakpoint.")
+        {
+            addressArg
+        };
+        addSubCommand.SetHandler((string memAddress) =>
+        {
+            var address = ushort.Parse(memAddress, NumberStyles.AllowHexSpecifier, null);
+            if (!monitor.BreakPoints.ContainsKey(address))
+                monitor.BreakPoints.Add(address, new BreakPoint { Enabled = true });
+            else
+                monitor.BreakPoints[address].Enabled = true;
+        }, addressArg);
+
+        // b d
+        var addressDelArg = new Argument<string>()
+        {
+            Name = "address",
+            Description = "Memory address 16 bits (hex).",
+            Arity = ArgumentArity.ExactlyOne
+        }
+        .MustBe16BitHex();
+
+        var delSubCommand = new Command("d", "Delete a breakpoint.")
+        {
+            addressDelArg
+        };
+        delSubCommand.SetHandler((string memAddress) =>
+        {
+            var address = ushort.Parse(memAddress, NumberStyles.AllowHexSpecifier, null);
+            if (monitor.BreakPoints.ContainsKey(address))
+                monitor.BreakPoints.Remove(address);
+
+        }, addressDelArg);
+
+        // b da
+        var delAllSubCommand = new Command("da", "Delete all breakpoints.")
+        {
+        };
+        delAllSubCommand.SetHandler(() =>
+        {
+            monitor.BreakPoints.Clear();
+        });
+
+        // b
+        var command = new Command("b", "Breakpoints.")
+        {
+            listSubCommand,
+            addSubCommand,
+            delSubCommand,
+            delAllSubCommand
+        };
+        command.AddAlias("bp");
+        command.AddAlias("breakpoint");
+
+        return command;
+    }
+
+    private static Task<int> ListBreakpoints(MonitorBase monitor)
     {
         if (monitor.BreakPoints.Count == 0)
             monitor.WriteOutput($"No breakpoints.");
@@ -100,6 +104,6 @@ public static class BreakpointCommands
             var status = monitor.BreakPoints[bp].Enabled ? "Enabled" : "Disabled";
             monitor.WriteOutput($"{addr} : {status}");
         }
-        return (int)CommandResult.Ok;
+        return Task.FromResult((int)CommandResult.Ok);
     }
 }

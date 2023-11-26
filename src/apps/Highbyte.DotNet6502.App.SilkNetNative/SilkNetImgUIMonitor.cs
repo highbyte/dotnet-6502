@@ -26,7 +26,7 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
     private const int POS_X = 300;
     private const int POS_Y = 2;
     private const int WIDTH = 720;
-    private const int HEIGHT = 450;
+    private const int HEIGHT = 650;
     const int MONITOR_CMD_LINE_LENGTH = 200;
 
     static Vector4 s_InformationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);

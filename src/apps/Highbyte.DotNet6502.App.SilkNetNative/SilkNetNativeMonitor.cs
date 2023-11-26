@@ -7,7 +7,7 @@ public class SilkNetNativeMonitor : MonitorBase
 {
     private readonly MonitorConfig _monitorConfig;
 
-    public const int MONITOR_CMD_HISTORY_VIEW_ROWS = 20;
+    public const int MONITOR_CMD_HISTORY_VIEW_ROWS = 33;
     public List<(string Message, MessageSeverity Severity)> MonitorCmdHistory { get; private set; } = new();
 
     public SilkNetNativeMonitor(

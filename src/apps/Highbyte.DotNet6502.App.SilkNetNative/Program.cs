@@ -52,6 +52,7 @@ var emulatorConfig = new EmulatorConfig
     DefaultDrawScale = 3.0f,
     Monitor = new MonitorConfig
     {
+        MaxLineLength = 100,
         //DefaultDirectory = "../../../../../../samples/Assembler/C64/Build"
 
         //DefaultDirectory = "../../../../../../samples/Assembler/Generic/Build"

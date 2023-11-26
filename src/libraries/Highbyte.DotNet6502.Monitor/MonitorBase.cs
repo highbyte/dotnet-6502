@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems;
-using McMaster.Extensions.CommandLineUtils;
+using System.CommandLine;
+using System.CommandLine.Parsing;
 
 namespace Highbyte.DotNet6502.Monitor;
 
@@ -24,7 +25,8 @@ public abstract class MonitorBase
     private readonly Dictionary<ushort, BreakPoint> _breakPoints = new();
     public Dictionary<ushort, BreakPoint> BreakPoints => _breakPoints;
 
-    private CommandLineApplication _commandLineApp;
+    private readonly Parser _commandLineApp;
+    private readonly MonitorConsole _console;
 
     public MonitorBase(SystemRunner systemRunner, MonitorConfig options)
     {
@@ -38,7 +40,8 @@ public abstract class MonitorBase
         ApplyOptionsOnBreakPointExecEvaluator();
 
         _variables = new MonitorVariables();
-        _commandLineApp = CommandLineApp.Build(this, _variables, options);
+        _console = MonitorConsole.BuildSingleton(this);
+        _commandLineApp = CommandLineApp.Build(this, _variables, options, _console);
     }
 
     public CommandResult SendCommand(string command)
@@ -46,19 +49,16 @@ public abstract class MonitorBase
         if (string.IsNullOrEmpty(command))
             return CommandResult.Ok;
 
-        if (string.Equals(command, "?", StringComparison.InvariantCultureIgnoreCase)
-            || string.Equals(command, "-?", StringComparison.InvariantCultureIgnoreCase)
-            || string.Equals(command, "help", StringComparison.InvariantCultureIgnoreCase)
-            || string.Equals(command, "--help", StringComparison.InvariantCultureIgnoreCase))
+        var cmdLine = $"{_commandLineApp.Configuration.RootCommand.Name} {command}".Split(' ');
+        var parseResult = _commandLineApp.Parse(cmdLine);
+        if (parseResult.Errors.Count > 0)
         {
-            ShowHelp();
-            return CommandResult.Ok;
+            foreach (var error in parseResult.Errors)
+                WriteOutput(error.Message, MessageSeverity.Error);
+            return CommandResult.Error;
         }
-
-        // Workaround for CommandLineUtils after showing help once, it will always show it for every command, even if syntax is correct.
-        // Create new instance for every time we parse input
-        _commandLineApp = CommandLineApp.Build(this, _variables, Options);
-        var result = (CommandResult)_commandLineApp.Execute(command.Split(' '));
+        var invokeResult = _commandLineApp.Invoke(cmdLine, _console);
+        var result = (CommandResult)invokeResult;
         return result;
     }
 
@@ -109,16 +109,13 @@ public abstract class MonitorBase
     }
     public void ShowDescription()
     {
-        if (_commandLineApp.Description != null)
-            WriteOutput(_commandLineApp.Description);
+        if (_commandLineApp.Configuration.RootCommand.Description != null)
+            WriteOutput(_commandLineApp.Configuration.RootCommand.Description);
     }
 
     public void ShowHelp()
     {
-        var helpText = _commandLineApp.GetHelpText();
-        var helpTextLines = helpText.Split(Environment.NewLine);
-        foreach (var line in helpTextLines)
-            WriteOutput(line);
+        _commandLineApp.Invoke("?", _console);
     }
 
     public virtual void ShowOptions()
