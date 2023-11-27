@@ -22,7 +22,6 @@ public class C64MonitorCommands : ISystemMonitorCommands
         {
         };
         command.AddAlias("loadbasic");
-        command.AddAlias("loadbasicfilepicker");
 
         Func<Task<int>> handler = () =>
         {
@@ -54,7 +53,6 @@ public class C64MonitorCommands : ISystemMonitorCommands
         {
             fileNameArg
         };
-        command.AddAlias("loadbasicfile");
 
         Func<string, Task<int>> handler = (string fileName) =>
         {

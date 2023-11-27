@@ -86,7 +86,11 @@ public static class BreakpointCommands
             delAllSubCommand
         };
         command.AddAlias("bp");
-        command.AddAlias("breakpoint");
+        // Default command for just "b" without any subcommand
+        command.SetHandler(() =>
+        {
+            return ListBreakpoints(monitor);
+        });
 
         return command;
     }

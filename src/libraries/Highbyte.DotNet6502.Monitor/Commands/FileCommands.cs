@@ -31,7 +31,6 @@ public static class FileCommands
             addressArg,
         };
         command.AddAlias("load");
-        command.AddAlias("loadfilepicker");
 
         Func<string, Task<int>> handler = (string address) =>
         {
@@ -82,7 +81,6 @@ public static class FileCommands
             fileNameArg,
             addressArg
         };
-        command.AddAlias("loadmanual");
 
         Func<string, string, Task<int>> handler = (string fileName, string address) =>
         {

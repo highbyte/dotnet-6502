@@ -97,7 +97,7 @@ public static class MemoryCommands
         }
         .MustBe8BitHex();
 
-        var command = new Command("f", "Fill memory at specified address with a list of bytes.{Environment.NewLine}  Example: f 1000 20 ff ab 30")
+        var command = new Command("f", $"Fill memory at specified address with a list of bytes.{Environment.NewLine}Example: f 1000 20 ff ab 30")
         {
             addressArg,
             valuesArg

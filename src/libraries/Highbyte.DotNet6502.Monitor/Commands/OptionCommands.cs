@@ -66,6 +66,7 @@ public static class OptionCommands
             bpCommand
         };
         command.AddAlias("options");
+        // Default command for "o" if no subcommand is specified.
         command.SetHandler(() =>
         {
             monitor.ShowOptions();
