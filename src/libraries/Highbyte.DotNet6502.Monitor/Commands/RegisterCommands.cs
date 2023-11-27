@@ -1,6 +1,5 @@
-using System.ComponentModel.DataAnnotations;
+using System.CommandLine;
 using System.Globalization;
-using McMaster.Extensions.CommandLineUtils;
 
 namespace Highbyte.DotNet6502.Monitor.Commands;
 
@@ -8,147 +7,146 @@ namespace Highbyte.DotNet6502.Monitor.Commands;
 /// </summary>
 public static class RegisterCommands
 {
-    public static CommandLineApplication ConfigureRegisters(this CommandLineApplication app, MonitorBase monitor, MonitorVariables monitorVariables)
+    public static Command ConfigureRegisters(this Command rootCommand, MonitorBase monitor, MonitorVariables monitorVariables)
     {
-        app.Command("r", cmd =>
+        rootCommand.AddCommand(BuildRegistersCommand(monitor, monitorVariables));
+        return rootCommand;
+    }
+
+    private static Command BuildRegistersCommand(MonitorBase monitor, MonitorVariables monitorVariables)
+    {
+
+        // r a
+        var regAArg = new Argument<string>()
         {
-            cmd.HelpOption(inherited: true);
-            cmd.Description = "Show processor status and registers. CY = #cycles executed.";
-            cmd.AddName("reg");
+            Name = "value",
+            Description = "Value of A register (hex).",
+            Arity = ArgumentArity.ExactlyOne
+        }
+        .MustBe8BitHex();
 
-            cmd.Command("a", setRegisterCmd =>
-                {
-                    setRegisterCmd.Description = "Sets A register.";
-                    var regVal = setRegisterCmd.Argument("value", "Value of A register (hex).").IsRequired();
-                    regVal.Validators.Add(new MustBe8BitHexValueValidator());
+        var setRegACommand = new Command("a", "Sets A register.")
+        {
+            regAArg
+        };
+        setRegACommand.SetHandler((string reg) =>
+        {
+            monitor.Cpu.A = byte.Parse(reg, NumberStyles.AllowHexSpecifier, null);
+            monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
+        }, regAArg);
 
-                    setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
-                    {
-                        return monitor.WriteValidationError(validationResult);
-                    });
 
-                    setRegisterCmd.OnExecute(() =>
-                    {
-                        var value = regVal.Value!;
-                        monitor.Cpu.A = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
-                        monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
-                        return (int)CommandResult.Ok;
-                    });
-                });
+        // r x
+        var regXArg = new Argument<string>()
+        {
+            Name = "value",
+            Description = "Value of X register (hex).",
+            Arity = ArgumentArity.ExactlyOne
+        }
+        .MustBe8BitHex();
 
-            cmd.Command("x", setRegisterCmd =>
-                {
-                    setRegisterCmd.Description = "Sets X register.";
-                    var regVal = setRegisterCmd.Argument("value", "Value of X register (hex).").IsRequired();
-                    regVal.Validators.Add(new MustBe8BitHexValueValidator());
+        var setRegXCommand = new Command("x", "Sets X register.")
+        {
+            regXArg
+        };
+        setRegXCommand.SetHandler((string reg) =>
+        {
+            monitor.Cpu.X = byte.Parse(reg, NumberStyles.AllowHexSpecifier, null);
+            monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
+        }, regXArg);
 
-                    setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
-                    {
-                        return monitor.WriteValidationError(validationResult);
-                    });
+        // r y
+        var regYArg = new Argument<string>()
+        {
+            Name = "value",
+            Description = "Value of Y register (hex).",
+            Arity = ArgumentArity.ExactlyOne
+        }
+        .MustBe8BitHex();
 
-                    setRegisterCmd.OnExecute(() =>
-                    {
-                        var value = regVal.Value!;
-                        monitor.Cpu.X = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
-                        monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
-                        return (int)CommandResult.Ok;
-                    });
-                });
+        var setRegYCommand = new Command("y", "Sets Y register.")
+        {
+            regYArg
+        };
+        setRegYCommand.SetHandler((string reg) =>
+        {
+            monitor.Cpu.Y = byte.Parse(reg, NumberStyles.AllowHexSpecifier, null);
+            monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
+        }, regYArg);
 
-            cmd.Command("y", setRegisterCmd =>
-                {
-                    setRegisterCmd.Description = "Sets Y register.";
-                    var regVal = setRegisterCmd.Argument("value", "Value of Y register (hex).").IsRequired();
-                    regVal.Validators.Add(new MustBe8BitHexValueValidator());
+        // r sp
+        var regSPArg = new Argument<string>()
+        {
+            Name = "value",
+            Description = "Value of SP register (hex).",
+            Arity = ArgumentArity.ExactlyOne
+        }
+        .MustBe8BitHex();
 
-                    setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
-                    {
-                        return monitor.WriteValidationError(validationResult);
-                    });
+        var setRegSPCommand = new Command("sp", "Sets SP register.")
+        {
+            regSPArg
+        };
+        setRegSPCommand.SetHandler((string reg) =>
+        {
+            monitor.Cpu.SP = byte.Parse(reg, NumberStyles.AllowHexSpecifier, null);
+            monitor.WriteOutput($"{OutputGen.GetPCandSP(monitor.Cpu)}");
+        }, regSPArg);
 
-                    setRegisterCmd.OnExecute(() =>
-                    {
-                        var value = regVal.Value!;
-                        monitor.Cpu.Y = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
-                        monitor.WriteOutput($"{OutputGen.GetRegisters(monitor.Cpu)}");
-                        return (int)CommandResult.Ok;
-                    });
-                });
+        // r ps
+        var regPSArg = new Argument<string>()
+        {
+            Name = "value",
+            Description = "Value of PS register (hex).",
+            Arity = ArgumentArity.ExactlyOne
+        }
+        .MustBe8BitHex();
 
-            cmd.Command("sp", setRegisterCmd =>
-                {
-                    setRegisterCmd.Description = "Sets SP (Stack Pointer).";
-                    var regVal = setRegisterCmd.Argument("value", "Value of SP (hex).").IsRequired();
-                    regVal.Validators.Add(new MustBe8BitHexValueValidator());
+        var setRegPSCommand = new Command("ps", "Sets PS register.")
+        {
+            regPSArg
+        };
+        setRegPSCommand.SetHandler((string reg) =>
+        {
+            monitor.Cpu.ProcessorStatus.Value = byte.Parse(reg, NumberStyles.AllowHexSpecifier, null);
+            monitor.WriteOutput($"{OutputGen.GetStatus(monitor.Cpu)}");
+        }, regPSArg);
 
-                    setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
-                    {
-                        return monitor.WriteValidationError(validationResult);
-                    });
+        // r pc
+        var regPCArg = new Argument<string>()
+        {
+            Name = "value",
+            Description = "Value of PC register (hex).",
+            Arity = ArgumentArity.ExactlyOne
+        }
+        .MustBe16BitHex();
 
-                    setRegisterCmd.OnExecute(() =>
-                    {
-                        var value = regVal.Value!;
-                        monitor.Cpu.SP = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
-                        monitor.WriteOutput($"{OutputGen.GetPCandSP(monitor.Cpu)}");
-                        return (int)CommandResult.Ok;
-                    });
-                });
+        var setRegPCCommand = new Command("pc", "Sets PC register.")
+        {
+            regPCArg
+        };
+        setRegPCCommand.SetHandler((string reg) =>
+        {
+            monitor.Cpu.PC = ushort.Parse(reg, NumberStyles.AllowHexSpecifier, null);
+            monitor.WriteOutput($"{OutputGen.GetPCandSP(monitor.Cpu)}");
+        }, regPCArg);
 
-            cmd.Command("ps", setRegisterCmd =>
-                {
-                    setRegisterCmd.Description = "Sets processor status register.";
-                    var regVal = setRegisterCmd.Argument("value", "Value of processor status register (hex).").IsRequired();
-                    regVal.Validators.Add(new MustBe8BitHexValueValidator());
-
-                    setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
-                    {
-                        return monitor.WriteValidationError(validationResult);
-                    });
-
-                    setRegisterCmd.OnExecute(() =>
-                    {
-                        var value = regVal.Value!;
-                        monitor.Cpu.ProcessorStatus.Value = byte.Parse(value, NumberStyles.AllowHexSpecifier, null);
-                        monitor.WriteOutput($"PS={value}");
-                        monitor.WriteOutput($"{OutputGen.GetStatus(monitor.Cpu)}");
-                        return (int)CommandResult.Ok;
-                    });
-                });
-
-            cmd.Command("pc", setRegisterCmd =>
-                {
-                    setRegisterCmd.Description = "Sets PC (Program Counter).";
-                    var regVal = setRegisterCmd.Argument("value", "Value of PC (hex).").IsRequired();
-                    regVal.Validators.Add(new MustBe16BitHexValueValidator());
-
-                    setRegisterCmd.OnValidationError((ValidationResult validationResult) =>
-                    {
-                        return monitor.WriteValidationError(validationResult);
-                    });
-
-                    setRegisterCmd.OnExecute(() =>
-                    {
-                        var value = regVal.Value;
-                        monitor.Cpu.PC = ushort.Parse(value!, NumberStyles.AllowHexSpecifier, null);
-                        monitor.WriteOutput($"{OutputGen.GetPCandSP(monitor.Cpu)}");
-                        return (int)CommandResult.Ok;
-                    });
-                });
-
-            cmd.OnValidationError((ValidationResult validationResult) =>
-            {
-                return monitor.WriteValidationError(validationResult);
-            });
-
-            cmd.OnExecute(() =>
-            {
-                monitor.WriteOutput(OutputGen.GetProcessorState(monitor.Cpu, includeCycles: true));
-                return (int)CommandResult.Ok;
-            });
+        // r
+        var command = new Command("r", "Show processor status and registers. CY = #cycles executed.")
+        {
+            setRegACommand,
+            setRegXCommand,
+            setRegYCommand,
+            setRegSPCommand,
+            setRegPSCommand,
+            setRegPCCommand
+        };
+        command.AddAlias("reg");
+        command.SetHandler(() =>
+        {
+            monitor.WriteOutput(OutputGen.GetProcessorState(monitor.Cpu, includeCycles: true));
         });
 
-        return app;
+        return command;
     }
 }

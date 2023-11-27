@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using ImGuiNET;
 using NativeFileDialogSharp;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;
@@ -16,6 +18,7 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
 
     public bool Quit = false;
 
+    private bool _scrollToEnd = false;
 
     private string _monitorCmdString = "";
 
@@ -25,8 +28,8 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
 
     private const int POS_X = 300;
     private const int POS_Y = 2;
-    private const int WIDTH = 720;
-    private const int HEIGHT = 450;
+    private const int WIDTH = 750;
+    private const int HEIGHT = 642;
     const int MONITOR_CMD_LINE_LENGTH = 200;
 
     static Vector4 s_InformationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -34,6 +37,8 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
     static Vector4 s_WarningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
 
     static Vector4 s_StatusColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
+
+    private bool _autoScroll = true;
 
     public event EventHandler<bool> MonitorStateChange;
     protected virtual void OnMonitorStateChange(bool monitorEnabled)
@@ -78,34 +83,61 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
             _hasBeenInitializedOnce = true;
         }
 
-        ImGui.Begin($"6502 Monitor: {_silkNetNativeMonitor.System.Name}");
+        ImGui.Begin($"6502 Monitor: {_silkNetNativeMonitor.System.Name}", ImGuiWindowFlags.NoScrollbar);
 
         if (ImGui.IsWindowFocused())
         {
-            _setFocusOnInput = true;
+            //_setFocusOnInput = true;  // TODO: This is not working ok when child window contains a scrollbar (cannot select scrollbar when clicking outside child window)
         }
 
-        Vector4 textColor;
-        foreach (var cmd in _silkNetNativeMonitor.MonitorCmdHistory)
+        if (ImGui.BeginChild("##scrolling", Vector2.Zero, border: false, ImGuiWindowFlags.HorizontalScrollbar | ImGuiWindowFlags.AlwaysVerticalScrollbar))
         {
-            textColor = cmd.Severity switch
+            //ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
+
+            Vector4 textColor;
+            foreach (var cmd in _silkNetNativeMonitor.MonitorCmdHistory)
             {
-                MessageSeverity.Information => s_InformationColor,
-                MessageSeverity.Warning => s_WarningColor,
-                MessageSeverity.Error => s_ErrorColor,
-                _ => s_InformationColor
-            };
-            ImGui.PushStyleColor(ImGuiCol.Text, textColor);
-            ImGui.Text(cmd.Message);
-            ImGui.PopStyleColor();
+                textColor = cmd.Severity switch
+                {
+                    MessageSeverity.Information => s_InformationColor,
+                    MessageSeverity.Warning => s_WarningColor,
+                    MessageSeverity.Error => s_ErrorColor,
+                    _ => s_InformationColor
+                };
+                ImGui.PushStyleColor(ImGuiCol.Text, textColor);
+                ImGui.Text(cmd.Message);
+                ImGui.PopStyleColor();
+            }
+
+            //ImGui.PopStyleVar();
+
+            if (_autoScroll)
+            {
+                // If a command was entered, scroll to the bottom of the scroll region.
+                if (_scrollToEnd)
+                {
+                    ImGui.SetScrollHereY(1.0f); // 0.0f:top, 0.5f:center, 1.0f:bottom
+                    ImGui.SetScrollHereX(0.0f); // 0.0f:left, 0.5f:center, 1.0f:right
+                    _scrollToEnd = false;
+                }
+
+                // Keep up at the bottom of the scroll region if we were already at the bottom at the beginning of the frame.
+                // Using a scrollbar or mouse-wheel will take away from the bottom edge.
+                if (ImGui.GetScrollY() >= ImGui.GetScrollMaxY())
+                    ImGui.SetScrollHereY(1.0f); // 0.0f:top, 0.5f:center, 1.0f:bottom
+            }
+
         }
+        ImGui.EndChild();
+
+
 
         if (_setFocusOnInput)
         {
             ImGui.SetKeyboardFocusHere();
             _setFocusOnInput = false;
         }
-        ImGui.PushItemWidth(600);
+        ImGui.PushItemWidth(700);
         if (ImGui.InputText("", ref _monitorCmdString, MONITOR_CMD_LINE_LENGTH, ImGuiInputTextFlags.EnterReturnsTrue))
         {
             _silkNetNativeMonitor.WriteOutput(_monitorCmdString, MessageSeverity.Information);
@@ -121,6 +153,7 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
                 Disable();
             }
             _setFocusOnInput = true;
+            _scrollToEnd = true;
         }
 
         // When reaching this line, we may have destroyed the ImGui controller if we did a Quit or Continue as monitor command.

@@ -1,8 +1,6 @@
-using System.ComponentModel.DataAnnotations;
+using System.CommandLine;
 using Highbyte.DotNet6502.Monitor;
-using Highbyte.DotNet6502.Monitor.Commands;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
-using McMaster.Extensions.CommandLineUtils;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Monitor;
 
@@ -11,91 +9,100 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Monitor;
 /// </summary>
 public class C64MonitorCommands : ISystemMonitorCommands
 {
-    public void Configure(CommandLineApplication app, MonitorBase monitor)
+    public void Configure(Command rootCommand, MonitorBase monitor)
     {
-        app.Command("lb", cmd =>
+        rootCommand.AddCommand(BuildLoadBasicCommand(monitor));
+        rootCommand.AddCommand(BuildLoadBasicManualCommand(monitor));
+        rootCommand.AddCommand(BuildSaveBasicCommand(monitor));
+    }
+
+    private static Command BuildLoadBasicCommand(MonitorBase monitor)
+    {
+        var command = new Command("lb", "C64 - Load a CBM Basic 2.0 PRG file from file picker dialog.")
         {
-            cmd.HelpOption(inherited: true);
-            cmd.Description = "C64 - Load a CBM Basic 2.0 PRG file from file picker dialog.";
-            cmd.AddName("loadbasic from filepicker");
+        };
+        command.AddAlias("loadbasic");
 
-            cmd.OnValidationError((ValidationResult validationResult) =>
-            {
-                return monitor.WriteValidationError(validationResult);
-            });
-
-            cmd.OnExecute(() =>
-            {
-                // Basic file should have a start address of 0801 stored as the two first bytes (little endian order, 01 08).
-                var loaded = monitor.LoadBinary(out var loadedAtAddress, out var fileLength, null, AfterLoadBasic);
-                if (!loaded)
-                {
-                    // If file could not be loaded at this time, probably because a Web/WASM file picker dialog is asynchronus
-                    return (int)CommandResult.Ok;
-                }
-                AfterLoadBasic(monitor, loadedAtAddress, fileLength);
-                return (int)CommandResult.Ok;
-            });
-        });
-        app.Command("llb", cmd =>
+        Func<Task<int>> handler = () =>
         {
-            cmd.HelpOption(inherited: true);
-            cmd.Description = "C64 - Load a CBM Basic 2.0 PRG file from host file system.";
-            cmd.AddName("loadbasic file");
-
-            var fileName = cmd.Argument("filename", "Name of the Basic file.")
-                .IsRequired();
-            //.Accepts(v => v.ExistingFile()); // File exists check is done in LoadBinary(...) implementation.
-
-            cmd.OnValidationError((ValidationResult validationResult) =>
+            // Basic file should have a start address of 0801 stored as the two first bytes (little endian order, 01 08).
+            var loaded = monitor.LoadBinary(out var loadedAtAddress, out var fileLength, null, AfterLoadBasic);
+            if (!loaded)
             {
-                return monitor.WriteValidationError(validationResult);
-            });
+                // If file could not be loaded at this time, probably because a Web/WASM file picker dialog is asynchronus
+                return Task.FromResult((int)CommandResult.Ok);
+            }
+            AfterLoadBasic(monitor, loadedAtAddress, fileLength);
+            return Task.FromResult((int)CommandResult.Ok);
+        };
 
-            cmd.OnExecute(() =>
-            {
-                // Basic file should have a start address of 0801 stored as the two first bytes (little endian order, 01 08).
-                bool loaded = monitor.LoadBinary(fileName.Value!, out var loadedAtAddress, out var fileLength);
-                if (!loaded)
-                {
-                    // If file could not be loaded, probably because it's not supported/implemented by the derived class.
-                    return (int)CommandResult.Ok;
-                }
-                AfterLoadBasic(monitor, loadedAtAddress, fileLength);
-                return (int)CommandResult.Ok;
+        command.SetHandler(handler);
+        return command;
+    }
 
-            });
-        });
-
-        app.Command("sb", cmd =>
+    private static Command BuildLoadBasicManualCommand(MonitorBase monitor)
+    {
+        var fileNameArg = new Argument<string>()
         {
-            cmd.HelpOption(inherited: true);
-            cmd.Description = "C64 - Save a CBM Basic 2.0 PRG file to host file system.";
-            cmd.AddName("savebasic");
+            Name = "filename",
+            Description = "Name of the binary file.",
+            Arity = ArgumentArity.ExactlyOne
+        };
 
-            var fileName = cmd.Argument("filename", "Name of the Basic file.")
-                .IsRequired();
+        var command = new Command("llb", "C64 - Load a CBM Basic 2.0 PRG file from host file system.")
+        {
+            fileNameArg
+        };
 
-            cmd.OnValidationError((ValidationResult validationResult) =>
+        Func<string, Task<int>> handler = (string fileName) =>
+        {
+            // Basic file should have a start address of 0801 stored as the two first bytes (little endian order, 01 08).
+            bool loaded = monitor.LoadBinary(fileName, out var loadedAtAddress, out var fileLength);
+            if (!loaded)
             {
-                return monitor.WriteValidationError(validationResult);
-            });
+                // If file could not be loaded, probably because it's not supported/implemented by the derived class.
+                return Task.FromResult((int)CommandResult.Ok);
+            }
+            AfterLoadBasic(monitor, loadedAtAddress, fileLength);
+            return Task.FromResult((int)CommandResult.Ok);
+        };
 
-            cmd.OnExecute(() =>
-            {
-                ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
-                var endAddressValue = ((C64)monitor.System).GetBasicProgramEndAddress();
-                monitor.SaveBinary(fileName.Value!, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress: true);
-                return (int)CommandResult.Ok;
-            });
-        });
+        command.SetHandler(handler, fileNameArg);
+        return command;
+    }
+
+    private static Command BuildSaveBasicCommand(MonitorBase monitor)
+    {
+        var fileNameArg = new Argument<string>()
+        {
+            Name = "filename",
+            Description = "Name of the Basic file.",
+            Arity = ArgumentArity.ExactlyOne
+        };
+
+        var command = new Command("sb", "C64 - Save a CBM Basic 2.0 PRG file to host file system.")
+        {
+            fileNameArg,
+        };
+        command.AddAlias("savebasic");
+
+        Func<string, Task<int>> handler = (string fileName) =>
+        {
+            ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
+            var endAddressValue = ((C64)monitor.System).GetBasicProgramEndAddress();
+            monitor.SaveBinary(fileName, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress: true);
+            return Task.FromResult((int)CommandResult.Ok);
+        };
+
+        command.SetHandler(handler, fileNameArg);
+        return command;
     }
 
     public void Reset(MonitorBase monitor)
     {
     }
 
-    public void AfterLoadBasic(MonitorBase monitor, ushort loadedAtAddress, ushort fileLength)
+    public static void AfterLoadBasic(MonitorBase monitor, ushort loadedAtAddress, ushort fileLength)
     {
         monitor.WriteOutput($"Basic program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
         ((C64)monitor.System).InitBasicMemoryVariables(loadedAtAddress, fileLength);

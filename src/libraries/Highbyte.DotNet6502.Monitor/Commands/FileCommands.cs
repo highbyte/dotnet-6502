@@ -1,6 +1,5 @@
-using System.ComponentModel.DataAnnotations;
+using System.CommandLine;
 using System.Globalization;
-using McMaster.Extensions.CommandLineUtils;
 
 namespace Highbyte.DotNet6502.Monitor.Commands;
 
@@ -8,126 +7,178 @@ namespace Highbyte.DotNet6502.Monitor.Commands;
 /// </summary>
 public static class FileCommands
 {
-    public static CommandLineApplication ConfigureFiles(this CommandLineApplication app, MonitorBase monitor, MonitorVariables monitorVariables)
+
+    public static Command ConfigureFiles(this Command rootCommand, MonitorBase monitor, MonitorVariables monitorVariables)
     {
-        app.Command("l", cmd =>
+        rootCommand.AddCommand(BuildLoadCommand(monitor));
+        rootCommand.AddCommand(BuildLoadManualCommand(monitor));
+        rootCommand.AddCommand(BuildSaveCommand(monitor));
+        return rootCommand;
+    }
+
+    private static Command BuildLoadCommand(MonitorBase monitor)
+    {
+        var addressArg = new Argument<string>()
         {
-            cmd.HelpOption(inherited: true);
-            cmd.Description = "Load 6502 binary file from file pick dialog into emulator memory.";
-            cmd.AddName("load from file picker");
+            Name = "address",
+            Description = "Memory address (hex) to load the file into. If not specified, it's assumed the first two bytes of the file contains the load address.",
+            Arity = ArgumentArity.ZeroOrOne
+        }
+        .MustBe16BitHex();
 
-            var address = cmd.Argument("address", "Memory address (hex) to load the file into. If not specified, it's assumed the first two bytes of the file contains the load address.");
-            address.Validators.Add(new MustBe16BitHexValueValidator());
-
-            cmd.OnValidationError((ValidationResult validationResult) =>
-            {
-                return monitor.WriteValidationError(validationResult);
-            });
-
-            cmd.OnExecute(() =>
-            {
-                ushort? forceLoadAtAddress;
-
-                if (string.IsNullOrEmpty(address.Value))
-                    forceLoadAtAddress = null;
-                else
-                    forceLoadAtAddress = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
-
-                var loaded = monitor.LoadBinary(out var loadedAtAddress, out var fileLength, forceLoadAddress: forceLoadAtAddress);
-                if (!loaded)
-                {
-                    // If file could not be loaded at this time, probably because a Web/WASM file picker dialog is asynchronus
-                    return (int)CommandResult.Ok;
-                }
-
-                monitor.WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
-                // Set PC to start of loaded file.
-                monitor.Cpu.PC = loadedAtAddress;
-                return (int)CommandResult.Ok;
-
-            });
-        });
-        app.Command("ll", cmd =>
+        var command = new Command("l", "Load 6502 binary file from file pick dialog into emulator memory.")
         {
-            cmd.HelpOption(inherited: true);
-            cmd.Description = "Load specified 6502 binary file into emulator memory.";
-            cmd.AddName("load file");
+            addressArg,
+        };
+        command.AddAlias("load");
 
-            var fileName = cmd.Argument("filename", "Name of the binary file.")
-                .IsRequired();
-            //.Accepts(v => v.ExistingFile());  // Check file is done in LoadBinary(...) implementation
-
-            var address = cmd.Argument("address", "Memory address (hex) to load the file into. If not specified, it's assumed the first two bytes of the file contains the load address.");
-            address.Validators.Add(new MustBe16BitHexValueValidator());
-
-            cmd.OnValidationError((ValidationResult validationResult) =>
-            {
-                return monitor.WriteValidationError(validationResult);
-            });
-
-            cmd.OnExecute(() =>
-            {
-                ushort? forceLoadAtAddress;
-
-                if (string.IsNullOrEmpty(address.Value))
-                    forceLoadAtAddress = null;
-                else
-                    forceLoadAtAddress = ushort.Parse(address.Value, NumberStyles.AllowHexSpecifier, null);
-
-                bool loaded = monitor.LoadBinary(fileName.Value!, out var loadedAtAddress, out var fileLength, forceLoadAddress: forceLoadAtAddress);
-                if (!loaded)
-                {
-                    // If file could not be loaded, probably because it's not supported/implemented by the derived class.
-                    return (int)CommandResult.Ok;
-                }
-
-                monitor.WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
-                // Set PC to start of loaded file.
-                monitor.Cpu.PC = loadedAtAddress;
-                return (int)CommandResult.Ok;
-
-            });
-        });
-
-        app.Command("s", cmd =>
+        Func<string, Task<int>> handler = (string address) =>
         {
-            cmd.HelpOption(inherited: true);
-            cmd.Description = "Save a binary from 6502 emulator memory to host file system.";
-            cmd.AddName("save");
+            ushort? forceLoadAtAddress;
 
-            var fileName = cmd.Argument("filename", "Name of the binary file.")
-                .IsRequired();
+            if (string.IsNullOrEmpty(address))
+                forceLoadAtAddress = null;
+            else
+                forceLoadAtAddress = ushort.Parse(address, NumberStyles.AllowHexSpecifier, null);
 
-            var startAddress = cmd.Argument("startAddress", "Start address (hex) of the memory area to save.")
-                .IsRequired();
-            startAddress.Validators.Add(new MustBe16BitHexValueValidator());
-
-            var endAddress = cmd.Argument("endAddress", "End address (hex) of the memory area to save.")
-                .IsRequired();
-            endAddress.Validators.Add(new MustBe16BitHexValueValidator());
-
-            var addFileHeader = cmd.Argument("addFileHeader", "Optional. Set to n to NOT add a 2 byte file header with start address (usefull for data, not code)")
-                .Accepts(arg => arg.Values("y", "yes", "n", "no"));
-
-            cmd.OnValidationError((ValidationResult validationResult) =>
+            var loaded = monitor.LoadBinary(out var loadedAtAddress, out var fileLength, forceLoadAddress: forceLoadAtAddress);
+            if (!loaded)
             {
-                return monitor.WriteValidationError(validationResult);
-            });
+                // If file could not be loaded at this time, probably because a Web/WASM file picker dialog is asynchronus
+                return Task.FromResult((int)CommandResult.Ok);
+            }
 
-            cmd.OnExecute(() =>
+            monitor.WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+            // Set PC to start of loaded file.
+            monitor.Cpu.PC = loadedAtAddress;
+            return Task.FromResult((int)CommandResult.Ok);
+
+        };
+
+        command.SetHandler(handler, addressArg);
+        return command;
+    }
+
+    private static Command BuildLoadManualCommand(MonitorBase monitor)
+    {
+        var fileNameArg = new Argument<string>()
+        {
+            Name = "filename",
+            Description = "Name of the binary file.",
+            Arity = ArgumentArity.ExactlyOne
+        };
+
+        var addressArg = new Argument<string>()
+        {
+            Name = "address",
+            Description = "Memory address (hex) to load the file into. If not specified, it's assumed the first two bytes of the file contains the load address.",
+            Arity = ArgumentArity.ZeroOrOne
+        }
+        .MustBe16BitHex();
+
+        var command = new Command("ll", "Load specified 6502 binary file into emulator memory.")
+        {
+            fileNameArg,
+            addressArg
+        };
+
+        Func<string, string, Task<int>> handler = (string fileName, string address) =>
+        {
+            ushort? forceLoadAtAddress;
+
+            if (string.IsNullOrEmpty(address))
+                forceLoadAtAddress = null;
+            else
+                forceLoadAtAddress = ushort.Parse(address, NumberStyles.AllowHexSpecifier, null);
+
+            bool loaded = monitor.LoadBinary(fileName, out var loadedAtAddress, out var fileLength, forceLoadAddress: forceLoadAtAddress);
+            if (!loaded)
             {
-                ushort startAddressValue = ushort.Parse(startAddress.Value!, NumberStyles.AllowHexSpecifier, null);
-                ushort endAddressValue = ushort.Parse(endAddress.Value!, NumberStyles.AllowHexSpecifier, null);
+                // If file could not be loaded, probably because it's not supported/implemented by the derived class.
+                return Task.FromResult((int)CommandResult.Ok);
+            }
 
-                bool addFileHeaderWithLoadAddress = string.IsNullOrEmpty(addFileHeader.Value)
-                                                    || (addFileHeader.Value.ToLower() == "y" && addFileHeader.Value.ToLower() == "yes");
+            monitor.WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+            // Set PC to start of loaded file.
+            monitor.Cpu.PC = loadedAtAddress;
+            return Task.FromResult((int)CommandResult.Ok);
 
-                monitor.SaveBinary(fileName.Value!, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress);
+        };
 
-                return (int)CommandResult.Ok;
-            });
-        });
+        command.SetHandler(handler, fileNameArg, addressArg);
+        return command;
+    }
 
-        return app;
+    private static Command BuildSaveCommand(MonitorBase monitor)
+    {
+        var fileNameArg = new Argument<string>()
+        {
+            Name = "filename",
+            Description = "Name of the binary file.",
+            Arity = ArgumentArity.ExactlyOne
+        };
+
+        var startAddressArg = new Argument<string>()
+        {
+            Name = "startAddress",
+            Description = "Start address (hex) of the memory area to save.",
+            Arity = ArgumentArity.ExactlyOne
+        }
+        .MustBe16BitHex();
+
+        var endAddressArg = new Argument<string>()
+        {
+            Name = "endAddress",
+            Description = "End address (hex) of the memory area to save.",
+            Arity = ArgumentArity.ExactlyOne
+        }
+        .MustBe16BitHex();
+
+        var addFileHeaderArg = new Argument<string>()
+        {
+            Name = "addFileHeader",
+            Description = "Optional. Set to n to NOT add a 2 byte file header with start address (usefull for data, not code)",
+            Arity = ArgumentArity.ZeroOrOne,
+        };
+        addFileHeaderArg.AddValidator(
+            a =>
+            {
+                var validationError =
+                    a.Tokens
+                    .Select(t => t.Value)
+                    .Where(v => !string.IsNullOrEmpty(v) && !v.ToLower().Equals("y") && !v.ToLower().Equals("yes") && !v.ToLower().Equals("n") && !v.ToLower().Equals("no"))
+                    .Select(_ => $"Argument '{addFileHeaderArg.Name}' must be either y, yes, n or no.")
+                    .FirstOrDefault();
+                if (validationError != null)
+                    a.ErrorMessage = validationError;
+            }
+        );
+
+
+        var command = new Command("s", "Save a binary from 6502 emulator memory to host file system.")
+        {
+            fileNameArg,
+            startAddressArg,
+            endAddressArg,
+            addFileHeaderArg
+        };
+        command.AddAlias("save");
+
+        Func<string, string, string, string, Task<int>> handler = (string fileName, string startAddress, string endAddress, string addFileHeader) =>
+        {
+            ushort startAddressValue = ushort.Parse(startAddress, NumberStyles.AllowHexSpecifier, null);
+            ushort endAddressValue = ushort.Parse(endAddress, NumberStyles.AllowHexSpecifier, null);
+
+            bool addFileHeaderWithLoadAddress = string.IsNullOrEmpty(addFileHeader)
+                                                || (addFileHeader.ToLower() == "y" && addFileHeader.ToLower() == "yes");
+
+            monitor.SaveBinary(fileName, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress);
+
+            return Task.FromResult((int)CommandResult.Ok);
+
+        };
+
+        command.SetHandler(handler, fileNameArg, startAddressArg, endAddressArg, addFileHeaderArg);
+        return command;
     }
 }
