@@ -14,8 +14,8 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
     private readonly C64SadConsoleKeyboard _c64SadConsoleKeyboard;
     private readonly ILogger<C64SadConsoleInputHandler> _logger;
 
-    // Stats
-    public Instrumentations Stats { get; } = new();
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
 
     public C64SadConsoleInputHandler(ILoggerFactory loggerFactory)
     {

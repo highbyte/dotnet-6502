@@ -15,8 +15,8 @@ public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadC
 
     public List<string> GetDebugInfo() => new();
 
-    // Stats
-    public Instrumentations Stats { get; } = new();
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
 
 
     public GenericSadConsoleInputHandler(EmulatorInputConfig emulatorInputConfig, ILoggerFactory loggerFactory)

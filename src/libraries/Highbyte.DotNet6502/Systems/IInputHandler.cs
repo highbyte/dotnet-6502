@@ -8,7 +8,7 @@ public interface IInputHandler
     void ProcessInput(ISystem system);
 
     List<string> GetDebugInfo();
-    Instrumentations Stats { get; }
+    Instrumentations Instrumentations { get; }
 }
 
 public interface IInputHandler<TSystem, TInputHandlerContext> : IInputHandler
@@ -31,5 +31,5 @@ public class NullInputHandler : IInputHandler
     }
     public List<string> GetDebugInfo() => new();
 
-    public Instrumentations Stats { get; } = new();
+    public Instrumentations Instrumentations { get; } = new();
 }

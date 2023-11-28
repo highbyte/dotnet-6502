@@ -43,8 +43,8 @@ public class C64 : ISystem, ISystemMonitor
     private readonly ILogger _logger;
     public const ushort BASIC_LOAD_ADDRESS = 0x0801;
 
-    // Stats
-    public Instrumentations Stats { get; } = new();
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
     private const string StatsCategory = "Custom";
     private readonly ElapsedMillisecondsTimedStat _spriteCollisionStat;
     private readonly ElapsedMillisecondsTimedStat _audioStat;
@@ -143,8 +143,8 @@ public class C64 : ISystem, ISystemMonitor
     private C64(ILogger logger)
     {
         _logger = logger;
-        _spriteCollisionStat = Stats.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-SpriteCollision");
-        _audioStat = Stats.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Audio");
+        _spriteCollisionStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-SpriteCollision");
+        _audioStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Audio");
     }
 
     public static C64 BuildC64(C64Config c64Config, ILoggerFactory loggerFactory)

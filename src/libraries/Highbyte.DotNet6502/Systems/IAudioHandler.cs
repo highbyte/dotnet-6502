@@ -11,7 +11,7 @@ public interface IAudioHandler
     void StopPlaying();
     void PausePlaying();
     List<string> GetDebugInfo();
-    Instrumentations Stats { get; }
+    Instrumentations Instrumentations { get; }
 }
 
 public interface IAudioHandler<TSystem, TAudioHandlerContext> : IAudioHandler
@@ -51,5 +51,5 @@ public class NullAudioHandler : IAudioHandler
 
     public List<string> GetDebugInfo() => new();
 
-    public Instrumentations Stats { get; } = new();
+    public Instrumentations Instrumentations { get; } = new();
 }

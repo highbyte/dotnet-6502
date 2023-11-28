@@ -246,10 +246,10 @@ public class WasmHost : IDisposable
         string stats = "";
 
         var allStats = InstrumentationBag.Stats
-            .Union(_systemRunner.System.Stats.Stats.Select(x => (Name: $"{HostStatRootName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
-            .Union(_systemRunner.Renderer.Stats.Stats.Select(x => (Name: $"{HostStatRootName}-{RenderTimeStatName}-{x.Name}", x.Stat)))
-            .Union(_systemRunner.AudioHandler.Stats.Stats.Select(x => (Name: $"{HostStatRootName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
-            .Union(_systemRunner.InputHandler.Stats.Stats.Select(x => (Name: $"{HostStatRootName}-{InputTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.Renderer.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{RenderTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{InputTimeStatName}-{x.Name}", x.Stat)))
             .ToList();
         foreach ((string name, IStat stat) in allStats.OrderBy(i => i.Name))
         {

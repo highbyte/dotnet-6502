@@ -18,7 +18,7 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
     private const int BorderPixels = TextPixelSize * BorderWidthFactor;
     private readonly EmulatorScreenConfig _emulatorScreenConfig;
 
-    public Instrumentations Stats { get; } = new();
+    public Instrumentations Instrumentations { get; } = new();
 
     public GenericComputerSkiaRenderer(EmulatorScreenConfig emulatorScreenConfig)
     {

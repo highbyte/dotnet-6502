@@ -145,7 +145,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused));
         ImGui.SameLine();
-        if (ImGui.Button("Stats"))
+        if (ImGui.Button("Instrumentations"))
         {
             _silkNetWindow.ToggleStatsPanel();
         }

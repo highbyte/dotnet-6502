@@ -41,8 +41,8 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
 
     public List<string> GetDebugInfo() => new();
 
-    // Stats
-    public Instrumentations Stats { get; } = new();
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
 
 
     public void Init(C64 system, NAudioAudioHandlerContext audioHandlerContext)

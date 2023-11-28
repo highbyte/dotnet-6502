@@ -64,8 +64,6 @@ public class SilkNetWindow
     private readonly PerSecondTimedStat _updateFps = InstrumentationBag.Add<PerSecondTimedStat>($"{HostStatRootName}-OnUpdateFPS");
     private readonly PerSecondTimedStat _renderFps = InstrumentationBag.Add<PerSecondTimedStat>($"{HostStatRootName}-OnRenderFPS");
 
-
-
     // Render context container for SkipSharp (surface/canvas) and SilkNetOpenGl
     private SilkNetRenderContextContainer _silkNetRenderContextContainer;
     // SilkNet input handling
@@ -81,7 +79,7 @@ public class SilkNetWindow
     private SilkNetImGuiMonitor _monitor;
     public SilkNetImGuiMonitor Monitor => _monitor;
 
-    // Stats panel
+    // Instrumentations panel
     private SilkNetImGuiStatsPanel _statsPanel;
     public SilkNetImGuiStatsPanel StatsPanel => _statsPanel;
 
@@ -169,7 +167,7 @@ public class SilkNetWindow
 
     protected void OnClosing()
     {
-        // Dispose Monitor/Stats panel
+        // Dispose Monitor/Instrumentations panel
         // _monitor.Cleanup();
         // _statsPanel.Cleanup();
         DestroyImGuiController();
@@ -491,10 +489,10 @@ public class SilkNetWindow
     private List<(string name, IStat stat)> GetStats()
     {
         return InstrumentationBag.Stats
-            .Union(_systemRunner.System.Stats.Stats.Select(x => (Name: $"{HostStatRootName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
-            .Union(_systemRunner.Renderer.Stats.Stats.Select(x => (Name: $"{HostStatRootName}-{RenderTimeStatName}-{x.Name}", x.Stat)))
-            .Union(_systemRunner.AudioHandler.Stats.Stats.Select(x => (Name: $"{HostStatRootName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
-            .Union(_systemRunner.InputHandler.Stats.Stats.Select(x => (Name: $"{HostStatRootName}-{InputTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.Renderer.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{RenderTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{InputTimeStatName}-{x.Name}", x.Stat)))
             .ToList();
     }
 

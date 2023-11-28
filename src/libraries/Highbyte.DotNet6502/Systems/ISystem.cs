@@ -20,5 +20,5 @@ public interface ISystem
         out InstructionExecResult instructionExecResult,
         IExecEvaluator? execEvaluator = null);
 
-    Instrumentations Stats { get; }
+    Instrumentations Instrumentations { get; }
 }

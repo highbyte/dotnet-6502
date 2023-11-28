@@ -7,7 +7,7 @@ public interface IRenderer
     void Init(ISystem system, IRenderContext renderContext);
     void Draw(ISystem system);
 
-    Instrumentations Stats { get; }
+    Instrumentations Instrumentations { get; }
 }
 
 public interface IRenderer<TSystem, TRenderContext> : IRenderer
@@ -20,7 +20,7 @@ public interface IRenderer<TSystem, TRenderContext> : IRenderer
 
 public class NullRenderer : IRenderer
 {
-    public Instrumentations Stats { get; } = new();
+    public Instrumentations Instrumentations { get; } = new();
 
     public void Init(ISystem system, IRenderContext renderContext)
     {

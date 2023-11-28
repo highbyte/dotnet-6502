@@ -44,8 +44,8 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>
 
     public List<string> GetDebugInfo() => new();
 
-    // Stats
-    public Instrumentations Stats { get; } = new();
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
 
     public C64WASMAudioHandler(ILoggerFactory loggerFactory)
     {

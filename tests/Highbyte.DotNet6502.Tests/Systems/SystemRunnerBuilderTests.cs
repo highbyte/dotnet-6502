@@ -113,7 +113,7 @@ public class TestSystem : ISystem
 
     public IScreen Screen => throw new NotImplementedException();
 
-    public Instrumentations Stats { get; } = new();
+    public Instrumentations Instrumentations { get; } = new();
 
     public ExecEvaluatorTriggerResult ExecuteOneFrame(SystemRunner systemRunner, IExecEvaluator? execEvaluator = null)
     {
@@ -141,7 +141,7 @@ public class TestRenderer : IRenderer<TestSystem, IRenderContext>
     public void Init(ISystem system, IRenderContext renderContext)
     {
     }
-    public Instrumentations Stats { get; } = new();
+    public Instrumentations Instrumentations { get; } = new();
 }
 public class TestRendererNonGeneric : IRenderer
 {
@@ -151,7 +151,7 @@ public class TestRendererNonGeneric : IRenderer
     public void Init(ISystem system, IRenderContext renderContext)
     {
     }
-    public Instrumentations Stats { get; } = new();
+    public Instrumentations Instrumentations { get; } = new();
 }
 
 public class TestInputHandler : IInputHandler<TestSystem, IInputHandlerContext>
@@ -171,7 +171,7 @@ public class TestInputHandler : IInputHandler<TestSystem, IInputHandlerContext>
 
     public List<string> GetDebugInfo() => new();
 
-    public Instrumentations Stats { get; } = new();
+    public Instrumentations Instrumentations { get; } = new();
 }
 
 public class TestInputHandlerNonGeneric : IInputHandler
@@ -184,7 +184,7 @@ public class TestInputHandlerNonGeneric : IInputHandler
     {
     }
     public List<string> GetDebugInfo() => new List<string>();
-    public Instrumentations Stats { get; } = new();
+    public Instrumentations Instrumentations { get; } = new();
 }
 
 public class TestAudioHandler : IAudioHandler<TestSystem, IAudioHandlerContext>
@@ -212,7 +212,7 @@ public class TestAudioHandler : IAudioHandler<TestSystem, IAudioHandlerContext>
     }
     public List<string> GetDebugInfo() => new();
 
-    public Instrumentations Stats { get; } = new();
+    public Instrumentations Instrumentations { get; } = new();
 
 }
 
@@ -235,6 +235,6 @@ public class TestAudioHandlerNonGeneric : IAudioHandler
     }
     public List<string> GetDebugInfo() => new();
 
-    public Instrumentations Stats { get; } = new();
+    public Instrumentations Instrumentations { get; } = new();
 
 }

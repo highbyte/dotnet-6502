@@ -11,8 +11,8 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
     private SilkNetInputHandlerContext? _inputHandlerContext;
     public List<string> GetDebugInfo() => new();
 
-    // Stats
-    public Instrumentations Stats { get; } = new();
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
 
     public GenericComputerSilkNetInputHandler(EmulatorInputConfig emulatorInputConfig)
     {

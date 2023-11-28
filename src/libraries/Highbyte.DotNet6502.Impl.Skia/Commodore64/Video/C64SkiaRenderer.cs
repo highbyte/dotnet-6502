@@ -34,8 +34,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
     // Sprite drawing variables
     private readonly SKImage[] _spriteImages;
 
-    // Stats
-    public Instrumentations Stats { get; } = new();
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
     private const string StatsCategory = "SkiaSharp-Custom";
     private readonly ElapsedMillisecondsTimedStat _borderStat;
     private readonly ElapsedMillisecondsTimedStat _backgroundStat;
@@ -47,10 +47,10 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         _charGen = new CharGen();
         _spriteImages = new SKImage[Vic2SpriteManager.NUMBERS_OF_SPRITES];
 
-        _backgroundStat = Stats.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Background");
-        _borderStat = Stats.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Border");
-        _spritesStat = Stats.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Sprites");
-        _textScreenStat = Stats.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-TextScreen");
+        _backgroundStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Background");
+        _borderStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Border");
+        _spritesStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Sprites");
+        _textScreenStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-TextScreen");
     }
 
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)

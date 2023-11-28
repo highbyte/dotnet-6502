@@ -14,8 +14,8 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
     private C64AspNetKeyboard _c64AspNetKeyboard;
     private readonly C64AspNetConfig _c64AspNetConfig;
 
-    // Stats
-    public Instrumentations Stats { get; } = new();
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
 
     public C64AspNetInputHandler(ILoggerFactory loggerFactory, C64AspNetConfig c64AspNetConfig)
     {

@@ -41,8 +41,8 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     private GenericComputerConfig _genericComputerConfig;
     private readonly LegacyExecEvaluator _oneFrameExecEvaluator;
 
-    // Stats
-    public Instrumentations Stats { get; } = new();
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
 
 
     public GenericComputer() : this(new GenericComputerConfig(), new NullLoggerFactory()) { }

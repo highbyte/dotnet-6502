@@ -19,7 +19,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
     private bool _changedAllCharsetCodes = false;
 
-    public Instrumentations Stats { get; } = new();
+    public Instrumentations Instrumentations { get; } = new();
 
     // Types for Uniform Buffer Objects, must align to 16 bytes.
     public struct TextData

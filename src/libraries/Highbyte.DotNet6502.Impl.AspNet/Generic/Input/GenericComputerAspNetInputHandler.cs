@@ -12,8 +12,8 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
 
     public List<string> GetDebugInfo() => new();
 
-    // Stats
-    public Instrumentations Stats { get; } = new();
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
 
     public GenericComputerAspNetInputHandler(EmulatorInputConfig emulatorInputConfig)
     {

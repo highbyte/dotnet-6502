@@ -10,8 +10,8 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>
     private SadConsoleRenderContext _sadConsoleRenderContext = default!;
     private C64SadConsoleColors _c64SadConsoleColors = default!;
 
-    // Stats
-    public Instrumentations Stats { get; } = new();
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
 
     public C64SadConsoleRenderer()
     {

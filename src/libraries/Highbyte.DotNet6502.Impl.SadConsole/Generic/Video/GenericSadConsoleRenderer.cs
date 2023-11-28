@@ -11,7 +11,7 @@ public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRe
 
     private readonly EmulatorScreenConfig _emulatorScreenConfig;
 
-    public Instrumentations Stats { get; } = new();
+    public Instrumentations Instrumentations { get; } = new();
 
     public GenericSadConsoleRenderer(EmulatorScreenConfig emulatorScreenConfig)
     {
