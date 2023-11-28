@@ -14,7 +14,7 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
 
     private readonly ILogger<C64SilkNetInputHandler> _logger;
     private readonly C64SilkNetConfig _c64SilkNetConfig;
-    public List<string> GetStats() => new();
+    public List<string> GetDebugInfo() => new();
 
     // Stats
     public Instrumentations Stats { get; } = new();

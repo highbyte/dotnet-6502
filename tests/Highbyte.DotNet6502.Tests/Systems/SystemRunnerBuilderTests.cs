@@ -169,23 +169,21 @@ public class TestInputHandler : IInputHandler<TestSystem, IInputHandlerContext>
     {
     }
 
-    public List<string> GetStats() => new();
+    public List<string> GetDebugInfo() => new();
 
     public Instrumentations Stats { get; } = new();
 }
 
 public class TestInputHandlerNonGeneric : IInputHandler
 {
-    public List<string> GetStats()
-    {
-        return new List<string>();
-    }
+
     public void Init(ISystem system, IInputHandlerContext inputContext)
     {
     }
     public void ProcessInput(ISystem system)
     {
     }
+    public List<string> GetDebugInfo() => new List<string>();
     public Instrumentations Stats { get; } = new();
 }
 
@@ -212,7 +210,7 @@ public class TestAudioHandler : IAudioHandler<TestSystem, IAudioHandlerContext>
     public void StopPlaying()
     {
     }
-    public List<string> GetStats() => new();
+    public List<string> GetDebugInfo() => new();
 
     public Instrumentations Stats { get; } = new();
 
@@ -235,7 +233,7 @@ public class TestAudioHandlerNonGeneric : IAudioHandler
     public void StopPlaying()
     {
     }
-    public List<string> GetStats() => new();
+    public List<string> GetDebugInfo() => new();
 
     public Instrumentations Stats { get; } = new();
 

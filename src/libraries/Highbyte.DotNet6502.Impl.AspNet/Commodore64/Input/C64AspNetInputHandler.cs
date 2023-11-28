@@ -156,7 +156,7 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
     }
 
 
-    public List<string> GetStats()
+    public List<string> GetDebugInfo()
     {
         List<string> list = new();
         if (_inputHandlerContext == null)

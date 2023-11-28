@@ -10,7 +10,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
 public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandlerContext>
 {
     private SadConsoleInputHandlerContext? _inputHandlerContext;
-    private readonly List<string> _stats = new();
+    private readonly List<string> _debugInfo = new();
     private readonly C64SadConsoleKeyboard _c64SadConsoleKeyboard;
     private readonly ILogger<C64SadConsoleInputHandler> _logger;
 
@@ -103,8 +103,8 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
         return c64KeysDown;
     }
 
-    public List<string> GetStats()
+    public List<string> GetDebugInfo()
     {
-        return _stats;
+        return _debugInfo;
     }
 }

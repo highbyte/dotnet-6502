@@ -10,7 +10,7 @@ public interface IAudioHandler
     void StartPlaying();
     void StopPlaying();
     void PausePlaying();
-    List<string> GetStats();
+    List<string> GetDebugInfo();
     Instrumentations Stats { get; }
 }
 
@@ -49,7 +49,7 @@ public class NullAudioHandler : IAudioHandler
     {
     }
 
-    public List<string> GetStats() => new();
+    public List<string> GetDebugInfo() => new();
 
     public Instrumentations Stats { get; } = new();
 }

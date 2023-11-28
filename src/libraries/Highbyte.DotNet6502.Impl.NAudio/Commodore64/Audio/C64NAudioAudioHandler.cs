@@ -39,7 +39,7 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
         _logger = loggerFactory.CreateLogger(typeof(C64NAudioAudioHandler).Name);
     }
 
-    public List<string> GetStats() => new();
+    public List<string> GetDebugInfo() => new();
 
     // Stats
     public Instrumentations Stats { get; } = new();

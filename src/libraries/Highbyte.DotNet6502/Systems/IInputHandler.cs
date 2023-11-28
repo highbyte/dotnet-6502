@@ -7,7 +7,7 @@ public interface IInputHandler
     void Init(ISystem system, IInputHandlerContext inputContext);
     void ProcessInput(ISystem system);
 
-    List<string> GetStats();
+    List<string> GetDebugInfo();
     Instrumentations Stats { get; }
 }
 
@@ -29,7 +29,7 @@ public class NullInputHandler : IInputHandler
     public void ProcessInput(ISystem system)
     {
     }
-    public List<string> GetStats() => new();
+    public List<string> GetDebugInfo() => new();
 
     public Instrumentations Stats { get; } = new();
 }

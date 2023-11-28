@@ -10,7 +10,7 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private AspNetInputHandlerContext? _inputHandlerContext;
 
-    public List<string> GetStats() => new();
+    public List<string> GetDebugInfo() => new();
 
     // Stats
     public Instrumentations Stats { get; } = new();

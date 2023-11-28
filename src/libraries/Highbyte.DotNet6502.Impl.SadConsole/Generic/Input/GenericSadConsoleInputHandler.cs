@@ -13,7 +13,7 @@ public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadC
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private readonly ILoggerFactory _loggerFactory;
 
-    public List<string> GetStats() => new();
+    public List<string> GetDebugInfo() => new();
 
     // Stats
     public Instrumentations Stats { get; } = new();

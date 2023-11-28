@@ -42,7 +42,7 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>
 
     private readonly ILogger _logger;
 
-    public List<string> GetStats() => new();
+    public List<string> GetDebugInfo() => new();
 
     // Stats
     public Instrumentations Stats { get; } = new();
@@ -270,15 +270,6 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>
         }
 
         _logger.LogDebug(formattedMsg);
-
-        //var time = DateTime.Now.ToString("HH:mm:ss.fff");
-        //formattedMsg = $"{time}: {formattedMsg}";
-        ////var threadId = Environment.CurrentManagedThreadId;
-        ////_stats.Insert(0, $"{time} ({threadId}): {msg}");
-        //_stats.Insert(0, formattedMsg);
-
-        //if (_stats.Count > MAX_DEBUG_MESSAGES)
-        //    _stats.RemoveAt(MAX_DEBUG_MESSAGES);
     }
 
     //private Task[] CreateSoundTasks(InternalSidState sidInternalStateClone)
