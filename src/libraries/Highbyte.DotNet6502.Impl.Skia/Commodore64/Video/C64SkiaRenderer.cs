@@ -1,4 +1,5 @@
-using System.Diagnostics;
+using Highbyte.DotNet6502.Instrumentation;
+using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -33,30 +34,23 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
     // Sprite drawing variables
     private readonly SKImage[] _spriteImages;
 
-    public bool HasDetailedStats => true;
-    public List<string> DetailedStatNames => new List<string>()
-    {
-        DrawBorderStatName,
-        DrawBackgroundStatName,
-        DrawTextScreenStatName,
-        DrawSpritesStatName,
-    };
-    private const string DrawBorderStatName = "Border";
-    private const string DrawBackgroundStatName = "Background";
-    private const string DrawTextScreenStatName = "TextScreen";
-    private const string DrawSpritesStatName = "Sprites";
-    private Dictionary<string, Stopwatch> _detailedStatStopwatches = new()
-    {
-        {DrawBorderStatName, new Stopwatch() },
-        {DrawBackgroundStatName, new Stopwatch() },
-        {DrawTextScreenStatName, new Stopwatch() },
-        {DrawSpritesStatName, new Stopwatch() }
-    };
+    // Stats
+    public Instrumentations Stats { get; } = new();
+    private const string StatsCategory = "SkiaSharp-Custom";
+    private readonly ElapsedMillisecondsTimedStat _borderStat;
+    private readonly ElapsedMillisecondsTimedStat _backgroundStat;
+    private readonly ElapsedMillisecondsTimedStat _textScreenStat;
+    private readonly ElapsedMillisecondsTimedStat _spritesStat;
 
     public C64SkiaRenderer()
     {
         _charGen = new CharGen();
         _spriteImages = new SKImage[Vic2SpriteManager.NUMBERS_OF_SPRITES];
+
+        _backgroundStat = Stats.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Background");
+        _borderStat = Stats.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Border");
+        _spritesStat = Stats.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Sprites");
+        _textScreenStat = Stats.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-TextScreen");
     }
 
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
@@ -73,51 +67,42 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         Init((C64)system, (SkiaRenderContext)renderContext);
     }
 
-    public void Draw(C64 c64, Dictionary<string, double> detailedStats)
+    public void Draw(C64 c64)
     {
-        foreach (var detailedStatName in DetailedStatNames)
-        {
-            detailedStats[detailedStatName] = 0;
-        }
-
         var canvas = _getSkCanvas();
         canvas.Clear();
 
-        var swBorder = _detailedStatStopwatches[DrawBorderStatName];
-        swBorder.Restart();
-        //DrawSimpleBorder(c64, canvas);
-        DrawRasterLinesBorder(c64, canvas);
-        swBorder.Stop();
-        detailedStats[DrawBorderStatName] = swBorder.Elapsed.TotalMilliseconds;
+        using (_borderStat.Measure())
+        {
+            //DrawSimpleBorder(c64, canvas);
+            DrawRasterLinesBorder(c64, canvas);
+        }
 
-        var swBg = _detailedStatStopwatches[DrawBackgroundStatName];
-        swBg.Restart();
-        //DrawSimpleBackground(c64, canvas);
-        DrawRasterLinesBackground(c64, canvas);
-        swBg.Stop();
-        detailedStats[DrawBackgroundStatName] = swBg.Elapsed.TotalMilliseconds;
+        using (_backgroundStat.Measure())
+        {
+            //DrawSimpleBackground(c64, canvas);
+            DrawRasterLinesBackground(c64, canvas);
+        }
 
-        var swSprites = _detailedStatStopwatches[DrawSpritesStatName];
-        swSprites.Restart();
-        RenderSprites(c64, canvas, spritesWithPriorityOverForeground: false);
-        swSprites.Stop();
-        detailedStats[DrawSpritesStatName] = swBg.Elapsed.TotalMilliseconds;
+        using (_spritesStat.Measure())
+        {
+            RenderSprites(c64, canvas, spritesWithPriorityOverForeground: false);
+        }
 
-        var swTextScreen = _detailedStatStopwatches[DrawTextScreenStatName];
-        swTextScreen.Restart();
-        RenderMainScreen(c64, canvas);
-        swTextScreen.Stop();
-        detailedStats[DrawTextScreenStatName] = swTextScreen.Elapsed.TotalMilliseconds;
+        using (_textScreenStat.Measure())
+        {
+            RenderMainScreen(c64, canvas);
+        }
 
-        swSprites.Restart();
-        RenderSprites(c64, canvas, spritesWithPriorityOverForeground: true);
-        swSprites.Stop();
-        detailedStats[DrawBackgroundStatName] += swSprites.Elapsed.TotalMilliseconds;
+        using (_spritesStat.Measure(cont: true))
+        {
+            RenderSprites(c64, canvas, spritesWithPriorityOverForeground: true);
+        }
     }
 
-    public void Draw(ISystem system, Dictionary<string, double> detailedStats)
+    public void Draw(ISystem system)
     {
-        Draw((C64)system, detailedStats);
+        Draw((C64)system);
     }
 
     private void InitCharset(C64 c64)

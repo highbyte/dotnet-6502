@@ -3,6 +3,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Microsoft.Extensions.Logging;
+using Highbyte.DotNet6502.Instrumentation;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 
@@ -39,18 +40,16 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>
             {3, new C64WASMVoiceContext(3) },
         };
 
-    private readonly List<string> _stats = new();
-
     private readonly ILogger _logger;
+
+    public List<string> GetStats() => new();
+
+    // Stats
+    public Instrumentations Stats { get; } = new();
 
     public C64WASMAudioHandler(ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger(typeof(C64WASMAudioHandler).Name);
-    }
-
-    public List<string> GetStats()
-    {
-        return _stats;
     }
 
     public void Init(C64 system, WASMAudioHandlerContext audioHandlerContext)

@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Instrumentation;
+
 namespace Highbyte.DotNet6502.Systems;
 
 public interface IInputHandler
@@ -6,6 +8,7 @@ public interface IInputHandler
     void ProcessInput(ISystem system);
 
     List<string> GetStats();
+    Instrumentations Stats { get; }
 }
 
 public interface IInputHandler<TSystem, TInputHandlerContext> : IInputHandler
@@ -26,7 +29,7 @@ public class NullInputHandler : IInputHandler
     public void ProcessInput(ISystem system)
     {
     }
+    public List<string> GetStats() => new();
 
-    private readonly List<string> _stats = new List<string>();
-    public List<string> GetStats() => _stats;
+    public Instrumentations Stats { get; } = new();
 }

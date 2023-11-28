@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
@@ -8,7 +9,11 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
 {
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private AspNetInputHandlerContext? _inputHandlerContext;
-    private readonly List<string> _stats = new();
+
+    public List<string> GetStats() => new();
+
+    // Stats
+    public Instrumentations Stats { get; } = new();
 
     public GenericComputerAspNetInputHandler(EmulatorInputConfig emulatorInputConfig)
     {
@@ -56,10 +61,5 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
         if (_inputHandlerContext.KeysDown.Count == 0)
             // Only way to tell the "GenericComputer" that a Key is no longer pressed is to set KeyDownAddress to 0...
             genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = 0x00;
-    }
-
-    public List<string> GetStats()
-    {
-        return _stats;
     }
 }

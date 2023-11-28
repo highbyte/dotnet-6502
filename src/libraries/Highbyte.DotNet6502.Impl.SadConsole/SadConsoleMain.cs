@@ -87,10 +87,10 @@ public class SadConsoleMain
         _systemRunner.ProcessInput();
 
         // Run CPU for one frame
-        var execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame(out _);
+        var execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame();
 
         // Update SadConsole screen
-        _systemRunner.Draw(out Dictionary<string, double> detailedStats);
+        _systemRunner.Draw();
 
         if (execEvaluatorTriggerResult.Triggered)
         {

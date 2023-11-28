@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Highbyte.DotNet6502.App.SilkNetNative.Instrumentation.Stats;
+namespace Highbyte.DotNet6502.Instrumentation.Stats;
 
 // Credit to instrumentation/stat code to: https://github.com/davidwengier/Trains.NET    
 public class PerSecondTimedStat : AveragedStat
@@ -22,7 +22,7 @@ public class PerSecondTimedStat : AveragedStat
             if (elapsedMs == 0)
                 throw new NotImplementedException("Elapsed 0.0 milliseconds, cannot handle division by 0");
 #endif
-            double perSecond = 1000.0 / elapsedMs;
+            var perSecond = 1000.0 / elapsedMs;
             SetValue(perSecond);
         }
         _sw.Restart();
@@ -30,14 +30,10 @@ public class PerSecondTimedStat : AveragedStat
 
     public override string GetDescription()
     {
-        if (this.Value == null)
-        {
+        if (Value == null)
             return "null";
-        }
-        if (this.Value < 0.01)
-        {
+        if (Value < 0.01)
             return "< 0.01";
-        }
-        return Math.Round(this.Value ?? 0, 2).ToString();
+        return Math.Round(Value ?? 0, 2).ToString();
     }
 }

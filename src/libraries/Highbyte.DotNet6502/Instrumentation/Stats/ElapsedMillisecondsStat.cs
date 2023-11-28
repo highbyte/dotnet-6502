@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.App.SilkNetNative.Instrumentation.Stats;
+namespace Highbyte.DotNet6502.Instrumentation.Stats;
 
 public class ElapsedMillisecondsStat : AveragedStat
 {
@@ -18,17 +18,13 @@ public class ElapsedMillisecondsStat : AveragedStat
 
     public override string GetDescription()
     {
-        if (this.Value == null)
-        {
+        if (Value == null)
             return "null";
-        }
         //double ms = Value.Value / TimeSpan.TicksPerMillisecond; // 10000 ticks per millisecond
-        double ms = Value.Value;
+        var ms = Value.Value;
 
         if (ms < 0.01)
-        {
             return "< 0.01ms";
-        }
         return Math.Round(ms, 2).ToString("0.00") + "ms";
 
     }

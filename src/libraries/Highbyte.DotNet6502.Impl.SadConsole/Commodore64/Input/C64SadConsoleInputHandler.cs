@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502;
+using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
@@ -12,6 +13,9 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
     private readonly List<string> _stats = new();
     private readonly C64SadConsoleKeyboard _c64SadConsoleKeyboard;
     private readonly ILogger<C64SadConsoleInputHandler> _logger;
+
+    // Stats
+    public Instrumentations Stats { get; } = new();
 
     public C64SadConsoleInputHandler(ILoggerFactory loggerFactory)
     {

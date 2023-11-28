@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
@@ -31,8 +32,6 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
             {3, new C64NAudioVoiceContext(3) },
         };
 
-    private readonly List<string> _stats = new();
-
     private readonly ILogger _logger;
 
     public C64NAudioAudioHandler(ILoggerFactory loggerFactory)
@@ -40,10 +39,11 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
         _logger = loggerFactory.CreateLogger(typeof(C64NAudioAudioHandler).Name);
     }
 
-    public List<string> GetStats()
-    {
-        return _stats;
-    }
+    public List<string> GetStats() => new();
+
+    // Stats
+    public Instrumentations Stats { get; } = new();
+
 
     public void Init(C64 system, NAudioAudioHandlerContext audioHandlerContext)
     {

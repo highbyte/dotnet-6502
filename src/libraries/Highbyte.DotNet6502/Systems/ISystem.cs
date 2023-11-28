@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Instrumentation;
+
 namespace Highbyte.DotNet6502.Systems;
 
 public interface ISystem
@@ -9,17 +11,14 @@ public interface ISystem
     Memory Mem { get; }
     IScreen Screen { get; }
 
-    public ExecEvaluatorTriggerResult ExecuteOneFrame(
+    ExecEvaluatorTriggerResult ExecuteOneFrame(
         SystemRunner systemRunner,
-        Dictionary<string, double> detailedStats,
         IExecEvaluator? execEvaluator = null);
 
-    public ExecEvaluatorTriggerResult ExecuteOneInstruction(
+    ExecEvaluatorTriggerResult ExecuteOneInstruction(
         SystemRunner systemRunner,
         out InstructionExecResult instructionExecResult,
-        Dictionary<string, double> detailedStats,
         IExecEvaluator? execEvaluator = null);
 
-    public bool HasDetailedStats { get; }
-    public List<string> DetailedStatNames { get; }
+    Instrumentations Stats { get; }
 }

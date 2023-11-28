@@ -1,12 +1,10 @@
-using System.Collections.Generic;
 using AutoMapper;
-using Highbyte.DotNet6502.App.SilkNetNative;
-using Highbyte.DotNet6502.App.SilkNetNative.Instrumentation.Stats;
-using Highbyte.DotNet6502.App.SilkNetNative.Stats;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Instrumentation;
+using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
@@ -54,16 +52,19 @@ public class SilkNetWindow
 
     public EmulatorState EmulatorState { get; set; } = EmulatorState.Uninitialized;
 
-    private readonly ElapsedMillisecondsTimedStat _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("SilkNet-InputTime");
-    private readonly ElapsedMillisecondsTimedStat _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("Emulator-SystemTime");
-    private readonly ElapsedMillisecondsStat _systemTimeAudio = InstrumentationBag.Add<ElapsedMillisecondsStat>("Emulator-SystemTime-Audio"); // Detailed part of system time
-    private readonly ElapsedMillisecondsTimedStat _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("SilkNet-RenderTime");
-    private readonly PerSecondTimedStat _updateFps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNet-OnUpdateFPS");
-    private readonly PerSecondTimedStat _renderFps = InstrumentationBag.Add<PerSecondTimedStat>("SilkNet-OnRenderFPS");
+    private const string HostStatRootName = "SilkNet";
+    private const string SystemTimeStatName = "Emulator-SystemTime";
+    private const string RenderTimeStatName = "RenderTime";
+    private const string InputTimeStatName = "InputTime";
+    private const string AudioTimeStatName = "AudioTime";
+    private readonly ElapsedMillisecondsTimedStat _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{SystemTimeStatName}");
+    private readonly ElapsedMillisecondsTimedStat _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{RenderTimeStatName}");
+    private readonly ElapsedMillisecondsTimedStat _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{InputTimeStatName}");
+    //private readonly ElapsedMillisecondsTimedStat _audioTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-AudioTimeStatName}");
+    private readonly PerSecondTimedStat _updateFps = InstrumentationBag.Add<PerSecondTimedStat>($"{HostStatRootName}-OnUpdateFPS");
+    private readonly PerSecondTimedStat _renderFps = InstrumentationBag.Add<PerSecondTimedStat>($"{HostStatRootName}-OnRenderFPS");
 
-    private const string CustomSystemStatNamePrefix = "Emulator-SystemTime-Custom-";
-    private const string CustomRenderStatNamePrefix = "SilkNet-RenderTime-Custom-";
-    private Dictionary<string, ElapsedMillisecondsStat> _customStats = new();
+
 
     // Render context container for SkipSharp (surface/canvas) and SilkNetOpenGl
     private SilkNetRenderContextContainer _silkNetRenderContextContainer;
@@ -249,33 +250,6 @@ public class SilkNetWindow
         }
     }
 
-    private void InitCustomSystemStats()
-    {
-        // Remove any existing custom system stats
-        foreach (var existingCustomStatName in _customStats.Keys)
-        {
-            if (existingCustomStatName.StartsWith(CustomSystemStatNamePrefix)
-                || existingCustomStatName.StartsWith(CustomRenderStatNamePrefix))
-            {
-                InstrumentationBag.Remove(existingCustomStatName);
-                _customStats.Remove(existingCustomStatName);
-            }
-        }
-        // Add any custom system stats for selected system
-        var system = _systemRunner.System;
-        foreach (var customStatName in system.DetailedStatNames)
-        {
-            _customStats.Add($"{CustomSystemStatNamePrefix}{customStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomSystemStatNamePrefix}{customStatName}"));
-        }
-
-        // Add any custom system stats for selected renderer
-        var renderer = _systemRunner.Renderer;
-        foreach (var customStatName in renderer.DetailedStatNames)
-        {
-            _customStats.Add($"{CustomRenderStatNamePrefix}{customStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomRenderStatNamePrefix}{customStatName}"));
-        }
-    }
-
     public void SetVolumePercent(float volumePercent)
     {
         _defaultAudioVolumePercent = volumePercent;
@@ -293,8 +267,6 @@ public class SilkNetWindow
         // Only create a new instance of SystemRunner if we previously has not started (so resume after pause works).
         if (EmulatorState == EmulatorState.Uninitialized)
             _systemRunner = _systemList.BuildSystemRunner(_currentSystemName).Result;
-
-        InitCustomSystemStats();
 
         _monitor.Init(_systemRunner!);
 
@@ -364,25 +336,7 @@ public class SilkNetWindow
         ExecEvaluatorTriggerResult execEvaluatorTriggerResult;
         using (_systemTime.Measure())
         {
-            execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame(out var detailedStats);
-
-            if (detailedStats.ContainsKey("Audio"))
-            {
-                _systemTimeAudio.Set(detailedStats["Audio"]);
-                _systemTimeAudio.UpdateStat();
-            }
-
-            // Update custom system stats
-            // TODO: Make custom system stats less messy?
-            foreach (var detailedStatName in detailedStats.Keys)
-            {
-                var statLookup = _customStats.Keys.SingleOrDefault(x => x.EndsWith(detailedStatName));
-                if (statLookup != null)
-                {
-                    _customStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].Set(detailedStats[detailedStatName]);
-                    _customStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].UpdateStat();
-                }
-            }
+            execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame();
         }
 
         // Show monitor if we encounter breakpoint or other break
@@ -419,26 +373,12 @@ public class SilkNetWindow
             using (_renderTime.Measure())
             {
                 // Render emulator system screen
-                _systemRunner!.Draw(out var detailedStats);
+                _systemRunner!.Draw();
 
                 // Flush the SkiaSharp Context
                 _silkNetRenderContextContainer.SkiaRenderContext.GetGRContext().Flush();
-
-                // Update custom system stats
-                // TODO: Make custom system stats less messy?
-                foreach (var detailedStatName in detailedStats.Keys)
-                {
-                    var statLookup = _customStats.Keys.SingleOrDefault(x => x.EndsWith(detailedStatName));
-                    if (statLookup != null)
-                    {
-                        _customStats[$"{CustomRenderStatNamePrefix}{detailedStatName}"].Set(detailedStats[detailedStatName]);
-                        _customStats[$"{CustomRenderStatNamePrefix}{detailedStatName}"].UpdateStat();
-                    }
-                }
-
             }
             emulatorRendered = true;
-
 
 
             // SilkNet windows are what's known as "double-buffered". In essence, the window manages two buffers.
@@ -545,7 +485,17 @@ public class SilkNetWindow
 
     private SilkNetImGuiStatsPanel CreateStatsUI()
     {
-        return new SilkNetImGuiStatsPanel();
+        return new SilkNetImGuiStatsPanel(GetStats);
+    }
+
+    private List<(string name, IStat stat)> GetStats()
+    {
+        return InstrumentationBag.Stats
+            .Union(_systemRunner.System.Stats.Stats.Select(x => (Name: $"{HostStatRootName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.Renderer.Stats.Stats.Select(x => (Name: $"{HostStatRootName}-{RenderTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.AudioHandler.Stats.Stats.Select(x => (Name: $"{HostStatRootName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.InputHandler.Stats.Stats.Select(x => (Name: $"{HostStatRootName}-{InputTimeStatName}-{x.Name}", x.Stat)))
+            .ToList();
     }
 
     private SilkNetImGuiLogsPanel CreateLogsUI(DotNet6502InMemLogStore logStore, DotNet6502InMemLoggerConfiguration logConfig)

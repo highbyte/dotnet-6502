@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
@@ -11,7 +12,12 @@ public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadC
 
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly List<string> _stats = new();
+
+    public List<string> GetStats() => new();
+
+    // Stats
+    public Instrumentations Stats { get; } = new();
+
 
     public GenericSadConsoleInputHandler(EmulatorInputConfig emulatorInputConfig, ILoggerFactory loggerFactory)
     {
@@ -68,9 +74,5 @@ public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadC
 
         var rnd = (byte)new Random().Next(0, 255);
         emulatorMem[_emulatorInputConfig.RandomValueAddress] = rnd;
-    }
-    public List<string> GetStats()
-    {
-        return _stats;
     }
 }

@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -36,12 +37,13 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     public int VisibleTopBottomBorderHeight => (VisibleHeight - DrawableAreaHeight) / 2;
     public float RefreshFrequencyHz => _genericComputerConfig.ScreenRefreshFrequencyHz;
 
-    public bool HasDetailedStats => false;
-    public List<string> DetailedStatNames => new();
-
     private ILogger _logger;
     private GenericComputerConfig _genericComputerConfig;
     private readonly LegacyExecEvaluator _oneFrameExecEvaluator;
+
+    // Stats
+    public Instrumentations Stats { get; } = new();
+
 
     public GenericComputer() : this(new GenericComputerConfig(), new NullLoggerFactory()) { }
     public GenericComputer(GenericComputerConfig genericComputerConfig, ILoggerFactory loggerFactory)
@@ -71,7 +73,6 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 
     public ExecEvaluatorTriggerResult ExecuteOneFrame(
         SystemRunner systemRunner,
-        Dictionary<string, double> detailedStats,
         IExecEvaluator? execEvaluator = null)
     {
         // If we already executed cycles in current frame, reduce it from total.
@@ -110,7 +111,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
             SetFrameCompleted();
 
             // Wait for CPU 6502 code has acknowledged that it knows a frame has completed.
-            bool waitOk = WaitFrameCompletedAcknowledged(systemRunner, detailedStats);
+            bool waitOk = WaitFrameCompletedAcknowledged(systemRunner);
             if (!waitOk)
                 return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.Other, "WaitFrame failed"); ;
         }
@@ -122,7 +123,6 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     public ExecEvaluatorTriggerResult ExecuteOneInstruction(
         SystemRunner systemRunner,
         out InstructionExecResult instructionExecResult,
-        Dictionary<string, double> detailedStats,
         IExecEvaluator? execEvaluator = null)
     {
         var execState = CPU.ExecuteOneInstruction(Mem);
@@ -147,12 +147,12 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         Mem.SetBit(_genericComputerConfig.Memory.Screen.ScreenRefreshStatusAddress, (int)ScreenStatusBitFlags.HostNewFrame);
     }
 
-    private bool WaitFrameCompletedAcknowledged(SystemRunner systemRunner, Dictionary<string, double> detailedStats)
+    private bool WaitFrameCompletedAcknowledged(SystemRunner systemRunner)
     {
         // Keep on executing instructions until CPU 6502 code has cleared bit 0 in ScreenRefreshStatusAddress
         while (Mem.IsBitSet(_genericComputerConfig.Memory.Screen.ScreenRefreshStatusAddress, (int)ScreenStatusBitFlags.HostNewFrame))
         {
-            var execEvaluatorTriggerResult = ExecuteOneInstruction(systemRunner, out _, detailedStats);
+            var execEvaluatorTriggerResult = ExecuteOneInstruction(systemRunner, out _);
             // If an unhandled instruction or other configured trigger has activated, return false
             if (execEvaluatorTriggerResult.Triggered)
                 return false;

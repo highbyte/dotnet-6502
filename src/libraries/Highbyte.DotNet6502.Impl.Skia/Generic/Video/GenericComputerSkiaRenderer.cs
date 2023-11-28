@@ -1,4 +1,6 @@
 using System.Reflection;
+using Highbyte.DotNet6502.Instrumentation.Stats;
+using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
@@ -16,8 +18,7 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
     private const int BorderPixels = TextPixelSize * BorderWidthFactor;
     private readonly EmulatorScreenConfig _emulatorScreenConfig;
 
-    public bool HasDetailedStats => false;
-    public List<string> DetailedStatNames => new List<string>();
+    public Instrumentations Stats { get; } = new();
 
     public GenericComputerSkiaRenderer(EmulatorScreenConfig emulatorScreenConfig)
     {
@@ -43,7 +44,7 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
         Init((GenericComputer)system, (SkiaRenderContext)renderContext);
     }
 
-    public void Draw(GenericComputer genericComputer, Dictionary<string, double> detailedStats)
+    public void Draw(GenericComputer genericComputer)
     {
         var mem = genericComputer.Mem;
         var canvas = _getSkCanvas();
@@ -82,9 +83,9 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
         }
     }
 
-    public void Draw(ISystem system, Dictionary<string, double> detailedStats)
+    public void Draw(ISystem system)
     {
-        Draw((GenericComputer)system, detailedStats);
+        Draw((GenericComputer)system);
     }
 
     private string GetDrawTextFromCharacter(byte chr)

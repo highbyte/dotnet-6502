@@ -1,5 +1,7 @@
 using System.Numerics;
 using Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers;
+using Highbyte.DotNet6502.Instrumentation;
+using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -17,8 +19,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
     private bool _changedAllCharsetCodes = false;
 
-    public bool HasDetailedStats => true;
-    public List<string> DetailedStatNames => new List<string>() { };
+    public Instrumentations Stats { get; } = new();
 
     // Types for Uniform Buffer Objects, must align to 16 bytes.
     public struct TextData
@@ -191,13 +192,8 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         Init((C64)system, (SilkNetOpenGlRenderContext)renderContext);
     }
 
-    public void Draw(C64 c64, Dictionary<string, double> detailedStats)
+    public void Draw(C64 c64)
     {
-        foreach (var detailedStatName in DetailedStatNames)
-        {
-            detailedStats[detailedStatName] = 0;
-        }
-
         var vic2 = c64.Vic2;
         var vic2Mem = vic2.Vic2Mem;
         var vic2Screen = vic2.Vic2Screen;
@@ -330,9 +326,9 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _gl.DrawArrays(GLEnum.Triangles, 0, 6);
     }
 
-    public void Draw(ISystem system, Dictionary<string, double> detailedStats)
+    public void Draw(ISystem system)
     {
-        Draw((C64)system, detailedStats);
+        Draw((C64)system);
     }
 
     private TextData[] BuildTextScreenData(C64 c64)

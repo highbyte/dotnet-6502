@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
@@ -10,8 +11,7 @@ public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRe
 
     private readonly EmulatorScreenConfig _emulatorScreenConfig;
 
-    public bool HasDetailedStats => false;
-    public List<string> DetailedStatNames => new List<string>();
+    public Instrumentations Stats { get; } = new();
 
     public GenericSadConsoleRenderer(EmulatorScreenConfig emulatorScreenConfig)
     {
@@ -30,16 +30,16 @@ public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRe
         Init((GenericComputer)system, (SadConsoleRenderContext)renderContext);
     }
 
-    public void Draw(GenericComputer system, Dictionary<string, double> detailedStats)
+    public void Draw(GenericComputer system)
     {
         RenderMainScreen(system);
         if (_emulatorScreenConfig.BorderCols > 0 || _emulatorScreenConfig.BorderRows > 0)
             RenderBorder(system);
     }
 
-    public void Draw(ISystem system, Dictionary<string, double> detailedStats)
+    public void Draw(ISystem system)
     {
-        Draw((GenericComputer)system, detailedStats);
+        Draw((GenericComputer)system);
     }
 
     private void RenderMainScreen(GenericComputer system)
