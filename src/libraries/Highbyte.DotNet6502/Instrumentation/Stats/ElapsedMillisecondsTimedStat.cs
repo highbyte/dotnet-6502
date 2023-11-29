@@ -45,6 +45,7 @@ public class ElapsedMillisecondsTimedStat : AveragedStat
     public IDisposable Measure(bool cont = false)
     {
         Start(cont);
+        _disposableCallback.Cont = cont;
         return _disposableCallback;
     }
 

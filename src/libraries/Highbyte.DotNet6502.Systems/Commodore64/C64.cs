@@ -146,6 +146,9 @@ public class C64 : ISystem, ISystemMonitor
     {
         _logger = logger;
         _spriteCollisionStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-SpriteCollision");
+
+        //_audioStat = new ElapsedMillisecondsTimedStat(samples: 1);
+        //Instrumentations.Add($"{StatsCategory}-Audio", _audioStat);
         _audioStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Audio");
     }
 
