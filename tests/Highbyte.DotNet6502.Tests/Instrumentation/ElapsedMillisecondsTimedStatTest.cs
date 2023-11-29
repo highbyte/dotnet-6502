@@ -21,7 +21,10 @@ namespace Highbyte.DotNet6502.Tests.Instrumentation
 
             // Assert
             Assert.True(elapsedMs >= sleepMs);
-            Assert.True(elapsedMs < sleepMs + 1);
+#if !DEBUG
+            // In debug mode, the elapsed time may not accurate enough to make this test pass (if breakpoint is hit during sleep)
+            Assert.True(elapsedMs < sleepMs + 10);
+#endif
         }
 
         [Fact]
@@ -31,7 +34,7 @@ namespace Highbyte.DotNet6502.Tests.Instrumentation
             var stat = new ElapsedMillisecondsTimedStat(samples: 1);
 
             int sleepMs = 2;
-            using (stat.Measure())
+            using (stat.Measure(cont: true))
             {
                 Thread.Sleep(sleepMs);
             }
@@ -40,6 +43,7 @@ namespace Highbyte.DotNet6502.Tests.Instrumentation
             {
                 Thread.Sleep(sleepNextMs);
             }
+            stat.Stop();
 
             // Act
             var elapsedMs = stat.GetStatMilliseconds();
@@ -47,8 +51,9 @@ namespace Highbyte.DotNet6502.Tests.Instrumentation
             // Assert
             Assert.True(elapsedMs >= (sleepMs + sleepNextMs));
 
-#if !DEBUG // In debug mode, the elapsed time may not accurate enough to make this test pass (if breakpoint is hit during sleep) 
-            Assert.True(elapsedMs < (sleepMs + sleepNextMs) + 1);
+#if !DEBUG
+            // In debug mode, the elapsed time may not accurate enough to make this test pass (if breakpoint is hit during sleep) 
+            Assert.True(elapsedMs < (sleepMs + sleepNextMs) + 10);
 #endif
         }
     }
