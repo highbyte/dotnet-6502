@@ -14,15 +14,10 @@ namespace Highbyte.DotNet6502.Tests.Instrumentation
             var stat = new PerSecondTimedStat();
 
             // Act
-            stat.Update();
-            int sleepMs = 16;   // 16 ms should give arround 60 FPS
-            Thread.Sleep(sleepMs);
-            stat.Update();
+            stat.SetFakeFPSValue(60);
 
             // Assert
-            var perSecond = stat.Value;
-            Assert.True(perSecond >= 55);
-            Assert.True(perSecond < 65);
+            Assert.Equal(60, stat.Value);
         }
 
         [Fact]
