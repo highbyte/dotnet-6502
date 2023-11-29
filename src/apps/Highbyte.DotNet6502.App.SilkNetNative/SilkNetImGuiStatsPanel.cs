@@ -39,7 +39,7 @@ public class SilkNetImGuiStatsPanel : ISilkNetImGuiWindow
             }
         };
 
-        ImGui.Begin($"Instrumentations");
+        ImGui.Begin($"Stats");
         ImGui.PushStyleColor(ImGuiCol.Text, s_LabelColor);
         foreach (var line in strings)
         {
