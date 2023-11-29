@@ -4,6 +4,5 @@ namespace Highbyte.DotNet6502.Instrumentation.Stats;
 public interface IStat
 {
     string GetDescription();
-
     bool ShouldShow();
 }

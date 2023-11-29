@@ -8,12 +8,15 @@ public class ElapsedMillisecondsTimedStat : AveragedStat
 {
     private readonly Stopwatch _sw;
     private readonly DisposableCallback _disposableCallback;
-    public ElapsedMillisecondsTimedStat()
-        : base(10) // Average over x samples
+
+    public ElapsedMillisecondsTimedStat() : this(10) { }
+
+    public ElapsedMillisecondsTimedStat(int samples)
+        : base(samples) // Average over x samples   
     {
         _sw = new Stopwatch();
         _disposableCallback = new DisposableCallback();
-        _disposableCallback.Disposing += (o, e) => Stop();
+        _disposableCallback.Disposing += (object? o, EventArgs e) => Stop(((DisposableCallbackEventArgs)e).Cont);
     }
 
     public void Reset()
@@ -29,27 +32,37 @@ public class ElapsedMillisecondsTimedStat : AveragedStat
             _sw.Restart();
     }
 
-    public void Stop()
+    public void Stop(bool cont = false)
     {
         _sw.Stop();
-        //SetValue(_sw.ElapsedMilliseconds);
-        SetValue(_sw.Elapsed.Ticks);
+        if (!cont)
+        {
+            //SetValue(_sw.ElapsedMilliseconds);
+            SetValue(_sw.Elapsed.Ticks);
+        }
     }
+
     public IDisposable Measure(bool cont = false)
     {
         Start(cont);
         return _disposableCallback;
     }
-    public override string GetDescription()
+
+    public double? GetStatMilliseconds()
     {
         if (Value == null)
-            return "null";
+            return null;
+        return Value.Value / TimeSpan.TicksPerMillisecond; // 10000 ticks per millisecond
+    }
 
-        //double ms = Value.Value / 10000.0d; // 10000 ticks per millisecond
-        var ms = Value.Value / TimeSpan.TicksPerMillisecond; // 10000 ticks per millisecond
+    public override string GetDescription()
+    {
+        var ms = GetStatMilliseconds();
+        if (ms == null)
+            return "null";
 
         if (ms < 0.01)
             return "< 0.01ms";
-        return Math.Round(ms, 2).ToString("0.00") + "ms";
+        return Math.Round(ms.Value, 2).ToString("0.00") + "ms";
     }
 }

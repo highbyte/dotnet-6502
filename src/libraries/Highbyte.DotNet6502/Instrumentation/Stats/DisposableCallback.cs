@@ -4,8 +4,14 @@ namespace Highbyte.DotNet6502.Instrumentation.Stats;
 public class DisposableCallback : IDisposable
 {
     public event EventHandler? Disposing;
+    public bool Cont = false;
     public void Dispose()
     {
-        Disposing?.Invoke(this, EventArgs.Empty);
+        Disposing?.Invoke(this, new DisposableCallbackEventArgs { Cont = Cont });
     }
 }
+public class DisposableCallbackEventArgs : EventArgs
+{
+    public bool Cont { get; set; }
+}
+

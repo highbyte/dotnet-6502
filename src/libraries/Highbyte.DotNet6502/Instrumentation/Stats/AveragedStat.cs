@@ -14,9 +14,7 @@ public abstract class AveragedStat : IStat
         if (Value == null)
             Value = value;
         else
-        {
             Value = (Value * (_sampleCount - 1) + value) / _sampleCount;
-        }
     }
     public abstract string GetDescription();
 

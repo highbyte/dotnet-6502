@@ -87,6 +87,8 @@ public class C64 : ISystem, ISystemMonitor
             }
         }
 
+        _audioStat.Stop(); // Stop audio stat (was continiously updated after each instruction)
+
         // Update sprite collision state
         using (_spriteCollisionStat.Measure())
         {
