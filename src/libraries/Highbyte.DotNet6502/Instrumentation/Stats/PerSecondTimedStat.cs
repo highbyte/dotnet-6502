@@ -28,6 +28,7 @@ public class PerSecondTimedStat : AveragedStat
         _sw.Restart();
     }
 
+
     public override string GetDescription()
     {
         if (Value == null)
@@ -35,5 +36,11 @@ public class PerSecondTimedStat : AveragedStat
         if (Value < 0.01)
             return "< 0.01";
         return Math.Round(Value ?? 0, 2).ToString();
+    }
+
+    // For unit testing
+    public void SetFakeFPSValue(double fps)
+    {
+        SetValue(fps);
     }
 }

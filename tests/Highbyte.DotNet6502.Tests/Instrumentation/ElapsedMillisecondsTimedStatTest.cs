@@ -56,5 +56,46 @@ namespace Highbyte.DotNet6502.Tests.Instrumentation
             Assert.True(elapsedMs < (sleepMs + sleepNextMs) + 10);
 #endif
         }
+
+        [Fact]
+        public void GetDescription_WhenUsed_Returns_Null_When_No_Data_Yet()
+        {
+            // Arrange
+            var stat = new ElapsedMillisecondsTimedStat(samples: 1);
+
+            // Act
+            // Assert
+            Assert.Equal("null", stat.GetDescription());
+        }
+
+        [Fact]
+        public void GetDescription_WhenUsed_Returns_Special_String_When_Duration_Is_Less_Than_OneHundreds_Of_A_Millisecond()
+        {
+            // Arrange
+            var stat = new ElapsedMillisecondsTimedStat(samples: 1);
+
+            // Act
+            stat.SetFakeMSValue(0.0099);
+
+            // Assert
+            Assert.Equal("< 0.01ms", stat.GetDescription());
+        }
+
+        [Fact]
+        public void GetDescription_WhenUsed_Returns_String_With_Milliseconds()
+        {
+            // Arrange
+            var stat = new ElapsedMillisecondsTimedStat(samples: 1);
+
+            // Act
+            int sleepMs = 2;
+            using (stat.Measure())
+            {
+                Thread.Sleep(sleepMs);
+            }
+            // Assert
+            var ms = stat.GetStatMilliseconds();
+            Assert.Equal($"{Math.Round(ms.Value, 2).ToString("0.00")}ms", stat.GetDescription());
+        }
     }
 }

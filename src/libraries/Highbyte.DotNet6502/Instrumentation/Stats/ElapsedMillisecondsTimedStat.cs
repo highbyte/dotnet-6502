@@ -66,4 +66,9 @@ public class ElapsedMillisecondsTimedStat : AveragedStat
             return "< 0.01ms";
         return Math.Round(ms.Value, 2).ToString("0.00") + "ms";
     }
+
+    public void SetFakeMSValue(double ms)
+    {
+        SetValue(ms);
+    }
 }
