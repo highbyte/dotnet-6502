@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using Highbyte.DotNet6502.Instrumentation.Stats;
+using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -41,17 +43,11 @@ public class C64 : ISystem, ISystemMonitor
     private readonly ILogger _logger;
     public const ushort BASIC_LOAD_ADDRESS = 0x0801;
 
-    // Detailed stats
-    public bool HasDetailedStats => true;
-    public List<string> DetailedStatNames => new List<string>()
-    {
-        SpriteCollisionStatName
-    };
-    private const string SpriteCollisionStatName = "SpriteCollision";
-    private Dictionary<string, Stopwatch> _detailedStatStopwatches = new()
-    {
-        {SpriteCollisionStatName, new Stopwatch() }
-    };
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
+    private const string StatsCategory = "Custom";
+    private readonly ElapsedMillisecondsTimedStat _spriteCollisionStat;
+    private readonly ElapsedMillisecondsTimedStat _audioStat;
 
     //public static ROM[] ROMS = new ROM[]
     //{   
@@ -73,20 +69,16 @@ public class C64 : ISystem, ISystemMonitor
     /// <returns></returns>
     public ExecEvaluatorTriggerResult ExecuteOneFrame(
         SystemRunner systemRunner,
-        Dictionary<string, double> detailedStats,
         IExecEvaluator? execEvaluator = null)
     {
-        foreach (var detailedStatName in DetailedStatNames)
-        {
-            detailedStats[detailedStatName] = 0;
-        }
+        _audioStat.Reset(); // Reset audio stat, will be continiously updated after each instruction
 
         ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
         _logger.LogTrace($"Executing one frame, {cyclesToExecute} CPU cycles.");
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < cyclesToExecute)
         {
-            ExecEvaluatorTriggerResult execEvaluatorTriggerResult = ExecuteOneInstruction(systemRunner, out InstructionExecResult instructionExecResult, detailedStats, execEvaluator);
+            ExecEvaluatorTriggerResult execEvaluatorTriggerResult = ExecuteOneInstruction(systemRunner, out InstructionExecResult instructionExecResult, execEvaluator);
             totalCyclesConsumed += instructionExecResult.CyclesConsumed;
 
             if (execEvaluatorTriggerResult.Triggered)
@@ -95,12 +87,13 @@ public class C64 : ISystem, ISystemMonitor
             }
         }
 
+        _audioStat.Stop(); // Stop audio stat (was continiously updated after each instruction)
+
         // Update sprite collision state
-        var sw = _detailedStatStopwatches[SpriteCollisionStatName];
-        sw.Restart();
-        Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
-        sw.Stop();
-        detailedStats[SpriteCollisionStatName] += sw.Elapsed.TotalMilliseconds;
+        using (_spriteCollisionStat.Measure())
+        {
+            Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
+        }
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
@@ -116,7 +109,6 @@ public class C64 : ISystem, ISystemMonitor
     public ExecEvaluatorTriggerResult ExecuteOneInstruction(
         SystemRunner systemRunner,
         out InstructionExecResult instructionExecResult,
-        Dictionary<string, double> detailedStats,
         IExecEvaluator? execEvaluator = null)
     {
         // Execute one CPU instruction
@@ -131,7 +123,12 @@ public class C64 : ISystem, ISystemMonitor
 
         // Handle output processing needed after each instruction.
         if (AudioEnabled)
-            systemRunner.GenerateAudio(detailedStats);
+        {
+            using (_audioStat.Measure(cont: true))
+            {
+                systemRunner.GenerateAudio();
+            }
+        }
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
         if (execEvaluator != null)
@@ -148,6 +145,11 @@ public class C64 : ISystem, ISystemMonitor
     private C64(ILogger logger)
     {
         _logger = logger;
+        _spriteCollisionStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-SpriteCollision");
+
+        //_audioStat = new ElapsedMillisecondsTimedStat(samples: 1);
+        //Instrumentations.Add($"{StatsCategory}-Audio", _audioStat);
+        _audioStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Audio");
     }
 
     public static C64 BuildC64(C64Config c64Config, ILoggerFactory loggerFactory)

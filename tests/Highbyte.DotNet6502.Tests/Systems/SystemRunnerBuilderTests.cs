@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 
 namespace Highbyte.DotNet6502.Tests.Systems;
@@ -112,16 +113,14 @@ public class TestSystem : ISystem
 
     public IScreen Screen => throw new NotImplementedException();
 
-    public bool HasDetailedStats => false;
+    public Instrumentations Instrumentations { get; } = new();
 
-    public List<string> DetailedStatNames => new List<string>();
-
-    public ExecEvaluatorTriggerResult ExecuteOneFrame(SystemRunner systemRunner, Dictionary<string, double> detailedStats, IExecEvaluator? execEvaluator = null)
+    public ExecEvaluatorTriggerResult ExecuteOneFrame(SystemRunner systemRunner, IExecEvaluator? execEvaluator = null)
     {
         return new ExecEvaluatorTriggerResult();
     }
 
-    public ExecEvaluatorTriggerResult ExecuteOneInstruction(SystemRunner systemRunner, out InstructionExecResult instructionExecResult, Dictionary<string, double> detailedStats, IExecEvaluator? execEvaluator = null)
+    public ExecEvaluatorTriggerResult ExecuteOneInstruction(SystemRunner systemRunner, out InstructionExecResult instructionExecResult, IExecEvaluator? execEvaluator = null)
     {
         instructionExecResult = new InstructionExecResult();
         return new ExecEvaluatorTriggerResult();
@@ -130,10 +129,10 @@ public class TestSystem : ISystem
 
 public class TestRenderer : IRenderer<TestSystem, IRenderContext>
 {
-    public void Draw(TestSystem system, Dictionary<string, double> detailedStats)
+    public void Draw(TestSystem system)
     {
     }
-    public void Draw(ISystem system, Dictionary<string, double> detailedStats)
+    public void Draw(ISystem system)
     {
     }
     public void Init(TestSystem system, IRenderContext renderContext)
@@ -142,29 +141,21 @@ public class TestRenderer : IRenderer<TestSystem, IRenderContext>
     public void Init(ISystem system, IRenderContext renderContext)
     {
     }
-
-    public bool HasDetailedStats => false;
-    public List<string> DetailedStatNames => new List<string>();
+    public Instrumentations Instrumentations { get; } = new();
 }
 public class TestRendererNonGeneric : IRenderer
 {
-    public void Draw(ISystem system, Dictionary<string, double> detailedStats)
+    public void Draw(ISystem system)
     {
     }
     public void Init(ISystem system, IRenderContext renderContext)
     {
     }
-
-    public bool HasDetailedStats => false;
-    public List<string> DetailedStatNames => new List<string>();
+    public Instrumentations Instrumentations { get; } = new();
 }
 
 public class TestInputHandler : IInputHandler<TestSystem, IInputHandlerContext>
 {
-    public List<string> GetStats()
-    {
-        return new List<string>();
-    }
     public void Init(TestSystem system, IInputHandlerContext inputContext)
     {
     }
@@ -177,22 +168,23 @@ public class TestInputHandler : IInputHandler<TestSystem, IInputHandlerContext>
     public void ProcessInput(ISystem system)
     {
     }
+
+    public List<string> GetDebugInfo() => new();
+
+    public Instrumentations Instrumentations { get; } = new();
 }
 
 public class TestInputHandlerNonGeneric : IInputHandler
 {
-    public List<string> GetStats()
-    {
-        return new List<string>();
-    }
 
     public void Init(ISystem system, IInputHandlerContext inputContext)
     {
     }
-
     public void ProcessInput(ISystem system)
     {
     }
+    public List<string> GetDebugInfo() => new List<string>();
+    public Instrumentations Instrumentations { get; } = new();
 }
 
 public class TestAudioHandler : IAudioHandler<TestSystem, IAudioHandlerContext>
@@ -202,10 +194,6 @@ public class TestAudioHandler : IAudioHandler<TestSystem, IAudioHandlerContext>
     }
     public void GenerateAudio(ISystem system)
     {
-    }
-    public List<string> GetStats()
-    {
-        return new List<string>();
     }
     public void Init(TestSystem system, IAudioHandlerContext audioHandlerContext)
     {
@@ -222,16 +210,16 @@ public class TestAudioHandler : IAudioHandler<TestSystem, IAudioHandlerContext>
     public void StopPlaying()
     {
     }
+    public List<string> GetDebugInfo() => new();
+
+    public Instrumentations Instrumentations { get; } = new();
+
 }
 
 public class TestAudioHandlerNonGeneric : IAudioHandler
 {
     public void GenerateAudio(ISystem system)
     {
-    }
-    public List<string> GetStats()
-    {
-        return new List<string>();
     }
     public void Init(ISystem system, IAudioHandlerContext audioHandlerContext)
     {
@@ -245,4 +233,8 @@ public class TestAudioHandlerNonGeneric : IAudioHandler
     public void StopPlaying()
     {
     }
+    public List<string> GetDebugInfo() => new();
+
+    public Instrumentations Instrumentations { get; } = new();
+
 }

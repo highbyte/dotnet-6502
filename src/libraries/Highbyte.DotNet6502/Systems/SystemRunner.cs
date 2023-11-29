@@ -53,44 +53,29 @@ public class SystemRunner
     /// Called by host app by a timer (or similar) that runs the emulator, tied to the update frequency of the emulated system.
     /// Typically called before after ProcessInput is called.
     /// </summary>
-    public ExecEvaluatorTriggerResult RunEmulatorOneFrame(out Dictionary<string, double> detailedStats)
+    public ExecEvaluatorTriggerResult RunEmulatorOneFrame()
     {
-        detailedStats = new()
-        {
-            ["Audio"] = 0
-        };
-
-        var execEvaluatorTriggerResult = _system.ExecuteOneFrame(this, detailedStats, _customExecEvaluator);
+        var execEvaluatorTriggerResult = _system.ExecuteOneFrame(this,  _customExecEvaluator);
         return execEvaluatorTriggerResult;
     }
 
     /// <summary>
     /// Called by host app that runs the emulator, typically once per frame tied to the host app rendering frequency.
     /// </summary>
-    public void Draw(out Dictionary<string, double> detailedStats)
+    public void Draw()
     {
-        detailedStats = new()
-        {
-        };
-
-        _renderer?.Draw(_system, detailedStats);
+        _renderer?.Draw(_system);
     }
 
     /// <summary>
     /// Called by the specific ISystem implementation after each instruction or entire frame worth of instructions, depending how audio is implemented.
     /// </summary>
     /// <param name="detailedStats"></param>
-    public void GenerateAudio(Dictionary<string, double> detailedStats)
+    public void GenerateAudio()
     {
-        if (_audioHandler is not null)
-        {
-            _audioSw.Restart();
-            _audioHandler.GenerateAudio(_system);
-            //var t = new Task(() => _audioHandler?.GenerateAudio(system));
-            //t.RunSynchronously();
-            _audioSw.Stop();
+        _audioHandler?.GenerateAudio(_system);
 
-            detailedStats["Audio"] += _audioSw.Elapsed.TotalMilliseconds;
-        }
+        //var t = new Task(() => _audioHandler?.GenerateAudio(system));
+        //t.RunSynchronously();
     }
 }

@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Instrumentation;
+
 namespace Highbyte.DotNet6502.Systems;
 
 public interface IAudioHandler
@@ -8,9 +10,8 @@ public interface IAudioHandler
     void StartPlaying();
     void StopPlaying();
     void PausePlaying();
-
-    List<string> GetStats();
-
+    List<string> GetDebugInfo();
+    Instrumentations Instrumentations { get; }
 }
 
 public interface IAudioHandler<TSystem, TAudioHandlerContext> : IAudioHandler
@@ -48,8 +49,7 @@ public class NullAudioHandler : IAudioHandler
     {
     }
 
-    private readonly List<string> _stats = new List<string>();
+    public List<string> GetDebugInfo() => new();
 
-    public List<string> GetStats() => _stats;
-
+    public Instrumentations Instrumentations { get; } = new();
 }

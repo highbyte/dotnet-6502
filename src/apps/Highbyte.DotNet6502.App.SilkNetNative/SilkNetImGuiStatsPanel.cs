@@ -1,6 +1,5 @@
 using System.Numerics;
-using Highbyte.DotNet6502.App.SilkNetNative.Instrumentation.Stats;
-using Highbyte.DotNet6502.App.SilkNetNative.Stats;
+using Highbyte.DotNet6502.Instrumentation.Stats;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;
 
@@ -11,12 +10,15 @@ public class SilkNetImGuiStatsPanel : ISilkNetImGuiWindow
 
     private const int POS_X = 600;
     private const int POS_Y = 2;
-    private const int WIDTH = 400;
+    private const int WIDTH = 500;
     private const int HEIGHT = 300;
     static Vector4 s_LabelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
 
-    public SilkNetImGuiStatsPanel()
+    private readonly Func<List<(string Name, IStat Stat)>> _getStats;
+
+    public SilkNetImGuiStatsPanel(Func<List<(string name, IStat stat)>> getStats)
     {
+        _getStats = getStats;
     }
 
     public void PostOnRender()
@@ -28,7 +30,7 @@ public class SilkNetImGuiStatsPanel : ISilkNetImGuiWindow
         //ImGui.SetWindowSize(new Vector2(WIDTH, HEIGHT));
 
         var strings = new List<string>();
-        foreach ((string name, IStat stat) in InstrumentationBag.Stats.OrderBy(i => i.Name))
+        foreach ((string name, IStat stat) in _getStats().OrderBy(i => i.Name))
         {
             if (stat.ShouldShow())
             {

@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
@@ -8,7 +9,10 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
 {
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private SilkNetInputHandlerContext? _inputHandlerContext;
-    private readonly List<string> _stats = new();
+    public List<string> GetDebugInfo() => new();
+
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
 
     public GenericComputerSilkNetInputHandler(EmulatorInputConfig emulatorInputConfig)
     {
@@ -49,10 +53,5 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
             // Only way to tell the "GenericComputer" that a Key is no longer pressed is to set KeyDownAddress to 0...
             genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = 0x00;
         }
-    }
-
-    public List<string> GetStats()
-    {
-        return _stats;
     }
 }

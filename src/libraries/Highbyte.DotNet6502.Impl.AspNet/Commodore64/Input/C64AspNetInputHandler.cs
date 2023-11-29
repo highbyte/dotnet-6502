@@ -1,4 +1,5 @@
 using System.Globalization;
+using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
@@ -12,6 +13,9 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
     private ILogger<C64AspNetInputHandler> _logger;
     private C64AspNetKeyboard _c64AspNetKeyboard;
     private readonly C64AspNetConfig _c64AspNetConfig;
+
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
 
     public C64AspNetInputHandler(ILoggerFactory loggerFactory, C64AspNetConfig c64AspNetConfig)
     {
@@ -152,7 +156,7 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
     }
 
 
-    public List<string> GetStats()
+    public List<string> GetDebugInfo()
     {
         List<string> list = new();
         if (_inputHandlerContext == null)

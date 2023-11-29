@@ -97,7 +97,7 @@ public partial class Index
     private WasmHost? _wasmHost = default!;
     public WasmHost WasmHost => _wasmHost!;
 
-    private string _statsString = "Stats: calculating...";
+    private string _statsString = "Instrumentations: calculating...";
     private string _debugString = "";
 
     private string _windowWidthStyle = "0px";

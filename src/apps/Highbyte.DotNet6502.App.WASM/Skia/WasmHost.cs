@@ -1,7 +1,8 @@
-using Highbyte.DotNet6502.App.WASM.Instrumentation.Stats;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Instrumentation;
+using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems;
 using Toolbelt.Blazor.Gamepad;
 
@@ -39,17 +40,16 @@ public class WasmHost : IDisposable
 
     public WasmMonitor Monitor { get; private set; }
 
-    private readonly ElapsedMillisecondsTimedStat _inputTime;
+    private const string HostStatRootName = "WASM";
+    private const string SystemTimeStatName = "Emulator-SystemTime";
+    private const string RenderTimeStatName = "RenderTime";
+    private const string InputTimeStatName = "InputTime";
+    private const string AudioTimeStatName = "AudioTime";
     private readonly ElapsedMillisecondsTimedStat _systemTime;
-    private readonly ElapsedMillisecondsStat _systemTimeAudio;  // Part of systemTime, but we want to show it separately
     private readonly ElapsedMillisecondsTimedStat _renderTime;
+    private readonly ElapsedMillisecondsTimedStat _inputTime;
     private readonly PerSecondTimedStat _updateFps;
     private readonly PerSecondTimedStat _renderFps;
-
-    private const string CustomSystemStatNamePrefix = "Emulator-SystemTime-Custom-";
-    private const string CustomRenderStatNamePrefix = "WASMSkiaSharp-RenderTime-Custom-";
-    private Dictionary<string, ElapsedMillisecondsStat> _customStats = new();
-
 
     private const int STATS_EVERY_X_FRAME = 60 * 1;
     private int _statsFrameCount = 0;
@@ -84,14 +84,12 @@ public class WasmHost : IDisposable
 
         // Init stats
         InstrumentationBag.Clear();
-        _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("WASM-InputTime");
-
-        _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("Emulator-SystemTime");
-        _systemTimeAudio = InstrumentationBag.Add<ElapsedMillisecondsStat>("Emulator-SystemTime-Audio");
-
-        _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>("WASMSkiaSharp-RenderTime");
-        _updateFps = InstrumentationBag.Add<PerSecondTimedStat>("WASMSkiaSharp-OnUpdateFPS");
-        _renderFps = InstrumentationBag.Add<PerSecondTimedStat>("WASMSkiaSharp-OnRenderFPS");
+        _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{SystemTimeStatName}");
+        _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{InputTimeStatName}");
+        //_audioTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{AudioTimeStatName}");
+        _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{RenderTimeStatName}");
+        _updateFps = InstrumentationBag.Add<PerSecondTimedStat>($"{HostStatRootName}-OnUpdateFPS");
+        _renderFps = InstrumentationBag.Add<PerSecondTimedStat>($"{HostStatRootName}-OnRenderFPS");
 
         Initialized = false;
     }
@@ -110,8 +108,6 @@ public class WasmHost : IDisposable
         _systemRunner = await _systemList.BuildSystemRunner(_systemName);
 
         Monitor = new WasmMonitor(_jsRuntime, _systemRunner, _emulatorConfig, _setMonitorState);
-
-        InitCustomSystemStats();
 
         Initialized = true;
     }
@@ -141,33 +137,6 @@ public class WasmHost : IDisposable
             _updateTimer.Elapsed += UpdateTimerElapsed;
         }
         _updateTimer!.Start();
-    }
-
-    private void InitCustomSystemStats()
-    {
-        // Remove any existing custom system stats
-        foreach (var existingCustomStatName in _customStats.Keys)
-        {
-            if (existingCustomStatName.StartsWith(CustomSystemStatNamePrefix)
-                || existingCustomStatName.StartsWith(CustomRenderStatNamePrefix))
-            {
-                InstrumentationBag.Remove(existingCustomStatName);
-                _customStats.Remove(existingCustomStatName);
-            }
-        }
-        // Add any custom system stats for selected system
-        var system = _systemRunner.System;
-        foreach (var customStatName in system.DetailedStatNames)
-        {
-            _customStats.Add($"{CustomSystemStatNamePrefix}{customStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomSystemStatNamePrefix}{customStatName}"));
-        }
-
-        // Add any custom system stats for selected renderer
-        var renderer = _systemRunner.Renderer;
-        foreach (var customStatName in renderer.DetailedStatNames)
-        {
-            _customStats.Add($"{CustomRenderStatNamePrefix}{customStatName}", InstrumentationBag.Add<ElapsedMillisecondsStat>($"{CustomRenderStatNamePrefix}{customStatName}"));
-        }
     }
 
     public void Cleanup()
@@ -224,25 +193,7 @@ public class WasmHost : IDisposable
         ExecEvaluatorTriggerResult execEvaluatorTriggerResult;
         using (_systemTime.Measure())
         {
-            execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame(out Dictionary<string, double> detailedStats);
-
-            if (detailedStats.ContainsKey("Audio"))
-            {
-                _systemTimeAudio.Set(detailedStats["Audio"]);
-                _systemTimeAudio.UpdateStat();
-            }
-
-            // Update custom system stats
-            // TODO: Make custom system stats less messy?
-            foreach (var detailedStatName in detailedStats.Keys)
-            {
-                var statLookup = _customStats.Keys.SingleOrDefault(x => x.EndsWith(detailedStatName));
-                if (statLookup != null)
-                {
-                    _customStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].Set(detailedStats[detailedStatName]);
-                    _customStats[$"{CustomSystemStatNamePrefix}{detailedStatName}"].UpdateStat();
-                }
-            }
+            execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame();
         }
 
         _statsFrameCount++;
@@ -272,23 +223,11 @@ public class WasmHost : IDisposable
         _skCanvas.Scale((float)_emulatorConfig.CurrentDrawScale);
         using (_renderTime.Measure())
         {
-            _systemRunner.Draw(out Dictionary<string, double> detailedStats);
+            _systemRunner.Draw();
             //using (new SKAutoCanvasRestore(skCanvas))
             //{
             //    _systemRunner.Draw(skCanvas);
             //}
-
-            // Update custom system stats
-            // TODO: Make custom system stats less messy?
-            foreach (var detailedStatName in detailedStats.Keys)
-            {
-                var statLookup = _customStats.Keys.SingleOrDefault(x => x.EndsWith(detailedStatName));
-                if (statLookup != null)
-                {
-                    _customStats[$"{CustomRenderStatNamePrefix}{detailedStatName}"].Set(detailedStats[detailedStatName]);
-                    _customStats[$"{CustomRenderStatNamePrefix}{detailedStatName}"].UpdateStat();
-                }
-            }
         }
     }
 
@@ -306,7 +245,13 @@ public class WasmHost : IDisposable
     {
         string stats = "";
 
-        foreach ((string name, IStat stat) in InstrumentationBag.Stats.OrderBy(i => i.Name))
+        var allStats = InstrumentationBag.Stats
+            .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.Renderer.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{RenderTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{InputTimeStatName}-{x.Name}", x.Stat)))
+            .ToList();
+        foreach ((string name, IStat stat) in allStats.OrderBy(i => i.Name))
         {
             if (stat.ShouldShow())
             {
@@ -322,18 +267,18 @@ public class WasmHost : IDisposable
     {
         string debugMessages = "";
 
-        var inputStats = _systemRunner.InputHandler.GetStats();
-        var inputStatsOneString = string.Join(" # ", inputStats);
+        var inputDebugInfo = _systemRunner.InputHandler.GetDebugInfo();
+        var inputStatsOneString = string.Join(" # ", inputDebugInfo);
         debugMessages += $"{BuildHtmlString("INPUT", "header")}: {BuildHtmlString(inputStatsOneString, "value")} ";
-        //foreach (var message in inputStats)
+        //foreach (var message in inputDebugInfo)
         //{
         //    if (debugMessages != "")
         //        debugMessages += "<br />";
         //    debugMessages += $"{BuildHtmlString("DEBUG INPUT", "header")}: {BuildHtmlString(message, "value")} ";
         //}
 
-        var audioStats = _systemRunner.AudioHandler.GetStats();
-        foreach (var message in audioStats)
+        var audioDebugInfo = _systemRunner.AudioHandler.GetDebugInfo();
+        foreach (var message in audioDebugInfo)
         {
             if (debugMessages != "")
                 debugMessages += "<br />";

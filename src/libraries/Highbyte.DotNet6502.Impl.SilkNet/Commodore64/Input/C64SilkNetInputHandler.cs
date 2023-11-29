@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
@@ -8,12 +9,16 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerContext>
 {
     private SilkNetInputHandlerContext? _inputHandlerContext;
-    private readonly List<string> _stats = new();
     private readonly C64SilkNetKeyboard _c64SilkNetKeyboard;
     //private readonly C64SilkNetGamepad _c64SilkNetGamepad;
 
     private readonly ILogger<C64SilkNetInputHandler> _logger;
     private readonly C64SilkNetConfig _c64SilkNetConfig;
+    public List<string> GetDebugInfo() => new();
+
+    // Instrumentations
+    public Instrumentations Instrumentations { get; } = new();
+
 
     public C64SilkNetInputHandler(ILoggerFactory loggerFactory, C64SilkNetConfig c64SilkNetConfig)
     {
@@ -153,10 +158,5 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
             }
         }
         return c64JoystickActions;
-    }
-
-    public List<string> GetStats()
-    {
-        return _stats;
     }
 }
