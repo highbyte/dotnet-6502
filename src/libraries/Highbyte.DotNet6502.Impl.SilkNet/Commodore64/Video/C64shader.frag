@@ -27,11 +27,15 @@ struct CharsetData
 };
 struct BitmapData 
 {
-  uint pixelline;    // C64 pixel line (8 bits = 8 pixels). uint = 4 bytes, only using 1 byte
-  uint u1;          // unused
-  uint u2;          // unused
-  uint u3;          // unused
-  //uint test[4];
+//    uint lines[8];    // Note: Could not get uint array inside struct to work in UBO from .NET (even with C# unsafe fixed arrays).
+    uint line0; // 8 pixels ( = 8 bits  = 1 byte ) used per line
+    uint line1;
+    uint line2; 
+    uint line3;
+    uint line4;
+    uint line5;
+    uint line6;
+    uint line7;
 };
 struct ColorMapData 
 {
@@ -115,10 +119,8 @@ layout (std140) uniform ubSpriteContentData
 };
 layout (std140) uniform ubBitmapData
 { 
-  //BitmapData uBitmapData[8000];     // 320 * 200 pixels, 8 bytes per pixel = 8000 bytes
-  // TEMP TEST SMALLER ARRAY
-  BitmapData uBitmapData[4096];     // Max length is 4096 if BitmapData contains 4 uint * 16 bytes. MaxUniformBlockSize = 65536, 65536 / 16 = 4096
-  //BitmapData uBitmapData[1024];
+// Total UBO size 1000 (40*25 "characters") * 8 (bytes per "character") * 4 (bytes per uint) = 32000 bytes
+  BitmapData uBitmapData[1000];
 };
 
 
@@ -374,17 +376,42 @@ bool GetBitmapModePixelColor(uint x, uint y, out bool border, out vec4 pixelColo
     // vec4 bitmapColor = uColorMapData[charColorCode & 15u].color;
     vec4 bitmapColor  = vec4(0,1,0,1);    // TEST
 
-    // Pseudo-code to calculate the byte offset from start of bitmap memory (and its bit position) for a pixel x,y coordinate
-    // Ref: https://github.com/mist64/c64ref/blob/4274bd8782c5d3b18c68e6b9479b0ec751eb96b1/Source/c64io/c64io_mapc64.txt#L597
-    //  byteOffset = 40 * (y AND 248) + (y AND 7) + (x AND 504)
-    //  bitPosition = 7 - (x MOD 8 )
-    uint byteOffset;
-    uint bitPosition;
-    byteOffset = (40u * (screeny & 248u)) + (screeny & 7u) + (screenx & 504u);
-    //bitPosition = (7u - screenx) % 8u; // TODO: Is this the same as below
-    bitPosition = 7u - (screenx % 8u);
+	uint col = screenx / 8u;
+	uint row = screeny / 8u;
+	uint charOffset = (row * 40u) + col;
+    uint line = screeny % 8u;
+    uint bitPosition = 7u - (screenx % 8u);
 
-    uint bitmapLine = uBitmapData[byteOffset].pixelline;
+    uint bitmapLine;
+    switch(line)
+    {
+        case 0u:
+            bitmapLine = uBitmapData[charOffset].line0;
+            break;
+        case 1u:
+            bitmapLine = uBitmapData[charOffset].line1;
+            break;
+        case 2u:
+            bitmapLine = uBitmapData[charOffset].line2;
+            break;
+        case 3u:
+            bitmapLine = uBitmapData[charOffset].line3;
+            break;
+        case 4u:
+            bitmapLine = uBitmapData[charOffset].line4;
+            break;
+        case 5u:
+            bitmapLine = uBitmapData[charOffset].line5;
+            break;
+        case 6u:
+            bitmapLine = uBitmapData[charOffset].line6;
+            break;
+        case 7u:
+            bitmapLine = uBitmapData[charOffset].line7;
+            break;
+        default:
+            break;
+    }
 
     bool isForeground;
     if(uBitmapMode == BitmapMode_Standard)

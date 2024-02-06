@@ -2,6 +2,7 @@ using System.Numerics;
 using Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers;
 using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Instrumentation.Stats;
+using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -38,16 +39,20 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     }
     public struct BitmapData
     {
-        public uint PixelLine;   // uint = 4 bytes, only using 1 byte
-        public uint _;          // unused
-        public uint __;         // unused
-        public uint ___;        // unused
+        //public uint PixelLine;   // uint = 4 bytes, only using 1 byte
+        //public uint _;          // unused
+        //public uint __;         // unused
+        //public uint ___;        // unused
 
-        //public fixed uint test[4];
-        //public uint test1;
-        //public uint test2;
-        //public uint test3;
-        //public uint test4;
+        //public fixed uint Lines[8];   // Note: Could not get uint array inside struct to work in UBO from .NET (even with C# unsafe fixed arrays).
+        public uint Line0;
+        public uint Line1;
+        public uint Line2;
+        public uint Line3;
+        public uint Line4;
+        public uint Line5;
+        public uint Line6;
+        public uint Line7;
     }
 
     public struct ColorMapData
@@ -434,30 +439,42 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     private BitmapData[] BuildBitmapData(C64 c64)
     {
         var bitmapManager = c64.Vic2.BitmapManager;
-        // 320 * 200 pixels, 1 byte per 8 pixels = 8000 bytes.
-        //var bitmapData = new BitmapData[Vic2BitmapManager.BITMAP_SIZE];
-        //for (int i = 0; i < bitmapData.Length; i++)
-        //{
-        //    bitmapData[i].PixelLine = c64.Vic2.Vic2Mem[(ushort)(bitmapManager.BitmapAddressInVIC2Bank + i)];
-        //};
 
-        // TEMP TEST SMALL ARRAY
-        var bitmapData = new BitmapData[4096];  // 4096, 2048
-        for (int i = 0; i < bitmapData.Length; i++)
+        // 1000 (40x25) "chars", that each contains 8 bytes (lines) where each line is 8 pixels.
+        const int numberOfChars = Vic2BitmapManager.BITMAP_SIZE / 8;
+        var bitmapData = new BitmapData[numberOfChars];
+        int charPos = 0;
+        int lineIndex = 0;
+        for (int i = 0; i < numberOfChars * 8; i++)
         {
-            bitmapData[i].PixelLine = c64.Vic2.Vic2Mem[(ushort)(bitmapManager.BitmapAddressInVIC2Bank + i)];
+            var charLine = c64.Vic2.Vic2Mem[(ushort)(bitmapManager.BitmapAddressInVIC2Bank + i)];
+            //bitmapData[charPos].Lines[lineIndex] = charLine;
+            switch (lineIndex)
+            {
+                case 0:
+                    bitmapData[charPos].Line0 = charLine; break;
+                case 1:
+                    bitmapData[charPos].Line1 = charLine; break;
+                case 2:
+                    bitmapData[charPos].Line2 = charLine; break;
+                case 3:
+                    bitmapData[charPos].Line3 = charLine; break;
+                case 4:
+                    bitmapData[charPos].Line4 = charLine; break;
+                case 5:
+                    bitmapData[charPos].Line5 = charLine; break;
+                case 6:
+                    bitmapData[charPos].Line6 = charLine; break;
+                case 7:
+                    bitmapData[charPos].Line7 = charLine; break;
+            }
+            lineIndex++;
+            if (lineIndex == 8)
+            {
+                lineIndex = 0;
+                charPos++;
+            }
         };
-
-        // TEMP TEST SET TEST PIXELS
-        //bitmapData[0].PixelLine = 255;
-        //bitmapData[1].PixelLine = 128;
-        //bitmapData[2].PixelLine = 64;
-        //bitmapData[3].PixelLine = 32;
-        //bitmapData[4].PixelLine = 16;
-        //bitmapData[5].PixelLine = 8;
-        //bitmapData[6].PixelLine = 4;
-        //bitmapData[7].PixelLine = 2;
-
         return bitmapData;
     }
 
