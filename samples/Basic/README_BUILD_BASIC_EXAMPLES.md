@@ -50,3 +50,9 @@ $PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
 cd C64/Text
 & $PETCAT_APP -w2 -o "Build\RelocateScreenRAM.prg" -- "RelocateScreenRAM.txt"
 ´´´
+
+´´´ pwsh
+$PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
+cd C64/Graphics
+& $PETCAT_APP -w2 -o "Build\SinePlot2.prg" -- "SinePlot2.txt"
+´´´

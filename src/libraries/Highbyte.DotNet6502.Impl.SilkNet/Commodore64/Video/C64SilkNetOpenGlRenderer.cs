@@ -36,6 +36,20 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         public uint __;         // unused
         public uint ___;        // unused
     }
+    public struct BitmapData
+    {
+        public uint PixelLine;   // uint = 4 bytes, only using 1 byte
+        public uint _;          // unused
+        public uint __;         // unused
+        public uint ___;        // unused
+
+        //public fixed uint test[4];
+        //public uint test1;
+        //public uint test2;
+        //public uint test3;
+        //public uint test4;
+    }
+
     public struct ColorMapData
     {
         public uint ColorCode;  // uint = 4 bytes, only using 1 byte
@@ -98,6 +112,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
     private BufferObject<TextData> _uboTextData;
     private BufferObject<CharsetData> _uboCharsetData;
+    private BufferObject<BitmapData> _uboBitmapData;
     private BufferObject<ColorMapData> _uboColorMapData;
     private BufferObject<ScreenLineData> _uboScreenLineData;
     private BufferObject<SpriteData> _uboSpriteData;
@@ -123,6 +138,13 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
     private void InitShader(C64 c64)
     {
+#if DEBUG
+        _gl.GetInteger(GLEnum.MaxUniformBlockSize, out int maxUniformBlockSize); // 65536
+        _gl.GetInteger(GLEnum.MaxGeometryUniformComponents, out int maxGeometryUniformComponents); // 2048
+        _gl.GetInteger(GLEnum.MaxFragmentUniformComponents, out int maxFragmentUniformComponents); // 4096
+#endif
+
+
         // Two triangles that covers entire screen
         float[] vertices =
         {
@@ -150,6 +172,11 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         // Define character set & create Uniform Buffer Object for fragment shader
         var charsetData = BuildCharsetData(c64, fromROM: true);
         _uboCharsetData = new BufferObject<CharsetData>(_gl, charsetData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
+
+        // Define bitmap & create Uniform Buffer Object for fragment shader
+        var bitmapData = BuildBitmapData(c64);
+        _uboBitmapData = new BufferObject<BitmapData>(_gl, bitmapData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
+
 
         // Screen line data Uniform Buffer Object for fragment shader
         var screenLineData = new ScreenLineData[c64.Vic2.Vic2Screen.VisibleHeight];
@@ -185,6 +212,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _shader.BindUBO("ubScreenLineData", _uboScreenLineData, binding_point_index: 3);
         _shader.BindUBO("ubSpriteData", _uboSpriteData, binding_point_index: 4);
         _shader.BindUBO("ubSpriteContentData", _uboSpriteContentData, binding_point_index: 5);
+        _shader.BindUBO("ubBitmapData", _uboBitmapData, binding_point_index: 6);
     }
 
     public void Init(ISystem system, IRenderContext renderContext)
@@ -206,7 +234,9 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         // Main screen draw area for characters, without consideration to 38 column mode or 24 row mode.
         var visibleMainScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
+        var displayMode = vic2.DisplayMode;
         var characterMode = vic2.CharacterMode;
+        var bitmapMode = vic2.BitmapMode;
 
         // Clear screen
         //_gl.Enable(EnableCap.DepthTest);
@@ -216,16 +246,27 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
         // Update shader uniform buffers that needs to be updated
 
-        // Charset UBO
-        if (_changedAllCharsetCodes)
+        if (displayMode == Vic2.DispMode.Text)
         {
-            var charsetData = BuildCharsetData(c64, fromROM: false);
-            _uboCharsetData.Update(charsetData);
-            _changedAllCharsetCodes = false;
+            // Charset dot-matrix UBO
+            if (_changedAllCharsetCodes)
+            {
+                var charsetData = BuildCharsetData(c64, fromROM: false);
+                _uboCharsetData.Update(charsetData);
+                _changedAllCharsetCodes = false;
+            }
+            // Text screen UBO
+            var textScreenData = BuildTextScreenData(c64);
+            _uboTextData.Update(textScreenData, 0);
         }
-        // Text screen UBO
-        var textScreenData = BuildTextScreenData(c64);
-        _uboTextData.Update(textScreenData, 0);
+        else if (displayMode == Vic2.DispMode.Bitmap)
+        {
+            // Bitmap dot-matrix UBO
+            var bitmapData = BuildBitmapData(c64);
+            _uboBitmapData.Update(bitmapData, 0);
+
+            // TODO: Bitmap Color UBO
+        }
 
         // Screen line data UBO
         var screenLineData = new ScreenLineData[c64.Vic2.Vic2Screen.VisibleHeight];
@@ -319,7 +360,9 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _shader.SetUniform("uTextScreenStart", new Vector2(visibleMainScreenArea.Screen.Start.X, visibleMainScreenArea.Screen.Start.Y));
         _shader.SetUniform("uTextScreenEnd", new Vector2(visibleMainScreenArea.Screen.End.X, visibleMainScreenArea.Screen.End.Y));
 
-        _shader.SetUniform("uTextCharacterMode", (int)characterMode);
+        _shader.SetUniform("uDisplayMode", (int)displayMode);  // uDisplayMode: 0 = Text, 1 = Bitmap
+        _shader.SetUniform("uBitmapMode", (int)bitmapMode);  // uBitmapMode: 0 = Standard, 1 = MultiColor
+        _shader.SetUniform("uTextCharacterMode", (int)characterMode); // uTextCharacterMode: 0 = Standard, 1 = Extended, 2 = MultiColor
 
         // Draw triangles covering the entire screen, with the fragment shader doing the actual drawing of 2D pixels.
         _vba.Bind();
@@ -386,6 +429,36 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
             //if (!_changedCharsetCodes.Contains(e.CharCode.Value))
             //    _changedCharsetCodes.Add(e.CharCode.Value);
         }
+    }
+
+    private BitmapData[] BuildBitmapData(C64 c64)
+    {
+        var bitmapManager = c64.Vic2.BitmapManager;
+        // 320 * 200 pixels, 1 byte per 8 pixels = 8000 bytes.
+        //var bitmapData = new BitmapData[Vic2BitmapManager.BITMAP_SIZE];
+        //for (int i = 0; i < bitmapData.Length; i++)
+        //{
+        //    bitmapData[i].PixelLine = c64.Vic2.Vic2Mem[(ushort)(bitmapManager.BitmapAddressInVIC2Bank + i)];
+        //};
+
+        // TEMP TEST SMALL ARRAY
+        var bitmapData = new BitmapData[4096];  // 4096, 2048
+        for (int i = 0; i < bitmapData.Length; i++)
+        {
+            bitmapData[i].PixelLine = c64.Vic2.Vic2Mem[(ushort)(bitmapManager.BitmapAddressInVIC2Bank + i)];
+        };
+
+        // TEMP TEST SET TEST PIXELS
+        //bitmapData[0].PixelLine = 255;
+        //bitmapData[1].PixelLine = 128;
+        //bitmapData[2].PixelLine = 64;
+        //bitmapData[3].PixelLine = 32;
+        //bitmapData[4].PixelLine = 16;
+        //bitmapData[5].PixelLine = 8;
+        //bitmapData[6].PixelLine = 4;
+        //bitmapData[7].PixelLine = 2;
+
+        return bitmapData;
     }
 
     public void Dispose()

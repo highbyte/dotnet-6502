@@ -1,0 +1,29 @@
+10 for i=0 to 7
+12 bi(i)=2^i
+14 next: rem set up array of powers of 2 (bit value)
+20 base=2*4096
+22 poke53272,peek(53272)or8:rem put bit map at 8192
+30 poke53265,peek(53265)or32:rem enter bit map mode
+40 a$=""
+42 for i=1 to 37
+44 a$=a$+"c"
+46 next
+48 print chr$(19);
+50 for i=1 to 27
+52 printa$;
+55 next
+56 poke2023,peek(2022): rem set color map
+60 a$=""
+62 for i=1 to 27
+63 a$=a$+"@"
+64 next
+65 for i=32 to 63 step 2
+70 poke648,i:print chr$(19);a$;a$;a$;a$
+75 next
+76 poke648,4:rem clear hi-res      screen
+80 fory=0to199step.5:rem from the top of the screen to the bottom
+90 x=int(160+40*sin(y/10)): rem sine wave shape
+100 by=base+40*(y and 248)+(y and 7)+(x and 504): rem find hi-res byte
+110 pokeby,peek(by)or(bi(not x and 7))
+112 next y:rem poke in bit value
+120 goto 120: rem let it stay on screen

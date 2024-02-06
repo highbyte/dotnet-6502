@@ -33,6 +33,28 @@ public class Vic2
 
     public ushort VideoMatrixBaseAddress { get; private set; }
 
+     public DispMode DisplayMode
+    {
+        get
+        {
+            if (C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER).IsBitSet(5))
+                return DispMode.Bitmap;
+            return DispMode.Text;
+        }
+    }
+    public enum DispMode { Text = 0, Bitmap = 1 };
+
+    public BitmMode BitmapMode
+    {
+        get
+        {
+            if (C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER).IsBitSet(4))
+                return BitmMode.MultiColor;
+            return BitmMode.Standard;
+        }
+    }
+    public enum BitmMode { Standard = 0, MultiColor = 1 };
+
     public CharMode CharacterMode
     {
         get
@@ -105,6 +127,7 @@ public class Vic2
     public Vic2ScreenLayouts? ScreenLayouts { get; private set; }
     public Vic2SpriteManager? SpriteManager { get; private set; }
     public Vic2CharsetManager? CharsetManager { get; private set; }
+    public Vic2BitmapManager? BitmapManager { get; private set; }
 
     private Vic2() { }
 
@@ -136,6 +159,9 @@ public class Vic2
 
         var charsetManager = new Vic2CharsetManager(vic2);
         vic2.CharsetManager = charsetManager;
+
+        var bitmapManager = new Vic2BitmapManager(vic2);
+        vic2.BitmapManager = bitmapManager;
 
         return vic2;
     }
@@ -263,7 +289,10 @@ public class Vic2
         {
             SpriteManager.DetectChangesToSpriteData(vic2Address.Value, value);
 
-            CharsetManager.DetectChangesToCharacterData(vic2Address.Value, value);
+            if (DisplayMode == DispMode.Text)
+                CharsetManager.DetectChangesToCharacterData(vic2Address.Value, value);
+            else if (DisplayMode == DispMode.Bitmap)
+                BitmapManager.DetectChangesToBitmapData(vic2Address.Value, value);
         }
     }
 
@@ -485,10 +514,17 @@ public class Vic2
         // 0xd018, bit 0: Unused
 
         // 0xd018, bits 1-3: Text character dot-data base address within VIC-II address space.
-        var characterBaseAddressSetting = (byte)((value & 0b00001110) >> 1);
-        CharsetManager.CharsetBaseAddressUpdate(characterBaseAddressSetting);
+        //                   In text mode, this contains the pixels of each character.
+        //                   In bitmap mode (normal & multicolor), this contains the pixels of the bitmap (where only bit 3 is significant).
+        var characterDotDataAddressSetting = (byte)((value & 0b00001110) >> 1);
+        CharsetManager.CharsetBaseAddressUpdate(characterDotDataAddressSetting);
+        BitmapManager.BitmapBaseAddressUpdate(characterDotDataAddressSetting);
 
-        // 0xd018, bits 4-7: Video matrix base address within VIC-II address space
+        // 0xd018, bits 4-7: Video matrix base address within VIC-II address space.
+        //                   In text mode, this contains the screen characters
+        //                   In bitmap mode, this contains the color information for the screen.
+        //                   In multi-color bitmap mode, this also contains the color information for the screen, along with color from Color RAM.
+        //                   In all modes, it also contains the sprite pointers.
         // ---------------------------------------------------------------------------
         var videoMatrixBaseAddressSetting = (byte)((value & 0b11110000) >> 4);
         VideoMatrixBaseAddressUpdate(videoMatrixBaseAddressSetting);
