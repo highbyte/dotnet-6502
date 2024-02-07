@@ -54,5 +54,11 @@ cd C64/Text
 ´´´ pwsh
 $PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
 cd C64/Graphics
-& $PETCAT_APP -w2 -o "Build\SinePlot2.prg" -- "SinePlot2.txt"
+& $PETCAT_APP -w2 -o "Build\HiResSinePlot.prg" -- "HiResSinePlot.txt"
+´´´
+
+´´´ pwsh
+$PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
+cd C64/Graphics
+& $PETCAT_APP -w2 -o "Build\HiResColor.prg" -- "HiResColor.txt"
 ´´´

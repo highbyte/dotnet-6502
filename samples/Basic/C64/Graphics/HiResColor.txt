@@ -1,0 +1,54 @@
+10 rem define 2^i function (perf trick)
+12 for i=0 to 7
+14 bi(i)=2^i
+16 next: rem set up array of powers of 2 (bit value)
+
+40 gosub 200: rem set up bitmap hires mode
+50 gosub 400: rem set default bitmap colors
+60 gosub 300: rem clear screen
+
+70 rem draw pixels in a "character"
+71 col = 20: row = 12
+75 off = row * (40 * 8) + col * 8
+79 ch = base + off 
+80 poke ch + 0, 128
+81 poke ch + 1, 64
+82 poke ch + 2, 32
+83 poke ch + 3, 16
+84 poke ch + 4, 8
+85 poke ch + 5, 4
+86 poke ch + 6, 2
+87 poke ch + 7, 1
+
+90 rem set color for top left corner "character"
+91 redyellow = 2 + (7*16): rem bg low (2=red), fg high (7=yellow)
+97 off = row * 40 + col
+99 chcol = 1024 + off : rem assume screen ram has not moved from default
+100 poke chcol, redyellow
+
+190 goto 190: rem let it stay on screen
+
+200 rem setup bitmap hires mode
+220 rem set up hi-res screen
+222 base=2*4096
+224 poke53272,peek(53272)or8:rem put bit map at 8192
+226 poke53265,peek(53265)or32:rem enter bit map mode
+250 return
+
+300 rem clear screen subroutine
+305 a$="":s1=peek(51):s2=peek(52):poke 51,64:poke 52,63
+310 fort=1to125:a$=a$+chr$(0):next
+320 poke51,s1:poke52,s2:return
+
+400 rem set bitmap colors
+410 rem set color map (which is same area as text screen in text mode)
+420 a$=""
+430 for i=1 to 37
+440 a$=a$+"c"
+450 next
+460 print chr$(19);
+470 for i=1 to 27
+480 printa$;
+490 next
+495 poke2023,peek(2022) : rem bottom right character
+497 return

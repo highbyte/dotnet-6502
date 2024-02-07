@@ -39,11 +39,6 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     }
     public struct BitmapData
     {
-        //public uint PixelLine;   // uint = 4 bytes, only using 1 byte
-        //public uint _;          // unused
-        //public uint __;         // unused
-        //public uint ___;        // unused
-
         //public fixed uint Lines[8];   // Note: Could not get uint array inside struct to work in UBO from .NET (even with C# unsafe fixed arrays).
         public uint Line0;
         public uint Line1;
@@ -53,6 +48,12 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         public uint Line5;
         public uint Line6;
         public uint Line7;
+
+        public uint BackgroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte.
+        public uint ForegroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte.
+        public uint _;          // unused
+        public uint __;          // unused 
+
     }
 
     public struct ColorMapData
@@ -385,14 +386,14 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         var vic2Mem = vic2.Vic2Mem;
         var vic2Screen = vic2.Vic2Screen;
 
-        var screenAddress = vic2.VideoMatrixBaseAddress;
+        var videoMatrixBaseAddress = vic2.VideoMatrixBaseAddress;
         var colorAddress = Vic2Addr.COLOR_RAM_START;
 
         // 40 columns, 25 rows = 1024 items
         var textData = new TextData[vic2Screen.TextCols * vic2Screen.TextRows];
         for (int i = 0; i < textData.Length; i++)
         {
-            textData[i].Character = vic2Mem[(ushort)(screenAddress + i)];
+            textData[i].Character = vic2Mem[(ushort)(videoMatrixBaseAddress + i)];
             textData[i].Color = c64.ReadIOStorage((ushort)(colorAddress + i));
         }
         return textData;
@@ -440,40 +441,42 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     {
         var bitmapManager = c64.Vic2.BitmapManager;
 
+        var vic2Mem = c64.Vic2.Vic2Mem;
+        var videoMatrixBaseAddress = c64.Vic2.VideoMatrixBaseAddress;
+
         // 1000 (40x25) "chars", that each contains 8 bytes (lines) where each line is 8 pixels.
         const int numberOfChars = Vic2BitmapManager.BITMAP_SIZE / 8;
         var bitmapData = new BitmapData[numberOfChars];
-        int charPos = 0;
-        int lineIndex = 0;
-        for (int i = 0; i < numberOfChars * 8; i++)
+        for (int c = 0; c < numberOfChars; c++)
         {
-            var charLine = c64.Vic2.Vic2Mem[(ushort)(bitmapManager.BitmapAddressInVIC2Bank + i)];
-            //bitmapData[charPos].Lines[lineIndex] = charLine;
-            switch (lineIndex)
+            int charOffset = bitmapManager.BitmapAddressInVIC2Bank + (c * 8);
+            for (int line = 0; line < 8; line++)
             {
-                case 0:
-                    bitmapData[charPos].Line0 = charLine; break;
-                case 1:
-                    bitmapData[charPos].Line1 = charLine; break;
-                case 2:
-                    bitmapData[charPos].Line2 = charLine; break;
-                case 3:
-                    bitmapData[charPos].Line3 = charLine; break;
-                case 4:
-                    bitmapData[charPos].Line4 = charLine; break;
-                case 5:
-                    bitmapData[charPos].Line5 = charLine; break;
-                case 6:
-                    bitmapData[charPos].Line6 = charLine; break;
-                case 7:
-                    bitmapData[charPos].Line7 = charLine; break;
+                var charLine = vic2Mem[(ushort)(charOffset + line)];
+                //bitmapData[charPos].Lines[lineIndex] = charLine;
+                switch (line)
+                {
+                    case 0:
+                        bitmapData[c].Line0 = charLine; break;
+                    case 1:
+                        bitmapData[c].Line1 = charLine; break;
+                    case 2:
+                        bitmapData[c].Line2 = charLine; break;
+                    case 3:
+                        bitmapData[c].Line3 = charLine; break;
+                    case 4:
+                        bitmapData[c].Line4 = charLine; break;
+                    case 5:
+                        bitmapData[c].Line5 = charLine; break;
+                    case 6:
+                        bitmapData[c].Line6 = charLine; break;
+                    case 7:
+                        bitmapData[c].Line7 = charLine; break;
+                }
             }
-            lineIndex++;
-            if (lineIndex == 8)
-            {
-                lineIndex = 0;
-                charPos++;
-            }
+
+            bitmapData[c].BackgroundColorCode = (uint)(vic2Mem[(ushort)(videoMatrixBaseAddress + c)] & 0b00001111);
+            bitmapData[c].ForegroundColorCode = (uint)(vic2Mem[(ushort)(videoMatrixBaseAddress + c)] & 0b11110000) >> 4;
         };
         return bitmapData;
     }

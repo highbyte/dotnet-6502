@@ -36,6 +36,11 @@ struct BitmapData
     uint line5;
     uint line6;
     uint line7;
+
+    uint backgroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte.
+    uint foregroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte.
+    uint u1;          // unused
+    uint u2;          // unused 
 };
 struct ColorMapData 
 {
@@ -369,13 +374,6 @@ bool GetBitmapModePixelColor(uint x, uint y, out bool border, out vec4 pixelColo
 	uint screenx = x - uint(uTextScreenStart.x + uScreenLineData[y].scrollX);
 	uint screeny = y - uint(uTextScreenStart.y + uScreenLineData[y].scrollY);
 
-    uint bgColorCode0 = uScreenLineData[y].backgroundColor0Code;
-    vec4 bgColor0 = uColorMapData[bgColorCode0 & 15u].color;
-
-    //uint charColorCode = uTextData[screenMemIndex].color;
-    // vec4 bitmapColor = uColorMapData[charColorCode & 15u].color;
-    vec4 bitmapColor  = vec4(0,1,0,1);    // TEST
-
 	uint col = screenx / 8u;
 	uint row = screeny / 8u;
 	uint charOffset = (row * 40u) + col;
@@ -413,15 +411,24 @@ bool GetBitmapModePixelColor(uint x, uint y, out bool border, out vec4 pixelColo
             break;
     }
 
+    uint bgColorCode0 = uScreenLineData[y].backgroundColor0Code;
+    vec4 bgColor0 = uColorMapData[bgColorCode0 & 15u].color;
+
+    uint bitmapFgColorCode = uBitmapData[charOffset].foregroundColorCode;
+    vec4 bitmapFgColor = uColorMapData[bitmapFgColorCode & 15u].color;
+
+    uint bitmapBgColorCode = uBitmapData[charOffset].backgroundColorCode;
+    vec4 bitmapBgColor = uColorMapData[bitmapBgColorCode & 15u].color;
+
     bool isForeground;
     if(uBitmapMode == BitmapMode_Standard)
     {
         isForeground = IsSinglePixelSet(bitmapLine, bitPosition);
 
         if(isForeground)
-            pixelColor = bitmapColor;
+            pixelColor = bitmapFgColor;
         else
-            pixelColor = bgColor0;
+            pixelColor = bitmapBgColor;
     }
     else if(uBitmapMode == BitmapMode_MultiColor)
     {
