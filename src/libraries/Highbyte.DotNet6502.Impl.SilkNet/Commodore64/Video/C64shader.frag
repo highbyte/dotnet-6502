@@ -37,9 +37,9 @@ struct BitmapData
     uint line6;
     uint line7;
 
-    uint backgroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte.
-    uint foregroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte.
-    uint u1;          // unused
+    uint backgroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte. From text screen ram low nybble.
+    uint foregroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte. From text screen ram high nybble.
+    uint colorRAMColorCode;     // C64 color value 0-15. uint = 4 bytes, only using 1 byte. From color RAM (low nybble).
     uint u2;          // unused 
 };
 struct ColorMapData 
@@ -411,18 +411,15 @@ bool GetBitmapModePixelColor(uint x, uint y, out bool border, out vec4 pixelColo
             break;
     }
 
-    uint bgColorCode0 = uScreenLineData[y].backgroundColor0Code;
-    vec4 bgColor0 = uColorMapData[bgColorCode0 & 15u].color;
-
-    uint bitmapFgColorCode = uBitmapData[charOffset].foregroundColorCode;
-    vec4 bitmapFgColor = uColorMapData[bitmapFgColorCode & 15u].color;
-
-    uint bitmapBgColorCode = uBitmapData[charOffset].backgroundColorCode;
-    vec4 bitmapBgColor = uColorMapData[bitmapBgColorCode & 15u].color;
-
     bool isForeground;
     if(uBitmapMode == BitmapMode_Standard)
     {
+        uint bitmapFgColorCode = uBitmapData[charOffset].foregroundColorCode;
+        vec4 bitmapFgColor = uColorMapData[bitmapFgColorCode & 15u].color;
+
+        uint bitmapBgColorCode = uBitmapData[charOffset].backgroundColorCode;
+        vec4 bitmapBgColor = uColorMapData[bitmapBgColorCode & 15u].color;
+
         isForeground = IsSinglePixelSet(bitmapLine, bitPosition);
 
         if(isForeground)
@@ -432,8 +429,25 @@ bool GetBitmapModePixelColor(uint x, uint y, out bool border, out vec4 pixelColo
     }
     else if(uBitmapMode == BitmapMode_MultiColor)
     {
-        isForeground = true;           // TEST 
-        pixelColor = vec4(1,0,0,1);    // TEST
+        // Pixel pattern 00 = background color 0 (common)
+        uint bgColorCode0 = uScreenLineData[y].backgroundColor0Code;
+        vec4 bgColor0 = uColorMapData[bgColorCode0 & 15u].color;
+
+        // Pixel pattern 01 = bitmap foreground color (per char 4x8 pixels)
+        uint bitmapFgColorCode = uBitmapData[charOffset].foregroundColorCode;
+        vec4 bitmapFgColor = uColorMapData[bitmapFgColorCode & 15u].color;
+
+        // Pixel pattern 10 = bitmap background color (per char 4x8 pixels)
+        uint bitmapBgColorCode = uBitmapData[charOffset].backgroundColorCode;
+        vec4 bitmapBgColor = uColorMapData[bitmapBgColorCode & 15u].color;
+
+        // Pixel pattern 11 = color ram color (per char 4x8 pixels)
+        uint colorRamColorCode = uBitmapData[charOffset].colorRAMColorCode;
+        vec4 colorRamColor = uColorMapData[colorRamColorCode & 15u].color;
+
+        isForeground = GetMultiColor(bitmapLine, bitPosition, bitmapFgColor, bitmapBgColor, colorRamColor, pixelColor);
+        if(!isForeground)
+            pixelColor = bgColor0;
     }
     return isForeground;
 }

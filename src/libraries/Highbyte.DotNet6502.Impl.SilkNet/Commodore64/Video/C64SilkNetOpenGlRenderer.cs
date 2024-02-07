@@ -49,9 +49,9 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         public uint Line6;
         public uint Line7;
 
-        public uint BackgroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte.
-        public uint ForegroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte.
-        public uint _;          // unused
+        public uint BackgroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte. From text screen ram low nybble.
+        public uint ForegroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte. From text screen ram high nybble.
+        public uint ColorRAMColorCode;     // C64 color value 0-15. uint = 4 bytes, only using 1 byte. From color RAM (low nybble).
         public uint __;          // unused 
 
     }
@@ -443,6 +443,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
         var vic2Mem = c64.Vic2.Vic2Mem;
         var videoMatrixBaseAddress = c64.Vic2.VideoMatrixBaseAddress;
+        var colorAddress = Vic2Addr.COLOR_RAM_START;
 
         // 1000 (40x25) "chars", that each contains 8 bytes (lines) where each line is 8 pixels.
         const int numberOfChars = Vic2BitmapManager.BITMAP_SIZE / 8;
@@ -477,6 +478,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
             bitmapData[c].BackgroundColorCode = (uint)(vic2Mem[(ushort)(videoMatrixBaseAddress + c)] & 0b00001111);
             bitmapData[c].ForegroundColorCode = (uint)(vic2Mem[(ushort)(videoMatrixBaseAddress + c)] & 0b11110000) >> 4;
+            bitmapData[c].ColorRAMColorCode = c64.ReadIOStorage((ushort)(colorAddress + c));
         };
         return bitmapData;
     }

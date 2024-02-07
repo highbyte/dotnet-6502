@@ -62,3 +62,9 @@ $PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
 cd C64/Graphics
 & $PETCAT_APP -w2 -o "Build\HiResColor.prg" -- "HiResColor.txt"
 ´´´
+
+´´´ pwsh
+$PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
+cd C64/Graphics
+& $PETCAT_APP -w2 -o "Build\LowResMultiColor.prg" -- "LowResMultiColor.txt"
+´´´

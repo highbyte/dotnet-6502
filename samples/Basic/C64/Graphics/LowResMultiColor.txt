@@ -1,4 +1,4 @@
-40 gosub 200: rem set up bitmap hires mode
+40 gosub 200: rem set up bitmap lowres multicolor mode
 50 gosub 400: rem set default bitmap colors
 60 gosub 300: rem clear screen
 
@@ -6,20 +6,30 @@
 71 col = 20: row = 12
 75 off = row * (40 * 8) + col * 8
 79 ch = base + off 
-80 poke ch + 0, 128
-81 poke ch + 1, 64
-82 poke ch + 2, 32
-83 poke ch + 3, 16
-84 poke ch + 4, 8
-85 poke ch + 5, 4
-86 poke ch + 6, 2
-87 poke ch + 7, 1
+80 poke ch + 0, 128 + 64: rem pixel pattern 11
+81 poke ch + 1, 32 + 0  : rem pixel pattern 10
+82 poke ch + 2, 0 + 4   : rem pixel pattern 01
+83 poke ch + 3, 0 + 0   : rem pixel pattern 00
+84 poke ch + 4, 0 + 0   : rem pixel pattern 00
+85 poke ch + 5, 0 + 4   : rem pixel pattern 01
+86 poke ch + 6, 32 + 0  : rem pixel pattern 10
+87 poke ch + 7, 128 + 64: rem pixel pattern 11
 
-90 rem set color for same "character"
-91 redyellow = 2 + (7*16): rem bg low (2=red), fg high (7=yellow)
+90 rem set bitmap colors for same "character" 
+91 rem (fg pattern 10, bg pattern 01)
+95 redyellow = 2 + (7*16): rem bg low (2=red), fg high (7=yellow)
 97 off = row * 40 + col
 99 chcol = 1024 + off : rem assume screen ram has not moved from default
 100 poke chcol, redyellow
+
+110 rem set additional color ram color (pattern 11)
+115 lightgreen = 13
+120 ramcol = 55296 + off : rem color ram always at 55296 ($d800)
+130 poke ramcol, lightgreen
+
+150 rem set common background color (pattern 00)
+155 darkgrey = 11
+160 poke 53281, darkgrey
 
 190 goto 190: rem let it stay on screen
 
@@ -28,6 +38,7 @@
 222 base=2*4096
 224 poke53272,peek(53272)or8:rem put bit map at 8192
 226 poke53265,peek(53265)or32:rem enter bit map mode
+228 poke53270,peek(53270)or16:rem set multicolor mode
 250 return
 
 300 rem clear screen subroutine
