@@ -20,32 +20,34 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # Checkout the code
       - uses: actions/checkout@v4
       
+      # Get version from tag
       - name: Get version from tag with 'v' prefix
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
-      - name: Show version
-        run: echo ${{ env.VERSION }}
 
+      # Install .NET Core SDK
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
-      # - name: Build dll
-      #   run: dotnet build ${{ env.PROJECT_FILE }} -c ${{ env.CONFIGURATION }} /Property:Version="${{ env.VERSION }}"
-      # - name: Pack NuGet package
-      #   run: dotnet pack ${{ env.PROJECT_FILE }} --no-build -c ${{ env.CONFIGURATION }} -p:PackageVersion="${{ env.VERSION }}" -o out 
-      # - name: Push NuGet package to GitHub Packages
-      #   run: dotnet nuget push "./out/*.nupkg" --source ${{ env.PACKAGE_REPO }} --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
-      # - name: Push NuGet package to NuGet.org
-      #   run: dotnet nuget push "./out/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
+      # Build, pack and push NuGet package
+      - name: Build dll
+        run: dotnet build ${{ env.PROJECT_FILE }} -c ${{ env.CONFIGURATION }} /Property:Version="${{ env.VERSION }}"
+      - name: Pack NuGet package
+        run: dotnet pack ${{ env.PROJECT_FILE }} --no-build -c ${{ env.CONFIGURATION }} -p:PackageVersion="${{ env.VERSION }}" -o out 
+      - name: Push NuGet package to GitHub Packages
+        run: dotnet nuget push "./out/*.nupkg" --source ${{ env.PACKAGE_REPO }} --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
+      - name: Push NuGet package to NuGet.org
+        run: dotnet nuget push "./out/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
         
-      # # - name: Build dll 2
-      # #   run: dotnet build ${{ env.PROJECT_FILE2 }} -c ${{ env.CONFIGURATION }} /Property:Version="${{ env.VERSION }}"
-      # # - name: Pack NuGet package 2
-      # #   run: dotnet pack ${{ env.PROJECT_FILE2 }} --no-build -c ${{ env.CONFIGURATION }} -p:PackageVersion="${{ env.VERSION }}" -o out2
-      # # - name: Push NuGet package 2 to GitHub Packages
-      # #   run: dotnet nuget push "./out2/*.nupkg" --source ${{ env.PACKAGE_REPO }} --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
-      # # - name: Push NuGet package 2 to NuGet.org
-      # #   run: dotnet nuget push "./out2/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
+      # - name: Build dll 2
+      #   run: dotnet build ${{ env.PROJECT_FILE2 }} -c ${{ env.CONFIGURATION }} /Property:Version="${{ env.VERSION }}"
+      # - name: Pack NuGet package 2
+      #   run: dotnet pack ${{ env.PROJECT_FILE2 }} --no-build -c ${{ env.CONFIGURATION }} -p:PackageVersion="${{ env.VERSION }}" -o out2
+      # - name: Push NuGet package 2 to GitHub Packages
+      #   run: dotnet nuget push "./out2/*.nupkg" --source ${{ env.PACKAGE_REPO }} --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
+      # - name: Push NuGet package 2 to NuGet.org
+      #   run: dotnet nuget push "./out2/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
