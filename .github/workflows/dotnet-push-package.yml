@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Get version from tag with 'v' prefix
-        run: echo "VERSION="${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
       - name: Show version
         run: echo ${{ env.VERSION }}
 
