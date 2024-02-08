@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Highbyte.DotNet6502.Systems.Utils;
+using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
@@ -319,7 +320,10 @@ public class Vic2SpriteManager
                 var characterCol = textScreenPosX / 8;
                 var characterRow = textScreenPosY / 8;
                 var characterLine = textScreenPosY % 8;
-                bytes[i] = Vic2.CharsetManager.GetTextModeCharacterLine(characterCol, characterRow, characterLine);
+                if (Vic2.DisplayMode == DispMode.Text)
+                    bytes[i] = Vic2.CharsetManager.GetTextModeCharacterLine(characterCol, characterRow, characterLine);
+                else // Assume bitmap mode
+                    bytes[i] = Vic2.BitmapManager.GetBitmapCharacterLine(characterCol, characterRow, characterLine);
             }
             textScreenPosX += 8;
         }

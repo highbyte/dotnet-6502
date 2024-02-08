@@ -9,7 +9,7 @@
 26 poke53265,peek(53265)or32:rem enter bit map mode
 
 50 gosub 400: rem set bitmap colors
-60 gosub 300: rem clear screen
+60 gosub 300: rem clear screen 
 
 70 rem draw sine wave
 80 fory=0to199step.5:rem from the top of the screen to the bottom

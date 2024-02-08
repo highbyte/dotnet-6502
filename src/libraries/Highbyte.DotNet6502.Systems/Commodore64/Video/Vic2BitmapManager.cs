@@ -85,6 +85,24 @@ public class Vic2BitmapManager
         handler?.Invoke(this, e);
     }
 
+    /// <summary>
+    /// Get 1 line (8 pixels, 1 byte) from bitmap base on "character" col and row.
+    /// </summary>
+    /// <param name="characterCol"></param>
+    /// <param name="characterRow"></param>
+    /// <param name="line"></param>
+    /// <returns></returns>
+    public byte GetBitmapCharacterLine(int characterCol, int characterRow, int line)
+    {
+        var characterSetLineAddress = (ushort)(BitmapAddressInVIC2Bank
+            + (characterRow * Vic2.Vic2Screen.CharacterHeight * Vic2.Vic2Screen.TextCols)
+            + (characterCol * Vic2.Vic2Screen.CharacterHeight)
+            + line
+            );
+        return _vic2Mem[characterSetLineAddress];
+    }
+
+
     public class BitmapAddressChangedEventArgs : EventArgs
     {
         public BitmapChangeType ChangeType { get; private set; }
