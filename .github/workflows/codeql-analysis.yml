@@ -39,7 +39,7 @@ jobs:
 
     # Add .NET manually as github/codeql-action/autobuild below does not seem to support it.
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
 
