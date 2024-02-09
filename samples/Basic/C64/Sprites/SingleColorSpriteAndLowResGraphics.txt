@@ -1,7 +1,6 @@
-40 gosub 200: rem set up bitmap lowres multicolor mode
+40 gosub 200: rem set up bitmap hires mode
 50 gosub 400: rem set default bitmap colors
 60 gosub 300: rem clear screen
-
 
 100 rem draw pixels in a "character" and set color
 105 bk=0: white=1: red=2: cyan=3: viol=4
@@ -20,7 +19,7 @@
 131 col=20: row=13: c1=yellow: c2=green: c3=cyan: gosub 500
 132 col=21: row=13: c1=viol: c2=blue: c3=yellow: gosub 500
 
-190 goto 190: rem let it stay on screen
+190 goto 730: rem jump to sprite loop
 
 200 rem setup bitmap lowres multicolor mode
 222 base=2*4096
@@ -71,3 +70,62 @@
 670 chcol = 55296 + off : rem color ram always at 55296 ($d800)
 680 poke chcol, c3
 690 return
+
+700 rem sprite loop
+
+730 for s=0 to 7 :rem set sprite ptrs to 12288
+732 poke 2040+s,192
+734 next
+
+742 poke 53293,2 :rem set sprite 6 color to red
+743 poke 53294,5 :rem set sprite 7 color to green
+
+745 poke 53271,128 :rem set sprite 7 double height 
+747 poke 53277,128 :rem set sprite 7 double width 
+
+748 poke 53275,128 :rem set sprite 7 appear in background
+
+750 for n=0 to 62 :rem load sprite data
+760 read q
+770 poke12288+n, q
+780 next
+
+783 poke 53269,128+64 :rem enable sprite 6 and 7
+
+785 for z=1 to 200 :rem move sprites around
+
+791 poke 53260, ((z*2))+80 and 255 :rem set sprite 6 horizontal position
+791 poke 53261, ((z/2)+40) and 255 :rem set sprite 6 vertical position
+
+792 poke 53262, z :rem set sprite 7 horizontal position
+793 poke 53263, z :rem set sprite 7 vertical position
+
+798 next
+
+799 goto 785
+
+800 data 255,255,255
+810 data 0,126,0
+820 data 1,129,128
+830 data 2,0,64
+840 data 12,0,48
+850 data 8,0,16
+860 data 19,197,200
+870 data 16,0,8
+880 data 160,195,5
+890 data 160,195,5
+900 data 160,24,5
+910 data 160,24,5
+920 data 160,24,5
+930 data 16,126,8
+940 data 17,60,136
+950 data 8,129,16
+960 data 8,126,16
+970 data 4,0,32
+980 data 2,0,64
+990 data 1,129,128
+999 data 255,255,255
+
+1000 rem show sprite 6 and 7 at top/left
+1005 poke 53260, 24: poke 53261, 50
+1010 poke 53262, 24: poke 53263, 50
