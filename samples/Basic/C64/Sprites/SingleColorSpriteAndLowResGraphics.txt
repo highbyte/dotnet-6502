@@ -52,6 +52,7 @@
 520 off = row * (40 * 8) + col * 8
 530 ch = base + off
 
+rem mixed pattern 11, 10, 01 and 00 (collision on 11 and 10 only!)
 540 poke ch + 0, 128 + 64: rem pixel pattern 11
 541 poke ch + 1, 32 + 0  : rem pixel pattern 10
 542 poke ch + 2, 0 + 4   : rem pixel pattern 01
@@ -60,6 +61,27 @@
 545 poke ch + 5, 0 + 4   : rem pixel pattern 01
 546 poke ch + 6, 32 + 0  : rem pixel pattern 10
 547 poke ch + 7, 128 + 64: rem pixel pattern 11
+
+rem mixed pattern 10, 01 and 00 (collision on 10 only!)
+rem 540 poke ch + 0, 128 + 0 : rem pixel pattern 10
+rem 541 poke ch + 1, 32 + 0  : rem pixel pattern 10
+rem 542 poke ch + 2, 0 + 4   : rem pixel pattern 01
+rem 543 poke ch + 3, 0 + 0   : rem pixel pattern 00
+rem 544 poke ch + 4, 0 + 0   : rem pixel pattern 00
+rem 545 poke ch + 5, 0 + 4   : rem pixel pattern 01
+rem 546 poke ch + 6, 32 + 0  : rem pixel pattern 10
+rem 547 poke ch + 7, 128 + 0 : rem pixel pattern 10
+
+rem mixed pattern 01 and 00 (no collision on both!)
+rem 540 poke ch + 0, 0 + 64  : rem pixel pattern 01
+rem 541 poke ch + 1, 0 + 16  : rem pixel pattern 01
+rem 542 poke ch + 2, 0 + 4   : rem pixel pattern 01
+rem 543 poke ch + 3, 0 + 0   : rem pixel pattern 00
+rem 544 poke ch + 4, 0 + 0   : rem pixel pattern 00
+rem 545 poke ch + 5, 0 + 4   : rem pixel pattern 01
+rem 546 poke ch + 6, 0 + 16  : rem pixel pattern 01
+rem 547 poke ch + 7, 0 + 64  : rem pixel pattern 01
+
 
 600 rem 2. set color for same "character" (c1 pattern 01, c2 pattern 10)
 620 off = row * 40 + col

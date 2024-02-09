@@ -321,9 +321,20 @@ public class Vic2SpriteManager
                 var characterRow = textScreenPosY / 8;
                 var characterLine = textScreenPosY % 8;
                 if (Vic2.DisplayMode == DispMode.Text)
+                {
                     bytes[i] = Vic2.CharsetManager.GetTextModeCharacterLine(characterCol, characterRow, characterLine);
-                else // Assume bitmap mode
+                    if (Vic2.CharacterMode == CharMode.MultiColor)
+                        bytes[i] = ChangeAnyBitPairsToSet(bytes[i]);
+                }
+                else // Assume bitmap mode 
+                {
                     bytes[i] = Vic2.BitmapManager.GetBitmapCharacterLine(characterCol, characterRow, characterLine);
+                    // Note from https://github.com/mist64/c64ref/blob/master/Source/c64io/c64io_mapc64.txt:
+                    // "The only exception to this rule is the 01 bit - pair of multicolor graphics data.
+                    // This bit-pair is considered part of the background, and the dot it displays can never be involved in a collision."
+                    if (Vic2.BitmapMode == BitmMode.MultiColor)
+                        bytes[i] = ChangeAnyBitPairsToSet(bytes[i], treat_pattern_01_as_background: true);
+                }
             }
             textScreenPosX += 8;
         }
@@ -345,24 +356,20 @@ public class Vic2SpriteManager
                 allButFirstByte[i] = shiftedBytes[i + 1];
             return allButFirstByte;
         }
-
-        // TODO: If multicolor screen mode, make adjustments to the 4 bit pair in each screen byte, so that every pair that is 
-        //       considered non-background color is set to 11.
-        //       Note from https://github.com/mist64/c64ref/blob/master/Source/c64io/c64io_mapc64.txt:
-        //       "The only exception to this rule is the 01 bit - pair of multicolor graphics data.
-        //        This bit-pair is considered part of the background, and the dot it displays can never be involved in a collision."
     }
 
-    private byte ChangeAnyBitPairsToSet(byte data)
+    private byte ChangeAnyBitPairsToSet(byte data, bool treat_pattern_01_as_background = false)
     {
         byte newData = 0;
-        byte mask = 0b00000011;
+        byte maskCheck = (byte)(treat_pattern_01_as_background ? 0b00000010 : 0b00000011);
+        byte maskSet = 0b00000011;
         for (int i = 0; i < 4; i++)
         {
-            var bitPair = (byte)(data & mask);
+            var bitPair = (byte)(data & maskCheck);
             if (bitPair != 0)
-                newData |= mask;
-            mask <<= 2;
+                newData |= maskSet;
+            maskCheck <<= 2;
+            maskSet <<= 2;
         }
         return newData;
     }
