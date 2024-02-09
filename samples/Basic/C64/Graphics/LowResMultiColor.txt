@@ -2,39 +2,28 @@
 50 gosub 400: rem set default bitmap colors
 60 gosub 300: rem clear screen
 
-70 rem draw pixels in a "character"
-71 col = 20: row = 12
-75 off = row * (40 * 8) + col * 8
-79 ch = base + off 
-80 poke ch + 0, 128 + 64: rem pixel pattern 11
-81 poke ch + 1, 32 + 0  : rem pixel pattern 10
-82 poke ch + 2, 0 + 4   : rem pixel pattern 01
-83 poke ch + 3, 0 + 0   : rem pixel pattern 00
-84 poke ch + 4, 0 + 0   : rem pixel pattern 00
-85 poke ch + 5, 0 + 4   : rem pixel pattern 01
-86 poke ch + 6, 32 + 0  : rem pixel pattern 10
-87 poke ch + 7, 128 + 64: rem pixel pattern 11
 
-90 rem set bitmap colors for same "character" 
-91 rem (fg pattern 10, bg pattern 01)
-95 redyellow = 2 + (7*16): rem bg low (2=red), fg high (7=yellow)
-97 off = row * 40 + col
-99 chcol = 1024 + off : rem assume screen ram has not moved from default
-100 poke chcol, redyellow
+100 rem draw pixels in a "character" and set color
+105 bk=0: white=1: red=2: cyan=3: viol=4
+106 green=5: blue=6: yellow=7: dg=11
 
-110 rem set additional color ram color (pattern 11)
-115 lightgreen = 13
-120 ramcol = 55296 + off : rem color ram always at 55296 ($d800)
-130 poke ramcol, lightgreen
+108 rem set common background color (pattern 00)
+109 poke 53281, dg
 
-150 rem set common background color (pattern 00)
-155 darkgrey = 11
-160 poke 53281, darkgrey
+110 col=19: row=11: c1=white: c2=red: c3=viol: gosub 500
+111 col=20: row=11: c1=yellow: c2=green: c3=cyan: gosub 500
+112 col=21: row=11: c1=viol: c2=blue: c3=yellow: gosub 500
+
+120 col=20: row=12: c1=white: c2=bk: c3=green: gosub 500
+
+130 col=19: row=13: c1=white: c2=red: c3=viol: gosub 500
+131 col=20: row=13: c1=yellow: c2=green: c3=cyan: gosub 500
+132 col=21: row=13: c1=viol: c2=blue: c3=yellow: gosub 500
+
 
 190 goto 190: rem let it stay on screen
 
-200 rem setup bitmap hires mode
-220 rem set up hi-res screen
+200 rem setup bitmap lowres multicolor mode
 222 base=2*4096
 224 poke53272,peek(53272)or8:rem put bit map at 8192
 226 poke53265,peek(53265)or32:rem enter bit map mode
@@ -58,3 +47,28 @@
 490 next
 495 poke2023,peek(2022) : rem bottom right character
 497 return
+
+500 rem draw pixels in a "character" and set color
+501 rem input: col, row, c1, c2, c3
+505 rem 1. draw pixels
+520 off = row * (40 * 8) + col * 8
+530 ch = base + off
+
+540 poke ch + 0, 128 + 64: rem pixel pattern 11
+541 poke ch + 1, 32 + 0  : rem pixel pattern 10
+542 poke ch + 2, 0 + 4   : rem pixel pattern 01
+543 poke ch + 3, 0 + 0   : rem pixel pattern 00
+544 poke ch + 4, 0 + 0   : rem pixel pattern 00
+545 poke ch + 5, 0 + 4   : rem pixel pattern 01
+546 poke ch + 6, 32 + 0  : rem pixel pattern 10
+547 poke ch + 7, 128 + 64: rem pixel pattern 11
+
+600 rem 2. set color for same "character" (c1 pattern 01, c2 pattern 10)
+620 off = row * 40 + col
+630 chcol = 1024 + off : rem assume screen ram has not moved from default
+640 poke chcol, (c2 + (16 * c1))
+
+660 rem 2. set color RAM for same "character" (c3 pattern 11)
+670 chcol = 55296 + off : rem color ram always at 55296 ($d800)
+680 poke chcol, c3
+690 return

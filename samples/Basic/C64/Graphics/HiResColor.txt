@@ -47,7 +47,7 @@
 501 rem input: col, row, fg, bg
 505 rem 1. draw pixels
 520 off = row * (40 * 8) + col * 8
-730 ch = base + off 
+530 ch = base + off 
 540 poke ch + 0, 128
 541 poke ch + 1, 64
 542 poke ch + 2, 32
