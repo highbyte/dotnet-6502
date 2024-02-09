@@ -2,6 +2,7 @@ using System.Numerics;
 using Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers;
 using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Instrumentation.Stats;
+using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -36,6 +37,25 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         public uint __;         // unused
         public uint ___;        // unused
     }
+    public struct BitmapData
+    {
+        //public fixed uint Lines[8];   // Note: Could not get uint array inside struct to work in UBO from .NET (even with C# unsafe fixed arrays).
+        public uint Line0;
+        public uint Line1;
+        public uint Line2;
+        public uint Line3;
+        public uint Line4;
+        public uint Line5;
+        public uint Line6;
+        public uint Line7;
+
+        public uint BackgroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte. From text screen ram low nybble.
+        public uint ForegroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte. From text screen ram high nybble.
+        public uint ColorRAMColorCode;     // C64 color value 0-15. uint = 4 bytes, only using 1 byte. From color RAM (low nybble).
+        public uint __;          // unused 
+
+    }
+
     public struct ColorMapData
     {
         public uint ColorCode;  // uint = 4 bytes, only using 1 byte
@@ -98,6 +118,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
     private BufferObject<TextData> _uboTextData;
     private BufferObject<CharsetData> _uboCharsetData;
+    private BufferObject<BitmapData> _uboBitmapData;
     private BufferObject<ColorMapData> _uboColorMapData;
     private BufferObject<ScreenLineData> _uboScreenLineData;
     private BufferObject<SpriteData> _uboSpriteData;
@@ -123,6 +144,13 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
     private void InitShader(C64 c64)
     {
+#if DEBUG
+        _gl.GetInteger(GLEnum.MaxUniformBlockSize, out int maxUniformBlockSize); // 65536
+        _gl.GetInteger(GLEnum.MaxGeometryUniformComponents, out int maxGeometryUniformComponents); // 2048
+        _gl.GetInteger(GLEnum.MaxFragmentUniformComponents, out int maxFragmentUniformComponents); // 4096
+#endif
+
+
         // Two triangles that covers entire screen
         float[] vertices =
         {
@@ -150,6 +178,11 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         // Define character set & create Uniform Buffer Object for fragment shader
         var charsetData = BuildCharsetData(c64, fromROM: true);
         _uboCharsetData = new BufferObject<CharsetData>(_gl, charsetData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
+
+        // Define bitmap & create Uniform Buffer Object for fragment shader
+        var bitmapData = BuildBitmapData(c64);
+        _uboBitmapData = new BufferObject<BitmapData>(_gl, bitmapData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
+
 
         // Screen line data Uniform Buffer Object for fragment shader
         var screenLineData = new ScreenLineData[c64.Vic2.Vic2Screen.VisibleHeight];
@@ -185,6 +218,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _shader.BindUBO("ubScreenLineData", _uboScreenLineData, binding_point_index: 3);
         _shader.BindUBO("ubSpriteData", _uboSpriteData, binding_point_index: 4);
         _shader.BindUBO("ubSpriteContentData", _uboSpriteContentData, binding_point_index: 5);
+        _shader.BindUBO("ubBitmapData", _uboBitmapData, binding_point_index: 6);
     }
 
     public void Init(ISystem system, IRenderContext renderContext)
@@ -206,7 +240,9 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         // Main screen draw area for characters, without consideration to 38 column mode or 24 row mode.
         var visibleMainScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
+        var displayMode = vic2.DisplayMode;
         var characterMode = vic2.CharacterMode;
+        var bitmapMode = vic2.BitmapMode;
 
         // Clear screen
         //_gl.Enable(EnableCap.DepthTest);
@@ -216,16 +252,27 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
         // Update shader uniform buffers that needs to be updated
 
-        // Charset UBO
-        if (_changedAllCharsetCodes)
+        if (displayMode == Vic2.DispMode.Text)
         {
-            var charsetData = BuildCharsetData(c64, fromROM: false);
-            _uboCharsetData.Update(charsetData);
-            _changedAllCharsetCodes = false;
+            // Charset dot-matrix UBO
+            if (_changedAllCharsetCodes)
+            {
+                var charsetData = BuildCharsetData(c64, fromROM: false);
+                _uboCharsetData.Update(charsetData);
+                _changedAllCharsetCodes = false;
+            }
+            // Text screen UBO
+            var textScreenData = BuildTextScreenData(c64);
+            _uboTextData.Update(textScreenData, 0);
         }
-        // Text screen UBO
-        var textScreenData = BuildTextScreenData(c64);
-        _uboTextData.Update(textScreenData, 0);
+        else if (displayMode == Vic2.DispMode.Bitmap)
+        {
+            // Bitmap dot-matrix UBO
+            var bitmapData = BuildBitmapData(c64);
+            _uboBitmapData.Update(bitmapData, 0);
+
+            // TODO: Bitmap Color UBO
+        }
 
         // Screen line data UBO
         var screenLineData = new ScreenLineData[c64.Vic2.Vic2Screen.VisibleHeight];
@@ -319,7 +366,9 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _shader.SetUniform("uTextScreenStart", new Vector2(visibleMainScreenArea.Screen.Start.X, visibleMainScreenArea.Screen.Start.Y));
         _shader.SetUniform("uTextScreenEnd", new Vector2(visibleMainScreenArea.Screen.End.X, visibleMainScreenArea.Screen.End.Y));
 
-        _shader.SetUniform("uTextCharacterMode", (int)characterMode);
+        _shader.SetUniform("uDisplayMode", (int)displayMode);  // uDisplayMode: 0 = Text, 1 = Bitmap
+        _shader.SetUniform("uBitmapMode", (int)bitmapMode);  // uBitmapMode: 0 = Standard, 1 = MultiColor
+        _shader.SetUniform("uTextCharacterMode", (int)characterMode); // uTextCharacterMode: 0 = Standard, 1 = Extended, 2 = MultiColor
 
         // Draw triangles covering the entire screen, with the fragment shader doing the actual drawing of 2D pixels.
         _vba.Bind();
@@ -337,14 +386,14 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         var vic2Mem = vic2.Vic2Mem;
         var vic2Screen = vic2.Vic2Screen;
 
-        var screenAddress = vic2.VideoMatrixBaseAddress;
+        var videoMatrixBaseAddress = vic2.VideoMatrixBaseAddress;
         var colorAddress = Vic2Addr.COLOR_RAM_START;
 
         // 40 columns, 25 rows = 1024 items
         var textData = new TextData[vic2Screen.TextCols * vic2Screen.TextRows];
         for (int i = 0; i < textData.Length; i++)
         {
-            textData[i].Character = vic2Mem[(ushort)(screenAddress + i)];
+            textData[i].Character = vic2Mem[(ushort)(videoMatrixBaseAddress + i)];
             textData[i].Color = c64.ReadIOStorage((ushort)(colorAddress + i));
         }
         return textData;
@@ -386,6 +435,52 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
             //if (!_changedCharsetCodes.Contains(e.CharCode.Value))
             //    _changedCharsetCodes.Add(e.CharCode.Value);
         }
+    }
+
+    private BitmapData[] BuildBitmapData(C64 c64)
+    {
+        var bitmapManager = c64.Vic2.BitmapManager;
+
+        var vic2Mem = c64.Vic2.Vic2Mem;
+        var videoMatrixBaseAddress = c64.Vic2.VideoMatrixBaseAddress;
+        var colorAddress = Vic2Addr.COLOR_RAM_START;
+
+        // 1000 (40x25) "chars", that each contains 8 bytes (lines) where each line is 8 pixels.
+        const int numberOfChars = Vic2BitmapManager.BITMAP_SIZE / 8;
+        var bitmapData = new BitmapData[numberOfChars];
+        for (int c = 0; c < numberOfChars; c++)
+        {
+            int charOffset = bitmapManager.BitmapAddressInVIC2Bank + (c * 8);
+            for (int line = 0; line < 8; line++)
+            {
+                var charLine = vic2Mem[(ushort)(charOffset + line)];
+                //bitmapData[charPos].Lines[lineIndex] = charLine;
+                switch (line)
+                {
+                    case 0:
+                        bitmapData[c].Line0 = charLine; break;
+                    case 1:
+                        bitmapData[c].Line1 = charLine; break;
+                    case 2:
+                        bitmapData[c].Line2 = charLine; break;
+                    case 3:
+                        bitmapData[c].Line3 = charLine; break;
+                    case 4:
+                        bitmapData[c].Line4 = charLine; break;
+                    case 5:
+                        bitmapData[c].Line5 = charLine; break;
+                    case 6:
+                        bitmapData[c].Line6 = charLine; break;
+                    case 7:
+                        bitmapData[c].Line7 = charLine; break;
+                }
+            }
+
+            bitmapData[c].BackgroundColorCode = (uint)(vic2Mem[(ushort)(videoMatrixBaseAddress + c)] & 0b00001111);
+            bitmapData[c].ForegroundColorCode = (uint)(vic2Mem[(ushort)(videoMatrixBaseAddress + c)] & 0b11110000) >> 4;
+            bitmapData[c].ColorRAMColorCode = c64.ReadIOStorage((ushort)(colorAddress + c));
+        };
+        return bitmapData;
     }
 
     public void Dispose()

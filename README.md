@@ -32,7 +32,7 @@ Missing features (but not limited to):
 - 6502 CPU
   - Support for unofficial opcodes
 - Systems
-  - C64: Emulation of graphics mode, cycle-exact rendering, etc.
+  - C64: cycle-exact rendering, bitmap graphics mode renderer in Blazor WASM, etc.
 
 # What this isn't (and probably never will be)
 - An emulation of all aspects of computers such as Apple II or Commodore 64.

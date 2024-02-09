@@ -1,0 +1,38 @@
+10 rem define 2^i function (perf trick)
+12 for i=0 to 7
+14 bi(i)=2^i
+16 next: rem set up array of powers of 2 (bit value)
+
+20 rem set up hi-res screen
+22 base=2*4096
+24 poke53272,peek(53272)or8:rem put bit map at 8192
+26 poke53265,peek(53265)or32:rem enter bit map mode
+
+50 gosub 400: rem set bitmap colors
+60 gosub 300: rem clear screen 
+
+70 rem draw sine wave
+80 fory=0to199step.5:rem from the top of the screen to the bottom
+90 x=int(160+40*sin(y/10)): rem sine wave shape
+100 by=base+40*(y and 248)+(y and 7)+(x and 504): rem find hi-res byte
+110 pokeby,peek(by)or(bi(not x and 7))
+112 next y:rem poke in bit value
+120 goto 120: rem let it stay on screen
+
+300 rem clear screen subroutine
+305 a$="":s1=peek(51):s2=peek(52):poke 51,64:poke 52,63
+310 fort=1to125:a$=a$+chr$(0):next
+320 poke51,s1:poke52,s2:return
+
+400 rem set bitmap colors
+410 rem set color map (which is same area as text screen in text mode)
+420 a$=""
+430 for i=1 to 37
+440 a$=a$+"c"
+450 next
+460 print chr$(19);
+470 for i=1 to 27
+480 printa$;
+490 next
+495 poke2023,peek(2022) : rem bottom right character
+497 return

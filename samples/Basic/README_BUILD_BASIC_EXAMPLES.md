@@ -35,6 +35,18 @@ cd C64/Sprites
 
 ´´´ pwsh
 $PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
+cd C64/Sprites
+& $PETCAT_APP -w2 -o "Build\SingleColorSpriteAndHiResGraphics.prg" -- "SingleColorSpriteAndHiResGraphics.txt"
+´´´
+
+´´´ pwsh
+$PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
+cd C64/Sprites
+& $PETCAT_APP -w2 -o "Build\SingleColorSpriteAndLowResGraphics.prg" -- "SingleColorSpriteAndLowResGraphics.txt"
+´´´
+
+´´´ pwsh
+$PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
 cd C64/Text
 & $PETCAT_APP -w2 -o "Build\ExtendedTextMode.prg" -- "ExtendedTextMode.txt"
 ´´´
@@ -49,4 +61,22 @@ cd C64/Text
 $PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
 cd C64/Text
 & $PETCAT_APP -w2 -o "Build\RelocateScreenRAM.prg" -- "RelocateScreenRAM.txt"
+´´´
+
+´´´ pwsh
+$PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
+cd C64/Graphics
+& $PETCAT_APP -w2 -o "Build\HiResSinePlot.prg" -- "HiResSinePlot.txt"
+´´´
+
+´´´ pwsh
+$PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
+cd C64/Graphics
+& $PETCAT_APP -w2 -o "Build\HiResColor.prg" -- "HiResColor.txt"
+´´´
+
+´´´ pwsh
+$PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
+cd C64/Graphics
+& $PETCAT_APP -w2 -o "Build\LowResMultiColor.prg" -- "LowResMultiColor.txt"
 ´´´

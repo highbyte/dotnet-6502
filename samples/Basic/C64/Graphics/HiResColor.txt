@@ -1,0 +1,64 @@
+40 gosub 200: rem set up bitmap hires mode
+50 gosub 400: rem set default bitmap colors
+60 gosub 300: rem clear screen
+
+100 rem draw pixels in a "character" and set color
+105 bk=0: white=1: red=2: cyan=3: viol=4
+106 green=5: blue=6: yellow=7
+
+110 col=19: row=11: fg=white: bg=red: gosub 500
+111 col=20: row=11: fg=yellow: bg=green: gosub 500
+112 col=21: row=11: fg=viol: bg=blue: gosub 500
+
+120 col=20: row=12: fg=white: bg=bk: gosub 500
+
+130 col=19: row=13: fg=white: bg=red: gosub 500
+131 col=20: row=13: fg=yellow: bg=green: gosub 500
+132 col=21: row=13: fg=viol: bg=blue: gosub 500
+
+190 goto 190: rem let it stay on screen
+
+200 rem setup bitmap hires mode
+220 rem set up hi-res screen
+222 base=2*4096
+224 poke53272,peek(53272)or8:rem put bit map at 8192
+226 poke53265,peek(53265)or32:rem enter bit map mode
+250 return
+
+300 rem clear screen subroutine
+305 a$="":s1=peek(51):s2=peek(52):poke 51,64:poke 52,63
+310 fort=1to125:a$=a$+chr$(0):next
+320 poke51,s1:poke52,s2:return
+
+400 rem set bitmap colors
+410 rem set color map (which is same area as text screen in text mode)
+420 a$=""
+430 for i=1 to 37
+440 a$=a$+"c"
+450 next
+460 print chr$(19);
+470 for i=1 to 27
+480 printa$;
+490 next
+495 poke2023,peek(2022) : rem bottom right character
+497 return
+
+500 rem draw pixels in a "character" and set color
+501 rem input: col, row, fg, bg
+505 rem 1. draw pixels
+520 off = row * (40 * 8) + col * 8
+530 ch = base + off 
+540 poke ch + 0, 128
+541 poke ch + 1, 64
+542 poke ch + 2, 32
+543 poke ch + 3, 16
+544 poke ch + 4, 8
+545 poke ch + 5, 4
+546 poke ch + 6, 2
+547 poke ch + 7, 1
+
+600 rem 2. set color for same "character"
+620 off = row * 40 + col
+630 chcol = 1024 + off : rem assume screen ram has not moved from default
+640 poke chcol, (bg + (16 * fg))
+650 return

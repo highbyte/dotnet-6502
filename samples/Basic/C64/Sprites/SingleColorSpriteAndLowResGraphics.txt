@@ -1,0 +1,153 @@
+40 gosub 200: rem set up bitmap hires mode
+50 gosub 400: rem set default bitmap colors
+60 gosub 300: rem clear screen
+
+100 rem draw pixels in a "character" and set color
+105 bk=0: white=1: red=2: cyan=3: viol=4
+106 green=5: blue=6: yellow=7: dg=11
+
+108 rem set common background color (pattern 00)
+109 poke 53281, dg
+
+110 col=19: row=11: c1=white: c2=red: c3=viol: gosub 500
+111 col=20: row=11: c1=yellow: c2=green: c3=cyan: gosub 500
+112 col=21: row=11: c1=viol: c2=blue: c3=yellow: gosub 500
+
+120 col=20: row=12: c1=white: c2=bk: c3=green: gosub 500
+
+130 col=19: row=13: c1=white: c2=red: c3=viol: gosub 500
+131 col=20: row=13: c1=yellow: c2=green: c3=cyan: gosub 500
+132 col=21: row=13: c1=viol: c2=blue: c3=yellow: gosub 500
+
+190 goto 730: rem jump to sprite loop
+
+200 rem setup bitmap lowres multicolor mode
+222 base=2*4096
+224 poke53272,peek(53272)or8:rem put bit map at 8192
+226 poke53265,peek(53265)or32:rem enter bit map mode
+228 poke53270,peek(53270)or16:rem set multicolor mode
+250 return
+
+300 rem clear screen subroutine
+305 a$="":s1=peek(51):s2=peek(52):poke 51,64:poke 52,63
+310 fort=1to125:a$=a$+chr$(0):next
+320 poke51,s1:poke52,s2:return
+
+400 rem set bitmap colors
+410 rem set color map (which is same area as text screen in text mode)
+420 a$=""
+430 for i=1 to 37
+440 a$=a$+"c"
+450 next
+460 print chr$(19);
+470 for i=1 to 27
+480 printa$;
+490 next
+495 poke2023,peek(2022) : rem bottom right character
+497 return
+
+500 rem draw pixels in a "character" and set color
+501 rem input: col, row, c1, c2, c3
+505 rem 1. draw pixels
+520 off = row * (40 * 8) + col * 8
+530 ch = base + off
+
+rem mixed pattern 11, 10, 01 and 00 (collision on 11 and 10 only!)
+540 poke ch + 0, 128 + 64: rem pixel pattern 11
+541 poke ch + 1, 32 + 0  : rem pixel pattern 10
+542 poke ch + 2, 0 + 4   : rem pixel pattern 01
+543 poke ch + 3, 0 + 0   : rem pixel pattern 00
+544 poke ch + 4, 0 + 0   : rem pixel pattern 00
+545 poke ch + 5, 0 + 4   : rem pixel pattern 01
+546 poke ch + 6, 32 + 0  : rem pixel pattern 10
+547 poke ch + 7, 128 + 64: rem pixel pattern 11
+
+rem mixed pattern 10, 01 and 00 (collision on 10 only!)
+rem 540 poke ch + 0, 128 + 0 : rem pixel pattern 10
+rem 541 poke ch + 1, 32 + 0  : rem pixel pattern 10
+rem 542 poke ch + 2, 0 + 4   : rem pixel pattern 01
+rem 543 poke ch + 3, 0 + 0   : rem pixel pattern 00
+rem 544 poke ch + 4, 0 + 0   : rem pixel pattern 00
+rem 545 poke ch + 5, 0 + 4   : rem pixel pattern 01
+rem 546 poke ch + 6, 32 + 0  : rem pixel pattern 10
+rem 547 poke ch + 7, 128 + 0 : rem pixel pattern 10
+
+rem mixed pattern 01 and 00 (no collision on both!)
+rem 540 poke ch + 0, 0 + 64  : rem pixel pattern 01
+rem 541 poke ch + 1, 0 + 16  : rem pixel pattern 01
+rem 542 poke ch + 2, 0 + 4   : rem pixel pattern 01
+rem 543 poke ch + 3, 0 + 0   : rem pixel pattern 00
+rem 544 poke ch + 4, 0 + 0   : rem pixel pattern 00
+rem 545 poke ch + 5, 0 + 4   : rem pixel pattern 01
+rem 546 poke ch + 6, 0 + 16  : rem pixel pattern 01
+rem 547 poke ch + 7, 0 + 64  : rem pixel pattern 01
+
+
+600 rem 2. set color for same "character" (c1 pattern 01, c2 pattern 10)
+620 off = row * 40 + col
+630 chcol = 1024 + off : rem assume screen ram has not moved from default
+640 poke chcol, (c2 + (16 * c1))
+
+660 rem 2. set color RAM for same "character" (c3 pattern 11)
+670 chcol = 55296 + off : rem color ram always at 55296 ($d800)
+680 poke chcol, c3
+690 return
+
+700 rem sprite loop
+
+730 for s=0 to 7 :rem set sprite ptrs to 12288
+732 poke 2040+s,192
+734 next
+
+742 poke 53293,2 :rem set sprite 6 color to red
+743 poke 53294,5 :rem set sprite 7 color to green
+
+745 poke 53271,128 :rem set sprite 7 double height 
+747 poke 53277,128 :rem set sprite 7 double width 
+
+748 poke 53275,128 :rem set sprite 7 appear in background
+
+750 for n=0 to 62 :rem load sprite data
+760 read q
+770 poke12288+n, q
+780 next
+
+783 poke 53269,128+64 :rem enable sprite 6 and 7
+
+785 for z=1 to 200 :rem move sprites around
+
+791 poke 53260, ((z*2))+80 and 255 :rem set sprite 6 horizontal position
+791 poke 53261, ((z/2)+40) and 255 :rem set sprite 6 vertical position
+
+792 poke 53262, z :rem set sprite 7 horizontal position
+793 poke 53263, z :rem set sprite 7 vertical position
+
+798 next
+
+799 goto 785
+
+800 data 255,255,255
+810 data 0,126,0
+820 data 1,129,128
+830 data 2,0,64
+840 data 12,0,48
+850 data 8,0,16
+860 data 19,197,200
+870 data 16,0,8
+880 data 160,195,5
+890 data 160,195,5
+900 data 160,24,5
+910 data 160,24,5
+920 data 160,24,5
+930 data 16,126,8
+940 data 17,60,136
+950 data 8,129,16
+960 data 8,126,16
+970 data 4,0,32
+980 data 2,0,64
+990 data 1,129,128
+999 data 255,255,255
+
+1000 rem show sprite 6 and 7 at top/left
+1005 poke 53260, 24: poke 53261, 50
+1010 poke 53262, 24: poke 53263, 50

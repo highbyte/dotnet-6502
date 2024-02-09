@@ -4,11 +4,13 @@ in vec2 fViewPortPos;   // Remove if not needed
 out vec4 FragColor;
 uniform vec3 uWindowSize;
 uniform vec2 uScale;
-uniform vec2 uTextScreenStart;
-uniform vec2 uTextScreenEnd;
-uniform int uTextCharacterMode;
+uniform int uDisplayMode;       // 0 = Text mode, 1 = Bitmap mode
+uniform vec2 uTextScreenStart;  // Pixel coordinate for main (not border) screen start. Fine scroll not included.
+uniform vec2 uTextScreenEnd;    // Pixel coordinate for main (not border) screen end. Fine scroll not included.
+uniform int uTextCharacterMode; // 0 = Standard, 1 = Extended, 2 = MultiColor
+uniform int uBitmapMode;        // 0 = Standard, 1 = MultiColor
 
-// Must be at least 16 bytes for UBO to work
+// When struct is used in a UBO it must be multiple of 16 bytes. One uint = 4 bytes.
 struct TextData 
 {
   uint character;   // C64 screen character code 0-255. uint = 4 bytes, only using 1 byte. 
@@ -22,6 +24,23 @@ struct CharsetData
   uint u1;          // unused
   uint u2;          // unused
   uint u3;          // unused
+};
+struct BitmapData 
+{
+//    uint lines[8];    // Note: Could not get uint array inside struct to work in UBO from .NET (even with C# unsafe fixed arrays).
+    uint line0; // 8 pixels ( = 8 bits  = 1 byte ) used per line
+    uint line1;
+    uint line2; 
+    uint line3;
+    uint line4;
+    uint line5;
+    uint line6;
+    uint line7;
+
+    uint backgroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte. From text screen ram low nybble.
+    uint foregroundColorCode;   // C64 color value 0-15. uint = 4 bytes, only using 1 byte. From text screen ram high nybble.
+    uint colorRAMColorCode;     // C64 color value 0-15. uint = 4 bytes, only using 1 byte. From color RAM (low nybble).
+    uint u2;          // unused 
 };
 struct ColorMapData 
 {
@@ -103,10 +122,22 @@ layout (std140) uniform ubSpriteContentData
 { 
   SpriteContentData uSpriteContentData[8*3*21];   // 3 items (24 pixels) per row * 21 rows * 8 sprites = 63 items * 8 sprites = 504 items
 };
+layout (std140) uniform ubBitmapData
+{ 
+// Total UBO size 1000 (40*25 "characters") * 8 (bytes per "character") * 4 (bytes per uint) = 32000 bytes
+  BitmapData uBitmapData[1000];
+};
+
+
+const int DisplayMode_Text = 0;
+const int DisplayMode_Bitmap = 1;
 
 const int TextMode_Standard = 0;
 const int TextMode_Extended = 1;
 const int TextMode_MultiColor = 2;
+
+const int BitmapMode_Standard = 0;
+const int BitmapMode_MultiColor = 1;
 
 // Returns true if pixel is foreground, false if background.
 bool IsSinglePixelSet(uint charLine, uint pixelBitPosition)
@@ -306,6 +337,121 @@ bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
     return isForeground;
 }
 
+// Return values description:
+// If x,y is in border:
+//  - border is set to true.
+//  - pixelColor is not set.
+//  - return value is false;
+//
+// If x,y is inside text screen:
+//  - border is set to false.
+//  - pixelColor is set to the color of the pixel.
+//  - return value is true if color is NOT the background color.
+//  - return value is false if color is the background color.
+//
+bool GetBitmapModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
+{
+    // Detect border area, draw only border color
+    uint horizontalBorderOffset = uScreenLineData[y].colMode40 == 1u ? 0u : 8u;
+    uint verticalBorderOffset = uScreenLineData[y].rowMode25 == 1u ? 0u : 4u;
+
+    // Workaround for 38 col mode (to counter fine x scroll value is set to +1 in 38 col mode)
+    if(horizontalBorderOffset!=0u)
+        x=x+1u;
+    // Workaround for 24 row mode (to counter fine y scroll value is set to +1 in 24 row mode)
+    if(verticalBorderOffset!=0u)
+        y=y+1u;
+
+    if((x < (uTextScreenStart.x+horizontalBorderOffset) || (x > (uTextScreenEnd.x-horizontalBorderOffset)))
+         || (y < (uTextScreenStart.y+verticalBorderOffset) || (y > (uTextScreenEnd.y-verticalBorderOffset))) )
+    {
+        border = true;
+        return false;
+    }
+
+    border = false;
+
+	uint screenx = x - uint(uTextScreenStart.x + uScreenLineData[y].scrollX);
+	uint screeny = y - uint(uTextScreenStart.y + uScreenLineData[y].scrollY);
+
+	uint col = screenx / 8u;
+	uint row = screeny / 8u;
+	uint charOffset = (row * 40u) + col;
+    uint line = screeny % 8u;
+    uint bitPosition = 7u - (screenx % 8u);
+
+    uint bitmapLine;
+    switch(line)
+    {
+        case 0u:
+            bitmapLine = uBitmapData[charOffset].line0;
+            break;
+        case 1u:
+            bitmapLine = uBitmapData[charOffset].line1;
+            break;
+        case 2u:
+            bitmapLine = uBitmapData[charOffset].line2;
+            break;
+        case 3u:
+            bitmapLine = uBitmapData[charOffset].line3;
+            break;
+        case 4u:
+            bitmapLine = uBitmapData[charOffset].line4;
+            break;
+        case 5u:
+            bitmapLine = uBitmapData[charOffset].line5;
+            break;
+        case 6u:
+            bitmapLine = uBitmapData[charOffset].line6;
+            break;
+        case 7u:
+            bitmapLine = uBitmapData[charOffset].line7;
+            break;
+        default:
+            break;
+    }
+
+    bool isForeground;
+    if(uBitmapMode == BitmapMode_Standard)
+    {
+        uint bitmapFgColorCode = uBitmapData[charOffset].foregroundColorCode;
+        vec4 bitmapFgColor = uColorMapData[bitmapFgColorCode & 15u].color;
+
+        uint bitmapBgColorCode = uBitmapData[charOffset].backgroundColorCode;
+        vec4 bitmapBgColor = uColorMapData[bitmapBgColorCode & 15u].color;
+
+        isForeground = IsSinglePixelSet(bitmapLine, bitPosition);
+
+        if(isForeground)
+            pixelColor = bitmapFgColor;
+        else
+            pixelColor = bitmapBgColor;
+    }
+    else if(uBitmapMode == BitmapMode_MultiColor)
+    {
+        // Pixel pattern 00 = background color 0 (common)
+        uint bgColorCode0 = uScreenLineData[y].backgroundColor0Code;
+        vec4 bgColor0 = uColorMapData[bgColorCode0 & 15u].color;
+
+        // Pixel pattern 01 = bitmap foreground color (per char 4x8 pixels)
+        uint bitmapFgColorCode = uBitmapData[charOffset].foregroundColorCode;
+        vec4 bitmapFgColor = uColorMapData[bitmapFgColorCode & 15u].color;
+
+        // Pixel pattern 10 = bitmap background color (per char 4x8 pixels)
+        uint bitmapBgColorCode = uBitmapData[charOffset].backgroundColorCode;
+        vec4 bitmapBgColor = uColorMapData[bitmapBgColorCode & 15u].color;
+
+        // Pixel pattern 11 = color ram color (per char 4x8 pixels)
+        uint colorRamColorCode = uBitmapData[charOffset].colorRAMColorCode;
+        vec4 colorRamColor = uColorMapData[colorRamColorCode & 15u].color;
+
+        isForeground = GetMultiColor(bitmapLine, bitPosition, bitmapFgColor, bitmapBgColor, colorRamColor, pixelColor);
+        if(!isForeground)
+            pixelColor = bgColor0;
+    }
+    return isForeground;
+}
+
 bool GetSpritePixelColor(uint x, uint y, bool prioOverForground, out vec4 pixelColor)
 {
     // Detect border area, don't draw sprites there (TODO: support opening border for sprites?) 
@@ -417,14 +563,27 @@ void main()
         return;
     }
 
-    // PRIO 2: Text screen pixels that are not background color
+    // PRIO 2: Text or bitmap screen pixels that are not background color
     bool border;
-    vec4 textModePixelColor;
-    bool textModePixelSet = GetTextModePixelColor(x, y, border, textModePixelColor);
-    if(textModePixelSet)
+    vec4 pixelColor;
+
+    if(uDisplayMode == DisplayMode_Text)
     {
-        FragColor = textModePixelColor;
-        return;
+        bool textModePixelSet = GetTextModePixelColor(x, y, border, pixelColor);
+        if(textModePixelSet)
+        {
+            FragColor = pixelColor;
+            return;
+        }
+    }
+    else // Assume uDisplayMode == DisplayMode_Bitmap
+    {
+        bool bitmapModePixelSet = GetBitmapModePixelColor(x, y, border, pixelColor);
+        if(bitmapModePixelSet)
+        {
+            FragColor = pixelColor;
+            return;
+        }
     }
 
     // PRIO 3: Get pixel from sprites that do not have priority over foreground (but will show above background color)
@@ -436,11 +595,11 @@ void main()
         return;
     }
 
-    // PRIO 4: Either text mode background color or border color
+    // PRIO 4: Either background color or border color
     if(!border)
     {
-        // textModePixelColor will contain the text mode background color here
-        FragColor = textModePixelColor;
+        // pixelColor will contain the background color here
+        FragColor = pixelColor;
         return;
     }
 

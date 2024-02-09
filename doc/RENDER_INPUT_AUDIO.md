@@ -22,7 +22,7 @@ Rendering, input handling, and audio libraries
 
 [```Highbyte.DotNet6502.Impl.Skia```](#HighbyteDotNet6502ImplSkia)
 - Library with renderers implemented with the [```SkiaSharp```](https://github.com/mono/SkiaSharp) 2D drawing library. Can be used from both native and WASM applications.
-- Note: alternative renderers using only OpenGL + shaders can be found in [```Highbyte.DotNet6502.Impl.SilkNet```](#HighbyteDotNet6502ImplSilkNet), see below.
+- Note: alternative renderers using only OpenGL + shaders can be found in [```Highbyte.DotNet6502.Impl.SilkNet```](#HighbyteDotNet6502ImplSilkNet) currently used by the Silk.NET native app, see below.
 
 ## Renderer
 ### C64
