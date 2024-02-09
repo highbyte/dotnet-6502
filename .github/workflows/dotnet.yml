@@ -9,6 +9,10 @@ on:
           
   pull_request:
     branches: [ master ]
+    paths-ignore:
+      - 'doc/**'
+      - README.md
+
 
 jobs:
   build:

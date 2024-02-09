@@ -13,6 +13,9 @@ on:
 
   pull_request:
     branches: [ master ]
+    paths-ignore:
+      - 'doc/**'
+      - README.md
     
   schedule:
     - cron: '10 1 * * 0'    
