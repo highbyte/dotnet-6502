@@ -65,7 +65,7 @@ public static class BinaryLoader
         if (fileHeaderLoadAddress.HasValue)
             loadedAtAddress = fileHeaderLoadAddress.Value;
         else
-            loadedAtAddress = forceLoadAddress.Value;
+            loadedAtAddress = forceLoadAddress ?? throw new ArgumentNullException(nameof(forceLoadAddress), "No load address specified and file does not contain a load address in the header.");
 
         mem.StoreData(loadedAtAddress, fileData);
     }
@@ -86,11 +86,10 @@ public static class BinaryLoader
         if (fileHeaderLoadAddress.HasValue)
             loadedAtAddress = fileHeaderLoadAddress.Value;
         else
-            loadedAtAddress = forceLoadAddress.Value;
+            loadedAtAddress = forceLoadAddress ?? throw new ArgumentNullException(nameof(forceLoadAddress), "No load address specified and file does not contain a load address in the header.");
 
         mem.StoreData(loadedAtAddress, data);
     }
-
 
     public static byte[] ReadFile(
         string binaryFilePath,

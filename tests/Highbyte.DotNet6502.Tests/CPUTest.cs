@@ -82,7 +82,6 @@ public class CPUTest
         Assert.Equal(originalSP, cpu.SP);       // StackPointer should not have been changed (PC/PS not pushed to stack)
     }
 
-
     [Fact]
     public void CPU_Handles_Hardware_NMI_Even_When_InterruptDisable_Is_Set()
     {
@@ -142,7 +141,7 @@ public class CPUTest
         // Act
         var execState = cpu.Execute(
             mem,
-            new LegacyExecEvaluator(new ExecOptions{MaxNumberOfInstructions=1, UnknownInstructionThrowsException = false}));
+            new LegacyExecEvaluator(new ExecOptions { MaxNumberOfInstructions = 1, UnknownInstructionThrowsException = false }));
 
         // Assert
         Assert.False(execState.LastOpCodeWasHandled);

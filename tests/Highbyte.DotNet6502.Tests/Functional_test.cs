@@ -1,9 +1,8 @@
-using Highbyte.DotNet6502.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502.Tests;
 
-[Trait("TestType", "Integration")] 
+[Trait("TestType", "Integration")]
 public class Functional_test
 {
     private readonly ITestOutputHelper _output;
@@ -21,18 +20,18 @@ public class Functional_test
 
         // There is no 2 byte header in the 6502_functional_test.bin file.
         // It's supposed to be loaded to memory at 0x0000, and started at 0x0400
-        ushort loadAddress  = 0x000A;
+        ushort loadAddress = 0x000A;
         ushort startAddress = 0x0400;
 
         var mem = BinaryLoader.Load(
-            functionalTestBinary, 
-            out ushort loadedAtAddress, 
+            functionalTestBinary,
+            out ushort loadedAtAddress,
             out ushort fileLength,
             forceLoadAddress: loadAddress);
 
-        _output.WriteLine($"Data & code load  address: {loadAddress.ToHex(), 10} ({loadAddress})");
-        _output.WriteLine($"Code+data length (bytes):  0x{fileLength, -8:X8} ({fileLength})");
-        _output.WriteLine($"Code start address:        {startAddress.ToHex(), 10} ({startAddress})");
+        _output.WriteLine($"Data & code load  address: {loadAddress.ToHex(),10} ({loadAddress})");
+        _output.WriteLine($"Code+data length (bytes):  0x{fileLength,-8:X8} ({fileLength})");
+        _output.WriteLine($"Code start address:        {startAddress.ToHex(),10} ({startAddress})");
 
         var cpu = new CPU();
         cpu.PC = startAddress;

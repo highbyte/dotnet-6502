@@ -1,5 +1,3 @@
-using System.Net;
-using System.Reflection.Metadata.Ecma335;
 using static Highbyte.DotNet6502.Memory;
 
 namespace Highbyte.DotNet6502.Tests;
@@ -40,7 +38,7 @@ public class MemoryTest
         mem.MapRAM(baseAddress, data);
 
         // Act
-        ushort address = (ushort)(baseAddress+0x10);
+        ushort address = (ushort)(baseAddress + 0x10);
         byte expectedMemValue = 0x42;
         mem.Write(address, 0x00);   // Make sure memory doesn't
         mem.Write(address, expectedMemValue);
@@ -117,7 +115,7 @@ public class MemoryTest
         mem.MapRAM(baseAddress, ramData);
 
         byte storedValue = 0x41;
-        LoadByte reader = _ => { return storedValue;};
+        LoadByte reader = _ => { return storedValue; };
         mem.MapReader(0x0010, reader);
 
         // Act/Assert
@@ -135,14 +133,13 @@ public class MemoryTest
         mem.MapRAM(baseAddress, ramData1);
 
         byte storedValue = 0;
-        StoreByte writer = (address, newVal) => { storedValue = newVal;};
+        StoreByte writer = (address, newVal) => { storedValue = newVal; };
         mem.MapWriter(0x0010, writer);
 
         // Act/Assert
         mem.Write(0x010, 0x42);
         Assert.Equal(0x42, storedValue);
     }
-
 
     [Fact]
     public void Can_Map_Individual_Memory_Location_To_A_Single_Value_For_Reading()
@@ -153,7 +150,7 @@ public class MemoryTest
         ushort baseAddress = 0x0000;
         mem.MapRAM(baseAddress, ramData);
 
-        var memValue = new MemValue{Value = 0x41};
+        var memValue = new MemValue { Value = 0x41 };
         mem.MapRO(0x0010, memValue);
 
         // Act/Assert
@@ -170,7 +167,7 @@ public class MemoryTest
         ushort baseAddress = 0x0000;
         mem.MapRAM(baseAddress, ramData);
 
-        var memValue = new MemValue{Value = 0x00};
+        var memValue = new MemValue { Value = 0x00 };
         mem.MapWO(0x0010, memValue);
 
         // Act/Assert
@@ -187,7 +184,7 @@ public class MemoryTest
         ushort baseAddress = 0x0000;
         mem.MapRAM(baseAddress, ramData);
 
-        var memValue = new  MemValue{Value = 0x00};
+        var memValue = new MemValue { Value = 0x00 };
         mem.MapRW(0x0010, memValue);
 
         // Act/Assert
@@ -200,7 +197,7 @@ public class MemoryTest
     public void Can_Create_Multiple_Memory_Configurations()
     {
         // Arrange
-        var mem = new Memory(numberOfConfigurations:2, mapToDefaultRAM: false);
+        var mem = new Memory(numberOfConfigurations: 2, mapToDefaultRAM: false);
 
         // Act/Assert
         Assert.Equal(2, mem.NumberOfConfigurations);
@@ -210,7 +207,7 @@ public class MemoryTest
     public void Default_Configuration_Is_The_First_After_Creating_Multiple_Configurations()
     {
         // Arrange
-        var mem = new Memory(numberOfConfigurations:2, mapToDefaultRAM: false);
+        var mem = new Memory(numberOfConfigurations: 2, mapToDefaultRAM: false);
 
         // Act/Assert
         Assert.Equal(0, mem.CurrentConfiguration);
@@ -220,7 +217,7 @@ public class MemoryTest
     public void Can_Change_Memory_Configurations()
     {
         // Arrange
-        var mem = new Memory(numberOfConfigurations:2, mapToDefaultRAM: false);
+        var mem = new Memory(numberOfConfigurations: 2, mapToDefaultRAM: false);
         ushort baseAddress = 0x0000;
 
         // First configuration
@@ -265,6 +262,7 @@ public class MemoryTest
         mem.Write((ushort)(baseAddress + dataAddress), 0x42);
 
         // Assert
+        Assert.True(interceptCalled);
         Assert.Equal(dataAddress, interceptedAddress);
     }
 

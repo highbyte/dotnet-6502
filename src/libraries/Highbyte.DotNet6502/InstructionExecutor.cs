@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502;
 /// </summary>
 public class InstructionExecutor
 {
-    private ILogger _logger;
+    private readonly ILogger _logger;
 
     public InstructionExecutor(ILoggerFactory loggerFactory)
     {
@@ -47,10 +47,6 @@ public class InstructionExecutor
         // on how to get to the actual value used with the instruction.
 
         AddrModeCalcResult addrModeCalcResult = new AddrModeCalcResult() { OpCode = opCodeObject };
-        addrModeCalcResult.OpCode = opCodeObject;
-        addrModeCalcResult.AddressCalculationCrossedPageBoundary = false;
-        addrModeCalcResult.InsAddress = null;
-        addrModeCalcResult.InsValue = null;
 
         switch (opCodeObject.AddressingMode)
         {
@@ -82,14 +78,14 @@ public class InstructionExecutor
             case AddrMode.ABS_X:
             {
                 // Note: CalcFullAddressX will check if adding X to address will cross page boundary. If so, one more cycle is consumed.
-                addrModeCalcResult.InsAddress = cpu.CalcFullAddressX(cpu.FetchOperandWord(mem), out bool didCrossPageBoundary, false);
+                addrModeCalcResult.InsAddress = cpu.CalcFullAddressX(cpu.FetchOperandWord(mem), out bool didCrossPageBoundary);
                 addrModeCalcResult.AddressCalculationCrossedPageBoundary = didCrossPageBoundary;
                 break;
             }
             case AddrMode.ABS_Y:
             {
                 // Note: CalcFullAddressY will check if adding Y to address will cross page boundary. If so, one more cycle is consumed.
-                addrModeCalcResult.InsAddress = cpu.CalcFullAddressY(cpu.FetchOperandWord(mem), out bool didCrossPageBoundary, false);
+                addrModeCalcResult.InsAddress = cpu.CalcFullAddressY(cpu.FetchOperandWord(mem), out bool didCrossPageBoundary);
                 addrModeCalcResult.AddressCalculationCrossedPageBoundary = didCrossPageBoundary;
                 break;
             }
@@ -100,7 +96,7 @@ public class InstructionExecutor
             }
             case AddrMode.IND_IX:
             {
-                addrModeCalcResult.InsAddress = cpu.CalcFullAddressY(cpu.FetchWord(mem, cpu.FetchOperand(mem)), out bool didCrossPageBoundary, false);
+                addrModeCalcResult.InsAddress = cpu.CalcFullAddressY(cpu.FetchWord(mem, cpu.FetchOperand(mem)), out bool didCrossPageBoundary);
                 addrModeCalcResult.AddressCalculationCrossedPageBoundary = didCrossPageBoundary;
                 break;
             }

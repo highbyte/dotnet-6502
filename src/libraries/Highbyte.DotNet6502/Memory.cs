@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace Highbyte.DotNet6502;
 
 public class Memory
@@ -13,27 +11,27 @@ public class Memory
         public byte Value { get; set; }
     }
 
-    public const int MAX_MEMORY_SIZE = 1024*64;
+    public const int MAX_MEMORY_SIZE = 1024 * 64;
 
     public int Size { get; private set; }
     public int NumberOfConfigurations { get; private set; }
     public int CurrentConfiguration { get; private set; }
 
-    private LoadByte[] _readers;
-    private StoreByte[] _writers;
-    private StoreByte[] _originalWriters;
+    private LoadByte[] _readers = null!;
+    private StoreByte[] _writers = null!;
+    private StoreByte[] _originalWriters = null!;
 
-    private LoadByte[][] _readersPerConfiguration;
-    private StoreByte[][] _writersPerConfiguration;
-    private StoreByte[][] _originalWritersPerConfiguration;
+    private readonly LoadByte[][] _readersPerConfiguration;
+    private readonly StoreByte[][] _writersPerConfiguration;
+    private readonly StoreByte[][] _originalWritersPerConfiguration;
 
-    public Memory(int memorySize = MAX_MEMORY_SIZE, int numberOfConfigurations=1, bool mapToDefaultRAM = true) 
+    public Memory(int memorySize = MAX_MEMORY_SIZE, int numberOfConfigurations = 1, bool mapToDefaultRAM = true)
     {
-        if(memorySize<=0)
+        if (memorySize <= 0)
             throw new ArgumentException("Must be greater than 0", nameof(memorySize));
-        if(memorySize > MAX_MEMORY_SIZE)
+        if (memorySize > MAX_MEMORY_SIZE)
             throw new ArgumentException($"Must be less than or equal to {MAX_MEMORY_SIZE}", nameof(memorySize));
-        if(numberOfConfigurations<=0)
+        if (numberOfConfigurations <= 0)
             throw new ArgumentException("Must be equal to or greater than 1", nameof(numberOfConfigurations));
 
         Size = memorySize;
@@ -58,8 +56,8 @@ public class Memory
 
     public void SetMemoryConfiguration(int configuration)
     {
-        if(configuration>=NumberOfConfigurations)
-            throw new ArgumentException($"Memory configuration doesn't exist. Max value is {NumberOfConfigurations-1} ", nameof(configuration));
+        if (configuration >= NumberOfConfigurations)
+            throw new ArgumentException($"Memory configuration doesn't exist. Max value is {NumberOfConfigurations - 1} ", nameof(configuration));
         CurrentConfiguration = configuration;
         _readers = _readersPerConfiguration[CurrentConfiguration];
         _writers = _writersPerConfiguration[CurrentConfiguration];
@@ -80,7 +78,7 @@ public class Memory
 
     public void MapRAM(ushort baseAddress, byte[] data, ushort dataOffset = 0, ushort? length = null, PreWriteIntercept? preWriteIntercept = null)
     {
-        LoadByte reader = delegate(ushort address)
+        LoadByte reader = delegate (ushort address)
         {
             return data[(address + dataOffset) - baseAddress];
         };
@@ -136,7 +134,7 @@ public class Memory
 
     public void MapROM(ushort baseAddress, byte[] data)
     {
-        LoadByte reader = delegate(ushort address)
+        LoadByte reader = delegate (ushort address)
         {
             return data[address - baseAddress];
         };
@@ -151,16 +149,15 @@ public class Memory
         }
     }
 
-
     public void MapRO(ushort address, MemValue memValue)
     {
-        LoadByte reader = _ => { return memValue.Value;};
+        LoadByte reader = _ => { return memValue.Value; };
         _readers[address] = reader;
     }
 
     public void MapWO(ushort address, MemValue memValue)
     {
-        StoreByte writer = (_, newVal) => { memValue.Value = newVal;};
+        StoreByte writer = (_, newVal) => { memValue.Value = newVal; };
         _writers[address] = writer;
     }
 
@@ -169,7 +166,6 @@ public class Memory
         MapRO(address, memValue);
         MapWO(address, memValue);
     }
-
 
     /// <summary>
     /// Maps an individual address to a delegate for reading 

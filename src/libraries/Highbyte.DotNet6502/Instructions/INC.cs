@@ -12,12 +12,12 @@ public class INC : Instruction, IInstructionUsesByte
     public ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
     {
         value++;
-        cpu.StoreByte(value, mem, addrModeCalcResult.InsAddress.Value);
+        cpu.StoreByte(value, mem, addrModeCalcResult.InsAddress!.Value);
         BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(value, cpu.ProcessorStatus);
 
         return 0;
     }
-   
+
     public INC()
     {
         _opCodes = new List<OpCode>

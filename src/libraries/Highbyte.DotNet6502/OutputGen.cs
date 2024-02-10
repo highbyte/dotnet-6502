@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502;
 /// </summary>
 public static class OutputGen
 {
-    const string HexPrefix = "";
+    private const string HexPrefix = "";
     /// <summary>
     /// Returns a string with the following information
     /// [last instruction PC]  [byte1 [byte2 [byte3]]]  [instruction] [addressingmode/value] 
@@ -15,8 +15,11 @@ public static class OutputGen
     /// <returns></returns>
     public static string GetLastInstructionDisassembly(CPU cpu, Memory mem)
     {
-        ushort programAddress = cpu.ExecState.PCBeforeLastOpCodeExecuted.Value;
-        return GetInstructionDisassembly(cpu, mem, programAddress);
+        ushort? programAddress = cpu.ExecState.PCBeforeLastOpCodeExecuted;
+        if (programAddress.HasValue)
+            return GetInstructionDisassembly(cpu, mem, programAddress.Value);
+        else
+            throw new Exception("programAddress is null");
     }
 
     /// <summary>
@@ -53,19 +56,19 @@ public static class OutputGen
     public static string BuildMemoryString(CPU cpu, Memory mem, ushort address)
     {
         byte opCodeByte = mem[address];
-        if(!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
+        if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
             return $"{opCodeByte.ToHex(HexPrefix, lowerCase: true)}";
 
         var opCode = cpu.InstructionList.GetOpCode(opCodeByte);
         var operand = mem.ReadData((ushort)(address + 1), (ushort)(opCode.Size - 1)); // -1 for the opcode itself
 
-        return $"{opCodeByte.ToHex(HexPrefix, lowerCase: true)} {string.Join(" ", operand.Select(x=>x.ToHex(HexPrefix, lowerCase: true)))}";
+        return $"{opCodeByte.ToHex(HexPrefix, lowerCase: true)} {string.Join(" ", operand.Select(x => x.ToHex(HexPrefix, lowerCase: true)))}";
     }
 
     public static string BuildInstructionString(CPU cpu, Memory mem, ushort address)
     {
         byte opCodeByte = mem[address];
-        if(!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
+        if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
             return "???";
 
         var opCode = cpu.InstructionList.GetOpCode(opCodeByte);
@@ -192,5 +195,4 @@ public static class OutputGen
     {
         return $"SP={cpu.SP.ToHex(HexPrefix)} PC={cpu.PC.ToHex(HexPrefix)}";
     }
-
 }
