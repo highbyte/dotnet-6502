@@ -67,7 +67,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void Start()
         {
             if (PulseOscillator == null)
-                throw new Exception($"PulseOscillator is null. Call CreatePulseOscillator() first.");
+                throw new DotNet6502Exception($"PulseOscillator is null. Call CreatePulseOscillator() first.");
             _addDebugMessage($"Starting PulseOscillator and LFOOscillator");
             PulseOscillator!.Start();
             LFOOscillator!.Start();
@@ -89,7 +89,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void StopLater(double when)
         {
             if (PulseOscillator == null)
-                throw new Exception($"PulseOscillator is null. Call Create() first.");
+                throw new DotNet6502Exception($"PulseOscillator is null. Call Create() first.");
             _addDebugMessage($"Planning stopp of PulseOscillator and LFOOscillator: {when}");
             PulseOscillator!.Stop(when);
             LFOOscillator!.Stop(when);
@@ -99,7 +99,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void Connect()
         {
             if (PulseOscillator == null)
-                throw new Exception($"PulseOscillator is null. Call Create() first.");
+                throw new DotNet6502Exception($"PulseOscillator is null. Call Create() first.");
             PulseOscillator!.Connect(_c64WASMVoiceContext.GainNode!);
         }
 

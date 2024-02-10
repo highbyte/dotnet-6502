@@ -123,7 +123,7 @@ public class GenericComputerConfig : ISystemConfig
     public void Validate()
     {
         if (!IsValid(out List<string> validationErrors))
-            throw new Exception($"Config errors: {string.Join(',', validationErrors)}");
+            throw new DotNet6502Exception($"Config errors: {string.Join(',', validationErrors)}");
     }
 
     public bool IsValid(out List<string> validationErrors)

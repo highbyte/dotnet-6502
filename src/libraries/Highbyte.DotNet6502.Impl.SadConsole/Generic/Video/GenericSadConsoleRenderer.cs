@@ -142,9 +142,9 @@ public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRe
         }
 
         if (!_emulatorScreenConfig.ColorMap.ContainsKey(emulatorFgColor))
-            throw new Exception($"Color value (foreground) {emulatorFgColor} is not mapped.");
+            throw new DotNet6502Exception($"Color value (foreground) {emulatorFgColor} is not mapped.");
         if (!_emulatorScreenConfig.ColorMap.ContainsKey(emulatorBgColor))
-            throw new Exception($"Color value (background) {emulatorBgColor} is not mapped.");
+            throw new DotNet6502Exception($"Color value (background) {emulatorBgColor} is not mapped.");
 
         byte sadConsoleCharacter;
         if (_emulatorScreenConfig.UseAscIICharacters)

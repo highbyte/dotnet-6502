@@ -636,7 +636,7 @@ public class Vic2
 
 #if DEBUG
         if (Vic2IRQ.ConfiguredIRQRasterLine > Vic2Model.TotalHeight)
-            throw new Exception($"Internal error. Setting unreachable scan line for IRQ: {Vic2IRQ.ConfiguredIRQRasterLine}. Incorrect ROM for Vic2 model: {Vic2Model.Name} ?");
+            throw new DotNet6502Exception($"Internal error. Setting unreachable scan line for IRQ: {Vic2IRQ.ConfiguredIRQRasterLine}. Incorrect ROM for Vic2 model: {Vic2Model.Name} ?");
 #endif
 
     }
@@ -767,7 +767,7 @@ public class Vic2
         {
 #if DEBUG
             if (newLine > Vic2Model.TotalHeight)
-                throw new Exception($"Internal error. Unreachable scan line: {newLine}. The CPU probably executed more cycles current frame than allowed.");
+                throw new DotNet6502Exception($"Internal error. Unreachable scan line: {newLine}. The CPU probably executed more cycles current frame than allowed.");
 #endif
 
             _currentRasterLineInternal = newLine;

@@ -228,7 +228,7 @@ public class SilkNetWindow
     public void SetCurrentSystem(string systemName)
     {
         if (EmulatorState != EmulatorState.Uninitialized)
-            throw new Exception("Internal error. Cannot change system while running");
+            throw new DotNet6502Exception("Internal error. Cannot change system while running");
 
         _currentSystemName = systemName;
 
@@ -260,7 +260,7 @@ public class SilkNetWindow
             return;
 
         if (!_systemList.IsValidConfig(_currentSystemName).Result)
-            throw new Exception("Internal error. Cannot start emulator if current system config is invalid.");
+            throw new DotNet6502Exception("Internal error. Cannot start emulator if current system config is invalid.");
 
         // Only create a new instance of SystemRunner if we previously has not started (so resume after pause works).
         if (EmulatorState == EmulatorState.Uninitialized)
@@ -429,7 +429,7 @@ public class SilkNetWindow
         _inputContext = _window.CreateInput();
         // Listen to key to enable monitor
         if (_inputContext.Keyboards == null || _inputContext.Keyboards.Count == 0)
-            throw new Exception("Keyboard not found");
+            throw new DotNet6502Exception("Keyboard not found");
         var primaryKeyboard = _inputContext.Keyboards[0];
 
         // Listen to special key that will show/hide overlays for monitor/stats

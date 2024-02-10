@@ -26,7 +26,7 @@ public class EmulatorConfig
     public void Validate(SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> systemList)
     {
         if (!systemList.Systems.Contains(DefaultEmulator))
-            throw new Exception($"Setting {nameof(DefaultEmulator)} value {DefaultEmulator} is not supported. Valid values are: {string.Join(',', systemList.Systems)}");
+            throw new DotNet6502Exception($"Setting {nameof(DefaultEmulator)} value {DefaultEmulator} is not supported. Valid values are: {string.Join(',', systemList.Systems)}");
         Monitor.Validate();
     }
 }

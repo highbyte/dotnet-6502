@@ -35,7 +35,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void Start()
         {
             if (SawToothOscillator == null)
-                throw new Exception($"SawToothOscillator is null. Call Create() first.");
+                throw new DotNet6502Exception($"SawToothOscillator is null. Call Create() first.");
             _addDebugMessage($"Starting SawToothOscillator");
             SawToothOscillator!.Start();
         }
@@ -52,7 +52,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void StopLater(double when)
         {
             if (SawToothOscillator == null)
-                throw new Exception($"SawToothOscillator is null. Call Create() first.");
+                throw new DotNet6502Exception($"SawToothOscillator is null. Call Create() first.");
             _addDebugMessage($"Planning stopp of SawToothOscillator: {when}");
             SawToothOscillator!.Stop(when);
         }
@@ -60,7 +60,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void Connect()
         {
             if (SawToothOscillator == null)
-                throw new Exception($"SawToothOscillator is null. Call Create() first.");
+                throw new DotNet6502Exception($"SawToothOscillator is null. Call Create() first.");
             SawToothOscillator!.Connect(_c64WASMVoiceContext.GainNode!);
         }
 

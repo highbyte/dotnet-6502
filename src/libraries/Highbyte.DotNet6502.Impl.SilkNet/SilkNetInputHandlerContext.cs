@@ -43,7 +43,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
         s_inputcontext = _silkNetWindow.CreateInput();
 
         if (s_inputcontext == null)
-            throw new Exception("Silk.NET Input Context not found.");
+            throw new DotNet6502Exception("Silk.NET Input Context not found.");
 
         s_inputcontext.ConnectionChanged += ConnectionChanged;
 
@@ -51,7 +51,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
         if (s_inputcontext.Keyboards != null && s_inputcontext.Keyboards.Count != 0)
             _primaryKeyboard = s_inputcontext.Keyboards[0];
         if (_primaryKeyboard == null)
-            throw new Exception("Keyboard not found");
+            throw new DotNet6502Exception("Keyboard not found");
         ListenForKeyboardInput();
 
         // Silk.NET Input: Gamepad

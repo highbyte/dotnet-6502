@@ -39,7 +39,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers
             _gl.LinkProgram(_programHandle);
             _gl.GetProgram(_programHandle, GLEnum.LinkStatus, out var status);
             if (status == 0)
-                throw new Exception($"Program failed to link with error: {_gl.GetProgramInfoLog(_programHandle)}");
+                throw new DotNet6502Exception($"Program failed to link with error: {_gl.GetProgramInfoLog(_programHandle)}");
 
             if (vertexShaderHandle != null)
             {
@@ -67,7 +67,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers
         {
             var location = _gl.GetUniformLocation(_programHandle, name);
             if (!skipExistCheck && location == -1)
-                throw new Exception($"{name} uniform not found on shader.");
+                throw new DotNet6502Exception($"{name} uniform not found on shader.");
             _gl.Uniform1(location, value);
         }
 
@@ -75,7 +75,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers
         {
             var location = _gl.GetUniformLocation(_programHandle, name);
             if (!skipExistCheck && location == -1)
-                throw new Exception($"{name} uniform not found on shader.");
+                throw new DotNet6502Exception($"{name} uniform not found on shader.");
             _gl.Uniform1(location, value);
         }
 
@@ -83,7 +83,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers
         {
             var location = _gl.GetUniformLocation(_programHandle, name);
             if (!skipExistCheck && location == -1)
-                throw new Exception($"{name} uniform not found on shader.");
+                throw new DotNet6502Exception($"{name} uniform not found on shader.");
             _gl.Uniform1(location, value ? 1 : 0);
         }
 
@@ -92,7 +92,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers
             //A new overload has been created for setting a uniform so we can use the transform in our shader.
             var location = _gl.GetUniformLocation(_programHandle, name);
             if (!skipExistCheck && location == -1)
-                throw new Exception($"{name} uniform not found on shader.");
+                throw new DotNet6502Exception($"{name} uniform not found on shader.");
             _gl.UniformMatrix4(location, 1, false, (float*)&value);
         }
 
@@ -101,7 +101,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers
             //A new overload has been created for setting a uniform so we can use the transform in our shader.
             var location = _gl.GetUniformLocation(_programHandle, name);
             if (!skipExistCheck && location == -1)
-                throw new Exception($"{name} uniform not found on shader.");
+                throw new DotNet6502Exception($"{name} uniform not found on shader.");
             _gl.Uniform4(location, value.X, value.Y, value.Z, value.W);
         }
 
@@ -110,7 +110,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers
             //A new overload has been created for setting a uniform so we can use the transform in our shader.
             var location = _gl.GetUniformLocation(_programHandle, name);
             if (!skipExistCheck && location == -1)
-                throw new Exception($"{name} uniform not found on shader.");
+                throw new DotNet6502Exception($"{name} uniform not found on shader.");
             _gl.Uniform3(location, value.X, value.Y, value.Z);
         }
 
@@ -119,7 +119,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers
             //A new overload has been created for setting a uniform so we can use the transform in our shader.
             var location = _gl.GetUniformLocation(_programHandle, name);
             if (!skipExistCheck && location == -1)
-                throw new Exception($"{name} uniform not found on shader.");
+                throw new DotNet6502Exception($"{name} uniform not found on shader.");
             _gl.Uniform2(location, value.X, value.Y);
         }
 
@@ -127,7 +127,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers
         {
             var location = _gl.GetUniformLocation(_programHandle, name);
             if (location == -1)
-                throw new Exception($"{name} uniform not found on shader.");
+                throw new DotNet6502Exception($"{name} uniform not found on shader.");
             _gl.Uniform1(location, value);
         }
 
@@ -168,7 +168,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers
             _gl.CompileShader(handle);
             var infoLog = _gl.GetShaderInfoLog(handle);
             if (!string.IsNullOrWhiteSpace(infoLog))
-                throw new Exception($"Error compiling shader of type {type}, failed with error {infoLog}");
+                throw new DotNet6502Exception($"Error compiling shader of type {type}, failed with error {infoLog}");
 
             return handle;
         }
