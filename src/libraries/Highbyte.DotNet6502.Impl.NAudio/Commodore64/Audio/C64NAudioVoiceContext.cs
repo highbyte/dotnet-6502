@@ -48,8 +48,8 @@ namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio
 
         //private EventListener<EventSync> _audioStoppedCallback;
 
-        private readonly Timer _adsCycleCompleteTimer = default!;
-        private readonly Timer _releaseCycleCompleteTimer = default!;
+        //private readonly Timer _adsCycleCompleteTimer = default!;
+        //private readonly Timer _releaseCycleCompleteTimer = default!;
 
         //private readonly SemaphoreSlim _semaphoreSlim = new(1);
         //public SemaphoreSlim SemaphoreSlim => _semaphoreSlim;

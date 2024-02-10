@@ -36,8 +36,8 @@ public class EmulatorMemoryConfig
 
     public EmulatorMemoryConfig()
     {
-        Screen = new();
-        Input = new();
+        _screen = new();
+        _input = new();
     }
 
     public EmulatorMemoryConfig Clone()
@@ -95,7 +95,6 @@ public class EmulatorMemoryConfig
         if (Within(Input.KeyReleasedAddress, colorMemoryStart, colorMemoryEnd))
             validationErrors.Add("KeyReleasedAddress cannot be in color memory.");
 
-
         // --------------------------------
         // Character and color maps
         // --------------------------------
@@ -127,6 +126,7 @@ public class EmulatorScreenConfig
     private ushort _screenColorStartAddress;
     private ushort _screenRefreshStatusAddress;
     private ushort _screenBorderColorAddress;
+    private ushort _screenBackgroundColorAddress;
     private byte _defaultFgColor;
     private byte _defaultBgColor;
     private byte _defaultBorderColor;
@@ -139,7 +139,6 @@ public class EmulatorScreenConfig
     {
         _isDirty = false;
     }
-
 
     public int Cols
     {
@@ -216,7 +215,16 @@ public class EmulatorScreenConfig
             _isDirty = true;
         }
     }
-    public ushort ScreenBackgroundColorAddress { get; set; }
+
+    public ushort ScreenBackgroundColorAddress
+    {
+        get { return _screenBackgroundColorAddress; }
+        set
+        {
+            _screenBackgroundColorAddress = value;
+            _isDirty = true;
+        }
+    }
 
     public byte DefaultFgColor
     {
@@ -282,29 +290,29 @@ public class EmulatorScreenConfig
 
     public EmulatorScreenConfig()
     {
-        Cols = 80;
-        Rows = 25;
-        BorderCols = 0;
-        BorderRows = 0;
+        _cols = 80;
+        _rows = 25;
+        _borderCols = 0;
+        _borderRows = 0;
 
         // Mimic C64 for some memory addresses (though we have 80 cols here instead of 40)
-        ScreenStartAddress = 0x0400;   //80*25 = 2000(0x07d0) -> range 0x0400 - 0x0bcf
-        ScreenColorStartAddress = 0xd800;   //80*25 = 2000(0x07d0) -> range 0xd800 - 0xdfcf
+        _screenStartAddress = 0x0400;   //80*25 = 2000(0x07d0) -> range 0x0400 - 0x0bcf
+        _screenColorStartAddress = 0xd800;   //80*25 = 2000(0x07d0) -> range 0xd800 - 0xdfcf
 
-        ScreenRefreshStatusAddress = 0xd000;   // To sync 6502 code with host frame: The 6502 code should wait for bit 0 to become set, and then wait for it to become cleared.
+        _screenRefreshStatusAddress = 0xd000;   // To sync 6502 code with host frame: The 6502 code should wait for bit 0 to become set, and then wait for it to become cleared.
 
-        ScreenBorderColorAddress = 0xd020;
-        ScreenBackgroundColorAddress = 0xd021;
+        _screenBorderColorAddress = 0xd020;
+        _screenBackgroundColorAddress = 0xd021;
 
-        DefaultFgColor = 0x0e;  // 0x0e = Light blue
-        DefaultBgColor = 0x06;  // 0x06 = Blue
-        DefaultBorderColor = 0x0e;  // 0x0e = Blue
+        _defaultFgColor = 0x0e;  // 0x0e = Light blue
+        _defaultBgColor = 0x06;  // 0x06 = Blue
+        _defaultBorderColor = 0x0e;  // 0x0e = Blue
 
-        ColorMap = ColorMaps.GenericColorMap;        // Default to C64 color map. TODO: Make it configurable from config file (via enum?)
+        _colorMap = ColorMaps.GenericColorMap;        // Default to C64 color map. TODO: Make it configurable from config file (via enum?)
 
-        UseAscIICharacters = true;
+        _useAscIICharacters = true;
 
-        //CharacterMap = CharacterMaps.PETSCIIMap; // TODO
+        _characterMap = default!; // TODO CharacterMaps.PETSCIIMap
     }
 
     public EmulatorScreenConfig Clone()

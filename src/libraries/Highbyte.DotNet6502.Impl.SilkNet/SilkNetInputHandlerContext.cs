@@ -1,8 +1,6 @@
-using System.Linq;
 using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Logging;
-using Silk.NET.Input;
 using Silk.NET.SDL;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet;
@@ -11,11 +9,11 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
 {
     private readonly IWindow _silkNetWindow;
     private readonly ILogger<SilkNetInputHandlerContext> _logger;
-    private static IInputContext s_inputcontext;
+    private static IInputContext s_inputcontext = default!;
     public IInputContext InputContext => s_inputcontext;
 
     // Keyboard
-    private IKeyboard _primaryKeyboard;
+    private IKeyboard _primaryKeyboard = default!;
     public IKeyboard PrimaryKeyboard => _primaryKeyboard;
     public HashSet<Key> KeysDown = new();
     private bool _capsLockKeyDownCaptured;
@@ -64,7 +62,6 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
         {
             _logger.LogInformation("No gamepads found.");
         }
-
     }
 
     private void ConnectionChanged(IInputDevice device, bool isConnected)
@@ -121,15 +118,15 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
         //_currentGamePad.TriggerMoved += GamepadTriggerMoved;
     }
 
-    private void GamepadTriggerMoved(IGamepad gamepad, Trigger trigger)
-    {
-        _logger.LogDebug($"GamepadTriggerMoved: {trigger.Index}");
-    }
+    //private void GamepadTriggerMoved(IGamepad gamepad, Trigger trigger)
+    //{
+    //    _logger.LogDebug($"GamepadTriggerMoved: {trigger.Index}");
+    //}
 
-    private void GamepadThumbstickMoved(IGamepad gamepad, Thumbstick thumbstick)
-    {
-        _logger.LogDebug($"GamepadThumbstickMoved: {thumbstick.Index} {thumbstick.X},{thumbstick.Y}");
-    }
+    //private void GamepadThumbstickMoved(IGamepad gamepad, Thumbstick thumbstick)
+    //{
+    //    _logger.LogDebug($"GamepadThumbstickMoved: {thumbstick.Index} {thumbstick.X},{thumbstick.Y}");
+    //}
 
     private void GamepadButtonUp(IGamepad gamepad, Button button)
     {

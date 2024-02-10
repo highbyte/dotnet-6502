@@ -12,7 +12,7 @@ public class SadConsoleConfig
     /// Example: Fonts/C64.font
     /// </summary>
     /// <value></value>
-    public string Font { get; set; }
+    public string? Font { get; set; }
     /// <summary>
     /// Font scale. 1 is default.
     /// </summary>

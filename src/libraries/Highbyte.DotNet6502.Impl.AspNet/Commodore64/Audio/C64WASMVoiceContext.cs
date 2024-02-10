@@ -7,13 +7,13 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
     public class C64WASMVoiceContext
     {
 
-        private C64WASMAudioHandler _audioHandler;
+        private C64WASMAudioHandler _audioHandler = default!;
         internal GainNodeSync? GainNode { get; private set; }
 
         internal WASMAudioHandlerContext AudioHandlerContext => _audioHandler.AudioHandlerContext!;
         private AudioContextSync _audioContext => AudioHandlerContext.AudioContext;
 
-        private Action<string, int?, SidVoiceWaveForm?, AudioVoiceStatus?> _addDebugMessage;
+        private Action<string, int?, SidVoiceWaveForm?, AudioVoiceStatus?> _addDebugMessage = default!;
 
         internal void AddDebugMessage(string msg)
         {
@@ -26,21 +26,23 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         public SidVoiceWaveForm CurrentSidVoiceWaveForm = SidVoiceWaveForm.None;
 
         // SID Triangle Oscillator
-        public C64WASMTriangleOscillator C64WASMTriangleOscillator { get; private set; }
+        public C64WASMTriangleOscillator C64WASMTriangleOscillator { get; private set; } = default!;
 
         // SID Sawtooth Oscillator
-        public C64WASMSawToothOscillator C64WASMSawToothOscillator { get; private set; }
+        public C64WASMSawToothOscillator C64WASMSawToothOscillator { get; private set; } = default!;
 
         // SID pulse oscillator
-        public C64WASMPulseOscillator C64WASMPulseOscillator { get; private set; }
+        public C64WASMPulseOscillator C64WASMPulseOscillator { get; private set; } = default!;
 
         // SID noise oscillator
-        public C64WASMNoiseOscillator C64WASMNoiseOscillator { get; private set; }
+        public C64WASMNoiseOscillator C64WASMNoiseOscillator { get; private set; } = default!;
 
-        private EventListener<EventSync> _audioStoppedCallback;
+        private EventListener<EventSync> _audioStoppedCallback = default!;
 
-        private Timer _adsCycleCompleteTimer;
-        private Timer _releaseCycleCompleteTimer;
+#pragma warning disable IDE0052 // Remove unread private members
+        private Timer _adsCycleCompleteTimer = default!;
+        private Timer _releaseCycleCompleteTimer = default!;
+#pragma warning restore IDE0052 // Remove unread private members
 
         //private readonly SemaphoreSlim _semaphoreSlim = new(1);
         //public SemaphoreSlim SemaphoreSlim => _semaphoreSlim;
@@ -444,8 +446,10 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
             SetGainRelease(audioVoiceParameter, currentTime);
 
             if (_audioHandler.StopAndRecreateOscillator)
+            {
                 // Plan oscillator built-in delayed stop with callback
                 StopOscillatorLater(CurrentSidVoiceWaveForm, currentTime + audioVoiceParameter.ReleaseDurationSeconds);
+            }
             else
             {
                 // Plan manual callback after release duration (as we don't stop the oscillator in this scenario, as it cannot be started again)

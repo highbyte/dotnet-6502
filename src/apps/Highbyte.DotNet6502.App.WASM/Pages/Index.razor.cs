@@ -44,7 +44,6 @@ public partial class Index
     private IHostSystemConfig _currentHostSystemConfig = default!;
     public IHostSystemConfig HostSystemConfig => _currentHostSystemConfig;
 
-
     private bool AudioEnabledToggleDisabled => (
             (!(_currentSystemConfig?.AudioSupported ?? true)) ||
             (CurrentEmulatorState == EmulatorState.Running || CurrentEmulatorState == EmulatorState.Paused)
@@ -147,10 +146,10 @@ public partial class Index
 
         var c64HostConfig = new C64HostConfig();
         var c64Setup = new C64Setup(_browserContext, LoggerFactory, c64HostConfig);
-        await _systemList.AddSystem(c64Setup);
+        _systemList.AddSystem(c64Setup);
 
         var genericComputerSetup = new GenericComputerSetup(_browserContext, LoggerFactory);
-        await _systemList.AddSystem(genericComputerSetup);
+        _systemList.AddSystem(genericComputerSetup);
 
         // Add emulator config + system-specific host configs
         _emulatorConfig = new EmulatorConfig
@@ -227,7 +226,6 @@ public partial class Index
     //    }
     //}
 
-
     private async Task OnSelectedEmulatorChanged(ChangeEventArgs e)
     {
         _selectedSystemName = e.Value?.ToString() ?? "";
@@ -246,8 +244,6 @@ public partial class Index
 
         _logger.LogInformation($"System selected: {_selectedSystemName}");
     }
-
-
 
     private async void UpdateCanvasSize()
     {
@@ -678,7 +674,7 @@ public partial class Index
     private async Task FocusMonitor()
     {
         await Task.Run(async () => await _monitorInputRef.FocusAsync());    // Task.Run fix for focusing on a element that is not yet visible (but about to be)
-                                                                                   //await _monitorInputRef.FocusAsync();
+        //await _monitorInputRef.FocusAsync();
     }
 
     /// <summary>

@@ -12,7 +12,7 @@ public class AudioNodeSync : EventTargetSync
 {
     protected IJSInProcessObjectReference WebAudioHelper => _helper;
 
-    public static AudioNodeSync Create(IJSInProcessObjectReference helper, IJSRuntime jSRuntime, IJSInProcessObjectReference jSReference)
+    public static new AudioNodeSync Create(IJSInProcessObjectReference helper, IJSRuntime jSRuntime, IJSInProcessObjectReference jSReference)
     {
         return new AudioNodeSync(helper, jSRuntime, jSReference);
     }

@@ -23,7 +23,6 @@ public class EventListener<TEvent> : BaseJSWrapperSync where TEvent : EventSync,
         return eventListener;
     }
 
-
     protected EventListener(IJSInProcessObjectReference helper, IJSRuntime jSRuntime, IJSInProcessObjectReference jSReference)
         : base(helper, jSRuntime, jSReference)
     {

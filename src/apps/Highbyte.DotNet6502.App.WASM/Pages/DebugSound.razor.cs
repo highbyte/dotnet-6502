@@ -1,9 +1,7 @@
-using System;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.WaveTables;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
 
@@ -99,7 +97,7 @@ public partial class DebugSound
         {
             Type = OscillatorType.Custom, // Not working currently 
             Frequency = _oscFrequency,
-            PeriodicWave = wave 
+            PeriodicWave = wave
         };
         _oscillator = OscillatorNodeSync.Create(Js, _audioContext, oscillatorOptions);
 

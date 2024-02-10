@@ -13,7 +13,6 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
 {
     public string SystemName => C64.SystemName;
 
-
     private const string LOCAL_STORAGE_ROM_PREFIX = "rom_";
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;

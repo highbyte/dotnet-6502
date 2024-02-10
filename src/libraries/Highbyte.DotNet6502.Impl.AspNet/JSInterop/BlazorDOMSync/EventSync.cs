@@ -22,7 +22,7 @@ public class EventSync : BaseJSWrapperSync, IJSWrapperSync<EventSync>, IJSWrappe
             jSRuntime,
             helper.Invoke<IJSInProcessObjectReference>(
                 "constructEvent",
-                new object[2] { type, eventInitDict }));
+                new object[2] { type, eventInitDict! }));
     }
 
     protected EventSync(IJSInProcessObjectReference helper, IJSRuntime jSRuntime, IJSInProcessObjectReference jSReference)

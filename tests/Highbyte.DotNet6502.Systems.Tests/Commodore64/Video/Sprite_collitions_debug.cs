@@ -12,7 +12,7 @@ public class Sprite_collitions_debug
     private readonly ITestOutputHelper _output;
     private readonly C64 _c64;
     private readonly Vic2 _vic2;
-    private readonly Memory? _vic2Mem;
+    private readonly Memory _vic2Mem;
     private readonly Vic2SpriteManager? _vic2SpriteManager;
 
     public Sprite_collitions_debug(ITestOutputHelper testOutputHelper)
@@ -88,7 +88,7 @@ public class Sprite_collitions_debug
                 collisionFoundSpriteScreenLine = spriteScreenLine;
         }
 
-        if(collisionFoundSpriteScreenLine.HasValue)
+        if (collisionFoundSpriteScreenLine.HasValue)
             _output.WriteLine($"Collision found at line: {collisionFoundSpriteScreenLine}");
         else
             _output.WriteLine("No collision");

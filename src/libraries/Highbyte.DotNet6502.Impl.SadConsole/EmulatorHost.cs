@@ -7,7 +7,6 @@ using Highbyte.DotNet6502.Impl.SadConsole.Generic.Video;
 using Highbyte.DotNet6502.Impl.SadConsole.Generic.Input;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole;
@@ -19,7 +18,6 @@ public class EmulatorHost
     private readonly C64Config _c64Config;
     private static SadConsoleMain s_sadConsoleMain = default!;
     private readonly ILoggerFactory _loggerFactory;
-
 
     public EmulatorHost(
         SadConsoleConfig sadConsoleConfig,

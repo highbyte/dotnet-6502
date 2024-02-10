@@ -5,7 +5,7 @@ public class ROM
     /// <summary>
     /// Name of ROM
     /// </summary>
-    public string Name { get; set; }
+    public required string Name { get; set; }
     /// <summary>
     /// Optional. File name of the ROM. If this is set, the ROM contents is read from the file instead of used from the Data property.
     /// </summary>

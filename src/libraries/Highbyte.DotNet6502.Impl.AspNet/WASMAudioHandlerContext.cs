@@ -14,7 +14,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet
 
         public IJSRuntime JSRuntime => _jsRuntime;
 
-        private GainNodeSync _masterVolumeGainNode;
+        private GainNodeSync _masterVolumeGainNode = default!;
         internal GainNodeSync MasterVolumeGainNode => _masterVolumeGainNode;
 
         public WASMAudioHandlerContext(

@@ -15,7 +15,7 @@ public class TestSpec
 
     // Initial flag values
     // The entire processor status byte
-    public byte? PS
+    public byte PS
     {
         get
         {
@@ -32,14 +32,14 @@ public class TestSpec
         }
         set
         {
-            C = value.HasValue && value.Value.IsBitSet(StatusFlagBits.Carry);
-            Z = value.HasValue && value.Value.IsBitSet(StatusFlagBits.Zero);
-            I = value.HasValue && value.Value.IsBitSet(StatusFlagBits.InterruptDisable);
-            D = value.HasValue && value.Value.IsBitSet(StatusFlagBits.Decimal);
-            B = value.HasValue && value.Value.IsBitSet(StatusFlagBits.Break);
-            U = value.HasValue && value.Value.IsBitSet(StatusFlagBits.Unused);
-            V = value.HasValue && value.Value.IsBitSet(StatusFlagBits.Overflow);
-            N = value.HasValue && value.Value.IsBitSet(StatusFlagBits.Negative);
+            C = value.IsBitSet(StatusFlagBits.Carry);
+            Z = value.IsBitSet(StatusFlagBits.Zero);
+            I = value.IsBitSet(StatusFlagBits.InterruptDisable);
+            D = value.IsBitSet(StatusFlagBits.Decimal);
+            B = value.IsBitSet(StatusFlagBits.Break);
+            U = value.IsBitSet(StatusFlagBits.Unused);
+            V = value.IsBitSet(StatusFlagBits.Overflow);
+            N = value.IsBitSet(StatusFlagBits.Negative);
         }
     }
     public bool? C { get; set; }

@@ -23,7 +23,7 @@ public class C64Config : ISystemConfig
     };
 
     public bool LoadROMs { get; set; } = true;
-    private List<ROM> _roms;
+    private List<ROM> _roms = default!;
     public List<ROM> ROMs
     {
         get
@@ -98,6 +98,7 @@ public class C64Config : ISystemConfig
     }
 
     private string _colorMapName;
+
     public string ColorMapName
     {
         get
@@ -111,15 +112,40 @@ public class C64Config : ISystemConfig
         }
     }
 
-    public bool KeyboardJoystickEnabled { get; set; }
-    public int KeyboardJoystick { get; set; } = 2;
+    private bool _keyboardJoystickEnabled;
+    public bool KeyboardJoystickEnabled
+    {
+        get
+        {
+            return _keyboardJoystickEnabled;
+        }
+        set
+        {
+            _keyboardJoystickEnabled = value;
+            _isDirty = true;
+        }
+    }
+
+    private int _keyboardJoystick;
+    public int KeyboardJoystick
+    {
+        get
+        {
+            return _keyboardJoystick;
+        }
+        set
+        {
+            _keyboardJoystick = value;
+            _isDirty = true;
+        }
+    }
 
     public C64KeyboardJoystickMap KeyboardJoystickMap { get; private set; }
 
     public C64Config()
     {
         // Defaults
-        ROMs = new List<ROM>
+        _roms = new List<ROM>
         {
             new ROM
             {
@@ -143,20 +169,21 @@ public class C64Config : ISystemConfig
                 Checksum = "1d503e56df85a62fee696e7618dc5b4e781df1bb",
             },
         };
-        ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64";
+        _romDirectory = "%USERPROFILE%/Documents/C64/VICE/C64";
 
-        C64Model = "C64NTSC";
-        Vic2Model = "NTSC";
+        _c64Model = "C64NTSC";
+        _vic2Model = "NTSC";
 
+        _colorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
+
+        _audioEnabled = false;
+        _keyboardJoystickEnabled = false;
+        _keyboardJoystick = 2;
+
+        // Settings not currently changeable by user
         TimerMode = TimerMode.UpdateEachRasterLine;
         //TimerMode = TimerMode.UpdateEachInstruction;
-
         AudioSupported = false; // Set to true after creating if the audio system is implemented for the host platform
-        AudioEnabled = false;
-
-        ColorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
-
-        KeyboardJoystickEnabled = false;
         KeyboardJoystickMap = new C64KeyboardJoystickMap();
     }
 

@@ -95,6 +95,7 @@ namespace Highbyte.DotNet6502.Tests.Instrumentation
             }
             // Assert
             var ms = stat.GetStatMilliseconds();
+            Assert.NotNull(ms);
             Assert.Equal($"{Math.Round(ms.Value, 2).ToString("0.00")}ms", stat.GetDescription());
         }
     }

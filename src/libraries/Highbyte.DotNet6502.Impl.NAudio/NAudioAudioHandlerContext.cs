@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Impl.NAudio
     public class NAudioAudioHandlerContext : IAudioHandlerContext
     {
         private readonly IWavePlayer _wavePlayer;
-        private VolumeSampleProvider _masterVolumeControl;
+        private VolumeSampleProvider _masterVolumeControl = default!;
 
         private float _initialVolumePercent;
 
@@ -48,7 +48,7 @@ namespace Highbyte.DotNet6502.Impl.NAudio
 
         public void StopWavePlayer()
         {
-            if(_wavePlayer.PlaybackState != PlaybackState.Stopped)
+            if (_wavePlayer.PlaybackState != PlaybackState.Stopped)
                 _wavePlayer.Stop();
         }
 

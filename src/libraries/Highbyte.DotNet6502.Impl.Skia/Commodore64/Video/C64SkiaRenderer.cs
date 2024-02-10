@@ -11,20 +11,20 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
 
 public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 {
-    private Func<SKCanvas> _getSkCanvas;
+    private Func<SKCanvas> _getSkCanvas = default!;
 
-    private C64SkiaPaint _c64SkiaPaint;
+    private C64SkiaPaint _c64SkiaPaint = default!;
 
-    private Dictionary<int, SKImage> _characterSetCurrent;
-    private Dictionary<int, SKImage> _characterSetMultiColorCurrent;
+    private Dictionary<int, SKImage> _characterSetCurrent = default!;
+    private Dictionary<int, SKImage> _characterSetMultiColorCurrent = default!;
 
-    private Dictionary<int, SKImage> _characterSetROMShiftedImage;
-    private Dictionary<int, SKImage> _characterSetROMShiftedMultiColorImage;
-    private Dictionary<int, SKImage> _characterSetROMUnshiftedImage;
-    private Dictionary<int, SKImage> _characterSetROMUnshiftedMultiColorImage;
+    private Dictionary<int, SKImage> _characterSetROMShiftedImage = default!;
+    private Dictionary<int, SKImage> _characterSetROMShiftedMultiColorImage = default!;
+    private Dictionary<int, SKImage> _characterSetROMUnshiftedImage = default!;
+    private Dictionary<int, SKImage> _characterSetROMUnshiftedMultiColorImage = default!;
 
     private bool _changedAllCharsetCodes = false;
-    private HashSet<byte> _changedCharsetCodes = new();
+    private readonly HashSet<byte> _changedCharsetCodes = new();
 
     private SKRect _drawImageSource = new SKRect();
     private SKRect _drawImageDest = new SKRect();
@@ -289,7 +289,6 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         canvas.Restore();
     }
 
-
     // Draw border per line across screen. Assumes the screen in the middle is drawn afterwards and will overwrite.
     // Slower, but more accurate (though not completley, becasuse border color changes within a line is not accounted for).
     private void DrawRasterLinesBorder(C64 c64, SKCanvas canvas)
@@ -332,33 +331,33 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         }
     }
 
-    // Simple approximation, draw 4 rectangles for border. Fast, but does not handle changes in border color per raster line.
-    private void DrawSimpleBorder(C64 c64, SKCanvas canvas)
-    {
-        var emulatorMem = c64.Mem;
-        var vic2Screen = c64.Vic2.Vic2Screen;
+    //// Simple approximation, draw 4 rectangles for border. Fast, but does not handle changes in border color per raster line.
+    //private void DrawSimpleBorder(C64 c64, SKCanvas canvas)
+    //{
+    //    var emulatorMem = c64.Mem;
+    //    var vic2Screen = c64.Vic2.Vic2Screen;
 
-        var borderColor = c64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
-        var borderPaint = _c64SkiaPaint.GetFillPaint(borderColor);
+    //    var borderColor = c64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
+    //    var borderPaint = _c64SkiaPaint.GetFillPaint(borderColor);
 
-        canvas.DrawRect(0, 0, vic2Screen.VisibleWidth, vic2Screen.VisibleTopBottomBorderHeight, borderPaint);
-        canvas.DrawRect(0, vic2Screen.VisibleTopBottomBorderHeight + vic2Screen.DrawableAreaHeight, vic2Screen.VisibleWidth, vic2Screen.VisibleTopBottomBorderHeight, borderPaint);
-        canvas.DrawRect(0, vic2Screen.VisibleTopBottomBorderHeight, vic2Screen.VisibleLeftRightBorderWidth, vic2Screen.DrawableAreaHeight, borderPaint);
-        canvas.DrawRect(vic2Screen.VisibleLeftRightBorderWidth + vic2Screen.DrawableAreaWidth, vic2Screen.VisibleTopBottomBorderHeight, vic2Screen.VisibleLeftRightBorderWidth, vic2Screen.DrawableAreaHeight, borderPaint);
-    }
+    //    canvas.DrawRect(0, 0, vic2Screen.VisibleWidth, vic2Screen.VisibleTopBottomBorderHeight, borderPaint);
+    //    canvas.DrawRect(0, vic2Screen.VisibleTopBottomBorderHeight + vic2Screen.DrawableAreaHeight, vic2Screen.VisibleWidth, vic2Screen.VisibleTopBottomBorderHeight, borderPaint);
+    //    canvas.DrawRect(0, vic2Screen.VisibleTopBottomBorderHeight, vic2Screen.VisibleLeftRightBorderWidth, vic2Screen.DrawableAreaHeight, borderPaint);
+    //    canvas.DrawRect(vic2Screen.VisibleLeftRightBorderWidth + vic2Screen.DrawableAreaWidth, vic2Screen.VisibleTopBottomBorderHeight, vic2Screen.VisibleLeftRightBorderWidth, vic2Screen.DrawableAreaHeight, borderPaint);
+    //}
 
-    // Simple approximation, draw 1 rectangle for border. Fast, but does not handle changes in background color per raster line.
-    private void DrawSimpleBackground(C64 c64, SKCanvas canvas)
-    {
-        var emulatorMem = c64.Mem;
-        var vic2Screen = c64.Vic2.Vic2Screen;
+    //// Simple approximation, draw 1 rectangle for border. Fast, but does not handle changes in background color per raster line.
+    //private void DrawSimpleBackground(C64 c64, SKCanvas canvas)
+    //{
+    //    var emulatorMem = c64.Mem;
+    //    var vic2Screen = c64.Vic2.Vic2Screen;
 
-        // Draw 1 rectangle for background
-        var backgroundColor = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
-        var bgPaint = _c64SkiaPaint.GetFillPaint(backgroundColor);
+    //    // Draw 1 rectangle for background
+    //    var backgroundColor = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
+    //    var bgPaint = _c64SkiaPaint.GetFillPaint(backgroundColor);
 
-        canvas.DrawRect(vic2Screen.VisibleLeftRightBorderWidth, vic2Screen.VisibleTopBottomBorderHeight, vic2Screen.DrawableAreaWidth, vic2Screen.DrawableAreaHeight, bgPaint);
-    }
+    //    canvas.DrawRect(vic2Screen.VisibleLeftRightBorderWidth, vic2Screen.VisibleTopBottomBorderHeight, vic2Screen.DrawableAreaWidth, vic2Screen.DrawableAreaHeight, bgPaint);
+    //}
 
     /// <summary>
     /// Draw character to screen, with adjusted position for border.

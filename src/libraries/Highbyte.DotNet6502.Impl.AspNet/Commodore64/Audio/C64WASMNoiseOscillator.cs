@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         private Action<string> _addDebugMessage => _c64WASMVoiceContext.AddDebugMessage;
 
         // SID noise oscillator
-        private AudioBufferSync _noiseBuffer;
+        private AudioBufferSync _noiseBuffer = default!;
         internal AudioBufferSourceNodeSync? NoiseGenerator;
 
         public C64WASMNoiseOscillator(C64WASMVoiceContext c64WASMVoiceContext)

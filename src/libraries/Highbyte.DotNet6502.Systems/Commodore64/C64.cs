@@ -1,10 +1,8 @@
-using System.Diagnostics;
 using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
-using Highbyte.DotNet6502.Systems.Commodore64.Keyboard;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
@@ -240,7 +238,7 @@ public class C64 : ISystem, ISystemMonitor
         mem.Write(1, 0x7);
     }
 
-    private static CPU CreateC64CPU( ILoggerFactory loggerFactory)
+    private static CPU CreateC64CPU(ILoggerFactory loggerFactory)
     {
         var cpu = new CPU(loggerFactory);
         // The CPU execute method uses will not raise any events (like after instruction executed). Therefore advance VIC2 raster line etc needs to be manually called instead (see ExecuteOneFrame)

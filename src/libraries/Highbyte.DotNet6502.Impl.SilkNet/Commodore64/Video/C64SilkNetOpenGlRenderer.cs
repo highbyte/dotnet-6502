@@ -1,8 +1,6 @@
 using System.Numerics;
 using Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers;
 using Highbyte.DotNet6502.Instrumentation;
-using Highbyte.DotNet6502.Instrumentation.Stats;
-using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -15,7 +13,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
 public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContext>, IDisposable
 {
 
-    private SilkNetOpenGlRenderContext _silkNetOpenGlRenderContext;
+    private SilkNetOpenGlRenderContext _silkNetOpenGlRenderContext = default!;
     private GL _gl => _silkNetOpenGlRenderContext.Gl;
 
     private bool _changedAllCharsetCodes = false;
@@ -111,18 +109,18 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         public uint ____;     // unused  
     }
 
-    private BufferObject<float> _vbo;
-    private VertexArrayObject<float, int> _vba;
+    private BufferObject<float> _vbo = default!;
+    private VertexArrayObject<float, int> _vba = default!;
 
-    private OpenGLHelpers.Shader _shader;
+    private OpenGLHelpers.Shader _shader = default!;
 
-    private BufferObject<TextData> _uboTextData;
-    private BufferObject<CharsetData> _uboCharsetData;
-    private BufferObject<BitmapData> _uboBitmapData;
-    private BufferObject<ColorMapData> _uboColorMapData;
-    private BufferObject<ScreenLineData> _uboScreenLineData;
-    private BufferObject<SpriteData> _uboSpriteData;
-    private BufferObject<SpriteContentData> _uboSpriteContentData;
+    private BufferObject<TextData> _uboTextData = default!;
+    private BufferObject<CharsetData> _uboCharsetData = default!;
+    private BufferObject<BitmapData> _uboBitmapData = default!;
+    private BufferObject<ColorMapData> _uboColorMapData = default!;
+    private BufferObject<ScreenLineData> _uboScreenLineData = default!;
+    private BufferObject<SpriteData> _uboSpriteData = default!;
+    private BufferObject<SpriteContentData> _uboSpriteContentData = default!;
     private readonly C64SilkNetOpenGlRendererConfig _config;
 
     public C64SilkNetOpenGlRenderer(C64SilkNetOpenGlRendererConfig config)
@@ -149,7 +147,6 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _gl.GetInteger(GLEnum.MaxGeometryUniformComponents, out int maxGeometryUniformComponents); // 2048
         _gl.GetInteger(GLEnum.MaxFragmentUniformComponents, out int maxFragmentUniformComponents); // 4096
 #endif
-
 
         // Two triangles that covers entire screen
         float[] vertices =
@@ -182,7 +179,6 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         // Define bitmap & create Uniform Buffer Object for fragment shader
         var bitmapData = BuildBitmapData(c64);
         _uboBitmapData = new BufferObject<BitmapData>(_gl, bitmapData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
-
 
         // Screen line data Uniform Buffer Object for fragment shader
         var screenLineData = new ScreenLineData[c64.Vic2.Vic2Screen.VisibleHeight];
@@ -248,7 +244,6 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         //_gl.Enable(EnableCap.DepthTest);
         //_gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
         _gl.Clear((uint)(ClearBufferMask.ColorBufferBit));
-
 
         // Update shader uniform buffers that needs to be updated
 
@@ -427,7 +422,9 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     private void CharsetChangedHandler(C64 c64, Vic2CharsetManager.CharsetAddressChangedEventArgs e)
     {
         if (e.ChangeType == Vic2CharsetManager.CharsetAddressChangedEventArgs.CharsetChangeType.CharacterSetBaseAddress)
+        {
             _changedAllCharsetCodes = true;
+        }
         else if (e.ChangeType == Vic2CharsetManager.CharsetAddressChangedEventArgs.CharsetChangeType.CharacterSetCharacter && e.CharCode.HasValue)
         {
             // Updating individual characters in the UBO array probably take longer time than just updating the entire array.

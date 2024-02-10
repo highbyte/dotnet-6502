@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 
 public class AudioBufferSourceNodeSync : AudioScheduledSourceNodeSync
 {
-    public static AudioBufferSourceNodeSync Create(IJSRuntime jSRuntime, BaseAudioContextSync context, AudioBufferSourceNodeOptions options = null)
+    public static AudioBufferSourceNodeSync Create(IJSRuntime jSRuntime, BaseAudioContextSync context, AudioBufferSourceNodeOptions options)
     {
         var helper = context.WebAudioHelper;
 

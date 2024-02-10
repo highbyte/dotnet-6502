@@ -94,7 +94,7 @@ public class BRK_test
 
         // Verify that the processor status was the second value pushed to stack.
         // Assume BRK take a copy of the process or status and set Break and Unused flag before storing the copy on stack.
-        byte expectedProcessorStatusOnStack = test.PS.Value;
+        byte expectedProcessorStatusOnStack = test.PS;
         expectedProcessorStatusOnStack.SetBit(StatusFlagBits.Break);
         expectedProcessorStatusOnStack.SetBit(StatusFlagBits.Unused);
         Assert.Equal(expectedProcessorStatusOnStack,  mem[(ushort)(CPU.StackBaseAddress + originalSP - 2)]);

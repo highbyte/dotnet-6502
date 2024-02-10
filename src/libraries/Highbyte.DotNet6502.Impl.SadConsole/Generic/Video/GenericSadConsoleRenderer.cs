@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Generic.Video;
 
 public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRenderContext>
 {
-    private SadConsoleRenderContext _sadConsoleRenderContext;
+    private SadConsoleRenderContext _sadConsoleRenderContext = default!;
 
     private readonly EmulatorScreenConfig _emulatorScreenConfig;
 
@@ -148,7 +148,9 @@ public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRe
 
         byte sadConsoleCharacter;
         if (_emulatorScreenConfig.UseAscIICharacters)
+        {
             sadConsoleCharacter = emulatorCharacter;
+        }
         else
         {
             var dictKey = emulatorCharacter.ToString();

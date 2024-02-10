@@ -39,7 +39,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     /// <param name="persistSystemConfig">A callback method to persist a configuration object for the system</param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public async Task AddSystem(
+    public void AddSystem(
         SystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext> systemConfigurer)
     {
         var systemName = systemConfigurer.SystemName;
