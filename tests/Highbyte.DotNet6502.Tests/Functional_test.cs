@@ -16,7 +16,7 @@ public class Functional_test
     {
         // Arrange
         var functionalTestCompiler = new FunctionalTestCompiler(NullLogger<FunctionalTestCompiler>.Instance);
-        var functionalTestBinary = functionalTestCompiler.Get6502FunctionalTestBinary(disableDecimalTests: true);
+        var functionalTestBinary = functionalTestCompiler.Get6502FunctionalTestBinary(disableDecimalTests: false);
 
         // There is no 2 byte header in the 6502_functional_test.bin file.
         // It's supposed to be loaded to memory at 0x0000, and started at 0x0400

@@ -50,7 +50,7 @@ public class FunctionalTestCompiler
     {
         _logger = logger;
     }
-    public string Get6502FunctionalTestBinary(bool disableDecimalTests = true, string? downloadDir = null)
+    public string Get6502FunctionalTestBinary(bool disableDecimalTests = false, string? downloadDir = null)
     {
         // Get source code file path (with modified contents to suit our test purpose)
         var sourceCodeFilePath = Get6502FunctionalTestSourceCode(disableDecimalTests, downloadDir);
@@ -119,7 +119,7 @@ public class FunctionalTestCompiler
         // Modify test source code to disable decimal tests
         var modifiedFileName = "6502_functional_test_decimal_disabled.a65";
         var modifiedFunctionalTestSourceCodeFileFilePath = Path.Join(downloadDir, modifiedFileName);
-        ModifyAsmSourceCodeSettings(functionalTestSourceCodeFileFilePath, modifiedFunctionalTestSourceCodeFileFilePath);
+        ModifyAsmSourceCodeSettings(functionalTestSourceCodeFileFilePath, modifiedFunctionalTestSourceCodeFileFilePath, disableDecimal: true);
 
         return modifiedFunctionalTestSourceCodeFileFilePath;
     }
@@ -130,7 +130,7 @@ public class FunctionalTestCompiler
         File.WriteAllBytes(outputPath, fileBytes);
     }
 
-    private void ModifyAsmSourceCodeSettings(string originalFile, string newFile)
+    private void ModifyAsmSourceCodeSettings(string originalFile, string newFile, bool disableDecimal)
     {
         // Change settings by modifying assembler source code
         var fileContentsLineArray = File.ReadAllLines(originalFile);
@@ -138,8 +138,11 @@ public class FunctionalTestCompiler
         for (int i = 0; i < fileContentsLineArray.Length; i++)
         {
             var line = fileContentsLineArray[i];
-            if (line.StartsWith("disable_decimal") && line.Contains("="))
-                line = "disable_decimal = 1";
+            if(disableDecimal)
+            {
+                if (line.StartsWith("disable_decimal") && line.Contains("="))
+                    line = "disable_decimal = 1";
+            }
             modifiedFileContentsLineArray.Add(line);
         }
         // Write modified 6502 assembler code to new file
