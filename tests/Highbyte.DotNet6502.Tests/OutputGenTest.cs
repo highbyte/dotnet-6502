@@ -109,7 +109,30 @@ public class OutputGenTest
 
         // Assert
         Assert.Equal("A=01 X=FF Y=7F PS=[NVUBDIZC] SP=80 PC=2000", outputString);
-    }           
+    }
 
+    [Fact]
+    public void OutputGen_Returns_Correctl_ProcessorStateDictionary()
+    {
+        // Arrange
+        var cpu = new CPU();
+        cpu.PC = 0x1000;
+        cpu.A = 0x00;
+        cpu.X = 0x00;
+        cpu.Y = 0x00;
+        cpu.ProcessorStatus.Value = 0x00;
+        cpu.SP = 0xff;
+
+        // Act
+        var outputDictionary = OutputGen.GetProcessorStateDictionary(cpu, true);
+
+        // Assert
+        Assert.Equal("1000", outputDictionary["PC"]);
+        Assert.Equal("00", outputDictionary["A"]);
+        Assert.Equal("00", outputDictionary["X"]);
+        Assert.Equal("00", outputDictionary["Y"]);
+        Assert.Equal("--------", outputDictionary["PS"]);
+        Assert.Equal("FF", outputDictionary["SP"]);
+    }
 
 }

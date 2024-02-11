@@ -154,13 +154,15 @@ public static class OutputGen
 
     public static Dictionary<string, string> GetProcessorStateDictionary(CPU cpu, bool includeCycles = false)
     {
-        var state = new Dictionary<string, string>();
-        state.Add("A", cpu.A.ToHex(HexPrefix));
-        state.Add("X", cpu.X.ToHex(HexPrefix));
-        state.Add("Y", cpu.Y.ToHex(HexPrefix));
-        state.Add("PS", GetStatusValueString(cpu));
-        state.Add("PC", cpu.PC.ToHex(HexPrefix));
-        state.Add("SP", cpu.SP.ToHex(HexPrefix));
+        var state = new Dictionary<string, string>
+        {
+            { "A", cpu.A.ToHex(HexPrefix) },
+            { "X", cpu.X.ToHex(HexPrefix) },
+            { "Y", cpu.Y.ToHex(HexPrefix) },
+            { "PS", GetStatusValueString(cpu) },
+            { "PC", cpu.PC.ToHex(HexPrefix) },
+            { "SP", cpu.SP.ToHex(HexPrefix) }
+        };
         if (includeCycles)
             state.Add("CY", cpu.ExecState.CyclesConsumed.ToString());
         return state;
