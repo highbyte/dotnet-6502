@@ -159,9 +159,9 @@
 
     [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
-    [Parameter] public ISystemConfig SystemConfig { get; set; }
+    [Parameter] public ISystemConfig SystemConfig { get; set; } = default!;
 
-    [Parameter] public IHostSystemConfig HostSystemConfig { get; set; }
+    [Parameter] public IHostSystemConfig HostSystemConfig { get; set; } = default!;
 
     public C64Config C64Config
     {
@@ -182,7 +182,7 @@
     protected override void OnInitialized() => BlazoredModal.SetTitle("C64 config");
 
 
-    private async Task UnloadROMs() => C64Config.ROMs = new List<ROM>();
+    private void UnloadROMs() => C64Config.ROMs = new List<ROM>();
 
 
     private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok((SystemConfig, HostSystemConfig)));
@@ -246,9 +246,9 @@
                 else if (isChargen)
                     SetROM(C64Config.CHARGEN_ROM_NAME, fileBuffer);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                //Logger.LogError("File: {Filename} Error: {Error}",
+                // Logger.LogError("File: {Filename} Error: {Error}",
                 //    file.Name, ex.Message);
             }
         }
@@ -274,10 +274,10 @@
         rom.Data = data;
     }
 
-    private async Task OnSelectJoystickChanged(ChangeEventArgs e) 
-        => C64HostConfig.InputConfig.CurrentJoystick = int.Parse(e.Value.ToString());
+    private void OnSelectJoystickChanged(ChangeEventArgs e) 
+        => C64HostConfig.InputConfig.CurrentJoystick = int.Parse(e.Value!.ToString()!);
 
-    private async Task OnSelectKeyboardJoystickChanged(ChangeEventArgs e)
-        => C64Config.KeyboardJoystick = int.Parse(e.Value.ToString());
+    private void OnSelectKeyboardJoystickChanged(ChangeEventArgs e)
+        => C64Config.KeyboardJoystick = int.Parse(e.Value!.ToString()!);
     
 }

@@ -93,8 +93,8 @@ public partial class Index
     private EmulatorConfig _emulatorConfig = default!;
     private SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList = default!;
 
-    private WasmHost? _wasmHost = default!;
-    public WasmHost WasmHost => _wasmHost!;
+    private WasmHost _wasmHost = default!;
+    public WasmHost WasmHost => _wasmHost;
 
     private string _statsString = "Instrumentations: calculating...";
     private string _debugString = "";
@@ -109,25 +109,25 @@ public partial class Index
     public IJSRuntime? Js { get; set; }
 
     [Inject]
-    public HttpClient? HttpClient { get; set; }
+    public HttpClient HttpClient { get; set; } = default!;
 
     [Inject]
-    public NavigationManager? NavManager { get; set; }
+    public NavigationManager NavManager { get; set; } = default!;
 
     [Inject]
-    public ILocalStorageService? LocalStorage { get; set; }
+    public ILocalStorageService LocalStorage { get; set; } = default!;
 
     [Inject]
-    public ILoggerFactory LoggerFactory { get; set; }
+    public ILoggerFactory LoggerFactory { get; set; } = default!;
 
     [Inject]
-    public DotNet6502ConsoleLoggerConfiguration LoggerConfiguration { get; set; }
+    public DotNet6502ConsoleLoggerConfiguration LoggerConfiguration { get; set; } = default!;
 
     [Inject]
-    public GamepadList GamepadList { get; set; }
+    public GamepadList GamepadList { get; set; } = default!;
 
-    private ILogger<Index> _logger;
-    private IMapper _mapper;
+    private ILogger<Index> _logger = default!;
+    private IMapper _mapper = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -137,8 +137,8 @@ public partial class Index
         _browserContext = new()
         {
             Uri = NavManager!.ToAbsoluteUri(NavManager.Uri),
-            HttpClient = HttpClient!,
-            LocalStorage = LocalStorage!
+            HttpClient = HttpClient,
+            LocalStorage = LocalStorage
         };
 
         // Add systems
@@ -148,7 +148,8 @@ public partial class Index
         var c64Setup = new C64Setup(_browserContext, LoggerFactory, c64HostConfig);
         _systemList.AddSystem(c64Setup);
 
-        var genericComputerSetup = new GenericComputerSetup(_browserContext, LoggerFactory);
+        var genericComputerHostConfig = new GenericComputerHostConfig();
+        var genericComputerSetup = new GenericComputerSetup(_browserContext, LoggerFactory, genericComputerHostConfig);
         _systemList.AddSystem(genericComputerSetup);
 
         // Add emulator config + system-specific host configs
@@ -265,20 +266,20 @@ public partial class Index
         this.StateHasChanged();
     }
 
-    private async Task InitEmulator()
+    private void InitEmulator()
     {
         _wasmHost = new WasmHost(Js!, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _emulatorConfig, ToggleDebugStatsState, LoggerFactory, (float)Scale, MasterVolumePercent);
         CurrentEmulatorState = EmulatorState.Paused;
     }
 
-    private async Task CleanupEmulator()
+    private void CleanupEmulator()
     {
         _debugVisible = false;
-        await _wasmHost!.Monitor.Disable();
+        _wasmHost!.Monitor.Disable();
 
         CurrentEmulatorState = EmulatorState.Paused;
         _wasmHost?.Cleanup();
-        _wasmHost = null;
+        _wasmHost = default!;
         CurrentEmulatorState = EmulatorState.Uninitialized;
     }
 
@@ -523,7 +524,7 @@ public partial class Index
     public string GetSystemVisibilityDisplayStyle(string displayData, string systemName)
     {
         const string VISIBLE = "inline";
-        const string VISIBLE_BLOCK = "inline-block";
+        //const string VISIBLE_BLOCK = "inline-block";
         const string HIDDEN = "none";
 
         switch (displayData)
@@ -559,7 +560,7 @@ public partial class Index
             if (!isOk)
                 return;
 
-            await InitEmulator();
+            InitEmulator();
         }
 
         _wasmHost.Start();
@@ -571,7 +572,7 @@ public partial class Index
         _logger.LogInformation($"System started: {_selectedSystemName}");
     }
 
-    public async Task OnPause(MouseEventArgs mouseEventArgs)
+    public void OnPause(MouseEventArgs mouseEventArgs)
     {
         if (CurrentEmulatorState == EmulatorState.Uninitialized)
             return;
@@ -585,20 +586,20 @@ public partial class Index
 
     public async Task OnReset(MouseEventArgs mouseEventArgs)
     {
-        await OnPause(mouseEventArgs);
-        await OnStop(mouseEventArgs);
+        OnPause(mouseEventArgs);
+        OnStop(mouseEventArgs);
         await OnStart(mouseEventArgs);
     }
-    public async Task OnStop(MouseEventArgs mouseEventArgs)
+    public void OnStop(MouseEventArgs mouseEventArgs)
     {
-        await CleanupEmulator();
+        CleanupEmulator();
         this.StateHasChanged();
         _logger.LogInformation($"System stopped: {_selectedSystemName}");
 
     }
-    private async Task OnMonitorToggle(MouseEventArgs mouseEventArgs)
+    private void OnMonitorToggle(MouseEventArgs mouseEventArgs)
     {
-        await _wasmHost!.ToggleMonitor();
+        _wasmHost!.ToggleMonitor();
         this.StateHasChanged();
     }
 
@@ -695,7 +696,7 @@ public partial class Index
         var fileBuffer = new byte[file.Size];
         //var fileStream = e.File.OpenReadStream(file.Size);
         await file.OpenReadStream().ReadAsync(fileBuffer);
-        var fileSize = fileBuffer.Length;
+        //var fileSize = fileBuffer.Length;
 
         _wasmHost.Monitor.LoadBinaryFromUser(fileBuffer);
     }

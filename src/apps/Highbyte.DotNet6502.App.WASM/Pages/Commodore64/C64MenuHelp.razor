@@ -61,9 +61,13 @@
     }
 </style>
 
+@* Fix for compiler warning CS8669 https://github.com/dotnet/razor/issues/8720 *@
+@{
+#pragma warning disable CS8669
+}
 @code {
     @inject IJSRuntime Js
-    @inject HttpClient? HttpClient
+    @inject HttpClient HttpClient
 
     private string SYSTEM_NAME = C64.SystemName;
 

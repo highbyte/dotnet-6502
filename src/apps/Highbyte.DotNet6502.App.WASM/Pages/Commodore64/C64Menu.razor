@@ -66,33 +66,37 @@
 
 <style>
     .systemCommandsStyle {
-        display: @Parent.GetSystemVisibilityDisplayStyle("Commands", SYSTEM_NAME);
+        display: @Parent.GetSystemVisibilityDisplayStyle("Commands", SYSTEM_NAME)
     }
     .systemHelpStyle {
-        display: @Parent.GetSystemVisibilityDisplayStyle("Help", SYSTEM_NAME);
+        display: @Parent.GetSystemVisibilityDisplayStyle("Help", SYSTEM_NAME)
     }
     .systemConfigStyle {
-        display: @Parent.GetSystemVisibilityDisplayStyle("Config", SYSTEM_NAME);
+        display: @Parent.GetSystemVisibilityDisplayStyle("Config", SYSTEM_NAME)
     }
 </style>
 
 <InputFile id="filePicker" OnChange="@OnFilePickerChange" hidden />
 <InputFile id="filePickerBasic" OnChange="@OnBasicFilePickerChange" hidden />
 
+@* Fix for compiler warning CS8669 https://github.com/dotnet/razor/issues/8720 *@
+@{
+#pragma warning disable CS8669
+} 
 @code {
-    @inject IJSRuntime Js
-    @inject HttpClient? HttpClient
+@inject IJSRuntime Js
+    @inject HttpClient HttpClient
     @inject ILoggerFactory LoggerFactory
 
-    private ILogger _logger;
+    private ILogger _logger = default!;
     private string _latestFileError = "";
     private string SYSTEM_NAME = C64.SystemName;
 
     // Note: The current config object (reference) is stored in this variable so that the UI can bind it's properties (not possible to use async call to _systemList.GetSystemConfig() in property )
-    private C64Config? _c64Config => Parent.SystemConfig as C64Config;
-    private C64HostConfig? _c64HostConfig => Parent.HostSystemConfig as C64HostConfig;
+    private C64Config _c64Config => (Parent.SystemConfig as C64Config)!;
+    private C64HostConfig _c64HostConfig => (Parent.HostSystemConfig as C64HostConfig)!;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         _logger = LoggerFactory.CreateLogger<C64Menu>();
         _logger.LogDebug("OnInitializedAsync() was called");
@@ -119,11 +123,11 @@
         }
     }
 
-    private async Task OnSelectJoystickChanged(ChangeEventArgs e)
-    => _c64HostConfig.InputConfig.CurrentJoystick = int.Parse(e.Value.ToString());
+    private void OnSelectJoystickChanged(ChangeEventArgs e)
+    => _c64HostConfig.InputConfig.CurrentJoystick = int.Parse(e.Value!.ToString()!);
 
-    private async Task OnSelectKeyboardJoystickChanged(ChangeEventArgs e)
-        => KeyboardJoystick = int.Parse(e.Value.ToString());
+    private void OnSelectKeyboardJoystickChanged(ChangeEventArgs e)
+        => KeyboardJoystick = int.Parse(e.Value!.ToString()!);
 
     private bool SelectKeyboardJoystickDisabled => !JoystickKeyboardEnabled;
 
@@ -162,9 +166,9 @@
         {"PlaySound", "6502binaries/C64/Basic/PlaySoundVoice1TriangleScale.prg" }
     };
 
-    public string SelectedAssemblyExample { get; set; }
+    public string SelectedAssemblyExample { get; set; } = default!;
 
-    public string SelectedBasicExample { get; set; }
+    public string SelectedBasicExample { get; set; } = default!;
 
     private bool _wasRunningBeforeFileDialog = false;
 
@@ -345,7 +349,7 @@
     }
 
 
-    private async Task OnAssemblyExampleChanged(ChangeEventArgs e)
+    private void OnAssemblyExampleChanged(ChangeEventArgs e)
     {
         SelectedAssemblyExample = e.Value?.ToString() ?? "";
     }
@@ -356,7 +360,7 @@
         if (string.IsNullOrEmpty(url))
             return;
 
-        await Parent.OnPause(new());
+        Parent.OnPause(new());
 
         try
         {
@@ -383,7 +387,7 @@
         await Parent.OnStart(new());
     }
 
-    private async Task OnBasicExampleChanged(ChangeEventArgs e)
+    private void OnBasicExampleChanged(ChangeEventArgs e)
     {
         SelectedBasicExample = e.Value?.ToString() ?? "";
     }
@@ -394,7 +398,7 @@
         if (string.IsNullOrEmpty(url))
             return;
 
-        await Parent.OnPause(new());
+        Parent.OnPause(new());
 
         try
         {

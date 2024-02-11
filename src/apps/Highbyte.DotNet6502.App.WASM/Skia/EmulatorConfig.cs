@@ -10,10 +10,10 @@ public class EmulatorConfig
     public const int DEFAULT_CANVAS_WINDOW_WIDTH = 640;
     public const int DEFAULT_CANVAS_WINDOW_HEIGHT = 400;
 
-    public string DefaultEmulator { get; set; }
+    public required string DefaultEmulator { get; set; }
     public double DefaultDrawScale { get; set; }
     public double CurrentDrawScale { get; set; }
-    public MonitorConfig? Monitor { get; set; }
+    public required MonitorConfig Monitor { get; set; }
 
     public Dictionary<string, IHostSystemConfig> HostSystemConfigs = new();
 

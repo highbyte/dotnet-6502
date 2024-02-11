@@ -16,15 +16,15 @@ public class WasmHost : IDisposable
 
     private PeriodicAsyncTimer? _updateTimer;
 
-    private SystemRunner _systemRunner;
+    private SystemRunner _systemRunner = default!;
     public SystemRunner SystemRunner => _systemRunner;
 
-    private SKCanvas _skCanvas;
-    private GRContext _grContext;
+    private SKCanvas _skCanvas = default!;
+    private GRContext _grContext = default!;
 
-    private SkiaRenderContext _skiaRenderContext;
-    public WASMAudioHandlerContext AudioHandlerContext { get; private set; }
-    public AspNetInputHandlerContext InputHandlerContext { get; private set; }
+    private SkiaRenderContext _skiaRenderContext = default!;
+    public WASMAudioHandlerContext AudioHandlerContext { get; private set; } = default!;
+    public AspNetInputHandlerContext InputHandlerContext { get; private set; } = default!;
 
     private readonly string _systemName;
     private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
@@ -38,7 +38,7 @@ public class WasmHost : IDisposable
     private readonly float _initialMasterVolume;
     private readonly ILogger _logger;
 
-    public WasmMonitor Monitor { get; private set; }
+    public WasmMonitor Monitor { get; private set; } = default!;
 
     private const string HostStatRootName = "WASM";
     private const string SystemTimeStatName = "Emulator-SystemTime";
@@ -309,30 +309,30 @@ public class WasmHost : IDisposable
     /// Enable / Disable emulator functions such as monitor and stats/debug
     /// </summary>
     /// <param name="e"></param>
-    public async Task OnKeyDown(KeyboardEventArgs e)
+    public void OnKeyDown(KeyboardEventArgs e)
     {
         var key = e.Key;
 
         if (key == "F11")
         {
-            await _toggleDebugStatsState();
+            _toggleDebugStatsState();
 
         }
         else if (key == "F12")
         {
-            await ToggleMonitor();
+            ToggleMonitor();
         }
     }
 
-    public async Task ToggleMonitor()
+    public void ToggleMonitor()
     {
         if (Monitor.Visible)
         {
-            await Monitor.Disable();
+            Monitor.Disable();
         }
         else
         {
-            await Monitor.Enable();
+            Monitor.Enable();
         }
     }
 

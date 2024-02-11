@@ -7,14 +7,14 @@ namespace Highbyte.DotNet6502.App.WASM.Pages;
 
 public partial class DebugSound
 {
-    private AudioContextSync _audioContext;
-    private OscillatorNodeSync? _oscillator;
-    private CustomPulseOscillatorNodeSync? _customPulseOscillator;
-    private GainNodeSync? _ampGainNode;
-    private GainNodeSync? _widthDepthGainNode;
+    private AudioContextSync _audioContext = default!;
+    private OscillatorNodeSync _oscillator = default!;
+    private CustomPulseOscillatorNodeSync _customPulseOscillator = default!;
+    private GainNodeSync _ampGainNode = default!;
+    private GainNodeSync _widthDepthGainNode = default!;
 
-    private AudioBufferSync? _noiseBuffer;
-    private AudioBufferSourceNodeSync _noiseAudioBufferSourceNode;
+    private AudioBufferSync _noiseBuffer = default!;
+    private AudioBufferSourceNodeSync _noiseAudioBufferSourceNode = default!;
 
     // Input
     private int _oscFrequency = 110;
@@ -33,7 +33,7 @@ public partial class DebugSound
 
     private float _noiseSpeed = 1.0f;
 
-    private readonly SemaphoreSlim _semaphoreSlim = new(1);
+    //private readonly SemaphoreSlim _semaphoreSlim = new(1);
 
     protected override async Task OnInitializedAsync()
     {
@@ -330,7 +330,7 @@ public partial class DebugSound
         //);
         var oscWidthDepth = 0.5f;   // LFO depth
         var oscWidthAttack = 0.05f;
-        var oscWidthDecay = 0.4f;
+        //var oscWidthDecay = 0.4f;
         var oscWidthSustain = 0.4f;
         var oscWidthRelease = 0.4f;
         var widthDepthSustainTime = currentTime + oscWidthAttack + oscWidthRelease;
@@ -455,13 +455,13 @@ public partial class DebugSound
         audioParam.LinearRampToValueAtTime(0, currentTime + 0.05);
     }
 
-    private double Frequency(int octave, int pitch)
-    {
-        var noteIndex = octave * 12 + pitch;
-        var a = Math.Pow(2, 1.0 / 12);
-        var A4 = 440;
-        var A4Index = 4 * 12 + 10;
-        var halfStepDifference = noteIndex - A4Index;
-        return A4 * Math.Pow(a, halfStepDifference);
-    }
+    //private double Frequency(int octave, int pitch)
+    //{
+    //    var noteIndex = octave * 12 + pitch;
+    //    var a = Math.Pow(2, 1.0 / 12);
+    //    var A4 = 440;
+    //    var A4Index = 4 * 12 + 10;
+    //    var halfStepDifference = noteIndex - A4Index;
+    //    return A4 * Math.Pow(a, halfStepDifference);
+    //}
 }

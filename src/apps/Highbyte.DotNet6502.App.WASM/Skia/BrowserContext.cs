@@ -4,7 +4,7 @@ namespace Highbyte.DotNet6502.App.WASM.Skia;
 
 public class BrowserContext
 {
-    public Uri Uri { get; set; }
-    public HttpClient HttpClient { get; set; }
-    public ILocalStorageService LocalStorage { get; set; }
+    public required Uri Uri { get; set; }
+    public required HttpClient HttpClient { get; set; }
+    public required ILocalStorageService LocalStorage { get; set; }
 }

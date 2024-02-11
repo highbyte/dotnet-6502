@@ -32,7 +32,7 @@ public class WasmMonitor : MonitorBase
         _setMonitorState = setMonitorState;
     }
 
-    public async Task Enable(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
+    public void Enable(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
         if (!_hasBeenInitializedOnce)
         {
@@ -52,13 +52,13 @@ public class WasmMonitor : MonitorBase
         DisplayStatus();
 
         Visible = true;
-        await _setMonitorState(true);
+        _setMonitorState(true);
     }
 
-    public async Task Disable()
+    public void Disable()
     {
         Visible = false;
-        await _setMonitorState(false);
+        _setMonitorState(false);
     }
 
     public void OnKeyDown(KeyboardEventArgs e)
@@ -178,7 +178,7 @@ public class WasmMonitor : MonitorBase
     /// Called after Blazor InputFile component callback has uploaded the user selected local file.
     /// </summary>
     /// <param name="fileData"></param>
-    public async Task LoadBinaryFromUser(byte[] fileData)
+    public void LoadBinaryFromUser(byte[] fileData)
     {
         try
         {
