@@ -79,7 +79,6 @@ public class TestSpec
     /// <value></value>
     public byte? FinalValue { get; set; }
 
-
     /// <summary>
     /// Optional.
     /// Only used by Indirect addressing mode (JMP is the only instruction that uses it.)
@@ -141,7 +140,6 @@ public class TestSpec
             ExpectedV = value.HasValue && value.Value.IsBitSet(StatusFlagBits.Overflow);
             ExpectedN = value.HasValue && value.Value.IsBitSet(StatusFlagBits.Negative);
         }
-
     }
     public bool? ExpectedC { get; set; }
     public bool? ExpectedZ { get; set; }
@@ -169,9 +167,9 @@ public class TestSpec
 
     public void Execute_And_Verify(
         AddrMode addrMode
-        , bool ZP_X_Should_Wrap_Over_Byte = false
-        , bool ZP_Y_Should_Wrap_Over_Byte = false
-        , bool FullAddress_Should_Cross_Page_Boundary = false
+        , bool zp_X_Should_Wrap_Over_Byte = false
+        , bool zp_Y_Should_Wrap_Over_Byte = false
+        , bool fullAddress_Should_Cross_Page_Boundary = false
         )
     {
         if (!InsEffect.HasValue)
@@ -237,7 +235,7 @@ public class TestSpec
         if (ExpectedI.HasValue && !I.HasValue)
             I = !ExpectedI.Value;
         if (ExpectedD.HasValue && !D.HasValue)
-            D = !ExpectedZ.Value;
+            D = !ExpectedD.Value;
         if (ExpectedB.HasValue && !B.HasValue)
             B = !ExpectedB.Value;
         if (ExpectedU.HasValue && !U.HasValue)
@@ -341,7 +339,7 @@ public class TestSpec
                 // Use a default value for X index if not specified in test
                 if (!X.HasValue)
                 {
-                    if (!ZP_X_Should_Wrap_Over_Byte)
+                    if (!zp_X_Should_Wrap_Over_Byte)
                         X = 0x05;
                     else
                         X = 0xf5;   // Force final ZP+X address bigger than one byte (0x0010 + 0xf5 = 0x0105)
@@ -349,7 +347,7 @@ public class TestSpec
                 // Calculate ZeroPage + X address
                 ZPAddressX = (ushort)(ZeroPageAddress + X);
                 // Adjust that we expect the final address to wrap when getting larger than a byte
-                if (ZP_X_Should_Wrap_Over_Byte)
+                if (zp_X_Should_Wrap_Over_Byte)
                     ZPAddressX = (ushort)(ZPAddressX & 0xff);
 
                 finalAddressUsed = ZPAddressX;
@@ -370,7 +368,7 @@ public class TestSpec
                 // Use a default value for Y index if not specified in test
                 if (!Y.HasValue)
                 {
-                    if (!ZP_Y_Should_Wrap_Over_Byte)
+                    if (!zp_Y_Should_Wrap_Over_Byte)
                         Y = 0x05;
                     else
                         Y = 0xf5;   // Force final ZP+Y address bigger than one byte (0x0010 + 0xf5 = 0x0105)
@@ -378,7 +376,7 @@ public class TestSpec
                 // Calculate ZeroPage + Y address
                 ZPAddressY = (ushort)(ZeroPageAddress + Y);
                 // Adjust that we expect the final address to wrap when getting larger than a byte
-                if (ZP_Y_Should_Wrap_Over_Byte)
+                if (zp_Y_Should_Wrap_Over_Byte)
                     ZPAddressY = (ushort)(ZPAddressY & 0xff);
 
                 finalAddressUsed = ZPAddressY;
@@ -423,7 +421,7 @@ public class TestSpec
                 // Use a default value for X index if not specified in test
                 if (!X.HasValue)
                 {
-                    if (!FullAddress_Should_Cross_Page_Boundary)
+                    if (!fullAddress_Should_Cross_Page_Boundary)
                         X = 0x05;
                     else
                         X = 0xf0;   // Force final FullAddress+X address crosses page boundary (0xab12 + 0xf0 = 0xac02)
@@ -451,7 +449,7 @@ public class TestSpec
                 // Use a default value for X index if not specified in test
                 if (!Y.HasValue)
                 {
-                    if (!FullAddress_Should_Cross_Page_Boundary)
+                    if (!fullAddress_Should_Cross_Page_Boundary)
                         Y = 0x05;
                     else
                         Y = 0xf0;   // Force final FullAddress+X address crosses page boundary (0xab12 + 0xf0 = 0xac02)
@@ -478,7 +476,7 @@ public class TestSpec
                 // Use a default value for X index if not specified in test
                 if (!X.HasValue)
                 {
-                    if (!ZP_X_Should_Wrap_Over_Byte)
+                    if (!zp_X_Should_Wrap_Over_Byte)
                         X = 0x05;
                     else
                         X = 0xf0;   // Force final ZeroPage address +X to wrap around a byte (0x20 + 0xf0 = 0x10)
@@ -509,7 +507,7 @@ public class TestSpec
                 // Initialize memory we will read from
                 // We calculate a full address to store in a zero page address, adjusted by -Y (because the instruction will add Y when it retrieves it)
                 // If we want to force crossing page boundary FullAddress + Y, we will hard code FullAddress and Y values
-                if (FullAddress_Should_Cross_Page_Boundary)
+                if (fullAddress_Should_Cross_Page_Boundary)
                 {
                     // The address to be found in zero page address
                     FullAddress = 0xab12;
@@ -600,7 +598,9 @@ public class TestSpec
 
         // Verify Program Counter
         if (ExpectedPC.HasValue)
+        {
             Assert.Equal(ExpectedPC.Value, cpu.PC);
+        }
         else
         {
             // If no PC check has been defined, by default verify PC has been moved forward as many bytes we used up for the instruction.
@@ -618,7 +618,9 @@ public class TestSpec
                 && OpCode != OpCodeId.JMP_ABS // Absolute addressing mode
                 && OpCode != OpCodeId.JSR     // Absolute addressing mode
             )
+            {
                 Assert.Equal(codeMemPos, cpu.PC);
+            }
         }
 
         // Verify expected # of cycles

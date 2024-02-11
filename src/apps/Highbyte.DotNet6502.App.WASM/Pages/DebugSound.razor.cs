@@ -7,31 +7,31 @@ namespace Highbyte.DotNet6502.App.WASM.Pages;
 
 public partial class DebugSound
 {
-    AudioContextSync _audioContext;
-    OscillatorNodeSync? _oscillator;
-    CustomPulseOscillatorNodeSync? _customPulseOscillator;
-    GainNodeSync? _ampGainNode;
-    GainNodeSync? _widthDepthGainNode;
+    private AudioContextSync _audioContext;
+    private OscillatorNodeSync? _oscillator;
+    private CustomPulseOscillatorNodeSync? _customPulseOscillator;
+    private GainNodeSync? _ampGainNode;
+    private GainNodeSync? _widthDepthGainNode;
 
-    AudioBufferSync? _noiseBuffer;
-    AudioBufferSourceNodeSync _noiseAudioBufferSourceNode;
+    private AudioBufferSync? _noiseBuffer;
+    private AudioBufferSourceNodeSync _noiseAudioBufferSourceNode;
 
     // Input
-    int _oscFrequency = 110;
+    private int _oscFrequency = 110;
 
     //float _ampScale = 1.0f;
 
-    float _ampGain = 0.22f;
-    double _ampAttack = 0.05f;
-    double _ampDecay = 0.4f;
-    float _ampSustain = 0.4f;
-    double _ampRelease = 0.4f;
+    private float _ampGain = 0.22f;
+    private double _ampAttack = 0.05f;
+    private double _ampDecay = 0.4f;
+    private float _ampSustain = 0.4f;
+    private double _ampRelease = 0.4f;
 
-    bool _automaticRelease = true;  // Set to false to not start Release phase after decay/sustain phase is finished. Sound will play until manually stopped.
+    private bool _automaticRelease = true;  // Set to false to not start Release phase after decay/sustain phase is finished. Sound will play until manually stopped.
 
-    float _pulseWidth = 0;
+    private float _pulseWidth = 0;
 
-    float _noiseSpeed = 1.0f;
+    private float _noiseSpeed = 1.0f;
 
     private readonly SemaphoreSlim _semaphoreSlim = new(1);
 
@@ -196,7 +196,6 @@ public partial class DebugSound
         var data = Float32ArraySync.Create(_audioContext.WebAudioHelper, _audioContext.JSRuntime, values);
         _noiseBuffer.CopyToChannel(data, 0);
     }
-
 
     protected void StartSoundPulse(MouseEventArgs mouseEventArgs)
     {
@@ -380,7 +379,6 @@ public partial class DebugSound
         //if (_gainNode2 != null)
         //    StopAudio(_gainNode2 , currentTime);
     }
-
 
     /// <summary>
     /// Set Attack (duration), Decay (duration), Sustain (level), and Release (duration)

@@ -69,7 +69,7 @@ public class STX_test
             ExpectedMemVal = 0x42,
             ExpectedCycles = 4,
         };
-        test.Execute_And_Verify(AddrMode.ZP_Y, ZP_Y_Should_Wrap_Over_Byte: true);
+        test.Execute_And_Verify(AddrMode.ZP_Y, zp_Y_Should_Wrap_Over_Byte: true);
     }
 
     [Fact]

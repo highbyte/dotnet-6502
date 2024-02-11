@@ -13,7 +13,7 @@ public class Sprite_collitions_debug
     private readonly C64 _c64;
     private readonly Vic2 _vic2;
     private readonly Memory _vic2Mem;
-    private readonly Vic2SpriteManager? _vic2SpriteManager;
+    private readonly Vic2SpriteManager _vic2SpriteManager;
 
     public Sprite_collitions_debug(ITestOutputHelper testOutputHelper)
     {
@@ -170,13 +170,11 @@ public class Sprite_collitions_debug
             _output.WriteLine($"{string.Join(" ", spriteLine.Select(b => Convert.ToString(b, 2).PadLeft(8, '0')))}");
     }
 
-
     private void WriteToTextScreen(byte characterCode, int col, int row)
     {
         var characterAddress = (ushort)(_vic2.VideoMatrixBaseAddress + (row * _vic2.Vic2Screen.TextCols) + col);
         _vic2Mem[characterAddress] = characterCode;
     }
-
 
     private Vic2Sprite CreateSprite(int spriteNumber, byte x, byte y, bool doubleWidth, bool doubleHeight, bool multiColor, byte[] spriteShape, byte spritePointer = 192)
     {

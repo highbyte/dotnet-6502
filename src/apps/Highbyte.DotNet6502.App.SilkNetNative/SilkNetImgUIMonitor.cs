@@ -1,9 +1,6 @@
-using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
-using ImGuiNET;
-using NativeFileDialogSharp;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;
 
@@ -30,17 +27,15 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
     private const int POS_Y = 2;
     private const int WIDTH = 750;
     private const int HEIGHT = 642;
-    const int MONITOR_CMD_LINE_LENGTH = 200;
+    private const int MONITOR_CMD_LINE_LENGTH = 200;
+    private static Vector4 s_informationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+    private static Vector4 s_errorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
+    private static Vector4 s_warningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
+    private static Vector4 s_statusColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
 
-    static Vector4 s_InformationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-    static Vector4 s_ErrorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
-    static Vector4 s_WarningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
+    private readonly bool _autoScroll = true;
 
-    static Vector4 s_StatusColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
-
-    private bool _autoScroll = true;
-
-    public event EventHandler<bool> MonitorStateChange;
+    public event EventHandler<bool>? MonitorStateChange;
     protected virtual void OnMonitorStateChange(bool monitorEnabled)
     {
         var handler = MonitorStateChange;
@@ -99,10 +94,10 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
             {
                 textColor = cmd.Severity switch
                 {
-                    MessageSeverity.Information => s_InformationColor,
-                    MessageSeverity.Warning => s_WarningColor,
-                    MessageSeverity.Error => s_ErrorColor,
-                    _ => s_InformationColor
+                    MessageSeverity.Information => s_informationColor,
+                    MessageSeverity.Warning => s_warningColor,
+                    MessageSeverity.Error => s_errorColor,
+                    _ => s_informationColor
                 };
                 ImGui.PushStyleColor(ImGuiCol.Text, textColor);
                 ImGui.Text(cmd.Message);
@@ -126,11 +121,8 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
                 if (ImGui.GetScrollY() >= ImGui.GetScrollMaxY())
                     ImGui.SetScrollHereY(1.0f); // 0.0f:top, 0.5f:center, 1.0f:bottom
             }
-
         }
         ImGui.EndChild();
-
-
 
         if (_setFocusOnInput)
         {
@@ -161,12 +153,12 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
             return;
 
         // CPU status
-        ImGui.PushStyleColor(ImGuiCol.Text, s_StatusColor);
+        ImGui.PushStyleColor(ImGuiCol.Text, s_statusColor);
         ImGui.Text($"CPU: {OutputGen.GetProcessorState(_silkNetNativeMonitor.Cpu, includeCycles: true)}");
         ImGui.PopStyleColor();
 
         // System status
-        ImGui.PushStyleColor(ImGuiCol.Text, s_StatusColor);
+        ImGui.PushStyleColor(ImGuiCol.Text, s_statusColor);
         foreach (var sysInfoRow in _silkNetNativeMonitor.System.SystemInfo)
         {
             ImGui.Text($"SYS: {sysInfoRow}");

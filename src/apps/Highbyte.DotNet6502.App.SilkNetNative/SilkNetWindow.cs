@@ -32,7 +32,7 @@ public class SilkNetWindow
 
     private readonly DotNet6502InMemLogStore _logStore;
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
-    private string _currentSystemName;
+    private string _currentSystemName = default!;
     private readonly bool _defaultAudioEnabled;
     private float _defaultAudioVolumePercent;
     private readonly ILoggerFactory _loggerFactory;
@@ -65,41 +65,40 @@ public class SilkNetWindow
     private readonly PerSecondTimedStat _renderFps = InstrumentationBag.Add<PerSecondTimedStat>($"{HostStatRootName}-OnRenderFPS");
 
     // Render context container for SkipSharp (surface/canvas) and SilkNetOpenGl
-    private SilkNetRenderContextContainer _silkNetRenderContextContainer;
+    private SilkNetRenderContextContainer _silkNetRenderContextContainer = default!;
     // SilkNet input handling
-    private SilkNetInputHandlerContext _silkNetInputHandlerContext;
+    private SilkNetInputHandlerContext _silkNetInputHandlerContext = default!;
     // NAudio audio handling
-    private NAudioAudioHandlerContext _naudioAudioHandlerContext;
+    private NAudioAudioHandlerContext _naudioAudioHandlerContext = default!;
 
     // Emulator    
-    private SystemRunner? _systemRunner;
+    private SystemRunner _systemRunner = default!;
     public SystemRunner SystemRunner => _systemRunner!;
 
     // Monitor
-    private SilkNetImGuiMonitor _monitor;
+    private SilkNetImGuiMonitor _monitor = default!;
     public SilkNetImGuiMonitor Monitor => _monitor;
 
     // Instrumentations panel
-    private SilkNetImGuiStatsPanel _statsPanel;
+    private SilkNetImGuiStatsPanel _statsPanel = default!;
     public SilkNetImGuiStatsPanel StatsPanel => _statsPanel;
 
     // Logs panel
-    private SilkNetImGuiLogsPanel _logsPanel;
+    private SilkNetImGuiLogsPanel _logsPanel = default!;
     public SilkNetImGuiLogsPanel LogsPanel => _logsPanel;
 
     // Menu
-    private SilkNetImGuiMenu _menu;
+    private SilkNetImGuiMenu _menu = default!;
     private bool _statsWasEnabled = false;
-    private bool _logsWasEnabled = false;
+    //private bool _logsWasEnabled = false;
 
-    readonly List<ISilkNetImGuiWindow> _imGuiWindows = new List<ISilkNetImGuiWindow>();
+    private readonly List<ISilkNetImGuiWindow> _imGuiWindows = new List<ISilkNetImGuiWindow>();
     private bool _atLeastOneImGuiWindowHasFocus => _imGuiWindows.Any(x => x.Visible && x.WindowIsFocused);
 
     // GL and other ImGui resources
-    private GL _gl;
-    private IInputContext _inputContext;
-    private ImGuiController _imGuiController;
-
+    private GL _gl = default!;
+    private IInputContext _inputContext = default!;
+    private ImGuiController _imGuiController = default!;
 
     public SilkNetWindow(
         EmulatorConfig emulatorConfig,
@@ -268,12 +267,11 @@ public class SilkNetWindow
 
         _monitor.Init(_systemRunner!);
 
-        _systemRunner!.AudioHandler.StartPlaying();
+        _systemRunner.AudioHandler.StartPlaying();
 
         EmulatorState = EmulatorState.Running;
 
         _logger.LogInformation($"System started: {_currentSystemName}");
-
     }
 
     public void Pause()
@@ -281,7 +279,7 @@ public class SilkNetWindow
         if (EmulatorState == EmulatorState.Paused || EmulatorState == EmulatorState.Uninitialized)
             return;
 
-        _systemRunner!.AudioHandler.PausePlaying();
+        _systemRunner.AudioHandler.PausePlaying();
         EmulatorState = EmulatorState.Paused;
 
         _logger.LogInformation($"System paused: {_currentSystemName}");
@@ -293,7 +291,7 @@ public class SilkNetWindow
             return;
         if (EmulatorState == EmulatorState.Running)
             Pause();
-        _systemRunner = null;
+        _systemRunner = default!;
         EmulatorState = EmulatorState.Uninitialized;
         Start();
     }
@@ -302,7 +300,7 @@ public class SilkNetWindow
     {
         if (EmulatorState == EmulatorState.Running)
             Pause();
-        _systemRunner = null;
+        _systemRunner = default!;
         SetUninitializedWindow();
         InitRendering();
 
@@ -326,7 +324,7 @@ public class SilkNetWindow
         {
             using (_inputTime.Measure())
             {
-                _systemRunner!.ProcessInput();
+                _systemRunner.ProcessInput();
             }
         }
 
@@ -371,13 +369,12 @@ public class SilkNetWindow
             using (_renderTime.Measure())
             {
                 // Render emulator system screen
-                _systemRunner!.Draw();
+                _systemRunner.Draw();
 
                 // Flush the SkiaSharp Context
                 _silkNetRenderContextContainer.SkiaRenderContext.GetGRContext().Flush();
             }
             emulatorRendered = true;
-
 
             // SilkNet windows are what's known as "double-buffered". In essence, the window manages two buffers.
             // One is rendered to while the other is currently displayed by the window.
@@ -529,9 +526,7 @@ public class SilkNetWindow
         if (_menu.Visible)
             _menu.Disable();
         else
-        {
             _menu.Enable();
-        }
     }
 
     public void ToggleStatsPanel()
@@ -557,8 +552,8 @@ public class SilkNetWindow
 
         if (_logsPanel.Visible)
         {
+            //_logsWasEnabled = true;
             _logsPanel.Disable();
-            _logsWasEnabled = false;
         }
         else
         {
@@ -584,6 +579,5 @@ public class SilkNetWindow
         {
             _monitor.Enable();
         }
-
     }
 }

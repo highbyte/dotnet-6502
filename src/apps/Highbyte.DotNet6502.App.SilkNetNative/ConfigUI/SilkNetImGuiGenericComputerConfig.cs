@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Numerics;
+using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative.ConfigUI;
@@ -7,11 +8,14 @@ namespace Highbyte.DotNet6502.App.SilkNetNative.ConfigUI;
 public class SilkNetImGuiGenericComputerConfig
 {
     private readonly SilkNetImGuiMenu _mainMenu;
-    GenericComputerConfig _config => (GenericComputerConfig)_mainMenu.GetSelectedSystemConfig();
+
+    private GenericComputerConfig _config => (GenericComputerConfig)_mainMenu.GetSelectedSystemConfig();
+
+    private GenericComputerHostConfig _hostConfig => (GenericComputerHostConfig)_mainMenu.GetSelectedSystemHostConfig();
 
     private bool _open;
 
-    private string _programBinaryFile;
+    private string _programBinaryFile = default!;
 
     public bool IsValidConfig
     {
@@ -29,11 +33,10 @@ public class SilkNetImGuiGenericComputerConfig
         }
     }
     private List<string> _validationErrors = new();
-
-    static Vector4 s_InformationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-    static Vector4 s_ErrorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
-    static Vector4 s_WarningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
-    static Vector4 s_OkButtonColor = new Vector4(0.0f, 0.6f, 0.0f, 1.0f);
+    //private static Vector4 s_informationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+    private static Vector4 s_errorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
+    //private static Vector4 s_warningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
+    private static Vector4 s_okButtonColor = new Vector4(0.0f, 0.6f, 0.0f, 1.0f);
 
     public SilkNetImGuiGenericComputerConfig(SilkNetImGuiMenu mainMenu)
     {
@@ -122,7 +125,6 @@ public class SilkNetImGuiGenericComputerConfig
             ImGui.SameLine();
             ImGui.Text(_config!.Memory.Screen.DefaultBorderColor.ToString());
 
-
             // Memory - Input
             ImGui.Text("Memory - Input");
 
@@ -148,7 +150,7 @@ public class SilkNetImGuiGenericComputerConfig
             }
             if (!IsValidConfig)
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, s_ErrorColor);
+                ImGui.PushStyleColor(ImGuiCol.Text, s_errorColor);
                 foreach (var error in _validationErrors)
                 {
                     ImGui.TextWrapped($"Error: {error}");
@@ -166,12 +168,12 @@ public class SilkNetImGuiGenericComputerConfig
 
             ImGui.SameLine();
             ImGui.BeginDisabled(disabled: !IsValidConfig);
-            ImGui.PushStyleColor(ImGuiCol.Button, s_OkButtonColor);
+            ImGui.PushStyleColor(ImGuiCol.Button, s_okButtonColor);
             if (ImGui.Button("Ok"))
             {
                 Debug.WriteLine("Ok pressed");
                 ImGui.CloseCurrentPopup();
-                _mainMenu.UpdateCurrentSystemConfig(_config, null);
+                _mainMenu.UpdateCurrentSystemConfig(_config, _hostConfig);
             }
             ImGui.PopStyleColor();
             ImGui.EndDisabled();

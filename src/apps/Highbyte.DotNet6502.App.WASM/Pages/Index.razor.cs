@@ -402,7 +402,6 @@ public partial class Index
         }
     }
 
-
     private void UpdateStats(string stats)
     {
         _statsString = stats;

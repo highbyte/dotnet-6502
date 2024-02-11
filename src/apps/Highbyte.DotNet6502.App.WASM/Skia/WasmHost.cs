@@ -117,6 +117,8 @@ public class WasmHost : IDisposable
         _updateTimer?.Stop();
 
         _systemRunner.AudioHandler.PausePlaying();
+
+        _logger.LogInformation($"System stopped: {_systemName}");
     }
 
     public void Start()
@@ -137,6 +139,8 @@ public class WasmHost : IDisposable
             _updateTimer.Elapsed += UpdateTimerElapsed;
         }
         _updateTimer!.Start();
+
+        _logger.LogInformation($"System started: {_systemName}");
     }
 
     public void Cleanup()

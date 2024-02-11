@@ -15,13 +15,15 @@ public class GenericComputerSetup : SystemConfigurer<SilkNetRenderContextContain
     public string SystemName => GenericComputer.SystemName;
 
     private readonly ILoggerFactory _loggerFactory;
+    private readonly GenericComputerHostConfig _genericComputerHostConfig;
 
-    public GenericComputerSetup(ILoggerFactory loggerFactory)
+    public GenericComputerSetup(ILoggerFactory loggerFactory, GenericComputerHostConfig genericComputerHostConfig)
     {
         _loggerFactory = loggerFactory;
+        _genericComputerHostConfig = genericComputerHostConfig;
     }
 
-    public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
+    public Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
         var genericComputerConfig = new GenericComputerConfig
         {
@@ -52,13 +54,14 @@ public class GenericComputerSetup : SystemConfigurer<SilkNetRenderContextContain
 
         genericComputerConfig.Validate();
 
-        return genericComputerConfig;
+        return Task.FromResult<ISystemConfig>(genericComputerConfig);
     }
 
-    public async Task PersistConfig(ISystemConfig systemConfig)
+    public Task PersistConfig(ISystemConfig systemConfig)
     {
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
         // TODO: Save config settings to file
+        return Task.CompletedTask;
     }
 
     public ISystem BuildSystem(ISystemConfig systemConfig)
@@ -67,10 +70,9 @@ public class GenericComputerSetup : SystemConfigurer<SilkNetRenderContextContain
         return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
     }
 
-
     public Task<IHostSystemConfig> GetHostSystemConfig()
     {
-        return Task.FromResult((IHostSystemConfig)null);
+        return Task.FromResult((IHostSystemConfig)_genericComputerHostConfig);
     }
 
     public SystemRunner BuildSystemRunner(

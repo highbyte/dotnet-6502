@@ -420,7 +420,7 @@ public class SBC_test
             ExpectedA      = 0x01,
             ExpectedCycles = 4,
         };
-        test.Execute_And_Verify(AddrMode.ZP_X, ZP_X_Should_Wrap_Over_Byte: true);
+        test.Execute_And_Verify(AddrMode.ZP_X, zp_X_Should_Wrap_Over_Byte: true);
     }
 
     /// <summary>
@@ -472,7 +472,7 @@ public class SBC_test
             ExpectedA      = 0x01,
             ExpectedCycles = 5,
         };
-        test.Execute_And_Verify(AddrMode.ABS_X, FullAddress_Should_Cross_Page_Boundary: true);
+        test.Execute_And_Verify(AddrMode.ABS_X, fullAddress_Should_Cross_Page_Boundary: true);
     }
 
     [Fact]
@@ -505,7 +505,7 @@ public class SBC_test
             ExpectedA      = 0x01,
             ExpectedCycles = 5,
         };
-        test.Execute_And_Verify(AddrMode.ABS_Y, FullAddress_Should_Cross_Page_Boundary: true);
+        test.Execute_And_Verify(AddrMode.ABS_Y, fullAddress_Should_Cross_Page_Boundary: true);
     }
 
     /// <summary>
@@ -552,7 +552,7 @@ public class SBC_test
             ExpectedA      = 0x01,
             ExpectedCycles = 6,
         };
-        test.Execute_And_Verify(AddrMode.IX_IND, ZP_X_Should_Wrap_Over_Byte: true);
+        test.Execute_And_Verify(AddrMode.IX_IND, zp_X_Should_Wrap_Over_Byte: true);
     }
 
     /// <summary>
@@ -604,7 +604,7 @@ public class SBC_test
             ExpectedA      = 0x01,
             ExpectedCycles = 6,
         };
-        test.Execute_And_Verify(AddrMode.IND_IX, FullAddress_Should_Cross_Page_Boundary: true);
+        test.Execute_And_Verify(AddrMode.IND_IX, fullAddress_Should_Cross_Page_Boundary: true);
     }
 
     [Fact]
