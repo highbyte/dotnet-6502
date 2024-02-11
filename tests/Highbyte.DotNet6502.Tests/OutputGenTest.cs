@@ -134,5 +134,4 @@ public class OutputGenTest
         Assert.Equal("--------", outputDictionary["PS"]);
         Assert.Equal("FF", outputDictionary["SP"]);
     }
-
 }
