@@ -1,41 +1,39 @@
-using System;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.WaveTables;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
 
 public partial class DebugSound
 {
-    AudioContextSync _audioContext;
-    OscillatorNodeSync? _oscillator;
-    CustomPulseOscillatorNodeSync? _customPulseOscillator;
-    GainNodeSync? _ampGainNode;
-    GainNodeSync? _widthDepthGainNode;
+    private AudioContextSync _audioContext = default!;
+    private OscillatorNodeSync _oscillator = default!;
+    private CustomPulseOscillatorNodeSync _customPulseOscillator = default!;
+    private GainNodeSync _ampGainNode = default!;
+    private GainNodeSync _widthDepthGainNode = default!;
 
-    AudioBufferSync? _noiseBuffer;
-    AudioBufferSourceNodeSync _noiseAudioBufferSourceNode;
+    private AudioBufferSync _noiseBuffer = default!;
+    private AudioBufferSourceNodeSync _noiseAudioBufferSourceNode = default!;
 
     // Input
-    int _oscFrequency = 110;
+    private int _oscFrequency = 110;
 
     //float _ampScale = 1.0f;
 
-    float _ampGain = 0.22f;
-    double _ampAttack = 0.05f;
-    double _ampDecay = 0.4f;
-    float _ampSustain = 0.4f;
-    double _ampRelease = 0.4f;
+    private float _ampGain = 0.22f;
+    private double _ampAttack = 0.05f;
+    private double _ampDecay = 0.4f;
+    private float _ampSustain = 0.4f;
+    private double _ampRelease = 0.4f;
 
-    bool _automaticRelease = true;  // Set to false to not start Release phase after decay/sustain phase is finished. Sound will play until manually stopped.
+    private bool _automaticRelease = true;  // Set to false to not start Release phase after decay/sustain phase is finished. Sound will play until manually stopped.
 
-    float _pulseWidth = 0;
+    private float _pulseWidth = 0;
 
-    float _noiseSpeed = 1.0f;
+    private float _noiseSpeed = 1.0f;
 
-    private readonly SemaphoreSlim _semaphoreSlim = new(1);
+    //private readonly SemaphoreSlim _semaphoreSlim = new(1);
 
     protected override async Task OnInitializedAsync()
     {
@@ -99,7 +97,7 @@ public partial class DebugSound
         {
             Type = OscillatorType.Custom, // Not working currently 
             Frequency = _oscFrequency,
-            PeriodicWave = wave 
+            PeriodicWave = wave
         };
         _oscillator = OscillatorNodeSync.Create(Js, _audioContext, oscillatorOptions);
 
@@ -198,7 +196,6 @@ public partial class DebugSound
         var data = Float32ArraySync.Create(_audioContext.WebAudioHelper, _audioContext.JSRuntime, values);
         _noiseBuffer.CopyToChannel(data, 0);
     }
-
 
     protected void StartSoundPulse(MouseEventArgs mouseEventArgs)
     {
@@ -333,7 +330,7 @@ public partial class DebugSound
         //);
         var oscWidthDepth = 0.5f;   // LFO depth
         var oscWidthAttack = 0.05f;
-        var oscWidthDecay = 0.4f;
+        //var oscWidthDecay = 0.4f;
         var oscWidthSustain = 0.4f;
         var oscWidthRelease = 0.4f;
         var widthDepthSustainTime = currentTime + oscWidthAttack + oscWidthRelease;
@@ -382,7 +379,6 @@ public partial class DebugSound
         //if (_gainNode2 != null)
         //    StopAudio(_gainNode2 , currentTime);
     }
-
 
     /// <summary>
     /// Set Attack (duration), Decay (duration), Sustain (level), and Release (duration)
@@ -459,13 +455,13 @@ public partial class DebugSound
         audioParam.LinearRampToValueAtTime(0, currentTime + 0.05);
     }
 
-    private double Frequency(int octave, int pitch)
-    {
-        var noteIndex = octave * 12 + pitch;
-        var a = Math.Pow(2, 1.0 / 12);
-        var A4 = 440;
-        var A4Index = 4 * 12 + 10;
-        var halfStepDifference = noteIndex - A4Index;
-        return A4 * Math.Pow(a, halfStepDifference);
-    }
+    //private double Frequency(int octave, int pitch)
+    //{
+    //    var noteIndex = octave * 12 + pitch;
+    //    var a = Math.Pow(2, 1.0 / 12);
+    //    var A4 = 440;
+    //    var A4Index = 4 * 12 + 10;
+    //    var halfStepDifference = noteIndex - A4Index;
+    //    return A4 * Math.Pow(a, halfStepDifference);
+    //}
 }

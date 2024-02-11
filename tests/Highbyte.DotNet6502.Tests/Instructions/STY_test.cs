@@ -69,7 +69,7 @@ public class STY_test
             ExpectedMemVal = 0x42,
             ExpectedCycles = 4,
         };
-        test.Execute_And_Verify(AddrMode.ZP_X, ZP_X_Should_Wrap_Over_Byte: true);
+        test.Execute_And_Verify(AddrMode.ZP_X, zp_X_Should_Wrap_Over_Byte: true);
     }
 
     [Fact]

@@ -25,7 +25,7 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>
     internal WASMAudioHandlerContext AudioHandlerContext => _audioHandlerContext!;
     private AudioContextSync _audioContext => AudioHandlerContext!.AudioContext;
 
-    internal GainNodeSync? CommonSIDGainNode { get; private set; }
+    internal GainNodeSync CommonSIDGainNode { get; private set; } = default!;
 
     private readonly List<byte> _enabledVoices = new() { 1, 2, 3 }; // TODO: Set enabled voices via config.
     //private List<byte> _enabledVoices = new() { 1 }; // TODO: Set enabled voices via config.

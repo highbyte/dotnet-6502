@@ -11,10 +11,10 @@
 
 @code {
     private FormModel _formModel = new();
-    private InputText _fileNameRef;
+    private InputText _fileNameRef = default!;
     [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
-    protected override async void OnInitialized()
+    protected override void OnInitialized()
     {
         BlazoredModal.SetTitle("Enter Basic filename to save (.prg)");
     }

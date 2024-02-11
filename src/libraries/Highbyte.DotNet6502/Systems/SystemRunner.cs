@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace Highbyte.DotNet6502.Systems;
 
 public class SystemRunner
@@ -16,9 +14,6 @@ public class SystemRunner
 
     private IExecEvaluator? _customExecEvaluator;
     public IExecEvaluator? CustomExecEvaluator => _customExecEvaluator;
-
-    // Detailed perf stat to audio generation that occurs after each instruction
-    private readonly Stopwatch _audioSw = new();
 
     public SystemRunner(ISystem system)
     {
@@ -55,7 +50,7 @@ public class SystemRunner
     /// </summary>
     public ExecEvaluatorTriggerResult RunEmulatorOneFrame()
     {
-        var execEvaluatorTriggerResult = _system.ExecuteOneFrame(this,  _customExecEvaluator);
+        var execEvaluatorTriggerResult = _system.ExecuteOneFrame(this, _customExecEvaluator);
         return execEvaluatorTriggerResult;
     }
 

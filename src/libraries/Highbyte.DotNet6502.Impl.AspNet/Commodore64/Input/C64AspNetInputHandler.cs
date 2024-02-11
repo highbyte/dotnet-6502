@@ -10,8 +10,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>
 {
     private AspNetInputHandlerContext? _inputHandlerContext = default!;
-    private ILogger<C64AspNetInputHandler> _logger;
-    private C64AspNetKeyboard _c64AspNetKeyboard;
+    private readonly ILogger<C64AspNetInputHandler> _logger;
+    private C64AspNetKeyboard _c64AspNetKeyboard = default!;
     private readonly C64AspNetConfig _c64AspNetConfig;
 
     // Instrumentations
@@ -154,7 +154,6 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
         }
         return c64JoystickActions;
     }
-
 
     public List<string> GetDebugInfo()
     {

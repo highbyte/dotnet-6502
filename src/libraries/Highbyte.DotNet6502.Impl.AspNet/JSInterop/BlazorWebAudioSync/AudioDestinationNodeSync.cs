@@ -9,7 +9,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 
 public class AudioDestinationNodeSync : AudioNodeSync
 {
-    public static AudioDestinationNodeSync Create(IJSInProcessObjectReference helper, IJSRuntime jSRuntime, IJSInProcessObjectReference jSReference)
+    public static new AudioDestinationNodeSync Create(IJSInProcessObjectReference helper, IJSRuntime jSRuntime, IJSInProcessObjectReference jSReference)
     {
         return new AudioDestinationNodeSync(helper, jSRuntime, jSReference);
     }

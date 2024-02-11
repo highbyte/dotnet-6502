@@ -39,10 +39,11 @@ var c64HostConfig = new C64HostConfig
     }
 };
 var c64Setup = new C64Setup(loggerFactory, c64HostConfig);
-await systemList.AddSystem(c64Setup);
+systemList.AddSystem(c64Setup);
 
-var genericComputerSetup = new GenericComputerSetup(loggerFactory);
-await systemList.AddSystem(genericComputerSetup);
+var genericComputerHostConfig = new GenericComputerHostConfig { };
+var genericComputerSetup = new GenericComputerSetup(loggerFactory, genericComputerHostConfig);
+systemList.AddSystem(genericComputerSetup);
 
 // TODO: Read options from appsettings.json
 var emulatorConfig = new EmulatorConfig
@@ -62,7 +63,7 @@ var emulatorConfig = new EmulatorConfig
     HostSystemConfigs = new Dictionary<string, IHostSystemConfig>
     {
         { C64.SystemName, c64HostConfig },
-        { GenericComputer.SystemName, null }
+        { GenericComputer.SystemName, genericComputerHostConfig}
     }
 };
 emulatorConfig.Validate(systemList);

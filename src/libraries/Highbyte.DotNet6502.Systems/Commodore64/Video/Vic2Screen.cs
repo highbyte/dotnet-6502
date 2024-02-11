@@ -255,17 +255,17 @@ public class Vic2ScreenLayouts
 
 public class Vic2ScreenLayout
 {
-    public Vic2Area? TopBorder { get; set; }
-    public Vic2Area? LeftBorder { get; set; }
-    public Vic2Area? Screen { get; set; }
-    public Vic2Area? BottomBorder { get; set; }
-    public Vic2Area? RightBorder { get; set; }
+    public required Vic2Area TopBorder { get; set; }
+    public required Vic2Area LeftBorder { get; set; }
+    public required Vic2Area Screen { get; set; }
+    public required Vic2Area BottomBorder { get; set; }
+    public required Vic2Area RightBorder { get; set; }
 }
 
 public class Vic2Area
 {
-    public IntVector2? Start { get; set; }
-    public IntVector2? End { get; set; }
+    public required IntVector2 Start { get; set; }
+    public required IntVector2 End { get; set; }
 }
 
 public class IntVector2

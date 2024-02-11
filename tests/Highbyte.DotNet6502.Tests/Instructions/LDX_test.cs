@@ -152,7 +152,7 @@ public class LDX_test
             ExpectedX      = 0x12,
             ExpectedCycles = 4
         };
-        test.Execute_And_Verify(AddrMode.ZP_Y, ZP_Y_Should_Wrap_Over_Byte: true);
+        test.Execute_And_Verify(AddrMode.ZP_Y, zp_Y_Should_Wrap_Over_Byte: true);
     }
 
     [Fact]
@@ -194,6 +194,6 @@ public class LDX_test
             ExpectedX      = 0x12,
             ExpectedCycles = 5
         };
-        test.Execute_And_Verify(AddrMode.ABS_Y, FullAddress_Should_Cross_Page_Boundary: true);
+        test.Execute_And_Verify(AddrMode.ABS_Y, fullAddress_Should_Cross_Page_Boundary: true);
     }
 }

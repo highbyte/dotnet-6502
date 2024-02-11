@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
@@ -17,15 +16,15 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// </summary>
 public class Vic2
 {
-    public C64? C64 { get; private set; }
-    public Vic2ModelBase? Vic2Model { get; private set; }
-    public Vic2Screen? Vic2Screen { get; private set; }
+    public C64 C64 { get; private set; } = default!;
+    public Vic2ModelBase Vic2Model { get; private set; } = default!;
+    public Vic2Screen Vic2Screen { get; private set; } = default!;
     /// <summary>
     /// Vic2 screem memory for text, graphics and sprites.
     /// </summary>
-    public Memory? Vic2Mem { get; private set; }
+    public Memory Vic2Mem { get; private set; } = default!;
 
-    public Vic2IRQ? Vic2IRQ { get; private set; }
+    public Vic2IRQ Vic2IRQ { get; private set; } = default!;
 
     public ulong CyclesConsumedCurrentVblank { get; private set; } = 0;
 
@@ -33,7 +32,7 @@ public class Vic2
 
     public ushort VideoMatrixBaseAddress { get; private set; }
 
-     public DispMode DisplayMode
+    public DispMode DisplayMode
     {
         get
         {
@@ -122,12 +121,12 @@ public class Vic2
         }
     }
 
-    public Dictionary<int, ScreenLineData> ScreenLineIORegisterValues { get; private set; }
+    public Dictionary<int, ScreenLineData> ScreenLineIORegisterValues { get; private set; } = default!;
 
-    public Vic2ScreenLayouts? ScreenLayouts { get; private set; }
-    public Vic2SpriteManager? SpriteManager { get; private set; }
-    public Vic2CharsetManager? CharsetManager { get; private set; }
-    public Vic2BitmapManager? BitmapManager { get; private set; }
+    public Vic2ScreenLayouts ScreenLayouts { get; private set; } = default!;
+    public Vic2SpriteManager SpriteManager { get; private set; } = default!;
+    public Vic2CharsetManager CharsetManager { get; private set; } = default!;
+    public Vic2BitmapManager BitmapManager { get; private set; } = default!;
 
     private Vic2() { }
 
@@ -164,28 +163,6 @@ public class Vic2
         vic2.BitmapManager = bitmapManager;
 
         return vic2;
-    }
-
-    private static Dictionary<int, byte> InitializeScreenLineBorderColorLookup(Vic2ModelBase vic2Model)
-    {
-        var screenLineBorderColor = new Dictionary<int, byte>();
-        for (ushort i = 0; i < vic2Model.TotalHeight; i++)
-        {
-            screenLineBorderColor.Add(i, 0);
-        }
-        return screenLineBorderColor;
-    }
-
-    private static Dictionary<int, byte> InitializeScreenLineBackgroundColorLookup(Vic2ModelBase vic2Model)
-    {
-        var screenLineBackgroundColor = new Dictionary<int, byte>();
-        for (ushort i = 0; i < vic2Model.TotalHeight; i++)
-        {
-            if (!vic2Model.IsRasterLineInMainScreen(i))
-                continue;
-            screenLineBackgroundColor.Add(i, 0);
-        }
-        return screenLineBackgroundColor;
     }
 
     public void MapIOLocations(Memory c64Mem)
@@ -390,7 +367,6 @@ public class Vic2
 
         return vic2Mem;
     }
-
 
     public void SpriteEnableStore(ushort address, byte value)
     {
@@ -636,7 +612,7 @@ public class Vic2
 
 #if DEBUG
         if (Vic2IRQ.ConfiguredIRQRasterLine > Vic2Model.TotalHeight)
-            throw new Exception($"Internal error. Setting unreachable scan line for IRQ: {Vic2IRQ.ConfiguredIRQRasterLine}. Incorrect ROM for Vic2 model: {Vic2Model.Name} ?");
+            throw new DotNet6502Exception($"Internal error. Setting unreachable scan line for IRQ: {Vic2IRQ.ConfiguredIRQRasterLine}. Incorrect ROM for Vic2 model: {Vic2Model.Name} ?");
 #endif
 
     }
@@ -767,7 +743,7 @@ public class Vic2
         {
 #if DEBUG
             if (newLine > Vic2Model.TotalHeight)
-                throw new Exception($"Internal error. Unreachable scan line: {newLine}. The CPU probably executed more cycles current frame than allowed.");
+                throw new DotNet6502Exception($"Internal error. Unreachable scan line: {newLine}. The CPU probably executed more cycles current frame than allowed.");
 #endif
 
             _currentRasterLineInternal = newLine;

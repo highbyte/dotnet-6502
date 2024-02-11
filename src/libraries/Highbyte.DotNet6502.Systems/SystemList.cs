@@ -39,12 +39,12 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     /// <param name="persistSystemConfig">A callback method to persist a configuration object for the system</param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public async Task AddSystem(
+    public void AddSystem(
         SystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext> systemConfigurer)
     {
         var systemName = systemConfigurer.SystemName;
         if (Systems.Contains(systemName))
-            throw new Exception($"System already added: {systemName}");
+            throw new DotNet6502Exception($"System already added: {systemName}");
         Systems.Add(systemName);
 
         _systemConfigurers[systemName] = systemConfigurer;
@@ -62,7 +62,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     public async Task<ISystem> GetSystem(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
     {
         if (!Systems.Contains(systemName))
-            throw new Exception($"System does not exist: {systemName}");
+            throw new DotNet6502Exception($"System does not exist: {systemName}");
         var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
         if (!_systemsCache.ContainsKey(cacheKey))
             await BuildAndCacheSystem(systemName, configurationVariant);
@@ -79,12 +79,12 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     private async Task BuildAndCacheSystem(string systemName, string configurationVariant)
     {
         if (!Systems.Contains(systemName))
-            throw new Exception($"System does not exist: {systemName}");
+            throw new DotNet6502Exception($"System does not exist: {systemName}");
 
         var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
 
         if (!await IsValidConfig(systemName, configurationVariant))
-            throw new Exception($"Internal error. Configuration for system {cacheKey} is invalid.");
+            throw new DotNet6502Exception($"Internal error. Configuration for system {cacheKey} is invalid.");
 
         if (_systemsCache.ContainsKey(cacheKey))
             _systemsCache.Remove(cacheKey);
@@ -97,7 +97,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     private void CacheSystemConfig(string systemName, string configurationVariant, ISystemConfig systemConfig)
     {
         if (!Systems.Contains(systemName))
-            throw new Exception($"System does not exist: {systemName}");
+            throw new DotNet6502Exception($"System does not exist: {systemName}");
 
         var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
 
@@ -114,11 +114,11 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
     {
         if (_getRenderContext == null)
-            throw new Exception("RenderContext has not been initialized. Call InitContext to initialize.");
+            throw new DotNet6502Exception("RenderContext has not been initialized. Call InitContext to initialize.");
         if (_getInputHandlerContext == null)
-            throw new Exception("InputHandlerContext has not been initialized. Call InitContext to initialize.");
+            throw new DotNet6502Exception("InputHandlerContext has not been initialized. Call InitContext to initialize.");
         if (_getAudioHandlerContext == null)
-            throw new Exception("AudioHandlerContext has not been initialized. Call InitContext to initialize.");
+            throw new DotNet6502Exception("AudioHandlerContext has not been initialized. Call InitContext to initialize.");
 
         await BuildAndCacheSystem(systemName, configurationVariant);
 
@@ -132,7 +132,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     public async Task<ISystemConfig> GetCurrentSystemConfig(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
     {
         if (!Systems.Contains(systemName))
-            throw new Exception($"System does not exist: {systemName}");
+            throw new DotNet6502Exception($"System does not exist: {systemName}");
 
         var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
         if (!_systemConfigsCache.ContainsKey(cacheKey))

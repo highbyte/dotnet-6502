@@ -5,7 +5,7 @@ public class ROM
     /// <summary>
     /// Name of ROM
     /// </summary>
-    public string Name { get; set; }
+    public required string Name { get; set; }
     /// <summary>
     /// Optional. File name of the ROM. If this is set, the ROM contents is read from the file instead of used from the Data property.
     /// </summary>
@@ -43,7 +43,7 @@ public class ROM
     public void Validate(string romDirectory)
     {
         if (!Validate(out List<string> validationErrors, romDirectory))
-            throw new Exception($"Invalid ROM. Errors: {string.Join(',', validationErrors)}");
+            throw new DotNet6502Exception($"Invalid ROM. Errors: {string.Join(',', validationErrors)}");
     }
 
     public bool Validate(out List<string> validationErrors, string romDirectory)
@@ -90,7 +90,7 @@ public class ROM
     public string GetROMFilePath(string romDirectory)
     {
         if (File == null)
-            throw new Exception($"Cannot get ROM file path if rom File is empty.");
+            throw new DotNet6502Exception($"Cannot get ROM file path if rom File is empty.");
         string romFilePath;
         if (!string.IsNullOrEmpty(romDirectory))
             romFilePath = Path.Combine(romDirectory, File);

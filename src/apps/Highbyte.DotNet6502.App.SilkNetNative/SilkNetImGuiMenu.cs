@@ -1,6 +1,5 @@
 using System.Numerics;
 using AutoMapper;
-using Highbyte.DotNet6502.App.SilkNetNative;
 using Highbyte.DotNet6502.App.SilkNetNative.ConfigUI;
 using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 using Highbyte.DotNet6502.Systems;
@@ -38,12 +37,12 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     public bool C64KeyboardJoystickEnabled;
     public int C64KeyboardJoystick;
     public int C64SelectedJoystick;
-    public string[] C64AvailableJoysticks;
+    public string[] C64AvailableJoysticks = [];
 
     private string SelectedSystemName => _silkNetWindow.SystemList.Systems.ToArray()[_selectedSystemItem];
 
-    private ISystemConfig? _originalSystemConfig;
-    private IHostSystemConfig? _originalHostSystemConfig;
+    private ISystemConfig _originalSystemConfig = default!;
+    private IHostSystemConfig _originalHostSystemConfig = default!;
 
     private SilkNetImGuiC64Config? _c64ConfigUI;
     private SilkNetImGuiGenericComputerConfig? _genericComputerConfigUI;
@@ -62,7 +61,6 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
         _mapper = mapper;
         _logger = loggerFactory.CreateLogger<SilkNetImGuiMenu>();
-
 
         ISystemConfig systemConfig = GetSelectedSystemConfig();
         if (systemConfig is C64Config c64Config)
@@ -477,36 +475,27 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     }
     internal IHostSystemConfig GetSelectedSystemHostConfig()
     {
-        if (!_silkNetWindow.EmulatorConfig.HostSystemConfigs.ContainsKey(SelectedSystemName))
-            return null;
         return _silkNetWindow.EmulatorConfig.HostSystemConfigs[SelectedSystemName];
     }
 
     internal void RememberOriginalConfigs()
     {
         _originalSystemConfig = (ISystemConfig)GetSelectedSystemConfig().Clone();
-
-        var hostSystemConfig = (IHostSystemConfig)GetSelectedSystemHostConfig();
-        if (hostSystemConfig != null)
-            _originalHostSystemConfig = (IHostSystemConfig)GetSelectedSystemHostConfig().Clone();
+        _originalHostSystemConfig = (IHostSystemConfig)GetSelectedSystemHostConfig().Clone();
     }
     internal void RestoreOriginalConfigs()
     {
         UpdateCurrentSystemConfig(_originalSystemConfig, _originalHostSystemConfig);
     }
 
-    internal void UpdateCurrentSystemConfig(ISystemConfig config, IHostSystemConfig? hostSystemConfig)
+    internal void UpdateCurrentSystemConfig(ISystemConfig config, IHostSystemConfig hostSystemConfig)
     {
         // Update the system config
         _silkNetWindow.SystemList.ChangeCurrentSystemConfig(SelectedSystemName, config);
 
         // Update the existing host system config, it is referenced from different objects (thus we cannot replace it with a new one).
-        if (hostSystemConfig != null)
-        {
-            var org = _silkNetWindow.EmulatorConfig.HostSystemConfigs[SelectedSystemName];
-            if (org != null && hostSystemConfig != null)
-                _mapper.Map(hostSystemConfig, org);
-        }
+        var orgHostSystemConfig = _silkNetWindow.EmulatorConfig.HostSystemConfigs[SelectedSystemName];
+        _mapper.Map(hostSystemConfig, orgHostSystemConfig);
     }
     public void Run()
     {
@@ -527,5 +516,4 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     {
         Visible = false;
     }
-
 }

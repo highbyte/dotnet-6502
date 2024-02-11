@@ -505,37 +505,12 @@ public class CPU
 
     /// <summary>
     /// Gets the full 16-bit address at current PC, with X offset.
-    /// Takes extra cycle if final address cross page boundary.
+    /// If the page boundary was crossed, the out parameter didCrossPageBoundary is set to true.
     /// </summary>
     /// <param name="fullAddress"></param>
+    /// <param name="didCrossPageBoundary"></param>
     /// <returns></returns>
-    private ushort CalcFullAddressX(ushort fullAddress)
-    {
-        return CalcFullAddressX(fullAddress, out _, alwaysExtraCycleWhenCrossBoundary: false);
-    }
-
-    /// <summary>
-    /// Gets the full 16-bit address at current PC, with X offset.
-    /// Takes extra cycle if final address cross page boundary.
-    /// If alwaysExtraCycleWhenCrossBoundary is set to true, the extra cycle is always added.
-    /// </summary>
-    /// <param name="fullAddress"></param>
-    /// <returns></returns>
-    public ushort CalcFullAddressX(ushort fullAddress, bool alwaysExtraCycleWhenCrossBoundary)
-    {
-        return CalcFullAddressX(fullAddress, out _, alwaysExtraCycleWhenCrossBoundary);
-    }
-
-    /// <summary>
-    /// Gets the full 16-bit address at current PC, with X offset.
-    /// Takes extra cycle if final address cross page boundary.
-    /// If alwaysExtraCycleWhenCrossBoundary is set to true, the extra cycle is always added.
-    /// If the page boundary was crossed, the out paraamter didCrossPageBoundary is set to true.
-    /// </summary>
-    /// <param name="fullAddress"></param>
-    /// <param name="alwaysExtraCycleWhenCrossBoundary"></param>
-    /// <returns></returns>
-    public ushort CalcFullAddressX(ushort fullAddress, out bool didCrossPageBoundary, bool alwaysExtraCycleWhenCrossBoundary)
+    public ushort CalcFullAddressX(ushort fullAddress, out bool didCrossPageBoundary)
     {
         didCrossPageBoundary = (fullAddress & 0x00ff) + X > 0xff;
         var fullAddressX = (ushort)(fullAddress + X);
@@ -544,25 +519,12 @@ public class CPU
 
     /// <summary>
     /// Gets the full 16-bit address at current PC, with Y offset.
-    /// Takes extra cycle if final address cross page boundary.
-    /// </summary>
-    /// <param name="fullAddress"></param>
-    /// <param name="alwaysExtraCycleWhenCrossBoundary"></param>
-    /// <returns></returns>
-    public ushort CalcFullAddressY(ushort fullAddress, bool alwaysExtraCycleWhenCrossBoundary = false)
-    {
-        return CalcFullAddressY(fullAddress, out bool _, alwaysExtraCycleWhenCrossBoundary);
-    }
-
-    /// <summary>
-    /// Gets the full 16-bit address at current PC, with Y offset.
-    /// Takes extra cycle if final address cross page boundary.
+    /// If the page boundary was crossed, the out parameter didCrossPageBoundary is set to true.
     /// </summary>
     /// <param name="fullAddress"></param>
     /// <param name="didCrossPageBoundary"></param>
-    /// <param name="alwaysExtraCycleWhenCrossBoundary"></param>
     /// <returns></returns>
-    public ushort CalcFullAddressY(ushort fullAddress, out bool didCrossPageBoundary, bool alwaysExtraCycleWhenCrossBoundary)
+    public ushort CalcFullAddressY(ushort fullAddress, out bool didCrossPageBoundary)
     {
         didCrossPageBoundary = (fullAddress & 0x00ff) + Y > 0xff;
         var fullAddressY = (ushort)(fullAddress + Y);

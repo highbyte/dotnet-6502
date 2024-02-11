@@ -32,7 +32,7 @@ public class AspNetInputHandlerContext : IInputHandlerContext
         _gamepadConnectCheckTimer.Elapsed += GamepadConectCheckTimer_Elapsed;
     }
 
-    private async void GamepadConectCheckTimer_Elapsed(object sender, EventArgs args)
+    private async void GamepadConectCheckTimer_Elapsed(object? sender, EventArgs args)
     {
         await DetectConnectedGamepad();
     }
@@ -60,7 +60,7 @@ public class AspNetInputHandlerContext : IInputHandlerContext
         }
     }
 
-    private async void GamepadUpdateTimer_Elapsed(object sender, EventArgs args)
+    private void GamepadUpdateTimer_Elapsed(object? sender, EventArgs args)
     {
         try
         {

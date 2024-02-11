@@ -11,8 +11,8 @@ public class Vic2CharsetManager
     public const int CHARACTERSET_ONE_CHARACTER_BYTES = 8;      // 8 bytes (one line per byte) for each character.
     public const int CHARACTERSET_SIZE = CHARACTERSET_NUMBER_OF_CHARCTERS * CHARACTERSET_ONE_CHARACTER_BYTES;    // = 2KB -> 2048 (0x0800) bytes. 256 characters, where each character takes up 8 bytes (1 byte per character line)
 
-    public Vic2 Vic2 { get; private set; }
-    private Memory _vic2Mem => Vic2.Vic2Mem;
+    private readonly Vic2 _vic2;
+    private Memory _vic2Mem => _vic2.Vic2Mem;
 
     // Offset into the currently selected VIC2 bank (Mem.SetMemoryConfiguration(bank))
     private ushort _characterSetAddressInVIC2Bank;
@@ -21,12 +21,9 @@ public class Vic2CharsetManager
     public bool CharacterSetAddressInVIC2BankIsChargenROMShifted => _characterSetAddressInVIC2Bank == 0x1000;
     public bool CharacterSetAddressInVIC2BankIsChargenROMUnshifted => _characterSetAddressInVIC2Bank == 0x1800;
 
-
-    private Vic2CharsetManager() { }
-
     public Vic2CharsetManager(Vic2 vic2)
     {
-        Vic2 = vic2;
+        _vic2 = vic2;
     }
 
     public void NotifyCharsetAddressChanged()
@@ -94,7 +91,7 @@ public class Vic2CharsetManager
         }
     }
 
-    public event EventHandler<CharsetAddressChangedEventArgs> CharsetAddressChanged;
+    public event EventHandler<CharsetAddressChangedEventArgs>? CharsetAddressChanged;
     protected virtual void OnCharsetAddressChanged(CharsetAddressChangedEventArgs e)
     {
         var handler = CharsetAddressChanged;
@@ -110,9 +107,9 @@ public class Vic2CharsetManager
     /// <returns></returns>
     public byte GetTextModeCharacterLine(int characterCol, int characterRow, int line)
     {
-        var characterAddress = (ushort)(Vic2.VideoMatrixBaseAddress + (characterRow * Vic2.Vic2Screen.TextCols) + characterCol);
+        var characterAddress = (ushort)(_vic2.VideoMatrixBaseAddress + (characterRow * _vic2.Vic2Screen.TextCols) + characterCol);
         var characterCode = _vic2Mem[characterAddress];
-        var characterSetLineAddress = (ushort)(CharacterSetAddressInVIC2Bank + (characterCode * Vic2.Vic2Screen.CharacterHeight) + line);
+        var characterSetLineAddress = (ushort)(CharacterSetAddressInVIC2Bank + (characterCode * _vic2.Vic2Screen.CharacterHeight) + line);
         return _vic2Mem[characterSetLineAddress];
     }
 

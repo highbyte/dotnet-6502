@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole;
 public class SadConsoleMain
 {
     private readonly SadConsoleConfig _sadConsoleConfig;
-    private SadConsoleScreenObject _sadConsoleScreen;
+    private SadConsoleScreenObject _sadConsoleScreen = default!;
     public SadConsoleScreenObject SadConsoleScreen => _sadConsoleScreen;
 
     private readonly SystemRunner _systemRunner;
@@ -25,7 +25,8 @@ public class SadConsoleMain
         // Setup the SadConsole engine and create the main window. 
         // If font is null or empty, the default SadConsole font will be used.
         var screen = _systemRunner.System.Screen;
-        var textMode = screen as ITextMode;
+        if (screen is not ITextMode textMode)
+            throw new DotNet6502Exception("SadConsoleMain only supports system that implements ITextMode of Screen.");
 
         // int totalCols = (textMode.TextCols + (textMode.BorderCols * 2));
         // int totalRows = (textMode.TextRows + (textMode.BorderRows * 2));
@@ -65,7 +66,9 @@ public class SadConsoleMain
     {
         // Create a SadConsole screen
         var screen = _systemRunner.System.Screen;
-        var textMode = screen as ITextMode;
+        if (screen is not ITextMode textMode)
+            throw new DotNet6502Exception("SadConsoleMain only supports system that implements ITextMode of Screen.");
+
         _sadConsoleScreen = new SadConsoleScreenObject(textMode, screen, _sadConsoleConfig);
 
         global::SadConsole.Game.Instance.Screen = _sadConsoleScreen;
@@ -81,7 +84,7 @@ public class SadConsoleMain
     /// Responsible for letting the SadConsole engine interact with the emulator
     /// </summary>
     /// <param name="gameTime"></param>
-    private void UpdateSadConsole(object sender, GameHost e)
+    private void UpdateSadConsole(object? sender, GameHost e)
     {
         // Capture SadConsole input
         _systemRunner.ProcessInput();

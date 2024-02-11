@@ -58,9 +58,9 @@ Memory addresses
 
     [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
-    [Parameter] public ISystemConfig SystemConfig { get; set; }
+    [Parameter] public ISystemConfig SystemConfig { get; set; } = default!;
 
-    [Parameter] public IHostSystemConfig HostSystemConfig { get; set; }
+    [Parameter] public IHostSystemConfig HostSystemConfig { get; set; } = default!;
 
     public GenericComputerConfig GenericComputerConfig => (GenericComputerConfig)SystemConfig;
 

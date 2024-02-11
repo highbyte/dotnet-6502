@@ -7,7 +7,6 @@ using Highbyte.DotNet6502.Impl.SadConsole.Generic.Video;
 using Highbyte.DotNet6502.Impl.SadConsole.Generic.Input;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole;
@@ -19,7 +18,6 @@ public class EmulatorHost
     private readonly C64Config _c64Config;
     private static SadConsoleMain s_sadConsoleMain = default!;
     private readonly ILoggerFactory _loggerFactory;
-
 
     public EmulatorHost(
         SadConsoleConfig sadConsoleConfig,
@@ -53,11 +51,11 @@ public class EmulatorHost
                 break;
 
             default:
-                throw new Exception($"Unknown emulator name: {_sadConsoleConfig.Emulator}");
+                throw new DotNet6502Exception($"Unknown emulator name: {_sadConsoleConfig.Emulator}");
         }
 
         if (systemRunner.System.Screen is not ITextMode)
-            throw new Exception("SadConsole host only supports running emulator systems that supports text mode.");
+            throw new DotNet6502Exception("SadConsole host only supports running emulator systems that supports text mode.");
 
         // Create the main SadConsole class that is responsible for configuring and starting up SadConsole and running the emulator code every frame with our preferred configuration.
         s_sadConsoleMain = new SadConsoleMain(

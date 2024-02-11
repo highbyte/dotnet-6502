@@ -49,7 +49,6 @@ public class DotNet6502LoggerBaseTest
         Assert.Equal(category, categoryPart);
     }
 
-
     [Fact]
     public void Writing_To_Log_Will_Create_Correctly_Formatted_MessagePart()
     {
@@ -68,17 +67,17 @@ public class DotNet6502LoggerBaseTest
         Assert.Equal(message, messagePart);
     }
 
-    private string GetTimePart(string formattedMessage)
-    {
-        var messagePartArray = formattedMessage.Split(' ');
+    //private string GetTimePart(string formattedMessage)
+    //{
+    //    var messagePartArray = formattedMessage.Split(' ');
 
-        var time = messagePartArray switch
-        {
-            [var tim, ..] => tim,
-            _ => throw new Exception($"Log has incorrect format: {formattedMessage}"),
-        };
-        return time;
-    }
+    //    var time = messagePartArray switch
+    //    {
+    //        [var tim, ..] => tim,
+    //        _ => throw new Exception($"Log has incorrect format: {formattedMessage}"),
+    //    };
+    //    return time;
+    //}
 
     private string GetLogLevelPart(string formattedMessage)
     {
@@ -130,8 +129,6 @@ public class FakeLogger : DotNet6502LoggerBase
     public FakeLogger(ObjectPool<StringBuilder> stringBuilderPool, string categoryName) : base(stringBuilderPool, categoryName)
     {
     }
-
-    public override IDisposable BeginScope<TState>(TState state) => default!;
 
     public override bool IsEnabled(LogLevel logLevel) => true;
 

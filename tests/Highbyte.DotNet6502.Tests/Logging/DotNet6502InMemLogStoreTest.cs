@@ -104,5 +104,4 @@ public class DotNet6502InMemLogStoreTest
         Assert.Equal(7, actualMessages.Count);
         Assert.Equal("Old message 9", actualMessages[0]);
     }
-
 }

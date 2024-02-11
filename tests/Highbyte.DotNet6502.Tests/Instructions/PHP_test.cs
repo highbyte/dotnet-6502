@@ -34,7 +34,7 @@ public class PHP_test
         // Verify that stack (the previous position) contains value of Status register.
         // Remember that stack works downwards (0xff-0x00), points to the next free location, and is located at address 0x0100 + SP
         ushort stackPointerFullAddress = CPU.StackBaseAddress + 0xfe + 1;
-        byte expectedPSOnStack = test.PS.Value;
+        byte expectedPSOnStack = test.PS;
         expectedPSOnStack.SetBit(StatusFlagBits.Break); 
         expectedPSOnStack.SetBit(StatusFlagBits.Unused); 
         Assert.Equal(expectedPSOnStack, test.TestContext.Mem[stackPointerFullAddress]);

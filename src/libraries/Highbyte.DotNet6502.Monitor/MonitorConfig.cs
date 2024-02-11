@@ -25,6 +25,6 @@ public class MonitorConfig
             DefaultDirectory = Environment.CurrentDirectory;
         var defaultDir = PathHelper.ExpandOSEnvironmentVariables(DefaultDirectory);
         if (!Directory.Exists(defaultDir))
-            throw new Exception($"Setting {nameof(DefaultDirectory)} value {defaultDir} does not contain an existing directory.");
+            throw new DotNet6502Exception($"Setting {nameof(DefaultDirectory)} value {defaultDir} does not contain an existing directory.");
     }
 }

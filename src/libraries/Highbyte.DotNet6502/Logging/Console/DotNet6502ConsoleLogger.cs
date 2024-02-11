@@ -16,7 +16,6 @@ public class DotNet6502ConsoleLogger : DotNet6502LoggerBase
         _getCurrentConfig = getCurrentConfig;
     }
 
-    public override IDisposable BeginScope<TState>(TState state) => default!;
     public override bool IsEnabled(LogLevel logLevel) => logLevel >= _getCurrentConfig().LogLevel;
     public override void WriteLog(string message) => System.Console.WriteLine(message);
 }

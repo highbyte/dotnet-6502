@@ -348,46 +348,46 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
         GC.SuppressFinalize(this);
     }
 
-    private BufferFormat TranslateFormat(WaveFormat format)
-    {
-        if (format.Channels == 2)
-        {
-            //if (format.BitsPerSample == 32)
-            //{
-            //    //return ALFormat.StereoFloat32Ext;
-            //}
-            if (format.BitsPerSample == 16)
-            {
-                //return ALFormat.Stereo16;
-                return BufferFormat.Stereo16;
-            }
-            else if (format.BitsPerSample == 8)
-            {
-                //return ALFormat.Stereo16;
-                return BufferFormat.Stereo8;
-            }
-        }
-        else if (format.Channels == 1)
-        {
-            //if (format.BitsPerSample == 32)
-            //{
-            //    //return ALFormat.MonoFloat32Ext;
-            //}
-            if (format.BitsPerSample == 16)
-            {
-                //return ALFormat.Mono16;
-                return BufferFormat.Mono16;
-            }
-            else if (format.BitsPerSample == 8)
-            {
-                //return ALFormat.Mono8;
-                return BufferFormat.Mono8;
+    //private BufferFormat TranslateFormat(WaveFormat format)
+    //{
+    //    if (format.Channels == 2)
+    //    {
+    //        //if (format.BitsPerSample == 32)
+    //        //{
+    //        //    //return ALFormat.StereoFloat32Ext;
+    //        //}
+    //        if (format.BitsPerSample == 16)
+    //        {
+    //            //return ALFormat.Stereo16;
+    //            return BufferFormat.Stereo16;
+    //        }
+    //        else if (format.BitsPerSample == 8)
+    //        {
+    //            //return ALFormat.Stereo16;
+    //            return BufferFormat.Stereo8;
+    //        }
+    //    }
+    //    else if (format.Channels == 1)
+    //    {
+    //        //if (format.BitsPerSample == 32)
+    //        //{
+    //        //    //return ALFormat.MonoFloat32Ext;
+    //        //}
+    //        if (format.BitsPerSample == 16)
+    //        {
+    //            //return ALFormat.Mono16;
+    //            return BufferFormat.Mono16;
+    //        }
+    //        else if (format.BitsPerSample == 8)
+    //        {
+    //            //return ALFormat.Mono8;
+    //            return BufferFormat.Mono8;
 
-            }
-        }
+    //        }
+    //    }
 
-        throw new FormatException("Cannot translate WaveFormat.");
-    }
+    //    throw new FormatException("Cannot translate WaveFormat.");
+    //}
 
     private FloatBufferFormat BufferFormatFloat32(WaveFormat format)
     {

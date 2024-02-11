@@ -113,7 +113,7 @@ public class CharGen
         using (new SKAutoCanvasRestore(canvas))
         {
             if (dataRows.Length != 8)
-                throw new Exception("A character in chargen must consist of 8 bytes.");
+                throw new DotNet6502Exception("A character in chargen must consist of 8 bytes.");
             foreach (var row in dataRows)
             {
                 DrawCharacterLine(canvas, paint, paintMultiColorBG1, paintMultiColorBG2, row, multiColor);
@@ -139,7 +139,7 @@ public class CharGen
                             0b01 => paintMultiColorBG1,
                             0b10 => paintMultiColorBG2,
                             0b11 => paint,
-                            _ => throw new Exception("Invalid pixel pair value.")
+                            _ => throw new DotNet6502Exception("Invalid pixel pair value.")
                         };
                         canvas.DrawRect(0, 0, 2, 0, pixelPairPaint);
                     }

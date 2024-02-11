@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         private Action<string> _addDebugMessage => _c64WASMVoiceContext.AddDebugMessage;
 
         // SID noise oscillator
-        private AudioBufferSync _noiseBuffer;
+        private AudioBufferSync _noiseBuffer = default!;
         internal AudioBufferSourceNodeSync? NoiseGenerator;
 
         public C64WASMNoiseOscillator(C64WASMVoiceContext c64WASMVoiceContext)
@@ -39,7 +39,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void Start()
         {
             if (NoiseGenerator == null)
-                throw new Exception($"NoiseGenerator is null. Call Create() first.");
+                throw new DotNet6502Exception($"NoiseGenerator is null. Call Create() first.");
             _addDebugMessage($"Starting NoiseGenerator");
             NoiseGenerator!.Start();
             //voiceContext!.NoiseGenerator.Start(0, 0, currentTime + wasmVoiceParameter.AttackDurationSeconds + wasmVoiceParameter.ReleaseDurationSeconds);
@@ -57,7 +57,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void StopLater(double when)
         {
             if (NoiseGenerator == null)
-                throw new Exception($"NoiseGenerator is null. Call Create() first.");
+                throw new DotNet6502Exception($"NoiseGenerator is null. Call Create() first.");
             _addDebugMessage($"Planning stopp of NoiseGenerator: {when}");
             NoiseGenerator!.Stop(when);
         }
@@ -65,7 +65,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void Connect()
         {
             if (NoiseGenerator == null)
-                throw new Exception($"NoiseGenerator is null. Call Create() first.");
+                throw new DotNet6502Exception($"NoiseGenerator is null. Call Create() first.");
             NoiseGenerator!.Connect(_c64WASMVoiceContext.GainNode!);
         }
 

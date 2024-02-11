@@ -26,9 +26,13 @@
 
 <InputFile id="filePicker" OnChange="@OnFilePickerChange" hidden />
 
+@* Fix for compiler warning CS8669 https://github.com/dotnet/razor/issues/8720 *@
+@{
+#pragma warning disable CS8669
+}
 @code {
     @inject IJSRuntime Js
-    @inject HttpClient? HttpClient
+    @inject HttpClient HttpClient
 
     private string SYSTEM_NAME = GenericComputer.SystemName;
 
@@ -36,9 +40,9 @@
     {
     };
 
-    public string SelectedAssemblyExample { get; set; }
+    public string SelectedAssemblyExample { get; set; } = default!;
 
-    private bool _wasRunningBeforeFileDialog = false;
+    //private bool _wasRunningBeforeFileDialog = false;
 
     private async Task ShowConfigUI() => await Parent.ShowConfigUI<GenericConfigUI>();
 
@@ -98,7 +102,7 @@
         await Parent.OnStart(new());
     }
 
-    private async Task OnAssemblyExampleChanged(ChangeEventArgs e)
+    private void OnAssemblyExampleChanged(ChangeEventArgs e)
     {
         SelectedAssemblyExample = e.Value?.ToString() ?? "";
     }
@@ -109,7 +113,7 @@
         if (string.IsNullOrEmpty(url))
             return;
 
-        await Parent.OnPause(new());
+        Parent.OnPause(new());
 
         var prgBytes = await HttpClient!.GetByteArrayAsync(url);
         // Load file into memory, assume starting at address specified in two first bytes of .prg file

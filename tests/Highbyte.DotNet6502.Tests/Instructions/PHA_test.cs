@@ -46,5 +46,4 @@ public class PHA_test
         ushort stackPointerFullAddress = CPU.StackBaseAddress + 0xfe + 1;
         Assert.Equal(test.A, test.TestContext.Mem[stackPointerFullAddress]);
     }
-
 }

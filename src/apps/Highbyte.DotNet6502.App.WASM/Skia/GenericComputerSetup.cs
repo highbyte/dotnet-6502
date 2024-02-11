@@ -19,10 +19,13 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetIn
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;
 
-    public GenericComputerSetup(BrowserContext browserContext, ILoggerFactory loggerFactory)
+    private readonly GenericComputerHostConfig _hostConfig;
+
+    public GenericComputerSetup(BrowserContext browserContext, ILoggerFactory loggerFactory, GenericComputerHostConfig genericComputerHostConfig)
     {
         _browserContext = browserContext;
         _loggerFactory = loggerFactory;
+        _hostConfig = genericComputerHostConfig;
     }
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
@@ -76,10 +79,11 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetIn
         return genericComputerConfig;
     }
 
-    public async Task PersistConfig(ISystemConfig systemConfig)
+    public Task PersistConfig(ISystemConfig systemConfig)
     {
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
         // TODO: Save config settings to browser local storage
+        return Task.CompletedTask;
     }
 
     public ISystem BuildSystem(ISystemConfig systemConfig)
@@ -90,7 +94,7 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetIn
 
     public Task<IHostSystemConfig> GetHostSystemConfig()
     {
-        return Task.FromResult((IHostSystemConfig)null);
+        return Task.FromResult<IHostSystemConfig>(_hostConfig);
     }
 
     public SystemRunner BuildSystemRunner(

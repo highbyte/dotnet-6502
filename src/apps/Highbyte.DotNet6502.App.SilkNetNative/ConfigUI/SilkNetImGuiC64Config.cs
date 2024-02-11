@@ -1,18 +1,17 @@
 using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
-using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
-using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative.ConfigUI;
 
 public class SilkNetImGuiC64Config
 {
     private readonly SilkNetImGuiMenu _mainMenu;
-    C64Config _config => (C64Config)_mainMenu.GetSelectedSystemConfig();
-    C64HostConfig _hostConfig => (C64HostConfig)_mainMenu.GetSelectedSystemHostConfig();
 
+    private C64Config _config => (C64Config)_mainMenu.GetSelectedSystemConfig();
+
+    private C64HostConfig _hostConfig => (C64HostConfig)_mainMenu.GetSelectedSystemHostConfig();
 
     private string? _romDirectory;
     private string? _kernalRomFile;
@@ -20,7 +19,7 @@ public class SilkNetImGuiC64Config
     private string? _chargenRomFile;
 
     private int _selectedRenderer = 0;
-    private string[] _availableRenderers = Enum.GetNames<C64HostRenderer>();
+    private readonly string[] _availableRenderers = Enum.GetNames<C64HostRenderer>();
     private bool _openGLFineScrollPerRasterLineEnabled;
 
     private bool _open;

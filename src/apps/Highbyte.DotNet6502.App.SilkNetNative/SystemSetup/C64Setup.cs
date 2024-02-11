@@ -25,7 +25,7 @@ public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetI
         _c64HostConfig = c64HostConfig;
     }
 
-    public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
+    public Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
         var c64Config = new C64Config
         {
@@ -66,13 +66,15 @@ public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetI
         };
 
         //c64Config.Validate();
-        return c64Config;
+        return Task.FromResult<ISystemConfig>(c64Config);
     }
 
-    public async Task PersistConfig(ISystemConfig systemConfig)
+    public Task PersistConfig(ISystemConfig systemConfig)
     {
         var c64Config = (C64Config)systemConfig;
         // TODO: Persist settings to file
+
+        return Task.CompletedTask;
     }
 
     public ISystem BuildSystem(ISystemConfig systemConfig)

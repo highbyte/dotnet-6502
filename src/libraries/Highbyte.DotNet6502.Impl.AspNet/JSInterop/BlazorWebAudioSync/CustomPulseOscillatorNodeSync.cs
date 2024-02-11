@@ -14,9 +14,9 @@ public class CustomPulseOscillatorNodeSync : AudioScheduledSourceNodeSync
     private static Float32ArraySync? s_pulseCurve;
     private static Float32ArraySync? s_constantOneCurve;
 
-    private WaveShaperNodeSync _pulseShaper;
+    private WaveShaperNodeSync _pulseShaper = default!;
 
-    public GainNodeSync WidthGainNode { get; private set; }
+    public GainNodeSync WidthGainNode { get; private set; } = default!;
 
     public static CustomPulseOscillatorNodeSync Create(
         IJSRuntime jSRuntime,

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Highbyte.DotNet6502.Systems.Utils;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
@@ -10,7 +9,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Video;
 /// </summary>
 public class Vic2SpriteManager
 {
-    public Vic2 Vic2 { get; private set; }
+    public readonly Vic2 Vic2;
     private Memory _vic2Mem => Vic2.Vic2Mem;
 
     public int SpritePointerStartAddress => Vic2.VideoMatrixBaseAddress + 0x03f8; // Default value is 0x07f8 (because Vic2.VideoMatrixBaseAddress is 0x0400 by default). 8 sprites, last is 0x07ff.
@@ -27,8 +26,6 @@ public class Vic2SpriteManager
 
     public byte SpriteToBackgroundCollisionStore { get; internal set; }
     public bool SpriteToBackgroundCollisionIRQBlock { get; internal set; }
-
-    private Vic2SpriteManager() { }
 
     public Vic2SpriteManager(Vic2 vic2)
     {

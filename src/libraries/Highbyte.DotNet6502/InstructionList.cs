@@ -6,20 +6,22 @@ namespace Highbyte.DotNet6502;
 /// </summary>
 public class InstructionList
 {
-    public Dictionary<byte, OpCode> OpCodeDictionary {get; private set;}
-    public Dictionary<byte, Instruction> InstructionDictionary {get; private set;}
+    public Dictionary<byte, OpCode> OpCodeDictionary { get; private set; }
+    public Dictionary<byte, Instruction> InstructionDictionary { get; private set; }
 
-    public InstructionList()
+    public InstructionList(Dictionary<byte, OpCode> opCodeDictionary, Dictionary<byte, Instruction> instructionDictionary)
     {
+        OpCodeDictionary = opCodeDictionary;
+        InstructionDictionary = instructionDictionary;
     }
 
     public InstructionList(List<Instruction> insList)
     {
         InstructionDictionary = new Dictionary<byte, Instruction>();
         OpCodeDictionary = new Dictionary<byte, OpCode>();
-        foreach(var instruction in insList)
+        foreach (var instruction in insList)
         {
-            foreach(var opCode in instruction.OpCodes)
+            foreach (var opCode in instruction.OpCodes)
             {
                 OpCodeDictionary.Add(opCode.Code.ToByte(), opCode);
                 InstructionDictionary.Add(opCode.CodeRaw, instruction);
@@ -39,11 +41,7 @@ public class InstructionList
 
     public InstructionList Clone()
     {
-        return new InstructionList()
-        {
-            OpCodeDictionary = this.OpCodeDictionary,
-            InstructionDictionary = this.InstructionDictionary,
-        };
+        return new InstructionList(this.OpCodeDictionary, this.InstructionDictionary);
     }
 
     public static InstructionList GetAllInstructions()
@@ -60,16 +58,19 @@ public class InstructionList
 
         var typesToSearch = typeof(InstructionList).Assembly.GetTypes();
 
-        var instructionTypes = typesToSearch.Where(p => 
+        var instructionTypes = typesToSearch.Where(p =>
             p.GetTypeInfo().IsSubclassOf(typeof(Instruction))
             && !p.GetTypeInfo().IsAbstract
         );
 
         var instructions = new List<Instruction>();
-        foreach(var instructionType in instructionTypes)
+        foreach (var instructionType in instructionTypes)
         {
-            Instruction instruction = (Instruction)Activator.CreateInstance(instructionType);
-            instructions.Add(instruction);
+            Instruction? instruction = (Instruction?)Activator.CreateInstance(instructionType);
+            if (instruction != null)
+            {
+                instructions.Add(instruction);
+            }
         }
         return new InstructionList(instructions);
     }

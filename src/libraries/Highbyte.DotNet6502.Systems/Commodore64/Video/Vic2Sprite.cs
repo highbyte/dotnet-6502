@@ -27,7 +27,7 @@ public class Vic2Sprite
     public int WidthBytes => WidthPixels / 8;
     public int HeightPixels => DoubleHeight ? DEFAULT_HEIGTH * 2 : DEFAULT_HEIGTH;
 
-    private Vic2SpriteData _data = new Vic2SpriteData();
+    private readonly Vic2SpriteData _data = new Vic2SpriteData();
     public Vic2SpriteData Data => BuildSpriteData();
 
     public bool IsDirty => _isDirty;
@@ -96,66 +96,66 @@ public class Vic2Sprite
         _isDirty = false;
     }
 
-    private void CreateTestSpriteImage()
-    {
-        // Fake sprite data
-        _data.Rows[00].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
-        _data.Rows[01].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[02].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[03].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[04].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[05].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[06].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[07].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[08].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
-        _data.Rows[09].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
+    //private void CreateTestSpriteImage()
+    //{
+    //    // Fake sprite data
+    //    _data.Rows[00].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[02].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[03].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[04].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[05].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[06].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[07].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[08].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
+    //    _data.Rows[09].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
 
-        _data.Rows[10].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
-        _data.Rows[11].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
-        _data.Rows[12].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[13].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[14].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[15].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[16].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[17].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[18].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
-        _data.Rows[19].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[10].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
+    //    _data.Rows[11].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
+    //    _data.Rows[12].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[13].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[14].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[15].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[16].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[17].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[18].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
+    //    _data.Rows[19].Bytes = new byte[] { 0b10000000, 0b00111100, 0b00000001 };
 
-        _data.Rows[20].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
-    }
+    //    _data.Rows[20].Bytes = new byte[] { 0b11111111, 0b11111111, 0b11111111 };
+    //}
 
-    private void CreateTestMultiColorSpriteImage()
-    {
-        // Fake multi-color sprite data
-        // Each multi-color pixel is 2 pixels wide.
-        // 00 = Background color (transparent)
-        // 01 = Sprite multicolor register 0 (53285, $D025) shared by all sprites
-        // 10 = Sprite Color Registers (53287-94, $D027-E), color per sprite
-        // 11 = Sprite multicolor register 1 (53286, $D026) shared by all sprites
-        _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
-        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
-        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
-        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
-        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
-        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
-        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
-        _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
-        _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
-        _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
+    //private void CreateTestMultiColorSpriteImage()
+    //{
+    //    // Fake multi-color sprite data
+    //    // Each multi-color pixel is 2 pixels wide.
+    //    // 00 = Background color (transparent)
+    //    // 01 = Sprite multicolor register 0 (53285, $D025) shared by all sprites
+    //    // 10 = Sprite Color Registers (53287-94, $D027-E), color per sprite
+    //    // 11 = Sprite multicolor register 1 (53286, $D026) shared by all sprites
+    //    _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b01_00_00_00, 0b00_10_10_00, 0b00_00_00_01 };
+    //    _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
+    //    _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
 
-        _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
-        _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
-        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
-        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
-        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
-        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
-        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
-        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
-        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
-        _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+    //    _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
+    //    _data.Rows[00].Bytes = new byte[] { 0b01_01_01_01, 0b01_01_01_01, 0b01_01_01_01 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
+    //    _data.Rows[01].Bytes = new byte[] { 0b11_00_00_00, 0b00_11_11_00, 0b00_00_00_11 };
 
-        _data.Rows[20].Bytes = new byte[] { 0b11_11_11_11, 0b11_11_11_11, 0b11_11_11_11 };
-    }
+    //    _data.Rows[20].Bytes = new byte[] { 0b11_11_11_11, 0b11_11_11_11, 0b11_11_11_11 };
+    //}
 
     public class Vic2SpriteData
     {

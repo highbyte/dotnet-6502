@@ -43,7 +43,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void StopLater(double when)
         {
             if (TriangleOscillator == null)
-                throw new Exception($"TriangleOscillator is null. Call Create() first.");
+                throw new DotNet6502Exception($"TriangleOscillator is null. Call Create() first.");
             _addDebugMessage($"Planning stopp of TriangleOscillator: {when}");
             TriangleOscillator!.Stop(when);
         }
@@ -51,7 +51,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void Start()
         {
             if (TriangleOscillator == null)
-                throw new Exception($"TriangleOscillator is null. Call Create() first.");
+                throw new DotNet6502Exception($"TriangleOscillator is null. Call Create() first.");
             _addDebugMessage($"Starting TriangleOscillator");
             TriangleOscillator!.Start();
         }
@@ -59,7 +59,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio
         internal void Connect()
         {
             if (TriangleOscillator == null)
-                throw new Exception($"TriangleOscillator is null. Call Create() first.");
+                throw new DotNet6502Exception($"TriangleOscillator is null. Call Create() first.");
             TriangleOscillator!.Connect(_c64WASMVoiceContext.GainNode!);
         }
 

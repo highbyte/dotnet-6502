@@ -46,11 +46,11 @@ public class FunctionalTestCompiler
 
     private static readonly HttpClient s_httpClient = new HttpClient();
 
-    public FunctionalTestCompiler(ILogger<FunctionalTestCompiler> logger)        
+    public FunctionalTestCompiler(ILogger<FunctionalTestCompiler> logger)
     {
         _logger = logger;
     }
-    public string Get6502FunctionalTestBinary(bool disableDecimalTests = true, string downloadDir = null)
+    public string Get6502FunctionalTestBinary(bool disableDecimalTests = false, string? downloadDir = null)
     {
         // Get source code file path (with modified contents to suit our test purpose)
         var sourceCodeFilePath = Get6502FunctionalTestSourceCode(disableDecimalTests, downloadDir);
@@ -66,10 +66,10 @@ public class FunctionalTestCompiler
         // Assume output files of the compilation (.bin and .lst file) are placed 
         // in same directory as the source code that was compiled.
         string compiledBinFile = Path.Join(Path.GetDirectoryName(sourceCodeFilePath), Path.GetFileNameWithoutExtension(sourceCodeFilePath)) + ".bin";
-        if(File.Exists(compiledBinFile))
+        if (File.Exists(compiledBinFile))
             File.Delete(compiledBinFile);
         string compiledLstFile = Path.Join(Path.GetDirectoryName(sourceCodeFilePath), Path.GetFileNameWithoutExtension(sourceCodeFilePath)) + ".lst";
-        if(File.Exists(compiledLstFile))
+        if (File.Exists(compiledLstFile))
             File.Delete(compiledLstFile);
 
         string arguments = $"-l -m -w -h0 {sourceCodeFilePath}";
@@ -87,7 +87,7 @@ public class FunctionalTestCompiler
             process.OutputDataReceived += (sender, data) => _logger.LogTrace(data.Data);
             //Seems every row written to stderr by the as65.exe does not mean it's an error.
             //Hack: Don't send logs to _logger.LogError(data.Data), insted as trace
-            process.ErrorDataReceived += (sender, data) => _logger.LogTrace(data.Data); 
+            process.ErrorDataReceived += (sender, data) => _logger.LogTrace(data.Data);
             _logger.LogInformation($"Executing {as65exeFilePath}");
             process.Start();
             process.BeginOutputReadLine();
@@ -96,16 +96,16 @@ public class FunctionalTestCompiler
             _logger.LogInformation($"Exited: {exited}");
         }
 
-        if(!File.Exists(compiledBinFile))
+        if (!File.Exists(compiledBinFile))
             throw new DotNet6502Exception($"Executing {as65exeFilePath} with arguments {arguments} did not generate expected binary file at {compiledBinFile}");
         return compiledBinFile;
     }
 
-    private string Get6502FunctionalTestSourceCode(bool disableDecimalTests, string downloadDir)
+    private string Get6502FunctionalTestSourceCode(bool disableDecimalTests, string? downloadDir = null)
     {
-        if(string.IsNullOrEmpty(downloadDir))
-            Directory.GetCurrentDirectory();
-        
+        if (string.IsNullOrEmpty(downloadDir))
+            downloadDir = Directory.GetCurrentDirectory();
+
         // Download 6502 functional test source code (.as64 assembler)
         var functionalTestSourceCodeUrl = "https://raw.githubusercontent.com/Klaus2m5/6502_65C02_functional_tests/master/6502_functional_test.a65";
         var functionalTestSourceCodeFileName = "6502_functional_test.a65";
@@ -113,13 +113,13 @@ public class FunctionalTestCompiler
 
         DownloadFile(functionalTestSourceCodeUrl, functionalTestSourceCodeFileFilePath);
 
-        if(!disableDecimalTests)
+        if (!disableDecimalTests)
             return functionalTestSourceCodeFileFilePath;
 
         // Modify test source code to disable decimal tests
         var modifiedFileName = "6502_functional_test_decimal_disabled.a65";
         var modifiedFunctionalTestSourceCodeFileFilePath = Path.Join(downloadDir, modifiedFileName);
-        ModifyAsmSourceCodeSettings(functionalTestSourceCodeFileFilePath, modifiedFunctionalTestSourceCodeFileFilePath);
+        ModifyAsmSourceCodeSettings(functionalTestSourceCodeFileFilePath, modifiedFunctionalTestSourceCodeFileFilePath, disableDecimal: true);
 
         return modifiedFunctionalTestSourceCodeFileFilePath;
     }
@@ -130,7 +130,7 @@ public class FunctionalTestCompiler
         File.WriteAllBytes(outputPath, fileBytes);
     }
 
-    private void ModifyAsmSourceCodeSettings(string originalFile, string newFile)
+    private void ModifyAsmSourceCodeSettings(string originalFile, string newFile, bool disableDecimal)
     {
         // Change settings by modifying assembler source code
         var fileContentsLineArray = File.ReadAllLines(originalFile);
@@ -138,26 +138,28 @@ public class FunctionalTestCompiler
         for (int i = 0; i < fileContentsLineArray.Length; i++)
         {
             var line = fileContentsLineArray[i];
-            if(line.StartsWith("disable_decimal") && line.Contains("="))
-                line = "disable_decimal = 1";
+            if(disableDecimal)
+            {
+                if (line.StartsWith("disable_decimal") && line.Contains("="))
+                    line = "disable_decimal = 1";
+            }
             modifiedFileContentsLineArray.Add(line);
         }
         // Write modified 6502 assembler code to new file
         File.WriteAllLines(newFile, modifiedFileContentsLineArray);
-    }        
+    }
 
-    private string GetAS65AssemblerFilePath(string downloadDir = null)
+    private string GetAS65AssemblerFilePath(string? downloadDir = null)
     {
         // Download 6502 functional test program assembler source code
-        var wc = new System.Net.WebClient();
         var url = "https://github.com/Klaus2m5/6502_65C02_functional_tests/blob/master/as65_142.zip?raw=true";
 
-        if(string.IsNullOrEmpty(downloadDir))
+        if (string.IsNullOrEmpty(downloadDir))
             downloadDir = Directory.GetCurrentDirectory();
-            
+
         var downloadFileName = "as65_142.zip";
         var downloadFullFilePath = Path.Join(downloadDir, downloadFileName);
-        wc.DownloadFile(url, downloadFullFilePath);
+        DownloadFile(url, downloadFullFilePath);
 
         // Unzip as65.exe from .zip and get full file path to it
         var as65ExeFilePath = GetAS65AssemblerExeFilePath(downloadFullFilePath);
@@ -170,7 +172,7 @@ public class FunctionalTestCompiler
     {
         // Unzip to folder in same directory as .zip file
         string zipExtractPath = Path.Join(Path.GetDirectoryName(as65ZipFilePath), Path.GetFileNameWithoutExtension(as65ZipFilePath));
-        if(Directory.Exists(zipExtractPath))
+        if (Directory.Exists(zipExtractPath))
             Directory.Delete(zipExtractPath, recursive: true);
         Directory.CreateDirectory(zipExtractPath);
 
@@ -210,5 +212,4 @@ public class FunctionalTestCompiler
         // Return the full file path to the unzipped as65.exe
         return Path.Join(zipExtractPath, as65ExeFileName);
     }
-
 }

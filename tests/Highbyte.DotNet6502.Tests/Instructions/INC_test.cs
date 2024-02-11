@@ -123,7 +123,7 @@ public class INC_test
             ExpectedMemVal = 0x02,
             ExpectedCycles = 6,
         };
-        test.Execute_And_Verify(AddrMode.ZP_X, ZP_X_Should_Wrap_Over_Byte: true);
+        test.Execute_And_Verify(AddrMode.ZP_X, zp_X_Should_Wrap_Over_Byte: true);
     }
 
     [Fact]

@@ -22,7 +22,7 @@ public class SkiaRenderContext : IRenderContext
             return _canvas;
         if (_getSkCanvasExternal != null)
             return _getSkCanvasExternal();
-        throw new Exception("Internal error. SkCanvas not configured.");
+        throw new DotNet6502Exception("Internal error. SkCanvas not configured.");
     }
 
     private GRContext GetGRContextInternal()
@@ -31,7 +31,7 @@ public class SkiaRenderContext : IRenderContext
             return _grContext;
         if (_getGrContextExternal != null)
             return _getGrContextExternal();
-        throw new Exception("Internal error. GRContext not configured.");
+        throw new DotNet6502Exception("Internal error. GRContext not configured.");
     }
 
     public SkiaRenderContext(Func<SKCanvas> getSkCanvas, Func<GRContext> getGrContext)
@@ -49,7 +49,7 @@ public class SkiaRenderContext : IRenderContext
         var grContextOptions = new GRContextOptions { };
         _grContext = GRContext.CreateGl(glInterface, grContextOptions);
         if (_grContext == null)
-            throw new Exception("Cannot create OpenGL context.");
+            throw new DotNet6502Exception("Cannot create OpenGL context.");
 
         // Create main Skia surface from OpenGL context
         GRGlFramebufferInfo glFramebufferInfo = new(0, SKColorType.Rgba8888.ToGlSizedFormat());
@@ -64,7 +64,7 @@ public class SkiaRenderContext : IRenderContext
         // Create the SkiaSharp render target surface
         _renderSurface = SKSurface.Create(_grContext, _renderTarget, GRSurfaceOrigin.BottomLeft, SKColorType.Rgba8888);
         if (_renderSurface == null)
-            throw new Exception("Cannot create SkiaSharp SKSurface.");
+            throw new DotNet6502Exception("Cannot create SkiaSharp SKSurface.");
 
         _renderSurface.Canvas.Scale(scale);
 

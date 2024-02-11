@@ -7,7 +7,7 @@ namespace Highbyte.DotNet6502.Logging
     public abstract class DotNet6502LoggerBase : ILogger
     {
         private readonly ObjectPool<StringBuilder> _stringBuilderPool;
-        protected readonly string _categoryName;
+        private readonly string _categoryName;
 
         public DotNet6502LoggerBase(
             ObjectPool<StringBuilder> stringBuilderPool,
@@ -17,10 +17,11 @@ namespace Highbyte.DotNet6502.Logging
             _categoryName = categoryName;
         }
 
-        public virtual IDisposable BeginScope<TState>(TState state) => default!;
+        IDisposable ILogger.BeginScope<TState>(TState state) => default!;
+
         public abstract bool IsEnabled(LogLevel logLevel);
 
-        public virtual void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+        public virtual void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
             if (!IsEnabled(logLevel))
                 return;
@@ -36,7 +37,7 @@ namespace Highbyte.DotNet6502.Logging
             WriteMessage(logLevel, eventId.Id, message, exception);
         }
 
-        protected virtual void WriteMessage(LogLevel logLevel, int eventId, string message, Exception ex)
+        protected virtual void WriteMessage(LogLevel logLevel, int eventId, string message, Exception? ex)
         {
             var builder = _stringBuilderPool.Get();
             try

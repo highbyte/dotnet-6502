@@ -9,19 +9,16 @@ public class Vic2BitmapManager
 {
     public const int BITMAP_SIZE = (320 * 200) / 8; // 8000 bytes, 1 byte contains 8 pixels.
 
-    public Vic2 Vic2 { get; private set; }
-    private Memory _vic2Mem => Vic2.Vic2Mem;
+    private readonly Vic2 _vic2;
+    private Memory _vic2Mem => _vic2.Vic2Mem;
 
     // Offset into the currently selected VIC2 bank (Mem.SetMemoryConfiguration(bank))
-    private ushort _bitmapAddressInVIC2Bank;
+    private ushort _bitmapAddressInVIC2Bank = default;
     public ushort BitmapAddressInVIC2Bank => _bitmapAddressInVIC2Bank;
-
-
-    private Vic2BitmapManager() { }
 
     public Vic2BitmapManager(Vic2 vic2)
     {
-        Vic2 = vic2;
+        _vic2 = vic2;
     }
 
     public void NotifyBitmapAddressChanged()
@@ -37,7 +34,6 @@ public class Vic2BitmapManager
         // The parameter characterBaseAddressSetting contains that 3-bit value.
         // 
         // Only the highest bit is significant, the other bits are ignored.
-
 
         // By default, this value is 2 (%010), which after ignoring the lowest bits means %000, which corresponds to
         // addresses 0x0000-0x1F40 offset from Bank below. 
@@ -78,7 +74,7 @@ public class Vic2BitmapManager
         }
     }
 
-    public event EventHandler<BitmapAddressChangedEventArgs> BitmapAddressChanged;
+    public event EventHandler<BitmapAddressChangedEventArgs>? BitmapAddressChanged;
     protected virtual void OnBitmapAddressChanged(BitmapAddressChangedEventArgs e)
     {
         var handler = BitmapAddressChanged;
@@ -95,13 +91,12 @@ public class Vic2BitmapManager
     public byte GetBitmapCharacterLine(int characterCol, int characterRow, int line)
     {
         var characterSetLineAddress = (ushort)(BitmapAddressInVIC2Bank
-            + (characterRow * Vic2.Vic2Screen.CharacterHeight * Vic2.Vic2Screen.TextCols)
-            + (characterCol * Vic2.Vic2Screen.CharacterHeight)
+            + (characterRow * _vic2.Vic2Screen.CharacterHeight * _vic2.Vic2Screen.TextCols)
+            + (characterCol * _vic2.Vic2Screen.CharacterHeight)
             + line
             );
         return _vic2Mem[characterSetLineAddress];
     }
-
 
     public class BitmapAddressChangedEventArgs : EventArgs
     {

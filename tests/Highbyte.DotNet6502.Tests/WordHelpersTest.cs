@@ -22,7 +22,7 @@ public class WordHelpersTest
 
         // Assert
         Assert.Equal("8514 (0x2142)", output);
-    }        
+    }
 
     // TODO: More unit tests for WordHelpers class
 }
