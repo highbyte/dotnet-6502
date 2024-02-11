@@ -19,7 +19,7 @@ public static class OutputGen
         if (programAddress.HasValue)
             return GetInstructionDisassembly(cpu, mem, programAddress.Value);
         else
-            throw new Exception("programAddress is null");
+            throw new DotNet6502Exception("programAddress is null");
     }
 
     /// <summary>

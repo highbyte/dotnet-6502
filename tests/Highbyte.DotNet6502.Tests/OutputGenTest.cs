@@ -50,6 +50,23 @@ public class OutputGenTest
         Assert.Equal("c0a0  a2 ee     LDX #$EE   ", outputString);
     }
 
+    [Fact]
+    public void OutputGen_Returns_Correctly_Formatted_Disassembly_For_Next_Instruction()
+    {
+        // Arrange
+        var cpu = new CPU();
+        cpu.PC = 0xc0a0;
+        var mem = new Memory();
+        mem[0xc0a0] = OpCodeId.LDX_I.ToByte();
+        mem[0xc0a1] = 0xee;
+
+        // Act
+        var outputString = OutputGen.GetNextInstructionDisassembly(cpu, mem);
+
+        // Assert
+        Assert.Equal("c0a0  a2 ee     LDX #$EE   ", outputString);
+    }
+
     [Theory]
     [InlineData(AddrMode.Accumulator,   new byte[]{},           "A")]
     [InlineData(AddrMode.I,             new byte[]{0xee},       "#$EE")]
