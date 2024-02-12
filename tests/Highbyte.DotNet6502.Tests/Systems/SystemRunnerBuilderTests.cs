@@ -113,7 +113,7 @@ public class TestSystem : ISystem
 
     public IScreen Screen => throw new NotImplementedException();
 
-    public bool InstrumentationEnabled { get; private set; } = false;
+    public bool InstrumentationEnabled { get; set; } = false;
 
     public Instrumentations Instrumentations { get; } = new();
 
