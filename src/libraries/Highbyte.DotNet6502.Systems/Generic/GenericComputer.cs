@@ -42,6 +42,8 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     private readonly LegacyExecEvaluator _oneFrameExecEvaluator;
 
     // Instrumentations
+    public bool InstrumentationEnabled { get; set; } = false;
+
     public Instrumentations Instrumentations { get; } = new();
 
 

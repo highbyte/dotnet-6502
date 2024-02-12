@@ -8,6 +8,7 @@ using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;
@@ -322,18 +323,16 @@ public class SilkNetWindow
         // Handle input
         if (!_atLeastOneImGuiWindowHasFocus)
         {
-            using (_inputTime.Measure())
-            {
-                _systemRunner.ProcessInput();
-            }
+            if (_systemRunner.System.InstrumentationEnabled) _inputTime.Start();
+            _systemRunner.ProcessInput();
+            if (_systemRunner.System.InstrumentationEnabled) _inputTime.Stop();
         }
 
         // Run emulator for one frame worth of emulated CPU cycles 
         ExecEvaluatorTriggerResult execEvaluatorTriggerResult;
-        using (_systemTime.Measure())
-        {
-            execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame();
-        }
+        if (_systemRunner.System.InstrumentationEnabled) _systemTime.Start();
+        execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame();
+        if (_systemRunner.System.InstrumentationEnabled) _systemTime.Stop();
 
         // Show monitor if we encounter breakpoint or other break
         if (execEvaluatorTriggerResult.Triggered)
@@ -366,14 +365,13 @@ public class SilkNetWindow
             if (_monitor.Visible || _statsPanel.Visible || _logsPanel.Visible)
                 _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
 
-            using (_renderTime.Measure())
-            {
-                // Render emulator system screen
-                _systemRunner.Draw();
+            if (_systemRunner.System.InstrumentationEnabled) _renderTime.Start();
+            // Render emulator system screen
+            _systemRunner.Draw();
+            // Flush the SkiaSharp Context
+            _silkNetRenderContextContainer.SkiaRenderContext.GetGRContext().Flush();
+            if (_systemRunner.System.InstrumentationEnabled) _renderTime.Stop();
 
-                // Flush the SkiaSharp Context
-                _silkNetRenderContextContainer.SkiaRenderContext.GetGRContext().Flush();
-            }
             emulatorRendered = true;
 
             // SilkNet windows are what's known as "double-buffered". In essence, the window manages two buffers.
@@ -537,10 +535,12 @@ public class SilkNetWindow
         if (_statsPanel.Visible)
         {
             _statsPanel.Disable();
+            _systemRunner.System.InstrumentationEnabled = false;
             _statsWasEnabled = false;
         }
         else
         {
+            _systemRunner.System.InstrumentationEnabled = true;
             _statsPanel.Enable();
         }
     }
@@ -573,7 +573,10 @@ public class SilkNetWindow
         {
             _monitor.Disable();
             if (_statsWasEnabled)
+            {
+                _systemRunner.System.InstrumentationEnabled = true;
                 _statsPanel.Enable();
+            }
         }
         else
         {

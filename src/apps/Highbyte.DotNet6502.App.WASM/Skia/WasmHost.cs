@@ -189,23 +189,24 @@ public class WasmHost : IDisposable
         }
 
         //_emulatorHelper.GenerateRandomNumber();
-        using (_inputTime.Measure())
-        {
-            _systemRunner.ProcessInput();
-        }
+        if (_systemRunner.System.InstrumentationEnabled) _inputTime.Start();
+        _systemRunner.ProcessInput();
+        if (_systemRunner.System.InstrumentationEnabled) _inputTime.Stop();
 
         ExecEvaluatorTriggerResult execEvaluatorTriggerResult;
-        using (_systemTime.Measure())
-        {
-            execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame();
-        }
+        if (_systemRunner.System.InstrumentationEnabled) _systemTime.Start();
+        execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame();
+        if (_systemRunner.System.InstrumentationEnabled) _systemTime.Stop();
 
-        _statsFrameCount++;
-        if (_statsFrameCount >= STATS_EVERY_X_FRAME)
+        if (_systemRunner.System.InstrumentationEnabled)
         {
-            _statsFrameCount = 0;
-            var statsString = GetStats();
-            _updateStats(statsString);
+            _statsFrameCount++;
+            if (_statsFrameCount >= STATS_EVERY_X_FRAME)
+            {
+                _statsFrameCount = 0;
+                var statsString = GetStats();
+                _updateStats(statsString);
+            }
         }
 
         // Show monitor if we encounter breakpoint or other break
@@ -225,14 +226,14 @@ public class WasmHost : IDisposable
         _grContext = grContext;
         _skCanvas = canvas;
         _skCanvas.Scale((float)_emulatorConfig.CurrentDrawScale);
-        using (_renderTime.Measure())
-        {
-            _systemRunner.Draw();
-            //using (new SKAutoCanvasRestore(skCanvas))
-            //{
-            //    _systemRunner.Draw(skCanvas);
-            //}
-        }
+
+        if (_systemRunner.System.InstrumentationEnabled) _renderTime.Start();
+        _systemRunner.Draw();
+        //using (new SKAutoCanvasRestore(skCanvas))
+        //{
+        //    _systemRunner.Draw(skCanvas);
+        //}
+        if (_systemRunner.System.InstrumentationEnabled) _renderTime.Stop();
     }
 
     private SKCanvas GetCanvas()

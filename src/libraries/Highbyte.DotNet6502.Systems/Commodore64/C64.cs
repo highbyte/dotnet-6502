@@ -42,6 +42,7 @@ public class C64 : ISystem, ISystemMonitor
     public const ushort BASIC_LOAD_ADDRESS = 0x0801;
 
     // Instrumentations
+    public bool InstrumentationEnabled { get; set; }
     public Instrumentations Instrumentations { get; } = new();
     private const string StatsCategory = "Custom";
     private readonly ElapsedMillisecondsTimedStat _spriteCollisionStat;
@@ -88,10 +89,9 @@ public class C64 : ISystem, ISystemMonitor
         _audioStat.Stop(); // Stop audio stat (was continiously updated after each instruction)
 
         // Update sprite collision state
-        using (_spriteCollisionStat.Measure())
-        {
-            Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
-        }
+        if (InstrumentationEnabled) _spriteCollisionStat.Start();
+        Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
+        if (InstrumentationEnabled) _spriteCollisionStat.Stop();
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
@@ -122,10 +122,9 @@ public class C64 : ISystem, ISystemMonitor
         // Handle output processing needed after each instruction.
         if (AudioEnabled)
         {
-            using (_audioStat.Measure(cont: true))
-            {
-                systemRunner.GenerateAudio();
-            }
+            if (InstrumentationEnabled) _audioStat.Start(cont: true);
+            systemRunner.GenerateAudio();
+            if (InstrumentationEnabled) _audioStat.Stop(cont: true);
         }
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
@@ -184,7 +183,8 @@ public class C64 : ISystem, ISystemMonitor
             ROMData = romData,
             AudioEnabled = c64Config.AudioEnabled,
             TimerMode = c64Config.TimerMode,
-            ColorMapName = c64Config.ColorMapName
+            ColorMapName = c64Config.ColorMapName,
+            InstrumentationEnabled = c64Config.InstrumentationEnabled
         };
 
         var cpu = CreateC64CPU(loggerFactory);

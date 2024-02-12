@@ -81,6 +81,8 @@ public class C64Config : ISystemConfig
 
     public TimerMode TimerMode { get; set; }
 
+    public bool InstrumentationEnabled { get; set; }
+
     public bool AudioSupported { get; set; }
 
     private bool _audioEnabled;
@@ -185,6 +187,8 @@ public class C64Config : ISystemConfig
         //TimerMode = TimerMode.UpdateEachInstruction;
         AudioSupported = false; // Set to true after creating if the audio system is implemented for the host platform
         KeyboardJoystickMap = new C64KeyboardJoystickMap();
+
+        InstrumentationEnabled = false;
     }
 
     public bool HasROM(string romName) => ROMs.Any(x => x.Name == romName);

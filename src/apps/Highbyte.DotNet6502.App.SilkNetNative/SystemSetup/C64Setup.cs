@@ -63,6 +63,8 @@ public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetI
 
             AudioSupported = true,
             AudioEnabled = true,
+
+            InstrumentationEnabled = false, // Start with instrumentation off by default
         };
 
         //c64Config.Validate();

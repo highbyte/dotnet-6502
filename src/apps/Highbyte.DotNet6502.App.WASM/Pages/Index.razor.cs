@@ -418,6 +418,7 @@ public partial class Index
     private async Task ToggleDebugStatsState()
     {
         _debugVisible = !_debugVisible;
+        _wasmHost.SystemRunner.System.InstrumentationEnabled = _debugVisible;
         await FocusEmulator();
         this.StateHasChanged();
     }

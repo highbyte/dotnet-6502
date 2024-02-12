@@ -40,6 +40,8 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
 
             AudioSupported = true,
             AudioEnabled = false,   // Audio disabled by default until playback is more stable
+
+            InstrumentationEnabled = false, // Start with instrumentation off by default
         };
 
         //c64Config.Validate();

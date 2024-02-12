@@ -7,7 +7,6 @@ namespace Highbyte.DotNet6502.Instrumentation.Stats;
 public class ElapsedMillisecondsTimedStat : AveragedStat
 {
     private readonly Stopwatch _sw;
-    private readonly DisposableCallback _disposableCallback;
 
     public ElapsedMillisecondsTimedStat() : this(10) { }
 
@@ -15,8 +14,6 @@ public class ElapsedMillisecondsTimedStat : AveragedStat
         : base(samples) // Average over x samples   
     {
         _sw = new Stopwatch();
-        _disposableCallback = new DisposableCallback();
-        _disposableCallback.Disposing += (object? o, EventArgs e) => Stop(((DisposableCallbackEventArgs)e).Cont);
     }
 
     public void Reset()
@@ -40,13 +37,6 @@ public class ElapsedMillisecondsTimedStat : AveragedStat
             //SetValue(_sw.ElapsedMilliseconds);
             SetValue(_sw.Elapsed.Ticks);
         }
-    }
-
-    public IDisposable Measure(bool cont = false)
-    {
-        Start(cont);
-        _disposableCallback.Cont = cont;
-        return _disposableCallback;
     }
 
     public double? GetStatMilliseconds()

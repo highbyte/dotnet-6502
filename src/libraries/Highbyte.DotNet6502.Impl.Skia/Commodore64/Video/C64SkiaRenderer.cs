@@ -72,32 +72,27 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         var canvas = _getSkCanvas();
         canvas.Clear();
 
-        using (_borderStat.Measure())
-        {
-            //DrawSimpleBorder(c64, canvas);
-            DrawRasterLinesBorder(c64, canvas);
-        }
+        if (c64.InstrumentationEnabled) _borderStat.Start();
+        //DrawSimpleBorder(c64, canvas);
+        DrawRasterLinesBorder(c64, canvas);
+        if (c64.InstrumentationEnabled) _borderStat.Stop();
 
-        using (_backgroundStat.Measure())
-        {
-            //DrawSimpleBackground(c64, canvas);
-            DrawRasterLinesBackground(c64, canvas);
-        }
+        if (c64.InstrumentationEnabled) _backgroundStat.Start();
+        //DrawSimpleBackground(c64, canvas);
+        DrawRasterLinesBackground(c64, canvas);
+        if (c64.InstrumentationEnabled) _backgroundStat.Stop();
 
-        using (_spritesStat.Measure())
-        {
-            RenderSprites(c64, canvas, spritesWithPriorityOverForeground: false);
-        }
+        if (c64.InstrumentationEnabled) _spritesStat.Start();
+        RenderSprites(c64, canvas, spritesWithPriorityOverForeground: false);
+        if (c64.InstrumentationEnabled) _spritesStat.Stop();
 
-        using (_textScreenStat.Measure())
-        {
-            RenderMainScreen(c64, canvas);
-        }
+        if (c64.InstrumentationEnabled) _textScreenStat.Start();
+        RenderMainScreen(c64, canvas);
+        if (c64.InstrumentationEnabled) _textScreenStat.Stop();
 
-        using (_spritesStat.Measure(cont: true))
-        {
-            RenderSprites(c64, canvas, spritesWithPriorityOverForeground: true);
-        }
+        if (c64.InstrumentationEnabled) _spritesStat.Start(cont: true);
+        RenderSprites(c64, canvas, spritesWithPriorityOverForeground: true);
+        if (c64.InstrumentationEnabled) _spritesStat.Stop(cont: false);
     }
 
     public void Draw(ISystem system)

@@ -113,6 +113,8 @@ public class TestSystem : ISystem
 
     public IScreen Screen => throw new NotImplementedException();
 
+    public bool InstrumentationEnabled { get; private set; } = false;
+
     public Instrumentations Instrumentations { get; } = new();
 
     public ExecEvaluatorTriggerResult ExecuteOneFrame(SystemRunner systemRunner, IExecEvaluator? execEvaluator = null)
