@@ -14,7 +14,7 @@ public class ASL : Instruction, IInstructionUsesAddress, IInstructionUsesOnlyReg
     public ulong ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
     {
         var tempValue = cpu.FetchByte(mem, address);
-        tempValue = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(tempValue, cpu.ProcessorStatus);
+        tempValue = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(tempValue, ref cpu.ProcessorStatus);
         cpu.StoreByte(tempValue, mem, address);
 
         return 0;
@@ -23,7 +23,7 @@ public class ASL : Instruction, IInstructionUsesAddress, IInstructionUsesOnlyReg
     public ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
     {
         // Assume Accumulator mode
-        cpu.A = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(cpu.A, cpu.ProcessorStatus);
+        cpu.A = BinaryArithmeticHelpers.PerformASLAndSetStatusRegisters(cpu.A, ref cpu.ProcessorStatus);
 
         return 0;
     }

@@ -23,21 +23,16 @@ public static class ByteHelpers
     /// <summary>
     /// Returns a word (aka ushort, aka UInt16) from two bytes (in the order they are stored in memory).
     /// It combines the two bytes, reverses the order to handle Little endian, and returns a word.
-    /// byte1 is considere lowbyte, byte2 is considered highbyte
+    /// byte1 is considered lowbyte, byte2 is considered highbyte
     /// </summary>
     /// <param name="data"></param>
     /// <param name="byte1"></param>
     /// <param name="byte2"></param>
     /// <returns></returns>
-    public static ushort ToLittleEndianWord(byte byte1, byte byte2) 
+    public static ushort ToLittleEndianWord(byte byte1, byte byte2)
     {
-        // First byte is lowbyte
-        byte lowbyte = byte1;
-        // Second byte is highbyte
-        byte highbyte = byte2;
-
         // Add the second byte (highbyte) shifted left 8 bits to the first byte (lowbyte)
-        ushort word = (ushort)(lowbyte | highbyte << 8);
+        ushort word = (ushort)(byte1 | byte2 << 8);
         return word;
     }
 

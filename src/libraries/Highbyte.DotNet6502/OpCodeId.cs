@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502;
+ namespace Highbyte.DotNet6502;
 
 public enum OpCodeId: byte
 {

@@ -11,7 +11,7 @@ public class CMP : Instruction, IInstructionUsesByte
 
     public ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
     {
-        BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.A, value, cpu.ProcessorStatus);
+        BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.A, value, ref cpu.ProcessorStatus);
 
         return 
             InstructionExtraCyclesCalculator.CalculateExtraCycles(

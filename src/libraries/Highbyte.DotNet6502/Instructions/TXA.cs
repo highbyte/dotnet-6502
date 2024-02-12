@@ -11,7 +11,7 @@ public class TXA : Instruction, IInstructionUsesOnlyRegOrStatus
     public ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
     {
         cpu.A = cpu.X;
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, cpu.ProcessorStatus);
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
         
         return 0;                
     }
