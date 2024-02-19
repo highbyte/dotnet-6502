@@ -13,7 +13,7 @@ public class Sprite_collitions_debug
     private readonly C64 _c64;
     private readonly Vic2 _vic2;
     private readonly Memory _vic2Mem;
-    private readonly Vic2SpriteManager _vic2SpriteManager;
+    private readonly IVic2SpriteManager _vic2SpriteManager;
 
     public Sprite_collitions_debug(ITestOutputHelper testOutputHelper)
     {
@@ -30,6 +30,7 @@ public class Sprite_collitions_debug
         _vic2 = _c64.Vic2;
         _vic2Mem = _vic2.Vic2Mem;
         _vic2SpriteManager = _vic2.SpriteManager;
+        //_vic2SpriteManager = new Vic2SpriteManagerOptimized(_vic2);
     }
 
     [Fact]
@@ -55,8 +56,8 @@ public class Sprite_collitions_debug
         // Create sprite 
         var sprite = CreateSprite(
             spriteNumber: 0,
-            x: Vic2SpriteManager.SCREEN_OFFSET_X + 0,
-            y: Vic2SpriteManager.SCREEN_OFFSET_Y + 0,
+            x: (byte)(_vic2SpriteManager.ScreenOffsetX + 0),
+            y: (byte)(_vic2SpriteManager.ScreenOffsetY + 0),
             doubleWidth: false,
             doubleHeight: false,
             multiColor: true,
@@ -76,11 +77,13 @@ public class Sprite_collitions_debug
         int numberOfSpriteScreenLines = sprite.HeightPixels;
         for (int spriteScreenLine = 0; spriteScreenLine < numberOfSpriteScreenLines; spriteScreenLine++)
         {
-            var spriteLineData = _vic2SpriteManager.GetSpriteRowLineData(sprite, spriteScreenLine);
-            spriteLines.Add(spriteLineData);
+            Span<byte> spriteLineData = stackalloc byte[sprite.WidthBytes];
+            _vic2SpriteManager.GetSpriteRowLineData(sprite, spriteScreenLine, ref spriteLineData);
+            spriteLines.Add(spriteLineData.ToArray());
 
-            byte[] screenLineData = _vic2SpriteManager.GetCharacterRowLineDataMatchingSpritePosition(sprite, spriteScreenLine, spriteLineData.Length, scrollX, scrollY);
-            screenLines.Add(screenLineData);
+            Span<byte> screenLineData = stackalloc byte[sprite.WidthBytes];
+            _vic2SpriteManager.GetCharacterRowLineDataMatchingSpritePosition(sprite, spriteScreenLine, spriteLineData.Length, scrollX, scrollY, ref screenLineData);
+            screenLines.Add(screenLineData.ToArray());
 
             // Check collision on line
             bool collisionFound = _vic2SpriteManager.CheckCollision(spriteLineData, screenLineData);
@@ -140,11 +143,13 @@ public class Sprite_collitions_debug
         int numberOfSpriteScreenLines = sprite0.HeightPixels;
         for (int spriteScreenLine = 0; spriteScreenLine < numberOfSpriteScreenLines; spriteScreenLine++)
         {
-            var sprite0LineData = _vic2SpriteManager.GetSpriteRowLineData(sprite0, spriteScreenLine);
-            sprite0Lines.Add(sprite0LineData);
+            Span<byte> sprite0LineData = stackalloc byte[sprite0.WidthBytes];
+            _vic2SpriteManager.GetSpriteRowLineData(sprite0, spriteScreenLine, ref sprite0LineData);
+            sprite0Lines.Add(sprite0LineData.ToArray());
 
-            byte[] sprite1LineData = _vic2SpriteManager.GetSpriteRowLineDataMatchingOtherSpritePosition(sprite0, sprite1, spriteScreenLine, sprite0LineData.Length);
-            sprite1Lines.Add(sprite1LineData);
+            Span<byte> sprite1LineData = stackalloc byte[sprite0LineData.Length];
+            _vic2SpriteManager.GetSpriteRowLineDataMatchingOtherSpritePosition(sprite0, sprite1, spriteScreenLine, ref sprite1LineData);
+            sprite1Lines.Add(sprite1LineData.ToArray());
 
             // Check collision on line
             bool collisionFound = _vic2SpriteManager.CheckCollision(sprite0LineData, sprite1LineData);

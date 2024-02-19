@@ -76,11 +76,12 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
         WASMAudioHandlerContext audioHandlerContext
         )
     {
-        var renderer = new C64SkiaRenderer();
+        var c64 = (C64)system;
+
+        var renderer = new C64SkiaRenderer(c64);
         var inputHandler = new C64AspNetInputHandler(_loggerFactory, _hostConfig.InputConfig);
         var audioHandler = new C64WASMAudioHandler(_loggerFactory);
 
-        var c64 = (C64)system;
         renderer.Init(c64, renderContext);
         inputHandler.Init(c64, inputHandlerContext);
         audioHandler.Init(c64, audioHandlerContext);

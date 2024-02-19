@@ -101,12 +101,14 @@ public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetI
         )
     {
         var c64HostConfig = (C64HostConfig)hostSystemConfig;
+        var c64 = (C64)system;
+
         IRenderer renderer;
         IRenderContext renderContext;
         switch (c64HostConfig.Renderer)
         {
             case C64HostRenderer.SkiaSharp:
-                renderer = new C64SkiaRenderer();
+                renderer = new C64SkiaRenderer(c64);
                 renderContext = renderContextContainer.SkiaRenderContext;
                 break;
             case C64HostRenderer.SilkNetOpenGl:
@@ -120,7 +122,6 @@ public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetI
         var inputHandler = new C64SilkNetInputHandler(_loggerFactory, _c64HostConfig.InputConfig);
         var audioHandler = new C64NAudioAudioHandler(_loggerFactory);
 
-        var c64 = (C64)system;
 
         renderer.Init(c64, renderContext);
         inputHandler.Init(c64, inputHandlerContext);

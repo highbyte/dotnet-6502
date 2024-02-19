@@ -42,10 +42,10 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
     private readonly ElapsedMillisecondsTimedStat _textScreenStat;
     private readonly ElapsedMillisecondsTimedStat _spritesStat;
 
-    public C64SkiaRenderer()
+    public C64SkiaRenderer(C64 c64)
     {
         _charGen = new CharGen();
-        _spriteImages = new SKImage[Vic2SpriteManager.NUMBERS_OF_SPRITES];
+        _spriteImages = new SKImage[c64.Vic2.SpriteManager.NumberOfSprites];
 
         _backgroundStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Background");
         _borderStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Border");
@@ -501,8 +501,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
             }
             var spriteImage = _spriteImages[sprite.SpriteNumber];
 
-            var spriteCanvasX = sprite.X + visibleMainScreenArea.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X;
-            var spriteCanvasY = sprite.Y + visibleMainScreenArea.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y;
+            var spriteCanvasX = sprite.X + visibleMainScreenArea.Screen.Start.X - c64.Vic2.SpriteManager.ScreenOffsetX;
+            var spriteCanvasY = sprite.Y + visibleMainScreenArea.Screen.Start.Y - c64.Vic2.SpriteManager.ScreenOffsetY;
 
             var spriteWidth = sprite.DoubleWidth ? Vic2Sprite.DEFAULT_WIDTH * 2 : Vic2Sprite.DEFAULT_WIDTH;
             var spriteHeight = sprite.DoubleHeight ? Vic2Sprite.DEFAULT_HEIGTH * 2 : Vic2Sprite.DEFAULT_HEIGTH;

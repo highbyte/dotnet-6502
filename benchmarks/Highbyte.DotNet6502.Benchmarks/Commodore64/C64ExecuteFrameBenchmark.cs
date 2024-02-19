@@ -7,12 +7,12 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Highbyte.DotNet6502.Benchmarks;
+namespace Highbyte.DotNet6502.Benchmarks.Commodore64;
 
 [MemoryDiagnoser] // Memory diagnoser is used to measure memory allocations
-//[ShortRunJob] // WARNING: ShortRunJob is a custom job runs faster than normal, but is less accurate.
+[ShortRunJob] // WARNING: ShortRunJob is a custom job runs faster than normal, but is less accurate.
 //[DryJob] // DANGER: DryJob is a custom job that runs very quickly, but VERY INACCURATE. Use only to verify that benchmarks actual runs.
-public class C64ExecuteInstruction
+public class C64ExecuteFrameBenchmark
 {
     private C64 _c64WithInstrumentation = default!;
     private C64 _c64WithoutInstrumentation = default!;
@@ -20,9 +20,9 @@ public class C64ExecuteInstruction
     private SystemRunner _systemRunnerWithoutInstrumentation = default!;
     private ushort _startAddress;
 
-    //[Params(1)]
-    [Params(1, 100, 1000)]
-    public int NumberOfInstructionsToExecute;
+    [Params(1)]
+    //[Params(1, 100, 1000)]
+    public int NumberOfFramesToExecute;
 
     // GlobalSetup is executed once, or if Params are used: once per each Params value combination
     [GlobalSetup]
@@ -62,7 +62,7 @@ public class C64ExecuteInstruction
         var bytes = new byte[64 * 1024];
         // Random code (could include illegal opcodes)
         //new Random(42).NextBytes(bytes);
-        for (int i = 0; i < bytes.Length; i++)
+        for (var i = 0; i < bytes.Length; i++)
         {
             bytes[i] = (byte)OpCodeId.RTS;
         }
@@ -94,22 +94,22 @@ public class C64ExecuteInstruction
     //}
 
     [Benchmark(Baseline = true)]
-    public void ExecInsWithoutInstrumentation()
+    public void ExecFrameWithoutInstrumentation()
     {
         _c64WithoutInstrumentation.CPU.PC = _startAddress;
-        for (int i = 0; i < NumberOfInstructionsToExecute; i++)
+        for (var i = 0; i < NumberOfFramesToExecute; i++)
         {
-            _c64WithoutInstrumentation.ExecuteOneInstruction(_systemRunnerWithoutInstrumentation, out InstructionExecResult instructionExecResult);
+            var execEvaluatorTriggerResult = _c64WithoutInstrumentation.ExecuteOneFrame(_systemRunnerWithoutInstrumentation);
         }
     }
 
     [Benchmark]
-    public void ExecInsWithInstrumentation()
+    public void ExecFrameWithInstrumentation()
     {
         _c64WithInstrumentation.CPU.PC = _startAddress;
-        for (int i = 0; i < NumberOfInstructionsToExecute; i++)
+        for (var i = 0; i < NumberOfFramesToExecute; i++)
         {
-            _c64WithInstrumentation.ExecuteOneInstruction(_systemRunnerWithInstrumentation, out InstructionExecResult instructionExecResult);
+            var execEvaluatorTriggerResult = _c64WithInstrumentation.ExecuteOneFrame(_systemRunnerWithInstrumentation);
         }
     }
 }

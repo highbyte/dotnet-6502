@@ -73,7 +73,8 @@ public class C64 : ISystem, ISystemMonitor
         _audioStat.Reset(); // Reset audio stat, will be continiously updated after each instruction
 
         ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
-        _logger.LogTrace($"Executing one frame, {cyclesToExecute} CPU cycles.");
+        //_logger.LogTrace($"Executing one frame, {cyclesToExecute} CPU cycles.");
+
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < cyclesToExecute)
         {

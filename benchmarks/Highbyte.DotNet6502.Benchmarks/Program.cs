@@ -1,24 +1,47 @@
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
-using Highbyte.DotNet6502.Benchmarks;
+using Highbyte.DotNet6502.Benchmarks.Commodore64;
 
-// If debugging, uncomment line below
-//BenchmarkSwitcher
-//    .FromAssembly(typeof(Program).Assembly)
-//    .Run(args, new DebugInProcessConfig());
 
-// Or if just wanting a UI to select which benchmark to run, uncomment line below
+//var lab = new C64SpriteManagerBenchmark();
+//lab.NumberOfSprites = 8;
+//lab.Setup();
+//var collision = lab.Vic2SpriteManager.GetSpriteToBackgroundCollision();
+//var collision2 = lab.Vic2SpriteManagerOptimized.GetSpriteToBackgroundCollision();
+//return;
+
+#if DEBUG
+
+// Debugging, run benchmarks in-process, UI for selection
+BenchmarkSwitcher
+    .FromAssembly(typeof(Program).Assembly)
+    .Run(args, new DebugInProcessConfig());
+
+#else
+
+// Running for real:
+// dotnet run -c Release
+
+// Use UI selection
 //BenchmarkSwitcher
 //    .FromAssembly(typeof(Program).Assembly)
 //    .Run(args);
 
-// Or run specific benchmarks
+// OR run specific benchmarks:
+//var summary = BenchmarkRunner
+//    .Run<Execute6502InstructionBenchmark>();
 
 //var summary = BenchmarkRunner
-//    .Run<ExecuteInstruction>();
+//    .Run<ExecuteAll6502InstructionsBenchmark>();
 
 //var summary = BenchmarkRunner
-//    .Run<ExecuteAllInstructions>();
+//    .Run<C64ExecuteInstructionBenchmark>();
+
+//var summary = BenchmarkRunner
+//    .Run<C64ExecuteFrameBenchmark>();
 
 var summary = BenchmarkRunner
-    .Run<C64ExecuteInstruction>();
+    .Run<C64SpriteManagerBenchmark>();
+
+#endif
+

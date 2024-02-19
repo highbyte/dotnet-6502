@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.Benchmarks;
 [MemoryDiagnoser] // Memory diagnoser is used to measure memory allocations
 //[ShortRunJob] // WARNING: ShortRunJob is a custom job runs faster than normal, but is less accurate.
 //[DryJob] // DANGER: DryJob is a custom job that runs very quickly, but VERY INACCURATE. Use only to verify that benchmarks actual runs.
-public class ExecuteAllInstructions
+public class ExecuteAll6502InstructionsBenchmark
 {
     private CPU _cpu = default!;
     private Memory _mem = default!;
