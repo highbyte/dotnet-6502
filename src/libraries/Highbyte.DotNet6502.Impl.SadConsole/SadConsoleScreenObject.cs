@@ -25,11 +25,10 @@ public class SadConsoleScreenObject : ScreenObject
             totalRows += (screen.VisibleTopBottomBorderHeight / textMode.CharacterHeight) * 2;
         }
 
-        var console = new Console(totalCols, totalRows)
-        {
-            DefaultForeground = Color.White,
-            DefaultBackground = Color.Black
-        };
+        var console = new Console(totalCols, totalRows);
+        console.Surface.DefaultForeground = Color.White;
+        console.Surface.DefaultBackground = Color.Black;
+
         //screen.Position = new Point(VisibleLeftRightBorderWidth, VisibleTopBottomBorderHeight);
 
         // TODO: Better way to map numeric scale value to SadConsole.Font.FontSizes enum?
