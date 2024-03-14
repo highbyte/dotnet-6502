@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Highbyte.DotNet6502.Systems;
+using SadConsole.Configuration;
 namespace Highbyte.DotNet6502.Impl.SadConsole;
 
 public class SadConsoleMain
@@ -37,24 +38,18 @@ public class SadConsoleMain
             totalCols += (screen.VisibleLeftRightBorderWidth / textMode.CharacterWidth) * 2;
             totalRows += (screen.VisibleTopBottomBorderHeight / textMode.CharacterHeight) * 2;
         }
-        global::SadConsole.Game.Create(
-            totalCols * _sadConsoleConfig.FontScale,
-            totalRows * _sadConsoleConfig.FontScale,
-            _sadConsoleConfig.Font
-            );
 
-        //SadConsole.Game.Instance.DefaultFontSize = IFont.Sizes.One;
-
-        // Hook the start event so we can add consoles to the system.
-        global::SadConsole.Game.Instance.OnStart = InitSadConsole;
-
-        // Hook the update event that happens each frame
-        global::SadConsole.Game.Instance.FrameUpdate += UpdateSadConsole;
-
-        // Hook the "after render"
-        //SadConsole.Game.OnDraw = Screen.DrawFrame;
+        global::SadConsole.Configuration.Builder builder
+            = new global::SadConsole.Configuration.Builder()
+            .SetScreenSize(totalCols * _sadConsoleConfig.FontScale, totalRows * _sadConsoleConfig.FontScale)
+            .ConfigureFonts(_sadConsoleConfig.Font ?? string.Empty)
+            .SetStartingScreen(CreateSadConsoleScreen)
+            .IsStartingScreenFocused(false) // Let the object focused in the create method remain.
+            .AddFrameUpdateEvent(UpdateSadConsole)
+            ;
 
         // Start the game.
+        global::SadConsole.Game.Create(builder);
         global::SadConsole.Game.Instance.Run();
         global::SadConsole.Game.Instance.Dispose();
     }
@@ -62,21 +57,12 @@ public class SadConsoleMain
     /// <summary>
     /// Runs when SadConsole engine starts up
     /// </summary>
-    private void InitSadConsole()
+    private IScreenObject CreateSadConsoleScreen(Game game)
     {
-        // Create a SadConsole screen
-        var screen = _systemRunner.System.Screen;
-        if (screen is not ITextMode textMode)
-            throw new DotNet6502Exception("SadConsoleMain only supports system that implements ITextMode of Screen.");
-
-        _sadConsoleScreen = new SadConsoleScreenObject(textMode, screen, _sadConsoleConfig);
-
-        global::SadConsole.Game.Instance.Screen = _sadConsoleScreen;
-        global::SadConsole.Game.Instance.DestroyDefaultStartingConsole();
-
-        // Start with focus on main console on current screen
-        _sadConsoleScreen.IsFocused = true;
+        _sadConsoleScreen = new SadConsoleScreenObject((ITextMode)_systemRunner.System.Screen, _systemRunner.System.Screen, _sadConsoleConfig);
         _sadConsoleScreen.ScreenConsole.IsFocused = true;
+
+        return _sadConsoleScreen;
     }
 
     /// <summary>
