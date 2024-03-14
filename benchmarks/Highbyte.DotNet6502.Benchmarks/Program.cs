@@ -2,12 +2,10 @@ using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
 using Highbyte.DotNet6502.Benchmarks.Commodore64;
 
-
 //var lab = new C64SpriteManagerBenchmark();
 //lab.NumberOfSprites = 8;
 //lab.Setup();
 //var collision = lab.Vic2SpriteManager.GetSpriteToBackgroundCollision();
-//var collision2 = lab.Vic2SpriteManagerOptimized.GetSpriteToBackgroundCollision();
 //return;
 
 #if DEBUG
@@ -34,14 +32,14 @@ BenchmarkSwitcher
 //var summary = BenchmarkRunner
 //    .Run<ExecuteAll6502InstructionsBenchmark>();
 
-//var summary = BenchmarkRunner
-//    .Run<C64ExecuteInstructionBenchmark>();
+var summary = BenchmarkRunner
+    .Run<C64ExecuteInstructionBenchmark>();
 
 //var summary = BenchmarkRunner
 //    .Run<C64ExecuteFrameBenchmark>();
 
-var summary = BenchmarkRunner
-    .Run<C64SpriteManagerBenchmark>();
+//var summary = BenchmarkRunner
+//    .Run<C64SpriteManagerBenchmark>();
 
 #endif
 
