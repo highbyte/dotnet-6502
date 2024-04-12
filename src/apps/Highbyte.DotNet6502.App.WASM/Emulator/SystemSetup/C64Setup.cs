@@ -1,15 +1,16 @@
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
+using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
-namespace Highbyte.DotNet6502.App.WASM.Skia;
+namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
-public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
+public class C64Setup : SystemConfigurer<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
 
@@ -69,12 +70,30 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
         ISystem system,
         ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
-        SkiaRenderContext renderContext,
+        WASMRenderContextContainer renderContextContainer,
         AspNetInputHandlerContext inputHandlerContext,
         WASMAudioHandlerContext audioHandlerContext
         )
     {
-        var renderer = new C64SkiaRenderer();
+        var c64HostConfig = (C64HostConfig)hostSystemConfig;
+
+        IRenderer renderer;
+        IRenderContext renderContext;
+        switch (c64HostConfig.Renderer)
+        {
+            case C64HostRenderer.SkiaSharp:
+                renderer = new C64SkiaRenderer();
+                renderContext = renderContextContainer.SkiaRenderContext;
+                break;
+            case C64HostRenderer.SilkNetOpenGl:
+                throw new NotImplementedException();
+                //renderer = new C64SilkNetOpenGlRenderer(c64HostConfig.SilkNetOpenGlRendererConfig);
+                //renderContext = renderContextContainer.SilkNetOpenGlRenderContext;
+                break;
+            default:
+                throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
+        }
+
         var inputHandler = new C64AspNetInputHandler(_loggerFactory, _hostConfig.InputConfig);
         var audioHandler = new C64WASMAudioHandler(_loggerFactory);
 

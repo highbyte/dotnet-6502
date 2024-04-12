@@ -1,7 +1,7 @@
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 
-namespace Highbyte.DotNet6502.App.WASM.Skia;
+namespace Highbyte.DotNet6502.App.WASM.Emulator;
 
 public class WasmMonitor : MonitorBase
 {
@@ -45,7 +45,7 @@ public class WasmMonitor : MonitorBase
         }
 
         if (execEvaluatorTriggerResult != null)
-            base.ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
+            ShowInfoAfterBreakTriggerEnabled(execEvaluatorTriggerResult);
         //else
         //    WriteOutput("Monitor enabled manually.");
 
@@ -116,10 +116,8 @@ public class WasmMonitor : MonitorBase
         var commandResult = SendCommand(cmd);
         DisplayStatus();
         if (commandResult == CommandResult.Quit)
-        {
             //Quit = true;
             Disable();
-        }
         else if (commandResult == CommandResult.Continue)
         {
             Disable();
@@ -185,8 +183,8 @@ public class WasmMonitor : MonitorBase
             BinaryLoader.Load(
                 Mem,
                 fileData,
-                out ushort loadedAtAddress,
-                out ushort fileLength,
+                out var loadedAtAddress,
+                out var fileLength,
                 _lastTriggeredLoadBinaryForceLoadAddress);
 
             WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
@@ -211,7 +209,7 @@ public class WasmMonitor : MonitorBase
         try
         {
             // Ensure file has .prg extension if not specfied. When saving by issuing a browser file download, and saving a file with no extension, the browser will add .txt extension.
-            string ext = Path.GetExtension(fileName);
+            var ext = Path.GetExtension(fileName);
             if (string.IsNullOrEmpty(ext))
                 fileName += ".prg";
 
@@ -249,7 +247,7 @@ public class WasmMonitor : MonitorBase
 
     private string BuildHtmlString(string message, string cssClass, bool startNewLine = false)
     {
-        string html = "";
+        var html = "";
         if (startNewLine)
             html += "<br />";
         html += $@"<span class=""{cssClass}"">{HttpUtility.HtmlEncode(message)}</span>";

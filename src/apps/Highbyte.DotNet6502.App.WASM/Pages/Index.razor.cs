@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Blazored.Modal.Services;
 using Blazored.Modal;
-using Highbyte.DotNet6502.App.WASM.Skia;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Systems;
@@ -13,6 +12,10 @@ using Highbyte.DotNet6502.Logging.Console;
 using Toolbelt.Blazor.Gamepad;
 using AutoMapper;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.App.WASM.Emulator;
+using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
+using Highbyte.DotNet6502.Systems.Generic;
+using Highbyte.DotNet6502.App.WASM.Emulator.Skia;
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
 
@@ -91,7 +94,7 @@ public partial class Index
     private ElementReference _monitorInputRef = default!;
 
     private EmulatorConfig _emulatorConfig = default!;
-    private SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList = default!;
+    private SystemList<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList = default!;
 
     private WasmHost _wasmHost = default!;
     public WasmHost WasmHost => _wasmHost;
@@ -142,9 +145,12 @@ public partial class Index
         };
 
         // Add systems
-        _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>();
+        _systemList = new();
 
-        var c64HostConfig = new C64HostConfig();
+        var c64HostConfig = new C64HostConfig
+        {
+            Renderer = C64HostRenderer.SkiaSharp,
+        };
         var c64Setup = new C64Setup(_browserContext, LoggerFactory, c64HostConfig);
         _systemList.AddSystem(c64Setup);
 
@@ -167,8 +173,8 @@ public partial class Index
             },
             HostSystemConfigs = new Dictionary<string, IHostSystemConfig>
             {
-                { C64.SystemName, c64HostConfig }
-                //{ GenericComputer.SystemName, new GenericComputerHostConfig() }
+                { C64.SystemName, c64HostConfig },
+                { GenericComputer.SystemName, new GenericComputerHostConfig() }
             }
         };
         _emulatorConfig.Validate(_systemList);

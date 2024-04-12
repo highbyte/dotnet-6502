@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Highbyte.DotNet6502.App.WASM.Skia;
+namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia;
 
 public class PeriodicAsyncTimer
 {

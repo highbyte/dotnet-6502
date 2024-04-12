@@ -6,7 +6,7 @@ using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems;
 using Toolbelt.Blazor.Gamepad;
 
-namespace Highbyte.DotNet6502.App.WASM.Skia;
+namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia;
 
 public class WasmHost : IDisposable
 {
@@ -22,13 +22,13 @@ public class WasmHost : IDisposable
     private SKCanvas _skCanvas = default!;
     private GRContext _grContext = default!;
 
-    private SkiaRenderContext _skiaRenderContext = default!;
+    private WASMRenderContextContainer _renderContext = default!;
     public WASMAudioHandlerContext AudioHandlerContext { get; private set; } = default!;
     public AspNetInputHandlerContext InputHandlerContext { get; private set; } = default!;
 
     private readonly string _systemName;
-    private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
-    public SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> SystemList => _systemList;
+    private readonly SystemList<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
+    public SystemList<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext> SystemList => _systemList;
     private readonly Action<string> _updateStats;
     private readonly Action<string> _updateDebug;
     private readonly Func<bool, Task> _setMonitorState;
@@ -60,7 +60,7 @@ public class WasmHost : IDisposable
     public WasmHost(
         IJSRuntime jsRuntime,
         string systemName,
-        SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> systemList,
+        SystemList<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext> systemList,
         Action<string> updateStats,
         Action<string> updateDebug,
         Func<bool, Task> setMonitorState,
@@ -99,11 +99,14 @@ public class WasmHost : IDisposable
         _skCanvas = canvas;
         _grContext = grContext;
 
-        _skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
+        _renderContext = new WASMRenderContextContainer(
+            new SkiaRenderContext(GetCanvas, GetGRContext),
+            null
+            );
         InputHandlerContext = new AspNetInputHandlerContext(_loggerFactory, gamepadList);
         AudioHandlerContext = new WASMAudioHandlerContext(audioContext, jsRuntime, _initialMasterVolume);
 
-        _systemList.InitContext(() => _skiaRenderContext, () => InputHandlerContext, () => AudioHandlerContext);
+        _systemList.InitContext(() => _renderContext, () => InputHandlerContext, () => AudioHandlerContext);
 
         _systemRunner = await _systemList.BuildSystemRunner(_systemName);
 
@@ -133,7 +136,7 @@ public class WasmHost : IDisposable
         {
             var screen = _systemList.GetSystem(_systemName).Result.Screen;
             // Number of milliseconds between each invokation of the main loop. 60 fps -> (1/60) * 1000  -> approx 16.6667ms
-            double updateIntervalMS = (1 / screen.RefreshFrequencyHz) * 1000;
+            double updateIntervalMS = 1 / screen.RefreshFrequencyHz * 1000;
             _updateTimer = new PeriodicAsyncTimer();
             _updateTimer.IntervalMilliseconds = updateIntervalMS;
             _updateTimer.Elapsed += UpdateTimerElapsed;
@@ -152,10 +155,10 @@ public class WasmHost : IDisposable
         }
 
         // Clear canvas
-        _skiaRenderContext.GetCanvas().Clear();
+        _renderContext.SkiaRenderContext.GetCanvas().Clear();
 
         // Clean up Skia resources
-        _skiaRenderContext?.Cleanup();
+        _renderContext.SkiaRenderContext?.Cleanup();
 
         // Clean up input handler resources
         InputHandlerContext?.Cleanup();
@@ -210,9 +213,7 @@ public class WasmHost : IDisposable
 
         // Show monitor if we encounter breakpoint or other break
         if (execEvaluatorTriggerResult.Triggered)
-        {
             Monitor.Enable(execEvaluatorTriggerResult);
-        }
     }
 
     public void Render(SKCanvas canvas, GRContext grContext)
@@ -247,7 +248,7 @@ public class WasmHost : IDisposable
 
     private string GetStats()
     {
-        string stats = "";
+        var stats = "";
 
         var allStats = InstrumentationBag.Stats
             .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
@@ -255,7 +256,7 @@ public class WasmHost : IDisposable
             .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
             .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{InputTimeStatName}-{x.Name}", x.Stat)))
             .ToList();
-        foreach ((string name, IStat stat) in allStats.OrderBy(i => i.Name))
+        foreach ((var name, var stat) in allStats.OrderBy(i => i.Name))
         {
             if (stat.ShouldShow())
             {
@@ -269,7 +270,7 @@ public class WasmHost : IDisposable
 
     private string GetDebugMessages()
     {
-        string debugMessages = "";
+        var debugMessages = "";
 
         var inputDebugInfo = _systemRunner.InputHandler.GetDebugInfo();
         var inputStatsOneString = string.Join(" # ", inputDebugInfo);
@@ -294,7 +295,7 @@ public class WasmHost : IDisposable
 
     private string BuildHtmlString(string message, string cssClass, bool startNewLine = false)
     {
-        string html = "";
+        var html = "";
         if (startNewLine)
             html += "<br />";
         html += $@"<span class=""{cssClass}"">{HttpUtility.HtmlEncode(message)}</span>";
@@ -314,10 +315,7 @@ public class WasmHost : IDisposable
         var key = e.Key;
 
         if (key == "F11")
-        {
             _toggleDebugStatsState();
-
-        }
         else if (key == "F12")
         {
             ToggleMonitor();
@@ -327,9 +325,7 @@ public class WasmHost : IDisposable
     public void ToggleMonitor()
     {
         if (Monitor.Visible)
-        {
             Monitor.Disable();
-        }
         else
         {
             Monitor.Enable();

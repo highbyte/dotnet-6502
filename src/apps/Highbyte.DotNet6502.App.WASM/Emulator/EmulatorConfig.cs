@@ -3,7 +3,7 @@ using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 
-namespace Highbyte.DotNet6502.App.WASM.Skia;
+namespace Highbyte.DotNet6502.App.WASM.Emulator;
 
 public class EmulatorConfig
 {
@@ -23,7 +23,7 @@ public class EmulatorConfig
         CurrentDrawScale = DefaultDrawScale;
     }
 
-    public void Validate(SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> systemList)
+    public void Validate(SystemList<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext> systemList)
     {
         if (!systemList.Systems.Contains(DefaultEmulator))
             throw new DotNet6502Exception($"Setting {nameof(DefaultEmulator)} value {DefaultEmulator} is not supported. Valid values are: {string.Join(',', systemList.Systems)}");
