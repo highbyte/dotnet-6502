@@ -1,4 +1,5 @@
-﻿@using Highbyte.DotNet6502.App.WASM.Skia;
+﻿@using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup
+@using Highbyte.DotNet6502.App.WASM.Skia;
 @using Highbyte.DotNet6502.Systems.Commodore64.Config;
 @using Highbyte.DotNet6502.Systems.Commodore64;
 @using Highbyte.DotNet6502.Systems.Commodore64.Video;
@@ -8,21 +9,24 @@
 
 
     <label for="Joystick">Joystick</label>
-    <select value="@_c64HostConfig.InputConfig.CurrentJoystick" @onchange="OnSelectJoystickChanged">
-        @foreach (var joystick in _c64HostConfig.InputConfig.AvailableJoysticks.ToArray())
-        {
-            <option value="@joystick"> @joystick </option>
-        }
-    </select>
-    <p></p>
-    <label for="JoystickKeyboardEnabled">Joystick Keyboard</label>
-    <input id="JoystickKeyboardEnabled" type="checkbox" @bind="@JoystickKeyboardEnabled" />
-    <select value="@KeyboardJoystick" @onchange="OnSelectKeyboardJoystickChanged" disabled=@SelectKeyboardJoystickDisabled>
-        @foreach (var joystick in _c64HostConfig.InputConfig.AvailableJoysticks.ToArray())
-        {
-            <option value="@joystick"> @joystick </option>
-        }
-    </select>
+    @if (_c64HostConfig!=null)
+    {
+        <select value="@_c64HostConfig.InputConfig.CurrentJoystick" @onchange="OnSelectJoystickChanged">
+            @foreach (var joystick in _c64HostConfig.InputConfig.AvailableJoysticks.ToArray())
+            {
+                <option value="@joystick"> @joystick </option>
+            }
+        </select>
+        <p></p>
+        <label for="JoystickKeyboardEnabled">Joystick Keyboard</label>
+        <input id="JoystickKeyboardEnabled" type="checkbox" @bind="@JoystickKeyboardEnabled" />
+        <select value="@KeyboardJoystick" @onchange="OnSelectKeyboardJoystickChanged" disabled=@SelectKeyboardJoystickDisabled>
+            @foreach (var joystick in _c64HostConfig.InputConfig.AvailableJoysticks.ToArray())
+            {
+                <option value="@joystick"> @joystick </option>
+            }
+        </select>
+    }
 
     <p>Load/save files</p>
     <button @onclick="OnBasicFilePicker" disabled=@OnBasicFilePickerDisabled>Load Basic .prg</button>
@@ -68,9 +72,11 @@
     .systemCommandsStyle {
         display: @Parent.GetSystemVisibilityDisplayStyle("Commands", SYSTEM_NAME)
     }
+
     .systemHelpStyle {
         display: @Parent.GetSystemVisibilityDisplayStyle("Help", SYSTEM_NAME)
     }
+
     .systemConfigStyle {
         display: @Parent.GetSystemVisibilityDisplayStyle("Config", SYSTEM_NAME)
     }
@@ -82,9 +88,9 @@
 @* Fix for compiler warning CS8669 https://github.com/dotnet/razor/issues/8720 *@
 @{
 #pragma warning disable CS8669
-} 
+}
 @code {
-@inject IJSRuntime Js
+    @inject IJSRuntime Js
     @inject HttpClient HttpClient
     @inject ILoggerFactory LoggerFactory
 
@@ -96,7 +102,7 @@
     private C64Config _c64Config => (Parent.SystemConfig as C64Config)!;
     private C64HostConfig _c64HostConfig => (Parent.HostSystemConfig as C64HostConfig)!;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _logger = LoggerFactory.CreateLogger<C64Menu>();
         _logger.LogDebug("OnInitializedAsync() was called");
@@ -343,13 +349,13 @@
             catch (Exception ex)
             {
                 _latestFileError = $"Save error: {ex.Message}";
-                _logger.LogError($"Save error: {ex.Message}");   
+                _logger.LogError($"Save error: {ex.Message}");
             }
         }
     }
 
 
-    private void OnAssemblyExampleChanged(ChangeEventArgs e)
+    private async Task OnAssemblyExampleChanged(ChangeEventArgs e)
     {
         SelectedAssemblyExample = e.Value?.ToString() ?? "";
     }
