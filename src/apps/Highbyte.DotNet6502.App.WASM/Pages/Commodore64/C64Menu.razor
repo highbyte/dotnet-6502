@@ -1,4 +1,5 @@
-﻿@using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup
+﻿@using Highbyte.DotNet6502.App.WASM.Emulator
+@using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup
 @using Highbyte.DotNet6502.Systems.Commodore64.Config;
 @using Highbyte.DotNet6502.Systems.Commodore64;
 @using Highbyte.DotNet6502.Systems.Commodore64.Video;
@@ -120,7 +121,7 @@
             if (_c64Config == null)
                 return;
             _c64Config.KeyboardJoystickEnabled = value;
-            if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
+            if (Parent.EmulatorState != EmulatorState.Uninitialized)
             {
                 C64 c64 = (C64)Parent.WasmHost.SystemList.GetSystem(SYSTEM_NAME).Result;
                 c64.Cia.Joystick.KeyboardJoystickEnabled = value;
@@ -149,7 +150,7 @@
             if (_c64Config == null)
                 return;
             _c64Config.KeyboardJoystick = value;
-            if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
+            if (Parent.EmulatorState != EmulatorState.Uninitialized)
             {
                 C64 c64 = (C64)Parent.WasmHost.SystemList.GetSystem(SYSTEM_NAME).Result;
                 c64.Cia.Joystick.KeyboardJoystick = value;
@@ -183,11 +184,11 @@
     [Parameter]
     public Highbyte.DotNet6502.App.WASM.Pages.Index Parent { get; set; } = default!;
 
-    protected bool ShowConfigDisabled => Parent.CurrentEmulatorState != EmulatorState.Uninitialized;
+    protected bool ShowConfigDisabled => Parent.EmulatorState != EmulatorState.Uninitialized;
 
-    protected bool OnFilePickerDisabled => Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
+    protected bool OnFilePickerDisabled => Parent.EmulatorState == EmulatorState.Uninitialized;
 
-    protected bool OnBasicFilePickerDisabled => Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
+    protected bool OnBasicFilePickerDisabled => Parent.EmulatorState == EmulatorState.Uninitialized;
 
     /// <summary>
     /// Open Load binary file dialog
@@ -208,7 +209,7 @@
         if (Parent.WasmHost == null)
             return;
 
-        if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
+        if (Parent.EmulatorState == EmulatorState.Uninitialized)
             return;
 
         // Only expect one file
@@ -254,7 +255,7 @@
     /// <returns></returns>
     private async Task OnBasicFilePicker(MouseEventArgs mouseEventArgs)
     {
-        _wasRunningBeforeFileDialog = Parent.CurrentEmulatorState == EmulatorState.Running;
+        _wasRunningBeforeFileDialog = Parent.EmulatorState == EmulatorState.Running;
         await Js.InvokeVoidAsync("clickId", "filePickerBasic");
     }
 
@@ -268,7 +269,7 @@
         if (Parent.WasmHost == null)
             return;
 
-        if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
+        if (Parent.EmulatorState == EmulatorState.Uninitialized)
             return;
 
         // Only expect one file
@@ -319,7 +320,7 @@
     {
         if (Parent.WasmHost == null)
             return;
-        if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
+        if (Parent.EmulatorState == EmulatorState.Uninitialized)
             return;
 
         var result = await Parent.Modal.Show<EnterFileName>().Result;
