@@ -69,7 +69,7 @@
         console.log("Disabling default key behavior for main canvas and monitor");
         setTimeout(() => {
             // Fix for some keys not working correctly in Emulator Canvas
-            var emulatorCanvasElement = document.getElementById("emulatorSKGLView");
+            var emulatorCanvasElement = document.getElementById("canvas");
             emulatorCanvasElement.addEventListener("keydown", handleSpecialKeysForCanvas, true);
 
             // Fix for some keys not working correctly in Monitor UI

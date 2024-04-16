@@ -12,7 +12,11 @@
     <!--<BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport>
     <BlazorWebAssemblyPreserveCollationData>false</BlazorWebAssemblyPreserveCollationData>-->
 
+    <!-- Uncomment row below to build with Silk.NET WASM experiment renderer-->
+    <DefineConstants>$(DefineConstants);SILKNETWASM</DefineConstants>
+
     <Version>1.0</Version>
+
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -46,9 +50,9 @@
     <PackageReference Include="System.Net.Http.Json" Version="8.0.0" />
     <PackageReference Include="Toolbelt.Blazor.Gamepad" Version="8.0.0.1" />
   </ItemGroup>
-
+  
+  
   <ItemGroup>
-    <Folder Include="Emulator\SilkNet\" />
     <Folder Include="wwwroot\6502binaries\C64\Assembler\" />
     <Folder Include="wwwroot\6502binaries\C64\Basic\" />
   </ItemGroup>
@@ -66,4 +70,8 @@
     <Copy SourceFiles="..\..\..\samples\Assembler\Generic\Build\snake6502.prg" DestinationFolder="wwwroot\6502binaries\Generic\Assembler" />
   </Target>
 
+
+  <!-- Start: stuff for Silk.NET WASM expermiment to work-->
+  <Import Condition="$(DefineConstants.Contains(SILKNETWASM))" Project="SilkNetWASMExperiment-import.props"/>
+  <!-- End: stuff for Silk.NET WASM expermiment to work-->
 </Project>

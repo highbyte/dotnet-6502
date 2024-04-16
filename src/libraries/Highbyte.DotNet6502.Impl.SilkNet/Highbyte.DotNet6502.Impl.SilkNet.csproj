@@ -27,22 +27,42 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Commodore64\Video\C64shader.frag" />
+    <None Remove="Commodore64\Video\C64shader.vert" />
+    <None Remove="Commodore64\Video\C64shader_es.frag" />
+    <None Remove="Commodore64\Video\C64shader_es.vert" />
+    <None Remove="Commodore64\Video\TestShader.frag" />
+    <None Remove="Commodore64\Video\TestShader_working.frag" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Commodore64\Video\C64shader_es.vert">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Commodore64\Video\C64shader_es.frag">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Commodore64\Video\TestShader.frag">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Commodore64\Video\C64shader.frag">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Commodore64\Video\C64shader.vert">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
     <ProjectReference Include="..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Silk.NET.Input" Version="2.19.0" />
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.19.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Commodore64\Video\C64shader.frag">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Commodore64\Video\C64shader.vert">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <!--<PackageReference Include="Silk.NET.Input" Version="2.19.0" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.19.0" />-->
+    <PackageReference Include="Silk.NET.Input" Version="2.18.0-wasmlab" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.18.0-wasmlab" />
   </ItemGroup>
 
 </Project>

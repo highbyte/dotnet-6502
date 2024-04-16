@@ -1,5 +1,5 @@
+using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 using Highbyte.DotNet6502.Impl.AspNet;
-using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 
@@ -10,7 +10,9 @@ public class EmulatorConfig
     public const int DEFAULT_CANVAS_WINDOW_WIDTH = 640;
     public const int DEFAULT_CANVAS_WINDOW_HEIGHT = 400;
 
-    public required string DefaultEmulator { get; set; }
+    public RendererType Renderer { get; set; } = RendererType.SkiaSharp;
+
+    public string DefaultEmulator { get; set; }
     public double DefaultDrawScale { get; set; }
     public double CurrentDrawScale { get; set; }
     public required MonitorConfig Monitor { get; set; }

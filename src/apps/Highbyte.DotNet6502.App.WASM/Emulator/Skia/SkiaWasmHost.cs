@@ -45,13 +45,6 @@ public class SkiaWasmHost : WasmHostBase
 
     }
 
-    protected override WASMRenderContextContainer BuildRenderContext()
-    {
-        return new WASMRenderContextContainer(
-            new SkiaRenderContext(GetCanvas, GetGRContext),
-            null);
-    }
-
     private SKCanvas GetCanvas()
     {
         return _skCanvas;
@@ -80,6 +73,16 @@ public class SkiaWasmHost : WasmHostBase
         Render();
     }
 
+    protected override void OnInit()
+    {
+        RenderContextContainer = new WASMRenderContextContainer(
+            new SkiaRenderContext(GetCanvas, GetGRContext),
+            null);
+        InputHandlerContext = new AspNetInputHandlerContext(_loggerFactory, _gamepadList);
+        AudioHandlerContext = new WASMAudioHandlerContext(_audioContext, _jsRuntime, _initialMasterVolume);
+        _systemList.InitContext(() => RenderContextContainer, () => InputHandlerContext, () => AudioHandlerContext);
+    }
+
     protected override void OnBeforeRender()
     {
         _skCanvas.Scale((float)EmulatorConfig.CurrentDrawScale);
@@ -90,12 +93,13 @@ public class SkiaWasmHost : WasmHostBase
         _updateTimer?.Stop();
     }
 
-    protected override void OnAfterStop()
+    protected override Task OnAfterStop()
     {
         _initialized = false;
+        return Task.CompletedTask;
     }
 
-    protected override void OnAfterStart()
+    protected override Task OnAfterStart()
     {
         if (_updateTimer != null)
         {
@@ -110,6 +114,8 @@ public class SkiaWasmHost : WasmHostBase
             _updateTimer.Elapsed += UpdateTimerElapsed;
         }
         _updateTimer!.Start();
+
+        return Task.CompletedTask;
     }
 
     protected override void OnAfterCleanup()

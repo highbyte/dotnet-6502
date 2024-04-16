@@ -36,6 +36,12 @@ var c64HostConfig = new C64HostConfig
     SilkNetOpenGlRendererConfig = new C64SilkNetOpenGlRendererConfig()
     {
         UseFineScrollPerRasterLine = false, // Setting to true may work, depending on how code is written. Full screen scroll may not work (actual screen memory is not rendered in sync with raster line).
+
+        ShaderEmbeddedResourceType = typeof(C64SilkNetOpenGlRendererConfig),
+        VertexShaderPath = "Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video.C64shader_es.vert",
+        FragmentShaderPath = "Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video.C64shader_es.frag",
+
+        //UseTestShader = true    // Set to true to use a test fragment shader instead of the C64 fragment shader.
     }
 };
 var c64Setup = new C64Setup(loggerFactory, c64HostConfig);

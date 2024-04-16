@@ -18,12 +18,14 @@ public class C64Setup : SystemConfigurer<WASMRenderContextContainer, AspNetInput
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;
     private readonly C64HostConfig _hostConfig;
+    private readonly EmulatorConfig _emulatorConfig;
 
-    public C64Setup(BrowserContext browserContext, ILoggerFactory loggerFactory, C64HostConfig c64HostConfig)
+    public C64Setup(BrowserContext browserContext, ILoggerFactory loggerFactory, C64HostConfig c64HostConfig, EmulatorConfig emulatorConfig)
     {
         _browserContext = browserContext;
         _loggerFactory = loggerFactory;
         _hostConfig = c64HostConfig;
+        _emulatorConfig = emulatorConfig;
     }
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
@@ -79,19 +81,18 @@ public class C64Setup : SystemConfigurer<WASMRenderContextContainer, AspNetInput
 
         IRenderer renderer;
         IRenderContext renderContext;
-        switch (c64HostConfig.Renderer)
+        switch (_emulatorConfig.Renderer)
         {
-            case C64HostRenderer.SkiaSharp:
+            case RendererType.SkiaSharp:
                 renderer = new C64SkiaRenderer();
                 renderContext = renderContextContainer.SkiaRenderContext;
                 break;
-            case C64HostRenderer.SilkNetOpenGl:
-                throw new NotImplementedException();
-                //renderer = new C64SilkNetOpenGlRenderer(c64HostConfig.SilkNetOpenGlRendererConfig);
-                //renderContext = renderContextContainer.SilkNetOpenGlRenderContext;
+            case RendererType.SilkNetOpenGl:
+                renderer = new C64SilkNetOpenGlRenderer(c64HostConfig.SilkNetOpenGlRendererConfig);
+                renderContext = renderContextContainer.SilkNetOpenGlRenderContext;
                 break;
             default:
-                throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
+                throw new NotImplementedException($"Renderer {_emulatorConfig.Renderer} not implemented.");
         }
 
         var inputHandler = new C64AspNetInputHandler(_loggerFactory, _hostConfig.InputConfig);

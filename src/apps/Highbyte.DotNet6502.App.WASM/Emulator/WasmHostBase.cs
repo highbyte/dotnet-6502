@@ -11,7 +11,7 @@ public abstract class WasmHostBase : IDisposable
 {
     private string _systemName;
 
-    private readonly IJSRuntime _jsRuntime;
+    protected readonly IJSRuntime _jsRuntime;
 
 
     private SystemRunner _systemRunner = default!;
@@ -19,11 +19,11 @@ public abstract class WasmHostBase : IDisposable
 
     public EmulatorState EmulatorState { get; private set; } = EmulatorState.Uninitialized;
 
-    public WASMRenderContextContainer RenderContextContainer { get; private set; } = default!;
-    public WASMAudioHandlerContext AudioHandlerContext { get; private set; } = default!;
-    public AspNetInputHandlerContext InputHandlerContext { get; private set; } = default!;
+    public WASMRenderContextContainer RenderContextContainer { get; protected set; } = default!;
+    public WASMAudioHandlerContext AudioHandlerContext { get; protected set; } = default!;
+    public AspNetInputHandlerContext InputHandlerContext { get; protected set; } = default!;
 
-    private readonly SystemList<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
+    protected readonly SystemList<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
     public SystemList<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext> SystemList => _systemList;
 
     protected EmulatorConfig EmulatorConfig => _emulatorConfig;
@@ -32,12 +32,12 @@ public abstract class WasmHostBase : IDisposable
     private readonly Action<string> _updateStats;
     private readonly Action<string> _updateDebug;
     private readonly Func<bool, Task> _setMonitorState;
-    private readonly EmulatorConfig _emulatorConfig;
+    protected readonly EmulatorConfig _emulatorConfig;
     private readonly Func<Task> _toggleDebugStatsState;
     private readonly ILoggerFactory _loggerFactory;
-    private AudioContextSync _audioContext;
-    private readonly GamepadList _gamepadList;
-    private readonly float _initialMasterVolume;
+    protected AudioContextSync _audioContext;
+    protected readonly GamepadList _gamepadList;
+    protected readonly float _initialMasterVolume;
     private readonly ILogger _logger;
 
     public WasmMonitor Monitor { get; private set; } = default!;
@@ -101,13 +101,10 @@ public abstract class WasmHostBase : IDisposable
 
         _audioContext = audioContext;
 
-        RenderContextContainer = BuildRenderContext();
-        InputHandlerContext = new AspNetInputHandlerContext(_loggerFactory, _gamepadList);
-        AudioHandlerContext = new WASMAudioHandlerContext(_audioContext, _jsRuntime, _initialMasterVolume);
-        _systemList.InitContext(() => RenderContextContainer, () => InputHandlerContext, () => AudioHandlerContext);
+        OnInit();
     }
 
-    protected abstract WASMRenderContextContainer BuildRenderContext();
+    protected abstract void OnInit();
 
     private async Task InitSystem()
     {
@@ -142,10 +139,10 @@ public abstract class WasmHostBase : IDisposable
 
         _logger.LogInformation($"System started: {_systemName}");
 
-        OnAfterStart();
+        await OnAfterStart();
     }
 
-    protected virtual void OnAfterStart() { }
+    protected virtual async Task OnAfterStart() { await Task.CompletedTask; }
 
     public void Pause()
     {
@@ -177,7 +174,7 @@ public abstract class WasmHostBase : IDisposable
 
     protected virtual void OnAfterReset() { }
 
-    public void Stop()
+    public async Task Stop()
     {
         if (EmulatorState == EmulatorState.Running)
             Pause();
@@ -187,9 +184,9 @@ public abstract class WasmHostBase : IDisposable
 
         _logger.LogInformation($"System stopped: {_systemName}");
 
-        OnAfterStop();
+        await OnAfterStop();
     }
-    protected virtual void OnAfterStop() { }
+    protected virtual async Task OnAfterStop() { await Task.CompletedTask; }
 
 
     public async Task SetCurrentSystem(string systemName)
@@ -225,6 +222,8 @@ public abstract class WasmHostBase : IDisposable
     }
 
     protected virtual void OnBeforeRender() { }
+
+    public virtual void OnAfterUpdateCanvasSize(int width, int height) { }
 
     public virtual void Cleanup()
     {
