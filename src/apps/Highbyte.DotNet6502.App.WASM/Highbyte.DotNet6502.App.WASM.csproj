@@ -13,7 +13,7 @@
     <BlazorWebAssemblyPreserveCollationData>false</BlazorWebAssemblyPreserveCollationData>-->
 
     <!-- Uncomment row below to build with Silk.NET WASM experiment renderer-->
-    <DefineConstants>$(DefineConstants);SILKNETWASM</DefineConstants>
+    <!--<DefineConstants>$(DefineConstants);SILKNETWASM</DefineConstants>-->
 
     <Version>1.0</Version>
 
