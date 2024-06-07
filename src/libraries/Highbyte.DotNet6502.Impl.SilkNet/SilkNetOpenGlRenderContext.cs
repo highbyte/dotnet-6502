@@ -1,4 +1,3 @@
-using System.Numerics;
 using Highbyte.DotNet6502.Systems;
 using Silk.NET.OpenGL;
 
@@ -6,19 +5,26 @@ namespace Highbyte.DotNet6502.Impl.SilkNet;
 
 public class SilkNetOpenGlRenderContext : IRenderContext
 {
-    private readonly GL _gl;
-    public GL Gl => _gl;
+    private GL _gl;
+    public GL Gl
+    {
+        get
+        {
+            if (_gl == null)
+                _gl = _window.CreateOpenGL();
+            return _gl;
+        }
+    }
 
-    private readonly IWindow _window;
-    public IWindow Window => _window;
+    private readonly IView _window;
+    public IView Window => _window;
 
     private readonly float _drawScale;
+
     public float DrawScale => _drawScale;
 
-
-    public SilkNetOpenGlRenderContext(IWindow window, float drawScale)
+    public SilkNetOpenGlRenderContext(IView window, float drawScale)
     {
-        _gl = window.CreateOpenGL();
         _window = window;
         _drawScale = drawScale;
     }

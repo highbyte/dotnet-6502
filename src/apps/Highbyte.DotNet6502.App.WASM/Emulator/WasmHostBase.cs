@@ -1,41 +1,43 @@
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
-using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems;
 using Toolbelt.Blazor.Gamepad;
 
-namespace Highbyte.DotNet6502.App.WASM.Skia;
+namespace Highbyte.DotNet6502.App.WASM.Emulator;
 
-public class WasmHost : IDisposable
+public abstract class WasmHostBase : IDisposable
 {
-    public bool Initialized { get; private set; }
+    private string _systemName;
 
-    private readonly IJSRuntime _jsRuntime;
+    protected readonly IJSRuntime _jsRuntime;
 
-    private PeriodicAsyncTimer? _updateTimer;
 
     private SystemRunner _systemRunner = default!;
     public SystemRunner SystemRunner => _systemRunner;
 
-    private SKCanvas _skCanvas = default!;
-    private GRContext _grContext = default!;
+    public EmulatorState EmulatorState { get; private set; } = EmulatorState.Uninitialized;
 
-    private SkiaRenderContext _skiaRenderContext = default!;
-    public WASMAudioHandlerContext AudioHandlerContext { get; private set; } = default!;
-    public AspNetInputHandlerContext InputHandlerContext { get; private set; } = default!;
+    public WASMRenderContextContainer RenderContextContainer { get; protected set; } = default!;
+    public WASMAudioHandlerContext AudioHandlerContext { get; protected set; } = default!;
+    public AspNetInputHandlerContext InputHandlerContext { get; protected set; } = default!;
 
-    private readonly string _systemName;
-    private readonly SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
-    public SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> SystemList => _systemList;
+    protected readonly SystemList<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList;
+    public SystemList<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext> SystemList => _systemList;
+
+    protected EmulatorConfig EmulatorConfig => _emulatorConfig;
+
+
     private readonly Action<string> _updateStats;
     private readonly Action<string> _updateDebug;
     private readonly Func<bool, Task> _setMonitorState;
-    private readonly EmulatorConfig _emulatorConfig;
+    protected readonly EmulatorConfig _emulatorConfig;
     private readonly Func<Task> _toggleDebugStatsState;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly float _initialMasterVolume;
+    protected AudioContextSync _audioContext;
+    protected readonly GamepadList _gamepadList;
+    protected readonly float _initialMasterVolume;
     private readonly ILogger _logger;
 
     public WasmMonitor Monitor { get; private set; } = default!;
@@ -57,30 +59,29 @@ public class WasmHost : IDisposable
     private const int DEBUGMESSAGE_EVERY_X_FRAME = 1;
     private int _debugFrameCount = 0;
 
-    public WasmHost(
+    public WasmHostBase(
         IJSRuntime jsRuntime,
-        string systemName,
-        SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> systemList,
+        SystemList<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext> systemList,
         Action<string> updateStats,
         Action<string> updateDebug,
         Func<bool, Task> setMonitorState,
         EmulatorConfig emulatorConfig,
         Func<Task> toggleDebugStatsState,
         ILoggerFactory loggerFactory,
-        float scale = 1.0f,
+        GamepadList gamepadList,
         float initialMasterVolume = 50.0f)
     {
         _jsRuntime = jsRuntime;
-        _systemName = systemName;
         _systemList = systemList;
         _updateStats = updateStats;
         _updateDebug = updateDebug;
         _setMonitorState = setMonitorState;
         _emulatorConfig = emulatorConfig;
         _toggleDebugStatsState = toggleDebugStatsState;
+        _gamepadList = gamepadList;
         _initialMasterVolume = initialMasterVolume;
         _loggerFactory = loggerFactory;
-        _logger = loggerFactory.CreateLogger(typeof(WasmHost).Name);
+        _logger = loggerFactory.CreateLogger(typeof(WasmHostBase).Name);
 
         // Init stats
         InstrumentationBag.Clear();
@@ -91,90 +92,160 @@ public class WasmHost : IDisposable
         _updateFps = InstrumentationBag.Add<PerSecondTimedStat>($"{HostStatRootName}-OnUpdateFPS");
         _renderFps = InstrumentationBag.Add<PerSecondTimedStat>($"{HostStatRootName}-OnRenderFPS");
 
-        Initialized = false;
     }
 
-    public async Task Init(SKCanvas canvas, GRContext grContext, AudioContextSync audioContext, GamepadList gamepadList, IJSRuntime jsRuntime)
+    public void Init(AudioContextSync audioContext)
     {
-        _skCanvas = canvas;
-        _grContext = grContext;
+        if (EmulatorState != EmulatorState.Uninitialized)
+            throw new DotNet6502Exception("Internal error. Cannot init emulator if not in uninitialized state.");
 
-        _skiaRenderContext = new SkiaRenderContext(GetCanvas, GetGRContext);
-        InputHandlerContext = new AspNetInputHandlerContext(_loggerFactory, gamepadList);
-        AudioHandlerContext = new WASMAudioHandlerContext(audioContext, jsRuntime, _initialMasterVolume);
+        _audioContext = audioContext;
 
-        _systemList.InitContext(() => _skiaRenderContext, () => InputHandlerContext, () => AudioHandlerContext);
+        OnInit();
+    }
+
+    protected abstract void OnInit();
+
+    private async Task InitSystem()
+    {
+        if (EmulatorState != EmulatorState.Uninitialized)
+            throw new DotNet6502Exception("Internal error. Cannot init emulator system if not in uninitialized state.");
 
         _systemRunner = await _systemList.BuildSystemRunner(_systemName);
-
         Monitor = new WasmMonitor(_jsRuntime, _systemRunner, _emulatorConfig, _setMonitorState);
-
-        Initialized = true;
+        OnAfterInitSystem();
     }
 
-    public void Stop()
+    protected virtual void OnAfterInitSystem() { }
+
+    public async Task Start()
     {
-        _updateTimer?.Stop();
+        if (EmulatorState == EmulatorState.Running)
+            return;
 
-        _systemRunner.AudioHandler.PausePlaying();
+        if (!_systemList.IsValidConfig(_systemName).Result)
+            throw new DotNet6502Exception("Internal error. Cannot start emulator if current system config is invalid.");
 
-        _logger.LogInformation($"System stopped: {_systemName}");
-    }
+        // Only create a new instance of SystemRunner if we previously has not started (so resume after pause works).
+        if (EmulatorState == EmulatorState.Uninitialized)
+        {
+            await InitSystem();
+        }
 
-    public void Start()
-    {
         if (_systemRunner != null && _systemRunner.AudioHandler != null)
             _systemRunner.AudioHandler.StartPlaying();
 
-        if (_updateTimer != null)
-        {
-        }
-        else
-        {
-            var screen = _systemList.GetSystem(_systemName).Result.Screen;
-            // Number of milliseconds between each invokation of the main loop. 60 fps -> (1/60) * 1000  -> approx 16.6667ms
-            double updateIntervalMS = (1 / screen.RefreshFrequencyHz) * 1000;
-            _updateTimer = new PeriodicAsyncTimer();
-            _updateTimer.IntervalMilliseconds = updateIntervalMS;
-            _updateTimer.Elapsed += UpdateTimerElapsed;
-        }
-        _updateTimer!.Start();
+        EmulatorState = EmulatorState.Running;
 
         _logger.LogInformation($"System started: {_systemName}");
+
+        await OnAfterStart();
     }
 
-    public void Cleanup()
+    protected virtual async Task OnAfterStart() { await Task.CompletedTask; }
+
+    public void Pause()
     {
-        if (_updateTimer != null)
+        if (EmulatorState == EmulatorState.Paused || EmulatorState == EmulatorState.Uninitialized)
+            return;
+
+        _systemRunner.AudioHandler?.PausePlaying();
+
+        EmulatorState = EmulatorState.Paused;
+
+        _logger.LogInformation($"System paused: {_systemName}");
+
+        OnAfterPause();
+    }
+
+    protected virtual void OnAfterPause() { }
+
+    public async Task Reset()
+    {
+        if (EmulatorState == EmulatorState.Uninitialized)
+            return;
+
+        Stop();
+
+        await Start();
+
+        OnAfterReset();
+    }
+
+    protected virtual void OnAfterReset() { }
+
+    public async Task Stop()
+    {
+        if (EmulatorState == EmulatorState.Running)
+            Pause();
+
+        _systemRunner = default!;
+        EmulatorState = EmulatorState.Uninitialized;
+
+        _logger.LogInformation($"System stopped: {_systemName}");
+
+        await OnAfterStop();
+    }
+    protected virtual async Task OnAfterStop() { await Task.CompletedTask; }
+
+
+    public async Task SetCurrentSystem(string systemName)
+    {
+        if (EmulatorState != EmulatorState.Uninitialized)
+            throw new DotNet6502Exception("Internal error. Cannot change system while running");
+
+        if (!_systemList.IsValidConfig(systemName).Result)
         {
-            _updateTimer.Stop();
-            _updateTimer = null;
+            throw new Exception($"Invalid system config: {systemName}");
         }
 
-        // Clear canvas
-        _skiaRenderContext.GetCanvas().Clear();
+        _systemName = systemName;
+        _logger.LogInformation($"System selected: {_systemName}");
+    }
 
-        // Clean up Skia resources
-        _skiaRenderContext?.Cleanup();
+    protected void Render()
+    {
+        if (EmulatorState != EmulatorState.Running)
+            return;
+
+        if (Monitor.Visible)
+            return;
+
+        _renderFps.Update();
+
+        OnBeforeRender();
+
+        using (_renderTime.Measure())
+        {
+            _systemRunner.Draw();
+        }
+    }
+
+    protected virtual void OnBeforeRender() { }
+
+    public virtual void OnAfterUpdateCanvasSize(int width, int height) { }
+
+    public virtual void Cleanup()
+    {
+        // Clean up render context resources
+        RenderContextContainer?.Cleanup();
 
         // Clean up input handler resources
         InputHandlerContext?.Cleanup();
 
         // Stop any playing audio
-        _systemRunner.AudioHandler.StopPlaying();
+        _systemRunner.AudioHandler?.StopPlaying();
         // Clean up audio resources
         //AudioHandlerContext?.Cleanup();
+
+        OnAfterCleanup();
     }
 
-    private void UpdateTimerElapsed(object? sender, EventArgs e) => EmulatorRunOneFrame();
+    protected virtual void OnAfterCleanup() { }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-    private void EmulatorRunOneFrame()
+    protected void EmulatorRunOneFrame()
     {
-
-        if (!Initialized)
-            return;
-
         if (Monitor.Visible)
             return;
 
@@ -210,44 +281,12 @@ public class WasmHost : IDisposable
 
         // Show monitor if we encounter breakpoint or other break
         if (execEvaluatorTriggerResult.Triggered)
-        {
             Monitor.Enable(execEvaluatorTriggerResult);
-        }
-    }
-
-    public void Render(SKCanvas canvas, GRContext grContext)
-    {
-        //if (Monitor.Visible)
-        //    return;
-
-        _renderFps.Update();
-
-        _grContext = grContext;
-        _skCanvas = canvas;
-        _skCanvas.Scale((float)_emulatorConfig.CurrentDrawScale);
-        using (_renderTime.Measure())
-        {
-            _systemRunner.Draw();
-            //using (new SKAutoCanvasRestore(skCanvas))
-            //{
-            //    _systemRunner.Draw(skCanvas);
-            //}
-        }
-    }
-
-    private SKCanvas GetCanvas()
-    {
-        return _skCanvas;
-    }
-
-    private GRContext GetGRContext()
-    {
-        return _grContext;
     }
 
     private string GetStats()
     {
-        string stats = "";
+        var stats = "";
 
         var allStats = InstrumentationBag.Stats
             .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
@@ -255,7 +294,7 @@ public class WasmHost : IDisposable
             .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
             .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{InputTimeStatName}-{x.Name}", x.Stat)))
             .ToList();
-        foreach ((string name, IStat stat) in allStats.OrderBy(i => i.Name))
+        foreach ((var name, var stat) in allStats.OrderBy(i => i.Name))
         {
             if (stat.ShouldShow())
             {
@@ -269,7 +308,7 @@ public class WasmHost : IDisposable
 
     private string GetDebugMessages()
     {
-        string debugMessages = "";
+        var debugMessages = "";
 
         var inputDebugInfo = _systemRunner.InputHandler.GetDebugInfo();
         var inputStatsOneString = string.Join(" # ", inputDebugInfo);
@@ -294,7 +333,7 @@ public class WasmHost : IDisposable
 
     private string BuildHtmlString(string message, string cssClass, bool startNewLine = false)
     {
-        string html = "";
+        var html = "";
         if (startNewLine)
             html += "<br />";
         html += $@"<span class=""{cssClass}"">{HttpUtility.HtmlEncode(message)}</span>";
@@ -314,10 +353,7 @@ public class WasmHost : IDisposable
         var key = e.Key;
 
         if (key == "F11")
-        {
             _toggleDebugStatsState();
-
-        }
         else if (key == "F12")
         {
             ToggleMonitor();
@@ -327,9 +363,7 @@ public class WasmHost : IDisposable
     public void ToggleMonitor()
     {
         if (Monitor.Visible)
-        {
             Monitor.Disable();
-        }
         else
         {
             Monitor.Enable();
@@ -342,4 +376,11 @@ public class WasmHost : IDisposable
     public void OnKeyPress(KeyboardEventArgs e)
     {
     }
+}
+
+public enum EmulatorState
+{
+    Uninitialized,
+    Running,
+    Paused
 }

@@ -1,18 +1,24 @@
-using Microsoft.AspNetCore.Components;
+using AutoMapper;
+using Blazored.LocalStorage;
 using Blazored.Modal.Services;
 using Blazored.Modal;
-using Highbyte.DotNet6502.App.WASM.Skia;
+using Highbyte.DotNet6502.App.WASM.Emulator;
+using Highbyte.DotNet6502.App.WASM.Emulator.Skia;
+using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 using Highbyte.DotNet6502.Impl.AspNet;
-using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
-using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.AspNetCore.Components.Forms;
-using Blazored.LocalStorage;
+using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
 using Highbyte.DotNet6502.Logging.Console;
-using Toolbelt.Blazor.Gamepad;
-using AutoMapper;
+using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.AspNetCore.WebUtilities;
+using Toolbelt.Blazor.Gamepad;
+
+#if SILKNETWASM
+using Highbyte.DotNet6502.App.WASM.Emulator.SilkNet;
+#endif
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
 
@@ -25,14 +31,6 @@ public partial class Index
 
     private AudioContextSync _audioContext = default!;
 
-    public enum EmulatorState
-    {
-        Uninitialized,
-        Running,
-        Paused
-    }
-    public EmulatorState CurrentEmulatorState { get; private set; } = EmulatorState.Uninitialized;
-
     private string _selectedSystemName = default!;
 
     private bool IsSelectedSystemConfigOk => string.IsNullOrEmpty(_selectedSystemConfigValidationMessage);
@@ -44,9 +42,11 @@ public partial class Index
     private IHostSystemConfig _currentHostSystemConfig = default!;
     public IHostSystemConfig HostSystemConfig => _currentHostSystemConfig;
 
+    public EmulatorState EmulatorState => _wasmHost == null ? EmulatorState.Uninitialized : _wasmHost.EmulatorState;
+
     private bool AudioEnabledToggleDisabled => (
             (!(_currentSystemConfig?.AudioSupported ?? true)) ||
-            (CurrentEmulatorState == EmulatorState.Running || CurrentEmulatorState == EmulatorState.Paused)
+            (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused)
         );
 
     private bool AudioEnabled
@@ -91,10 +91,10 @@ public partial class Index
     private ElementReference _monitorInputRef = default!;
 
     private EmulatorConfig _emulatorConfig = default!;
-    private SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList = default!;
+    private SystemList<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext> _systemList = default!;
 
-    private WasmHost _wasmHost = default!;
-    public WasmHost WasmHost => _wasmHost;
+    private WasmHostBase _wasmHost = default!;
+    public WasmHostBase WasmHost => _wasmHost;
 
     private string _statsString = "Instrumentations: calculating...";
     private string _debugString = "";
@@ -141,21 +141,9 @@ public partial class Index
             LocalStorage = LocalStorage
         };
 
-        // Add systems
-        _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>();
-
-        var c64HostConfig = new C64HostConfig();
-        var c64Setup = new C64Setup(_browserContext, LoggerFactory, c64HostConfig);
-        _systemList.AddSystem(c64Setup);
-
-        var genericComputerHostConfig = new GenericComputerHostConfig();
-        var genericComputerSetup = new GenericComputerSetup(_browserContext, LoggerFactory, genericComputerHostConfig);
-        _systemList.AddSystem(genericComputerSetup);
-
-        // Add emulator config + system-specific host configs
+        // Main emulator config
         _emulatorConfig = new EmulatorConfig
         {
-            DefaultEmulator = "C64",
             CurrentDrawScale = 2.0,
             Monitor = new()
             {
@@ -165,16 +153,47 @@ public partial class Index
                 //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/samples/Assembler/Generic/Build"
                 //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/samples/Assembler/Generic/Build"
             },
-            HostSystemConfigs = new Dictionary<string, IHostSystemConfig>
+        };
+
+#if SILKNETWASM
+        _emulatorConfig.Renderer = RendererType.SilkNetOpenGl;
+#else
+        _emulatorConfig.Renderer = RendererType.SkiaSharp;
+#endif
+
+        // Add systems
+        _systemList = new();
+
+        var c64HostConfig = new C64HostConfig
+        {
+            SilkNetOpenGlRendererConfig = new C64SilkNetOpenGlRendererConfig
             {
-                { C64.SystemName, c64HostConfig }
-                //{ GenericComputer.SystemName, new GenericComputerHostConfig() }
+                ShaderEmbeddedResourceType = typeof(C64SilkNetOpenGlRendererConfig),
+                VertexShaderPath = "Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video.C64shader_es.vert",
+                FragmentShaderPath = "Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video.C64shader_es.frag",
+
+                //UseTestShader = true    // Set to true to use a test fragment shader instead of the C64 fragment shader.
             }
         };
+        var c64Setup = new C64Setup(_browserContext, LoggerFactory, c64HostConfig, _emulatorConfig);
+        _systemList.AddSystem(c64Setup);
+
+        var genericComputerHostConfig = new GenericComputerHostConfig();
+        var genericComputerSetup = new GenericComputerSetup(_browserContext, LoggerFactory, genericComputerHostConfig);
+        _systemList.AddSystem(genericComputerSetup);
+
+        // Add system-specific host configs
+        _emulatorConfig.DefaultEmulator = "C64";
+        _emulatorConfig.HostSystemConfigs = new Dictionary<string, IHostSystemConfig>
+            {
+                { C64.SystemName, c64HostConfig },
+                //{ GenericComputer.SystemName, new GenericComputerHostConfig() }
+            };
         _emulatorConfig.Validate(_systemList);
 
         // Default system
         _selectedSystemName = _emulatorConfig.DefaultEmulator;
+        // Trigger selected system change
         await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = _selectedSystemName });
 
         // Set parameters from query string
@@ -188,6 +207,47 @@ public partial class Index
             }
         );
         _mapper = mapperConfiguration.CreateMapper();
+
+        // Create WasmHost implementation based on selected renderer
+        switch (_emulatorConfig.Renderer)
+        {
+            case RendererType.SkiaSharp:
+                _wasmHost = new SkiaWasmHost(
+                    Js!,
+                    _systemList,
+                    UpdateStats,
+                    UpdateDebug,
+                    SetMonitorState,
+                    _emulatorConfig,
+                    ToggleDebugStatsState,
+                    LoggerFactory,
+                    GamepadList,
+                    MasterVolumePercent);
+                break;
+            case RendererType.SilkNetOpenGl:
+
+#if SILKNETWASM
+                _wasmHost = new SilkNetWasmHost(
+                    Js!,
+                    _systemList,
+                    UpdateStats,
+                    UpdateDebug,
+                    SetMonitorState,
+                    _emulatorConfig,
+                    ToggleDebugStatsState,
+                    LoggerFactory,
+                    GamepadList,
+                    MasterVolumePercent);
+                break;
+            default:
+                throw new NotImplementedException($"Renderer {_emulatorConfig.Renderer} not implemented.");
+#else
+                throw new NotImplementedException($"Renderer {_emulatorConfig.Renderer} not implemented.");
+#endif
+        }
+
+        // Trigger selected system change
+        await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = _selectedSystemName });
     }
 
     private async Task SetDefaultsFromQueryParams(Uri uri)
@@ -198,7 +258,7 @@ public partial class Index
             if (systemNameParsed is not null && _systemList.Systems.Contains(systemNameParsed))
             {
                 _selectedSystemName = systemNameParsed;
-                await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = _selectedSystemName });
+                //await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = _selectedSystemName });
             }
         }
 
@@ -209,6 +269,28 @@ public partial class Index
                 AudioEnabled = audioEnabledParsed;
             }
         }
+
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("renderer", out var renderer))
+        {
+            if (Enum.TryParse(renderer, out RendererType rendererParsed))
+            {
+                _emulatorConfig.Renderer = rendererParsed;
+            }
+        }
+
+    }
+
+
+    /// <summary>
+    /// SkiaSharp WASM-specific method, only used if _wasmHost is SkiaWasmHost.
+    /// </summary>
+    /// <param name="e"></param>
+    public async void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
+    {
+        if (_wasmHost != null && _wasmHost is SkiaWasmHost skiaWasmHost)
+        {
+            skiaWasmHost.OnPaintSurface(e);
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -216,16 +298,9 @@ public partial class Index
         if (firstRender)
         {
             _audioContext = await AudioContextSync.CreateAsync(Js!);
+            _wasmHost.Init(_audioContext);
         }
     }
-
-    //protected override async void OnAfterRender(bool firstRender)
-    //{
-    //    if (firstRender)
-    //    {
-    //        //await FocusEmulator();
-    //    }
-    //}
 
     private async Task OnSelectedEmulatorChanged(ChangeEventArgs e)
     {
@@ -248,65 +323,46 @@ public partial class Index
 
     private async void UpdateCanvasSize()
     {
+
+        //if (EmulatorState == EmulatorState.Uninitialized)
+        //{
+        //    _windowWidthStyle = $"0px";
+        //    _windowHeightStyle = $"0px";
+        //    return;
+        //}
+
+        int width;
+        int height;
         bool isOk = await _systemList.IsValidConfig(_selectedSystemName);
         if (!isOk)
         {
-            _windowWidthStyle = $"{EmulatorConfig.DEFAULT_CANVAS_WINDOW_WIDTH}px";
-            _windowHeightStyle = $"{EmulatorConfig.DEFAULT_CANVAS_WINDOW_HEIGHT}px";
+            width = EmulatorConfig.DEFAULT_CANVAS_WINDOW_WIDTH;
+            height = EmulatorConfig.DEFAULT_CANVAS_WINDOW_HEIGHT;
         }
         else
         {
             var system = await _systemList.GetSystem(_selectedSystemName);
-            // Set SKGLView dimensions
             var screen = system.Screen;
-            _windowWidthStyle = $"{screen.VisibleWidth * Scale}px";
-            _windowHeightStyle = $"{screen.VisibleHeight * Scale}px";
+            width = (int)(screen.VisibleWidth * Scale);
+            height = (int)(screen.VisibleHeight * Scale);
         }
 
-        this.StateHasChanged();
-    }
+        // Set canvas dimensions (in pixels, used in CSS style for canvas html element)
+        _windowWidthStyle = $"{width}px";
+        _windowHeightStyle = $"{height}px";
 
-    private void InitEmulator()
-    {
-        _wasmHost = new WasmHost(Js!, _selectedSystemName, _systemList, UpdateStats, UpdateDebug, SetMonitorState, _emulatorConfig, ToggleDebugStatsState, LoggerFactory, (float)Scale, MasterVolumePercent);
-        CurrentEmulatorState = EmulatorState.Paused;
+        _wasmHost?.OnAfterUpdateCanvasSize(width, height);
+
+        this.StateHasChanged();
     }
 
     private void CleanupEmulator()
     {
         _debugVisible = false;
-        _wasmHost!.Monitor.Disable();
-
-        CurrentEmulatorState = EmulatorState.Paused;
-        _wasmHost?.Cleanup();
-        _wasmHost = default!;
-        CurrentEmulatorState = EmulatorState.Uninitialized;
-    }
-
-    protected async void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
-    {
-        if (CurrentEmulatorState != EmulatorState.Running)
-            return;
-
-        if (!(e.Surface.Context is GRContext grContext && grContext != null))
-            return;
-
-        if (_wasmHost == null)
-            return;
-
-        if (!_wasmHost.Initialized)
-        {
-            await _wasmHost.Init(e.Surface.Canvas, grContext, _audioContext, GamepadList, Js!);
-        }
-
-        //_emulatorRenderer.SetSize(e.Info.Width, e.Info.Height);
-        //if (e.Surface.Context is GRContext context && context != null)
-        //{
-        //    // If we draw our own images (not directly on the canvas provided), make sure it's within the same contxt
-        //    _emulatorRenderer.SetContext(context);
-        //}
-
-        _wasmHost.Render(e.Surface.Canvas, grContext);
+        _wasmHost?.Monitor?.Disable();
+        //_wasmHost.Stop();
+        //_wasmHost?.Cleanup();
+        //_wasmHost = default!;
     }
 
     internal async Task UpdateCurrentSystemConfig(ISystemConfig config, IHostSystemConfig? hostSystemConfig)
@@ -392,7 +448,12 @@ public partial class Index
 
     public async Task ShowGeneralSettingsUI<T>() where T : IComponent
     {
-        var result = await Modal.Show<T>("Settings").Result;
+        var parameters = new ModalParameters()
+            .Add("EmulatorConfig", _emulatorConfig);
+
+        var originalRenderType = _emulatorConfig.Renderer;
+
+        var result = await Modal.Show<T>("Settings", parameters).Result;
 
         if (result.Cancelled)
         {
@@ -400,6 +461,18 @@ public partial class Index
         }
         else if (result.Confirmed)
         {
+            if (result.Data is null)
+            {
+                Console.WriteLine($"Returned null data");
+                return;
+            }
+            // Switching between renderers SkiaSharp and Silk.NET WASM experimental renderer at runtime not currently working, needs to be compiled for either.
+            //var resultData = (EmulatorConfig)result.Data;
+            //_emulatorConfig = resultData;
+            //if (_emulatorConfig.Renderer != originalRenderType)
+            //{
+            //    NavManager.NavigateTo($"?audioEnabled={AudioEnabled}&renderer={_emulatorConfig.Renderer}");
+            //}
         }
     }
 
@@ -498,11 +571,11 @@ public partial class Index
         {
             case "Canvas":
             {
-                return CurrentEmulatorState != EmulatorState.Uninitialized ? VISIBLE : HIDDEN;
+                return EmulatorState != EmulatorState.Uninitialized ? VISIBLE : HIDDEN;
             }
             case "CanvasUninitialized":
             {
-                return CurrentEmulatorState == EmulatorState.Uninitialized ? VISIBLE_BLOCK : HIDDEN;
+                return EmulatorState == EmulatorState.Uninitialized ? VISIBLE_BLOCK : HIDDEN;
             }
             case "Debug":
             {
@@ -546,60 +619,53 @@ public partial class Index
         }
     }
 
-    private bool OnSelectSystemNameDisabled => CurrentEmulatorState == EmulatorState.Running || CurrentEmulatorState == EmulatorState.Paused;
-    private bool OnStartDisabled => CurrentEmulatorState == EmulatorState.Running || !IsSelectedSystemConfigOk;
-    private bool OnPauseDisabled => CurrentEmulatorState == EmulatorState.Paused || CurrentEmulatorState == EmulatorState.Uninitialized;
-    private bool OnResetDisabled => CurrentEmulatorState == EmulatorState.Uninitialized;
-    private bool OnStopDisabled => CurrentEmulatorState == EmulatorState.Uninitialized;
+    private bool OnSelectSystemNameDisabled => EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused;
+    private bool OnStartDisabled => EmulatorState == EmulatorState.Running || !IsSelectedSystemConfigOk;
+    private bool OnPauseDisabled => EmulatorState == EmulatorState.Paused || EmulatorState == EmulatorState.Uninitialized;
+    private bool OnResetDisabled => EmulatorState == EmulatorState.Uninitialized;
+    private bool OnStopDisabled => EmulatorState == EmulatorState.Uninitialized;
 
     public async Task OnStart(MouseEventArgs mouseEventArgs)
     {
-        if (CurrentEmulatorState == EmulatorState.Uninitialized)
+        if (EmulatorState == EmulatorState.Uninitialized)
         {
             bool isOk = await _systemList.IsValidConfig(_selectedSystemName);
             if (!isOk)
                 return;
 
-            InitEmulator();
+            await _wasmHost.SetCurrentSystem(_selectedSystemName);
         }
 
-        _wasmHost.Start();
-        CurrentEmulatorState = EmulatorState.Running;
+        await _wasmHost.Start();
+        UpdateCanvasSize();
         await FocusEmulator();
-
         this.StateHasChanged();
-
-        _logger.LogInformation($"System started: {_selectedSystemName}");
     }
 
     public void OnPause(MouseEventArgs mouseEventArgs)
     {
-        if (CurrentEmulatorState == EmulatorState.Uninitialized)
+        if (EmulatorState == EmulatorState.Uninitialized)
             return;
 
-        _wasmHost!.Stop();
-        CurrentEmulatorState = EmulatorState.Paused;
+        _wasmHost.Pause();
         this.StateHasChanged();
-
-        _logger.LogInformation($"System paused: {_selectedSystemName}");
     }
 
     public async Task OnReset(MouseEventArgs mouseEventArgs)
     {
-        OnPause(mouseEventArgs);
-        OnStop(mouseEventArgs);
+        await _wasmHost.Reset();
         await OnStart(mouseEventArgs);
     }
-    public void OnStop(MouseEventArgs mouseEventArgs)
-    {
-        CleanupEmulator();
-        this.StateHasChanged();
-        _logger.LogInformation($"System stopped: {_selectedSystemName}");
 
+    public async Task OnStop(MouseEventArgs mouseEventArgs)
+    {
+        await _wasmHost.Stop();
+        this.StateHasChanged();
     }
+
     private void OnMonitorToggle(MouseEventArgs mouseEventArgs)
     {
-        _wasmHost!.ToggleMonitor();
+        _wasmHost.ToggleMonitor();
         this.StateHasChanged();
     }
 
@@ -668,7 +734,7 @@ public partial class Index
 
     private async Task FocusEmulator()
     {
-        await Js!.InvokeVoidAsync("focusId", "emulatorSKGLView", 100);  // Hack: Delay of x ms for focus to work.
+        await Js!.InvokeVoidAsync("focusId", "canvas", 100);  // Hack: Delay of x ms for focus to work.
     }
 
     private async Task FocusMonitor()

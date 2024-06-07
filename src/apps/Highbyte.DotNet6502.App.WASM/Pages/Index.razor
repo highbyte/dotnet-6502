@@ -1,4 +1,6 @@
 @page "/"
+@using Highbyte.DotNet6502.App.WASM.Emulator
+@using Highbyte.DotNet6502.App.WASM.Emulator.Skia
 @using Highbyte.DotNet6502.App.WASM.Pages.Commodore64
 @using Highbyte.DotNet6502.App.WASM.Pages.Generic
 
@@ -6,10 +8,9 @@
 @*@implements IDisposable*@
 
 @*Note: Page title set in index.html title element*@
-@*<PageTitle>dotnet-6502 CPU emulator in Blazor WebAssembly with Skia rendering</PageTitle>
-*@
 
 <div class="grid-container">
+
     <div class="header">
         <a href="https://github.com/highbyte/dotnet-6502" target="_blank">DotNet 6502</a>
     </div>
@@ -17,7 +18,6 @@
         <div id="system-selector" class="command-panel">
             <div>
                 System:
-                @* <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled autofocus> *@
                 <select value="@_selectedSystemName" @onchange="OnSelectedEmulatorChanged" disabled=@OnSelectSystemNameDisabled autofocus>
                     @foreach (var systemName in _systemList.Systems)
                     {
@@ -26,7 +26,7 @@
                 </select>
             </div>
             <div>Status: @(
-                CurrentEmulatorState
+                EmulatorState
                 )</div>
             <button @onclick="OnStart" disabled=@OnStartDisabled>Start</button>
             <button @onclick="OnPause" disabled=@OnPauseDisabled>Pause</button>
@@ -46,7 +46,6 @@
             <div class="audioVolumeStyle">
                 Volume:
                 <input @bind="@MasterVolumePercent" @bind:event="oninput" type="range" id="masterVolume" min="0" max="100" step="0.02" />
-                @* <input @bind="@MasterVolumePercent" @bind:event="oninput" type="number" min="0" max="100" step="0.02" /> *@
             </div>
         </div>
 
@@ -55,7 +54,7 @@
             <C64Menu Parent=this />
             <GenericMenu Parent=this />
             <div class="validation-message">
-                <span>@_selectedSystemConfigValidationMessage</span>
+                <span>@_selectedSystemConfigValidationMessage </span>
             </div>
         </div>
 
@@ -83,44 +82,65 @@
         </div>
     </div>
 
-    @*Skia OpenGl View Blazor WASM component*@
     <div class="main">
-        <SKGLView class="skGLViewStyle"
-        IgnorePixelScaling="true"
-        EnableRenderLoop="true"
-        OnPaintSurface="OnPaintSurface"
-        id="emulatorSKGLView"
-        tabindex="0"
-        oncontextmenu="return false;"
-        @onkeydown="OnKeyDown"
-        @onkeyup="OnKeyUp"
-        @onfocus="OnFocus"
-        />
 
-        <div id="canvasUninitialized"
-        class="canvasUninitializedStyle">
+        @if (_emulatorConfig.Renderer == Emulator.SystemSetup.RendererType.SkiaSharp)
+        {
+            @*Skia OpenGl View Blazor WASM component*@
+            <SKGLView class="skGLViewStyle"
+                      IgnorePixelScaling="true"
+                      EnableRenderLoop="true"
+                      OnPaintSurface="OnPaintSurface"
+                      id="canvas"
+                      tabindex="0"
+                      oncontextmenu="return false;"
+                      @onkeydown="OnKeyDown"
+                      @onkeyup="OnKeyUp"
+                      @onfocus="OnFocus" />
 
-            <h2>
-                The DotNet 6502 emulator!
-            </h2>
+            <div id="canvasUninitialized" class="canvasUninitializedStyle">
+                <h2>
+                    The DotNet 6502 emulator!
+                </h2>
+                <p>
+                    A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502" target="_blank">6502 CPU</a> emulator written in <a href="https://dotnet.microsoft.com/" target="_blank">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank">Blazor</a>, running in a browser.
+                </p>
+                <p>
+                    Select the computer to emulate in the System drop down menu on the left.
+                </p>
+                <p>
+                    For certain computers (like the C64) you have to provide ROM files via a Config button.
+                </p>
+                <p>
+                    Press Start button to run.
+                </p>
+                <p>
+                    When running, press F12 to start machine code monitor and F11 to show statistics.
+                </p>
+            </div>
+        }
+        else if (_emulatorConfig.Renderer == Emulator.SystemSetup.RendererType.SilkNetOpenGl)
+        {
+            <div id="canvasUninitialized" class="canvasUninitializedStyle">
+                <h2>
+                    The DotNet 6502 emulator!  - Expermimental version with WebGL fragment shader rendering via Silk.NET
+                </h2>
+            </div>
 
-            <p>
-                A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502" target="_blank">6502 CPU</a> emulator written in <a href="https://dotnet.microsoft.com/" target="_blank">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank">Blazor</a>, running in a browser.
-            </p>
-            <p>
-                Select the computer to emulate in the System drop down menu on the left.
-            </p>
-            <p>
-                For certain computers (like the C64) you have to provide ROM files via a Config button.
-            </p>
-            <p>
-                Press Start button to run.
-            </p>
-            <p>
-                When running, press F12 to start machine code monitor and F11 to show statistics.
-            </p>
-        </div>
-
+            @*Canvas for Silk.NET WASM rendering with WebGL experminent*@
+            // class="silkNetGLViewStyle"
+            // class=""
+            // style="width: 0px; height: 0px;"
+            // style="width: 836px; height: 470px;"
+            <canvas class="silkNetGLViewStyle"
+                    id="canvas"
+                    tabindex="0"
+                    oncontextmenu="event.preventDefault()"
+                    onloadend="console.log('added canvas: ' + (Module['canvas'] = document.getElementById('canvas')))"
+                    @onkeydown="OnKeyDown"
+                    @onkeyup="OnKeyUp"
+                    @onfocus="OnFocus" />
+        }
     </div>
     <div class="right">
         <div class="infobox debugStyle">
@@ -168,6 +188,11 @@
     width: @_windowWidthStyle;
     height: @_windowHeightStyle;
     }
+    .silkNetGLViewStyle {
+    display: true;  /* Workaround for Silk.NET WASM experiment, doesn't work if canvas is initially invisible */
+    width: @_windowWidthStyle;
+    height: @_windowHeightStyle;
+    }
 
     .canvasUninitializedStyle {
     display: @GetDisplayStyle("CanvasUninitialized");
@@ -187,3 +212,45 @@
 </style>
 
 <InputFile id="monitorFilePicker" OnChange="@OnMonitorFilePickerChange" hidden/>
+
+<!-- Start: Silk.NET Wasm experminent -->
+@{
+#if SILKNETWASM
+}
+<HeadContent>
+    <script>
+        function setCanvas(cbAsm, cbFun, canvasId) {
+            console.log(`setCanvas(${cbAsm}, ${cbFun}, ${canvasId})`)
+            Module['canvas'] = document.getElementById(canvasId);
+            const observer = new MutationObserver(function (mutations_list) {
+                mutations_list.forEach(function (mutation) {
+                    mutation.removedNodes.forEach(function (removed_node) {
+                        console.log("rm - " + removed_node);
+                        if (removed_node.id === canvasId) {
+                            console.log('#canvas has been removed');
+                            observer.disconnect();
+                            DotNet.invokeMethod(cbAsm, cbFun);
+                        }
+                    });
+                });
+            });
+            observer.observe(document, {
+                attributes: true,
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
+        }
+
+        window.triggerResize = () => {
+            window.dispatchEvent(new Event('resize'));;
+            console.log("Window forced resize to refresh");
+            return;
+        }
+    </script>
+</HeadContent>
+@{
+#endif
+}
+<!-- End: Silk.NET Wasm experminent -->
+

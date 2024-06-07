@@ -1,6 +1,6 @@
 using Highbyte.DotNet6502.Systems;
 
-namespace Highbyte.DotNet6502.App.WASM.Skia
+namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup
 {
     public class GenericComputerHostConfig : IHostSystemConfig, ICloneable
     {

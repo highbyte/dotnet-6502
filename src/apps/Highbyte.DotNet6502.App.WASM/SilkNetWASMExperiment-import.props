@@ -1,0 +1,46 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <!-- Start: stuff for Silk.NET WASM expermiment to work-->
+  <PropertyGroup Condition="$(DefineConstants.Contains(SILKNETWASM))">
+    <RestoreSources>$(RestoreSources);..\..\..\..\publicrepos\Silk.NET\build\output_packages</RestoreSources>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefineConstants>$(DefineConstants);TRACE;WASM</DefineConstants>
+    <EmccExtraLDFlags>-s USE_CLOSURE_COMPILER=1 -lSDL -s USE_SDL=2 -sFULL_ES3</EmccExtraLDFlags>
+    <EnableAggressiveTrimming>true</EnableAggressiveTrimming>
+    <InvariantTimezone>true</InvariantTimezone>
+    <WasmEmitSymbolMap>true</WasmEmitSymbolMap>
+    <WasmCachePath>$([System.IO.Path]::GetFullPath('$(BaseIntermediateOutputPath)/$(TargetFramework)/wasm-cache'))</WasmCachePath>
+    <WasmAllowUndefinedSymbols>true</WasmAllowUndefinedSymbols>
+  </PropertyGroup>
+
+  <ItemGroup Condition="$(DefineConstants.Contains(SILKNETWASM))">
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.18.0-wasmlab" />
+    <PackageReference Include="Silk.NET.Input.Sdl" Version="2.18.0-wasmlab" />
+    <PackageReference Include="Silk.NET.Windowing.Sdl" Version="2.18.0-wasmlab" />
+
+    <RuntimeHostConfigurationOption Include="SILK_NET_SDL_SDL_ENABLE_PINVOKE_OVERRIDE_2" Value="true" Trim="true" />
+    <DirectPInvoke Include="SDL" />
+    <DirectPInvoke Include="__Internal_emscripten" />
+    <EmccExportedRuntimeMethod Include="SDL" />
+    <EmccExportedRuntimeMethod Include="GL" />
+    <EmccExportedRuntimeMethod Include="emscripten_set_main_loop" />
+    <EmccExportedRuntimeMethod Include="emscripten_set_main_loop_timing" />
+    <EmccExportedRuntimeMethod Include="emscripten_cancel_main_loop_timing" />
+  </ItemGroup>
+  
+  <Target Condition="$(DefineConstants.Contains(SILKNETWASM))" Name="AddSDL" BeforeTargets="_GenerateManagedToNative" DependsOnTargets="_PrepareForWasmBuildNative">
+    <ItemGroup>
+      <_WasmPInvokeModules Include="SDL" />
+      <_WasmPInvokeModules Include="__Internal_emscripten" />
+    </ItemGroup>
+  </Target>
+  <Target Condition="$(DefineConstants.Contains(SILKNETWASM))" Name="UnfreezeCache" DependsOnTargets="AddSDL" BeforeTargets="_WasmCompileNativeFiles;_WasmCompileAssemblyBitCodeFilesForAOT;_WasmCalculateInitialHeapSize;_WasmLinkDotNet;_CheckEmccIsExpectedVersion">
+    <ItemGroup>
+      <EmscriptenEnvVars Remove="EM_FROZEN_CACHE=True" />
+      <EmscriptenEnvVars Include="EM_FROZEN_CACHE=0" />
+      <EmscriptenEnvVars Include="FROZEN_CACHE=0" />
+    </ItemGroup>
+  </Target>
+
+  <!-- End: stuff for Silk.NET WASM expermiment to work-->
+</Project>

@@ -1,4 +1,5 @@
-﻿@using Highbyte.DotNet6502.Systems.Generic;
+﻿@using Highbyte.DotNet6502.App.WASM.Emulator
+@using Highbyte.DotNet6502.Systems.Generic;
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index;
 
 <div class=" systemCommandsStyle@(SYSTEM_NAME)">
@@ -49,9 +50,9 @@
     [Parameter]
     public Highbyte.DotNet6502.App.WASM.Pages.Index Parent { get; set; } = default!;
 
-    protected bool ShowConfigDisabled => Parent.CurrentEmulatorState != EmulatorState.Uninitialized;
+    protected bool ShowConfigDisabled => Parent.EmulatorState != EmulatorState.Uninitialized;
 
-    protected bool OnFilePickerDisabled => Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
+    protected bool OnFilePickerDisabled => Parent.EmulatorState == EmulatorState.Uninitialized;
 
 
     /// <summary>
@@ -73,7 +74,7 @@
         if (Parent.WasmHost == null)
             return;
 
-        if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
+        if (Parent.EmulatorState == EmulatorState.Uninitialized)
             return;
 
         // Only expect one file

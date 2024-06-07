@@ -7,9 +7,9 @@ using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Microsoft.AspNetCore.WebUtilities;
 
-namespace Highbyte.DotNet6502.App.WASM.Skia;
+namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
-public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
+public class GenericComputerSetup : SystemConfigurer<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
     public string SystemName => GenericComputer.SystemName;
 
@@ -36,7 +36,7 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetIn
         var prgBytes = await Load6502Binary(_browserContext.HttpClient, _browserContext.Uri);
 
         // Get screen size specified in url
-        (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) = GetScreenSize(_browserContext.Uri);
+        (var cols, var rows, var screenMemoryAddress, var colorMemoryAddress) = GetScreenSize(_browserContext.Uri);
 
         cols = cols ?? 40;
         rows = rows ?? 25;
@@ -101,7 +101,7 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetIn
         ISystem system,
         ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
-        SkiaRenderContext skiaRenderContext,
+        WASMRenderContextContainer renderContextContainer,
         AspNetInputHandlerContext inputHandlerContext,
         WASMAudioHandlerContext audioHandlerContext)
     {
@@ -113,7 +113,8 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetIn
 
         var genericComputer = (GenericComputer)system;
 
-        renderer.Init(genericComputer, skiaRenderContext);
+        // Currently only SkiaSharp renderer is supported for GenericComputer
+        renderer.Init(genericComputer, renderContextContainer.SkiaRenderContext);
         inputHandler.Init(genericComputer, inputHandlerContext);
         audioHandler.Init(genericComputer, audioHandlerContext);
 
@@ -135,28 +136,28 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetIn
 
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("cols", out var colsParameter))
         {
-            if (int.TryParse(colsParameter, out int colsParsed))
+            if (int.TryParse(colsParameter, out var colsParsed))
                 cols = colsParsed;
             else
                 cols = null;
         }
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("rows", out var rowsParameter))
         {
-            if (int.TryParse(rowsParameter, out int rowsParsed))
+            if (int.TryParse(rowsParameter, out var rowsParsed))
                 rows = rowsParsed;
             else
                 rows = null;
         }
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("screenMem", out var screenMemParameter))
         {
-            if (ushort.TryParse(screenMemParameter, out ushort screenMemParsed))
+            if (ushort.TryParse(screenMemParameter, out var screenMemParsed))
                 screenMemoryAddress = screenMemParsed;
             else
                 screenMemoryAddress = null;
         }
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("colorMem", out var colorMemParameter))
         {
-            if (ushort.TryParse(colorMemParameter, out ushort colorMemParsed))
+            if (ushort.TryParse(colorMemParameter, out var colorMemParsed))
                 colorMemoryAddress = colorMemParsed;
             else
                 colorMemoryAddress = null;
@@ -170,7 +171,6 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetIn
     {
         byte[] prgBytes;
         if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("prgEnc", out var prgEnc))
-        {
             // Query parameter prgEnc must be a valid Base64Url encoded string.
             // Examples on how to generate it from a compiled 6502 binary file:
             //      Linux: 
@@ -188,7 +188,6 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetIn
             //      Linux:
             //          qrencode -s 3 -l L -o "myprogram.png" "http://localhost:5000/?prgEnc=THE_PROGRAM_ENCODED_AS_BASE64URL"
             prgBytes = Base64UrlDecode(prgEnc.ToString());
-        }
         else if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("prgUrl", out var prgUrl))
         {
             prgBytes = await httpClient.GetByteArrayAsync(prgUrl.ToString());
@@ -214,7 +213,7 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetIn
     /// <returns></returns>
     private byte[] Base64UrlDecode(string arg)
     {
-        string s = arg;
+        var s = arg;
         s = s.Replace('-', '+'); // 62nd char of encoding
         s = s.Replace('_', '/'); // 63rd char of encoding
         switch (s.Length % 4) // Pad with trailing '='s

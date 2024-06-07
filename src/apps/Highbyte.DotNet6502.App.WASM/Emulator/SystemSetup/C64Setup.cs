@@ -1,15 +1,16 @@
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
+using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
-namespace Highbyte.DotNet6502.App.WASM.Skia;
+namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
-public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
+public class C64Setup : SystemConfigurer<WASMRenderContextContainer, AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
 
@@ -17,12 +18,14 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;
     private readonly C64HostConfig _hostConfig;
+    private readonly EmulatorConfig _emulatorConfig;
 
-    public C64Setup(BrowserContext browserContext, ILoggerFactory loggerFactory, C64HostConfig c64HostConfig)
+    public C64Setup(BrowserContext browserContext, ILoggerFactory loggerFactory, C64HostConfig c64HostConfig, EmulatorConfig emulatorConfig)
     {
         _browserContext = browserContext;
         _loggerFactory = loggerFactory;
         _hostConfig = c64HostConfig;
+        _emulatorConfig = emulatorConfig;
     }
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
@@ -69,12 +72,29 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
         ISystem system,
         ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
-        SkiaRenderContext renderContext,
+        WASMRenderContextContainer renderContextContainer,
         AspNetInputHandlerContext inputHandlerContext,
         WASMAudioHandlerContext audioHandlerContext
         )
     {
-        var renderer = new C64SkiaRenderer();
+        var c64HostConfig = (C64HostConfig)hostSystemConfig;
+
+        IRenderer renderer;
+        IRenderContext renderContext;
+        switch (_emulatorConfig.Renderer)
+        {
+            case RendererType.SkiaSharp:
+                renderer = new C64SkiaRenderer();
+                renderContext = renderContextContainer.SkiaRenderContext;
+                break;
+            case RendererType.SilkNetOpenGl:
+                renderer = new C64SilkNetOpenGlRenderer(c64HostConfig.SilkNetOpenGlRendererConfig);
+                renderContext = renderContextContainer.SilkNetOpenGlRenderContext;
+                break;
+            default:
+                throw new NotImplementedException($"Renderer {_emulatorConfig.Renderer} not implemented.");
+        }
+
         var inputHandler = new C64AspNetInputHandler(_loggerFactory, _hostConfig.InputConfig);
         var audioHandler = new C64WASMAudioHandler(_loggerFactory);
 

@@ -1,26 +1,59 @@
-﻿@using Highbyte.DotNet6502.Logging.Console;
+﻿@using Highbyte.DotNet6502.App.WASM.Emulator
+@using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup
+@using Highbyte.DotNet6502.Logging.Console;
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index
 
-<div>
-    <label for="logLevel">Log level</label>
-    <select id="logLevel" value="@LoggerConfiguration.LogLevel" @onchange="OnSelectedLogLevelChanged" autofocus>
-        @foreach (var logLevel in Enum.GetValues<LogLevel>())
-        {
-            <option value="@logLevel">@logLevel</option>
-        }
-    </select>
+<div class="row">
+    <div class="column">
+        <h4>General settings</h4>
+        <div class="table">
+            <div class="table-row">
+                <div class="table-cell twocol">Renderer</div>
+                <div class="table-cell twocol">
+                    <select id="logLevel" value="@EmulatorConfig.Renderer" @onchange="OnSelectedRendererChanged" autofocus disabled>
+                        @foreach (var rendererType in Enum.GetValues<RendererType>())
+                        {
+                            <option value="@rendererType">@rendererType</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-row">
+                <div class="table-cell twocol">Log level</div>
+                <div class="table-cell twocol">
+                    <select id="logLevel" value="@LoggerConfiguration.LogLevel" @onchange="OnSelectedLogLevelChanged" autofocus>
+                        @foreach (var logLevel in Enum.GetValues<LogLevel>())
+                        {
+                            <option value="@logLevel">@logLevel</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+        </div>
+    </div>
 </div>
+
 
 <p></p>
 <button @onclick="Close">Close</button>
 
 @inject DotNet6502ConsoleLoggerConfiguration LoggerConfiguration
 
+
 @code {
     [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
-    private async Task Close() => await BlazoredModal.CloseAsync();
+    [Parameter] public EmulatorConfig EmulatorConfig { get; set; } = default!;
+
+
+    private async Task Close() => await BlazoredModal.CloseAsync(ModalResult.Ok(EmulatorConfig));
 
     private void OnSelectedLogLevelChanged(ChangeEventArgs e) => 
         LoggerConfiguration.LogLevel = Enum.Parse<LogLevel>(e.Value!.ToString()!);
+
+    private void OnSelectedRendererChanged(ChangeEventArgs e) =>
+        EmulatorConfig.Renderer = Enum.Parse<RendererType>(e.Value!.ToString()!);
+
 }
