@@ -7,6 +7,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup
     public enum C64HostRenderer
     {
         SkiaSharp,
+        SkiaSharp2,
         SilkNetOpenGl
     }
 

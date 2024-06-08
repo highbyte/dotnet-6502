@@ -74,7 +74,8 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
         WASMAudioHandlerContext audioHandlerContext
         )
     {
-        var renderer = new C64SkiaRenderer();
+        //var renderer = new C64SkiaRenderer();
+        var renderer = new C64SkiaRenderer2();
         var inputHandler = new C64AspNetInputHandler(_loggerFactory, _hostConfig.InputConfig);
         var audioHandler = new C64WASMAudioHandler(_loggerFactory);
 
