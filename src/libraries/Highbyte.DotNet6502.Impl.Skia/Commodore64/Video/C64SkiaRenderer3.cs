@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Instrumentation.Stats;
@@ -20,24 +21,30 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     // Pre-calculated pixel arrays
     uint[] _oneLineBorderPixels; // pixelArray
     uint[] _sideBorderPixels; // pixelArray
-
     Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg0Map;
     Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg1Map;
     Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg2Map;
     Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg3Map;
 
-    SKColor _borderDrawColor = SKColors.DarkKhaki;// new SKColor(3, 2, 1, 255);
-    SKColor _bg0DrawColor = SKColors.DarkOrchid; // new SKColor(6, 5, 4, 255);
-    SKColor _bg1DrawColor = SKColors.DarkGoldenrod; // new SKColor(9, 8, 7, 255);
-    SKColor _bg2DrawColor = SKColors.DarkMagenta; // new SKColor(12, 11, 10, 255);
-    SKColor _bg3DrawColor = SKColors.DarkOrange; // new SKColor(15, 14, 13, 255);
+    // Colors to draw border and background colors with on the bitmap. These colors will be replaced by the shader.
+    // Could be any color, but must be different from normal C64 colors (used when drawing foreground colors).
+    SKColor _borderDrawColor = SKColors.DarkKhaki;
+    SKColor _bg0DrawColor = SKColors.DarkOrchid;
+    SKColor _bg1DrawColor = SKColors.DarkGoldenrod;
+    SKColor _bg2DrawColor = SKColors.DarkMagenta;
+    SKColor _bg3DrawColor = SKColors.DarkOrange;
 
+    // Lookup table for mapping C64 colors to shader colors
     Dictionary<uint, float[]> _sKColorToShaderColorMap = new Dictionary<uint, float[]>();
 
     C64SkiaColors _c64SkiaColors;
 
     private bool _changedAllCharsetCodes = false;
     private SKRuntimeEffect _sKRuntimeEffect; // Shader source
+
+    private uint[] _lineColorsPixelArray;
+    private const int _lineColorsPixelArrayWidth = 5; // bg0, bg1, bg2, bg3, and border on each line;
+    private SKBitmap _lineColorsBitmap;
 
     private readonly HashSet<byte> _changedCharsetCodes = new();
 
@@ -69,9 +76,7 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
         InitCharset(c64);
 
         InitBitmap(c64);
-
         InitShader(c64);
-
     }
 
     // Test with shader
@@ -79,7 +84,10 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     {
         var src = @"
 // The bitmap that was drawn
-uniform shader color_map;
+uniform shader bitmap_texture;
+
+// The actual color to display as border or bg colors (for each visible line). Used to replace the colors in the bitmap.
+uniform shader line_color_map;
 
 // The color used to draw a border or bg color
 uniform half4 borderColor;
@@ -88,39 +96,67 @@ uniform half4 bg1Color;
 uniform half4 bg2Color;
 uniform half4 bg3Color;
 
-// The actual color to display as border or bg colors (for each visible line)
-// TODO: Max 16K total uniform size.Sum of all arrays below is (if each array has 235 element):  5 * 235 * (4 floats * 4 bytes per float) = 18800 bytes
-uniform half4 borderLineColors[#VISIBLE_HEIGHT];
-uniform half4 bg0LineColors[#MAIN_SCREEN_HEIGHT];
-uniform half4 bg1LineColors[#MAIN_SCREEN_HEIGHT];
-uniform half4 bg2LineColors[#MAIN_SCREEN_HEIGHT];
-uniform half4 bg3LineColors[#MAIN_SCREEN_HEIGHT];
-
-
 half4 map_color(half4 texColor, float line) {
-    half4 useColor;
+
+    // For images, Skia GSL use the common convention that the centers are at half-pixel offsets. 
+    // So to sample the top-left pixel in an image shader, you'd want to pass (0.5, 0.5) as coords.
+    // The next (to the right) pixel would be (1.5, 0.5).
+    // The next (to the below ) pixel would be (0.5, 1.5).
+
+    // Assume image used here is 5 pixel wide (bg0, bg1, bg2, bg3, border), and y (number of main screen lines) pixels high.
 
     if(line < #MAIN_SCREEN_START || line > #MAIN_SCREEN_END) {
-        useColor = texColor == borderColor ? borderLineColors[line]
-                : texColor; 
+        half4 useColor;
+        float2 lineCoord;
+
+        // Only border colors can be used outside main screen area, no need to check for replacement of other colors here
+        if(texColor == borderColor) {
+            lineCoord = float2(0.5 + 4, 0.5 + line);
+            useColor = sample(line_color_map, lineCoord);
+        }
+        else {
+            useColor = texColor;    // Not color that should be transformed (i.e. foreground color)
+        }
+
+        return useColor;
     }
     else {
-        int mainScreenLine = line - #MAIN_SCREEN_START;
-        useColor = texColor == borderColor ? borderLineColors[line]
-                : texColor == bg0Color ? bg0LineColors[mainScreenLine]
-                : texColor == bg1Color ? bg1LineColors[mainScreenLine]
-                : texColor == bg2Color ? bg2LineColors[mainScreenLine]
-                //: texColor == bg3Color ? bg3LineColors[mainScreenLine]  // TODO: Uncomment when bg3 is implemented, fails silently because >16KB total uniform size
-                : texColor; 
+        half4 useColor;
+        float2 lineCoord;
 
-        //useColor = texColor;
+        // Main screen area + side borders
+        if(texColor == borderColor) {
+            lineCoord = float2(0.5 + 4, 0.5 + line); 
+            useColor = sample(line_color_map, lineCoord);
+        }
+        else if(texColor == bg0Color) {
+            lineCoord = float2(0.5 + 0, 0.5 + line); 
+            useColor = sample(line_color_map, lineCoord);
+        }
+        else if(texColor == bg1Color) {
+            lineCoord = float2(0.5 + 1, 0.5 + line); 
+            useColor = sample(line_color_map, lineCoord);
+        }
+        else if(texColor == bg2Color) {
+            lineCoord = float2(0.5 + 2, 0.5 + line); 
+            useColor = sample(line_color_map, lineCoord);
+        }
+        else if(texColor == bg3Color) {
+            lineCoord = float2(0.5 + 3, 0.5 + line); 
+            useColor = sample(line_color_map, lineCoord);
+        }
+        else {
+            useColor = texColor;    // Not color that should be transformed (i.e. foreground color)
+        }
+
+        return useColor;
     }
-    return useColor;
+
 }
 
 half4 main(float2 fragCoord) {
 
-    half4 texColor = sample(color_map, fragCoord);
+    half4 texColor = sample(bitmap_texture, fragCoord);
 
     float scaleX = 1;
     float scaleY = 1;
@@ -141,11 +177,8 @@ half4 main(float2 fragCoord) {
 }";
         src = src.Replace("#VISIBLE_HEIGHT", c64.Vic2.Vic2Screen.VisibleHeight.ToString());
 
-        src = src.Replace("#MAIN_SCREEN_HEIGHT", c64.Vic2.Vic2Screen.DrawableAreaHeight.ToString());
-
         var visibleMainScreenAreaNormalized = c64.Vic2.ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
         var bitmapMainScreenStartLine = visibleMainScreenAreaNormalized.Screen.Start.Y;
-
         src = src.Replace("#MAIN_SCREEN_START", bitmapMainScreenStartLine.ToString());
         src = src.Replace("#MAIN_SCREEN_END", (bitmapMainScreenStartLine + c64.Vic2.Vic2Screen.DrawableAreaHeight - 1).ToString());
 
@@ -170,15 +203,25 @@ half4 main(float2 fragCoord) {
         color = _bg3DrawColor;
         _sKColorToShaderColorMap.Add((uint)color, new[] { color.Red / 255.0f, color.Green / 255.0f, color.Blue / 255.0f, color.Alpha / 255.0f });
 
-
         // Init the actual colors used in the shader to draw the border lines
-        foreach (var c64Color in Enum.GetValues<C64Colors>())
+        foreach (byte c64Color in Enum.GetValues<C64Colors>())
         {
-            var c64ColorValue = (byte)c64Color; // Color 0-15
-            var systemColor = GetSystemColor(c64ColorValue, ColorMaps.DEFAULT_COLOR_MAP_NAME); // .NET "Color" type
-            var c64SkColor = _c64SkiaColors.SystemToSkColorMap[systemColor];    // Skia "SKColor" type
+            var c64SkColor = _c64SkiaColors.C64ToSkColorMap[c64Color];
             _sKColorToShaderColorMap.Add((uint)c64SkColor, new[] { c64SkColor.Red / 255.0f, c64SkColor.Green / 255.0f, c64SkColor.Blue / 255.0f, c64SkColor.Alpha / 255.0f });
         }
+
+        // Init the bg color map bitmap
+        _lineColorsPixelArray = new uint[_lineColorsPixelArrayWidth * c64.Vic2.Vic2Screen.VisibleHeight]; // bg0, bg1, bg2, and bg3 on each line
+        _lineColorsBitmap = new();
+
+        // pin the managed pixel array so that the GC doesn't move it
+        // (It is essential that the pinned memory be unpinned after usage so that the memory can be freed by the GC.)
+        var gcHandle = GCHandle.Alloc(_lineColorsPixelArray, GCHandleType.Pinned);
+
+        // install the pixels with the color type of the pixel data
+        //var info = new SKImageInfo(width, height, SKImageInfo.PlatformColorType, SKAlphaType.Unpremul);
+        var info = new SKImageInfo(_lineColorsPixelArrayWidth, c64.Vic2.Vic2Screen.DrawableAreaHeight, SKColorType.Bgra8888, SKAlphaType.Unpremul);  // Note: SKColorType.Bgra8888 seems to be needed for Blazor WASM. TODO: Does this affect when running in Blazor on Mac/Linux?
+        _lineColorsBitmap.InstallPixels(info, gcHandle.AddrOfPinnedObject(), info.RowBytes, delegate { gcHandle.Free(); }, null);
     }
 
     private void InitBitmap(C64 c64)
@@ -227,11 +270,9 @@ half4 main(float2 fragCoord) {
 
         for (int pixelPattern = 0; pixelPattern < 256; pixelPattern++)
         {
-            for (byte fgColorIndex = 0; fgColorIndex < 16; fgColorIndex++)
+            for (byte fgColorCode = 0; fgColorCode < 16; fgColorCode++)
             {
-                var fgSystemColor = GetSystemColor(fgColorIndex, c64.ColorMapName); // .NET "Color" type
-                var fgSkColor = _c64SkiaColors.SystemToSkColorMap[fgSystemColor];    // Skia "SKColor" type
-                uint fgColorVal = (uint)fgSkColor;
+                uint fgColorVal = (uint)_c64SkiaColors.C64ToSkColorMap[fgColorCode];
 
                 uint[] bitmapPixelsBg0 = new uint[8];
                 uint[] bitmapPixelsBg1 = new uint[8];
@@ -248,10 +289,10 @@ half4 main(float2 fragCoord) {
                     bitmapPixelsBg2[pixelPos] = isBitSet ? fgColorVal : bg2ColorVal;
                     bitmapPixelsBg3[pixelPos] = isBitSet ? fgColorVal : bg3ColorVal;
                 }
-                _bitmapEightPixelsBg0Map.Add(((byte)pixelPattern, fgColorIndex), bitmapPixelsBg0);
-                _bitmapEightPixelsBg1Map.Add(((byte)pixelPattern, fgColorIndex), bitmapPixelsBg1);
-                _bitmapEightPixelsBg2Map.Add(((byte)pixelPattern, fgColorIndex), bitmapPixelsBg2);
-                _bitmapEightPixelsBg3Map.Add(((byte)pixelPattern, fgColorIndex), bitmapPixelsBg3);
+                _bitmapEightPixelsBg0Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg0);
+                _bitmapEightPixelsBg1Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg1);
+                _bitmapEightPixelsBg2Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg2);
+                _bitmapEightPixelsBg3Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg3);
             }
         }
     }
@@ -302,18 +343,11 @@ half4 main(float2 fragCoord) {
     {
         canvas.Save();
 
-        // Convert bitmap to shader texture
-        var shaderTexture = bitmap.ToShader();
-
         // Build array to send to shader with the actual color that should be used differnt types of colors (border, bg0, bg1, bg2, bg3), dependent on the line number
         var c64ScreenLineIORegisterValues = new Dictionary<int, ScreenLineData>(c64.Vic2.ScreenLineIORegisterValues);
-        float[][] borderLineColors = new float[c64.Vic2.Vic2Screen.VisibleHeight][];
-        float[][] bg0LineColors = new float[c64.Vic2.Vic2Screen.DrawableAreaHeight][];
-        float[][] bg1LineColors = new float[c64.Vic2.Vic2Screen.DrawableAreaHeight][];
-        float[][] bg2LineColors = new float[c64.Vic2.Vic2Screen.DrawableAreaHeight][];
-        float[][] bg3LineColors = new float[c64.Vic2.Vic2Screen.DrawableAreaHeight][];
-
         var visibleMainScreenArea = c64.Vic2.ScreenLayouts.GetLayout(LayoutType.Visible);
+        var drawableScreenStartY = visibleMainScreenArea.Screen.Start.Y;
+        var drawableScreenEndY = drawableScreenStartY + c64.Vic2.Vic2Screen.DrawableAreaHeight;
 
         foreach (var lineData in c64ScreenLineIORegisterValues)
         {
@@ -322,55 +356,39 @@ half4 main(float2 fragCoord) {
                 continue;
             var bitmapLine = lineData.Key - visibleMainScreenArea.TopBorder.Start.Y;
 
-            var borderSystemColor = GetSystemColor(lineData.Value.BorderColor, c64.ColorMapName); // .NET "Color" type
-            var borderSkColor = _c64SkiaColors.SystemToSkColorMap[borderSystemColor];             // Skia "SKColor" type
-            borderLineColors[bitmapLine] = _sKColorToShaderColorMap[(uint)borderSkColor];
+            _lineColorsPixelArray[bitmapLine * _lineColorsPixelArrayWidth + 4] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BorderColor];
 
             // Check if line is within main screen area, only there are background colors used.
-            if (bitmapLine < visibleMainScreenArea.Screen.Start.Y || bitmapLine >= (visibleMainScreenArea.Screen.Start.Y + c64.Vic2.Vic2Screen.DrawableAreaHeight))
+            if (lineData.Key < drawableScreenStartY || bitmapLine >= (drawableScreenEndY))
                 continue;
-            var mainScreenRelativeLine = bitmapLine - visibleMainScreenArea.Screen.Start.Y;
-
-            var bg0SystemColor = GetSystemColor(lineData.Value.BackgroundColor0, c64.ColorMapName); // .NET "Color" type
-            var bg0SkColor = _c64SkiaColors.SystemToSkColorMap[bg0SystemColor];             // Skia "SKColor" type
-            bg0LineColors[mainScreenRelativeLine] = _sKColorToShaderColorMap[(uint)bg0SkColor];
-
-            var bg1SystemColor = GetSystemColor(lineData.Value.BackgroundColor1, c64.ColorMapName); // .NET "Color" type
-            var bg1SkColor = _c64SkiaColors.SystemToSkColorMap[bg1SystemColor];             // Skia "SKColor" type
-            bg1LineColors[mainScreenRelativeLine] = _sKColorToShaderColorMap[(uint)bg1SkColor];
-
-            var bg2SystemColor = GetSystemColor(lineData.Value.BackgroundColor2, c64.ColorMapName); // .NET "Color" type
-            var bg2SkColor = _c64SkiaColors.SystemToSkColorMap[bg2SystemColor];             // Skia "SKColor" type
-            bg2LineColors[mainScreenRelativeLine] = _sKColorToShaderColorMap[(uint)bg2SkColor];
-
-            var bg3SystemColor = GetSystemColor(lineData.Value.BackgroundColor3, c64.ColorMapName); // .NET "Color" type
-            var bg3SkColor = _c64SkiaColors.SystemToSkColorMap[bg3SystemColor];             // Skia "SKColor" type
-            bg3LineColors[mainScreenRelativeLine] = _sKColorToShaderColorMap[(uint)bg3SkColor];
-
+ 
+            _lineColorsPixelArray[bitmapLine * _lineColorsPixelArrayWidth + 0] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor0];
+            _lineColorsPixelArray[bitmapLine * _lineColorsPixelArrayWidth + 1] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor1];
+            _lineColorsPixelArray[bitmapLine * _lineColorsPixelArrayWidth + 2] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor2];
+            _lineColorsPixelArray[bitmapLine * _lineColorsPixelArrayWidth + 3] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor3];
         }
 
         // shader uniform values
         var uniforms = new SKRuntimeEffectUniforms(_sKRuntimeEffect)
         {
             ["borderColor"] = _sKColorToShaderColorMap[(uint)_borderDrawColor],
-            ["borderLineColors"] = borderLineColors,
-
             ["bg0Color"] = _sKColorToShaderColorMap[(uint)_bg0DrawColor],
-            ["bg0LineColors"] = bg0LineColors,
-
             ["bg1Color"] = _sKColorToShaderColorMap[(uint)_bg1DrawColor],
-            ["bg1LineColors"] = bg1LineColors,
-
             ["bg2Color"] = _sKColorToShaderColorMap[(uint)_bg2DrawColor],
-            ["bg2LineColors"] = bg2LineColors,
-
             ["bg3Color"] = _sKColorToShaderColorMap[(uint)_bg3DrawColor],
-            ["bg3LineColors"] = bg3LineColors,
         };
-        // shader uniform texture sampling values
+
+        // Shader uniform texture sampling values
+        // Convert bitmap (that one have written the C64 screen to) to shader texture
+        var shaderTexture = bitmap.ToShader();
+
+        // Convert other bitmaps to shader texture
+        var lineColorsBitmapShaderTexture = _lineColorsBitmap.ToShader();
+
         var children = new SKRuntimeEffectChildren(_sKRuntimeEffect)
         {
-            ["color_map"] = shaderTexture
+            ["bitmap_texture"] = shaderTexture,
+            ["line_color_map"] = lineColorsBitmapShaderTexture
         };
 
         using var shader = _sKRuntimeEffect.ToShader(true, uniforms, children);
@@ -450,38 +468,22 @@ half4 main(float2 fragCoord) {
                         // Determine character code at current position
                         var characterCode = vic2Mem[characterAddress];
 
-                        // Read one line (8 bits/pixels) of character pixel data from character set from the current line of the character code
-                        var characterSetLineAddress = (ushort)(vic2CharacterSetAddressInVIC2Bank
-                                + (characterCode * vic2ScreenCharacterHeight)
-                                + characterLine);
-                        byte lineData = vic2Mem[characterSetLineAddress];
-
                         // Determine colors
                         var fgColorCode = c64.ReadIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + (characterRow * vic2ScreenTextCols) + col));
+                        int bgColorNumber;  // 0-3
                         if (characterMode == CharMode.Standard)
                         {
-                            // Get the corresponding array of uints representing the 8 pixels of the character
-                            bitmapEightPixels = _bitmapEightPixelsBg0Map[(lineData, fgColorCode)];
-
+                            bgColorNumber = 0;
                         }
                         else if (characterMode == CharMode.Extended)
                         {
-                            var bgColorSelector = characterCode >> 6;   // Bit 6 and 7 of character byte is used to select background color (0-3)
-
-                            // Get the corresponding array of uints representing the 8 pixels of the character
-                            bitmapEightPixels = bgColorSelector switch
-                            {
-                                0 => _bitmapEightPixelsBg0Map[(lineData, fgColorCode)],
-                                1 => _bitmapEightPixelsBg1Map[(lineData, fgColorCode)],
-                                2 => _bitmapEightPixelsBg2Map[(lineData, fgColorCode)],
-                                3 => _bitmapEightPixelsBg3Map[(lineData, fgColorCode)],
-                                _ => throw new NotImplementedException($"Background color selector {bgColorSelector} not implemented.")
-                            };
+                            bgColorNumber = characterCode >> 6;   // Bit 6 and 7 of character byte is used to select background color (0-3)
                             characterCode = (byte)(characterCode & 0b00111111); // The actual usable character codes are in the lower 6 bits (0-63)
 
                         }
                         else // Asume multicolor mode
                         {
+                            bgColorNumber = 0;
                             // When in MultiColor mode, a character can still be displayed in Standard mode depending on the value from color RAM.
                             if (characterCode <= 7)
                             {
@@ -494,7 +496,30 @@ half4 main(float2 fragCoord) {
                                 // Thus color values 8-15 are transformed to 0-7
                                 fgColorCode = (byte)((fgColorCode & 0b00001111) - 8);
                             }
+                        }
 
+                        // Read one line (8 bits/pixels) of character pixel data from character set from the current line of the character code
+                        var characterSetLineAddress = (ushort)(vic2CharacterSetAddressInVIC2Bank
+                            + (characterCode * vic2ScreenCharacterHeight)
+                            + characterLine);
+                        byte lineData = vic2Mem[characterSetLineAddress];
+
+                        // Get pre-calculated 8 pixels that should be drawn on the bitmap, with correct colors for foreground and background
+                        if (characterMode == CharMode.Standard || characterMode == CharMode.Extended)
+                        {
+                            // Get the corresponding array of uints representing the 8 pixels of the character
+                            bitmapEightPixels = bgColorNumber switch
+                            {
+                                0 => _bitmapEightPixelsBg0Map[(lineData, fgColorCode)],
+                                1 => _bitmapEightPixelsBg1Map[(lineData, fgColorCode)],
+                                2 => _bitmapEightPixelsBg2Map[(lineData, fgColorCode)],
+                                3 => _bitmapEightPixelsBg3Map[(lineData, fgColorCode)],
+                                _ => throw new NotImplementedException($"Background color number {bgColorNumber} not implemented.")
+                            };
+
+                        }
+                        else // Asume multicolor mode
+                        {
                             // Text multicolor mode color usage (8 bits, 4 pixel pairs)
                             // backgroundColor0 = the color of pixel-pair 00
                             // backgroundColor1 = the color of pixel-pair 01
