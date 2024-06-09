@@ -1,7 +1,9 @@
 using System.Data;
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Highbyte.DotNet6502.Instructions;
 using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems;
@@ -24,6 +26,7 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     uint[] _oneLineBorderPixels; // pixelArray
     uint[] _sideBorderPixels; // pixelArray
     uint[] _oneCharLineBorderPixels; // pixelArray
+    uint[] _oneCharLineBg0Pixels; // pixelArray
 
     Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg0Map;
     Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg1Map;
@@ -264,6 +267,9 @@ half4 main(float2 fragCoord) {
         _oneCharLineBorderPixels = new uint[8];
         for (var i = 0; i < _oneCharLineBorderPixels.Length; i++)
             _oneCharLineBorderPixels[i] = (uint)_borderDrawColor;
+        _oneCharLineBg0Pixels = new uint[8];
+        for (var i = 0; i < _oneCharLineBg0Pixels.Length; i++)
+            _oneCharLineBg0Pixels[i] = (uint)_bg0DrawColor;
 
         // Main text screen: Pre-calculate the 8 pixels for each combination of bit pixel pattern and foreground color
         _bitmapEightPixelsBg0Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
@@ -453,7 +459,7 @@ half4 main(float2 fragCoord) {
         var visibleMainScreenAreaNormalizedClipped = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);
 
         var startY = 0;
-        //var width = vic2Screen.VisibleWidth;
+        var width = vic2Screen.VisibleWidth;
         var height = vic2Screen.VisibleHeight;
 
         // Copy 8 pixels each time
@@ -495,16 +501,19 @@ half4 main(float2 fragCoord) {
             var vic2LineStart24Rows = visibleMainScreenAreaNormalizedClipped.Screen.Start.Y - visibleMainScreenAreaNormalized.Screen.Start.Y;
             var vic2LineEnd24Rows = visibleMainScreenAreaNormalizedClipped.Screen.End.Y - visibleMainScreenAreaNormalized.Screen.Start.Y;
 
+            var scrollX = vic2.GetScrollX();
+            var scrollY = vic2.GetScrollY();
 
             // Loop each row line on main text/gfx screen, starting with line 0.
             for (var drawLine = 0; drawLine < vic2Screen.DrawableAreaHeight; drawLine++)
             {
+                // Calculate the y position in the bitmap where the 8 pixels should be drawn
+                var bitmapY = (screenStartY + drawLine);
+
                 var characterRow = drawLine / 8;
                 var characterLine = drawLine % 8;
                 var characterAddress = (ushort)(vic2VideoMatrixBaseAddress + (characterRow * vic2ScreenTextCols));
 
-                // Calculate the y position in the bitmap where the 8 pixels should be drawn
-                var bitmapY = screenStartY + drawLine;
 
                 bool textMode = (vic2.DisplayMode == DispMode.Text); // TODO: Check for display mode more than once per line?
                 var characterMode = vic2.CharacterMode; // TODO: Check for display mode more than once per line?
@@ -512,11 +521,14 @@ half4 main(float2 fragCoord) {
                 // Loop each column on main text/gfx screen, starting with column 0.
                 for (var col = 0; col < vic2ScreenTextCols; col++)
                 {
+                    // Calculate the x position in the bitmap where the 8 pixels should be drawn
+                    var bitmapX = screenStartX + (col * 8);
+
                     uint[] bitmapEightPixels;
                     if (textMode)
                     {
                         // Determine character code at current position
-                        var characterCode = vic2Mem[characterAddress];
+                        var characterCode = vic2Mem[characterAddress++];
 
                         // Determine colors
                         var fgColorCode = c64.ReadIOStorage((ushort)(Vic2Addr.COLOR_RAM_START + (characterRow * vic2ScreenTextCols) + col));
@@ -579,7 +591,6 @@ half4 main(float2 fragCoord) {
                             // Get the corresponding array of uints representing the 8 pixels of the character
                             bitmapEightPixels = _bitmapEightPixelsMultiColorMap[(lineData, fgColorCode)];
                         }
-
                     }
                     else
                     {
@@ -589,26 +600,89 @@ half4 main(float2 fragCoord) {
                     }
 
 
-                    // Calculate the x position in the bitmap where the 8 pixels should be drawn
-                    var bitmapX = screenStartX + (col * 8);
-                    int bitmapIndex = (bitmapY * _bitmap.Width + bitmapX);
+                    // Adjust for horizontal scrolling
+                    int length = bitmapEightPixels.Length;
 
-                    // Check for 38 column mode. With 38 column mode, the first and last column is not drawn (covered by border)
-                    if (vic2Is38ColumnDisplayEnabled && (col == 0 || col == vic2ScreenTextCols - 1))
+                    // Add additional drawing to compensate for horizontal scrolling
+                    if (scrollX > 0 && col == 0)
                     {
-                        bitmapEightPixels = _oneCharLineBorderPixels;
+                        // Fill start of column 0 with background color (the number of x pixels scrolled)
+                        // Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, bitmapIndex, scrollX);
+                        WriteToPixelArray(_oneCharLineBg0Pixels, pixelArray, drawLine, 0, fnLength: scrollX, fnAdjustForScrollX: false, fnAdjustForScrollY: true);
                     }
-                    // Check for 24 row mode. With 24 row mode, parts for the top and bottom part of main screen is not drawn (covered by border)
-                    if (vic2Is24RowDisplayEnabled && (drawLine < vic2LineStart24Rows || drawLine > vic2LineEnd24Rows))
-                    {
-                        bitmapEightPixels = _oneCharLineBorderPixels;
-                    }
-                    // Draw 8 pixels on the bitmap
-                    Array.Copy(bitmapEightPixels, 0, pixelArray, bitmapIndex, bitmapEightPixels.Length);
 
-                    characterAddress++;
+                    // Add additional drawing to compensate for horizontal scrolling
+                    // Note: The actual vic2 vertical scroll has 3 as default value (no scroll), but the scrollY variable is adjusted to be between -3 and + 4 with default 0 when no scrolling.
+                    if (scrollY != 0)
+                    {
+                        // If scrolling occured upwards (scrollY < 0) and we are on last line of screen, fill remaining lines with background color
+                        if (scrollY < 0 && drawLine == vic2Screen.DrawableAreaHeight - 1)
+                        {
+                            for (var i = 0; i < -scrollY; i++)
+                            {
+                                //Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, fillBitMapIndex + scrollX, length);
+                                WriteToPixelArray(_oneCharLineBg0Pixels, pixelArray, drawLine - i, 0, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
+                            }
+                        }
+                        // If scrolling occured downards (scrollY > 0) and we are on first line of screen, fill the line above that was scrolled with background color
+                        else if (scrollY > 0 && drawLine == 0)
+                        {
+                            for (var i = 0; i < scrollY; i++)
+                            {
+                                //Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, fillBitMapIndex + scrollX, length);
+                                WriteToPixelArray(_oneCharLineBg0Pixels, pixelArray, scrollY, 0, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
+                            }
+                        }
+                    }
+
+                    // Write the character to the pixel array
+                    WriteToPixelArray(bitmapEightPixels, pixelArray, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: true);
+
+
+                    void WriteToPixelArray(uint[] fnEightPixels, uint[] fnPixelArray, int fnMainScreenY, int fnMainScreenX, int fnLength, bool fnAdjustForScrollX, bool fnAdjustForScrollY)
+                    {
+                        // Draw 8 pixels (or less) of character on the the pixel array part used for the C64 drawable screen (320x200)
+                        var lCol = fnMainScreenX / 8;
+
+                        if (fnAdjustForScrollY)
+                        {
+                            // Skip draw entirely if y position is outside drawable screen
+                            if ((fnMainScreenY + scrollY) < 0 || (fnMainScreenY + scrollY) >= vic2Screen.DrawableAreaHeight)
+                                return;
+
+                            // TODO: Adjust for vertical scrolling
+                            fnMainScreenY += scrollY;
+                        }
+
+                        if (fnAdjustForScrollX)
+                        {
+                            fnMainScreenX += scrollX;
+                            if (lCol == vic2ScreenTextCols - 1) // Adjust drawing of last character on line to clip when it reaches the right border
+                                fnLength = 8 - scrollX;
+                        }
+
+
+                        // Check for 38 column mode. With 38 column mode, the first and last column is not drawn (covered by border)
+                        if (vic2Is38ColumnDisplayEnabled && (lCol == 0 || lCol == vic2ScreenTextCols - 1))
+                        {
+                            fnEightPixels = _oneCharLineBorderPixels;
+                        }
+                        // Check for 24 row mode. With 24 row mode, parts for the top and bottom part of main screen is not drawn (covered by border)
+                        if (vic2Is24RowDisplayEnabled && (fnMainScreenY < vic2LineStart24Rows || fnMainScreenY > vic2LineEnd24Rows))
+                        {
+                            fnEightPixels = _oneCharLineBorderPixels;
+                        }
+
+
+                        // Calculate the position in the bitmap where the 8 pixels should be drawn
+                        int lBitmapIndex = ((screenStartY + fnMainScreenY) * _bitmap.Width) + ((screenStartX + fnMainScreenX));
+
+                        Array.Copy(fnEightPixels, 0, fnPixelArray, lBitmapIndex, fnLength);
+                    }
                 }
             }
         }
     }
+
+
 }

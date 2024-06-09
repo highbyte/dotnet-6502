@@ -87,9 +87,10 @@ public class Vic2
     public int GetScrollY()
     {
         var scrollY = FineScrollYValue - 3; // Note: VIC2 Y scroll value is by default 3 (=no offset)
-        // Note: In 24 row mode, the screen is shifted 1 pixel down (at least as it's shown in VICE emulator)
-        if (Is24RowDisplayEnabled)
-            scrollY += 1;
+
+        //// TODO: Is this no longer the case? Can't reproduce it in VICE emulator => Note: In 24 row mode, the screen is shifted 1 pixel down (at least as it's shown in VICE emulator)
+        //if (Is24RowDisplayEnabled)
+        //    scrollY += 1;
         return scrollY;
     }
 
