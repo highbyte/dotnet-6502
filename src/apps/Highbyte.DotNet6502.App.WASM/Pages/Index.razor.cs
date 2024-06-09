@@ -144,7 +144,10 @@ public partial class Index
         // Add systems
         _systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>();
 
-        var c64HostConfig = new C64HostConfig();
+        var c64HostConfig = new C64HostConfig
+        {
+            Renderer = C64HostRenderer.SkiaSharp,
+        };
         var c64Setup = new C64Setup(_browserContext, LoggerFactory, c64HostConfig);
         _systemList.AddSystem(c64Setup);
 

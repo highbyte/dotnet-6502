@@ -74,9 +74,25 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
         WASMAudioHandlerContext audioHandlerContext
         )
     {
-        //var renderer = new C64SkiaRenderer();
-        //var renderer = new C64SkiaRenderer2();
-        var renderer = new C64SkiaRenderer3();
+        var c64HostConfig = (C64HostConfig)hostSystemConfig;
+
+        IRenderer renderer;
+        switch (c64HostConfig.Renderer)
+        {
+            case C64HostRenderer.SkiaSharp:
+                renderer = new C64SkiaRenderer();
+                break;
+            case C64HostRenderer.SkiaSharp2:
+                renderer = new C64SkiaRenderer2();
+                break;
+            case C64HostRenderer.SkiaSharp3:
+                renderer = new C64SkiaRenderer3();
+                break;
+            default:
+                throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
+        }
+
+
         var inputHandler = new C64AspNetInputHandler(_loggerFactory, _hostConfig.InputConfig);
         var audioHandler = new C64WASMAudioHandler(_loggerFactory);
 

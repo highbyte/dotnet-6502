@@ -83,13 +83,13 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     private void InitShader(C64 c64)
     {
         var src = @"
-// The bitmap that was drawn
+// The bitmap that was drawn.
 uniform shader bitmap_texture;
 
-// The actual color to display as border or bg colors (for each visible line). Used to replace the colors in the bitmap.
+// The actual color to display as border and background colors for each line. Used to replace the colors in the bitmap.
 uniform shader line_color_map;
 
-// The color used to draw a border or bg color
+// The color used to draw border and background colors
 uniform half4 borderColor;
 uniform half4 bg0Color;
 uniform half4 bg1Color;
@@ -103,21 +103,21 @@ half4 map_color(half4 texColor, float line) {
     // The next (to the right) pixel would be (1.5, 0.5).
     // The next (to the below ) pixel would be (0.5, 1.5).
 
-    // Assume image used here is 5 pixel wide (bg0, bg1, bg2, bg3, border), and y (number of main screen lines) pixels high.
+    // Assume image in line_color_map is 5 pixel wide (bg0, bg1, bg2, bg3, border), and y (number of main screen lines) pixels high.
 
     if(line < #MAIN_SCREEN_START || line > #MAIN_SCREEN_END) {
+
         half4 useColor;
         float2 lineCoord;
 
         // Only border colors can be used outside main screen area, no need to check for replacement of other colors here
         if(texColor == borderColor) {
             lineCoord = float2(0.5 + 4, 0.5 + line);
-            useColor = sample(line_color_map, lineCoord);
+            useColor = line_color_map.eval(lineCoord);
         }
         else {
             useColor = texColor;    // Not color that should be transformed (i.e. foreground color)
         }
-
         return useColor;
     }
     else {
@@ -127,41 +127,41 @@ half4 map_color(half4 texColor, float line) {
         // Main screen area + side borders
         if(texColor == borderColor) {
             lineCoord = float2(0.5 + 4, 0.5 + line); 
-            useColor = sample(line_color_map, lineCoord);
+            useColor = line_color_map.eval(lineCoord);
         }
         else if(texColor == bg0Color) {
             lineCoord = float2(0.5 + 0, 0.5 + line); 
-            useColor = sample(line_color_map, lineCoord);
+            useColor = line_color_map.eval(lineCoord);
         }
         else if(texColor == bg1Color) {
             lineCoord = float2(0.5 + 1, 0.5 + line); 
-            useColor = sample(line_color_map, lineCoord);
+            useColor = line_color_map.eval(lineCoord);
         }
         else if(texColor == bg2Color) {
             lineCoord = float2(0.5 + 2, 0.5 + line); 
-            useColor = sample(line_color_map, lineCoord);
+            useColor = line_color_map.eval(lineCoord);
         }
         else if(texColor == bg3Color) {
             lineCoord = float2(0.5 + 3, 0.5 + line); 
-            useColor = sample(line_color_map, lineCoord);
+            useColor = line_color_map.eval(lineCoord);
         }
         else {
             useColor = texColor;    // Not color that should be transformed (i.e. foreground color)
         }
-
         return useColor;
     }
-
 }
 
 half4 main(float2 fragCoord) {
 
-    half4 texColor = sample(bitmap_texture, fragCoord);
+    half4 texColor = bitmap_texture.eval(fragCoord);
 
     float scaleX = 1;
     float scaleY = 1;
-    uint x = uint(fragCoord.x * 1.0/scaleX);
-    uint y = uint(fragCoord.y * 1.0/scaleY);
+    int x2 = int(fragCoord.x * 1.0/scaleX);
+    int y2 = int(fragCoord.y * 1.0/scaleY);
+    float x = float(x2);
+    float y = float(y2);
 
     half4 useColor;
 
@@ -182,7 +182,7 @@ half4 main(float2 fragCoord) {
         src = src.Replace("#MAIN_SCREEN_START", bitmapMainScreenStartLine.ToString());
         src = src.Replace("#MAIN_SCREEN_END", (bitmapMainScreenStartLine + c64.Vic2.Vic2Screen.DrawableAreaHeight - 1).ToString());
 
-        _sKRuntimeEffect = SKRuntimeEffect.Create(src, out var error);
+        _sKRuntimeEffect = SKRuntimeEffect.CreateShader(src, out var error);
         if (!string.IsNullOrEmpty(error))
             throw new DotNet6502Exception($"Shader compilation error: {error}");
 
@@ -338,7 +338,6 @@ half4 main(float2 fragCoord) {
         }
     }
 
-
     private void WriteBitmapToCanvas(SKBitmap bitmap, SKCanvas canvas, C64 c64)
     {
         canvas.Save();
@@ -391,7 +390,7 @@ half4 main(float2 fragCoord) {
             ["line_color_map"] = lineColorsBitmapShaderTexture
         };
 
-        using var shader = _sKRuntimeEffect.ToShader(true, uniforms, children);
+        using var shader = _sKRuntimeEffect.ToShader(uniforms, children);
         using var shaderPaint = new SKPaint { Shader = shader };
         canvas.DrawRect(0, 0, _bitmap.Width, _bitmap.Height, shaderPaint);
 
