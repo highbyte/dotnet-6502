@@ -1,3 +1,5 @@
+using System.Data;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Instrumentation;
@@ -25,6 +27,7 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg1Map;
     Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg2Map;
     Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg3Map;
+    Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsMultiColorMap;
 
     // Colors to draw border and background colors with on the bitmap. These colors will be replaced by the shader.
     // Could be any color, but must be different from normal C64 colors (used when drawing foreground colors).
@@ -262,12 +265,14 @@ half4 main(float2 fragCoord) {
         _bitmapEightPixelsBg1Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
         _bitmapEightPixelsBg2Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
         _bitmapEightPixelsBg3Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
+        _bitmapEightPixelsMultiColorMap = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
 
         uint bg0ColorVal = (uint)_bg0DrawColor; // Note the background color _bg0DrawColor is hardcoded, and will be replaced by shader
         uint bg1ColorVal = (uint)_bg1DrawColor; // Note the background color _bg1DrawColor is hardcoded, and will be replaced by shader
         uint bg2ColorVal = (uint)_bg2DrawColor; // Note the background color _bg2DrawColor is hardcoded, and will be replaced by shader
         uint bg3ColorVal = (uint)_bg3DrawColor; // Note the background color _bg3DrawColor is hardcoded, and will be replaced by shader
 
+        // Standard and Extended mode (8 bits -> 8 pixels)
         for (int pixelPattern = 0; pixelPattern < 256; pixelPattern++)
         {
             for (byte fgColorCode = 0; fgColorCode < 16; fgColorCode++)
@@ -295,6 +300,38 @@ half4 main(float2 fragCoord) {
                 _bitmapEightPixelsBg3Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg3);
             }
         }
+
+        // Multicolor mode, double pixel color (8 bits -> 4 pixels)
+        for (int pixelPattern = 0; pixelPattern < 256; pixelPattern++)
+        {
+            // Only the lower 3 bits are used for foreground color from Color RAM, so only colors 0-7 are possible.
+            for (byte fgColorCode = 0; fgColorCode < 8; fgColorCode++)
+            {
+                uint fgColorVal = (uint)_c64SkiaColors.C64ToSkColorMap[(byte)(fgColorCode)];
+
+                uint[] bitmapPixelsMultiColor = new uint[8];
+
+                // Loop each multi-color pixel pair (4 pixel pairs)
+                var mask = 0b11000000;
+                for (var pixel = 0; pixel < 4; pixel++)
+                {
+                    var pixelPair = (pixelPattern & mask) >> (6 - pixel * 2);
+                    uint pairColorVal = pixelPair switch
+                    {
+                        0b00 => bg0ColorVal,
+                        0b01 => bg1ColorVal,
+                        0b10 => bg2ColorVal,
+                        0b11 => fgColorVal,
+                        _ => throw new DotNet6502Exception("Invalid pixel pair value.")
+                    };
+                    mask = mask >> 2;
+                    bitmapPixelsMultiColor[pixel * 2] = pairColorVal;
+                    bitmapPixelsMultiColor[pixel * 2 + 1] = pairColorVal;
+                }
+                _bitmapEightPixelsMultiColorMap.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsMultiColor);
+            }
+        }
+
     }
 
     public void Init(ISystem system, IRenderContext renderContext)
@@ -484,7 +521,7 @@ half4 main(float2 fragCoord) {
                         {
                             bgColorNumber = 0;
                             // When in MultiColor mode, a character can still be displayed in Standard mode depending on the value from color RAM.
-                            if (characterCode <= 7)
+                            if (fgColorCode <= 7)
                             {
                                 // If color RAM value is 0-7, normal Standard mode is used (not multi-color)
                                 characterMode = CharMode.Standard;
@@ -525,11 +562,8 @@ half4 main(float2 fragCoord) {
                             // backgroundColor2 = the color of pixel-pair 10
                             // fgColorCode      = the color of pixel-pair 11
 
-
                             // Get the corresponding array of uints representing the 8 pixels of the character
-                            // TODO
-                            //bitmapEightPixels = _bitmapEightPixelsMultiColorMap[(lineData, bgColorCode, fgColorCode)];
-                            bitmapEightPixels = new uint[8];
+                            bitmapEightPixels = _bitmapEightPixelsMultiColorMap[(lineData, fgColorCode)];
                         }
 
                     }
