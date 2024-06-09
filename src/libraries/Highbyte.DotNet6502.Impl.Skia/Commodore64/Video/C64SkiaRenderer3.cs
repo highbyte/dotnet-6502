@@ -23,6 +23,8 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     // Pre-calculated pixel arrays
     uint[] _oneLineBorderPixels; // pixelArray
     uint[] _sideBorderPixels; // pixelArray
+    uint[] _oneCharLineBorderPixels; // pixelArray
+
     Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg0Map;
     Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg1Map;
     Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg2Map;
@@ -252,13 +254,16 @@ half4 main(float2 fragCoord) {
 
         // Init pre-calculated pixel arrays
 
-        // Borders (new version)
+        // Borders: Pre-calculate entire rows, left/right border only, and one char row of pixels.
         _oneLineBorderPixels = new uint[width];
         for (var i = 0; i < _oneLineBorderPixels.Length; i++)
             _oneLineBorderPixels[i] = (uint)_borderDrawColor;
         _sideBorderPixels = new uint[vic2Screen.VisibleLeftRightBorderWidth]; // Assume right border is same width as left border
         for (var i = 0; i < _sideBorderPixels.Length; i++)
             _sideBorderPixels[i] = (uint)_borderDrawColor;
+        _oneCharLineBorderPixels = new uint[8];
+        for (var i = 0; i < _oneCharLineBorderPixels.Length; i++)
+            _oneCharLineBorderPixels[i] = (uint)_borderDrawColor;
 
         // Main text screen: Pre-calculate the 8 pixels for each combination of bit pixel pattern and foreground color
         _bitmapEightPixelsBg0Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
@@ -444,6 +449,9 @@ half4 main(float2 fragCoord) {
         // Main screen draw area for characters, without consideration to 38 column mode or 24 row mode.
         var visibleMainScreenAreaNormalized = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
+        // Main screen draw area for characters, with consideration to possible 38 column mode or 24 row mode.
+        var visibleMainScreenAreaNormalizedClipped = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);
+
         var startY = 0;
         //var width = vic2Screen.VisibleWidth;
         var height = vic2Screen.VisibleHeight;
@@ -482,6 +490,12 @@ half4 main(float2 fragCoord) {
             var vic2CharacterSetAddressInVIC2Bank = vic2.CharsetManager.CharacterSetAddressInVIC2Bank;
             var vic2ScreenCharacterHeight = vic2.Vic2Screen.CharacterHeight;
 
+            var vic2Is38ColumnDisplayEnabled = vic2.Is38ColumnDisplayEnabled;
+            var vic2Is24RowDisplayEnabled = vic2.Is24RowDisplayEnabled;
+            var vic2LineStart24Rows = visibleMainScreenAreaNormalizedClipped.Screen.Start.Y - visibleMainScreenAreaNormalized.Screen.Start.Y;
+            var vic2LineEnd24Rows = visibleMainScreenAreaNormalizedClipped.Screen.End.Y - visibleMainScreenAreaNormalized.Screen.Start.Y;
+
+
             // Loop each row line on main text/gfx screen, starting with line 0.
             for (var drawLine = 0; drawLine < vic2Screen.DrawableAreaHeight; drawLine++)
             {
@@ -495,8 +509,8 @@ half4 main(float2 fragCoord) {
                 bool textMode = (vic2.DisplayMode == DispMode.Text); // TODO: Check for display mode more than once per line?
                 var characterMode = vic2.CharacterMode; // TODO: Check for display mode more than once per line?
 
-                for (var col = 0; col < vic2ScreenTextCols; col++)
                 // Loop each column on main text/gfx screen, starting with column 0.
+                for (var col = 0; col < vic2ScreenTextCols; col++)
                 {
                     uint[] bitmapEightPixels;
                     if (textMode)
@@ -578,6 +592,17 @@ half4 main(float2 fragCoord) {
                     // Calculate the x position in the bitmap where the 8 pixels should be drawn
                     var bitmapX = screenStartX + (col * 8);
                     int bitmapIndex = (bitmapY * _bitmap.Width + bitmapX);
+
+                    // Check for 38 column mode. With 38 column mode, the first and last column is not drawn (covered by border)
+                    if (vic2Is38ColumnDisplayEnabled && (col == 0 || col == vic2ScreenTextCols - 1))
+                    {
+                        bitmapEightPixels = _oneCharLineBorderPixels;
+                    }
+                    // Check for 24 row mode. With 24 row mode, parts for the top and bottom part of main screen is not drawn (covered by border)
+                    if (vic2Is24RowDisplayEnabled && (drawLine < vic2LineStart24Rows || drawLine > vic2LineEnd24Rows))
+                    {
+                        bitmapEightPixels = _oneCharLineBorderPixels;
+                    }
                     // Draw 8 pixels on the bitmap
                     Array.Copy(bitmapEightPixels, 0, pixelArray, bitmapIndex, bitmapEightPixels.Length);
 
