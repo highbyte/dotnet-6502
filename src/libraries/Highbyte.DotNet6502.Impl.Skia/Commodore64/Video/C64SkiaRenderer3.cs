@@ -253,12 +253,6 @@ half4 main(float2 fragCoord) {
         _oneLineBorderPixels = new uint[width];
         for (var i = 0; i < _oneLineBorderPixels.Length; i++)
             _oneLineBorderPixels[i] = (uint)_borderDrawColor;
-        //_sideBorderPixels = new uint[vic2Screen.VisibleLeftRightBorderWidth]; // Assume right border is same width as left border
-        //for (var i = 0; i < _sideBorderPixels.Length; i++)
-        //    _sideBorderPixels[i] = (uint)_borderDrawColor;
-        //_oneCharLineBorderPixels = new uint[8];
-        //for (var i = 0; i < _oneCharLineBorderPixels.Length; i++)
-        //    _oneCharLineBorderPixels[i] = (uint)_borderDrawColor;
         _oneCharLineBg0Pixels = new uint[8];
         for (var i = 0; i < _oneCharLineBg0Pixels.Length; i++)
             _oneCharLineBg0Pixels[i] = (uint)_bg0DrawColor;
@@ -334,7 +328,6 @@ half4 main(float2 fragCoord) {
                 _bitmapEightPixelsMultiColorMap.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsMultiColor);
             }
         }
-
     }
 
     public void Init(ISystem system, IRenderContext renderContext)
@@ -400,7 +393,7 @@ half4 main(float2 fragCoord) {
             // Check if line is within main screen area, only there are background colors used.
             if (lineData.Key < drawableScreenStartY || bitmapLine >= (drawableScreenEndY))
                 continue;
- 
+
             _lineColorsPixelArray[bitmapLine * _lineColorsPixelArrayWidth + 0] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor0];
             _lineColorsPixelArray[bitmapLine * _lineColorsPixelArrayWidth + 1] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor1];
             _lineColorsPixelArray[bitmapLine * _lineColorsPixelArrayWidth + 2] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor2];
@@ -590,7 +583,7 @@ half4 main(float2 fragCoord) {
                             for (var i = 0; i < -scrollY; i++)
                             {
                                 //Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, fillBitMapIndex + scrollX, length);
-                                WriteToPixelArray(_oneCharLineBg0Pixels, pixelArray, drawLine - i, 0, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
+                                WriteToPixelArray(_oneCharLineBg0Pixels, pixelArray, drawLine - i, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
                             }
                         }
                         // If scrolling occured downards (scrollY > 0) and we are on first line of screen, fill the line above that was scrolled with background color
@@ -599,7 +592,7 @@ half4 main(float2 fragCoord) {
                             for (var i = 0; i < scrollY; i++)
                             {
                                 //Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, fillBitMapIndex + scrollX, length);
-                                WriteToPixelArray(_oneCharLineBg0Pixels, pixelArray, i, 0, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
+                                WriteToPixelArray(_oneCharLineBg0Pixels, pixelArray, i, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
                             }
                         }
                     }
@@ -630,25 +623,6 @@ half4 main(float2 fragCoord) {
                                 fnLength = 8 - scrollX;
                         }
 
-
-                        //// Check for 38 column mode. With 38 column mode, the first and last column is not drawn (covered by border)
-                        //if (vic2Is38ColumnDisplayEnabled)
-                        //{
-                        //    if (lCol == 0 || lCol == vic2ScreenTextCols - 1)
-                        //    {
-                        //        fnEightPixels = _oneLineBorderPixels;
-                        //        fnLength = 7;   // Note in 38 column mode, only the first 7 (of 8) pixels in column 0 i covered by border
-                        //    }
-                        //}
-
-                        //// Check for 24 row mode. With 24 row mode, parts for the top and bottom part of main screen is not drawn (covered by border)
-                        //if (vic2Is24RowDisplayEnabled && (fnMainScreenY < vic2LineStart24Rows || fnMainScreenY > vic2LineEnd24Rows))
-                        //{
-                        //    fnEightPixels = _oneLineBorderPixels;
-                        //    fnLength = 8;
-                        //}
-
-
                         // Calculate the position in the bitmap where the 8 pixels should be drawn
                         int lBitmapIndex = ((screenStartY + fnMainScreenY) * _bitmap.Width) + ((screenStartX + fnMainScreenX));
 
@@ -659,7 +633,8 @@ half4 main(float2 fragCoord) {
         }
 
 
-        // Borders
+        // Borders.
+        // The borders must be drawn last, because it will overwrite parts of the main screen area if 38 column or 24 row modes are enabled (which main screen drawing above does not take in consideration)
         using (_borderStat.Measure())
         {
             // Assumption on visibleMainScreenAreaNormalizedClipped:
