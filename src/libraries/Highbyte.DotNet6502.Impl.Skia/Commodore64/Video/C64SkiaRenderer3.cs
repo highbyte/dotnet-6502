@@ -1,15 +1,9 @@
-using System.Data;
-using System.Diagnostics;
-using System.Numerics;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Highbyte.DotNet6502.Instructions;
 using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
-using SkiaSharp;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.ColorMaps;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
@@ -24,8 +18,6 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
 
     // Pre-calculated pixel arrays
     uint[] _oneLineBorderPixels; // pixelArray
-    uint[] _sideBorderPixels; // pixelArray
-    uint[] _oneCharLineBorderPixels; // pixelArray
     uint[] _oneCharLineBg0Pixels; // pixelArray
 
     Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg0Map;
@@ -261,12 +253,12 @@ half4 main(float2 fragCoord) {
         _oneLineBorderPixels = new uint[width];
         for (var i = 0; i < _oneLineBorderPixels.Length; i++)
             _oneLineBorderPixels[i] = (uint)_borderDrawColor;
-        _sideBorderPixels = new uint[vic2Screen.VisibleLeftRightBorderWidth]; // Assume right border is same width as left border
-        for (var i = 0; i < _sideBorderPixels.Length; i++)
-            _sideBorderPixels[i] = (uint)_borderDrawColor;
-        _oneCharLineBorderPixels = new uint[8];
-        for (var i = 0; i < _oneCharLineBorderPixels.Length; i++)
-            _oneCharLineBorderPixels[i] = (uint)_borderDrawColor;
+        //_sideBorderPixels = new uint[vic2Screen.VisibleLeftRightBorderWidth]; // Assume right border is same width as left border
+        //for (var i = 0; i < _sideBorderPixels.Length; i++)
+        //    _sideBorderPixels[i] = (uint)_borderDrawColor;
+        //_oneCharLineBorderPixels = new uint[8];
+        //for (var i = 0; i < _oneCharLineBorderPixels.Length; i++)
+        //    _oneCharLineBorderPixels[i] = (uint)_borderDrawColor;
         _oneCharLineBg0Pixels = new uint[8];
         for (var i = 0; i < _oneCharLineBg0Pixels.Length; i++)
             _oneCharLineBg0Pixels[i] = (uint)_bg0DrawColor;
@@ -462,30 +454,7 @@ half4 main(float2 fragCoord) {
         var width = vic2Screen.VisibleWidth;
         var height = vic2Screen.VisibleHeight;
 
-        // Copy 8 pixels each time
-        // Borders
-        using (_borderStat.Measure())
-        {
-            for (var y = startY; y < (startY + height); y++)
-            {
-                // Top or bottom border
-                if (y <= visibleMainScreenAreaNormalized.TopBorder.End.Y || y >= visibleMainScreenAreaNormalized.BottomBorder.Start.Y)
-                {
-                    var topBottomBorderLineStartIndex = y * _bitmap.Width;
-                    Array.Copy(_oneLineBorderPixels, 0, pixelArray, topBottomBorderLineStartIndex, _bitmap.Width);
-                    continue;
-                }
-
-                // Left border
-                int lineStartIndex = y * _bitmap.Width;
-                Array.Copy(_sideBorderPixels, 0, pixelArray, lineStartIndex, _sideBorderPixels.Length);
-                // Right border
-                lineStartIndex += visibleMainScreenAreaNormalized.RightBorder.Start.X;
-                Array.Copy(_sideBorderPixels, 0, pixelArray, lineStartIndex, _sideBorderPixels.Length);
-            }
-        }
-
-        // Main screen
+        // Main screen, copy 8 pixels at a time
         using (_textScreenStat.Measure())
         {
             // Copy settings used in loop to local variables to increase performance
@@ -630,7 +599,7 @@ half4 main(float2 fragCoord) {
                             for (var i = 0; i < scrollY; i++)
                             {
                                 //Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, fillBitMapIndex + scrollX, length);
-                                WriteToPixelArray(_oneCharLineBg0Pixels, pixelArray, scrollY, 0, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
+                                WriteToPixelArray(_oneCharLineBg0Pixels, pixelArray, i, 0, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
                             }
                         }
                     }
@@ -662,16 +631,22 @@ half4 main(float2 fragCoord) {
                         }
 
 
-                        // Check for 38 column mode. With 38 column mode, the first and last column is not drawn (covered by border)
-                        if (vic2Is38ColumnDisplayEnabled && (lCol == 0 || lCol == vic2ScreenTextCols - 1))
-                        {
-                            fnEightPixels = _oneCharLineBorderPixels;
-                        }
-                        // Check for 24 row mode. With 24 row mode, parts for the top and bottom part of main screen is not drawn (covered by border)
-                        if (vic2Is24RowDisplayEnabled && (fnMainScreenY < vic2LineStart24Rows || fnMainScreenY > vic2LineEnd24Rows))
-                        {
-                            fnEightPixels = _oneCharLineBorderPixels;
-                        }
+                        //// Check for 38 column mode. With 38 column mode, the first and last column is not drawn (covered by border)
+                        //if (vic2Is38ColumnDisplayEnabled)
+                        //{
+                        //    if (lCol == 0 || lCol == vic2ScreenTextCols - 1)
+                        //    {
+                        //        fnEightPixels = _oneLineBorderPixels;
+                        //        fnLength = 7;   // Note in 38 column mode, only the first 7 (of 8) pixels in column 0 i covered by border
+                        //    }
+                        //}
+
+                        //// Check for 24 row mode. With 24 row mode, parts for the top and bottom part of main screen is not drawn (covered by border)
+                        //if (vic2Is24RowDisplayEnabled && (fnMainScreenY < vic2LineStart24Rows || fnMainScreenY > vic2LineEnd24Rows))
+                        //{
+                        //    fnEightPixels = _oneLineBorderPixels;
+                        //    fnLength = 8;
+                        //}
 
 
                         // Calculate the position in the bitmap where the 8 pixels should be drawn
@@ -682,7 +657,37 @@ half4 main(float2 fragCoord) {
                 }
             }
         }
+
+
+        // Borders
+        using (_borderStat.Measure())
+        {
+            // Assumption on visibleMainScreenAreaNormalizedClipped:
+            // - Contains dimensions of screen parts with consideration to if 38 column mode or 24 row mode is enabled.
+            // - Is normalized to start at 0,0 (i.e. TopBorder.Start.X = and TopBorder.Start.Y = 0)
+            var leftBorderStartX = visibleMainScreenAreaNormalizedClipped.LeftBorder.Start.X; // Should be 0?
+            var leftBorderLength = (visibleMainScreenAreaNormalizedClipped.LeftBorder.End.X - visibleMainScreenAreaNormalizedClipped.LeftBorder.Start.X) + 1;
+
+            var rightBorderStartX = visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
+            var rightBorderLength = _bitmap.Width - visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
+
+            for (var y = startY; y < (startY + height); y++)
+            {
+                // Top or bottom border
+                if (y <= visibleMainScreenAreaNormalizedClipped.TopBorder.End.Y || y >= visibleMainScreenAreaNormalizedClipped.BottomBorder.Start.Y)
+                {
+                    var topBottomBorderLineStartIndex = y * _bitmap.Width;
+                    Array.Copy(_oneLineBorderPixels, 0, pixelArray, topBottomBorderLineStartIndex, _bitmap.Width);
+                    continue;
+                }
+
+                // Left border
+                int lineStartIndex = y * _bitmap.Width;
+                Array.Copy(_oneLineBorderPixels, leftBorderStartX, pixelArray, lineStartIndex, leftBorderLength);
+                // Right border
+                lineStartIndex += visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
+                Array.Copy(_oneLineBorderPixels, rightBorderStartX, pixelArray, lineStartIndex, rightBorderLength);
+            }
+        }
     }
-
-
 }

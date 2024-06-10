@@ -75,11 +75,7 @@ public class Vic2
     public byte FineScrollXValue => (byte)(C64.ReadIOStorage(Vic2Addr.SCROLL_X_AND_SCREEN_CONTROL_REGISTER) & 0b0000_0111);    // Value 0-7
     public int GetScrollX()
     {
-        var scrollX = FineScrollXValue;
-        // Note: In 38 column mode, the screen is shifted 1 pixel to the right (at least as it's shown in VICE emulator)
-        if (Is38ColumnDisplayEnabled)
-            scrollX += 1;
-        return scrollX;
+        return FineScrollXValue;
     }
 
     public bool Is24RowDisplayEnabled => !C64.ReadIOStorage(Vic2Addr.SCROLL_Y_AND_SCREEN_CONTROL_REGISTER).IsBitSet(3);

@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using SkiaSharp;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
@@ -72,15 +73,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         var canvas = _getSkCanvas();
         canvas.Clear();
 
-        using (_borderStat.Measure())
-        {
-            //DrawSimpleBorder(c64, canvas);
-            DrawRasterLinesBorder(c64, canvas);
-        }
-
         using (_backgroundStat.Measure())
         {
-            //DrawSimpleBackground(c64, canvas);
             DrawRasterLinesBackground(c64, canvas);
         }
 
@@ -92,6 +86,11 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         using (_textScreenStat.Measure())
         {
             RenderMainScreen(c64, canvas);
+        }
+
+        using (_borderStat.Measure())
+        {
+            DrawRasterLinesBorder(c64, canvas);
         }
 
         using (_spritesStat.Measure(cont: true))
@@ -229,8 +228,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         // Clip to the visible character screen area
         canvas.ClipRect(
             new SKRect(
-                visibleClippedScreenArea.Screen.Start.X,
-                visibleClippedScreenArea.Screen.Start.Y,
+                visibleClippedScreenArea.Screen.Start.X - 1,
+                visibleClippedScreenArea.Screen.Start.Y - 1,
                 visibleClippedScreenArea.Screen.End.X + 1,
                 visibleClippedScreenArea.Screen.End.Y + 1),
             SKClipOperation.Intersect);
@@ -299,15 +298,32 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         //var visibileVerticalPositions = vic2Screen.GetVerticalPositions(visible: true, normalizeToVisible: false, for24RowMode: c64.Vic2.Is24RowDisplayEnabled);
         var visibileLayout = vic2ScreenLayouts.GetLayout(LayoutType.Visible);
 
-        var drawWidth = vic2Screen.VisibleWidth;
+        var leftBorderStartX = 0;
+        var leftBorderWidth = visibileLayout.LeftBorder.End.X - visibileLayout.LeftBorder.Start.X + 1;
+        var rightBorderStartX = visibileLayout.RightBorder.Start.X - visibileLayout.LeftBorder.Start.X;
+        var rightBorderWidth = vic2Screen.VisibleWidth - (visibileLayout.RightBorder.Start.X - visibileLayout.LeftBorder.Start.X);
 
         foreach (var c64ScreenLine in c64.Vic2.ScreenLineIORegisterValues.Keys)
         {
             if (c64ScreenLine < visibileLayout.TopBorder.Start.Y || c64ScreenLine > visibileLayout.BottomBorder.End.Y)
                 continue;
+
             var canvasYPos = (ushort)(c64ScreenLine - visibileLayout.TopBorder.Start.Y);
             var borderColor = c64.Vic2.ScreenLineIORegisterValues[c64ScreenLine].BorderColor;
-            canvas.DrawRect(0, canvasYPos, drawWidth, 1, _c64SkiaPaint.GetFillPaint(borderColor));
+            var borderPaint = _c64SkiaPaint.GetFillPaint(borderColor);
+
+            if (c64ScreenLine <= visibileLayout.TopBorder.End.Y || c64ScreenLine >= visibileLayout.BottomBorder.Start.Y)
+            {
+                // Top/bottom borders
+                canvas.DrawRect(leftBorderStartX, canvasYPos, vic2Screen.VisibleWidth, 1, borderPaint);
+            }
+            else
+            {
+                // Left/right borders
+                canvas.DrawRect(leftBorderStartX, canvasYPos, leftBorderWidth, 1, borderPaint);
+                canvas.DrawRect(rightBorderStartX, canvasYPos, rightBorderWidth, 1, borderPaint);
+            }
+
         }
     }
 
@@ -317,7 +333,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
     {
         var vic2ScreenLayouts = c64.Vic2.ScreenLayouts;
 
-        var visibleMainScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.Visible);
+        var visibleMainScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.Visible, for24RowMode: false, for38ColMode: false);
         var canvasXPosStart = visibleMainScreenArea.Screen.Start.X - visibleMainScreenArea.LeftBorder.Start.X;
         var drawWidth = visibleMainScreenArea.Screen.End.X - visibleMainScreenArea.Screen.Start.X + 1;
 
@@ -331,33 +347,6 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         }
     }
 
-    //// Simple approximation, draw 4 rectangles for border. Fast, but does not handle changes in border color per raster line.
-    //private void DrawSimpleBorder(C64 c64, SKCanvas canvas)
-    //{
-    //    var emulatorMem = c64.Mem;
-    //    var vic2Screen = c64.Vic2.Vic2Screen;
-
-    //    var borderColor = c64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
-    //    var borderPaint = _c64SkiaPaint.GetFillPaint(borderColor);
-
-    //    canvas.DrawRect(0, 0, vic2Screen.VisibleWidth, vic2Screen.VisibleTopBottomBorderHeight, borderPaint);
-    //    canvas.DrawRect(0, vic2Screen.VisibleTopBottomBorderHeight + vic2Screen.DrawableAreaHeight, vic2Screen.VisibleWidth, vic2Screen.VisibleTopBottomBorderHeight, borderPaint);
-    //    canvas.DrawRect(0, vic2Screen.VisibleTopBottomBorderHeight, vic2Screen.VisibleLeftRightBorderWidth, vic2Screen.DrawableAreaHeight, borderPaint);
-    //    canvas.DrawRect(vic2Screen.VisibleLeftRightBorderWidth + vic2Screen.DrawableAreaWidth, vic2Screen.VisibleTopBottomBorderHeight, vic2Screen.VisibleLeftRightBorderWidth, vic2Screen.DrawableAreaHeight, borderPaint);
-    //}
-
-    //// Simple approximation, draw 1 rectangle for border. Fast, but does not handle changes in background color per raster line.
-    //private void DrawSimpleBackground(C64 c64, SKCanvas canvas)
-    //{
-    //    var emulatorMem = c64.Mem;
-    //    var vic2Screen = c64.Vic2.Vic2Screen;
-
-    //    // Draw 1 rectangle for background
-    //    var backgroundColor = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
-    //    var bgPaint = _c64SkiaPaint.GetFillPaint(backgroundColor);
-
-    //    canvas.DrawRect(vic2Screen.VisibleLeftRightBorderWidth, vic2Screen.VisibleTopBottomBorderHeight, vic2Screen.DrawableAreaWidth, vic2Screen.DrawableAreaHeight, bgPaint);
-    //}
 
     /// <summary>
     /// Draw character to screen, with adjusted position for border.

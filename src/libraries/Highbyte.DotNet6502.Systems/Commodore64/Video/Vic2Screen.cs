@@ -157,10 +157,10 @@ public class Vic2Screen : ITextMode, IScreen
         // Adjust for 38 column mode (instead of default 40 columns)
         if (for38ColMode)
         {
-            leftBorderEndX += 8;
+            leftBorderEndX += 7;    // In first column, only the first 7 pixels are covered by the border
             screenStartX += 8;
             screenEndX -= 8;
-            rightBorderStartX -= 8;
+            rightBorderStartX -= 9; // The last pixel in the next to last column is covered by border color, as well as entire last column.
         }
 
         return (
