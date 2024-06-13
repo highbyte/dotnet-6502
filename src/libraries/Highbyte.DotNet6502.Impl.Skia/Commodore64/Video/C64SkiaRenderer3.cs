@@ -5,6 +5,7 @@ using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using Highbyte.DotNet6502.Systems.Utils;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.ColorMaps;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
@@ -100,9 +101,9 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     private const int LineDataIndex_Sprite6_Color = 13;
     private const int LineDataIndex_Sprite7_Color = 14;
 
-    private uint[] _lineColorsPixelArray;
-    private const int _lineColorsPixelArrayWidth = 5 + 2 + 8; // bg0, bg1, bg2, bg3, border,   spriteMultiColor0, spriteMultiColor1, and  sprite color 0-7, on each line;
-    private SKBitmap _lineColorsBitmap;
+    private uint[] _lineDataPixelArray;
+    private const int _lineDataPixelArrayWidth = 5 + 2 + 8; // bg0, bg1, bg2, bg3, border,   spriteMultiColor0, spriteMultiColor1, and  sprite color 0-7, on each line;
+    private SKBitmap _lineDataBitmap;
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
@@ -139,7 +140,7 @@ uniform shader bitmap_texture;
 uniform shader sprites_texture;
 
 // The actual color to display as border and background colors for each line. Used to replace the colors in the bitmap.
-uniform shader line_color_map;
+uniform shader line_data_map;
 
 // The color used to draw border and background colors
 uniform half4 bg0Color;
@@ -174,7 +175,14 @@ uniform half4 sprite6HighPrioColor;
 uniform half4 sprite7HighPrioColor;
 
 half4 get_line_data(float lineIndex, float line) {
-    return line_color_map.eval(float2(0.5 + lineIndex, 0.5 + line));
+    // Assume image in line_data_map is x pixel wide (bg0, bg1, bg2, bg3, border colors, etc.), and y (number of main screen lines) pixels high.
+
+    // For images, Skia GSL use the common convention that the centers are at half-pixel offsets. 
+    // So to sample the top-left pixel in an image shader, you'd want to pass (0.5, 0.5) as coords.
+    // The next (to the right) pixel would be (1.5, 0.5).
+    // The next (to the below ) pixel would be (0.5, 1.5).
+
+    return line_data_map.eval(float2(0.5 + lineIndex, 0.5 + line));
 }
 
 half4 map_sprite_color(half4 spriteColor, float line) {
@@ -214,97 +222,72 @@ half4 map_sprite_color(half4 spriteColor, float line) {
     }
 
     else {
-        // Should not happen, how bright purple color to indicate error.
+        // Should not happen, show bright purple color to indicate error.
         useColor = half4(1, 0, 1, 1);
     }
 
     return useColor;    
 }
 
-half4 map_color(half4 texColor, half4 spriteColor, float line) {
+half4 map_screen_color(half4 textAndBitmapColor, half4 spriteColor, float line) {
 
-    // For images, Skia GSL use the common convention that the centers are at half-pixel offsets. 
-    // So to sample the top-left pixel in an image shader, you'd want to pass (0.5, 0.5) as coords.
+    // For images, Skia SKSL lanuage use the common convention that the centers are at half-pixel offsets. 
+    // To sample the top-left pixel in an image shader, you'd want to pass (0.5, 0.5) as coords.
     // The next (to the right) pixel would be (1.5, 0.5).
     // The next (to the below ) pixel would be (0.5, 1.5).
 
-    // Assume image in line_color_map is 5 pixel wide (bg0, bg1, bg2, bg3, border), and y (number of main screen lines) pixels high.
+    half4 useColor;
+    float2 lineCoord;
 
-    if(line < #MAIN_SCREEN_START || line > #MAIN_SCREEN_END) {
-        // In top/bottom border only border color can be used.
-        half4 useColor;
-        float2 lineCoord;
-
-        if(texColor == borderColor) {
-            useColor = get_line_data(#BORDER_COLOR_INDEX, line);
-        }
-        else {
-            // Normal drawable screen forground color should not happen here, show bright red color to indicate error.
-            useColor = half4(1, 0, 0, 1);
-        }
-        return useColor;
+    if(spriteColor.b == #HIGH_PRIO_SPRITE_BLUE_SHADER) {
+        // Sprite pixel with specific Blue color indicates high-prio sprite here, and should be shown instead of background color.
+        useColor = map_sprite_color(spriteColor, line);
     }
-    else {
-        // Main screen area + side borders
-        half4 useColor;
-        float2 lineCoord;
+    else if(textAndBitmapColor == borderColor) {
+        useColor = get_line_data(#BORDER_COLOR_INDEX, line);
+    }
+    else if((textAndBitmapColor + bg0Color) == bg0Color) {
+        // Normal text/bitmap screen indicates background color could used.
 
-        if(spriteColor.b == #HIGH_PRIO_SPRITE_BLUE_SHADER) {
-            // Sprite pixel with specific Blue color indicates high-prio sprite here, and should be shown instead of background color.
+        // But if a sprite pixel from a low prio sprite is drawn at this position, use the sprite color instead of background color.
+        // Sprite pixel with specific Blue color indicates low-prio sprite here, and should be shown instead of background color.
+        if(spriteColor.b == #LOW_PRIO_SPRITE_BLUE_SHADER) {
+            // Use sprite color
             useColor = map_sprite_color(spriteColor, line);
         }
-        else if(texColor == borderColor) {
-            useColor = get_line_data(#BORDER_COLOR_INDEX, line);
-        }
-        else if((texColor + bg0Color) == bg0Color) {
-            // Normal text/bitmap screen indicates background color could used.
-
-            // But if a sprite pixel from a low prio sprite is drawn at this position, use the sprite color instead of background color.
-            // Sprite pixel with specific Blue color indicates low-prio sprite here, and should be shown instead of background color.
-            if(spriteColor.b == #LOW_PRIO_SPRITE_BLUE_SHADER) {
-                // Use sprite color
-                useColor = map_sprite_color(spriteColor, line);
-            }
-            else {
-                // Use background color
-                useColor = get_line_data(#BG0_COLOR_INDEX, line);
-            }
-        }
-        else if(texColor == bg1Color) {
-            useColor = get_line_data(#BG1_COLOR_INDEX, line);
-        }
-        else if(texColor == bg2Color) {
-            useColor = get_line_data(#BG2_COLOR_INDEX, line);
-        }
-        else if(texColor == bg3Color) {
-            useColor = get_line_data(#BG3_COLOR_INDEX, line);
-        }
         else {
-            useColor = texColor;    // Not color that should be transformed (i.e. foreground color of text or bitmap)
+            // Use background color
+            useColor = get_line_data(#BG0_COLOR_INDEX, line);
         }
-        return useColor;
     }
+    else if(textAndBitmapColor == bg1Color) {
+        useColor = get_line_data(#BG1_COLOR_INDEX, line);
+    }
+    else if(textAndBitmapColor == bg2Color) {
+        useColor = get_line_data(#BG2_COLOR_INDEX, line);
+    }
+    else if(textAndBitmapColor == bg3Color) {
+        useColor = get_line_data(#BG3_COLOR_INDEX, line);
+    }
+    else {
+        useColor = textAndBitmapColor;    // Not a color that should be transformed (i.e. foreground color of text or bitmap)
+    }
+    return useColor;
 }
 
 half4 main(float2 fragCoord) {
 
-    half4 texColor = bitmap_texture.eval(fragCoord);
+    half4 textAndBitmapColor = bitmap_texture.eval(fragCoord);
     half4 spriteColor = sprites_texture.eval(fragCoord);
-
-    float scaleX = 1;
-    float scaleY = 1;
-    int x2 = int(fragCoord.x * 1.0/scaleX);
-    int y2 = int(fragCoord.y * 1.0/scaleY);
-    float x = float(x2);
-    float y = float(y2);
+    float line = fragCoord.y;
 
     half4 useColor;
 
-    if(y < #VISIBLE_HEIGHT) {
-        useColor = map_color(texColor, spriteColor, y);
+    if(line < #VISIBLE_HEIGHT) {
+        useColor = map_screen_color(textAndBitmapColor, spriteColor, line);
     }
     else {
-        // Should not happen, how bright red color to indicate error.
+        // Should not happen, show bright red color to indicate error.
         useColor = half4(1, 0, 0, 1);
     }
 
@@ -383,17 +366,17 @@ half4 main(float2 fragCoord) {
         }
 
         // Init the bg color map bitmap
-        _lineColorsPixelArray = new uint[_lineColorsPixelArrayWidth * c64.Vic2.Vic2Screen.VisibleHeight]; // bg0, bg1, bg2, and bg3 on each line
-        _lineColorsBitmap = new();
+        _lineDataPixelArray = new uint[_lineDataPixelArrayWidth * c64.Vic2.Vic2Screen.VisibleHeight]; // bg0, bg1, bg2, and bg3 on each line
+        _lineDataBitmap = new();
 
         // pin the managed pixel array so that the GC doesn't move it
         // (It is essential that the pinned memory be unpinned after usage so that the memory can be freed by the GC.)
-        var gcHandle = GCHandle.Alloc(_lineColorsPixelArray, GCHandleType.Pinned);
+        var gcHandle = GCHandle.Alloc(_lineDataPixelArray, GCHandleType.Pinned);
 
         // install the pixels with the color type of the pixel data
         //var info = new SKImageInfo(width, height, SKImageInfo.PlatformColorType, SKAlphaType.Unpremul);
-        var info = new SKImageInfo(_lineColorsPixelArrayWidth, c64.Vic2.Vic2Screen.DrawableAreaHeight, SKColorType.Bgra8888, SKAlphaType.Unpremul);  // Note: SKColorType.Bgra8888 seems to be needed for Blazor WASM. TODO: Does this affect when running in Blazor on Mac/Linux?
-        _lineColorsBitmap.InstallPixels(info, gcHandle.AddrOfPinnedObject(), info.RowBytes, delegate { gcHandle.Free(); }, null);
+        var info = new SKImageInfo(_lineDataPixelArrayWidth, c64.Vic2.Vic2Screen.DrawableAreaHeight, SKColorType.Bgra8888, SKAlphaType.Unpremul);  // Note: SKColorType.Bgra8888 seems to be needed for Blazor WASM. TODO: Does this affect when running in Blazor on Mac/Linux?
+        _lineDataBitmap.InstallPixels(info, gcHandle.AddrOfPinnedObject(), info.RowBytes, delegate { gcHandle.Free(); }, null);
     }
 
     private void InitBitmap(C64 c64)
@@ -409,7 +392,7 @@ half4 main(float2 fragCoord) {
         // --------------------
         // Entire screen (border and main screen), excluding sprites
         // --------------------
-        // Init pixel array to associate with a SKBitmap that is written to a SKCanvas
+        // Init pixel array to associate with a SKBitmap that is used in shader
         _pixelArray = new uint[width * height];
         //_bitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
         _bitmap = new();
@@ -424,7 +407,7 @@ half4 main(float2 fragCoord) {
         // --------------------
         // Sprites on separate bitmap
         // --------------------
-        // Init pixel array to associate with a SKBitmap that is written to a SKCanvas
+        // Init pixel array to associate with a SKBitmap that is used in shader
         _spritesPixelArray = new uint[width * height];
         //_spritesBitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
         _spritesBitmap = new();
@@ -433,7 +416,7 @@ half4 main(float2 fragCoord) {
         var gcHandleSprites = GCHandle.Alloc(_spritesPixelArray, GCHandleType.Pinned);
         // install the pixels with the color type of the pixel data
         var infoSprites = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);  // Note: SKColorType.Bgra8888 seems to be needed for Blazor WASM. TODO: Does this affect when running in Blazor on Mac/Linux?
-        _spritesBitmap.InstallPixels(info, gcHandleSprites.AddrOfPinnedObject(), infoSprites.RowBytes, delegate { gcHandle.Free(); }, null);
+        _spritesBitmap.InstallPixels(infoSprites, gcHandleSprites.AddrOfPinnedObject(), infoSprites.RowBytes, delegate { gcHandle.Free(); }, null);
 
 
         // --------------------
@@ -560,32 +543,34 @@ half4 main(float2 fragCoord) {
             // Check if in total visisble area, because c64ScreenLineIORegisterValues includes non-visible lines
             if (lineData.Key < visibleMainScreenArea.TopBorder.Start.Y || lineData.Key > visibleMainScreenArea.BottomBorder.End.Y)
                 continue;
+
             var bitmapLine = lineData.Key - visibleMainScreenArea.TopBorder.Start.Y;
 
-            var pixelArrayIndex = bitmapLine * _lineColorsPixelArrayWidth;
+            var pixelArrayIndex = bitmapLine * _lineDataPixelArrayWidth;
 
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_Border_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BorderColor];
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_Border_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BorderColor];
 
-            // Check if line is within main screen area, only there are background or sprite  colors used.
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_SpriteMultiColor0] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor0];
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_SpriteMultiColor1] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor1];
+
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_Sprite0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite0Color];
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_Sprite1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite1Color];
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_Sprite2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite2Color];
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_Sprite3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite3Color];
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_Sprite4_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite4Color];
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_Sprite5_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite5Color];
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_Sprite6_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite6Color];
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_Sprite7_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite7Color];
+
+            // Check if line is within main screen area, only there are background colors used (? is that really true when borders are open??)
             if (lineData.Key < drawableScreenStartY || bitmapLine >= (drawableScreenEndY))
                 continue;
 
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_Bg0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor0];
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_Bg1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor1];
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_Bg2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor2];
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_Bg3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor3];
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_Bg0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor0];
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_Bg1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor1];
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_Bg2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor2];
+            _lineDataPixelArray[pixelArrayIndex + LineDataIndex_Bg3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor3];
 
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_SpriteMultiColor0] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor0];
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_SpriteMultiColor1] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor1];
-
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_Sprite0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite0Color];
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_Sprite1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite1Color];
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_Sprite2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite2Color];
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_Sprite3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite3Color];
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_Sprite4_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite4Color];
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_Sprite5_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite5Color];
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_Sprite6_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite6Color];
-            _lineColorsPixelArray[pixelArrayIndex + LineDataIndex_Sprite7_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite7Color];
         }
 
         // shader uniform values
@@ -603,7 +588,6 @@ half4 main(float2 fragCoord) {
 
             ["spriteHighPrioMultiColor0"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioMultiColor0],
             ["spriteHighPrioMultiColor1"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioMultiColor1],
-
 
             ["sprite0LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[0]],
             ["sprite1LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[1]],
@@ -631,13 +615,13 @@ half4 main(float2 fragCoord) {
         var spritesTexture = spritesBitmap.ToShader();
 
         // Convert other bitmaps to shader texture
-        var lineColorsBitmapShaderTexture = _lineColorsBitmap.ToShader();
+        var lineDataBitmapShaderTexture = _lineDataBitmap.ToShader();
 
         var children = new SKRuntimeEffectChildren(_sKRuntimeEffect)
         {
             ["bitmap_texture"] = shaderTexture,
             ["sprites_texture"] = spritesTexture,
-            ["line_color_map"] = lineColorsBitmapShaderTexture,
+            ["line_data_map"] = lineDataBitmapShaderTexture,
         };
 
         using var shader = _sKRuntimeEffect.ToShader(uniforms, children);
@@ -949,7 +933,7 @@ half4 main(float2 fragCoord) {
             int y = 0;
             foreach (var spriteRow in sprite.Data.Rows)
             {
-                // Loop each 8-bit part of the sprite line (3 bytes, 24 pixels)
+                // Loop each 8-bit part of the sprite line (3 bytes, 24 pixels).
                 int x = 0;
                 foreach (var spriteLinePart in spriteRow.Bytes)
                 {
@@ -974,13 +958,31 @@ half4 main(float2 fragCoord) {
                             {
                                 WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y, spriteColor, priorityOverForground);
                                 WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y, spriteColor, priorityOverForground);
+
+                                if (isDoubleWidth)
+                                {
+                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 2, spriteScreenPosY + y, spriteColor, priorityOverForground);
+                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 3, spriteScreenPosY + y, spriteColor, priorityOverForground);
+                                }
+
+                                if (isDoubleHeight)
+                                {
+                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
+                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
+
+                                    if (isDoubleWidth)
+                                    {
+                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 2, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
+                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 3, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
+                                    }
+                                }
                             }
 
                             maskMultiColor0Mask = maskMultiColor0Mask >> 2;
                             maskMultiColor1Mask = maskMultiColor1Mask >> 2;
                             maskSpriteColorMask = maskSpriteColorMask >> 2;
 
-                            x += 2;
+                            x += isDoubleHeight ? 4 : 2;
                         }
                     }
                     else
@@ -990,24 +992,50 @@ half4 main(float2 fragCoord) {
                         {
                             var pixelSet = (spriteLinePart & mask) == mask;
                             if (pixelSet)
+                            {
                                 WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y, spriteForegroundPixelColor, priorityOverForground);
+
+                                if (isDoubleWidth)
+                                {
+                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y, spriteForegroundPixelColor, priorityOverForground);
+                                }
+
+                                if (isDoubleHeight)
+                                {
+                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y + 1, spriteForegroundPixelColor, priorityOverForground);
+                                    if (isDoubleWidth)
+                                    {
+                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y + 1, spriteForegroundPixelColor, priorityOverForground);
+                                    }
+                                }
+                            }
                             mask = mask >> 1;
-                            x++;
+
+                            x += isDoubleHeight ? 2 : 1;
                         }
                     }
                 }
-                y++;
+                y += isDoubleHeight ? 2 : 1;
             }
 
 
             void WriteSpritePixelWithAlphaPrio(int screenPosX, int screenPosY, uint color, bool priorityOverForground)
             {
-                if (screenPosX < 0 || screenPosX >= _spritesBitmap.Width || screenPosY < 0 || screenPosY >= _spritesBitmap.Height)
+                // Check if pixel is outside the visible screen area
+                if (screenPosX < 0 || screenPosX >= _spritesBitmap.Width || screenPosY < 0 || screenPosY > _spritesBitmap.Height)
                     return;
 
-                // TODO: 1. Detect if borders are open? How to?
-                //       2. If borders are not open (default), discard x/y positions in borders.
-                //       3. Also fix shader so it considers sprites pixels in top/bottom borders.
+                // Check if pixel is within side borders, and if it should be shown there or not.
+                // TODO: Detect if side borders are open? How to?
+                bool openSideBorders = true;
+                if (!openSideBorders && (screenPosX < visibleMainScreenArea.Screen.Start.X || screenPosX > visibleMainScreenArea.Screen.End.X))
+                    return;
+
+                // Check if pixel is within top/bottom borders, and if it should be shown there or not.
+                // TODO: Detect if top/bottom borders are open? How to?
+                bool openTopBottomBorders = true;
+                if (!openTopBottomBorders && (screenPosY < visibleMainScreenArea.Screen.Start.Y || screenPosY > visibleMainScreenArea.Screen.End.Y))
+                    return;
 
                 // Calculate the position in the bitmap where the pixel should be drawn
                 int bitmapIndex = (screenPosY * _spritesBitmap.Width) + screenPosX;
