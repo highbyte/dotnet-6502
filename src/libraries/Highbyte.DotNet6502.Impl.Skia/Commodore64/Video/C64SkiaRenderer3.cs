@@ -907,7 +907,7 @@ half4 main(float2 fragCoord) {
             var spriteScreenPosX = sprite.X + visibleMainScreenArea.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X;
             var spriteScreenPosY = sprite.Y + visibleMainScreenArea.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y;
             var priorityOverForground = sprite.PriorityOverForeground;
-            var spriteColor = sprite.Color;
+            var isMultiColor = sprite.Multicolor;
 
             // START TEST
             //if (sprite.SpriteNumber == 0)
@@ -924,32 +924,90 @@ half4 main(float2 fragCoord) {
             //}
             // END TEST
 
-            var spriteWidth = sprite.DoubleWidth ? Vic2Sprite.DEFAULT_WIDTH * 2 : Vic2Sprite.DEFAULT_WIDTH;
-            var spriteHeight = sprite.DoubleHeight ? Vic2Sprite.DEFAULT_HEIGTH * 2 : Vic2Sprite.DEFAULT_HEIGTH;
+            var isDoubleWidth = sprite.DoubleWidth;
+            var isDoubleHeight = sprite.DoubleHeight;
 
-            for (int y = 0; y < spriteHeight; y++)
+            uint spriteForegroundPixelColor;  // One color per sprite
+            uint spriteMultiColor0PixelColor; // Shared between all sprites
+            uint spriteMultiColor1PixelColor; // Shared between all sprites
+            if (priorityOverForground)
             {
-                for (int x = 0; x < spriteWidth; x++)
-                {
-                    // TODO: Check if pixel is set in sprite at x/y, and if so what color
-                    bool pixelIsSet = true;
-                    if (pixelIsSet)
-                    {
-                        uint spritePixelColor;
-                        if (priorityOverForground)
-                            spritePixelColor = (uint)_spriteHighPrioColors[sprite.SpriteNumber];  // Top prio sprite pixel
-                        else
-                            spritePixelColor = (uint)_spriteLowPrioColors[sprite.SpriteNumber];   // Low prio sprite pixel
+                // Top prio sprite pixel
+                spriteForegroundPixelColor = (uint)_spriteHighPrioColors[sprite.SpriteNumber];
+                spriteMultiColor0PixelColor = (uint)_spriteHighPrioMultiColor0;
+                spriteMultiColor1PixelColor = (uint)_spriteHighPrioMultiColor1;
+            }
+            else
+            {
+                // Low prio sprite pixel
+                spriteForegroundPixelColor = (uint)_spriteLowPrioColors[sprite.SpriteNumber];
+                spriteMultiColor0PixelColor = (uint)_spriteLowPrioMultiColor0;
+                spriteMultiColor1PixelColor = (uint)_spriteLowPrioMultiColor1;
+            }
 
-                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y, spritePixelColor, priorityOverForground);
+            // Loop each sprite line (21 lines)
+            int y = 0;
+            foreach (var spriteRow in sprite.Data.Rows)
+            {
+                // Loop each 8-bit part of the sprite line (3 bytes, 24 pixels)
+                int x = 0;
+                foreach (var spriteLinePart in spriteRow.Bytes)
+                {
+                    if (isMultiColor)
+                    {
+                        var maskMultiColor0Mask = 0b01000000;
+                        var maskSpriteColorMask = 0b10000000;
+                        var maskMultiColor1Mask = 0b11000000;
+
+                        uint spriteColor;
+                        for (var pixel = 0; pixel < 8; pixel += 2)
+                        {
+                            spriteColor = spriteLinePart switch
+                            {
+                                var p when (p & maskMultiColor0Mask) == maskMultiColor0Mask => spriteMultiColor0PixelColor,
+                                var p when (p & maskSpriteColorMask) == maskSpriteColorMask => spriteForegroundPixelColor,
+                                var p when (p & maskMultiColor1Mask) == maskMultiColor1Mask => spriteMultiColor1PixelColor,
+                                _ => 0
+                            };
+
+                            if (spriteColor > 0)
+                            {
+                                WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y, spriteColor, priorityOverForground);
+                                WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y, spriteColor, priorityOverForground);
+                            }
+
+                            maskMultiColor0Mask = maskMultiColor0Mask >> 2;
+                            maskMultiColor1Mask = maskMultiColor1Mask >> 2;
+                            maskSpriteColorMask = maskSpriteColorMask >> 2;
+
+                            x += 2;
+                        }
+                    }
+                    else
+                    {
+                        var mask = 0b10000000;
+                        for (var pixel = 0; pixel < 8; pixel++)
+                        {
+                            var pixelSet = (spriteLinePart & mask) == mask;
+                            if (pixelSet)
+                                WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y, spriteForegroundPixelColor, priorityOverForground);
+                            mask = mask >> 1;
+                            x++;
+                        }
                     }
                 }
+                y++;
             }
+
 
             void WriteSpritePixelWithAlphaPrio(int screenPosX, int screenPosY, uint color, bool priorityOverForground)
             {
                 if (screenPosX < 0 || screenPosX >= _spritesBitmap.Width || screenPosY < 0 || screenPosY >= _spritesBitmap.Height)
                     return;
+
+                // TODO: 1. Detect if borders are open? How to?
+                //       2. If borders are not open (default), discard x/y positions in borders.
+                //       3. Also fix shader so it considers sprites pixels in top/bottom borders.
 
                 // Calculate the position in the bitmap where the pixel should be drawn
                 int bitmapIndex = (screenPosY * _spritesBitmap.Width) + screenPosX;
