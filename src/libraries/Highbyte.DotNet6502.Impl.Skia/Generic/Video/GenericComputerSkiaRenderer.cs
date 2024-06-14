@@ -44,6 +44,10 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
         Init((GenericComputer)system, (SkiaRenderContext)renderContext);
     }
 
+    public void Cleanup()
+    {
+    }
+
     public void Draw(GenericComputer genericComputer)
     {
         var mem = genericComputer.Mem;

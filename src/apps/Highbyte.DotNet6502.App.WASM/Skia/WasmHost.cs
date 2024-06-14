@@ -160,8 +160,9 @@ public class WasmHost : IDisposable
         // Clean up input handler resources
         InputHandlerContext?.Cleanup();
 
-        // Stop any playing audio
-        _systemRunner.AudioHandler.StopPlaying();
+        // Cleanup system runner (including stop any playing audio)
+        _systemRunner.Cleanup();
+
         // Clean up audio resources
         //AudioHandlerContext?.Cleanup();
     }

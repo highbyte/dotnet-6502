@@ -291,6 +291,8 @@ public class SilkNetWindow
             return;
         if (EmulatorState == EmulatorState.Running)
             Pause();
+
+        _systemRunner.Cleanup();
         _systemRunner = default!;
         EmulatorState = EmulatorState.Uninitialized;
         Start();
@@ -300,6 +302,7 @@ public class SilkNetWindow
     {
         if (EmulatorState == EmulatorState.Running)
             Pause();
+        _systemRunner.Cleanup();
         _systemRunner = default!;
         SetUninitializedWindow();
         InitRendering();

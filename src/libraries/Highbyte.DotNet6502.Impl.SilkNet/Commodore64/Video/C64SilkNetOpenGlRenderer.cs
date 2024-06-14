@@ -140,6 +140,20 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         InitShader(c64);
     }
 
+    public void Cleanup()
+    {
+        _shader?.Dispose();
+        _vba?.Dispose();
+        _vbo?.Dispose();
+        _uboTextData?.Dispose();
+        _uboCharsetData?.Dispose();
+        _uboBitmapData?.Dispose();
+        _uboColorMapData?.Dispose();
+        _uboScreenLineData?.Dispose();
+        _uboSpriteData?.Dispose();
+        _uboSpriteContentData?.Dispose();
+    }
+
     private void InitShader(C64 c64)
     {
 #if DEBUG

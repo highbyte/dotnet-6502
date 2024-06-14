@@ -68,6 +68,10 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         Init((C64)system, (SkiaRenderContext)renderContext);
     }
 
+    public void Cleanup()
+    {
+    }
+
     public void Draw(C64 c64)
     {
         var canvas = _getSkCanvas();
