@@ -8,7 +8,7 @@ using SkiaSharp;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
-namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
+namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
 
 public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 {
@@ -147,10 +147,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
     private void CharsetChangedHandler(C64 c64, Vic2CharsetManager.CharsetAddressChangedEventArgs e)
     {
         if (e.ChangeType == Vic2CharsetManager.CharsetAddressChangedEventArgs.CharsetChangeType.CharacterSetBaseAddress)
-        {
             //GenerateCurrentChargenImage(c64);
             _changedAllCharsetCodes = true;
-        }
         else if (e.ChangeType == Vic2CharsetManager.CharsetAddressChangedEventArgs.CharsetChangeType.CharacterSetCharacter && e.CharCode.HasValue)
         {
             //UpdateChangedCharacterOnCurrentImage(c64, e.CharCode.Value);
@@ -256,9 +254,9 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         var currentColorAddress = Vic2Addr.COLOR_RAM_START;
 
         var characterMode = vic2.CharacterMode;
-        byte backgroundColor1 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1); // Background color used for extended character mode
-        byte backgroundColor2 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2); // Background color used for extended character mode
-        byte backgroundColor3 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3); // Background color used for extended character mode
+        var backgroundColor1 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1); // Background color used for extended character mode
+        var backgroundColor2 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2); // Background color used for extended character mode
+        var backgroundColor3 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3); // Background color used for extended character mode
 
         for (var row = 0; row < vic2Screen.TextRows; row++)
         {
@@ -313,10 +311,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
             var borderPaint = _c64SkiaPaint.GetFillPaint(borderColor);
 
             if (c64ScreenLine <= visibileLayout.TopBorder.End.Y || c64ScreenLine >= visibileLayout.BottomBorder.Start.Y)
-            {
                 // Top/bottom borders
                 canvas.DrawRect(leftBorderStartX, canvasYPos, vic2Screen.VisibleWidth, 1, borderPaint);
-            }
             else
             {
                 // Left/right borders
@@ -405,10 +401,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
             case CharMode.MultiColor:
                 // When in MultiColor mode, a character can still be displayed in Standard mode depending on the value from color RAM.
                 if (characterColor <= 7)
-                {
                     // If color RAM value is 0-7, normal Standard mode is used (not multi-color)
                     characterMode = CharMode.Standard;
-                }
                 else
                 {
                     // If displaying in MultiColor mode, the actual color used from color RAM will be values 0-7.
@@ -430,7 +424,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         };
 
         // The "paint" transforms fixed colors in the pre-generated image to the ones that should be used on screen.
-        SKPaint paint = characterMode switch
+        var paint = characterMode switch
         {
             CharMode.Standard => _c64SkiaPaint.GetDrawCharacterPaint(characterColor),
             CharMode.Extended => bgColor == null ? _c64SkiaPaint.GetDrawCharacterPaint(characterColor) : _c64SkiaPaint.GetDrawCharacterPaintWithBackground(characterColor, bgColor.Value),
@@ -505,9 +499,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
             var imageDest = new SKRect(spriteCanvasX, spriteCanvasY, spriteCanvasX + spriteWidth, spriteCanvasY + spriteHeight);
 
             if (sprite.Multicolor)
-            {
                 canvas.DrawImage(spriteImage, imageDest);
-            }
             else
             {
                 var paint = _c64SkiaPaint.GetDrawSpritePaint(sprite.Color);
@@ -521,8 +513,8 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
     private SKRect GetSpriteClipping(Vic2Screen vic2Screen, Vic2ScreenLayout visibileLayout)
     {
         // TODO: Detect if borders are opened
-        bool verticalBorderOpened = false;
-        bool horizontalBorderOpened = false;
+        var verticalBorderOpened = false;
+        var horizontalBorderOpened = false;
         // Clip to main screen area, or if borders are opened (VIC2 trick) skip clipping
         int clipXStart, clipXEnd, clipYStart, clipYEnd;
         if (verticalBorderOpened)

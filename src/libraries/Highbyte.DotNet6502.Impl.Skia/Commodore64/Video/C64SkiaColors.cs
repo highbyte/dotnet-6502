@@ -20,14 +20,14 @@ public class C64SkiaColors
 
     public C64SkiaColors(string colorMapName)
     {
-        foreach (var systemColor in ColorMaps.GetAllSystemColors(colorMapName))
+        foreach (var systemColor in GetAllSystemColors(colorMapName))
         {
             SystemToSkColorMap.Add(systemColor, ToSkColor(systemColor));
         }
 
         foreach (byte c64Color in Enum.GetValues<C64Colors>())
         {
-            C64ToSkColorMap.Add(c64Color, ToSkColor(ColorMaps.GetSystemColor(c64Color, colorMapName)));
+            C64ToSkColorMap.Add(c64Color, ToSkColor(GetSystemColor(c64Color, colorMapName)));
         }
 
     }

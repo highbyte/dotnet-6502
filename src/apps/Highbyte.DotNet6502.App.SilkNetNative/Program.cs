@@ -32,7 +32,7 @@ var systemList = new SystemList<SilkNetRenderContextContainer, SilkNetInputHandl
 
 var c64HostConfig = new C64HostConfig
 {
-    Renderer = C64HostRenderer.SkiaSharp3,
+    Renderer = C64HostRenderer.SkiaSharp2,
     SilkNetOpenGlRendererConfig = new C64SilkNetOpenGlRendererConfig()
     {
         UseFineScrollPerRasterLine = false, // Setting to true may work, depending on how code is written. Full screen scroll may not work (actual screen memory is not rendered in sync with raster line).

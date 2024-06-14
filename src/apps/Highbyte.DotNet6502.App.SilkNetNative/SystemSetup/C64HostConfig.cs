@@ -7,8 +7,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup
     public enum C64HostRenderer
     {
         SkiaSharp,
-        SkiaSharp2, // Experimental render directly to pixel buffer backed by a SKBitmap
-        SkiaSharp3, // Experimental render directly to pixel buffer backed by a SKBitmap + Skia shader (SKSL)
+        SkiaSharp2, // Experimental render directly to pixel buffer backed by a SKBitmap + Skia shader (SKSL)
         SilkNetOpenGl
     }
 
