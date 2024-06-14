@@ -1,13 +1,20 @@
-// The bitmap that was drawn.
+// --------------------
+// Fragment shader in Skia SKSL format.
+// Used to render C64 screen and sprites (provided as shader textures), together with color information per raster line (in a separate shader texture used for this data).
+//
+// Skia shader language (SKSL): https://skia.org/docs/user/sksl/
+// --------------------
+
+// Pixels for C64 text/bitmap
 uniform shader bitmap_texture;
 
-// Sprites textures
+// Pixels for C64 sprites
 uniform shader sprites_texture;
 
-// The actual color to display as border and background colors for each line. Used to replace the colors in the bitmap.
+// The actual colors (per raster line) to display as border, background, sprite colors. Replaces the pixels colors from bitmap_texture and sprites_texture.
 uniform shader line_data_map;
 
-// The color used to draw border and background colors
+// The color used to draw border and background colors in bitmap_texture
 uniform half4 bg0Color;
 uniform half4 bg1Color;
 uniform half4 bg2Color;
@@ -15,6 +22,7 @@ uniform half4 bg3Color;
 
 uniform half4 borderColor;
 
+// The color used to draw border and background colors in sprites_texture
 uniform half4 spriteLowPrioMultiColor0;
 uniform half4 spriteLowPrioMultiColor1;
 
@@ -39,6 +47,7 @@ uniform half4 sprite5HighPrioColor;
 uniform half4 sprite6HighPrioColor;
 uniform half4 sprite7HighPrioColor;
 
+// Get one specific data/color (lineIndex) from the line_data_map at raster line (line)
 half4 get_line_data(float lineIndex, float line) {
     // Assume image in line_data_map is x pixel wide (bg0, bg1, bg2, bg3, border colors, etc.), and y (number of main screen lines) pixels high.
 
@@ -50,6 +59,7 @@ half4 get_line_data(float lineIndex, float line) {
     return line_data_map.eval(float2(0.5 + lineIndex, 0.5 + line));
 }
 
+// Map sprite color in spriteColor (that was drawn on sprites_texture) to the actual color to display (from line_data_map on the specified line)
 half4 map_sprite_color(half4 spriteColor, float line) {
 
     half4 useColor;
@@ -94,12 +104,8 @@ half4 map_sprite_color(half4 spriteColor, float line) {
     return useColor;    
 }
 
+// Maps the actual color to display on screen from the text/bitmap color drawn on bitmap_texture, and the sprite color drawn on sprites_texture.
 half4 map_screen_color(half4 textAndBitmapColor, half4 spriteColor, float line) {
-
-    // For images, Skia SKSL lanuage use the common convention that the centers are at half-pixel offsets. 
-    // To sample the top-left pixel in an image shader, you'd want to pass (0.5, 0.5) as coords.
-    // The next (to the right) pixel would be (1.5, 0.5).
-    // The next (to the below ) pixel would be (0.5, 1.5).
 
     half4 useColor;
     float2 lineCoord;
@@ -151,16 +157,16 @@ half4 map_screen_color(half4 textAndBitmapColor, half4 spriteColor, float line) 
     return useColor;
 }
 
+// Main function of the shader, called for each pixel on the screen
 half4 main(float2 fragCoord) {
 
     half4 textAndBitmapColor = bitmap_texture.eval(fragCoord);
     half4 spriteColor = sprites_texture.eval(fragCoord);
-    float line = fragCoord.y;
 
     half4 useColor;
 
-    if(line < #VISIBLE_HEIGHT) {
-        useColor = map_screen_color(textAndBitmapColor, spriteColor, line);
+    if(fragCoord.y < #VISIBLE_HEIGHT) {
+        useColor = map_screen_color(textAndBitmapColor, spriteColor, fragCoord.y);
     }
     else {
         // Should not happen, show bright red color to indicate error.
