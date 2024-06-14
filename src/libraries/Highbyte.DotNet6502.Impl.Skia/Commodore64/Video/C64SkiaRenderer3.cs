@@ -240,11 +240,22 @@ half4 map_screen_color(half4 textAndBitmapColor, half4 spriteColor, float line) 
     float2 lineCoord;
 
     if(spriteColor.b == #HIGH_PRIO_SPRITE_BLUE_SHADER) {
-        // Sprite pixel with specific Blue color indicates high-prio sprite here, and should be shown instead of background color.
+        // Sprite pixel with specific Blue color indicates high-prio sprite here, and should be shown instead of background or border color.
         useColor = map_sprite_color(spriteColor, line);
     }
     else if(textAndBitmapColor == borderColor) {
-        useColor = get_line_data(#BORDER_COLOR_INDEX, line);
+        // Normal border color indicates border color could used.
+
+        // But if a sprite pixel from a low prio sprite is drawn at this position, use the sprite color instead of border color.
+        // Sprite pixel with specific Blue color indicates low-prio sprite here, and should be shown instead of border color.
+        if(spriteColor.b == #LOW_PRIO_SPRITE_BLUE_SHADER) {
+            // Use sprite color
+            useColor = map_sprite_color(spriteColor, line);
+        }
+        else {
+            // Use border color
+            useColor = get_line_data(#BORDER_COLOR_INDEX, line);
+        }
     }
     else if((textAndBitmapColor + bg0Color) == bg0Color) {
         // Normal text/bitmap screen indicates background color could used.
@@ -1027,13 +1038,13 @@ half4 main(float2 fragCoord) {
 
                 // Check if pixel is within side borders, and if it should be shown there or not.
                 // TODO: Detect if side borders are open? How to?
-                bool openSideBorders = true;
+                bool openSideBorders = false;
                 if (!openSideBorders && (screenPosX < visibleMainScreenArea.Screen.Start.X || screenPosX > visibleMainScreenArea.Screen.End.X))
                     return;
 
                 // Check if pixel is within top/bottom borders, and if it should be shown there or not.
                 // TODO: Detect if top/bottom borders are open? How to?
-                bool openTopBottomBorders = true;
+                bool openTopBottomBorders = false;
                 if (!openTopBottomBorders && (screenPosY < visibleMainScreenArea.Screen.Start.Y || screenPosY > visibleMainScreenArea.Screen.End.Y))
                     return;
 
