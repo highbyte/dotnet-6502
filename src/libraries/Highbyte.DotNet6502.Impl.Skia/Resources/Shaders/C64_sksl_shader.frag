@@ -2,7 +2,11 @@
 // Fragment shader in Skia SKSL format.
 // Used to render C64 screen and sprites (provided as shader textures), together with color information per raster line (in a separate shader texture used for this data).
 //
+// Shader source contains placeholders in the format of #PLACEHOLDER_NAME that should be dynamically replaced with actual values before use.
+//
 // Skia shader language (SKSL): https://skia.org/docs/user/sksl/
+//
+//
 // --------------------
 
 // Pixels for C64 text/bitmap
