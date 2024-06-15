@@ -19,6 +19,9 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
     private SkiaBitmapBackedByPixelArray _skiaPixelArrayBitmap_LineData;
 
     private SKRuntimeEffect _sKRuntimeEffect; // Shader
+    private SKRuntimeEffectUniforms _sKRuntimeEffectUniforms; // Shader uniforms
+    private SKRuntimeEffectChildren _sKRuntimeEffectChildren; // Shader children (textures)
+    private SKPaint _shaderPaint;
 
     // Lookup table for mapping C64 colors to shader colors
     private readonly Dictionary<uint, float[]> _sKColorToShaderColorMap = new Dictionary<uint, float[]>();
@@ -110,14 +113,18 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
     public Instrumentations Instrumentations { get; } = new();
     private const string StatsCategory = "SkiaSharp-Custom";
     private readonly ElapsedMillisecondsTimedStat _borderStat;
-    private readonly ElapsedMillisecondsTimedStat _textScreenStat;
+    private readonly ElapsedMillisecondsTimedStat _textAndBitmapScreenStat;
     private readonly ElapsedMillisecondsTimedStat _spritesStat;
+    private readonly ElapsedMillisecondsTimedStat _lineDataImageStat;
+    private readonly ElapsedMillisecondsTimedStat _drawCanvasWithShader;
 
     public C64SkiaRenderer2()
     {
         _borderStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Border");
+        _textAndBitmapScreenStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Screen");
         _spritesStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Sprites");
-        _textScreenStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-TextScreen");
+        _lineDataImageStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-LineDataImage");
+        _drawCanvasWithShader = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-DrawCanvasWithShader");
     }
 
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
@@ -133,6 +140,33 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
         InitBitPatternToPixelMapsForBitmapDisplay();
 
         InitShader(c64);
+    }
+
+    public void Init(ISystem system, IRenderContext renderContext)
+    {
+        Init((C64)system, (SkiaRenderContext)renderContext);
+    }
+
+    public void Draw(C64 c64)
+    {
+        var canvas = _getSkCanvas();
+
+        // Draw border and screen to bitmap
+        DrawBorderAndScreenToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray);
+
+        // Draw sprites to separate bitmap
+        DrawSpritesToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_Sprites.PixelArray);
+
+        // "Draw" line data to separate bitmap
+        DrawLineDataToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_LineData.PixelArray);
+
+        // Draw to canvas using shader with texture info from screen and sprite bitmaps, together with line data bitmap
+        WriteBitmapToCanvas(_skiaPixelArrayBitmap_TextAndBitmap.Bitmap, _skiaPixelArrayBitmap_Sprites.Bitmap, _skiaPixelArrayBitmap_LineData.Bitmap, canvas, c64);
+    }
+
+    public void Draw(ISystem system)
+    {
+        Draw((C64)system);
     }
 
     public void Cleanup()
@@ -152,6 +186,10 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
         _sKRuntimeEffect = SKRuntimeEffect.CreateShader(src, out var error);
         if (!string.IsNullOrEmpty(error))
             throw new DotNet6502Exception($"Shader compilation error: {error}");
+
+        _sKRuntimeEffectUniforms = new SKRuntimeEffectUniforms(_sKRuntimeEffect);
+        _sKRuntimeEffectChildren = new SKRuntimeEffectChildren(_sKRuntimeEffect);
+        _shaderPaint = new SKPaint();
 
         // --------------------
         // Init lookup dictionary for mapping colors 32 bit unsigned int format (from SKColor) to shader colors (float[4] with RGB and alpha values in 0.0 - 1.0 range)
@@ -429,95 +467,61 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
         _skiaPixelArrayBitmap_LineData = SkiaBitmapBackedByPixelArray.Create(Enum.GetNames(typeof(ShaderLineData)).Length, c64.Vic2.Vic2Screen.VisibleHeight);
     }
 
-    public void Init(ISystem system, IRenderContext renderContext)
-    {
-        Init((C64)system, (SkiaRenderContext)renderContext);
-    }
-
-    public void Draw(C64 c64)
-    {
-        var canvas = _getSkCanvas();
-        canvas.Clear();
-
-        // Draw border and screen to bitmap
-        DrawBorderAndScreenToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray);
-
-        // Draw sprites to separate bitmap
-        DrawSpritesToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_Sprites.PixelArray);
-
-        // "Draw" line data to separate bitmap
-        DrawLineDataToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_LineData.PixelArray);
-
-        // Draw to canvas using shader with texture info from screen and sprite bitmaps, together with line data bitmap
-        WriteBitmapToCanvas(_skiaPixelArrayBitmap_TextAndBitmap.Bitmap, _skiaPixelArrayBitmap_Sprites.Bitmap, _skiaPixelArrayBitmap_LineData.Bitmap, canvas, c64);
-    }
-
-    public void Draw(ISystem system)
-    {
-        Draw((C64)system);
-    }
-
     private void WriteBitmapToCanvas(SKBitmap bitmap, SKBitmap spritesBitmap, SKBitmap lineDataBitmap, SKCanvas canvas, C64 c64)
     {
-        canvas.Save();
 
-        // shader uniform values
-        var uniforms = new SKRuntimeEffectUniforms(_sKRuntimeEffect)
+        using (_drawCanvasWithShader.Measure())
         {
-            ["bg0Color"] = _sKColorToShaderColorMap[(uint)_bg0DrawColorActual],
-            ["bg1Color"] = _sKColorToShaderColorMap[(uint)_bg1DrawColor],
-            ["bg2Color"] = _sKColorToShaderColorMap[(uint)_bg2DrawColor],
-            ["bg3Color"] = _sKColorToShaderColorMap[(uint)_bg3DrawColor],
+            // shader uniform values
+            _sKRuntimeEffectUniforms["bg0Color"] = _sKColorToShaderColorMap[(uint)_bg0DrawColorActual];
+            _sKRuntimeEffectUniforms["bg1Color"] = _sKColorToShaderColorMap[(uint)_bg1DrawColor];
+            _sKRuntimeEffectUniforms["bg2Color"] = _sKColorToShaderColorMap[(uint)_bg2DrawColor];
+            _sKRuntimeEffectUniforms["bg3Color"] = _sKColorToShaderColorMap[(uint)_bg3DrawColor];
 
-            ["borderColor"] = _sKColorToShaderColorMap[(uint)_borderDrawColor],
+            _sKRuntimeEffectUniforms["borderColor"] = _sKColorToShaderColorMap[(uint)_borderDrawColor];
 
-            ["spriteLowPrioMultiColor0"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioMultiColor0],
-            ["spriteLowPrioMultiColor1"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioMultiColor1],
+            _sKRuntimeEffectUniforms["spriteLowPrioMultiColor0"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioMultiColor0];
+            _sKRuntimeEffectUniforms["spriteLowPrioMultiColor1"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioMultiColor1];
 
-            ["spriteHighPrioMultiColor0"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioMultiColor0],
-            ["spriteHighPrioMultiColor1"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioMultiColor1],
+            _sKRuntimeEffectUniforms["spriteHighPrioMultiColor0"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioMultiColor0];
+            _sKRuntimeEffectUniforms["spriteHighPrioMultiColor1"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioMultiColor1];
 
-            ["sprite0LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[0]],
-            ["sprite1LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[1]],
-            ["sprite2LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[2]],
-            ["sprite3LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[3]],
-            ["sprite4LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[4]],
-            ["sprite5LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[5]],
-            ["sprite6LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[6]],
-            ["sprite7LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[7]],
+            _sKRuntimeEffectUniforms["sprite0LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[0]];
+            _sKRuntimeEffectUniforms["sprite1LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[1]];
+            _sKRuntimeEffectUniforms["sprite2LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[2]];
+            _sKRuntimeEffectUniforms["sprite3LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[3]];
+            _sKRuntimeEffectUniforms["sprite4LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[4]];
+            _sKRuntimeEffectUniforms["sprite5LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[5]];
+            _sKRuntimeEffectUniforms["sprite6LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[6]];
+            _sKRuntimeEffectUniforms["sprite7LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[7]];
 
-            ["sprite0HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[0]],
-            ["sprite1HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[1]],
-            ["sprite2HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[2]],
-            ["sprite3HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[3]],
-            ["sprite4HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[4]],
-            ["sprite5HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[5]],
-            ["sprite6HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[6]],
-            ["sprite7HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[7]],
-        };
+            _sKRuntimeEffectUniforms["sprite0HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[0]];
+            _sKRuntimeEffectUniforms["sprite1HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[1]];
+            _sKRuntimeEffectUniforms["sprite2HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[2]];
+            _sKRuntimeEffectUniforms["sprite3HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[3]];
+            _sKRuntimeEffectUniforms["sprite4HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[4]];
+            _sKRuntimeEffectUniforms["sprite5HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[5]];
+            _sKRuntimeEffectUniforms["sprite6HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[6]];
+            _sKRuntimeEffectUniforms["sprite7HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[7]];
 
-        // Shader uniform texture sampling values
-        // Convert bitmap (that one have written the C64 screen to) to shader texture
-        var shaderTexture = bitmap.ToShader();
-        // Convert shader bitmap (that one have written the C64 sprites to) to shader texture
-        var spritesTexture = spritesBitmap.ToShader();
+            // Shader uniform texture sampling values
+            // Convert bitmap (that one have written the C64 screen to) to shader texture
+            var shaderTexture = bitmap.ToShader();
+            // Convert shader bitmap (that one have written the C64 sprites to) to shader texture
+            var spritesTexture = spritesBitmap.ToShader();
 
-        // Convert other bitmaps to shader texture
-        var lineDataBitmapShaderTexture = lineDataBitmap.ToShader();
+            // Convert other bitmaps to shader texture
+            var lineDataBitmapShaderTexture = lineDataBitmap.ToShader();
 
-        var children = new SKRuntimeEffectChildren(_sKRuntimeEffect)
-        {
-            ["bitmap_texture"] = shaderTexture,
-            ["sprites_texture"] = spritesTexture,
-            ["line_data_map"] = lineDataBitmapShaderTexture,
-        };
+            _sKRuntimeEffectChildren["bitmap_texture"] = shaderTexture;
+            _sKRuntimeEffectChildren["sprites_texture"] = spritesTexture;
+            _sKRuntimeEffectChildren["line_data_map"] = lineDataBitmapShaderTexture;
 
-        using var shader = _sKRuntimeEffect.ToShader(uniforms, children);
-        using var shaderPaint = new SKPaint { Shader = shader };
+            using var shader = _sKRuntimeEffect.ToShader(_sKRuntimeEffectUniforms, _sKRuntimeEffectChildren);
+            _shaderPaint.Shader = shader;
 
-        canvas.DrawRect(0, 0, bitmap.Width, bitmap.Height, shaderPaint);
-
-        canvas.Restore();
+            canvas.DrawRect(0, 0, bitmap.Width, bitmap.Height, _shaderPaint);
+        }
     }
 
     private void DrawBorderAndScreenToBitmapBackedByPixelArray(C64 c64, uint[] pixelArray)
@@ -538,7 +542,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
         var height = vic2Screen.VisibleHeight;
 
         // Main screen, copy 8 pixels at a time
-        using (_textScreenStat.Measure())
+        using (_textAndBitmapScreenStat.Measure())
         {
             // Copy settings used in loop to local variables to increase performance
             var vic2VideoMatrixBaseAddress = vic2.VideoMatrixBaseAddress;
@@ -586,7 +590,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                     // Calculate the x position in the bitmap where the 8 pixels should be drawn
                     var skiaBitmapX = screenStartX + col * 8;
 
-                    uint[] bitmapEightPixels;
+                    uint[] eightPixels;
                     if (textMode)
                     {
 
@@ -630,14 +634,35 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                         if (characterMode == CharMode.Standard || characterMode == CharMode.Extended)
                         {
                             // Get the corresponding array of uints representing the 8 pixels of the character
-                            bitmapEightPixels = bgColorNumber switch
+                            if (bgColorNumber == 0)
                             {
-                                0 => _bitmapEightPixelsBg0Map[(lineData, fgColorCode)],
-                                1 => _bitmapEightPixelsBg1Map[(lineData, fgColorCode)],
-                                2 => _bitmapEightPixelsBg2Map[(lineData, fgColorCode)],
-                                3 => _bitmapEightPixelsBg3Map[(lineData, fgColorCode)],
-                                _ => throw new NotImplementedException($"Background color number {bgColorNumber} not implemented.")
-                            };
+                                eightPixels = _bitmapEightPixelsBg0Map[(lineData, fgColorCode)];
+                            }
+                            else if (bgColorNumber == 1)
+                            {
+                                eightPixels = _bitmapEightPixelsBg1Map[(lineData, fgColorCode)];
+                            }
+                            else if (bgColorNumber == 2)
+                            {
+                                eightPixels = _bitmapEightPixelsBg2Map[(lineData, fgColorCode)];
+                            }
+                            else if (bgColorNumber == 3)
+                            {
+                                eightPixels = _bitmapEightPixelsBg3Map[(lineData, fgColorCode)];
+                            }
+                            else
+                            {
+                                throw new NotImplementedException($"Background color number {bgColorNumber} not implemented.");
+                            }
+
+                            //eightPixels = bgColorNumber switch
+                            //{
+                            //    0 => _bitmapEightPixelsBg0Map[(lineData, fgColorCode)],
+                            //    1 => _bitmapEightPixelsBg1Map[(lineData, fgColorCode)],
+                            //    2 => _bitmapEightPixelsBg2Map[(lineData, fgColorCode)],
+                            //    3 => _bitmapEightPixelsBg3Map[(lineData, fgColorCode)],
+                            //    _ => throw new NotImplementedException($"Background color number {bgColorNumber} not implemented.")
+                            //};
 
                         }
                         else // Asume text multicolor mode
@@ -649,7 +674,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                             // fgColorCode      = the color of pixel-pair 11
 
                             // Get the corresponding array of uints representing the 8 pixels of the character
-                            bitmapEightPixels = _bitmapEightPixelsMultiColorMap[(lineData, fgColorCode)];
+                            eightPixels = _bitmapEightPixelsMultiColorMap[(lineData, fgColorCode)];
                         }
                     }
                     else
@@ -670,7 +695,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                             // ----------
                             // Pixel not set (bit = 0) => bitmap bg color (from text screen low 4 bits)
                             // Pixel set (bit = 1) => bitmap fg color
-                            bitmapEightPixels = _bitmapEightHiresPixelsActual[(bitmapLineData, bitmapBgColorCode, bitmapFgColorCode)];
+                            eightPixels = _bitmapEightHiresPixelsActual[(bitmapLineData, bitmapBgColorCode, bitmapFgColorCode)];
                         }
                         else
                         {
@@ -680,12 +705,12 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                             // Pixel pattern 01 (multi color 1) => bitmap fg color (from text screen high 4 bits)
                             // Pixel pattern 10 (multi color 2) => bitmap bg color (from text screen low 4 bits)
                             // Pixel pattern 11 (multi color 3) => color RAM color (for corresponding position in text screen)
-                            bitmapEightPixels = _bitmapEightMulticolorPixelsActual[(bitmapLineData, bitmapBgColorCode, bitmapFgColorCode, colorRamCode)];
+                            eightPixels = _bitmapEightMulticolorPixelsActual[(bitmapLineData, bitmapBgColorCode, bitmapFgColorCode, colorRamCode)];
                         }
                     }
 
                     // Adjust for horizontal scrolling
-                    var length = bitmapEightPixels.Length;
+                    var length = eightPixels.Length;
 
                     // Add additional drawing to compensate for horizontal scrolling
                     if (scrollX > 0 && col == 0)
@@ -718,7 +743,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                     }
 
                     // Write the character to the pixel array
-                    WriteToPixelArray(bitmapEightPixels, pixelArray, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: true);
+                    WriteToPixelArray(eightPixels, pixelArray, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: true);
 
 
                     void WriteToPixelArray(uint[] fnEightPixels, uint[] fnPixelArray, int fnMainScreenY, int fnMainScreenX, int fnLength, bool fnAdjustForScrollX, bool fnAdjustForScrollY)
@@ -732,7 +757,6 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                             if (fnMainScreenY + scrollY < 0 || fnMainScreenY + scrollY >= vic2Screen.DrawableAreaHeight)
                                 return;
 
-                            // TODO: Adjust for vertical scrolling
                             fnMainScreenY += scrollY;
                         }
 
@@ -757,7 +781,6 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                 } // Next column
             } // Next line
         }
-
 
         // Borders.
         // The borders must be drawn last, because it will overwrite parts of the main screen area if 38 column or 24 row modes are enabled (which main screen drawing above does not take in consideration)
@@ -816,7 +839,6 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
             // Write sprites to a separate bitmap/pixel array
             foreach (var sprite in c64.Vic2.SpriteManager.Sprites.OrderByDescending(s => s.SpriteNumber))
             {
-
                 if (!sprite.Visible)
                     continue;
 
@@ -985,45 +1007,48 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
 
     private void DrawLineDataToBitmapBackedByPixelArray(C64 c64, uint[] lineDataPixelArray)
     {
-        // Build array to send to shader with the actual color that should be used differnt types of colors (border, bg0, bg1, bg2, bg3), dependent on the line number
-        var c64ScreenLineIORegisterValues = new Dictionary<int, ScreenLineData>(c64.Vic2.ScreenLineIORegisterValues);
-        var visibleMainScreenArea = c64.Vic2.ScreenLayouts.GetLayout(LayoutType.Visible);
-        var drawableScreenStartY = visibleMainScreenArea.Screen.Start.Y;
-        var drawableScreenEndY = drawableScreenStartY + c64.Vic2.Vic2Screen.DrawableAreaHeight;
-
-        var shaderLineDataValuePerLine = Enum.GetNames(typeof(ShaderLineData)).Length;
-        foreach (var lineData in c64ScreenLineIORegisterValues)
+        // Build array to send to shader with the actual color that should be used differnt types of colors (border, bg0, bg1, bg2, bg3, etc), dependent on the raster line number
+        using (_lineDataImageStat.Measure())
         {
-            // Check if in total visisble area, because c64ScreenLineIORegisterValues includes non-visible lines
-            if (lineData.Key < visibleMainScreenArea.TopBorder.Start.Y || lineData.Key > visibleMainScreenArea.BottomBorder.End.Y)
-                continue;
+            var c64ScreenLineIORegisterValues = c64.Vic2.ScreenLineIORegisterValues;
+            var visibleMainScreenArea = c64.Vic2.ScreenLayouts.GetLayout(LayoutType.Visible);
+            var drawableScreenStartY = visibleMainScreenArea.Screen.Start.Y;
+            var drawableScreenEndY = drawableScreenStartY + c64.Vic2.Vic2Screen.DrawableAreaHeight;
 
-            var bitmapLine = lineData.Key - visibleMainScreenArea.TopBorder.Start.Y;
+            var shaderLineDataValuePerLine = Enum.GetNames(typeof(ShaderLineData)).Length;
+            foreach (var lineData in c64ScreenLineIORegisterValues)
+            {
+                // Check if in total visisble area, because c64ScreenLineIORegisterValues includes non-visible lines
+                if (lineData.Key < visibleMainScreenArea.TopBorder.Start.Y || lineData.Key > visibleMainScreenArea.BottomBorder.End.Y)
+                    continue;
 
-            var pixelArrayIndex = bitmapLine * shaderLineDataValuePerLine;
+                var bitmapLine = lineData.Key - visibleMainScreenArea.TopBorder.Start.Y;
 
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Border_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BorderColor];
+                var pixelArrayIndex = bitmapLine * shaderLineDataValuePerLine;
 
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.SpriteMultiColor0] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor0];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.SpriteMultiColor1] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor1];
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Border_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BorderColor];
 
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite0Color];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite1Color];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite2Color];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite3Color];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite4_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite4Color];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite5_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite5Color];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite6_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite6Color];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite7_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite7Color];
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.SpriteMultiColor0] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor0];
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.SpriteMultiColor1] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor1];
 
-            // Check if line is within main screen area, only there are background colors used (? is that really true when borders are open??)
-            if (lineData.Key < drawableScreenStartY || bitmapLine >= drawableScreenEndY)
-                continue;
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite0Color];
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite1Color];
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite2Color];
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite3Color];
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite4_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite4Color];
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite5_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite5Color];
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite6_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite6Color];
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite7_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite7Color];
 
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor0];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor1];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor2];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor3];
+                // Check if line is within main screen area, only there are background colors used (? is that really true when borders are open??)
+                if (lineData.Key < drawableScreenStartY || bitmapLine >= drawableScreenEndY)
+                    continue;
+
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor0];
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor1];
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor2];
+                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor3];
+            }
         }
     }
 }
