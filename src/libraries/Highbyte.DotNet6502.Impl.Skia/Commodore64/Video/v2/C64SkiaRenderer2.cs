@@ -149,19 +149,17 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
 
     public void Draw(C64 c64)
     {
-        var canvas = _getSkCanvas();
-
         // Draw border and screen to bitmap
         DrawBorderAndScreenToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray);
 
         // Draw sprites to separate bitmap
         DrawSpritesToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_Sprites.PixelArray);
 
-        // "Draw" line data to separate bitmap
+        // "Draw" line data (color values of VIC2 registers per raster line) to separate bitmap
         DrawLineDataToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_LineData.PixelArray);
 
-        // Draw to canvas using shader with texture info from screen and sprite bitmaps, together with line data bitmap
-        WriteBitmapToCanvas(_skiaPixelArrayBitmap_TextAndBitmap.Bitmap, _skiaPixelArrayBitmap_Sprites.Bitmap, _skiaPixelArrayBitmap_LineData.Bitmap, canvas, c64);
+        // Draw to a canvas using a shader with texture info from screen and sprite bitmaps, together with line data bitmap
+        WriteBitmapToCanvas(_skiaPixelArrayBitmap_TextAndBitmap.Bitmap, _skiaPixelArrayBitmap_Sprites.Bitmap, _skiaPixelArrayBitmap_LineData.Bitmap, _getSkCanvas(), c64);
     }
 
     public void Draw(ISystem system)
@@ -541,6 +539,8 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
         var width = vic2Screen.VisibleWidth;
         var height = vic2Screen.VisibleHeight;
 
+        var drawableAreaHeight = vic2Screen.DrawableAreaHeight;
+
         // Main screen, copy 8 pixels at a time
         using (_textAndBitmapScreenStat.Measure())
         {
@@ -559,25 +559,24 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
             var vic2LineStart24Rows = visibleMainScreenAreaNormalizedClipped.Screen.Start.Y - visibleMainScreenAreaNormalized.Screen.Start.Y;
             var vic2LineEnd24Rows = visibleMainScreenAreaNormalizedClipped.Screen.End.Y - visibleMainScreenAreaNormalized.Screen.Start.Y;
 
-            var scrollX = vic2.GetScrollX();
-            var scrollY = vic2.GetScrollY();
+            var isTextMode = vic2.DisplayMode == DispMode.Text; // TODO: Check for display mode more than once per frame? How?
+            var characterMode = vic2.CharacterMode; // TODO: Check for display mode more than once per frame? How?
+            var bitmapMode = vic2.BitmapMode; // TODO: Check for bitmap mode more than once per frame? How?
+            var scrollX = vic2.GetScrollX(); // TODO: Check fine scroll more than once per frame? How?
+            var scrollY = vic2.GetScrollY(); // TODO: Check fine scroll more than once per frame? How?
 
             // Loop each row line on main text/gfx screen, starting with line 0.
-            for (var drawLine = 0; drawLine < vic2Screen.DrawableAreaHeight; drawLine++)
+            for (ushort drawLine = 0; drawLine < drawableAreaHeight; drawLine++)
             {
                 // Calculate the y position in the bitmap where the 8 pixels should be drawn
                 var skiaBitmapY = screenStartY + drawLine;
 
                 var characterRow = drawLine / 8;
-                var characterLine = drawLine % 8;
+                ushort characterLine = (ushort)(drawLine % 8);
 
                 ushort characterAddress = (ushort)(vic2VideoMatrixBaseAddress + (characterRow * vic2ScreenTextCols));
                 ushort colorRamAddress = (ushort)(Vic2Addr.COLOR_RAM_START + (characterRow * vic2ScreenTextCols));
-                ushort c64BitMapAddress = (ushort)(vic2BitmapBaseAddress + (characterRow * vic2ScreenTextCols * 8));
-
-                var textMode = vic2.DisplayMode == DispMode.Text; // TODO: Check for display mode more than once per line?
-                var bitmapMode = vic2.BitmapMode;
-                var characterMode = vic2.CharacterMode; // TODO: Check for display mode more than once per line?
+                ushort c64BitMapAddress = (ushort)(vic2BitmapBaseAddress + (characterRow * vic2ScreenTextCols * 8) + characterLine);
 
                 // Loop each column on main text/gfx screen, starting with column 0.
                 for (var col = 0; col < vic2ScreenTextCols; col++)
@@ -591,7 +590,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                     var skiaBitmapX = screenStartX + col * 8;
 
                     uint[] eightPixels;
-                    if (textMode)
+                    if (isTextMode)
                     {
 
                         // Determine colors
@@ -654,16 +653,6 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                             {
                                 throw new NotImplementedException($"Background color number {bgColorNumber} not implemented.");
                             }
-
-                            //eightPixels = bgColorNumber switch
-                            //{
-                            //    0 => _bitmapEightPixelsBg0Map[(lineData, fgColorCode)],
-                            //    1 => _bitmapEightPixelsBg1Map[(lineData, fgColorCode)],
-                            //    2 => _bitmapEightPixelsBg2Map[(lineData, fgColorCode)],
-                            //    3 => _bitmapEightPixelsBg3Map[(lineData, fgColorCode)],
-                            //    _ => throw new NotImplementedException($"Background color number {bgColorNumber} not implemented.")
-                            //};
-
                         }
                         else // Asume text multicolor mode
                         {
@@ -682,7 +671,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                         // Assume bitmap mode
 
                         // 8 bits of bitmap data for the current line, at the current column
-                        var bitmapLineData = vic2Mem[(ushort)(c64BitMapAddress + characterLine)];
+                        var bitmapLineData = vic2Mem[c64BitMapAddress];
 
                         // Bg color is picked from text screen, low 4 bits.
                         byte bitmapBgColorCode = (byte)(characterCode & 0b00001111);
@@ -723,7 +712,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                     if (scrollY != 0)
                     {
                         // If scrolling occured upwards (scrollY < 0) and we are on last line of screen, fill remaining lines with background color
-                        if (scrollY < 0 && drawLine == vic2Screen.DrawableAreaHeight - 1)
+                        if (scrollY < 0 && drawLine == drawableAreaHeight - 1)
                         {
                             for (var i = 0; i < -scrollY; i++)
                             {
@@ -770,7 +759,19 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                         // Calculate the position in the bitmap where the 8 pixels should be drawn
                         var lBitmapIndex = (screenStartY + fnMainScreenY) * width + screenStartX + fnMainScreenX;
 
-                        Array.Copy(fnEightPixels, 0, fnPixelArray, lBitmapIndex, fnLength);
+
+                        // Copy array with Span
+                        // - Seems to be a bit faster on .NET 8 WASM than Array.Copy and Buffer.BlockCopy.
+                        // - TODO: Is the extra heap memory allocation of Span objects (which leads to GC pressure) worth the performance gain?
+                        //var source = new ReadOnlySpan<uint>(fnEightPixels, 0, fnLength);
+                        //var target = new Span<uint>(fnPixelArray, lBitmapIndex, fnLength);
+                        //source.CopyTo(target);
+
+                        // Or Copy array with Array.Copy
+                        //Array.Copy(fnEightPixels, 0, fnPixelArray, lBitmapIndex, fnLength);
+
+                        // Or Copy array with Buffer.BlockCopy
+                        //Buffer.BlockCopy(fnEightPixels, 0, fnPixelArray, lBitmapIndex * 4, fnLength * 4);   // Note: Buffer.BlockCopy uses byte size, so multiply by 4 to get uint size
                     }
 
 
@@ -784,9 +785,10 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
 
         // Borders.
         // The borders must be drawn last, because it will overwrite parts of the main screen area if 38 column or 24 row modes are enabled (which main screen drawing above does not take in consideration)
-        var borderStartY = 0;
         using (_borderStat.Measure())
         {
+            var borderStartY = 0;
+
             // Assumption on visibleMainScreenAreaNormalizedClipped:
             // - Contains dimensions of screen parts with consideration to if 38 column mode or 24 row mode is enabled.
             // - Is normalized to start at 0,0 (i.e. TopBorder.Start.X = and TopBorder.Start.Y = 0)
