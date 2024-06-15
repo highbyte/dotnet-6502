@@ -763,9 +763,9 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                         // Copy array with Span
                         // - Seems to be a bit faster on .NET 8 WASM than Array.Copy and Buffer.BlockCopy.
                         // - TODO: Is the extra heap memory allocation of Span objects (which leads to GC pressure) worth the performance gain?
-                        //var source = new ReadOnlySpan<uint>(fnEightPixels, 0, fnLength);
-                        //var target = new Span<uint>(fnPixelArray, lBitmapIndex, fnLength);
-                        //source.CopyTo(target);
+                        var source = new ReadOnlySpan<uint>(fnEightPixels, 0, fnLength);
+                        var target = new Span<uint>(fnPixelArray, lBitmapIndex, fnLength);
+                        source.CopyTo(target);
 
                         // Or Copy array with Array.Copy
                         //Array.Copy(fnEightPixels, 0, fnPixelArray, lBitmapIndex, fnLength);
