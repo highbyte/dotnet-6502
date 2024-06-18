@@ -8,6 +8,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup
     {
         SkiaSharp,
         SkiaSharp2, // Experimental render directly to pixel buffer backed by a SKBitmap + Skia shader (SKSL)
+        SkiaSharp3, // Experimental render after each instruction directly to pixel buffer backed by a SKBitmap + Skia shader (SKSL)
         SilkNetOpenGl
     }
 

@@ -10,7 +10,7 @@ using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 
-public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
+public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
 {
     private Func<SKCanvas> _getSkCanvas = default!;
 
@@ -42,6 +42,8 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
     private Dictionary<(byte eightPixels, byte bitmapBgColorCode, byte bitmapFgColorCode), uint[]> _bitmapEightHiresPixelsActual;
     // Bitmap mode "Multicolo": 8-bit patterns mapped to 4 width 2 pixels (1 pixel = 1 uint rgba) that that are the actual colors, not to be replaced in shader (except background color)
     private Dictionary<(byte eightPixels, byte bitmapBgColorCode, byte bitmapFgColorCode, byte colorRamCode), uint[]> _bitmapEightMulticolorPixelsActual;
+    private ulong _lastCyclesConsumedCurrentVblank;
+
 
 
     // Colors to draw border and background colors with on the bitmap. These colors will be replaced by the shader.
@@ -118,7 +120,33 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
     private readonly ElapsedMillisecondsTimedStat _lineDataImageStat;
     private readonly ElapsedMillisecondsTimedStat _drawCanvasWithShader;
 
-    public C64SkiaRenderer2()
+
+    // Keep track of C64 data that should update each new line
+    int _lastScreenLineDataUpdate = -1;
+
+    // Copies of C64 screen values that should'nt change
+    private int _screenLayoutInclNonVisibleScreenStartX;
+    private int _screenLayoutInclNonVisibleScreenStartY;
+    private int _screenLayoutInclNonVisibleScreenEndX;
+    private int _screenLayoutInclNonVisibleScreenEndY;
+    private int _vic2ScreenTextCols;
+    private int _screenStartY;
+    private int _screenStartX;
+    private int _vic2ScreenCharacterHeight;
+    private int _width;
+    private int _height;
+    private int _drawableAreaHeight;
+    private ulong _cyclesPerLine;
+    private ushort _vic2VideoMatrixBaseAddress;
+    private ushort _vic2BitmapBaseAddress;
+    private ushort _vic2CharacterSetAddressInVIC2Bank;
+    private bool _isTextMode;
+    private CharMode _characterMode;
+    private BitmMode _bitmapMode;
+    private int _scrollX;
+    private int _scrollY;
+
+    public C64SkiaRenderer3()
     {
         _borderStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Border");
         _textAndBitmapScreenStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Screen");
@@ -129,8 +157,29 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
 
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
     {
-        _getSkCanvas = skiaRenderContext.GetCanvas;
+        c64.SetAfterInstructionCallback(AfterInstructionExecuted);
 
+        // Init class variables with C64 screen values that should'nt change
+        var screenLayoutInclNonVisible = c64.Vic2.ScreenLayouts.GetLayout(LayoutType.Visible, for24RowMode: false, for38ColMode: false); // Full area of raster lines, including non-visible. Borders don't start at 0,0
+        _screenLayoutInclNonVisibleScreenStartX = screenLayoutInclNonVisible.Screen.Start.X;
+        _screenLayoutInclNonVisibleScreenStartY = screenLayoutInclNonVisible.Screen.Start.Y;
+        _screenLayoutInclNonVisibleScreenEndX = screenLayoutInclNonVisible.Screen.End.X;
+        _screenLayoutInclNonVisibleScreenEndY = screenLayoutInclNonVisible.Screen.End.Y;
+
+        // Main screen draw area for characters, without consideration to 38 column mode or 24 row mode.
+        var visibleMainScreenAreaNormalized = c64.Vic2.ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        _vic2ScreenTextCols = c64.Vic2.Vic2Screen.TextCols;
+        _screenStartY = visibleMainScreenAreaNormalized.Screen.Start.Y;
+        _screenStartX = visibleMainScreenAreaNormalized.Screen.Start.X;
+        _vic2ScreenCharacterHeight = c64.Vic2.Vic2Screen.CharacterHeight;
+        _width = c64.Vic2.Vic2Screen.VisibleWidth;
+        _height = c64.Vic2.Vic2Screen.VisibleHeight;
+        _drawableAreaHeight = c64.Vic2.Vic2Screen.DrawableAreaHeight;
+        _cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
+
+
+        _getSkCanvas = skiaRenderContext.GetCanvas;
         _c64SkiaColors = new C64SkiaColors(c64.ColorMapName);
 
         InitTextAndSpritesBitmap(c64);
@@ -142,6 +191,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
         InitShader(c64);
     }
 
+
     public void Init(ISystem system, IRenderContext renderContext)
     {
         Init((C64)system, (SkiaRenderContext)renderContext);
@@ -150,7 +200,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
     public void Draw(C64 c64)
     {
         // Draw border and screen to bitmap
-        DrawBorderAndScreenToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray);
+        DrawBorderToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray);
 
         // Draw sprites to separate bitmap
         DrawSpritesToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_Sprites.PixelArray);
@@ -522,262 +572,257 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
         }
     }
 
-    private void DrawBorderAndScreenToBitmapBackedByPixelArray(C64 c64, uint[] pixelArray)
+
+    private void AfterInstructionExecuted(C64 c64, InstructionExecResult instructionExecResult)
+    {
+
+        // Loop cycles since last time we processed (each instruction)
+        for (var cycleCurrentVblank = _lastCyclesConsumedCurrentVblank; cycleCurrentVblank < c64.Vic2.CyclesConsumedCurrentVblank; cycleCurrentVblank++)
+        {
+            // For the cycle processed in current loop iteration, get line and x position.
+            // Skip if not within main drawable C64 text/bitmap area (border is handled separately).
+
+            // Line
+            var rasterLine = (int)(cycleCurrentVblank / _cyclesPerLine);
+            var screenLine = c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
+            if (screenLine < _screenLayoutInclNonVisibleScreenStartY || screenLine > _screenLayoutInclNonVisibleScreenEndY)
+                continue;
+
+            // X position
+            var cycleOnScreenLine = cycleCurrentVblank % _cyclesPerLine;
+            int posX = ((int)(cycleOnScreenLine * 8)); // 1 cycle = 8 pixels;
+            if (posX < _screenLayoutInclNonVisibleScreenStartX || posX > _screenLayoutInclNonVisibleScreenEndX)
+                continue;
+
+            // C64 screen data is updated each line. TODO: Is this correct assumption? Can these values update mid-line?
+            if (screenLine != _lastScreenLineDataUpdate)
+            {
+                _vic2VideoMatrixBaseAddress = c64.Vic2.VideoMatrixBaseAddress;
+                _vic2BitmapBaseAddress = c64.Vic2.BitmapManager.BitmapAddressInVIC2Bank;
+                _vic2CharacterSetAddressInVIC2Bank = c64.Vic2.CharsetManager.CharacterSetAddressInVIC2Bank;
+
+                _isTextMode = c64.Vic2.DisplayMode == DispMode.Text;
+                _characterMode = c64.Vic2.CharacterMode;
+                _bitmapMode = c64.Vic2.BitmapMode;
+                _scrollX = c64.Vic2.GetScrollX();
+                _scrollY = c64.Vic2.GetScrollY();
+
+                _lastScreenLineDataUpdate = screenLine;
+            }
+
+            DrawPixels(c64, drawLine: screenLine - _screenLayoutInclNonVisibleScreenStartY, col: (posX - _screenLayoutInclNonVisibleScreenStartX) / 8);
+
+        }
+
+        _lastCyclesConsumedCurrentVblank = c64.Vic2.CyclesConsumedCurrentVblank;
+    }
+
+    private void DrawPixels(C64 c64, int drawLine, int col)
+    {
+        var characterRow = drawLine / 8;
+        ushort characterLine = (ushort)(drawLine % 8);
+
+        ushort characterAddress = (ushort)(_vic2VideoMatrixBaseAddress + (characterRow * _vic2ScreenTextCols) + col);
+        ushort colorRamAddress = (ushort)(Vic2Addr.COLOR_RAM_START + (characterRow * _vic2ScreenTextCols) + col);
+        ushort c64BitMapAddress = (ushort)(_vic2BitmapBaseAddress + (characterRow * _vic2ScreenTextCols * 8) + (col * 8) + characterLine);
+
+        // Determine character code at current position from video matrix
+        var characterCode = c64.Vic2.Vic2Mem[characterAddress];
+        var colorRamCode = c64.ReadIOStorage(colorRamAddress);
+
+        uint[] eightPixels;
+        if (_isTextMode)
+        {
+
+            // Determine colors
+            var fgColorCode = colorRamCode;
+            int bgColorNumber;  // 0-3
+            if (_characterMode == CharMode.Standard)
+            {
+                bgColorNumber = 0;
+            }
+            else if (_characterMode == CharMode.Extended)
+            {
+                bgColorNumber = characterCode >> 6;   // Bit 6 and 7 of character byte is used to select background color (0-3)
+                characterCode = (byte)(characterCode & 0b00111111); // The actual usable character codes are in the lower 6 bits (0-63)
+
+            }
+            else // Asume multicolor mode
+            {
+                bgColorNumber = 0;
+                // When in MultiColor mode, a character can still be displayed in Standard mode depending on the value from color RAM.
+                if (fgColorCode <= 7)
+                {
+                    // If color RAM value is 0-7, normal Standard mode is used (not multi-color)
+                    _characterMode = CharMode.Standard;
+                }
+                else
+                {
+                    // If displaying in MultiColor mode, the actual color used from color RAM will be values 0-7.
+                    // Thus color values 8-15 are transformed to 0-7
+                    fgColorCode = (byte)((fgColorCode & 0b00001111) - 8);
+                }
+            }
+
+            // Read one line (8 bits/pixels) of character pixel data from character set from the current line of the character code
+            var characterSetLineAddress = (ushort)(_vic2CharacterSetAddressInVIC2Bank
+                + characterCode * _vic2ScreenCharacterHeight
+                + characterLine);
+            var lineData = c64.Vic2.Vic2Mem[characterSetLineAddress];
+
+            // Get pre-calculated 8 pixels that should be drawn on the bitmap, with correct colors for foreground and background
+            if (_characterMode == CharMode.Standard || _characterMode == CharMode.Extended)
+            {
+                // Get the corresponding array of uints representing the 8 pixels of the character
+                if (bgColorNumber == 0)
+                {
+                    eightPixels = _bitmapEightPixelsBg0Map[(lineData, fgColorCode)];
+                }
+                else if (bgColorNumber == 1)
+                {
+                    eightPixels = _bitmapEightPixelsBg1Map[(lineData, fgColorCode)];
+                }
+                else if (bgColorNumber == 2)
+                {
+                    eightPixels = _bitmapEightPixelsBg2Map[(lineData, fgColorCode)];
+                }
+                else if (bgColorNumber == 3)
+                {
+                    eightPixels = _bitmapEightPixelsBg3Map[(lineData, fgColorCode)];
+                }
+                else
+                {
+                    throw new NotImplementedException($"Background color number {bgColorNumber} not implemented.");
+                }
+            }
+            else // Asume text multicolor mode
+            {
+                // Text multicolor mode color usage (8 bits, 4 pixel pairs)
+                // backgroundColor0 = the color of pixel-pair 00
+                // backgroundColor1 = the color of pixel-pair 01
+                // backgroundColor2 = the color of pixel-pair 10
+                // fgColorCode      = the color of pixel-pair 11
+
+                // Get the corresponding array of uints representing the 8 pixels of the character
+                eightPixels = _bitmapEightPixelsMultiColorMap[(lineData, fgColorCode)];
+            }
+        }
+        else
+        {
+            // Assume bitmap mode
+
+            // 8 bits of bitmap data for the current line, at the current column
+            var bitmapLineData = c64.Vic2.Vic2Mem[c64BitMapAddress];
+
+            // Bg color is picked from text screen, low 4 bits.
+            byte bitmapBgColorCode = (byte)(characterCode & 0b00001111);
+            // Fg color is picked from text screen, high 4 bits.
+            byte bitmapFgColorCode = (byte)((characterCode & 0b11110000) >> 4);
+
+            if (_bitmapMode == BitmMode.Standard)
+            {
+                // Bitmap Standard (HiRes) mode, 8 bits => 8 pixels
+                // ----------
+                // Pixel not set (bit = 0) => bitmap bg color (from text screen low 4 bits)
+                // Pixel set (bit = 1) => bitmap fg color
+                eightPixels = _bitmapEightHiresPixelsActual[(bitmapLineData, bitmapBgColorCode, bitmapFgColorCode)];
+            }
+            else
+            {
+                // Bitmap Multi color mode, 8 bits => 4 pixels
+                // ----------
+                // Pixel pattern 00 => screen bg color
+                // Pixel pattern 01 (multi color 1) => bitmap fg color (from text screen high 4 bits)
+                // Pixel pattern 10 (multi color 2) => bitmap bg color (from text screen low 4 bits)
+                // Pixel pattern 11 (multi color 3) => color RAM color (for corresponding position in text screen)
+                eightPixels = _bitmapEightMulticolorPixelsActual[(bitmapLineData, bitmapBgColorCode, bitmapFgColorCode, colorRamCode)];
+            }
+        }
+
+        // Add additional drawing to compensate for horizontal scrolling
+        if (_scrollX > 0 && col == 0)
+            // Fill start of column 0 with background color (the number of x pixels scrolled)
+            // Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, bitmapIndex, scrollX);
+            WriteToPixelArray(_oneCharLineBg0Pixels, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray, drawLine, 0, fnLength: _scrollX, fnAdjustForScrollX: false, fnAdjustForScrollY: true);
+
+        // Add additional drawing to compensate for horizontal scrolling
+        // Note: The actual vic2 vertical scroll has 3 as default value (no scroll), but the scrollY variable is adjusted to be between -3 and + 4 with default 0 when no scrolling.
+        if (_scrollY != 0)
+        {
+            // If scrolling occured upwards (scrollY < 0) and we are on last line of screen, fill remaining lines with background color
+            if (_scrollY < 0 && drawLine == _drawableAreaHeight - 1)
+            {
+                for (var i = 0; i < -_scrollY; i++)
+                {
+                    //Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, fillBitMapIndex + scrollX, length);
+                    WriteToPixelArray(_oneCharLineBg0Pixels, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray, drawLine - i, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
+                }
+            }
+            // If scrolling occured downards (scrollY > 0) and we are on first line of screen, fill the line above that was scrolled with background color
+            else if (_scrollY > 0 && drawLine == 0)
+            {
+                for (var i = 0; i < _scrollY; i++)
+                {
+                    //Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, fillBitMapIndex + scrollX, length);
+                    WriteToPixelArray(_oneCharLineBg0Pixels, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray, i, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
+                }
+            }
+        }
+
+        // Write the character to the pixel array
+        WriteToPixelArray(eightPixels, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: true);
+
+
+        void WriteToPixelArray(uint[] fnEightPixels, uint[] fnPixelArray, int fnMainScreenY, int fnMainScreenX, int fnLength, bool fnAdjustForScrollX, bool fnAdjustForScrollY)
+        {
+            // Draw 8 pixels (or less) of character on the the pixel array part used for the C64 drawable screen (320x200)
+            var lCol = fnMainScreenX / 8;
+
+            if (fnAdjustForScrollY)
+            {
+                // Skip draw entirely if y position is outside drawable screen
+                if (fnMainScreenY + _scrollY < 0 || fnMainScreenY + _scrollY >= _drawableAreaHeight)
+                    return;
+
+                fnMainScreenY += _scrollY;
+            }
+
+            if (fnAdjustForScrollX)
+            {
+                fnMainScreenX += _scrollX;
+                if (lCol == _vic2ScreenTextCols - 1) // Adjust drawing of last character on line to clip when it reaches the right border
+                    fnLength = 8 - _scrollX;
+            }
+
+            // Calculate the position in the bitmap where the 8 pixels should be drawn
+            var lBitmapIndex = (_screenStartY + fnMainScreenY) * _width + _screenStartX + fnMainScreenX;
+
+            // Copy array with Span
+            // - Seems to be a bit faster on .NET 8 WASM than Array.Copy and Buffer.BlockCopy.
+            // - TODO: Is the extra heap memory allocation of Span objects (which leads to GC pressure) worth the performance gain?
+            var source = new ReadOnlySpan<uint>(fnEightPixels, 0, fnLength);
+            var target = new Span<uint>(fnPixelArray, lBitmapIndex, fnLength);
+            source.CopyTo(target);
+
+            // Or Copy array with Array.Copy
+            //Array.Copy(fnEightPixels, 0, fnPixelArray, lBitmapIndex, fnLength);
+
+            // Or Copy array with Buffer.BlockCopy
+            //Buffer.BlockCopy(fnEightPixels, 0, fnPixelArray, lBitmapIndex * 4, fnLength * 4);   // Note: Buffer.BlockCopy uses byte size, so multiply by 4 to get uint size
+        }
+    }
+
+    private void DrawBorderToBitmapBackedByPixelArray(C64 c64, uint[] pixelArray)
     {
         var vic2 = c64.Vic2;
-        var vic2Mem = vic2.Vic2Mem;
         var vic2Screen = vic2.Vic2Screen;
         var vic2ScreenLayouts = vic2.ScreenLayouts;
-        var bitmapManager = vic2.BitmapManager;
-
-        // Main screen draw area for characters, without consideration to 38 column mode or 24 row mode.
-        var visibleMainScreenAreaNormalized = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
         // Main screen draw area for characters, with consideration to possible 38 column mode or 24 row mode.
         var visibleMainScreenAreaNormalizedClipped = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);
 
         var width = vic2Screen.VisibleWidth;
         var height = vic2Screen.VisibleHeight;
-
-        var drawableAreaHeight = vic2Screen.DrawableAreaHeight;
-
-        // Main screen, copy 8 pixels at a time
-        using (_textAndBitmapScreenStat.Measure())
-        {
-            // Copy settings used in loop to local variables to increase performance
-            var vic2VideoMatrixBaseAddress = vic2.VideoMatrixBaseAddress;
-            var vic2BitmapBaseAddress = bitmapManager.BitmapAddressInVIC2Bank;
-
-            var vic2ScreenTextCols = vic2Screen.TextCols;
-            var screenStartY = visibleMainScreenAreaNormalized.Screen.Start.Y;
-            var screenStartX = visibleMainScreenAreaNormalized.Screen.Start.X;
-            var vic2CharacterSetAddressInVIC2Bank = vic2.CharsetManager.CharacterSetAddressInVIC2Bank;
-            var vic2ScreenCharacterHeight = vic2.Vic2Screen.CharacterHeight;
-
-            var vic2Is38ColumnDisplayEnabled = vic2.Is38ColumnDisplayEnabled;
-            var vic2Is24RowDisplayEnabled = vic2.Is24RowDisplayEnabled;
-            var vic2LineStart24Rows = visibleMainScreenAreaNormalizedClipped.Screen.Start.Y - visibleMainScreenAreaNormalized.Screen.Start.Y;
-            var vic2LineEnd24Rows = visibleMainScreenAreaNormalizedClipped.Screen.End.Y - visibleMainScreenAreaNormalized.Screen.Start.Y;
-
-            var isTextMode = vic2.DisplayMode == DispMode.Text; // TODO: Check for display mode more than once per frame? How?
-            var characterMode = vic2.CharacterMode; // TODO: Check for display mode more than once per frame? How?
-            var bitmapMode = vic2.BitmapMode; // TODO: Check for bitmap mode more than once per frame? How?
-            var scrollX = vic2.GetScrollX(); // TODO: Check fine scroll more than once per frame? How?
-            var scrollY = vic2.GetScrollY(); // TODO: Check fine scroll more than once per frame? How?
-
-            // Loop each row line on main text/gfx screen, starting with line 0.
-            for (ushort drawLine = 0; drawLine < drawableAreaHeight; drawLine++)
-            {
-                // Calculate the y position in the bitmap where the 8 pixels should be drawn
-                var skiaBitmapY = screenStartY + drawLine;
-
-                var characterRow = drawLine / 8;
-                ushort characterLine = (ushort)(drawLine % 8);
-
-                ushort characterAddress = (ushort)(vic2VideoMatrixBaseAddress + (characterRow * vic2ScreenTextCols));
-                ushort colorRamAddress = (ushort)(Vic2Addr.COLOR_RAM_START + (characterRow * vic2ScreenTextCols));
-                ushort c64BitMapAddress = (ushort)(vic2BitmapBaseAddress + (characterRow * vic2ScreenTextCols * 8) + characterLine);
-
-                // Loop each column on main text/gfx screen, starting with column 0.
-                for (var col = 0; col < vic2ScreenTextCols; col++)
-                {
-
-                    // Determine character code at current position from video matrix
-                    var characterCode = vic2Mem[characterAddress];
-                    var colorRamCode = c64.ReadIOStorage(colorRamAddress);
-
-                    // Calculate the x position in the bitmap where the 8 pixels should be drawn
-                    var skiaBitmapX = screenStartX + col * 8;
-
-                    uint[] eightPixels;
-                    if (isTextMode)
-                    {
-
-                        // Determine colors
-                        var fgColorCode = colorRamCode;
-                        int bgColorNumber;  // 0-3
-                        if (characterMode == CharMode.Standard)
-                        {
-                            bgColorNumber = 0;
-                        }
-                        else if (characterMode == CharMode.Extended)
-                        {
-                            bgColorNumber = characterCode >> 6;   // Bit 6 and 7 of character byte is used to select background color (0-3)
-                            characterCode = (byte)(characterCode & 0b00111111); // The actual usable character codes are in the lower 6 bits (0-63)
-
-                        }
-                        else // Asume multicolor mode
-                        {
-                            bgColorNumber = 0;
-                            // When in MultiColor mode, a character can still be displayed in Standard mode depending on the value from color RAM.
-                            if (fgColorCode <= 7)
-                            {
-                                // If color RAM value is 0-7, normal Standard mode is used (not multi-color)
-                                characterMode = CharMode.Standard;
-                            }
-                            else
-                            {
-                                // If displaying in MultiColor mode, the actual color used from color RAM will be values 0-7.
-                                // Thus color values 8-15 are transformed to 0-7
-                                fgColorCode = (byte)((fgColorCode & 0b00001111) - 8);
-                            }
-                        }
-
-                        // Read one line (8 bits/pixels) of character pixel data from character set from the current line of the character code
-                        var characterSetLineAddress = (ushort)(vic2CharacterSetAddressInVIC2Bank
-                            + characterCode * vic2ScreenCharacterHeight
-                            + characterLine);
-                        var lineData = vic2Mem[characterSetLineAddress];
-
-                        // Get pre-calculated 8 pixels that should be drawn on the bitmap, with correct colors for foreground and background
-                        if (characterMode == CharMode.Standard || characterMode == CharMode.Extended)
-                        {
-                            // Get the corresponding array of uints representing the 8 pixels of the character
-                            if (bgColorNumber == 0)
-                            {
-                                eightPixels = _bitmapEightPixelsBg0Map[(lineData, fgColorCode)];
-                            }
-                            else if (bgColorNumber == 1)
-                            {
-                                eightPixels = _bitmapEightPixelsBg1Map[(lineData, fgColorCode)];
-                            }
-                            else if (bgColorNumber == 2)
-                            {
-                                eightPixels = _bitmapEightPixelsBg2Map[(lineData, fgColorCode)];
-                            }
-                            else if (bgColorNumber == 3)
-                            {
-                                eightPixels = _bitmapEightPixelsBg3Map[(lineData, fgColorCode)];
-                            }
-                            else
-                            {
-                                throw new NotImplementedException($"Background color number {bgColorNumber} not implemented.");
-                            }
-                        }
-                        else // Asume text multicolor mode
-                        {
-                            // Text multicolor mode color usage (8 bits, 4 pixel pairs)
-                            // backgroundColor0 = the color of pixel-pair 00
-                            // backgroundColor1 = the color of pixel-pair 01
-                            // backgroundColor2 = the color of pixel-pair 10
-                            // fgColorCode      = the color of pixel-pair 11
-
-                            // Get the corresponding array of uints representing the 8 pixels of the character
-                            eightPixels = _bitmapEightPixelsMultiColorMap[(lineData, fgColorCode)];
-                        }
-                    }
-                    else
-                    {
-                        // Assume bitmap mode
-
-                        // 8 bits of bitmap data for the current line, at the current column
-                        var bitmapLineData = vic2Mem[c64BitMapAddress];
-
-                        // Bg color is picked from text screen, low 4 bits.
-                        byte bitmapBgColorCode = (byte)(characterCode & 0b00001111);
-                        // Fg color is picked from text screen, high 4 bits.
-                        byte bitmapFgColorCode = (byte)((characterCode & 0b11110000) >> 4);
-
-                        if (bitmapMode == BitmMode.Standard)
-                        {
-                            // Bitmap Standard (HiRes) mode, 8 bits => 8 pixels
-                            // ----------
-                            // Pixel not set (bit = 0) => bitmap bg color (from text screen low 4 bits)
-                            // Pixel set (bit = 1) => bitmap fg color
-                            eightPixels = _bitmapEightHiresPixelsActual[(bitmapLineData, bitmapBgColorCode, bitmapFgColorCode)];
-                        }
-                        else
-                        {
-                            // Bitmap Multi color mode, 8 bits => 4 pixels
-                            // ----------
-                            // Pixel pattern 00 => screen bg color
-                            // Pixel pattern 01 (multi color 1) => bitmap fg color (from text screen high 4 bits)
-                            // Pixel pattern 10 (multi color 2) => bitmap bg color (from text screen low 4 bits)
-                            // Pixel pattern 11 (multi color 3) => color RAM color (for corresponding position in text screen)
-                            eightPixels = _bitmapEightMulticolorPixelsActual[(bitmapLineData, bitmapBgColorCode, bitmapFgColorCode, colorRamCode)];
-                        }
-                    }
-
-                    // Add additional drawing to compensate for horizontal scrolling
-                    if (scrollX > 0 && col == 0)
-                        // Fill start of column 0 with background color (the number of x pixels scrolled)
-                        // Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, bitmapIndex, scrollX);
-                        WriteToPixelArray(_oneCharLineBg0Pixels, pixelArray, drawLine, 0, fnLength: scrollX, fnAdjustForScrollX: false, fnAdjustForScrollY: true);
-
-                    // Add additional drawing to compensate for horizontal scrolling
-                    // Note: The actual vic2 vertical scroll has 3 as default value (no scroll), but the scrollY variable is adjusted to be between -3 and + 4 with default 0 when no scrolling.
-                    if (scrollY != 0)
-                    {
-                        // If scrolling occured upwards (scrollY < 0) and we are on last line of screen, fill remaining lines with background color
-                        if (scrollY < 0 && drawLine == drawableAreaHeight - 1)
-                        {
-                            for (var i = 0; i < -scrollY; i++)
-                            {
-                                //Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, fillBitMapIndex + scrollX, length);
-                                WriteToPixelArray(_oneCharLineBg0Pixels, pixelArray, drawLine - i, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
-                            }
-                        }
-                        // If scrolling occured downards (scrollY > 0) and we are on first line of screen, fill the line above that was scrolled with background color
-                        else if (scrollY > 0 && drawLine == 0)
-                        {
-                            for (var i = 0; i < scrollY; i++)
-                            {
-                                //Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, fillBitMapIndex + scrollX, length);
-                                WriteToPixelArray(_oneCharLineBg0Pixels, pixelArray, i, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
-                            }
-                        }
-                    }
-
-                    // Write the character to the pixel array
-                    WriteToPixelArray(eightPixels, pixelArray, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: true);
-
-
-                    void WriteToPixelArray(uint[] fnEightPixels, uint[] fnPixelArray, int fnMainScreenY, int fnMainScreenX, int fnLength, bool fnAdjustForScrollX, bool fnAdjustForScrollY)
-                    {
-                        // Draw 8 pixels (or less) of character on the the pixel array part used for the C64 drawable screen (320x200)
-                        var lCol = fnMainScreenX / 8;
-
-                        if (fnAdjustForScrollY)
-                        {
-                            // Skip draw entirely if y position is outside drawable screen
-                            if (fnMainScreenY + scrollY < 0 || fnMainScreenY + scrollY >= vic2Screen.DrawableAreaHeight)
-                                return;
-
-                            fnMainScreenY += scrollY;
-                        }
-
-                        if (fnAdjustForScrollX)
-                        {
-                            fnMainScreenX += scrollX;
-                            if (lCol == vic2ScreenTextCols - 1) // Adjust drawing of last character on line to clip when it reaches the right border
-                                fnLength = 8 - scrollX;
-                        }
-
-                        // Calculate the position in the bitmap where the 8 pixels should be drawn
-                        var lBitmapIndex = (screenStartY + fnMainScreenY) * width + screenStartX + fnMainScreenX;
-
-
-                        // Copy array with Span
-                        // - Seems to be a bit faster on .NET 8 WASM than Array.Copy and Buffer.BlockCopy.
-                        // - TODO: Is the extra heap memory allocation of Span objects (which leads to GC pressure) worth the performance gain?
-                        var source = new ReadOnlySpan<uint>(fnEightPixels, 0, fnLength);
-                        var target = new Span<uint>(fnPixelArray, lBitmapIndex, fnLength);
-                        source.CopyTo(target);
-
-                        // Or Copy array with Array.Copy
-                        //Array.Copy(fnEightPixels, 0, fnPixelArray, lBitmapIndex, fnLength);
-
-                        // Or Copy array with Buffer.BlockCopy
-                        //Buffer.BlockCopy(fnEightPixels, 0, fnPixelArray, lBitmapIndex * 4, fnLength * 4);   // Note: Buffer.BlockCopy uses byte size, so multiply by 4 to get uint size
-                    }
-
-                    characterAddress++;
-                    colorRamAddress++;
-                    c64BitMapAddress += 8;
-
-                } // Next column
-            } // Next line
-        }
 
         // Borders.
         // The borders must be drawn last, because it will overwrite parts of the main screen area if 38 column or 24 row modes are enabled (which main screen drawing above does not take in consideration)
