@@ -4,7 +4,6 @@ namespace Highbyte.DotNet6502.Instrumentation.Stats;
 
 public class ElapsedMillisecondsTimedStatSystem : ElapsedMillisecondsTimedStat
 {
-    public ISystem System => _system;
     private readonly ISystem _system;
 
     public ElapsedMillisecondsTimedStatSystem(ISystem system)
