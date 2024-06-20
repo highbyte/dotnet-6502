@@ -12,7 +12,7 @@ public class INY : Instruction, IInstructionUsesOnlyRegOrStatus
     {
         // Assume implied mode
         cpu.Y++;
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, cpu.ProcessorStatus);
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, ref cpu.ProcessorStatus);
 
         return 0;
     }

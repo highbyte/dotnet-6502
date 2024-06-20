@@ -11,7 +11,7 @@ public class TAY : Instruction, IInstructionUsesOnlyRegOrStatus
     public ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
     {
         cpu.Y = cpu.A;
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, cpu.ProcessorStatus);
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, ref cpu.ProcessorStatus);
         
         return 0;                
     }

@@ -11,11 +11,11 @@ public class ADC : Instruction, IInstructionUsesByte
     {
         if (cpu.ProcessorStatus.Decimal)
         {
-            cpu.A = DecimalArithmeticHelpers.AddWithCarryAndOverFlowDecimalMode(cpu.A, value, cpu.ProcessorStatus);
+            cpu.A = DecimalArithmeticHelpers.AddWithCarryAndOverFlowDecimalMode(cpu.A, value, ref cpu.ProcessorStatus);
         }
         else
         {
-            cpu.A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(cpu.A, value, cpu.ProcessorStatus);
+            cpu.A = BinaryArithmeticHelpers.AddWithCarryAndOverflow(cpu.A, value, ref cpu.ProcessorStatus);
         }
 
         return

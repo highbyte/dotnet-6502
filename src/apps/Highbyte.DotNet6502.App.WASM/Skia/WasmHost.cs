@@ -40,14 +40,16 @@ public class WasmHost : IDisposable
 
     public WasmMonitor Monitor { get; private set; } = default!;
 
+
+    private readonly Instrumentations _systemInstrumentations = new();
     private const string HostStatRootName = "WASM";
     private const string SystemTimeStatName = "Emulator-SystemTime";
     private const string RenderTimeStatName = "RenderTime";
     private const string InputTimeStatName = "InputTime";
     private const string AudioTimeStatName = "AudioTime";
-    private readonly ElapsedMillisecondsTimedStat _systemTime;
-    private readonly ElapsedMillisecondsTimedStat _renderTime;
-    private readonly ElapsedMillisecondsTimedStat _inputTime;
+    private ElapsedMillisecondsTimedStatSystem _systemTime;
+    private ElapsedMillisecondsTimedStatSystem _renderTime;
+    private ElapsedMillisecondsTimedStatSystem _inputTime;
     private readonly PerSecondTimedStat _updateFps;
     private readonly PerSecondTimedStat _renderFps;
 
@@ -64,7 +66,7 @@ public class WasmHost : IDisposable
         Action<string> updateStats,
         Action<string> updateDebug,
         Func<bool, Task> setMonitorState,
-        EmulatorConfig emulatorConfig,
+         EmulatorConfig emulatorConfig,
         Func<Task> toggleDebugStatsState,
         ILoggerFactory loggerFactory,
         float scale = 1.0f,
@@ -84,10 +86,6 @@ public class WasmHost : IDisposable
 
         // Init stats
         InstrumentationBag.Clear();
-        _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{SystemTimeStatName}");
-        _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{InputTimeStatName}");
-        //_audioTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{AudioTimeStatName}");
-        _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{RenderTimeStatName}");
         _updateFps = InstrumentationBag.Add<PerSecondTimedStat>($"{HostStatRootName}-OnUpdateFPS");
         _renderFps = InstrumentationBag.Add<PerSecondTimedStat>($"{HostStatRootName}-OnRenderFPS");
 
@@ -108,6 +106,13 @@ public class WasmHost : IDisposable
         _systemRunner = await _systemList.BuildSystemRunner(_systemName);
 
         Monitor = new WasmMonitor(_jsRuntime, _systemRunner, _emulatorConfig, _setMonitorState);
+
+        // Init instrumentation
+        _systemInstrumentations.Clear();
+        _systemTime = _systemInstrumentations.Add($"{HostStatRootName}-{SystemTimeStatName}", new ElapsedMillisecondsTimedStatSystem(_systemRunner.System));
+        _inputTime = _systemInstrumentations.Add($"{HostStatRootName}-{InputTimeStatName}", new ElapsedMillisecondsTimedStatSystem(_systemRunner.System));
+        //_audioTime = _systemInstrumentations.Add($"{HostStatRootName}-{AudioTimeStatName}", new ElapsedMillisecondsTimedStatSystem(_systemRunner.System));
+        _renderTime = _systemInstrumentations.Add($"{HostStatRootName}-{RenderTimeStatName}", new ElapsedMillisecondsTimedStatSystem(_systemRunner.System));
 
         Initialized = true;
     }
@@ -190,23 +195,24 @@ public class WasmHost : IDisposable
         }
 
         //_emulatorHelper.GenerateRandomNumber();
-        using (_inputTime.Measure())
-        {
-            _systemRunner.ProcessInput();
-        }
+        _inputTime.Start();
+        _systemRunner.ProcessInput();
+        _inputTime.Stop();
 
         ExecEvaluatorTriggerResult execEvaluatorTriggerResult;
-        using (_systemTime.Measure())
-        {
-            execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame();
-        }
+        _systemTime.Start();
+        execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame();
+        _systemTime.Stop();
 
-        _statsFrameCount++;
-        if (_statsFrameCount >= STATS_EVERY_X_FRAME)
+        if (_systemRunner.System.InstrumentationEnabled)
         {
-            _statsFrameCount = 0;
-            var statsString = GetStats();
-            _updateStats(statsString);
+            _statsFrameCount++;
+            if (_statsFrameCount >= STATS_EVERY_X_FRAME)
+            {
+                _statsFrameCount = 0;
+                var statsString = GetStats();
+                _updateStats(statsString);
+            }
         }
 
         // Show monitor if we encounter breakpoint or other break
@@ -226,14 +232,14 @@ public class WasmHost : IDisposable
         _grContext = grContext;
         _skCanvas = canvas;
         _skCanvas.Scale((float)_emulatorConfig.CurrentDrawScale);
-        using (_renderTime.Measure())
-        {
-            _systemRunner.Draw();
-            //using (new SKAutoCanvasRestore(skCanvas))
-            //{
-            //    _systemRunner.Draw(skCanvas);
-            //}
-        }
+
+        _renderTime.Start();
+        _systemRunner.Draw();
+        //using (new SKAutoCanvasRestore(skCanvas))
+        //{
+        //    _systemRunner.Draw(skCanvas);
+        //}
+        _renderTime.Stop();
     }
 
     private SKCanvas GetCanvas()
@@ -251,6 +257,7 @@ public class WasmHost : IDisposable
         string stats = "";
 
         var allStats = InstrumentationBag.Stats
+            .Union(_systemInstrumentations.Stats)
             .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
             .Union(_systemRunner.Renderer.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{RenderTimeStatName}-{x.Name}", x.Stat)))
             .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{AudioTimeStatName}-{x.Name}", x.Stat)))

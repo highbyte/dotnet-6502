@@ -13,7 +13,7 @@ public class ROR : Instruction, IInstructionUsesAddress, IInstructionUsesOnlyReg
     public ulong ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
     {
         var tempValue = cpu.FetchByte(mem, address);
-        tempValue = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(tempValue, cpu.ProcessorStatus);
+        tempValue = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(tempValue, ref cpu.ProcessorStatus);
         cpu.StoreByte(tempValue, mem, address);
 
         return 0;
@@ -22,7 +22,7 @@ public class ROR : Instruction, IInstructionUsesAddress, IInstructionUsesOnlyReg
     public ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
     {
         // Assume Accumulator mode
-        cpu.A = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(cpu.A, cpu.ProcessorStatus);
+        cpu.A = BinaryArithmeticHelpers.PerformRORAndSetStatusRegisters(cpu.A, ref cpu.ProcessorStatus);
 
         return 0;
     }

@@ -282,3 +282,5 @@ nuget.config
 
 .DS_Store
 .vscode/settings.json
+
+BenchmarkDotNet.Artifacts/

@@ -12,7 +12,7 @@ public class PLA : Instruction, IInstructionUsesStack
     public ulong ExecuteWithStack(CPU cpu, Memory mem, AddrModeCalcResult addrModeCalcResult)
     {
         cpu.A = cpu.PopByteFromStack(mem);
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, cpu.ProcessorStatus);
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
         
         return 0;
     } 

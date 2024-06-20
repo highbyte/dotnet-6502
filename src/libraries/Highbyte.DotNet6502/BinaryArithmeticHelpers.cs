@@ -1,4 +1,4 @@
-﻿namespace Highbyte.DotNet6502;
+namespace Highbyte.DotNet6502;
 
 public static class BinaryArithmeticHelpers
 {
@@ -15,7 +15,7 @@ public static class BinaryArithmeticHelpers
     /// <param name="value"></param>
     /// <param name="PC"></param>
     /// <returns></returns>
-    public static byte AddWithCarryAndOverflow(byte value1, byte value2, ProcessorStatus processorStatus)
+    public static byte AddWithCarryAndOverflow(byte value1, byte value2, ref ProcessorStatus processorStatus)
     {
         // Perform add with carry
         ushort sum = (ushort) (value1 + value2 + (byte)(processorStatus.Carry?1:0));
@@ -99,13 +99,13 @@ public static class BinaryArithmeticHelpers
         //            The algorithm above also sets 1, and other emulators also sets it to 1, )
 
 
-    public static byte SubtractWithCarryAndOverflow(byte value1, byte value2, ProcessorStatus processorStatus)
+    public static byte SubtractWithCarryAndOverflow(byte value1, byte value2, ref ProcessorStatus processorStatus)
     {
         byte invertedValue2 = (byte)~value2; 
-        return AddWithCarryAndOverflow(value1, invertedValue2, processorStatus);
+        return AddWithCarryAndOverflow(value1, invertedValue2, ref processorStatus);
     }
 
-    public static void SetFlagsAfterRegisterLoadIncDec(byte register, ProcessorStatus processorStatus)
+    public static void SetFlagsAfterRegisterLoadIncDec(byte register, ref ProcessorStatus processorStatus)
     {
         processorStatus.Zero = register == 0x00;
         processorStatus.Negative = register.IsBitSet(7);
@@ -127,7 +127,7 @@ public static class BinaryArithmeticHelpers
     /// <param name="register"></param>
     /// <param name="value"></param>
     /// <param name="processorStatus"></param>
-    public static void SetFlagsAfterCompare(byte register, byte value, ProcessorStatus processorStatus)
+    public static void SetFlagsAfterCompare(byte register, byte value, ref ProcessorStatus processorStatus)
     {
         processorStatus.Carry = register >= value;
         processorStatus.Zero = register == value;
@@ -135,42 +135,42 @@ public static class BinaryArithmeticHelpers
         processorStatus.Negative = ((byte)regMinusValue).IsBitSet(7);
     }
 
-    public static byte PerformASLAndSetStatusRegisters(byte register, ProcessorStatus processorStatus)
+    public static byte PerformASLAndSetStatusRegisters(byte register, ref ProcessorStatus processorStatus)
     {
         processorStatus.Carry = register.IsBitSet(7);
         var shiftedRegister = (byte)(register << 1);
-        SetFlagsAfterRegisterLoadIncDec(shiftedRegister, processorStatus);
+        SetFlagsAfterRegisterLoadIncDec(shiftedRegister, ref processorStatus);
         return shiftedRegister;
     }
 
-    public static byte PerformLSRAndSetStatusRegisters(byte register, ProcessorStatus processorStatus)
+    public static byte PerformLSRAndSetStatusRegisters(byte register, ref ProcessorStatus processorStatus)
     {
         processorStatus.Carry = register.IsBitSet(0);
         var shiftedRegister = (byte)(register >> 1);
-        SetFlagsAfterRegisterLoadIncDec(shiftedRegister, processorStatus);
+        SetFlagsAfterRegisterLoadIncDec(shiftedRegister, ref processorStatus);
         return shiftedRegister;
     }
 
-    public static byte PerformROLAndSetStatusRegisters(byte register, ProcessorStatus processorStatus)
+    public static byte PerformROLAndSetStatusRegisters(byte register, ref ProcessorStatus processorStatus)
     {
         bool originalCarry = processorStatus.Carry;
         processorStatus.Carry = register.IsBitSet(7);
         var shiftedRegister = (byte)(register << 1);
         shiftedRegister.ChangeBit(0, originalCarry);
-        SetFlagsAfterRegisterLoadIncDec(shiftedRegister, processorStatus);
+        SetFlagsAfterRegisterLoadIncDec(shiftedRegister, ref processorStatus);
         return shiftedRegister;
     }
-    public static byte PerformRORAndSetStatusRegisters(byte register, ProcessorStatus processorStatus)
+    public static byte PerformRORAndSetStatusRegisters(byte register, ref ProcessorStatus processorStatus)
     {
         bool originalCarry = processorStatus.Carry;
         processorStatus.Carry = register.IsBitSet(0);
         var shiftedRegister = (byte)(register >> 1);
         shiftedRegister.ChangeBit(7, originalCarry);
-        SetFlagsAfterRegisterLoadIncDec(shiftedRegister, processorStatus);
+        SetFlagsAfterRegisterLoadIncDec(shiftedRegister, ref processorStatus);
         return shiftedRegister;
     }                
 
-    public static void PerformBITAndSetStatusRegisters(byte register, byte memoryValue, ProcessorStatus processorStatus)
+    public static void PerformBITAndSetStatusRegisters(byte register, byte memoryValue, ref ProcessorStatus processorStatus)
     {
         processorStatus.Zero = (register & memoryValue) == 0;
         processorStatus.Overflow = memoryValue.IsBitSet(StatusFlagBits.Overflow);

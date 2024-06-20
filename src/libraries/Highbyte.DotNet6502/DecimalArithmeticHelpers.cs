@@ -14,7 +14,7 @@ public static class DecimalArithmeticHelpers
     /// <param name="value2"></param>
     /// <param name="processorStatus"></param>
     /// <returns></returns>
-    public static byte AddWithCarryAndOverFlowDecimalMode(byte value1, byte value2, ProcessorStatus processorStatus)
+    public static byte AddWithCarryAndOverFlowDecimalMode(byte value1, byte value2, ref ProcessorStatus processorStatus)
     {
         // Pseudo code from http://6502.org/tutorials/decimal_mode.html
         //1a.AL = (A & $0F) +(B & $0F) +C
@@ -51,13 +51,13 @@ public static class DecimalArithmeticHelpers
         // Perform a addition in binary mode to get Z flag
         var processorStatusBinary = new ProcessorStatus();
         processorStatusBinary.Carry = originalCarry;
-        BinaryArithmeticHelpers.AddWithCarryAndOverflow(value1, value2, processorStatusBinary);
+        BinaryArithmeticHelpers.AddWithCarryAndOverflow(value1, value2, ref processorStatusBinary);
         processorStatus.Zero = processorStatusBinary.Zero;
 
         return (byte)sum; //Lower 8 bits of sum is the result
     }
 
-    public static byte SubtractWithCarryAndOverflowDecimalMode(byte value1, byte value2, ProcessorStatus processorStatus)
+    public static byte SubtractWithCarryAndOverflowDecimalMode(byte value1, byte value2, ref ProcessorStatus processorStatus)
     {
         // Pseudo code from http://6502.org/tutorials/decimal_mode.html
         //3a.AL = (A & $0F) -(B & $0F) +C - 1
@@ -78,7 +78,7 @@ public static class DecimalArithmeticHelpers
         // Perform a subtraction in binary mode to get C,N,V, and Z flags
         var processorStatusBinary = new ProcessorStatus();
         processorStatusBinary.Carry = processorStatus.Carry;
-        BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(value1, value2, processorStatusBinary);
+        BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(value1, value2, ref processorStatusBinary);
         processorStatus.Carry = processorStatusBinary.Carry;
         processorStatus.Negative = processorStatusBinary.Negative;
         processorStatus.Overflow = processorStatusBinary.Overflow;

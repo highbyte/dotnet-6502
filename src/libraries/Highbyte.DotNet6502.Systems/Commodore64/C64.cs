@@ -44,10 +44,11 @@ public class C64 : ISystem, ISystemMonitor
     private Action<C64, InstructionExecResult>? _afterInstructionCallback = null;
 
     // Instrumentations
+    public bool InstrumentationEnabled { get; set; }
     public Instrumentations Instrumentations { get; } = new();
     private const string StatsCategory = "Custom";
-    private readonly ElapsedMillisecondsTimedStat _spriteCollisionStat;
-    private readonly ElapsedMillisecondsTimedStat _audioStat;
+    private readonly ElapsedMillisecondsTimedStatSystem _spriteCollisionStat;
+    private readonly ElapsedMillisecondsTimedStatSystem _audioStat;
 
     //public static ROM[] ROMS = new ROM[]
     //{   
@@ -74,7 +75,8 @@ public class C64 : ISystem, ISystemMonitor
         _audioStat.Reset(); // Reset audio stat, will be continiously updated after each instruction
 
         ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
-        _logger.LogTrace($"Executing one frame, {cyclesToExecute} CPU cycles.");
+        //_logger.LogTrace($"Executing one frame, {cyclesToExecute} CPU cycles.");
+
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < cyclesToExecute)
         {
@@ -90,10 +92,9 @@ public class C64 : ISystem, ISystemMonitor
         _audioStat.Stop(); // Stop audio stat (was continiously updated after each instruction)
 
         // Update sprite collision state
-        using (_spriteCollisionStat.Measure())
-        {
-            Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
-        }
+        _spriteCollisionStat.Start();
+        Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
+        _spriteCollisionStat.Stop();
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
@@ -125,10 +126,9 @@ public class C64 : ISystem, ISystemMonitor
         // Handle output processing needed after each instruction.
         if (AudioEnabled)
         {
-            using (_audioStat.Measure(cont: true))
-            {
-                systemRunner.GenerateAudio();
-            }
+            _audioStat.Start(cont: true);
+            systemRunner.GenerateAudio();
+            _audioStat.Stop(cont: true);
         }
 
         // Callback to possible registered Action to a renderer (or other processing) after each instruction. The Action is exepected to have all state of the C64 available to it.
@@ -150,11 +150,8 @@ public class C64 : ISystem, ISystemMonitor
     private C64(ILogger logger)
     {
         _logger = logger;
-        _spriteCollisionStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-SpriteCollision");
-
-        //_audioStat = new ElapsedMillisecondsTimedStat(samples: 1);
-        //Instrumentations.Add($"{StatsCategory}-Audio", _audioStat);
-        _audioStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Audio");
+        _spriteCollisionStat = Instrumentations.Add($"{StatsCategory}-SpriteCollision", new ElapsedMillisecondsTimedStatSystem(this));
+        _audioStat = Instrumentations.Add($"{StatsCategory}-Audio", new ElapsedMillisecondsTimedStatSystem(this));
     }
 
     public static C64 BuildC64(C64Config c64Config, ILoggerFactory loggerFactory)
@@ -191,7 +188,8 @@ public class C64 : ISystem, ISystemMonitor
             ROMData = romData,
             AudioEnabled = c64Config.AudioEnabled,
             TimerMode = c64Config.TimerMode,
-            ColorMapName = c64Config.ColorMapName
+            ColorMapName = c64Config.ColorMapName,
+            InstrumentationEnabled = c64Config.InstrumentationEnabled
         };
 
         var cpu = CreateC64CPU(loggerFactory);

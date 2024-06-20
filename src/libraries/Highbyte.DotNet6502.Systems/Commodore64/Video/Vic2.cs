@@ -121,7 +121,7 @@ public class Vic2
     public Dictionary<int, ScreenLineData> ScreenLineIORegisterValues { get; private set; } = default!;
 
     public Vic2ScreenLayouts ScreenLayouts { get; private set; } = default!;
-    public Vic2SpriteManager SpriteManager { get; private set; } = default!;
+    public IVic2SpriteManager SpriteManager { get; private set; } = default!;
     public Vic2CharsetManager CharsetManager { get; private set; } = default!;
     public Vic2BitmapManager BitmapManager { get; private set; } = default!;
 

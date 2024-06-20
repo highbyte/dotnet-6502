@@ -12,11 +12,11 @@ public class SBC : Instruction, IInstructionUsesByte
     {
         if (cpu.ProcessorStatus.Decimal)
         {
-            cpu.A = DecimalArithmeticHelpers.SubtractWithCarryAndOverflowDecimalMode(cpu.A, value, cpu.ProcessorStatus);
+            cpu.A = DecimalArithmeticHelpers.SubtractWithCarryAndOverflowDecimalMode(cpu.A, value, ref cpu.ProcessorStatus);
         }
         else
         {
-            cpu.A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(cpu.A, value, cpu.ProcessorStatus);
+            cpu.A = BinaryArithmeticHelpers.SubtractWithCarryAndOverflow(cpu.A, value, ref cpu.ProcessorStatus);
         }
 
         return
