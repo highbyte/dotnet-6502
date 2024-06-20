@@ -78,10 +78,9 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
         var canvas = _getSkCanvas();
         canvas.Clear();
 
-        using (_backgroundStat.Measure())
-        {
-            DrawRasterLinesBackground(c64, canvas);
-        }
+        _backgroundStat.Start();
+        DrawRasterLinesBackground(c64, canvas);
+        _backgroundStat.Stop();
 
         _spritesStat.Start();
         RenderSprites(c64, canvas, spritesWithPriorityOverForeground: false);

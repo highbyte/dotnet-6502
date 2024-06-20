@@ -114,11 +114,11 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
     private const string StatsCategory = "SkiaSharp-Custom";
-    private readonly ElapsedMillisecondsTimedStat _borderStat;
-    private readonly ElapsedMillisecondsTimedStat _textAndBitmapScreenStat;
-    private readonly ElapsedMillisecondsTimedStat _spritesStat;
-    private readonly ElapsedMillisecondsTimedStat _lineDataImageStat;
-    private readonly ElapsedMillisecondsTimedStat _drawCanvasWithShader;
+    private ElapsedMillisecondsTimedStatSystem _borderStat;
+    private ElapsedMillisecondsTimedStatSystem _textAndBitmapScreenStat;
+    private ElapsedMillisecondsTimedStatSystem _spritesStat;
+    private ElapsedMillisecondsTimedStatSystem _lineDataImageStat;
+    private ElapsedMillisecondsTimedStatSystem _drawCanvasWithShader;
 
 
     // Keep track of C64 data that should update each new line
@@ -148,11 +148,6 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
 
     public C64SkiaRenderer3()
     {
-        _borderStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Border");
-        _textAndBitmapScreenStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Screen");
-        _spritesStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Sprites");
-        _lineDataImageStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-LineDataImage");
-        _drawCanvasWithShader = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-DrawCanvasWithShader");
     }
 
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
@@ -189,8 +184,15 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
         InitBitPatternToPixelMapsForBitmapDisplay();
 
         InitShader(c64);
-    }
 
+
+        Instrumentations.Clear();
+        _borderStat = Instrumentations.Add($"{StatsCategory}-Border", new ElapsedMillisecondsTimedStatSystem(c64));
+        _textAndBitmapScreenStat = Instrumentations.Add($"{StatsCategory}-Screen", new ElapsedMillisecondsTimedStatSystem(c64));
+        _spritesStat = Instrumentations.Add($"{StatsCategory}-Sprites", new ElapsedMillisecondsTimedStatSystem(c64));
+        _lineDataImageStat = Instrumentations.Add($"{StatsCategory}-LineDataImage", new ElapsedMillisecondsTimedStatSystem(c64));
+        _drawCanvasWithShader = Instrumentations.Add($"{StatsCategory}-DrawCanvasWithShader", new ElapsedMillisecondsTimedStatSystem(c64));
+    }
 
     public void Init(ISystem system, IRenderContext renderContext)
     {
@@ -518,58 +520,58 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     private void WriteBitmapToCanvas(SKBitmap bitmap, SKBitmap spritesBitmap, SKBitmap lineDataBitmap, SKCanvas canvas, C64 c64)
     {
 
-        using (_drawCanvasWithShader.Measure())
-        {
-            // shader uniform values
-            _sKRuntimeEffectUniforms["bg0Color"] = _sKColorToShaderColorMap[(uint)_bg0DrawColorActual];
-            _sKRuntimeEffectUniforms["bg1Color"] = _sKColorToShaderColorMap[(uint)_bg1DrawColor];
-            _sKRuntimeEffectUniforms["bg2Color"] = _sKColorToShaderColorMap[(uint)_bg2DrawColor];
-            _sKRuntimeEffectUniforms["bg3Color"] = _sKColorToShaderColorMap[(uint)_bg3DrawColor];
+        _drawCanvasWithShader.Start();
+        // shader uniform values
+        _sKRuntimeEffectUniforms["bg0Color"] = _sKColorToShaderColorMap[(uint)_bg0DrawColorActual];
+        _sKRuntimeEffectUniforms["bg1Color"] = _sKColorToShaderColorMap[(uint)_bg1DrawColor];
+        _sKRuntimeEffectUniforms["bg2Color"] = _sKColorToShaderColorMap[(uint)_bg2DrawColor];
+        _sKRuntimeEffectUniforms["bg3Color"] = _sKColorToShaderColorMap[(uint)_bg3DrawColor];
 
-            _sKRuntimeEffectUniforms["borderColor"] = _sKColorToShaderColorMap[(uint)_borderDrawColor];
+        _sKRuntimeEffectUniforms["borderColor"] = _sKColorToShaderColorMap[(uint)_borderDrawColor];
 
-            _sKRuntimeEffectUniforms["spriteLowPrioMultiColor0"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioMultiColor0];
-            _sKRuntimeEffectUniforms["spriteLowPrioMultiColor1"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioMultiColor1];
+        _sKRuntimeEffectUniforms["spriteLowPrioMultiColor0"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioMultiColor0];
+        _sKRuntimeEffectUniforms["spriteLowPrioMultiColor1"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioMultiColor1];
 
-            _sKRuntimeEffectUniforms["spriteHighPrioMultiColor0"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioMultiColor0];
-            _sKRuntimeEffectUniforms["spriteHighPrioMultiColor1"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioMultiColor1];
+        _sKRuntimeEffectUniforms["spriteHighPrioMultiColor0"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioMultiColor0];
+        _sKRuntimeEffectUniforms["spriteHighPrioMultiColor1"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioMultiColor1];
 
-            _sKRuntimeEffectUniforms["sprite0LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[0]];
-            _sKRuntimeEffectUniforms["sprite1LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[1]];
-            _sKRuntimeEffectUniforms["sprite2LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[2]];
-            _sKRuntimeEffectUniforms["sprite3LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[3]];
-            _sKRuntimeEffectUniforms["sprite4LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[4]];
-            _sKRuntimeEffectUniforms["sprite5LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[5]];
-            _sKRuntimeEffectUniforms["sprite6LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[6]];
-            _sKRuntimeEffectUniforms["sprite7LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[7]];
+        _sKRuntimeEffectUniforms["sprite0LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[0]];
+        _sKRuntimeEffectUniforms["sprite1LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[1]];
+        _sKRuntimeEffectUniforms["sprite2LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[2]];
+        _sKRuntimeEffectUniforms["sprite3LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[3]];
+        _sKRuntimeEffectUniforms["sprite4LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[4]];
+        _sKRuntimeEffectUniforms["sprite5LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[5]];
+        _sKRuntimeEffectUniforms["sprite6LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[6]];
+        _sKRuntimeEffectUniforms["sprite7LowPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioColors[7]];
 
-            _sKRuntimeEffectUniforms["sprite0HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[0]];
-            _sKRuntimeEffectUniforms["sprite1HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[1]];
-            _sKRuntimeEffectUniforms["sprite2HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[2]];
-            _sKRuntimeEffectUniforms["sprite3HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[3]];
-            _sKRuntimeEffectUniforms["sprite4HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[4]];
-            _sKRuntimeEffectUniforms["sprite5HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[5]];
-            _sKRuntimeEffectUniforms["sprite6HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[6]];
-            _sKRuntimeEffectUniforms["sprite7HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[7]];
+        _sKRuntimeEffectUniforms["sprite0HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[0]];
+        _sKRuntimeEffectUniforms["sprite1HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[1]];
+        _sKRuntimeEffectUniforms["sprite2HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[2]];
+        _sKRuntimeEffectUniforms["sprite3HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[3]];
+        _sKRuntimeEffectUniforms["sprite4HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[4]];
+        _sKRuntimeEffectUniforms["sprite5HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[5]];
+        _sKRuntimeEffectUniforms["sprite6HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[6]];
+        _sKRuntimeEffectUniforms["sprite7HighPrioColor"] = _sKColorToShaderColorMap[(uint)_spriteHighPrioColors[7]];
 
-            // Shader uniform texture sampling values
-            // Convert bitmap (that one have written the C64 screen to) to shader texture
-            var shaderTexture = bitmap.ToShader();
-            // Convert shader bitmap (that one have written the C64 sprites to) to shader texture
-            var spritesTexture = spritesBitmap.ToShader();
+        // Shader uniform texture sampling values
+        // Convert bitmap (that one have written the C64 screen to) to shader texture
+        var shaderTexture = bitmap.ToShader();
+        // Convert shader bitmap (that one have written the C64 sprites to) to shader texture
+        var spritesTexture = spritesBitmap.ToShader();
 
-            // Convert other bitmaps to shader texture
-            var lineDataBitmapShaderTexture = lineDataBitmap.ToShader();
+        // Convert other bitmaps to shader texture
+        var lineDataBitmapShaderTexture = lineDataBitmap.ToShader();
 
-            _sKRuntimeEffectChildren["bitmap_texture"] = shaderTexture;
-            _sKRuntimeEffectChildren["sprites_texture"] = spritesTexture;
-            _sKRuntimeEffectChildren["line_data_map"] = lineDataBitmapShaderTexture;
+        _sKRuntimeEffectChildren["bitmap_texture"] = shaderTexture;
+        _sKRuntimeEffectChildren["sprites_texture"] = spritesTexture;
+        _sKRuntimeEffectChildren["line_data_map"] = lineDataBitmapShaderTexture;
 
-            using var shader = _sKRuntimeEffect.ToShader(_sKRuntimeEffectUniforms, _sKRuntimeEffectChildren);
-            _shaderPaint.Shader = shader;
+        using var shader = _sKRuntimeEffect.ToShader(_sKRuntimeEffectUniforms, _sKRuntimeEffectChildren);
+        _shaderPaint.Shader = shader;
 
-            canvas.DrawRect(0, 0, bitmap.Width, bitmap.Height, _shaderPaint);
-        }
+        canvas.DrawRect(0, 0, bitmap.Width, bitmap.Height, _shaderPaint);
+
+        _drawCanvasWithShader.Stop();
     }
 
 
@@ -814,6 +816,8 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
 
     private void DrawBorderToBitmapBackedByPixelArray(C64 c64, uint[] pixelArray)
     {
+        _borderStat.Start();
+
         var vic2 = c64.Vic2;
         var vic2Screen = vic2.Vic2Screen;
         var vic2ScreenLayouts = vic2.ScreenLayouts;
@@ -826,272 +830,273 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
 
         // Borders.
         // The borders must be drawn last, because it will overwrite parts of the main screen area if 38 column or 24 row modes are enabled (which main screen drawing above does not take in consideration)
-        using (_borderStat.Measure())
+
+        var borderStartY = 0;
+
+        // Assumption on visibleMainScreenAreaNormalizedClipped:
+        // - Contains dimensions of screen parts with consideration to if 38 column mode or 24 row mode is enabled.
+        // - Is normalized to start at 0,0 (i.e. TopBorder.Start.X = and TopBorder.Start.Y = 0)
+        var leftBorderStartX = visibleMainScreenAreaNormalizedClipped.LeftBorder.Start.X; // Should be 0?
+        var leftBorderLength = visibleMainScreenAreaNormalizedClipped.LeftBorder.End.X - visibleMainScreenAreaNormalizedClipped.LeftBorder.Start.X + 1;
+
+        var rightBorderStartX = visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
+        var rightBorderLength = width - visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
+
+        for (var y = borderStartY; y < borderStartY + height; y++)
         {
-            var borderStartY = 0;
-
-            // Assumption on visibleMainScreenAreaNormalizedClipped:
-            // - Contains dimensions of screen parts with consideration to if 38 column mode or 24 row mode is enabled.
-            // - Is normalized to start at 0,0 (i.e. TopBorder.Start.X = and TopBorder.Start.Y = 0)
-            var leftBorderStartX = visibleMainScreenAreaNormalizedClipped.LeftBorder.Start.X; // Should be 0?
-            var leftBorderLength = visibleMainScreenAreaNormalizedClipped.LeftBorder.End.X - visibleMainScreenAreaNormalizedClipped.LeftBorder.Start.X + 1;
-
-            var rightBorderStartX = visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
-            var rightBorderLength = width - visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
-
-            for (var y = borderStartY; y < borderStartY + height; y++)
+            // Top or bottom border
+            if (y <= visibleMainScreenAreaNormalizedClipped.TopBorder.End.Y || y >= visibleMainScreenAreaNormalizedClipped.BottomBorder.Start.Y)
             {
-                // Top or bottom border
-                if (y <= visibleMainScreenAreaNormalizedClipped.TopBorder.End.Y || y >= visibleMainScreenAreaNormalizedClipped.BottomBorder.Start.Y)
-                {
-                    var topBottomBorderLineStartIndex = y * width;
-                    Array.Copy(_oneLineBorderPixels, 0, pixelArray, topBottomBorderLineStartIndex, width);
-                    continue;
-                }
-
-                // Left border
-                var lineStartIndex = y * width;
-                Array.Copy(_oneLineBorderPixels, leftBorderStartX, pixelArray, lineStartIndex, leftBorderLength);
-                // Right border
-                lineStartIndex += visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
-                Array.Copy(_oneLineBorderPixels, rightBorderStartX, pixelArray, lineStartIndex, rightBorderLength);
+                var topBottomBorderLineStartIndex = y * width;
+                Array.Copy(_oneLineBorderPixels, 0, pixelArray, topBottomBorderLineStartIndex, width);
+                continue;
             }
+
+            // Left border
+            var lineStartIndex = y * width;
+            Array.Copy(_oneLineBorderPixels, leftBorderStartX, pixelArray, lineStartIndex, leftBorderLength);
+            // Right border
+            lineStartIndex += visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
+            Array.Copy(_oneLineBorderPixels, rightBorderStartX, pixelArray, lineStartIndex, rightBorderLength);
         }
+
+        _borderStat.Stop();
     }
 
     private void DrawSpritesToBitmapBackedByPixelArray(C64 c64, uint[] spritesPixelArray)
     {
         // Main screen, copy 8 pixels at a time
-        using (_spritesStat.Measure())
+        _spritesStat.Start();
+        var vic2 = c64.Vic2;
+        var vic2Mem = vic2.Vic2Mem;
+        var vic2Screen = vic2.Vic2Screen;
+        var vic2ScreenLayouts = vic2.ScreenLayouts;
+
+        var width = vic2Screen.VisibleWidth;
+        var height = vic2Screen.VisibleHeight;
+
+
+        // Main screen draw area for characters, without consideration to 38 column mode or 24 row mode.
+        var visibleMainScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+
+        // TODO: Is it faster to track previous frame sprite draw positions, and only clear those pixels instead?
+        Array.Clear(spritesPixelArray);
+
+        // Write sprites to a separate bitmap/pixel array
+        foreach (var sprite in c64.Vic2.SpriteManager.Sprites.OrderByDescending(s => s.SpriteNumber))
         {
-            var vic2 = c64.Vic2;
-            var vic2Mem = vic2.Vic2Mem;
-            var vic2Screen = vic2.Vic2Screen;
-            var vic2ScreenLayouts = vic2.ScreenLayouts;
+            if (!sprite.Visible)
+                continue;
 
-            var width = vic2Screen.VisibleWidth;
-            var height = vic2Screen.VisibleHeight;
+            var spriteScreenPosX = sprite.X + visibleMainScreenArea.Screen.Start.X - vic2.SpriteManager.ScreenOffsetX;
+            var spriteScreenPosY = sprite.Y + visibleMainScreenArea.Screen.Start.Y - vic2.SpriteManager.ScreenOffsetY;
+            var priorityOverForground = sprite.PriorityOverForeground;
+            var isMultiColor = sprite.Multicolor;
 
+            // START TEST
+            //if (sprite.SpriteNumber == 0)
+            //{
+            //    spriteScreenPosX = 50 + visibleMainScreenArea.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X;
+            //    spriteScreenPosY = 60 + visibleMainScreenArea.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y;
+            //    priorityOverForground = false;
+            //}
+            //if (sprite.SpriteNumber == 1)
+            //{
+            //    spriteScreenPosX = 67 + visibleMainScreenArea.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X;
+            //    spriteScreenPosY = 70 + visibleMainScreenArea.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y;
+            //    priorityOverForground = true;
+            //}
+            // END TEST
 
-            // Main screen draw area for characters, without consideration to 38 column mode or 24 row mode.
-            var visibleMainScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+            var isDoubleWidth = sprite.DoubleWidth;
+            var isDoubleHeight = sprite.DoubleHeight;
 
-            // TODO: Is it faster to track previous frame sprite draw positions, and only clear those pixels instead?
-            Array.Clear(spritesPixelArray);
-
-            // Write sprites to a separate bitmap/pixel array
-            foreach (var sprite in c64.Vic2.SpriteManager.Sprites.OrderByDescending(s => s.SpriteNumber))
+            uint spriteForegroundPixelColor;  // One color per sprite
+            uint spriteMultiColor0PixelColor; // Shared between all sprites
+            uint spriteMultiColor1PixelColor; // Shared between all sprites
+            if (priorityOverForground)
             {
-                if (!sprite.Visible)
-                    continue;
-
-                var spriteScreenPosX = sprite.X + visibleMainScreenArea.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X;
-                var spriteScreenPosY = sprite.Y + visibleMainScreenArea.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y;
-                var priorityOverForground = sprite.PriorityOverForeground;
-                var isMultiColor = sprite.Multicolor;
-
-                // START TEST
-                //if (sprite.SpriteNumber == 0)
-                //{
-                //    spriteScreenPosX = 50 + visibleMainScreenArea.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X;
-                //    spriteScreenPosY = 60 + visibleMainScreenArea.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y;
-                //    priorityOverForground = false;
-                //}
-                //if (sprite.SpriteNumber == 1)
-                //{
-                //    spriteScreenPosX = 67 + visibleMainScreenArea.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X;
-                //    spriteScreenPosY = 70 + visibleMainScreenArea.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y;
-                //    priorityOverForground = true;
-                //}
-                // END TEST
-
-                var isDoubleWidth = sprite.DoubleWidth;
-                var isDoubleHeight = sprite.DoubleHeight;
-
-                uint spriteForegroundPixelColor;  // One color per sprite
-                uint spriteMultiColor0PixelColor; // Shared between all sprites
-                uint spriteMultiColor1PixelColor; // Shared between all sprites
-                if (priorityOverForground)
-                {
-                    // Top prio sprite pixel
-                    spriteForegroundPixelColor = (uint)_spriteHighPrioColors[sprite.SpriteNumber];
-                    spriteMultiColor0PixelColor = (uint)_spriteHighPrioMultiColor0;
-                    spriteMultiColor1PixelColor = (uint)_spriteHighPrioMultiColor1;
-                }
-                else
-                {
-                    // Low prio sprite pixel
-                    spriteForegroundPixelColor = (uint)_spriteLowPrioColors[sprite.SpriteNumber];
-                    spriteMultiColor0PixelColor = (uint)_spriteLowPrioMultiColor0;
-                    spriteMultiColor1PixelColor = (uint)_spriteLowPrioMultiColor1;
-                }
-
-                // Loop each sprite line (21 lines)
-                var y = 0;
-                foreach (var spriteRow in sprite.Data.Rows)
-                {
-                    // Loop each 8-bit part of the sprite line (3 bytes, 24 pixels).
-                    var x = 0;
-                    foreach (var spriteLinePart in spriteRow.Bytes)
-                    {
-                        if (isMultiColor)
-                        {
-                            var maskMultiColor0Mask = 0b01000000;
-                            var maskSpriteColorMask = 0b10000000;
-                            var maskMultiColor1Mask = 0b11000000;
-
-                            uint spriteColor;
-                            for (var pixel = 0; pixel < 8; pixel += 2)
-                            {
-                                spriteColor = spriteLinePart switch
-                                {
-                                    var p when (p & maskMultiColor0Mask) == maskMultiColor0Mask => spriteMultiColor0PixelColor,
-                                    var p when (p & maskSpriteColorMask) == maskSpriteColorMask => spriteForegroundPixelColor,
-                                    var p when (p & maskMultiColor1Mask) == maskMultiColor1Mask => spriteMultiColor1PixelColor,
-                                    _ => 0
-                                };
-
-                                if (spriteColor > 0)
-                                {
-                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y, spriteColor, priorityOverForground);
-                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y, spriteColor, priorityOverForground);
-
-                                    if (isDoubleWidth)
-                                    {
-                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 2, spriteScreenPosY + y, spriteColor, priorityOverForground);
-                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 3, spriteScreenPosY + y, spriteColor, priorityOverForground);
-                                    }
-
-                                    if (isDoubleHeight)
-                                    {
-                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
-                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
-
-                                        if (isDoubleWidth)
-                                        {
-                                            WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 2, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
-                                            WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 3, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
-                                        }
-                                    }
-                                }
-
-                                maskMultiColor0Mask = maskMultiColor0Mask >> 2;
-                                maskMultiColor1Mask = maskMultiColor1Mask >> 2;
-                                maskSpriteColorMask = maskSpriteColorMask >> 2;
-
-                                x += isDoubleHeight ? 4 : 2;
-                            }
-                        }
-                        else
-                        {
-                            var mask = 0b10000000;
-                            for (var pixel = 0; pixel < 8; pixel++)
-                            {
-                                var pixelSet = (spriteLinePart & mask) == mask;
-                                if (pixelSet)
-                                {
-                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y, spriteForegroundPixelColor, priorityOverForground);
-
-                                    if (isDoubleWidth)
-                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y, spriteForegroundPixelColor, priorityOverForground);
-
-                                    if (isDoubleHeight)
-                                    {
-                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y + 1, spriteForegroundPixelColor, priorityOverForground);
-                                        if (isDoubleWidth)
-                                            WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y + 1, spriteForegroundPixelColor, priorityOverForground);
-                                    }
-                                }
-                                mask = mask >> 1;
-
-                                x += isDoubleHeight ? 2 : 1;
-                            }
-                        }
-                    }
-                    y += isDoubleHeight ? 2 : 1;
-                }
-
-                void WriteSpritePixelWithAlphaPrio(int screenPosX, int screenPosY, uint color, bool priorityOverForground)
-                {
-                    // Check if pixel is outside the visible screen area
-                    if (screenPosX < 0 || screenPosX >= width || screenPosY < 0 || screenPosY > height)
-                        return;
-
-                    // Check if pixel is within side borders, and if it should be shown there or not.
-                    // TODO: Detect if side borders are open? How to?
-                    var openSideBorders = false;
-                    if (!openSideBorders && (screenPosX < visibleMainScreenArea.Screen.Start.X || screenPosX > visibleMainScreenArea.Screen.End.X))
-                        return;
-
-                    // Check if pixel is within top/bottom borders, and if it should be shown there or not.
-                    // TODO: Detect if top/bottom borders are open? How to?
-                    var openTopBottomBorders = false;
-                    if (!openTopBottomBorders && (screenPosY < visibleMainScreenArea.Screen.Start.Y || screenPosY > visibleMainScreenArea.Screen.End.Y))
-                        return;
-
-                    // Calculate the position in the bitmap where the pixel should be drawn
-                    var bitmapIndex = screenPosY * width + screenPosX;
-
-                    // If pixel to be set is from a low prio sprite, don't overwrite if current pixel is from high prio sprite
-                    const uint BLUE_COLOR_MASK = 0x000000ff;
-                    if (!priorityOverForground)
-                    {
-                        if ((spritesPixelArray[bitmapIndex] & BLUE_COLOR_MASK) == HIGH_PRIO_SPRITE_BLUE)
-                            return;
-                    }
-
-                    spritesPixelArray[bitmapIndex] = color;
-                }
-
-                sprite.ClearDirty();
+                // Top prio sprite pixel
+                spriteForegroundPixelColor = (uint)_spriteHighPrioColors[sprite.SpriteNumber];
+                spriteMultiColor0PixelColor = (uint)_spriteHighPrioMultiColor0;
+                spriteMultiColor1PixelColor = (uint)_spriteHighPrioMultiColor1;
             }
+            else
+            {
+                // Low prio sprite pixel
+                spriteForegroundPixelColor = (uint)_spriteLowPrioColors[sprite.SpriteNumber];
+                spriteMultiColor0PixelColor = (uint)_spriteLowPrioMultiColor0;
+                spriteMultiColor1PixelColor = (uint)_spriteLowPrioMultiColor1;
+            }
+
+            // Loop each sprite line (21 lines)
+            var y = 0;
+            foreach (var spriteRow in sprite.Data.Rows)
+            {
+                // Loop each 8-bit part of the sprite line (3 bytes, 24 pixels).
+                var x = 0;
+                foreach (var spriteLinePart in spriteRow.Bytes)
+                {
+                    if (isMultiColor)
+                    {
+                        var maskMultiColor0Mask = 0b01000000;
+                        var maskSpriteColorMask = 0b10000000;
+                        var maskMultiColor1Mask = 0b11000000;
+
+                        uint spriteColor;
+                        for (var pixel = 0; pixel < 8; pixel += 2)
+                        {
+                            spriteColor = spriteLinePart switch
+                            {
+                                var p when (p & maskMultiColor0Mask) == maskMultiColor0Mask => spriteMultiColor0PixelColor,
+                                var p when (p & maskSpriteColorMask) == maskSpriteColorMask => spriteForegroundPixelColor,
+                                var p when (p & maskMultiColor1Mask) == maskMultiColor1Mask => spriteMultiColor1PixelColor,
+                                _ => 0
+                            };
+
+                            if (spriteColor > 0)
+                            {
+                                WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y, spriteColor, priorityOverForground);
+                                WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y, spriteColor, priorityOverForground);
+
+                                if (isDoubleWidth)
+                                {
+                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 2, spriteScreenPosY + y, spriteColor, priorityOverForground);
+                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 3, spriteScreenPosY + y, spriteColor, priorityOverForground);
+                                }
+
+                                if (isDoubleHeight)
+                                {
+                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
+                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
+
+                                    if (isDoubleWidth)
+                                    {
+                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 2, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
+                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 3, spriteScreenPosY + y + 1, spriteColor, priorityOverForground);
+                                    }
+                                }
+                            }
+
+                            maskMultiColor0Mask = maskMultiColor0Mask >> 2;
+                            maskMultiColor1Mask = maskMultiColor1Mask >> 2;
+                            maskSpriteColorMask = maskSpriteColorMask >> 2;
+
+                            x += isDoubleHeight ? 4 : 2;
+                        }
+                    }
+                    else
+                    {
+                        var mask = 0b10000000;
+                        for (var pixel = 0; pixel < 8; pixel++)
+                        {
+                            var pixelSet = (spriteLinePart & mask) == mask;
+                            if (pixelSet)
+                            {
+                                WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y, spriteForegroundPixelColor, priorityOverForground);
+
+                                if (isDoubleWidth)
+                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y, spriteForegroundPixelColor, priorityOverForground);
+
+                                if (isDoubleHeight)
+                                {
+                                    WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x, spriteScreenPosY + y + 1, spriteForegroundPixelColor, priorityOverForground);
+                                    if (isDoubleWidth)
+                                        WriteSpritePixelWithAlphaPrio(spriteScreenPosX + x + 1, spriteScreenPosY + y + 1, spriteForegroundPixelColor, priorityOverForground);
+                                }
+                            }
+                            mask = mask >> 1;
+
+                            x += isDoubleHeight ? 2 : 1;
+                        }
+                    }
+                }
+                y += isDoubleHeight ? 2 : 1;
+            }
+
+            void WriteSpritePixelWithAlphaPrio(int screenPosX, int screenPosY, uint color, bool priorityOverForground)
+            {
+                // Check if pixel is outside the visible screen area
+                if (screenPosX < 0 || screenPosX >= width || screenPosY < 0 || screenPosY > height)
+                    return;
+
+                // Check if pixel is within side borders, and if it should be shown there or not.
+                // TODO: Detect if side borders are open? How to?
+                var openSideBorders = false;
+                if (!openSideBorders && (screenPosX < visibleMainScreenArea.Screen.Start.X || screenPosX > visibleMainScreenArea.Screen.End.X))
+                    return;
+
+                // Check if pixel is within top/bottom borders, and if it should be shown there or not.
+                // TODO: Detect if top/bottom borders are open? How to?
+                var openTopBottomBorders = false;
+                if (!openTopBottomBorders && (screenPosY < visibleMainScreenArea.Screen.Start.Y || screenPosY > visibleMainScreenArea.Screen.End.Y))
+                    return;
+
+                // Calculate the position in the bitmap where the pixel should be drawn
+                var bitmapIndex = screenPosY * width + screenPosX;
+
+                // If pixel to be set is from a low prio sprite, don't overwrite if current pixel is from high prio sprite
+                const uint BLUE_COLOR_MASK = 0x000000ff;
+                if (!priorityOverForground)
+                {
+                    if ((spritesPixelArray[bitmapIndex] & BLUE_COLOR_MASK) == HIGH_PRIO_SPRITE_BLUE)
+                        return;
+                }
+
+                spritesPixelArray[bitmapIndex] = color;
+            }
+
+            sprite.ClearDirty();
         }
+
+        _spritesStat.Stop();
     }
 
     private void DrawLineDataToBitmapBackedByPixelArray(C64 c64, uint[] lineDataPixelArray)
     {
         // Build array to send to shader with the actual color that should be used differnt types of colors (border, bg0, bg1, bg2, bg3, etc), dependent on the raster line number
-        using (_lineDataImageStat.Measure())
+        _lineDataImageStat.Start();
+
+        var c64ScreenLineIORegisterValues = c64.Vic2.ScreenLineIORegisterValues;
+        var visibleMainScreenArea = c64.Vic2.ScreenLayouts.GetLayout(LayoutType.Visible);
+        var drawableScreenStartY = visibleMainScreenArea.Screen.Start.Y;
+        var drawableScreenEndY = drawableScreenStartY + c64.Vic2.Vic2Screen.DrawableAreaHeight;
+
+        var shaderLineDataValuePerLine = Enum.GetNames(typeof(ShaderLineData)).Length;
+        foreach (var lineData in c64ScreenLineIORegisterValues)
         {
-            var c64ScreenLineIORegisterValues = c64.Vic2.ScreenLineIORegisterValues;
-            var visibleMainScreenArea = c64.Vic2.ScreenLayouts.GetLayout(LayoutType.Visible);
-            var drawableScreenStartY = visibleMainScreenArea.Screen.Start.Y;
-            var drawableScreenEndY = drawableScreenStartY + c64.Vic2.Vic2Screen.DrawableAreaHeight;
+            // Check if in total visisble area, because c64ScreenLineIORegisterValues includes non-visible lines
+            if (lineData.Key < visibleMainScreenArea.TopBorder.Start.Y || lineData.Key > visibleMainScreenArea.BottomBorder.End.Y)
+                continue;
 
-            var shaderLineDataValuePerLine = Enum.GetNames(typeof(ShaderLineData)).Length;
-            foreach (var lineData in c64ScreenLineIORegisterValues)
-            {
-                // Check if in total visisble area, because c64ScreenLineIORegisterValues includes non-visible lines
-                if (lineData.Key < visibleMainScreenArea.TopBorder.Start.Y || lineData.Key > visibleMainScreenArea.BottomBorder.End.Y)
-                    continue;
+            var bitmapLine = lineData.Key - visibleMainScreenArea.TopBorder.Start.Y;
 
-                var bitmapLine = lineData.Key - visibleMainScreenArea.TopBorder.Start.Y;
+            var pixelArrayIndex = bitmapLine * shaderLineDataValuePerLine;
 
-                var pixelArrayIndex = bitmapLine * shaderLineDataValuePerLine;
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Border_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BorderColor];
 
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Border_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BorderColor];
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.SpriteMultiColor0] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor0];
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.SpriteMultiColor1] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor1];
 
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.SpriteMultiColor0] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor0];
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.SpriteMultiColor1] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor1];
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite0Color];
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite1Color];
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite2Color];
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite3Color];
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite4_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite4Color];
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite5_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite5Color];
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite6_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite6Color];
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite7_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite7Color];
 
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite0Color];
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite1Color];
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite2Color];
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite3Color];
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite4_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite4Color];
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite5_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite5Color];
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite6_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite6Color];
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Sprite7_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.Sprite7Color];
+            // Check if line is within main screen area, only there are background colors used (? is that really true when borders are open??)
+            if (lineData.Key < drawableScreenStartY || bitmapLine >= drawableScreenEndY)
+                continue;
 
-                // Check if line is within main screen area, only there are background colors used (? is that really true when borders are open??)
-                if (lineData.Key < drawableScreenStartY || bitmapLine >= drawableScreenEndY)
-                    continue;
-
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor0];
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor1];
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor2];
-                lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor3];
-            }
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor0];
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor1];
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor2];
+            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor3];
         }
+
+        _lineDataImageStat.Stop();
     }
 }

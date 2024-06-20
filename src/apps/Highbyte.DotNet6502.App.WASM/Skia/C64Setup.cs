@@ -2,7 +2,6 @@ using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 using Highbyte.DotNet6502.Systems;
@@ -100,6 +99,7 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
         var inputHandler = new C64AspNetInputHandler(_loggerFactory, _hostConfig.InputConfig);
         var audioHandler = new C64WASMAudioHandler(_loggerFactory);
 
+        var c64 = (C64)system;
         renderer.Init(c64, renderContext);
         inputHandler.Init(c64, inputHandlerContext);
         audioHandler.Init(c64, audioHandlerContext);

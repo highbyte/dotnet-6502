@@ -4,7 +4,6 @@ using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 using Highbyte.DotNet6502.Systems;
