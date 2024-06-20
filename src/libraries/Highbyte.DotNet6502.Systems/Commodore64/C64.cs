@@ -45,8 +45,8 @@ public class C64 : ISystem, ISystemMonitor
     public bool InstrumentationEnabled { get; set; }
     public Instrumentations Instrumentations { get; } = new();
     private const string StatsCategory = "Custom";
-    private readonly ElapsedMillisecondsTimedStat _spriteCollisionStat;
-    private readonly ElapsedMillisecondsTimedStat _audioStat;
+    private readonly ElapsedMillisecondsTimedStatSystem _spriteCollisionStat;
+    private readonly ElapsedMillisecondsTimedStatSystem _audioStat;
 
     //public static ROM[] ROMS = new ROM[]
     //{   
@@ -90,9 +90,9 @@ public class C64 : ISystem, ISystemMonitor
         _audioStat.Stop(); // Stop audio stat (was continiously updated after each instruction)
 
         // Update sprite collision state
-        if (InstrumentationEnabled) _spriteCollisionStat.Start();
+        _spriteCollisionStat.Start();
         Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
-        if (InstrumentationEnabled) _spriteCollisionStat.Stop();
+        _spriteCollisionStat.Stop();
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
@@ -123,9 +123,9 @@ public class C64 : ISystem, ISystemMonitor
         // Handle output processing needed after each instruction.
         if (AudioEnabled)
         {
-            if (InstrumentationEnabled) _audioStat.Start(cont: true);
+            _audioStat.Start(cont: true);
             systemRunner.GenerateAudio();
-            if (InstrumentationEnabled) _audioStat.Stop(cont: true);
+            _audioStat.Stop(cont: true);
         }
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
@@ -143,11 +143,8 @@ public class C64 : ISystem, ISystemMonitor
     private C64(ILogger logger)
     {
         _logger = logger;
-        _spriteCollisionStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-SpriteCollision");
-
-        //_audioStat = new ElapsedMillisecondsTimedStat(samples: 1);
-        //Instrumentations.Add($"{StatsCategory}-Audio", _audioStat);
-        _audioStat = Instrumentations.Add<ElapsedMillisecondsTimedStat>($"{StatsCategory}-Audio");
+        _spriteCollisionStat = Instrumentations.Add($"{StatsCategory}-SpriteCollision", new ElapsedMillisecondsTimedStatSystem(this));
+        _audioStat = Instrumentations.Add($"{StatsCategory}-Audio", new ElapsedMillisecondsTimedStatSystem(this));
     }
 
     public static C64 BuildC64(C64Config c64Config, ILoggerFactory loggerFactory)

@@ -21,7 +21,7 @@ public class ElapsedMillisecondsTimedStat : AveragedStat
         _sw.Reset();
     }
 
-    public void Start(bool cont = false)
+    public virtual void Start(bool cont = false)
     {
         if (cont)
             _sw.Start();
@@ -29,7 +29,7 @@ public class ElapsedMillisecondsTimedStat : AveragedStat
             _sw.Restart();
     }
 
-    public void Stop(bool cont = false)
+    public virtual void Stop(bool cont = false)
     {
         _sw.Stop();
         if (!cont)

@@ -8,7 +8,6 @@ using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;
@@ -58,12 +57,16 @@ public class SilkNetWindow
     private const string RenderTimeStatName = "RenderTime";
     private const string InputTimeStatName = "InputTime";
     private const string AudioTimeStatName = "AudioTime";
-    private readonly ElapsedMillisecondsTimedStat _systemTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{SystemTimeStatName}");
-    private readonly ElapsedMillisecondsTimedStat _renderTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{RenderTimeStatName}");
-    private readonly ElapsedMillisecondsTimedStat _inputTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-{InputTimeStatName}");
-    //private readonly ElapsedMillisecondsTimedStat _audioTime = InstrumentationBag.Add<ElapsedMillisecondsTimedStat>($"{HostStatRootName}-AudioTimeStatName}");
+
+    private readonly Instrumentations _systemInstrumentations = new();
+    private ElapsedMillisecondsTimedStatSystem _systemTime;
+    private ElapsedMillisecondsTimedStatSystem _renderTime;
+    private ElapsedMillisecondsTimedStatSystem _inputTime;
+    //private ElapsedMillisecondsTimedStatSystem _audioTime;
+
     private readonly PerSecondTimedStat _updateFps = InstrumentationBag.Add<PerSecondTimedStat>($"{HostStatRootName}-OnUpdateFPS");
     private readonly PerSecondTimedStat _renderFps = InstrumentationBag.Add<PerSecondTimedStat>($"{HostStatRootName}-OnRenderFPS");
+
 
     // Render context container for SkipSharp (surface/canvas) and SilkNetOpenGl
     private SilkNetRenderContextContainer _silkNetRenderContextContainer = default!;
@@ -248,6 +251,15 @@ public class SilkNetWindow
         }
     }
 
+    private void InitInstrumentation(ISystem system)
+    {
+        _systemInstrumentations.Clear();
+        _systemTime = _systemInstrumentations.Add($"{HostStatRootName}-{SystemTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
+        _renderTime = _systemInstrumentations.Add($"{HostStatRootName}-{RenderTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
+        _inputTime = _systemInstrumentations.Add($"{HostStatRootName}-{InputTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
+        //_audioTime = InstrumentationBag.Add($"{HostStatRootName}-{AudioTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
+    }
+
     public void SetVolumePercent(float volumePercent)
     {
         _defaultAudioVolumePercent = volumePercent;
@@ -265,6 +277,8 @@ public class SilkNetWindow
         // Only create a new instance of SystemRunner if we previously has not started (so resume after pause works).
         if (EmulatorState == EmulatorState.Uninitialized)
             _systemRunner = _systemList.BuildSystemRunner(_currentSystemName).Result;
+
+        InitInstrumentation(_systemRunner.System);
 
         _monitor.Init(_systemRunner!);
 
@@ -290,8 +304,9 @@ public class SilkNetWindow
     {
         if (EmulatorState == EmulatorState.Uninitialized)
             return;
-        if (EmulatorState == EmulatorState.Running)
-            Pause();
+
+        Stop();
+
         _systemRunner = default!;
         EmulatorState = EmulatorState.Uninitialized;
         Start();
@@ -301,6 +316,10 @@ public class SilkNetWindow
     {
         if (EmulatorState == EmulatorState.Running)
             Pause();
+
+        if (_statsPanel.Visible)
+            ToggleStatsPanel();
+
         _systemRunner = default!;
         SetUninitializedWindow();
         InitRendering();
@@ -323,16 +342,16 @@ public class SilkNetWindow
         // Handle input
         if (!_atLeastOneImGuiWindowHasFocus)
         {
-            if (_systemRunner.System.InstrumentationEnabled) _inputTime.Start();
+            _inputTime.Start();
             _systemRunner.ProcessInput();
-            if (_systemRunner.System.InstrumentationEnabled) _inputTime.Stop();
+            _inputTime.Stop();
         }
 
         // Run emulator for one frame worth of emulated CPU cycles 
         ExecEvaluatorTriggerResult execEvaluatorTriggerResult;
-        if (_systemRunner.System.InstrumentationEnabled) _systemTime.Start();
+        _systemTime.Start();
         execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame();
-        if (_systemRunner.System.InstrumentationEnabled) _systemTime.Stop();
+        _systemTime.Stop();
 
         // Show monitor if we encounter breakpoint or other break
         if (execEvaluatorTriggerResult.Triggered)
@@ -365,12 +384,12 @@ public class SilkNetWindow
             if (_monitor.Visible || _statsPanel.Visible || _logsPanel.Visible)
                 _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
 
-            if (_systemRunner.System.InstrumentationEnabled) _renderTime.Start();
+            _renderTime.Start();
             // Render emulator system screen
             _systemRunner.Draw();
             // Flush the SkiaSharp Context
             _silkNetRenderContextContainer.SkiaRenderContext.GetGRContext().Flush();
-            if (_systemRunner.System.InstrumentationEnabled) _renderTime.Stop();
+            _renderTime.Stop();
 
             emulatorRendered = true;
 
@@ -484,6 +503,7 @@ public class SilkNetWindow
     private List<(string name, IStat stat)> GetStats()
     {
         return InstrumentationBag.Stats
+            .Union(_systemInstrumentations.Stats)
             .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
             .Union(_systemRunner.Renderer.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{RenderTimeStatName}-{x.Name}", x.Stat)))
             .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{HostStatRootName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
