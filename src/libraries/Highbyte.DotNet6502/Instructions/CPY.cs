@@ -11,7 +11,7 @@ public class CPY : Instruction, IInstructionUsesByte
 
     public ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
     {
-        BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.Y, value, cpu.ProcessorStatus);
+        BinaryArithmeticHelpers.SetFlagsAfterCompare(cpu.Y, value, ref cpu.ProcessorStatus);
 
         return 0;
     }

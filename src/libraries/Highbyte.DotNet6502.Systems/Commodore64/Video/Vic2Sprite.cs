@@ -8,7 +8,7 @@ public class Vic2Sprite
     public const int DEFAULT_WIDTH = 24;
     public const int DEFAULT_HEIGTH = 21;
 
-    private readonly Vic2SpriteManager _spriteManager;
+    private readonly IVic2SpriteManager _spriteManager;
     private Vic2 _vic2 => _spriteManager.Vic2;
     private C64 _c64 => _spriteManager.Vic2.C64;
 
@@ -34,7 +34,7 @@ public class Vic2Sprite
 
     private bool _isDirty = true;
 
-    public Vic2Sprite(int spriteNumber, Vic2SpriteManager spriteManager)
+    public Vic2Sprite(int spriteNumber, IVic2SpriteManager spriteManager)
     {
         SpriteNumber = spriteNumber;
         _spriteManager = spriteManager;

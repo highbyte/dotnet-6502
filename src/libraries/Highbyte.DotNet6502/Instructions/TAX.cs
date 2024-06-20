@@ -11,7 +11,7 @@ public class TAX : Instruction, IInstructionUsesOnlyRegOrStatus
     public ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
     {
         cpu.X = cpu.A;
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.X, cpu.ProcessorStatus);            
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.X, ref cpu.ProcessorStatus);            
 
         return 0;                
     }

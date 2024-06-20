@@ -12,7 +12,7 @@ public class LDY : Instruction, IInstructionUsesByte
     public ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
     {
         cpu.Y = value;
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, cpu.ProcessorStatus);
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.Y, ref cpu.ProcessorStatus);
 
         return 
             InstructionExtraCyclesCalculator.CalculateExtraCycles(

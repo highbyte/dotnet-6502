@@ -195,11 +195,11 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _uboColorMapData = new BufferObject<ColorMapData>(_gl, colorMapData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
 
         // Sprite Uniform Buffer Object for sprite meta data
-        var spriteData = new SpriteData[Vic2SpriteManager.NUMBERS_OF_SPRITES];
+        var spriteData = new SpriteData[c64.Vic2.SpriteManager.NumberOfSprites];
         _uboSpriteData = new BufferObject<SpriteData>(_gl, spriteData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
 
         // Sprite Uniform Buffer Object for sprite content data (8 sprites * 3 bytes per row * 21 rows = 504 items)
-        var spriteContentData = new SpriteContentData[Vic2SpriteManager.NUMBERS_OF_SPRITES * (Vic2Sprite.DEFAULT_WIDTH / 8) * Vic2Sprite.DEFAULT_HEIGTH];
+        var spriteContentData = new SpriteContentData[c64.Vic2.SpriteManager.NumberOfSprites * (Vic2Sprite.DEFAULT_WIDTH / 8) * Vic2Sprite.DEFAULT_HEIGTH];
         _uboSpriteContentData = new BufferObject<SpriteContentData>(_gl, spriteContentData, BufferTargetARB.UniformBuffer, BufferUsageARB.StaticDraw);
 
         // Init shader with:
@@ -309,13 +309,13 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _uboScreenLineData.Update(screenLineData, 0);
 
         // Sprite meta data UBO
-        var spriteData = new SpriteData[Vic2SpriteManager.NUMBERS_OF_SPRITES];
+        var spriteData = new SpriteData[c64.Vic2.SpriteManager.NumberOfSprites];
         foreach (var sprite in c64.Vic2.SpriteManager.Sprites)
         {
             int si = sprite.SpriteNumber;
             spriteData[si].Visible = sprite.Visible ? 1u : 0u;
-            spriteData[si].X = (sprite.X + visibleMainScreenArea.Screen.Start.X - Vic2SpriteManager.SCREEN_OFFSET_X);
-            spriteData[si].Y = (sprite.Y + visibleMainScreenArea.Screen.Start.Y - Vic2SpriteManager.SCREEN_OFFSET_Y);
+            spriteData[si].X = (sprite.X + visibleMainScreenArea.Screen.Start.X - c64.Vic2.SpriteManager.ScreenOffsetX);
+            spriteData[si].Y = (sprite.Y + visibleMainScreenArea.Screen.Start.Y - c64.Vic2.SpriteManager.ScreenOffsetY);
             spriteData[si].Color = (uint)sprite.Color;
             spriteData[si].DoubleWidth = sprite.DoubleWidth ? 1u : 0u;
             spriteData[si].DoubleHeight = sprite.DoubleHeight ? 1u : 0u;
@@ -328,7 +328,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         if (c64.Vic2.SpriteManager.Sprites.Any(s => s.IsDirty))
         {
             // TODO: Is best approach to upload all sprite content if any sprite is dirty? To minimize the number of separate UBO updates?
-            var spriteContentData = new SpriteContentData[Vic2SpriteManager.NUMBERS_OF_SPRITES * (Vic2Sprite.DEFAULT_WIDTH / 8) * Vic2Sprite.DEFAULT_HEIGTH];
+            var spriteContentData = new SpriteContentData[c64.Vic2.SpriteManager.NumberOfSprites * (Vic2Sprite.DEFAULT_WIDTH / 8) * Vic2Sprite.DEFAULT_HEIGTH];
             int uboIndex = 0;
             foreach (var sprite in c64.Vic2.SpriteManager.Sprites)
             {

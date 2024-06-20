@@ -1,6 +1,6 @@
 namespace Highbyte.DotNet6502;
 
-public class ProcessorStatus
+public struct ProcessorStatus
 {
     private byte _value;
     /// <summary>
@@ -95,11 +95,6 @@ public class ProcessorStatus
     public ProcessorStatus(byte value)
     {
         _value = value;
-    }
-
-    public ProcessorStatus Clone()
-    {
-        return new ProcessorStatus(Value);
     }
 }
 

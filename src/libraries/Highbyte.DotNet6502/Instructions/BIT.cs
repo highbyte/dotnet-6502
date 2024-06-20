@@ -12,7 +12,7 @@ public class BIT : Instruction, IInstructionUsesByte
     public override List<OpCode> OpCodes => _opCodes;
     public ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
     {
-        BinaryArithmeticHelpers.PerformBITAndSetStatusRegisters(cpu.A, value, cpu.ProcessorStatus);
+        BinaryArithmeticHelpers.PerformBITAndSetStatusRegisters(cpu.A, value, ref cpu.ProcessorStatus);
 
         return 0;
     }  

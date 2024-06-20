@@ -12,7 +12,7 @@ public class INX : Instruction, IInstructionUsesOnlyRegOrStatus
     {
         // Assume implied mode
         cpu.X++;
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.X, cpu.ProcessorStatus);
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.X, ref cpu.ProcessorStatus);
 
         return 0;
     }

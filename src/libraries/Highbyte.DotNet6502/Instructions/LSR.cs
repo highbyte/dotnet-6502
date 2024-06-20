@@ -11,7 +11,7 @@ public class LSR : Instruction, IInstructionUsesAddress, IInstructionUsesOnlyReg
     public ulong ExecuteWithWord(CPU cpu, Memory mem, ushort address, AddrModeCalcResult addrModeCalcResult)
     {
         var tempValue = cpu.FetchByte(mem, address);
-        tempValue = BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(tempValue, cpu.ProcessorStatus);
+        tempValue = BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(tempValue, ref cpu.ProcessorStatus);
         cpu.StoreByte(tempValue, mem, address);               
 
         return 0;
@@ -20,7 +20,7 @@ public class LSR : Instruction, IInstructionUsesAddress, IInstructionUsesOnlyReg
     public ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
     {
         // Assume Accumulator mode
-        cpu.A = BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(cpu.A, cpu.ProcessorStatus);
+        cpu.A = BinaryArithmeticHelpers.PerformLSRAndSetStatusRegisters(cpu.A, ref cpu.ProcessorStatus);
 
         return 0;
     }

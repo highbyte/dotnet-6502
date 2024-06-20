@@ -20,7 +20,7 @@ public class BRK : Instruction, IInstructionUsesStack
         pcPushedToStack++;
         cpu.PushWordToStack(pcPushedToStack, mem);
         // Set the Break flag on the copy of the ProcessorStatus that will be stored in stack.
-        var processorStatusCopy = cpu.ProcessorStatus.Clone();
+        var processorStatusCopy = cpu.ProcessorStatus;
         processorStatusCopy.Break = true;
         processorStatusCopy.Unused = true;
         cpu.PushByteToStack(processorStatusCopy.Value, mem);

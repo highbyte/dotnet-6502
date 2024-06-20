@@ -12,7 +12,7 @@ public class EOR : Instruction, IInstructionUsesByte
     public ulong ExecuteWithByte(CPU cpu, Memory mem, byte value, AddrModeCalcResult addrModeCalcResult)
     {
         cpu.A ^= value;
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, cpu.ProcessorStatus);
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.A, ref cpu.ProcessorStatus);
 
         return 
             InstructionExtraCyclesCalculator.CalculateExtraCycles(

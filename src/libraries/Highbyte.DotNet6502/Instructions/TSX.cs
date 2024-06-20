@@ -11,7 +11,7 @@ public class TSX : Instruction, IInstructionUsesOnlyRegOrStatus
     public ulong Execute(CPU cpu, AddrModeCalcResult addrModeCalcResult)
     {
         cpu.X = cpu.SP;
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.X, cpu.ProcessorStatus);
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(cpu.X, ref cpu.ProcessorStatus);
         
         return 0;                
     }

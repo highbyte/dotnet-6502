@@ -13,7 +13,7 @@ public class INC : Instruction, IInstructionUsesByte
     {
         value++;
         cpu.StoreByte(value, mem, addrModeCalcResult.InsAddress!.Value);
-        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(value, cpu.ProcessorStatus);
+        BinaryArithmeticHelpers.SetFlagsAfterRegisterLoadIncDec(value, ref cpu.ProcessorStatus);
 
         return 0;
     }

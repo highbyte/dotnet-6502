@@ -5,16 +5,15 @@ namespace Highbyte.DotNet6502.Tests.Instrumentation
     public class ElapsedMillisecondsTimedStatTest
     {
         [Fact]
-        public void Measure_WhenUsed_Returns_ExecutionTime_In_GetStatMilliseconds()
+        public void Returns_ExecutionTime_In_GetStatMilliseconds()
         {
             // Arrange
             var stat = new ElapsedMillisecondsTimedStat(samples: 1);
 
             int sleepMs = 2;
-            using (stat.Measure())
-            {
-                Thread.Sleep(sleepMs);
-            }
+            stat.Start();
+            Thread.Sleep(sleepMs);
+            stat.Stop();
 
             // Act
             var elapsedMs = stat.GetStatMilliseconds();
@@ -28,21 +27,20 @@ namespace Highbyte.DotNet6502.Tests.Instrumentation
         }
 
         [Fact]
-        public void Measure_WhenUsed_With_Cont_Returns_ExecutionTime_In_GetStatMilliseconds()
+        public void When_Used_With_Cont_Returns_ExecutionTime_In_GetStatMilliseconds()
         {
             // Arrange
             var stat = new ElapsedMillisecondsTimedStat(samples: 1);
 
             int sleepMs = 2;
-            using (stat.Measure(cont: true))
-            {
-                Thread.Sleep(sleepMs);
-            }
+            stat.Start(cont: true);
+            Thread.Sleep(sleepMs);
+            stat.Stop(cont: true);
+
             int sleepNextMs = 3;
-            using (stat.Measure(cont: true))
-            {
-                Thread.Sleep(sleepNextMs);
-            }
+            stat.Start(cont: true);
+            Thread.Sleep(sleepNextMs);
+            stat.Stop(cont: true);
             stat.Stop();
 
             // Act
@@ -89,10 +87,9 @@ namespace Highbyte.DotNet6502.Tests.Instrumentation
 
             // Act
             int sleepMs = 2;
-            using (stat.Measure())
-            {
-                Thread.Sleep(sleepMs);
-            }
+            stat.Start();
+            Thread.Sleep(sleepMs);
+            stat.Stop();
             // Assert
             var ms = stat.GetStatMilliseconds();
             Assert.NotNull(ms);
