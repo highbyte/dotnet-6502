@@ -89,7 +89,7 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
                 renderer = new C64SkiaRenderer2();
                 break;
             case C64HostRenderer.SkiaSharp3:
-                renderer = new C64SkiaRenderer3();
+                renderer = new C64SkiaRenderer2b();
                 break;
             default:
                 throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");

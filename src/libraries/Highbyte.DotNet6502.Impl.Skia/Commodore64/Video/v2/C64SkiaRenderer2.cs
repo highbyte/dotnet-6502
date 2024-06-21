@@ -181,7 +181,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
         // --------------------
         // Load and compile shader.
         // --------------------
-        var src = LoadShaderSource("C64_sksl_shader.frag");
+        var src = LoadShaderSource("C64_sksl_shader2.frag");
         src = ReplaceShaderPlaceholders(src, c64);
         _sKRuntimeEffect = SKRuntimeEffect.CreateShader(src, out var error);
         if (!string.IsNullOrEmpty(error))

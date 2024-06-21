@@ -10,7 +10,7 @@ using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 
-public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
+public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
 {
     private Func<SKCanvas> _getSkCanvas = default!;
 
@@ -28,15 +28,16 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     private C64SkiaColors _c64SkiaColors;
 
     // Pre-calculated pixel arrays
-    private uint[] _oneLineBorderPixels; // pixelArray
-    private uint[] _oneCharLineBg0Pixels; // pixelArray
+    private Dictionary<byte, uint[]> _oneLineSameColorPixelsActual; // pixelArray
+    //private uint[] _oneLineBorderPixels; // pixelArray
+    //private uint[] _oneCharLineBg0Pixels; // pixelArray
 
     // 8-bit patterns mapped to 8 pixels (1 pixel = 1 uint rgba) that will be replaced in shader to actual color per raster line.
-    private Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg0Map;
-    private Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg1Map;
-    private Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg2Map;
-    private Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg3Map;
-    private Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsMultiColorMap;
+    //private Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg0Map;
+    //private Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg1Map;
+    //private Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg2Map;
+    //private Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsBg3Map;
+    //private Dictionary<(byte eightPixels, byte fgColorCode), uint[]> _bitmapEightPixelsMultiColorMap;
 
     // Bitmap mode "Standard" (HiRes): 8-bit patterns mapped to 8 pixels (1 pixel = 1 uint rgba) that that are the actual colors, not to be replaced in shader.
     private Dictionary<(byte eightPixels, byte bitmapBgColorCode, byte bitmapFgColorCode), uint[]> _bitmapEightHiresPixelsActual;
@@ -48,13 +49,13 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
 
     // Colors to draw border and background colors with on the bitmap. These colors will be replaced by the shader.
     // Could be any color, but must be different from normal C64 colors (used when drawing foreground colors).
-    private readonly SKColor _bg0DrawColorActual = SKColors.Orchid;
-    private readonly SKColor _bg0DrawColor = SKColors.DarkOrchid.WithAlpha(0);   // Any color with alpha 0, will make sure _bg0DrawColorActual is used as background color (replace in shader with _bg0DrawColorActual)
-    private readonly SKColor _bg1DrawColor = SKColors.DarkOliveGreen;
-    private readonly SKColor _bg2DrawColor = SKColors.DarkMagenta;
-    private readonly SKColor _bg3DrawColor = SKColors.DarkOrange;
+    //private readonly SKColor _bg0DrawColorActual = SKColors.Orchid;
+    //private readonly SKColor _bg0DrawColor = SKColors.DarkOrchid.WithAlpha(0);   // Any color with alpha 0, will make sure _bg0DrawColorActual is used as background color (replace in shader with _bg0DrawColorActual)
+    //private readonly SKColor _bg1DrawColor = SKColors.DarkOliveGreen;
+    //private readonly SKColor _bg2DrawColor = SKColors.DarkMagenta;
+    //private readonly SKColor _bg3DrawColor = SKColors.DarkOrange;
 
-    private readonly SKColor _borderDrawColor = SKColors.DarkKhaki;
+    //private readonly SKColor _borderDrawColor = SKColors.DarkKhaki;
 
     private const byte LOW_PRIO_SPRITE_BLUE = 51;   // 51 translates to exactly 0.2 in this texture shader (51/255 = 0.2)
     private const float LOW_PRIO_SPRITE_BLUE_SHADER = LOW_PRIO_SPRITE_BLUE / 255.0f; // Shader uses 0-1 float values
@@ -130,8 +131,30 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     private int _screenLayoutInclNonVisibleScreenEndX;
     private int _screenLayoutInclNonVisibleScreenEndY;
     private int _vic2ScreenTextCols;
+
     private int _screenStartY;
     private int _screenStartX;
+
+    private int _topBorderStartX;
+    private int _topBorderStartY;
+    private int _topBorderEndX;
+    private int _topBorderEndY;
+
+    private int _bottomBorderStartX;
+    private int _bottomBorderStartY;
+    private int _bottomBorderEndX;
+    private int _bottomBorderEndY;
+
+    private int _leftBorderStartX;
+    private int _leftBorderStartY;
+    private int _leftBorderEndX;
+    private int _leftBorderEndY;
+
+    private int _rightBorderStartX;
+    private int _rightBorderStartY;
+    private int _rightBorderEndX;
+    private int _rightBorderEndY;
+
     private int _vic2ScreenCharacterHeight;
     private int _width;
     private int _height;
@@ -146,33 +169,85 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     private int _scrollX;
     private int _scrollY;
 
-    public C64SkiaRenderer3()
+    private byte _borderColor;
+    private byte _backgroundColor0;
+    private byte _backgroundColor1;
+    private byte _backgroundColor2;
+    private byte _backgroundColor3;
+
+    private bool _is38ColModeEnabled;
+    private bool _is24RowModeEnabled;
+
+    private int _leftBorderEndXAdjusted;
+    private int _leftBorderLengthAdjusted;
+    private int _rightBorderStartXAdjusted;
+    private int _rightBorderLengthAdjusted;
+    private int _topBorderEndYAdjusted;
+    private int _topBottomBorderStartYAdjusted;
+    private int _screenLayoutInclNonVisibleTopBorderStartY;
+    private int _screenLayoutInclNonVisibleBottomBorderEndY;
+    private int _screenLayoutInclNonVisibleLeftBorderStartX;
+    private int _screenLayoutInclNonVisibleRightBorderEndX;
+
+    public C64SkiaRenderer2b()
     {
     }
 
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
     {
         c64.SetAfterInstructionCallback(AfterInstructionExecuted);
+        c64.RememberVic2RegistersPerRasterLine = false; // Disable code in Vic2 class that remembers VIC2 register values per raster line. We will do this ourselves in this renderer in callbacks after each instruction.
 
         // Init class variables with C64 screen values that should'nt change
+
+        // Entire screen area, including non-visible parts. Without consideration to 38 column mode or 24 row mode.
         var screenLayoutInclNonVisible = c64.Vic2.ScreenLayouts.GetLayout(LayoutType.Visible, for24RowMode: false, for38ColMode: false); // Full area of raster lines, including non-visible. Borders don't start at 0,0
+
+        _screenLayoutInclNonVisibleTopBorderStartY = screenLayoutInclNonVisible.TopBorder.Start.Y;
+        _screenLayoutInclNonVisibleBottomBorderEndY = screenLayoutInclNonVisible.BottomBorder.End.Y;
+        _screenLayoutInclNonVisibleLeftBorderStartX = screenLayoutInclNonVisible.LeftBorder.Start.X;
+        _screenLayoutInclNonVisibleRightBorderEndX = screenLayoutInclNonVisible.RightBorder.End.X;
+
         _screenLayoutInclNonVisibleScreenStartX = screenLayoutInclNonVisible.Screen.Start.X;
         _screenLayoutInclNonVisibleScreenStartY = screenLayoutInclNonVisible.Screen.Start.Y;
         _screenLayoutInclNonVisibleScreenEndX = screenLayoutInclNonVisible.Screen.End.X;
         _screenLayoutInclNonVisibleScreenEndY = screenLayoutInclNonVisible.Screen.End.Y;
 
-        // Main screen draw area for characters, without consideration to 38 column mode or 24 row mode.
+        // Entire screen area with only visible parts (borders, screen). Without consideration to 38 column mode or 24 row mode.
         var visibleMainScreenAreaNormalized = c64.Vic2.ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
-        _vic2ScreenTextCols = c64.Vic2.Vic2Screen.TextCols;
-        _screenStartY = visibleMainScreenAreaNormalized.Screen.Start.Y;
+        // Not considering 24 row mode or 38 col mode or fine scroll 
         _screenStartX = visibleMainScreenAreaNormalized.Screen.Start.X;
+        _screenStartY = visibleMainScreenAreaNormalized.Screen.Start.Y;
+
+        _topBorderStartX = visibleMainScreenAreaNormalized.TopBorder.Start.X;
+        _topBorderStartY = visibleMainScreenAreaNormalized.TopBorder.Start.Y;
+        _topBorderEndX = visibleMainScreenAreaNormalized.TopBorder.End.X;
+        _topBorderEndY = visibleMainScreenAreaNormalized.TopBorder.End.Y;
+
+        _bottomBorderStartX = visibleMainScreenAreaNormalized.BottomBorder.Start.X;
+        _bottomBorderStartY = visibleMainScreenAreaNormalized.BottomBorder.Start.Y;
+        _bottomBorderEndX = visibleMainScreenAreaNormalized.BottomBorder.End.X;
+        _bottomBorderEndY = visibleMainScreenAreaNormalized.BottomBorder.End.Y;
+
+        _leftBorderStartX = visibleMainScreenAreaNormalized.LeftBorder.Start.X;
+        _leftBorderStartY = visibleMainScreenAreaNormalized.LeftBorder.Start.Y;
+        _leftBorderEndX = visibleMainScreenAreaNormalized.LeftBorder.End.X;
+        _leftBorderEndY = visibleMainScreenAreaNormalized.LeftBorder.End.Y;
+
+        _rightBorderStartX = visibleMainScreenAreaNormalized.RightBorder.Start.X;
+        _rightBorderStartY = visibleMainScreenAreaNormalized.RightBorder.Start.Y;
+        _rightBorderEndX = visibleMainScreenAreaNormalized.RightBorder.End.X;
+        _rightBorderEndY = visibleMainScreenAreaNormalized.RightBorder.End.Y;
+
+        _vic2ScreenTextCols = c64.Vic2.Vic2Screen.TextCols;
         _vic2ScreenCharacterHeight = c64.Vic2.Vic2Screen.CharacterHeight;
         _width = c64.Vic2.Vic2Screen.VisibleWidth;
         _height = c64.Vic2.Vic2Screen.VisibleHeight;
         _drawableAreaHeight = c64.Vic2.Vic2Screen.DrawableAreaHeight;
         _cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
 
+        _lastScreenLineDataUpdate = -1;
 
         _getSkCanvas = skiaRenderContext.GetCanvas;
         _c64SkiaColors = new C64SkiaColors(c64.ColorMapName);
@@ -202,7 +277,7 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     public void Draw(C64 c64)
     {
         // Draw border and screen to bitmap
-        DrawBorderToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray);
+        //DrawBorderToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray);
 
         // Draw sprites to separate bitmap
         DrawSpritesToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_Sprites.PixelArray);
@@ -231,7 +306,7 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
         // --------------------
         // Load and compile shader.
         // --------------------
-        var src = LoadShaderSource("C64_sksl_shader.frag");
+        var src = LoadShaderSource("C64_sksl_shader2b.frag");
         src = ReplaceShaderPlaceholders(src, c64);
         _sKRuntimeEffect = SKRuntimeEffect.CreateShader(src, out var error);
         if (!string.IsNullOrEmpty(error))
@@ -250,13 +325,13 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
     private void InitShaderColorValueLookup()
     {
         // Map 32 bit unsigned int color values (from SKColors drawn on pixelarray/bitmap) to float[4] color values as seen in shader
-        AddColorToShaderColorMap(_bg0DrawColor);
-        AddColorToShaderColorMap(_bg0DrawColorActual);
-        AddColorToShaderColorMap(_bg1DrawColor);
-        AddColorToShaderColorMap(_bg2DrawColor);
-        AddColorToShaderColorMap(_bg3DrawColor);
+        //AddColorToShaderColorMap(_bg0DrawColor);
+        //AddColorToShaderColorMap(_bg0DrawColorActual);
+        //AddColorToShaderColorMap(_bg1DrawColor);
+        //AddColorToShaderColorMap(_bg2DrawColor);
+        //AddColorToShaderColorMap(_bg3DrawColor);
 
-        AddColorToShaderColorMap(_borderDrawColor);
+        //AddColorToShaderColorMap(_borderDrawColor);
 
         AddColorToShaderColorMap(_spriteLowPrioMultiColor0);
         AddColorToShaderColorMap(_spriteLowPrioMultiColor1);
@@ -356,85 +431,97 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
         // --------------------
         // Init pre-calculated pixel arrays
         // --------------------
+
+        _oneLineSameColorPixelsActual = new Dictionary<byte, uint[]>();
+        for (byte colorCode = 0; colorCode < 16; colorCode++)
+        {
+            var colorVal = (uint)_c64SkiaColors.C64ToSkColorMap[colorCode];
+            uint[] oneLine = new uint[width];
+            for (var i = 0; i < oneLine.Length; i++)
+                oneLine[i] = colorVal;
+            _oneLineSameColorPixelsActual[colorCode] = oneLine;
+        }
+
+
         // Borders: Pre-calculate entire rows, left/right border only, and one char row of pixels.
-        _oneLineBorderPixels = new uint[width];
-        for (var i = 0; i < _oneLineBorderPixels.Length; i++)
-            _oneLineBorderPixels[i] = (uint)_borderDrawColor;
-        _oneCharLineBg0Pixels = new uint[8];
-        for (var i = 0; i < _oneCharLineBg0Pixels.Length; i++)
-            _oneCharLineBg0Pixels[i] = (uint)_bg0DrawColor;
+        //_oneLineBorderPixels = new uint[width];
+        //for (var i = 0; i < _oneLineBorderPixels.Length; i++)
+        //    _oneLineBorderPixels[i] = (uint)_borderDrawColor;
+        ////_oneCharLineBg0Pixels = new uint[8];
+        //for (var i = 0; i < _oneCharLineBg0Pixels.Length; i++)
+        //    _oneCharLineBg0Pixels[i] = (uint)_bg0DrawColor;
 
         // Main text screen: Pre-calculate the 8 pixels for each combination of bit pixel pattern and foreground color
-        _bitmapEightPixelsBg0Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
-        _bitmapEightPixelsBg1Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
-        _bitmapEightPixelsBg2Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
-        _bitmapEightPixelsBg3Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
-        _bitmapEightPixelsMultiColorMap = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
+        //_bitmapEightPixelsBg0Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
+        //_bitmapEightPixelsBg1Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
+        //_bitmapEightPixelsBg2Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
+        //_bitmapEightPixelsBg3Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
+        //_bitmapEightPixelsMultiColorMap = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
 
-        var bg0ColorVal = (uint)_bg0DrawColor; // Note the background color _bg0DrawColor is hardcoded, and will be replaced by shader
-        var bg1ColorVal = (uint)_bg1DrawColor; // Note the background color _bg1DrawColor is hardcoded, and will be replaced by shader
-        var bg2ColorVal = (uint)_bg2DrawColor; // Note the background color _bg2DrawColor is hardcoded, and will be replaced by shader
-        var bg3ColorVal = (uint)_bg3DrawColor; // Note the background color _bg3DrawColor is hardcoded, and will be replaced by shader
+        //var bg0ColorVal = (uint)_bg0DrawColor; // Note the background color _bg0DrawColor is hardcoded, and will be replaced by shader
+        //var bg1ColorVal = (uint)_bg1DrawColor; // Note the background color _bg1DrawColor is hardcoded, and will be replaced by shader
+        //var bg2ColorVal = (uint)_bg2DrawColor; // Note the background color _bg2DrawColor is hardcoded, and will be replaced by shader
+        //var bg3ColorVal = (uint)_bg3DrawColor; // Note the background color _bg3DrawColor is hardcoded, and will be replaced by shader
 
         // Text (Standard and Extended mode) (8 bits -> 8 pixels)
-        for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
-        {
-            for (byte fgColorCode = 0; fgColorCode < 16; fgColorCode++)
-            {
-                var fgColorVal = (uint)_c64SkiaColors.C64ToSkColorMap[fgColorCode];
+        //for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
+        //{
+        //    for (byte fgColorCode = 0; fgColorCode < 16; fgColorCode++)
+        //    {
+        //        var fgColorVal = (uint)_c64SkiaColors.C64ToSkColorMap[fgColorCode];
 
-                var bitmapPixelsBg0 = new uint[8];
-                var bitmapPixelsBg1 = new uint[8];
-                var bitmapPixelsBg2 = new uint[8];
-                var bitmapPixelsBg3 = new uint[8];
+        //        var bitmapPixelsBg0 = new uint[8];
+        //        var bitmapPixelsBg1 = new uint[8];
+        //        var bitmapPixelsBg2 = new uint[8];
+        //        var bitmapPixelsBg3 = new uint[8];
 
-                // Loop each bit in pixelPattern
-                for (var pixelPos = 0; pixelPos < 8; pixelPos++)
-                {
-                    // If bit is set, use foreground color, else use background color
-                    var isBitSet = (pixelPattern & 1 << 7 - pixelPos) != 0;
-                    bitmapPixelsBg0[pixelPos] = isBitSet ? fgColorVal : bg0ColorVal;
-                    bitmapPixelsBg1[pixelPos] = isBitSet ? fgColorVal : bg1ColorVal;
-                    bitmapPixelsBg2[pixelPos] = isBitSet ? fgColorVal : bg2ColorVal;
-                    bitmapPixelsBg3[pixelPos] = isBitSet ? fgColorVal : bg3ColorVal;
-                }
-                _bitmapEightPixelsBg0Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg0);
-                _bitmapEightPixelsBg1Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg1);
-                _bitmapEightPixelsBg2Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg2);
-                _bitmapEightPixelsBg3Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg3);
-            }
-        }
+        //        // Loop each bit in pixelPattern
+        //        for (var pixelPos = 0; pixelPos < 8; pixelPos++)
+        //        {
+        //            // If bit is set, use foreground color, else use background color
+        //            var isBitSet = (pixelPattern & 1 << 7 - pixelPos) != 0;
+        //            bitmapPixelsBg0[pixelPos] = isBitSet ? fgColorVal : bg0ColorVal;
+        //            bitmapPixelsBg1[pixelPos] = isBitSet ? fgColorVal : bg1ColorVal;
+        //            bitmapPixelsBg2[pixelPos] = isBitSet ? fgColorVal : bg2ColorVal;
+        //            bitmapPixelsBg3[pixelPos] = isBitSet ? fgColorVal : bg3ColorVal;
+        //        }
+        //        _bitmapEightPixelsBg0Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg0);
+        //        _bitmapEightPixelsBg1Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg1);
+        //        _bitmapEightPixelsBg2Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg2);
+        //        _bitmapEightPixelsBg3Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg3);
+        //    }
+        //}
 
         // Text Multicolor mode, double pixel color (8 bits -> 4 pixels)
-        for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
-        {
-            // Only the lower 3 bits are used for foreground color from Color RAM, so only colors 0-7 are possible.
-            for (byte fgColorCode = 0; fgColorCode < 8; fgColorCode++)
-            {
-                var fgColorVal = (uint)_c64SkiaColors.C64ToSkColorMap[fgColorCode];
+        //for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
+        //{
+        //    // Only the lower 3 bits are used for foreground color from Color RAM, so only colors 0-7 are possible.
+        //    for (byte fgColorCode = 0; fgColorCode < 8; fgColorCode++)
+        //    {
+        //        var fgColorVal = (uint)_c64SkiaColors.C64ToSkColorMap[fgColorCode];
 
-                var bitmapPixelsMultiColor = new uint[8];
+        //        var bitmapPixelsMultiColor = new uint[8];
 
-                // Loop each multi-color pixel pair (4 pixel pairs)
-                var mask = 0b11000000;
-                for (var pixel = 0; pixel < 4; pixel++)
-                {
-                    var pixelPair = (pixelPattern & mask) >> 6 - pixel * 2;
-                    var pairColorVal = pixelPair switch
-                    {
-                        0b00 => bg0ColorVal,
-                        0b01 => bg1ColorVal,
-                        0b10 => bg2ColorVal,
-                        0b11 => fgColorVal,
-                        _ => throw new DotNet6502Exception("Invalid pixel pair value.")
-                    };
-                    mask = mask >> 2;
-                    bitmapPixelsMultiColor[pixel * 2] = pairColorVal;
-                    bitmapPixelsMultiColor[pixel * 2 + 1] = pairColorVal;
-                }
-                _bitmapEightPixelsMultiColorMap.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsMultiColor);
-            }
-        }
+        //        // Loop each multi-color pixel pair (4 pixel pairs)
+        //        var mask = 0b11000000;
+        //        for (var pixel = 0; pixel < 4; pixel++)
+        //        {
+        //            var pixelPair = (pixelPattern & mask) >> 6 - pixel * 2;
+        //            var pairColorVal = pixelPair switch
+        //            {
+        //                0b00 => bg0ColorVal,
+        //                0b01 => bg1ColorVal,
+        //                0b10 => bg2ColorVal,
+        //                0b11 => fgColorVal,
+        //                _ => throw new DotNet6502Exception("Invalid pixel pair value.")
+        //            };
+        //            mask = mask >> 2;
+        //            bitmapPixelsMultiColor[pixel * 2] = pairColorVal;
+        //            bitmapPixelsMultiColor[pixel * 2 + 1] = pairColorVal;
+        //        }
+        //        _bitmapEightPixelsMultiColorMap.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsMultiColor);
+        //    }
+        //}
     }
 
     private void InitBitPatternToPixelMapsForBitmapDisplay()
@@ -444,7 +531,7 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
         // Thus the colors precalcualted here will be the actual colors used in the bitmap.
 
 
-        var bg0ColorVal = (uint)_bg0DrawColor; // Note the background color _bg0DrawColor is hardcoded, and will be replaced by shader
+        //var bg0ColorVal = (uint)_bg0DrawColor; // Note the background color _bg0DrawColor is hardcoded, and will be replaced by shader
 
         _bitmapEightHiresPixelsActual = new();
         _bitmapEightMulticolorPixelsActual = new(); 
@@ -473,39 +560,39 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
                     }
                     _bitmapEightHiresPixelsActual.Add(((byte)pixelPattern, bitmapBgColorCode, bitmapFgColorCode), bitmapPixels);
 
+                    // TODO
+                    //// Multicolor mode, 8 bits => 4 pixels. 3 "foreground" colors (bg, fg, and extra from color ram) + normal screen background color (which will be replaced in shader)
+                    //for (byte colorRamCode = 0; colorRamCode < 16; colorRamCode++)
+                    //{
+                    //    var colorRamVal = (uint)_c64SkiaColors.C64ToSkColorMap[colorRamCode];
 
-                    // Multicolor mode, 8 bits => 4 pixels. 3 "foreground" colors (bg, fg, and extra from color ram) + normal screen background color (which will be replaced in shader)
-                    for (byte colorRamCode = 0; colorRamCode < 16; colorRamCode++)
-                    {
-                        var colorRamVal = (uint)_c64SkiaColors.C64ToSkColorMap[colorRamCode];
+                    //    var bitmapMulicolorPixels = new uint[8];
 
-                        var bitmapMulicolorPixels = new uint[8];
+                    //    // Loop each multi-color pixel pair (4 pixel pairs)
+                    //    var mask = 0b11000000;
+                    //    // Pixel pattern 00 => screen bg color
+                    //    // Pixel pattern 01 (multi color 1) => bitmap fg color (from text screen high 4 bits)
+                    //    // Pixel pattern 10 (multi color 2) => bitmap bg color (from text screen low 4 bits)
+                    //    // Pixel pattern 11 (multi color 3) => color RAM color (for corresponding position in text screen)
+                    //    for (var pixel = 0; pixel < 4; pixel++)
+                    //    {
+                    //        var pixelPair = (pixelPattern & mask) >> 6 - pixel * 2;
+                    //        var pairColorVal = pixelPair switch
+                    //        {
+                    //            0b00 => bg0ColorVal,
+                    //            0b01 => bitmapFgColorVal,
+                    //            0b10 => bitmapBgColorVal,
+                    //            0b11 => colorRamVal,
+                    //            _ => throw new DotNet6502Exception("Invalid pixel pair value.")
+                    //        };
+                    //        mask = mask >> 2;
+                    //        bitmapMulicolorPixels[pixel * 2] = pairColorVal;
+                    //        bitmapMulicolorPixels[pixel * 2 + 1] = pairColorVal;
+                    //    }
 
-                        // Loop each multi-color pixel pair (4 pixel pairs)
-                        var mask = 0b11000000;
-                        // Pixel pattern 00 => screen bg color
-                        // Pixel pattern 01 (multi color 1) => bitmap fg color (from text screen high 4 bits)
-                        // Pixel pattern 10 (multi color 2) => bitmap bg color (from text screen low 4 bits)
-                        // Pixel pattern 11 (multi color 3) => color RAM color (for corresponding position in text screen)
-                        for (var pixel = 0; pixel < 4; pixel++)
-                        {
-                            var pixelPair = (pixelPattern & mask) >> 6 - pixel * 2;
-                            var pairColorVal = pixelPair switch
-                            {
-                                0b00 => bg0ColorVal,
-                                0b01 => bitmapFgColorVal,
-                                0b10 => bitmapBgColorVal,
-                                0b11 => colorRamVal,
-                                _ => throw new DotNet6502Exception("Invalid pixel pair value.")
-                            };
-                            mask = mask >> 2;
-                            bitmapMulicolorPixels[pixel * 2] = pairColorVal;
-                            bitmapMulicolorPixels[pixel * 2 + 1] = pairColorVal;
-                        }
+                    //    _bitmapEightMulticolorPixelsActual.Add(((byte)pixelPattern, bitmapBgColorCode, bitmapFgColorCode, colorRamCode), bitmapMulicolorPixels);
 
-                        _bitmapEightMulticolorPixelsActual.Add(((byte)pixelPattern, bitmapBgColorCode, bitmapFgColorCode, colorRamCode), bitmapMulicolorPixels);
-
-                    }
+                    //}
                 }
             }
         }
@@ -522,12 +609,12 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
 
         _drawCanvasWithShader.Start();
         // shader uniform values
-        _sKRuntimeEffectUniforms["bg0Color"] = _sKColorToShaderColorMap[(uint)_bg0DrawColorActual];
-        _sKRuntimeEffectUniforms["bg1Color"] = _sKColorToShaderColorMap[(uint)_bg1DrawColor];
-        _sKRuntimeEffectUniforms["bg2Color"] = _sKColorToShaderColorMap[(uint)_bg2DrawColor];
-        _sKRuntimeEffectUniforms["bg3Color"] = _sKColorToShaderColorMap[(uint)_bg3DrawColor];
+        //_sKRuntimeEffectUniforms["bg0Color"] = _sKColorToShaderColorMap[(uint)_bg0DrawColorActual];
+        //_sKRuntimeEffectUniforms["bg1Color"] = _sKColorToShaderColorMap[(uint)_bg1DrawColor];
+        //_sKRuntimeEffectUniforms["bg2Color"] = _sKColorToShaderColorMap[(uint)_bg2DrawColor];
+        //_sKRuntimeEffectUniforms["bg3Color"] = _sKColorToShaderColorMap[(uint)_bg3DrawColor];
 
-        _sKRuntimeEffectUniforms["borderColor"] = _sKColorToShaderColorMap[(uint)_borderDrawColor];
+        //_sKRuntimeEffectUniforms["borderColor"] = _sKColorToShaderColorMap[(uint)_borderDrawColor];
 
         _sKRuntimeEffectUniforms["spriteLowPrioMultiColor0"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioMultiColor0];
         _sKRuntimeEffectUniforms["spriteLowPrioMultiColor1"] = _sKColorToShaderColorMap[(uint)_spriteLowPrioMultiColor1];
@@ -582,23 +669,27 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
         for (var cycleCurrentVblank = _lastCyclesConsumedCurrentVblank; cycleCurrentVblank < c64.Vic2.CyclesConsumedCurrentVblank; cycleCurrentVblank++)
         {
             // For the cycle processed in current loop iteration, get line and x position.
-            // Skip if not within main drawable C64 text/bitmap area (border is handled separately).
+            // Skip if not within visible C64 border/text/bitmap area
 
             // Line
             var rasterLine = (int)(cycleCurrentVblank / _cyclesPerLine);
             var screenLine = c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
-            if (screenLine < _screenLayoutInclNonVisibleScreenStartY || screenLine > _screenLayoutInclNonVisibleScreenEndY)
+            if (screenLine < _screenLayoutInclNonVisibleTopBorderStartY || screenLine > _screenLayoutInclNonVisibleBottomBorderEndY)
                 continue;
 
             // X position
             var cycleOnScreenLine = cycleCurrentVblank % _cyclesPerLine;
             int posX = ((int)(cycleOnScreenLine * 8)); // 1 cycle = 8 pixels;
-            if (posX < _screenLayoutInclNonVisibleScreenStartX || posX > _screenLayoutInclNonVisibleScreenEndX)
+            if (posX < _screenLayoutInclNonVisibleLeftBorderStartX || posX > _screenLayoutInclNonVisibleRightBorderEndX)
                 continue;
 
             // C64 screen data is updated each line. TODO: Is this correct assumption? Can these values update mid-line?
             if (screenLine != _lastScreenLineDataUpdate)
             {
+                // Draw border once per line, after normal screen (to cover up any scrolling?). We take data from previous line.
+                if (_lastScreenLineDataUpdate >= 0)
+                    DrawBorderPixels(normalizedScreenLine: _lastScreenLineDataUpdate - _screenLayoutInclNonVisibleTopBorderStartY);
+
                 _vic2VideoMatrixBaseAddress = c64.Vic2.VideoMatrixBaseAddress;
                 _vic2BitmapBaseAddress = c64.Vic2.BitmapManager.BitmapAddressInVIC2Bank;
                 _vic2CharacterSetAddressInVIC2Bank = c64.Vic2.CharsetManager.CharacterSetAddressInVIC2Bank;
@@ -609,14 +700,56 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
                 _scrollX = c64.Vic2.GetScrollX();
                 _scrollY = c64.Vic2.GetScrollY();
 
+
+                _borderColor = c64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
+
+                _backgroundColor0 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
+                _backgroundColor1 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1);
+                _backgroundColor2 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2);
+                _backgroundColor3 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3);
+
+                _is38ColModeEnabled = c64.Vic2.Is38ColumnDisplayEnabled;
+                _is24RowModeEnabled = c64.Vic2.Is24RowDisplayEnabled;
+
+                _leftBorderEndXAdjusted = _leftBorderEndX + (_is38ColModeEnabled ? Vic2Screen.COL_38_LEFT_BORDER_END_X_DELTA : 0);
+                _leftBorderLengthAdjusted = _leftBorderEndXAdjusted - _leftBorderStartX + 1;
+                _rightBorderStartXAdjusted = _rightBorderStartX + (_is38ColModeEnabled ? Vic2Screen.COL_38_RIGHT_BORDER_START_X_DELTA : 0);
+                _rightBorderLengthAdjusted = _width - _rightBorderStartXAdjusted;
+
+                _topBorderEndYAdjusted = _topBorderEndY + (_is24RowModeEnabled ? Vic2Screen.ROW_24_TOP_BORDER_END_Y_DELTA : 0);
+                _topBottomBorderStartYAdjusted = _bottomBorderStartY + (_is24RowModeEnabled ? Vic2Screen.ROW_24_BOTTOM_BORDER_START_Y_DELTA : 0);
+
                 _lastScreenLineDataUpdate = screenLine;
             }
 
-            DrawPixels(c64, drawLine: screenLine - _screenLayoutInclNonVisibleScreenStartY, col: (posX - _screenLayoutInclNonVisibleScreenStartX) / 8);
+            // Only draw main screen area (text/bitmap) if within it
+            if (!(screenLine < _screenLayoutInclNonVisibleScreenStartY || screenLine > _screenLayoutInclNonVisibleScreenEndY
+                || posX < _screenLayoutInclNonVisibleScreenStartX || posX > _screenLayoutInclNonVisibleScreenEndX))
+            {
+                DrawPixels(c64, drawLine: screenLine - _screenLayoutInclNonVisibleScreenStartY, col: (posX - _screenLayoutInclNonVisibleScreenStartX) / 8);
+            }
 
-        }
+        } // End for each cycle
 
         _lastCyclesConsumedCurrentVblank = c64.Vic2.CyclesConsumedCurrentVblank;
+    }
+
+    private void DrawBorderPixels(int normalizedScreenLine)
+    {
+        // Top or bottom border
+        if (normalizedScreenLine <= _topBorderEndYAdjusted || normalizedScreenLine >= _topBottomBorderStartYAdjusted)
+        {
+            var topBottomBorderLineStartIndex = normalizedScreenLine * _width;
+            Array.Copy(_oneLineSameColorPixelsActual[_borderColor], 0, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray, topBottomBorderLineStartIndex, _width);
+            return;
+        }
+
+        // Left border
+        var lineStartIndex = normalizedScreenLine * _width;
+        Array.Copy(_oneLineSameColorPixelsActual[_borderColor], 0, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray, lineStartIndex, _leftBorderLengthAdjusted);
+        // Right border
+        lineStartIndex += _rightBorderStartXAdjusted;
+        Array.Copy(_oneLineSameColorPixelsActual[_borderColor], _rightBorderStartXAdjusted, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray, lineStartIndex, _rightBorderLengthAdjusted);
     }
 
     private void DrawPixels(C64 c64, int drawLine, int col)
@@ -675,27 +808,47 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
             // Get pre-calculated 8 pixels that should be drawn on the bitmap, with correct colors for foreground and background
             if (_characterMode == CharMode.Standard || _characterMode == CharMode.Extended)
             {
+                byte backgroundColor;
+                switch (bgColorNumber)
+                {
+                    case 0:
+                        backgroundColor = _backgroundColor0;
+                        break;
+                    case 1:
+                        backgroundColor = _backgroundColor1;
+                        break;
+                    case 2:
+                        backgroundColor = _backgroundColor2;
+                        break;
+                    case 3:
+                        backgroundColor = _backgroundColor3;
+                        break;
+                    default:
+                        throw new DotNet6502Exception("Invalid background color number.");
+                }
+                eightPixels = _bitmapEightHiresPixelsActual[(lineData, backgroundColor, fgColorCode)];
+
                 // Get the corresponding array of uints representing the 8 pixels of the character
-                if (bgColorNumber == 0)
-                {
-                    eightPixels = _bitmapEightPixelsBg0Map[(lineData, fgColorCode)];
-                }
-                else if (bgColorNumber == 1)
-                {
-                    eightPixels = _bitmapEightPixelsBg1Map[(lineData, fgColorCode)];
-                }
-                else if (bgColorNumber == 2)
-                {
-                    eightPixels = _bitmapEightPixelsBg2Map[(lineData, fgColorCode)];
-                }
-                else if (bgColorNumber == 3)
-                {
-                    eightPixels = _bitmapEightPixelsBg3Map[(lineData, fgColorCode)];
-                }
-                else
-                {
-                    throw new NotImplementedException($"Background color number {bgColorNumber} not implemented.");
-                }
+                //if (bgColorNumber == 0)
+                //{
+                //    eightPixels = _bitmapEightPixelsBg0Map[(lineData, fgColorCode)];
+                //}
+                //else if (bgColorNumber == 1)
+                //{
+                //    eightPixels = _bitmapEightPixelsBg1Map[(lineData, fgColorCode)];
+                //}
+                //else if (bgColorNumber == 2)
+                //{
+                //    eightPixels = _bitmapEightPixelsBg2Map[(lineData, fgColorCode)];
+                //}
+                //else if (bgColorNumber == 3)
+                //{
+                //    eightPixels = _bitmapEightPixelsBg3Map[(lineData, fgColorCode)];
+                //}
+                //else
+                //{
+                //    throw new NotImplementedException($"Background color number {bgColorNumber} not implemented.");
+                //}
             }
             else // Asume text multicolor mode
             {
@@ -705,8 +858,10 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
                 // backgroundColor2 = the color of pixel-pair 10
                 // fgColorCode      = the color of pixel-pair 11
 
+                // TODO!
                 // Get the corresponding array of uints representing the 8 pixels of the character
-                eightPixels = _bitmapEightPixelsMultiColorMap[(lineData, fgColorCode)];
+                eightPixels = new uint[8];
+                //eightPixels = _bitmapEightPixelsMultiColorMap[(lineData, fgColorCode)];
             }
         }
         else
@@ -745,7 +900,7 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
         if (_scrollX > 0 && col == 0)
             // Fill start of column 0 with background color (the number of x pixels scrolled)
             // Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, bitmapIndex, scrollX);
-            WriteToPixelArray(_oneCharLineBg0Pixels, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray, drawLine, 0, fnLength: _scrollX, fnAdjustForScrollX: false, fnAdjustForScrollY: true);
+            WriteToPixelArray(_oneLineSameColorPixelsActual[_backgroundColor0], _skiaPixelArrayBitmap_TextAndBitmap.PixelArray, drawLine, 0, fnLength: _scrollX, fnAdjustForScrollX: false, fnAdjustForScrollY: true);
 
         // Add additional drawing to compensate for horizontal scrolling
         // Note: The actual vic2 vertical scroll has 3 as default value (no scroll), but the scrollY variable is adjusted to be between -3 and + 4 with default 0 when no scrolling.
@@ -757,7 +912,7 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
                 for (var i = 0; i < -_scrollY; i++)
                 {
                     //Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, fillBitMapIndex + scrollX, length);
-                    WriteToPixelArray(_oneCharLineBg0Pixels, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray, drawLine - i, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
+                    WriteToPixelArray(_oneLineSameColorPixelsActual[_backgroundColor0], _skiaPixelArrayBitmap_TextAndBitmap.PixelArray, drawLine - i, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
                 }
             }
             // If scrolling occured downards (scrollY > 0) and we are on first line of screen, fill the line above that was scrolled with background color
@@ -766,7 +921,7 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
                 for (var i = 0; i < _scrollY; i++)
                 {
                     //Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, fillBitMapIndex + scrollX, length);
-                    WriteToPixelArray(_oneCharLineBg0Pixels, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray, i, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
+                    WriteToPixelArray(_oneLineSameColorPixelsActual[_backgroundColor0], _skiaPixelArrayBitmap_TextAndBitmap.PixelArray, i, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
                 }
             }
         }
@@ -814,54 +969,54 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
         }
     }
 
-    private void DrawBorderToBitmapBackedByPixelArray(C64 c64, uint[] pixelArray)
-    {
-        _borderStat.Start();
+    //private void DrawBorderToBitmapBackedByPixelArray(C64 c64, uint[] pixelArray)
+    //{
+    //    _borderStat.Start();
 
-        var vic2 = c64.Vic2;
-        var vic2Screen = vic2.Vic2Screen;
-        var vic2ScreenLayouts = vic2.ScreenLayouts;
+    //    var vic2 = c64.Vic2;
+    //    var vic2Screen = vic2.Vic2Screen;
+    //    var vic2ScreenLayouts = vic2.ScreenLayouts;
 
-        // Main screen draw area for characters, with consideration to possible 38 column mode or 24 row mode.
-        var visibleMainScreenAreaNormalizedClipped = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);
+    //    // Main screen draw area for characters, with consideration to possible 38 column mode or 24 row mode.
+    //    var visibleMainScreenAreaNormalizedClipped = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);
 
-        var width = vic2Screen.VisibleWidth;
-        var height = vic2Screen.VisibleHeight;
+    //    var width = vic2Screen.VisibleWidth;
+    //    var height = vic2Screen.VisibleHeight;
 
-        // Borders.
-        // The borders must be drawn last, because it will overwrite parts of the main screen area if 38 column or 24 row modes are enabled (which main screen drawing above does not take in consideration)
+    //    // Borders.
+    //    // The borders must be drawn last, because it will overwrite parts of the main screen area if 38 column or 24 row modes are enabled (which main screen drawing above does not take in consideration)
 
-        var borderStartY = 0;
+    //    var borderStartY = 0;
 
-        // Assumption on visibleMainScreenAreaNormalizedClipped:
-        // - Contains dimensions of screen parts with consideration to if 38 column mode or 24 row mode is enabled.
-        // - Is normalized to start at 0,0 (i.e. TopBorder.Start.X = and TopBorder.Start.Y = 0)
-        var leftBorderStartX = visibleMainScreenAreaNormalizedClipped.LeftBorder.Start.X; // Should be 0?
-        var leftBorderLength = visibleMainScreenAreaNormalizedClipped.LeftBorder.End.X - visibleMainScreenAreaNormalizedClipped.LeftBorder.Start.X + 1;
+    //    // Assumption on visibleMainScreenAreaNormalizedClipped:
+    //    // - Contains dimensions of screen parts with consideration to if 38 column mode or 24 row mode is enabled.
+    //    // - Is normalized to start at 0,0 (i.e. TopBorder.Start.X = and TopBorder.Start.Y = 0)
+    //    var leftBorderStartX = visibleMainScreenAreaNormalizedClipped.LeftBorder.Start.X; // Should be 0?
+    //    var leftBorderLength = visibleMainScreenAreaNormalizedClipped.LeftBorder.End.X - visibleMainScreenAreaNormalizedClipped.LeftBorder.Start.X + 1;
 
-        var rightBorderStartX = visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
-        var rightBorderLength = width - visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
+    //    var rightBorderStartX = visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
+    //    var rightBorderLength = width - visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
 
-        for (var y = borderStartY; y < borderStartY + height; y++)
-        {
-            // Top or bottom border
-            if (y <= visibleMainScreenAreaNormalizedClipped.TopBorder.End.Y || y >= visibleMainScreenAreaNormalizedClipped.BottomBorder.Start.Y)
-            {
-                var topBottomBorderLineStartIndex = y * width;
-                Array.Copy(_oneLineBorderPixels, 0, pixelArray, topBottomBorderLineStartIndex, width);
-                continue;
-            }
+    //    for (var y = borderStartY; y < borderStartY + height; y++)
+    //    {
+    //        // Top or bottom border
+    //        if (y <= visibleMainScreenAreaNormalizedClipped.TopBorder.End.Y || y >= visibleMainScreenAreaNormalizedClipped.BottomBorder.Start.Y)
+    //        {
+    //            var topBottomBorderLineStartIndex = y * width;
+    //            Array.Copy(_oneLineBorderPixels, 0, pixelArray, topBottomBorderLineStartIndex, width);
+    //            continue;
+    //        }
 
-            // Left border
-            var lineStartIndex = y * width;
-            Array.Copy(_oneLineBorderPixels, leftBorderStartX, pixelArray, lineStartIndex, leftBorderLength);
-            // Right border
-            lineStartIndex += visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
-            Array.Copy(_oneLineBorderPixels, rightBorderStartX, pixelArray, lineStartIndex, rightBorderLength);
-        }
+    //        // Left border
+    //        var lineStartIndex = y * width;
+    //        Array.Copy(_oneLineBorderPixels, leftBorderStartX, pixelArray, lineStartIndex, leftBorderLength);
+    //        // Right border
+    //        lineStartIndex += visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
+    //        Array.Copy(_oneLineBorderPixels, rightBorderStartX, pixelArray, lineStartIndex, rightBorderLength);
+    //    }
 
-        _borderStat.Stop();
-    }
+    //    _borderStat.Stop();
+    //}
 
     private void DrawSpritesToBitmapBackedByPixelArray(C64 c64, uint[] spritesPixelArray)
     {
@@ -1073,7 +1228,7 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
 
             var pixelArrayIndex = bitmapLine * shaderLineDataValuePerLine;
 
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Border_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BorderColor];
+            //lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Border_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BorderColor];
 
             lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.SpriteMultiColor0] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor0];
             lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.SpriteMultiColor1] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.SpriteMultiColor1];
@@ -1091,10 +1246,10 @@ public class C64SkiaRenderer3 : IRenderer<C64, SkiaRenderContext>
             if (lineData.Key < drawableScreenStartY || bitmapLine >= drawableScreenEndY)
                 continue;
 
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor0];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor1];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor2];
-            lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor3];
+            //lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg0_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor0];
+            //lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg1_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor1];
+            //lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg2_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor2];
+            //lineDataPixelArray[pixelArrayIndex + (int)ShaderLineData.Bg3_Color] = (uint)_c64SkiaColors.C64ToSkColorMap[lineData.Value.BackgroundColor3];
         }
 
         _lineDataImageStat.Stop();

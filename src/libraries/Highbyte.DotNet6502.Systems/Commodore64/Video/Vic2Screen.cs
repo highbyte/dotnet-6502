@@ -31,6 +31,19 @@ public class Vic2Screen : ITextMode, IScreen
     public int VisibleLeftRightBorderWidth => (int)Math.Floor((double)((VisibleWidth - DrawableAreaWidth) / 2.0d));
     public int VisibleTopBottomBorderHeight => (int)Math.Floor((double)((VisibleHeight - DrawableAreaHeight) / 2.0d));
 
+
+    // 38 col mode border and screen differencies
+    public const int COL_38_LEFT_BORDER_END_X_DELTA = 7;    // In first column, only the first 7 pixels are covered by the border
+    public const int COL_38_SCREEN_START_X_DELTA = 8;
+    public const int COL_38_SCREEN_END_X_DELTA = -8;
+    public const int COL_38_RIGHT_BORDER_START_X_DELTA = -9; // The last pixel in the next to last column is covered by border color, as well as entire last column.
+
+    // 24 row mode border and screen differencies
+    public const int ROW_24_TOP_BORDER_END_Y_DELTA = 4;
+    public const int ROW_24_SCREEN_START_Y_DELTA = 4;
+    public const int ROW_24_SCREEN_END_Y_DELTA = -4;
+    public const int ROW_24_BOTTOM_BORDER_START_Y_DELTA = -4;
+
     public float RefreshFrequencyHz => _cpuFrequencyHz / _vic2Model.CyclesPerFrame;
 
     #endregion
@@ -110,10 +123,10 @@ public class Vic2Screen : ITextMode, IScreen
         // Adjust for 24 row mode (instead of default 25 rows)
         if (for24RowMode)
         {
-            topBorderEndY += 4;
-            screenStartY += 4;
-            screenEndY -= 4;
-            bottomBorderStartY -= 4;
+            topBorderEndY += ROW_24_TOP_BORDER_END_Y_DELTA;
+            screenStartY += ROW_24_SCREEN_START_Y_DELTA;
+            screenEndY += ROW_24_SCREEN_END_Y_DELTA;
+            bottomBorderStartY += ROW_24_BOTTOM_BORDER_START_Y_DELTA;
         }
 
         return (
@@ -157,10 +170,10 @@ public class Vic2Screen : ITextMode, IScreen
         // Adjust for 38 column mode (instead of default 40 columns)
         if (for38ColMode)
         {
-            leftBorderEndX += 7;    // In first column, only the first 7 pixels are covered by the border
-            screenStartX += 8;
-            screenEndX -= 8;
-            rightBorderStartX -= 9; // The last pixel in the next to last column is covered by border color, as well as entire last column.
+            leftBorderEndX += COL_38_LEFT_BORDER_END_X_DELTA;
+            screenStartX += COL_38_SCREEN_START_X_DELTA;
+            screenEndX += COL_38_SCREEN_END_X_DELTA;
+            rightBorderStartX += COL_38_RIGHT_BORDER_START_X_DELTA;
         }
 
         return (

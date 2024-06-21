@@ -753,7 +753,8 @@ public class Vic2
             RaiseRasterIRQ(cpu);
 
             // Remember colors and other IO registers for each raster line
-            StoreRasterLineIORegisters(_currentRasterLineInternal);
+            if (C64.RememberVic2RegistersPerRasterLine)
+                StoreRasterLineIORegisters(_currentRasterLineInternal);
         }
 
         // Check if we have reached the end of the frame.

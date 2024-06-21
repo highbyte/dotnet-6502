@@ -25,16 +25,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Commodore64\Video\v2\C64_sksl_shader.frag" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
     <ProjectReference Include="..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources\Shaders\C64_sksl_shader.frag">
+    <EmbeddedResource Include="Resources\Shaders\C64_sksl_shader2b.frag">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Shaders\C64_sksl_shader2.frag">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Resources\Fonts\C64_Pro_Mono-STYLE.ttf" />
