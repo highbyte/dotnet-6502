@@ -9,24 +9,18 @@
 //
 // --------------------
 
-// Pixels for C64 text/bitmap
-uniform shader bitmap_texture;
+// Pixels for C64 background, border and low prio sprites
+uniform shader background_and_border_texture;
 
-// Pixels for C64 sprites
-uniform shader sprites_texture;
+// Pixels for C64 foreground (text, bitmap, high prio sprites)
+uniform shader foreground_texture;
 
 // The actual colors (per raster line) to display as border, background, sprite colors. Replaces the pixels colors from bitmap_texture and sprites_texture.
 uniform shader line_data_map;
 
-// The color used to draw border and background colors in bitmap_texture
-//uniform half4 bg0Color;
-//uniform half4 bg1Color;
-//uniform half4 bg2Color;
-//uniform half4 bg3Color;
-//
-//uniform half4 borderColor;
-//
-// The color used to draw border and background colors in sprites_texture
+uniform half4 transparentColor;
+
+// The color used to draw colors in sprites_texture
 uniform half4 spriteLowPrioMultiColor0;
 uniform half4 spriteLowPrioMultiColor1;
 
@@ -101,83 +95,41 @@ half4 map_sprite_color(half4 spriteColor, float line) {
     }
 
     else {
-        // Should not happen, show bright purple color to indicate error.
-        useColor = half4(1, 0, 1, 1);
+        // Pixel with a color set by sprite, and should not be changed.
+        useColor = spriteColor;
     }
 
     return useColor;    
 }
 
 // Maps the actual color to display on screen from the text/bitmap color drawn on bitmap_texture, and the sprite color drawn on sprites_texture.
-half4 map_screen_color(half4 textAndBitmapColor, half4 spriteColor, float line) {
+half4 map_screen_color(half4 backgroundAndBorderColor, half4 foregroundColor, float line) {
 
     half4 useColor;
     float2 lineCoord;
 
-    if(spriteColor.b == #HIGH_PRIO_SPRITE_BLUE_SHADER) {
-        // Sprite pixel with specific Blue color indicates high-prio sprite here, and should be shown instead of background or border color.
-        useColor = map_sprite_color(spriteColor, line);
+    if (foregroundColor == transparentColor || foregroundColor == half4(0,0,0,0)) {
+        useColor = backgroundAndBorderColor;
     }
-
-    // TODO: Sprites must be drawn in main c# renderer on the same bitmap? Otherwise it's impossible if a border color was used here?
-    //       OR draw with 16 different color values for border, and check all 16 here and replace? Maybe use a "magic" value in one color channel (not used by any other color) to indicate background?
-//    else if(textAndBitmapColor == borderColor) {
-//        // Normal border color indicates border color could used.
-//
-//        // But if a sprite pixel from a low prio sprite is drawn at this position, use the sprite color instead of border color.
-//        // Sprite pixel with specific Blue color indicates low-prio sprite here, and should be shown instead of border color.
-//        if(spriteColor.b == #LOW_PRIO_SPRITE_BLUE_SHADER) {
-//            // Use sprite color
-//            useColor = map_sprite_color(spriteColor, line);
-//        }
-//        else {
-//            // Use border color
-//            useColor = get_line_data(#BORDER_COLOR_INDEX, line);
-//        }
-//    }
-
-    // TODO: Sprites must be drawn in main c# renderer on the same bitmap? Otherwise it's impossible if a backround color was used here?
-    //       OR draw with 16 different color values for background, and check all 16 here and replace? Maybe use a "magic" value in one color channel (not used by any other color) to indicate background?
-//    else if((textAndBitmapColor + bg0Color) == bg0Color) {
-//        // Normal text/bitmap screen indicates background color could used.
-//
-//        // But if a sprite pixel from a low prio sprite is drawn at this position, use the sprite color instead of background color.
-//        // Sprite pixel with specific Blue color indicates low-prio sprite here, and should be shown instead of background color.
-//        if(spriteColor.b == #LOW_PRIO_SPRITE_BLUE_SHADER) {
-//            // Use sprite color
-//            useColor = map_sprite_color(spriteColor, line);
-//        }
-//        else {
-//            // Use background color
-//            useColor = get_line_data(#BG0_COLOR_INDEX, line);
-//        }
-//    }
-
-//    else if(textAndBitmapColor == bg1Color) {
-//        useColor = get_line_data(#BG1_COLOR_INDEX, line);
-//    }
-//    else if(textAndBitmapColor == bg2Color) {
-//        useColor = get_line_data(#BG2_COLOR_INDEX, line);
-//    }
-//    else if(textAndBitmapColor == bg3Color) {
-//        useColor = get_line_data(#BG3_COLOR_INDEX, line);
-//    }
     else {
-        useColor = textAndBitmapColor;    // Not a color that should be transformed (i.e. background or foreground color of text or bitmap)
+        useColor = foregroundColor;
     }
+
+    useColor = map_sprite_color(useColor, line);
+
     return useColor;
 }
 
 // Main function of the shader, called for each pixel on the screen
 half4 main(float2 fragCoord) {
 
-    half4 textAndBitmapColor = bitmap_texture.eval(fragCoord);
-    half4 spriteColor = sprites_texture.eval(fragCoord);
+    half4 backgroundAndBorderColor = background_and_border_texture.eval(fragCoord);
+    half4 foregroundColor = foreground_texture.eval(fragCoord);
 
     half4 useColor;
 
     if(fragCoord.y < #VISIBLE_HEIGHT) {
-        useColor = map_screen_color(textAndBitmapColor, spriteColor, fragCoord.y);
+        useColor = map_screen_color(backgroundAndBorderColor, foregroundColor, fragCoord.y);
     }
     else {
         // Should not happen, show bright red color to indicate error.

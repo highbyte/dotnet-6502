@@ -305,9 +305,10 @@ public class SilkNetWindow
         if (EmulatorState == EmulatorState.Uninitialized)
             return;
 
-        Stop();
+        if (_statsPanel.Visible)
+            ToggleStatsPanel();
 
-        _systemRunner.Cleanup();
+        _systemRunner?.Cleanup();
         _systemRunner = default!;
         EmulatorState = EmulatorState.Uninitialized;
         Start();

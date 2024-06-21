@@ -88,7 +88,7 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
             case C64HostRenderer.SkiaSharp2:
                 renderer = new C64SkiaRenderer2();
                 break;
-            case C64HostRenderer.SkiaSharp3:
+            case C64HostRenderer.SkiaSharp2b:
                 renderer = new C64SkiaRenderer2b();
                 break;
             default:
