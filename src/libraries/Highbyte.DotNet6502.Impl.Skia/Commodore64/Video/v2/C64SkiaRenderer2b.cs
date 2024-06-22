@@ -165,7 +165,8 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
     private int _rightBorderStartXAdjusted;
     private int _rightBorderLengthAdjusted;
     private int _topBorderEndYAdjusted;
-    private int _topBottomBorderStartYAdjusted;
+    private int _bottomBorderStartYAdjusted;
+    private int _screenStartXAdjusted;
 
     private int _screenLayoutInclNonVisibleTopBorderStartY;
     private int _screenLayoutInclNonVisibleBottomBorderEndY;
@@ -713,7 +714,9 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
                 _rightBorderLengthAdjusted = _width - _rightBorderStartXAdjusted;
 
                 _topBorderEndYAdjusted = _topBorderEndY + (_is24RowModeEnabled ? Vic2Screen.ROW_24_TOP_BORDER_END_Y_DELTA : 0);
-                _topBottomBorderStartYAdjusted = _bottomBorderStartY + (_is24RowModeEnabled ? Vic2Screen.ROW_24_BOTTOM_BORDER_START_Y_DELTA : 0);
+                _bottomBorderStartYAdjusted = _bottomBorderStartY + (_is24RowModeEnabled ? Vic2Screen.ROW_24_BOTTOM_BORDER_START_Y_DELTA : 0);
+
+                _screenStartXAdjusted = _leftBorderEndXAdjusted + 1;
 
                 _lastScreenLineDataUpdate = screenLine;
             }
@@ -733,7 +736,7 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
     private void DrawBorderPixels(int normalizedScreenLine)
     {
         // Top or bottom border
-        if (normalizedScreenLine <= _topBorderEndYAdjusted || normalizedScreenLine >= _topBottomBorderStartYAdjusted)
+        if (normalizedScreenLine <= _topBorderEndYAdjusted || normalizedScreenLine >= _bottomBorderStartYAdjusted)
         {
             var topBottomBorderLineStartIndex = normalizedScreenLine * _width;
             Array.Copy(_oneLineSameColorPixelsActual[_borderColor], 0, _skiaPixelArrayBitmap_BackgroundAndBorder.PixelArray, topBottomBorderLineStartIndex, _width);
@@ -912,40 +915,30 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
             // Y position
             // ----------
             if (fnAdjustForScrollY)
-            {
-                // TODO: Move this check to after adding scrollY and check against positions adjusted for possible 24 row mode. Similar to X check below.
-                // Skip draw entirely if y position is outside drawable screen
-                if (fnMainScreenY + _scrollY < 0 || fnMainScreenY + _scrollY >= _drawableAreaHeight)
-                    return;
-
                 fnMainScreenY += _scrollY;
-            }
             var ypos = _screenStartY + fnMainScreenY;
-
+            if ((ypos <= _topBorderEndYAdjusted) || (ypos >= _bottomBorderStartYAdjusted))
+                return;
 
             // ----------
             // X position
             // ----------
             var sourcePixelStart = 0;
             if (fnAdjustForScrollX)
-            {
                 fnMainScreenX += _scrollX;
-            }
             var xpos = _screenStartX + fnMainScreenX;
-            // TODO: Precalculate _leftBorderEndXAdjusted + 1  every new line (to variable _screenStartXAdjusted)
-            if ((xpos + fnLength <= (_leftBorderEndXAdjusted + 1)) || (xpos >= _rightBorderStartXAdjusted))
+            if ((xpos + fnLength <= _screenStartXAdjusted) || (xpos >= _rightBorderStartXAdjusted))
                 return;
-            if (xpos < _leftBorderEndXAdjusted + 1)
+            if (xpos < _screenStartXAdjusted)
             {
-                fnLength = xpos + fnLength - (_leftBorderEndXAdjusted + 1);
-                xpos = _leftBorderEndXAdjusted + 1;
+                fnLength = xpos + fnLength - _screenStartXAdjusted;
+                xpos = _screenStartXAdjusted;
                 sourcePixelStart = 8 - fnLength;
             }
             else if (xpos + fnLength >= _rightBorderStartXAdjusted)
             {
                 fnLength = _rightBorderStartXAdjusted - xpos;
             }
-
 
             // ----------
             // Copy pixels to correct location in pixel array
