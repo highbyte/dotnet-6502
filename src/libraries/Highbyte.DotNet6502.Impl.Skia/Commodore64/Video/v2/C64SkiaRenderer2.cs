@@ -903,13 +903,22 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
                         uint spriteColor;
                         for (var pixel = 0; pixel < 8; pixel += 2)
                         {
-                            spriteColor = spriteLinePart switch
+                            if ((spriteLinePart & maskMultiColor1Mask) == maskMultiColor1Mask)
                             {
-                                var p when (p & maskMultiColor0Mask) == maskMultiColor0Mask => spriteMultiColor0PixelColor,
-                                var p when (p & maskSpriteColorMask) == maskSpriteColorMask => spriteForegroundPixelColor,
-                                var p when (p & maskMultiColor1Mask) == maskMultiColor1Mask => spriteMultiColor1PixelColor,
-                                _ => 0
-                            };
+                                spriteColor = spriteMultiColor1PixelColor;
+                            }
+                            else if ((spriteLinePart & maskSpriteColorMask) == maskSpriteColorMask)
+                            {
+                                spriteColor = spriteForegroundPixelColor;
+                            }
+                            else if ((spriteLinePart & maskMultiColor0Mask) == maskMultiColor0Mask)
+                            {
+                                spriteColor = spriteMultiColor0PixelColor;
+                            }
+                            else
+                            {
+                                spriteColor = 0;
+                            }
 
                             if (spriteColor > 0)
                             {

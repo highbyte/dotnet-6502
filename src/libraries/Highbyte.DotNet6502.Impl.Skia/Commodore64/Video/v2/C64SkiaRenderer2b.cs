@@ -187,7 +187,7 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
     {
         c64.SetAfterInstructionCallback(AfterInstructionExecuted);
-        c64.RememberVic2RegistersPerRasterLine = false; // Disable code in Vic2 class that remembers VIC2 register values per raster line. We will do this ourselves in this renderer in callbacks after each instruction.
+        c64.RememberVic2RegistersPerRasterLine = true; // Set to false if/when sprites are drawn directly to the screen bitmap in the "after instruction" callback here.
 
         // Init class variables with C64 screen values that should'nt change
 
@@ -265,7 +265,7 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
     public void Draw(C64 c64)
     {
         // Draw sprites to background of foreground bitmaps
-        //DrawSpritesToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_BackgroundAndBorder.PixelArray, _skiaPixelArrayBitmap_Foreground.PixelArray);
+        DrawSpritesToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_BackgroundAndBorder.PixelArray, _skiaPixelArrayBitmap_Foreground.PixelArray);
 
         // "Draw" line data (color values of VIC2 registers per raster line) to separate bitmap
         DrawLineDataToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_LineData.PixelArray);
@@ -947,13 +947,22 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
                         uint spriteColor;
                         for (var pixel = 0; pixel < 8; pixel += 2)
                         {
-                            spriteColor = spriteLinePart switch
+                            if ((spriteLinePart & maskMultiColor1Mask) == maskMultiColor1Mask)
                             {
-                                var p when (p & maskMultiColor0Mask) == maskMultiColor0Mask => spriteMultiColor0PixelColor,
-                                var p when (p & maskSpriteColorMask) == maskSpriteColorMask => spriteForegroundPixelColor,
-                                var p when (p & maskMultiColor1Mask) == maskMultiColor1Mask => spriteMultiColor1PixelColor,
-                                _ => 0
-                            };
+                                spriteColor = spriteMultiColor1PixelColor;
+                            }
+                            else if ((spriteLinePart & maskSpriteColorMask) == maskSpriteColorMask)
+                            {
+                                spriteColor = spriteForegroundPixelColor;
+                            }
+                            else if ((spriteLinePart & maskMultiColor0Mask) == maskMultiColor0Mask)
+                            {
+                                spriteColor = spriteMultiColor0PixelColor;
+                            }
+                            else
+                            {
+                                spriteColor = 0;
+                            }
 
                             if (spriteColor > 0)
                             {
