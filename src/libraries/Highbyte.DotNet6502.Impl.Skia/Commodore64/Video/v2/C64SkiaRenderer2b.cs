@@ -333,21 +333,6 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
     {
         src = src.Replace("#VISIBLE_HEIGHT", c64.Vic2.Vic2Screen.VisibleHeight.ToString());
 
-        var visibleMainScreenAreaNormalized = c64.Vic2.ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
-        var bitmapMainScreenStartLine = visibleMainScreenAreaNormalized.Screen.Start.Y;
-        src = src.Replace("#MAIN_SCREEN_START", bitmapMainScreenStartLine.ToString());
-        src = src.Replace("#MAIN_SCREEN_END", (bitmapMainScreenStartLine + c64.Vic2.Vic2Screen.DrawableAreaHeight - 1).ToString());
-
-        src = src.Replace("#LOW_PRIO_SPRITE_BLUE_SHADER", LOW_PRIO_SPRITE_BLUE_SHADER.ToString(CultureInfo.InvariantCulture));
-        src = src.Replace("#HIGH_PRIO_SPRITE_BLUE_SHADER", HIGH_PRIO_SPRITE_BLUE_SHADER.ToString(CultureInfo.InvariantCulture));
-
-        src = src.Replace("#BG0_COLOR_INDEX", ((int)ShaderLineData.Bg0_Color).ToString());
-        src = src.Replace("#BG1_COLOR_INDEX", ((int)ShaderLineData.Bg1_Color).ToString());
-        src = src.Replace("#BG2_COLOR_INDEX", ((int)ShaderLineData.Bg2_Color).ToString());
-        src = src.Replace("#BG3_COLOR_INDEX", ((int)ShaderLineData.Bg3_Color).ToString());
-
-        src = src.Replace("#BORDER_COLOR_INDEX", ((int)ShaderLineData.Border_Color).ToString());
-
         src = src.Replace("#SPRITE_MULTICOLOR0_INDEX", ((int)ShaderLineData.SpriteMultiColor0).ToString());
         src = src.Replace("#SPRITE_MULTICOLOR1_INDEX", ((int)ShaderLineData.SpriteMultiColor1).ToString());
 
