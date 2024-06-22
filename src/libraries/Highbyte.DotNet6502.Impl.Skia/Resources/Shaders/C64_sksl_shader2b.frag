@@ -1,11 +1,10 @@
 // --------------------
 // Fragment shader in Skia SKSL format.
-// Used to render C64 screen and sprites (provided as shader textures), together with color information per raster line (in a separate shader texture used for this data).
+// Used to render C64 borders, screen and sprites (provided as shader textures for background and foreground separatly and combined).
 //
 // Shader source contains placeholders in the format of #PLACEHOLDER_NAME that should be dynamically replaced with actual values before use.
 //
 // Skia shader language (SKSL): https://skia.org/docs/user/sksl/
-//
 //
 // --------------------
 
@@ -15,12 +14,12 @@ uniform shader background_and_border_texture;
 // Pixels for C64 foreground (text, bitmap, high prio sprites)
 uniform shader foreground_texture;
 
-// The actual colors (per raster line) to display as border, background, sprite colors. Replaces the pixels colors from bitmap_texture and sprites_texture.
+// TODO:Remove line_data_map after sprites are drawn with their actual colors on background_and_border_texture or foreground_texture.
 uniform shader line_data_map;
 
 uniform half4 transparentColor;
 
-// The color used to draw colors in sprites_texture
+// TODO: Remove sprite color uniforms after sprites are drawn with their actual colors on background_and_border_texture or foreground_texture.
 uniform half4 spriteLowPrioMultiColor0;
 uniform half4 spriteLowPrioMultiColor1;
 

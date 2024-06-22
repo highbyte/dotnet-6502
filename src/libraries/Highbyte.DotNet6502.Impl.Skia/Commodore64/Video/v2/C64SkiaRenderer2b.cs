@@ -237,14 +237,12 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
         _getSkCanvas = skiaRenderContext.GetCanvas;
         _c64SkiaColors = new C64SkiaColors(c64.ColorMapName);
 
-        InitTextAndSpritesBitmap(c64);
+        InitBitmaps(c64);
         InitLineDataBitmap(c64);
 
-        InitBitPatternToPixelMapsForTextDisplay(c64);
-        InitBitPatternToPixelMapsForBitmapDisplay();
+        InitBitPatternToPixelMaps(c64);
 
         InitShader(c64);
-
 
         Instrumentations.Clear();
         _spritesStat = Instrumentations.Add($"{StatsCategory}-Sprites", new ElapsedMillisecondsTimedStatSystem(c64));
@@ -372,7 +370,7 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
         }
     }
 
-    private void InitTextAndSpritesBitmap(C64 c64)
+    private void InitBitmaps(C64 c64)
     {
         var vic2 = c64.Vic2;
         var vic2Screen = vic2.Vic2Screen;
@@ -388,24 +386,18 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
         _skiaPixelArrayBitmap_Foreground = SkiaBitmapBackedByPixelArray.Create(width, height);
     }
 
-    private void InitBitPatternToPixelMapsForTextDisplay(C64 c64)
+    private void InitBitPatternToPixelMaps(C64 c64)
     {
-        // Create 8 precalculated pixels for each 8 bit pattern of text display, per possible background color.
+        // Create 8 precalculated pixels (with colors to be used in the shader) for each 8 bit pattern suited for C64 normal color or multicolor text/bitmap.
         // 
-        // The background colors:
-        //   - values precalculated here are just placeholders (not the actual colors).
-        //  -  will be replaced in the shader by corresponding C64 colors used per scan line.
+        // A 0 bit (or 00 bit pair) is the background color, and is set to specific color value to be checked for in the shader.
         // 
-        // The foreground color values here are the actual colors used in the bitmap, will not be replaced in the shader.
 
         var vic2 = c64.Vic2;
         var vic2Screen = vic2.Vic2Screen;
         var width = vic2Screen.VisibleWidth;
 
-        // --------------------
-        // Init pre-calculated pixel arrays
-        // --------------------
-
+        // A single line of the same color. Used for filling borders with various lengths.
         _oneLineSameColorPixelsActual = new Dictionary<byte, uint[]>();
         for (byte colorCode = 0; colorCode < 16; colorCode++)
         {
@@ -417,97 +409,11 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
         }
 
 
-        // Borders: Pre-calculate entire rows, left/right border only, and one char row of pixels.
-        //_oneLineBorderPixels = new uint[width];
-        //for (var i = 0; i < _oneLineBorderPixels.Length; i++)
-        //    _oneLineBorderPixels[i] = (uint)_borderDrawColor;
-        ////_oneCharLineBg0Pixels = new uint[8];
-        //for (var i = 0; i < _oneCharLineBg0Pixels.Length; i++)
-        //    _oneCharLineBg0Pixels[i] = (uint)_bg0DrawColor;
+        // Note: The color for "transparent" (background) will be checked for in shader when combining with background/border colors.
+        var transparentColorVal = (uint)_transparentColor;
 
-        // Main text screen: Pre-calculate the 8 pixels for each combination of bit pixel pattern and foreground color
-        //_bitmapEightPixelsBg0Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
-        //_bitmapEightPixelsBg1Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
-        //_bitmapEightPixelsBg2Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
-        //_bitmapEightPixelsBg3Map = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
-        //_bitmapEightPixelsMultiColorMap = new(); // (pixelPattern, fgColorIndex) => bitmapPixels
-
-        //var bg0ColorVal = (uint)_bg0DrawColor; // Note the background color _bg0DrawColor is hardcoded, and will be replaced by shader
-        //var bg1ColorVal = (uint)_bg1DrawColor; // Note the background color _bg1DrawColor is hardcoded, and will be replaced by shader
-        //var bg2ColorVal = (uint)_bg2DrawColor; // Note the background color _bg2DrawColor is hardcoded, and will be replaced by shader
-        //var bg3ColorVal = (uint)_bg3DrawColor; // Note the background color _bg3DrawColor is hardcoded, and will be replaced by shader
-
-        // Text (Standard and Extended mode) (8 bits -> 8 pixels)
-        //for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
-        //{
-        //    for (byte fgColorCode = 0; fgColorCode < 16; fgColorCode++)
-        //    {
-        //        var fgColorVal = (uint)_c64SkiaColors.C64ToSkColorMap[fgColorCode];
-
-        //        var bitmapPixelsBg0 = new uint[8];
-        //        var bitmapPixelsBg1 = new uint[8];
-        //        var bitmapPixelsBg2 = new uint[8];
-        //        var bitmapPixelsBg3 = new uint[8];
-
-        //        // Loop each bit in pixelPattern
-        //        for (var pixelPos = 0; pixelPos < 8; pixelPos++)
-        //        {
-        //            // If bit is set, use foreground color, else use background color
-        //            var isBitSet = (pixelPattern & 1 << 7 - pixelPos) != 0;
-        //            bitmapPixelsBg0[pixelPos] = isBitSet ? fgColorVal : bg0ColorVal;
-        //            bitmapPixelsBg1[pixelPos] = isBitSet ? fgColorVal : bg1ColorVal;
-        //            bitmapPixelsBg2[pixelPos] = isBitSet ? fgColorVal : bg2ColorVal;
-        //            bitmapPixelsBg3[pixelPos] = isBitSet ? fgColorVal : bg3ColorVal;
-        //        }
-        //        _bitmapEightPixelsBg0Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg0);
-        //        _bitmapEightPixelsBg1Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg1);
-        //        _bitmapEightPixelsBg2Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg2);
-        //        _bitmapEightPixelsBg3Map.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsBg3);
-        //    }
-        //}
-
-        // Text Multicolor mode, double pixel color (8 bits -> 4 pixels)
-        //for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
-        //{
-        //    // Only the lower 3 bits are used for foreground color from Color RAM, so only colors 0-7 are possible.
-        //    for (byte fgColorCode = 0; fgColorCode < 8; fgColorCode++)
-        //    {
-        //        var fgColorVal = (uint)_c64SkiaColors.C64ToSkColorMap[fgColorCode];
-
-        //        var bitmapPixelsMultiColor = new uint[8];
-
-        //        // Loop each multi-color pixel pair (4 pixel pairs)
-        //        var mask = 0b11000000;
-        //        for (var pixel = 0; pixel < 4; pixel++)
-        //        {
-        //            var pixelPair = (pixelPattern & mask) >> 6 - pixel * 2;
-        //            var pairColorVal = pixelPair switch
-        //            {
-        //                0b00 => bg0ColorVal,
-        //                0b01 => bg1ColorVal,
-        //                0b10 => bg2ColorVal,
-        //                0b11 => fgColorVal,
-        //                _ => throw new DotNet6502Exception("Invalid pixel pair value.")
-        //            };
-        //            mask = mask >> 2;
-        //            bitmapPixelsMultiColor[pixel * 2] = pairColorVal;
-        //            bitmapPixelsMultiColor[pixel * 2 + 1] = pairColorVal;
-        //        }
-        //        _bitmapEightPixelsMultiColorMap.Add(((byte)pixelPattern, fgColorCode), bitmapPixelsMultiColor);
-        //    }
-        //}
-    }
-
-    private void InitBitPatternToPixelMapsForBitmapDisplay()
-    {
-        // Create 8 precalculated pixels for each 8 bit pattern of bitmap display, per possible background/foreground color combination.
-        // None of these colors will NOT be replaced in the shader, because these colors come text and color RAM areas (and not from special VIC2 color registers).
-        // Thus the colors precalcualted here will be the actual colors used in the bitmap.
-
-
-        var transparentColorVal = (uint)_transparentColor; // Note: The color for "transparent" will be checked for in shader when combining with background/border colors.
-
-        // Bitmap standard (Hires) mode with transparent background color when no pixel set.  8 bits => 8 pixels
+        // Text (normal) & bitmap (standard "HiRes") mode with one foreground color with a single "transparent" color as background color
+        // 8 bits => 8 pixels
         _bitmapEightHiresPixelsTransparentActual = new();
         for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
         {
@@ -530,10 +436,11 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
             }
         }
 
-        _bitmapEightHiresPixelsActual = new();
-        _bitmapEightMulticolorPixelsActual = new();
 
-        // Bitmap Standard (Hires) mode, 8 bits => 8 pixels
+        // Text extended & bitmap standard "HiRes" mode with one foreground color and a "background" color (non-transparent)
+        // 8 bits => 8 pixels
+        _bitmapEightHiresPixelsActual = new();
+
         for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
         {
             for (byte bitmapBgColorCode = 0; bitmapBgColorCode < 16; bitmapBgColorCode++)
@@ -556,8 +463,26 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
                             bitmapPixels[pixelPos] = bitmapBgColorVal;
                     }
                     _bitmapEightHiresPixelsActual.Add(((byte)pixelPattern, bitmapBgColorCode, bitmapFgColorCode), bitmapPixels);
+                }
+            }
+        }
 
-                    // Multicolor mode, 8 bits => 4 pixels. 3 "foreground" colors (bg, fg, and extra from color ram) + normal screen background color (which will be replaced in shader)
+
+        // Text multicolor & bitmap multicolor mode with one foreground color, two other colors, with a single "transparent" color as background color
+        // 8 bits => 4 pixels (with length 2)
+        _bitmapEightMulticolorPixelsActual = new();
+
+        for (var pixelPattern = 0; pixelPattern < 256; pixelPattern++)
+        {
+            for (byte bitmapBgColorCode = 0; bitmapBgColorCode < 16; bitmapBgColorCode++)
+            {
+                var bitmapBgColorVal = (uint)_c64SkiaColors.C64ToSkColorMap[bitmapBgColorCode];
+
+                for (byte bitmapFgColorCode = 0; bitmapFgColorCode < 16; bitmapFgColorCode++)
+                {
+                    var bitmapFgColorVal = (uint)_c64SkiaColors.C64ToSkColorMap[bitmapFgColorCode];
+
+                    // 3 "foreground" colors (bg, fg, and extra from color ram) + normal screen background color (which will be replaced in shader)
                     for (byte colorRamCode = 0; colorRamCode < 16; colorRamCode++)
                     {
                         var colorRamVal = (uint)_c64SkiaColors.C64ToSkColorMap[colorRamCode];
@@ -585,13 +510,12 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
                             bitmapMulicolorPixels[pixel * 2] = pairColorVal;
                             bitmapMulicolorPixels[pixel * 2 + 1] = pairColorVal;
                         }
-
                         _bitmapEightMulticolorPixelsActual.Add(((byte)pixelPattern, bitmapBgColorCode, bitmapFgColorCode, colorRamCode), bitmapMulicolorPixels);
-
                     }
                 }
             }
         }
+
     }
 
     private void InitLineDataBitmap(C64 c64)
@@ -835,7 +759,7 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
 
                 // Get the corresponding array of uints representing the 8 pixels of the character
                 //eightPixels = _bitmapEightPixelsMultiColorMap[(lineData, fgColorCode)];
-                eightPixels = _bitmapEightMulticolorPixelsActual[(lineData, _backgroundColor2, _backgroundColor1, colorRamCode)];
+                eightPixels = _bitmapEightMulticolorPixelsActual[(lineData, _backgroundColor2, _backgroundColor1, fgColorCode)];
             }
         }
         else
@@ -869,36 +793,6 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
                 eightPixels = _bitmapEightMulticolorPixelsActual[(bitmapLineData, bitmapBgColorCode, bitmapFgColorCode, colorRamCode)];
             }
         }
-
-        //// Add additional drawing to compensate for horizontal scrolling
-        //if (_scrollX > 0 && col == 0)
-        //    // Fill start of column 0 with background color (the number of x pixels scrolled)
-        //    // Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, bitmapIndex, scrollX);
-        //    WriteToPixelArray(_oneLineSameColorPixelsActual[_backgroundColor0], _skiaPixelArrayBitmap_Foreground.PixelArray, drawLine, 0, fnLength: _scrollX, fnAdjustForScrollX: false, fnAdjustForScrollY: true);
-
-        //// Add additional drawing to compensate for horizontal scrolling
-        //// Note: The actual vic2 vertical scroll has 3 as default value (no scroll), but the scrollY variable is adjusted to be between -3 and + 4 with default 0 when no scrolling.
-        //if (_scrollY != 0)
-        //{
-        //    // If scrolling occured upwards (scrollY < 0) and we are on last line of screen, fill remaining lines with background color
-        //    if (_scrollY < 0 && drawLine == _drawableAreaHeight - 1)
-        //    {
-        //        for (var i = 0; i < -_scrollY; i++)
-        //        {
-        //            //Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, fillBitMapIndex + scrollX, length);
-        //            WriteToPixelArray(_oneLineSameColorPixelsActual[_backgroundColor0], _skiaPixelArrayBitmap_Foreground.PixelArray, drawLine - i, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
-        //        }
-        //    }
-        //    // If scrolling occured downwards (scrollY > 0) and we are on first line of screen, fill the line above that was scrolled with background color
-        //    else if (_scrollY > 0 && drawLine == 0)
-        //    {
-        //        for (var i = 0; i < _scrollY; i++)
-        //        {
-        //            //Array.Copy(_oneCharLineBg0Pixels, 0, pixelArray, fillBitMapIndex + scrollX, length);
-        //            WriteToPixelArray(_oneLineSameColorPixelsActual[_backgroundColor0], _skiaPixelArrayBitmap_Foreground.PixelArray, i, col * 8, fnLength: 8, fnAdjustForScrollX: true, fnAdjustForScrollY: false);
-        //        }
-        //    }
-        //}
 
         // Write the background color to the pixel array for background and border
         WriteToPixelArray(_oneLineSameColorPixelsActual[_backgroundColor0], _skiaPixelArrayBitmap_BackgroundAndBorder.PixelArray, drawLine, col * 8, fnLength: 8, fnAdjustForScrollX: false, fnAdjustForScrollY: false);
@@ -959,55 +853,6 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
             //Buffer.BlockCopy(fnEightPixels, 0, fnPixelArray, lBitmapIndex * 4, fnLength * 4);   // Note: Buffer.BlockCopy uses byte size, so multiply by 4 to get uint size
         }
     }
-
-    //private void DrawBorderToBitmapBackedByPixelArray(C64 c64, uint[] pixelArray)
-    //{
-    //    _borderStat.Start();
-
-    //    var vic2 = c64.Vic2;
-    //    var vic2Screen = vic2.Vic2Screen;
-    //    var vic2ScreenLayouts = vic2.ScreenLayouts;
-
-    //    // Main screen draw area for characters, with consideration to possible 38 column mode or 24 row mode.
-    //    var visibleMainScreenAreaNormalizedClipped = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized);
-
-    //    var width = vic2Screen.VisibleWidth;
-    //    var height = vic2Screen.VisibleHeight;
-
-    //    // Borders.
-    //    // The borders must be drawn last, because it will overwrite parts of the main screen area if 38 column or 24 row modes are enabled (which main screen drawing above does not take in consideration)
-
-    //    var borderStartY = 0;
-
-    //    // Assumption on visibleMainScreenAreaNormalizedClipped:
-    //    // - Contains dimensions of screen parts with consideration to if 38 column mode or 24 row mode is enabled.
-    //    // - Is normalized to start at 0,0 (i.e. TopBorder.Start.X = and TopBorder.Start.Y = 0)
-    //    var leftBorderStartX = visibleMainScreenAreaNormalizedClipped.LeftBorder.Start.X; // Should be 0?
-    //    var leftBorderLength = visibleMainScreenAreaNormalizedClipped.LeftBorder.End.X - visibleMainScreenAreaNormalizedClipped.LeftBorder.Start.X + 1;
-
-    //    var rightBorderStartX = visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
-    //    var rightBorderLength = width - visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
-
-    //    for (var y = borderStartY; y < borderStartY + height; y++)
-    //    {
-    //        // Top or bottom border
-    //        if (y <= visibleMainScreenAreaNormalizedClipped.TopBorder.End.Y || y >= visibleMainScreenAreaNormalizedClipped.BottomBorder.Start.Y)
-    //        {
-    //            var topBottomBorderLineStartIndex = y * width;
-    //            Array.Copy(_oneLineBorderPixels, 0, pixelArray, topBottomBorderLineStartIndex, width);
-    //            continue;
-    //        }
-
-    //        // Left border
-    //        var lineStartIndex = y * width;
-    //        Array.Copy(_oneLineBorderPixels, leftBorderStartX, pixelArray, lineStartIndex, leftBorderLength);
-    //        // Right border
-    //        lineStartIndex += visibleMainScreenAreaNormalizedClipped.RightBorder.Start.X;
-    //        Array.Copy(_oneLineBorderPixels, rightBorderStartX, pixelArray, lineStartIndex, rightBorderLength);
-    //    }
-
-    //    _borderStat.Stop();
-    //}
 
     private void DrawSpritesToBitmapBackedByPixelArray(C64 c64, uint[] backgroundPixelArray,  uint[] foregroundPixelArray)
     {
