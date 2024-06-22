@@ -1,6 +1,6 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
-namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
+namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
 
 public class CharGen
 {
@@ -43,7 +43,7 @@ public class CharGen
             throw new ArgumentException($"Character set size must be {Vic2CharsetManager.CHARACTERSET_SIZE} bytes.", nameof(characterSet));
 
         Dictionary<int, SKImage> images = new();
-        for (int charCode = 0; charCode < Vic2CharsetManager.CHARACTERSET_NUMBER_OF_CHARCTERS; charCode++)
+        for (var charCode = 0; charCode < Vic2CharsetManager.CHARACTERSET_NUMBER_OF_CHARCTERS; charCode++)
         {
             var image = GenerateChargenImageForOneCharacter(characterSet, charCode, multiColor);
             images.Add(charCode, image);
@@ -58,8 +58,8 @@ public class CharGen
             var canvas = surface.Canvas;
 
             var characterLines = new byte[8];
-            for (int line = 0; line < 8; line++)
-                characterLines[line] = characterSet[(charCode * 8) + line];
+            for (var line = 0; line < 8; line++)
+                characterLines[line] = characterSet[charCode * 8 + line];
 
             DrawOneCharacter(canvas, s_paint, s_paintMultiColorBG1, s_paintMultiColorBG2, characterLines, multiColor);
 
@@ -131,7 +131,7 @@ public class CharGen
                 var mask = 0b11000000;
                 for (var pixel = 0; pixel < 4; pixel++)
                 {
-                    var pixelPair = (dataRow & mask) >> (6 - pixel * 2);
+                    var pixelPair = (dataRow & mask) >> 6 - pixel * 2;
                     if (pixelPair != 0)
                     {
                         var pixelPairPaint = pixelPair switch
@@ -164,7 +164,7 @@ public class CharGen
 
     public void DumpChargenImagesToOneFile(Dictionary<int, SKImage> images, string saveImageFile, int charactersPerRow = 16)
     {
-        SKImage totalImage = BuildTotalImage(images, charactersPerRow);
+        var totalImage = BuildTotalImage(images, charactersPerRow);
         DumpImageToFile(totalImage, saveImageFile);
     }
 
@@ -176,8 +176,8 @@ public class CharGen
         {
             var canvas = surface.Canvas;
 
-            int col = 0;
-            int row = 0;
+            var col = 0;
+            var row = 0;
             // Loop every totalImage in images
             foreach (var charCode in images.Keys.OrderBy(x => x))
             {

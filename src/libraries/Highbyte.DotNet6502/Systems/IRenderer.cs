@@ -7,6 +7,8 @@ public interface IRenderer
     void Init(ISystem system, IRenderContext renderContext);
     void Draw(ISystem system);
 
+    void Cleanup();
+
     Instrumentations Instrumentations { get; }
 }
 
@@ -27,6 +29,10 @@ public class NullRenderer : IRenderer
     }
 
     public void Draw(ISystem system)
+    {
+    }
+
+    public void Cleanup()
     {
     }
 }

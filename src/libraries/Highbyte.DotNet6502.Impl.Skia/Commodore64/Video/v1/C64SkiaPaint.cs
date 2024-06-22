@@ -1,6 +1,6 @@
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.ColorMaps;
 
-namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
+namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
 
 public class C64SkiaPaint
 {

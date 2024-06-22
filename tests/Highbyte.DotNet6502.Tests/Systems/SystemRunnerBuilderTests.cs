@@ -143,6 +143,9 @@ public class TestRenderer : IRenderer<TestSystem, IRenderContext>
     public void Init(ISystem system, IRenderContext renderContext)
     {
     }
+    public void Cleanup()
+    {
+    }
     public Instrumentations Instrumentations { get; } = new();
 }
 public class TestRendererNonGeneric : IRenderer
@@ -151,6 +154,9 @@ public class TestRendererNonGeneric : IRenderer
     {
     }
     public void Init(ISystem system, IRenderContext renderContext)
+    {
+    }
+    public void Cleanup()
     {
     }
     public Instrumentations Instrumentations { get; } = new();

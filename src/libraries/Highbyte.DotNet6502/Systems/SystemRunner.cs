@@ -73,4 +73,14 @@ public class SystemRunner
         //var t = new Task(() => _audioHandler?.GenerateAudio(system));
         //t.RunSynchronously();
     }
+
+    public void Cleanup()
+    {
+        _renderer?.Cleanup();
+
+        _audioHandler?.StopPlaying();
+        //_audioHandler?.Cleanup();
+
+        //_inputHandler?.Cleanup();
+    }
 }

@@ -28,6 +28,10 @@ public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>
         Init((C64)system, (SadConsoleRenderContext)renderContext);
     }
 
+    public void Cleanup()
+    {
+    }
+
     public void Draw(C64 c64)
     {
         RenderMainScreen(c64);

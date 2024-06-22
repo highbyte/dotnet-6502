@@ -30,6 +30,10 @@ public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRe
         Init((GenericComputer)system, (SadConsoleRenderContext)renderContext);
     }
 
+    public void Cleanup()
+    {
+    }
+
     public void Draw(GenericComputer system)
     {
         RenderMainScreen(system);

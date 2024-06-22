@@ -1,0 +1,7 @@
+10 poke 53281,1
+20 poke 53282,2
+30 poke 53283,5
+40 poke 53284,6
+
+50 poke 53270,peek(53270) or 16
+print chr$(149)"this is multicolor mode"
