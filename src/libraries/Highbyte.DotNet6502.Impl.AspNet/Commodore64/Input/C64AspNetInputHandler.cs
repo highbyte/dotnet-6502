@@ -12,12 +12,12 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
     private AspNetInputHandlerContext? _inputHandlerContext = default!;
     private readonly ILogger<C64AspNetInputHandler> _logger;
     private C64AspNetKeyboard _c64AspNetKeyboard = default!;
-    private readonly C64AspNetConfig _c64AspNetConfig;
+    private readonly C64AspNetInputConfig _c64AspNetConfig;
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-    public C64AspNetInputHandler(ILoggerFactory loggerFactory, C64AspNetConfig c64AspNetConfig)
+    public C64AspNetInputHandler(ILoggerFactory loggerFactory, C64AspNetInputConfig c64AspNetConfig)
     {
         _logger = loggerFactory.CreateLogger<C64AspNetInputHandler>();
         _c64AspNetConfig = c64AspNetConfig;

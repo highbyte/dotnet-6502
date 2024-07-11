@@ -1,8 +1,8 @@
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
-namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
+namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input
 {
-    public class C64SilkNetConfig : ICloneable
+    public class C64SilkNetInputConfig : ICloneable
     {
         public int CurrentJoystick = 2;
 
@@ -36,7 +36,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64
 
         public object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
     }
 }

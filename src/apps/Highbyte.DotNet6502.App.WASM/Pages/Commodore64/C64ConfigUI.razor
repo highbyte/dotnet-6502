@@ -68,7 +68,7 @@
         <h4>General settings</h4>
         <div class="table">
             <div class="table-row">
-                <div class="table-cell twocol">Audio enabled (experimental):</div>
+                <div class="table-cell twocol">Renderer:</div>
                 <div class="table-cell twocol">
                     <select value="@C64HostConfig.Renderer" @onchange="OnRendererChanged">
                         @foreach (var renderer in Enum.GetNames<C64HostRenderer>())
