@@ -1,8 +1,8 @@
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
-namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64
+namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input
 {
-    public class C64AspNetConfig : ICloneable
+    public class C64AspNetInputConfig : ICloneable
     {
         public int CurrentJoystick = 2;
 

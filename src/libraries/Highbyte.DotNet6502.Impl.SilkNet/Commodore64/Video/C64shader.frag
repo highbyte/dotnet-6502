@@ -211,17 +211,18 @@ bool GetMultiColor(uint charLine, uint charsetBitPosition, vec4 color01, vec4 co
 bool GetTextModePixelColor(uint x, uint y, out bool border, out vec4 pixelColor)
 {
     // Detect border area, draw only border color
-    uint horizontalBorderOffset = uScreenLineData[y].colMode40 == 1u ? 0u : 8u;
+    uint horizontalLeftBorderOffset = uScreenLineData[y].colMode40 == 1u ? 0u : 7u;
+    uint horizontalRightBorderOffset = uScreenLineData[y].colMode40 == 1u ? 0u : 9u;
     uint verticalBorderOffset = uScreenLineData[y].rowMode25 == 1u ? 0u : 4u;
 
     // Workaround for 38 col mode (to counter fine x scroll value is set to +1 in 38 col mode)
-    if(horizontalBorderOffset!=0u)
-        x=x+1u;
+//    if(horizontalBorderOffset!=0u)
+//        x=x+1u;
     // Workaround for 24 row mode (to counter fine y scroll value is set to +1 in 24 row mode)
     if(verticalBorderOffset!=0u)
         y=y+1u;
 
-    if((x < (uTextScreenStart.x+horizontalBorderOffset) || (x > (uTextScreenEnd.x-horizontalBorderOffset)))
+    if((x < (uTextScreenStart.x+horizontalLeftBorderOffset) || (x > (uTextScreenEnd.x-horizontalRightBorderOffset)))
          || (y < (uTextScreenStart.y+verticalBorderOffset) || (y > (uTextScreenEnd.y-verticalBorderOffset))) )
     {
         border = true;

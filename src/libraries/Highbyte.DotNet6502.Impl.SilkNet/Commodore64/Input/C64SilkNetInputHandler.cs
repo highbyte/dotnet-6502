@@ -13,14 +13,14 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
     //private readonly C64SilkNetGamepad _c64SilkNetGamepad;
 
     private readonly ILogger<C64SilkNetInputHandler> _logger;
-    private readonly C64SilkNetConfig _c64SilkNetConfig;
+    private readonly C64SilkNetInputConfig _c64SilkNetConfig;
     public List<string> GetDebugInfo() => new();
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
 
-    public C64SilkNetInputHandler(ILoggerFactory loggerFactory, C64SilkNetConfig c64SilkNetConfig)
+    public C64SilkNetInputHandler(ILoggerFactory loggerFactory, C64SilkNetInputConfig c64SilkNetConfig)
     {
         _logger = loggerFactory.CreateLogger<C64SilkNetInputHandler>();
         _c64SilkNetConfig = c64SilkNetConfig;

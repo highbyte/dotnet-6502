@@ -131,6 +131,8 @@ public class TestSystem : ISystem
 
 public class TestRenderer : IRenderer<TestSystem, IRenderContext>
 {
+    public bool CleanUpWasCalled = false;
+
     public void Draw(TestSystem system)
     {
     }
@@ -143,6 +145,10 @@ public class TestRenderer : IRenderer<TestSystem, IRenderContext>
     public void Init(ISystem system, IRenderContext renderContext)
     {
     }
+    public void Cleanup()
+    {
+        CleanUpWasCalled = true;
+    }
     public Instrumentations Instrumentations { get; } = new();
 }
 public class TestRendererNonGeneric : IRenderer
@@ -151,6 +157,9 @@ public class TestRendererNonGeneric : IRenderer
     {
     }
     public void Init(ISystem system, IRenderContext renderContext)
+    {
+    }
+    public void Cleanup()
     {
     }
     public Instrumentations Instrumentations { get; } = new();
@@ -191,6 +200,8 @@ public class TestInputHandlerNonGeneric : IInputHandler
 
 public class TestAudioHandler : IAudioHandler<TestSystem, IAudioHandlerContext>
 {
+    public bool StopPlayingWasCalled = false;
+
     public void GenerateAudio(TestSystem system)
     {
     }
@@ -211,6 +222,7 @@ public class TestAudioHandler : IAudioHandler<TestSystem, IAudioHandlerContext>
     }
     public void StopPlaying()
     {
+        StopPlayingWasCalled = true;
     }
     public List<string> GetDebugInfo() => new();
 

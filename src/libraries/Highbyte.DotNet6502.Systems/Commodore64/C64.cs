@@ -41,12 +41,19 @@ public class C64 : ISystem, ISystemMonitor
     private readonly ILogger _logger;
     public const ushort BASIC_LOAD_ADDRESS = 0x0801;
 
+    private Action<C64, InstructionExecResult>? _afterInstructionCallback = null;
+
     // Instrumentations
     public bool InstrumentationEnabled { get; set; }
     public Instrumentations Instrumentations { get; } = new();
     private const string StatsCategory = "Custom";
     private readonly ElapsedMillisecondsTimedStatSystem _spriteCollisionStat;
     private readonly ElapsedMillisecondsTimedStatSystem _audioStat;
+    private readonly ElapsedMillisecondsTimedStatSystem _postInstructionCallbackStat;
+
+
+    public bool RememberVic2RegistersPerRasterLine { get; set; } = true;
+
 
     //public static ROM[] ROMS = new ROM[]
     //{   
@@ -70,7 +77,8 @@ public class C64 : ISystem, ISystemMonitor
         SystemRunner systemRunner,
         IExecEvaluator? execEvaluator = null)
     {
-        _audioStat.Reset(); // Reset audio stat, will be continiously updated after each instruction
+        _audioStat.Reset(); // Reset stat, will be continiously updated after each instruction
+        _postInstructionCallbackStat.Reset(); // Reset stat, will be continiously updated after each instruction
 
         ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
         //_logger.LogTrace($"Executing one frame, {cyclesToExecute} CPU cycles.");
@@ -87,7 +95,8 @@ public class C64 : ISystem, ISystemMonitor
             }
         }
 
-        _audioStat.Stop(); // Stop audio stat (was continiously updated after each instruction)
+        _audioStat.Stop(); // Stop stat (was continiously updated after each instruction)
+        _postInstructionCallbackStat.Stop(); // Stop stat (was continiously updated after each instruction)
 
         // Update sprite collision state
         _spriteCollisionStat.Start();
@@ -118,6 +127,7 @@ public class C64 : ISystem, ISystemMonitor
             Cia.ProcessTimers(instructionExecResult.CyclesConsumed);
 
         // Advance video raster
+        var cycleOnRasterLineBeforeInstruction = Vic2.CyclesConsumedCurrentVblank;
         Vic2.AdvanceRaster(instructionExecResult.CyclesConsumed);
 
         // Handle output processing needed after each instruction.
@@ -126,6 +136,14 @@ public class C64 : ISystem, ISystemMonitor
             _audioStat.Start(cont: true);
             systemRunner.GenerateAudio();
             _audioStat.Stop(cont: true);
+        }
+
+        // Callback to possible registered Action to a renderer (or other processing) after each instruction. The Action is exepected to have all state of the C64 available to it.
+        if (_afterInstructionCallback != null)
+        {
+            _postInstructionCallbackStat.Start(cont: true);
+            _afterInstructionCallback.Invoke(this, instructionExecResult);
+            _postInstructionCallbackStat.Stop(cont: true);
         }
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
@@ -145,6 +163,7 @@ public class C64 : ISystem, ISystemMonitor
         _logger = logger;
         _spriteCollisionStat = Instrumentations.Add($"{StatsCategory}-SpriteCollision", new ElapsedMillisecondsTimedStatSystem(this));
         _audioStat = Instrumentations.Add($"{StatsCategory}-Audio", new ElapsedMillisecondsTimedStatSystem(this));
+        _postInstructionCallbackStat = Instrumentations.Add($"{StatsCategory}-PostInstrCallback", new ElapsedMillisecondsTimedStatSystem(this));
     }
 
     public static C64 BuildC64(C64Config c64Config, ILoggerFactory loggerFactory)
@@ -470,4 +489,14 @@ public class C64 : ISystem, ISystemMonitor
     {
         return (ushort)(Mem.FetchWord(0x2d) - 1);
     }
+
+    public void SetAfterInstructionCallback(Action<C64, InstructionExecResult> afterInstructionCallback)
+    {
+        _afterInstructionCallback = afterInstructionCallback;
+    }
+    public void RemoveAfterInstructionCallback()
+    {
+        _afterInstructionCallback = null;
+    }
+
 }

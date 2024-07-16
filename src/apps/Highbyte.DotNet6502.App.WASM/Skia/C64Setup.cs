@@ -2,7 +2,8 @@ using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video;
+using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
+using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -76,12 +77,29 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
         WASMAudioHandlerContext audioHandlerContext
         )
     {
-        var c64 = (C64)system;
+        var c64HostConfig = (C64HostConfig)hostSystemConfig;
 
-        var renderer = new C64SkiaRenderer();
+        IRenderer renderer;
+        switch (c64HostConfig.Renderer)
+        {
+            case C64HostRenderer.SkiaSharp:
+                renderer = new C64SkiaRenderer();
+                break;
+            case C64HostRenderer.SkiaSharp2:
+                renderer = new C64SkiaRenderer2();
+                break;
+            case C64HostRenderer.SkiaSharp2b:
+                renderer = new C64SkiaRenderer2b();
+                break;
+            default:
+                throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
+        }
+
+
         var inputHandler = new C64AspNetInputHandler(_loggerFactory, _hostConfig.InputConfig);
         var audioHandler = new C64WASMAudioHandler(_loggerFactory);
 
+        var c64 = (C64)system;
         renderer.Init(c64, renderContext);
         inputHandler.Init(c64, inputHandlerContext);
         audioHandler.Init(c64, audioHandlerContext);
