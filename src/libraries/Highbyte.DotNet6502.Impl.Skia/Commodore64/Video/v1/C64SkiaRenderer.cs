@@ -11,6 +11,22 @@ using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
 
 
+/// <summary>
+/// Renders a C64 system to a SkiaSharp canvas.
+/// 
+/// Overview:
+/// - Called once per frame.
+/// - Uses pre-calculated images to draw text characters to draw directly to the canvas.
+/// - Draws lines for background and border directly to the canvas.
+/// - Fast enough to be used for native and browser (WASM) hosts.
+/// 
+/// Supports:
+/// - Text mode (Standard, Extended, MultiColor)
+/// - Colors per raster line
+/// - Fine scroll per frame.
+/// - Sprites (Standard, MultiColor)
+///   
+/// </summary>
 public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 {
     private Func<SKCanvas> _getSkCanvas = default!;

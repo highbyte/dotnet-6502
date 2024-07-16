@@ -2,6 +2,10 @@ using System.Runtime.InteropServices;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 
+/// <summary>
+/// Encapsulation of a SKBitmap that is backed by a pixel array (uint[]).
+/// The pixels are manipulated by writing to the PixelArray uint[] property.
+/// </summary>
 public class SkiaBitmapBackedByPixelArray : IDisposable
 {
     private readonly uint[] _pixelArray;

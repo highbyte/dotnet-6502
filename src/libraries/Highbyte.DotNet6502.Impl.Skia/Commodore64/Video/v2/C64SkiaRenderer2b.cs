@@ -10,6 +10,28 @@ using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 
+/// <summary>
+/// Renders a C64 system to a SkiaSharp canvas.  
+/// 
+/// Overview
+/// - Called after each instruction to generate Text and Bitmap graphics.
+/// - Called once per frame to generate Sprites (if possible a future improvement should make this also be called after each instruction if performance allows it).
+/// - Writes image data to a SKBitmap backed by a pixel array, and uses a shader + generated SKBitmap "textures" to do the actual drawing to the SkiaSharp canvas.
+/// - Fast enough to be used for native and browser (WASM) hosts if the computer is reasonably fast.
+/// 
+/// Supports:
+/// - Text mode (Standard, Extended, MultiColor)
+/// - Bitmap mode (Standard/HiRes, MultiColor)
+/// - Colors per raster line
+/// - Fine scroll per raster line
+/// - Sprites (Standard, MultiColor)
+///   
+/// Compared to C64SkiaRenderer2:
+/// - Slower, but still fast enough to be able to run in a browser with Blazor WebAssembly on a reasonably fast computer.
+/// - Uses more memory due to more lookup tables (8 pixels -> uint[]) for color combinations (that C64SkiaRenderer2 did in a more complicated pixel shader instead).
+/// - Allows for more accurate rendering of the C64 screen due to text and bitmap is generated after each instruction (including fine scroll).
+/// - A simpler implementation.
+/// </summary>
 public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
 {
     private Func<SKCanvas> _getSkCanvas = default!;
@@ -267,7 +289,7 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
         // Draw sprites to background of foreground bitmaps
         DrawSpritesToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_BackgroundAndBorder.PixelArray, _skiaPixelArrayBitmap_Foreground.PixelArray);
 
-        // "Draw" line data (color values of VIC2 registers per raster line) to separate bitmap
+        // "Draw" line data (color values of VIC2 registers per raster line) to separate bitmap (currently only used for sprites).
         DrawLineDataToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_LineData.PixelArray);
 
         // Draw to a canvas using a shader with texture info from screen and sprite bitmaps, together with line data bitmap
@@ -610,7 +632,7 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
                     Array.Clear(_skiaPixelArrayBitmap_Foreground.PixelArray);
                 }
 
-                // C64 screen data is updated each line. TODO: Is this correct assumption? Can these values update mid-line?
+                // C64 screen data is updated each line. TODO: For more accurate rendering, this should be done after each instruction (but may be too slow).
                 _vic2VideoMatrixBaseAddress = c64.Vic2.VideoMatrixBaseAddress;
                 _vic2BitmapBaseAddress = c64.Vic2.BitmapManager.BitmapAddressInVIC2Bank;
                 _vic2CharacterSetAddressInVIC2Bank = c64.Vic2.CharsetManager.CharacterSetAddressInVIC2Bank;

@@ -10,6 +10,24 @@ using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 
+/// <summary>
+/// Renders a C64 system to a SkiaSharp canvas.
+/// 
+/// Overview:
+/// - Called once per frame.
+/// - Writes image data to a SKBitmap backed by a pixel array, and uses a shader + generated SKBitmap "textures" to do the actual drawing to the SkiaSharp canvas.
+/// - Fast enough to be used for native and browser (WASM) hosts.
+/// 
+/// Supports:
+/// - Text mode (Standard, Extended, MultiColor)
+/// - Bitmap mode (Standard/HiRes, MultiColor)
+/// - Colors per raster line
+/// - Fine scroll per frame.
+/// - Sprites (Standard, MultiColor)
+///   
+/// Compared to C64SkiaRenderer:
+/// - A bit slower, but supports Bitmap graphics and still able to run in a browser with Blazor WebAssembly.
+/// </summary>
 public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
 {
     private Func<SKCanvas> _getSkCanvas = default!;
@@ -157,8 +175,8 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
         // Draw sprites to separate bitmap
         DrawSpritesToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_Sprites.PixelArray);
 
-        // "Draw" line data (color values of VIC2 registers per raster line) to separate bitmap
-        DrawLineDataToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_LineData.PixelArray);
+        // Write line data (color values of VIC2 registers per raster line) to separate bitmap. To be used later in the shader to determine colors per raster line.
+        WriteLineDataToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_LineData.PixelArray);
 
         // Draw to a canvas using a shader with texture info from screen and sprite bitmaps, together with line data bitmap
         WriteBitmapToCanvas(_skiaPixelArrayBitmap_TextAndBitmap.Bitmap, _skiaPixelArrayBitmap_Sprites.Bitmap, _skiaPixelArrayBitmap_LineData.Bitmap, _getSkCanvas(), c64);
@@ -1018,7 +1036,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
         _spritesStat.Stop();
     }
 
-    private void DrawLineDataToBitmapBackedByPixelArray(C64 c64, uint[] lineDataPixelArray)
+    private void WriteLineDataToBitmapBackedByPixelArray(C64 c64, uint[] lineDataPixelArray)
     {
         // Build array to send to shader with the actual color that should be used differnt types of colors (border, bg0, bg1, bg2, bg3, etc), dependent on the raster line number
         _lineDataImageStat.Start();
