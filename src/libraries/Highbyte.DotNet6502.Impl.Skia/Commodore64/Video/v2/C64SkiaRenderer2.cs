@@ -134,7 +134,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
     private ElapsedMillisecondsTimedStatSystem _textAndBitmapScreenStat;
     private ElapsedMillisecondsTimedStatSystem _spritesStat;
     private ElapsedMillisecondsTimedStatSystem _lineDataImageStat;
-    private ElapsedMillisecondsTimedStatSystem _drawCanvasWithShader;
+    private ElapsedMillisecondsTimedStatSystem _drawCanvasWithShaderStat;
 
     public C64SkiaRenderer2()
     {
@@ -159,7 +159,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
         _textAndBitmapScreenStat = Instrumentations.Add($"{StatsCategory}-Screen", new ElapsedMillisecondsTimedStatSystem(c64));
         _spritesStat = Instrumentations.Add($"{StatsCategory}-Sprites", new ElapsedMillisecondsTimedStatSystem(c64));
         _lineDataImageStat = Instrumentations.Add($"{StatsCategory}-LineDataImage", new ElapsedMillisecondsTimedStatSystem(c64));
-        _drawCanvasWithShader = Instrumentations.Add($"{StatsCategory}-DrawCanvasWithShader", new ElapsedMillisecondsTimedStatSystem(c64));
+        _drawCanvasWithShaderStat = Instrumentations.Add($"{StatsCategory}-DrawCanvasWithShader", new ElapsedMillisecondsTimedStatSystem(c64));
     }
 
     public void Init(ISystem system, IRenderContext renderContext)
@@ -488,7 +488,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
     private void WriteBitmapToCanvas(SKBitmap bitmap, SKBitmap spritesBitmap, SKBitmap lineDataBitmap, SKCanvas canvas, C64 c64)
     {
 
-        _drawCanvasWithShader.Start();
+        _drawCanvasWithShaderStat.Start();
         // shader uniform values
         _sKRuntimeEffectUniforms["bg0Color"] = _sKColorToShaderColorMap[(uint)_bg0DrawColorActual];
         _sKRuntimeEffectUniforms["bg1Color"] = _sKColorToShaderColorMap[(uint)_bg1DrawColor];
@@ -523,12 +523,12 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
 
         // Shader uniform texture sampling values
         // Convert bitmap (that one have written the C64 screen to) to shader texture
-        var shaderTexture = bitmap.ToShader();
+        using var shaderTexture = bitmap.ToShader();
         // Convert shader bitmap (that one have written the C64 sprites to) to shader texture
-        var spritesTexture = spritesBitmap.ToShader();
+        using var spritesTexture = spritesBitmap.ToShader();
 
         // Convert other bitmaps to shader texture
-        var lineDataBitmapShaderTexture = lineDataBitmap.ToShader();
+        using var lineDataBitmapShaderTexture = lineDataBitmap.ToShader();
 
         _sKRuntimeEffectChildren["bitmap_texture"] = shaderTexture;
         _sKRuntimeEffectChildren["sprites_texture"] = spritesTexture;
@@ -539,7 +539,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
 
         canvas.DrawRect(0, 0, bitmap.Width, bitmap.Height, _shaderPaint);
 
-        _drawCanvasWithShader.Stop();
+        _drawCanvasWithShaderStat.Stop();
     }
 
     private void DrawBorderAndScreenToBitmapBackedByPixelArray(C64 c64, uint[] pixelArray)
