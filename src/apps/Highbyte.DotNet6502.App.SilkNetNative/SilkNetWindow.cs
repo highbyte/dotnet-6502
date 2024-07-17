@@ -3,12 +3,19 @@ using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Microsoft.Extensions.Logging;
+using Silk.NET.SDL;
+using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
+using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
+using AutoMapper.Internal.Mappers;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;
 
@@ -209,6 +216,8 @@ public class SilkNetWindow
 
     private void InitRendering()
     {
+        _silkNetRenderContextContainer?.Cleanup();
+
         // Init SkipSharp resources (must be done in OnLoad, otherwise no OpenGL context will exist create by SilkNet.)
         //_skiaRenderContext = new SkiaRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
         GRGlGetProcedureAddressDelegate getProcAddress = (name) =>
@@ -273,6 +282,10 @@ public class SilkNetWindow
 
         if (!_systemList.IsValidConfig(_currentSystemName).Result)
             throw new DotNet6502Exception("Internal error. Cannot start emulator if current system config is invalid.");
+
+        // Force a full GC to free up memory, so it won't risk accumulate memory usage if GC has not run for a while.
+        var m0 = GC.GetTotalMemory(forceFullCollection: true);
+        _logger.LogInformation("Allocated memory before starting emulator: " + m0);
 
         // Only create a new instance of SystemRunner if we previously has not started (so resume after pause works).
         if (EmulatorState == EmulatorState.Uninitialized)
