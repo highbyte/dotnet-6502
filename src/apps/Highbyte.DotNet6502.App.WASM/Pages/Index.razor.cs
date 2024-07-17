@@ -564,6 +564,11 @@ public partial class Index
             if (!isOk)
                 return;
 
+            // TODO: Is forcing a full GC a good idea in Blazor WASM?
+            // Force a full GC to free up memory, so it won't risk accumulate memory usage if GC has not run for a while.
+            var m0 = GC.GetTotalMemory(forceFullCollection: true);
+            _logger.LogInformation("Allocated memory before starting emulator: " + m0);
+
             InitEmulator();
         }
 
@@ -614,7 +619,7 @@ public partial class Index
 
     private void OnKeyDown(KeyboardEventArgs e)
     {
-        if (_wasmHost == null)
+        if (_wasmHost == null || _wasmHost.InputHandlerContext == null)
             return;
         _wasmHost.InputHandlerContext.KeyDown(e);
 
@@ -624,14 +629,14 @@ public partial class Index
 
     private void OnKeyUp(KeyboardEventArgs e)
     {
-        if (_wasmHost == null)
+        if (_wasmHost == null || _wasmHost.InputHandlerContext == null)
             return;
         _wasmHost.InputHandlerContext.KeyUp(e);
     }
 
     private void OnFocus(FocusEventArgs e)
     {
-        if (_wasmHost == null)
+        if (_wasmHost == null || _wasmHost.InputHandlerContext == null)
             return;
         _wasmHost.InputHandlerContext.OnFocus(e);
     }

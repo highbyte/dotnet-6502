@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems;
+using SkiaSharp;
 
 namespace Highbyte.DotNet6502.Impl.Skia;
 
@@ -15,6 +16,8 @@ public class SkiaRenderContext : IRenderContext
 
     private GRContext? _grContext;
     private readonly Func<GRContext>? _getGrContextExternal;
+
+    private GRGlInterface? _glInterface;
 
     private SKCanvas GetCanvasInternal()
     {
@@ -44,10 +47,11 @@ public class SkiaRenderContext : IRenderContext
     {
         // Create the SkiaSharp context
         //var glInterface = GRGlInterface.Create();
-        var glInterface = GRGlInterface.Create(name => getProcAddress(name));
-        glInterface.Validate();
+
+        _glInterface = GRGlInterface.Create(name => getProcAddress(name));
+        _glInterface.Validate();
         var grContextOptions = new GRContextOptions { };
-        _grContext = GRContext.CreateGl(glInterface, grContextOptions);
+        _grContext = GRContext.CreateGl(_glInterface, grContextOptions);
         if (_grContext == null)
             throw new DotNet6502Exception("Cannot create OpenGL context.");
 
@@ -77,8 +81,11 @@ public class SkiaRenderContext : IRenderContext
         _canvas = null;
         _renderSurface?.Dispose();
         _renderSurface = null;
+        _renderTarget?.Dispose();
+        _renderTarget = null;
         _grContext?.Dispose();
         _grContext = null;
+        _glInterface?.Dispose();
+        _glInterface = null;
     }
-
 }
