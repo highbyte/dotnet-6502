@@ -31,7 +31,7 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
             {2, new C64NAudioVoiceContext(2) },
             {3, new C64NAudioVoiceContext(3) },
         };
-
+    private C64 _c64;
     private readonly ILogger _logger;
 
     public C64NAudioAudioHandler(ILoggerFactory loggerFactory)
@@ -45,8 +45,13 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
     public Instrumentations Instrumentations { get; } = new();
 
 
-    public void Init(C64 system, NAudioAudioHandlerContext audioHandlerContext)
+    public void Init(C64 c64, NAudioAudioHandlerContext audioHandlerContext)
     {
+        _c64 = c64;
+
+        // Configure callback method for audio generation after each instruction
+        c64.SetPostInstructionAudioCallback(AfterInstructionExecuted);
+
         _audioHandlerContext = audioHandlerContext;
 
         // Setup audio rendering pipeline: Mixer -> SID Volume -> WavePlayer
@@ -69,14 +74,13 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
         Init((C64)system, (NAudioAudioHandlerContext)audioHandlerContext);
     }
 
-    public void GenerateAudio(ISystem system)
+    public void AfterFrame()
     {
-        GenerateAudio((C64)system);
     }
 
-    public void GenerateAudio(C64 c64)
+    private void AfterInstructionExecuted(InstructionExecResult instructionExecResult)
     {
-        var sid = c64.Sid;
+        var sid = _c64.Sid;
         if (!sid.InternalSidState.IsAudioChanged)
             return;
 

@@ -100,11 +100,14 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
         var audioHandler = new C64WASMAudioHandler(_loggerFactory);
 
         var c64 = (C64)system;
-        renderer.Init(c64, renderContext);
-        inputHandler.Init(c64, inputHandlerContext);
-        audioHandler.Init(c64, audioHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>(c64);
+        var systemRunnerBuilder = new SystemRunnerBuilder<C64, IRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>(
+            c64,
+            renderContext,
+            inputHandlerContext,
+            audioHandlerContext);
+
+
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)

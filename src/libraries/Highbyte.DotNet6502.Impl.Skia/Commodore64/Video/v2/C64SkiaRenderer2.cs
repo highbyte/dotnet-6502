@@ -30,6 +30,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 /// </summary>
 public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
 {
+    private C64 _c64;
     private Func<SKCanvas> _getSkCanvas = default!;
 
     private SkiaBitmapBackedByPixelArray _skiaPixelArrayBitmap_TextAndBitmap;
@@ -142,6 +143,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
 
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
     {
+        _c64 = c64;
         _getSkCanvas = skiaRenderContext.GetCanvas;
 
         _c64SkiaColors = new C64SkiaColors(c64.ColorMapName);
@@ -167,24 +169,19 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
         Init((C64)system, (SkiaRenderContext)renderContext);
     }
 
-    public void Draw(C64 c64)
+    public void DrawFrame()
     {
         // Draw border and screen to bitmap
-        DrawBorderAndScreenToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray);
+        DrawBorderAndScreenToBitmapBackedByPixelArray(_c64, _skiaPixelArrayBitmap_TextAndBitmap.PixelArray);
 
         // Draw sprites to separate bitmap
-        DrawSpritesToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_Sprites.PixelArray);
+        DrawSpritesToBitmapBackedByPixelArray(_c64, _skiaPixelArrayBitmap_Sprites.PixelArray);
 
         // Write line data (color values of VIC2 registers per raster line) to separate bitmap. To be used later in the shader to determine colors per raster line.
-        WriteLineDataToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_LineData.PixelArray);
+        WriteLineDataToBitmapBackedByPixelArray(_c64, _skiaPixelArrayBitmap_LineData.PixelArray);
 
         // Draw to a canvas using a shader with texture info from screen and sprite bitmaps, together with line data bitmap
-        WriteBitmapToCanvas(_skiaPixelArrayBitmap_TextAndBitmap.Bitmap, _skiaPixelArrayBitmap_Sprites.Bitmap, _skiaPixelArrayBitmap_LineData.Bitmap, _getSkCanvas(), c64);
-    }
-
-    public void Draw(ISystem system)
-    {
-        Draw((C64)system);
+        WriteBitmapToCanvas(_skiaPixelArrayBitmap_TextAndBitmap.Bitmap, _skiaPixelArrayBitmap_Sprites.Bitmap, _skiaPixelArrayBitmap_LineData.Bitmap, _getSkCanvas(), _c64);
     }
 
     public void Cleanup()

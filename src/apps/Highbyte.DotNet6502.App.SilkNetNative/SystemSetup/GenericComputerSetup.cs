@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.Impl.SilkNet.Generic.Input;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Generic.Video;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Microsoft.Extensions.Logging;
@@ -91,10 +92,12 @@ public class GenericComputerSetup : SystemConfigurer<SilkNetRenderContextContain
 
         var genericComputer = (GenericComputer)system;
 
-        renderer.Init(genericComputer, renderContext.SkiaRenderContext);
-        inputHandler.Init(genericComputer, inputHandlerContext);
+        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>(
+            genericComputer,
+            renderContext.SkiaRenderContext,
+            inputHandlerContext,
+            audioHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext>(genericComputer);
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)

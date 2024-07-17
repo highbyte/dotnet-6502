@@ -8,6 +8,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Generic.Input;
 public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer, SilkNetInputHandlerContext>
 {
     private readonly EmulatorInputConfig _emulatorInputConfig;
+    private GenericComputer _genericComputer;
     private SilkNetInputHandlerContext? _inputHandlerContext;
     public List<string> GetDebugInfo() => new();
 
@@ -19,8 +20,9 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
         _emulatorInputConfig = emulatorInputConfig;
     }
 
-    public void Init(GenericComputer system, SilkNetInputHandlerContext inputHandlerContext)
+    public void Init(GenericComputer genericComputer, SilkNetInputHandlerContext inputHandlerContext)
     {
+        _genericComputer = genericComputer;
         _inputHandlerContext = inputHandlerContext;
         _inputHandlerContext.Init();
     }
@@ -30,14 +32,14 @@ public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer,
         Init((GenericComputer)system, (SilkNetInputHandlerContext)inputHandlerContext);
     }
 
-    public void ProcessInput(GenericComputer genericComputer)
+    public void BeforeFrame()
     {
-        CaptureKeyboard(genericComputer);
+        CaptureKeyboard(_genericComputer);
     }
 
-    public void ProcessInput(ISystem system)
+    public void BeforeFrame(ISystem system)
     {
-        ProcessInput((GenericComputer)system);
+        BeforeFrame((GenericComputer)system);
     }
 
     private void CaptureKeyboard(GenericComputer genericComputer)

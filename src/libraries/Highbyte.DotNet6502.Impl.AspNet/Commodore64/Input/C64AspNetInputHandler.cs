@@ -9,6 +9,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 
 public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>
 {
+    private C64 _c64;
     private AspNetInputHandlerContext? _inputHandlerContext = default!;
     private readonly ILogger<C64AspNetInputHandler> _logger;
     private C64AspNetKeyboard _c64AspNetKeyboard = default!;
@@ -23,8 +24,10 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
         _c64AspNetConfig = c64AspNetConfig;
     }
 
-    public void Init(C64 system, AspNetInputHandlerContext inputHandlerContext)
+    public void Init(C64 c64, AspNetInputHandlerContext inputHandlerContext)
     {
+        _c64 = c64;
+
         _inputHandlerContext = inputHandlerContext;
         _inputHandlerContext.Init();
 
@@ -45,16 +48,16 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
         Init((C64)system, (AspNetInputHandlerContext)inputHandlerContext);
     }
 
-    public void ProcessInput(C64 c64)
+    public void BeforeFrame()
     {
-        c64.Cia.Joystick.ClearJoystickActions();
-        CaptureKeyboard(c64);
-        CaptureJoystick(c64);
+        _c64.Cia.Joystick.ClearJoystickActions();
+        CaptureKeyboard(_c64);
+        CaptureJoystick(_c64);
     }
 
-    public void ProcessInput(ISystem system)
+    public void BeforeFrame(ISystem system)
     {
-        ProcessInput((C64)system);
+        BeforeFrame((C64)system);
     }
 
     private void CaptureKeyboard(C64 c64)

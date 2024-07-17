@@ -12,7 +12,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
 
 public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContext>, IDisposable
 {
-
+    private C64 _c64;
     private SilkNetOpenGlRenderContext _silkNetOpenGlRenderContext = default!;
     private GL _gl => _silkNetOpenGlRenderContext.Gl;
 
@@ -130,6 +130,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
 
     public void Init(C64 c64, SilkNetOpenGlRenderContext silkNetOpenGlRenderContext)
     {
+        _c64 = c64;
         _silkNetOpenGlRenderContext = silkNetOpenGlRenderContext;
 
         _gl.Viewport(silkNetOpenGlRenderContext.Window.FramebufferSize);
@@ -236,9 +237,9 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         Init((C64)system, (SilkNetOpenGlRenderContext)renderContext);
     }
 
-    public void Draw(C64 c64)
+    public void DrawFrame()
     {
-        var vic2 = c64.Vic2;
+        var vic2 = _c64.Vic2;
         var vic2Mem = vic2.Vic2Mem;
         var vic2Screen = vic2.Vic2Screen;
         var vic2ScreenLayouts = vic2.ScreenLayouts;
@@ -266,31 +267,31 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
             // Charset dot-matrix UBO
             if (_changedAllCharsetCodes)
             {
-                var charsetData = BuildCharsetData(c64, fromROM: false);
+                var charsetData = BuildCharsetData(_c64, fromROM: false);
                 _uboCharsetData.Update(charsetData);
                 _changedAllCharsetCodes = false;
             }
             // Text screen UBO
-            var textScreenData = BuildTextScreenData(c64);
+            var textScreenData = BuildTextScreenData(_c64);
             _uboTextData.Update(textScreenData, 0);
         }
         else if (displayMode == Vic2.DispMode.Bitmap)
         {
             // Bitmap dot-matrix UBO
-            var bitmapData = BuildBitmapData(c64);
+            var bitmapData = BuildBitmapData(_c64);
             _uboBitmapData.Update(bitmapData, 0);
 
             // TODO: Bitmap Color UBO
         }
 
         // Screen line data UBO
-        var screenLineData = new ScreenLineData[c64.Vic2.Vic2Screen.VisibleHeight];
-        foreach (var c64ScreenLine in c64.Vic2.ScreenLineIORegisterValues.Keys)
+        var screenLineData = new ScreenLineData[_c64.Vic2.Vic2Screen.VisibleHeight];
+        foreach (var c64ScreenLine in _c64.Vic2.ScreenLineIORegisterValues.Keys)
         {
             if (c64ScreenLine < visibileLayout.TopBorder.Start.Y || c64ScreenLine > visibileLayout.BottomBorder.End.Y)
                 continue;
             var canvasYPos = (ushort)(c64ScreenLine - visibileLayout.TopBorder.Start.Y);
-            var screenLineIORegisters = c64.Vic2.ScreenLineIORegisterValues[c64ScreenLine];
+            var screenLineIORegisters = _c64.Vic2.ScreenLineIORegisterValues[c64ScreenLine];
             screenLineData[canvasYPos].BorderColorCode = screenLineIORegisters.BorderColor;
             screenLineData[canvasYPos].BackgroundColor0Code = screenLineIORegisters.BackgroundColor0;
             screenLineData[canvasYPos].BackgroundColor1Code = screenLineIORegisters.BackgroundColor1;
@@ -323,13 +324,13 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _uboScreenLineData.Update(screenLineData, 0);
 
         // Sprite meta data UBO
-        var spriteData = new SpriteData[c64.Vic2.SpriteManager.NumberOfSprites];
-        foreach (var sprite in c64.Vic2.SpriteManager.Sprites)
+        var spriteData = new SpriteData[_c64.Vic2.SpriteManager.NumberOfSprites];
+        foreach (var sprite in _c64.Vic2.SpriteManager.Sprites)
         {
             int si = sprite.SpriteNumber;
             spriteData[si].Visible = sprite.Visible ? 1u : 0u;
-            spriteData[si].X = (sprite.X + visibleMainScreenArea.Screen.Start.X - c64.Vic2.SpriteManager.ScreenOffsetX);
-            spriteData[si].Y = (sprite.Y + visibleMainScreenArea.Screen.Start.Y - c64.Vic2.SpriteManager.ScreenOffsetY);
+            spriteData[si].X = (sprite.X + visibleMainScreenArea.Screen.Start.X - _c64.Vic2.SpriteManager.ScreenOffsetX);
+            spriteData[si].Y = (sprite.Y + visibleMainScreenArea.Screen.Start.Y - _c64.Vic2.SpriteManager.ScreenOffsetY);
             spriteData[si].Color = (uint)sprite.Color;
             spriteData[si].DoubleWidth = sprite.DoubleWidth ? 1u : 0u;
             spriteData[si].DoubleHeight = sprite.DoubleHeight ? 1u : 0u;
@@ -339,12 +340,12 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _uboSpriteData.Update(spriteData, 0);
 
         // Sprite content UBO
-        if (c64.Vic2.SpriteManager.Sprites.Any(s => s.IsDirty))
+        if (_c64.Vic2.SpriteManager.Sprites.Any(s => s.IsDirty))
         {
             // TODO: Is best approach to upload all sprite content if any sprite is dirty? To minimize the number of separate UBO updates?
-            var spriteContentData = new SpriteContentData[c64.Vic2.SpriteManager.NumberOfSprites * (Vic2Sprite.DEFAULT_WIDTH / 8) * Vic2Sprite.DEFAULT_HEIGTH];
+            var spriteContentData = new SpriteContentData[_c64.Vic2.SpriteManager.NumberOfSprites * (Vic2Sprite.DEFAULT_WIDTH / 8) * Vic2Sprite.DEFAULT_HEIGTH];
             int uboIndex = 0;
-            foreach (var sprite in c64.Vic2.SpriteManager.Sprites)
+            foreach (var sprite in _c64.Vic2.SpriteManager.Sprites)
             {
                 var spriteEmulatorData = sprite.Data;
                 foreach (var row in sprite.Data.Rows)
@@ -382,11 +383,6 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         // Draw triangles covering the entire screen, with the fragment shader doing the actual drawing of 2D pixels.
         _vba.Bind();
         _gl.DrawArrays(GLEnum.Triangles, 0, 6);
-    }
-
-    public void Draw(ISystem system)
-    {
-        Draw((C64)system);
     }
 
     private TextData[] BuildTextScreenData(C64 c64)

@@ -5,7 +5,8 @@ namespace Highbyte.DotNet6502.Systems;
 public interface IAudioHandler
 {
     void Init(ISystem system, IAudioHandlerContext audioHandlerContext);
-    void GenerateAudio(ISystem system);
+
+    void AfterFrame();
 
     void StartPlaying();
     void StopPlaying();
@@ -19,8 +20,6 @@ public interface IAudioHandler<TSystem, TAudioHandlerContext> : IAudioHandler
     where TAudioHandlerContext : IAudioHandlerContext
 {
     void Init(TSystem system, TAudioHandlerContext audioHandlerContext);
-
-    void GenerateAudio(TSystem system);
 }
 
 public class NullAudioHandler : IAudioHandler
@@ -33,7 +32,7 @@ public class NullAudioHandler : IAudioHandler
     {
     }
 
-    public void GenerateAudio(ISystem system)
+    public void AfterFrame()
     {
     }
 

@@ -201,6 +201,7 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
     private int _screenLayoutInclNonVisibleBottomBorderEndY;
     private int _screenLayoutInclNonVisibleLeftBorderStartX;
     private int _screenLayoutInclNonVisibleRightBorderEndX;
+    private C64 _c64;
 
     public C64SkiaRenderer2b()
     {
@@ -208,7 +209,9 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
 
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
     {
-        c64.SetAfterInstructionCallback(AfterInstructionExecuted);
+        _c64 = c64;
+        // Configure callback method for video generation after each instruction
+        c64.SetPostInstructionVideoCallback(AfterInstructionExecuted);
         c64.RememberVic2RegistersPerRasterLine = true; // Set to false if/when sprites are drawn directly to the screen bitmap in the "after instruction" callback here.
 
         // Init class variables with C64 screen values that should'nt change
@@ -284,21 +287,16 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
         Init((C64)system, (SkiaRenderContext)renderContext);
     }
 
-    public void Draw(C64 c64)
+    public void DrawFrame()
     {
         // Draw sprites to background of foreground bitmaps
-        DrawSpritesToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_BackgroundAndBorder.PixelArray, _skiaPixelArrayBitmap_Foreground.PixelArray);
+        DrawSpritesToBitmapBackedByPixelArray(_c64, _skiaPixelArrayBitmap_BackgroundAndBorder.PixelArray, _skiaPixelArrayBitmap_Foreground.PixelArray);
 
         // "Draw" line data (color values of VIC2 registers per raster line) to separate bitmap (currently only used for sprites).
-        DrawLineDataToBitmapBackedByPixelArray(c64, _skiaPixelArrayBitmap_LineData.PixelArray);
+        DrawLineDataToBitmapBackedByPixelArray(_c64, _skiaPixelArrayBitmap_LineData.PixelArray);
 
         // Draw to a canvas using a shader with texture info from screen and sprite bitmaps, together with line data bitmap
-        WriteBitmapToCanvas(_skiaPixelArrayBitmap_BackgroundAndBorder.Bitmap, _skiaPixelArrayBitmap_Foreground.Bitmap, _skiaPixelArrayBitmap_LineData.Bitmap, _getSkCanvas(), c64);
-    }
-
-    public void Draw(ISystem system)
-    {
-        Draw((C64)system);
+        WriteBitmapToCanvas(_skiaPixelArrayBitmap_BackgroundAndBorder.Bitmap, _skiaPixelArrayBitmap_Foreground.Bitmap, _skiaPixelArrayBitmap_LineData.Bitmap, _getSkCanvas(), _c64);
     }
 
     public void Cleanup()
@@ -598,18 +596,18 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
     }
 
 
-    private void AfterInstructionExecuted(C64 c64, InstructionExecResult instructionExecResult)
+    private void AfterInstructionExecuted(InstructionExecResult instructionExecResult)
     {
 
         // Loop cycles since last time we processed (each instruction)
-        for (var cycleCurrentVblank = _lastCyclesConsumedCurrentVblank; cycleCurrentVblank < c64.Vic2.CyclesConsumedCurrentVblank; cycleCurrentVblank++)
+        for (var cycleCurrentVblank = _lastCyclesConsumedCurrentVblank; cycleCurrentVblank < _c64.Vic2.CyclesConsumedCurrentVblank; cycleCurrentVblank++)
         {
             // For the cycle processed in current loop iteration, get line and x position.
             // Skip if not within visible C64 border/text/bitmap area
 
             // Line
             var rasterLine = (int)(cycleCurrentVblank / _cyclesPerLine);
-            var screenLine = c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
+            var screenLine = _c64.Vic2.Vic2Model.ConvertRasterLineToScreenLine(rasterLine);
             if (screenLine < _screenLayoutInclNonVisibleTopBorderStartY || screenLine > _screenLayoutInclNonVisibleBottomBorderEndY)
                 continue;
 
@@ -633,26 +631,26 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
                 }
 
                 // C64 screen data is updated each line. TODO: For more accurate rendering, this should be done after each instruction (but may be too slow).
-                _vic2VideoMatrixBaseAddress = c64.Vic2.VideoMatrixBaseAddress;
-                _vic2BitmapBaseAddress = c64.Vic2.BitmapManager.BitmapAddressInVIC2Bank;
-                _vic2CharacterSetAddressInVIC2Bank = c64.Vic2.CharsetManager.CharacterSetAddressInVIC2Bank;
+                _vic2VideoMatrixBaseAddress = _c64.Vic2.VideoMatrixBaseAddress;
+                _vic2BitmapBaseAddress = _c64.Vic2.BitmapManager.BitmapAddressInVIC2Bank;
+                _vic2CharacterSetAddressInVIC2Bank = _c64.Vic2.CharsetManager.CharacterSetAddressInVIC2Bank;
 
-                _isTextMode = c64.Vic2.DisplayMode == DispMode.Text;
-                _characterMode = c64.Vic2.CharacterMode;
-                _bitmapMode = c64.Vic2.BitmapMode;
-                _scrollX = c64.Vic2.GetScrollX();
-                _scrollY = c64.Vic2.GetScrollY();
+                _isTextMode = _c64.Vic2.DisplayMode == DispMode.Text;
+                _characterMode = _c64.Vic2.CharacterMode;
+                _bitmapMode = _c64.Vic2.BitmapMode;
+                _scrollX = _c64.Vic2.GetScrollX();
+                _scrollY = _c64.Vic2.GetScrollY();
 
 
-                _borderColor = c64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
+                _borderColor = _c64.ReadIOStorage(Vic2Addr.BORDER_COLOR);
 
-                _backgroundColor0 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
-                _backgroundColor1 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1);
-                _backgroundColor2 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2);
-                _backgroundColor3 = c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3);
+                _backgroundColor0 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_0);
+                _backgroundColor1 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_1);
+                _backgroundColor2 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_2);
+                _backgroundColor3 = _c64.ReadIOStorage(Vic2Addr.BACKGROUND_COLOR_3);
 
-                _is38ColModeEnabled = c64.Vic2.Is38ColumnDisplayEnabled;
-                _is24RowModeEnabled = c64.Vic2.Is24RowDisplayEnabled;
+                _is38ColModeEnabled = _c64.Vic2.Is38ColumnDisplayEnabled;
+                _is24RowModeEnabled = _c64.Vic2.Is24RowDisplayEnabled;
 
                 _leftBorderEndXAdjusted = _leftBorderEndX + (_is38ColModeEnabled ? Vic2Screen.COL_38_LEFT_BORDER_END_X_DELTA : 0);
                 _leftBorderLengthAdjusted = _leftBorderEndXAdjusted - _leftBorderStartX + 1;
@@ -671,12 +669,12 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
             if (!(screenLine < _screenLayoutInclNonVisibleScreenStartY || screenLine > _screenLayoutInclNonVisibleScreenEndY
                 || posX < _screenLayoutInclNonVisibleScreenStartX || posX > _screenLayoutInclNonVisibleScreenEndX))
             {
-                DrawTextAndBitmapPixels(c64, drawLine: screenLine - _screenLayoutInclNonVisibleScreenStartY, col: (posX - _screenLayoutInclNonVisibleScreenStartX) / 8);
+                DrawTextAndBitmapPixels(_c64, drawLine: screenLine - _screenLayoutInclNonVisibleScreenStartY, col: (posX - _screenLayoutInclNonVisibleScreenStartX) / 8);
             }
 
         } // End for each cycle
 
-        _lastCyclesConsumedCurrentVblank = c64.Vic2.CyclesConsumedCurrentVblank;
+        _lastCyclesConsumedCurrentVblank = _c64.Vic2.CyclesConsumedCurrentVblank;
     }
 
     private void DrawBorderPixels(int normalizedScreenLine)

@@ -7,6 +7,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Generic.Video;
 
 public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRenderContext>
 {
+    private GenericComputer _genericComputer;
     private SadConsoleRenderContext _sadConsoleRenderContext = default!;
 
     private readonly EmulatorScreenConfig _emulatorScreenConfig;
@@ -20,6 +21,7 @@ public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRe
 
     public void Init(GenericComputer genericComputer, SadConsoleRenderContext sadConsoleRenderContext)
     {
+        _genericComputer = genericComputer;
         _sadConsoleRenderContext = sadConsoleRenderContext;
 
         InitEmulatorScreenMemory(genericComputer);
@@ -34,17 +36,13 @@ public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRe
     {
     }
 
-    public void Draw(GenericComputer system)
+    public void DrawFrame()
     {
-        RenderMainScreen(system);
+        RenderMainScreen(_genericComputer);
         if (_emulatorScreenConfig.BorderCols > 0 || _emulatorScreenConfig.BorderRows > 0)
-            RenderBorder(system);
+            RenderBorder(_genericComputer);
     }
 
-    public void Draw(ISystem system)
-    {
-        Draw((GenericComputer)system);
-    }
 
     private void RenderMainScreen(GenericComputer system)
     {

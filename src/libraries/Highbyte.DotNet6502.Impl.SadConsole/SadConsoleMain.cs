@@ -73,7 +73,7 @@ public class SadConsoleMain
     private void UpdateSadConsole(object? sender, GameHost e)
     {
         // Capture SadConsole input
-        _systemRunner.ProcessInput();
+        _systemRunner.ProcessInputBeforeFrame();
 
         // Run CPU for one frame
         var execEvaluatorTriggerResult = _systemRunner.RunEmulatorOneFrame();

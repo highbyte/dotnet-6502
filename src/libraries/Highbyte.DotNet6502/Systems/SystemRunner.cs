@@ -8,9 +8,9 @@ public class SystemRunner
     private IAudioHandler _audioHandler = default!;
 
     public ISystem System => _system;
-    public IRenderer Renderer { get => _renderer; set => _renderer = value; }
-    public IInputHandler InputHandler { get => _inputHandler; set => _inputHandler = value; }
-    public IAudioHandler AudioHandler { get => _audioHandler; set => _audioHandler = value; }
+    public IRenderer Renderer { get => _renderer; }
+    public IInputHandler InputHandler { get => _inputHandler; }
+    public IAudioHandler AudioHandler { get => _audioHandler; }
 
     private IExecEvaluator? _customExecEvaluator;
     public IExecEvaluator? CustomExecEvaluator => _customExecEvaluator;
@@ -18,6 +18,22 @@ public class SystemRunner
     public SystemRunner(ISystem system)
     {
         _system = system;
+    }
+
+    public void InitRenderer(IRenderer renderer, IRenderContext renderContext)
+    {
+        _renderer = renderer;
+        _renderer.Init(_system, renderContext);
+    }
+    public void InitInputHandler(IInputHandler inputHandler, IInputHandlerContext inputHandlerContext)
+    {
+        _inputHandler = inputHandler;
+        _inputHandler.Init(_system, inputHandlerContext);
+    }
+    public void InitAudioHandler(IAudioHandler audioHandler, IAudioHandlerContext audioHandlerContext)
+    {
+        _audioHandler = audioHandler;
+        _audioHandler.Init(_system, audioHandlerContext);
     }
 
     /// <summary>
@@ -39,9 +55,9 @@ public class SystemRunner
     /// Called by host app that runs the emulator.
     /// Typically before RunEmulatorOneFrame is called.
     /// </summary>
-    public void ProcessInput()
+    public void ProcessInputBeforeFrame()
     {
-        _inputHandler?.ProcessInput(_system);
+        _inputHandler?.BeforeFrame();
     }
 
     /// <summary>
@@ -55,23 +71,11 @@ public class SystemRunner
     }
 
     /// <summary>
-    /// Called by host app that runs the emulator, typically once per frame tied to the host app rendering frequency.
+    /// Called by host app that runs the emulator, once per frame tied to the host app rendering frequency.
     /// </summary>
     public void Draw()
     {
-        _renderer?.Draw(_system);
-    }
-
-    /// <summary>
-    /// Called by the specific ISystem implementation after each instruction or entire frame worth of instructions, depending how audio is implemented.
-    /// </summary>
-    /// <param name="detailedStats"></param>
-    public void GenerateAudio()
-    {
-        _audioHandler?.GenerateAudio(_system);
-
-        //var t = new Task(() => _audioHandler?.GenerateAudio(system));
-        //t.RunSynchronously();
+        _renderer?.DrawFrame();
     }
 
     public void Cleanup()

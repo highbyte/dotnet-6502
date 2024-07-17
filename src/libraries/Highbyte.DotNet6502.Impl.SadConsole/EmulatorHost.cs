@@ -76,12 +76,15 @@ public class EmulatorHost
         var c64 = C64.BuildC64(_c64Config, _loggerFactory);
 
         var renderer = new C64SadConsoleRenderer();
-        renderer.Init(c64, sadConsoleRenderContext);
-
         var inputHandler = new C64SadConsoleInputHandler(_loggerFactory);
-        inputHandler.Init(c64, sadConsoleInputHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>(c64);
+        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>(
+            c64,
+            sadConsoleRenderContext,
+            sadConsoleInputHandlerContext,
+            null
+            );
+
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)
@@ -94,12 +97,15 @@ public class EmulatorHost
         var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(_genericComputerConfig, _loggerFactory);
 
         var renderer = new GenericSadConsoleRenderer(_genericComputerConfig.Memory.Screen);
-        renderer.Init(genericComputer, sadConsoleRenderContext);
-
         var inputHandler = new GenericSadConsoleInputHandler(_genericComputerConfig.Memory.Input, _loggerFactory);
-        inputHandler.Init(genericComputer, sadConsoleInputHandlerContext);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>(genericComputer);
+        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>(
+            genericComputer,
+            sadConsoleRenderContext,
+            sadConsoleInputHandlerContext,
+            null
+            );
+
         var systemRunner = systemRunnerBuilder
             .WithRenderer(renderer)
             .WithInputHandler(inputHandler)

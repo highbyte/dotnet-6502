@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Systems;
 public interface IRenderer
 {
     void Init(ISystem system, IRenderContext renderContext);
-    void Draw(ISystem system);
+    void DrawFrame();
 
     void Cleanup();
 
@@ -17,7 +17,6 @@ public interface IRenderer<TSystem, TRenderContext> : IRenderer
     where TRenderContext : IRenderContext
 {
     void Init(TSystem system, TRenderContext renderContext);
-    void Draw(TSystem system);
 }
 
 public class NullRenderer : IRenderer
@@ -28,7 +27,7 @@ public class NullRenderer : IRenderer
     {
     }
 
-    public void Draw(ISystem system)
+    public void DrawFrame()
     {
     }
 

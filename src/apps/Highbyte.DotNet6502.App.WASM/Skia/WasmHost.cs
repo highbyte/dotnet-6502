@@ -196,7 +196,7 @@ public class WasmHost : IDisposable
 
         //_emulatorHelper.GenerateRandomNumber();
         _inputTime.Start();
-        _systemRunner.ProcessInput();
+        _systemRunner.ProcessInputBeforeFrame();
         _inputTime.Stop();
 
         ExecEvaluatorTriggerResult execEvaluatorTriggerResult;

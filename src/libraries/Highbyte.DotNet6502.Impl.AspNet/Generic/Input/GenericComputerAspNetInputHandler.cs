@@ -8,6 +8,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet.Generic.Input;
 public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, AspNetInputHandlerContext>
 {
     private readonly EmulatorInputConfig _emulatorInputConfig;
+    private GenericComputer _genericComputer;
     private AspNetInputHandlerContext? _inputHandlerContext;
 
     public List<string> GetDebugInfo() => new();
@@ -20,8 +21,10 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
         _emulatorInputConfig = emulatorInputConfig;
     }
 
-    public void Init(GenericComputer system, AspNetInputHandlerContext inputHandlerContext)
+    public void Init(GenericComputer genericComputer, AspNetInputHandlerContext inputHandlerContext)
     {
+        _genericComputer = genericComputer;
+
         _inputHandlerContext = inputHandlerContext;
         _inputHandlerContext.Init();
     }
@@ -31,14 +34,14 @@ public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, 
         Init((GenericComputer)system, (AspNetInputHandlerContext)inputHandlerContext);
     }
 
-    public void ProcessInput(GenericComputer genericComputer)
+    public void BeforeFrame()
     {
-        CaptureKeyboard(genericComputer);
+        CaptureKeyboard(_genericComputer);
     }
 
-    public void ProcessInput(ISystem system)
+    public void BeforeFrame(ISystem system)
     {
-        ProcessInput((GenericComputer)system);
+        BeforeFrame((GenericComputer)system);
     }
 
     private void CaptureKeyboard(GenericComputer genericComputer)

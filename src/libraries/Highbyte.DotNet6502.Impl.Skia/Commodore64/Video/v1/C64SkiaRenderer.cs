@@ -46,6 +46,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 
     private SKRect _drawImageSource = new SKRect();
     private SKRect _drawImageDest = new SKRect();
+    private C64 _c64;
     private CharGen _charGen;
 
     // Sprite drawing variables
@@ -65,6 +66,7 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 
     public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
     {
+        _c64 = c64;
         _charGen = new CharGen();
         _spriteImages = new SKImage[c64.Vic2.SpriteManager.NumberOfSprites];
 
@@ -89,38 +91,32 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
     {
     }
 
-    public void Draw(C64 c64)
+    public void DrawFrame()
     {
         var canvas = _getSkCanvas();
         canvas.Clear();
 
         _backgroundStat.Start();
-        DrawRasterLinesBackground(c64, canvas);
+        DrawRasterLinesBackground(_c64, canvas);
         _backgroundStat.Stop();
 
         _spritesStat.Start();
-        RenderSprites(c64, canvas, spritesWithPriorityOverForeground: false);
+        RenderSprites(_c64, canvas, spritesWithPriorityOverForeground: false);
         _spritesStat.Stop();
 
         _textScreenStat.Start();
-        RenderMainScreen(c64, canvas);
+        RenderMainScreen(_c64, canvas);
         _textScreenStat.Stop();
 
         _borderStat.Start();
-        DrawRasterLinesBorder(c64, canvas);
+        DrawRasterLinesBorder(_c64, canvas);
         _borderStat.Stop();
 
         _spritesStat.Start(cont: true);
-        RenderSprites(c64, canvas, spritesWithPriorityOverForeground: true);
+        RenderSprites(_c64, canvas, spritesWithPriorityOverForeground: true);
         _spritesStat.Stop(cont: true);
 
     }
-
-    public void Draw(ISystem system)
-    {
-        Draw((C64)system);
-    }
-
 
     private void InitCharset(C64 c64)
     {

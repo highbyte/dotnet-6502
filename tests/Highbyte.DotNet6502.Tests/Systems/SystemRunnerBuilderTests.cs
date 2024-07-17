@@ -133,10 +133,7 @@ public class TestRenderer : IRenderer<TestSystem, IRenderContext>
 {
     public bool CleanUpWasCalled = false;
 
-    public void Draw(TestSystem system)
-    {
-    }
-    public void Draw(ISystem system)
+    public void DrawFrame()
     {
     }
     public void Init(TestSystem system, IRenderContext renderContext)
@@ -153,7 +150,7 @@ public class TestRenderer : IRenderer<TestSystem, IRenderContext>
 }
 public class TestRendererNonGeneric : IRenderer
 {
-    public void Draw(ISystem system)
+    public void DrawFrame()
     {
     }
     public void Init(ISystem system, IRenderContext renderContext)
@@ -173,10 +170,7 @@ public class TestInputHandler : IInputHandler<TestSystem, IInputHandlerContext>
     public void Init(ISystem system, IInputHandlerContext inputContext)
     {
     }
-    public void ProcessInput(TestSystem system)
-    {
-    }
-    public void ProcessInput(ISystem system)
+    public void BeforeFrame()
     {
     }
 
@@ -191,7 +185,7 @@ public class TestInputHandlerNonGeneric : IInputHandler
     public void Init(ISystem system, IInputHandlerContext inputContext)
     {
     }
-    public void ProcessInput(ISystem system)
+    public void BeforeFrame()
     {
     }
     public List<string> GetDebugInfo() => new List<string>();
@@ -202,12 +196,10 @@ public class TestAudioHandler : IAudioHandler<TestSystem, IAudioHandlerContext>
 {
     public bool StopPlayingWasCalled = false;
 
-    public void GenerateAudio(TestSystem system)
+    public void AfterFrame()
     {
     }
-    public void GenerateAudio(ISystem system)
-    {
-    }
+
     public void Init(TestSystem system, IAudioHandlerContext audioHandlerContext)
     {
     }
@@ -232,7 +224,7 @@ public class TestAudioHandler : IAudioHandler<TestSystem, IAudioHandlerContext>
 
 public class TestAudioHandlerNonGeneric : IAudioHandler
 {
-    public void GenerateAudio(ISystem system)
+    public void AfterFrame()
     {
     }
     public void Init(ISystem system, IAudioHandlerContext audioHandlerContext)

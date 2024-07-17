@@ -11,7 +11,7 @@ public class SystemRunnerTests
         var system = new TestSystem();
         var systemRunner = new SystemRunner(system);
         var renderer = new TestRenderer();
-        systemRunner.Renderer = renderer;
+        systemRunner.InitRenderer(renderer, new NullRenderContext());
 
         // Act
         systemRunner.Cleanup();
@@ -26,9 +26,8 @@ public class SystemRunnerTests
         // Arrange
         var system = new TestSystem();
         var systemRunner = new SystemRunner(system);
-
         var audioHandler = new TestAudioHandler();
-        systemRunner.AudioHandler = audioHandler;
+        systemRunner.InitAudioHandler(audioHandler, new NullAudioHandlerContext());
 
         // Act
         systemRunner.Cleanup();

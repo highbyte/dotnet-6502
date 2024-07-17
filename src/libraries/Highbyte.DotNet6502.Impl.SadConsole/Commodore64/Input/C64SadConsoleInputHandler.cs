@@ -9,6 +9,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
 
 public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandlerContext>
 {
+    private C64 _c64;
     private SadConsoleInputHandlerContext? _inputHandlerContext;
     private readonly List<string> _debugInfo = new();
     private readonly C64SadConsoleKeyboard _c64SadConsoleKeyboard;
@@ -32,8 +33,9 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
 
     }
 
-    public void Init(C64 system, SadConsoleInputHandlerContext inputHandlerContext)
+    public void Init(C64 c64, SadConsoleInputHandlerContext inputHandlerContext)
     {
+        _c64 = c64;
         _inputHandlerContext = inputHandlerContext;
         _inputHandlerContext.Init();
     }
@@ -43,14 +45,9 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
         Init((C64)system, (SadConsoleInputHandlerContext)inputHandlerContext);
     }
 
-    public void ProcessInput(C64 c64)
+    public void BeforeFrame()
     {
-        CaptureKeyboard(c64);
-    }
-
-    public void ProcessInput(ISystem system)
-    {
-        ProcessInput((C64)system);
+        CaptureKeyboard(_c64);
     }
 
     private void CaptureKeyboard(C64 c64)

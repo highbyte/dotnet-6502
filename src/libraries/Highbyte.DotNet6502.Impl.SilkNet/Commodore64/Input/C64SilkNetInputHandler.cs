@@ -8,6 +8,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 
 public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerContext>
 {
+    private C64 _c64;
     private SilkNetInputHandlerContext? _inputHandlerContext;
     private readonly C64SilkNetKeyboard _c64SilkNetKeyboard;
     //private readonly C64SilkNetGamepad _c64SilkNetGamepad;
@@ -39,8 +40,9 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
         //_c64SilkNetGamepad = new C64SilkNetGamepad();
     }
 
-    public void Init(C64 system, SilkNetInputHandlerContext inputHandlerContext)
+    public void Init(C64 c64, SilkNetInputHandlerContext inputHandlerContext)
     {
+        _c64 = c64;
         _inputHandlerContext = inputHandlerContext;
         _inputHandlerContext.Init();
     }
@@ -50,18 +52,12 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
         Init((C64)system, (SilkNetInputHandlerContext)inputHandlerContext);
     }
 
-    public void ProcessInput(C64 c64)
+    public void BeforeFrame()
     {
-        c64.Cia.Joystick.ClearJoystickActions();
-        CaptureKeyboard(c64);
-        CaptureJoystick(c64);
+        _c64.Cia.Joystick.ClearJoystickActions();
+        CaptureKeyboard(_c64);
+        CaptureJoystick(_c64);
     }
-
-    public void ProcessInput(ISystem system)
-    {
-        ProcessInput((C64)system);
-    }
-
     private void CaptureKeyboard(C64 c64)
     {
         var c64KeysDown = GetC64KeysFromSilkNetKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);

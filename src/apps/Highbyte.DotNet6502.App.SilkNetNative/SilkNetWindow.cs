@@ -359,7 +359,7 @@ public class SilkNetWindow
         if (!_atLeastOneImGuiWindowHasFocus)
         {
             _inputTime.Start();
-            _systemRunner.ProcessInput();
+            _systemRunner.ProcessInputBeforeFrame();
             _inputTime.Stop();
         }
 

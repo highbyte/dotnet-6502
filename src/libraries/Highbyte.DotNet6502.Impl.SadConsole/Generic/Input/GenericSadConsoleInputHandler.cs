@@ -8,6 +8,7 @@ namespace Highbyte.DotNet6502.Impl.SadConsole.Generic.Input;
 
 public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadConsoleInputHandlerContext>
 {
+    private GenericComputer _genericComputer;
     private SadConsoleInputHandlerContext? _inputHandlerContext;
 
     private readonly EmulatorInputConfig _emulatorInputConfig;
@@ -25,8 +26,9 @@ public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadC
         _loggerFactory = loggerFactory;
     }
 
-    public void Init(GenericComputer system, SadConsoleInputHandlerContext inputHandlerContext)
+    public void Init(GenericComputer genericComputer, SadConsoleInputHandlerContext inputHandlerContext)
     {
+        _genericComputer = genericComputer;
         _inputHandlerContext = inputHandlerContext;
         _inputHandlerContext.Init();
     }
@@ -36,15 +38,15 @@ public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadC
         Init((GenericComputer)system, (SadConsoleInputHandlerContext)inputHandlerContext);
     }
 
-    public void ProcessInput(GenericComputer system)
+    public void BeforeFrame()
     {
-        CaptureKeyboard(system);
-        CaptureRandomNumber(system);
+        CaptureKeyboard(_genericComputer);
+        CaptureRandomNumber(_genericComputer);
     }
 
-    public void ProcessInput(ISystem system)
+    public void BeforeFrame(ISystem system)
     {
-        ProcessInput((GenericComputer)system);
+        BeforeFrame((GenericComputer)system);
     }
 
     private void CaptureKeyboard(GenericComputer system)

@@ -39,7 +39,7 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>
             {2, new C64WASMVoiceContext(2) },
             {3, new C64WASMVoiceContext(3) },
         };
-
+    private C64 _c64;
     private readonly ILogger _logger;
 
     public List<string> GetDebugInfo() => new();
@@ -52,8 +52,13 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>
         _logger = loggerFactory.CreateLogger(typeof(C64WASMAudioHandler).Name);
     }
 
-    public void Init(C64 system, WASMAudioHandlerContext audioHandlerContext)
+    public void Init(C64 c64, WASMAudioHandlerContext audioHandlerContext)
     {
+        _c64 = c64;
+
+        // Configure callback method for audio generation after each instruction
+        _c64.SetPostInstructionAudioCallback(AfterInstructionExecuted);
+
         _audioHandlerContext = audioHandlerContext;
         _audioHandlerContext.Init();
 
@@ -72,21 +77,20 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>
         Init((C64)system, (WASMAudioHandlerContext)audioHandlerContext);
     }
 
-    public void GenerateAudio(ISystem system)
+    public void AfterFrame()
     {
-        GenerateAudio((C64)system);
     }
 
-    public void GenerateAudio(C64 c64)
+    private void AfterInstructionExecuted(InstructionExecResult instructionExecResult)
     {
-        var sid = c64.Sid;
+        var sid = _c64.Sid;
         if (!sid.InternalSidState.IsAudioChanged)
             return;
 
         //var internalSidStateClone = sid.InternalSidState.Clone();
         //sid.InternalSidState.ClearAudioChanged();
         //_sidStateChanges.Enqueue(internalSidStateClone);
-        //GenerateAudio();
+        //AfterFrame();
 
         PlayAllVoices(sid.InternalSidState);
         sid.InternalSidState.ClearAudioChanged();
