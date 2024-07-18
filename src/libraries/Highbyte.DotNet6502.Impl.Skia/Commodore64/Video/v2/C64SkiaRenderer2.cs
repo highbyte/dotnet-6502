@@ -28,9 +28,12 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 /// Compared to C64SkiaRenderer:
 /// - A bit slower, but supports Bitmap graphics and still able to run in a browser with Blazor WebAssembly.
 /// </summary>
-public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
+public class C64SkiaRenderer2 : IRenderer
 {
-    private C64 _c64;
+    private readonly C64 _c64;
+    public ISystem System => _c64;
+
+    private readonly SkiaRenderContext _skiaRenderContext;
     private Func<SKCanvas> _getSkCanvas = default!;
 
     private SkiaBitmapBackedByPixelArray _skiaPixelArrayBitmap_TextAndBitmap;
@@ -130,6 +133,7 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
+
     private const string StatsCategory = "SkiaSharp-Custom";
     private ElapsedMillisecondsTimedStatSystem _borderStat;
     private ElapsedMillisecondsTimedStatSystem _textAndBitmapScreenStat;
@@ -137,37 +141,36 @@ public class C64SkiaRenderer2 : IRenderer<C64, SkiaRenderContext>
     private ElapsedMillisecondsTimedStatSystem _lineDataImageStat;
     private ElapsedMillisecondsTimedStatSystem _drawCanvasWithShaderStat;
 
-    public C64SkiaRenderer2()
-    {
-    }
-
-    public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
+    public C64SkiaRenderer2(C64 c64, SkiaRenderContext skiaRenderContext)
     {
         _c64 = c64;
-        _getSkCanvas = skiaRenderContext.GetCanvas;
+        _skiaRenderContext = skiaRenderContext;
 
-        _c64SkiaColors = new C64SkiaColors(c64.ColorMapName);
+        Init();
+    }
 
-        InitTextAndSpritesBitmap(c64);
-        InitLineDataBitmap(c64);
+    public void Init()
+    {
+        _getSkCanvas = _skiaRenderContext.GetCanvas;
 
-        InitBitPatternToPixelMapsForTextDisplay(c64);
+        _c64SkiaColors = new C64SkiaColors(_c64.ColorMapName);
+
+        InitTextAndSpritesBitmap(_c64);
+        InitLineDataBitmap(_c64);
+
+        InitBitPatternToPixelMapsForTextDisplay(_c64);
         InitBitPatternToPixelMapsForBitmapDisplay();
 
-        InitShader(c64);
+        InitShader(_c64);
 
         Instrumentations.Clear();
-        _borderStat = Instrumentations.Add($"{StatsCategory}-Border", new ElapsedMillisecondsTimedStatSystem(c64));
-        _textAndBitmapScreenStat = Instrumentations.Add($"{StatsCategory}-Screen", new ElapsedMillisecondsTimedStatSystem(c64));
-        _spritesStat = Instrumentations.Add($"{StatsCategory}-Sprites", new ElapsedMillisecondsTimedStatSystem(c64));
-        _lineDataImageStat = Instrumentations.Add($"{StatsCategory}-LineDataImage", new ElapsedMillisecondsTimedStatSystem(c64));
-        _drawCanvasWithShaderStat = Instrumentations.Add($"{StatsCategory}-DrawCanvasWithShader", new ElapsedMillisecondsTimedStatSystem(c64));
+        _borderStat = Instrumentations.Add($"{StatsCategory}-Border", new ElapsedMillisecondsTimedStatSystem(_c64));
+        _textAndBitmapScreenStat = Instrumentations.Add($"{StatsCategory}-Screen", new ElapsedMillisecondsTimedStatSystem(_c64));
+        _spritesStat = Instrumentations.Add($"{StatsCategory}-Sprites", new ElapsedMillisecondsTimedStatSystem(_c64));
+        _lineDataImageStat = Instrumentations.Add($"{StatsCategory}-LineDataImage", new ElapsedMillisecondsTimedStatSystem(_c64));
+        _drawCanvasWithShaderStat = Instrumentations.Add($"{StatsCategory}-DrawCanvasWithShader", new ElapsedMillisecondsTimedStatSystem(_c64));
     }
 
-    public void Init(ISystem system, IRenderContext renderContext)
-    {
-        Init((C64)system, (SkiaRenderContext)renderContext);
-    }
 
     public void DrawFrame()
     {

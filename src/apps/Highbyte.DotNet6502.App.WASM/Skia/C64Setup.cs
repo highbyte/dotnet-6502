@@ -77,38 +77,29 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
         WASMAudioHandlerContext audioHandlerContext
         )
     {
+        var c64 = (C64)system;
         var c64HostConfig = (C64HostConfig)hostSystemConfig;
 
         IRenderer renderer;
         switch (c64HostConfig.Renderer)
         {
             case C64HostRenderer.SkiaSharp:
-                renderer = new C64SkiaRenderer();
+                renderer = new C64SkiaRenderer(c64, renderContext);
                 break;
             case C64HostRenderer.SkiaSharp2:
-                renderer = new C64SkiaRenderer2();
+                renderer = new C64SkiaRenderer2(c64, renderContext);
                 break;
             case C64HostRenderer.SkiaSharp2b:
-                renderer = new C64SkiaRenderer2b();
+                renderer = new C64SkiaRenderer2b(c64, renderContext);
                 break;
             default:
                 throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
         }
 
+        var inputHandler = new C64AspNetInputHandler(c64, inputHandlerContext, _loggerFactory, _hostConfig.InputConfig);
+        var audioHandler = new C64WASMAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
-        var inputHandler = new C64AspNetInputHandler(_loggerFactory, _hostConfig.InputConfig);
-        var audioHandler = new C64WASMAudioHandler(_loggerFactory);
-
-        var c64 = (C64)system;
-
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, IRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>(c64);
-
-        var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer, renderContext)
-            .WithInputHandler(inputHandler, inputHandlerContext)
-            .WithAudioHandler(audioHandler, audioHandlerContext)
-            .Build();
-        return systemRunner;
+        return new SystemRunner(c64, renderer, inputHandler, audioHandler);
     }
 
     private async Task<List<ROM>> GetROMsFromLocalStorage()

@@ -7,8 +7,11 @@ using Highbyte.DotNet6502.Instrumentation;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 
-public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>
+public class C64WASMAudioHandler : IAudioHandler
 {
+    private readonly C64 _c64;
+    public ISystem System => _c64;
+
     // Set to true to stop and recreate oscillator before each audio. Set to false to reuse oscillator.
     // If true: for each audio played, the oscillator will be stopped, recreated, and started. This is the way WebAudio API is designed to work, but is very resource heavy if using the C#/.NET WebAudio wrapper classes, because new instances are created continuously.
     // If false: the oscillator is only created and started once. When audio is stopped, the gain (volume) is set to 0.
@@ -39,7 +42,6 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>
             {2, new C64WASMVoiceContext(2) },
             {3, new C64WASMVoiceContext(3) },
         };
-    private C64 _c64;
     private readonly ILogger _logger;
 
     public List<string> GetDebugInfo() => new();
@@ -47,19 +49,21 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-    public C64WASMAudioHandler(ILoggerFactory loggerFactory)
-    {
-        _logger = loggerFactory.CreateLogger(typeof(C64WASMAudioHandler).Name);
-    }
-
-    public void Init(C64 c64, WASMAudioHandlerContext audioHandlerContext)
+    public C64WASMAudioHandler(C64 c64, WASMAudioHandlerContext audioHandlerContext, ILoggerFactory loggerFactory)
     {
         _c64 = c64;
+        _audioHandlerContext = audioHandlerContext;
+        _logger = loggerFactory.CreateLogger(typeof(C64WASMAudioHandler).Name);
+
+        Init();
+    }
+
+    public void Init()
+    {
 
         // Configure callback method for audio generation after each instruction
         _c64.SetPostInstructionAudioCallback(AfterInstructionExecuted);
 
-        _audioHandlerContext = audioHandlerContext;
         _audioHandlerContext.Init();
 
         // Create common gain node for all oscillators, which represent the SID volume.
@@ -70,11 +74,6 @@ public class C64WASMAudioHandler : IAudioHandler<C64, WASMAudioHandlerContext>
             var voice = VoiceContexts[key];
             voice.Init(this, AddDebugMessage);
         }
-    }
-
-    public void Init(ISystem system, IAudioHandlerContext audioHandlerContext)
-    {
-        Init((C64)system, (WASMAudioHandlerContext)audioHandlerContext);
     }
 
     public void AfterFrame()

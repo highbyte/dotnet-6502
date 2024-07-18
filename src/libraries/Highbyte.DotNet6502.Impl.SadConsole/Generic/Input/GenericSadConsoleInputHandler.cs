@@ -6,10 +6,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Generic.Input;
 
-public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadConsoleInputHandlerContext>
+public class GenericSadConsoleInputHandler : IInputHandler
 {
-    private GenericComputer _genericComputer;
-    private SadConsoleInputHandlerContext? _inputHandlerContext;
+    private readonly GenericComputer _genericComputer;
+    public ISystem System => _genericComputer;
+    private SadConsoleInputHandlerContext _inputHandlerContext;
 
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private readonly ILoggerFactory _loggerFactory;
@@ -19,23 +20,19 @@ public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadC
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-
-    public GenericSadConsoleInputHandler(EmulatorInputConfig emulatorInputConfig, ILoggerFactory loggerFactory)
-    {
-        _emulatorInputConfig = emulatorInputConfig;
-        _loggerFactory = loggerFactory;
-    }
-
-    public void Init(GenericComputer genericComputer, SadConsoleInputHandlerContext inputHandlerContext)
+    public GenericSadConsoleInputHandler(GenericComputer genericComputer, SadConsoleInputHandlerContext inputHandlerContext, EmulatorInputConfig emulatorInputConfig, ILoggerFactory loggerFactory)
     {
         _genericComputer = genericComputer;
         _inputHandlerContext = inputHandlerContext;
-        _inputHandlerContext.Init();
+        _emulatorInputConfig = emulatorInputConfig;
+        _loggerFactory = loggerFactory;
+
+        Init();
     }
 
-    public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
+    public void Init()
     {
-        Init((GenericComputer)system, (SadConsoleInputHandlerContext)inputHandlerContext);
+        _inputHandlerContext.Init();
     }
 
     public void BeforeFrame()

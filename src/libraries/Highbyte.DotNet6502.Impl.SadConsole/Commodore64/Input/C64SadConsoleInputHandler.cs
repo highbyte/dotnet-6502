@@ -7,10 +7,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
 
-public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandlerContext>
+public class C64SadConsoleInputHandler : IInputHandler
 {
-    private C64 _c64;
-    private SadConsoleInputHandlerContext? _inputHandlerContext;
+    private readonly C64 _c64;
+    public ISystem System => _c64;
+    private readonly SadConsoleInputHandlerContext _inputHandlerContext;
     private readonly List<string> _debugInfo = new();
     private readonly C64SadConsoleKeyboard _c64SadConsoleKeyboard;
     private readonly ILogger<C64SadConsoleInputHandler> _logger;
@@ -18,8 +19,10 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-    public C64SadConsoleInputHandler(ILoggerFactory loggerFactory)
+    public C64SadConsoleInputHandler(C64 c64, SadConsoleInputHandlerContext inputHandlerContext, ILoggerFactory loggerFactory)
     {
+        _c64 = c64;
+        _inputHandlerContext = inputHandlerContext;
         _logger = loggerFactory.CreateLogger<C64SadConsoleInputHandler>();
 
         // TODO: Is there a better way to current keyboard input language?
@@ -31,18 +34,12 @@ public class C64SadConsoleInputHandler : IInputHandler<C64, SadConsoleInputHandl
 
         _c64SadConsoleKeyboard = new C64SadConsoleKeyboard(languageName);
 
+        Init();
     }
 
-    public void Init(C64 c64, SadConsoleInputHandlerContext inputHandlerContext)
+    public void Init()
     {
-        _c64 = c64;
-        _inputHandlerContext = inputHandlerContext;
         _inputHandlerContext.Init();
-    }
-
-    public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
-    {
-        Init((C64)system, (SadConsoleInputHandlerContext)inputHandlerContext);
     }
 
     public void BeforeFrame()

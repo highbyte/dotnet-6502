@@ -27,8 +27,13 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
 /// - Sprites (Standard, MultiColor)
 ///   
 /// </summary>
-public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
+public class C64SkiaRenderer : IRenderer
 {
+    private readonly C64 _c64;
+    public ISystem System => _c64;
+    private readonly SkiaRenderContext _skiaRenderContext;
+
+
     private Func<SKCanvas> _getSkCanvas = default!;
 
     private C64SkiaPaint _c64SkiaPaint = default!;
@@ -46,7 +51,6 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 
     private SKRect _drawImageSource = new SKRect();
     private SKRect _drawImageDest = new SKRect();
-    private C64 _c64;
     private CharGen _charGen;
 
     // Sprite drawing variables
@@ -54,37 +58,37 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
+
+
     private const string StatsCategory = "SkiaSharp-Custom";
     private ElapsedMillisecondsTimedStatSystem _borderStat;
     private ElapsedMillisecondsTimedStatSystem _backgroundStat;
     private ElapsedMillisecondsTimedStatSystem _textScreenStat;
     private ElapsedMillisecondsTimedStatSystem _spritesStat;
 
-    public C64SkiaRenderer()
-    {
-    }
-
-    public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
+    public C64SkiaRenderer(C64 c64, SkiaRenderContext skiaRenderContext)
     {
         _c64 = c64;
-        _charGen = new CharGen();
-        _spriteImages = new SKImage[c64.Vic2.SpriteManager.NumberOfSprites];
+        _skiaRenderContext = skiaRenderContext;
 
-        _getSkCanvas = skiaRenderContext.GetCanvas;
-
-        _c64SkiaPaint = new C64SkiaPaint(c64.ColorMapName);
-
-        InitCharset(c64);
-
-        _backgroundStat = Instrumentations.Add($"{StatsCategory}-Background", new ElapsedMillisecondsTimedStatSystem(c64));
-        _borderStat = Instrumentations.Add($"{StatsCategory}-Border", new ElapsedMillisecondsTimedStatSystem(c64));
-        _spritesStat = Instrumentations.Add($"{StatsCategory}-Sprites", new ElapsedMillisecondsTimedStatSystem(c64));
-        _textScreenStat = Instrumentations.Add($"{StatsCategory}-TextScreen", new ElapsedMillisecondsTimedStatSystem(c64));
+        Init();
     }
 
-    public void Init(ISystem system, IRenderContext renderContext)
+    public void Init()
     {
-        Init((C64)system, (SkiaRenderContext)renderContext);
+        _charGen = new CharGen();
+        _spriteImages = new SKImage[_c64.Vic2.SpriteManager.NumberOfSprites];
+
+        _getSkCanvas = _skiaRenderContext.GetCanvas;
+
+        _c64SkiaPaint = new C64SkiaPaint(_c64.ColorMapName);
+
+        InitCharset(_c64);
+
+        _backgroundStat = Instrumentations.Add($"{StatsCategory}-Background", new ElapsedMillisecondsTimedStatSystem(_c64));
+        _borderStat = Instrumentations.Add($"{StatsCategory}-Border", new ElapsedMillisecondsTimedStatSystem(_c64));
+        _spritesStat = Instrumentations.Add($"{StatsCategory}-Sprites", new ElapsedMillisecondsTimedStatSystem(_c64));
+        _textScreenStat = Instrumentations.Add($"{StatsCategory}-TextScreen", new ElapsedMillisecondsTimedStatSystem(_c64));
     }
 
     public void Cleanup()

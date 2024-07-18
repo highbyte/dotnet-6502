@@ -5,34 +5,33 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Generic.Input;
 
-public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, AspNetInputHandlerContext>
+public class GenericComputerAspNetInputHandler : IInputHandler
 {
+    private readonly GenericComputer _genericComputer;
+    public ISystem System => _genericComputer;
     private readonly EmulatorInputConfig _emulatorInputConfig;
-    private GenericComputer _genericComputer;
-    private AspNetInputHandlerContext? _inputHandlerContext;
+    private readonly AspNetInputHandlerContext _inputHandlerContext;
 
     public List<string> GetDebugInfo() => new();
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-    public GenericComputerAspNetInputHandler(EmulatorInputConfig emulatorInputConfig)
-    {
-        _emulatorInputConfig = emulatorInputConfig;
-    }
 
-    public void Init(GenericComputer genericComputer, AspNetInputHandlerContext inputHandlerContext)
+    public GenericComputerAspNetInputHandler(GenericComputer genericComputer, AspNetInputHandlerContext inputHandlerContext, EmulatorInputConfig emulatorInputConfig)
     {
         _genericComputer = genericComputer;
-
         _inputHandlerContext = inputHandlerContext;
+        _emulatorInputConfig = emulatorInputConfig;
+
+        Init();
+    }
+
+    public void Init()
+    {
         _inputHandlerContext.Init();
     }
 
-    public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
-    {
-        Init((GenericComputer)system, (AspNetInputHandlerContext)inputHandlerContext);
-    }
 
     public void BeforeFrame()
     {

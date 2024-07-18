@@ -5,31 +5,29 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Generic.Video;
 
-public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRenderContext>
+public class GenericSadConsoleRenderer : IRenderer
 {
-    private GenericComputer _genericComputer;
-    private SadConsoleRenderContext _sadConsoleRenderContext = default!;
-
+    private readonly GenericComputer _genericComputer;
+    public ISystem System => _genericComputer;
+    private readonly SadConsoleRenderContext _sadConsoleRenderContext;
     private readonly EmulatorScreenConfig _emulatorScreenConfig;
 
     public Instrumentations Instrumentations { get; } = new();
 
-    public GenericSadConsoleRenderer(EmulatorScreenConfig emulatorScreenConfig)
-    {
-        _emulatorScreenConfig = emulatorScreenConfig;
-    }
 
-    public void Init(GenericComputer genericComputer, SadConsoleRenderContext sadConsoleRenderContext)
+    public GenericSadConsoleRenderer(GenericComputer genericComputer, SadConsoleRenderContext sadConsoleRenderContext, EmulatorScreenConfig emulatorScreenConfig)
     {
         _genericComputer = genericComputer;
         _sadConsoleRenderContext = sadConsoleRenderContext;
+        _emulatorScreenConfig = emulatorScreenConfig;
 
-        InitEmulatorScreenMemory(genericComputer);
+        Init();
     }
 
-    public void Init(ISystem system, IRenderContext renderContext)
+    public void Init()
     {
-        Init((GenericComputer)system, (SadConsoleRenderContext)renderContext);
+
+        InitEmulatorScreenMemory(_genericComputer);
     }
 
     public void Cleanup()

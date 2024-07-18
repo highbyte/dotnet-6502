@@ -32,8 +32,13 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 /// - Allows for more accurate rendering of the C64 screen due to text and bitmap is generated after each instruction (including fine scroll).
 /// - A simpler implementation.
 /// </summary>
-public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
+public class C64SkiaRenderer2b : IRenderer
 {
+    private readonly C64 _c64;
+    public ISystem System => _c64;
+
+    private readonly SkiaRenderContext _skiaRenderContext;
+
     private Func<SKCanvas> _getSkCanvas = default!;
 
     private SkiaBitmapBackedByPixelArray _skiaPixelArrayBitmap_BackgroundAndBorder;
@@ -124,6 +129,7 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
+
     private const string StatsCategory = "SkiaSharp-Custom";
     private ElapsedMillisecondsTimedStatSystem _spritesStat;
     private ElapsedMillisecondsTimedStatSystem _lineDataImageStat;
@@ -201,23 +207,26 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
     private int _screenLayoutInclNonVisibleBottomBorderEndY;
     private int _screenLayoutInclNonVisibleLeftBorderStartX;
     private int _screenLayoutInclNonVisibleRightBorderEndX;
-    private C64 _c64;
 
-    public C64SkiaRenderer2b()
-    {
-    }
 
-    public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
+    public C64SkiaRenderer2b(C64 c64, SkiaRenderContext skiaRenderContext)
     {
         _c64 = c64;
+        _skiaRenderContext = skiaRenderContext;
+
+        Init();
+    }
+
+    public void Init()
+    {
         // Configure callback method for video generation after each instruction
-        c64.SetPostInstructionVideoCallback(AfterInstructionExecuted);
-        c64.RememberVic2RegistersPerRasterLine = true; // Set to false if/when sprites are drawn directly to the screen bitmap in the "after instruction" callback here.
+        _c64.SetPostInstructionVideoCallback(AfterInstructionExecuted);
+        _c64.RememberVic2RegistersPerRasterLine = true; // Set to false if/when sprites are drawn directly to the screen bitmap in the "after instruction" callback here.
 
         // Init class variables with C64 screen values that should'nt change
 
         // Entire screen area, including non-visible parts. Without consideration to 38 column mode or 24 row mode.
-        var screenLayoutInclNonVisible = c64.Vic2.ScreenLayouts.GetLayout(LayoutType.Visible, for24RowMode: false, for38ColMode: false); // Full area of raster lines, including non-visible. Borders don't start at 0,0
+        var screenLayoutInclNonVisible = _c64.Vic2.ScreenLayouts.GetLayout(LayoutType.Visible, for24RowMode: false, for38ColMode: false); // Full area of raster lines, including non-visible. Borders don't start at 0,0
 
         _screenLayoutInclNonVisibleTopBorderStartY = screenLayoutInclNonVisible.TopBorder.Start.Y;
         _screenLayoutInclNonVisibleBottomBorderEndY = screenLayoutInclNonVisible.BottomBorder.End.Y;
@@ -230,7 +239,7 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
         _screenLayoutInclNonVisibleScreenEndY = screenLayoutInclNonVisible.Screen.End.Y;
 
         // Entire screen area with only visible parts (borders, screen). Without consideration to 38 column mode or 24 row mode.
-        var visibleMainScreenAreaNormalized = c64.Vic2.ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
+        var visibleMainScreenAreaNormalized = _c64.Vic2.ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
         // Not considering 24 row mode or 38 col mode or fine scroll 
         _screenStartX = visibleMainScreenAreaNormalized.Screen.Start.X;
@@ -256,36 +265,32 @@ public class C64SkiaRenderer2b : IRenderer<C64, SkiaRenderContext>
         _rightBorderEndX = visibleMainScreenAreaNormalized.RightBorder.End.X;
         _rightBorderEndY = visibleMainScreenAreaNormalized.RightBorder.End.Y;
 
-        _vic2ScreenTextCols = c64.Vic2.Vic2Screen.TextCols;
-        _vic2ScreenCharacterHeight = c64.Vic2.Vic2Screen.CharacterHeight;
-        _width = c64.Vic2.Vic2Screen.VisibleWidth;
-        _height = c64.Vic2.Vic2Screen.VisibleHeight;
-        _drawableAreaHeight = c64.Vic2.Vic2Screen.DrawableAreaHeight;
-        _drawableAreaWidth = c64.Vic2.Vic2Screen.DrawableAreaWidth;
-        _cyclesPerLine = c64.Vic2.Vic2Model.CyclesPerLine;
+        _vic2ScreenTextCols = _c64.Vic2.Vic2Screen.TextCols;
+        _vic2ScreenCharacterHeight = _c64.Vic2.Vic2Screen.CharacterHeight;
+        _width = _c64.Vic2.Vic2Screen.VisibleWidth;
+        _height = _c64.Vic2.Vic2Screen.VisibleHeight;
+        _drawableAreaHeight = _c64.Vic2.Vic2Screen.DrawableAreaHeight;
+        _drawableAreaWidth = _c64.Vic2.Vic2Screen.DrawableAreaWidth;
+        _cyclesPerLine = _c64.Vic2.Vic2Model.CyclesPerLine;
 
         _lastScreenLineDataUpdate = -1;
 
-        _getSkCanvas = skiaRenderContext.GetCanvas;
-        _c64SkiaColors = new C64SkiaColors(c64.ColorMapName);
+        _getSkCanvas = _skiaRenderContext.GetCanvas;
+        _c64SkiaColors = new C64SkiaColors(_c64.ColorMapName);
 
-        InitBitmaps(c64);
-        InitLineDataBitmap(c64);
+        InitBitmaps(_c64);
+        InitLineDataBitmap(_c64);
 
-        InitBitPatternToPixelMaps(c64);
+        InitBitPatternToPixelMaps(_c64);
 
-        InitShader(c64);
+        InitShader(_c64);
 
         Instrumentations.Clear();
-        _spritesStat = Instrumentations.Add($"{StatsCategory}-Sprites", new ElapsedMillisecondsTimedStatSystem(c64));
-        _lineDataImageStat = Instrumentations.Add($"{StatsCategory}-LineDataImage", new ElapsedMillisecondsTimedStatSystem(c64));
-        _drawCanvasWithShaderStat = Instrumentations.Add($"{StatsCategory}-DrawCanvasWithShader", new ElapsedMillisecondsTimedStatSystem(c64));
+        _spritesStat = Instrumentations.Add($"{StatsCategory}-Sprites", new ElapsedMillisecondsTimedStatSystem(_c64));
+        _lineDataImageStat = Instrumentations.Add($"{StatsCategory}-LineDataImage", new ElapsedMillisecondsTimedStatSystem(_c64));
+        _drawCanvasWithShaderStat = Instrumentations.Add($"{StatsCategory}-DrawCanvasWithShader", new ElapsedMillisecondsTimedStatSystem(_c64));
     }
 
-    public void Init(ISystem system, IRenderContext renderContext)
-    {
-        Init((C64)system, (SkiaRenderContext)renderContext);
-    }
 
     public void DrawFrame()
     {

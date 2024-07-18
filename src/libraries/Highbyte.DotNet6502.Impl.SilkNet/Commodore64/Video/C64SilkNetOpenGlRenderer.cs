@@ -10,9 +10,11 @@ using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
 
-public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContext>, IDisposable
+public class C64SilkNetOpenGlRenderer : IRenderer, IDisposable
 {
     private C64 _c64;
+    public ISystem System => _c64;
+
     private SilkNetOpenGlRenderContext _silkNetOpenGlRenderContext = default!;
     private GL _gl => _silkNetOpenGlRenderContext.Gl;
 
@@ -123,22 +125,23 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
     private BufferObject<SpriteContentData> _uboSpriteContentData = default!;
     private readonly C64SilkNetOpenGlRendererConfig _config;
 
-    public C64SilkNetOpenGlRenderer(C64SilkNetOpenGlRendererConfig config)
-    {
-        _config = config;
-    }
-
-    public void Init(C64 c64, SilkNetOpenGlRenderContext silkNetOpenGlRenderContext)
+    public C64SilkNetOpenGlRenderer(C64 c64, SilkNetOpenGlRenderContext silkNetOpenGlRenderContext, C64SilkNetOpenGlRendererConfig config)
     {
         _c64 = c64;
         _silkNetOpenGlRenderContext = silkNetOpenGlRenderContext;
+        _config = config;
 
-        _gl.Viewport(silkNetOpenGlRenderContext.Window.FramebufferSize);
+        Init();
+    }
+
+    public void Init()
+    {
+        _gl.Viewport(_silkNetOpenGlRenderContext.Window.FramebufferSize);
 
         // Listen to event when the VIC2 charset address is changed to recreate a image for the charset
-        c64.Vic2.CharsetManager.CharsetAddressChanged += (s, e) => CharsetChangedHandler(c64, e);
+        _c64.Vic2.CharsetManager.CharsetAddressChanged += (s, e) => CharsetChangedHandler(_c64, e);
 
-        InitShader(c64);
+        InitShader(_c64);
     }
 
     public void Cleanup()
@@ -232,10 +235,6 @@ public class C64SilkNetOpenGlRenderer : IRenderer<C64, SilkNetOpenGlRenderContex
         _shader.BindUBO("ubBitmapData", _uboBitmapData, binding_point_index: 6);
     }
 
-    public void Init(ISystem system, IRenderContext renderContext)
-    {
-        Init((C64)system, (SilkNetOpenGlRenderContext)renderContext);
-    }
 
     public void DrawFrame()
     {

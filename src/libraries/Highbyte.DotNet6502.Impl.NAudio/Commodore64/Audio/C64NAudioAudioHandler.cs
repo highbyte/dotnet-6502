@@ -8,9 +8,12 @@ using NAudio.Wave.SampleProviders;
 
 namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 
-public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContext>
+public class C64NAudioAudioHandler : IAudioHandler
 {
-    private NAudioAudioHandlerContext? _audioHandlerContext;
+    private readonly C64 _c64;
+    public ISystem System => _c64;
+
+    private readonly NAudioAudioHandlerContext _audioHandlerContext;
 
     private MixingSampleProvider _mixer = default!;
     public MixingSampleProvider Mixer => _mixer;
@@ -31,28 +34,26 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
             {2, new C64NAudioVoiceContext(2) },
             {3, new C64NAudioVoiceContext(3) },
         };
-    private C64 _c64;
     private readonly ILogger _logger;
-
-    public C64NAudioAudioHandler(ILoggerFactory loggerFactory)
-    {
-        _logger = loggerFactory.CreateLogger(typeof(C64NAudioAudioHandler).Name);
-    }
 
     public List<string> GetDebugInfo() => new();
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-
-    public void Init(C64 c64, NAudioAudioHandlerContext audioHandlerContext)
+    public C64NAudioAudioHandler(C64 c64, NAudioAudioHandlerContext audioHandlerContext, ILoggerFactory loggerFactory)
     {
         _c64 = c64;
-
-        // Configure callback method for audio generation after each instruction
-        c64.SetPostInstructionAudioCallback(AfterInstructionExecuted);
-
         _audioHandlerContext = audioHandlerContext;
+        _logger = loggerFactory.CreateLogger(typeof(C64NAudioAudioHandler).Name);
+
+        Init();
+    }
+
+    public void Init()
+    {
+        // Configure callback method for audio generation after each instruction
+        _c64.SetPostInstructionAudioCallback(AfterInstructionExecuted);
 
         // Setup audio rendering pipeline: Mixer -> SID Volume -> WavePlayer
         var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 1);
@@ -69,10 +70,6 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
         }
     }
 
-    public void Init(ISystem system, IAudioHandlerContext audioHandlerContext)
-    {
-        Init((C64)system, (NAudioAudioHandlerContext)audioHandlerContext);
-    }
 
     public void AfterFrame()
     {

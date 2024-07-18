@@ -22,9 +22,7 @@ computerBuilder
 // });
 var computer = computerBuilder.Build();
 
-var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>(computer);
-
-var systemRunner = systemRunnerBuilder.Build();
+var systemRunner = new SystemRunner(computer);
 
 var monitorConfig = new MonitorConfig
 {

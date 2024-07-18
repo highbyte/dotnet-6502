@@ -20,20 +20,31 @@ public class SystemRunner
         _system = system;
     }
 
-    public void InitRenderer(IRenderer renderer, IRenderContext renderContext)
+    public SystemRunner(ISystem system, IRenderer renderer, IInputHandler inputHandler)
     {
+        if (system != renderer.System)
+            throw new DotNet6502Exception("Renderer must be for the same system as the SystemRunner.");
+        if (system != inputHandler.System)
+            throw new DotNet6502Exception("InputHandler must be for the same system as the SystemRunner.");
+
+        _system = system;
         _renderer = renderer;
-        _renderer.Init(_system, renderContext);
-    }
-    public void InitInputHandler(IInputHandler inputHandler, IInputHandlerContext inputHandlerContext)
-    {
         _inputHandler = inputHandler;
-        _inputHandler.Init(_system, inputHandlerContext);
     }
-    public void InitAudioHandler(IAudioHandler audioHandler, IAudioHandlerContext audioHandlerContext)
+
+    public SystemRunner(ISystem system, IRenderer renderer, IInputHandler inputHandler, IAudioHandler audioHandler)
     {
+        if (system != renderer.System)
+            throw new DotNet6502Exception("Renderer must be for the same system as the SystemRunner.");
+        if (system != inputHandler.System)
+            throw new DotNet6502Exception("InputHandler must be for the same system as the SystemRunner.");
+        if (system != audioHandler.System)
+            throw new DotNet6502Exception("AudioHandler must be for the same system as the SystemRunner.");
+
+        _system = system;
+        _renderer = renderer;
+        _inputHandler = inputHandler;
         _audioHandler = audioHandler;
-        _audioHandler.Init(_system, audioHandlerContext);
     }
 
     /// <summary>

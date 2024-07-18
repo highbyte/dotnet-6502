@@ -6,26 +6,36 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 
-public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerContext>
+public class C64SilkNetInputHandler : IInputHandler
 {
-    private C64 _c64;
-    private SilkNetInputHandlerContext? _inputHandlerContext;
-    private readonly C64SilkNetKeyboard _c64SilkNetKeyboard;
-    //private readonly C64SilkNetGamepad _c64SilkNetGamepad;
+    private readonly C64 _c64;
+    public ISystem System => _c64;
 
+    private readonly SilkNetInputHandlerContext _inputHandlerContext;
     private readonly ILogger<C64SilkNetInputHandler> _logger;
     private readonly C64SilkNetInputConfig _c64SilkNetConfig;
+
+    private C64SilkNetKeyboard _c64SilkNetKeyboard;
+    //private readonly C64SilkNetGamepad _c64SilkNetGamepad;
+
     public List<string> GetDebugInfo() => new();
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
 
-    public C64SilkNetInputHandler(ILoggerFactory loggerFactory, C64SilkNetInputConfig c64SilkNetConfig)
+    public C64SilkNetInputHandler(C64 c64, SilkNetInputHandlerContext inputHandlerContext, ILoggerFactory loggerFactory, C64SilkNetInputConfig c64SilkNetConfig)
     {
+        _c64 = c64;
+        _inputHandlerContext = inputHandlerContext;
         _logger = loggerFactory.CreateLogger<C64SilkNetInputHandler>();
         _c64SilkNetConfig = c64SilkNetConfig;
 
+        Init();
+    }
+
+    public void Init()
+    {
         // TODO: Is there a better way to current keyboard input language?
         // Note: Using CurrentCulture instead of CurrentUICulture.
         //       Why does CurrentUICulture not return correct keyboard as it does in SadConsole project?
@@ -38,18 +48,7 @@ public class C64SilkNetInputHandler : IInputHandler<C64, SilkNetInputHandlerCont
         _c64SilkNetKeyboard = new C64SilkNetKeyboard(languageName);
 
         //_c64SilkNetGamepad = new C64SilkNetGamepad();
-    }
 
-    public void Init(C64 c64, SilkNetInputHandlerContext inputHandlerContext)
-    {
-        _c64 = c64;
-        _inputHandlerContext = inputHandlerContext;
-        _inputHandlerContext.Init();
-    }
-
-    public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
-    {
-        Init((C64)system, (SilkNetInputHandlerContext)inputHandlerContext);
     }
 
     public void BeforeFrame()

@@ -84,21 +84,13 @@ public class GenericComputerSetup : SystemConfigurer<SilkNetRenderContextContain
         SilkNetInputHandlerContext inputHandlerContext,
         NAudioAudioHandlerContext audioHandlerContext)
     {
+        var genericComputer = (GenericComputer)system;
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
 
-        var renderer = new GenericComputerSkiaRenderer(genericComputerConfig.Memory.Screen);
-        var inputHandler = new GenericComputerSilkNetInputHandler(genericComputerConfig.Memory.Input);
-        var audioHandler = new NullAudioHandler();
+        var renderer = new GenericComputerSkiaRenderer(genericComputer, renderContext.SkiaRenderContext, genericComputerConfig.Memory.Screen);
+        var inputHandler = new GenericComputerSilkNetInputHandler(genericComputer, inputHandlerContext, genericComputerConfig.Memory.Input);
+        var audioHandler = new NullAudioHandler(genericComputer);
 
-        var genericComputer = (GenericComputer)system;
-
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>(genericComputer);
-
-        var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer, renderContext.SkiaRenderContext)
-            .WithInputHandler(inputHandler, inputHandlerContext)
-            .WithAudioHandler(audioHandler, audioHandlerContext)
-            .Build();
-        return systemRunner;
+        return new SystemRunner(genericComputer, renderer, inputHandler, audioHandler);
     }
 }

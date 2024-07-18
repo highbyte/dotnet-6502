@@ -7,10 +7,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 
-public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>
+public class C64AspNetInputHandler : IInputHandler
 {
-    private C64 _c64;
-    private AspNetInputHandlerContext? _inputHandlerContext = default!;
+    private readonly C64 _c64;
+    public ISystem System => _c64;
+    private readonly AspNetInputHandlerContext _inputHandlerContext;
     private readonly ILogger<C64AspNetInputHandler> _logger;
     private C64AspNetKeyboard _c64AspNetKeyboard = default!;
     private readonly C64AspNetInputConfig _c64AspNetConfig;
@@ -18,17 +19,18 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-    public C64AspNetInputHandler(ILoggerFactory loggerFactory, C64AspNetInputConfig c64AspNetConfig)
-    {
-        _logger = loggerFactory.CreateLogger<C64AspNetInputHandler>();
-        _c64AspNetConfig = c64AspNetConfig;
-    }
-
-    public void Init(C64 c64, AspNetInputHandlerContext inputHandlerContext)
+    public C64AspNetInputHandler(C64 c64, AspNetInputHandlerContext inputHandlerContext, ILoggerFactory loggerFactory, C64AspNetInputConfig c64AspNetConfig)
     {
         _c64 = c64;
-
         _inputHandlerContext = inputHandlerContext;
+        _logger = loggerFactory.CreateLogger<C64AspNetInputHandler>();
+        _c64AspNetConfig = c64AspNetConfig;
+
+        Init();
+    }
+
+    public void Init()
+    {
         _inputHandlerContext.Init();
 
         // There doesn't seem a way to determine the users keyboard layout in Javascript/WASM.
@@ -41,11 +43,6 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
         _logger.LogInformation($"KbLanguage: {languageName}");
 
         _c64AspNetKeyboard = new C64AspNetKeyboard(languageName);
-    }
-
-    public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
-    {
-        Init((C64)system, (AspNetInputHandlerContext)inputHandlerContext);
     }
 
     public void BeforeFrame()

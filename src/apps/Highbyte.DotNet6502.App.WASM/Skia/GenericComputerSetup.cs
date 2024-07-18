@@ -3,6 +3,7 @@ using Highbyte.DotNet6502.Impl.AspNet.Generic.Input;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Generic.Video;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Microsoft.AspNetCore.WebUtilities;
@@ -105,22 +106,14 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetIn
         AspNetInputHandlerContext inputHandlerContext,
         WASMAudioHandlerContext audioHandlerContext)
     {
+        var genericComputer = (GenericComputer)system;
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
 
-        var renderer = new GenericComputerSkiaRenderer(genericComputerConfig.Memory.Screen);
-        var inputHandler = new GenericComputerAspNetInputHandler(genericComputerConfig.Memory.Input);
-        var audioHandler = new NullAudioHandler();
+        var renderer = new GenericComputerSkiaRenderer(genericComputer, renderContext, genericComputerConfig.Memory.Screen);
+        var inputHandler = new GenericComputerAspNetInputHandler(genericComputer, inputHandlerContext, genericComputerConfig.Memory.Input);
+        var audioHandler = new NullAudioHandler(genericComputer);
 
-        var genericComputer = (GenericComputer)system;
-
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>(genericComputer);
-
-        var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer, renderContext)
-            .WithInputHandler(inputHandler, inputHandlerContext)
-            .WithAudioHandler(audioHandler, audioHandlerContext)
-            .Build();
-        return systemRunner;
+        return new SystemRunner(genericComputer, renderer, inputHandler, audioHandler);
     }
 
     private (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) GetScreenSize(Uri uri)

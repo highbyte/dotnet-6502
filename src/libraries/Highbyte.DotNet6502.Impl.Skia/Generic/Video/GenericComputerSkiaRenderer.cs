@@ -4,12 +4,15 @@ using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using Highbyte.DotNet6502.Systems.Commodore64;
 
 namespace Highbyte.DotNet6502.Impl.Skia.Generic.Video;
 
-public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRenderContext>
+public class GenericComputerSkiaRenderer : IRenderer
 {
-    private GenericComputer _genericComputer;
+    private readonly GenericComputer _genericComputer;
+    public ISystem System => _genericComputer;
+    private readonly SkiaRenderContext _skiaRenderContext;
     private Func<SKCanvas> _getSkCanvas = default!;
     private SKPaintMaps _skPaintMaps = default!;
 
@@ -21,15 +24,18 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
 
     public Instrumentations Instrumentations { get; } = new();
 
-    public GenericComputerSkiaRenderer(EmulatorScreenConfig emulatorScreenConfig)
-    {
-        _emulatorScreenConfig = emulatorScreenConfig;
-    }
-
-    public void Init(GenericComputer genericComputer, SkiaRenderContext skiaRenderContext)
+    public GenericComputerSkiaRenderer(GenericComputer genericComputer, SkiaRenderContext skiaRenderContext, EmulatorScreenConfig emulatorScreenConfig)
     {
         _genericComputer = genericComputer;
-        _getSkCanvas = skiaRenderContext.GetCanvas;
+        _skiaRenderContext = skiaRenderContext;
+        _emulatorScreenConfig = emulatorScreenConfig;
+
+        Init();
+    }
+
+    public void Init()
+    {
+        _getSkCanvas = _skiaRenderContext.GetCanvas;
 
         var typeFace = LoadEmbeddedFont("C64_Pro_Mono-STYLE.ttf");
         _skPaintMaps = new SKPaintMaps(
@@ -38,12 +44,7 @@ public class GenericComputerSkiaRenderer : IRenderer<GenericComputer, SkiaRender
             SKPaintMaps.ColorMap
         );
 
-        InitEmulatorScreenMemory(genericComputer);
-    }
-
-    public void Init(ISystem system, IRenderContext renderContext)
-    {
-        Init((GenericComputer)system, (SkiaRenderContext)renderContext);
+        InitEmulatorScreenMemory(_genericComputer);
     }
 
     public void Cleanup()
