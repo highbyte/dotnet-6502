@@ -59,7 +59,9 @@ public class C64NAudioAudioHandler : IAudioHandler
         _sidVolumeControl = new VolumeSampleProvider(_mixer);
 
         // Initialize NAudio WavePlayer with the last entity in the audio rendering pipeline
-        _audioHandlerContext.Init(_sidVolumeControl);
+        _audioHandlerContext.ConfigureWavePlayer(_sidVolumeControl);
+        // Executing StartWavePlayer method will not start producing audio until oscillators are added to the Mixer
+        _audioHandlerContext.StartWavePlayer();
 
         foreach (var key in VoiceContexts.Keys)
         {

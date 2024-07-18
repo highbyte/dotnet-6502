@@ -184,7 +184,7 @@ public class SilkNetWindow
         DestroyImGuiController();
 
         // Cleanup systemrunner (which also cleanup renderer, inputhandler, and audiohandler)
-        _systemRunner.Cleanup();
+        _systemRunner?.Cleanup();
 
         // Cleanup contexts
         _silkNetRenderContextContainer?.Cleanup();
