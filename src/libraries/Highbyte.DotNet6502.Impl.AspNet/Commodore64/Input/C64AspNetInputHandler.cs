@@ -107,7 +107,7 @@ public class C64AspNetInputHandler : IInputHandler
         // Note: Assume Keyboard input has been processed before this, so that Joystick actions based on keypresses has resulted 
         //       in the current joystick actions being initialized this frame (and may contain actions from keyboard).
         //       Thus "overwrite" is set to false so that keyboard actions are not overwritten.
-        c64.Cia.Joystick.SetJoystickActions(_c64AspNetConfig.CurrentJoystick, c64JoystickActions);
+        c64.Cia.Joystick.SetJoystickActions(_c64AspNetConfig.CurrentJoystick, c64JoystickActions, overwrite: false);
     }
 
     private HashSet<C64JoystickAction> GetC64JoystickActionsFromAspNetGamepad(HashSet<int> gamepadButtonsDown)
