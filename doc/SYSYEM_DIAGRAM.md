@@ -17,6 +17,7 @@ App_SilkNetNative --> SystemRunner
 App_SilkNetNative --> System_C64
 App_SilkNetNative --> Impl_Skia_C64
 App_SilkNetNative --> Impl_SilkNet_C64
+App_SilkNetNative --> Impl_NAudio_C64
 App_SilkNetNative --> System_X
 App_SilkNetNative --> Impl_Skia_X
 App_SilkNetNative --> Impl_SilkNet_X
@@ -43,14 +44,20 @@ Impl_Skia_X --> IRenderer
 Impl_SilkNet_C64
 Impl_SilkNet_C64 --> System_C64
 Impl_SilkNet_C64 --> IInputHandler
+Impl_SilkNet_C64 --> IRenderer
 
 Impl_SilkNet_X
 Impl_SilkNet_X --> System_X
 Impl_SilkNet_X --> IInputHandler
 
+Impl_NAudio_C64
+Impl_NAudio_C64 --> System_C64
+Impl_NAudio_C64 --> IAudioHandler
+
 Impl_AspNet_C64
 Impl_AspNet_C64 --> System_C64
 Impl_AspNet_C64 --> IInputHandler
+Impl_AspNet_C64 --> IAudioHandler
 
 Impl_AspNet_X
 Impl_AspNet_X --> System_X
@@ -81,11 +88,12 @@ SystemRunner
 SystemRunner --> ISystem
 SystemRunner --> IInputHandler
 SystemRunner --> IRenderer
-SystemRunner : bool Run
-SystemRunner : bool RunOneFrame
-SystemRunner : bool ProcessInput
-SystemRunner : bool RunEmulatorOneFrame
-SystemRunner : bool Draw
+SystemRunner --> IAudioHandler
+SystemRunner : void Init
+SystemRunner : void ProcessInputBeforeFrame
+SystemRunner : ExecEvaluatorTriggerResult RunEmulatorOneFrame
+SystemRunner : void Draw
+SystemRunner : void Cleanup
 
 ISystem
 ISystem --> CPU
@@ -96,24 +104,23 @@ CPU
 CPU : void Execute(Mem mem)
 
 IRenderer
-IRenderer : void Init(ISystem system, IRenderContext renderContext)
-IRenderer : void Draw(ISystem system)
+IRenderer : void Init()
+IRenderer : void DrawFrame()
+IRenderer : void Cleanup()
 
 IInputHandler
-IInputHandler : void Init(ISystem system, IInputHandlerContext inputHandlerContext)
-IInputHandler : void ProcessInput(ISystem system)
-```
+IInputHandler : void Init()
+IInputHandler : void BeforeFrame()
+IInputHandler : void Cleanup()
 
-```mermaid
-classDiagram
-SystemRunnerBuilder
-SystemRunnerBuilder --> SystemRunner
-SystemRunnerBuilder : ctor(~TSystem~ system)
-SystemRunnerBuilder : SystemRunnerBuilder WithRenderer(IRenderer~TSystem, TRenderContext~ renderer)
-SystemRunnerBuilder : SystemRunnerBuilder WithInputHandler(IRenderer~TSystem, TInputHandlerContext~ inputHandler)
-SystemRunnerBuilder : SystemRunner Build()
+IAudioHandler
+IAudioHandler : void Init()
+IAudioHandler : void AfterFrame()
+IAudioHandler : void StartPlaying()
+IAudioHandler : void StopPlaying()
+IAudioHandler : void PausePlaying()
+IAudioHandler : void Cleanup()
 
-SystemRunner
 ```
 
 
