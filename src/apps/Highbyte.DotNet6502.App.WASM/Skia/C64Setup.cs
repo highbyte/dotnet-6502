@@ -101,17 +101,12 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
 
         var c64 = (C64)system;
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, IRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>(
-            c64,
-            renderContext,
-            inputHandlerContext,
-            audioHandlerContext);
-
+        var systemRunnerBuilder = new SystemRunnerBuilder<C64, IRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>(c64);
 
         var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer)
-            .WithInputHandler(inputHandler)
-            .WithAudioHandler(audioHandler)
+            .WithRenderer(renderer, renderContext)
+            .WithInputHandler(inputHandler, inputHandlerContext)
+            .WithAudioHandler(audioHandler, audioHandlerContext)
             .Build();
         return systemRunner;
     }

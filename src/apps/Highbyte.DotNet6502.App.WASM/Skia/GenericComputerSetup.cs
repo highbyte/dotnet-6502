@@ -113,16 +113,12 @@ public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetIn
 
         var genericComputer = (GenericComputer)system;
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>(
-            genericComputer,
-            renderContext,
-            inputHandlerContext,
-            audioHandlerContext);
+        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>(genericComputer);
 
         var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer)
-            .WithInputHandler(inputHandler)
-            .WithAudioHandler(audioHandler)
+            .WithRenderer(renderer, renderContext)
+            .WithInputHandler(inputHandler, inputHandlerContext)
+            .WithAudioHandler(audioHandler, audioHandlerContext)
             .Build();
         return systemRunner;
     }

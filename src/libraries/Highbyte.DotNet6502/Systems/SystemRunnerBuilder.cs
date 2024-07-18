@@ -7,75 +7,74 @@ public class SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, 
     where TAudioHandlerContext : IAudioHandlerContext
 {
     private readonly SystemRunner _systemRunner;
-    private readonly TRenderContext? _renderContext;
-    private readonly TInputHandlerContext? _inputHandlerContext;
-    private readonly TAudioHandlerContext? _audioHandlerContext;
+    private IRenderer? _renderer;
+    private TRenderContext? _renderContext;
+    private IInputHandler? _inputHandler;
+    private TInputHandlerContext? _inputHandlerContext;
+    private IAudioHandler? _audioHandler;
+    private TAudioHandlerContext? _audioHandlerContext;
 
     public SystemRunnerBuilder(TSystem system)
     {
         _systemRunner = new SystemRunner(system);
     }
-    public SystemRunnerBuilder(TSystem system, TRenderContext renderContext, TInputHandlerContext inputHandlerContext, TAudioHandlerContext audioHandlerContext)
+
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithRenderer(IRenderer<TSystem, TRenderContext> renderer, TRenderContext? renderContext = default)
     {
-        _systemRunner = new SystemRunner(system);
+        _renderer = renderer;
         _renderContext = renderContext;
+        return this;
+    }
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithRenderer(IRenderer renderer, TRenderContext? renderContext = default)
+    {
+        _renderer = renderer;
+        _renderContext = renderContext;
+        return this;
+    }
+
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithInputHandler(IInputHandler<TSystem, TInputHandlerContext> inputHandler, TInputHandlerContext? inputHandlerContext = default)
+    {
+        _inputHandler = inputHandler;
         _inputHandlerContext = inputHandlerContext;
+        return this;
+    }
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithInputHandler(IInputHandler inputHandler, TInputHandlerContext? inputHandlerContext = default(TInputHandlerContext))
+    {
+        _inputHandler = inputHandler;
+        _inputHandlerContext = inputHandlerContext;
+        return this;
+    }
+
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithAudioHandler(IAudioHandler<TSystem, TAudioHandlerContext> audioHandler, TAudioHandlerContext? audioHandlerContext = default(TAudioHandlerContext))
+    {
+        _audioHandler = audioHandler;
         _audioHandlerContext = audioHandlerContext;
-    }
-
-    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithRenderer(IRenderer<TSystem, TRenderContext> renderer)
-    {
-        if (_renderContext != null)
-            _systemRunner.InitRenderer(renderer, _renderContext);
-        else
-            _systemRunner.InitRenderer(renderer, new NullRenderContext());
         return this;
     }
-    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithRenderer(IRenderer renderer)
+    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithAudioHandler(IAudioHandler audioHandler, TAudioHandlerContext? audioHandlerContext = default(TAudioHandlerContext))
     {
-        if (_renderContext != null)
-            _systemRunner.InitRenderer(renderer, _renderContext);
-        else
-            _systemRunner.InitRenderer(renderer, new NullRenderContext());
-        return this;
-    }
-
-    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithInputHandler(IInputHandler<TSystem, TInputHandlerContext> inputHandler)
-    {
-        if (_inputHandlerContext != null)
-            _systemRunner.InitInputHandler(inputHandler, _inputHandlerContext);
-        else
-            _systemRunner.InitInputHandler(inputHandler, new NullInputHandlerContext());
-        return this;
-    }
-    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithInputHandler(IInputHandler inputHandler)
-    {
-        if (_inputHandlerContext != null)
-            _systemRunner.InitInputHandler(inputHandler, _inputHandlerContext);
-        else
-            _systemRunner.InitInputHandler(inputHandler, new NullInputHandlerContext());
-        return this;
-    }
-
-    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithAudioHandler(IAudioHandler<TSystem, TAudioHandlerContext> audioHandler)
-    {
-        if (_audioHandlerContext != null)
-            _systemRunner.InitAudioHandler(audioHandler, _audioHandlerContext);
-        else
-            _systemRunner.InitAudioHandler(audioHandler, new NullAudioHandlerContext());
-        return this;
-    }
-    public SystemRunnerBuilder<TSystem, TRenderContext, TInputHandlerContext, TAudioHandlerContext> WithAudioHandler(IAudioHandler audioHandler)
-    {
-        if (_audioHandlerContext != null)
-            _systemRunner.InitAudioHandler(audioHandler, _audioHandlerContext);
-        else
-            _systemRunner.InitAudioHandler(audioHandler, new NullAudioHandlerContext());
+        _audioHandler = audioHandler;
+        _audioHandlerContext = audioHandlerContext;
         return this;
     }
 
     public SystemRunner Build()
     {
+        if (_renderer != default)
+        {
+            _systemRunner.InitRenderer(_renderer, _renderContext != null ? _renderContext : new NullRenderContext());
+        }
+
+        if (_inputHandler != default)
+        {
+            _systemRunner.InitInputHandler(_inputHandler, _inputHandlerContext != null ? _inputHandlerContext : new NullInputHandlerContext());
+        }
+
+        if (_audioHandler != default)
+        {
+            _systemRunner.InitAudioHandler(_audioHandler, _audioHandlerContext != null ? _audioHandlerContext : new NullAudioHandlerContext());
+        }
+
         return _systemRunner;
     }
 }

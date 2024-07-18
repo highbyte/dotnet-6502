@@ -14,7 +14,7 @@ public class SystemRunnerBuilderTests
         var builder = new SystemRunnerBuilder<TestSystem, IRenderContext, IInputHandlerContext, IAudioHandlerContext>(system);
 
         // Act
-        builder.WithRenderer(renderer);
+        builder.WithRenderer(renderer, null);
 
         // Assert
         var result = builder.Build();

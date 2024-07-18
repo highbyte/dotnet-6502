@@ -92,16 +92,12 @@ public class GenericComputerSetup : SystemConfigurer<SilkNetRenderContextContain
 
         var genericComputer = (GenericComputer)system;
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>(
-            genericComputer,
-            renderContext.SkiaRenderContext,
-            inputHandlerContext,
-            audioHandlerContext);
+        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>(genericComputer);
 
         var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer)
-            .WithInputHandler(inputHandler)
-            .WithAudioHandler(audioHandler)
+            .WithRenderer(renderer, renderContext.SkiaRenderContext)
+            .WithInputHandler(inputHandler, inputHandlerContext)
+            .WithAudioHandler(audioHandler, audioHandlerContext)
             .Build();
         return systemRunner;
     }

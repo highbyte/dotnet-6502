@@ -78,37 +78,27 @@ public class EmulatorHost
         var renderer = new C64SadConsoleRenderer();
         var inputHandler = new C64SadConsoleInputHandler(_loggerFactory);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>(
-            c64,
-            sadConsoleRenderContext,
-            sadConsoleInputHandlerContext,
-            null
-            );
+        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>(c64);
 
         var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer)
-            .WithInputHandler(inputHandler)
+            .WithRenderer(renderer, sadConsoleRenderContext)
+            .WithInputHandler(inputHandler, sadConsoleInputHandlerContext)
             .Build();
         return systemRunner;
     }
 
-    private SystemRunner GetGenericSystemRunner(SadConsoleRenderContext sadConsoleRenderContext, SadConsoleInputHandlerContext sadConsoleInputHandlerContext)
+    private SystemRunner GetGenericSystemRunner(SadConsoleRenderContext renderContext, SadConsoleInputHandlerContext inputHandlerContext)
     {
         var genericComputer = GenericComputerBuilder.SetupGenericComputerFromConfig(_genericComputerConfig, _loggerFactory);
 
         var renderer = new GenericSadConsoleRenderer(_genericComputerConfig.Memory.Screen);
         var inputHandler = new GenericSadConsoleInputHandler(_genericComputerConfig.Memory.Input, _loggerFactory);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>(
-            genericComputer,
-            sadConsoleRenderContext,
-            sadConsoleInputHandlerContext,
-            null
-            );
+        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>(genericComputer);
 
         var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer)
-            .WithInputHandler(inputHandler)
+            .WithRenderer(renderer, renderContext)
+            .WithInputHandler(inputHandler, inputHandlerContext)
             .Build();
         return systemRunner;
     }

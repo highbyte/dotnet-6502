@@ -131,16 +131,12 @@ public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetI
         var inputHandler = new C64SilkNetInputHandler(_loggerFactory, _c64HostConfig.InputConfig);
         var audioHandler = new C64NAudioAudioHandler(_loggerFactory);
 
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, IRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>(
-            c64,
-            renderContext,
-            inputHandlerContext,
-            audioHandlerContext);
+        var systemRunnerBuilder = new SystemRunnerBuilder<C64, IRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>(c64);
 
         var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer)
-            .WithInputHandler(inputHandler)
-            .WithAudioHandler(audioHandler)
+            .WithRenderer(renderer, renderContext)
+            .WithInputHandler(inputHandler, inputHandlerContext)
+            .WithAudioHandler(audioHandler, audioHandlerContext)
             .Build();
         return systemRunner;
     }
