@@ -26,13 +26,10 @@ public class GenericSadConsoleInputHandler : IInputHandler
         _inputHandlerContext = inputHandlerContext;
         _emulatorInputConfig = emulatorInputConfig;
         _loggerFactory = loggerFactory;
-
-        Init();
     }
 
     public void Init()
     {
-        _inputHandlerContext.Init();
     }
 
     public void BeforeFrame()
@@ -41,9 +38,8 @@ public class GenericSadConsoleInputHandler : IInputHandler
         CaptureRandomNumber(_genericComputer);
     }
 
-    public void BeforeFrame(ISystem system)
+    public void Cleanup()
     {
-        BeforeFrame((GenericComputer)system);
     }
 
     private void CaptureKeyboard(GenericComputer system)

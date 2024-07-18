@@ -156,20 +156,13 @@ public class WasmHost : IDisposable
             _updateTimer = null;
         }
 
-        // Clear canvas
-        _skiaRenderContext.GetCanvas().Clear();
-
-        // Clean up Skia resources
-        _skiaRenderContext?.Cleanup();
-
-        // Clean up input handler resources
-        InputHandlerContext?.Cleanup();
-
-        // Cleanup system runner (including stop any playing audio)
+        // Cleanup systemrunner (which also cleanup renderer, inputhandler, and audiohandler)
         _systemRunner.Cleanup();
 
-        // Clean up audio resources
-        //AudioHandlerContext?.Cleanup();
+        // Clean up contexts
+        _skiaRenderContext?.Cleanup();
+        InputHandlerContext?.Cleanup();
+        AudioHandlerContext?.Cleanup();
     }
 
     private void UpdateTimerElapsed(object? sender, EventArgs e) => EmulatorRunOneFrame();

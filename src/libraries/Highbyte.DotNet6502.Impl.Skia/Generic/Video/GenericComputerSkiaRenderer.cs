@@ -29,8 +29,6 @@ public class GenericComputerSkiaRenderer : IRenderer
         _genericComputer = genericComputer;
         _skiaRenderContext = skiaRenderContext;
         _emulatorScreenConfig = emulatorScreenConfig;
-
-        Init();
     }
 
     public void Init()

@@ -33,18 +33,18 @@ public class C64SadConsoleInputHandler : IInputHandler
         _logger.LogInformation($"KbLanguage: {languageName}");
 
         _c64SadConsoleKeyboard = new C64SadConsoleKeyboard(languageName);
-
-        Init();
     }
 
     public void Init()
     {
-        _inputHandlerContext.Init();
     }
 
     public void BeforeFrame()
     {
         CaptureKeyboard(_c64);
+    }
+    public void Cleanup()
+    {
     }
 
     private void CaptureKeyboard(C64 c64)

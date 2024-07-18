@@ -20,6 +20,10 @@ namespace Highbyte.DotNet6502.Impl.NAudio
             _initialVolumePercent = initialVolumePercent;
         }
 
+        public void Init()
+        {
+        }
+
         public void Init(ISampleProvider sampleProvider)
         {
             // Route all audio through a maste volume control

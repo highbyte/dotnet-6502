@@ -130,8 +130,6 @@ public class C64SilkNetOpenGlRenderer : IRenderer, IDisposable
         _c64 = c64;
         _silkNetOpenGlRenderContext = silkNetOpenGlRenderContext;
         _config = config;
-
-        Init();
     }
 
     public void Init()

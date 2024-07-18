@@ -24,7 +24,7 @@ public class C64WASMAudioHandler : IAudioHandler
 
     // private static Queue<InternalSidState> _sidStateChanges = new();
 
-    private WASMAudioHandlerContext _audioHandlerContext = default!;
+    private readonly WASMAudioHandlerContext _audioHandlerContext = default!;
     internal WASMAudioHandlerContext AudioHandlerContext => _audioHandlerContext!;
     private AudioContextSync _audioContext => AudioHandlerContext!.AudioContext;
 
@@ -54,8 +54,6 @@ public class C64WASMAudioHandler : IAudioHandler
         _c64 = c64;
         _audioHandlerContext = audioHandlerContext;
         _logger = loggerFactory.CreateLogger(typeof(C64WASMAudioHandler).Name);
-
-        Init();
     }
 
     public void Init()
@@ -63,8 +61,6 @@ public class C64WASMAudioHandler : IAudioHandler
 
         // Configure callback method for audio generation after each instruction
         _c64.SetPostInstructionAudioCallback(AfterInstructionExecuted);
-
-        _audioHandlerContext.Init();
 
         // Create common gain node for all oscillators, which represent the SID volume.
         CreateGainNode();
@@ -78,6 +74,10 @@ public class C64WASMAudioHandler : IAudioHandler
 
     public void AfterFrame()
     {
+    }
+    public void Cleanup()
+    {
+        StopPlaying();
     }
 
     private void AfterInstructionExecuted(InstructionExecResult instructionExecResult)

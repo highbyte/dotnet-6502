@@ -18,9 +18,13 @@ public class SilkNetRenderContextContainer : IRenderContext
         _silkNetOpenGlRenderContext = silkNetOpenGlRenderContext;
     }
 
-    internal void Cleanup()
+    public void Init()
     {
-        SkiaRenderContext?.Cleanup();
-        SilkNetOpenGlRenderContext?.Cleanup();
+    }
+
+    public void Cleanup()
+    {
+        _skiaRenderContext?.Cleanup();
+        _silkNetOpenGlRenderContext?.Cleanup();
     }
 }

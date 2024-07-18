@@ -22,13 +22,10 @@ public class GenericComputerSilkNetInputHandler : IInputHandler
         _genericComputer = genericComputer;
         _inputHandlerContext = inputHandlerContext;
         _emulatorInputConfig = emulatorInputConfig;
-
-        Init();
     }
 
     public void Init()
     {
-        _inputHandlerContext.Init();
     }
 
     public void BeforeFrame()
@@ -36,9 +33,8 @@ public class GenericComputerSilkNetInputHandler : IInputHandler
         CaptureKeyboard(_genericComputer);
     }
 
-    public void BeforeFrame(ISystem system)
+    public void Cleanup()
     {
-        BeforeFrame((GenericComputer)system);
     }
 
     private void CaptureKeyboard(GenericComputer genericComputer)

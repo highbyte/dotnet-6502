@@ -38,7 +38,10 @@ public class EmulatorHost
         SystemRunner systemRunner;
 
         var sadConsoleRenderContext = new SadConsoleRenderContext(GetSadConsoleScreen);
+        sadConsoleRenderContext.Init();
+
         var sadConsoleInputHandlerContext = new SadConsoleInputHandlerContext(_loggerFactory);
+        sadConsoleInputHandlerContext.Init();
 
         switch (_sadConsoleConfig.Emulator)
         {
@@ -53,6 +56,8 @@ public class EmulatorHost
             default:
                 throw new DotNet6502Exception($"Unknown emulator name: {_sadConsoleConfig.Emulator}");
         }
+
+        systemRunner.Init();
 
         if (systemRunner.System.Screen is not ITextMode)
             throw new DotNet6502Exception("SadConsole host only supports running emulator systems that supports text mode.");

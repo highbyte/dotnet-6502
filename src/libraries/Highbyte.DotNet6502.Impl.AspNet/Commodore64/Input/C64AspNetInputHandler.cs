@@ -25,14 +25,10 @@ public class C64AspNetInputHandler : IInputHandler
         _inputHandlerContext = inputHandlerContext;
         _logger = loggerFactory.CreateLogger<C64AspNetInputHandler>();
         _c64AspNetConfig = c64AspNetConfig;
-
-        Init();
     }
 
     public void Init()
     {
-        _inputHandlerContext.Init();
-
         // There doesn't seem a way to determine the users keyboard layout in Javascript/WASM.
         // Best guess is to use the current UI culture (sent by the browser in the Accept-Language header).
         // This will be incorrect if for example the user as a Swedish keyboard layout, but the browser is set to English.
@@ -52,9 +48,8 @@ public class C64AspNetInputHandler : IInputHandler
         CaptureJoystick(_c64);
     }
 
-    public void BeforeFrame(ISystem system)
+    public void Cleanup()
     {
-        BeforeFrame((C64)system);
     }
 
     private void CaptureKeyboard(C64 c64)

@@ -30,8 +30,6 @@ public class C64SilkNetInputHandler : IInputHandler
         _inputHandlerContext = inputHandlerContext;
         _logger = loggerFactory.CreateLogger<C64SilkNetInputHandler>();
         _c64SilkNetConfig = c64SilkNetConfig;
-
-        Init();
     }
 
     public void Init()
@@ -57,6 +55,11 @@ public class C64SilkNetInputHandler : IInputHandler
         CaptureKeyboard(_c64);
         CaptureJoystick(_c64);
     }
+
+    public void Cleanup()
+    {
+    }
+
     private void CaptureKeyboard(C64 c64)
     {
         var c64KeysDown = GetC64KeysFromSilkNetKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);

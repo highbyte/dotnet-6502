@@ -20,8 +20,6 @@ public class C64SadConsoleRenderer : IRenderer
     {
         _c64 = c64;
         _sadConsoleRenderContext = sadConsoleRenderContext;
-
-        Init();
     }
 
     public void Init()

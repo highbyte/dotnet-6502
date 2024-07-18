@@ -20,6 +20,33 @@ public class SystemRunner
         _system = system;
     }
 
+    public SystemRunner(ISystem system, IRenderer renderer)
+    {
+        if (system != renderer.System)
+            throw new DotNet6502Exception("Renderer must be for the same system as the SystemRunner.");
+
+        _system = system;
+        _renderer = renderer;
+    }
+
+    public SystemRunner(ISystem system, IInputHandler inputHandler)
+    {
+        if (system != inputHandler.System)
+            throw new DotNet6502Exception("InputHandler must be for the same system as the SystemRunner.");
+
+        _system = system;
+        _inputHandler = inputHandler;
+    }
+
+    public SystemRunner(ISystem system, IAudioHandler audioHandler)
+    {
+        if (system != audioHandler.System)
+            throw new DotNet6502Exception("AudioHandler must be for the same system as the SystemRunner.");
+
+        _system = system;
+        _audioHandler = audioHandler;
+    }
+
     public SystemRunner(ISystem system, IRenderer renderer, IInputHandler inputHandler)
     {
         if (system != renderer.System)
@@ -45,6 +72,13 @@ public class SystemRunner
         _renderer = renderer;
         _inputHandler = inputHandler;
         _audioHandler = audioHandler;
+    }
+
+    public void Init()
+    {
+        _renderer?.Init();
+        _audioHandler?.Init();
+        _inputHandler?.Init();
     }
 
     /// <summary>
@@ -92,10 +126,7 @@ public class SystemRunner
     public void Cleanup()
     {
         _renderer?.Cleanup();
-
-        _audioHandler?.StopPlaying();
-        //_audioHandler?.Cleanup();
-
-        //_inputHandler?.Cleanup();
+        _audioHandler?.Cleanup();
+        _inputHandler?.Cleanup();
     }
 }

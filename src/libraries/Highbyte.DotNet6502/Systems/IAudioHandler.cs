@@ -4,10 +4,13 @@ namespace Highbyte.DotNet6502.Systems;
 
 public interface IAudioHandler
 {
+    void Init();
     void AfterFrame();
     void StartPlaying();
     void StopPlaying();
     void PausePlaying();
+    void Cleanup();
+
     List<string> GetDebugInfo();
     Instrumentations Instrumentations { get; }
     ISystem System { get; }
@@ -22,21 +25,22 @@ public class NullAudioHandler : IAudioHandler
     {
         _system = system;
     }
-
- 
+    public void Init()
+    {
+    }
     public void AfterFrame()
     {
     }
-
     public void StartPlaying()
     {
     }
-
     public void PausePlaying()
     {
     }
-
     public void StopPlaying()
+    {
+    }
+    public void Cleanup()
     {
     }
 

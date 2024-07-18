@@ -4,10 +4,9 @@ namespace Highbyte.DotNet6502.Systems;
 
 public interface IRenderer
 {
+    void Init();
     void DrawFrame();
-
     void Cleanup();
-
     Instrumentations Instrumentations { get; }
     ISystem System { get; }
 }
@@ -23,11 +22,12 @@ public class NullRenderer : IRenderer
     {
         _system = system;
     }
-
+    public void Init()
+    {
+    }
     public void DrawFrame()
     {
     }
-
     public void Cleanup()
     {
     }

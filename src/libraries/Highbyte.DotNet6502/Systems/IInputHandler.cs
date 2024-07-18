@@ -4,7 +4,10 @@ namespace Highbyte.DotNet6502.Systems;
 
 public interface IInputHandler
 {
+    void Init();
     void BeforeFrame();
+    void Cleanup();
+
     List<string> GetDebugInfo();
     Instrumentations Instrumentations { get; }
     ISystem System { get; }
@@ -19,10 +22,16 @@ public class NullInputHandler : IInputHandler
     {
         _system = system;
     }
-
+    public void Init()
+    {
+    }
     public void BeforeFrame()
     {
     }
+    public void Cleanup()
+    {
+    }
+
     public List<string> GetDebugInfo() => new();
 
     public Instrumentations Instrumentations { get; } = new();

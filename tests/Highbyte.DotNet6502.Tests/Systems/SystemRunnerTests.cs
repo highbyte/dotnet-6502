@@ -10,8 +10,9 @@ public class SystemRunnerTests
     {
         // Arrange
         var system = new TestSystem();
-        var systemRunner = new SystemRunner(system);
         var renderer = new TestRenderer(system, new NullRenderContext());
+        var systemRunner = new SystemRunner(system, renderer);
+        systemRunner.Init();
 
         // Act
         systemRunner.Cleanup();
@@ -25,8 +26,9 @@ public class SystemRunnerTests
     {
         // Arrange
         var system = new TestSystem();
-        var systemRunner = new SystemRunner(system);
         var audioHandler = new TestAudioHandler(system, new NullAudioHandlerContext());
+        var systemRunner = new SystemRunner(system, audioHandler);
+        systemRunner.Init();
 
         // Act
         systemRunner.Cleanup();
@@ -78,8 +80,6 @@ public class TestRenderer : IRenderer
     {
         _system = system;
         _renderContext = renderContext;
-
-        Init();
     }
     public void Init()
     {
@@ -105,14 +105,16 @@ public class TestInputHandler : IInputHandler
     {
         _system = system;
         _inputContext = inputContext;
-
-        Init();
     }
     public void Init()
     {
     }
     public void BeforeFrame()
     {
+    }
+    public void Cleanup()
+    {
+        _inputContext.Cleanup();
     }
     public List<string> GetDebugInfo() => new();
 
@@ -131,8 +133,6 @@ public class TestAudioHandler : IAudioHandler
     {
         _system = system;
         _audioHandlerContext = audioHandlerContext;
-
-        Init();
     }
 
     public void Init()
@@ -150,6 +150,9 @@ public class TestAudioHandler : IAudioHandler
     public void StopPlaying()
     {
         StopPlayingWasCalled = true;
+    }
+    public void Cleanup()
+    {
     }
     public List<string> GetDebugInfo() => new();
 

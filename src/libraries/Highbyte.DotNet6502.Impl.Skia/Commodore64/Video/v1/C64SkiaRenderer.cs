@@ -70,8 +70,6 @@ public class C64SkiaRenderer : IRenderer
     {
         _c64 = c64;
         _skiaRenderContext = skiaRenderContext;
-
-        Init();
     }
 
     public void Init()

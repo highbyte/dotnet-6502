@@ -20,13 +20,10 @@ public class GenericSadConsoleRenderer : IRenderer
         _genericComputer = genericComputer;
         _sadConsoleRenderContext = sadConsoleRenderContext;
         _emulatorScreenConfig = emulatorScreenConfig;
-
-        Init();
     }
 
     public void Init()
     {
-
         InitEmulatorScreenMemory(_genericComputer);
     }
 

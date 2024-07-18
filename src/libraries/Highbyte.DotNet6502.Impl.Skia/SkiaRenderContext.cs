@@ -1,5 +1,4 @@
 using Highbyte.DotNet6502.Systems;
-using SkiaSharp;
 
 namespace Highbyte.DotNet6502.Impl.Skia;
 
@@ -75,8 +74,14 @@ public class SkiaRenderContext : IRenderContext
         _canvas = _renderSurface.Canvas;
     }
 
+    public void Init()
+    {
+    }
+
     public void Cleanup()
     {
+        GetCanvas().Clear();
+
         _canvas?.Dispose();
         _canvas = null;
         _renderSurface?.Dispose();

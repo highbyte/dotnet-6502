@@ -46,8 +46,6 @@ public class C64NAudioAudioHandler : IAudioHandler
         _c64 = c64;
         _audioHandlerContext = audioHandlerContext;
         _logger = loggerFactory.CreateLogger(typeof(C64NAudioAudioHandler).Name);
-
-        Init();
     }
 
     public void Init()
@@ -73,6 +71,11 @@ public class C64NAudioAudioHandler : IAudioHandler
 
     public void AfterFrame()
     {
+    }
+
+    public void Cleanup()
+    {
+        StopPlaying();
     }
 
     private void AfterInstructionExecuted(InstructionExecResult instructionExecResult)
