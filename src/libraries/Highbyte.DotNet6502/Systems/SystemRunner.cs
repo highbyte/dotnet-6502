@@ -3,9 +3,9 @@ namespace Highbyte.DotNet6502.Systems;
 public class SystemRunner
 {
     private readonly ISystem _system;
-    private IRenderer _renderer = default!;
-    private IInputHandler _inputHandler = default!;
-    private IAudioHandler _audioHandler = default!;
+    private readonly IRenderer _renderer = default!;
+    private readonly IInputHandler _inputHandler = default!;
+    private readonly IAudioHandler _audioHandler = default!;
 
     public ISystem System => _system;
     public IRenderer Renderer { get => _renderer; }
@@ -15,48 +15,24 @@ public class SystemRunner
     private IExecEvaluator? _customExecEvaluator;
     public IExecEvaluator? CustomExecEvaluator => _customExecEvaluator;
 
-    public SystemRunner(ISystem system)
+    public SystemRunner(ISystem system) : this(system, new NullRenderer(system), new NullInputHandler(system), new NullAudioHandler(system))
     {
-        _system = system;
     }
 
-    public SystemRunner(ISystem system, IRenderer renderer)
+    public SystemRunner(ISystem system, IRenderer renderer) : this(system, renderer, new NullInputHandler(system), new NullAudioHandler(system))
     {
-        if (system != renderer.System)
-            throw new DotNet6502Exception("Renderer must be for the same system as the SystemRunner.");
-
-        _system = system;
-        _renderer = renderer;
     }
 
-    public SystemRunner(ISystem system, IInputHandler inputHandler)
+    public SystemRunner(ISystem system, IInputHandler inputHandler) : this(system, new NullRenderer(system), inputHandler, new NullAudioHandler(system))
     {
-        if (system != inputHandler.System)
-            throw new DotNet6502Exception("InputHandler must be for the same system as the SystemRunner.");
-
-        _system = system;
-        _inputHandler = inputHandler;
     }
 
-    public SystemRunner(ISystem system, IAudioHandler audioHandler)
+    public SystemRunner(ISystem system, IAudioHandler audioHandler) : this(system, new NullRenderer(system), new NullInputHandler(system), audioHandler)
     {
-        if (system != audioHandler.System)
-            throw new DotNet6502Exception("AudioHandler must be for the same system as the SystemRunner.");
-
-        _system = system;
-        _audioHandler = audioHandler;
     }
 
-    public SystemRunner(ISystem system, IRenderer renderer, IInputHandler inputHandler)
+    public SystemRunner(ISystem system, IRenderer renderer, IInputHandler inputHandler) : this(system, renderer, inputHandler, new NullAudioHandler(system))
     {
-        if (system != renderer.System)
-            throw new DotNet6502Exception("Renderer must be for the same system as the SystemRunner.");
-        if (system != inputHandler.System)
-            throw new DotNet6502Exception("InputHandler must be for the same system as the SystemRunner.");
-
-        _system = system;
-        _renderer = renderer;
-        _inputHandler = inputHandler;
     }
 
     public SystemRunner(ISystem system, IRenderer renderer, IInputHandler inputHandler, IAudioHandler audioHandler)
@@ -76,9 +52,9 @@ public class SystemRunner
 
     public void Init()
     {
-        _renderer?.Init();
-        _audioHandler?.Init();
-        _inputHandler?.Init();
+        _renderer.Init();
+        _audioHandler.Init();
+        _inputHandler.Init();
     }
 
     /// <summary>
@@ -102,7 +78,7 @@ public class SystemRunner
     /// </summary>
     public void ProcessInputBeforeFrame()
     {
-        _inputHandler?.BeforeFrame();
+        _inputHandler.BeforeFrame();
     }
 
     /// <summary>
@@ -120,13 +96,13 @@ public class SystemRunner
     /// </summary>
     public void Draw()
     {
-        _renderer?.DrawFrame();
+        _renderer.DrawFrame();
     }
 
     public void Cleanup()
     {
-        _renderer?.Cleanup();
-        _audioHandler?.Cleanup();
-        _inputHandler?.Cleanup();
+        _renderer.Cleanup();
+        _audioHandler.Cleanup();
+        _inputHandler.Cleanup();
     }
 }
