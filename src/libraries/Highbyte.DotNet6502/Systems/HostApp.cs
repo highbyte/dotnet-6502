@@ -218,6 +218,8 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
     public void DrawFrame()
     {
+        _renderFps.Update();
+
         if (EmulatorState != EmulatorState.Running)
         {
             OnBeforeDrawFrame(emulatorWillBeRendered: false);
