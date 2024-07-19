@@ -5,40 +5,38 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Generic.Input;
 
-public class GenericComputerAspNetInputHandler : IInputHandler<GenericComputer, AspNetInputHandlerContext>
+public class GenericComputerAspNetInputHandler : IInputHandler
 {
+    private readonly GenericComputer _genericComputer;
+    public ISystem System => _genericComputer;
     private readonly EmulatorInputConfig _emulatorInputConfig;
-    private AspNetInputHandlerContext? _inputHandlerContext;
+    private readonly AspNetInputHandlerContext _inputHandlerContext;
 
     public List<string> GetDebugInfo() => new();
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-    public GenericComputerAspNetInputHandler(EmulatorInputConfig emulatorInputConfig)
+
+    public GenericComputerAspNetInputHandler(GenericComputer genericComputer, AspNetInputHandlerContext inputHandlerContext, EmulatorInputConfig emulatorInputConfig)
     {
+        _genericComputer = genericComputer;
+        _inputHandlerContext = inputHandlerContext;
         _emulatorInputConfig = emulatorInputConfig;
     }
 
-    public void Init(GenericComputer system, AspNetInputHandlerContext inputHandlerContext)
+    public void Init()
     {
-        _inputHandlerContext = inputHandlerContext;
-        _inputHandlerContext.Init();
     }
 
-    public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
+
+    public void BeforeFrame()
     {
-        Init((GenericComputer)system, (AspNetInputHandlerContext)inputHandlerContext);
+        CaptureKeyboard(_genericComputer);
     }
 
-    public void ProcessInput(GenericComputer genericComputer)
+    public void Cleanup()
     {
-        CaptureKeyboard(genericComputer);
-    }
-
-    public void ProcessInput(ISystem system)
-    {
-        ProcessInput((GenericComputer)system);
     }
 
     private void CaptureKeyboard(GenericComputer genericComputer)

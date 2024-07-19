@@ -105,43 +105,27 @@ public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetI
         var c64 = (C64)system;
 
         IRenderer renderer;
-        IRenderContext renderContext;
         switch (c64HostConfig.Renderer)
         {
             case C64HostRenderer.SkiaSharp:
-                renderer = new C64SkiaRenderer();
-                renderContext = renderContextContainer.SkiaRenderContext;
+                renderer = new C64SkiaRenderer(c64, renderContextContainer.SkiaRenderContext);
                 break;
             case C64HostRenderer.SkiaSharp2:
-                renderer = new C64SkiaRenderer2();
-                renderContext = renderContextContainer.SkiaRenderContext;
+                renderer = new C64SkiaRenderer2(c64, renderContextContainer.SkiaRenderContext);
                 break;
             case C64HostRenderer.SkiaSharp2b:
-                renderer = new C64SkiaRenderer2b();
-                renderContext = renderContextContainer.SkiaRenderContext;
+                renderer = new C64SkiaRenderer2b(c64, renderContextContainer.SkiaRenderContext);
                 break;
             case C64HostRenderer.SilkNetOpenGl:
-                renderer = new C64SilkNetOpenGlRenderer(c64HostConfig.SilkNetOpenGlRendererConfig);
-                renderContext = renderContextContainer.SilkNetOpenGlRenderContext;
+                renderer = new C64SilkNetOpenGlRenderer(c64, renderContextContainer.SilkNetOpenGlRenderContext, c64HostConfig.SilkNetOpenGlRendererConfig);
                 break;
             default:
                 throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
         }
 
-        var inputHandler = new C64SilkNetInputHandler(_loggerFactory, _c64HostConfig.InputConfig);
-        var audioHandler = new C64NAudioAudioHandler(_loggerFactory);
+        var inputHandler = new C64SilkNetInputHandler(c64, inputHandlerContext, _loggerFactory, _c64HostConfig.InputConfig);
+        var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
-
-        renderer.Init(c64, renderContext);
-        inputHandler.Init(c64, inputHandlerContext);
-        audioHandler.Init(c64, audioHandlerContext);
-
-        var systemRunnerBuilder = new SystemRunnerBuilder<C64, SkiaRenderContext, SilkNetInputHandlerContext, NAudioAudioHandlerContext>(c64);
-        var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer)
-            .WithInputHandler(inputHandler)
-            .WithAudioHandler(audioHandler)
-            .Build();
-        return systemRunner;
+        return new SystemRunner(c64, renderer, inputHandler, audioHandler);
     }
 }

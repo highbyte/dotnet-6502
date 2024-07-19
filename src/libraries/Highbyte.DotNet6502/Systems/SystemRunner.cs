@@ -3,21 +3,58 @@ namespace Highbyte.DotNet6502.Systems;
 public class SystemRunner
 {
     private readonly ISystem _system;
-    private IRenderer _renderer = default!;
-    private IInputHandler _inputHandler = default!;
-    private IAudioHandler _audioHandler = default!;
+    private readonly IRenderer _renderer = default!;
+    private readonly IInputHandler _inputHandler = default!;
+    private readonly IAudioHandler _audioHandler = default!;
 
     public ISystem System => _system;
-    public IRenderer Renderer { get => _renderer; set => _renderer = value; }
-    public IInputHandler InputHandler { get => _inputHandler; set => _inputHandler = value; }
-    public IAudioHandler AudioHandler { get => _audioHandler; set => _audioHandler = value; }
+    public IRenderer Renderer { get => _renderer; }
+    public IInputHandler InputHandler { get => _inputHandler; }
+    public IAudioHandler AudioHandler { get => _audioHandler; }
 
     private IExecEvaluator? _customExecEvaluator;
     public IExecEvaluator? CustomExecEvaluator => _customExecEvaluator;
 
-    public SystemRunner(ISystem system)
+    public SystemRunner(ISystem system) : this(system, new NullRenderer(system), new NullInputHandler(system), new NullAudioHandler(system))
     {
+    }
+
+    public SystemRunner(ISystem system, IRenderer renderer) : this(system, renderer, new NullInputHandler(system), new NullAudioHandler(system))
+    {
+    }
+
+    public SystemRunner(ISystem system, IInputHandler inputHandler) : this(system, new NullRenderer(system), inputHandler, new NullAudioHandler(system))
+    {
+    }
+
+    public SystemRunner(ISystem system, IAudioHandler audioHandler) : this(system, new NullRenderer(system), new NullInputHandler(system), audioHandler)
+    {
+    }
+
+    public SystemRunner(ISystem system, IRenderer renderer, IInputHandler inputHandler) : this(system, renderer, inputHandler, new NullAudioHandler(system))
+    {
+    }
+
+    public SystemRunner(ISystem system, IRenderer renderer, IInputHandler inputHandler, IAudioHandler audioHandler)
+    {
+        if (system != renderer.System)
+            throw new DotNet6502Exception("Renderer must be for the same system as the SystemRunner.");
+        if (system != inputHandler.System)
+            throw new DotNet6502Exception("InputHandler must be for the same system as the SystemRunner.");
+        if (system != audioHandler.System)
+            throw new DotNet6502Exception("AudioHandler must be for the same system as the SystemRunner.");
+
         _system = system;
+        _renderer = renderer;
+        _inputHandler = inputHandler;
+        _audioHandler = audioHandler;
+    }
+
+    public void Init()
+    {
+        _renderer.Init();
+        _audioHandler.Init();
+        _inputHandler.Init();
     }
 
     /// <summary>
@@ -39,9 +76,9 @@ public class SystemRunner
     /// Called by host app that runs the emulator.
     /// Typically before RunEmulatorOneFrame is called.
     /// </summary>
-    public void ProcessInput()
+    public void ProcessInputBeforeFrame()
     {
-        _inputHandler?.ProcessInput(_system);
+        _inputHandler.BeforeFrame();
     }
 
     /// <summary>
@@ -55,32 +92,17 @@ public class SystemRunner
     }
 
     /// <summary>
-    /// Called by host app that runs the emulator, typically once per frame tied to the host app rendering frequency.
+    /// Called by host app that runs the emulator, once per frame tied to the host app rendering frequency.
     /// </summary>
     public void Draw()
     {
-        _renderer?.Draw(_system);
-    }
-
-    /// <summary>
-    /// Called by the specific ISystem implementation after each instruction or entire frame worth of instructions, depending how audio is implemented.
-    /// </summary>
-    /// <param name="detailedStats"></param>
-    public void GenerateAudio()
-    {
-        _audioHandler?.GenerateAudio(_system);
-
-        //var t = new Task(() => _audioHandler?.GenerateAudio(system));
-        //t.RunSynchronously();
+        _renderer.DrawFrame();
     }
 
     public void Cleanup()
     {
-        _renderer?.Cleanup();
-
-        _audioHandler?.StopPlaying();
-        //_audioHandler?.Cleanup();
-
-        //_inputHandler?.Cleanup();
+        _renderer.Cleanup();
+        _audioHandler.Cleanup();
+        _inputHandler.Cleanup();
     }
 }

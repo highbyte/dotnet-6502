@@ -5,42 +5,36 @@ using Highbyte.DotNet6502.Systems.Commodore64.Video;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 
-public class C64SadConsoleRenderer : IRenderer<C64, SadConsoleRenderContext>
+public class C64SadConsoleRenderer : IRenderer
 {
-    private SadConsoleRenderContext _sadConsoleRenderContext = default!;
+    private readonly C64 _c64;
+    public ISystem System => _c64;
+    private readonly SadConsoleRenderContext _sadConsoleRenderContext = default!;
     private C64SadConsoleColors _c64SadConsoleColors = default!;
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-    public C64SadConsoleRenderer()
-    {
-    }
 
-    public void Init(C64 c64, SadConsoleRenderContext sadConsoleRenderContext)
+    public C64SadConsoleRenderer(C64 c64, SadConsoleRenderContext sadConsoleRenderContext)
     {
+        _c64 = c64;
         _sadConsoleRenderContext = sadConsoleRenderContext;
-        _c64SadConsoleColors = new C64SadConsoleColors(c64.ColorMapName);
     }
 
-    public void Init(ISystem system, IRenderContext renderContext)
+    public void Init()
     {
-        Init((C64)system, (SadConsoleRenderContext)renderContext);
+        _c64SadConsoleColors = new C64SadConsoleColors(_c64.ColorMapName);
     }
 
     public void Cleanup()
     {
     }
 
-    public void Draw(C64 c64)
+    public void DrawFrame()
     {
-        RenderMainScreen(c64);
-        RenderBorder(c64);
-    }
-
-    public void Draw(ISystem system)
-    {
-        Draw((C64)system);
+        RenderMainScreen(_c64);
+        RenderBorder(_c64);
     }
 
     private void RenderMainScreen(C64 c64)

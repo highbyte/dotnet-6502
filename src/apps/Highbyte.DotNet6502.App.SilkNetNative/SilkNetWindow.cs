@@ -16,6 +16,7 @@ using Silk.NET.SDL;
 using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
 using AutoMapper.Internal.Mappers;
+using NAudio.Wave.SampleProviders;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;
 
@@ -182,14 +183,13 @@ public class SilkNetWindow
         // _statsPanel.Cleanup();
         DestroyImGuiController();
 
-        // Cleanup SkiaSharp resources
-        _silkNetRenderContextContainer.Cleanup();
+        // Cleanup systemrunner (which also cleanup renderer, inputhandler, and audiohandler)
+        _systemRunner?.Cleanup();
 
-        // Cleanup SilkNet input resources
-        _silkNetInputHandlerContext.Cleanup();
-
-        // Cleanup NAudio audio resources
-        _naudioAudioHandlerContext.Cleanup();
+        // Cleanup contexts
+        _silkNetRenderContextContainer?.Cleanup();
+        _silkNetInputHandlerContext?.Cleanup();
+        _naudioAudioHandlerContext?.Cleanup();
     }
 
     /// <summary>
@@ -359,7 +359,7 @@ public class SilkNetWindow
         if (!_atLeastOneImGuiWindowHasFocus)
         {
             _inputTime.Start();
-            _systemRunner.ProcessInput();
+            _systemRunner.ProcessInputBeforeFrame();
             _inputTime.Stop();
         }
 

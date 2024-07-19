@@ -7,9 +7,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 
-public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContext>
+public class C64AspNetInputHandler : IInputHandler
 {
-    private AspNetInputHandlerContext? _inputHandlerContext = default!;
+    private readonly C64 _c64;
+    public ISystem System => _c64;
+    private readonly AspNetInputHandlerContext _inputHandlerContext;
     private readonly ILogger<C64AspNetInputHandler> _logger;
     private C64AspNetKeyboard _c64AspNetKeyboard = default!;
     private readonly C64AspNetInputConfig _c64AspNetConfig;
@@ -17,17 +19,16 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-    public C64AspNetInputHandler(ILoggerFactory loggerFactory, C64AspNetInputConfig c64AspNetConfig)
+    public C64AspNetInputHandler(C64 c64, AspNetInputHandlerContext inputHandlerContext, ILoggerFactory loggerFactory, C64AspNetInputConfig c64AspNetConfig)
     {
+        _c64 = c64;
+        _inputHandlerContext = inputHandlerContext;
         _logger = loggerFactory.CreateLogger<C64AspNetInputHandler>();
         _c64AspNetConfig = c64AspNetConfig;
     }
 
-    public void Init(C64 system, AspNetInputHandlerContext inputHandlerContext)
+    public void Init()
     {
-        _inputHandlerContext = inputHandlerContext;
-        _inputHandlerContext.Init();
-
         // There doesn't seem a way to determine the users keyboard layout in Javascript/WASM.
         // Best guess is to use the current UI culture (sent by the browser in the Accept-Language header).
         // This will be incorrect if for example the user as a Swedish keyboard layout, but the browser is set to English.
@@ -40,21 +41,15 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
         _c64AspNetKeyboard = new C64AspNetKeyboard(languageName);
     }
 
-    public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
+    public void BeforeFrame()
     {
-        Init((C64)system, (AspNetInputHandlerContext)inputHandlerContext);
+        _c64.Cia.Joystick.ClearJoystickActions();
+        CaptureKeyboard(_c64);
+        CaptureJoystick(_c64);
     }
 
-    public void ProcessInput(C64 c64)
+    public void Cleanup()
     {
-        c64.Cia.Joystick.ClearJoystickActions();
-        CaptureKeyboard(c64);
-        CaptureJoystick(c64);
-    }
-
-    public void ProcessInput(ISystem system)
-    {
-        ProcessInput((C64)system);
     }
 
     private void CaptureKeyboard(C64 c64)
@@ -112,7 +107,7 @@ public class C64AspNetInputHandler : IInputHandler<C64, AspNetInputHandlerContex
         // Note: Assume Keyboard input has been processed before this, so that Joystick actions based on keypresses has resulted 
         //       in the current joystick actions being initialized this frame (and may contain actions from keyboard).
         //       Thus "overwrite" is set to false so that keyboard actions are not overwritten.
-        c64.Cia.Joystick.SetJoystickActions(_c64AspNetConfig.CurrentJoystick, c64JoystickActions);
+        c64.Cia.Joystick.SetJoystickActions(_c64AspNetConfig.CurrentJoystick, c64JoystickActions, overwrite: false);
     }
 
     private HashSet<C64JoystickAction> GetC64JoystickActionsFromAspNetGamepad(HashSet<int> gamepadButtonsDown)

@@ -13,6 +13,7 @@ using Highbyte.DotNet6502.Logging.Console;
 using Toolbelt.Blazor.Gamepad;
 using AutoMapper;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Generic;
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
 
@@ -129,6 +130,7 @@ public partial class Index
     private ILogger<Index> _logger = default!;
     private IMapper _mapper = default!;
 
+    public bool Initialized { get; private set; } = false;
     protected override async Task OnInitializedAsync()
     {
         _logger = LoggerFactory.CreateLogger<Index>();
@@ -170,15 +172,14 @@ public partial class Index
             },
             HostSystemConfigs = new Dictionary<string, IHostSystemConfig>
             {
-                { C64.SystemName, c64HostConfig }
-                //{ GenericComputer.SystemName, new GenericComputerHostConfig() }
+                { C64.SystemName, c64HostConfig },
+                { GenericComputer.SystemName, new GenericComputerHostConfig() }
             }
         };
         _emulatorConfig.Validate(_systemList);
 
         // Default system
-        _selectedSystemName = _emulatorConfig.DefaultEmulator;
-        await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = _selectedSystemName });
+        await SelectEmulator(_emulatorConfig.DefaultEmulator);
 
         // Set parameters from query string
         await SetDefaultsFromQueryParams(_browserContext.Uri);
@@ -191,6 +192,8 @@ public partial class Index
             }
         );
         _mapper = mapperConfiguration.CreateMapper();
+
+        Initialized = true;
     }
 
     private async Task SetDefaultsFromQueryParams(Uri uri)
@@ -200,8 +203,7 @@ public partial class Index
             var systemNameParsed = systemName.ToString();
             if (systemNameParsed is not null && _systemList.Systems.Contains(systemNameParsed))
             {
-                _selectedSystemName = systemNameParsed;
-                await OnSelectedEmulatorChanged(new ChangeEventArgs { Value = _selectedSystemName });
+                await SelectEmulator(systemNameParsed);
             }
         }
 
@@ -232,9 +234,15 @@ public partial class Index
 
     private async Task OnSelectedEmulatorChanged(ChangeEventArgs e)
     {
-        _selectedSystemName = e.Value?.ToString() ?? "";
-        (bool isOk, List<string> validationErrors) = await _systemList.IsValidConfigWithDetails(_selectedSystemName);
+        var systemName = e.Value?.ToString() ?? "";
+        await SelectEmulator(systemName);
+    }
 
+    private async Task SelectEmulator(string systemName)
+    {
+        _selectedSystemName = systemName;
+
+        (bool isOk, List<string> validationErrors) = await _systemList.IsValidConfigWithDetails(_selectedSystemName);
         if (!isOk)
             _selectedSystemConfigValidationMessage = string.Join(",", validationErrors!);
         else

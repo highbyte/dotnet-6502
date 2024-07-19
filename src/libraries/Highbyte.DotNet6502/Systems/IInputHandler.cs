@@ -4,31 +4,34 @@ namespace Highbyte.DotNet6502.Systems;
 
 public interface IInputHandler
 {
-    void Init(ISystem system, IInputHandlerContext inputContext);
-    void ProcessInput(ISystem system);
+    void Init();
+    void BeforeFrame();
+    void Cleanup();
 
     List<string> GetDebugInfo();
     Instrumentations Instrumentations { get; }
-}
-
-public interface IInputHandler<TSystem, TInputHandlerContext> : IInputHandler
-    where TSystem : ISystem
-    where TInputHandlerContext : IInputHandlerContext
-{
-    void Init(TSystem system, TInputHandlerContext inputContext);
-
-    void ProcessInput(TSystem system);
+    ISystem System { get; }
 }
 
 public class NullInputHandler : IInputHandler
 {
-    public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
+    private readonly ISystem _system;
+    public ISystem System => _system;
+
+    public NullInputHandler(ISystem system)
+    {
+        _system = system;
+    }
+    public void Init()
+    {
+    }
+    public void BeforeFrame()
+    {
+    }
+    public void Cleanup()
     {
     }
 
-    public void ProcessInput(ISystem system)
-    {
-    }
     public List<string> GetDebugInfo() => new();
 
     public Instrumentations Instrumentations { get; } = new();

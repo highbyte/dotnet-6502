@@ -2,14 +2,16 @@ namespace Highbyte.DotNet6502.Systems;
 
 public interface IAudioHandlerContext
 {
-}
-
-public interface IAudioHandlerContext<TSystem> : IAudioHandlerContext
-    where TSystem : ISystem
-{
+    void Init();
+    void Cleanup();
 }
 
 public class NullAudioHandlerContext : IAudioHandlerContext
 {
-
+    public void Cleanup()
+    {
+    }
+    public void Init()
+    {
+    }
 }

@@ -37,6 +37,10 @@ namespace Highbyte.DotNet6502.Impl.AspNet
             SetMasterVolumePercent(_initialVolumePercent);
         }
 
+        public void Cleanup()
+        {
+        }
+
         public void SetMasterVolumePercent(float masterVolumePercent)
         {
             var currentTime = AudioContext.GetCurrentTime();

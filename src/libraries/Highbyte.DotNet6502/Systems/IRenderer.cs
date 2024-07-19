@@ -4,34 +4,30 @@ namespace Highbyte.DotNet6502.Systems;
 
 public interface IRenderer
 {
-    void Init(ISystem system, IRenderContext renderContext);
-    void Draw(ISystem system);
-
+    void Init();
+    void DrawFrame();
     void Cleanup();
-
     Instrumentations Instrumentations { get; }
-}
-
-public interface IRenderer<TSystem, TRenderContext> : IRenderer
-    where TSystem : ISystem
-    where TRenderContext : IRenderContext
-{
-    void Init(TSystem system, TRenderContext renderContext);
-    void Draw(TSystem system);
+    ISystem System { get; }
 }
 
 public class NullRenderer : IRenderer
 {
+    private readonly ISystem _system;
+    public ISystem System => _system;
     public Instrumentations Instrumentations { get; } = new();
 
-    public void Init(ISystem system, IRenderContext renderContext)
+
+    public NullRenderer(ISystem system)
+    {
+        _system = system;
+    }
+    public void Init()
     {
     }
-
-    public void Draw(ISystem system)
+    public void DrawFrame()
     {
     }
-
     public void Cleanup()
     {
     }

@@ -6,9 +6,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Generic.Input;
 
-public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadConsoleInputHandlerContext>
+public class GenericSadConsoleInputHandler : IInputHandler
 {
-    private SadConsoleInputHandlerContext? _inputHandlerContext;
+    private readonly GenericComputer _genericComputer;
+    public ISystem System => _genericComputer;
+    private SadConsoleInputHandlerContext _inputHandlerContext;
 
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private readonly ILoggerFactory _loggerFactory;
@@ -18,33 +20,26 @@ public class GenericSadConsoleInputHandler : IInputHandler<GenericComputer, SadC
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-
-    public GenericSadConsoleInputHandler(EmulatorInputConfig emulatorInputConfig, ILoggerFactory loggerFactory)
+    public GenericSadConsoleInputHandler(GenericComputer genericComputer, SadConsoleInputHandlerContext inputHandlerContext, EmulatorInputConfig emulatorInputConfig, ILoggerFactory loggerFactory)
     {
+        _genericComputer = genericComputer;
+        _inputHandlerContext = inputHandlerContext;
         _emulatorInputConfig = emulatorInputConfig;
         _loggerFactory = loggerFactory;
     }
 
-    public void Init(GenericComputer system, SadConsoleInputHandlerContext inputHandlerContext)
+    public void Init()
     {
-        _inputHandlerContext = inputHandlerContext;
-        _inputHandlerContext.Init();
     }
 
-    public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
+    public void BeforeFrame()
     {
-        Init((GenericComputer)system, (SadConsoleInputHandlerContext)inputHandlerContext);
+        CaptureKeyboard(_genericComputer);
+        CaptureRandomNumber(_genericComputer);
     }
 
-    public void ProcessInput(GenericComputer system)
+    public void Cleanup()
     {
-        CaptureKeyboard(system);
-        CaptureRandomNumber(system);
-    }
-
-    public void ProcessInput(ISystem system)
-    {
-        ProcessInput((GenericComputer)system);
     }
 
     private void CaptureKeyboard(GenericComputer system)

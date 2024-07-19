@@ -4,48 +4,43 @@ namespace Highbyte.DotNet6502.Systems;
 
 public interface IAudioHandler
 {
-    void Init(ISystem system, IAudioHandlerContext audioHandlerContext);
-    void GenerateAudio(ISystem system);
-
+    void Init();
+    void AfterFrame();
     void StartPlaying();
     void StopPlaying();
     void PausePlaying();
+    void Cleanup();
+
     List<string> GetDebugInfo();
     Instrumentations Instrumentations { get; }
-}
-
-public interface IAudioHandler<TSystem, TAudioHandlerContext> : IAudioHandler
-    where TSystem : ISystem
-    where TAudioHandlerContext : IAudioHandlerContext
-{
-    void Init(TSystem system, TAudioHandlerContext audioHandlerContext);
-
-    void GenerateAudio(TSystem system);
+    ISystem System { get; }
 }
 
 public class NullAudioHandler : IAudioHandler
 {
-    public NullAudioHandler()
+    private readonly ISystem _system;
+    public ISystem System => _system;
+
+    public NullAudioHandler(ISystem system)
+    {
+        _system = system;
+    }
+    public void Init()
     {
     }
-
-    public void Init(ISystem system, IAudioHandlerContext audioHandlerContext)
+    public void AfterFrame()
     {
     }
-
-    public void GenerateAudio(ISystem system)
-    {
-    }
-
     public void StartPlaying()
     {
     }
-
     public void PausePlaying()
     {
     }
-
     public void StopPlaying()
+    {
+    }
+    public void Cleanup()
     {
     }
 

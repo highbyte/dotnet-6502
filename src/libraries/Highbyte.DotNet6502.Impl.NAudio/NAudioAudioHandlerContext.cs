@@ -20,7 +20,11 @@ namespace Highbyte.DotNet6502.Impl.NAudio
             _initialVolumePercent = initialVolumePercent;
         }
 
-        public void Init(ISampleProvider sampleProvider)
+        public void Init()
+        {
+        }
+
+        public void ConfigureWavePlayer(ISampleProvider sampleProvider)
         {
             // Route all audio through a maste volume control
             _masterVolumeControl = new VolumeSampleProvider(sampleProvider)
@@ -28,9 +32,6 @@ namespace Highbyte.DotNet6502.Impl.NAudio
                 Volume = _initialVolumePercent / 100f
             };
             _wavePlayer.Init(_masterVolumeControl);
-
-            // Executing StartWavePlayer method will not start producing audio until oscillators are added to the Mixer
-            StartWavePlayer();
         }
 
         public void SetMasterVolumePercent(float masterVolumePercent)
@@ -60,8 +61,7 @@ namespace Highbyte.DotNet6502.Impl.NAudio
 
         public void Cleanup()
         {
-            if (_wavePlayer.PlaybackState != PlaybackState.Stopped)
-                _wavePlayer.Stop();
+            StopWavePlayer();
             _wavePlayer.Dispose();
         }
     }

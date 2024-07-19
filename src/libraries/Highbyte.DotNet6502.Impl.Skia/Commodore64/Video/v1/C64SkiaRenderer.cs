@@ -27,8 +27,13 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
 /// - Sprites (Standard, MultiColor)
 ///   
 /// </summary>
-public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
+public class C64SkiaRenderer : IRenderer
 {
+    private readonly C64 _c64;
+    public ISystem System => _c64;
+    private readonly SkiaRenderContext _skiaRenderContext;
+
+
     private Func<SKCanvas> _getSkCanvas = default!;
 
     private C64SkiaPaint _c64SkiaPaint = default!;
@@ -53,74 +58,67 @@ public class C64SkiaRenderer : IRenderer<C64, SkiaRenderContext>
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
+
+
     private const string StatsCategory = "SkiaSharp-Custom";
     private ElapsedMillisecondsTimedStatSystem _borderStat;
     private ElapsedMillisecondsTimedStatSystem _backgroundStat;
     private ElapsedMillisecondsTimedStatSystem _textScreenStat;
     private ElapsedMillisecondsTimedStatSystem _spritesStat;
 
-    public C64SkiaRenderer()
+    public C64SkiaRenderer(C64 c64, SkiaRenderContext skiaRenderContext)
     {
+        _c64 = c64;
+        _skiaRenderContext = skiaRenderContext;
     }
 
-    public void Init(C64 c64, SkiaRenderContext skiaRenderContext)
+    public void Init()
     {
         _charGen = new CharGen();
-        _spriteImages = new SKImage[c64.Vic2.SpriteManager.NumberOfSprites];
+        _spriteImages = new SKImage[_c64.Vic2.SpriteManager.NumberOfSprites];
 
-        _getSkCanvas = skiaRenderContext.GetCanvas;
+        _getSkCanvas = _skiaRenderContext.GetCanvas;
 
-        _c64SkiaPaint = new C64SkiaPaint(c64.ColorMapName);
+        _c64SkiaPaint = new C64SkiaPaint(_c64.ColorMapName);
 
-        InitCharset(c64);
+        InitCharset(_c64);
 
-        _backgroundStat = Instrumentations.Add($"{StatsCategory}-Background", new ElapsedMillisecondsTimedStatSystem(c64));
-        _borderStat = Instrumentations.Add($"{StatsCategory}-Border", new ElapsedMillisecondsTimedStatSystem(c64));
-        _spritesStat = Instrumentations.Add($"{StatsCategory}-Sprites", new ElapsedMillisecondsTimedStatSystem(c64));
-        _textScreenStat = Instrumentations.Add($"{StatsCategory}-TextScreen", new ElapsedMillisecondsTimedStatSystem(c64));
-    }
-
-    public void Init(ISystem system, IRenderContext renderContext)
-    {
-        Init((C64)system, (SkiaRenderContext)renderContext);
+        _backgroundStat = Instrumentations.Add($"{StatsCategory}-Background", new ElapsedMillisecondsTimedStatSystem(_c64));
+        _borderStat = Instrumentations.Add($"{StatsCategory}-Border", new ElapsedMillisecondsTimedStatSystem(_c64));
+        _spritesStat = Instrumentations.Add($"{StatsCategory}-Sprites", new ElapsedMillisecondsTimedStatSystem(_c64));
+        _textScreenStat = Instrumentations.Add($"{StatsCategory}-TextScreen", new ElapsedMillisecondsTimedStatSystem(_c64));
     }
 
     public void Cleanup()
     {
     }
 
-    public void Draw(C64 c64)
+    public void DrawFrame()
     {
         var canvas = _getSkCanvas();
         canvas.Clear();
 
         _backgroundStat.Start();
-        DrawRasterLinesBackground(c64, canvas);
+        DrawRasterLinesBackground(_c64, canvas);
         _backgroundStat.Stop();
 
         _spritesStat.Start();
-        RenderSprites(c64, canvas, spritesWithPriorityOverForeground: false);
+        RenderSprites(_c64, canvas, spritesWithPriorityOverForeground: false);
         _spritesStat.Stop();
 
         _textScreenStat.Start();
-        RenderMainScreen(c64, canvas);
+        RenderMainScreen(_c64, canvas);
         _textScreenStat.Stop();
 
         _borderStat.Start();
-        DrawRasterLinesBorder(c64, canvas);
+        DrawRasterLinesBorder(_c64, canvas);
         _borderStat.Stop();
 
         _spritesStat.Start(cont: true);
-        RenderSprites(c64, canvas, spritesWithPriorityOverForeground: true);
+        RenderSprites(_c64, canvas, spritesWithPriorityOverForeground: true);
         _spritesStat.Stop(cont: true);
 
     }
-
-    public void Draw(ISystem system)
-    {
-        Draw((C64)system);
-    }
-
 
     private void InitCharset(C64 c64)
     {

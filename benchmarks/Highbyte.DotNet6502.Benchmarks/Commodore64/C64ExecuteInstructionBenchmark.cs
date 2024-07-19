@@ -49,12 +49,8 @@ public class C64ExecuteInstructionBenchmark
         LoadProgram(_c64WithInstrumentation.Mem, _startAddress);
         LoadProgram(_c64WithoutInstrumentation.Mem, _startAddress);
 
-        var systemRunnerBuilderWithInstrumentation = new SystemRunnerBuilder<C64, NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>(_c64WithInstrumentation);
-        _systemRunnerWithInstrumentation = systemRunnerBuilderWithInstrumentation.Build();
-
-        var systemRunnerBuilderWithoutInstrumentation = new SystemRunnerBuilder<C64, NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>(_c64WithoutInstrumentation);
-        _systemRunnerWithoutInstrumentation = systemRunnerBuilderWithoutInstrumentation.Build();
-
+        _systemRunnerWithInstrumentation = new SystemRunner(_c64WithInstrumentation);
+        _systemRunnerWithoutInstrumentation = new SystemRunner(_c64WithoutInstrumentation);
     }
 
     private void LoadProgram(Memory mem, ushort startAddress)

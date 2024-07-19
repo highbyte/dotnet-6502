@@ -8,10 +8,11 @@ Current capabilities
 - Run Commodore Basic 2.0 from ROM (user supplied Kernal, Basic, and Chargen ROM files) in text mode.
 - Limited VIC2 video chip support 
     - Standard, extended and multi-color character modes
-    - Standard and multi-color bitmap mode _(native app OpenGL renderer only)_
+    - Standard and multi-color bitmap mode _(newer SkiaRenderer 2/2b in native & WASM, and OpenGL renderer in native only)
     - Sprites (hi-res & multi-color)
     - IRQ (raster, sprite collision)
-    - Background and border color possible to change per raster line
+    - Background and border color possible to per raster line
+    - Fine scrolling per raster line (new newer SkiaRenderer 2b in native & WASM only)
 - Limited CIA chip support
     - Keyboard
     - Joystick

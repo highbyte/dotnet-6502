@@ -1,4 +1,3 @@
-using System.Numerics;
 using Highbyte.DotNet6502.Systems;
 using Silk.NET.OpenGL;
 
@@ -21,6 +20,10 @@ public class SilkNetOpenGlRenderContext : IRenderContext
         _gl = window.CreateOpenGL();
         _window = window;
         _drawScale = drawScale;
+    }
+
+    public void Init()
+    {
     }
 
     public void Cleanup()

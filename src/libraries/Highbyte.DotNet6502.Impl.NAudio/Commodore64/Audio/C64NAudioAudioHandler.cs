@@ -8,9 +8,12 @@ using NAudio.Wave.SampleProviders;
 
 namespace Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 
-public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContext>
+public class C64NAudioAudioHandler : IAudioHandler
 {
-    private NAudioAudioHandlerContext? _audioHandlerContext;
+    private readonly C64 _c64;
+    public ISystem System => _c64;
+
+    private readonly NAudioAudioHandlerContext _audioHandlerContext;
 
     private MixingSampleProvider _mixer = default!;
     public MixingSampleProvider Mixer => _mixer;
@@ -31,23 +34,24 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
             {2, new C64NAudioVoiceContext(2) },
             {3, new C64NAudioVoiceContext(3) },
         };
-
     private readonly ILogger _logger;
-
-    public C64NAudioAudioHandler(ILoggerFactory loggerFactory)
-    {
-        _logger = loggerFactory.CreateLogger(typeof(C64NAudioAudioHandler).Name);
-    }
 
     public List<string> GetDebugInfo() => new();
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-
-    public void Init(C64 system, NAudioAudioHandlerContext audioHandlerContext)
+    public C64NAudioAudioHandler(C64 c64, NAudioAudioHandlerContext audioHandlerContext, ILoggerFactory loggerFactory)
     {
+        _c64 = c64;
         _audioHandlerContext = audioHandlerContext;
+        _logger = loggerFactory.CreateLogger(typeof(C64NAudioAudioHandler).Name);
+    }
+
+    public void Init()
+    {
+        // Configure callback method for audio generation after each instruction
+        _c64.SetPostInstructionAudioCallback(AfterInstructionExecuted);
 
         // Setup audio rendering pipeline: Mixer -> SID Volume -> WavePlayer
         var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(44100, 1);
@@ -55,7 +59,9 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
         _sidVolumeControl = new VolumeSampleProvider(_mixer);
 
         // Initialize NAudio WavePlayer with the last entity in the audio rendering pipeline
-        _audioHandlerContext.Init(_sidVolumeControl);
+        _audioHandlerContext.ConfigureWavePlayer(_sidVolumeControl);
+        // Executing StartWavePlayer method will not start producing audio until oscillators are added to the Mixer
+        _audioHandlerContext.StartWavePlayer();
 
         foreach (var key in VoiceContexts.Keys)
         {
@@ -64,19 +70,19 @@ public class C64NAudioAudioHandler : IAudioHandler<C64, NAudioAudioHandlerContex
         }
     }
 
-    public void Init(ISystem system, IAudioHandlerContext audioHandlerContext)
+
+    public void AfterFrame()
     {
-        Init((C64)system, (NAudioAudioHandlerContext)audioHandlerContext);
     }
 
-    public void GenerateAudio(ISystem system)
+    public void Cleanup()
     {
-        GenerateAudio((C64)system);
+        StopPlaying();
     }
 
-    public void GenerateAudio(C64 c64)
+    private void AfterInstructionExecuted(InstructionExecResult instructionExecResult)
     {
-        var sid = c64.Sid;
+        var sid = _c64.Sid;
         if (!sid.InternalSidState.IsAudioChanged)
             return;
 

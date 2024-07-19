@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.Impl.SilkNet.Generic.Input;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Generic.Video;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Microsoft.Extensions.Logging;
@@ -83,23 +84,13 @@ public class GenericComputerSetup : SystemConfigurer<SilkNetRenderContextContain
         SilkNetInputHandlerContext inputHandlerContext,
         NAudioAudioHandlerContext audioHandlerContext)
     {
+        var genericComputer = (GenericComputer)system;
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
 
-        var renderer = new GenericComputerSkiaRenderer(genericComputerConfig.Memory.Screen);
-        var inputHandler = new GenericComputerSilkNetInputHandler(genericComputerConfig.Memory.Input);
-        var audioHandler = new NullAudioHandler();
+        var renderer = new GenericComputerSkiaRenderer(genericComputer, renderContext.SkiaRenderContext, genericComputerConfig.Memory.Screen);
+        var inputHandler = new GenericComputerSilkNetInputHandler(genericComputer, inputHandlerContext, genericComputerConfig.Memory.Input);
+        var audioHandler = new NullAudioHandler(genericComputer);
 
-        var genericComputer = (GenericComputer)system;
-
-        renderer.Init(genericComputer, renderContext.SkiaRenderContext);
-        inputHandler.Init(genericComputer, inputHandlerContext);
-
-        var systemRunnerBuilder = new SystemRunnerBuilder<GenericComputer, SkiaRenderContext, SilkNetInputHandlerContext, NullAudioHandlerContext>(genericComputer);
-        var systemRunner = systemRunnerBuilder
-            .WithRenderer(renderer)
-            .WithInputHandler(inputHandler)
-            .WithAudioHandler(audioHandler)
-            .Build();
-        return systemRunner;
+        return new SystemRunner(genericComputer, renderer, inputHandler, audioHandler);
     }
 }

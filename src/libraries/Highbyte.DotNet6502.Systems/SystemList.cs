@@ -1,6 +1,9 @@
 namespace Highbyte.DotNet6502.Systems;
 
 public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
+    where TRenderContext : IRenderContext
+    where TInputHandlerContext : IInputHandlerContext
+    where TAudioHandlerContext : IAudioHandlerContext
 {
     private Func<TRenderContext>? _getRenderContext;
     private Func<TInputHandlerContext>? _getInputHandlerContext;
@@ -23,6 +26,10 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         Func<TInputHandlerContext> getInputHandlerContext,
         Func<TAudioHandlerContext> getAudioHandlerContext)
     {
+        getRenderContext().Init();
+        getInputHandlerContext().Init();
+        getAudioHandlerContext().Init();
+
         _getRenderContext = getRenderContext;
         _getInputHandlerContext = getInputHandlerContext;
         _getAudioHandlerContext = getAudioHandlerContext;
@@ -126,6 +133,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
         var hostSystemConfig = await _systemConfigurers[systemName].GetHostSystemConfig();
         var systemRunner = _systemConfigurers[systemName].BuildSystemRunner(system, systemConfig, hostSystemConfig, _getRenderContext(), _getInputHandlerContext(), _getAudioHandlerContext());
+        systemRunner.Init();
         return systemRunner;
     }
 

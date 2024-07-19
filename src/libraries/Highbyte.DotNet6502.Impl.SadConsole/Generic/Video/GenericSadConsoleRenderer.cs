@@ -5,46 +5,39 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Generic.Video;
 
-public class GenericSadConsoleRenderer : IRenderer<GenericComputer, SadConsoleRenderContext>
+public class GenericSadConsoleRenderer : IRenderer
 {
-    private SadConsoleRenderContext _sadConsoleRenderContext = default!;
-
+    private readonly GenericComputer _genericComputer;
+    public ISystem System => _genericComputer;
+    private readonly SadConsoleRenderContext _sadConsoleRenderContext;
     private readonly EmulatorScreenConfig _emulatorScreenConfig;
 
     public Instrumentations Instrumentations { get; } = new();
 
-    public GenericSadConsoleRenderer(EmulatorScreenConfig emulatorScreenConfig)
+
+    public GenericSadConsoleRenderer(GenericComputer genericComputer, SadConsoleRenderContext sadConsoleRenderContext, EmulatorScreenConfig emulatorScreenConfig)
     {
+        _genericComputer = genericComputer;
+        _sadConsoleRenderContext = sadConsoleRenderContext;
         _emulatorScreenConfig = emulatorScreenConfig;
     }
 
-    public void Init(GenericComputer genericComputer, SadConsoleRenderContext sadConsoleRenderContext)
+    public void Init()
     {
-        _sadConsoleRenderContext = sadConsoleRenderContext;
-
-        InitEmulatorScreenMemory(genericComputer);
-    }
-
-    public void Init(ISystem system, IRenderContext renderContext)
-    {
-        Init((GenericComputer)system, (SadConsoleRenderContext)renderContext);
+        InitEmulatorScreenMemory(_genericComputer);
     }
 
     public void Cleanup()
     {
     }
 
-    public void Draw(GenericComputer system)
+    public void DrawFrame()
     {
-        RenderMainScreen(system);
+        RenderMainScreen(_genericComputer);
         if (_emulatorScreenConfig.BorderCols > 0 || _emulatorScreenConfig.BorderRows > 0)
-            RenderBorder(system);
+            RenderBorder(_genericComputer);
     }
 
-    public void Draw(ISystem system)
-    {
-        Draw((GenericComputer)system);
-    }
 
     private void RenderMainScreen(GenericComputer system)
     {

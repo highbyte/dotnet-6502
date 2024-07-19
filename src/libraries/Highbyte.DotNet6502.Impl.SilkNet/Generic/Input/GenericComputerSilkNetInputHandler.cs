@@ -5,39 +5,36 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Generic.Input;
 
-public class GenericComputerSilkNetInputHandler : IInputHandler<GenericComputer, SilkNetInputHandlerContext>
+public class GenericComputerSilkNetInputHandler : IInputHandler
 {
+    private readonly GenericComputer _genericComputer;
+    public ISystem System => _genericComputer;
+    private readonly SilkNetInputHandlerContext _inputHandlerContext;
     private readonly EmulatorInputConfig _emulatorInputConfig;
-    private SilkNetInputHandlerContext? _inputHandlerContext;
     public List<string> GetDebugInfo() => new();
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-    public GenericComputerSilkNetInputHandler(EmulatorInputConfig emulatorInputConfig)
+
+    public GenericComputerSilkNetInputHandler(GenericComputer genericComputer, SilkNetInputHandlerContext inputHandlerContext, EmulatorInputConfig emulatorInputConfig)
     {
+        _genericComputer = genericComputer;
+        _inputHandlerContext = inputHandlerContext;
         _emulatorInputConfig = emulatorInputConfig;
     }
 
-    public void Init(GenericComputer system, SilkNetInputHandlerContext inputHandlerContext)
+    public void Init()
     {
-        _inputHandlerContext = inputHandlerContext;
-        _inputHandlerContext.Init();
     }
 
-    public void Init(ISystem system, IInputHandlerContext inputHandlerContext)
+    public void BeforeFrame()
     {
-        Init((GenericComputer)system, (SilkNetInputHandlerContext)inputHandlerContext);
+        CaptureKeyboard(_genericComputer);
     }
 
-    public void ProcessInput(GenericComputer genericComputer)
+    public void Cleanup()
     {
-        CaptureKeyboard(genericComputer);
-    }
-
-    public void ProcessInput(ISystem system)
-    {
-        ProcessInput((GenericComputer)system);
     }
 
     private void CaptureKeyboard(GenericComputer genericComputer)
