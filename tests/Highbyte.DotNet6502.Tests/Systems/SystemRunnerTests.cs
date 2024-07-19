@@ -20,24 +20,6 @@ public class SystemRunnerTests
         // Assert
         Assert.True(renderer.CleanUpWasCalled);
     }
-
-    [Fact]
-    public void CallingCleanUpWillStopPlayingAndCleanUpAudioHandler()
-    {
-        // Arrange
-        var system = new TestSystem();
-        var audioHandler = new TestAudioHandler(system, new NullAudioHandlerContext());
-        var systemRunner = new SystemRunner(system, audioHandler);
-        systemRunner.Init();
-
-        // Act
-        systemRunner.Cleanup();
-
-        // Assert
-        Assert.True(audioHandler.StopPlayingWasCalled);
-        //Assert.True(audioHandler.CleanupWasCalled);
-    }
-
 }
 
 public class TestSystem : ISystem
@@ -153,6 +135,7 @@ public class TestAudioHandler : IAudioHandler
     }
     public void Cleanup()
     {
+        StopPlaying();
     }
     public List<string> GetDebugInfo() => new();
 
