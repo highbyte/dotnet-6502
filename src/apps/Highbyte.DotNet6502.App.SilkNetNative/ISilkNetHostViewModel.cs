@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
         public Task Start();
         public void Pause();
         public void Stop();
-        public void Reset();
+        public Task Reset();
 
         public void SetVolumePercent(float volumePercent);
         public float Scale { get; set; }

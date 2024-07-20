@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.App.WASM.Emulator;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
@@ -8,7 +9,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
-namespace Highbyte.DotNet6502.App.WASM.Skia;
+namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
 public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
@@ -77,6 +78,7 @@ public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerCo
         WASMAudioHandlerContext audioHandlerContext
         )
     {
+
         var c64 = (C64)system;
         var c64HostConfig = (C64HostConfig)hostSystemConfig;
 

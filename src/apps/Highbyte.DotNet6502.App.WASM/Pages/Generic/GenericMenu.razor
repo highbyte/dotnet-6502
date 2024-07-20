@@ -1,4 +1,5 @@
-﻿@using Highbyte.DotNet6502.Systems.Generic;
+﻿@using Highbyte.DotNet6502.Systems
+@using Highbyte.DotNet6502.Systems.Generic;
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index;
 
 @if(Parent.Initialized)
@@ -92,7 +93,7 @@
 
         // Load file into memory, assume starting at address specified in two first bytes of .prg file
         BinaryLoader.Load(
-            Parent.WasmHost.SystemRunner.System.Mem,
+            Parent.WasmHost.CurrentRunningSystem!.Mem,
             fileBuffer,
             out ushort loadedAtAddress,
             out ushort fileLength);
@@ -100,7 +101,7 @@
         System.Diagnostics.Debug.WriteLine($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
 
         System.Diagnostics.Debug.WriteLine($"Starting loaded program by changing Program Counter to {loadedAtAddress.ToHex()}");
-        Parent.WasmHost.SystemRunner.System.CPU.PC = loadedAtAddress;
+        Parent.WasmHost.CurrentRunningSystem!.CPU.PC = loadedAtAddress;
 
         await Parent.OnStart(new());
     }
@@ -121,7 +122,7 @@
         var prgBytes = await HttpClient!.GetByteArrayAsync(url);
         // Load file into memory, assume starting at address specified in two first bytes of .prg file
         BinaryLoader.Load(
-            Parent.WasmHost.SystemRunner.System.Mem,
+            Parent.WasmHost.CurrentRunningSystem!.Mem,
             prgBytes,
             out ushort loadedAtAddress,
             out ushort fileLength);
@@ -129,7 +130,7 @@
         System.Diagnostics.Debug.WriteLine($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
 
         System.Diagnostics.Debug.WriteLine($"Starting loaded program by changing Program Counter to {loadedAtAddress.ToHex()}");
-        Parent.WasmHost.SystemRunner.System.CPU.PC = loadedAtAddress;
+        Parent.WasmHost.CurrentRunningSystem!.CPU.PC = loadedAtAddress;
 
         await Parent.OnStart(new());
     }

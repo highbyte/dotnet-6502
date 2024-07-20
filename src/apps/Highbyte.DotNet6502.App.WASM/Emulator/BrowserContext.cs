@@ -1,6 +1,6 @@
 using Blazored.LocalStorage;
 
-namespace Highbyte.DotNet6502.App.WASM.Skia;
+namespace Highbyte.DotNet6502.App.WASM.Emulator;
 
 public class BrowserContext
 {

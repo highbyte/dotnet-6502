@@ -114,6 +114,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         if (!shouldStart)
             return;
 
+        var emulatorStateBeforeStart = EmulatorState;
         // Only create a new instance of SystemRunner if we previously has not started (so resume after pause works).
         if (EmulatorState == EmulatorState.Uninitialized)
             _systemRunner = _systemList.BuildSystemRunner(_selectedSystemName).Result;
@@ -122,13 +123,13 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
         _systemRunner.AudioHandler.StartPlaying();
 
-        OnAfterStart();
+        OnAfterStart(emulatorStateBeforeStart);
 
         EmulatorState = EmulatorState.Running;
         _logger.LogInformation($"System started: {_selectedSystemName}");
 
     }
-    public virtual void OnAfterStart() { }
+    public virtual void OnAfterStart(EmulatorState emulatorStateBeforeStart) { }
 
     public void Pause()
     {
@@ -150,6 +151,8 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         if (EmulatorState == EmulatorState.Running)
             Pause();
 
+        _systemRunner!.AudioHandler.StopPlaying();
+
         // Cleanup systemrunner (which also cleanup renderer, inputhandler, and audiohandler)
         _systemRunner!.Cleanup();
         _systemRunner = default!;
@@ -161,13 +164,13 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     }
     public virtual void OnAfterStop() { }
 
-    public void Reset()
+    public async Task Reset()
     {
         if (EmulatorState == EmulatorState.Uninitialized)
             return;
 
         Stop();
-        Start();
+        await Start();
     }
 
     public void Close()
@@ -239,6 +242,16 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     {
         return await _systemList.IsValidConfig(_selectedSystemName);
     }
+    public async Task<(bool, List<string> validationErrors)> IsValidConfigWithDetails()
+    {
+        return await _systemList.IsValidConfigWithDetails(_selectedSystemName);
+    }
+
+    public async Task<ISystem> GetSelectedSystem()
+    {
+        return await _systemList.GetSystem(_selectedSystemName);
+    }
+
     public async Task<ISystemConfig> GetSystemConfig()
     {
         return await _systemList.GetCurrentSystemConfig(_selectedSystemName);
@@ -252,6 +265,12 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     {
         _systemList.ChangeCurrentSystemConfig(_selectedSystemName, newConfig);
     }
+
+    public async Task PersistNewSystemConfig(ISystemConfig newConfig)
+    {
+        await _systemList.PersistNewSystemConfig(_selectedSystemName, newConfig);
+    }
+
 
     private void InitInstrumentation(ISystem system)
     {

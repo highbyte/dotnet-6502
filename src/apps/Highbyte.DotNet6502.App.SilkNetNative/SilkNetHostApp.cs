@@ -3,7 +3,6 @@ using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
@@ -31,9 +30,9 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
         // --------------------
         // Other variables / constants
         // --------------------
-        private SilkNetRenderContextContainer _silkNetRenderContextContainer = default!;
-        private SilkNetInputHandlerContext _silkNetInputHandlerContext = default!;
-        private NAudioAudioHandlerContext _naudioAudioHandlerContext = default!;
+        private SilkNetRenderContextContainer _renderContextContainer = default!;
+        private SilkNetInputHandlerContext _inputHandlerContext = default!;
+        private NAudioAudioHandlerContext _audioHandlerContext = default!;
 
         public float CanvasScale
         {
@@ -127,7 +126,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
             InitInputContext();
             InitAudioContext();
 
-            base.InitContexts(() => _silkNetRenderContextContainer, () => _silkNetInputHandlerContext, () => _naudioAudioHandlerContext);
+            base.InitContexts(() => _renderContextContainer, () => _inputHandlerContext, () => _audioHandlerContext);
 
             InitImGui();
 
@@ -168,10 +167,11 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
             return true;
         }
 
-        public override void OnAfterStart()
+        public override void OnAfterStart(EmulatorState emulatorStateBeforeStart)
         {
-            _monitor.Init(CurrentSystemRunner!);
-            CurrentSystemRunner!.AudioHandler.StartPlaying();
+            // Init monitor for current system started if this system was not started before
+            if (emulatorStateBeforeStart == EmulatorState.Uninitialized)
+                _monitor.Init(CurrentSystemRunner!);
         }
 
         public override void OnAfterClose()
@@ -182,9 +182,9 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
             DestroyImGuiController();
 
             // Cleanup contexts
-            _silkNetRenderContextContainer?.Cleanup();
-            _silkNetInputHandlerContext?.Cleanup();
-            _naudioAudioHandlerContext?.Cleanup();
+            _renderContextContainer?.Cleanup();
+            _inputHandlerContext?.Cleanup();
+            _audioHandlerContext?.Cleanup();
 
         }
 
@@ -208,7 +208,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
             if (_monitor.Visible)
                 return;
             // Don't update emulator state when app is quiting
-            if (_silkNetInputHandlerContext.Quit || _monitor.Quit)
+            if (_inputHandlerContext.Quit || _monitor.Quit)
             {
                 _window.Close();
                 return;
@@ -230,9 +230,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
 
 
         /// <summary>
-        /// Runs on every Render Frame event.
-        /// 
-        /// Use this method to render the world.
+        /// Runs on every Render Frame event. Draws one emulator frame on screen.
         /// 
         /// This method is called at a RenderFrequency set in the GameWindowSettings object.
         /// </summary>
@@ -247,6 +245,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
             // Draw emulator on screen
             base.DrawFrame();
         }
+
         public override void OnBeforeDrawFrame(bool emulatorWillBeRendered)
         {
             // If any ImGui window is visible, make sure to clear Gl buffer before rendering emulator
@@ -261,7 +260,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
             if (emulatorRendered)
             {
                 // Flush the SkiaSharp Context
-                _silkNetRenderContextContainer.SkiaRenderContext.GetGRContext().Flush();
+                _renderContextContainer.SkiaRenderContext.GetGRContext().Flush();
 
                 // Render monitor if enabled and emulator was rendered
                 if (_monitor.Visible)
@@ -282,9 +281,9 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
                 if (_menu.Visible)
                     _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
                 // Seems the canvas has to be drawn & flushed for ImGui stuff to be visible on top
-                var canvas = _silkNetRenderContextContainer.SkiaRenderContext.GetCanvas();
+                var canvas = _renderContextContainer.SkiaRenderContext.GetCanvas();
                 canvas.Clear();
-                _silkNetRenderContextContainer.SkiaRenderContext.GetGRContext().Flush();
+                _renderContextContainer.SkiaRenderContext.GetGRContext().Flush();
             }
 
             if (_menu.Visible)
@@ -301,7 +300,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
 
         private void InitRenderContext()
         {
-            _silkNetRenderContextContainer?.Cleanup();
+            _renderContextContainer?.Cleanup();
 
             // Init SkipSharp resources (must be done in OnLoad, otherwise no OpenGL context will exist create by SilkNet.)
             //_skiaRenderContext = new SkiaRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
@@ -319,12 +318,12 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
 
             var silkNetOpenGlRenderContext = new SilkNetOpenGlRenderContext(_window, _emulatorConfig.CurrentDrawScale);
 
-            _silkNetRenderContextContainer = new SilkNetRenderContextContainer(skiaRenderContext, silkNetOpenGlRenderContext);
+            _renderContextContainer = new SilkNetRenderContextContainer(skiaRenderContext, silkNetOpenGlRenderContext);
         }
 
         private void InitInputContext()
         {
-            _silkNetInputHandlerContext = new SilkNetInputHandlerContext(_window, _loggerFactory);
+            _inputHandlerContext = new SilkNetInputHandlerContext(_window, _loggerFactory);
 
             _inputContext = _window.CreateInput();
             // Listen to key to enable monitor
@@ -352,7 +351,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
                 DesiredLatency = 40
             };
 
-            _naudioAudioHandlerContext = new NAudioAudioHandlerContext(
+            _audioHandlerContext = new NAudioAudioHandlerContext(
                 wavePlayer,
                 initialVolumePercent: 20);
         }
@@ -360,7 +359,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
         public void SetVolumePercent(float volumePercent)
         {
             _defaultAudioVolumePercent = volumePercent;
-            _naudioAudioHandlerContext.SetMasterVolumePercent(masterVolumePercent: volumePercent);
+            _audioHandlerContext.SetMasterVolumePercent(masterVolumePercent: volumePercent);
         }
 
         private void SetUninitializedWindow()
@@ -384,7 +383,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
         {
             // Init Monitor ImGui resources 
             var monitor = new SilkNetImGuiMonitor(monitorConfig);
-            monitor.MonitorStateChange += (s, monitorEnabled) => _silkNetInputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
+            monitor.MonitorStateChange += (s, monitorEnabled) => _inputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
             monitor.MonitorStateChange += (s, monitorEnabled) =>
             {
                 if (monitorEnabled)

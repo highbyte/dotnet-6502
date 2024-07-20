@@ -21,8 +21,8 @@
                 <div>
                     System:
                     @* <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled autofocus> *@
-                    <select value="@_selectedSystemName" @onchange="OnSelectedEmulatorChanged" disabled=@OnSelectSystemNameDisabled autofocus>
-                        @foreach (var systemName in _systemList.Systems)
+                    <select value="@_wasmHost.SelectedSystemName" @onchange="OnSelectedEmulatorChanged" disabled=@OnSelectSystemNameDisabled autofocus>
+                        @foreach (var systemName in _wasmHost.AvailableSystemNames)
                         {
                             <option value="@systemName"> @systemName </option>
                         }
@@ -54,7 +54,7 @@
             </div>
 
             <div class="command-panel">
-                <h4>@_selectedSystemName</h4>
+                <h4>@_wasmHost.SelectedSystemName</h4>
                 <C64Menu Parent=this />
                 <GenericMenu Parent=this />
                 <div class="validation-message">

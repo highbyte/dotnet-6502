@@ -6,8 +6,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet
 {
     public class WASMAudioHandlerContext : IAudioHandlerContext
     {
-        private readonly AudioContextSync _audioContext;
-        public AudioContextSync AudioContext => _audioContext;
+        private readonly Func<AudioContextSync> _getAudioContext;
+        public AudioContextSync AudioContext => _getAudioContext();
 
         private readonly IJSRuntime _jsRuntime;
         private readonly float _initialVolumePercent;
@@ -18,12 +18,12 @@ namespace Highbyte.DotNet6502.Impl.AspNet
         internal GainNodeSync MasterVolumeGainNode => _masterVolumeGainNode;
 
         public WASMAudioHandlerContext(
-            AudioContextSync audioContext,
+            Func<AudioContextSync> getAudioContext,
             IJSRuntime jsRuntime,
             float initialVolumePercent
             )
         {
-            _audioContext = audioContext;
+            _getAudioContext = getAudioContext;
             _jsRuntime = jsRuntime;
             _initialVolumePercent = initialVolumePercent;
         }
