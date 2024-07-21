@@ -15,7 +15,7 @@ public class WasmMonitor : MonitorBase
 
     private bool _hasBeenInitializedOnce = false;
     private readonly IJSRuntime _jsRuntime;
-    private readonly Func<bool, Task> _setMonitorState;
+    private readonly IWASMHostUIViewModel _wasmHostUIViewModel;
 
     private ushort? _lastTriggeredLoadBinaryForceLoadAddress = null;
     private Action<MonitorBase, ushort, ushort>? _lastTriggeredAfterLoadCallback = null;
@@ -24,12 +24,12 @@ public class WasmMonitor : MonitorBase
         IJSRuntime jsRuntime,
         SystemRunner systemRunner,
         EmulatorConfig emulatorConfig,
-        Func<bool, Task> setMonitorState
+        IWASMHostUIViewModel wasmHostUIViewModel
 
         ) : base(systemRunner, emulatorConfig.Monitor)
     {
         _jsRuntime = jsRuntime;
-        _setMonitorState = setMonitorState;
+        _wasmHostUIViewModel = wasmHostUIViewModel;
     }
 
     public void Enable(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
@@ -52,13 +52,13 @@ public class WasmMonitor : MonitorBase
         DisplayStatus();
 
         Visible = true;
-        _setMonitorState(true);
+        _wasmHostUIViewModel.SetMonitorState(true);
     }
 
     public void Disable()
     {
         Visible = false;
-        _setMonitorState(false);
+        _wasmHostUIViewModel.SetMonitorState(false);
     }
 
     public void OnKeyDown(KeyboardEventArgs e)

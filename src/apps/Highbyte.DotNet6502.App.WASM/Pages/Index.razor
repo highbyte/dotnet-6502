@@ -20,13 +20,21 @@
             <div id="system-selector" class="command-panel">
                 <div>
                     System:
-                    @* <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled autofocus> *@
-                    <select value="@_wasmHost.SelectedSystemName" @onchange="OnSelectedEmulatorChanged" disabled=@OnSelectSystemNameDisabled autofocus>
+@*                     <select value="@this._selectedSystemName" @onchange="OnSelectedEmulatorChanged" disabled=@OnSelectSystemNameDisabled autofocus>
                         @foreach (var systemName in _wasmHost.AvailableSystemNames)
                         {
-                            <option value="@systemName"> @systemName </option>
+                            <option value="@systemName">@systemName</option>
                         }
                     </select>
+
+ *@
+                    <InputSelect TValue="string" @bind-Value:get="this._wasmHost.SelectedSystemName" @bind-Value:set="this.SelectSystem" disabled=@OnSelectSystemNameDisabled autofocus>
+                        @foreach (var systemName in _wasmHost.AvailableSystemNames)
+                        {
+                            <option value="@systemName">@systemName</option>
+                        }
+                    </InputSelect>
+
                 </div>
                 <div>
                     Status: @(CurrentEmulatorState)
@@ -125,7 +133,7 @@
 
         </div>
         <div class="right">
-            <div class="infobox debugStyle">
+            <div class="infobox statsStyle">
                 <div class="infobox-output">
                     @(
                         (MarkupString)_statsString
@@ -185,6 +193,10 @@
             display: @GetDisplayStyle("CanvasUninitialized");
             width: 806px;
             height: 320px;
+        }
+
+        .statsStyle {
+            display: @GetDisplayStyle("Stats");
         }
 
         .debugStyle {

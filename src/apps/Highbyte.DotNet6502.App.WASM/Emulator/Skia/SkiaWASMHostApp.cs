@@ -18,6 +18,7 @@ namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia
         private readonly Func<SKCanvas> _getCanvas;
         private readonly Func<GRContext> _getGrContext;
         private readonly Func<AudioContextSync> _getAudioContext;
+        private readonly GamepadList _gamepadList;
 
         public EmulatorConfig EmulatorConfig => _emulatorConfig;
 
@@ -38,11 +39,8 @@ namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia
         private WasmMonitor _monitor = default!;
         public WasmMonitor Monitor => _monitor;
 
-        // Delegates for changing the state of Stats, Debug, and Monitor UI panels
-        private readonly Action<string> _updateStats;
-        private readonly Action<string> _updateDebug;
-        private readonly Func<bool, Task> _setMonitorState;
-        private readonly Func<Task> _toggleDebugStatsState;
+        // Operations to update UI
+        private readonly IWASMHostUIViewModel _wasmHostUIViewModel;
 
         private const int STATS_EVERY_X_FRAME = 60 * 1;
         private int _statsFrameCount = 0;
@@ -50,22 +48,17 @@ namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia
         private const int DEBUGMESSAGE_EVERY_X_FRAME = 1;
         private int _debugFrameCount = 0;
 
-        public bool Initialized { get; private set; } = false;
-
-
         public SkiaWASMHostApp(
             SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> systemList,
             ILoggerFactory loggerFactory,
             EmulatorConfig emulatorConfig,
 
-
             Func<SKCanvas> getCanvas,
             Func<GRContext> getGrContext,
             Func<AudioContextSync> getAudioContext,
-            Action<string> updateStats,
-            Action<string> updateDebug,
-            Func<bool, Task> setMonitorState,
-            Func<Task> toggleDebugStatsState
+            GamepadList gamepadList,
+            IJSRuntime jsRuntime,
+            IWASMHostUIViewModel wasmHostUIViewModel
             ) : base("SilkNet", systemList, emulatorConfig.HostSystemConfigs, loggerFactory)
         {
             _loggerFactory = loggerFactory;
@@ -76,31 +69,19 @@ namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia
             _getCanvas = getCanvas;
             _getGrContext = getGrContext;
             _getAudioContext = getAudioContext;
-
-            _updateStats = updateStats;
-            _updateDebug = updateDebug;
-            _setMonitorState = setMonitorState;
-            _toggleDebugStatsState = toggleDebugStatsState;
+            _gamepadList = gamepadList;
+            _jsRuntime = jsRuntime;
+            _wasmHostUIViewModel = wasmHostUIViewModel;
 
             _defaultAudioEnabled = false;
             _defaultAudioVolumePercent = 20.0f;
-        }
 
-        /// <summary>
-        /// Call Init once from Blazor SKGLView "OnAfterRenderAsync" event.
-        /// </summary>
-        public void Init(GamepadList gamepadList, IJSRuntime jsRuntime)
-        {
-            if (Initialized)
-                throw new InvalidOperationException("Init can only be called once.");
 
             _renderContext = new SkiaRenderContext(_getCanvas, _getGrContext);
-            _inputHandlerContext = new AspNetInputHandlerContext(_loggerFactory, gamepadList);
-            _audioHandlerContext = new WASMAudioHandlerContext(_getAudioContext, jsRuntime, _defaultAudioVolumePercent);
+            _inputHandlerContext = new AspNetInputHandlerContext(_loggerFactory, _gamepadList);
+            _audioHandlerContext = new WASMAudioHandlerContext(_getAudioContext, _jsRuntime, _defaultAudioVolumePercent);
 
-            base.InitContexts(() => _renderContext, () => _inputHandlerContext, () => _audioHandlerContext);
-
-            Initialized = true;
+            base.SetContexts(getRenderContext: () => _renderContext, getInputHandlerContext: () => _inputHandlerContext, getAudioHandlerContext: () => _audioHandlerContext);
         }
 
         public override void OnAfterSelectSystem()
@@ -114,26 +95,32 @@ namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia
 
         public override void OnAfterStart(EmulatorState emulatorStateBeforeStart)
         {
-            // Setup and start timer for current system started
-            if (_updateTimer != null)
+            // Create timer for current system on initial start. Assume Stop() sets _updateTimer to null.
+            if (_updateTimer == null)
             {
-                _updateTimer.Stop();
-                _updateTimer.Dispose();
+                _updateTimer = CreateUpdateTimerForSystem(CurrentSystemRunner!.System);
             }
-            _updateTimer = CreateUpdateTimerForSystem(CurrentSystemRunner!.System);
             _updateTimer!.Start();
 
             // Init monitor for current system started if this system was not started before
             if (emulatorStateBeforeStart == EmulatorState.Uninitialized)
-                _monitor = new WasmMonitor(_jsRuntime, CurrentSystemRunner, _emulatorConfig, _setMonitorState);
+                _monitor = new WasmMonitor(_jsRuntime, CurrentSystemRunner!, _emulatorConfig, _wasmHostUIViewModel);
+        }
+
+        public override void OnAfterPause()
+        {
+            _updateTimer!.Stop();
         }
 
         public override void OnAfterStop()
         {
-            // TODO: Disable debug window?
-            //_debugVisible = false;
-
+            _wasmHostUIViewModel.SetDebugState(visible: false);
+            _wasmHostUIViewModel.SetStatsState(visible: false);
             _monitor.Disable();
+
+            _updateTimer!.Stop();
+            _updateTimer!.Dispose();
+            _updateTimer = null;
         }
 
         public override void OnAfterClose()
@@ -177,7 +164,7 @@ namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia
             {
                 _debugFrameCount = 0;
                 var debugString = GetDebugMessagesHtmlString();
-                _updateDebug(debugString);
+                _wasmHostUIViewModel.UpdateDebug(debugString);
             }
 
             // Push stats to stats UI
@@ -187,7 +174,7 @@ namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia
                 if (_statsFrameCount >= STATS_EVERY_X_FRAME)
                 {
                     _statsFrameCount = 0;
-                    _updateStats(GetStatsHtmlString());
+                    _wasmHostUIViewModel.UpdateStats(GetStatsHtmlString());
                 }
             }
 
@@ -285,15 +272,15 @@ namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia
         /// <param name="e"></param>
         public void OnKeyDown(KeyboardEventArgs e)
         {
-            // Send key press to emulator
+            // Send event to emulator
             _inputHandlerContext.KeyDown(e);
 
             // Check for other emulator functions
             var key = e.Key;
             if (key == "F11")
             {
-                _toggleDebugStatsState();
-
+                _wasmHostUIViewModel.ToggleDebugState();
+                _wasmHostUIViewModel.ToggleStatsState();
             }
             else if (key == "F12")
             {
@@ -308,20 +295,8 @@ namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia
         /// <param name="e"></param>
         public void OnKeyUp(KeyboardEventArgs e)
         {
-            // Send key press to emulator
+            // Send event to emulator
             _inputHandlerContext.KeyUp(e);
-
-            // Check for other emulator functions
-            var key = e.Key;
-            if (key == "F11")
-            {
-                _toggleDebugStatsState();
-
-            }
-            else if (key == "F12")
-            {
-                ToggleMonitor();
-            }
         }
 
         /// <summary>

@@ -11,6 +11,8 @@ namespace Highbyte.DotNet6502.Impl.NAudio
 
         private float _initialVolumePercent;
 
+        public bool IsInitialized { get; private set; }
+
         public NAudioAudioHandlerContext(
             IWavePlayer wavePlayer,
             float initialVolumePercent
@@ -22,6 +24,7 @@ namespace Highbyte.DotNet6502.Impl.NAudio
 
         public void Init()
         {
+            IsInitialized = true;
         }
 
         public void ConfigureWavePlayer(ISampleProvider sampleProvider)

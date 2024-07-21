@@ -15,10 +15,11 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.WebUtilities;
 using Toolbelt.Blazor.Gamepad;
+using Highbyte.DotNet6502.Systems.Generic;
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
 
-public partial class Index
+public partial class Index : IWASMHostUIViewModel
 {
     //private string Version => typeof(Program).Assembly.GetName().Version!.ToString();
     private string Version => Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
@@ -104,10 +105,11 @@ public partial class Index
     private string _windowHeightStyle = "0px";
 
     private bool _debugVisible = false;
+    private bool _statsVisible = false;
     private bool _monitorVisible = false;
 
     [Inject]
-    public IJSRuntime? Js { get; set; }
+    public IJSRuntime Js { get; set; } = default!;
 
     [Inject]
     public HttpClient HttpClient { get; set; } = default!;
@@ -171,8 +173,8 @@ public partial class Index
             },
             HostSystemConfigs = new Dictionary<string, IHostSystemConfig>
             {
-                { C64.SystemName, c64HostConfig }
-                //{ GenericComputer.SystemName, new GenericComputerHostConfig() }
+                { C64.SystemName, c64HostConfig },
+                { GenericComputer.SystemName, new GenericComputerHostConfig() }
             }
         };
         _emulatorConfig.Validate(systemList);
@@ -185,12 +187,11 @@ public partial class Index
             () => _canvas,
             () => _grContext,
             () => _audioContext,
-            UpdateStats,
-            UpdateDebug,
-            SetMonitorState,
-            ToggleDebugStatsState);
+            GamepadList,
+            Js,
+            this);
 
-        _wasmHost.Init(GamepadList, Js!);
+        _wasmHost.InitInputHandlerContext();
 
         // Set the default system
         await SelectSystem(_emulatorConfig.DefaultEmulator);
@@ -206,7 +207,6 @@ public partial class Index
             }
         );
         _mapper = mapperConfiguration.CreateMapper();
-
 
         Initialized = true;
     }
@@ -233,30 +233,22 @@ public partial class Index
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && !_wasmHost.IsAudioHandlerContextInitialized)
         {
             _audioContext = await AudioContextSync.CreateAsync(Js!);
+            _wasmHost.InitAudioHandlerContext();
         }
-    }
-
-    //protected override async void OnAfterRender(bool firstRender)
-    //{
-    //    if (firstRender)
-    //    {
-    //        //await FocusEmulator();
-    //    }
-    //}
-
-    private async Task OnSelectedEmulatorChanged(ChangeEventArgs e)
-    {
-        var systemName = e.Value?.ToString() ?? "";
-        if (systemName != "")
-            await SelectSystem(systemName);
     }
 
     private async Task SelectSystem(string systemName)
     {
+        //Initialized = false;
+        //this.StateHasChanged();
+
         _wasmHost.SelectSystem(systemName);
+
+        _currentHostSystemConfig = _wasmHost.GetHostSystemConfig();
+        _currentSystemConfig = await _wasmHost.GetSystemConfig();
 
         (bool isOk, List<string> validationErrors) = await _wasmHost.IsValidConfigWithDetails();
 
@@ -265,14 +257,13 @@ public partial class Index
         else
             _selectedSystemConfigValidationMessage = "";
 
-        _currentSystemConfig = await _wasmHost.GetSystemConfig();
-        _currentHostSystemConfig = _wasmHost.GetHostSystemConfig();
+        await UpdateCanvasSize();
 
-        UpdateCanvasSize();
+        //Initialized = true;
         this.StateHasChanged();
     }
 
-    private async void UpdateCanvasSize()
+    private async Task UpdateCanvasSize()
     {
         bool isOk = await _wasmHost.IsSystemConfigValid();
         if (!isOk)
@@ -292,26 +283,28 @@ public partial class Index
         this.StateHasChanged();
     }
 
-    protected async void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
+    protected void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
     {
         if (CurrentEmulatorState != EmulatorState.Running)
             return;
 
-        if (!(e.Surface.Context is GRContext grContext && grContext != null))
-            return;
+        // Assume e.Surface.Canvas is not null and type GRContext
+        var grContext = e.Surface.Context as GRContext;
 
-        if (_wasmHost == null)
-            return;
-
-        _canvas = e.Surface.Canvas;
-        _grContext = grContext;
-
-        //_emulatorRenderer.SetSize(e.Info.Width, e.Info.Height);
-        //if (e.Surface.Context is GRContext context && context != null)
-        //{
-        //    // If we draw our own images (not directly on the canvas provided), make sure it's within the same contxt
-        //    _emulatorRenderer.SetContext(context);
-        //}
+        if (_canvas != e.Surface.Canvas || _grContext != grContext)
+        {
+            if (_grContext != grContext)
+            {
+                _grContext?.Dispose();
+                _grContext = grContext!;
+            }
+            if (_canvas != e.Surface.Canvas)
+            {
+                _canvas?.Dispose();
+                _canvas = e.Surface.Canvas;
+            }
+            _wasmHost.InitRenderContext();
+        }
 
         _wasmHost.Render();
     }
@@ -376,7 +369,7 @@ public partial class Index
             _selectedSystemConfigValidationMessage = string.Join(",", validationErrors);
         }
 
-        UpdateCanvasSize();
+        await UpdateCanvasSize();
         this.StateHasChanged();
     }
 
@@ -409,28 +402,46 @@ public partial class Index
         }
     }
 
-    private void UpdateStats(string stats)
+
+    public async Task SetDebugState(bool visible)
     {
-        _statsString = stats;
+        _debugVisible = visible;
+        await FocusEmulator();
         this.StateHasChanged();
     }
-
-    private void UpdateDebug(string debug)
+    public async Task ToggleDebugState()
+    {
+        _debugVisible = !_debugVisible;
+        await FocusEmulator();
+        this.StateHasChanged();
+    }
+    public void UpdateDebug(string debug)
     {
         _debugString = debug;
         this.StateHasChanged();
     }
 
-    private async Task ToggleDebugStatsState()
+    public async Task SetStatsState(bool visible)
     {
-        _debugVisible = !_debugVisible;
-        // Assume to only run when emulator is running
-        _wasmHost.CurrentRunningSystem!.InstrumentationEnabled = _debugVisible;
+        _statsVisible = visible;
         await FocusEmulator();
         this.StateHasChanged();
     }
+    public async Task ToggleStatsState()
+    {
+        _statsVisible = !_statsVisible;
+        // Assume to only run when emulator is running
+        _wasmHost.CurrentRunningSystem!.InstrumentationEnabled = _statsVisible;
+        await FocusEmulator();
+        this.StateHasChanged();
+    }
+    public void UpdateStats(string stats)
+    {
+        _statsString = stats;
+        this.StateHasChanged();
+    }
 
-    private async Task SetMonitorState(bool visible)
+    public async Task SetMonitorState(bool visible)
     {
         _monitorVisible = visible;
         if (visible)
@@ -511,6 +522,10 @@ public partial class Index
             case "CanvasUninitialized":
             {
                 return CurrentEmulatorState == EmulatorState.Uninitialized ? VISIBLE_BLOCK : HIDDEN;
+            }
+            case "Stats":
+            {
+                return _statsVisible ? VISIBLE : HIDDEN;
             }
             case "Debug":
             {
@@ -593,7 +608,8 @@ public partial class Index
 
     private async Task OnStatsToggle(MouseEventArgs mouseEventArgs)
     {
-        await ToggleDebugStatsState();
+        await ToggleStatsState();
+        await ToggleDebugState();
     }
 
     /// <summary>

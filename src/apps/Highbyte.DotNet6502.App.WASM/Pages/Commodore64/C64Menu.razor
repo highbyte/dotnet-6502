@@ -5,10 +5,9 @@
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index;
 @using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
-@if(Parent.Initialized)
+@if(Parent.Initialized && Parent.WasmHost.SelectedSystemName == SYSTEM_NAME)
 {
-    <div class="system-command systemCommandsStyle">
-
+    <div class="system-command systemCommandsStyle@(SYSTEM_NAME)">
 
         <label for="Joystick">Joystick</label>
         <select value="@_c64HostConfig.InputConfig.CurrentJoystick" @onchange="OnSelectJoystickChanged">
@@ -17,6 +16,7 @@
                 <option value="@joystick"> @joystick </option>
             }
         </select>
+        
         <p></p>
         <label for="JoystickKeyboardEnabled">Joystick Keyboard</label>
         <input id="JoystickKeyboardEnabled" type="checkbox" @bind="@JoystickKeyboardEnabled" />
@@ -59,25 +59,24 @@
         <span>@_latestFileError</span>
     </div>
 
-
-    <div class="system-help systemHelpStyle">
+    <div class="system-help systemHelpStyle@(SYSTEM_NAME)">
     </div>
 
-    <div class="system-config systemConfigStyle">
+    <div class="system-config systemConfigStyle@(SYSTEM_NAME)">
         <button @onclick="ShowConfigUI" disabled=@ShowConfigDisabled>C64 Config</button>
     </div>
 
     <style>
-        .systemCommandsStyle {
-            display: @Parent.GetSystemVisibilityDisplayStyle("Commands", SYSTEM_NAME)
+        .systemCommandsStyle@(SYSTEM_NAME) {
+            display: @Parent.Initialized ? @Parent.GetSystemVisibilityDisplayStyle("Commands", SYSTEM_NAME) : "none"
         }
 
-        .systemHelpStyle {
-            display: @Parent.GetSystemVisibilityDisplayStyle("Help", SYSTEM_NAME)
+        .systemHelpStyle@(SYSTEM_NAME) {
+            display: @Parent.Initialized ? @Parent.GetSystemVisibilityDisplayStyle("Help", SYSTEM_NAME) : "none"
         }
 
-        .systemConfigStyle {
-            display: @Parent.GetSystemVisibilityDisplayStyle("Config", SYSTEM_NAME)
+        .systemConfigStyle@(SYSTEM_NAME) {
+            display: @Parent.Initialized ? @Parent.GetSystemVisibilityDisplayStyle("Config", SYSTEM_NAME) : "none"
         }
     </style>
 }
@@ -90,7 +89,7 @@
 #pragma warning disable CS8669
 } 
 @code {
-@inject IJSRuntime Js
+    @inject IJSRuntime Js
     @inject HttpClient HttpClient
     @inject ILoggerFactory LoggerFactory
 

@@ -6,6 +6,8 @@ public class SadConsoleRenderContext : IRenderContext
     private readonly Func<SadConsoleScreenObject> _getSadConsoleScreen;
     public SadConsoleScreenObject Screen => _getSadConsoleScreen();
 
+    public bool IsInitialized { get; private set; } = false;
+
     public SadConsoleRenderContext(Func<SadConsoleScreenObject> getSadConsoleScreen)
     {
         _getSadConsoleScreen = getSadConsoleScreen;
@@ -13,6 +15,7 @@ public class SadConsoleRenderContext : IRenderContext
 
     public void Init()
     {
+        IsInitialized = true;
     }
 
     public void Cleanup()

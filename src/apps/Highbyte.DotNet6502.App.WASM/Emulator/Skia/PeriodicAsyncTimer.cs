@@ -16,7 +16,7 @@ public class PeriodicAsyncTimer
 
     public void Dispose()
     {
-        throw new NotImplementedException();
+        _cts?.Dispose();
     }
 
     public void Start()

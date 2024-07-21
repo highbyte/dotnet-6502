@@ -126,7 +126,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative
             InitInputContext();
             InitAudioContext();
 
-            base.InitContexts(() => _renderContextContainer, () => _inputHandlerContext, () => _audioHandlerContext);
+            base.SetAndInitContexts(() => _renderContextContainer, () => _inputHandlerContext, () => _audioHandlerContext);
 
             InitImGui();
 

@@ -21,19 +21,59 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     {
     }
 
-    public void InitContext(
-        Func<TRenderContext> getRenderContext,
-        Func<TInputHandlerContext> getInputHandlerContext,
-        Func<TAudioHandlerContext> getAudioHandlerContext)
+    public void SetContext(
+    Func<TRenderContext>? getRenderContext = null,
+    Func<TInputHandlerContext>? getInputHandlerContext = null,
+    Func<TAudioHandlerContext>? getAudioHandlerContext = null)
     {
-        getRenderContext().Init();
-        getInputHandlerContext().Init();
-        getAudioHandlerContext().Init();
-
-        _getRenderContext = getRenderContext;
-        _getInputHandlerContext = getInputHandlerContext;
-        _getAudioHandlerContext = getAudioHandlerContext;
+        if (getRenderContext != null)
+        {
+            if (_getRenderContext != null)
+                throw new DotNet6502Exception("RenderContext has already been set. Call SetContext only once.");
+            _getRenderContext = getRenderContext;
+        }
+        if (getInputHandlerContext != null)
+        {
+            if (_getInputHandlerContext != null)
+                throw new DotNet6502Exception("InputHandlerContext has already been set. Call SetContext only once.");
+            _getInputHandlerContext = getInputHandlerContext;
+        }
+        if (getAudioHandlerContext != null)
+        {
+            if (_getAudioHandlerContext != null)
+                throw new DotNet6502Exception("AudioHandlerContext has already been set. Call SetContext only once.");  
+            _getAudioHandlerContext = getAudioHandlerContext;
+        }
     }
+
+    public void InitRenderContext()
+    {
+        if (_getRenderContext == null)
+            throw new DotNet6502Exception("RenderContext has not been set. Call SetContext first.");
+        if (_getRenderContext().IsInitialized)
+            _getRenderContext().Cleanup();
+        _getRenderContext().Init();
+    }
+    public void InitInputHandlerContext()
+    {
+        if (_getInputHandlerContext == null)
+            throw new DotNet6502Exception("InputHandlerContext has not been set. Call SetContext first.");
+        if (_getInputHandlerContext().IsInitialized)
+            _getInputHandlerContext().Cleanup();
+        _getInputHandlerContext().Init();
+    }
+    public void InitAudioHandlerContext()
+    {
+        if (_getAudioHandlerContext == null)
+            throw new DotNet6502Exception("AudioHandlerContext has not been set. Call SetContext first.");
+        if (_getAudioHandlerContext().IsInitialized)
+            _getAudioHandlerContext().Cleanup();
+        _getAudioHandlerContext().Init();
+    }
+
+    public bool IsRenderContextInitialized => _getRenderContext != null ? _getRenderContext().IsInitialized : false;
+    public bool IsInputHandlerContextInitialized => _getInputHandlerContext != null ? _getInputHandlerContext().IsInitialized : false;
+    public bool IsAudioHandlerContextInitialized => _getAudioHandlerContext != null ? _getAudioHandlerContext().IsInitialized : false;
 
     /// <summary>
     /// Add a system to the list of available systems.

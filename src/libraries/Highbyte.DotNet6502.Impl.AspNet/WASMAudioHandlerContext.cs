@@ -17,6 +17,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet
         private GainNodeSync _masterVolumeGainNode = default!;
         internal GainNodeSync MasterVolumeGainNode => _masterVolumeGainNode;
 
+        public bool IsInitialized { get; private set; }
+
         public WASMAudioHandlerContext(
             Func<AudioContextSync> getAudioContext,
             IJSRuntime jsRuntime,
@@ -35,6 +37,8 @@ namespace Highbyte.DotNet6502.Impl.AspNet
 
             // Set initial master volume %
             SetMasterVolumePercent(_initialVolumePercent);
+
+            IsInitialized = true;
         }
 
         public void Cleanup()

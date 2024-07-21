@@ -73,14 +73,35 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         _hostSystemConfigs = hostSystemConfigs;
     }
 
-    public void InitContexts(
-        Func<TRenderContext> getRenderContext,
-        Func<TInputHandlerContext> getInputHandlerContext,
-        Func<TAudioHandlerContext> getAudioHandlerContext
+    public void SetAndInitContexts(
+        Func<TRenderContext>? getRenderContext = null,
+        Func<TInputHandlerContext>? getInputHandlerContext = null,
+        Func<TAudioHandlerContext>? getAudioHandlerContext = null
         )
     {
-        _systemList.InitContext(getRenderContext, getInputHandlerContext, getAudioHandlerContext);
+        _systemList.SetContext(getRenderContext, getInputHandlerContext, getAudioHandlerContext);
+        _systemList.InitRenderContext();
+        _systemList.InitInputHandlerContext();
+        _systemList.InitAudioHandlerContext();
     }
+
+    public void SetContexts(
+        Func<TRenderContext>? getRenderContext = null,
+        Func<TInputHandlerContext>? getInputHandlerContext = null,
+        Func<TAudioHandlerContext>? getAudioHandlerContext = null
+        )
+    {
+        _systemList.SetContext(getRenderContext, getInputHandlerContext, getAudioHandlerContext);
+    }
+
+    public void InitRenderContext() => _systemList.InitRenderContext();
+    public void InitInputHandlerContext() => _systemList.InitInputHandlerContext();
+    public void InitAudioHandlerContext() => _systemList.InitAudioHandlerContext();
+
+    public bool IsRenderContextInitialized => _systemList.IsRenderContextInitialized;
+    public bool IsInputHandlerContextInitialized => _systemList.IsInputHandlerContextInitialized;
+    public bool IsAudioHandlerContextInitialized => _systemList.IsAudioHandlerContextInitialized;
+
 
     public void SelectSystem(string systemName)
     {
