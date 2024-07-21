@@ -1,48 +1,47 @@
 using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Tests.Systems;
 
-namespace Highbyte.DotNet6502.Tests.Instrumentation
+namespace Highbyte.DotNet6502.Tests.Instrumentation;
+
+public class ElapsedMillisecondsTimedStatSystemTest
 {
-    public class ElapsedMillisecondsTimedStatSystemTest
+    [Fact]
+    public void StartAndStopPerformsMeasurementIfSystemHasInstrumentationEnabled()
     {
-        [Fact]
-        public void StartAndStopPerformsMeasurementIfSystemHasInstrumentationEnabled()
-        {
-            // Arrange
-            var system = new TestSystem { InstrumentationEnabled = true };
+        // Arrange
+        var system = new TestSystem { InstrumentationEnabled = true };
 
-            var stat = new ElapsedMillisecondsTimedStatSystem(system);
+        var stat = new ElapsedMillisecondsTimedStatSystem(system);
 
-            int sleepMs = 2;
-            stat.Start();
-            Thread.Sleep(sleepMs);
-            stat.Stop();
+        int sleepMs = 2;
+        stat.Start();
+        Thread.Sleep(sleepMs);
+        stat.Stop();
 
-            // Act
-            var elapsedMs = stat.GetStatMilliseconds();
+        // Act
+        var elapsedMs = stat.GetStatMilliseconds();
 
-            // Assert
-            Assert.True(elapsedMs >= sleepMs);
-        }
+        // Assert
+        Assert.True(elapsedMs >= sleepMs);
+    }
 
-        [Fact]
-        public void StartAndStopDoesNotPerformMeasurementIfSystemHasInstrumentationDisabled()
-        {
-            // Arrange
-            var system = new TestSystem { InstrumentationEnabled = false };
+    [Fact]
+    public void StartAndStopDoesNotPerformMeasurementIfSystemHasInstrumentationDisabled()
+    {
+        // Arrange
+        var system = new TestSystem { InstrumentationEnabled = false };
 
-            var stat = new ElapsedMillisecondsTimedStatSystem(system);
+        var stat = new ElapsedMillisecondsTimedStatSystem(system);
 
-            int sleepMs = 2;
-            stat.Start();
-            Thread.Sleep(sleepMs);
-            stat.Stop();
+        int sleepMs = 2;
+        stat.Start();
+        Thread.Sleep(sleepMs);
+        stat.Stop();
 
-            // Act
-            var elapsedMs = stat.GetStatMilliseconds();
+        // Act
+        var elapsedMs = stat.GetStatMilliseconds();
 
-            // Assert
-            Assert.Null(elapsedMs);
-        }
+        // Assert
+        Assert.Null(elapsedMs);
     }
 }

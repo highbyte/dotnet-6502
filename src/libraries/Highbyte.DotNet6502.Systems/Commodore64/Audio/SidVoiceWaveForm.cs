@@ -1,11 +1,10 @@
-namespace Highbyte.DotNet6502.Systems.Commodore64.Audio
+namespace Highbyte.DotNet6502.Systems.Commodore64.Audio;
+
+public enum SidVoiceWaveForm
 {
-    public enum SidVoiceWaveForm
-    {
-        None,
-        Triangle,
-        Sawtooth,
-        Pulse,
-        RandomNoise
-    }
+    None,
+    Triangle,
+    Sawtooth,
+    Pulse,
+    RandomNoise
 }
