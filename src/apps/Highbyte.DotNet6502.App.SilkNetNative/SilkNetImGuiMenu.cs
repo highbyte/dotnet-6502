@@ -13,7 +13,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative;
 
 public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 {
-    private readonly ISilkNetHostViewModel _hostViewModel;
+    private readonly ISilkNetHostUIViewModel _hostViewModel;
     private EmulatorState EmulatorState => _hostViewModel.EmulatorState;
 
     public bool Visible { get; private set; } = true;
@@ -49,7 +49,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
     private string _lastFileError = "";
 
-    public SilkNetImGuiMenu(ISilkNetHostViewModel hostViewModel, string defaultSystemName, bool defaultAudioEnabled, float defaultAudioVolumePercent, IMapper mapper, ILoggerFactory loggerFactory)
+    public SilkNetImGuiMenu(ISilkNetHostUIViewModel hostViewModel, string defaultSystemName, bool defaultAudioEnabled, float defaultAudioVolumePercent, IMapper mapper, ILoggerFactory loggerFactory)
     {
         _hostViewModel = hostViewModel;
         _screenScaleString = _hostViewModel.Scale.ToString();

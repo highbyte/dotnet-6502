@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative
 {
-    public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>, ISilkNetHostViewModel
+    public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>, ISilkNetHostUIViewModel
     {
         // --------------------
         // Injected variables

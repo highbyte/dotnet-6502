@@ -2,7 +2,7 @@ using Highbyte.DotNet6502.Systems;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative
 {
-    public interface ISilkNetHostViewModel
+    public interface ISilkNetHostUIViewModel
     {
         public EmulatorState EmulatorState { get; }
         public Task Start();
