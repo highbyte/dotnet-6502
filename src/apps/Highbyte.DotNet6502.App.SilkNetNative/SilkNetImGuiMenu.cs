@@ -196,7 +196,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
             ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
             //ImGui.SetKeyboardFocusHere(0);
             ImGui.PushItemWidth(40);
-            if (systemConfig.AudioSupported)
+            if (systemConfig.AudioSupported && systemConfig.AudioEnabled)
             {
                 if (ImGui.SliderFloat("Volume", ref _audioVolumePercent, 0f, 100f, ""))
                 {

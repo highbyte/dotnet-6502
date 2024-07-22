@@ -30,8 +30,6 @@ public partial class Index
     /// </summary>
     public bool Initialized { get; private set; } = false;
 
-    private BrowserContext _browserContext = default!;
-
     private AudioContextSync _audioContext = default!;
     private SKCanvas _canvas = default!;
     private GRContext _grContext = default!;
@@ -137,7 +135,16 @@ public partial class Index
         _logger = LoggerFactory.CreateLogger<Index>();
         _logger.LogDebug("OnInitializedAsync() was called");
 
-        _browserContext = new()
+        // TODO: Make Automapper configuration more generic, incorporate in classes that need it?
+        var mapperConfiguration = new MapperConfiguration(
+            cfg =>
+            {
+                cfg.CreateMap<C64HostConfig, C64HostConfig>();
+            }
+        );
+        _mapper = mapperConfiguration.CreateMapper();
+
+        var browserContext = new BrowserContext()
         {
             Uri = NavManager!.ToAbsoluteUri(NavManager.Uri),
             HttpClient = HttpClient,
@@ -151,11 +158,11 @@ public partial class Index
         {
             Renderer = C64HostRenderer.SkiaSharp,
         };
-        var c64Setup = new C64Setup(_browserContext, LoggerFactory, c64HostConfig);
+        var c64Setup = new C64Setup(browserContext, LoggerFactory, c64HostConfig);
         systemList.AddSystem(c64Setup);
 
         var genericComputerHostConfig = new GenericComputerHostConfig();
-        var genericComputerSetup = new GenericComputerSetup(_browserContext, LoggerFactory, genericComputerHostConfig);
+        var genericComputerSetup = new GenericComputerSetup(browserContext, LoggerFactory, genericComputerHostConfig);
         systemList.AddSystem(genericComputerSetup);
 
         // Add emulator config + system-specific host configs
@@ -197,16 +204,7 @@ public partial class Index
         await SelectSystem(_emulatorConfig.DefaultEmulator);
  
         // Set parameters from query string
-        await SetDefaultsFromQueryParams(_browserContext.Uri);
-
-        // TODO: Make Automapper configuration more generic, incorporate in classes that need it?
-        var mapperConfiguration = new MapperConfiguration(
-            cfg =>
-            {
-                cfg.CreateMap<C64HostConfig, C64HostConfig>();
-            }
-        );
-        _mapper = mapperConfiguration.CreateMapper();
+        await SetDefaultsFromQueryParams(browserContext.Uri);
 
         Initialized = true;
     }
@@ -235,6 +233,8 @@ public partial class Index
     {
         if (firstRender && !_wasmHost.IsAudioHandlerContextInitialized)
         {
+            _logger.LogDebug("OnAfterRenderAsync() was called with firstRender = true");
+
             _audioContext = await AudioContextSync.CreateAsync(Js!);
             _wasmHost.InitAudioHandlerContext();
         }
@@ -293,6 +293,8 @@ public partial class Index
 
         if (_canvas != e.Surface.Canvas || _grContext != grContext)
         {
+            _logger.LogDebug("OnPaintSurface() was called with new canvas or context");
+
             if (_grContext != grContext)
             {
                 _grContext?.Dispose();
@@ -303,6 +305,7 @@ public partial class Index
                 _canvas?.Dispose();
                 _canvas = e.Surface.Canvas;
             }
+
             _wasmHost.InitRenderContext();
         }
 
