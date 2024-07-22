@@ -19,7 +19,7 @@ using Highbyte.DotNet6502.Systems.Generic;
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
 
-public partial class Index : IWASMHostUIViewModel
+public partial class Index
 {
     //private string Version => typeof(Program).Assembly.GetName().Version!.ToString();
     private string Version => Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;

@@ -34,13 +34,11 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
     private WASMAudioHandlerContext _audioHandlerContext = default!;
 
     private readonly IJSRuntime _jsRuntime;
+    private readonly Highbyte.DotNet6502.App.WASM.Pages.Index _wasmHostUIViewModel;
     private PeriodicAsyncTimer? _updateTimer;
 
     private WasmMonitor _monitor = default!;
     public WasmMonitor Monitor => _monitor;
-
-    // Operations to update UI
-    private readonly IWASMHostUIViewModel _wasmHostUIViewModel;
 
     private const int STATS_EVERY_X_FRAME = 60 * 1;
     private int _statsFrameCount = 0;
@@ -58,7 +56,7 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
         Func<AudioContextSync> getAudioContext,
         GamepadList gamepadList,
         IJSRuntime jsRuntime,
-        IWASMHostUIViewModel wasmHostUIViewModel
+        Highbyte.DotNet6502.App.WASM.Pages.Index wasmHostUIViewModel
         ) : base("SilkNet", systemList, emulatorConfig.HostSystemConfigs, loggerFactory)
     {
         _loggerFactory = loggerFactory;

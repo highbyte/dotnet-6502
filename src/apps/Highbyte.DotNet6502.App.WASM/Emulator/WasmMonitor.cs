@@ -15,7 +15,7 @@ public class WasmMonitor : MonitorBase
 
     private bool _hasBeenInitializedOnce = false;
     private readonly IJSRuntime _jsRuntime;
-    private readonly IWASMHostUIViewModel _wasmHostUIViewModel;
+    private readonly Highbyte.DotNet6502.App.WASM.Pages.Index _wasmHostUIViewModel;
 
     private ushort? _lastTriggeredLoadBinaryForceLoadAddress = null;
     private Action<MonitorBase, ushort, ushort>? _lastTriggeredAfterLoadCallback = null;
@@ -24,7 +24,7 @@ public class WasmMonitor : MonitorBase
         IJSRuntime jsRuntime,
         SystemRunner systemRunner,
         EmulatorConfig emulatorConfig,
-        IWASMHostUIViewModel wasmHostUIViewModel
+        Highbyte.DotNet6502.App.WASM.Pages.Index wasmHostUIViewModel
 
         ) : base(systemRunner, emulatorConfig.Monitor)
     {

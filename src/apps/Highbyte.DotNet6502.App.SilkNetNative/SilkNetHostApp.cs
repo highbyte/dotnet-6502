@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;
 
-public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>, ISilkNetHostUIViewModel
+public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
     // --------------------
     // Injected variables
@@ -122,11 +122,16 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     {
         SetUninitializedWindow();
 
-        InitRenderContext();
-        InitInputContext();
-        InitAudioContext();
+        _inputContext = CreateSilkNetInput();
 
-        base.SetAndInitContexts(() => _renderContextContainer, () => _inputHandlerContext, () => _audioHandlerContext);
+        _renderContextContainer = CreateRenderContext();
+        _inputHandlerContext = CreateInputHandlerContext();
+        _audioHandlerContext = CreateAudioHandlerContext();
+
+        base.SetContexts(() => _renderContextContainer, () => _inputHandlerContext, () => _audioHandlerContext);
+        base.InitRenderContext();
+        base.InitInputHandlerContext();
+        base.InitAudioHandlerContext();
 
         InitImGui();
 
@@ -162,7 +167,10 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
             var screen = systemAboutToBeStarted.Screen;
             _window.Size = new Vector2D<int>((int)(screen.VisibleWidth * CanvasScale), (int)(screen.VisibleHeight * CanvasScale));
             _window.UpdatesPerSecond = screen.RefreshFrequencyHz;
-            InitRenderContext();
+
+            _renderContextContainer?.Cleanup();
+            _renderContextContainer = CreateRenderContext();
+            base.InitRenderContext();
         }
         return true;
     }
@@ -185,7 +193,6 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         _renderContextContainer?.Cleanup();
         _inputHandlerContext?.Cleanup();
         _audioHandlerContext?.Cleanup();
-
     }
 
     /// <summary>
@@ -298,12 +305,9 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     }
 
 
-    private void InitRenderContext()
+    private SilkNetRenderContextContainer CreateRenderContext()
     {
-        _renderContextContainer?.Cleanup();
-
-        // Init SkipSharp resources (must be done in OnLoad, otherwise no OpenGL context will exist create by SilkNet.)
-        //_skiaRenderContext = new SkiaRenderContext(s_window.Size.X, s_window.Size.Y, _canvasScale);
+        // Init SkipSharp resources (must be done in OnLoad, otherwise no OpenGL context will exist created by SilkNet.)
         GRGlGetProcedureAddressDelegate getProcAddress = (name) =>
         {
             var addrFound = _window.GLContext!.TryGetProcAddress(name, out var addr);
@@ -318,24 +322,17 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
 
         var silkNetOpenGlRenderContext = new SilkNetOpenGlRenderContext(_window, _emulatorConfig.CurrentDrawScale);
 
-        _renderContextContainer = new SilkNetRenderContextContainer(skiaRenderContext, silkNetOpenGlRenderContext);
+        var renderContextContainer = new SilkNetRenderContextContainer(skiaRenderContext, silkNetOpenGlRenderContext);
+        return renderContextContainer;
     }
 
-    private void InitInputContext()
+    private SilkNetInputHandlerContext CreateInputHandlerContext()
     {
-        _inputHandlerContext = new SilkNetInputHandlerContext(_window, _loggerFactory);
-
-        _inputContext = _window.CreateInput();
-        // Listen to key to enable monitor
-        if (_inputContext.Keyboards == null || _inputContext.Keyboards.Count == 0)
-            throw new DotNet6502Exception("Keyboard not found");
-        var primaryKeyboard = _inputContext.Keyboards[0];
-
-        // Listen to special key that will show/hide overlays for monitor/stats
-        primaryKeyboard.KeyDown += OnKeyDown;
+        var inputHandlerContext = new SilkNetInputHandlerContext(_window, _loggerFactory);
+        return inputHandlerContext;
     }
 
-    private void InitAudioContext()
+    private NAudioAudioHandlerContext CreateAudioHandlerContext()
     {
         // Output to NAudio built-in output (Windows only)
         //var wavePlayer = new WaveOutEvent
@@ -351,9 +348,22 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
             DesiredLatency = 40
         };
 
-        _audioHandlerContext = new NAudioAudioHandlerContext(
+        return new NAudioAudioHandlerContext(
             wavePlayer,
             initialVolumePercent: 20);
+    }
+
+    private IInputContext CreateSilkNetInput()
+    {
+        var inputContext = _window.CreateInput();
+        // Listen to key to enable monitor
+        if (inputContext.Keyboards == null || inputContext.Keyboards.Count == 0)
+            throw new DotNet6502Exception("Keyboard not found");
+        var primaryKeyboard = inputContext.Keyboards[0];
+
+        // Listen to special key that will show/hide overlays for monitor/stats
+        primaryKeyboard.KeyDown += OnKeyDown;
+        return inputContext;
     }
 
     public void SetVolumePercent(float volumePercent)
@@ -433,7 +443,6 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
             _menu.Enable();
     }
 
-    #region ISilkNetHostViewModel (members that are not part of base class)
 
     public float Scale
     {
@@ -505,7 +514,5 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
             _logsPanel.Enable();
         }
     }
-
-    #endregion
 
 }

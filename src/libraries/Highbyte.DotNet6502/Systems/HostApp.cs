@@ -21,7 +21,6 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     where TAudioHandlerContext : IAudioHandlerContext
 {
     // Injected via constructor
-    private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
     private readonly SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerContext> _systemList;
     private readonly Dictionary<string, IHostSystemConfig> _hostSystemConfigs;
@@ -62,7 +61,6 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         _updateFps = InstrumentationBag.Add<PerSecondTimedStat>($"{_hostName}-OnUpdateFPS");
         _renderFps = InstrumentationBag.Add<PerSecondTimedStat>($"{_hostName}-OnRenderFPS");
 
-        _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger("HostApp");
 
         if (systemList.Systems.Count == 0)
@@ -71,18 +69,6 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         _selectedSystemName = _systemList.Systems.First();
 
         _hostSystemConfigs = hostSystemConfigs;
-    }
-
-    public void SetAndInitContexts(
-        Func<TRenderContext>? getRenderContext = null,
-        Func<TInputHandlerContext>? getInputHandlerContext = null,
-        Func<TAudioHandlerContext>? getAudioHandlerContext = null
-        )
-    {
-        _systemList.SetContext(getRenderContext, getInputHandlerContext, getAudioHandlerContext);
-        _systemList.InitRenderContext();
-        _systemList.InitInputHandlerContext();
-        _systemList.InitAudioHandlerContext();
     }
 
     public void SetContexts(
