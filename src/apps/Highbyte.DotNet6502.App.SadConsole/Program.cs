@@ -1,22 +1,19 @@
-// Host app for running Highbyte.DotNet6502 emulator in a SadConsole Window
-// 
-// Generic 6502 example programs
-// - Source (.asm)in: Examples/Assembler/Generic
-// - Compiled with ACME cross-assembler: to Examples/Assembler/Generic/Build 
-//
-// C64 example programs
-// - Source (.asm)in: Examples/Assembler/C64
-// - Compiled with ACME cross-assembler: to Examples/Assembler/C64/Build 
-
+using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
+using Highbyte.DotNet6502.App.SadConsole;
 using Highbyte.DotNet6502.Impl.SadConsole;
-using Highbyte.DotNet6502.Systems.Generic.Config;
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
-using Microsoft.Extensions.Configuration;
 using Highbyte.DotNet6502.Logging;
-using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Logging.InMem;
+using Highbyte.DotNet6502.Systems;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Generic;
 
-IConfiguration Configuration;
+// Get config file
+var builder = new ConfigurationBuilder()
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json");
+IConfiguration Configuration = builder.Build();
 
 // Create logging
 DotNet6502InMemLogStore logStore = new() { WriteDebugMessage = true };
@@ -28,88 +25,48 @@ var loggerFactory = LoggerFactory.Create(builder =>
     builder.SetMinimumLevel(LogLevel.Trace);
 });
 
-// Get config options
-var builder = new ConfigurationBuilder()
-    .SetBasePath(Directory.GetCurrentDirectory())
-    // appsettings_scroll.json
-    // appsettings_hello.json
-    // appsettings_snake.json 
-    // appsettings_c64.json
-    .AddJsonFile("appsettings_c64.json");
+// ----------
+// Get emulator host config
+// ----------
+var emulatorConfig = new EmulatorConfig();
+Configuration.GetSection(EmulatorConfig.ConfigSectionName).Bind(emulatorConfig);
 
-Configuration = builder.Build();
-
-var sadConsoleConfig = new SadConsoleConfig();
-Configuration.GetSection(SadConsoleConfig.ConfigSectionName).Bind(sadConsoleConfig);
-
-var genericComputerConfig = new GenericComputerConfig();
-Configuration.GetSection(GenericComputerConfig.ConfigSectionName).Bind(genericComputerConfig);
-
-var c64Config = new C64Config();
-Configuration.GetSection(C64Config.ConfigSectionName).Bind(c64Config);
-
-// Alternative way, build config via code instead of reading from appsettings.json
-//var sadConsoleConfig = ConfigViaCode();
-
-// Init EmulatorHost and run!
-var emulatorHost = new EmulatorHost(
-    sadConsoleConfig,
-    genericComputerConfig,
-    c64Config,
-    loggerFactory
-    );
-emulatorHost.Start();
-
-//SadConsoleConfig ConfigViaCode()
+//var emulatorConfig = new EmulatorConfig
 //{
-//    // Define how emulator memory should be layed out recarding screen output and keyboard input
-//    var emulatorMemoryConfig = new EmulatorMemoryConfig
-//    {
-//        Screen = new EmulatorScreenConfig
-//        {
-//            // 6502 code running in emulator should have the same #rows & #cols as we setup in SadConsole
-//            Cols = 80,
-//            Rows = 25,
+//    DefaultEmulator = c64Setup.SystemName,
+//    UIFont = null,
+//    FontScale = 1,
+//    Font = "Fonts/C64.font",
+//    WindowTitle = "SadConsole with Highbyte.DotNet6502 emulator!",
+//    //Monitor = new MonitorConfig
+//    //{
+//    //    MaxLineLength = 100,
+//    //},
+//};
 
-//            // If borders should be used. Currently only updateable with a color setting (see ScreenBackgroundColorAddress below)
-//            BorderCols = 4,
-//            BorderRows = 2,
+var hostSystemConfigs = new Dictionary<string, IHostSystemConfig>
+{
+    { C64.SystemName, emulatorConfig.C64HostConfig },
+    { GenericComputer.SystemName, emulatorConfig.GenericComputerHostConfig}
+};
 
-//            // 6502 code must use these addresses as screen memory
-//            ScreenStartAddress = 0x0400,   //80*25 = 2000(0x07d0) -> range 0x0400 - 0x0bcf
-//            ScreenColorStartAddress = 0xd800,   //80*25 = 2000(0x07d0) -> range 0xd800 - 0xdfcf
-//            ScreenRefreshStatusAddress = 0xd000,
-//            ScreenBorderColorAddress = 0xd020,
-//            ScreenBackgroundColorAddress = 0xd021,
-//            DefaultBgColor = 0x00,     // 0x00 = Black
-//            DefaultFgColor = 0x0f,     // 0x0f = Light grey
-//            DefaultBorderColor = 0x0b,     // 0x0b = Dark grey
-//        },
+// ----------
+// Get systems
+// ----------
+var systemList = new SystemList<SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>();
 
-//        Input = new EmulatorInputConfig
-//        {
-//            KeyPressedAddress = 0xe000
-//        }
-//    };
+var c64HostConfig = new C64HostConfig { };
+var c64Setup = new C64Setup(loggerFactory, Configuration, c64HostConfig);
+systemList.AddSystem(c64Setup);
 
-//    var emulatorConfig = new EmulatorConfig
-//    {
-//        ProgramBinaryFile = "../../../../../../samples/Assembler/Generic/Build/hostinteraction_scroll_text_and_cycle_colors.prg",
-//        Memory = emulatorMemoryConfig
-//    };
+var genericComputerHostConfig = new GenericComputerHostConfig { };
+var genericComputerSetup = new GenericComputerSetup(loggerFactory, Configuration, genericComputerHostConfig);
+systemList.AddSystem(genericComputerSetup);
 
-//    // Configure overall SadConsole settings
-//    var sadConsoleConfig = new SadConsoleConfig
-//    {
-//        WindowTitle = "SadConsole screen updated from program running in Highbyte.DotNet6502 emulator",
-//        FontScale = 2
-//    };
+// ----------
+// Start emulator host app
+// ----------
+emulatorConfig.Validate(systemList);
 
-//    var emulatorHostOptions = new Options
-//    {
-//        SadConsoleConfig = sadConsoleConfig,
-//        EmulatorConfig = emulatorConfig
-//    };
-
-//    return emulatorHostOptions;
-//}
+var silkNetHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorConfig, hostSystemConfigs, logStore, logConfig);
+silkNetHostApp.Run();

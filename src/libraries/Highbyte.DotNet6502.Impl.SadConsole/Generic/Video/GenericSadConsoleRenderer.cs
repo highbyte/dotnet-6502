@@ -157,12 +157,17 @@ public class GenericSadConsoleRenderer : IRenderer
                 sadConsoleCharacter = emulatorCharacter;
         }
 
-        _sadConsoleRenderContext.Screen.DrawCharacter(
+        DrawCharacter(
             x,
             y,
             sadConsoleCharacter,
             GenericSadConsoleColors.SystemToSadConsoleColorMap[_emulatorScreenConfig.ColorMap[emulatorFgColor]],
             GenericSadConsoleColors.SystemToSadConsoleColorMap[_emulatorScreenConfig.ColorMap[emulatorBgColor]]
             );
+    }
+
+    private void DrawCharacter(int x, int y, int sadConsoleCharCode, Color fgColor, Color bgColor)
+    {
+        _sadConsoleRenderContext.Console.SetGlyph(x, y, sadConsoleCharCode, fgColor, bgColor);
     }
 }

@@ -161,6 +161,10 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
 
     public override bool OnBeforeStart(ISystem systemAboutToBeStarted)
     {
+        // Force a full GC to free up memory, so it won't risk accumulate memory usage if GC has not run for a while.
+        var m0 = GC.GetTotalMemory(forceFullCollection: true);
+        _logger.LogInformation("Allocated memory before starting emulator: " + m0);
+
         // Make sure to adjust window size and render frequency to match the system that is about to be started
         if (EmulatorState == EmulatorState.Uninitialized)
         {

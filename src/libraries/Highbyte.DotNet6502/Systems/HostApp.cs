@@ -112,10 +112,6 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         if (!_systemList.IsValidConfig(_selectedSystemName).Result)
             throw new DotNet6502Exception("Internal error. Cannot start emulator if current system config is invalid.");
 
-        // Force a full GC to free up memory, so it won't risk accumulate memory usage if GC has not run for a while.
-        var m0 = GC.GetTotalMemory(forceFullCollection: true);
-        _logger.LogInformation("Allocated memory before starting emulator: " + m0);
-
         var systemAboutToBeStarted = await _systemList.GetSystem(_selectedSystemName);
         bool shouldStart = OnBeforeStart(systemAboutToBeStarted);
         if (!shouldStart)
