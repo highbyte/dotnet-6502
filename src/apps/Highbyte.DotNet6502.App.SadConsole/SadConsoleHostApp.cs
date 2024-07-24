@@ -5,6 +5,7 @@ using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Logging;
 using SadConsole.Configuration;
 using SadRogue.Primitives;
+using Console = SadConsole.Console;
 
 
 namespace Highbyte.DotNet6502.App.SadConsole;
@@ -31,17 +32,21 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     // --------------------
     private ScreenObject? _sadConsoleScreen;
     private MenuConsole? _menuConsole;
+    public MenuConsole MenuConsole => _menuConsole!;
+    private Console? _systemMenuConsole;
+    public Console? SystemMenuConsole => _systemMenuConsole;
+
     private EmulatorConsole? _sadConsoleEmulatorConsole;
+
 
     private SadConsoleRenderContext _renderContext = default!;
     private SadConsoleInputHandlerContext _inputHandlerContext = default!;
     private NullAudioHandlerContext _audioHandlerContext = default!;
-
     private const int MENU_POSITION_X = 0;
     private const int MENU_POSITION_Y = 0;
 
     private int StartupScreenWidth => MenuConsole.CONSOLE_WIDTH + 40;
-    private int StartupScreenHeight => MenuConsole.CONSOLE_HEIGHT;
+    private int StartupScreenHeight => MenuConsole.CONSOLE_HEIGHT + 14;
 
     /// <summary>
     /// Constructor
@@ -90,9 +95,6 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         InitInputHandlerContext();
         InitAudioHandlerContext();
 
-        // Set the default system
-        SelectSystem(_emulatorConfig.DefaultEmulator);
-
         // ----------
         // Main SadConsole screen
         // ----------
@@ -120,7 +122,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     }
 
 
-    private IScreenObject CreateMainSadConsoleScreen(Game gameInstance)
+    private IScreenObject CreateMainSadConsoleScreen(GameHost gameHost)
     {
         //ScreenSurface screen = new(gameInstance.ScreenCellsX, gameInstance.ScreenCellsY);
         //return screen;
@@ -133,11 +135,30 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         //_sadConsoleScreen.IsFocused = true;
         _menuConsole.IsFocused = true;
 
+        // Trigger sadConsoleHostApp.SelectSystem call which in turn may trigger other system-specific UI stuff.
+        SelectSystem(SelectedSystemName);
+
         return _sadConsoleScreen;
     }
 
     public override void OnAfterSelectSystem()
     {
+        // Clear any old system specific menu console
+        if (_systemMenuConsole != null)
+        {
+            if (_sadConsoleScreen.Children.Contains(_systemMenuConsole))
+                _sadConsoleScreen.Children.Remove(_systemMenuConsole);
+            _systemMenuConsole.Dispose();
+            _systemMenuConsole = null;
+        }
+
+        // Create system specific menu console
+        if (SelectedSystemName == "C64")
+        {
+            _systemMenuConsole = C64MenuConsole.Create(this);
+            _systemMenuConsole.Position = (MENU_POSITION_X, _menuConsole.Height);
+            _sadConsoleScreen.Children.Add(_systemMenuConsole);
+        }
     }
 
     public override bool OnBeforeStart(ISystem systemAboutToBeStarted)
@@ -284,7 +305,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
     private int CalculateWindowHeightPixels()
     {
-        var height = Math.Max(_menuConsole.HeightPixels, _sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.HeightPixels : 0);
+        var height = Math.Max(_menuConsole.HeightPixels + (_systemMenuConsole != null ? _systemMenuConsole.HeightPixels : 0), _sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.HeightPixels : 0);
         return height;
     }
 

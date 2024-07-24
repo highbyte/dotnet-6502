@@ -4,10 +4,10 @@ using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Logging.InMem;
 using Highbyte.DotNet6502.Systems;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 // Get config file
 var builder = new ConfigurationBuilder()

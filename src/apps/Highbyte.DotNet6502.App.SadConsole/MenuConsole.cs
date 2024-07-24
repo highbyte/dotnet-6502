@@ -1,4 +1,3 @@
-using System;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;
@@ -61,7 +60,7 @@ public class MenuConsole : ControlsConsole
         var startButton = new Button("Start")
         {
             Name = "startButton",
-            Position = (1, statusLabel.Bounds.MaxExtentY + 1),
+            Position = (1, statusLabel.Bounds.MaxExtentY + 2),
         };
         startButton.Click += async (s, e) => { await _sadConsoleHostApp.Start(); IsDirty = true; };
         Controls.Add(startButton);
@@ -110,11 +109,10 @@ public class MenuConsole : ControlsConsole
         }
         Label CreateLabelValue(string text, int col, int row, string? name = null)
         {
-            var labelTemp = new Label(text) { Position = new Point(col, row), TextColor = Controls.GetThemeColors().Title, Name = name };
+            var labelTemp = new Label(text) { Position = new Point(col, row), TextColor = Controls.GetThemeColors().White, Name = name };
             Controls.Add(labelTemp);
             return labelTemp;
         }
-
 
         // Force OnIsDirtyChanged event which will set control states (see SetControlStates)
         OnIsDirtyChanged();
@@ -137,7 +135,7 @@ public class MenuConsole : ControlsConsole
         statusLabel!.DisplayText = _sadConsoleHostApp.EmulatorState.ToString();
 
         var startButton = Controls["startButton"];
-        startButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Running;
+        startButton.IsEnabled = _sadConsoleHostApp.GetSystemConfig().Result.IsValid(out _) && _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Running;
 
         var pauseButton = Controls["pauseButton"];
         pauseButton.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Running;
@@ -151,6 +149,7 @@ public class MenuConsole : ControlsConsole
         var selectFontSizeComboBox = Controls["selectFontSizeComboBox"];
         selectFontSizeComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
 
+        if (_sadConsoleHostApp.SystemMenuConsole != null)
+            _sadConsoleHostApp.SystemMenuConsole.IsDirty = true;
     }
-
 }

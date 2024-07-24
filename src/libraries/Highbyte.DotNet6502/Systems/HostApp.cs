@@ -96,6 +96,8 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         if (!_systemList.Systems.Contains(systemName))
             throw new DotNet6502Exception($"System not found: {systemName}");
         _selectedSystemName = systemName;
+
+        OnAfterSelectSystem();
     }
     public virtual void OnAfterSelectSystem() { }
 
