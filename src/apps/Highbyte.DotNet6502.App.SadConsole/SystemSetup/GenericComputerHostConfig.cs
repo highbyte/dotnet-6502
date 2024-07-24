@@ -5,7 +5,6 @@ public class GenericComputerHostConfig : SadConsoleHostSystemConfigBase
     public GenericComputerHostConfig()
     {
         Font = null;
-        FontScale = 1;
     }
 
     public new object Clone()

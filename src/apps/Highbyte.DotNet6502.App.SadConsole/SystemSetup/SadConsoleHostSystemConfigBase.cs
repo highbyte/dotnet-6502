@@ -10,16 +10,10 @@ public abstract class SadConsoleHostSystemConfigBase : IHostSystemConfig, IClone
     /// </summary>
     /// <value></value>
     public string? Font { get; set; }
-    /// <summary>
-    /// Font scale. 1 is default.
-    /// </summary>
-    /// <value></value>
-    public int FontScale { get; set; }
 
     public SadConsoleHostSystemConfigBase()
     {
         Font = null;
-        FontScale = 1;
     }
 
     public object Clone()

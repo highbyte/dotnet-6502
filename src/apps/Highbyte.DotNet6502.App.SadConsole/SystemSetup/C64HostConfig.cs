@@ -7,7 +7,6 @@ public class C64HostConfig : SadConsoleHostSystemConfigBase
     public C64HostConfig()
     {
         Font = "Fonts/C64.font";
-        FontScale = 1;
     }
 
     public new object Clone()

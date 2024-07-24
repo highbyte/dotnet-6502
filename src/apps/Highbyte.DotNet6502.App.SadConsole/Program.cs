@@ -35,7 +35,7 @@ Configuration.GetSection(EmulatorConfig.ConfigSectionName).Bind(emulatorConfig);
 //{
 //    DefaultEmulator = c64Setup.SystemName,
 //    UIFont = null,
-//    FontScale = 1,
+//    FontSize = Sizes.One,
 //    Font = "Fonts/C64.font",
 //    WindowTitle = "SadConsole with Highbyte.DotNet6502 emulator!",
 //    //Monitor = new MonitorConfig

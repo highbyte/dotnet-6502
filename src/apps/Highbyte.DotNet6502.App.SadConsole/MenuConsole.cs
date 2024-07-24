@@ -1,3 +1,4 @@
+using System;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;
@@ -8,7 +9,7 @@ public class MenuConsole : ControlsConsole
     public const int CONSOLE_WIDTH = USABLE_WIDTH + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     public const int CONSOLE_HEIGHT = USABLE_HEIGHT + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     private const int USABLE_WIDTH = 21;
-    private const int USABLE_HEIGHT = 15;
+    private const int USABLE_HEIGHT = 12;
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
 
@@ -89,6 +90,17 @@ public class MenuConsole : ControlsConsole
         resetButton.Click += async (s, e) => { await _sadConsoleHostApp.Reset(); IsDirty = true; };
         Controls.Add(resetButton);
 
+        var fontSizeLabel = CreateLabel("Font size:", 1, stopButton.Bounds.MaxExtentY + 2);
+        ComboBox selectFontSizeBox = new ComboBox(9, 9, 5, Enum.GetValues<IFont.Sizes>().Select(x => (object)x).ToArray())
+        {
+            Position = (fontSizeLabel.Bounds.MaxExtentX + 2, fontSizeLabel.Position.Y),
+            Name = "selectFontSizeComboBox",
+            SelectedItem = _sadConsoleHostApp.EmulatorConfig.FontSize,
+        };
+        selectFontSizeBox.SelectedItemChanged += (s, e) => { _sadConsoleHostApp.EmulatorConfig.FontSize = (IFont.Sizes)e.Item; IsDirty = true; };
+        Controls.Add(selectFontSizeBox);
+
+
         // Helper function to create a label and add it to the console
         Label CreateLabel(string text, int col, int row, string? name = null)
         {
@@ -135,6 +147,10 @@ public class MenuConsole : ControlsConsole
 
         var resetButton = Controls["resetButton"];
         resetButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
+
+        var selectFontSizeComboBox = Controls["selectFontSizeComboBox"];
+        selectFontSizeComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
+
     }
 
 }
