@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 using Highbyte.DotNet6502.Impl.SadConsole;
+using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using static SadConsole.IFont;
 
@@ -33,6 +34,9 @@ public class EmulatorConfig
     public string DefaultEmulator { get; set; }
 
 
+    public MonitorConfig Monitor { get; set; }
+
+
     /// <summary>
     /// SadConsole-specific configuration for specific system.
     /// </summary>
@@ -48,6 +52,8 @@ public class EmulatorConfig
         UIFont = null;
         FontSize = Sizes.One;
         DefaultEmulator = "C64";
+
+        Monitor = new();
 
         C64HostConfig = new();
         GenericComputerHostConfig = new();

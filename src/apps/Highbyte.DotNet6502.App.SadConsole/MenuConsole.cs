@@ -89,7 +89,17 @@ public class MenuConsole : ControlsConsole
         resetButton.Click += async (s, e) => { await _sadConsoleHostApp.Reset(); IsDirty = true; };
         Controls.Add(resetButton);
 
-        var fontSizeLabel = CreateLabel("Font size:", 1, stopButton.Bounds.MaxExtentY + 2);
+
+        var monitorButton = new Button("Monitor (F12)")
+        {
+            Name = "monitorButton",
+            Position = (1, resetButton.Position.Y + 2),
+        };
+        monitorButton.Click += (s, e) => { _sadConsoleHostApp.ToggleMonitor(); IsDirty = true; };
+        Controls.Add(monitorButton);
+
+
+        var fontSizeLabel = CreateLabel("Font size:", 1, monitorButton.Bounds.MaxExtentY + 2);
         ComboBox selectFontSizeBox = new ComboBox(9, 9, 5, Enum.GetValues<IFont.Sizes>().Select(x => (object)x).ToArray())
         {
             Position = (fontSizeLabel.Bounds.MaxExtentX + 2, fontSizeLabel.Position.Y),
@@ -145,6 +155,9 @@ public class MenuConsole : ControlsConsole
 
         var resetButton = Controls["resetButton"];
         resetButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
+
+        var monitorButton = Controls["monitorButton"];
+        monitorButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
         var selectFontSizeComboBox = Controls["selectFontSizeComboBox"];
         selectFontSizeComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;

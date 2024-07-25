@@ -1,9 +1,8 @@
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;
 
-namespace Highbyte.DotNet6502.App.SadConsole;
+namespace Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 public class C64MenuConsole : ControlsConsole
 {
     public const int CONSOLE_WIDTH = USABLE_WIDTH + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
@@ -12,7 +11,6 @@ public class C64MenuConsole : ControlsConsole
     private const int USABLE_HEIGHT = 12;
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
-    private C64Config _c64Config => (C64Config)_sadConsoleHostApp.GetSystemConfig().Result;
 
     private C64MenuConsole(SadConsoleHostApp sadConsoleHostApp) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
@@ -78,9 +76,7 @@ public class C64MenuConsole : ControlsConsole
     protected override void OnIsDirtyChanged()
     {
         if (IsDirty)
-        {
             SetControlStates();
-        }
     }
 
     private void SetControlStates()
@@ -89,7 +85,7 @@ public class C64MenuConsole : ControlsConsole
         systemComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
 
         var validationMessageValueLabel = Controls["validationMessageValueLabel"] as Label;
-        (bool isOk, List<string> validationErrors) = _sadConsoleHostApp.IsValidConfigWithDetails().Result;
+        (var isOk, var validationErrors) = _sadConsoleHostApp.IsValidConfigWithDetails().Result;
         //validationMessageValueLabel!.DisplayText = isOk ? "" : string.Join(",", validationErrors!);
         validationMessageValueLabel!.DisplayText = isOk ? "" : "Config errors.";
         validationMessageValueLabel!.IsVisible = !isOk;
@@ -97,7 +93,7 @@ public class C64MenuConsole : ControlsConsole
 
     private void C64ConfigButton_Click(object sender, EventArgs e)
     {
-        C64ConfigUIConsole window = C64ConfigUIConsole.Create(_sadConsoleHostApp);
+        var window = C64ConfigUIConsole.Create(_sadConsoleHostApp);
 
         window.Center();
         window.Closed += (s2, e2) =>

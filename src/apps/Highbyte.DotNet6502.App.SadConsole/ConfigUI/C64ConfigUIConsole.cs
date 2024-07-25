@@ -4,7 +4,7 @@ using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;
 
-namespace Highbyte.DotNet6502.App.SadConsole;
+namespace Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 public class C64ConfigUIConsole : Window
 {
     public const int CONSOLE_WIDTH = USABLE_WIDTH;
@@ -30,7 +30,7 @@ public class C64ConfigUIConsole : Window
         //console.Clear();
 
         console.Title = "C64 Config";
-        Colors colors = console.Controls.GetThemeColors();
+        var colors = console.Controls.GetThemeColors();
 
         console.Cursor.PrintAppearanceMatchesHost = false;
         console.Cursor.DisableWordBreak = true;
@@ -163,7 +163,7 @@ public class C64ConfigUIConsole : Window
         //cancelButton.Click += (s, e) => { DialogResult = false; Hide(); };
         //Controls.Add(cancelButton);
 
-        Button okButton = new Button(6, 1)
+        var okButton = new Button(6, 1)
         {
             Text = "OK",
             Position = (Width - 1 - 7, Height - 2)
@@ -192,10 +192,8 @@ public class C64ConfigUIConsole : Window
 
     private void OpenURL(string url)
     {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri))
-        {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
             throw new Exception($"Invalid URL: {url}");
-        }
         // Launch the URL in the default browser
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
     }
@@ -203,7 +201,7 @@ public class C64ConfigUIConsole : Window
     private void ShowROMFilePickerDialog(string romName)
     {
         var currentFolder = PathHelper.ExpandOSEnvironmentVariables(_c64Config.ROMDirectory);
-        FilePickerConsole window = FilePickerConsole.Create(currentFolder, _c64Config.GetROM(romName).GetROMFilePath(currentFolder));
+        var window = FilePickerConsole.Create(currentFolder, _c64Config.GetROM(romName).GetROMFilePath(currentFolder));
         window.Center();
         window.Closed += (s2, e2) =>
         {
@@ -219,7 +217,7 @@ public class C64ConfigUIConsole : Window
     private void ShowROMFolderPickerDialog()
     {
         var currentFolder = PathHelper.ExpandOSEnvironmentVariables(_c64Config.ROMDirectory);
-        FilePickerConsole window = FilePickerConsole.Create(currentFolder, selectFolder: true);
+        var window = FilePickerConsole.Create(currentFolder, selectFolder: true);
         window.Center();
         window.Closed += (s2, e2) =>
         {
@@ -235,9 +233,7 @@ public class C64ConfigUIConsole : Window
     protected override void OnIsDirtyChanged()
     {
         if (IsDirty)
-        {
             SetControlStates();
-        }
     }
 
     private void SetControlStates()
@@ -258,7 +254,7 @@ public class C64ConfigUIConsole : Window
         chargenROMTextBox!.Text = _c64Config.ROMs.SingleOrDefault(x => x.Name == C64Config.CHARGEN_ROM_NAME).File;
         chargenROMTextBox!.IsDirty = true;
 
-        (bool isOk, List<string> validationErrors) = _sadConsoleHostApp.IsValidConfigWithDetails().Result;
+        (var isOk, var validationErrors) = _sadConsoleHostApp.IsValidConfigWithDetails().Result;
         var validationErrorsLabel = Controls["validationErrorsLabel"] as Label;
         validationErrorsLabel!.IsVisible = !isOk;
         var validationErrorsListBox = Controls["validationErrorsListBox"] as ListBox;
