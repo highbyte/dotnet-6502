@@ -2,8 +2,6 @@ using Highbyte.DotNet6502.Systems;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;
-using static SadConsole.IFont;
-using Console = SadConsole.Console;
 
 namespace Highbyte.DotNet6502.App.SadConsole;
 internal class MonitorStatusConsole : ControlsConsole

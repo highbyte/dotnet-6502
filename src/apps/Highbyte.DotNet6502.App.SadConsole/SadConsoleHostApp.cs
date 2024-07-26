@@ -221,7 +221,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         // Create system specific menu console
         if (SelectedSystemName == "C64")
         {
-            _systemMenuConsole = C64MenuConsole.Create(this);
+            _systemMenuConsole = C64MenuConsole.Create(this, _loggerFactory);
             _systemMenuConsole.Position = (MENU_POSITION_X, _menuConsole.Height);
             _sadConsoleScreen.Children.Add(_systemMenuConsole);
         }
@@ -265,6 +265,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         {
             _monitorConsole.Init();
         }
+        _sadConsoleEmulatorConsole.IsFocused = true;
     }
 
     public override void OnAfterStop()

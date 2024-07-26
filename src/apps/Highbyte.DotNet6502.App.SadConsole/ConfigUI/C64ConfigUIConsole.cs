@@ -201,13 +201,13 @@ public class C64ConfigUIConsole : Window
     private void ShowROMFilePickerDialog(string romName)
     {
         var currentFolder = PathHelper.ExpandOSEnvironmentVariables(_c64Config.ROMDirectory);
-        var window = FilePickerConsole.Create(currentFolder, _c64Config.GetROM(romName).GetROMFilePath(currentFolder));
+        var window = new FilePickerConsole(FilePickerMode.OpenFile, currentFolder, _c64Config.GetROM(romName).GetROMFilePath(currentFolder));
         window.Center();
         window.Closed += (s2, e2) =>
         {
             if (window.DialogResult)
             {
-                _c64Config.SetROM(romName, Path.GetFileName(window.SelectedFile!));
+                _c64Config.SetROM(romName, Path.GetFileName(window.SelectedFile.FullName));
                 IsDirty = true;
             }
         };
@@ -217,13 +217,13 @@ public class C64ConfigUIConsole : Window
     private void ShowROMFolderPickerDialog()
     {
         var currentFolder = PathHelper.ExpandOSEnvironmentVariables(_c64Config.ROMDirectory);
-        var window = FilePickerConsole.Create(currentFolder, selectFolder: true);
+        var window = new FilePickerConsole(FilePickerMode.OpenFolder, currentFolder);
         window.Center();
         window.Closed += (s2, e2) =>
         {
             if (window.DialogResult)
             {
-                _c64Config.ROMDirectory = window.SelectedFile;
+                _c64Config.ROMDirectory = window.SelectedDirectory.FullName;
                 IsDirty = true;
             }
         };

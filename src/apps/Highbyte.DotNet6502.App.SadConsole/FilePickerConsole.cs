@@ -1,90 +1,132 @@
+using System.Diagnostics;
+using System.IO;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 
 namespace Highbyte.DotNet6502.App.SadConsole;
+
+public enum FilePickerMode
+{
+    OpenFile,
+    OpenFolder,
+    SaveFile
+};
+
 public class FilePickerConsole : Window
 {
     public const int CONSOLE_WIDTH = 40;
     public const int CONSOLE_HEIGHT = 20;
 
-    private readonly string _defaultFolder;
-    private readonly string _defaultFile;
-    private readonly bool _selectFolder;
-    private string? _selectedFile;
-    public string? SelectedFile => _selectedFile;
+    private readonly FilePickerMode _filePickerMode;
+    private readonly string _fileFilter;
 
-    private FilePickerConsole(string defaultFolder, string defaultFile = "", bool selectFolder = false) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
+    private DirectoryInfo _selectedDirectory;
+    public DirectoryInfo SelectedDirectory => _selectedDirectory;
+    private FileInfo? _selectedFile;
+    public FileInfo? SelectedFile => _selectedFile;
+
+    public FilePickerConsole(FilePickerMode filePickerMode, string defaultFolder, string defaultFile = "", string filter = "*.*") : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
-        _defaultFolder = defaultFolder;
-        _defaultFile = defaultFile;
-        _selectFolder = selectFolder;
-    }
+        _selectedDirectory = Directory.Exists(defaultFolder) ? new DirectoryInfo(defaultFolder) : new DirectoryInfo(Environment.CurrentDirectory);
+        // TODO: Handle defaultFile
+        _filePickerMode = filePickerMode;
+        _fileFilter = filter;
 
-    public static FilePickerConsole Create(string defaultFolder, string defaultFile = "", bool selectFolder = false)
-    {
-        var console = new FilePickerConsole(defaultFolder, defaultFile, selectFolder);
+        Title = filePickerMode switch
+        {
+            FilePickerMode.OpenFile => "Open File",
+            FilePickerMode.OpenFolder => "Open Folder",
+            FilePickerMode.SaveFile => "Save File",
+            _ => "?"
+        };
 
-        console.Title = selectFolder ? "Select folder" : "Select file";
-        Colors colors = console.Controls.GetThemeColors();
+        Cursor.PrintAppearanceMatchesHost = false;
+        Cursor.DisableWordBreak = true;
+        Colors colors = Controls.GetThemeColors();
+        Cursor.SetPrintAppearance(colors.Title, Surface.DefaultBackground);
 
-        console.Cursor.PrintAppearanceMatchesHost = false;
-        console.Cursor.DisableWordBreak = true;
-        console.Cursor.SetPrintAppearance(colors.Title, console.Surface.DefaultBackground);
-
-
-        console.UseMouse = true;
-        console.MouseMove += (s, e) =>
+        UseMouse = true;
+        MouseMove += (s, e) =>
         {
         };
-        console.UseKeyboard = true;
+        UseKeyboard = true;
 
-        console.DrawUIItems();
-
-        return console;
+        DrawUIItems();
     }
 
     private void DrawUIItems()
     {
-        string currentFolder;
-        if (!Directory.Exists(_defaultFolder))
-            currentFolder = Environment.CurrentDirectory;
-        else
-            currentFolder = _defaultFolder;
 
-        FileDirectoryListbox fileListBox = new FileDirectoryListbox(30, Height - 5);
-        fileListBox.FileFilter = "*.*";
+        FileDirectoryListbox fileListBox = new FileDirectoryListbox(30, Height - 7) { Name = "fileListBox" };
+        fileListBox.FileFilter = _fileFilter;
         fileListBox.OnlyRootAndSubDirs = false;
         fileListBox.HideNonFilterFiles = false;
         fileListBox.Position = (1, 2);
         fileListBox.SelectedItemChanged += FileListBox_SelectedItemChanged;
 
-        if (_selectFolder)
+        fileListBox.CurrentFolder = _selectedDirectory.FullName;
+
+        if (_filePickerMode == FilePickerMode.OpenFolder)
         {
-            var parentFolder = Directory.GetParent(currentFolder);
-            if (parentFolder != null)
-            {
-                fileListBox.CurrentFolder = parentFolder.FullName;
-                //fileListBox.SelectedItem = Path.GetFileName(currentFolder);
-                //fileListBox.ScrollToSelectedItem();
-            }
-            else
-            {
-                fileListBox.CurrentFolder = currentFolder;
-            }
         }
-        else
+        else if (_filePickerMode == FilePickerMode.OpenFile)
         {
-            fileListBox.CurrentFolder = currentFolder;
-            if (File.Exists(_defaultFile))
-            {
-                //fileListBox.SelectedItem = _defaultFile;
-                //fileListBox.ScrollToSelectedItem();
-            }
+        }
+        else if (_filePickerMode == FilePickerMode.SaveFile)
+        {
         }
 
         //((SadConsole.UI.Themes.ListBoxTheme)fileListBox.Theme).DrawBorder = true;
         Controls.Add(fileListBox);
 
+        // TextBox for selected file or folder.
+        var selectedItemTextBox = new TextBox(30)
+        {
+            Name = "selectedItemTextBox",
+            Position = (1, Height - 4),
+            Text = "",
+            IsVisible = (_filePickerMode == FilePickerMode.OpenFile || _filePickerMode == FilePickerMode.SaveFile)
+        };
+        selectedItemTextBox.TextChanged += (s, e) =>
+        {
+            string textBoxValue = selectedItemTextBox.Text;
+
+            if (_filePickerMode == FilePickerMode.OpenFile)
+            {
+                var fileFullPath = Path.Combine(_selectedDirectory.FullName, textBoxValue);
+                if (File.Exists(fileFullPath))
+                {
+                    _selectedFile = new FileInfo(fileFullPath);
+                }
+                else
+                {
+                    _selectedFile = null;
+                }
+            }
+            else if (_filePickerMode == FilePickerMode.SaveFile)
+            {
+                var fileFullPath = Path.Combine(_selectedDirectory.FullName, textBoxValue);
+                _selectedFile = new FileInfo(fileFullPath);
+            }
+            else if (_filePickerMode == FilePickerMode.OpenFolder)
+            {
+                //string directoryFullPath;
+                //if (_selectedDirectory.Parent != null) // Detect if current is a drive root (ex C:), then Parent will be null.
+                //    directoryFullPath = Path.Combine(_selectedDirectory.Parent.FullName, textBoxValue);
+                //else
+                //    directoryFullPath = Path.Combine(_selectedDirectory.FullName, textBoxValue);
+                //_selectedDirectory = new DirectoryInfo(directoryFullPath);
+                //_selectedFile = null;
+            }
+
+            DebugPrintSelectedItems();
+
+            IsDirty = true;
+
+        };
+        Controls.Add(selectedItemTextBox);
+
+        // Add cancel and ok buttons
         Button cancelButton = new Button(10, 1)
         {
             Name = "cancelButton",
@@ -103,39 +145,120 @@ public class FilePickerConsole : Window
         };
         okButton.Click += (s, e) => { DialogResult = true; Hide(); };
         Controls.Add(okButton);
+
+        SetControlStates(); // Trigger ok button state update.
     }
 
     private void FileListBox_SelectedItemChanged(object? sender, ListBox.SelectedItemEventArgs? e)
     {
         if (e.Item != null)
         {
-            var okButton = Controls["okButton"] as Button;
-            string selectedItem = e.Item.ToString();
-            if (_selectFolder)
+            var selectedItemTextBox = Controls["selectedItemTextBox"] as TextBox;
+
+            if (e.Item is FileDirectoryListbox.FauxDirectory fauxDirectory)
             {
-                if (Directory.Exists(selectedItem))
+                // Detect parent directory change (..)
+                //Debug.WriteLine($"FauxDirectory: {fauxDirectory.Name}");
+
+                var fileListBox = Controls["fileListBox"] as FileDirectoryListbox;
+                if (_selectedDirectory.FullName != fileListBox.CurrentFolder)
                 {
-                    okButton.IsEnabled = true;
-                    _selectedFile = selectedItem;
+                    _selectedDirectory = new DirectoryInfo(fileListBox.CurrentFolder);
+                    if (_filePickerMode == FilePickerMode.OpenFile || _filePickerMode == FilePickerMode.SaveFile)
+                    {
+                        if (_selectedFile != null && _selectedDirectory.FullName != _selectedFile.Directory.FullName)
+                            _selectedFile = new FileInfo(Path.Combine(_selectedDirectory.FullName, _selectedFile.Name));
+                    }
+                    else
+                    {
+                        // OpenFolder mode
+                        //selectedItemTextBox.Text = _selectedDirectory.Name;
+                        //selectedItemTextBox.IsDirty = true;
+                    }
+                }
+
+            }
+            if (e.Item is DirectoryInfo directoryInfo)
+            {
+                //Debug.WriteLine($"DirectoryInfo: {directoryInfo.FullName}");
+
+                _selectedDirectory = directoryInfo;
+
+                if (_filePickerMode == FilePickerMode.OpenFolder)
+                {
+                    //selectedItemTextBox.Text = _selectedDirectory.Name;
+                    //selectedItemTextBox.IsDirty = true;
+                }
+                else if (_filePickerMode == FilePickerMode.OpenFile || _filePickerMode == FilePickerMode.SaveFile)
+                {
+                    if (_selectedFile != null && _selectedDirectory.FullName != _selectedFile.Directory.FullName)
+                        _selectedFile = new FileInfo(Path.Combine(_selectedDirectory.FullName, _selectedFile.Name));
+                }
+            }
+            if (e.Item is FileInfo fileInfo)
+            {
+                //Debug.WriteLine($"FileInfo: {fileInfo.FullName}");
+
+                if (_filePickerMode == FilePickerMode.OpenFolder)
+                    return;
+
+                _selectedFile = fileInfo;
+                _selectedDirectory = fileInfo.Directory;
+
+                selectedItemTextBox.Text = _selectedFile.Name;
+                selectedItemTextBox.IsDirty = true;
+            }
+
+            DebugPrintSelectedItems();
+            IsDirty = true;
+        }
+    }
+
+    private void DebugPrintSelectedItems()
+    {
+        Debug.WriteLine($"SelectedDirectory: {_selectedDirectory.FullName}");
+        var selectedFile = _selectedFile != null ? _selectedFile.FullName : "";
+        Debug.WriteLine($"SelectedFile     : {selectedFile}");
+        Debug.WriteLine("----------------------------------------");
+    }
+
+    protected override void OnIsDirtyChanged()
+    {
+        if (IsDirty)
+        {
+            SetControlStates();
+        }
+    }
+
+    private void SetControlStates()
+    {
+        var okButton = Controls["okButton"] as Button;
+        if (_filePickerMode == FilePickerMode.OpenFile)
+        {
+            if (_selectedFile != null)
+            {
+                if (_selectedFile.Directory.FullName != _selectedDirectory.FullName)
+                {
+                    // A file from another directory has been selected.
+                    okButton.IsEnabled = false;
                 }
                 else
                 {
-                    okButton.IsEnabled = false;
+                    okButton.IsEnabled = _selectedFile != null && _selectedFile.Exists;
                 }
             }
             else
             {
-                if (File.Exists(selectedItem))
-                {
-                    okButton.IsEnabled = true;
-                    _selectedFile = selectedItem;
-                }
-                else
-                {
-                    okButton.IsEnabled = false;
-                }
+                okButton.IsEnabled = false;
             }
         }
-
+        else if (_filePickerMode == FilePickerMode.SaveFile)
+        {
+            okButton.IsEnabled = _selectedDirectory.Exists && _selectedFile != null;
+        }
+        else if (_filePickerMode == FilePickerMode.OpenFolder)
+        {
+            okButton.IsEnabled = _selectedDirectory.Exists;
+        }
     }
 }
