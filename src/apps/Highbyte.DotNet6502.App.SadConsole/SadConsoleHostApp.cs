@@ -45,6 +45,14 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
     private MonitorConsole? _monitorConsole;
     //private MonitorConsole? _monitorConsole;
+    private MonitorStatusConsole? _monitorStatusConsole;
+    public event EventHandler<bool>? MonitorStateChange;
+    protected virtual void OnMonitorStateChange(bool monitorEnabled)
+    {
+        var handler = MonitorStateChange;
+        handler?.Invoke(this, monitorEnabled);
+    }
+
 
 
     private SadConsoleRenderContext _renderContext = default!;
@@ -140,11 +148,16 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         _menuConsole.Position = (MENU_POSITION_X, MENU_POSITION_Y);
         _sadConsoleScreen.Children.Add(_menuConsole);
 
-        //_monitorConsole = MonitorConsole.Create(this, EmulatorConfig.Monitor);
-        _monitorConsole = new MonitorConsole(this, EmulatorConfig.Monitor);
+        // Monitor status console
+        _monitorStatusConsole = new MonitorStatusConsole(this);
+        _monitorStatusConsole.Position = (_menuConsole.Position.X + _menuConsole.Width, _menuConsole.Position.Y + _menuConsole.Height + 1); // Temporary position while invisible. Will be moved after a system is started.
+        _sadConsoleScreen.Children.Add(_monitorStatusConsole);
+
+        // Monitor console
+        _monitorConsole = new MonitorConsole(this, _emulatorConfig.Monitor, _monitorStatusConsole.Refresh);
         _monitorConsole.IsVisible = false;
         _monitorConsole.Position = (_menuConsole.Position.X + _menuConsole.Width, _menuConsole.Position.Y); // Temporary position while invisible. Will be moved after a system is started.
-        _monitorConsole.MonitorStateChange += (s, monitorEnabled) =>
+        MonitorStateChange += (s, monitorEnabled) =>
         {
             //_inputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
             //if (monitorEnabled)
@@ -152,13 +165,18 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
             if (monitorEnabled)
             {
+                // Monitor console
                 // Position monitor to the right of the emulator console
                 _monitorConsole.UsePixelPositioning = true;
                 //_monitorConsole.Position = new Point((_sadConsoleEmulatorConsole.Position.X * _sadConsoleEmulatorConsole.Font.GlyphWidth) + (_sadConsoleEmulatorConsole.Width * _sadConsoleEmulatorConsole.Font.GlyphWidth), 0);
                 // Note: _sadConsoleEmulatorConsole has already changed to UsePixelPositioning = true, so its Position.X is in pixels (not Width though).
                 _monitorConsole.Position = new Point(_sadConsoleEmulatorConsole.Position.X + (_sadConsoleEmulatorConsole.Width * _sadConsoleEmulatorConsole.Font.GlyphWidth), 0);
-
                 _sadConsoleEmulatorConsole.IsFocused = false;
+
+                // Monitor status console
+                _monitorStatusConsole.UsePixelPositioning = true;
+                _monitorStatusConsole.Position = new Point(_monitorConsole.Position.X, _monitorConsole.Position.Y + (_monitorConsole.Height * _monitorConsole.Font.GlyphHeight));
+
             }
             else
             {
@@ -178,6 +196,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
         };
         _sadConsoleScreen.Children.Add(_monitorConsole);
+
 
         //_sadConsoleScreen.IsFocused = true;
         _menuConsole.IsFocused = true;
@@ -243,7 +262,9 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     {
         // Init monitor for current system started if this system was not started before
         if (emulatorStateBeforeStart == EmulatorState.Uninitialized)
+        {
             _monitorConsole.Init();
+        }
     }
 
     public override void OnAfterStop()
@@ -312,7 +333,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     {
         // Show monitor if we encounter breakpoint or other break
         if (execEvaluatorTriggerResult.Triggered)
-            _monitorConsole.Enable(execEvaluatorTriggerResult);
+            EnableMonitor(execEvaluatorTriggerResult);
     }
 
     /// <summary>
@@ -388,12 +409,25 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
         if (_monitorConsole!.IsVisible)
         {
-            _monitorConsole.Disable();
+            DisableMonitor();
         }
         else
         {
-            _monitorConsole.Enable();
+            EnableMonitor();
         }
+    }
+
+    public void DisableMonitor()
+    {
+        _monitorConsole.Disable();
+        _monitorStatusConsole.Disable();
+        OnMonitorStateChange(monitorEnabled: false);
+    }
+    public void EnableMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
+    {
+        _monitorConsole.Enable(execEvaluatorTriggerResult);
+        _monitorStatusConsole.Enable();
+        OnMonitorStateChange(monitorEnabled: true);
     }
 
     private void HandleUIKeyboardInput()

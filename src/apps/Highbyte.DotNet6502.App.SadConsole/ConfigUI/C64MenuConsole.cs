@@ -25,7 +25,7 @@ public class C64MenuConsole : ControlsConsole
         console.Surface.DefaultBackground = SadConsoleUISettings.UIConsoleBackgroundColor;
         console.Clear();
 
-        //console.Surface.UsePrintProcessor = true;
+        console.FocusedMode = FocusBehavior.None;
 
         console.UseMouse = true;
         console.MouseMove += (s, e) =>

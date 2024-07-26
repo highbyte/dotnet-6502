@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.Monitor;
 using SadConsole.Components;
+using SadConsole.UI.Controls;
 using SadRogue.Primitives;
 using Console = SadConsole.Console;
 
@@ -8,35 +9,30 @@ internal class MonitorConsole : Console
 {
     public const int CONSOLE_WIDTH = USABLE_WIDTH + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     public const int CONSOLE_HEIGHT = USABLE_HEIGHT + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
-    private const int USABLE_WIDTH = 58;
-    private const int USABLE_HEIGHT = 25;
-
-    private const int CURSOR_START_Y = CONSOLE_HEIGHT - 6;
+    private const int USABLE_WIDTH = 60;
+    private const int USABLE_HEIGHT = 24;
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
     private readonly MonitorConfig _monitorConfig;
+    private readonly Action _displayCPUStatus;
     private SadConsoleMonitor _monitor;
-
+    public SadConsoleMonitor Monitor => _monitor;
     private readonly ClassicConsoleKeyboardHandler _keyboardHandlerObject;
 
-    public event EventHandler<bool>? MonitorStateChange;
-    protected virtual void OnMonitorStateChange(bool monitorEnabled)
-    {
-        var handler = MonitorStateChange;
-        handler?.Invoke(this, monitorEnabled);
-    }
-
+    private Label _processorStatusLabel;
+    private List<Label> _sysInfoLabels;
 
     /// <summary>
-    /// 
+    /// Console to display the monitor
     /// </summary>
     /// <param name="sadConsoleHostApp"></param>
     /// <param name="monitorConfig"></param>
-    public MonitorConsole(SadConsoleHostApp sadConsoleHostApp, MonitorConfig monitorConfig)
+    public MonitorConsole(SadConsoleHostApp sadConsoleHostApp, MonitorConfig monitorConfig, Action displayCPUStatus)
         : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
         _sadConsoleHostApp = sadConsoleHostApp;
         _monitorConfig = monitorConfig;
+        _displayCPUStatus = displayCPUStatus;
 
         // Initially not visible. Call Init() to initialize with the current system, then Enable() to show it.
         IsVisible = false;
@@ -52,23 +48,10 @@ internal class MonitorConsole : Console
 
         // Disable the cursor because custom keyboard handler will process cursor
         Cursor.IsEnabled = false;
-    }
 
-    public void InitScreen()
-    {
-        // Note: Don't know why it's necessary to remove (and later add) the keyboard handler object for the Prompt to be displayed correctly.
-        if (SadComponents.Contains(_keyboardHandlerObject))
-            SadComponents.Remove(_keyboardHandlerObject);
-
-        this.Clear();
-        Cursor.Position = new Point(0, CURSOR_START_Y);
-        _keyboardHandlerObject.CursorLastY = CURSOR_START_Y;
-
-        DisplayInitialText();
-
-        Surface.TimesShiftedUp = 0;
-
-        SadComponents.Add(_keyboardHandlerObject);
+        Surface.DefaultForeground = SadConsoleUISettings.UIConsoleForegroundColor;
+        Surface.DefaultBackground = SadConsoleUISettings.UIConsoleBackgroundColor;
+        _monitorConfig = monitorConfig;
     }
 
     private void EnterPressedActionHandler(ClassicConsoleKeyboardHandler keyboardComponent, Cursor cursor, string value)
@@ -78,14 +61,17 @@ internal class MonitorConsole : Console
 
         //_monitor.WriteOutput(value, MessageSeverity.Information); // The entered command has already been printed to console here
         var commandResult = _monitor.SendCommand(value);
+
+        _displayCPUStatus(); // Trigger draw of CPU status and system info
+
         if (commandResult == CommandResult.Quit)
         {
             //Quit = true;
-            Disable();
+            _sadConsoleHostApp.DisableMonitor();
         }
         else if (commandResult == CommandResult.Continue)
         {
-            Disable();
+            _sadConsoleHostApp.DisableMonitor();
         }
     }
 
@@ -101,28 +87,51 @@ internal class MonitorConsole : Console
     public void Init()
     {
         _monitor = new SadConsoleMonitor(_sadConsoleHostApp.CurrentSystemRunner!, _monitorConfig, MonitorOutputPrint);
-
         InitScreen();
+    }
+
+    /// <summary>
+    /// Initializes the console for first use with help text.
+    /// </summary>
+    private void InitScreen()
+    {
+        // Note: Don't know why it's necessary to remove (and later add) the keyboard handler object for the Prompt to be displayed correctly.
+        if (SadComponents.Contains(_keyboardHandlerObject))
+            SadComponents.Remove(_keyboardHandlerObject);
+
+        this.Clear();
+        Cursor.Position = new Point(0, CONSOLE_HEIGHT);
+        _keyboardHandlerObject.CursorLastY = CONSOLE_HEIGHT;
+
+        DisplayInitialText();
+
+        Surface.TimesShiftedUp = 0;
+
+        SadComponents.Add(_keyboardHandlerObject);
     }
 
     private void DisplayInitialText()
     {
         Cursor.DisableWordBreak = false;
+
         _monitor.ShowDescription();
-        _monitor.WriteOutput("", MessageSeverity.Information);
-        _monitor.WriteOutput("Type '?' for help.", MessageSeverity.Information);
-        _monitor.WriteOutput("Type '[command] -?' for help on command.", MessageSeverity.Information);
-        _monitor.WriteOutput("Examples:", MessageSeverity.Information);
-        _monitor.WriteOutput("  d", MessageSeverity.Information);
-        _monitor.WriteOutput("  d c000", MessageSeverity.Information);
-        _monitor.WriteOutput("  m c000", MessageSeverity.Information);
-        _monitor.WriteOutput("  z", MessageSeverity.Information);
-        _monitor.WriteOutput("  g", MessageSeverity.Information);
-        _monitor.WriteOutput("", MessageSeverity.Information);
+
+        _monitor.WriteOutput("");
+        _monitor.WriteOutput("Type '?' for help.");
+        _monitor.WriteOutput("Type '[command] -?' for help on command.");
+        _monitor.WriteOutput("Examples:");
+        _monitor.WriteOutput("  d");
+        _monitor.WriteOutput("  d c000");
+        _monitor.WriteOutput("  m c000");
+        _monitor.WriteOutput("  z");
+        _monitor.WriteOutput("  g");
+        _monitor.WriteOutput("");
+
         //_monitor.ShowHelp();
         Cursor.DisableWordBreak = true;
     }
 
+    // TODO: Implement Enable/Disable SadConsoleHostApp to call this Enable/Disable + MonitorStatusConsole.Enable/Disable
     public void Enable(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
         _monitor.Reset();   // Reset monitor working variables (like last disassembly location)
@@ -133,14 +142,12 @@ internal class MonitorConsole : Console
         IsVisible = true;
         IsFocused = true;
 
-        OnMonitorStateChange(monitorEnabled: true);
+        _displayCPUStatus(); // Trigger draw of CPU status and system info
     }
 
     public void Disable()
     {
         IsVisible = false;
         IsFocused = false;
-
-        OnMonitorStateChange(monitorEnabled: false);
     }
 }

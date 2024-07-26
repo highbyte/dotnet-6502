@@ -28,6 +28,8 @@ public class MenuConsole : ControlsConsole
         //FontSize = console.Font.GetFontSize(IFont.Sizes.One);
         //console.Surface.UsePrintProcessor = true;
 
+        console.FocusedMode = FocusBehavior.None;
+
         console.UseMouse = true;
         console.MouseMove += (s, e) =>
         {
