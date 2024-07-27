@@ -170,7 +170,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
                 _monitorConsole.UsePixelPositioning = true;
                 //_monitorConsole.Position = new Point((_sadConsoleEmulatorConsole.Position.X * _sadConsoleEmulatorConsole.Font.GlyphWidth) + (_sadConsoleEmulatorConsole.Width * _sadConsoleEmulatorConsole.Font.GlyphWidth), 0);
                 // Note: _sadConsoleEmulatorConsole has already changed to UsePixelPositioning = true, so its Position.X is in pixels (not Width though).
-                _monitorConsole.Position = new Point(_sadConsoleEmulatorConsole.Position.X + (_sadConsoleEmulatorConsole.Width * _sadConsoleEmulatorConsole.Font.GlyphWidth), 0);
+                _monitorConsole.Position = new Point(_sadConsoleEmulatorConsole.Position.X + ((int)(_sadConsoleEmulatorConsole.Width * _sadConsoleEmulatorConsole.Font.GlyphWidth * _emulatorConfig.FontSizeScaleFactor)), 0);
                 _sadConsoleEmulatorConsole.IsFocused = false;
 
                 // Monitor status console
@@ -389,15 +389,20 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             emulatorConsoleFontSizeAdjustment = 0;
         }
 
+        var menuConsoleWidthPixels = _menuConsole.WidthPixels;
         var emulatorConsoleWidthPixels = (_sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.WidthPixels + emulatorConsoleFontSizeAdjustment : 0);
         var monitorConsoleWidthPixels = (_monitorConsole != null && _monitorConsole.IsVisible ? _monitorConsole.WidthPixels : 0);
-        var widthPixels = _menuConsole.WidthPixels + emulatorConsoleWidthPixels + monitorConsoleWidthPixels;
+        var widthPixels = menuConsoleWidthPixels + emulatorConsoleWidthPixels + monitorConsoleWidthPixels;
         return widthPixels;
     }
 
     private int CalculateWindowHeightPixels()
     {
-        var heightPixels = Math.Max(_menuConsole.HeightPixels + (_systemMenuConsole != null ? _systemMenuConsole.HeightPixels : 0), _sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.HeightPixels : 0);
+        var menuConsoleHeightPixels = _menuConsole.HeightPixels + (_systemMenuConsole != null ? _systemMenuConsole.HeightPixels : 0);
+        var emulatorConsoleHeightPixels = (_sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.HeightPixels : 0);
+        var monitorConsoleHeightPixels = (_monitorConsole != null && _monitorConsole.IsVisible ? _monitorConsole.HeightPixels + _monitorStatusConsole.HeightPixels : 0);
+
+        var heightPixels = Math.Max(menuConsoleHeightPixels, Math.Max(emulatorConsoleHeightPixels, monitorConsoleHeightPixels));
         return heightPixels;
     }
 
