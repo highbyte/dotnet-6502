@@ -1,5 +1,4 @@
 using Highbyte.DotNet6502.Systems;
-using SadConsole.Host;
 using static SadConsole.IFont;
 using Console = SadConsole.Console;
 

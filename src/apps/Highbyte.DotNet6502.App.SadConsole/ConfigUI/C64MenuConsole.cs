@@ -17,35 +17,27 @@ public class C64MenuConsole : ControlsConsole
     private readonly SadConsoleHostApp _sadConsoleHostApp;
     private readonly ILogger _logger;
 
-    private C64MenuConsole(SadConsoleHostApp sadConsoleHostApp, ILoggerFactory loggerFactory) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
+    public C64MenuConsole(SadConsoleHostApp sadConsoleHostApp, ILoggerFactory loggerFactory) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
         _sadConsoleHostApp = sadConsoleHostApp;
         _logger = loggerFactory.CreateLogger(typeof(C64MenuConsole).Name);
-    }
 
-    public static C64MenuConsole Create(SadConsoleHostApp sadConsoleHostApp, ILoggerFactory loggerFactory)
-    {
-        var console = new C64MenuConsole(sadConsoleHostApp, loggerFactory);
+        Controls.ThemeColors = SadConsoleUISettings.ThemeColors;
+        Surface.DefaultBackground = Controls.ThemeColors.ControlHostBackground;
+        Surface.DefaultForeground = Controls.ThemeColors.ControlHostForeground;
+        Surface.Clear();
 
-        console.Surface.DefaultForeground = SadConsoleUISettings.UIConsoleForegroundColor;
-        console.Surface.DefaultBackground = SadConsoleUISettings.UIConsoleBackgroundColor;
-        console.Clear();
+        FocusedMode = FocusBehavior.None;
 
-        console.FocusedMode = FocusBehavior.None;
+        UseMouse = true;
+        UseKeyboard = true;
 
-        console.UseMouse = true;
-        console.MouseMove += (s, e) =>
-        {
-        };
-        console.UseKeyboard = true;
-
-        console.DrawUIItems();
+        DrawUIItems();
 
         if (SadConsoleUISettings.UI_USE_CONSOLE_BORDER)
-            console.Surface.DrawBox(new Rectangle(0, 0, console.Width, console.Height), SadConsoleUISettings.ConsoleDrawBoxBorderParameters);
-
-        return console;
+            Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.ConsoleDrawBoxBorderParameters);
     }
+
 
     private void DrawUIItems()
     {
@@ -238,7 +230,7 @@ public class C64MenuConsole : ControlsConsole
 
     private void C64ConfigButton_Click(object sender, EventArgs e)
     {
-        var window = C64ConfigUIConsole.Create(_sadConsoleHostApp);
+        var window = new C64ConfigUIConsole(_sadConsoleHostApp);
 
         window.Center();
         window.Closed += (s2, e2) =>

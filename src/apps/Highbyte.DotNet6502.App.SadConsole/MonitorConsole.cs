@@ -49,8 +49,8 @@ internal class MonitorConsole : Console
         // Disable the cursor because custom keyboard handler will process cursor
         Cursor.IsEnabled = false;
 
-        Surface.DefaultForeground = SadConsoleUISettings.UIConsoleForegroundColor;
-        Surface.DefaultBackground = SadConsoleUISettings.UIConsoleBackgroundColor;
+        Surface.DefaultForeground = SadConsoleUISettings.ThemeColors.ControlHostForeground;
+        Surface.DefaultBackground = SadConsoleUISettings.ThemeColors.ControlHostBackground;
         _monitorConfig = monitorConfig;
     }
 

@@ -151,10 +151,14 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
     public virtual void OnAfterPause() { }
 
+    public virtual void OnBeforeStop() { }
+
     public void Stop()
     {
         if (EmulatorState == EmulatorState.Running)
             Pause();
+
+        OnBeforeStop();
 
         _systemRunner!.AudioHandler.StopPlaying();
 

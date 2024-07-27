@@ -16,36 +16,25 @@ public class C64ConfigUIConsole : Window
 
     private C64Config _c64Config => (C64Config)_sadConsoleHostApp.GetSystemConfig().Result;
 
-    private C64ConfigUIConsole(SadConsoleHostApp sadConsoleHostApp) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
+    public C64ConfigUIConsole(SadConsoleHostApp sadConsoleHostApp) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
         _sadConsoleHostApp = sadConsoleHostApp;
-    }
 
-    public static C64ConfigUIConsole Create(SadConsoleHostApp sadConsoleHostApp)
-    {
-        var console = new C64ConfigUIConsole(sadConsoleHostApp);
+        Controls.ThemeColors = SadConsoleUISettings.ThemeColors;
+        Surface.DefaultBackground = Controls.ThemeColors.ControlHostBackground;
+        Surface.DefaultForeground = Controls.ThemeColors.ControlHostForeground;
+        Surface.Clear();
 
-        //console.Surface.DefaultForeground = SadConsoleUISettings.UIConsoleForegroundColor;
-        //console.Surface.DefaultBackground = SadConsoleUISettings.UIConsoleBackgroundColor;
-        //console.Clear();
+        Title = "C64 Config";
+        var colors = Controls.GetThemeColors();
+        Cursor.PrintAppearanceMatchesHost = false;
+        Cursor.DisableWordBreak = true;
+        Cursor.SetPrintAppearance(colors.Title, Surface.DefaultBackground);
 
-        console.Title = "C64 Config";
-        var colors = console.Controls.GetThemeColors();
+        UseMouse = true;
+        UseKeyboard = true;
 
-        console.Cursor.PrintAppearanceMatchesHost = false;
-        console.Cursor.DisableWordBreak = true;
-        console.Cursor.SetPrintAppearance(colors.Title, console.Surface.DefaultBackground);
-
-
-        console.UseMouse = true;
-        console.MouseMove += (s, e) =>
-        {
-        };
-        console.UseKeyboard = true;
-
-        console.DrawUIItems();
-
-        return console;
+        DrawUIItems();
     }
 
     private void DrawUIItems()

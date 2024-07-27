@@ -33,9 +33,6 @@ internal class MonitorStatusConsole : ControlsConsole
         IsVisible = false;
         FocusedMode = FocusBehavior.None;
 
-        Surface.DefaultForeground = SadConsoleUISettings.UIConsoleForegroundColor;
-        Surface.DefaultBackground = SadConsoleUISettings.UIConsoleBackgroundColor;
-
         if (SadConsoleUISettings.UI_USE_CONSOLE_BORDER)
             Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.ConsoleDrawBoxBorderParameters);
 
@@ -44,6 +41,8 @@ internal class MonitorStatusConsole : ControlsConsole
 
     private void CreateUIControls()
     {
+        Controls.ThemeColors = SadConsoleUISettings.ThemeColors;
+
         _processorStatusLabel = CreateLabel(_emptyInfoRow, 1, 1, "processorStatusLabel");
         _sysInfoLabels = new List<Label>();
         for (int i = 0; i < 2; i++)

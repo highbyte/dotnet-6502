@@ -12,36 +12,24 @@ public class MenuConsole : ControlsConsole
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
 
-    private MenuConsole(SadConsoleHostApp sadConsoleHostApp) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
+    public MenuConsole(SadConsoleHostApp sadConsoleHostApp) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
         _sadConsoleHostApp = sadConsoleHostApp;
-    }
 
-    public static MenuConsole Create(SadConsoleHostApp sadConsoleHostApp)
-    {
-        var console = new MenuConsole(sadConsoleHostApp);
+        Controls.ThemeColors = SadConsoleUISettings.ThemeColors;
+        Surface.DefaultBackground = Controls.ThemeColors.ControlHostBackground;
+        Surface.DefaultForeground = Controls.ThemeColors.ControlHostForeground;
+        Surface.Clear();
 
-        console.Surface.DefaultForeground = SadConsoleUISettings.UIConsoleForegroundColor;
-        console.Surface.DefaultBackground = SadConsoleUISettings.UIConsoleBackgroundColor;
-        console.Clear();
+        FocusedMode = FocusBehavior.None;
 
-        //FontSize = console.Font.GetFontSize(IFont.Sizes.One);
-        //console.Surface.UsePrintProcessor = true;
+        UseMouse = true;
+        UseKeyboard = true;
 
-        console.FocusedMode = FocusBehavior.None;
-
-        console.UseMouse = true;
-        console.MouseMove += (s, e) =>
-        {
-        };
-        console.UseKeyboard = true;
-
-        console.DrawUIItems();
+        DrawUIItems();
 
         if (SadConsoleUISettings.UI_USE_CONSOLE_BORDER)
-            console.Surface.DrawBox(new Rectangle(0, 0, console.Width, console.Height), SadConsoleUISettings.ConsoleDrawBoxBorderParameters);
-
-        return console;
+            Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.ConsoleDrawBoxBorderParameters);
     }
 
     private void DrawUIItems()
@@ -101,16 +89,16 @@ public class MenuConsole : ControlsConsole
         Controls.Add(monitorButton);
 
 
-        var statsButton = new Button("Stats (F11)")
+        var infoButton = new Button("Info (F11)")
         {
-            Name = "statsButton",
+            Name = "infoButton",
             Position = (1, monitorButton.Position.Y + 2),
         };
-        statsButton.Click += (s, e) => { _sadConsoleHostApp.ToggleStats(); IsDirty = true; };
-        Controls.Add(statsButton);
+        infoButton.Click += (s, e) => { _sadConsoleHostApp.ToggleInfo(); IsDirty = true; };
+        Controls.Add(infoButton);
 
 
-        var fontSizeLabel = CreateLabel("Font size:", 1, statsButton.Bounds.MaxExtentY + 2);
+        var fontSizeLabel = CreateLabel("Font size:", 1, infoButton.Bounds.MaxExtentY + 2);
         ComboBox selectFontSizeBox = new ComboBox(9, 9, 5, Enum.GetValues<IFont.Sizes>().Select(x => (object)x).ToArray())
         {
             Position = (fontSizeLabel.Bounds.MaxExtentX + 2, fontSizeLabel.Position.Y),
@@ -170,8 +158,8 @@ public class MenuConsole : ControlsConsole
         var monitorButton = Controls["monitorButton"];
         monitorButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
-        var statsButton = Controls["statsButton"];
-        statsButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
+        var infoButton = Controls["infoButton"];
+        //infoButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
         var selectFontSizeComboBox = Controls["selectFontSizeComboBox"];
         selectFontSizeComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
