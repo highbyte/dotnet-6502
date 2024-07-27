@@ -1,35 +1,36 @@
+using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;
 
 namespace Highbyte.DotNet6502.App.SadConsole;
-internal class MonitorStatusConsole : ControlsConsole
+internal class StatsConsole : ControlsConsole
 {
     public const int CONSOLE_WIDTH = USABLE_WIDTH + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     public const int CONSOLE_HEIGHT = USABLE_HEIGHT + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
-    private const int USABLE_WIDTH = 60;
-    private const int USABLE_HEIGHT = 3;
+    private const int USABLE_WIDTH = 52 * 2 + 1;    // To roughly match C64 emulator console width. Will not look if another system with different width is used.
+    private const int USABLE_HEIGHT = 16;
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
 
     public event EventHandler<bool>? MonitorStateChange;
 
-    private Label _processorStatusLabel;
-    private List<Label> _sysInfoLabels;
-    private string _emptyInfoRow = new string(' ', USABLE_WIDTH);
+    private List<Label> _statsLabels;
 
+    private string _emptyStatsRow = new string(' ', USABLE_WIDTH);
 
     /// <summary>
     /// Console to display the monitor
     /// </summary>
     /// <param name="sadConsoleHostApp"></param>
     /// <param name="monitorConfig"></param>
-    public MonitorStatusConsole(SadConsoleHostApp sadConsoleHostApp)
+    public StatsConsole(SadConsoleHostApp sadConsoleHostApp)
         : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
         _sadConsoleHostApp = sadConsoleHostApp;
 
+        // Initially not visible. Call Init() to initialize with the current system, then Enable() to show it.
         IsVisible = false;
         FocusedMode = FocusBehavior.None;
 
@@ -44,12 +45,11 @@ internal class MonitorStatusConsole : ControlsConsole
 
     private void CreateUIControls()
     {
-        _processorStatusLabel = CreateLabel(_emptyInfoRow, 1, 1, "processorStatusLabel");
-        _sysInfoLabels = new List<Label>();
+        _statsLabels = new List<Label>();
         for (int i = 0; i < 2; i++)
         {
-            var sysInfoLabel = CreateLabel(_emptyInfoRow, 1, _processorStatusLabel.Position.Y + 1 + i, $"sysInfoLabel{i}");
-            _sysInfoLabels.Add(sysInfoLabel);
+            var statsLabel = CreateLabel(_emptyStatsRow, 1, 1 + i, $"statsLabel{i}");
+            _statsLabels.Add(statsLabel);
         }
 
         //Helper function to create a label and add it to the console
@@ -64,46 +64,42 @@ internal class MonitorStatusConsole : ControlsConsole
     protected override void OnIsDirtyChanged()
     {
         if (IsDirty)
-            DisplayCPUStatus();
+            DisplayStats();
     }
 
     public void Refresh()
     {
-        DisplayCPUStatus();
+        DisplayStats();
     }
 
-    private void DisplayCPUStatus()
+    private void DisplayStats()
     {
-        if (_sadConsoleHostApp.EmulatorState == EmulatorState.Uninitialized)
+        var system = _sadConsoleHostApp.CurrentRunningSystem!;
+
+        var statsStrings = new List<string>();
+        foreach ((string name, IStat stat) in _sadConsoleHostApp.GetStats().OrderBy(i => i.name))
         {
-            _processorStatusLabel.DisplayText = "";
-            for (int i = 0; i < _sysInfoLabels.Count; i++)
+            if (stat.ShouldShow())
             {
-                _sysInfoLabels[i].DisplayText = "";
+                string line = name + ": " + stat.GetDescription();
+                statsStrings.Add(line);
             }
-        }
-        else
+        };
+
+        // TODO: If there are more stats rows than can be displayed (i.e. not enough items in _statsLabels), then they are not displayed. Fix it?
+        for (int i = 0; i < _statsLabels.Count; ++i)
         {
-            var system = _sadConsoleHostApp.CurrentRunningSystem!;
-
-            _processorStatusLabel.DisplayText = $"CPU: {OutputGen.GetProcessorState(system.CPU, includeCycles: true)}";
-
-            for (int i = 0; i < _sysInfoLabels.Count; ++i)
-            {
-
-                if (i < system.SystemInfo.Count)
-                    // TODO: Is a new string every time needed here? If system.SystemInfo items does not change, then a list of pre-created string can be initialized once and then reused..
-                    _sysInfoLabels[i].DisplayText = $"SYS: {system.SystemInfo[i]}";
-                else
-                    _sysInfoLabels[i].DisplayText = _emptyInfoRow;
-            }
+            if (i < statsStrings.Count)
+                _statsLabels[i].DisplayText = statsStrings[i];
+            else
+                _statsLabels[i].DisplayText = _emptyStatsRow;
         }
     }
 
-    public void Enable(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
+    public void Enable()
     {
         IsVisible = true;
-        IsDirty = true; // Trigger draw of CPU status and system info
+        IsDirty = true; // Trigger draw of stats
     }
 
     public void Disable()

@@ -58,6 +58,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     private SadConsoleRenderContext _renderContext = default!;
     private SadConsoleInputHandlerContext _inputHandlerContext = default!;
     private NullAudioHandlerContext _audioHandlerContext = default!;
+    private StatsConsole _statsConsole;
     private const int MENU_POSITION_X = 0;
     private const int MENU_POSITION_Y = 0;
 
@@ -148,20 +149,25 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         _menuConsole.Position = (MENU_POSITION_X, MENU_POSITION_Y);
         _sadConsoleScreen.Children.Add(_menuConsole);
 
+        // Stats console
+        _statsConsole = new StatsConsole(this);
+        _statsConsole.Position = (15, 30); // Temporary position while invisible. Will be moved after a system is started and stats is enabled.
+        _sadConsoleScreen.Children.Add(_statsConsole);
+
         // Monitor status console
         _monitorStatusConsole = new MonitorStatusConsole(this);
-        _monitorStatusConsole.Position = (_menuConsole.Position.X + _menuConsole.Width, _menuConsole.Position.Y + _menuConsole.Height + 1); // Temporary position while invisible. Will be moved after a system is started.
+        _monitorStatusConsole.Position = (_menuConsole.Position.X + _menuConsole.Width, _menuConsole.Position.Y + _menuConsole.Height + 1); // Temporary position while invisible. Will be moved after a system is started and monitor is enabled.
         _sadConsoleScreen.Children.Add(_monitorStatusConsole);
 
         // Monitor console
         _monitorConsole = new MonitorConsole(this, _emulatorConfig.Monitor, _monitorStatusConsole.Refresh);
         _monitorConsole.IsVisible = false;
-        _monitorConsole.Position = (_menuConsole.Position.X + _menuConsole.Width, _menuConsole.Position.Y); // Temporary position while invisible. Will be moved after a system is started.
+        _monitorConsole.Position = (_menuConsole.Position.X + _menuConsole.Width, _menuConsole.Position.Y); // Temporary position while invisible. Will be moved after a system is started and monitor is enabled.
         MonitorStateChange += (s, monitorEnabled) =>
         {
             //_inputHandlerContext.ListenForKeyboardInput(enabled: !monitorEnabled);
             //if (monitorEnabled)
-            //    statsPanel.Disable();
+            //    DisableStats();
 
             if (monitorEnabled)
             {
@@ -272,11 +278,9 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     {
         // Disable monitor if it is visible
         if (_monitorConsole.IsVisible)
-        {
-            _monitorConsole.Disable();
-            // Resize window to that monitor console is not shown.
-            Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
-        }
+            DisableMonitor();
+        if (_statsConsole.IsVisible)
+            DisableStats();
 
         // Remove the console containing the running system
         if (_sadConsoleEmulatorConsole != null)
@@ -286,7 +290,6 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             _sadConsoleEmulatorConsole.Dispose();
             _sadConsoleEmulatorConsole = null;
         }
-
     }
 
     public override void OnAfterClose()
@@ -319,7 +322,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         shouldRun = false;
         shouldReceiveInput = false;
 
-        // Don't update emulator state when monitor is visible
+        // Don't update emulator state when monitor is enabled/visible
         if (_monitorConsole.IsVisible)
             return;
 
@@ -356,6 +359,12 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     }
     public override void OnAfterDrawFrame(bool emulatorRendered)
     {
+        if (emulatorRendered)
+        {
+            // Render stats if enabled and emulator was rendered
+            if (_statsConsole.IsVisible)
+                _statsConsole.Refresh();
+        }
     }
 
 
@@ -390,7 +399,8 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         }
 
         var menuConsoleWidthPixels = _menuConsole.WidthPixels;
-        var emulatorConsoleWidthPixels = (_sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.WidthPixels + emulatorConsoleFontSizeAdjustment : 0);
+        var emulatorConsoleWidthPixels = Math.Max((_sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.WidthPixels + emulatorConsoleFontSizeAdjustment : 0)
+                                            , (_statsConsole!= null && _statsConsole.IsVisible ? _statsConsole.WidthPixels : 0));
         var monitorConsoleWidthPixels = (_monitorConsole != null && _monitorConsole.IsVisible ? _monitorConsole.WidthPixels : 0);
         var widthPixels = menuConsoleWidthPixels + emulatorConsoleWidthPixels + monitorConsoleWidthPixels;
         return widthPixels;
@@ -399,13 +409,13 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     private int CalculateWindowHeightPixels()
     {
         var menuConsoleHeightPixels = _menuConsole.HeightPixels + (_systemMenuConsole != null ? _systemMenuConsole.HeightPixels : 0);
-        var emulatorConsoleHeightPixels = (_sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.HeightPixels : 0);
+        var emulatorConsoleHeightPixels = (_sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.HeightPixels + (_statsConsole.IsVisible ? _statsConsole.HeightPixels : 0) : 0);
         var monitorConsoleHeightPixels = (_monitorConsole != null && _monitorConsole.IsVisible ? _monitorConsole.HeightPixels + _monitorStatusConsole.HeightPixels : 0);
 
-        var heightPixels = Math.Max(menuConsoleHeightPixels, Math.Max(emulatorConsoleHeightPixels, monitorConsoleHeightPixels));
+        // Calculate Max of the variables above
+        var heightPixels = new int[] { menuConsoleHeightPixels, emulatorConsoleHeightPixels, monitorConsoleHeightPixels }.Max();
         return heightPixels;
     }
-
 
     public void ToggleMonitor()
     {
@@ -436,16 +446,51 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         OnMonitorStateChange(monitorEnabled: true);
     }
 
+    public void ToggleStats()
+    {
+        // Only be able to toggle stats if emulator is running or paused
+        if (EmulatorState == EmulatorState.Uninitialized)
+            return;
+
+        if (_statsConsole!.IsVisible)
+        {
+            DisableStats();
+        }
+        else
+        {
+            EnableStats();
+        }
+    }
+    public void DisableStats()
+    {
+        _statsConsole.Disable();
+        // Resize main window to fit menu, emulator, monitor and other visible consoles
+        Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
+        //OnStatsStateChange(statsEnabled: false);
+    }
+    public void EnableStats()
+    {
+        _statsConsole.Enable();
+        // Assume _sadConsoleEmulatorConsole has enabled pixel positioning
+        _statsConsole.UsePixelPositioning = true;
+        //_statsConsole.Position = (_sadConsoleEmulatorConsole.Position.X, _sadConsoleEmulatorConsole.Position.Y + (_sadConsoleEmulatorConsole.Height * (int)(_sadConsoleEmulatorConsole.Font.GlyphHeight * _emulatorConfig.FontSizeScaleFactor)));
+        _statsConsole.Position = (_sadConsoleEmulatorConsole.Position.X, _sadConsoleEmulatorConsole.Position.Y + _sadConsoleEmulatorConsole.HeightPixels);
+        // Resize main window to fit menu, emulator, monitor and other visible consoles
+        Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
+
+        //OnStatsStateChange(statsEnabled: true);
+    }
+
     private void HandleUIKeyboardInput()
     {
         var keyboard = GameHost.Instance.Keyboard;
         //if (keyboard.IsKeyPressed(Keys.F10))
-        //    ToggleLogsPanel();
+        //    ToggleLogs();
 
         if (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused)
         {
-            //if (keyboard.IsKeyPressed(Keys.F11))
-            //    ToggleStatsPanel();
+            if (keyboard.IsKeyPressed(Keys.F11))
+                ToggleStats();
             if (keyboard.IsKeyPressed(Keys.F12))
                 ToggleMonitor();
         }
