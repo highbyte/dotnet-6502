@@ -221,7 +221,6 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             _systemMenuConsole.Dispose();
             _systemMenuConsole = null;
         }
-
         // Create system specific menu console
         if (SelectedSystemName == "C64")
         {
@@ -229,6 +228,8 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             _systemMenuConsole.Position = (MENU_POSITION_X, _menuConsole.Height);
             _sadConsoleScreen.Children.Add(_systemMenuConsole);
         }
+
+        _infoConsole.ShowSelectedSystemInfoHelp();
     }
 
     public override bool OnBeforeStart(ISystem systemAboutToBeStarted)

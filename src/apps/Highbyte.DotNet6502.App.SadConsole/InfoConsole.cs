@@ -1,15 +1,12 @@
-using System.ComponentModel;
-using Highbyte.DotNet6502.Instructions;
-using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Generic;
 using Microsoft.Extensions.Logging;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Highbyte.DotNet6502.App.SadConsole;
 internal class InfoConsole : ControlsConsole
@@ -27,6 +24,8 @@ internal class InfoConsole : ControlsConsole
     private string _emptyStatsLabelValueRow = new string(' ', 8);
 
     private ListBox _logsListBox;
+
+    private Dictionary<string, Panel> _systemInfoPanels = new Dictionary<string, Panel>();
 
     /// <summary>
     /// Console to display information, stats, and logs
@@ -128,11 +127,72 @@ internal class InfoConsole : ControlsConsole
             }
         }
 
-        TabControl tab = new TabControl(new[] { new TabItem("Stats", statsPanel) { AutomaticPadding = 0 },
-                                                new TabItem("Logs", logsPanel) { AutomaticPadding = 0 },
-                                              },
-                                              CONSOLE_WIDTH, CONSOLE_HEIGHT) { Name = "tab" };
 
+        // C64 info panel
+        Panel c64SystemInfoPanel = new Panel(10, 10); // TODO: What does size in constructor affect?
+        {
+            const int colTab1 = 0; const int colTab2 = 30; const int colTab3 = 60;
+            int row = 0;
+            CreateLabel("C64 keyboard mapping", colTab1, row, Controls.ThemeColors.White);
+            row++;
+            CreateLabel("Command", colTab1, row, Controls.ThemeColors.Title);
+            CreateLabel("C64 key", colTab2, row, Controls.ThemeColors.Title);
+            CreateLabel("PC/Mac key", colTab3, row, Controls.ThemeColors.Title);
+            row++;
+            CreateLabel("Stop run Basic prg", colTab1, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("Run/stop", colTab2, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("Esc", colTab3, row, Controls.ThemeColors.ControlHostForeground);
+            row++;
+            CreateLabel("Soft reset", colTab1, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("Run/Stop + Restore", colTab2, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("Esc + PgUp (fn+ArrowUp on Mac)", colTab3, row, Controls.ThemeColors.ControlHostForeground);
+            row++;
+            CreateLabel("Change text color 1-8", colTab1, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("CTRL + numbers 1-8", colTab2, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("Tab + numbers 1-8", colTab3, row, Controls.ThemeColors.ControlHostForeground);
+            row++;
+            CreateLabel("Change text color 9-16", colTab1, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("C= + numbers 1-8", colTab2, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("LeftCtrl + numbers 1-8", colTab3, row, Controls.ThemeColors.ControlHostForeground);
+
+            Label CreateLabel(string text, int col, int row, Color? textColor = null, string? name = null)
+            {
+                if (textColor == null)
+                    textColor = Surface.DefaultForeground;
+                var labelTemp = new Label(text) { Position = new Point(col, row), Name = name, TextColor = textColor };
+                c64SystemInfoPanel.Add(labelTemp);
+                return labelTemp;
+            }
+
+            _systemInfoPanels.Add(key: C64.SystemName, value: c64SystemInfoPanel);
+        }
+
+        // Generic info panel
+        Panel genericSystemInfoPanel = new Panel(10, 10); // TODO: What does size in constructor affect?
+        {
+            int row = 0;
+            CreateLabel("A generic 6502 CPU computer, with custom defined memory layout.", 0, row, Controls.ThemeColors.ControlHostForeground);
+            row++;
+            CreateLabel("A future update could make it possible to configure such things as total memory,", 0, row, Controls.ThemeColors.ControlHostForeground);
+            row++;
+            CreateLabel("screen memory addres and IO memory addresses in the UI.", 0, row, Controls.ThemeColors.ControlHostForeground);
+
+            Label CreateLabel(string text, int col, int row, Color? textColor = null, string? name = null)
+            {
+                if (textColor == null)
+                    textColor = Surface.DefaultForeground;
+                var labelTemp = new Label(text) { Position = new Point(col, row), Name = name, TextColor = textColor };
+                genericSystemInfoPanel.Add(labelTemp);
+                return labelTemp;
+            }
+            _systemInfoPanels.Add(key: GenericComputer.SystemName, value: genericSystemInfoPanel);
+        }
+
+
+        List<TabItem> tabs = new(){ new TabItem("Stats", statsPanel) { AutomaticPadding = 0 },
+                                    new TabItem("Logs", logsPanel) { AutomaticPadding = 0 },
+                                    };
+        TabControl tab = new TabControl(tabs, CONSOLE_WIDTH, CONSOLE_HEIGHT) { Name = "tab" };
         tab.Position = (0, 0);
         Controls.Add(tab);
     }
@@ -167,6 +227,7 @@ internal class InfoConsole : ControlsConsole
         for (int i = 0; i < _statsLabels.Count; ++i)
         {
             _statsLabels[i].DisplayText = _emptyStatsLabelRow;
+            _statsLabelValues[i].DisplayText = _emptyStatsLabelValueRow;
         }
     }
 
@@ -181,6 +242,33 @@ internal class InfoConsole : ControlsConsole
             _logsListBox.Items.Add(trimmedLine);
         }
         _logsListBox.IsDirty = true;
+    }
+
+    /// <summary>
+    /// Show system info help for the selected system, and hides other system info help.
+    /// </summary>
+    public void ShowSelectedSystemInfoHelp()
+    {
+        var tab = Controls["tab"] as TabControl;
+        // Remove existing system info panel
+        foreach (var systemInfoPanel in _systemInfoPanels.Values)
+        {
+            var tabContainingExistingSystemInfoPanel = tab.Tabs.SingleOrDefault(x => x.Content == systemInfoPanel);
+            if (tabContainingExistingSystemInfoPanel != null)
+            {
+                tab.SetActiveTab(0);
+                tab.RemoveTab(tabContainingExistingSystemInfoPanel);
+            }
+        }
+
+        // Add current selected system info panel
+        if (_systemInfoPanels.ContainsKey(_sadConsoleHostApp.SelectedSystemName))
+        {
+            var selectedSystemPanel = _systemInfoPanels[_sadConsoleHostApp.SelectedSystemName];
+            var tabItem = new TabItem($"{_sadConsoleHostApp.SelectedSystemName} info", selectedSystemPanel);
+            tab.AddTab(tabItem);
+        }
+        tab.IsDirty = true;
     }
 
     public void Enable()
