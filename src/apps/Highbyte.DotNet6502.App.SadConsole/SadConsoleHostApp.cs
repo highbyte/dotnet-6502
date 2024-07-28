@@ -181,19 +181,18 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
                 var emulatorMaxX = _sadConsoleEmulatorConsole.Position.X + ((int)(_sadConsoleEmulatorConsole.Width * _sadConsoleEmulatorConsole.Font.GlyphWidth * _emulatorConfig.FontSizeScaleFactor));
                 var infoConsoleMax = _infoConsole != null && _infoConsole.IsVisible ? _infoConsole.Position.X + _infoConsole.WidthPixels : 0;
                 _monitorConsole.Position = new Point(Math.Max(emulatorMaxX, infoConsoleMax), 0);
-                _sadConsoleEmulatorConsole.IsFocused = false;
 
                 // Monitor status console
                 _monitorStatusConsole.UsePixelPositioning = true;
                 _monitorStatusConsole.Position = new Point(_monitorConsole.Position.X, _monitorConsole.Position.Y + (_monitorConsole.Height * _monitorConsole.Font.GlyphHeight));
 
+                _sadConsoleEmulatorConsole.IsFocused = false;
+                _sadConsoleEmulatorConsole.UseKeyboard = true;
             }
             else
             {
-                if (_sadConsoleEmulatorConsole != null)
-                    _sadConsoleEmulatorConsole.IsFocused = true;
-                else
-                    _menuConsole.IsFocused = true;
+                _sadConsoleEmulatorConsole.IsFocused = true;
+                _sadConsoleEmulatorConsole.UseKeyboard = false;
             }
 
             // Resize main window to fit menu, emulator, monitor and other visible consoles
