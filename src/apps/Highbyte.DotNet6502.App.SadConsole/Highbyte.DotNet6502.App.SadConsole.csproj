@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Impl.NAudio\Highbyte.DotNet6502.Impl.NAudio.csproj" />
     <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
     <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Impl.SadConsole\Highbyte.DotNet6502.Impl.SadConsole.csproj" />
     <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />

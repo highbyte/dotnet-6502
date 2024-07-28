@@ -8,7 +8,7 @@ public class MenuConsole : ControlsConsole
     public const int CONSOLE_WIDTH = USABLE_WIDTH + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     public const int CONSOLE_HEIGHT = USABLE_HEIGHT + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     private const int USABLE_WIDTH = 21;
-    private const int USABLE_HEIGHT = 12;
+    private const int USABLE_HEIGHT = 13;
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
 
@@ -92,13 +92,33 @@ public class MenuConsole : ControlsConsole
         var infoButton = new Button("Info (F11)")
         {
             Name = "infoButton",
-            Position = (1, monitorButton.Position.Y + 2),
+            Position = (1, monitorButton.Position.Y + 1),
         };
         infoButton.Click += (s, e) => { _sadConsoleHostApp.ToggleInfo(); IsDirty = true; };
         Controls.Add(infoButton);
 
+        //var audioEnabledLabel = CreateLabel("Audio enabled:", 1, infoButton.Bounds.MaxExtentY + 2);
+        var audioEnabledCheckBox = new CheckBox("Audio enabled")
+        {
+            Name = "audioEnabledCheckBox",
+            Position = (1, infoButton.Bounds.MaxExtentY + 2),
+            IsSelected = _sadConsoleHostApp.GetSystemConfig().Result.AudioSupported ? _sadConsoleHostApp.GetSystemConfig().Result.AudioEnabled : false,
+        };
+        audioEnabledCheckBox.IsSelectedChanged += async (s, e) => { (await _sadConsoleHostApp.GetSystemConfig()).AudioEnabled = audioEnabledCheckBox.IsSelected; IsDirty = true; };
+        Controls.Add(audioEnabledCheckBox);
 
-        var fontSizeLabel = CreateLabel("Font size:", 1, infoButton.Bounds.MaxExtentY + 2);
+        var audioVolumeLabel = CreateLabel("Vol:", 1, audioEnabledCheckBox.Bounds.MaxExtentY + 1, "audioVolumeLabel");
+        var audioVolumeSlider = new ScrollBar(Orientation.Horizontal, 16)
+        {
+            Name = "audioVolumeSlider",
+            Position = new Point(audioVolumeLabel.Bounds.MaxExtentX + 1, audioVolumeLabel.Position.Y),
+            Value = _sadConsoleHostApp.EmulatorConfig.DefaultAudioVolumePercent,
+            MaximumValue = 100
+        };
+        audioVolumeSlider.ValueChanged += (s, e) => { _sadConsoleHostApp.SetVolumePercent(audioVolumeSlider.Value); IsDirty = true; };
+        Controls.Add(audioVolumeSlider);
+
+        var fontSizeLabel = CreateLabel("Font size:", 1, audioVolumeSlider.Bounds.MaxExtentY + 2);
         ComboBox selectFontSizeBox = new ComboBox(9, 9, 5, Enum.GetValues<IFont.Sizes>().Select(x => (object)x).ToArray())
         {
             Position = (fontSizeLabel.Bounds.MaxExtentX + 2, fontSizeLabel.Position.Y),
@@ -107,7 +127,6 @@ public class MenuConsole : ControlsConsole
         };
         selectFontSizeBox.SelectedItemChanged += (s, e) => { _sadConsoleHostApp.EmulatorConfig.FontSize = (IFont.Sizes)e.Item; IsDirty = true; };
         Controls.Add(selectFontSizeBox);
-
 
         // Helper function to create a label and add it to the console
         Label CreateLabel(string text, int col, int row, string? name = null)
@@ -149,7 +168,7 @@ public class MenuConsole : ControlsConsole
         var pauseButton = Controls["pauseButton"];
         pauseButton.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Running;
 
-        var stopButton = Controls["stopButton"]; ;
+        var stopButton = Controls["stopButton"];
         stopButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
         var resetButton = Controls["resetButton"];
@@ -158,8 +177,23 @@ public class MenuConsole : ControlsConsole
         var monitorButton = Controls["monitorButton"];
         monitorButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
-        var infoButton = Controls["infoButton"];
-        //infoButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
+        var audioEnabledCheckBox = Controls["audioEnabledCheckBox"] as CheckBox;
+        if (_sadConsoleHostApp.GetSystemConfig().Result.AudioSupported)
+        {
+            audioEnabledCheckBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
+            audioEnabledCheckBox.IsSelected = _sadConsoleHostApp.GetSystemConfig().Result.AudioEnabled;
+        }
+        else
+        {
+            audioEnabledCheckBox.IsEnabled = false;
+            audioEnabledCheckBox.IsSelected = false;
+        }
+
+        var audioVolumeLabel = Controls["audioVolumeLabel"];
+        var audioVolumeSlider = Controls["audioVolumeSlider"];
+        audioVolumeSlider.IsEnabled = _sadConsoleHostApp.GetSystemConfig().Result.AudioSupported && _sadConsoleHostApp.GetSystemConfig().Result.AudioEnabled;
+        audioVolumeSlider.IsVisible = audioVolumeSlider.IsEnabled;
+        audioVolumeLabel.IsVisible = audioVolumeSlider.IsEnabled;
 
         var selectFontSizeComboBox = Controls["selectFontSizeComboBox"];
         selectFontSizeComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;

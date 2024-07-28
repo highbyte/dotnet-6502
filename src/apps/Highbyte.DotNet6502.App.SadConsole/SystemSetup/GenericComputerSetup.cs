@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Impl.SadConsole.Generic.Input;
 using Highbyte.DotNet6502.Impl.SadConsole.Generic.Video;
@@ -10,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 
-public class GenericComputerSetup : SystemConfigurer<SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>
+public class GenericComputerSetup : SystemConfigurer<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => GenericComputer.SystemName;
 
@@ -87,7 +88,7 @@ public class GenericComputerSetup : SystemConfigurer<SadConsoleRenderContext, Sa
         IHostSystemConfig hostSystemConfig,
         SadConsoleRenderContext renderContext,
         SadConsoleInputHandlerContext inputHandlerContext,
-        NullAudioHandlerContext audioHandlerContext)
+        NAudioAudioHandlerContext audioHandlerContext)
     {
         var genericComputer = (GenericComputer)system;
         var genericComputerConfig = (GenericComputerConfig)systemConfig;

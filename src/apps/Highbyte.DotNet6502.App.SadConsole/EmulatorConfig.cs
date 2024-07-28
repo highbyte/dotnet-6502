@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
+using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
@@ -36,6 +37,10 @@ public class EmulatorConfig
 
     public MonitorConfig Monitor { get; set; }
 
+    /// <summary>
+    /// Initial audio volume in percent.
+    /// </summary>
+    public int DefaultAudioVolumePercent { get; set; }
 
     /// <summary>
     /// SadConsole-specific configuration for specific system.
@@ -55,11 +60,13 @@ public class EmulatorConfig
 
         Monitor = new();
 
+        DefaultAudioVolumePercent = 20;
+
         C64HostConfig = new();
         GenericComputerHostConfig = new();
     }
 
-    public void Validate(SystemList<SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext> systemList)
+    public void Validate(SystemList<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext> systemList)
     {
         if (!systemList.Systems.Contains(DefaultEmulator))
             throw new DotNet6502Exception($"Setting {nameof(DefaultEmulator)} value {DefaultEmulator} is not supported. Valid values are: {string.Join(',', systemList.Systems)}");

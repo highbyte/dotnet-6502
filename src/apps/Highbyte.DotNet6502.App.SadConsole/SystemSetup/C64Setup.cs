@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Impl.NAudio;
+using Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
@@ -9,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 
-public class C64Setup : SystemConfigurer<SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>
+public class C64Setup : SystemConfigurer<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
 
@@ -100,7 +102,7 @@ public class C64Setup : SystemConfigurer<SadConsoleRenderContext, SadConsoleInpu
         IHostSystemConfig hostSystemConfig,
         SadConsoleRenderContext renderContext,
         SadConsoleInputHandlerContext inputHandlerContext,
-        NullAudioHandlerContext audioHandlerContext
+        NAudioAudioHandlerContext audioHandlerContext
         )
     {
         var c64HostConfig = (C64HostConfig)hostSystemConfig;
@@ -108,7 +110,7 @@ public class C64Setup : SystemConfigurer<SadConsoleRenderContext, SadConsoleInpu
 
         var renderer = new C64SadConsoleRenderer(c64, renderContext);
         var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory);
-        var audioHandler = new NullAudioHandler(c64);
+        var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
         return new SystemRunner(c64, renderer, inputHandler, audioHandler);
     }

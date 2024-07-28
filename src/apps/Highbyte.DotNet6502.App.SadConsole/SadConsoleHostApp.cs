@@ -1,5 +1,7 @@
 using Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
+using Highbyte.DotNet6502.Impl.NAudio;
+using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Monitor;
@@ -16,7 +18,7 @@ namespace Highbyte.DotNet6502.App.SadConsole;
 /// <summary>
 /// Host app for running Highbyte.DotNet6502 emulator in a SadConsole Window
 /// </summary>
-public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext>
+public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
 {
     // --------------------
     // Injected variables
@@ -55,7 +57,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
     private SadConsoleRenderContext _renderContext = default!;
     private SadConsoleInputHandlerContext _inputHandlerContext = default!;
-    private NullAudioHandlerContext _audioHandlerContext = default!;
+    private NAudioAudioHandlerContext _audioHandlerContext = default!;
     private InfoConsole _infoConsole;
     private const int MENU_POSITION_X = 0;
     private const int MENU_POSITION_Y = 0;
@@ -79,7 +81,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
     public SadConsoleHostApp(
-        SystemList<SadConsoleRenderContext, SadConsoleInputHandlerContext, NullAudioHandlerContext> systemList,
+        SystemList<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
 
         EmulatorConfig emulatorConfig,
@@ -407,9 +409,25 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         return new SadConsoleInputHandlerContext(_loggerFactory);
     }
 
-    private NullAudioHandlerContext CreateAudioHandlerContext()
+    private NAudioAudioHandlerContext CreateAudioHandlerContext()
     {
-        return new NullAudioHandlerContext();
+        // Output to NAudio built-in output (Windows only)
+        //var wavePlayer = new WaveOutEvent
+        //{
+        //    NumberOfBuffers = 2,
+        //    DesiredLatency = 100,
+        //}
+
+        // Output to OpenAL (cross platform) instead of via NAudio built-in output (Windows only)
+        var wavePlayer = new SilkNetOpenALWavePlayer()
+        {
+            NumberOfBuffers = 2,
+            DesiredLatency = 40
+        };
+
+        return new NAudioAudioHandlerContext(
+            wavePlayer,
+            initialVolumePercent: 20);
     }
 
     private SadConsoleHostSystemConfigBase CommonHostSystemConfig => (SadConsoleHostSystemConfigBase)GetHostSystemConfig();
@@ -527,6 +545,11 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     public void ClearInfoStats()
     {
         _infoConsole.ClearStats();
+    }
+
+    public void SetVolumePercent(float volumePercent)
+    {
+        _audioHandlerContext.SetMasterVolumePercent(masterVolumePercent: volumePercent);
     }
 
     private void HandleUIKeyboardInput()
