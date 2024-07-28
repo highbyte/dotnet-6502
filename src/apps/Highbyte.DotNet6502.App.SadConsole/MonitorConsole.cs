@@ -48,6 +48,7 @@ internal class MonitorConsole : Console
 
         // Disable the cursor because custom keyboard handler will process cursor
         Cursor.IsEnabled = false;
+        Cursor.PrintAppearanceMatchesHost = false;  // Use custom colors when using Cursor.Print
 
         Surface.DefaultForeground = SadConsoleUISettings.ThemeColors.ControlHostForeground;
         Surface.DefaultBackground = SadConsoleUISettings.ThemeColors.ControlHostBackground;
@@ -66,8 +67,7 @@ internal class MonitorConsole : Console
 
         if (commandResult == CommandResult.Quit)
         {
-            //Quit = true;
-            _sadConsoleHostApp.DisableMonitor();
+            Environment.Exit(0);
         }
         else if (commandResult == CommandResult.Continue)
         {
@@ -77,7 +77,18 @@ internal class MonitorConsole : Console
 
     private void MonitorOutputPrint(string message, MessageSeverity severity)
     {
+        // Select Print foreground color based on severity
+        var printForeground = severity switch
+        {
+            MessageSeverity.Information => SadConsoleUISettings.ThemeColors.ControlHostForeground,
+            MessageSeverity.Warning => SadConsoleUISettings.ThemeColors.Yellow,
+            MessageSeverity.Error => SadConsoleUISettings.ThemeColors.Red,
+            _ => SadConsoleUISettings.ThemeColors.ControlHostForeground
+        };
+
+        Cursor.SetPrintAppearance(printForeground, Surface.DefaultBackground);
         Cursor.Print($"  {message}").NewLine();
+        Cursor.SetPrintAppearance(Surface.DefaultForeground, Surface.DefaultBackground);
     }
 
     /// <summary>

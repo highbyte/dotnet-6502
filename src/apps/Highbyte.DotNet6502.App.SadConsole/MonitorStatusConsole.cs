@@ -1,3 +1,4 @@
+using System.Net.NetworkInformation;
 using Highbyte.DotNet6502.Systems;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
@@ -15,9 +16,8 @@ internal class MonitorStatusConsole : ControlsConsole
 
     public event EventHandler<bool>? MonitorStateChange;
 
-    private Label _processorStatusLabel;
-    private List<Label> _sysInfoLabels;
-    private string _emptyInfoRow = new string(' ', USABLE_WIDTH);
+    private const int NUMBER_OF_SYS_INFO_ROWS = USABLE_HEIGHT - 1;  // 1 row for CPU state
+    private string _emptyRow = new string(' ', USABLE_WIDTH);
 
 
     /// <summary>
@@ -32,6 +32,12 @@ internal class MonitorStatusConsole : ControlsConsole
 
         IsVisible = false;
         FocusedMode = FocusBehavior.None;
+        Surface.UsePrintProcessor = true;
+
+        Controls.ThemeColors = SadConsoleUISettings.ThemeColors;
+        Surface.DefaultBackground = Controls.ThemeColors.ControlHostBackground;
+        Surface.DefaultForeground = Controls.ThemeColors.ControlHostForeground;
+        Surface.Clear();
 
         if (SadConsoleUISettings.UI_USE_CONSOLE_BORDER)
             Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.ConsoleDrawBoxBorderParameters);
@@ -41,23 +47,6 @@ internal class MonitorStatusConsole : ControlsConsole
 
     private void CreateUIControls()
     {
-        Controls.ThemeColors = SadConsoleUISettings.ThemeColors;
-
-        _processorStatusLabel = CreateLabel(_emptyInfoRow, 1, 1, "processorStatusLabel");
-        _sysInfoLabels = new List<Label>();
-        for (int i = 0; i < 2; i++)
-        {
-            var sysInfoLabel = CreateLabel(_emptyInfoRow, 1, _processorStatusLabel.Position.Y + 1 + i, $"sysInfoLabel{i}");
-            _sysInfoLabels.Add(sysInfoLabel);
-        }
-
-        //Helper function to create a label and add it to the console
-        Label CreateLabel(string text, int col, int row, string? name = null)
-        {
-            var labelTemp = new Label(text) { Position = new Point(col, row), Name = name };
-            Controls.Add(labelTemp);
-            return labelTemp;
-        }
     }
 
     protected override void OnIsDirtyChanged()
@@ -75,26 +64,40 @@ internal class MonitorStatusConsole : ControlsConsole
     {
         if (_sadConsoleHostApp.EmulatorState == EmulatorState.Uninitialized)
         {
-            _processorStatusLabel.DisplayText = "";
-            for (int i = 0; i < _sysInfoLabels.Count; i++)
+            Surface.Print(1, 1, _emptyRow);
+            for (int i = 0; i < NUMBER_OF_SYS_INFO_ROWS; i++)
             {
-                _sysInfoLabels[i].DisplayText = "";
+                Surface.Print(1, 2 + i, _emptyRow);
             }
         }
         else
         {
             var system = _sadConsoleHostApp.CurrentRunningSystem!;
 
-            _processorStatusLabel.DisplayText = $"CPU: {OutputGen.GetProcessorState(system.CPU, includeCycles: true)}";
-
-            for (int i = 0; i < _sysInfoLabels.Count; ++i)
+            var cpuStateDictionary = OutputGen.GetProcessorStateDictionary(system.CPU, includeCycles: true);
+            int row = 1;
+            int col = 1;
+            const string separator = ": ";
+            foreach (var cpuState in cpuStateDictionary)
             {
+                Surface.Print(col, 1, cpuState.Key, foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
+                col += cpuState.Key.Length;
+                Surface.Print(col, 1, separator, foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
+                col += separator.Length;
+                Surface.Print(col, 1, cpuState.Value, foreground: Controls.ThemeColors.White, background: Controls.ThemeColors.ControlHostBackground);
+                col += cpuState.Value.Length + 1;
+            }
 
+            row = 2;
+            col = 1;
+            for (int i = 0; i < NUMBER_OF_SYS_INFO_ROWS; ++i)
+            {
                 if (i < system.SystemInfo.Count)
                     // TODO: Is a new string every time needed here? If system.SystemInfo items does not change, then a list of pre-created string can be initialized once and then reused..
-                    _sysInfoLabels[i].DisplayText = $"SYS: {system.SystemInfo[i]}";
+                    Surface.Print(col, row, $"SYS: {system.SystemInfo[i]}", foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
                 else
-                    _sysInfoLabels[i].DisplayText = _emptyInfoRow;
+                    Surface.Print(col, row, _emptyRow, foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
+                row++;
             }
         }
     }

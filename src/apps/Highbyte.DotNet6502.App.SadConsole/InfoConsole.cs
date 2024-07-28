@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Highbyte.DotNet6502.Instructions;
 using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Logging;
 using Highbyte.DotNet6502.Systems;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;
+using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Highbyte.DotNet6502.App.SadConsole;
@@ -20,7 +22,9 @@ internal class InfoConsole : ControlsConsole
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
 
     private List<Label> _statsLabels;
-    private string _emptyStatsRow = new string(' ', CONSOLE_WIDTH - 3);
+    private List<Label> _statsLabelValues;
+    private string _emptyStatsLabelRow = new string(' ', CONSOLE_WIDTH - 3 - 40);
+    private string _emptyStatsLabelValueRow = new string(' ', 8);
 
     private ListBox _logsListBox;
 
@@ -53,10 +57,16 @@ internal class InfoConsole : ControlsConsole
         Panel statsPanel = new Panel(10, 10); // TODO: What does size in constructor affect?
         {
             _statsLabels = new List<Label>();
+            _statsLabelValues = new List<Label>();
             for (int i = 0; i < CONSOLE_HEIGHT - 5; i++)
             {
-                var statsLabel = CreateLabel(_emptyStatsRow, 1, 1 + i, $"statsLabel{i}");
+                var statsLabel = CreateLabel(_emptyStatsLabelRow, 1, 1 + i, $"statsLabel{i}");
+                statsLabel.TextColor = Controls.ThemeColors.ControlForegroundNormal;
                 _statsLabels.Add(statsLabel);
+
+                var statsLabelValue = CreateLabel(_emptyStatsLabelValueRow, 1 + statsLabel.Width + 1, 1 + i, $"statsLabelValue{i}");
+                statsLabelValue.TextColor = SadConsoleUISettings.ThemeColors.White;
+                _statsLabelValues.Add(statsLabelValue);
             }
 
             //Helper function to create a label and add it to the console
@@ -135,23 +145,20 @@ internal class InfoConsole : ControlsConsole
     {
         var system = _sadConsoleHostApp.CurrentRunningSystem!;
 
-        var statsStrings = new List<string>();
-        foreach ((string name, IStat stat) in _sadConsoleHostApp.GetStats().OrderBy(i => i.name))
-        {
-            if (stat.ShouldShow())
-            {
-                string line = name + ": " + stat.GetDescription();
-                statsStrings.Add(line);
-            }
-        };
-
+        var stats = _sadConsoleHostApp.GetStats().Where(i => i.stat.ShouldShow()).OrderBy(i => i.name).ToList();
         // TODO: If there are more stats rows than can be displayed (i.e. not enough items in _statsLabels), then they are not displayed. Fix it?
         for (int i = 0; i < _statsLabels.Count; ++i)
         {
-            if (i < statsStrings.Count)
-                _statsLabels[i].DisplayText = statsStrings[i];
+            if (i < stats.Count)
+            {
+                var statItem = stats[i];
+                _statsLabels[i].DisplayText = statItem.name;
+                _statsLabelValues[i].DisplayText = statItem.stat.GetDescription();
+            }
             else
-                _statsLabels[i].DisplayText = _emptyStatsRow;
+            {
+                _statsLabels[i].DisplayText = _emptyStatsLabelRow;
+            }
         }
     }
 
@@ -159,7 +166,7 @@ internal class InfoConsole : ControlsConsole
     {
         for (int i = 0; i < _statsLabels.Count; ++i)
         {
-            _statsLabels[i].DisplayText = _emptyStatsRow;
+            _statsLabels[i].DisplayText = _emptyStatsLabelRow;
         }
     }
 
