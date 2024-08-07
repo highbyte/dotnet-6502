@@ -8,7 +8,6 @@ using Highbyte.DotNet6502.App.WASM.Emulator.Skia;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Logging.Console;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Microsoft.AspNetCore.Components;
@@ -16,6 +15,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.WebUtilities;
 using Toolbelt.Blazor.Gamepad;
 using Highbyte.DotNet6502.Systems.Generic;
+using Highbyte.DotNet6502.Systems.Logging.Console;
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
 

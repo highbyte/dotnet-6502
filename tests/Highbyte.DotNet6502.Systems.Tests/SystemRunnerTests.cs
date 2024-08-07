@@ -1,7 +1,7 @@
-using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Instrumentation;
 
-namespace Highbyte.DotNet6502.Tests.Systems;
+namespace Highbyte.DotNet6502.Systems.Tests;
 
 public class SystemRunnerTests
 {

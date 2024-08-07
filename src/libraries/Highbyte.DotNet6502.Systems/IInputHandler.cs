@@ -1,4 +1,4 @@
-using Highbyte.DotNet6502.Instrumentation;
+using Highbyte.DotNet6502.Systems.Instrumentation;
 
 namespace Highbyte.DotNet6502.Systems;
 

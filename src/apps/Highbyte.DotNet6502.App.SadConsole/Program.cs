@@ -1,14 +1,13 @@
 using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 using Highbyte.DotNet6502.App.SadConsole;
 using Highbyte.DotNet6502.Impl.SadConsole;
-using Highbyte.DotNet6502.Logging;
-using Highbyte.DotNet6502.Logging.InMem;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Impl.NAudio;
+using Highbyte.DotNet6502.Systems.Logging.InMem;
 
 // Get config file
 var builder = new ConfigurationBuilder()

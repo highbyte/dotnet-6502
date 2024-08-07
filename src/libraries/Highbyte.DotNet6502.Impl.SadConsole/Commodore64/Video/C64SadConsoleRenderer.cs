@@ -1,7 +1,7 @@
-using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using Highbyte.DotNet6502.Systems.Instrumentation;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 

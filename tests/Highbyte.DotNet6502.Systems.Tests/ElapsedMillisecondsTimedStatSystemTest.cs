@@ -1,5 +1,4 @@
 using Highbyte.DotNet6502.Systems.Utils;
-using Highbyte.DotNet6502.Tests.Systems;
 
 namespace Highbyte.DotNet6502.Systems.Tests;
 

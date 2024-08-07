@@ -2,8 +2,8 @@ using System.Data;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Toolbelt.Blazor.Gamepad;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia;

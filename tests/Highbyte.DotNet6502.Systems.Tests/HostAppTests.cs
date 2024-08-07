@@ -1,9 +1,9 @@
-using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Instrumentation;
 using Microsoft.Extensions.Logging.Abstractions;
-using static Highbyte.DotNet6502.Tests.Systems.SystemConfigurerTests;
+using static Highbyte.DotNet6502.Systems.Tests.SystemConfigurerTests;
 
-namespace Highbyte.DotNet6502.Tests.Systems;
+namespace Highbyte.DotNet6502.Systems.Tests;
 
 public class HostAppTests
 {
@@ -123,7 +123,7 @@ public class HostAppTests
 
         var testApp = new TestHostApp(systemList, new Dictionary<string, IHostSystemConfig>());
 
-        if(setContexts)
+        if (setContexts)
         {
             var testRenderContext = new NullRenderContext();
             var testInputHandlerContext = new NullInputHandlerContext();
