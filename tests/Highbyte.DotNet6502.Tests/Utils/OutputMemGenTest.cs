@@ -1,4 +1,6 @@
-namespace Highbyte.DotNet6502.Tests;
+using Highbyte.DotNet6502.Utils;
+
+namespace Highbyte.DotNet6502.Tests.Utils;
 
 public class OutputMemGenTest
 {
@@ -92,7 +94,7 @@ public class OutputMemGenTest
         Assert.Equal(2, outputList.Count);
         Assert.Equal("1000  00 01 02 03  04 05 06 07  08 09 0a 0b  0c 0d 0e 0f", outputList[0]);
         Assert.Equal("1010  10                                                ", outputList[1]);
-    }              
+    }
 
 
     // [Theory]

@@ -1,4 +1,6 @@
-namespace Highbyte.DotNet6502.Tests;
+using Highbyte.DotNet6502.Utils;
+
+namespace Highbyte.DotNet6502.Tests.Utils;
 
 public class ByteHelpersTest
 {
@@ -43,10 +45,10 @@ public class ByteHelpersTest
         _output.WriteLine("Bytes (original)");
         _output.WriteLine(bytesString);
 
-        int shiftRightBits = 3;
+        var shiftRightBits = 3;
 
         // Act
-        Span<byte> shiftedBytes = stackalloc byte[bytes.Length];    
+        Span<byte> shiftedBytes = stackalloc byte[bytes.Length];
         bytes.ShiftRight(ref shiftedBytes, shiftRightBits, out _);
 
         var bytesResultString = string.Join(" ", shiftedBytes.ToArray().Select(b => Convert.ToString(b, 2).PadLeft(8, '0')));

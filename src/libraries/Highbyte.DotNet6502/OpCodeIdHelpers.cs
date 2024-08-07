@@ -1,4 +1,6 @@
-﻿namespace Highbyte.DotNet6502;
+﻿using Highbyte.DotNet6502.Utils;
+
+namespace Highbyte.DotNet6502;
 
 /// <summary>
 /// Helper methods for enum containing instructions.

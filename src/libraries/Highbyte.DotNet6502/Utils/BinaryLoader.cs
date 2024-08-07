@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502;
+namespace Highbyte.DotNet6502.Utils;
 
 /// <summary>
 /// Helper class for loading binary files into 6502 emulator memory.

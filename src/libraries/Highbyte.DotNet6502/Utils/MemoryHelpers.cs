@@ -1,4 +1,4 @@
-﻿namespace Highbyte.DotNet6502;
+namespace Highbyte.DotNet6502.Utils;
 
 public static class MemoryHelpers
 {
@@ -22,7 +22,7 @@ public static class MemoryHelpers
     /// <returns></returns>
     public static byte FetchByte(this Memory mem, ref ushort address)
     {
-        byte val = FetchByte(mem, address);
+        var val = mem.FetchByte(address);
         address++;
         return val;
     }
@@ -37,8 +37,8 @@ public static class MemoryHelpers
     /// <returns></returns>
     public static ushort FetchWord(this Memory mem, ushort address)
     {
-        byte byte1 = mem[address];
-        byte byte2 = mem[(ushort)(address+1)];
+        var byte1 = mem[address];
+        var byte2 = mem[(ushort)(address + 1)];
         return ByteHelpers.ToLittleEndianWord(byte1, byte2);
     }
 
@@ -51,7 +51,7 @@ public static class MemoryHelpers
     /// <returns></returns>
     public static ushort FetchWord(this Memory mem, ref ushort address)
     {
-        var val = FetchWord(mem, address);
+        var val = mem.FetchWord(address);
         address += 2;
         return val;
     }
@@ -65,7 +65,7 @@ public static class MemoryHelpers
     /// <param name="instruction"></param>
     public static void WriteByte(this Memory mem, ushort address, OpCodeId instruction)
     {
-        WriteByte(mem, address, (byte)instruction);
+        mem.WriteByte(address, (byte)instruction);
     }
 
     /// <summary>
@@ -88,7 +88,7 @@ public static class MemoryHelpers
     /// <param name="instruction"></param>
     public static void WriteByte(this Memory mem, ref ushort address, OpCodeId instruction)
     {
-        WriteByte(mem, ref address, (byte)instruction);
+        mem.WriteByte(ref address, (byte)instruction);
     }
 
     /// <summary>
@@ -100,7 +100,7 @@ public static class MemoryHelpers
     /// <param name="data"></param>
     public static void WriteByte(this Memory mem, ref ushort address, byte data)
     {
-        WriteByte(mem, address, data);
+        mem.WriteByte(address, data);
         address++;
     }
 
@@ -118,7 +118,7 @@ public static class MemoryHelpers
     public static void WriteWord(this Memory mem, ushort address, ushort data)
     {
         mem[address] = data.Lowbyte();
-        mem[(ushort)(address+1)] = data.Highbyte();
+        mem[(ushort)(address + 1)] = data.Highbyte();
     }
 
     /// <summary>
@@ -130,30 +130,30 @@ public static class MemoryHelpers
     /// <param name="data"></param>
     public static void WriteWord(this Memory mem, ref ushort address, ushort data)
     {
-        WriteWord(mem, address, data);
-        address +=2;
+        mem.WriteWord(address, data);
+        address += 2;
     }
 
     public static void StoreData(this Memory mem, ushort address, byte[] data)
     {
-        if((address + data.Length) > mem.Size)
+        if (address + data.Length > mem.Size)
             throw new DotNet6502Exception($"Address {address} + size of data {data.Length} exceeds maximum memory limit {Memory.MAX_MEMORY_SIZE}");
 
-        for (int i = 0; i < data.Length; i++)
+        for (var i = 0; i < data.Length; i++)
         {
-            mem[(ushort)(address+i)] = data[i];
+            mem[(ushort)(address + i)] = data[i];
         }
     }
 
     public static byte[] ReadData(this Memory mem, ushort address, ushort length)
     {
-        if((address + length) > mem.Size)
+        if (address + length > mem.Size)
             throw new DotNet6502Exception($"Address {address} + length {length} exceeds maximum memory limit {Memory.MAX_MEMORY_SIZE}");
 
-        byte[] readArray = new byte[length];
-        for (int i = 0; i < length; i++)
+        var readArray = new byte[length];
+        for (var i = 0; i < length; i++)
         {
-            readArray[i] = mem[(ushort)(address+i)];
+            readArray[i] = mem[(ushort)(address + i)];
         }
         return readArray;
     }

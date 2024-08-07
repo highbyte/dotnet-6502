@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502;
+namespace Highbyte.DotNet6502.Utils;
 
 /// <summary>
 /// Helper class formatting output for memory
@@ -9,28 +9,28 @@ public static class OutputMemoryGen
     const int maxBytesPerRow = 16;
     const int maxBytesGroupPerRow = 4;
 
-    const int charactersPerRow = (4+2) + ((maxBytesPerRow*2) + (maxBytesPerRow-1) + ((maxBytesPerRow/maxBytesGroupPerRow)-1));
+    const int charactersPerRow = 4 + 2 + maxBytesPerRow * 2 + (maxBytesPerRow - 1) + (maxBytesPerRow / maxBytesGroupPerRow - 1);
 
     public static List<string> GetFormattedMemoryList(Memory mem, ushort startAddress, ushort endAddress)
     {
-        ushort currentAddress = startAddress;
-        int colIndex = 0;
-        int colGroupIndex = 0;
-        int rowIndex = 0;
-        string row = "";
+        var currentAddress = startAddress;
+        var colIndex = 0;
+        var colGroupIndex = 0;
+        var rowIndex = 0;
+        var row = "";
         List<string> list = new();
-        bool cont = true;
+        var cont = true;
         while (cont)
         {
-            if(colIndex == 0)
+            if (colIndex == 0)
                 row += $"{currentAddress.ToHex(HexPrefix, lowerCase: true)}  ";
-            if(colIndex != 0)
+            if (colIndex != 0)
                 row += " ";
             // Extra space every X bytes 
-            if(colGroupIndex >= maxBytesGroupPerRow)
+            if (colGroupIndex >= maxBytesGroupPerRow)
             {
                 row += " ";
-                colGroupIndex=0;
+                colGroupIndex = 0;
             }
 
             row += mem[currentAddress].ToHex(HexPrefix, lowerCase: true);
@@ -38,12 +38,12 @@ public static class OutputMemoryGen
             colIndex++;
             colGroupIndex++;
 
-            if(colIndex >= maxBytesPerRow || currentAddress == endAddress)
+            if (colIndex >= maxBytesPerRow || currentAddress == endAddress)
             {
                 colIndex = 0;
                 colGroupIndex = 0;
                 rowIndex++;
-                list.Add($"{row, -charactersPerRow}");
+                list.Add($"{row,-charactersPerRow}");
                 row = "";
             }
 

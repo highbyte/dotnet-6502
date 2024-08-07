@@ -1,4 +1,6 @@
-namespace Highbyte.DotNet6502.Tests;
+using Highbyte.DotNet6502.Utils;
+
+namespace Highbyte.DotNet6502.Tests.Utils;
 
 public class BinaryLoaderTest
 {
@@ -14,7 +16,7 @@ public class BinaryLoaderTest
         // Arrange
         byte[] header = { 0x00, 0x01 };
         byte[] data = { 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
-        byte[] bytes = header.Concat(data).ToArray();
+        var bytes = header.Concat(data).ToArray();
         var filePath = "test.bin";
         File.WriteAllBytes(filePath, bytes);
 
@@ -25,13 +27,13 @@ public class BinaryLoaderTest
         var mem = new Memory();
 
         // Act
-        BinaryLoader.Load(mem, filePath, out ushort loadedAtAddress, out ushort fileLength, forceLoadAddress: null);
+        BinaryLoader.Load(mem, filePath, out var loadedAtAddress, out var fileLength, forceLoadAddress: null);
 
         // Assert
         Assert.Equal(header.ToLittleEndianWord(), loadedAtAddress);
         Assert.Equal(data.Length, fileLength);
 
-        byte[] memBytes = mem.ReadData(loadedAtAddress, (ushort)(data.Length));
+        var memBytes = mem.ReadData(loadedAtAddress, (ushort)data.Length);
         Assert.Equivalent(data, memBytes);
     }
 
@@ -51,13 +53,13 @@ public class BinaryLoaderTest
         var mem = new Memory();
 
         // Act
-        BinaryLoader.Load(mem, filePath, out ushort loadedAtAddress, out ushort fileLength, forceLoadAddress: loadAddress);
+        BinaryLoader.Load(mem, filePath, out var loadedAtAddress, out var fileLength, forceLoadAddress: loadAddress);
 
         // Assert
         Assert.Equal(loadAddress, loadedAtAddress);
         Assert.Equal(bytes.Length, fileLength);
 
-        byte[] memBytes = mem.ReadData(loadedAtAddress, (ushort)(bytes.Length));
+        var memBytes = mem.ReadData(loadedAtAddress, (ushort)bytes.Length);
         Assert.Equivalent(bytes, memBytes);
     }
 
@@ -67,7 +69,7 @@ public class BinaryLoaderTest
         // Arrange
         byte[] header = { 0x00, 0x01 };
         byte[] data = { 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
-        byte[] bytes = header.Concat(data).ToArray();
+        var bytes = header.Concat(data).ToArray();
 
         var bytesString = string.Join(" ", bytes.Select(b => Convert.ToString(b, 2).PadLeft(8, '0')));
         _output.WriteLine("Bytes:");
@@ -76,13 +78,13 @@ public class BinaryLoaderTest
         var mem = new Memory();
 
         // Act
-        BinaryLoader.Load(mem, bytes, out ushort loadedAtAddress, out ushort fileLength, forceLoadAddress: null);
+        BinaryLoader.Load(mem, bytes, out var loadedAtAddress, out var fileLength, forceLoadAddress: null);
 
         // Assert
         Assert.Equal(header.ToLittleEndianWord(), loadedAtAddress);
         Assert.Equal(data.Length, fileLength);
 
-        byte[] memBytes = mem.ReadData(loadedAtAddress, (ushort)(data.Length));
+        var memBytes = mem.ReadData(loadedAtAddress, (ushort)data.Length);
         Assert.Equivalent(data, memBytes);
     }
 
@@ -101,13 +103,13 @@ public class BinaryLoaderTest
         var mem = new Memory();
 
         // Act
-        BinaryLoader.Load(mem, bytes, out ushort loadedAtAddress, out ushort fileLength, forceLoadAddress: loadAddress);
+        BinaryLoader.Load(mem, bytes, out var loadedAtAddress, out var fileLength, forceLoadAddress: loadAddress);
 
         // Assert
         Assert.Equal(loadAddress, loadedAtAddress);
         Assert.Equal(bytes.Length, fileLength);
 
-        byte[] memBytes = mem.ReadData(loadedAtAddress, (ushort)(bytes.Length));
+        var memBytes = mem.ReadData(loadedAtAddress, (ushort)bytes.Length);
         Assert.Equivalent(bytes, memBytes);
     }
 
@@ -117,7 +119,7 @@ public class BinaryLoaderTest
         // Arrange
         byte[] header = { 0x00, 0x01 };
         byte[] data = { 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
-        byte[] bytes = header.Concat(data).ToArray();
+        var bytes = header.Concat(data).ToArray();
         var filePath = "test.bin";
         File.WriteAllBytes(filePath, bytes);
 
@@ -126,13 +128,13 @@ public class BinaryLoaderTest
         _output.WriteLine(bytesString);
 
         // Act
-        var mem = BinaryLoader.Load(filePath, out ushort loadedAtAddress, out ushort fileLength, forceLoadAddress: null);
+        var mem = BinaryLoader.Load(filePath, out var loadedAtAddress, out var fileLength, forceLoadAddress: null);
 
         // Assert
         Assert.Equal(header.ToLittleEndianWord(), loadedAtAddress);
         Assert.Equal(data.Length, fileLength);
 
-        byte[] memBytes = mem.ReadData(loadedAtAddress, (ushort)(data.Length));
+        var memBytes = mem.ReadData(loadedAtAddress, (ushort)data.Length);
         Assert.Equivalent(data, memBytes);
     }
 
@@ -149,7 +151,7 @@ public class BinaryLoaderTest
         _output.WriteLine(bytesString);
 
         // Act
-        var loadedBytes = BinaryLoader.ReadFile(filePath, fileHeaderContainsLoadAddress: false, out _, out ushort codeAndDataFileSize);
+        var loadedBytes = BinaryLoader.ReadFile(filePath, fileHeaderContainsLoadAddress: false, out _, out var codeAndDataFileSize);
 
         // Assert
         Assert.Equal(bytes.Length, loadedBytes.Length);
@@ -164,7 +166,7 @@ public class BinaryLoaderTest
         // Arrange
         byte[] header = { 0x00, 0x01 };
         byte[] data = { 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
-        byte[] bytes = header.Concat(data).ToArray();
+        var bytes = header.Concat(data).ToArray();
         var filePath = "test.bin";
         File.WriteAllBytes(filePath, bytes);
 
@@ -173,10 +175,10 @@ public class BinaryLoaderTest
         _output.WriteLine(bytesString);
 
         // Act
-        var loadedBytes = BinaryLoader.ReadFile(filePath, fileHeaderContainsLoadAddress: true, out ushort? fileHeaderLoadAddress, out ushort codeAndDataFileSize);
+        var loadedBytes = BinaryLoader.ReadFile(filePath, fileHeaderContainsLoadAddress: true, out var fileHeaderLoadAddress, out var codeAndDataFileSize);
 
         // Assert
-        Assert.Equal(data.Length , loadedBytes.Length);
+        Assert.Equal(data.Length, loadedBytes.Length);
         Assert.Equal(data.Length, codeAndDataFileSize);
         Assert.Equal((ushort)0x0100, fileHeaderLoadAddress);
 

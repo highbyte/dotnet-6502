@@ -1,4 +1,6 @@
-namespace Highbyte.DotNet6502.Tests;
+using Highbyte.DotNet6502.Utils;
+
+namespace Highbyte.DotNet6502.Tests.Utils;
 
 public class OutputGenTest
 {
@@ -68,20 +70,20 @@ public class OutputGenTest
     }
 
     [Theory]
-    [InlineData(AddrMode.Accumulator,   new byte[]{},           "A")]
-    [InlineData(AddrMode.I,             new byte[]{0xee},       "#$EE")]
-    [InlineData(AddrMode.ZP,            new byte[]{0x01},       "$01")]
-    [InlineData(AddrMode.ZP_X,          new byte[]{0x02},       "$02,X")]
-    [InlineData(AddrMode.ZP_Y,          new byte[]{0x03},       "$03,Y")]
-    [InlineData(AddrMode.Relative,      new byte[]{0x00},       "*+0")]
-    [InlineData(AddrMode.Relative,      new byte[]{0x04},       "*+4")]
-    [InlineData(AddrMode.Relative,      new byte[]{0x80},       "*-128")]
-    [InlineData(AddrMode.ABS,           new byte[]{0x10,0xc0},  "$C010")]
-    [InlineData(AddrMode.ABS_X,         new byte[]{0xf0,0x80},  "$80F0,X")]
-    [InlineData(AddrMode.ABS_Y,         new byte[]{0x42,0x21},  "$2142,Y")]
-    [InlineData(AddrMode.Indirect,      new byte[]{0x37,0x13},  "($1337)")]
-    [InlineData(AddrMode.IX_IND,        new byte[]{0x42},       "($42,X)")]
-    [InlineData(AddrMode.IND_IX,        new byte[]{0x21},       "($21),Y")]
+    [InlineData(AddrMode.Accumulator, new byte[] { }, "A")]
+    [InlineData(AddrMode.I, new byte[] { 0xee }, "#$EE")]
+    [InlineData(AddrMode.ZP, new byte[] { 0x01 }, "$01")]
+    [InlineData(AddrMode.ZP_X, new byte[] { 0x02 }, "$02,X")]
+    [InlineData(AddrMode.ZP_Y, new byte[] { 0x03 }, "$03,Y")]
+    [InlineData(AddrMode.Relative, new byte[] { 0x00 }, "*+0")]
+    [InlineData(AddrMode.Relative, new byte[] { 0x04 }, "*+4")]
+    [InlineData(AddrMode.Relative, new byte[] { 0x80 }, "*-128")]
+    [InlineData(AddrMode.ABS, new byte[] { 0x10, 0xc0 }, "$C010")]
+    [InlineData(AddrMode.ABS_X, new byte[] { 0xf0, 0x80 }, "$80F0,X")]
+    [InlineData(AddrMode.ABS_Y, new byte[] { 0x42, 0x21 }, "$2142,Y")]
+    [InlineData(AddrMode.Indirect, new byte[] { 0x37, 0x13 }, "($1337)")]
+    [InlineData(AddrMode.IX_IND, new byte[] { 0x42 }, "($42,X)")]
+    [InlineData(AddrMode.IND_IX, new byte[] { 0x21 }, "($21),Y")]
     public void OutputGen_Returns_Correctly_Formatted_Operand_String_For_AddrMode(AddrMode addrMode, byte[] operand, string expectedOutput)
     {
         // Act
@@ -97,9 +99,9 @@ public class OutputGenTest
         // Arrange
         var cpu = new CPU();
         cpu.PC = 0x1000;
-        cpu.A  = 0x00;
-        cpu.X  = 0x00;
-        cpu.Y  = 0x00;
+        cpu.A = 0x00;
+        cpu.X = 0x00;
+        cpu.Y = 0x00;
         cpu.ProcessorStatus.Value = 0x00;
         cpu.SP = 0xff;
 
@@ -110,14 +112,14 @@ public class OutputGenTest
         Assert.Equal("A=00 X=00 Y=00 PS=[--------] SP=FF PC=1000 CY=0", outputString);
     }
     [Fact]
-    public void OutputGen_Returns_Correctly_Formatted_Processor_State_When_All_Status_Flags_Are_Set        ()
+    public void OutputGen_Returns_Correctly_Formatted_Processor_State_When_All_Status_Flags_Are_Set()
     {
         // Arrange
         var cpu = new CPU();
         cpu.PC = 0x2000;
-        cpu.A  = 0x01;
-        cpu.X  = 0xff;
-        cpu.Y  = 0x7f;
+        cpu.A = 0x01;
+        cpu.X = 0xff;
+        cpu.Y = 0x7f;
         cpu.ProcessorStatus.Value = 0xff;
         cpu.SP = 0x80;
 

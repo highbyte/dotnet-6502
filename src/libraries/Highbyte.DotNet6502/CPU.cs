@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 

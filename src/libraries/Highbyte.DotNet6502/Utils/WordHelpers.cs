@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502;
+namespace Highbyte.DotNet6502.Utils;
 
 /// <summary>
 /// Helper methods for 16-bit unsigned words (ushort).
@@ -11,9 +11,9 @@ public static class WordHelpers
     /// </summary>
     /// <param name="data"></param>
     /// <returns></returns>
-    public static byte Highbyte(this ushort data) 
+    public static byte Highbyte(this ushort data)
     {
-        return (byte) ((data>>8) & 0xff);
+        return (byte)(data >> 8 & 0xff);
     }
 
     /// <summary>
@@ -21,9 +21,9 @@ public static class WordHelpers
     /// </summary>
     /// <param name="data"></param>
     /// <returns></returns>
-    public static byte Lowbyte(this ushort data) 
+    public static byte Lowbyte(this ushort data)
     {
-        return (byte) (data & 0xff);
+        return (byte)(data & 0xff);
     }
 
     /// <summary>
@@ -33,7 +33,7 @@ public static class WordHelpers
     /// <param name="value"></param>
     public static void SetHighbyte(this ref ushort data, byte value)
     {
-        data = (ushort)((data & 0x00ff) | (value << 8));
+        data = (ushort)(data & 0x00ff | value << 8);
     }
 
     /// <summary>
@@ -43,7 +43,7 @@ public static class WordHelpers
     /// <param name="value"></param>
     public static void SetLowbyte(this ref ushort data, byte value)
     {
-        data = (ushort)((data & 0xff00) | value);
+        data = (ushort)(data & 0xff00 | value);
     }
 
     /// <summary>
@@ -61,29 +61,29 @@ public static class WordHelpers
     /// <returns></returns>
     public static byte[] ToLittleEndianBytes(this ushort data)
     {
-        return new byte[] 
+        return new byte[]
         {
-            Lowbyte(data),
-            Highbyte(data)
+            data.Lowbyte(),
+            data.Highbyte()
         };
     }
 
-    public static string ToHex(this ushort value, string hexPrefix="0x", bool lowerCase=false)
+    public static string ToHex(this ushort value, string hexPrefix = "0x", bool lowerCase = false)
     {
-        if(lowerCase)
+        if (lowerCase)
             return $"{hexPrefix}{value:x4}";
         else
             return $"{hexPrefix}{value:X4}";
     }
 
-    public static string ToHexAndDecimal(this ushort value, string hexPrefix="0x", bool lowerCase=false)
+    public static string ToHexAndDecimal(this ushort value, string hexPrefix = "0x", bool lowerCase = false)
     {
-        return $"{ToHex(value, hexPrefix, lowerCase)} ({value})";
+        return $"{value.ToHex(hexPrefix, lowerCase)} ({value})";
     }
 
-    public static string ToDecimalAndHex(this ushort value, string hexPrefix="0x", bool lowerCase=false)
+    public static string ToDecimalAndHex(this ushort value, string hexPrefix = "0x", bool lowerCase = false)
     {
-        return $"{value} ({ToHex(value, hexPrefix, lowerCase)})";
+        return $"{value} ({value.ToHex(hexPrefix, lowerCase)})";
     }
 
 }

@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
-namespace Highbyte.DotNet6502;
+namespace Highbyte.DotNet6502.Utils;
 
 public static class PathHelper
 {

@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Utils;
+
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 public class CiaTimer

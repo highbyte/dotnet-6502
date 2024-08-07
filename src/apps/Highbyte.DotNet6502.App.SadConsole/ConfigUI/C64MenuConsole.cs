@@ -5,6 +5,7 @@ using SadConsole.UI.Controls;
 using SadRogue.Primitives;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Microsoft.Extensions.Logging;
+using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 public class C64MenuConsole : ControlsConsole

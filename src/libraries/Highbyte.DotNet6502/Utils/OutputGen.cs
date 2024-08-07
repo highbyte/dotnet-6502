@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502;
+namespace Highbyte.DotNet6502.Utils;
 
 /// <summary>
 /// Helper class formatting output for instructions
@@ -15,7 +15,7 @@ public static class OutputGen
     /// <returns></returns>
     public static string GetLastInstructionDisassembly(CPU cpu, Memory mem)
     {
-        ushort? programAddress = cpu.ExecState.PCBeforeLastOpCodeExecuted;
+        var programAddress = cpu.ExecState.PCBeforeLastOpCodeExecuted;
         if (programAddress.HasValue)
             return GetInstructionDisassembly(cpu, mem, programAddress.Value);
         else
@@ -31,7 +31,7 @@ public static class OutputGen
     /// <returns></returns>
     public static string GetNextInstructionDisassembly(CPU cpu, Memory mem)
     {
-        ushort programAddress = cpu.PC;
+        var programAddress = cpu.PC;
         return GetInstructionDisassembly(cpu, mem, programAddress);
     }
 
@@ -55,7 +55,7 @@ public static class OutputGen
 
     public static string BuildMemoryString(CPU cpu, Memory mem, ushort address)
     {
-        byte opCodeByte = mem[address];
+        var opCodeByte = mem[address];
         if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
             return $"{opCodeByte.ToHex(HexPrefix, lowerCase: true)}";
 
@@ -67,7 +67,7 @@ public static class OutputGen
 
     public static string BuildInstructionString(CPU cpu, Memory mem, ushort address)
     {
-        byte opCodeByte = mem[address];
+        var opCodeByte = mem[address];
         if (!cpu.InstructionList.OpCodeDictionary.ContainsKey(opCodeByte))
             return "???";
 

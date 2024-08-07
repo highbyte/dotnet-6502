@@ -1,5 +1,6 @@
 using System.Net.NetworkInformation;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Utils;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;

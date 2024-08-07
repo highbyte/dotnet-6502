@@ -1,5 +1,6 @@
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.Benchmarks.Commodore64.Data;
 

@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Security.Cryptography;
 using Highbyte.DotNet6502.Systems.Utils;
+using Highbyte.DotNet6502.Utils;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
 

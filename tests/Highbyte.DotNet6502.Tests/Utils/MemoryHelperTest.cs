@@ -1,4 +1,6 @@
-namespace Highbyte.DotNet6502.Tests;
+using Highbyte.DotNet6502.Utils;
+
+namespace Highbyte.DotNet6502.Tests.Utils;
 
 public class MemoryHelperTest
 {
@@ -47,7 +49,7 @@ public class MemoryHelperTest
         // Assert
         var storedData = mem.ReadData(address, (ushort)data.Length);
 
-        for (int i = 0; i < data.Length; i++)
+        for (var i = 0; i < data.Length; i++)
         {
             Assert.Equal(data[i], storedData[i]);
         }
@@ -72,7 +74,7 @@ public class MemoryHelperTest
     public void StoreData_Throws_Exception_If_Data_Length_Exceeds_64K()
     {
         // Arrange
-        var data = new byte[(64 * 1024) + 1];
+        var data = new byte[64 * 1024 + 1];
 
         ushort address = 0x0;
         var mem = new Memory();
@@ -98,7 +100,7 @@ public class MemoryHelperTest
         var data = mem.ReadData(address, 10);
 
         // Assert
-        for (int i = 0; i < data.Length; i++)
+        for (var i = 0; i < data.Length; i++)
         {
             Assert.Equal(storedData[i], data[i]);
         }

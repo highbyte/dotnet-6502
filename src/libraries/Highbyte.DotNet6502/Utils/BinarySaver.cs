@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502;
+namespace Highbyte.DotNet6502.Utils;
 
 /// <summary>
 /// Helper class for saving binary files from 6502 emulator memory to file.
@@ -42,14 +42,14 @@ public static class BinarySaver
         bool addFileHeaderWithLoadAddress = true
         )
     {
-        ushort length = (ushort)(endAddress - startAddress);
+        var length = (ushort)(endAddress - startAddress);
         var memData = mem.ReadData(startAddress, length);
 
         byte[] saveData;
         if (addFileHeaderWithLoadAddress)
         {
             saveData = new byte[memData.Length + 2];
-            byte[] headerAddress = startAddress.ToLittleEndianBytes();
+            var headerAddress = startAddress.ToLittleEndianBytes();
             saveData[0] = headerAddress[0];
             saveData[1] = headerAddress[1];
             Array.Copy(memData, 0, saveData, 2, memData.Length);

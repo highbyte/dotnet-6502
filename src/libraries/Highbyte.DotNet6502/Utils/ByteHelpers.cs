@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502;
+namespace Highbyte.DotNet6502.Utils;
 
 /// <summary>
 /// Helper methods for 8-bit unsigned bytes (byte) and byte arrays.
@@ -15,9 +15,9 @@ public static class ByteHelpers
     /// <param name="data"></param>
     /// <param name="pos"></param>
     /// <returns></returns>
-    public static ushort ToLittleEndianWord(this byte[] data, uint pos = 0) 
+    public static ushort ToLittleEndianWord(this byte[] data, uint pos = 0)
     {
-        return ToLittleEndianWord(data[pos], data[(ushort)(pos+1)]);
+        return ToLittleEndianWord(data[pos], data[(ushort)(pos + 1)]);
     }
 
     /// <summary>
@@ -32,26 +32,26 @@ public static class ByteHelpers
     public static ushort ToLittleEndianWord(byte byte1, byte byte2)
     {
         // Add the second byte (highbyte) shifted left 8 bits to the first byte (lowbyte)
-        ushort word = (ushort)(byte1 | byte2 << 8);
+        var word = (ushort)(byte1 | byte2 << 8);
         return word;
     }
 
-    public static string ToHex(this byte value, string hexPrefix="0x", bool lowerCase=false)
+    public static string ToHex(this byte value, string hexPrefix = "0x", bool lowerCase = false)
     {
-        if(lowerCase)
+        if (lowerCase)
             return $"{hexPrefix}{value:x2}";
         else
             return $"{hexPrefix}{value:X2}";
     }
 
-    public static string ToHexAndDecimal(this byte value, string hexPrefix="0x", bool lowerCase=false)
+    public static string ToHexAndDecimal(this byte value, string hexPrefix = "0x", bool lowerCase = false)
     {
-        return $"{ToHex(value, hexPrefix, lowerCase)} ({value})";
+        return $"{value.ToHex(hexPrefix, lowerCase)} ({value})";
     }
 
-    public static string ToDecimalAndHex(this byte value, string hexPrefix="0x", bool lowerCase=false)
+    public static string ToDecimalAndHex(this byte value, string hexPrefix = "0x", bool lowerCase = false)
     {
-        return $"{value} ({ToHex(value, hexPrefix, lowerCase)})";
+        return $"{value} ({value.ToHex(hexPrefix, lowerCase)})";
     }
 
     /// <summary>
@@ -67,7 +67,7 @@ public static class ByteHelpers
         bytes.CopyTo(workingBytes);
 
         carryBit = false;
-        for (int i = 0; i < numberOfBits; i++)
+        for (var i = 0; i < numberOfBits; i++)
         {
             ShiftRight(workingBytes, ref workingBytes, out carryBit);
         }
@@ -84,21 +84,19 @@ public static class ByteHelpers
     {
         bytes.CopyTo(shiftedBytes);
 
-        bool rightMostCarryFlag = false;
-        int rightEnd = shiftedBytes.Length - 1;
+        var rightMostCarryFlag = false;
+        var rightEnd = shiftedBytes.Length - 1;
 
         // Iterate through the elements of the array right to left.
-        for (int index = rightEnd; index >= 0; index--)
+        for (var index = rightEnd; index >= 0; index--)
         {
             // If the rightmost bit of the current byte is 1 then we have a carry.
-            bool carryFlag = (shiftedBytes[index] & 0x01) > 0;
+            var carryFlag = (shiftedBytes[index] & 0x01) > 0;
             if (index < rightEnd)
             {
                 if (carryFlag == true)
-                {
                     // Apply the carry to the leftmost bit of the current bytes neighbor to the right.
                     shiftedBytes[index + 1] = (byte)(shiftedBytes[index + 1] | 0x80);
-                }
             }
             else
             {
