@@ -46,6 +46,9 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     private ElapsedMillisecondsTimedStatSystem? _inputTime;
     //private ElapsedMillisecondsTimedStatSystem _audioTime;
 
+
+    private readonly Instrumentations _instrumentations = new();
+
     private readonly PerSecondTimedStat _updateFps;
     private readonly PerSecondTimedStat _renderFps;
 
@@ -58,8 +61,8 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         )
     {
         _hostName = hostName;
-        _updateFps = InstrumentationBag.Add<PerSecondTimedStat>($"{_hostName}-OnUpdateFPS");
-        _renderFps = InstrumentationBag.Add<PerSecondTimedStat>($"{_hostName}-OnRenderFPS");
+        _updateFps = _instrumentations.Add($"{_hostName}-OnUpdateFPS", new PerSecondTimedStat());
+        _renderFps = _instrumentations.Add($"{_hostName}-OnRenderFPS", new PerSecondTimedStat());
 
         _logger = loggerFactory.CreateLogger("HostApp");
 
@@ -295,7 +298,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         if (_systemRunner == null)
             return new List<(string name, IStat)>();
 
-        return InstrumentationBag.Stats
+        return _instrumentations.Stats
             .Union(_systemInstrumentations.Stats)
             .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
             .Union(_systemRunner.Renderer.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{RenderTimeStatName}-{x.Name}", x.Stat)))
