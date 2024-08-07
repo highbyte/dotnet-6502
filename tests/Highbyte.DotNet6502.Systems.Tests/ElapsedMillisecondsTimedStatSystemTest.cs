@@ -1,7 +1,7 @@
-using Highbyte.DotNet6502.Instrumentation.Stats;
+using Highbyte.DotNet6502.Systems.Utils;
 using Highbyte.DotNet6502.Tests.Systems;
 
-namespace Highbyte.DotNet6502.Tests.Instrumentation;
+namespace Highbyte.DotNet6502.Systems.Tests;
 
 public class ElapsedMillisecondsTimedStatSystemTest
 {
@@ -13,7 +13,7 @@ public class ElapsedMillisecondsTimedStatSystemTest
 
         var stat = new ElapsedMillisecondsTimedStatSystem(system);
 
-        int sleepMs = 2;
+        var sleepMs = 2;
         stat.Start();
         Thread.Sleep(sleepMs);
         stat.Stop();
@@ -33,7 +33,7 @@ public class ElapsedMillisecondsTimedStatSystemTest
 
         var stat = new ElapsedMillisecondsTimedStatSystem(system);
 
-        int sleepMs = 2;
+        var sleepMs = 2;
         stat.Start();
         Thread.Sleep(sleepMs);
         stat.Stop();

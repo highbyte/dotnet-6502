@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Highbyte.DotNet6502.Systems;
+namespace Highbyte.DotNet6502;
 
 public static class PathHelper
 {
@@ -8,7 +8,7 @@ public static class PathHelper
 
     public static string ExpandOSEnvironmentVariables(string path)
     {
-        string result = path;
+        var result = path;
         result = ReplaceOSSpecificVariablesForLinuxAndMac(result);
         result = ReplaceDirectorySeparator(result);
         result = Environment.ExpandEnvironmentVariables(result);
@@ -18,9 +18,7 @@ public static class PathHelper
     private static string ReplaceDirectorySeparator(string path)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
             path = path.Replace(@"\", "/", s_stringComparison);
-        }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             path = path.Replace("/", @"\", s_stringComparison);
@@ -31,10 +29,7 @@ public static class PathHelper
     private static string ReplaceOSSpecificVariablesForLinuxAndMac(string path)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
             path = path.Replace("%USERPROFILE%", "%HOME%", s_stringComparison);
-            // TODO: More Windows-specific that need replacements on Linux and Mac?
-        }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             path = path.Replace("%HOME%", "%USERPROFILE%", s_stringComparison);

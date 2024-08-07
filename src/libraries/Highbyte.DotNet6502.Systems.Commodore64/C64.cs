@@ -1,4 +1,3 @@
-using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
@@ -8,6 +7,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Microsoft.Extensions.Logging;
+using Highbyte.DotNet6502.Systems.Utils;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 

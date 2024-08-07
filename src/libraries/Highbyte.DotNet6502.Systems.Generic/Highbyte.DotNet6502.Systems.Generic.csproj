@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <PackageId>Highbyte.DotNet6502.Systems</PackageId>
+    <PackageId>Highbyte.DotNet6502.Systems.Generic</PackageId>
     <Authors>Highbyte</Authors>
     <PackageDescription>Emulators for 8-bit systems that implement the Highbyte.DotNet6502 CPU</PackageDescription>
     <RepositoryUrl>https://github.com/highbyte/dotnet-6502</RepositoryUrl>
@@ -24,7 +24,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
     <ProjectReference Include="..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
   </ItemGroup>

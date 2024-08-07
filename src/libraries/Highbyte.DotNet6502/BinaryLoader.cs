@@ -1,5 +1,3 @@
-using Highbyte.DotNet6502.Systems;
-
 namespace Highbyte.DotNet6502;
 
 /// <summary>
@@ -17,7 +15,7 @@ public static class BinaryLoader
         string binaryFilePath,
         out ushort loadedAtAddress)
     {
-        return Load(binaryFilePath, out loadedAtAddress, out ushort _);
+        return Load(binaryFilePath, out loadedAtAddress, out var _);
     }
 
     /// <summary>
@@ -56,10 +54,10 @@ public static class BinaryLoader
         out ushort fileLength,
         ushort? forceLoadAddress = null)
     {
-        byte[] fileData = ReadFile(
+        var fileData = ReadFile(
             binaryFilePath,
             fileHeaderContainsLoadAddress: !forceLoadAddress.HasValue,
-            out ushort? fileHeaderLoadAddress,
+            out var fileHeaderLoadAddress,
             out fileLength
         );
         if (fileHeaderLoadAddress.HasValue)
@@ -77,10 +75,10 @@ public static class BinaryLoader
         out ushort fileLength,
         ushort? forceLoadAddress = null)
     {
-        byte[] data = ReadFile(
+        var data = ReadFile(
             fileData,
             fileHeaderContainsLoadAddress: !forceLoadAddress.HasValue,
-            out ushort? fileHeaderLoadAddress,
+            out var fileHeaderLoadAddress,
             out fileLength
         );
         if (fileHeaderLoadAddress.HasValue)
@@ -101,7 +99,7 @@ public static class BinaryLoader
         binaryFilePath = PathHelper.ExpandOSEnvironmentVariables(binaryFilePath);
 
         // Load binary file
-        byte[] fileData = File.ReadAllBytes(binaryFilePath);
+        var fileData = File.ReadAllBytes(binaryFilePath);
 
         return ReadFile(fileData, fileHeaderContainsLoadAddress, out fileHeaderLoadAddress, out codeAndDataFileSize);
     }
@@ -118,7 +116,7 @@ public static class BinaryLoader
             // First two bytes of binary file is assumed to be start address, little endian notation.
             fileHeaderLoadAddress = ByteHelpers.ToLittleEndianWord(fileData[0], fileData[1]);
             // The rest of the bytes are considered the code & data
-            byte[] codeAndDataActual = new byte[fileData.Length - 2];
+            var codeAndDataActual = new byte[fileData.Length - 2];
             Array.Copy(fileData, 2, codeAndDataActual, 0, fileData.Length - 2);
             fileData = codeAndDataActual;
         }

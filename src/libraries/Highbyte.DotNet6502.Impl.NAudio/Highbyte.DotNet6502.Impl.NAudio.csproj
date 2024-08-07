@@ -33,6 +33,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems.Commodore64\Highbyte.DotNet6502.Systems.Commodore64.csproj" />
     <ProjectReference Include="..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
   </ItemGroup>
 

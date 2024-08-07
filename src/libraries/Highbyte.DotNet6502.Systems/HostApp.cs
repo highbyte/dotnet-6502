@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.Instrumentation.Stats;
 using Highbyte.DotNet6502.Instrumentation;
 using Microsoft.Extensions.Logging;
+using Highbyte.DotNet6502.Systems.Utils;
 
 namespace Highbyte.DotNet6502.Systems;
 

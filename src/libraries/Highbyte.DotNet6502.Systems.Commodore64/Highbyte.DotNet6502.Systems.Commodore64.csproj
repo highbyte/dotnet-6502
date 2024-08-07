@@ -1,51 +1,34 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
+  
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <!-- Unsafe required for OpenGL -->
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>    
 
-    <PackageId>Highbyte.DotNet6502.Impl.SilkNet</PackageId>
+    <PackageId>Highbyte.DotNet6502.Systems.Commodore64</PackageId>
     <Authors>Highbyte</Authors>
-    <PackageDescription>A SilkNet support library for running 6502 code in Highbyte.DotNet6502 CPU emulator.</PackageDescription>
+    <PackageDescription>Emulators for 8-bit systems that implement the Highbyte.DotNet6502 CPU</PackageDescription>
     <RepositoryUrl>https://github.com/highbyte/dotnet-6502</RepositoryUrl>
     <!-- Version will be overridden when built by GitHub action (dotnet pack -p:PackageVersion=x.y.run_number)-->
-    <Version>0.1.0-alpha</Version>
+    <Version>0.4.0-alpha</Version>
 
     <!-- Sourcelink - Optional: Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
- 
+
     <!-- Sourcelink - Optional: Embed source files that are not tracked by the source control manager in the PDB -->
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
-  
+
     <!-- Sourcelink - Optional: Build symbol package (.snupkg) to distribute the PDB containing Source Link -->
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj" />
-    <ProjectReference Include="..\Highbyte.DotNet6502.Systems.Commodore64\Highbyte.DotNet6502.Systems.Commodore64.csproj" />
-    <ProjectReference Include="..\Highbyte.DotNet6502.Systems.Generic\Highbyte.DotNet6502.Systems.Generic.csproj" />
-    <ProjectReference Include="..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
     <ProjectReference Include="..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Silk.NET.Input" Version="2.19.0" />
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.19.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Commodore64\Video\C64shader.frag">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Commodore64\Video\C64shader.vert">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <ProjectReference Include="..\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj" />
+    <ProjectReference Include="..\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
   </ItemGroup>
 
 </Project>

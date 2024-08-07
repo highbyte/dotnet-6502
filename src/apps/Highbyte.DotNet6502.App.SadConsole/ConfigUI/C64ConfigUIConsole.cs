@@ -1,4 +1,3 @@
-using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
