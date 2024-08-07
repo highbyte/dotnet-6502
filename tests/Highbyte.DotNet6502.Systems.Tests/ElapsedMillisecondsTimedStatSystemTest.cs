@@ -1,4 +1,4 @@
-using Highbyte.DotNet6502.Systems.Utils;
+using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 
 namespace Highbyte.DotNet6502.Systems.Tests;
 

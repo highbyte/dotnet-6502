@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using Highbyte.DotNet6502.Systems.Utils;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 

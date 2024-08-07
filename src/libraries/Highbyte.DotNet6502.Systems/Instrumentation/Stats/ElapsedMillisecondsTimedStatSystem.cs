@@ -1,7 +1,4 @@
-using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
-
-namespace Highbyte.DotNet6502.Systems.Utils;
+namespace Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 
 public class ElapsedMillisecondsTimedStatSystem : ElapsedMillisecondsTimedStat
 {
