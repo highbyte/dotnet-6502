@@ -168,7 +168,8 @@ public class SystemRunnerTests
 
 public class TestSystem : ISystem
 {
-    public string Name => "Test";
+    public const string SystemName = "Test";
+    public string Name => SystemName;
 
     public List<string> SystemInfo => new List<string>();
 
@@ -193,6 +194,36 @@ public class TestSystem : ISystem
         return new ExecEvaluatorTriggerResult();
     }
 }
+
+public class TestSystem2 : ISystem
+{
+    public const string SystemName = "Test2";
+    public string Name => SystemName;
+
+    public List<string> SystemInfo => new List<string>();
+
+    public CPU CPU => throw new NotImplementedException();
+
+    public Memory Mem => throw new NotImplementedException();
+
+    public IScreen Screen => throw new NotImplementedException();
+
+    public bool InstrumentationEnabled { get; set; } = false;
+
+    public Instrumentations Instrumentations { get; } = new();
+
+    public ExecEvaluatorTriggerResult ExecuteOneFrame(SystemRunner systemRunner, IExecEvaluator? execEvaluator = null)
+    {
+        return new ExecEvaluatorTriggerResult();
+    }
+
+    public ExecEvaluatorTriggerResult ExecuteOneInstruction(SystemRunner systemRunner, out InstructionExecResult instructionExecResult, IExecEvaluator? execEvaluator = null)
+    {
+        instructionExecResult = new InstructionExecResult();
+        return new ExecEvaluatorTriggerResult();
+    }
+}
+
 
 public class TestRenderer : IRenderer
 {
