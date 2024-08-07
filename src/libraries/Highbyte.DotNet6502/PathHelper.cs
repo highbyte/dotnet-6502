@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace Highbyte.DotNet6502;
@@ -15,6 +16,7 @@ public static class PathHelper
         return result;
     }
 
+    [ExcludeFromCodeCoverage]
     private static string ReplaceDirectorySeparator(string path)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -26,6 +28,7 @@ public static class PathHelper
         return path;
     }
 
+    [ExcludeFromCodeCoverage]
     private static string ReplaceOSSpecificVariablesForLinuxAndMac(string path)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
