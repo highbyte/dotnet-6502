@@ -11,7 +11,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
-public class C64Setup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
+public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
 

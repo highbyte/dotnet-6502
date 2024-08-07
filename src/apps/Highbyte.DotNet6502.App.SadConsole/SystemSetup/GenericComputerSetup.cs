@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 
-public class GenericComputerSetup : SystemConfigurer<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
+public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => GenericComputer.SystemName;
 

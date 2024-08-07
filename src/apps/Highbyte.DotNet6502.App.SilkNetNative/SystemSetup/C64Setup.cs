@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 
-public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
+public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
 

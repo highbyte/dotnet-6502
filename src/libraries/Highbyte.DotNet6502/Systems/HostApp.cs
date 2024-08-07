@@ -109,10 +109,10 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     public async Task Start()
     {
         if (EmulatorState == EmulatorState.Running)
-            return;
+            throw new DotNet6502Exception("Cannot start emulator if emulator is running.");
 
-        if (!_systemList.IsValidConfig(_selectedSystemName).Result)
-            throw new DotNet6502Exception("Internal error. Cannot start emulator if current system config is invalid.");
+        if (!await _systemList.IsValidConfig(_selectedSystemName))
+            throw new DotNet6502Exception("Cannot start emulator if current system config is invalid.");
 
         var systemAboutToBeStarted = await _systemList.GetSystem(_selectedSystemName);
         bool shouldStart = OnBeforeStart(systemAboutToBeStarted);

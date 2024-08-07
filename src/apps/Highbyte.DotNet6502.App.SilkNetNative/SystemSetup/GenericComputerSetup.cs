@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 
-public class GenericComputerSetup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
+public class GenericComputerSetup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => GenericComputer.SystemName;
 

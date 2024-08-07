@@ -1,6 +1,6 @@
 namespace Highbyte.DotNet6502.Systems;
 
-public interface SystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
+public interface ISystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 {
     public string SystemName { get; }
     public Task<ISystemConfig> GetNewConfig(string configurationVariant);

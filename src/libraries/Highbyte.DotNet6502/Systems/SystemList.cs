@@ -10,7 +10,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     private Func<TAudioHandlerContext>? _getAudioHandlerContext;
 
     public HashSet<string> Systems = new();
-    private readonly Dictionary<string, SystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext>> _systemConfigurers = new();
+    private readonly Dictionary<string, ISystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext>> _systemConfigurers = new();
 
     private const string DEFAULT_CONFIGURATION_VARIANT = "DEFAULT";
 
@@ -87,7 +87,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     public void AddSystem(
-        SystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext> systemConfigurer)
+        ISystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext> systemConfigurer)
     {
         var systemName = systemConfigurer.SystemName;
         if (Systems.Contains(systemName))

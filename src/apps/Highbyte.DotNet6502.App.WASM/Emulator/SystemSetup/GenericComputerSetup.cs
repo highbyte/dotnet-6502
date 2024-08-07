@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
-public class GenericComputerSetup : SystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
+public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
     public string SystemName => GenericComputer.SystemName;
 
