@@ -1,3 +1,4 @@
+using AutoMapper;
 using Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
@@ -30,7 +31,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     private readonly DotNet6502InMemLogStore _logStore;
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private readonly ILoggerFactory _loggerFactory;
-    //private readonly IMapper _mapper;
+    private readonly IMapper _mapper;
 
     // --------------------
     // Other variables / constants
@@ -88,8 +89,8 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         Dictionary<string, IHostSystemConfig> hostSystemConfigs,
         //IWindow window,
         DotNet6502InMemLogStore logStore,
-        DotNet6502InMemLoggerConfiguration logConfig
-        //IMapper mapper
+        DotNet6502InMemLoggerConfiguration logConfig,
+        IMapper mapper
 
         ) : base("SadConsole", systemList, hostSystemConfigs, loggerFactory)
     {
@@ -99,7 +100,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         _logConfig = logConfig;
 
         _loggerFactory = loggerFactory;
-        //_mapper = mapper;
+        _mapper = mapper;
         _logger = loggerFactory.CreateLogger(typeof(SadConsoleHostApp).Name);
     }
 
@@ -225,7 +226,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         // Create system specific menu console
         if (SelectedSystemName == "C64")
         {
-            _systemMenuConsole = new C64MenuConsole(this, _loggerFactory);
+            _systemMenuConsole = new C64MenuConsole(this, _loggerFactory, _mapper);
             _systemMenuConsole.Position = (MENU_POSITION_X, _menuConsole.Height);
             _sadConsoleScreen.Children.Add(_systemMenuConsole);
         }

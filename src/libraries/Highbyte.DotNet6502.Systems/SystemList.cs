@@ -130,11 +130,12 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
 
         var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
 
+        if (_systemsCache.ContainsKey(cacheKey))
+            throw new DotNet6502Exception($"Internal error. Configuration for system {cacheKey} is already in cache.");
+
         if (!await IsValidConfig(systemName, configurationVariant))
             throw new DotNet6502Exception($"Internal error. Configuration for system {cacheKey} is invalid.");
 
-        if (_systemsCache.ContainsKey(cacheKey))
-            _systemsCache.Remove(cacheKey);
 
         var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
         var system = _systemConfigurers[systemName].BuildSystem(systemConfig);
@@ -167,7 +168,9 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         if (_getAudioHandlerContext == null)
             throw new DotNet6502Exception("AudioHandlerContext has not been initialized. Call InitContext to initialize.");
 
-        await BuildAndCacheSystem(systemName, configurationVariant);
+        var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
+        if (!_systemsCache.ContainsKey(cacheKey))
+            await BuildAndCacheSystem(systemName, configurationVariant);
 
         var system = await GetSystem(systemName, configurationVariant);
         var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
@@ -193,6 +196,8 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
 
     public void ChangeCurrentSystemConfig(string systemName, ISystemConfig systemConfig, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
     {
+        // Make sure any cached version of the system is invalidated so it'll be re-recreated with new config.
+        InvalidateSystemCache(systemName, configurationVariant);
         CacheSystemConfig(systemName, configurationVariant, systemConfig);
     }
 
@@ -225,5 +230,14 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     private string BuildSystemCacheKey(string systemName, string configurationVariant)
     {
         return $"{systemName}_{configurationVariant}";
+    }
+
+    public void InvalidateSystemCache(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    {
+        var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
+        if (_systemsCache.ContainsKey(cacheKey))
+        {
+            _systemsCache.Remove(cacheKey);
+        }
     }
 }

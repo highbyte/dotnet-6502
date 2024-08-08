@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
+using AutoMapper;
 
 // Get config file
 var builder = new ConfigurationBuilder()
@@ -50,6 +51,16 @@ var hostSystemConfigs = new Dictionary<string, IHostSystemConfig>
     { GenericComputer.SystemName, emulatorConfig.GenericComputerHostConfig}
 };
 
+
+// TODO: Make Automapper configuration more generic, incorporate in classes that need it?
+var mapperConfiguration = new MapperConfiguration(
+    cfg =>
+    {
+        cfg.CreateMap<C64HostConfig, C64HostConfig>();
+    }
+);
+var mapper = mapperConfiguration.CreateMapper();
+
 // ----------
 // Get systems
 // ----------
@@ -68,5 +79,5 @@ systemList.AddSystem(genericComputerSetup);
 // ----------
 emulatorConfig.Validate(systemList);
 
-var silkNetHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorConfig, hostSystemConfigs, logStore, logConfig);
+var silkNetHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorConfig, hostSystemConfigs, logStore, logConfig, mapper);
 silkNetHostApp.Run();

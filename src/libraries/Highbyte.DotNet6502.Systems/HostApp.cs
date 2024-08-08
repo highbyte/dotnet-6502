@@ -169,9 +169,13 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         _systemRunner!.Cleanup();
         _systemRunner = default!;
 
+        EmulatorState = EmulatorState.Uninitialized;
+
+        // Make sure the cached System instance is removed, so it's created again next time (starting fresh).
+        _systemList.InvalidateSystemCache(SelectedSystemName);
+
         OnAfterStop();
 
-        EmulatorState = EmulatorState.Uninitialized;
         _logger.LogInformation($"System stopped: {_selectedSystemName}");
     }
     public virtual void OnAfterStop() { }

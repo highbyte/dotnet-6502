@@ -3,9 +3,9 @@ using Highbyte.DotNet6502.Systems;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Utils;
+using AutoMapper;
 
 namespace Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 public class C64MenuConsole : ControlsConsole
@@ -16,11 +16,13 @@ public class C64MenuConsole : ControlsConsole
     private const int USABLE_HEIGHT = 12;
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
+    private readonly IMapper _mapper;
     private readonly ILogger _logger;
 
-    public C64MenuConsole(SadConsoleHostApp sadConsoleHostApp, ILoggerFactory loggerFactory) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
+    public C64MenuConsole(SadConsoleHostApp sadConsoleHostApp, ILoggerFactory loggerFactory, IMapper mapper) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
         _sadConsoleHostApp = sadConsoleHostApp;
+        _mapper = mapper;
         _logger = loggerFactory.CreateLogger(typeof(C64MenuConsole).Name);
 
         Controls.ThemeColors = SadConsoleUISettings.ThemeColors;
@@ -240,6 +242,14 @@ public class C64MenuConsole : ControlsConsole
             {
                 IsDirty = true;
                 _sadConsoleHostApp.MenuConsole.IsDirty = true;
+
+                // Update the system config
+                _sadConsoleHostApp.UpdateSystemConfig(_sadConsoleHostApp.GetSystemConfig().Result);
+
+                //// Update the existing host system config, it is referenced from different objects (thus we cannot replace it with a new one).
+                //var orgHostSystemConfig = _sadConsoleHostApp.GetHostSystemConfig();
+                //_mapper.Map(hostSystemConfig, orgHostSystemConfig);
+
             }
         };
         window.Show(true);
