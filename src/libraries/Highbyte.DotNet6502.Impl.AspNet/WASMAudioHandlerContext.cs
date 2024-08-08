@@ -2,52 +2,55 @@ using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.JSInterop;
 
-namespace Highbyte.DotNet6502.Impl.AspNet
+namespace Highbyte.DotNet6502.Impl.AspNet;
+
+public class WASMAudioHandlerContext : IAudioHandlerContext
 {
-    public class WASMAudioHandlerContext : IAudioHandlerContext
+    private readonly Func<AudioContextSync> _getAudioContext;
+    public AudioContextSync AudioContext => _getAudioContext();
+
+    private readonly IJSRuntime _jsRuntime;
+    private readonly float _initialVolumePercent;
+
+    public IJSRuntime JSRuntime => _jsRuntime;
+
+    private GainNodeSync _masterVolumeGainNode = default!;
+    internal GainNodeSync MasterVolumeGainNode => _masterVolumeGainNode;
+
+    public bool IsInitialized { get; private set; }
+
+    public WASMAudioHandlerContext(
+        Func<AudioContextSync> getAudioContext,
+        IJSRuntime jsRuntime,
+        float initialVolumePercent
+        )
     {
-        private readonly AudioContextSync _audioContext;
-        public AudioContextSync AudioContext => _audioContext;
+        _getAudioContext = getAudioContext;
+        _jsRuntime = jsRuntime;
+        _initialVolumePercent = initialVolumePercent;
+    }
 
-        private readonly IJSRuntime _jsRuntime;
-        private readonly float _initialVolumePercent;
+    public void Init()
+    {
+        // Create GainNode for master volume
+        _masterVolumeGainNode = GainNodeSync.Create(JSRuntime, AudioContext);
 
-        public IJSRuntime JSRuntime => _jsRuntime;
+        // Set initial master volume %
+        SetMasterVolumePercent(_initialVolumePercent);
 
-        private GainNodeSync _masterVolumeGainNode = default!;
-        internal GainNodeSync MasterVolumeGainNode => _masterVolumeGainNode;
+        IsInitialized = true;
+    }
 
-        public WASMAudioHandlerContext(
-            AudioContextSync audioContext,
-            IJSRuntime jsRuntime,
-            float initialVolumePercent
-            )
-        {
-            _audioContext = audioContext;
-            _jsRuntime = jsRuntime;
-            _initialVolumePercent = initialVolumePercent;
-        }
+    public void Cleanup()
+    {
+    }
 
-        public void Init()
-        {
-            // Create GainNode for master volume
-            _masterVolumeGainNode = GainNodeSync.Create(JSRuntime, AudioContext);
-
-            // Set initial master volume %
-            SetMasterVolumePercent(_initialVolumePercent);
-        }
-
-        public void Cleanup()
-        {
-        }
-
-        public void SetMasterVolumePercent(float masterVolumePercent)
-        {
-            var currentTime = AudioContext.GetCurrentTime();
-            var gain = MasterVolumeGainNode.GetGain();
-            gain.CancelScheduledValues(currentTime);
-            float newGain = Math.Clamp(masterVolumePercent, 0f, 100f) / 100f;
-            gain.SetValueAtTime(newGain, currentTime);
-        }
+    public void SetMasterVolumePercent(float masterVolumePercent)
+    {
+        var currentTime = AudioContext.GetCurrentTime();
+        var gain = MasterVolumeGainNode.GetGain();
+        gain.CancelScheduledValues(currentTime);
+        float newGain = Math.Clamp(masterVolumePercent, 0f, 100f) / 100f;
+        gain.SetValueAtTime(newGain, currentTime);
     }
 }

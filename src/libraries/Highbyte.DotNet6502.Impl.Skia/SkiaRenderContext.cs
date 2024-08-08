@@ -17,6 +17,7 @@ public class SkiaRenderContext : IRenderContext
     private readonly Func<GRContext>? _getGrContextExternal;
 
     private GRGlInterface? _glInterface;
+    public bool IsInitialized { get; private set; } = false;
 
     private SKCanvas GetCanvasInternal()
     {
@@ -76,6 +77,7 @@ public class SkiaRenderContext : IRenderContext
 
     public void Init()
     {
+        IsInitialized = true;
     }
 
     public void Cleanup()

@@ -14,17 +14,10 @@ public static class CommandLineApp
     {
 
         Parser? parser = null;
-        //var root = new RootCommand()
-        //{
-        //    Name = "DotNet6502Monitor",
-        //    Description = "DotNet 6502 machine code monitor for the DotNet 6502 emulator library." + Environment.NewLine +
-        //                  "By Highbyte 2023" + Environment.NewLine +
-        //                  "Source at: https://github.com/highbyte/dotnet-6502"
-        //};
         var root = new Command(
             "DotNet6502Monitor",
             "DotNet 6502 machine code monitor for the DotNet 6502 emulator library." + Environment.NewLine +
-            "By Highbyte 2023" + Environment.NewLine +
+            "By Highbyte 2024." + Environment.NewLine +
             "Source at: https://github.com/highbyte/dotnet-6502")
         {
         };

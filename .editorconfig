@@ -214,6 +214,9 @@ csharp_preserve_single_line_blocks = true
 # Code block
 csharp_prefer_braces = when_multiline:warning
 
+# File Scoped Namespaces
+csharp_style_namespace_declarations = file_scoped
+
 
 # -----------------------------------------------
 # Misc Code Styles that should affect code analysis
@@ -232,6 +235,9 @@ dotnet_style_prefer_compound_assignment = false:suggestion
 
 # IDE0055: Fix formatting. All formatting options have rule ID IDE0055 and title Fix formatting
 dotnet_diagnostic.IDE0055.severity = warning
+
+# IDE0161: Use file-scoped namespace
+dotnet_diagnostic.IDE0161.severity = warning
 
 
 # -----------------------------------------------

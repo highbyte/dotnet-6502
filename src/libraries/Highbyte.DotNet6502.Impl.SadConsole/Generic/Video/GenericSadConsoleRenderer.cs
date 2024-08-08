@@ -1,7 +1,7 @@
-using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using Highbyte.DotNet6502.Systems.Instrumentation;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Generic.Video;
 
@@ -157,12 +157,17 @@ public class GenericSadConsoleRenderer : IRenderer
                 sadConsoleCharacter = emulatorCharacter;
         }
 
-        _sadConsoleRenderContext.Screen.DrawCharacter(
+        DrawCharacter(
             x,
             y,
             sadConsoleCharacter,
             GenericSadConsoleColors.SystemToSadConsoleColorMap[_emulatorScreenConfig.ColorMap[emulatorFgColor]],
             GenericSadConsoleColors.SystemToSadConsoleColorMap[_emulatorScreenConfig.ColorMap[emulatorBgColor]]
             );
+    }
+
+    private void DrawCharacter(int x, int y, int sadConsoleCharCode, Color fgColor, Color bgColor)
+    {
+        _sadConsoleRenderContext.Console.SetGlyph(x, y, sadConsoleCharCode, fgColor, bgColor);
     }
 }

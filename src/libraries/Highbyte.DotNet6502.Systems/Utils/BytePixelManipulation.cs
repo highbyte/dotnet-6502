@@ -1,6 +1,6 @@
 namespace Highbyte.DotNet6502.Systems.Utils;
 
-internal static class BytePixelManipulation
+public static class BytePixelManipulation
 {
     /// <summary>
     /// Doubles the "width" of the bits ("pixels") in a byte into two bytes.

@@ -1,7 +1,7 @@
-using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using Highbyte.DotNet6502.Systems.Instrumentation;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 
@@ -127,7 +127,7 @@ public class C64SadConsoleRenderer : IRenderer
         // Default to C64 screen codes as source
         sadConsoleCharacter = TranslateC64ScreenCodeToSadConsoleC64Font(emulatorCharacter);
 
-        _sadConsoleRenderContext.Screen.DrawCharacter(
+        DrawCharacter(
             x,
             y,
             sadConsoleCharacter,
@@ -162,5 +162,10 @@ public class C64SadConsoleRenderer : IRenderer
     private int GetBorderRows(C64 c64)
     {
         return c64.Vic2.Vic2Screen.VisibleTopBottomBorderHeight / c64.Vic2.Vic2Screen.CharacterHeight;
+    }
+
+    private void DrawCharacter(int x, int y, int sadConsoleCharCode, Color fgColor, Color bgColor)
+    {
+        _sadConsoleRenderContext.Console.SetGlyph(x, y, sadConsoleCharCode, fgColor, bgColor);
     }
 }

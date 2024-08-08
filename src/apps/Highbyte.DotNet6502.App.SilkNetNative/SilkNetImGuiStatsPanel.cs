@@ -1,5 +1,5 @@
 using System.Numerics;
-using Highbyte.DotNet6502.Instrumentation.Stats;
+using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;
 

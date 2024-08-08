@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Utils;
+
 namespace Highbyte.DotNet6502.Systems;
 
 public class ROM

@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502.Tests;

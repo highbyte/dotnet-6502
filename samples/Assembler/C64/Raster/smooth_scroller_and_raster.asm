@@ -405,7 +405,7 @@ SCROLLER_TEXT_COLOR:
 SCROLL_TEXT:
 	;!text "                                                                                "
 	!text "                                        "
-	!text "highbyte, in 2023, proudly presents... a dotnet 6502 cpu emulator!    "
+	!text "highbyte, in 2024, proudly presents... a dotnet 6502 cpu emulator!    "
 	!text "the raster bars and smooth scroller are written in 6502 machine code for c64.   "
 	;!text "hold space to flash border color.   "
 	!text "greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups them and virtual!"

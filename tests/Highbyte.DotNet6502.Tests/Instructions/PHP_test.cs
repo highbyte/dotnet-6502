@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Utils;
+
 namespace Highbyte.DotNet6502.Tests.Instructions;
 
 public class PHP_test

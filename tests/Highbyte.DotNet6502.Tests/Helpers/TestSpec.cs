@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Utils;
+
 namespace Highbyte.DotNet6502.Tests.Helpers;
 
 public enum InstrEffect { Reg, Mem, RegAndMem, StatusOnly, StackPointerOnly, None }

@@ -39,7 +39,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libs", "Libs", "{B406AD5D-C
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Benchmarks", "Benchmarks", "{3BEA24A0-2072-4434-8376-50C9C8BBF026}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.Benchmarks", "benchmarks\Highbyte.DotNet6502.Benchmarks\Highbyte.DotNet6502.Benchmarks.csproj", "{DD5BD304-374C-4968-81C0-9E740C2BB19E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Benchmarks", "benchmarks\Highbyte.DotNet6502.Benchmarks\Highbyte.DotNet6502.Benchmarks.csproj", "{DD5BD304-374C-4968-81C0-9E740C2BB19E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Systems.Generic", "src\libraries\Highbyte.DotNet6502.Systems.Generic\Highbyte.DotNet6502.Systems.Generic.csproj", "{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.Systems.Commodore64", "src\libraries\Highbyte.DotNet6502.Systems.Commodore64\Highbyte.DotNet6502.Systems.Commodore64.csproj", "{A52EFEC2-FD60-453E-AC55-703AD2F2A895}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -231,6 +235,30 @@ Global
 		{DD5BD304-374C-4968-81C0-9E740C2BB19E}.Release|x64.Build.0 = Release|Any CPU
 		{DD5BD304-374C-4968-81C0-9E740C2BB19E}.Release|x86.ActiveCfg = Release|Any CPU
 		{DD5BD304-374C-4968-81C0-9E740C2BB19E}.Release|x86.Build.0 = Release|Any CPU
+		{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791}.Debug|x64.Build.0 = Debug|Any CPU
+		{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791}.Debug|x86.Build.0 = Debug|Any CPU
+		{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791}.Release|x64.ActiveCfg = Release|Any CPU
+		{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791}.Release|x64.Build.0 = Release|Any CPU
+		{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791}.Release|x86.ActiveCfg = Release|Any CPU
+		{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791}.Release|x86.Build.0 = Release|Any CPU
+		{A52EFEC2-FD60-453E-AC55-703AD2F2A895}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A52EFEC2-FD60-453E-AC55-703AD2F2A895}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A52EFEC2-FD60-453E-AC55-703AD2F2A895}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A52EFEC2-FD60-453E-AC55-703AD2F2A895}.Debug|x64.Build.0 = Debug|Any CPU
+		{A52EFEC2-FD60-453E-AC55-703AD2F2A895}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A52EFEC2-FD60-453E-AC55-703AD2F2A895}.Debug|x86.Build.0 = Debug|Any CPU
+		{A52EFEC2-FD60-453E-AC55-703AD2F2A895}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A52EFEC2-FD60-453E-AC55-703AD2F2A895}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A52EFEC2-FD60-453E-AC55-703AD2F2A895}.Release|x64.ActiveCfg = Release|Any CPU
+		{A52EFEC2-FD60-453E-AC55-703AD2F2A895}.Release|x64.Build.0 = Release|Any CPU
+		{A52EFEC2-FD60-453E-AC55-703AD2F2A895}.Release|x86.ActiveCfg = Release|Any CPU
+		{A52EFEC2-FD60-453E-AC55-703AD2F2A895}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -251,6 +279,8 @@ Global
 		{2C17DDAA-CC97-4777-96A5-37B9A74FAB6B} = {D7D2C567-4FB5-48D1-BEBF-6B7EE21893FC}
 		{4658789F-F449-4D13-B71D-AA5A12FC298B} = {B406AD5D-CB8D-45F2-A5A2-4C0AD82A410A}
 		{DD5BD304-374C-4968-81C0-9E740C2BB19E} = {3BEA24A0-2072-4434-8376-50C9C8BBF026}
+		{4E078F4C-9C1B-4C17-A2AE-6BF2345DC791} = {B406AD5D-CB8D-45F2-A5A2-4C0AD82A410A}
+		{A52EFEC2-FD60-453E-AC55-703AD2F2A895} = {B406AD5D-CB8D-45F2-A5A2-4C0AD82A410A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {0F55B6C2-E4B4-4F2C-9D2A-D63A17F3B5C4}

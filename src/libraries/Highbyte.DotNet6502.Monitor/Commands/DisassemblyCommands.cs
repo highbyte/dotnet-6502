@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.Globalization;
+using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.Monitor.Commands;
 

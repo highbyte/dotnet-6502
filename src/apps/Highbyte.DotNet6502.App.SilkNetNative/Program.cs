@@ -4,12 +4,11 @@ using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
-using Highbyte.DotNet6502.Logging;
-using Highbyte.DotNet6502.Logging.InMem;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
+using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Logging;
 
 // Fix for starting in debug mode from VS Code. By default the OS current directory is set to the project folder, not the folder containing the built .exe file...
@@ -81,12 +80,12 @@ var mapper = mapperConfiguration.CreateMapper();
 // Silk.NET Window
 // ----------
 
-int windowWidth = SilkNetWindow.DEFAULT_WIDTH;
-int windowHeight = SilkNetWindow.DEFAULT_HEIGHT;
+int windowWidth = SilkNetHostApp.DEFAULT_WIDTH;
+int windowHeight = SilkNetHostApp.DEFAULT_HEIGHT;
 
 var windowOptions = WindowOptions.Default;
 // Update frequency, in hertz. 
-windowOptions.UpdatesPerSecond = SilkNetWindow.DEFAULT_RENDER_HZ;
+windowOptions.UpdatesPerSecond = SilkNetHostApp.DEFAULT_RENDER_HZ;
 // Render frequency, in hertz.
 windowOptions.FramesPerSecond = 60.0f;  // TODO: With Vsync=false the FramesPerSecond settings does not seem to matter. Measured in OnRender method it'll be same as UpdatesPerSecond setting.
 
@@ -101,5 +100,7 @@ windowOptions.ShouldSwapAutomatically = true;
 //windowOptions.PreferredDepthBufferBits = 24;    // Depth buffer bits must be set explicitly on MacOS (tested on M1), otherwise there will be be no depth buffer (for OpenGL 3d).
 
 IWindow window = Window.Create(windowOptions);
-var silkNetWindow = new SilkNetWindow(emulatorConfig, window, systemList, logStore, logConfig, loggerFactory, mapper);
-silkNetWindow.Run();
+
+var silkNetHostApp = new SilkNetHostApp(systemList, loggerFactory, emulatorConfig, window, logStore, logConfig, mapper);
+silkNetHostApp.Run();
+

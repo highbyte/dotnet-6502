@@ -19,6 +19,7 @@ public class AspNetInputHandlerContext : IInputHandlerContext
     private readonly System.Timers.Timer _gamepadConnectCheckTimer = new System.Timers.Timer(1000) { Enabled = true };
     private Gamepad? _currentGamepad;
     public HashSet<int> GamepadButtonsDown = new();
+    public bool IsInitialized { get; private set; }
 
     public AspNetInputHandlerContext(ILoggerFactory loggerFactory, GamepadList gamepadList)
     {
@@ -30,6 +31,7 @@ public class AspNetInputHandlerContext : IInputHandlerContext
     {
         _gamepadUpdateTimer.Elapsed += GamepadUpdateTimer_Elapsed;
         _gamepadConnectCheckTimer.Elapsed += GamepadConectCheckTimer_Elapsed;
+        IsInitialized = true;
     }
 
     private async void GamepadConectCheckTimer_Elapsed(object? sender, EventArgs args)

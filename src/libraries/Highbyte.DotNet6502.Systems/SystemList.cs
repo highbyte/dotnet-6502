@@ -10,7 +10,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     private Func<TAudioHandlerContext>? _getAudioHandlerContext;
 
     public HashSet<string> Systems = new();
-    private readonly Dictionary<string, SystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext>> _systemConfigurers = new();
+    private readonly Dictionary<string, ISystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext>> _systemConfigurers = new();
 
     private const string DEFAULT_CONFIGURATION_VARIANT = "DEFAULT";
 
@@ -21,19 +21,59 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     {
     }
 
-    public void InitContext(
-        Func<TRenderContext> getRenderContext,
-        Func<TInputHandlerContext> getInputHandlerContext,
-        Func<TAudioHandlerContext> getAudioHandlerContext)
+    public void SetContext(
+    Func<TRenderContext>? getRenderContext = null,
+    Func<TInputHandlerContext>? getInputHandlerContext = null,
+    Func<TAudioHandlerContext>? getAudioHandlerContext = null)
     {
-        getRenderContext().Init();
-        getInputHandlerContext().Init();
-        getAudioHandlerContext().Init();
-
-        _getRenderContext = getRenderContext;
-        _getInputHandlerContext = getInputHandlerContext;
-        _getAudioHandlerContext = getAudioHandlerContext;
+        if (getRenderContext != null)
+        {
+            if (_getRenderContext != null)
+                throw new DotNet6502Exception("RenderContext has already been set. Call SetContext only once.");
+            _getRenderContext = getRenderContext;
+        }
+        if (getInputHandlerContext != null)
+        {
+            if (_getInputHandlerContext != null)
+                throw new DotNet6502Exception("InputHandlerContext has already been set. Call SetContext only once.");
+            _getInputHandlerContext = getInputHandlerContext;
+        }
+        if (getAudioHandlerContext != null)
+        {
+            if (_getAudioHandlerContext != null)
+                throw new DotNet6502Exception("AudioHandlerContext has already been set. Call SetContext only once.");  
+            _getAudioHandlerContext = getAudioHandlerContext;
+        }
     }
+
+    public void InitRenderContext()
+    {
+        if (_getRenderContext == null)
+            throw new DotNet6502Exception("RenderContext has not been set. Call SetContext first.");
+        if (_getRenderContext().IsInitialized)
+            _getRenderContext().Cleanup();
+        _getRenderContext().Init();
+    }
+    public void InitInputHandlerContext()
+    {
+        if (_getInputHandlerContext == null)
+            throw new DotNet6502Exception("InputHandlerContext has not been set. Call SetContext first.");
+        if (_getInputHandlerContext().IsInitialized)
+            _getInputHandlerContext().Cleanup();
+        _getInputHandlerContext().Init();
+    }
+    public void InitAudioHandlerContext()
+    {
+        if (_getAudioHandlerContext == null)
+            throw new DotNet6502Exception("AudioHandlerContext has not been set. Call SetContext first.");
+        if (_getAudioHandlerContext().IsInitialized)
+            _getAudioHandlerContext().Cleanup();
+        _getAudioHandlerContext().Init();
+    }
+
+    public bool IsRenderContextInitialized => _getRenderContext != null ? _getRenderContext().IsInitialized : false;
+    public bool IsInputHandlerContextInitialized => _getInputHandlerContext != null ? _getInputHandlerContext().IsInitialized : false;
+    public bool IsAudioHandlerContextInitialized => _getAudioHandlerContext != null ? _getAudioHandlerContext().IsInitialized : false;
 
     /// <summary>
     /// Add a system to the list of available systems.
@@ -47,7 +87,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     public void AddSystem(
-        SystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext> systemConfigurer)
+        ISystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext> systemConfigurer)
     {
         var systemName = systemConfigurer.SystemName;
         if (Systems.Contains(systemName))
@@ -90,11 +130,12 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
 
         var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
 
+        if (_systemsCache.ContainsKey(cacheKey))
+            throw new DotNet6502Exception($"Internal error. Configuration for system {cacheKey} is already in cache.");
+
         if (!await IsValidConfig(systemName, configurationVariant))
             throw new DotNet6502Exception($"Internal error. Configuration for system {cacheKey} is invalid.");
 
-        if (_systemsCache.ContainsKey(cacheKey))
-            _systemsCache.Remove(cacheKey);
 
         var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
         var system = _systemConfigurers[systemName].BuildSystem(systemConfig);
@@ -127,7 +168,9 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         if (_getAudioHandlerContext == null)
             throw new DotNet6502Exception("AudioHandlerContext has not been initialized. Call InitContext to initialize.");
 
-        await BuildAndCacheSystem(systemName, configurationVariant);
+        var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
+        if (!_systemsCache.ContainsKey(cacheKey))
+            await BuildAndCacheSystem(systemName, configurationVariant);
 
         var system = await GetSystem(systemName, configurationVariant);
         var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
@@ -153,6 +196,8 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
 
     public void ChangeCurrentSystemConfig(string systemName, ISystemConfig systemConfig, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
     {
+        // Make sure any cached version of the system is invalidated so it'll be re-recreated with new config.
+        InvalidateSystemCache(systemName, configurationVariant);
         CacheSystemConfig(systemName, configurationVariant, systemConfig);
     }
 
@@ -185,5 +230,14 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     private string BuildSystemCacheKey(string systemName, string configurationVariant)
     {
         return $"{systemName}_{configurationVariant}";
+    }
+
+    public void InvalidateSystemCache(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    {
+        var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
+        if (_systemsCache.ContainsKey(cacheKey))
+        {
+            _systemsCache.Remove(cacheKey);
+        }
     }
 }

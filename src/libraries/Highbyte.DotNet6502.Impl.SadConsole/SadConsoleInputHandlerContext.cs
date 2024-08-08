@@ -10,6 +10,8 @@ public class SadConsoleInputHandlerContext : IInputHandlerContext
     private Keyboard _sadConsoleKeyboard => GameHost.Instance.Keyboard;
     private readonly ILogger<SadConsoleInputHandlerContext> _logger;
 
+    public bool IsInitialized { get; private set; }
+
     public List<Keys> KeysDown
     {
         get
@@ -33,6 +35,7 @@ public class SadConsoleInputHandlerContext : IInputHandlerContext
     public void Init()
     {
         //_sadConsoleKeyboard = keyboard;
+        IsInitialized = true;
     }
 
     public void Cleanup()

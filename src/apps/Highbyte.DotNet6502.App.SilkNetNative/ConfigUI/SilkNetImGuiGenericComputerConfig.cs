@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative.ConfigUI;
 
