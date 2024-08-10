@@ -5,6 +5,7 @@ using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
@@ -14,8 +15,8 @@ namespace Highbyte.DotNet6502.App.SilkNetNative;
 
 public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 {
-    private readonly SilkNetHostApp _hostViewModel;
-    private EmulatorState EmulatorState => _hostViewModel.EmulatorState;
+    private readonly SilkNetHostApp _silkNetHostApp;
+    private EmulatorState EmulatorState => _silkNetHostApp.EmulatorState;
 
     public bool Visible { get; private set; } = true;
     public bool WindowIsFocused { get; private set; }
@@ -40,7 +41,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     public int C64SelectedJoystick;
     public string[] C64AvailableJoysticks = [];
 
-    private string SelectedSystemName => _hostViewModel.AvailableSystemNames.ToArray()[_selectedSystemItem];
+    private string SelectedSystemName => _silkNetHostApp.AvailableSystemNames.ToArray()[_selectedSystemItem];
 
     private ISystemConfig _originalSystemConfig = default!;
     private IHostSystemConfig _originalHostSystemConfig = default!;
@@ -50,12 +51,12 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
     private string _lastFileError = "";
 
-    public SilkNetImGuiMenu(SilkNetHostApp hostViewModel, string defaultSystemName, bool defaultAudioEnabled, float defaultAudioVolumePercent, IMapper mapper, ILoggerFactory loggerFactory)
+    public SilkNetImGuiMenu(SilkNetHostApp silkNetHostApp, string defaultSystemName, bool defaultAudioEnabled, float defaultAudioVolumePercent, IMapper mapper, ILoggerFactory loggerFactory)
     {
-        _hostViewModel = hostViewModel;
-        _screenScaleString = _hostViewModel.Scale.ToString();
+        _silkNetHostApp = silkNetHostApp;
+        _screenScaleString = _silkNetHostApp.Scale.ToString();
 
-        _selectedSystemItem = _hostViewModel.AvailableSystemNames.ToList().IndexOf(defaultSystemName);
+        _selectedSystemItem = _silkNetHostApp.AvailableSystemNames.ToList().IndexOf(defaultSystemName);
 
         _audioEnabled = defaultAudioEnabled;
         _audioVolumePercent = defaultAudioVolumePercent;
@@ -63,7 +64,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         _mapper = mapper;
         _logger = loggerFactory.CreateLogger<SilkNetImGuiMenu>();
 
-        ISystemConfig systemConfig = GetSelectedSystemConfig();
+        ISystemConfig systemConfig = GetSelectedSystemConfigClone();
         if (systemConfig is C64Config c64Config)
         {
             C64KeyboardJoystickEnabled = c64Config.KeyboardJoystickEnabled;
@@ -88,9 +89,9 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.SameLine();
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
         ImGui.PushItemWidth(120);
-        if (ImGui.Combo("", ref _selectedSystemItem, _hostViewModel.AvailableSystemNames.ToArray(), _hostViewModel.AvailableSystemNames.Count))
+        if (ImGui.Combo("", ref _selectedSystemItem, _silkNetHostApp.AvailableSystemNames.ToArray(), _silkNetHostApp.AvailableSystemNames.Count))
         {
-            _hostViewModel.SelectSystem(SelectedSystemName);
+            _silkNetHostApp.SelectSystem(SelectedSystemName);
         };
         ImGui.PopItemWidth();
         ImGui.EndDisabled();
@@ -105,7 +106,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.BeginDisabled(disabled: !(EmulatorState != EmulatorState.Running && SelectedSystemConfigIsValid()));
         if (ImGui.Button("Start"))
         {
-            _hostViewModel.Start();
+            _silkNetHostApp.Start();
             return;
         }
         ImGui.EndDisabled();
@@ -114,7 +115,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.SameLine();
         if (ImGui.Button("Pause"))
         {
-            _hostViewModel.Pause();
+            _silkNetHostApp.Pause();
         }
         ImGui.EndDisabled();
 
@@ -122,7 +123,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.SameLine();
         if (ImGui.Button("Reset"))
         {
-            _hostViewModel.Reset();
+            _silkNetHostApp.Reset();
             return;
         }
         ImGui.EndDisabled();
@@ -131,7 +132,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.SameLine();
         if (ImGui.Button("Stop"))
         {
-            _hostViewModel.Stop();
+            _silkNetHostApp.Stop();
             return;
         }
         ImGui.EndDisabled();
@@ -139,7 +140,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused));
         if (ImGui.Button("Monitor"))
         {
-            _hostViewModel.ToggleMonitor();
+            _silkNetHostApp.ToggleMonitor();
         }
         ImGui.EndDisabled();
 
@@ -147,7 +148,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.SameLine();
         if (ImGui.Button("Stats"))
         {
-            _hostViewModel.ToggleStatsPanel();
+            _silkNetHostApp.ToggleStatsPanel();
         }
         ImGui.EndDisabled();
 
@@ -155,7 +156,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.SameLine();
         if (ImGui.Button("Logs"))
         {
-            _hostViewModel.ToggleLogsPanel();
+            _silkNetHostApp.ToggleLogsPanel();
         }
         //ImGui.EndDisabled();
 
@@ -166,7 +167,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         if (ImGui.InputText("Scale", ref _screenScaleString, 4))
         {
             if (float.TryParse(_screenScaleString, out float scale))
-                _hostViewModel.Scale = scale;
+                _silkNetHostApp.Scale = scale;
         }
         ImGui.PopItemWidth();
         ImGui.PopStyleColor();
@@ -176,32 +177,31 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         if (!string.IsNullOrEmpty(SelectedSystemName))
         {
             // Common audio settings
-            ISystemConfig systemConfig = GetSelectedSystemConfig();
 
-            ImGui.BeginDisabled(disabled: !(systemConfig.AudioSupported && EmulatorState == EmulatorState.Uninitialized));
+            ImGui.BeginDisabled(disabled: !(_silkNetHostApp.IsAudioSupported && EmulatorState == EmulatorState.Uninitialized));
             ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
             //ImGui.SetKeyboardFocusHere(0);
             ImGui.PushItemWidth(40);
-            if (systemConfig.AudioSupported)
+            if (_silkNetHostApp.IsAudioSupported)
             {
                 if (ImGui.Checkbox("Audio enabled (experimental)", ref _audioEnabled))
                 {
-                    systemConfig.AudioEnabled = _audioEnabled;
+                    _silkNetHostApp.IsAudioEnabled = _audioEnabled;
                 }
             }
             ImGui.PopStyleColor();
             ImGui.PopItemWidth();
             ImGui.EndDisabled();
 
-            ImGui.BeginDisabled(disabled: !(systemConfig.AudioSupported));
+            ImGui.BeginDisabled(disabled: !(_silkNetHostApp.IsAudioSupported));
             ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
             //ImGui.SetKeyboardFocusHere(0);
             ImGui.PushItemWidth(40);
-            if (systemConfig.AudioSupported && systemConfig.AudioEnabled)
+            if (_silkNetHostApp.IsAudioSupported && _silkNetHostApp.IsAudioEnabled)
             {
                 if (ImGui.SliderFloat("Volume", ref _audioVolumePercent, 0f, 100f, ""))
                 {
-                    _hostViewModel.SetVolumePercent(_audioVolumePercent);
+                    _silkNetHostApp.SetVolumePercent(_audioVolumePercent);
                 }
             }
             ImGui.PopStyleColor();
@@ -213,10 +213,10 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
             if (ImGui.Button("Load & start binary PRG file"))
             {
                 bool wasRunning = false;
-                if (_hostViewModel.EmulatorState == EmulatorState.Running)
+                if (_silkNetHostApp.EmulatorState == EmulatorState.Running)
                 {
                     wasRunning = true;
-                    _hostViewModel.Pause();
+                    _silkNetHostApp.Pause();
                 }
 
                 _lastFileError = "";
@@ -227,14 +227,14 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                     {
                         var fileName = dialogResult.Path;
                         BinaryLoader.Load(
-                            _hostViewModel.CurrentRunningSystem.Mem,
+                            _silkNetHostApp.CurrentRunningSystem.Mem,
                             fileName,
                             out ushort loadedAtAddress,
                             out ushort fileLength);
 
-                        _hostViewModel.CurrentRunningSystem.CPU.PC = loadedAtAddress;
+                        _silkNetHostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
 
-                        _hostViewModel.Start();
+                        _silkNetHostApp.Start();
                     }
                     catch (Exception ex)
                     {
@@ -244,7 +244,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                 else
                 {
                     if (wasRunning)
-                        _hostViewModel.Start();
+                        _silkNetHostApp.Start();
                 }
             }
             ImGui.EndDisabled();
@@ -284,9 +284,6 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
     private void DrawC64Config()
     {
-        var c64Config = (C64Config)GetSelectedSystemConfig();
-        var c64HostConfig = (C64HostConfig)GetSelectedSystemHostConfig();
-
         // Joystick input with keyboard
         //ImGui.BeginDisabled(disabled: EmulatorState != EmulatorState.Uninitialized);
         ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
@@ -298,36 +295,38 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.PushItemWidth(35);
         if (ImGui.Combo("##joystick", ref C64SelectedJoystick, C64AvailableJoysticks, C64AvailableJoysticks.Length))
         {
+            var c64HostConfig = (C64HostConfig)GetSelectedSystemHostConfig();
             c64HostConfig.InputConfig.CurrentJoystick = C64SelectedJoystick + 1;
+            UpdateCurrentHostSystemConfig(c64HostConfig);
         }
         ImGui.PopItemWidth();
 
         if (ImGui.Checkbox("Keyboard Joystick", ref C64KeyboardJoystickEnabled))
         {
-            if (EmulatorState == EmulatorState.Uninitialized)
+            var c64Config = (C64Config)GetSelectedSystemConfigClone();
+            c64Config.KeyboardJoystickEnabled = C64KeyboardJoystickEnabled;
+            UpdateCurrentSystemConfig(c64Config);
+
+            if (EmulatorState != EmulatorState.Uninitialized)
             {
-                c64Config.KeyboardJoystickEnabled = C64KeyboardJoystickEnabled;
-            }
-            else
-            {
-                //C64 c64 = (C64)_hostViewModel.SystemList.GetSystem(SelectedSystemName).Result;
-                C64 c64 = (C64)_hostViewModel.CurrentRunningSystem;
+                // System is running, also update the system directly
+                C64 c64 = (C64)_silkNetHostApp.CurrentRunningSystem;
                 c64.Cia.Joystick.KeyboardJoystickEnabled = C64KeyboardJoystickEnabled;
             }
         }
+
         ImGui.SameLine();
         ImGui.BeginDisabled(!C64KeyboardJoystickEnabled);
         ImGui.PushItemWidth(35);
         if (ImGui.Combo("##keyboardJoystick", ref C64KeyboardJoystick, C64AvailableJoysticks, C64AvailableJoysticks.Length))
         {
-            if (EmulatorState == EmulatorState.Uninitialized)
+            var c64Config = (C64Config)GetSelectedSystemConfigClone();
+            c64Config.KeyboardJoystick = C64KeyboardJoystick + 1;
+            UpdateCurrentSystemConfig(c64Config);
+            if (EmulatorState != EmulatorState.Uninitialized)
             {
-                c64Config.KeyboardJoystick = C64KeyboardJoystick + 1;
-            }
-            else
-            {
-                //C64 c64 = (C64)_hostViewModel.SystemList.GetSystem(SelectedSystemName).Result;
-                C64 c64 = (C64)_hostViewModel.CurrentRunningSystem;
+                // System is running, also update the system directly
+                C64 c64 = (C64)_silkNetHostApp.CurrentRunningSystem;
                 c64.Cia.Joystick.KeyboardJoystick = C64KeyboardJoystick + 1;
             }
         }
@@ -341,12 +340,12 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         if (ImGui.Button("Load Basic PRG file"))
         {
             bool wasRunning = false;
-            if (_hostViewModel.EmulatorState == EmulatorState.Running)
+            if (_silkNetHostApp.EmulatorState == EmulatorState.Running)
             {
                 wasRunning = true;
-                _hostViewModel.Pause();
+                _silkNetHostApp.Pause();
             }
-            _hostViewModel.Pause();
+            _silkNetHostApp.Pause();
             _lastFileError = "";
             var dialogResult = Dialog.FileOpen(@"prg;*");
             if (dialogResult.IsOk)
@@ -355,7 +354,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                 {
                     var fileName = dialogResult.Path;
                     BinaryLoader.Load(
-                        _hostViewModel.CurrentRunningSystem.Mem,
+                        _silkNetHostApp.CurrentRunningSystem.Mem,
                         fileName,
                         out ushort loadedAtAddress,
                         out ushort fileLength);
@@ -368,7 +367,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                     else
                     {
                         // Init C64 BASIC memory variables
-                        ((C64)_hostViewModel.CurrentRunningSystem).InitBasicMemoryVariables(loadedAtAddress, fileLength);
+                        ((C64)_silkNetHostApp.CurrentRunningSystem).InitBasicMemoryVariables(loadedAtAddress, fileLength);
                     }
                 }
                 catch (Exception ex)
@@ -378,7 +377,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
             }
 
             if (wasRunning)
-                _hostViewModel.Start();
+                _silkNetHostApp.Start();
         }
         ImGui.EndDisabled();
 
@@ -386,12 +385,12 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         if (ImGui.Button("Save Basic PRG file"))
         {
             bool wasRunning = false;
-            if (_hostViewModel.EmulatorState == EmulatorState.Running)
+            if (_silkNetHostApp.EmulatorState == EmulatorState.Running)
             {
                 wasRunning = true;
-                _hostViewModel.Pause();
+                _silkNetHostApp.Pause();
             }
-            _hostViewModel.Pause();
+            _silkNetHostApp.Pause();
             _lastFileError = "";
             var dialogResult = Dialog.FileSave(@"prg;*");
             if (dialogResult.IsOk)
@@ -400,9 +399,9 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                 {
                     var fileName = dialogResult.Path;
                     ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
-                    var endAddressValue = ((C64)_hostViewModel.CurrentRunningSystem).GetBasicProgramEndAddress();
+                    var endAddressValue = ((C64)_silkNetHostApp.CurrentRunningSystem).GetBasicProgramEndAddress();
                     BinarySaver.Save(
-                        _hostViewModel.CurrentRunningSystem.Mem,
+                        _silkNetHostApp.CurrentRunningSystem.Mem,
                         fileName,
                         startAddressValue,
                         endAddressValue,
@@ -415,7 +414,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
             }
 
             if (wasRunning)
-                _hostViewModel.Start();
+                _silkNetHostApp.Start();
         }
         ImGui.EndDisabled();
 
@@ -427,14 +426,15 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         }
         if (ImGui.Button("C64 config"))
         {
-            RememberOriginalConfigs();
-            _c64ConfigUI.Init();
+            RememberOriginalHostConfig();
+            // TODO: Clone result of GetSelectedSystemHostConfig() here?
+            _c64ConfigUI.Init((C64Config)GetSelectedSystemConfigClone(), (C64HostConfig)GetSelectedSystemHostConfig());
             ImGui.OpenPopup("C64 config");
         }
         ImGui.EndDisabled();
         _c64ConfigUI.PostOnRender("C64 config");
 
-        if (!_c64ConfigUI.IsValidConfig)
+        if (!SelectedSystemConfigIsValid())
         {
             ImGui.PushStyleColor(ImGuiCol.Text, s_errorColor);
             ImGui.TextWrapped($"Config has errors. Press C64 Config button.");
@@ -444,8 +444,6 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
     private void DrawGenericComputerConfig()
     {
-        var genericComputerConfig = (GenericComputerConfig)GetSelectedSystemConfig();
-
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
 
         if (_genericComputerConfigUI == null)
@@ -454,8 +452,8 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         }
         if (ImGui.Button("GenericComputer config"))
         {
-            RememberOriginalConfigs();
-            _genericComputerConfigUI.Init();
+            RememberOriginalHostConfig();
+            _genericComputerConfigUI.Init((GenericComputerConfig)GetSelectedSystemConfigClone(), (GenericComputerHostConfig)GetSelectedSystemHostConfig());
             ImGui.OpenPopup("GenericComputer config");
         }
         ImGui.EndDisabled();
@@ -471,34 +469,48 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
     private bool SelectedSystemConfigIsValid()
     {
-        return _hostViewModel.IsSystemConfigValid().Result;
+        return _silkNetHostApp.IsSystemConfigValid().Result;
     }
-    internal ISystemConfig GetSelectedSystemConfig()
+    internal ISystemConfig GetSelectedSystemConfigClone()
     {
-        return _hostViewModel.GetSystemConfig().Result;
+        return _silkNetHostApp.GetSystemConfigClone().Result;
     }
     internal IHostSystemConfig GetSelectedSystemHostConfig()
     {
-        return _hostViewModel.GetHostSystemConfig();
+        return _silkNetHostApp.GetHostSystemConfig();
     }
 
-    internal void RememberOriginalConfigs()
+    internal void RememberOriginalHostConfig()
     {
-        _originalSystemConfig = (ISystemConfig)GetSelectedSystemConfig().Clone();
         _originalHostSystemConfig = (IHostSystemConfig)GetSelectedSystemHostConfig().Clone();
     }
-    internal void RestoreOriginalConfigs()
+    internal void RestoreOriginalHostConfig()
     {
-        UpdateCurrentSystemConfig(_originalSystemConfig, _originalHostSystemConfig);
+        // Update the existing host system config, it is referenced from different objects (thus we cannot replace it with a new one).
+        var orgHostSystemConfig = _silkNetHostApp.GetHostSystemConfig();
+        _mapper.Map(_originalHostSystemConfig, orgHostSystemConfig);
     }
 
-    internal void UpdateCurrentSystemConfig(ISystemConfig config, IHostSystemConfig hostSystemConfig)
+    internal void UpdateCurrentSystemConfig(ISystemConfig config)
     {
+        if (config is C64Config c64Config)
+        {
+            C64KeyboardJoystick = c64Config.KeyboardJoystick - 1;
+        }
+
         // Update the system config
-        _hostViewModel.UpdateSystemConfig(config);
+        _silkNetHostApp.UpdateSystemConfig(config);
+    }
+
+    internal void UpdateCurrentHostSystemConfig(IHostSystemConfig hostSystemConfig)
+    {
+        if (hostSystemConfig is C64HostConfig c64HostConfig)
+        {
+            C64SelectedJoystick = c64HostConfig.InputConfig.CurrentJoystick - 1;
+        }
 
         // Update the existing host system config, it is referenced from different objects (thus we cannot replace it with a new one).
-        var orgHostSystemConfig = _hostViewModel.GetHostSystemConfig();
+        var orgHostSystemConfig = _silkNetHostApp.GetHostSystemConfig();
         _mapper.Map(hostSystemConfig, orgHostSystemConfig);
     }
 

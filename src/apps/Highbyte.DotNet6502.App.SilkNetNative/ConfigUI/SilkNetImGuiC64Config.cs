@@ -9,9 +9,11 @@ public class SilkNetImGuiC64Config
 {
     private readonly SilkNetImGuiMenu _mainMenu;
 
-    private C64Config _config => (C64Config)_mainMenu.GetSelectedSystemConfig();
+    private C64Config _config;
+    private C64HostConfig _hostConfig;
 
-    private C64HostConfig _hostConfig => (C64HostConfig)_mainMenu.GetSelectedSystemHostConfig();
+    private int _selectedJoystick;
+    private int _keyboardJoystick;
 
     private string? _romDirectory;
     private string? _kernalRomFile;
@@ -24,7 +26,7 @@ public class SilkNetImGuiC64Config
 
     private bool _open;
 
-    public bool IsValidConfig
+    private bool IsValidConfig
     {
         get
         {
@@ -51,8 +53,14 @@ public class SilkNetImGuiC64Config
         _mainMenu = mainMenu;
     }
 
-    internal void Init()
+    internal void Init(C64Config c64Config, C64HostConfig c64HostConfig)
     {
+        _config = c64Config;
+        _hostConfig = c64HostConfig;
+
+        _selectedJoystick = _hostConfig.InputConfig.CurrentJoystick - 1;
+        _keyboardJoystick = _config.KeyboardJoystick - 1;
+
         _romDirectory = _config.ROMDirectory;
         _kernalRomFile = _config.HasROM(C64Config.KERNAL_ROM_NAME) ? _config.GetROM(C64Config.KERNAL_ROM_NAME).File! : "";
         _basicRomFile = _config.HasROM(C64Config.KERNAL_ROM_NAME) ? _config.GetROM(C64Config.BASIC_ROM_NAME).File! : "";
@@ -112,9 +120,9 @@ public class SilkNetImGuiC64Config
             ImGui.Text("Joystick:");
             ImGui.SameLine();
             ImGui.PushItemWidth(35);
-            if (ImGui.Combo("##joystick", ref _mainMenu.C64SelectedJoystick, _mainMenu.C64AvailableJoysticks, _mainMenu.C64AvailableJoysticks.Length))
+            if (ImGui.Combo("##joystick", ref _selectedJoystick, _mainMenu.C64AvailableJoysticks, _mainMenu.C64AvailableJoysticks.Length))
             {
-                _hostConfig.InputConfig.CurrentJoystick = _mainMenu.C64SelectedJoystick + 1;
+                _hostConfig.InputConfig.CurrentJoystick = _selectedJoystick + 1;
             }
             ImGui.PopItemWidth();
 
@@ -129,9 +137,9 @@ public class SilkNetImGuiC64Config
             ImGui.Text($"Keyboard Joystick");
             ImGui.SameLine();
             ImGui.PushItemWidth(35);
-            if (ImGui.Combo("##keyboardJoystick", ref _mainMenu.C64KeyboardJoystick, _mainMenu.C64AvailableJoysticks, _mainMenu.C64AvailableJoysticks.Length))
+            if (ImGui.Combo("##keyboardJoystick", ref _keyboardJoystick, _mainMenu.C64AvailableJoysticks, _mainMenu.C64AvailableJoysticks.Length))
             {
-                _config.KeyboardJoystick = _mainMenu.C64KeyboardJoystick + 1;
+                _config.KeyboardJoystick = _keyboardJoystick + 1;
             }
             ImGui.PopItemWidth();
             var keyToJoystickMap = _config!.KeyboardJoystickMap;
@@ -162,7 +170,7 @@ public class SilkNetImGuiC64Config
             {
                 Debug.WriteLine("Cancel pressed");
                 ImGui.CloseCurrentPopup();
-                _mainMenu.RestoreOriginalConfigs();
+                _mainMenu.RestoreOriginalHostConfig();
             }
 
             ImGui.SameLine();
@@ -172,7 +180,8 @@ public class SilkNetImGuiC64Config
             {
                 Debug.WriteLine("Ok pressed");
                 ImGui.CloseCurrentPopup();
-                _mainMenu.UpdateCurrentSystemConfig(_config, _hostConfig);
+                _mainMenu.UpdateCurrentSystemConfig(_config);
+                _mainMenu.UpdateCurrentHostSystemConfig(_hostConfig);
             }
             ImGui.PopStyleColor();
             ImGui.EndDisabled();

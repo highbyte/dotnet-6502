@@ -263,14 +263,34 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         return await _systemList.IsValidConfigWithDetails(_selectedSystemName);
     }
 
+    public bool IsAudioSupported
+    {
+        get
+        {
+            return _systemList.IsAudioSupported(_selectedSystemName);
+        }
+    }
+
+    public bool IsAudioEnabled
+    {
+        get
+        {
+            return _systemList.IsAudioEnabled(_selectedSystemName);
+        }
+        set
+        {
+            _systemList.SetAudioEnabled(_selectedSystemName, enabled: value);
+        }
+    }
+
     public async Task<ISystem> GetSelectedSystem()
     {
         return await _systemList.GetSystem(_selectedSystemName);
     }
 
-    public async Task<ISystemConfig> GetSystemConfig()
+    public async Task<ISystemConfig> GetSystemConfigClone()
     {
-        return await _systemList.GetCurrentSystemConfig(_selectedSystemName);
+        return await _systemList.GetSystemConfigClone(_selectedSystemName);
     }
     public IHostSystemConfig GetHostSystemConfig()
     {
@@ -279,7 +299,8 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
     public void UpdateSystemConfig(ISystemConfig newConfig)
     {
-        _systemList.ChangeCurrentSystemConfig(_selectedSystemName, newConfig);
+        // Note: Make sure to store a clone of the newConfig in the systemList, so it cannot be changed by the caller (bound to UI for example).
+        _systemList.ChangeCurrentSystemConfig(_selectedSystemName, (ISystemConfig)newConfig.Clone());
     }
 
     public async Task PersistNewSystemConfig(ISystemConfig newConfig)

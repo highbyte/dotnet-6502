@@ -6,6 +6,8 @@ using SadRogue.Primitives;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Utils;
 using AutoMapper;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 
 namespace Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 public class C64MenuConsole : ControlsConsole
@@ -233,23 +235,24 @@ public class C64MenuConsole : ControlsConsole
 
     private void C64ConfigButton_Click(object sender, EventArgs e)
     {
-        var window = new C64ConfigUIConsole(_sadConsoleHostApp);
+        var window = new C64ConfigUIConsole(_sadConsoleHostApp, (C64Config)_sadConsoleHostApp.GetSystemConfigClone().Result, (C64HostConfig)_sadConsoleHostApp.GetHostSystemConfig());
 
         window.Center();
         window.Closed += (s2, e2) =>
         {
             if (window.DialogResult)
             {
-                IsDirty = true;
-                _sadConsoleHostApp.MenuConsole.IsDirty = true;
-
                 // Update the system config
-                _sadConsoleHostApp.UpdateSystemConfig(_sadConsoleHostApp.GetSystemConfig().Result);
+                _sadConsoleHostApp.UpdateSystemConfig(window.C64Config);
 
                 //// Update the existing host system config, it is referenced from different objects (thus we cannot replace it with a new one).
                 //var orgHostSystemConfig = _sadConsoleHostApp.GetHostSystemConfig();
                 //_mapper.Map(hostSystemConfig, orgHostSystemConfig);
 
+                IsDirty = true;
+                SetControlStates(); // Setting IsDirty here above does not trigger OnIsDirtyChanged? Call SetControlStates directly here to make sure controls are updated.
+
+                _sadConsoleHostApp.MenuConsole.IsDirty = true;
             }
         };
         window.Show(true);

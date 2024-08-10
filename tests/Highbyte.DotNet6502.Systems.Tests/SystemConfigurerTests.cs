@@ -113,7 +113,8 @@ public class SystemConfigurerTests
 
         public object Clone()
         {
-            throw new NotImplementedException();
+            var clone = (TestSystemConfig)MemberwiseClone();
+            return clone;
         }
 
         public bool IsValid(out List<string> validationErrors)

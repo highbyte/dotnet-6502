@@ -102,9 +102,9 @@ public class MenuConsole : ControlsConsole
         {
             Name = "audioEnabledCheckBox",
             Position = (1, infoButton.Bounds.MaxExtentY + 2),
-            IsSelected = _sadConsoleHostApp.GetSystemConfig().Result.AudioSupported ? _sadConsoleHostApp.GetSystemConfig().Result.AudioEnabled : false,
+            IsSelected = _sadConsoleHostApp.IsAudioSupported ? _sadConsoleHostApp.IsAudioEnabled : false,
         };
-        audioEnabledCheckBox.IsSelectedChanged += async (s, e) => { (await _sadConsoleHostApp.GetSystemConfig()).AudioEnabled = audioEnabledCheckBox.IsSelected; IsDirty = true; };
+        audioEnabledCheckBox.IsSelectedChanged += (s, e) => { _sadConsoleHostApp.IsAudioEnabled = audioEnabledCheckBox.IsSelected; IsDirty = true; };
         Controls.Add(audioEnabledCheckBox);
 
         var audioVolumeLabel = CreateLabel("Vol:", 1, audioEnabledCheckBox.Bounds.MaxExtentY + 1, "audioVolumeLabel");
@@ -163,7 +163,7 @@ public class MenuConsole : ControlsConsole
         statusLabel!.DisplayText = _sadConsoleHostApp.EmulatorState.ToString();
 
         var startButton = Controls["startButton"];
-        startButton.IsEnabled = _sadConsoleHostApp.GetSystemConfig().Result.IsValid(out _) && _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Running;
+        startButton.IsEnabled = _sadConsoleHostApp.IsSystemConfigValid().Result && _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Running;
 
         var pauseButton = Controls["pauseButton"];
         pauseButton.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Running;
@@ -178,10 +178,10 @@ public class MenuConsole : ControlsConsole
         monitorButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
         var audioEnabledCheckBox = Controls["audioEnabledCheckBox"] as CheckBox;
-        if (_sadConsoleHostApp.GetSystemConfig().Result.AudioSupported)
+        if (_sadConsoleHostApp.IsAudioSupported)
         {
             audioEnabledCheckBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
-            audioEnabledCheckBox.IsSelected = _sadConsoleHostApp.GetSystemConfig().Result.AudioEnabled;
+            audioEnabledCheckBox.IsSelected = _sadConsoleHostApp.IsAudioEnabled;
         }
         else
         {
@@ -191,7 +191,7 @@ public class MenuConsole : ControlsConsole
 
         var audioVolumeLabel = Controls["audioVolumeLabel"];
         var audioVolumeSlider = Controls["audioVolumeSlider"];
-        audioVolumeSlider.IsEnabled = _sadConsoleHostApp.GetSystemConfig().Result.AudioSupported && _sadConsoleHostApp.GetSystemConfig().Result.AudioEnabled;
+        audioVolumeSlider.IsEnabled = _sadConsoleHostApp.IsAudioSupported && _sadConsoleHostApp.IsAudioEnabled;
         audioVolumeSlider.IsVisible = audioVolumeSlider.IsEnabled;
         audioVolumeLabel.IsVisible = audioVolumeSlider.IsEnabled;
 

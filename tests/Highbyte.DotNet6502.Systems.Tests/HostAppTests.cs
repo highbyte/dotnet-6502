@@ -77,8 +77,9 @@ public class HostAppTests
         // Arrange
         var testApp = BuildTestHostApp();
         testApp.SelectSystem(TestSystem.SystemName);
-        var systemConfig = (TestSystemConfig)await testApp.GetSystemConfig();
+        var systemConfig = (TestSystemConfig)await testApp.GetSystemConfigClone();
         systemConfig.TestIsValid = false;
+        testApp.UpdateSystemConfig(systemConfig);
 
         // Act / Assert
         var ex = await Assert.ThrowsAsync<DotNet6502Exception>(async () => await testApp.Start());

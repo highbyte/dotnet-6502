@@ -39,27 +39,27 @@ public partial class Index
     private bool IsSelectedSystemConfigOk => string.IsNullOrEmpty(_selectedSystemConfigValidationMessage);
     private string _selectedSystemConfigValidationMessage = "";
 
-    // Note: The current config object (reference) is stored in this variable so that the UI can bind it's properties (not possible to use async call to _systemList.GetSystemConfig() in property )
-    private ISystemConfig _currentSystemConfig = default!;
-    public ISystemConfig SystemConfig => _currentSystemConfig;
-    private IHostSystemConfig _currentHostSystemConfig = default!;
-    public IHostSystemConfig HostSystemConfig => _currentHostSystemConfig;
-
     private bool AudioEnabledToggleDisabled => (
-            (!(_currentSystemConfig?.AudioSupported ?? true)) ||
+            (!(_wasmHost?.IsAudioSupported ?? true)) ||
             (CurrentEmulatorState == EmulatorState.Running || CurrentEmulatorState == EmulatorState.Paused)
         );
+
+    internal IHostSystemConfig CurrentHostSystemConfig;
+    internal ISystemConfig CurrentSystemConfig;
+
+    private IHostSystemConfig _originalHostSystemConfig;
+
 
     private bool AudioEnabled
     {
         get
         {
-            return _currentSystemConfig?.AudioEnabled ?? false;
+            return _wasmHost?.IsAudioEnabled ?? false;
         }
         set
         {
-            if (_currentSystemConfig != null)
-                _currentSystemConfig.AudioEnabled = value;
+            if (_wasmHost != null)
+                _wasmHost.IsAudioEnabled = value;
         }
     }
 
@@ -129,6 +129,7 @@ public partial class Index
 
     private ILogger<Index> _logger = default!;
     private IMapper _mapper = default!;
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -224,7 +225,7 @@ public partial class Index
         {
             if (bool.TryParse(audioEnabled, out bool audioEnabledParsed))
             {
-                _currentSystemConfig.AudioEnabled = audioEnabledParsed;
+                _wasmHost.IsAudioEnabled = audioEnabledParsed;
             }
         }
     }
@@ -247,8 +248,8 @@ public partial class Index
 
         _wasmHost.SelectSystem(systemName);
 
-        _currentHostSystemConfig = _wasmHost.GetHostSystemConfig();
-        _currentSystemConfig = await _wasmHost.GetSystemConfig();
+        CurrentSystemConfig = await _wasmHost.GetSystemConfigClone();
+        CurrentHostSystemConfig = (IHostSystemConfig)_wasmHost.GetHostSystemConfig().Clone();
 
         (bool isOk, List<string> validationErrors) = await _wasmHost.IsValidConfigWithDetails();
 
@@ -312,18 +313,6 @@ public partial class Index
         _wasmHost.Render();
     }
 
-    internal async Task UpdateCurrentSystemConfig(ISystemConfig config, IHostSystemConfig? hostSystemConfig)
-    {
-        // Update the system config
-        await _wasmHost.PersistNewSystemConfig(config);
-        _currentSystemConfig = config;
-
-        // Update the existing host system config, it is referenced from different objects (thus we cannot replace it with a new one).
-        if (hostSystemConfig != null && _currentHostSystemConfig != null)
-        {
-            _mapper.Map(hostSystemConfig, _currentHostSystemConfig);
-        }
-    }
 
     /// <summary>
     /// Blazored.Modal instance required to open modal dialog.
@@ -332,15 +321,18 @@ public partial class Index
 
     public async Task ShowConfigUI<T>() where T : IComponent
     {
+        RememberOriginalHostConfig();
+
         var parameters = new ModalParameters()
-            .Add("SystemConfig", _currentSystemConfig)
-            .Add("HostSystemConfig", _currentHostSystemConfig);
+            .Add("SystemConfig", await _wasmHost.GetSystemConfigClone())
+            .Add("HostSystemConfig", _wasmHost.GetHostSystemConfig().Clone());
 
         var result = await Modal.Show<T>("Config", parameters).Result;
 
         if (result.Cancelled)
         {
             //Console.WriteLine("Modal was cancelled");
+            RestoreOriginalHostConfig();
         }
         else if (result.Confirmed)
         {
@@ -362,7 +354,9 @@ public partial class Index
             //Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
 
             var resultData = ((ISystemConfig UpdatedSystemConfig, IHostSystemConfig UpdatedHostSystemConfig))result.Data;
-            await UpdateCurrentSystemConfig(resultData.UpdatedSystemConfig, resultData.UpdatedHostSystemConfig);
+
+            UpdateCurrentSystemConfig(resultData.UpdatedSystemConfig);
+            UpdateCurrentHostSystemConfig(resultData.UpdatedHostSystemConfig);
         }
 
         (bool isOk, List<string> validationErrors) = await _wasmHost.IsValidConfigWithDetails();
@@ -374,6 +368,40 @@ public partial class Index
 
         await UpdateCanvasSize();
         this.StateHasChanged();
+    }
+
+    private void RememberOriginalHostConfig()
+    {
+        _originalHostSystemConfig = (IHostSystemConfig)_wasmHost.GetHostSystemConfig().Clone();
+    }
+
+    private void RestoreOriginalHostConfig()
+    {
+        // Update the existing host system config, it is referenced from different objects (thus we cannot replace it with a new one).
+        // TODO: This does not work right, a clone of the HostSystemConfig should have been retrieved initially instead.
+        var orgHostSystemConfig = _wasmHost.GetHostSystemConfig();
+        _mapper.Map(_originalHostSystemConfig, orgHostSystemConfig);
+    }
+
+    internal void UpdateCurrentSystemConfig(ISystemConfig config)
+    {
+        // Update the system config instance bound to config UI
+        CurrentSystemConfig = config;
+
+        // Update the system config in the host
+        _wasmHost.UpdateSystemConfig(config);
+    }
+
+    internal void UpdateCurrentHostSystemConfig(IHostSystemConfig hostSystemConfig)
+    {
+        // Update the system config instance bound to config UI
+        CurrentHostSystemConfig = hostSystemConfig;
+
+        // Update the existing host system config.
+        // TODO: This does not work right, a clone of the HostSystemConfig should have been retrieved initially instead.
+        // It is referenced from different objects (thus we cannot replace it with a new one).
+        var orgHostSystemConfig = _wasmHost.GetHostSystemConfig();
+        _mapper.Map(hostSystemConfig, orgHostSystemConfig);
     }
 
     private async Task ShowGeneralHelpUI() => await ShowGeneralHelpUI<GeneralHelpUI>();
@@ -540,7 +568,7 @@ public partial class Index
             }
             case "AudioVolume":
             {
-                return (_currentSystemConfig?.AudioEnabled ?? false) ? VISIBLE : HIDDEN;
+                return (_wasmHost?.IsAudioEnabled ?? false) ? VISIBLE : HIDDEN;
             }
             default:
                 return VISIBLE;

@@ -10,9 +10,9 @@ public class SilkNetImGuiGenericComputerConfig
 {
     private readonly SilkNetImGuiMenu _mainMenu;
 
-    private GenericComputerConfig _config => (GenericComputerConfig)_mainMenu.GetSelectedSystemConfig();
+    private GenericComputerConfig _config;
 
-    private GenericComputerHostConfig _hostConfig => (GenericComputerHostConfig)_mainMenu.GetSelectedSystemHostConfig();
+    private GenericComputerHostConfig _hostConfig;
 
     private bool _open;
 
@@ -44,8 +44,11 @@ public class SilkNetImGuiGenericComputerConfig
         _mainMenu = mainMenu;
     }
 
-    internal void Init()
+    internal void Init(GenericComputerConfig genericConfig, GenericComputerHostConfig genericHostConfig)
     {
+        _config = genericConfig;
+        _hostConfig = genericHostConfig;
+
         _programBinaryFile = _config.ProgramBinaryFile;
     }
 
@@ -164,7 +167,7 @@ public class SilkNetImGuiGenericComputerConfig
             {
                 Debug.WriteLine("Cancel pressed");
                 ImGui.CloseCurrentPopup();
-                _mainMenu.RestoreOriginalConfigs();
+                _mainMenu.RestoreOriginalHostConfig();
             }
 
             ImGui.SameLine();
@@ -174,7 +177,8 @@ public class SilkNetImGuiGenericComputerConfig
             {
                 Debug.WriteLine("Ok pressed");
                 ImGui.CloseCurrentPopup();
-                _mainMenu.UpdateCurrentSystemConfig(_config, _hostConfig);
+                _mainMenu.UpdateCurrentSystemConfig(_config);
+                _mainMenu.UpdateCurrentHostSystemConfig(_hostConfig);
             }
             ImGui.PopStyleColor();
             ImGui.EndDisabled();

@@ -94,18 +94,35 @@
     @inject HttpClient HttpClient
     @inject ILoggerFactory LoggerFactory
 
+    [Parameter]
+    public Highbyte.DotNet6502.App.WASM.Pages.Index Parent { get; set; } = default!;
+
+    private C64Config _c64Config => (C64Config)Parent.CurrentSystemConfig;
+    private C64HostConfig _c64HostConfig => (C64HostConfig)Parent.CurrentHostSystemConfig;
+
     private ILogger _logger = default!;
     private string _latestFileError = "";
     private string SYSTEM_NAME = C64.SystemName;
-
-    // Note: The current config object (reference) is stored in this variable so that the UI can bind it's properties (not possible to use async call to _systemList.GetSystemConfig() in property )
-    private C64Config _c64Config => (Parent.SystemConfig as C64Config)!;
-    private C64HostConfig _c64HostConfig => (Parent.HostSystemConfig as C64HostConfig)!;
 
     protected override void OnInitialized()
     {
         _logger = LoggerFactory.CreateLogger<C64Menu>();
         _logger.LogDebug("OnInitializedAsync() was called");
+    }
+
+    private void OnSelectJoystickChanged(ChangeEventArgs e)
+    {
+        var joystick = int.Parse(e.Value!.ToString()!);
+        _c64HostConfig.InputConfig.CurrentJoystick = joystick;
+
+        Parent.UpdateCurrentHostSystemConfig(_c64HostConfig);
+
+        // If system is running, also make sure to update the joystick setting in the running system
+        if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
+        {
+            C64 c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
+            c64.Cia.Joystick.KeyboardJoystick = joystick;
+        }
     }
 
     private bool JoystickKeyboardEnabled
@@ -121,6 +138,10 @@
             if (_c64Config == null)
                 return;
             _c64Config.KeyboardJoystickEnabled = value;
+
+            Parent.UpdateCurrentSystemConfig(_c64Config);
+
+            // If system is running, also make sure to update the joystick setting in the running system
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
             {
                 C64 c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
@@ -129,13 +150,10 @@
         }
     }
 
-    private void OnSelectJoystickChanged(ChangeEventArgs e)
-    => _c64HostConfig.InputConfig.CurrentJoystick = int.Parse(e.Value!.ToString()!);
-
     private void OnSelectKeyboardJoystickChanged(ChangeEventArgs e)
-        => KeyboardJoystick = int.Parse(e.Value!.ToString()!);
-
-    private bool SelectKeyboardJoystickDisabled => !JoystickKeyboardEnabled;
+    {
+        KeyboardJoystick = int.Parse(e.Value!.ToString()!);
+    }
 
     private int KeyboardJoystick
     {
@@ -150,6 +168,10 @@
             if (_c64Config == null)
                 return;
             _c64Config.KeyboardJoystick = value;
+
+            Parent.UpdateCurrentSystemConfig(_c64Config);
+
+            // If system is running, also make sure to update the joystick setting in the running system
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
             {
                 C64 c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
@@ -157,6 +179,9 @@
             }
         }
     }
+
+    private bool SelectKeyboardJoystickDisabled => !JoystickKeyboardEnabled;
+
 
 
     private readonly Dictionary<string, string> _assemblyExampleFiles = new()
@@ -180,9 +205,6 @@
 
     private async Task ShowConfigUI() => await Parent.ShowConfigUI<C64ConfigUI>();
 
-
-    [Parameter]
-    public Highbyte.DotNet6502.App.WASM.Pages.Index Parent { get; set; } = default!;
 
     protected bool ShowConfigDisabled => Parent.CurrentEmulatorState != EmulatorState.Uninitialized;
 
