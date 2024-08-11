@@ -1,4 +1,3 @@
-using AutoMapper;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SilkNet;
@@ -25,7 +24,6 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     private readonly bool _defaultAudioEnabled;
     private float _defaultAudioVolumePercent;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly IMapper _mapper;
 
     // --------------------
     // Other variables / constants
@@ -78,18 +76,15 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     /// <param name="window"></param>
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
-    /// <param name="mapper"></param>
     public SilkNetHostApp(
         SystemList<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
-
         EmulatorConfig emulatorConfig,
         IWindow window,
         DotNet6502InMemLogStore logStore,
-        DotNet6502InMemLoggerConfiguration logConfig,
-        IMapper mapper
+        DotNet6502InMemLoggerConfiguration logConfig
 
-        ) : base("SilkNet", systemList, emulatorConfig.HostSystemConfigs, loggerFactory)
+        ) : base("SilkNet", systemList, loggerFactory)
     {
         _emulatorConfig = emulatorConfig;
         _emulatorConfig.CurrentDrawScale = _emulatorConfig.DefaultDrawScale;
@@ -100,7 +95,6 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         _defaultAudioVolumePercent = 20.0f;
 
         _loggerFactory = loggerFactory;
-        _mapper = mapper;
         _logger = loggerFactory.CreateLogger(typeof(SilkNetHostApp).Name);
     }
 
@@ -136,7 +130,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         InitImGui();
 
         // Init main menu UI
-        _menu = new SilkNetImGuiMenu(this, _emulatorConfig.DefaultEmulator, _defaultAudioEnabled, _defaultAudioVolumePercent, _mapper, _loggerFactory);
+        _menu = new SilkNetImGuiMenu(this, _emulatorConfig.DefaultEmulator, _defaultAudioEnabled, _defaultAudioVolumePercent, _loggerFactory);
 
         // Create other UI windows
         _statsPanel = CreateStatsUI();

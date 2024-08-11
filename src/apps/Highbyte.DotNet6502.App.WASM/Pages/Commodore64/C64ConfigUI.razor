@@ -165,6 +165,7 @@
 
 <p></p>
 <button @onclick="Ok">Ok</button>
+<button @onclick="Cancel">Cancel</button>
 
 @code {
 
@@ -197,6 +198,7 @@
 
 
     private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok((SystemConfig, HostSystemConfig)));
+    private async Task Cancel() => await BlazoredModal.CloseAsync(ModalResult.Cancel());
 
     private bool _isLoadingC64Roms;
     private long _maxC64RomFileSize = 1024 * 8;

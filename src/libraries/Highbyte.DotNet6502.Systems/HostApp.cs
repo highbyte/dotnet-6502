@@ -23,7 +23,6 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     // Injected via constructor
     private readonly ILogger _logger;
     private readonly SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerContext> _systemList;
-    private readonly Dictionary<string, IHostSystemConfig> _hostSystemConfigs;
 
     // Other variables
     private string _selectedSystemName;
@@ -34,6 +33,55 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     public SystemRunner? CurrentSystemRunner => _systemRunner;
     public ISystem? CurrentRunningSystem => _systemRunner?.System;
     public EmulatorState EmulatorState { get; private set; } = EmulatorState.Uninitialized;
+
+
+    private ISystemConfig? _currentSystemConfig;
+    /// <summary>
+    /// The current system config.
+    /// </summary>
+    public ISystemConfig CurrentSystemConfig
+    {
+        get
+        {
+            if (_currentSystemConfig == null)
+                throw new DotNet6502Exception("Internal error. No system selected yet. Call SelectSystem() first.");
+            return _currentSystemConfig;
+        }
+        private set
+        {
+            _currentSystemConfig = value;
+        }
+    }
+
+    private IHostSystemConfig? _currentHostSystemConfig;
+
+
+    /// <summary>
+    /// The current host system config.
+    /// </summary>
+    public IHostSystemConfig CurrentHostSystemConfig
+    {
+        get
+        {
+            if (_currentHostSystemConfig == null)
+                throw new DotNet6502Exception("Internal error. No system selected yet. Call SelectSystem() first.");
+            return _currentHostSystemConfig;
+        }
+        private set
+        {
+            _currentHostSystemConfig = value;
+        }
+    }
+
+    protected List<IHostSystemConfig> GetHostSystemConfigs()
+    {
+        var list = new List<IHostSystemConfig>();
+        foreach (var system in AvailableSystemNames)
+        {
+            list.Add(_systemList.GetHostSystemConfig(system));
+        }
+        return list;
+    }
 
     private readonly string _hostName;
     private const string SystemTimeStatName = "Emulator-SystemTime";
@@ -48,7 +96,6 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
 
     private readonly Instrumentations _instrumentations = new();
-
     private readonly PerSecondTimedStat _updateFps;
     private readonly PerSecondTimedStat _renderFps;
 
@@ -56,7 +103,6 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     public HostApp(
         string hostName,
         SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerContext> systemList,
-        Dictionary<string, IHostSystemConfig> hostSystemConfigs,
         ILoggerFactory loggerFactory
         )
     {
@@ -69,9 +115,8 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         if (systemList.Systems.Count == 0)
             throw new DotNet6502Exception("No systems added to system list.");
         _systemList = systemList;
-        _selectedSystemName = _systemList.Systems.First();
 
-        _hostSystemConfigs = hostSystemConfigs;
+        _selectedSystemName = _systemList.Systems.First();
     }
 
     public void SetContexts(
@@ -91,8 +136,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     public bool IsInputHandlerContextInitialized => _systemList.IsInputHandlerContextInitialized;
     public bool IsAudioHandlerContextInitialized => _systemList.IsAudioHandlerContextInitialized;
 
-
-    public void SelectSystem(string systemName)
+    public async Task SelectSystem(string systemName)
     {
         if (EmulatorState != EmulatorState.Uninitialized)
             throw new DotNet6502Exception("Cannot change system while emulator is running.");
@@ -100,8 +144,12 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
             throw new DotNet6502Exception($"System not found: {systemName}");
         _selectedSystemName = systemName;
 
+        CurrentSystemConfig = await _systemList.GetSystemConfig(_selectedSystemName);
+        CurrentHostSystemConfig = _systemList.GetHostSystemConfig(_selectedSystemName);
+
         OnAfterSelectSystem();
     }
+
     public virtual void OnAfterSelectSystem() { }
 
     public virtual bool OnBeforeStart(ISystem systemAboutToBeStarted)
@@ -125,7 +173,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         var emulatorStateBeforeStart = EmulatorState;
         // Only create a new instance of SystemRunner if we previously has not started (so resume after pause works).
         if (EmulatorState == EmulatorState.Uninitialized)
-            _systemRunner = _systemList.BuildSystemRunner(_selectedSystemName).Result;
+            _systemRunner = await _systemList.BuildSystemRunner(_selectedSystemName);
 
         InitInstrumentation(_systemRunner!.System);
 
@@ -288,26 +336,24 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         return await _systemList.GetSystem(_selectedSystemName);
     }
 
-    public async Task<ISystemConfig> GetSystemConfigClone()
-    {
-        return await _systemList.GetSystemConfigClone(_selectedSystemName);
-    }
-    public IHostSystemConfig GetHostSystemConfig()
-    {
-        return _hostSystemConfigs[_selectedSystemName];
-    }
-
     public void UpdateSystemConfig(ISystemConfig newConfig)
     {
-        // Note: Make sure to store a clone of the newConfig in the systemList, so it cannot be changed by the caller (bound to UI for example).
-        _systemList.ChangeCurrentSystemConfig(_selectedSystemName, (ISystemConfig)newConfig.Clone());
+        // Note: Make sure to store a clone of the newConfig in the systemList, so it isn't changed by the caller afterwards by mistake (bound to UI for example).
+        CurrentSystemConfig = (ISystemConfig)newConfig.Clone();
+        _systemList.ChangeCurrentSystemConfig(_selectedSystemName, CurrentSystemConfig);
     }
 
-    public async Task PersistNewSystemConfig(ISystemConfig newConfig)
+    //public async Task PersistNewSystemConfig(ISystemConfig newConfig)
+    //{
+    //    await _systemList.PersistNewSystemConfig(_selectedSystemName, newConfig);
+    //}
+
+    public void UpdateHostSystemConfig(IHostSystemConfig newConfig)
     {
-        await _systemList.PersistNewSystemConfig(_selectedSystemName, newConfig);
+        // Note: Make sure to store a clone of the newConfig in the systemList, so it cannot be changed by the caller (bound to UI for example).
+        CurrentHostSystemConfig = (IHostSystemConfig)newConfig.Clone();
+        _systemList.ChangeCurrentHostSystemConfig(_selectedSystemName, CurrentHostSystemConfig);
     }
-
 
     private void InitInstrumentation(ISystem system)
     {

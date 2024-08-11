@@ -14,8 +14,6 @@ public class EmulatorConfig
     public float CurrentDrawScale { get; set; }
     public required MonitorConfig Monitor { get; set; }
 
-    public Dictionary<string, IHostSystemConfig> HostSystemConfigs = new();
-
     public EmulatorConfig()
     {
         DefaultDrawScale = 3.0f;

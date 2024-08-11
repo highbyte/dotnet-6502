@@ -17,13 +17,17 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
 
     private readonly ILoggerFactory _loggerFactory;
     private readonly IConfiguration _configuration;
-    private readonly C64HostConfig _c64HostConfig;
 
-    public C64Setup(ILoggerFactory loggerFactory, IConfiguration configuration, C64HostConfig c64HostConfig)
+    public C64Setup(ILoggerFactory loggerFactory, IConfiguration configuration)
     {
         _loggerFactory = loggerFactory;
         _configuration = configuration;
-        _c64HostConfig = c64HostConfig;
+    }
+
+    public IHostSystemConfig GetNewHostSystemConfig()
+    {
+        var c64HostConfig = new C64HostConfig { };
+        return c64HostConfig;
     }
 
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)
@@ -89,11 +93,6 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
         var c64Config = (C64Config)systemConfig;
         var c64 = C64.BuildC64(c64Config, _loggerFactory);
         return c64;
-    }
-
-    public Task<IHostSystemConfig> GetHostSystemConfig()
-    {
-        return Task.FromResult((IHostSystemConfig)_c64HostConfig);
     }
 
     public SystemRunner BuildSystemRunner(

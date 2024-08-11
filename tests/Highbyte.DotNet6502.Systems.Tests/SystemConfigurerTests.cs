@@ -17,14 +17,14 @@ public class SystemConfigurerTests
     {
         public string SystemName => TestSystem.SystemName;
 
+        public IHostSystemConfig GetNewHostSystemConfig()
+        {
+            return new TestHostSystemConfig();
+        }
+
         public Task<ISystemConfig> GetNewConfig(string configurationVariant)
         {
             return Task.FromResult<ISystemConfig>(new TestSystemConfig());
-        }
-
-        public Task<IHostSystemConfig> GetHostSystemConfig()
-        {
-            return Task.FromResult<IHostSystemConfig>(new TestHostSystemConfig());
         }
 
         public Task PersistConfig(ISystemConfig systemConfig)
@@ -62,14 +62,14 @@ public class SystemConfigurerTests
     {
         public string SystemName => TestSystem2.SystemName;
 
+        public IHostSystemConfig GetNewHostSystemConfig()
+        {
+            return new TestHostSystem2Config();
+        }
+
         public Task<ISystemConfig> GetNewConfig(string configurationVariant)
         {
             return Task.FromResult<ISystemConfig>(new TestSystem2Config());
-        }
-
-        public Task<IHostSystemConfig> GetHostSystemConfig()
-        {
-            return Task.FromResult<IHostSystemConfig>(new TestHostSystem2Config());
         }
 
         public Task PersistConfig(ISystemConfig systemConfig)

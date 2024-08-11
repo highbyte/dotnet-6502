@@ -57,7 +57,7 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
         GamepadList gamepadList,
         IJSRuntime jsRuntime,
         Highbyte.DotNet6502.App.WASM.Pages.Index wasmHostUIViewModel
-        ) : base("SilkNet", systemList, emulatorConfig.HostSystemConfigs, loggerFactory)
+        ) : base("SilkNet", systemList, loggerFactory)
     {
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger(typeof(SkiaWASMHostApp).Name);
@@ -73,7 +73,6 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
 
         _defaultAudioEnabled = false;
         _defaultAudioVolumePercent = 20.0f;
-
 
         _renderContext = new SkiaRenderContext(_getCanvas, _getGrContext);
         _inputHandlerContext = new AspNetInputHandlerContext(_loggerFactory, _gamepadList);

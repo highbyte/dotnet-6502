@@ -97,8 +97,8 @@
     [Parameter]
     public Highbyte.DotNet6502.App.WASM.Pages.Index Parent { get; set; } = default!;
 
-    private C64Config _c64Config => (C64Config)Parent.CurrentSystemConfig;
-    private C64HostConfig _c64HostConfig => (C64HostConfig)Parent.CurrentHostSystemConfig;
+    private C64Config _c64Config => (C64Config)Parent.WasmHost.CurrentSystemConfig;
+    private C64HostConfig _c64HostConfig => (C64HostConfig)Parent.WasmHost.CurrentHostSystemConfig;
 
     private ILogger _logger = default!;
     private string _latestFileError = "";
@@ -115,7 +115,7 @@
         var joystick = int.Parse(e.Value!.ToString()!);
         _c64HostConfig.InputConfig.CurrentJoystick = joystick;
 
-        Parent.UpdateCurrentHostSystemConfig(_c64HostConfig);
+        Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
 
         // If system is running, also make sure to update the joystick setting in the running system
         if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
@@ -138,8 +138,6 @@
             if (_c64Config == null)
                 return;
             _c64Config.KeyboardJoystickEnabled = value;
-
-            Parent.UpdateCurrentSystemConfig(_c64Config);
 
             // If system is running, also make sure to update the joystick setting in the running system
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
@@ -168,8 +166,6 @@
             if (_c64Config == null)
                 return;
             _c64Config.KeyboardJoystick = value;
-
-            Parent.UpdateCurrentSystemConfig(_c64Config);
 
             // If system is running, also make sure to update the joystick setting in the running system
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
@@ -239,7 +235,6 @@
             return;
         var file = e.File;
         _logger.LogInformation($"File picked: {file.Name} Size: {file.Size}");
-
 
         try
         {

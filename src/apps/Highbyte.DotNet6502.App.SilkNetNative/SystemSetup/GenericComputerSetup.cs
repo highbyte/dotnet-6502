@@ -16,12 +16,16 @@ public class GenericComputerSetup : ISystemConfigurer<SilkNetRenderContextContai
     public string SystemName => GenericComputer.SystemName;
 
     private readonly ILoggerFactory _loggerFactory;
-    private readonly GenericComputerHostConfig _genericComputerHostConfig;
 
-    public GenericComputerSetup(ILoggerFactory loggerFactory, GenericComputerHostConfig genericComputerHostConfig)
+    public GenericComputerSetup(ILoggerFactory loggerFactory)
     {
         _loggerFactory = loggerFactory;
-        _genericComputerHostConfig = genericComputerHostConfig;
+    }
+
+    public IHostSystemConfig GetNewHostSystemConfig()
+    {
+        var genericComputerHostConfig = new GenericComputerHostConfig { };
+        return genericComputerHostConfig;
     }
 
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)
@@ -69,11 +73,6 @@ public class GenericComputerSetup : ISystemConfigurer<SilkNetRenderContextContai
     {
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
         return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
-    }
-
-    public Task<IHostSystemConfig> GetHostSystemConfig()
-    {
-        return Task.FromResult((IHostSystemConfig)_genericComputerHostConfig);
     }
 
     public SystemRunner BuildSystemRunner(

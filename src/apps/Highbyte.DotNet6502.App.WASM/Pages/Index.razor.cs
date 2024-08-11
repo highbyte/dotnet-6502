@@ -1,4 +1,3 @@
-using AutoMapper;
 using Blazored.LocalStorage;
 using Blazored.Modal;
 using Blazored.Modal.Services;
@@ -43,12 +42,6 @@ public partial class Index
             (!(_wasmHost?.IsAudioSupported ?? true)) ||
             (CurrentEmulatorState == EmulatorState.Running || CurrentEmulatorState == EmulatorState.Paused)
         );
-
-    internal IHostSystemConfig CurrentHostSystemConfig;
-    internal ISystemConfig CurrentSystemConfig;
-
-    private IHostSystemConfig _originalHostSystemConfig;
-
 
     private bool AudioEnabled
     {
@@ -128,22 +121,11 @@ public partial class Index
     public GamepadList GamepadList { get; set; } = default!;
 
     private ILogger<Index> _logger = default!;
-    private IMapper _mapper = default!;
-
 
     protected override async Task OnInitializedAsync()
     {
         _logger = LoggerFactory.CreateLogger<Index>();
         _logger.LogDebug("OnInitializedAsync() was called");
-
-        // TODO: Make Automapper configuration more generic, incorporate in classes that need it?
-        var mapperConfiguration = new MapperConfiguration(
-            cfg =>
-            {
-                cfg.CreateMap<C64HostConfig, C64HostConfig>();
-            }
-        );
-        _mapper = mapperConfiguration.CreateMapper();
 
         var browserContext = new BrowserContext()
         {
@@ -155,15 +137,10 @@ public partial class Index
         // Add systems
         var systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>();
 
-        var c64HostConfig = new C64HostConfig
-        {
-            Renderer = C64HostRenderer.SkiaSharp,
-        };
-        var c64Setup = new C64Setup(browserContext, LoggerFactory, c64HostConfig);
+        var c64Setup = new C64Setup(browserContext, LoggerFactory);
         systemList.AddSystem(c64Setup);
 
-        var genericComputerHostConfig = new GenericComputerHostConfig();
-        var genericComputerSetup = new GenericComputerSetup(browserContext, LoggerFactory, genericComputerHostConfig);
+        var genericComputerSetup = new GenericComputerSetup(browserContext, LoggerFactory);
         systemList.AddSystem(genericComputerSetup);
 
         // Add emulator config + system-specific host configs
@@ -179,11 +156,6 @@ public partial class Index
                 //DefaultDirectory = "%USERPROFILE%/source/repos/dotnet-6502/samples/Assembler/Generic/Build"
                 //DefaultDirectory = "%HOME%/source/repos/dotnet-6502/samples/Assembler/Generic/Build"
             },
-            HostSystemConfigs = new Dictionary<string, IHostSystemConfig>
-            {
-                { C64.SystemName, c64HostConfig },
-                { GenericComputer.SystemName, new GenericComputerHostConfig() }
-            }
         };
         _emulatorConfig.Validate(systemList);
 
@@ -217,7 +189,7 @@ public partial class Index
             var systemNameParsed = systemName.ToString();
             if (systemNameParsed is not null && _wasmHost.AvailableSystemNames.Contains(systemNameParsed))
             {
-                _wasmHost.SelectSystem(systemNameParsed);
+                await _wasmHost.SelectSystem(systemNameParsed);
             }
         }
 
@@ -246,10 +218,7 @@ public partial class Index
         //Initialized = false;
         //this.StateHasChanged();
 
-        _wasmHost.SelectSystem(systemName);
-
-        CurrentSystemConfig = await _wasmHost.GetSystemConfigClone();
-        CurrentHostSystemConfig = (IHostSystemConfig)_wasmHost.GetHostSystemConfig().Clone();
+        await _wasmHost.SelectSystem(systemName);
 
         (bool isOk, List<string> validationErrors) = await _wasmHost.IsValidConfigWithDetails();
 
@@ -321,18 +290,15 @@ public partial class Index
 
     public async Task ShowConfigUI<T>() where T : IComponent
     {
-        RememberOriginalHostConfig();
-
         var parameters = new ModalParameters()
-            .Add("SystemConfig", await _wasmHost.GetSystemConfigClone())
-            .Add("HostSystemConfig", _wasmHost.GetHostSystemConfig().Clone());
+            .Add("SystemConfig", _wasmHost.CurrentSystemConfig.Clone())
+            .Add("HostSystemConfig", _wasmHost.CurrentHostSystemConfig.Clone());
 
         var result = await Modal.Show<T>("Config", parameters).Result;
 
         if (result.Cancelled)
         {
             //Console.WriteLine("Modal was cancelled");
-            RestoreOriginalHostConfig();
         }
         else if (result.Confirmed)
         {
@@ -355,8 +321,8 @@ public partial class Index
 
             var resultData = ((ISystemConfig UpdatedSystemConfig, IHostSystemConfig UpdatedHostSystemConfig))result.Data;
 
-            UpdateCurrentSystemConfig(resultData.UpdatedSystemConfig);
-            UpdateCurrentHostSystemConfig(resultData.UpdatedHostSystemConfig);
+            _wasmHost.UpdateSystemConfig(resultData.UpdatedSystemConfig);
+            _wasmHost.UpdateHostSystemConfig(resultData.UpdatedHostSystemConfig);
         }
 
         (bool isOk, List<string> validationErrors) = await _wasmHost.IsValidConfigWithDetails();
@@ -370,39 +336,6 @@ public partial class Index
         this.StateHasChanged();
     }
 
-    private void RememberOriginalHostConfig()
-    {
-        _originalHostSystemConfig = (IHostSystemConfig)_wasmHost.GetHostSystemConfig().Clone();
-    }
-
-    private void RestoreOriginalHostConfig()
-    {
-        // Update the existing host system config, it is referenced from different objects (thus we cannot replace it with a new one).
-        // TODO: This does not work right, a clone of the HostSystemConfig should have been retrieved initially instead.
-        var orgHostSystemConfig = _wasmHost.GetHostSystemConfig();
-        _mapper.Map(_originalHostSystemConfig, orgHostSystemConfig);
-    }
-
-    internal void UpdateCurrentSystemConfig(ISystemConfig config)
-    {
-        // Update the system config instance bound to config UI
-        CurrentSystemConfig = config;
-
-        // Update the system config in the host
-        _wasmHost.UpdateSystemConfig(config);
-    }
-
-    internal void UpdateCurrentHostSystemConfig(IHostSystemConfig hostSystemConfig)
-    {
-        // Update the system config instance bound to config UI
-        CurrentHostSystemConfig = hostSystemConfig;
-
-        // Update the existing host system config.
-        // TODO: This does not work right, a clone of the HostSystemConfig should have been retrieved initially instead.
-        // It is referenced from different objects (thus we cannot replace it with a new one).
-        var orgHostSystemConfig = _wasmHost.GetHostSystemConfig();
-        _mapper.Map(hostSystemConfig, orgHostSystemConfig);
-    }
 
     private async Task ShowGeneralHelpUI() => await ShowGeneralHelpUI<GeneralHelpUI>();
     private async Task ShowGeneralSettingsUI() => await ShowGeneralSettingsUI<GeneralSettingsUI>();

@@ -8,7 +8,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
-using AutoMapper;
 
 // Get config file
 var builder = new ConfigurationBuilder()
@@ -45,33 +44,15 @@ Configuration.GetSection(EmulatorConfig.ConfigSectionName).Bind(emulatorConfig);
 //    //},
 //};
 
-var hostSystemConfigs = new Dictionary<string, IHostSystemConfig>
-{
-    { C64.SystemName, emulatorConfig.C64HostConfig },
-    { GenericComputer.SystemName, emulatorConfig.GenericComputerHostConfig}
-};
-
-
-// TODO: Make Automapper configuration more generic, incorporate in classes that need it?
-var mapperConfiguration = new MapperConfiguration(
-    cfg =>
-    {
-        cfg.CreateMap<C64HostConfig, C64HostConfig>();
-    }
-);
-var mapper = mapperConfiguration.CreateMapper();
-
 // ----------
 // Get systems
 // ----------
 var systemList = new SystemList<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext>();
 
-var c64HostConfig = new C64HostConfig { };
-var c64Setup = new C64Setup(loggerFactory, Configuration, c64HostConfig);
+var c64Setup = new C64Setup(loggerFactory, Configuration);
 systemList.AddSystem(c64Setup);
 
-var genericComputerHostConfig = new GenericComputerHostConfig { };
-var genericComputerSetup = new GenericComputerSetup(loggerFactory, Configuration, genericComputerHostConfig);
+var genericComputerSetup = new GenericComputerSetup(loggerFactory, Configuration);
 systemList.AddSystem(genericComputerSetup);
 
 // ----------
@@ -79,5 +60,5 @@ systemList.AddSystem(genericComputerSetup);
 // ----------
 emulatorConfig.Validate(systemList);
 
-var silkNetHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorConfig, hostSystemConfigs, logStore, logConfig, mapper);
+var silkNetHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorConfig, logStore, logConfig);
 silkNetHostApp.Run();

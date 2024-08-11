@@ -3,7 +3,6 @@ using Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
-using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 using Highbyte.DotNet6502.Systems;
@@ -18,12 +17,23 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
     public string SystemName => C64.SystemName;
 
     private readonly ILoggerFactory _loggerFactory;
-    private readonly C64HostConfig _c64HostConfig;
 
-    public C64Setup(ILoggerFactory loggerFactory, C64HostConfig c64HostConfig)
+    public C64Setup(ILoggerFactory loggerFactory)
     {
         _loggerFactory = loggerFactory;
-        _c64HostConfig = c64HostConfig;
+    }
+
+    public IHostSystemConfig GetNewHostSystemConfig()
+    {
+        var c64HostConfig = new C64HostConfig
+        {
+            Renderer = C64HostRenderer.SkiaSharp2b,
+            SilkNetOpenGlRendererConfig = new C64SilkNetOpenGlRendererConfig()
+            {
+                UseFineScrollPerRasterLine = false, // Setting to true may work, depending on how code is written. Full screen scroll may not work (actual screen memory is not rendered in sync with raster line).
+            }
+        };
+        return c64HostConfig;
     }
 
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)
@@ -87,11 +97,6 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
         return c64;
     }
 
-    public Task<IHostSystemConfig> GetHostSystemConfig()
-    {
-        return Task.FromResult((IHostSystemConfig)_c64HostConfig);
-    }
-
     public SystemRunner BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
@@ -123,7 +128,7 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
                 throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
         }
 
-        var inputHandler = new C64SilkNetInputHandler(c64, inputHandlerContext, _loggerFactory, _c64HostConfig.InputConfig);
+        var inputHandler = new C64SilkNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig);
         var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
         return new SystemRunner(c64, renderer, inputHandler, audioHandler);

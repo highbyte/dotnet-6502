@@ -3,7 +3,6 @@ using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Impl.SadConsole.Generic.Input;
 using Highbyte.DotNet6502.Impl.SadConsole.Generic.Video;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Microsoft.Extensions.Configuration;
@@ -17,13 +16,17 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
 
     private readonly ILoggerFactory _loggerFactory;
     private readonly IConfiguration _configuration;
-    private readonly GenericComputerHostConfig _genericComputerHostConfig;
 
-    public GenericComputerSetup(ILoggerFactory loggerFactory, IConfiguration configuration, GenericComputerHostConfig genericComputerHostConfig)
+    public GenericComputerSetup(ILoggerFactory loggerFactory, IConfiguration configuration)
     {
         _loggerFactory = loggerFactory;
         _configuration = configuration;
-        _genericComputerHostConfig = genericComputerHostConfig;
+    }
+
+    public IHostSystemConfig GetNewHostSystemConfig()
+    {
+        var genericComputerHostConfig = new GenericComputerHostConfig { };
+        return genericComputerHostConfig;
     }
 
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)
@@ -75,11 +78,6 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
     {
         var genericComputerConfig = (GenericComputerConfig)systemConfig;
         return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
-    }
-
-    public Task<IHostSystemConfig> GetHostSystemConfig()
-    {
-        return Task.FromResult((IHostSystemConfig)_genericComputerHostConfig);
     }
 
     public SystemRunner BuildSystemRunner(

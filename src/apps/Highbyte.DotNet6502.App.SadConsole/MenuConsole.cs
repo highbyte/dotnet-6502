@@ -41,7 +41,7 @@ public class MenuConsole : ControlsConsole
             Name = "selectSystemComboBox",
             SelectedItem = _sadConsoleHostApp.SelectedSystemName,
         };
-        selectSystemComboBox.SelectedItemChanged += (s, e) => { _sadConsoleHostApp.SelectSystem(selectSystemComboBox.SelectedItem.ToString()); IsDirty = true; };
+        selectSystemComboBox.SelectedItemChanged += async (s, e) => { await _sadConsoleHostApp.SelectSystem(selectSystemComboBox.SelectedItem.ToString()); IsDirty = true; };
         Controls.Add(selectSystemComboBox);
 
         var statusLabel = CreateLabel("Status:", 1, systemLabel.Bounds.MaxExtentY + 1);

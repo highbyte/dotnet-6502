@@ -8,10 +8,10 @@ namespace Highbyte.DotNet6502.App.SilkNetNative.ConfigUI;
 
 public class SilkNetImGuiGenericComputerConfig
 {
+    private readonly SilkNetHostApp _silkNetHostApp;
     private readonly SilkNetImGuiMenu _mainMenu;
 
     private GenericComputerConfig _config;
-
     private GenericComputerHostConfig _hostConfig;
 
     private bool _open;
@@ -39,8 +39,9 @@ public class SilkNetImGuiGenericComputerConfig
     //private static Vector4 s_warningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
     private static Vector4 s_okButtonColor = new Vector4(0.0f, 0.6f, 0.0f, 1.0f);
 
-    public SilkNetImGuiGenericComputerConfig(SilkNetImGuiMenu mainMenu)
+    public SilkNetImGuiGenericComputerConfig(SilkNetHostApp silkNetHostApp, SilkNetImGuiMenu mainMenu)
     {
+        _silkNetHostApp = silkNetHostApp;
         _mainMenu = mainMenu;
     }
 
@@ -163,28 +164,28 @@ public class SilkNetImGuiGenericComputerConfig
             }
 
             // Close buttons
-            if (ImGui.Button("Cancel"))
-            {
-                Debug.WriteLine("Cancel pressed");
-                ImGui.CloseCurrentPopup();
-                _mainMenu.RestoreOriginalHostConfig();
-            }
-
-            ImGui.SameLine();
             ImGui.BeginDisabled(disabled: !IsValidConfig);
             ImGui.PushStyleColor(ImGuiCol.Button, s_okButtonColor);
             if (ImGui.Button("Ok"))
             {
                 Debug.WriteLine("Ok pressed");
+                _silkNetHostApp.UpdateSystemConfig(_config);
+                _silkNetHostApp.UpdateHostSystemConfig(_hostConfig);
                 ImGui.CloseCurrentPopup();
-                _mainMenu.UpdateCurrentSystemConfig(_config);
-                _mainMenu.UpdateCurrentHostSystemConfig(_hostConfig);
+
             }
             ImGui.PopStyleColor();
             ImGui.EndDisabled();
 
-            ImGui.EndPopup();
+            ImGui.SameLine();
 
+            if (ImGui.Button("Cancel"))
+            {
+                Debug.WriteLine("Cancel pressed");
+                ImGui.CloseCurrentPopup();
+            }
+
+            ImGui.EndPopup();
         }
     }
 }

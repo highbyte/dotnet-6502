@@ -13,16 +13,14 @@ public class C64ConfigUIConsole : Window
     private const int USABLE_WIDTH = 60;
     private const int USABLE_HEIGHT = 25;
 
-    private readonly SadConsoleHostApp _sadConsoleHostApp;
-
     public readonly C64Config C64Config;
     public readonly C64HostConfig C64HostConfig;
 
-    public C64ConfigUIConsole(SadConsoleHostApp sadConsoleHostApp, C64Config c64Config, C64HostConfig c64HostConfig) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
+    public C64ConfigUIConsole(SadConsoleHostApp sadConsoleHostApp) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
-        _sadConsoleHostApp = sadConsoleHostApp;
-        C64Config = c64Config;
-        C64HostConfig = c64HostConfig;
+
+        C64Config = (C64Config)sadConsoleHostApp.CurrentSystemConfig.Clone();
+        C64HostConfig = (C64HostConfig)sadConsoleHostApp.CurrentHostSystemConfig.Clone();
 
         Controls.ThemeColors = SadConsoleUISettings.ThemeColors;
         Surface.DefaultBackground = Controls.ThemeColors.ControlHostBackground;
@@ -147,22 +145,22 @@ public class C64ConfigUIConsole : Window
         };
         Controls.Add(validationErrorsListBox);
 
-        Button cancelButton = new Button(10, 1)
-        {
-            Text = "Cancel",
-            Position = (1, Height - 2)
-        };
-        cancelButton.Click += (s, e) => { DialogResult = false; Hide(); };
-        Controls.Add(cancelButton);
-
         var okButton = new Button(6, 1)
         {
             Name = "okButton",
             Text = "OK",
-            Position = (Width - 1 - 7, Height - 2)
+            Position = (1, Height - 2)
         };
         okButton.Click += (s, e) => { DialogResult = true; Hide(); };
         Controls.Add(okButton);
+
+        var cancelButton = new Button(10, 1)
+        {
+            Text = "Cancel",
+            Position = (okButton.Bounds.MaxExtentX + 2, Height - 2)
+        };
+        cancelButton.Click += (s, e) => { DialogResult = false; Hide(); };
+        Controls.Add(cancelButton);
 
 
         // Helper function to create a label and add it to the console

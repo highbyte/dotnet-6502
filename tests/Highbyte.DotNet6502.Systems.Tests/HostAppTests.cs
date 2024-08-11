@@ -35,13 +35,13 @@ public class HostAppTests
     }
 
     [Fact]
-    public void SelectingSystemThatDoesntExistThrowsException()
+    public async Task SelectingSystemThatDoesntExistThrowsException()
     {
         // Arrange
         var testApp = BuildTestHostApp();
 
         // Act / Assert
-        var ex = Assert.Throws<DotNet6502Exception>(() => testApp.SelectSystem("SystemThatDoesNotExist"));
+        var ex = await Assert.ThrowsAsync<DotNet6502Exception>(async () => await testApp.SelectSystem("SystemThatDoesNotExist"));
         Assert.Contains($"System not found", ex.Message);
     }
 
@@ -50,11 +50,11 @@ public class HostAppTests
     {
         // Arrange
         var testApp = BuildTestHostApp();
-        testApp.SelectSystem(testApp.AvailableSystemNames.First());
+        await testApp.SelectSystem(testApp.AvailableSystemNames.First());
         await testApp.Start();
 
         // Act / Assert
-        var ex = Assert.Throws<DotNet6502Exception>(() => testApp.SelectSystem(testApp.AvailableSystemNames.Last()));
+        var ex = await Assert.ThrowsAsync<DotNet6502Exception>(async () => await testApp.SelectSystem(testApp.AvailableSystemNames.Last()));
         Assert.Contains($"Cannot change system while emulator is running", ex.Message);
     }
 
@@ -63,7 +63,7 @@ public class HostAppTests
     {
         // Arrange
         var testApp = BuildTestHostApp();
-        testApp.SelectSystem(testApp.AvailableSystemNames.First());
+        await testApp.SelectSystem(testApp.AvailableSystemNames.First());
         await testApp.Start();
 
         // Act / Assert
@@ -76,10 +76,9 @@ public class HostAppTests
     {
         // Arrange
         var testApp = BuildTestHostApp();
-        testApp.SelectSystem(TestSystem.SystemName);
-        var systemConfig = (TestSystemConfig)await testApp.GetSystemConfigClone();
+        await testApp.SelectSystem(TestSystem.SystemName);
+        var systemConfig = (TestSystemConfig)testApp.CurrentSystemConfig;
         systemConfig.TestIsValid = false;
-        testApp.UpdateSystemConfig(systemConfig);
 
         // Act / Assert
         var ex = await Assert.ThrowsAsync<DotNet6502Exception>(async () => await testApp.Start());
@@ -91,7 +90,7 @@ public class HostAppTests
     {
         // Arrange
         var testApp = BuildTestHostApp();
-        testApp.SelectSystem(testApp.AvailableSystemNames.First());
+        await testApp.SelectSystem(testApp.AvailableSystemNames.First());
 
         // Act
         await testApp.Start();
@@ -102,9 +101,8 @@ public class HostAppTests
     public class TestHostApp : HostApp<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>
     {
         public TestHostApp(
-            SystemList<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext> systemList,
-            Dictionary<string, IHostSystemConfig> hostSystemConfigs
-            ) : base("TestHost", systemList, hostSystemConfigs, new NullLoggerFactory())
+            SystemList<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext> systemList
+            ) : base("TestHost", systemList, new NullLoggerFactory())
         {
         }
     }
@@ -119,7 +117,7 @@ public class HostAppTests
         var system2Configurer = new TestSystem2Configurer();
         systemList.AddSystem(system2Configurer);
 
-        var testApp = new TestHostApp(systemList, new Dictionary<string, IHostSystemConfig>());
+        var testApp = new TestHostApp(systemList);
 
         if (setContexts)
         {

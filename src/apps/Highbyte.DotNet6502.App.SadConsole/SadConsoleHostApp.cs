@@ -1,10 +1,8 @@
-using AutoMapper;
 using Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SadConsole;
-using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Logging;
@@ -31,7 +29,6 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     private readonly DotNet6502InMemLogStore _logStore;
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly IMapper _mapper;
 
     // --------------------
     // Other variables / constants
@@ -86,13 +83,10 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         ILoggerFactory loggerFactory,
 
         EmulatorConfig emulatorConfig,
-        Dictionary<string, IHostSystemConfig> hostSystemConfigs,
         //IWindow window,
         DotNet6502InMemLogStore logStore,
-        DotNet6502InMemLoggerConfiguration logConfig,
-        IMapper mapper
-
-        ) : base("SadConsole", systemList, hostSystemConfigs, loggerFactory)
+        DotNet6502InMemLoggerConfiguration logConfig
+        ) : base("SadConsole", systemList, loggerFactory)
     {
         _emulatorConfig = emulatorConfig;
         //_window = window;
@@ -100,7 +94,6 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         _logConfig = logConfig;
 
         _loggerFactory = loggerFactory;
-        _mapper = mapper;
         _logger = loggerFactory.CreateLogger(typeof(SadConsoleHostApp).Name);
     }
 
@@ -125,7 +118,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         // ----------
 
         var uiFont = _emulatorConfig.UIFont ?? string.Empty;
-        string[]? emulatorFonts = string.IsNullOrEmpty(CommonHostSystemConfig.Font) ? null : [CommonHostSystemConfig.Font];
+        var emulatorFonts = GetHostSystemConfigs().OfType<SadConsoleHostSystemConfigBase>().Where(x => !string.IsNullOrEmpty(x.Font)).Select(x => x.Font!).ToArray();
 
         var builder = new Builder()
             .SetScreenSize(StartupScreenWidth, StartupScreenHeight)
@@ -208,7 +201,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         _menuConsole.IsFocused = true;
 
         // Trigger sadConsoleHostApp.SelectSystem call which in turn may trigger other system-specific UI stuff.
-        SelectSystem(SelectedSystemName);
+        SelectSystem(SelectedSystemName).Wait();
 
         return _sadConsoleScreen;
     }
@@ -226,7 +219,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         // Create system specific menu console
         if (SelectedSystemName == "C64")
         {
-            _systemMenuConsole = new C64MenuConsole(this, _loggerFactory, _mapper);
+            _systemMenuConsole = new C64MenuConsole(this, _loggerFactory);
             _systemMenuConsole.Position = (MENU_POSITION_X, _menuConsole.Height);
             _sadConsoleScreen.Children.Add(_systemMenuConsole);
         }
@@ -431,7 +424,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             initialVolumePercent: 20);
     }
 
-    private SadConsoleHostSystemConfigBase CommonHostSystemConfig => (SadConsoleHostSystemConfigBase)GetHostSystemConfig();
+    private SadConsoleHostSystemConfigBase CommonHostSystemConfig => (SadConsoleHostSystemConfigBase)CurrentHostSystemConfig;
 
     private int CalculateWindowWidthPixels()
     {

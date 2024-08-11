@@ -18,13 +18,19 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
     private const string LOCAL_STORAGE_ROM_PREFIX = "rom_";
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly C64HostConfig _hostConfig;
 
-    public C64Setup(BrowserContext browserContext, ILoggerFactory loggerFactory, C64HostConfig c64HostConfig)
+    public C64Setup(BrowserContext browserContext, ILoggerFactory loggerFactory)
     {
         _browserContext = browserContext;
         _loggerFactory = loggerFactory;
-        _hostConfig = c64HostConfig;
+    }
+    public IHostSystemConfig GetNewHostSystemConfig()
+    {
+        var c64HostConfig = new C64HostConfig
+        {
+            Renderer = C64HostRenderer.SkiaSharp,
+        };
+        return c64HostConfig;
     }
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
@@ -64,11 +70,6 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         return c64;
     }
 
-    public Task<IHostSystemConfig> GetHostSystemConfig()
-    {
-        return Task.FromResult((IHostSystemConfig)_hostConfig);
-    }
-
     public SystemRunner BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
@@ -98,7 +99,7 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
                 throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
         }
 
-        var inputHandler = new C64AspNetInputHandler(c64, inputHandlerContext, _loggerFactory, _hostConfig.InputConfig);
+        var inputHandler = new C64AspNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig);
         var audioHandler = new C64WASMAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
         return new SystemRunner(c64, renderer, inputHandler, audioHandler);
