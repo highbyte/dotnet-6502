@@ -35,7 +35,7 @@ public class MenuConsole : ControlsConsole
     private void DrawUIItems()
     {
         var systemLabel = CreateLabel("System: ", 1, 1);
-        ComboBox selectSystemComboBox = new ComboBox(10, 15, 4, _sadConsoleHostApp.AvailableSystemNames.ToArray())
+        ComboBox selectSystemComboBox = new ComboBox(12, 15, 4, _sadConsoleHostApp.AvailableSystemNames.ToArray())
         {
             Position = (systemLabel.Bounds.MaxExtentX + 2, systemLabel.Position.Y),
             Name = "selectSystemComboBox",
@@ -54,7 +54,7 @@ public class MenuConsole : ControlsConsole
         Controls.Add(selectSystemComboBox);
 
         var variantLabel = CreateLabel("Variant:", 1, systemLabel.Bounds.MaxExtentY + 1);
-        ComboBox selectSystemVariantComboBox = new ComboBox(10, 15, 4, _sadConsoleHostApp.CurrentSystemConfigurationVariants.ToArray())
+        ComboBox selectSystemVariantComboBox = new ComboBox(12, 15, 5, _sadConsoleHostApp.CurrentSystemConfigurationVariants.ToArray())
         {
             Position = (variantLabel.Bounds.MaxExtentX + 2, variantLabel.Position.Y),
             Name = "selectSystemVariantComboBox",

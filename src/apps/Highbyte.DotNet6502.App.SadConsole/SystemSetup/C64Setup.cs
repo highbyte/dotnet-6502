@@ -31,61 +31,19 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
 
     public IHostSystemConfig GetNewHostSystemConfig()
     {
+        // TODO: Read System host config from appsettings.json
         var c64HostConfig = new C64HostConfig { };
         return c64HostConfig;
     }
 
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
-        if (!C64ModelInventory.C64Models.ContainsKey(configurationVariant))
+        if (!s_systemVariants.Contains(configurationVariant))
             throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
 
         var c64Config = new C64Config() { ROMs = new() };
         _configuration.GetSection($"{C64Config.ConfigSectionName}.{configurationVariant}").Bind(c64Config);
         return Task.FromResult<ISystemConfig>(c64Config);
-
-        //var c64Config = new C64Config
-        //{
-        //    C64Model = "C64NTSC",   // C64NTSC, C64PAL
-        //    Vic2Model = "NTSC",     // NTSC, NTSC_old, PAL
-        //    //C64Model = "C64PAL",   // C64NTSC, C64PAL
-        //    //Vic2Model = "PAL",     // NTSC, NTSC_old, PAL
-
-        //    //ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64",
-        //    ROMDirectory = "%HOME%/Downloads/C64",
-        //    ROMs = new List<ROM>
-        //    {
-        //        new ROM
-        //        {
-        //            Name = C64Config.BASIC_ROM_NAME,
-        //            File = "basic.901226-01.bin",
-        //            Data = null,
-        //            Checksum = "79015323128650c742a3694c9429aa91f355905e",
-        //        },
-        //        new ROM
-        //        {
-        //            Name = C64Config.CHARGEN_ROM_NAME,
-        //            File = "characters.901225-01.bin",
-        //            Data = null,
-        //            Checksum = "adc7c31e18c7c7413d54802ef2f4193da14711aa",
-        //        },
-        //        new ROM
-        //        {
-        //            Name = C64Config.KERNAL_ROM_NAME,
-        //            File = "kernal.901227-03.bin",
-        //            Data = null,
-        //            Checksum = "1d503e56df85a62fee696e7618dc5b4e781df1bb",
-        //        }
-        //    },
-
-        //    AudioSupported = false,
-        //    AudioEnabled = false,
-
-        //    InstrumentationEnabled = false, // Start with instrumentation off by default
-        //};
-
-        ////c64Config.Validate();
-        //return Task.FromResult<ISystemConfig>(c64Config);
     }
 
     public Task PersistConfig(ISystemConfig systemConfig)

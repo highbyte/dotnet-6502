@@ -17,7 +17,9 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
 
     private static readonly List<string> s_systemVariants =
     [
-        "DEFAULT",
+        "Scroll",
+        "Snake",
+        "HelloWorld",
     ];
 
     private readonly ILoggerFactory _loggerFactory;
@@ -31,46 +33,19 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
 
     public IHostSystemConfig GetNewHostSystemConfig()
     {
+        // TODO: Read System host config from appsettings.json
         var genericComputerHostConfig = new GenericComputerHostConfig { };
         return genericComputerHostConfig;
     }
 
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
+        if (!s_systemVariants.Contains(configurationVariant))
+            throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
+
         var genericComputerConfig = new GenericComputerConfig() { };
-        _configuration.GetSection(GenericComputerConfig.ConfigSectionName).Bind(genericComputerConfig);
+        _configuration.GetSection($"{GenericComputerConfig.ConfigSectionName}.{configurationVariant}").Bind(genericComputerConfig);
         return Task.FromResult<ISystemConfig>(genericComputerConfig);
-
-        //var genericComputerConfig = new GenericComputerConfig
-        //{
-        //    ProgramBinaryFile = "../../../../../../samples/Assembler/Generic/Build/hostinteraction_scroll_text_and_cycle_colors.prg",
-        //    //ProgramBinaryFile = "%HOME%/source/repos/dotnet-6502/samples/Assembler/Generic/Build/hostinteraction_scroll_text_and_cycle_colors.prg",
-        //    CPUCyclesPerFrame = 8000,
-        //    Memory = new EmulatorMemoryConfig
-        //    {
-        //        Screen = new EmulatorScreenConfig
-        //        {
-        //            Cols = 40,
-        //            Rows = 25,
-        //            BorderCols = 3,
-        //            BorderRows = 3,
-        //            UseAscIICharacters = true,
-        //            DefaultBgColor = 0x00,     // 0x00 = Black (C64 scheme)
-        //            DefaultFgColor = 0x01,     // 0x0f = Light grey, 0x0e = Light Blue, 0x01 = White  (C64 scheme)
-        //            DefaultBorderColor = 0x0b, // 0x0b = Dark grey (C64 scheme)
-        //        },
-        //        Input = new EmulatorInputConfig
-        //        {
-        //            KeyPressedAddress = 0xd030,
-        //            KeyDownAddress = 0xd031,
-        //            KeyReleasedAddress = 0xd031,
-        //        }
-        //    }
-        //};
-
-        //genericComputerConfig.Validate();
-
-        //return Task.FromResult<ISystemConfig>(genericComputerConfig);
     }
 
     public Task PersistConfig(ISystemConfig systemConfig)

@@ -7,16 +7,20 @@ namespace Highbyte.DotNet6502.App.SilkNetNative;
 
 public class EmulatorConfig
 {
-    public const string ConfigSectionName = "Highbyte.DotNet6502.SkiaConfig";
+    public const string ConfigSectionName = "Highbyte.DotNet6502.SilkNetNativeConfig";
 
-    public required string DefaultEmulator { get; set; }
-    public required float DefaultDrawScale { get; set; }
+    public string DefaultEmulator { get; set; }
+    public float DefaultDrawScale { get; set; }
     public float CurrentDrawScale { get; set; }
-    public required MonitorConfig Monitor { get; set; }
+    public MonitorConfig Monitor { get; set; }
 
     public EmulatorConfig()
     {
         DefaultDrawScale = 3.0f;
+        Monitor = new MonitorConfig
+        {
+            MaxLineLength = 100
+        };
     }
 
     public void Validate(SystemList<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext> systemList)

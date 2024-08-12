@@ -39,7 +39,7 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
-        if (!C64ModelInventory.C64Models.ContainsKey(configurationVariant))
+        if (!s_systemVariants.Contains(configurationVariant))
             throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
 
         var romList = await GetROMsFromLocalStorage();

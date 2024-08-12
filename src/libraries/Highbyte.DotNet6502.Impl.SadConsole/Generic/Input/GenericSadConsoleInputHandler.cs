@@ -35,6 +35,7 @@ public class GenericSadConsoleInputHandler : IInputHandler
     public void BeforeFrame()
     {
         CaptureKeyboard(_genericComputer);
+        // TODO: Generating random number to send to generic computer should not be in input handler, because it'll not run if not in focus.
         CaptureRandomNumber(_genericComputer);
     }
 
