@@ -185,7 +185,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     {
         if (!Systems.Contains(systemName))
             throw new DotNet6502Exception($"System does not exist: {systemName}");
-        return _systemConfigurers[systemName].GetConfigurationVariants();
+        return _systemConfigurers[systemName].ConfigurationVariants;
     }
 
     public async Task<ISystemConfig> GetSystemConfig(string systemName, string configurationVariant)

@@ -3,8 +3,8 @@ namespace Highbyte.DotNet6502.Systems;
 public interface ISystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 {
     public string SystemName { get; }
+    public List<string> ConfigurationVariants { get; }
     public IHostSystemConfig GetNewHostSystemConfig();
-    public List<string> GetConfigurationVariants();
     public Task<ISystemConfig> GetNewConfig(string configurationVariant);
     public Task PersistConfig(ISystemConfig systemConfig);
     public ISystem BuildSystem(ISystemConfig systemConfig);

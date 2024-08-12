@@ -13,6 +13,7 @@ namespace Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => GenericComputer.SystemName;
+    public List<string> ConfigurationVariants => s_systemVariants;
 
     private static readonly List<string> s_systemVariants =
     [
@@ -26,11 +27,6 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
     {
         _loggerFactory = loggerFactory;
         _configuration = configuration;
-    }
-
-    public List<string> GetConfigurationVariants()
-    {
-        return s_systemVariants;
     }
 
     public IHostSystemConfig GetNewHostSystemConfig()

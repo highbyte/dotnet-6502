@@ -1,4 +1,3 @@
-using Highbyte.DotNet6502.App.WASM.Emulator;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
@@ -8,18 +7,17 @@ using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Models;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
 public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
+    public List<string> ConfigurationVariants => s_systemVariants;
 
-    private static readonly List<string> s_systemVariants =
-    [
-        "C64NTSC",
-        "C64PAL",
-    ];
+    private static readonly List<string> s_systemVariants = C64ModelInventory.C64Models.Keys.ToList();
+
 
     private const string LOCAL_STORAGE_ROM_PREFIX = "rom_";
     private readonly BrowserContext _browserContext;
@@ -38,36 +36,18 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         };
         return c64HostConfig;
     }
-    public List<string> GetConfigurationVariants()
-    {
-        return s_systemVariants;
-    }
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
-        var romList = await GetROMsFromLocalStorage();
+        if (!C64ModelInventory.C64Models.ContainsKey(configurationVariant))
+            throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
 
-        string c64Model;
-        string vic2Model;
-        switch (configurationVariant.ToUpper())
-        {
-            case "DEFAULT":
-            case "C64NTSC":
-                c64Model = "C64NTSC";
-                vic2Model = "NTSC"; // NTSC, NTSC_old
-                break;
-            case "C64PAL":
-                c64Model = "C64PAL";
-                vic2Model = "PAL";
-                break;
-            default:
-                throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
-        }
+        var romList = await GetROMsFromLocalStorage();
 
         var c64Config = new C64Config
         {
-            C64Model = c64Model,
-            Vic2Model = vic2Model,
+            C64Model = configurationVariant,
+            Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name, // NTSC, NTSC_old, PAL
 
             ROMDirectory = "",  // Set ROMDirectory to skip loading ROMs from file system (ROMDirectory + File property), instead read from the Data property
             ROMs = romList,

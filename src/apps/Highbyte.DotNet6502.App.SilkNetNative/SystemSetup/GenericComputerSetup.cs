@@ -13,6 +13,8 @@ public class GenericComputerSetup : ISystemConfigurer<SilkNetRenderContextContai
 {
     public string SystemName => GenericComputer.SystemName;
 
+    public List<string> ConfigurationVariants => s_systemVariants;
+
     private static readonly List<string> s_systemVariants =
     [
         "DEFAULT",
@@ -30,12 +32,6 @@ public class GenericComputerSetup : ISystemConfigurer<SilkNetRenderContextContai
         var genericComputerHostConfig = new GenericComputerHostConfig { };
         return genericComputerHostConfig;
     }
-
-    public List<string> GetConfigurationVariants()
-    {
-        return s_systemVariants;
-    }
-
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
         var genericComputerConfig = new GenericComputerConfig

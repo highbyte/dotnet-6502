@@ -6,6 +6,7 @@ using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -14,16 +15,13 @@ namespace Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
+    public List<string> ConfigurationVariants => s_systemVariants;
+
+    private static readonly List<string> s_systemVariants = C64ModelInventory.C64Models.Keys.ToList();
+
 
     private readonly ILoggerFactory _loggerFactory;
     private readonly IConfiguration _configuration;
-
-    private static readonly List<string> s_systemVariants =
-    [
-        "C64NTSC",
-        "C64PAL",
-    ];
-
 
     public C64Setup(ILoggerFactory loggerFactory, IConfiguration configuration)
     {
@@ -37,29 +35,13 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
         return c64HostConfig;
     }
 
-    public List<string> GetConfigurationVariants()
-    {
-        return s_systemVariants;
-    }
-
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
+        if (!C64ModelInventory.C64Models.ContainsKey(configurationVariant))
+            throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
+
         var c64Config = new C64Config() { ROMs = new() };
-
-        string configSection;
-        switch (configurationVariant)
-        {
-            case "C64NTSC":
-                configSection = $"{C64Config.ConfigSectionName}.C64NTSC";
-                break;
-            case "C64PAL":
-                configSection = $"{C64Config.ConfigSectionName}.C64PAL";
-                break;
-            default:
-                throw new ArgumentException($"Unknown configuration variant '{configurationVariant}' for C64.");
-        }
-
-        _configuration.GetSection(configSection).Bind(c64Config);
+        _configuration.GetSection($"{C64Config.ConfigSectionName}.{configurationVariant}").Bind(c64Config);
         return Task.FromResult<ISystemConfig>(c64Config);
 
         //var c64Config = new C64Config

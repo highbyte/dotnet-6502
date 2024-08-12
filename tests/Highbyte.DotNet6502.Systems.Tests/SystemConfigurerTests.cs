@@ -16,19 +16,13 @@ public class SystemConfigurerTests
     public class TestSystemConfigurer : ISystemConfigurer<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>
     {
         public string SystemName => TestSystem.SystemName;
+        public List<string> ConfigurationVariants => new List<string> { "DEFAULT" };
 
         public IHostSystemConfig GetNewHostSystemConfig()
         {
             return new TestHostSystemConfig();
         }
 
-        public List<string> GetConfigurationVariants()
-        {
-            return new List<string>
-            {
-                "DEFAULT",
-            };
-        }
 
         public Task<ISystemConfig> GetNewConfig(string configurationVariant)
         {
@@ -69,18 +63,11 @@ public class SystemConfigurerTests
     public class TestSystem2Configurer : ISystemConfigurer<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>
     {
         public string SystemName => TestSystem2.SystemName;
+        public List<string> ConfigurationVariants => new List<string> { "DEFAULT" };
 
         public IHostSystemConfig GetNewHostSystemConfig()
         {
             return new TestHostSystem2Config();
-        }
-
-        public List<string> GetConfigurationVariants()
-        {
-            return new List<string>
-            {
-                "DEFAULT",
-            };
         }
 
         public Task<ISystemConfig> GetNewConfig(string configurationVariant)

@@ -8,6 +8,7 @@ using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
@@ -15,12 +16,9 @@ namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
+    public List<string> ConfigurationVariants => s_systemVariants;
 
-    private static readonly List<string> s_systemVariants =
-    [
-        "C64NTSC",
-        "C64PAL",
-    ];
+    private static readonly List<string> s_systemVariants = C64ModelInventory.C64Models.Keys.ToList();
 
     private readonly ILoggerFactory _loggerFactory;
 
@@ -42,34 +40,16 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
         return c64HostConfig;
     }
 
-    public List<string> GetConfigurationVariants()
-    {
-        return s_systemVariants;
-    }
 
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
-        string c64Model;
-        string vic2Model;
-        switch (configurationVariant.ToUpper())
-        {
-            case "DEFAULT":
-            case "C64NTSC":
-                c64Model = "C64NTSC";
-                vic2Model = "NTSC"; // NTSC, NTSC_old
-                break;
-            case "C64PAL":
-                c64Model = "C64PAL";
-                vic2Model = "PAL";
-                break;
-            default:
-                throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
-        }
+        if (!C64ModelInventory.C64Models.ContainsKey(configurationVariant))
+            throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
 
         var c64Config = new C64Config
         {
-            C64Model = c64Model,
-            Vic2Model = vic2Model,
+            C64Model = configurationVariant,
+            Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name, // NTSC, NTSC_old, PAL
 
             //ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64",
             ROMDirectory = "%HOME%/Downloads/C64",
