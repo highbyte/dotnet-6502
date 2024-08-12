@@ -64,7 +64,6 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
 
     // GL and other ImGui resources
     private GL _gl = default!;
-    private IInputContext _inputContext = default!;
     private ImGuiController _imGuiController = default!;
 
     /// <summary>
@@ -116,8 +115,6 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     {
         SetUninitializedWindow();
 
-        _inputContext = CreateSilkNetInput();
-
         _renderContextContainer = CreateRenderContext();
         _inputHandlerContext = CreateInputHandlerContext();
         _audioHandlerContext = CreateAudioHandlerContext();
@@ -126,6 +123,8 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         base.InitRenderContext();
         base.InitInputHandlerContext();
         base.InitAudioHandlerContext();
+
+        ConfigureSilkNetInput();
 
         InitImGui();
 
@@ -351,17 +350,16 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
             initialVolumePercent: 20);
     }
 
-    private IInputContext CreateSilkNetInput()
+    private void ConfigureSilkNetInput()
     {
-        var inputContext = _window.CreateInput();
-        // Listen to key to enable monitor
+        // Listen to keys to enable monitor, logs, stats, etc.
+        var inputContext = _inputHandlerContext.InputContext;
         if (inputContext.Keyboards == null || inputContext.Keyboards.Count == 0)
             throw new DotNet6502Exception("Keyboard not found");
         var primaryKeyboard = inputContext.Keyboards[0];
 
         // Listen to special key that will show/hide overlays for monitor/stats
         primaryKeyboard.KeyDown += OnKeyDown;
-        return inputContext;
     }
 
     public void SetVolumePercent(float volumePercent)
@@ -383,7 +381,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         _imGuiController = new ImGuiController(
             _gl,
             _window, // pass in our window
-            _inputContext // input context
+            _inputHandlerContext.InputContext // input context
         );
     }
 
@@ -413,7 +411,6 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     private void DestroyImGuiController()
     {
         _imGuiController?.Dispose();
-        _inputContext?.Dispose();
         _gl?.Dispose();
     }
 
