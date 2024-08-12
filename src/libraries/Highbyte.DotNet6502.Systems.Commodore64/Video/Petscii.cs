@@ -128,16 +128,6 @@ public static class Petscii
 
     };
 
-    /// <summary>
-    /// Maps C64 "PETSCII" codes to ASCII characters
-    /// </summary>
-    /// <returns></returns>
-    // TODO
-    // public static Dictionary<byte, byte> PETSCIIMap = new()
-    // {
-    //     { 0x00, 0x00},
-    // };
-
     // Useful when rendering the C64 text screen with PC text characters
     public static byte C64ScreenCodeToPetscII(byte screenCode)
     {
@@ -153,8 +143,7 @@ public static class Petscii
             >= 128 and <= 159 => screenCode - 128,
             >= 160 and <= 191 => screenCode - 128,
             >= 192 and <= 223 => screenCode - 64,
-            >= 224 and <= 254 => screenCode - 64,
-            _ => throw new NotImplementedException(),
+            >= 224 and <= 255 => screenCode - 64,
         };
         return (byte)petsciiCode;
     }

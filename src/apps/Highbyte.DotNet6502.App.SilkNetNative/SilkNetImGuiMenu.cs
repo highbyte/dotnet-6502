@@ -29,6 +29,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
     private string _screenScaleString = "";
     private int _selectedSystemItem = 0;
+    private int _selectedSystemConfigurationVariantItem = 0;
 
     private bool _audioEnabled;
     private float _audioVolumePercent;
@@ -40,6 +41,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     private string[] _c64AvailableJoysticks = [];
 
     private string SelectedSystemName => _silkNetHostApp.AvailableSystemNames.ToArray()[_selectedSystemItem];
+    private string SelectedSystemConfigurationVariant => _silkNetHostApp.CurrentSystemConfigurationVariants.ToArray()[_selectedSystemConfigurationVariantItem];
 
     private SilkNetImGuiC64Config? _c64ConfigUI;
     private SilkNetImGuiGenericComputerConfig? _genericComputerConfigUI;
@@ -54,6 +56,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         _silkNetHostApp.SelectSystem(defaultSystemName).Wait();
 
         _selectedSystemItem = _silkNetHostApp.AvailableSystemNames.ToList().IndexOf(defaultSystemName);
+        _selectedSystemConfigurationVariantItem = 0;
 
         _audioEnabled = defaultAudioEnabled;
         _audioVolumePercent = defaultAudioVolumePercent;
@@ -79,9 +82,26 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.SameLine();
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
         ImGui.PushItemWidth(120);
-        if (ImGui.Combo("", ref _selectedSystemItem, _silkNetHostApp.AvailableSystemNames.ToArray(), _silkNetHostApp.AvailableSystemNames.Count))
+        if (ImGui.Combo("##systemName", ref _selectedSystemItem, _silkNetHostApp.AvailableSystemNames.ToArray(), _silkNetHostApp.AvailableSystemNames.Count))
         {
             _silkNetHostApp.SelectSystem(SelectedSystemName).Wait();
+            _selectedSystemConfigurationVariantItem = 0;
+            if (SelectedSystemName == "C64")
+            {
+                InitC64ImGuiWorkingVariables();
+            }
+        };
+        ImGui.PopItemWidth();
+        ImGui.EndDisabled();
+
+        ImGui.SameLine();
+        ImGui.Text("Variant: ");
+        ImGui.SameLine();
+        ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
+        ImGui.PushItemWidth(90);
+        if (ImGui.Combo("##configVariant", ref _selectedSystemConfigurationVariantItem, _silkNetHostApp.CurrentSystemConfigurationVariants.ToArray(), _silkNetHostApp.CurrentSystemConfigurationVariants.Count))
+        {
+            _silkNetHostApp.SelectSystemConfigurationVariant(SelectedSystemConfigurationVariant).Wait();
             if (SelectedSystemName == "C64")
             {
                 InitC64ImGuiWorkingVariables();
@@ -90,6 +110,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.PopItemWidth();
         ImGui.EndDisabled();
         ImGui.PopStyleColor();
+
 
         ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
         ImGui.Text("Status: ");

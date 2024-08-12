@@ -20,22 +20,23 @@
             <div id="system-selector" class="command-panel">
                 <div>
                     System:
-@*                     <select value="@this._selectedSystemName" @onchange="OnSelectedEmulatorChanged" disabled=@OnSelectSystemNameDisabled autofocus>
-                        @foreach (var systemName in _wasmHost.AvailableSystemNames)
-                        {
-                            <option value="@systemName">@systemName</option>
-                        }
-                    </select>
-
- *@
                     <InputSelect TValue="string" @bind-Value:get="this._wasmHost.SelectedSystemName" @bind-Value:set="this.SelectSystem" disabled=@OnSelectSystemNameDisabled autofocus>
                         @foreach (var systemName in _wasmHost.AvailableSystemNames)
                         {
                             <option value="@systemName">@systemName</option>
                         }
                     </InputSelect>
-
                 </div>
+                <div>
+                    Variant:
+                    <InputSelect TValue="string" @bind-Value:get="this._wasmHost.SelectedSystemConfigurationVariant" @bind-Value:set="this.SelectSystemConfigurationVariant" disabled=@OnSelectSystemNameDisabled autofocus>
+                        @foreach (var systemConfigurationVariant in _wasmHost.CurrentSystemConfigurationVariants)
+                        {
+                            <option value="@systemConfigurationVariant">@systemConfigurationVariant</option>
+                        }
+                    </InputSelect>
+                </div>
+
                 <div>
                     Status: @(CurrentEmulatorState)
                 </div>

@@ -22,6 +22,14 @@ public class SystemConfigurerTests
             return new TestHostSystemConfig();
         }
 
+        public List<string> GetConfigurationVariants()
+        {
+            return new List<string>
+            {
+                "DEFAULT",
+            };
+        }
+
         public Task<ISystemConfig> GetNewConfig(string configurationVariant)
         {
             return Task.FromResult<ISystemConfig>(new TestSystemConfig());
@@ -65,6 +73,14 @@ public class SystemConfigurerTests
         public IHostSystemConfig GetNewHostSystemConfig()
         {
             return new TestHostSystem2Config();
+        }
+
+        public List<string> GetConfigurationVariants()
+        {
+            return new List<string>
+            {
+                "DEFAULT",
+            };
         }
 
         public Task<ISystemConfig> GetNewConfig(string configurationVariant)

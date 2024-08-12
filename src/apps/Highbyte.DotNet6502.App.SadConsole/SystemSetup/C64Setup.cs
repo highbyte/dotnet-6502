@@ -18,6 +18,13 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
     private readonly ILoggerFactory _loggerFactory;
     private readonly IConfiguration _configuration;
 
+    private static readonly List<string> s_systemVariants =
+    [
+        "C64NTSC",
+        "C64PAL",
+    ];
+
+
     public C64Setup(ILoggerFactory loggerFactory, IConfiguration configuration)
     {
         _loggerFactory = loggerFactory;
@@ -30,10 +37,29 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
         return c64HostConfig;
     }
 
+    public List<string> GetConfigurationVariants()
+    {
+        return s_systemVariants;
+    }
+
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
         var c64Config = new C64Config() { ROMs = new() };
-        _configuration.GetSection(C64Config.ConfigSectionName).Bind(c64Config);
+
+        string configSection;
+        switch (configurationVariant)
+        {
+            case "C64NTSC":
+                configSection = $"{C64Config.ConfigSectionName}.C64NTSC";
+                break;
+            case "C64PAL":
+                configSection = $"{C64Config.ConfigSectionName}.C64PAL";
+                break;
+            default:
+                throw new ArgumentException($"Unknown configuration variant '{configurationVariant}' for C64.");
+        }
+
+        _configuration.GetSection(configSection).Bind(c64Config);
         return Task.FromResult<ISystemConfig>(c64Config);
 
         //var c64Config = new C64Config

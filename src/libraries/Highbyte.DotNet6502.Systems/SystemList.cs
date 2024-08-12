@@ -107,7 +107,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     /// <param name="systemName"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public async Task<ISystem> GetSystem(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public async Task<ISystem> GetSystem(string systemName, string configurationVariant)
     {
         if (!Systems.Contains(systemName))
             throw new DotNet6502Exception($"System does not exist: {systemName}");
@@ -160,7 +160,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
 
     public async Task<SystemRunner> BuildSystemRunner(
         string systemName,
-        string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+        string configurationVariant)
     {
         if (_getRenderContext == null)
             throw new DotNet6502Exception("RenderContext has not been initialized. Call InitContext to initialize.");
@@ -181,7 +181,14 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         return systemRunner;
     }
 
-    public async Task<ISystemConfig> GetSystemConfig(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public List<string> GetSystemConfigurationVariants(string systemName)
+    {
+        if (!Systems.Contains(systemName))
+            throw new DotNet6502Exception($"System does not exist: {systemName}");
+        return _systemConfigurers[systemName].GetConfigurationVariants();
+    }
+
+    public async Task<ISystemConfig> GetSystemConfig(string systemName, string configurationVariant)
     {
         if (!Systems.Contains(systemName))
             throw new DotNet6502Exception($"System does not exist: {systemName}");
@@ -195,51 +202,51 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         return _systemConfigsCache[cacheKey];
     }
 
-    public void ChangeCurrentSystemConfig(string systemName, ISystemConfig systemConfig, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public void ChangeCurrentSystemConfig(string systemName, ISystemConfig systemConfig, string configurationVariant)
     {
         // Make sure any cached version of the system is invalidated so it'll be re-recreated with new config.
         InvalidateSystemCache(systemName, configurationVariant);
         CacheSystemConfig(systemName, configurationVariant, systemConfig);
     }
 
-    //public async Task PersistNewSystemConfig(string systemName, ISystemConfig updatedSystemConfig, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    //public async Task PersistNewSystemConfig(string systemName, ISystemConfig updatedSystemConfig, string configurationVariant)
     //{
     //    ChangeCurrentSystemConfig(systemName, updatedSystemConfig, configurationVariant);
     //    await PersistSystemConfig(systemName);
     //}
 
-    //public async Task PersistSystemConfig(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    //public async Task PersistSystemConfig(string systemName, string configurationVariant)
     //{
     //    var systemConfig = await GetSystemConfig(systemName, configurationVariant);
     //    await _systemConfigurers[systemName].PersistConfig(systemConfig);
     //}
 
-    public async Task<bool> IsValidConfig(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public async Task<bool> IsValidConfig(string systemName, string configurationVariant)
     {
         var systemConfig = await GetSystemConfig(systemName, configurationVariant);
         bool isValid = systemConfig.IsValid(out List<string> _);
         return isValid;
     }
 
-    public async Task<(bool, List<string> validationErrors)> IsValidConfigWithDetails(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public async Task<(bool, List<string> validationErrors)> IsValidConfigWithDetails(string systemName, string configurationVariant)
     {
         var systemConfig = await GetSystemConfig(systemName, configurationVariant);
         bool isValid = systemConfig.IsValid(out List<string> validationErrors);
         return (isValid, validationErrors);
     }
 
-    public bool IsAudioSupported(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public bool IsAudioSupported(string systemName, string configurationVariant)
     {
         var systemConfig = GetSystemConfig(systemName, configurationVariant).Result;
         return systemConfig.AudioSupported;
     }
 
-    public bool IsAudioEnabled(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public bool IsAudioEnabled(string systemName, string configurationVariant)
     {
         var systemConfig = GetSystemConfig(systemName, configurationVariant).Result;
         return systemConfig.AudioEnabled;
     }
-    public void SetAudioEnabled(string systemName, bool enabled, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public void SetAudioEnabled(string systemName, bool enabled, string configurationVariant)
     {
         var systemConfig = GetSystemConfig(systemName, configurationVariant).Result;
         systemConfig.AudioEnabled = enabled;
@@ -250,7 +257,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         return $"{systemName}_{configurationVariant}";
     }
 
-    public void InvalidateSystemCache(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public void InvalidateSystemCache(string systemName, string configurationVariant)
     {
         var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
         if (_systemsCache.ContainsKey(cacheKey))

@@ -16,6 +16,12 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
 {
     public string SystemName => C64.SystemName;
 
+    private static readonly List<string> s_systemVariants =
+    [
+        "C64NTSC",
+        "C64PAL",
+    ];
+
     private readonly ILoggerFactory _loggerFactory;
 
     public C64Setup(ILoggerFactory loggerFactory)
@@ -36,14 +42,34 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
         return c64HostConfig;
     }
 
+    public List<string> GetConfigurationVariants()
+    {
+        return s_systemVariants;
+    }
+
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
+        string c64Model;
+        string vic2Model;
+        switch (configurationVariant.ToUpper())
+        {
+            case "DEFAULT":
+            case "C64NTSC":
+                c64Model = "C64NTSC";
+                vic2Model = "NTSC"; // NTSC, NTSC_old
+                break;
+            case "C64PAL":
+                c64Model = "C64PAL";
+                vic2Model = "PAL";
+                break;
+            default:
+                throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
+        }
+
         var c64Config = new C64Config
         {
-            C64Model = "C64NTSC",   // C64NTSC, C64PAL
-            Vic2Model = "NTSC",     // NTSC, NTSC_old, PAL
-            //C64Model = "C64PAL",   // C64NTSC, C64PAL
-            //Vic2Model = "PAL",     // NTSC, NTSC_old, PAL
+            C64Model = c64Model,
+            Vic2Model = vic2Model,
 
             //ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64",
             ROMDirectory = "%HOME%/Downloads/C64",

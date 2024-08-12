@@ -14,6 +14,11 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
 {
     public string SystemName => GenericComputer.SystemName;
 
+    private static readonly List<string> s_systemVariants =
+    [
+        "DEFAULT",
+    ];
+
     private readonly ILoggerFactory _loggerFactory;
     private readonly IConfiguration _configuration;
 
@@ -21,6 +26,11 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
     {
         _loggerFactory = loggerFactory;
         _configuration = configuration;
+    }
+
+    public List<string> GetConfigurationVariants()
+    {
+        return s_systemVariants;
     }
 
     public IHostSystemConfig GetNewHostSystemConfig()

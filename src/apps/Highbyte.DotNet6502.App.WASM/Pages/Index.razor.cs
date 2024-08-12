@@ -215,9 +215,6 @@ public partial class Index
 
     private async Task SelectSystem(string systemName)
     {
-        //Initialized = false;
-        //this.StateHasChanged();
-
         await _wasmHost.SelectSystem(systemName);
 
         (bool isOk, List<string> validationErrors) = await _wasmHost.IsValidConfigWithDetails();
@@ -229,7 +226,15 @@ public partial class Index
 
         await UpdateCanvasSize();
 
-        //Initialized = true;
+        this.StateHasChanged();
+    }
+
+    private async Task SelectSystemConfigurationVariant(string systemConfigurationVariant)
+    {
+        await _wasmHost.SelectSystemConfigurationVariant(systemConfigurationVariant);
+
+        await UpdateCanvasSize();
+
         this.StateHasChanged();
     }
 

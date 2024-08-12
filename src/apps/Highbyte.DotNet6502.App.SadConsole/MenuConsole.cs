@@ -8,7 +8,7 @@ public class MenuConsole : ControlsConsole
     public const int CONSOLE_WIDTH = USABLE_WIDTH + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     public const int CONSOLE_HEIGHT = USABLE_HEIGHT + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     private const int USABLE_WIDTH = 21;
-    private const int USABLE_HEIGHT = 13;
+    private const int USABLE_HEIGHT = 15;
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
 
@@ -34,17 +34,43 @@ public class MenuConsole : ControlsConsole
 
     private void DrawUIItems()
     {
-        var systemLabel = CreateLabel("System:", 1, 1);
+        var systemLabel = CreateLabel("System: ", 1, 1);
         ComboBox selectSystemComboBox = new ComboBox(10, 15, 4, _sadConsoleHostApp.AvailableSystemNames.ToArray())
         {
             Position = (systemLabel.Bounds.MaxExtentX + 2, systemLabel.Position.Y),
             Name = "selectSystemComboBox",
             SelectedItem = _sadConsoleHostApp.SelectedSystemName,
         };
-        selectSystemComboBox.SelectedItemChanged += async (s, e) => { await _sadConsoleHostApp.SelectSystem(selectSystemComboBox.SelectedItem.ToString()); IsDirty = true; };
+        selectSystemComboBox.SelectedItemChanged += async (s, e) =>
+        {
+            await _sadConsoleHostApp.SelectSystem(selectSystemComboBox.SelectedItem.ToString());
+            await _sadConsoleHostApp.SelectSystemConfigurationVariant(_sadConsoleHostApp.CurrentSystemConfigurationVariants.First());
+
+            var selectSystemVariantComboBox = Controls["selectSystemVariantComboBox"] as ComboBox;
+            selectSystemVariantComboBox.SetItems(_sadConsoleHostApp.CurrentSystemConfigurationVariants.ToArray());
+            selectSystemVariantComboBox.SelectedIndex = 0;
+            IsDirty = true;
+        };
         Controls.Add(selectSystemComboBox);
 
-        var statusLabel = CreateLabel("Status:", 1, systemLabel.Bounds.MaxExtentY + 1);
+        var variantLabel = CreateLabel("Variant:", 1, systemLabel.Bounds.MaxExtentY + 1);
+        ComboBox selectSystemVariantComboBox = new ComboBox(10, 15, 4, _sadConsoleHostApp.CurrentSystemConfigurationVariants.ToArray())
+        {
+            Position = (variantLabel.Bounds.MaxExtentX + 2, variantLabel.Position.Y),
+            Name = "selectSystemVariantComboBox",
+            SelectedItem = _sadConsoleHostApp.SelectedSystemConfigurationVariant,
+        };
+        selectSystemVariantComboBox.SelectedItemChanged += async (s, e) =>
+        {
+            if (selectSystemVariantComboBox.SelectedIndex >= 0)
+            {
+                await _sadConsoleHostApp.SelectSystemConfigurationVariant(selectSystemVariantComboBox.SelectedItem.ToString());
+                IsDirty = true;
+            }
+        };
+        Controls.Add(selectSystemVariantComboBox);
+
+        var statusLabel = CreateLabel("Status:", 1, variantLabel.Bounds.MaxExtentY + 1);
         CreateLabelValue(_sadConsoleHostApp.EmulatorState.ToString(), statusLabel.Bounds.MaxExtentX + 2, statusLabel.Position.Y, "statusValueLabel");
 
         var startButton = new Button("Start")
@@ -158,6 +184,9 @@ public class MenuConsole : ControlsConsole
     {
         var systemComboBox = Controls["selectSystemComboBox"];
         systemComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
+
+        var selectSystemVariantComboBox = Controls["selectSystemVariantComboBox"];
+        selectSystemVariantComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
 
         var statusLabel = Controls["statusValueLabel"] as Label;
         statusLabel!.DisplayText = _sadConsoleHostApp.EmulatorState.ToString();

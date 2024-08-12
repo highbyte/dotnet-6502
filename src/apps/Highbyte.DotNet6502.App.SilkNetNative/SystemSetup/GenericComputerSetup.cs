@@ -1,10 +1,8 @@
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.SilkNet.Generic.Input;
-using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Generic.Video;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Microsoft.Extensions.Logging;
@@ -14,6 +12,11 @@ namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 public class GenericComputerSetup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => GenericComputer.SystemName;
+
+    private static readonly List<string> s_systemVariants =
+    [
+        "DEFAULT",
+    ];
 
     private readonly ILoggerFactory _loggerFactory;
 
@@ -26,6 +29,11 @@ public class GenericComputerSetup : ISystemConfigurer<SilkNetRenderContextContai
     {
         var genericComputerHostConfig = new GenericComputerHostConfig { };
         return genericComputerHostConfig;
+    }
+
+    public List<string> GetConfigurationVariants()
+    {
+        return s_systemVariants;
     }
 
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)

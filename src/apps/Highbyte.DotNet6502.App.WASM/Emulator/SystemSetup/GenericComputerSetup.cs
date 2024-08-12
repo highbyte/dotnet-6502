@@ -13,6 +13,11 @@ public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetI
 {
     public string SystemName => GenericComputer.SystemName;
 
+    private static readonly List<string> s_systemVariants =
+    [
+        "DEFAULT",
+    ];
+
     private const string DEFAULT_PRG_URL = "6502binaries/Generic/Assembler/hostinteraction_scroll_text_and_cycle_colors.prg";
     //private const string DEFAULT_PRG_URL = "6502binaries/Generic/Assembler/snake6502.prg";
 
@@ -29,6 +34,11 @@ public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetI
     {
         var genericComputerHostConfig = new GenericComputerHostConfig();
         return genericComputerHostConfig;
+    }
+
+    public List<string> GetConfigurationVariants()
+    {
+        return s_systemVariants;
     }
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)

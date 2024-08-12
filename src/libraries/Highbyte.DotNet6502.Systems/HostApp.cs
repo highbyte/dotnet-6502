@@ -29,6 +29,12 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     public string SelectedSystemName => _selectedSystemName;
     public HashSet<string> AvailableSystemNames => _systemList.Systems;
 
+
+    private string _selectedSystemConfigurationVariant;
+    public string SelectedSystemConfigurationVariant => _selectedSystemConfigurationVariant;
+    public List<string> CurrentSystemConfigurationVariants => _systemList.GetSystemConfigurationVariants(_selectedSystemName);
+
+
     private SystemRunner? _systemRunner = null;
     public SystemRunner? CurrentSystemRunner => _systemRunner;
     public ISystem? CurrentRunningSystem => _systemRunner?.System;
@@ -117,6 +123,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         _systemList = systemList;
 
         _selectedSystemName = _systemList.Systems.First();
+        _selectedSystemConfigurationVariant = _systemList.GetSystemConfigurationVariants(_selectedSystemName).First();
     }
 
     public void SetContexts(
@@ -142,15 +149,31 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
             throw new DotNet6502Exception("Cannot change system while emulator is running.");
         if (!_systemList.Systems.Contains(systemName))
             throw new DotNet6502Exception($"System not found: {systemName}");
+
+        if (systemName != _selectedSystemName)
+            _selectedSystemConfigurationVariant = _systemList.GetSystemConfigurationVariants(systemName).First();
         _selectedSystemName = systemName;
 
-        CurrentSystemConfig = await _systemList.GetSystemConfig(_selectedSystemName);
+        CurrentSystemConfig = await _systemList.GetSystemConfig(_selectedSystemName, _selectedSystemConfigurationVariant);
         CurrentHostSystemConfig = _systemList.GetHostSystemConfig(_selectedSystemName);
 
         OnAfterSelectSystem();
     }
 
+    public async Task SelectSystemConfigurationVariant(string configurationVariant)
+    {
+        if (EmulatorState != EmulatorState.Uninitialized)
+            throw new DotNet6502Exception("Cannot change system while emulator is running.");
+        if (!_systemList.GetSystemConfigurationVariants(_selectedSystemName).Contains(configurationVariant))
+            throw new DotNet6502Exception($"System configuration variant not found: {configurationVariant}");
+
+        _selectedSystemConfigurationVariant = configurationVariant;
+
+        CurrentSystemConfig = await _systemList.GetSystemConfig(_selectedSystemName, configurationVariant);
+    }
+
     public virtual void OnAfterSelectSystem() { }
+
 
     public virtual bool OnBeforeStart(ISystem systemAboutToBeStarted)
     {
@@ -162,10 +185,10 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         if (EmulatorState == EmulatorState.Running)
             throw new DotNet6502Exception("Cannot start emulator if emulator is running.");
 
-        if (!await _systemList.IsValidConfig(_selectedSystemName))
+        if (!await _systemList.IsValidConfig(_selectedSystemName, _selectedSystemConfigurationVariant))
             throw new DotNet6502Exception("Cannot start emulator if current system config is invalid.");
 
-        var systemAboutToBeStarted = await _systemList.GetSystem(_selectedSystemName);
+        var systemAboutToBeStarted = await _systemList.GetSystem(_selectedSystemName, _selectedSystemConfigurationVariant);
         bool shouldStart = OnBeforeStart(systemAboutToBeStarted);
         if (!shouldStart)
             return;
@@ -173,7 +196,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         var emulatorStateBeforeStart = EmulatorState;
         // Only create a new instance of SystemRunner if we previously has not started (so resume after pause works).
         if (EmulatorState == EmulatorState.Uninitialized)
-            _systemRunner = await _systemList.BuildSystemRunner(_selectedSystemName);
+            _systemRunner = await _systemList.BuildSystemRunner(_selectedSystemName, _selectedSystemConfigurationVariant);
 
         InitInstrumentation(_systemRunner!.System);
 
@@ -182,7 +205,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         OnAfterStart(emulatorStateBeforeStart);
 
         EmulatorState = EmulatorState.Running;
-        _logger.LogInformation($"System started: {_selectedSystemName}");
+        _logger.LogInformation($"System started: {_selectedSystemName} Variant: {_selectedSystemConfigurationVariant}");
 
     }
     public virtual void OnAfterStart(EmulatorState emulatorStateBeforeStart) { }
@@ -220,7 +243,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         EmulatorState = EmulatorState.Uninitialized;
 
         // Make sure the cached System instance is removed, so it's created again next time (starting fresh).
-        _systemList.InvalidateSystemCache(SelectedSystemName);
+        _systemList.InvalidateSystemCache(SelectedSystemName, _selectedSystemConfigurationVariant);
 
         OnAfterStop();
 
@@ -304,18 +327,18 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
     public async Task<bool> IsSystemConfigValid()
     {
-        return await _systemList.IsValidConfig(_selectedSystemName);
+        return await _systemList.IsValidConfig(_selectedSystemName, _selectedSystemConfigurationVariant);
     }
     public async Task<(bool, List<string> validationErrors)> IsValidConfigWithDetails()
     {
-        return await _systemList.IsValidConfigWithDetails(_selectedSystemName);
+        return await _systemList.IsValidConfigWithDetails(_selectedSystemName, _selectedSystemConfigurationVariant);
     }
 
     public bool IsAudioSupported
     {
         get
         {
-            return _systemList.IsAudioSupported(_selectedSystemName);
+            return _systemList.IsAudioSupported(_selectedSystemName, _selectedSystemConfigurationVariant);
         }
     }
 
@@ -323,24 +346,24 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     {
         get
         {
-            return _systemList.IsAudioEnabled(_selectedSystemName);
+            return _systemList.IsAudioEnabled(_selectedSystemName, _selectedSystemConfigurationVariant);
         }
         set
         {
-            _systemList.SetAudioEnabled(_selectedSystemName, enabled: value);
+            _systemList.SetAudioEnabled(_selectedSystemName, enabled: value, _selectedSystemConfigurationVariant);
         }
     }
 
     public async Task<ISystem> GetSelectedSystem()
     {
-        return await _systemList.GetSystem(_selectedSystemName);
+        return await _systemList.GetSystem(_selectedSystemName, _selectedSystemConfigurationVariant);
     }
 
     public void UpdateSystemConfig(ISystemConfig newConfig)
     {
         // Note: Make sure to store a clone of the newConfig in the systemList, so it isn't changed by the caller afterwards by mistake (bound to UI for example).
         CurrentSystemConfig = (ISystemConfig)newConfig.Clone();
-        _systemList.ChangeCurrentSystemConfig(_selectedSystemName, CurrentSystemConfig);
+        _systemList.ChangeCurrentSystemConfig(_selectedSystemName, CurrentSystemConfig, _selectedSystemConfigurationVariant);
     }
 
     //public async Task PersistNewSystemConfig(ISystemConfig newConfig)
