@@ -1,5 +1,5 @@
 using System.Numerics;
-using Highbyte.DotNet6502.Logging;
+using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;

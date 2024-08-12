@@ -14,6 +14,8 @@ public class SilkNetOpenGlRenderContext : IRenderContext
     private readonly float _drawScale;
     public float DrawScale => _drawScale;
 
+    public bool IsInitialized { get; private set; } = false;
+
 
     public SilkNetOpenGlRenderContext(IWindow window, float drawScale)
     {
@@ -24,6 +26,7 @@ public class SilkNetOpenGlRenderContext : IRenderContext
 
     public void Init()
     {
+        IsInitialized = true;
     }
 
     public void Cleanup()

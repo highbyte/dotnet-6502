@@ -12,6 +12,9 @@ public class SilkNetRenderContextContainer : IRenderContext
     public SkiaRenderContext SkiaRenderContext => _skiaRenderContext;
     public SilkNetOpenGlRenderContext SilkNetOpenGlRenderContext => _silkNetOpenGlRenderContext;
 
+    public bool IsInitialized { get; private set; } = false;
+
+
     public SilkNetRenderContextContainer(SkiaRenderContext skiaRenderContext, SilkNetOpenGlRenderContext silkNetOpenGlRenderContext)
     {
         _skiaRenderContext = skiaRenderContext;
@@ -20,6 +23,9 @@ public class SilkNetRenderContextContainer : IRenderContext
 
     public void Init()
     {
+        _skiaRenderContext?.Init();
+        _silkNetOpenGlRenderContext?.Init();
+        IsInitialized = true;
     }
 
     public void Cleanup()

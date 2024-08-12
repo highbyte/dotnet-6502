@@ -1,7 +1,7 @@
-﻿@using Highbyte.DotNet6502.App.WASM.Skia
-@using Highbyte.DotNet6502.Systems.Generic.Config
+﻿@using Highbyte.DotNet6502.Systems.Generic.Config
 @using Highbyte.DotNet6502.Systems;
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index
+@using Highbyte.DotNet6502.Utils;
 
 General settings
 <div class="table">
@@ -53,6 +53,7 @@ Memory addresses
 }
 <p></p>
 <button @onclick="Ok">Ok</button>
+<button @onclick="Cancel">Cancel</button>
 
 @code {
 
@@ -67,6 +68,7 @@ Memory addresses
     protected override void OnInitialized() => BlazoredModal.SetTitle("Generic config");
 
     private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok((SystemConfig, HostSystemConfig)));
+    private async Task Cancel() => await BlazoredModal.CloseAsync(ModalResult.Cancel());
 
     private string _validationMessage = "";
 

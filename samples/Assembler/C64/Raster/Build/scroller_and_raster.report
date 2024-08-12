@@ -417,7 +417,7 @@
    415                          SCROLL_TEXT:
    416                          	;!text "                                                                                "
    417  c1e6 2020202020202020...	!text "                                        "
-   418  c20e 0809070802191405...	!text "highbyte, in 2023, proudly presents... a dotnet 6502 cpu emulator!    "
+   418  c20e 0809070802191405...	!text "highbyte, in 2024, proudly presents... a dotnet 6502 cpu emulator!    "
    419  c254 1408051305201201...	!text "these raster bars and the (rather choppy) scroller is written in 6502 machine code for c64.   "
    420                          	;!text "hold space to flash border color.   "
    421  c2b2 0712050514090e07...	!text "greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups them and virtual!"

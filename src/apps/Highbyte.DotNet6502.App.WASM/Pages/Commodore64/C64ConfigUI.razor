@@ -1,4 +1,4 @@
-﻿@using Highbyte.DotNet6502.App.WASM.Skia
+﻿@using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup
 @using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 @using Highbyte.DotNet6502.Systems;
 @using Highbyte.DotNet6502.Systems.Commodore64.Config
@@ -165,6 +165,7 @@
 
 <p></p>
 <button @onclick="Ok">Ok</button>
+<button @onclick="Cancel">Cancel</button>
 
 @code {
 
@@ -197,6 +198,7 @@
 
 
     private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok((SystemConfig, HostSystemConfig)));
+    private async Task Cancel() => await BlazoredModal.CloseAsync(ModalResult.Cancel());
 
     private bool _isLoadingC64Roms;
     private long _maxC64RomFileSize = 1024 * 8;
@@ -294,5 +296,4 @@
     private void OnSelectKeyboardJoystickChanged(ChangeEventArgs e)
         => C64Config.KeyboardJoystick = int.Parse(e.Value!.ToString()!);
 
-    
 }

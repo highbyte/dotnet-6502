@@ -1,7 +1,7 @@
-using Highbyte.DotNet6502.Instrumentation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using Highbyte.DotNet6502.Systems.Instrumentation;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.Generic.Input;
 
@@ -31,6 +31,8 @@ public class GenericComputerSilkNetInputHandler : IInputHandler
     public void BeforeFrame()
     {
         CaptureKeyboard(_genericComputer);
+        // TODO: Generating random number to send to generic computer should not be in input handler, because it'll not run if not in focus.
+        CaptureRandomNumber(_genericComputer);
     }
 
     public void Cleanup()
@@ -43,7 +45,14 @@ public class GenericComputerSilkNetInputHandler : IInputHandler
         if (_inputHandlerContext!.KeysDown.Count > 0)
         {
             var keyDown = _inputHandlerContext.KeysDown.First();
-            genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = (byte)keyDown;
+
+            byte genericKeyByteValue;
+            if (!GenericComputerSilkNetKeyboard.SilkNetToGenericKeyMap.ContainsKey(keyDown))
+                genericKeyByteValue = (byte)keyDown;
+            else
+                genericKeyByteValue = (byte)GenericComputerSilkNetKeyboard.SilkNetToGenericKeyMap[keyDown];
+
+            genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = genericKeyByteValue;
         }
         else
         {
@@ -51,4 +60,13 @@ public class GenericComputerSilkNetInputHandler : IInputHandler
             genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = 0x00;
         }
     }
+
+    private void CaptureRandomNumber(GenericComputer system)
+    {
+        var emulatorMem = system.Mem;
+
+        var rnd = (byte)new Random().Next(0, 255);
+        emulatorMem[_emulatorInputConfig.RandomValueAddress] = rnd;
+    }
+
 }

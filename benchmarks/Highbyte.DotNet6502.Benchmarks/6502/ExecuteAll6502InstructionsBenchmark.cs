@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Engines;
 using BenchmarkDotNet.Jobs;
+using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.Benchmarks;
 

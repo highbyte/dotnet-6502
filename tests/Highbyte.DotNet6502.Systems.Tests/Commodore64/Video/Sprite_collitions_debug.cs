@@ -1,7 +1,7 @@
-
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
+using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit.Abstractions;
 

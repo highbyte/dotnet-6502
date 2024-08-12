@@ -20,14 +20,23 @@
             <div id="system-selector" class="command-panel">
                 <div>
                     System:
-                    @* <select @bind="@SelectedSystemName" disabled=@OnSelectSystemNameDisabled autofocus> *@
-                    <select value="@_selectedSystemName" @onchange="OnSelectedEmulatorChanged" disabled=@OnSelectSystemNameDisabled autofocus>
-                        @foreach (var systemName in _systemList.Systems)
+                    <InputSelect TValue="string" @bind-Value:get="this._wasmHost.SelectedSystemName" @bind-Value:set="this.SelectSystem" disabled=@OnSelectSystemNameDisabled autofocus>
+                        @foreach (var systemName in _wasmHost.AvailableSystemNames)
                         {
-                            <option value="@systemName"> @systemName </option>
+                            <option value="@systemName">@systemName</option>
                         }
-                    </select>
+                    </InputSelect>
                 </div>
+                <div>
+                    Variant:
+                    <InputSelect TValue="string" @bind-Value:get="this._wasmHost.SelectedSystemConfigurationVariant" @bind-Value:set="this.SelectSystemConfigurationVariant" disabled=@OnSelectSystemNameDisabled autofocus>
+                        @foreach (var systemConfigurationVariant in _wasmHost.CurrentSystemConfigurationVariants)
+                        {
+                            <option value="@systemConfigurationVariant">@systemConfigurationVariant</option>
+                        }
+                    </InputSelect>
+                </div>
+
                 <div>
                     Status: @(CurrentEmulatorState)
                 </div>
@@ -54,7 +63,7 @@
             </div>
 
             <div class="command-panel">
-                <h4>@_selectedSystemName</h4>
+                <h4>@_wasmHost.SelectedSystemName</h4>
                 <C64Menu Parent=this />
                 <GenericMenu Parent=this />
                 <div class="validation-message">
@@ -125,7 +134,7 @@
 
         </div>
         <div class="right">
-            <div class="infobox debugStyle">
+            <div class="infobox statsStyle">
                 <div class="infobox-output">
                     @(
                         (MarkupString)_statsString
@@ -185,6 +194,10 @@
             display: @GetDisplayStyle("CanvasUninitialized");
             width: 806px;
             height: 320px;
+        }
+
+        .statsStyle {
+            display: @GetDisplayStyle("Stats");
         }
 
         .debugStyle {

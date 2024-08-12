@@ -10,10 +10,11 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     private Func<TAudioHandlerContext>? _getAudioHandlerContext;
 
     public HashSet<string> Systems = new();
-    private readonly Dictionary<string, SystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext>> _systemConfigurers = new();
+    private readonly Dictionary<string, ISystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext>> _systemConfigurers = new();
 
     private const string DEFAULT_CONFIGURATION_VARIANT = "DEFAULT";
 
+    private readonly Dictionary<string, IHostSystemConfig> _hostSystemConfigsCache = new();
     private readonly Dictionary<string, ISystemConfig> _systemConfigsCache = new();
     private readonly Dictionary<string, ISystem> _systemsCache = new();
 
@@ -21,19 +22,59 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     {
     }
 
-    public void InitContext(
-        Func<TRenderContext> getRenderContext,
-        Func<TInputHandlerContext> getInputHandlerContext,
-        Func<TAudioHandlerContext> getAudioHandlerContext)
+    public void SetContext(
+    Func<TRenderContext>? getRenderContext = null,
+    Func<TInputHandlerContext>? getInputHandlerContext = null,
+    Func<TAudioHandlerContext>? getAudioHandlerContext = null)
     {
-        getRenderContext().Init();
-        getInputHandlerContext().Init();
-        getAudioHandlerContext().Init();
-
-        _getRenderContext = getRenderContext;
-        _getInputHandlerContext = getInputHandlerContext;
-        _getAudioHandlerContext = getAudioHandlerContext;
+        if (getRenderContext != null)
+        {
+            if (_getRenderContext != null)
+                throw new DotNet6502Exception("RenderContext has already been set. Call SetContext only once.");
+            _getRenderContext = getRenderContext;
+        }
+        if (getInputHandlerContext != null)
+        {
+            if (_getInputHandlerContext != null)
+                throw new DotNet6502Exception("InputHandlerContext has already been set. Call SetContext only once.");
+            _getInputHandlerContext = getInputHandlerContext;
+        }
+        if (getAudioHandlerContext != null)
+        {
+            if (_getAudioHandlerContext != null)
+                throw new DotNet6502Exception("AudioHandlerContext has already been set. Call SetContext only once.");  
+            _getAudioHandlerContext = getAudioHandlerContext;
+        }
     }
+
+    public void InitRenderContext()
+    {
+        if (_getRenderContext == null)
+            throw new DotNet6502Exception("RenderContext has not been set. Call SetContext first.");
+        if (_getRenderContext().IsInitialized)
+            _getRenderContext().Cleanup();
+        _getRenderContext().Init();
+    }
+    public void InitInputHandlerContext()
+    {
+        if (_getInputHandlerContext == null)
+            throw new DotNet6502Exception("InputHandlerContext has not been set. Call SetContext first.");
+        if (_getInputHandlerContext().IsInitialized)
+            _getInputHandlerContext().Cleanup();
+        _getInputHandlerContext().Init();
+    }
+    public void InitAudioHandlerContext()
+    {
+        if (_getAudioHandlerContext == null)
+            throw new DotNet6502Exception("AudioHandlerContext has not been set. Call SetContext first.");
+        if (_getAudioHandlerContext().IsInitialized)
+            _getAudioHandlerContext().Cleanup();
+        _getAudioHandlerContext().Init();
+    }
+
+    public bool IsRenderContextInitialized => _getRenderContext != null ? _getRenderContext().IsInitialized : false;
+    public bool IsInputHandlerContextInitialized => _getInputHandlerContext != null ? _getInputHandlerContext().IsInitialized : false;
+    public bool IsAudioHandlerContextInitialized => _getAudioHandlerContext != null ? _getAudioHandlerContext().IsInitialized : false;
 
     /// <summary>
     /// Add a system to the list of available systems.
@@ -47,7 +88,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     public void AddSystem(
-        SystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext> systemConfigurer)
+        ISystemConfigurer<TRenderContext, TInputHandlerContext, TAudioHandlerContext> systemConfigurer)
     {
         var systemName = systemConfigurer.SystemName;
         if (Systems.Contains(systemName))
@@ -66,7 +107,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     /// <param name="systemName"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public async Task<ISystem> GetSystem(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public async Task<ISystem> GetSystem(string systemName, string configurationVariant)
     {
         if (!Systems.Contains(systemName))
             throw new DotNet6502Exception($"System does not exist: {systemName}");
@@ -90,13 +131,14 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
 
         var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
 
+        if (_systemsCache.ContainsKey(cacheKey))
+            throw new DotNet6502Exception($"Internal error. Configuration for system {cacheKey} is already in cache.");
+
         if (!await IsValidConfig(systemName, configurationVariant))
             throw new DotNet6502Exception($"Internal error. Configuration for system {cacheKey} is invalid.");
 
-        if (_systemsCache.ContainsKey(cacheKey))
-            _systemsCache.Remove(cacheKey);
 
-        var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
+        var systemConfig = await GetSystemConfig(systemName, configurationVariant);
         var system = _systemConfigurers[systemName].BuildSystem(systemConfig);
         _systemsCache[cacheKey] = system;
     }
@@ -118,7 +160,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
 
     public async Task<SystemRunner> BuildSystemRunner(
         string systemName,
-        string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+        string configurationVariant)
     {
         if (_getRenderContext == null)
             throw new DotNet6502Exception("RenderContext has not been initialized. Call InitContext to initialize.");
@@ -127,17 +169,26 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         if (_getAudioHandlerContext == null)
             throw new DotNet6502Exception("AudioHandlerContext has not been initialized. Call InitContext to initialize.");
 
-        await BuildAndCacheSystem(systemName, configurationVariant);
+        var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
+        if (!_systemsCache.ContainsKey(cacheKey))
+            await BuildAndCacheSystem(systemName, configurationVariant);
 
         var system = await GetSystem(systemName, configurationVariant);
-        var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
-        var hostSystemConfig = await _systemConfigurers[systemName].GetHostSystemConfig();
+        var systemConfig = await GetSystemConfig(systemName, configurationVariant);
+        var hostSystemConfig = GetHostSystemConfig(systemName);
         var systemRunner = _systemConfigurers[systemName].BuildSystemRunner(system, systemConfig, hostSystemConfig, _getRenderContext(), _getInputHandlerContext(), _getAudioHandlerContext());
         systemRunner.Init();
         return systemRunner;
     }
 
-    public async Task<ISystemConfig> GetCurrentSystemConfig(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public List<string> GetSystemConfigurationVariants(string systemName)
+    {
+        if (!Systems.Contains(systemName))
+            throw new DotNet6502Exception($"System does not exist: {systemName}");
+        return _systemConfigurers[systemName].ConfigurationVariants;
+    }
+
+    public async Task<ISystemConfig> GetSystemConfig(string systemName, string configurationVariant)
     {
         if (!Systems.Contains(systemName))
             throw new DotNet6502Exception($"System does not exist: {systemName}");
@@ -151,39 +202,98 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         return _systemConfigsCache[cacheKey];
     }
 
-    public void ChangeCurrentSystemConfig(string systemName, ISystemConfig systemConfig, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public void ChangeCurrentSystemConfig(string systemName, ISystemConfig systemConfig, string configurationVariant)
     {
+        // Make sure any cached version of the system is invalidated so it'll be re-recreated with new config.
+        InvalidateSystemCache(systemName, configurationVariant);
         CacheSystemConfig(systemName, configurationVariant, systemConfig);
     }
 
-    public async Task PersistNewSystemConfig(string systemName, ISystemConfig updatedSystemConfig, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
-    {
-        ChangeCurrentSystemConfig(systemName, updatedSystemConfig, configurationVariant);
-        await PersistCurrentSystemConfig(systemName);
-    }
+    //public async Task PersistNewSystemConfig(string systemName, ISystemConfig updatedSystemConfig, string configurationVariant)
+    //{
+    //    ChangeCurrentSystemConfig(systemName, updatedSystemConfig, configurationVariant);
+    //    await PersistSystemConfig(systemName);
+    //}
 
-    public async Task PersistCurrentSystemConfig(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
-    {
-        var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
-        await _systemConfigurers[systemName].PersistConfig(systemConfig);
-    }
+    //public async Task PersistSystemConfig(string systemName, string configurationVariant)
+    //{
+    //    var systemConfig = await GetSystemConfig(systemName, configurationVariant);
+    //    await _systemConfigurers[systemName].PersistConfig(systemConfig);
+    //}
 
-    public async Task<bool> IsValidConfig(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public async Task<bool> IsValidConfig(string systemName, string configurationVariant)
     {
-        var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
+        var systemConfig = await GetSystemConfig(systemName, configurationVariant);
         bool isValid = systemConfig.IsValid(out List<string> _);
         return isValid;
     }
 
-    public async Task<(bool, List<string> validationErrors)> IsValidConfigWithDetails(string systemName, string configurationVariant = DEFAULT_CONFIGURATION_VARIANT)
+    public async Task<(bool, List<string> validationErrors)> IsValidConfigWithDetails(string systemName, string configurationVariant)
     {
-        var systemConfig = await GetCurrentSystemConfig(systemName, configurationVariant);
+        var systemConfig = await GetSystemConfig(systemName, configurationVariant);
         bool isValid = systemConfig.IsValid(out List<string> validationErrors);
         return (isValid, validationErrors);
+    }
+
+    public bool IsAudioSupported(string systemName, string configurationVariant)
+    {
+        var systemConfig = GetSystemConfig(systemName, configurationVariant).Result;
+        return systemConfig.AudioSupported;
+    }
+
+    public bool IsAudioEnabled(string systemName, string configurationVariant)
+    {
+        var systemConfig = GetSystemConfig(systemName, configurationVariant).Result;
+        return systemConfig.AudioEnabled;
+    }
+    public void SetAudioEnabled(string systemName, bool enabled, string configurationVariant)
+    {
+        var systemConfig = GetSystemConfig(systemName, configurationVariant).Result;
+        systemConfig.AudioEnabled = enabled;
     }
 
     private string BuildSystemCacheKey(string systemName, string configurationVariant)
     {
         return $"{systemName}_{configurationVariant}";
+    }
+
+    public void InvalidateSystemCache(string systemName, string configurationVariant)
+    {
+        var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
+        if (_systemsCache.ContainsKey(cacheKey))
+        {
+            _systemsCache.Remove(cacheKey);
+        }
+    }
+
+
+    public IHostSystemConfig GetHostSystemConfig(string systemName)
+    {
+        if (!Systems.Contains(systemName))
+            throw new DotNet6502Exception($"System does not exist: {systemName}");
+
+        var cacheKey = systemName;
+        if (!_hostSystemConfigsCache.ContainsKey(cacheKey))
+        {
+            var hostSystemConfig = _systemConfigurers[systemName].GetNewHostSystemConfig();
+            ChangeCurrentHostSystemConfig(systemName, hostSystemConfig);
+        }
+        return _hostSystemConfigsCache[cacheKey];
+    }
+
+    public void ChangeCurrentHostSystemConfig(string systemName, IHostSystemConfig systemHostConfig)
+    {
+        CacheHostSystemConfig(systemName, systemHostConfig);
+    }
+
+    private void CacheHostSystemConfig(string systemName, IHostSystemConfig hostSystemConfig)
+    {
+        if (!Systems.Contains(systemName))
+            throw new DotNet6502Exception($"System does not exist: {systemName}");
+
+        var cacheKey = systemName;
+
+        // Update the cached config
+        _hostSystemConfigsCache[cacheKey] = hostSystemConfig;
     }
 }

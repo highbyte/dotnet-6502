@@ -282,7 +282,7 @@
    280  c1ad 00                 CF      !by 0
    281  c1ae 00                 DA      !by 0
    282  c1af 00                 DNVZC   !by 0
-   283  c1b0 00                 ERROR   !by 0
+   283  c1b0 00                 ERROR   !by 0   ;ERROR should be at $C1B0 if code is loaded at $C000 and not changed
    284  c1b1 00                 HA      !by 0
    285  c1b2 00                 HNVZC   !by 0
    286  c1b3 00                 N1      !by 0

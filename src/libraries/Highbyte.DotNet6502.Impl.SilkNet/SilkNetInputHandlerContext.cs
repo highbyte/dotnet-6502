@@ -28,6 +28,8 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
 
     public bool IsKeyPressed(Key key) => _primaryKeyboard.IsKeyPressed(key);
 
+    public bool IsInitialized { get; private set; }
+
     public SilkNetInputHandlerContext(IWindow silkNetWindow, ILoggerFactory loggerFactory)
     {
         _silkNetWindow = silkNetWindow;
@@ -62,6 +64,8 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
         {
             _logger.LogInformation("No gamepads found.");
         }
+
+        IsInitialized = true;
     }
 
     private void ConnectionChanged(IInputDevice device, bool isConnected)

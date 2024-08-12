@@ -1,0 +1,184 @@
+namespace Highbyte.DotNet6502.Utils;
+
+public static class MemoryHelpers
+{
+    /// <summary>
+    /// Fetches a byte from specified address.
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <param name="address"></param>
+    /// <returns></returns>
+    public static byte FetchByte(this Memory mem, ushort address)
+    {
+        return mem[address];
+    }
+
+    /// <summary>
+    /// Same as FetchByte(this Memory mem, ushort address), with the only difference 
+    /// that the address parameter is sent by ref, and increased 1 byte.
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <param name="address"></param>
+    /// <returns></returns>
+    public static byte FetchByte(this Memory mem, ref ushort address)
+    {
+        var val = mem.FetchByte(address);
+        address++;
+        return val;
+    }
+
+    /// <summary>
+    /// Fetches a word (aka ushort, aka UInt16) from specified address.
+    /// The byte order is little endian, so the the least significant byte (lowbyte) is assumed to at address,
+    /// and most significant byte is assumed to be at address + 1.
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <param name="address"></param>
+    /// <returns></returns>
+    public static ushort FetchWord(this Memory mem, ushort address)
+    {
+        var byte1 = mem[address];
+        var byte2 = mem[(ushort)(address + 1)];
+        return ByteHelpers.ToLittleEndianWord(byte1, byte2);
+    }
+
+    /// <summary>
+    /// Same as FetchByte(this Memory mem, ushort address), with the only difference 
+    /// that the address parameter is sent by ref, and increased 2 bytes.
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <param name="address"></param>
+    /// <returns></returns>
+    public static ushort FetchWord(this Memory mem, ref ushort address)
+    {
+        var val = mem.FetchWord(address);
+        address += 2;
+        return val;
+    }
+
+
+    /// <summary>
+    /// Writes the specified 8-bit byte to the specified address.
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <param name="address"></param>
+    /// <param name="instruction"></param>
+    public static void WriteByte(this Memory mem, ushort address, OpCodeId instruction)
+    {
+        mem.WriteByte(address, (byte)instruction);
+    }
+
+    /// <summary>
+    /// Writes the specified 8-bit byte to the specified address.
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <param name="address"></param>
+    /// <param name="data"></param>
+    public static void WriteByte(this Memory mem, ushort address, byte data)
+    {
+        mem[address] = data;
+    }
+
+    /// <summary>
+    /// Same as WriteByteToMemory(this Memory mem, ushort address, byte data), with the only difference 
+    /// that the address parameter is sent by ref, and increased 1 byte.
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <param name="address"></param>
+    /// <param name="instruction"></param>
+    public static void WriteByte(this Memory mem, ref ushort address, OpCodeId instruction)
+    {
+        mem.WriteByte(ref address, (byte)instruction);
+    }
+
+    /// <summary>
+    /// Same as WriteByteToMemory(this Memory mem, ushort address, byte data), with the only difference 
+    /// that the address parameter is sent by ref, and increased 1 byte.
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <param name="address"></param>
+    /// <param name="data"></param>
+    public static void WriteByte(this Memory mem, ref ushort address, byte data)
+    {
+        mem.WriteByte(address, data);
+        address++;
+    }
+
+    /// <summary>
+    /// Writes the specified 16-bit word (aka ushort, aka UInt16) to the specified address.
+    /// Uses Little-endian convention, and writes the low byte (least significant byte) first, then the high byte (the most significant byte).
+    /// 
+    /// If address is 0x4000, and data is 0xab12, the memory will look like this after being written.
+    /// 0x4000: 0x12
+    /// 0x4001: 0xab
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <param name="address"></param>
+    /// <param name="data"></param>
+    public static void WriteWord(this Memory mem, ushort address, ushort data)
+    {
+        mem[address] = data.Lowbyte();
+        mem[(ushort)(address + 1)] = data.Highbyte();
+    }
+
+    /// <summary>
+    /// Same as WriteWordToMemory(this Memory mem, ushort address, ushort data), with the only difference 
+    /// that the address parameter is sent by ref, and increased 2 bytes.
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <param name="address"></param>
+    /// <param name="data"></param>
+    public static void WriteWord(this Memory mem, ref ushort address, ushort data)
+    {
+        mem.WriteWord(address, data);
+        address += 2;
+    }
+
+    public static void StoreData(this Memory mem, ushort address, byte[] data)
+    {
+        if (address + data.Length > mem.Size)
+            throw new DotNet6502Exception($"Address {address} + size of data {data.Length} exceeds maximum memory limit {Memory.MAX_MEMORY_SIZE}");
+
+        for (var i = 0; i < data.Length; i++)
+        {
+            mem[(ushort)(address + i)] = data[i];
+        }
+    }
+
+    public static byte[] ReadData(this Memory mem, ushort address, ushort length)
+    {
+        if (address + length > mem.Size)
+            throw new DotNet6502Exception($"Address {address} + length {length} exceeds maximum memory limit {Memory.MAX_MEMORY_SIZE}");
+
+        var readArray = new byte[length];
+        for (var i = 0; i < length; i++)
+        {
+            readArray[i] = mem[(ushort)(address + i)];
+        }
+        return readArray;
+    }
+
+    public static bool IsBitSet(this Memory mem, ushort address, int bit)
+    {
+        var value = mem[address];
+        return value.IsBitSet(bit);
+    }
+
+    public static void SetBit(this Memory mem, ushort address, int bit)
+    {
+        ChangeBit(mem, address, bit, true);
+    }
+
+    public static void ClearBit(this Memory mem, ushort address, int bit)
+    {
+        ChangeBit(mem, address, bit, false);
+    }
+
+    public static void ChangeBit(Memory mem, ushort address, int bit, bool state)
+    {
+        var value = mem[address];
+        value.ChangeBit(bit, state);
+        mem[address] = value;
+    }
+
+}

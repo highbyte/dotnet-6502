@@ -1,9 +1,9 @@
 using Blazored.Modal;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Highbyte.DotNet6502.App.WASM;
-using Highbyte.DotNet6502.Logging.Console;
 using Blazored.LocalStorage;
 using Toolbelt.Blazor.Extensions.DependencyInjection;
+using Highbyte.DotNet6502.Systems.Logging.Console;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");

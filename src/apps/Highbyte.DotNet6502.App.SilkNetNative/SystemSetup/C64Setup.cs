@@ -3,70 +3,93 @@ using Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
-using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Models;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 
-public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
+public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
+    public List<string> ConfigurationVariants => s_systemVariants;
+
+    private static readonly List<string> s_systemVariants = C64ModelInventory.C64Models.Keys.ToList();
 
     private readonly ILoggerFactory _loggerFactory;
-    private readonly C64HostConfig _c64HostConfig;
+    private readonly IConfiguration _configuration;
 
-    public C64Setup(ILoggerFactory loggerFactory, C64HostConfig c64HostConfig)
+    public C64Setup(ILoggerFactory loggerFactory, IConfiguration configuration)
     {
         _loggerFactory = loggerFactory;
-        _c64HostConfig = c64HostConfig;
+        _configuration = configuration;
     }
+
+    public IHostSystemConfig GetNewHostSystemConfig()
+    {
+        // TODO: Read System host config from appsettings.json
+        var c64HostConfig = new C64HostConfig
+        {
+            Renderer = C64HostRenderer.SkiaSharp2b,
+            SilkNetOpenGlRendererConfig = new C64SilkNetOpenGlRendererConfig()
+            {
+                UseFineScrollPerRasterLine = false, // Setting to true may work, depending on how code is written. Full screen scroll may not work (actual screen memory is not rendered in sync with raster line).
+            }
+        };
+        return c64HostConfig;
+    }
+
 
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {
-        var c64Config = new C64Config
-        {
-            C64Model = "C64NTSC",   // C64NTSC, C64PAL
-            Vic2Model = "NTSC",     // NTSC, NTSC_old, PAL
-            //C64Model = "C64PAL",   // C64NTSC, C64PAL
-            //Vic2Model = "PAL",     // NTSC, NTSC_old, PAL
+        if (!s_systemVariants.Contains(configurationVariant))
+            throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
 
-            //ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64",
-            ROMDirectory = "%HOME%/Downloads/C64",
-            ROMs = new List<ROM>
-            {
-                new ROM
-                {
-                    Name = C64Config.BASIC_ROM_NAME,
-                    File = "basic.901226-01.bin",
-                    Data = null,
-                    Checksum = "79015323128650c742a3694c9429aa91f355905e",
-                },
-                new ROM
-                {
-                    Name = C64Config.CHARGEN_ROM_NAME,
-                    File = "characters.901225-01.bin",
-                    Data = null,
-                    Checksum = "adc7c31e18c7c7413d54802ef2f4193da14711aa",
-                },
-                new ROM
-                {
-                    Name = C64Config.KERNAL_ROM_NAME,
-                    File = "kernal.901227-03.bin",
-                    Data = null,
-                    Checksum = "1d503e56df85a62fee696e7618dc5b4e781df1bb",
-                }
-            },
+        var c64Config = new C64Config() { ROMs = new() };
+        _configuration.GetSection($"{C64Config.ConfigSectionName}.{configurationVariant}").Bind(c64Config);
 
-            AudioSupported = true,
-            AudioEnabled = true,
+        //var c64Config = new C64Config
+        //{
+        //    C64Model = configurationVariant,
+        //    Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name, // NTSC, NTSC_old, PAL
 
-            InstrumentationEnabled = false, // Start with instrumentation off by default
-        };
+        //    //ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64",
+        //    ROMDirectory = "%HOME%/Downloads/C64",
+        //    ROMs = new List<ROM>
+        //    {
+        //        new ROM
+        //        {
+        //            Name = C64Config.BASIC_ROM_NAME,
+        //            File = "basic.901226-01.bin",
+        //            Data = null,
+        //            Checksum = "79015323128650c742a3694c9429aa91f355905e",
+        //        },
+        //        new ROM
+        //        {
+        //            Name = C64Config.CHARGEN_ROM_NAME,
+        //            File = "characters.901225-01.bin",
+        //            Data = null,
+        //            Checksum = "adc7c31e18c7c7413d54802ef2f4193da14711aa",
+        //        },
+        //        new ROM
+        //        {
+        //            Name = C64Config.KERNAL_ROM_NAME,
+        //            File = "kernal.901227-03.bin",
+        //            Data = null,
+        //            Checksum = "1d503e56df85a62fee696e7618dc5b4e781df1bb",
+        //        }
+        //    },
+
+        //    AudioSupported = true,
+        //    AudioEnabled = true,
+
+        //    InstrumentationEnabled = false, // Start with instrumentation off by default
+        //};
 
         //c64Config.Validate();
         return Task.FromResult<ISystemConfig>(c64Config);
@@ -85,11 +108,6 @@ public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetI
         var c64Config = (C64Config)systemConfig;
         var c64 = C64.BuildC64(c64Config, _loggerFactory);
         return c64;
-    }
-
-    public Task<IHostSystemConfig> GetHostSystemConfig()
-    {
-        return Task.FromResult((IHostSystemConfig)_c64HostConfig);
     }
 
     public SystemRunner BuildSystemRunner(
@@ -123,7 +141,7 @@ public class C64Setup : SystemConfigurer<SilkNetRenderContextContainer, SilkNetI
                 throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
         }
 
-        var inputHandler = new C64SilkNetInputHandler(c64, inputHandlerContext, _loggerFactory, _c64HostConfig.InputConfig);
+        var inputHandler = new C64SilkNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig);
         var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
         return new SystemRunner(c64, renderer, inputHandler, audioHandler);

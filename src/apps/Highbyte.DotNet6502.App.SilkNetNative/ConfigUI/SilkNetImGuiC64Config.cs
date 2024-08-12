@@ -1,17 +1,24 @@
 using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
+using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative.ConfigUI;
 
 public class SilkNetImGuiC64Config
 {
+    private readonly SilkNetHostApp _silkNetHostApp;
     private readonly SilkNetImGuiMenu _mainMenu;
+    private C64Config _config;
+    private C64HostConfig _hostConfig;
 
-    private C64Config _config => (C64Config)_mainMenu.GetSelectedSystemConfig();
+    private int _selectedJoystickIndex;
+    private string[] _availableJoysticks = [];
 
-    private C64HostConfig _hostConfig => (C64HostConfig)_mainMenu.GetSelectedSystemHostConfig();
+    private bool _keyboardJoystickEnabled;
+    private int _keyboardJoystickIndex;
 
     private string? _romDirectory;
     private string? _kernalRomFile;
@@ -24,7 +31,7 @@ public class SilkNetImGuiC64Config
 
     private bool _open;
 
-    public bool IsValidConfig
+    private bool IsValidConfig
     {
         get
         {
@@ -46,13 +53,24 @@ public class SilkNetImGuiC64Config
     //private static Vector4 s_warningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
     private static Vector4 s_okButtonColor = new Vector4(0.0f, 0.6f, 0.0f, 1.0f);
 
-    public SilkNetImGuiC64Config(SilkNetImGuiMenu mainMenu)
+    public SilkNetImGuiC64Config(SilkNetHostApp silkNetHostApp, SilkNetImGuiMenu mainMenu)
     {
+        _silkNetHostApp = silkNetHostApp;
         _mainMenu = mainMenu;
     }
 
-    internal void Init()
+    internal void Init(C64Config c64Config, C64HostConfig c64HostConfig)
     {
+        _config = c64Config;
+        _hostConfig = c64HostConfig;
+
+        // Init ImGui variables bound to UI
+        _selectedJoystickIndex = _hostConfig.InputConfig.CurrentJoystick - 1;
+        _availableJoysticks = _hostConfig.InputConfig.AvailableJoysticks.Select(x => x.ToString()).ToArray();
+
+        _keyboardJoystickEnabled = _config.KeyboardJoystickEnabled;
+        _keyboardJoystickIndex = _config.KeyboardJoystick - 1;
+
         _romDirectory = _config.ROMDirectory;
         _kernalRomFile = _config.HasROM(C64Config.KERNAL_ROM_NAME) ? _config.GetROM(C64Config.KERNAL_ROM_NAME).File! : "";
         _basicRomFile = _config.HasROM(C64Config.KERNAL_ROM_NAME) ? _config.GetROM(C64Config.BASIC_ROM_NAME).File! : "";
@@ -112,9 +130,9 @@ public class SilkNetImGuiC64Config
             ImGui.Text("Joystick:");
             ImGui.SameLine();
             ImGui.PushItemWidth(35);
-            if (ImGui.Combo("##joystick", ref _mainMenu.C64SelectedJoystick, _mainMenu.C64AvailableJoysticks, _mainMenu.C64AvailableJoysticks.Length))
+            if (ImGui.Combo("##joystick", ref _selectedJoystickIndex, _availableJoysticks, _availableJoysticks.Length))
             {
-                _hostConfig.InputConfig.CurrentJoystick = _mainMenu.C64SelectedJoystick + 1;
+                _hostConfig.InputConfig.CurrentJoystick = _selectedJoystickIndex + 1;
             }
             ImGui.PopItemWidth();
 
@@ -126,14 +144,28 @@ public class SilkNetImGuiC64Config
             ImGui.EndDisabled();
 
             // Keyboard joystick
-            ImGui.Text($"Keyboard Joystick");
-            ImGui.SameLine();
-            ImGui.PushItemWidth(35);
-            if (ImGui.Combo("##keyboardJoystick", ref _mainMenu.C64KeyboardJoystick, _mainMenu.C64AvailableJoysticks, _mainMenu.C64AvailableJoysticks.Length))
+            if (ImGui.Checkbox("Keyboard Joystick", ref _keyboardJoystickEnabled))
             {
-                _config.KeyboardJoystick = _mainMenu.C64KeyboardJoystick + 1;
+                _config.KeyboardJoystickEnabled = _keyboardJoystickEnabled;
+
+                if (_silkNetHostApp.EmulatorState != EmulatorState.Uninitialized)
+                {
+                    // System is running, also update the system directly
+                    C64 c64 = (C64)_silkNetHostApp.CurrentRunningSystem;
+                    c64.Cia.Joystick.KeyboardJoystickEnabled = _keyboardJoystickEnabled;
+                }
+            }
+
+            ImGui.SameLine();
+            ImGui.BeginDisabled(!_keyboardJoystickEnabled);
+            ImGui.PushItemWidth(35);
+            if (ImGui.Combo("##keyboardJoystick", ref _keyboardJoystickIndex, _availableJoysticks, _availableJoysticks.Length))
+            {
+                _config.KeyboardJoystick = _keyboardJoystickIndex + 1;
             }
             ImGui.PopItemWidth();
+            ImGui.EndDisabled();
+
             var keyToJoystickMap = _config!.KeyboardJoystickMap;
             ImGui.BeginDisabled(disabled: true);
             foreach (var mapKey in keyToJoystickMap.GetMap(_config.KeyboardJoystick))
@@ -158,24 +190,26 @@ public class SilkNetImGuiC64Config
             }
 
             // Close buttons
-            if (ImGui.Button("Cancel"))
-            {
-                Debug.WriteLine("Cancel pressed");
-                ImGui.CloseCurrentPopup();
-                _mainMenu.RestoreOriginalConfigs();
-            }
-
-            ImGui.SameLine();
             ImGui.BeginDisabled(disabled: !IsValidConfig);
             ImGui.PushStyleColor(ImGuiCol.Button, s_okButtonColor);
             if (ImGui.Button("Ok"))
             {
                 Debug.WriteLine("Ok pressed");
+                _silkNetHostApp.UpdateSystemConfig(_config);
+                _silkNetHostApp.UpdateHostSystemConfig(_hostConfig);
+                _mainMenu.InitC64ImGuiWorkingVariables();
                 ImGui.CloseCurrentPopup();
-                _mainMenu.UpdateCurrentSystemConfig(_config, _hostConfig);
             }
             ImGui.PopStyleColor();
             ImGui.EndDisabled();
+
+            ImGui.SameLine();
+
+            if (ImGui.Button("Cancel"))
+            {
+                Debug.WriteLine("Cancel pressed");
+                ImGui.CloseCurrentPopup();
+            }
 
             ImGui.EndPopup();
         }
