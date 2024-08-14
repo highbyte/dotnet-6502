@@ -146,7 +146,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         //return screen;
         _sadConsoleScreen = new ScreenObject();
 
-        _menuConsole = new MenuConsole(this);
+        _menuConsole = new MenuConsole(this, _loggerFactory);
         _menuConsole.Position = (MENU_POSITION_X, MENU_POSITION_Y);
         _sadConsoleScreen.Children.Add(_menuConsole);
 
