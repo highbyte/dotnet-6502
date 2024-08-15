@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems;
+using static SadConsole.IFont;
 
 namespace Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 public abstract class SadConsoleHostSystemConfigBase : IHostSystemConfig, ICloneable
@@ -10,6 +11,14 @@ public abstract class SadConsoleHostSystemConfigBase : IHostSystemConfig, IClone
     /// </summary>
     /// <value></value>
     public string? Font { get; set; }
+
+    /// <summary>
+    /// Default font size for emulator console only. UI is not affected.
+    /// Sizes.One is default.
+    /// </summary>
+    /// <value></value>
+    public Sizes DefaultFontSize { get; set; }
+
 
     public SadConsoleHostSystemConfigBase()
     {

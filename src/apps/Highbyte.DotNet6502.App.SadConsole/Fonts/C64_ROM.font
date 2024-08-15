@@ -1,0 +1,9 @@
+{
+  "$type": "SadConsole.SadFont, SadConsole",
+  "FilePath": "c64_chargen_dump_combined.png",
+  "GlyphHeight": 8,
+  "GlyphPadding": 0,
+  "GlyphWidth": 8,
+  "Name": "C64_ROM",
+  "SolidGlyphIndex": 160
+}

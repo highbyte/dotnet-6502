@@ -4,9 +4,9 @@
 ; - Run in the DotNet6502 emulator.
 
 * = $c000
-blankCharachter = 32  ; 32 = C64 font space
-snakeCharacter = 160  ; 160 = C64 font inverted space
-appleCharacter = 64   ; 64 = C64 font  @ sign
+blankCharachter = 32  ; 32 = SadConsole default font space
+snakeCharacter = 160  ; 160 = SadConsole default font inverted space
+appleCharacter = 64   ; 64 = SadConsole default font @ sign
 screenMem = 0x0200    ; Start address of screen memory
 screenCols = 32       ; Note: Cannot change cols without modifying code
 screenRows = 32       ; Note: Cannot change rows without modifying code

@@ -35,7 +35,7 @@ public class C64MenuConsole : ControlsConsole
         DrawUIItems();
 
         if (SadConsoleUISettings.UI_USE_CONSOLE_BORDER)
-            Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.ConsoleDrawBoxBorderParameters);
+            Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.UIConsoleDrawBoxBorderParameters);
     }
 
 

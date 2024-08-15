@@ -174,7 +174,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
                 // Position monitor to the right of the emulator console
                 _monitorConsole.UsePixelPositioning = true;
                 // Note: _sadConsoleEmulatorConsole has already changed to UsePixelPositioning = true, so its Position.X is in pixels (not Width though).
-                var emulatorMaxX = _sadConsoleEmulatorConsole.Position.X + ((int)(_sadConsoleEmulatorConsole.Width * _sadConsoleEmulatorConsole.Font.GlyphWidth * _emulatorConfig.FontSizeScaleFactor));
+                var emulatorMaxX = _sadConsoleEmulatorConsole.Position.X + ((int)(_sadConsoleEmulatorConsole.Width * _sadConsoleEmulatorConsole.Font.GlyphWidth * CommonHostSystemConfig.DefaultFontSize.GetFontSizeScaleFactor()));
                 var infoConsoleMax = _infoConsole != null && _infoConsole.IsVisible ? _infoConsole.Position.X + _infoConsole.WidthPixels : 0;
                 _monitorConsole.Position = new Point(Math.Max(emulatorMaxX, infoConsoleMax), 0);
 
@@ -208,6 +208,9 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
     public override void OnAfterSelectSystem()
     {
+        // Set the default font size configured for the system
+        _menuConsole.SetEmulatorFontSize(CommonHostSystemConfig.DefaultFontSize);
+
         // Clear any old system specific menu console
         if (_systemMenuConsole != null)
         {
@@ -246,7 +249,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         {
             font = Game.Instance.DefaultFont;
         }
-        _sadConsoleEmulatorConsole = EmulatorConsole.Create(systemAboutToBeStarted, font, _emulatorConfig.FontSize, SadConsoleUISettings.ConsoleDrawBoxBorderParameters);
+        _sadConsoleEmulatorConsole = EmulatorConsole.Create(systemAboutToBeStarted, font, CommonHostSystemConfig.DefaultFontSize, SadConsoleUISettings.CreateEmulatorConsoleDrawBoxBorderParameters(font.SolidGlyphIndex));
         _sadConsoleEmulatorConsole.UsePixelPositioning = true;
         _sadConsoleEmulatorConsole.Position = new Point((_menuConsole.Position.X * _menuConsole.Font.GlyphWidth) + (_menuConsole.Width * _menuConsole.Font.GlyphWidth), 0);
         _sadConsoleEmulatorConsole.IsFocused = true;
@@ -424,23 +427,12 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             initialVolumePercent: 20);
     }
 
-    private SadConsoleHostSystemConfigBase CommonHostSystemConfig => (SadConsoleHostSystemConfigBase)CurrentHostSystemConfig;
+    public SadConsoleHostSystemConfigBase CommonHostSystemConfig => (SadConsoleHostSystemConfigBase)CurrentHostSystemConfig;
 
     private int CalculateWindowWidthPixels()
     {
-        int emulatorConsoleFontSizeAdjustment;
-        // TODO: This is a bit of a hack for handling consoles with different font sizes, and positioning on main screen. Better way?
-        if (_emulatorConfig.FontSizeScaleFactor > 1)
-        {
-            emulatorConsoleFontSizeAdjustment = (((int)_emulatorConfig.FontSizeScaleFactor - 1) * 16);
-        }
-        else
-        {
-            emulatorConsoleFontSizeAdjustment = 0;
-        }
-
         var menuConsoleWidthPixels = _menuConsole.WidthPixels;
-        var emulatorConsoleWidthPixels = Math.Max((_sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.WidthPixels + emulatorConsoleFontSizeAdjustment : 0)
+        var emulatorConsoleWidthPixels = Math.Max((_sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.WidthPixels : 0)
                                             , (_infoConsole != null && _infoConsole.IsVisible ? _infoConsole.WidthPixels : 0));
         var monitorConsoleWidthPixels = (_monitorConsole != null && _monitorConsole.IsVisible ? _monitorConsole.WidthPixels : 0);
         var widthPixels = menuConsoleWidthPixels + emulatorConsoleWidthPixels + monitorConsoleWidthPixels;

@@ -4,6 +4,8 @@ using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;
 using Microsoft.Extensions.Logging;
+using static SadConsole.IFont;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Highbyte.DotNet6502.App.SadConsole;
 public class MenuConsole : ControlsConsole
@@ -21,6 +23,10 @@ public class MenuConsole : ControlsConsole
         _sadConsoleHostApp = sadConsoleHostApp;
         _logger = loggerFactory.CreateLogger(typeof(MenuConsole).Name);
 
+        // The UI font is set as default during program SadConsole startup.
+        // Note: Not yet implemented changing of UI font and size. Currently it leads to issues in the layout.
+        //FontSize = Font.GetFontSize(_sadConsoleHostApp.EmulatorConfig.UIFontSize);
+
         Controls.ThemeColors = SadConsoleUISettings.ThemeColors;
         Surface.DefaultBackground = Controls.ThemeColors.ControlHostBackground;
         Surface.DefaultForeground = Controls.ThemeColors.ControlHostForeground;
@@ -34,7 +40,7 @@ public class MenuConsole : ControlsConsole
         DrawUIItems();
 
         if (SadConsoleUISettings.UI_USE_CONSOLE_BORDER)
-            Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.ConsoleDrawBoxBorderParameters);
+            Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.UIConsoleDrawBoxBorderParameters);
     }
 
     private void DrawUIItems()
@@ -154,9 +160,9 @@ public class MenuConsole : ControlsConsole
         {
             Position = (fontSizeLabel.Bounds.MaxExtentX + 2, fontSizeLabel.Position.Y),
             Name = "selectFontSizeComboBox",
-            SelectedItem = _sadConsoleHostApp.EmulatorConfig.FontSize,
+            SelectedItem = Sizes.One,   // Will be overritten by SetEmulatorFontSize when a system is selected
         };
-        selectFontSizeBox.SelectedItemChanged += (s, e) => { _sadConsoleHostApp.EmulatorConfig.FontSize = (IFont.Sizes)e.Item; IsDirty = true; };
+        selectFontSizeBox.SelectedItemChanged += (s, e) => { _sadConsoleHostApp.CommonHostSystemConfig.DefaultFontSize = (IFont.Sizes)e.Item; IsDirty = true; };
         Controls.Add(selectFontSizeBox);
 
         // Load Basic
@@ -288,5 +294,12 @@ public class MenuConsole : ControlsConsole
 
         if (_sadConsoleHostApp.SystemMenuConsole != null)
             _sadConsoleHostApp.SystemMenuConsole.IsDirty = true;
+    }
+
+    internal void SetEmulatorFontSize(IFont.Sizes defaultFontSize)
+    {
+        var selectFontSizeComboBox = Controls["selectFontSizeComboBox"] as ComboBox;
+        selectFontSizeComboBox.SelectedItem = defaultFontSize;
+        IsDirty = true;
     }
 }

@@ -5,6 +5,7 @@ public class GenericComputerHostConfig : SadConsoleHostSystemConfigBase
     public GenericComputerHostConfig()
     {
         Font = null;
+        DefaultFontSize = IFont.Sizes.One;
     }
 
     public new object Clone()
