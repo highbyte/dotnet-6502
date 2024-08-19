@@ -12,7 +12,7 @@ public class C64MenuConsole : ControlsConsole
     public const int CONSOLE_WIDTH = USABLE_WIDTH + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     public const int CONSOLE_HEIGHT = USABLE_HEIGHT + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     private const int USABLE_WIDTH = 21;
-    private const int USABLE_HEIGHT = 12;
+    private const int USABLE_HEIGHT = 10;
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
     private readonly ILogger _logger;
