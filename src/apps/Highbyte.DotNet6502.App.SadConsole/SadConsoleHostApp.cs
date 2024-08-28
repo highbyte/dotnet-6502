@@ -11,7 +11,6 @@ using SadConsole.Input;
 using SadRogue.Primitives;
 using Console = SadConsole.Console;
 
-
 namespace Highbyte.DotNet6502.App.SadConsole;
 
 /// <summary>
@@ -129,7 +128,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             .AddFrameRenderEvent(RenderSadConsole)
             ;
 
-        Settings.WindowTitle = _emulatorConfig.WindowTitle;
+        Settings.WindowTitle = "Highbyte.DotNet6502 emulator + SadConsole (with NAudio)";
         Settings.ResizeMode = Settings.WindowResizeOptions.None;
 
         // Start SadConsole window

@@ -11,8 +11,6 @@ public class EmulatorConfig
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.SadConsoleConfig";
 
-    public string WindowTitle { get; set; }
-
     /// <summary>
     /// Optional. Font used for the UI. If not specified, default SadConsole font is used.
     /// To use a specific  SadConsole Font, include it in your program output directory.
@@ -53,7 +51,6 @@ public class EmulatorConfig
 
     public EmulatorConfig()
     {
-        WindowTitle = "SadConsole + Highbyte.DotNet6502 emulator.";
         UIFont = null;
         UIFontSize = Sizes.One;
         DefaultEmulator = "C64";

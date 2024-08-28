@@ -6,6 +6,7 @@ using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Logging;
+using Silk.NET.Core;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;
 
@@ -115,6 +116,8 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     {
         SetUninitializedWindow();
 
+        SetIcon();
+
         _renderContextContainer = CreateRenderContext();
         _inputHandlerContext = CreateInputHandlerContext();
         _audioHandlerContext = CreateAudioHandlerContext();
@@ -141,6 +144,13 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         _imGuiWindows.Add(_statsPanel);
         _imGuiWindows.Add(_monitor);
         _imGuiWindows.Add(_logsPanel);
+    }
+
+    private void SetIcon()
+    {
+        //RawImage icon = SilkNetImageLoader.ReadFileAsRawImage("../../../../../../resources/images/favicon.ico");
+        RawImage icon = SilkNetImageLoader.ReadFileAsRawImage("Highbyte.DotNet6502.App.SilkNetNative.Resources.Images.favicon.ico", isEmbeddedResource: true);
+        _window.SetWindowIcon(ref icon);
     }
 
     protected void OnClosing()
