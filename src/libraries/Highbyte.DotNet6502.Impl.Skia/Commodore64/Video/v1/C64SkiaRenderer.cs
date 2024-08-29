@@ -516,7 +516,9 @@ public class C64SkiaRenderer : IRenderer
             var imageDest = new SKRect(spriteCanvasX, spriteCanvasY, spriteCanvasX + spriteWidth, spriteCanvasY + spriteHeight);
 
             if (sprite.Multicolor)
+            {
                 canvas.DrawImage(spriteImage, imageDest);
+            }
             else
             {
                 var paint = _c64SkiaPaint.GetDrawSpritePaint(sprite.Color);

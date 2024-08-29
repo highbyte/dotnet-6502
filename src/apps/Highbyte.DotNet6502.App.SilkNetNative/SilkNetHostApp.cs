@@ -1,3 +1,5 @@
+using System.IO;
+using System.Reflection;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SilkNet;
@@ -38,7 +40,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         get { return _emulatorConfig.CurrentDrawScale; }
         set { _emulatorConfig.CurrentDrawScale = value; }
     }
-    public const int DEFAULT_WIDTH = 1000;
+    public const int DEFAULT_WIDTH = 1100;
     public const int DEFAULT_HEIGHT = 700;
     public const int DEFAULT_RENDER_HZ = 60;
 
@@ -66,6 +68,10 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     // GL and other ImGui resources
     private GL _gl = default!;
     private ImGuiController _imGuiController = default!;
+
+    private SKImage _logoImage;
+    private SKRect _logoImageDest;
+    private SkiaRenderContext _logoSkiaRenderContext;
 
     /// <summary>
     /// Constructor
@@ -117,6 +123,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         SetUninitializedWindow();
 
         SetIcon();
+        InitLogo();
 
         _renderContextContainer = CreateRenderContext();
         _inputHandlerContext = CreateInputHandlerContext();
@@ -269,6 +276,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
                 _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
         }
     }
+
     public override void OnAfterDrawFrame(bool emulatorRendered)
     {
         if (emulatorRendered)
@@ -284,21 +292,31 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
             if (_statsPanel.Visible)
                 _statsPanel.PostOnRender();
         }
+        else
+        {
+            // If emulator was not rendered, draw logo
+            DrawLogo();
+
+            // Flush the SkiaSharp Context
+            _renderContextContainer.SkiaRenderContext.GetGRContext().Flush();
+        }
 
         // Render logs if enabled, regardless of if emulator was rendered or not
         if (_logsPanel.Visible)
             _logsPanel.PostOnRender();
 
+        // Note: This check !emulatorRendered not needed if logo is drawn when emulator is not running (see above)
         // If emulator was not rendered, clear Gl buffer before rendering ImGui windows
-        if (!emulatorRendered)
-        {
-            if (_menu.Visible)
-                _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
-            // Seems the canvas has to be drawn & flushed for ImGui stuff to be visible on top
-            var canvas = _renderContextContainer.SkiaRenderContext.GetCanvas();
-            canvas.Clear();
-            _renderContextContainer.SkiaRenderContext.GetGRContext().Flush();
-        }
+        //if (!emulatorRendered)
+        //{
+        //    if (_menu.Visible)
+        //        _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+
+        //    //Seems the canvas has to be drawn & flushed for ImGui stuff to be visible on top
+        //    var canvas = _renderContextContainer.SkiaRenderContext.GetCanvas();
+        //    canvas.Clear();
+        //    _renderContextContainer.SkiaRenderContext.GetGRContext().Flush();
+        //}
 
         if (_menu.Visible)
             _menu.PostOnRender();
@@ -520,4 +538,40 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         }
     }
 
+
+    private void InitLogo()
+    {
+        //string logoFile = "Resources/Images/Logo.png";
+        //_logoImage = SKImage.FromEncodedData(logoFile);
+
+        string logoResourcePath = "Highbyte.DotNet6502.App.SilkNetNative.Resources.Images.logo.png";
+        Assembly assembly = Assembly.GetExecutingAssembly();
+        using (Stream? resourceStream = assembly.GetManifestResourceStream(logoResourcePath))
+        {
+            if (resourceStream == null)
+                throw new Exception($"Cannot open stream to resource {logoResourcePath} in current assembly.");
+            _logoImage = SKImage.FromEncodedData(resourceStream);
+        }
+
+        float logo_width = 256;
+        float logo_height = 256;
+        float logo_x = DEFAULT_WIDTH / 2 - logo_width / 2;
+        float logo_y = DEFAULT_HEIGHT / 2 - logo_height / 2;
+
+        var scale = _emulatorConfig.CurrentDrawScale;
+
+        var left = logo_x / scale;
+        var top = logo_y / scale;
+        var right = left + (logo_width / scale);
+        var bottom = top + (logo_height / scale);
+
+        _logoImageDest = new SKRect(left, top, right, bottom);
+    }
+
+    private void DrawLogo()
+    {
+        var canvas = _renderContextContainer.SkiaRenderContext.GetCanvas();
+        canvas.Clear();
+        canvas.DrawImage(_logoImage, _logoImageDest);
+    }
 }

@@ -8,6 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="..\..\..\resources\images\logo.png" Link="Resources\Images\logo.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="..\..\..\resources\images\favicon.ico" Link="Resources\Images\favicon.ico" />
   </ItemGroup>
 

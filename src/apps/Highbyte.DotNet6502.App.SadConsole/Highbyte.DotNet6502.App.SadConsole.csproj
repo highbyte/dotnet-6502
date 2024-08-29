@@ -13,6 +13,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\..\..\resources\images\logo-256.png" Link="Resources\Images\logo-256.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="favicon.ico" />
   </ItemGroup>
 
@@ -42,5 +48,8 @@
 	<None Update="Fonts\*.*">
 	  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	</None>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Resources\Images\" />
   </ItemGroup>
 </Project>

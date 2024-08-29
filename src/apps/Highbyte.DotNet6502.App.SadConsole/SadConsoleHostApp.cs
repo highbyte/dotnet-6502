@@ -6,6 +6,7 @@ using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Logging;
+using SadConsole.Components;
 using SadConsole.Configuration;
 using SadConsole.Input;
 using SadRogue.Primitives;
@@ -59,7 +60,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     private const int MENU_POSITION_X = 0;
     private const int MENU_POSITION_Y = 0;
 
-    private int StartupScreenWidth => MenuConsole.CONSOLE_WIDTH + 40;
+    private int StartupScreenWidth => MenuConsole.CONSOLE_WIDTH + 60;
     private int StartupScreenHeight => MenuConsole.CONSOLE_HEIGHT + 14;
 
     private const int STATS_UPDATE_EVERY_X_FRAME = 60 * 1;
@@ -67,6 +68,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
     private const int LOGS_UPDATE_EVERY_X_FRAME = 60 * 1;
     private int _logsFrameCount = 0;
+    private DrawImage _logoDrawImage;
 
 
     /// <summary>
@@ -195,6 +197,16 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         };
         _sadConsoleScreen.Children.Add(_monitorConsole);
 
+        // Logo
+        int logoWidthAndHeight = 256; // Pixels
+        _logoDrawImage = new DrawImage("Resources/Images/logo-256.png");
+        _logoDrawImage.PositionMode = DrawImage.PositionModes.Pixels;
+        //var logoX = (MenuConsole.CONSOLE_WIDTH * _menuConsole.Font.GlyphWidth) + ((StartupScreenWidth - MenuConsole.CONSOLE_WIDTH) * _menuConsole.Font.GlyphWidth - logoWidthAndHeight) / 2;
+        //var logoY = ((MenuConsole.CONSOLE_HEIGHT * _menuConsole.Font.GlyphHeight) - logoWidthAndHeight) / 2;
+        var logoX = (MenuConsole.CONSOLE_WIDTH * _menuConsole.Font.GlyphWidth) + 10;
+        var logoY = 10;
+        _logoDrawImage.PositionOffset = new Point(logoX, logoY);
+        _sadConsoleScreen.SadComponents.Add(_logoDrawImage);
 
         //_sadConsoleScreen.IsFocused = true;
         _menuConsole.IsFocused = true;
@@ -496,6 +508,10 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         if (CurrentRunningSystem != null)
             CurrentRunningSystem!.InstrumentationEnabled = false;
 
+        // Enable logo when info console is disabled (as it shouldn't be covered by the info console)
+        if (!_sadConsoleScreen.SadComponents.Contains(_logoDrawImage))
+            _sadConsoleScreen.SadComponents.Add(_logoDrawImage);
+
         // Resize main window to fit menu, emulator, monitor and other visible consoles
         Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
         //OnStatsStateChange(statsEnabled: false);
@@ -524,6 +540,10 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
         // Resize main window to fit menu, emulator, monitor and other visible consoles
         Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
+
+        // Remove logo when info console is enabled (as it may partially cover the logo)
+        if (_sadConsoleScreen.SadComponents.Contains(_logoDrawImage))
+            _sadConsoleScreen.SadComponents.Remove(_logoDrawImage);
 
         //OnStatsStateChange(statsEnabled: true);
     }
