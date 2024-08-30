@@ -17,7 +17,7 @@
 [![SonarCloud Coverage](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=coverage)](https://sonarcloud.io/component_measures?id=highbyte_dotnet-6502&metric=coverage&view=list)
 [![.NET](https://github.com/highbyte/dotnet-6502/actions/workflows/dotnet.yml/badge.svg)](https://github.com/highbyte/dotnet-6502/actions/workflows/dotnet.yml)
 [![CodeQL](https://github.com/highbyte/dotnet-6502/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/highbyte/dotnet-6502/actions/workflows/codeql-analysis.yml)
-[![NuGet Version](https://img.shields.io/nuget/v/Highbyte.DotNet6502)](#)
+[![NuGet Version](https://img.shields.io/nuget/v/Highbyte.DotNet6502)](https://www.nuget.org/packages/Highbyte.DotNet6502/)
 [![GitHub Release](https://img.shields.io/github/v/release/highbyte/dotnet-6502?include_prereleases)](#)
 [![GitHub Release Date](https://img.shields.io/github/release-date-pre/highbyte/dotnet-6502)](#)
 [![GitHub last commit](https://img.shields.io/github/last-commit/highbyte/dotnet-6502)](#)
