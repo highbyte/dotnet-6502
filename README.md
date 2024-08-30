@@ -5,13 +5,23 @@
   A <a href="[src/Test.java](https://en.wikipedia.org/wiki/MOS_Technology_6502)">6502 CPU</a> emulator for .NET
 </h2>
 
-| | |
-| ------------- | ------------- |
-| SonarCloud: `Highbyte.DotNet6502` library  | [![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=alert_status)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Security Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=security_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=vulnerabilities)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=VULNERABILITY) [![SonarCloud Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Bugs](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=bugs)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=BUG) [![SonarCloud Coverage](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=coverage)](https://sonarcloud.io/component_measures?id=highbyte_dotnet-6502&metric=coverage&view=list) |
-| Overall/CodeQL:                         | [![.NET](https://github.com/highbyte/dotnet-6502/actions/workflows/dotnet.yml/badge.svg)](https://github.com/highbyte/dotnet-6502/actions/workflows/dotnet.yml) [![CodeQL](https://github.com/highbyte/dotnet-6502/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/highbyte/dotnet-6502/actions/workflows/codeql-analysis.yml) |
-
----
-
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](doc/DEVELOP.md)
+[![language](https://img.shields.io/badge/language-C%23-239120)](doc/DEVELOP.md)
+[![OS](https://img.shields.io/badge/OS-windows%2C%20macOS%2C%20linux-0078D4)](doc/DEVELOP.md)
+[![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?logo=webassembly&logoColor=fff)](#)
+[![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=alert_status)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502)
+[![SonarCloud Security Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=security_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502)
+[![SonarCloud Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=vulnerabilities)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=VULNERABILITY)
+[![SonarCloud Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502)
+[![SonarCloud Bugs](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=bugs)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=BUG)
+[![SonarCloud Coverage](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=coverage)](https://sonarcloud.io/component_measures?id=highbyte_dotnet-6502&metric=coverage&view=list)
+[![.NET](https://github.com/highbyte/dotnet-6502/actions/workflows/dotnet.yml/badge.svg)](https://github.com/highbyte/dotnet-6502/actions/workflows/dotnet.yml)
+[![CodeQL](https://github.com/highbyte/dotnet-6502/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/highbyte/dotnet-6502/actions/workflows/codeql-analysis.yml)
+[![NuGet Version](https://img.shields.io/nuget/v/Highbyte.DotNet6502)](#)
+[![GitHub Release](https://img.shields.io/github/v/release/highbyte/dotnet-6502?include_prereleases)](#)
+[![GitHub Release Date](https://img.shields.io/github/release-date-pre/highbyte/dotnet-6502)](#)
+[![GitHub last commit](https://img.shields.io/github/last-commit/highbyte/dotnet-6502)](#)
+[![GitHub License](https://img.shields.io/github/license/highbyte/dotnet-6502)](LICENSE)
 
 [<img align="top" src="doc/Screenshots/WASM_C64_LastNinja.png" width="25%" height="25%" title="Blazor WebAssembly app"/>](https://highbyte.se/dotnet-6502/app) <img align="top" src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" width="25%" height="25%" title="SilkNet native app" /> <img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SadConsole native app" />
 
@@ -96,6 +106,7 @@ A console application with a only UI being a machine code monitor.
 > [!IMPORTANT]
 > - Correct emulation of all aspects of computers such as Commodore 64 is not likely.
 > - Not the fastest emulator.
+> - Code coverage is currently limited to the core [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) library.
 
 Missing features (but not limited to):
 - 6502 CPU
