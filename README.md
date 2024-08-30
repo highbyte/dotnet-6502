@@ -30,7 +30,7 @@
 .NET cross platform libraries and applications for executing 6502 CPU machine code, and emulating specific computer systems in different UI contexts. Links below for details on each library/app.
 
 > [!IMPORTANT]
-> This is mainly a programming exercise, that may or may not turn into something more. See [Limitations](#limitations.md) below.
+> This is mainly a programming exercise, that may or may not turn into something more. See [Limitations](#limitations) below.
 
 ## Common libraries
 - [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) 
@@ -106,13 +106,14 @@ A console application with a only UI being a machine code monitor.
 > [!IMPORTANT]
 > - Correct emulation of all aspects of computers such as Commodore 64 is not likely.
 > - Not the fastest emulator.
+> - A real Commodore 64 uses the _6510_ CPU and not the 6502 CPU. But for the purpose of this emulator the 6502 CPU works fine as they are generally the same (same instruction set).
 > - Code coverage is currently limited to the core [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) library.
 
 Missing features (but not limited to):
 - 6502 CPU
   - Support for unofficial opcodes.
 - Systems
-  - C64: cycle-exact rendering, disk/tape drive support, accurate/stable audio, etc.
+  - Commodore 64: cycle-exact rendering, disk/tape drive support, accurate/stable audio, etc.
 
 # How to develop
 See [here](doc/DEVELOP.md)
