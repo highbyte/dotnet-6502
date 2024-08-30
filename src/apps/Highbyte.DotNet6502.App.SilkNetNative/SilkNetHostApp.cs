@@ -1,4 +1,3 @@
-using System.IO;
 using System.Reflection;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
