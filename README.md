@@ -13,9 +13,7 @@
 ---
 
 
-[<img align="top" src="doc/Screenshots/WASM_C64_LastNinja.png" width="25%" height="25%" title="Blazor WebAssembly app"/>](https://highbyte.se/dotnet-6502/app)
-<img align="top" src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" width="25%" height="25%" title="SilkNet native app" />
-<img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SadConsole native app" />
+[<img align="top" src="doc/Screenshots/WASM_C64_LastNinja.png" width="25%" height="25%" title="Blazor WebAssembly app"/>](https://highbyte.se/dotnet-6502/app) <img align="top" src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" width="25%" height="25%" title="SilkNet native app" /> <img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SadConsole native app" />
 
 # Overview / purpose
 
