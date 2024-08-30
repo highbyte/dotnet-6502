@@ -1,7 +1,9 @@
-<center><img align="top" src="resources/images/logo.png" width="5%" height="5%" title="DotNet 6502 logo"></center>
-
-# <center>A [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) emulator for .NET</center>
-
+<p align="center">
+  <img src="resources/images/logo.png" width="5%" height="5%" title="DotNet 6502 logo">
+</p>
+<h2 align="center"> 
+  A <a href="[src/Test.java](https://en.wikipedia.org/wiki/MOS_Technology_6502)">6502 CPU</a> emulator for .NET
+</h2>
 
 | | |
 | ------------- | ------------- |
@@ -12,15 +14,15 @@
 
 
 [<img align="top" src="doc/Screenshots/WASM_C64_LastNinja.png" width="25%" height="25%" title="Blazor WebAssembly app"/>](https://highbyte.se/dotnet-6502/app)
-<img align="top" src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" width="25%" height="25%" title="SilkNet native app">
-<img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SadConsole native app">
+<img align="top" src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" width="25%" height="25%" title="SilkNet native app" />
+<img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SadConsole native app" />
 
 # Overview / purpose
 
 .NET cross platform libraries and applications for executing 6502 CPU machine code, and emulating specific computer systems in different UI contexts. Links below for details on each library/app.
 
 > [!IMPORTANT]
-> This is mainly a programming exercise, that may or may not turn into something more.
+> This is mainly a programming exercise, that may or may not turn into something more. See [Limitations](#limitations.md) below.
 
 ## Common libraries
 - [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) 
@@ -64,8 +66,7 @@ A [`ASP.NET Blazor`](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/bla
   - Input: `Highbyte.DotNet6502.Impl.AspNet` 
   - Audio: `Highbyte.DotNet6502.Impl.AspNet`
 
-<img align="top" src="doc/Screenshots/WASM_C64_Basic.png" width="25%" height="25%" title="SilkNet native app">  
-<img align="top" src="doc/Screenshots/WASM_C64_Monitor.png" width="38%" height="38%" title="SilkNet native app">  
+<img align="top" src="doc/Screenshots/WASM_C64_Basic.png" width="25%" height="25%" title="SilkNet native app" /> <img align="top" src="doc/Screenshots/WASM_C64_Monitor.png" width="38%" height="38%" title="SilkNet native app" />  
 
 
 ### [`Highbyte.DotNet6502.App.SilkNetNative`](doc/APPS_SILKNET_NATIVE.md)
@@ -74,8 +75,7 @@ A [Silk.NET](https://github.com/dotnet/Silk.NET) native UI.
   - Input: `Highbyte.DotNet6502.Impl.SilkNet` 
   - Audio: `Highbyte.DotNet6502.Impl.NAudio` 
 
-<img align="top" src="doc/Screenshots/SilkNetNative_C64_raster_scroll.png" width="25%" height="25%" title="SilkNet native app">  
-<img align="top" src="doc/Screenshots/SilkNetNative_Monitor.png" width="25%" height="25%" title="SilkNet native app">  
+<img align="top" src="doc/Screenshots/SilkNetNative_C64_raster_scroll.png" width="25%" height="25%" title="SilkNet native app" /> <img align="top" src="doc/Screenshots/SilkNetNative_Monitor.png" width="25%" height="25%" title="SilkNet native app" />  
 
 ### [`Highbyte.DotNet6502.App.SadConsole`](doc/APPS_SADCONSOLE.md)
 A [`SadConsole`](https://github.com/Thraka/SadConsole) (a ascii/console/game engine) native UI.
@@ -83,8 +83,7 @@ A [`SadConsole`](https://github.com/Thraka/SadConsole) (a ascii/console/game eng
   - Input: `Highbyte.DotNet6502.Impl.SadConsole` 
   - Audio: `Highbyte.DotNet6502.Impl.NAudio` 
 
-<img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SilkNet native app">  
-<img align="top" src="doc/Screenshots/SadConsole_C64_Monitor.png" width="25%" height="25%" title="SilkNet native app">  
+<img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SilkNet native app" /> <img align="top" src="doc/Screenshots/SadConsole_C64_Monitor.png" width="25%" height="25%" title="SilkNet native app" />  
 
 
 ### [`Highbyte.DotNet6502.App.ConsoleMonitor`](doc/APPS_CONSOLE_MONITOR.md)
@@ -93,7 +92,7 @@ A console application with a only UI being a machine code monitor.
   - Input: standard .NET console
   - Audio: none
 
-<img align="top" src="doc/Screenshots/ConsoleMonitor.png" width="25%" height="25%" title="SilkNet native app">  
+<img align="top" src="doc/Screenshots/ConsoleMonitor.png" width="25%" height="25%" title="SilkNet native app" /> 
 
 # Limitations
 > [!IMPORTANT]
