@@ -18,10 +18,10 @@ dotnet add package Highbyte.DotNet6502 --prerelease
 ```
 
 ## Or compile .dll yourself
-- Clone this repo ```git clone https://github.com/highbyte/dotnet-6502.git```
-- Change dir to library ```cd dotnet-6502/src/libraries/Highbyte.DotNet6502```
-- Build library ```dotnet build```
-- In your app, add .dll reference to ```./bin/Debug/net8.0/Highbyte.DotNet6502.dll```
+- Clone this repo `git clone https://github.com/highbyte/dotnet-6502.git`
+- Change dir to library `cd dotnet-6502/src/libraries/Highbyte.DotNet6502`
+- Build library `dotnet build`
+- In your app, add .dll reference to `./bin/Debug/net8.0/Highbyte.DotNet6502.dll`
 
 ## Example of basic usage of Highbyte.DotNet6502 library
 
@@ -113,7 +113,7 @@ Result: (12 + 30) / 2 = 21
 ```
 
 ## Model for bank switching
-The 6502 CPU supports max 64KB of total memory (16 bit address space). To enable more memory to be used, a type of "bank switching" is supported in the memory implementation. X number of memory configurations can be created, and each populated with byte[] arrays for separate locations within the 64KB space. Switching between the different memory layouts is as easy as calling ```memory.SetMemoryConfiguration(x)```.
+The 6502 CPU supports max 64KB of total memory (16 bit address space). To enable more memory to be used, a type of "bank switching" is supported in the memory implementation. X number of memory configurations can be created, and each populated with byte[] arrays for separate locations within the 64KB space. Switching between the different memory layouts is as easy as calling `memory.SetMemoryConfiguration(x)`.
 
 TODO: more details
 

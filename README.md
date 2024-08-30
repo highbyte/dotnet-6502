@@ -1,115 +1,116 @@
-<h1 align="center">dotnet-6502</h1>
+<center><img align="top" src="resources/images/logo.png" width="5%" height="5%" title="DotNet 6502 logo"></center>
+
+# <center>A [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) emulator for .NET</center>
+
 
 | | |
 | ------------- | ------------- |
-| SonarCloud: ```Highbyte.DotNet6502``` library  | [![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=alert_status)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Security Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=security_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=vulnerabilities)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=VULNERABILITY) [![SonarCloud Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Bugs](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=bugs)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=BUG) [![SonarCloud Coverage](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=coverage)](https://sonarcloud.io/component_measures?id=highbyte_dotnet-6502&metric=coverage&view=list) |
+| SonarCloud: `Highbyte.DotNet6502` library  | [![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=alert_status)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Security Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=security_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=vulnerabilities)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=VULNERABILITY) [![SonarCloud Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=highbyte_dotnet-6502) [![SonarCloud Bugs](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=bugs)](https://sonarcloud.io/project/issues?id=highbyte_dotnet-6502&resolved=false&types=BUG) [![SonarCloud Coverage](https://sonarcloud.io/api/project_badges/measure?project=highbyte_dotnet-6502&metric=coverage)](https://sonarcloud.io/component_measures?id=highbyte_dotnet-6502&metric=coverage&view=list) |
 | Overall/CodeQL:                         | [![.NET](https://github.com/highbyte/dotnet-6502/actions/workflows/dotnet.yml/badge.svg)](https://github.com/highbyte/dotnet-6502/actions/workflows/dotnet.yml) [![CodeQL](https://github.com/highbyte/dotnet-6502/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/highbyte/dotnet-6502/actions/workflows/codeql-analysis.yml) |
 
 ---
 
-## A [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) emulator for .NET
 
-[<img align="top" src="doc/Screenshots/WASM_C64.png" width="50%" height="50%" title="SkiaSharp rendering in a Blazor WASM browser host"/>](https://highbyte.se/dotnet-6502/app)<img align="top" src="doc/Screenshots/SilkNetNative_Monitor.png" width="50%" height="50%" title="SkiaSharp rendering in a native SkiaSharp/Silk.NET host">
+[<img align="top" src="doc/Screenshots/WASM_C64_LastNinja.png" width="25%" height="25%" title="Blazor WebAssembly app"/>](https://highbyte.se/dotnet-6502/app)
+<img align="top" src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" width="25%" height="25%" title="SilkNet native app">
+<img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SadConsole native app">
 
 # Overview / purpose
 
-- A collection of .NET cross platform libraries and applications for executing 6502 CPU machine code in different contexts. Links below for details on each library/app.
+.NET cross platform libraries and applications for executing 6502 CPU machine code, and emulating specific computer systems in different UI contexts. Links below for details on each library/app.
 
-- **_A programming exercise, that may or may not turn into something more_**
+> [!IMPORTANT]
+> This is mainly a programming exercise, that may or may not turn into something more.
 
-- A main library [```Highbyte.DotNet6502```](doc/CPU_LIBRARY.md) for executing 6502 machine code, not bound to any specific computer, and does not have any UI code.
+## Common libraries
+- [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) 
+  - Core library for executing 6502 machine code, not bound to any specific emulated system/computer, and does not have any UI or I/O code.
+- [`Highbyte.DotNet6502.Monitor`](doc/MONITOR.md)
+  - Machine code monitor library used as a base for host apps using the `Highbyte.DotNet6502` library.
+- [`Highbyte.DotNet6502.Systems`](doc/SYSTEMS.md)
+  - Library for common interfaces and implementations for running computers ("systems") that uses the `Highbyte.DotNet6502` library.
 
-- A machine code monitor library [```Highbyte.DotNet6502.Monitor```](doc/MONITOR.md) used as a base for specific UI implementations.
+## System/computer-specific libraries
+Contains core system/computer emulation logic, but with no UI or I/O dependencies.
+Implements abstractions in `Highbyte.DotNet6502.Systems`.
+- [`Highbyte.DotNet6502.Systems.Commodore64`](doc/SYSTEMS_C64.md) 
+  - Logic for emulating a Commodore 64 (C64).
+  - Runs C64 ROMs (Kernel, Basic, Chargen).
+  - List of apps/games listed that's been tested to work [here](doc/SYSTEMS_C64_COMPATIBLE_PRG.md) (and how to load them).
 
-- A library [```Highbyte.DotNet6502.Systems```](doc/SYSTEMS.md) containing implementations of specific computers ("Systems") that runs on a 6502 CPU.
+- [`Highbyte.DotNet6502.Systems.Generic`](doc/SYSTEMS_GENERIC.md) 
+  - Logic for emulating a generic computer based on 6502 CPU.
 
-- Several libraries [```Highbyte.DotNet6502.Impl.*```](doc/RENDER_INPUT_AUDIO.md) that implements rendering, input handling, and audio using different technologies (such as Skia, Blazor, SadConsole) per emulated System.
+## System-specific libraries for I/O
+Implements rendering, input handling, and audio using different technologies per emulated system/computer. Implements abstractions in `Highbyte.DotNet6502.Systems`. These libraries are used from relevant UI host apps (see below).
+- [`Highbyte.DotNet6502.Impl.AspNet`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implaspnet)
+  - System-specific input and audio code for AspNet Blazor `WASM` app.
+- [`Highbyte.DotNet6502.Impl.NAudio`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implnaudio) 
+  - System-specific audio code for NAudio for use in native `SilkNetNative` and `SadConsole` apps.
+- [`Highbyte.DotNet6502.Impl.SadConsole`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implsadconsole) 
+  - System-specific rendering and input code for `SadConsole` native app.
+- [`Highbyte.DotNet6502.Impl.SilkNet`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implsilknet) 
+  - System-specific rendering (OpenGL shaders) for use in native `SilkNetNative` app.
+- [`Highbyte.DotNet6502.Impl.Skia`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implskia)
+  - System-specific rendering with SkiaSharp for use in native `SilkNetNative` and Blazor `WASM` apps.
 
-- Several UI applications [```Highbyte.DotNet6502.Apps.*```](doc/APPS.md) that are the hosts for emulating the Systems above and their different rendering techniques.
+## UI host apps that runs emulators
+UI host apps for emulating the systems/computers above, using different I/O techniques (rendering, input, audio).
 
-# What's currently missing
+### [`Highbyte.DotNet6502.App.WASM`](doc/APPS_WASM.md)
+
+A [`ASP.NET Blazor`](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor) WebAssembly UI.
+  - Rendering: `Highbyte.DotNet6502.Impl.Skia`
+  - Input: `Highbyte.DotNet6502.Impl.AspNet` 
+  - Audio: `Highbyte.DotNet6502.Impl.AspNet`
+
+<img align="top" src="doc/Screenshots/WASM_C64_Basic.png" width="25%" height="25%" title="SilkNet native app">  
+<img align="top" src="doc/Screenshots/WASM_C64_Monitor.png" width="38%" height="38%" title="SilkNet native app">  
+
+
+### [`Highbyte.DotNet6502.App.SilkNetNative`](doc/APPS_SILKNET_NATIVE.md)
+A [Silk.NET](https://github.com/dotnet/Silk.NET) native UI.
+  - Rendering: `Highbyte.DotNet6502.Impl.Skia` or `Highbyte.DotNet6502.Impl.SilkNet`
+  - Input: `Highbyte.DotNet6502.Impl.SilkNet` 
+  - Audio: `Highbyte.DotNet6502.Impl.NAudio` 
+
+<img align="top" src="doc/Screenshots/SilkNetNative_C64_raster_scroll.png" width="25%" height="25%" title="SilkNet native app">  
+<img align="top" src="doc/Screenshots/SilkNetNative_Monitor.png" width="25%" height="25%" title="SilkNet native app">  
+
+### [`Highbyte.DotNet6502.App.SadConsole`](doc/APPS_SADCONSOLE.md)
+A [`SadConsole`](https://github.com/Thraka/SadConsole) (a ascii/console/game engine) native UI.
+  - Rendering: `Highbyte.DotNet6502.Impl.SadConsole`
+  - Input: `Highbyte.DotNet6502.Impl.SadConsole` 
+  - Audio: `Highbyte.DotNet6502.Impl.NAudio` 
+
+<img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SilkNet native app">  
+<img align="top" src="doc/Screenshots/SadConsole_C64_Monitor.png" width="25%" height="25%" title="SilkNet native app">  
+
+
+### [`Highbyte.DotNet6502.App.ConsoleMonitor`](doc/APPS_CONSOLE_MONITOR.md)
+A console application with a only UI being a machine code monitor.
+  - Rendering: standard .NET console
+  - Input: standard .NET console
+  - Audio: none
+
+<img align="top" src="doc/Screenshots/ConsoleMonitor.png" width="25%" height="25%" title="SilkNet native app">  
+
+# Limitations
+> [!IMPORTANT]
+> - Correct emulation of all aspects of computers such as Commodore 64 is not likely.
+> - Not the fastest emulator.
+
 Missing features (but not limited to):
 - 6502 CPU
-  - Support for unofficial opcodes
+  - Support for unofficial opcodes.
 - Systems
-  - C64: cycle-exact rendering, bitmap graphics mode renderer in Blazor WASM, etc.
-
-# What this isn't (and probably never will be)
-- An emulation of all aspects of computers such as Apple II or Commodore 64.
-- The fastest emulator.
+  - C64: cycle-exact rendering, disk/tape drive support, accurate/stable audio, etc.
 
 # How to develop
-For requirements and local development setup, see [here](doc/DEVELOP.md)
+See [here](doc/DEVELOP.md)
 
-# Inspiration, references & resources
+# References 
+See [here](doc/REFERENCES_AND_INSPIRATION.md).
 
-## 6502 CPU Emulator in C++ video
-- https://www.youtube.com/playlist?list=PLLwK93hM93Z13TRzPx9JqTIn33feefl37
-
-## 6502 CPU references
-- http://www.obelisk.me.uk/6502/index.html
-- https://www.atariarchives.org/alp/appendix_1.php
-- http://www.6502.org/tutorials/compare_beyond.html
-- https://www.c64-wiki.com/wiki/BRK
-- http://www.emulator101.com/6502-addressing-modes.html
-- https://www.pagetable.com/?p=410
-- http://6502.org/tutorials/decimal_mode.html
-
-## C64 specific references
-- https://www.c64-wiki.com/wiki/Reset_(Process)
-- https://www.c64-wiki.com/wiki/Bank_Switching
-- https://www.pagetable.com/c64ref/c64mem/
-- https://sta.c64.org/cbm64mem.html
-- https://github.com/mist64/c64ref/blob/master/Source/c64io/c64io_mapc64.txt
-- https://www.c64-wiki.com/wiki/PETSCII_Codes_in_Listings
-- https://dustlayer.com/c64-architecture/2013/5/7/hardware-basics-part-1-tick-tock-know-your-clock
-- https://dustlayer.com/vic-ii/2013/4/22/when-visibility-matters
-- https://dustlayer.com/vic-ii/2013/4/25/vic-ii-for-beginners-beyond-the-screen-rasters-cycle
-- https://www.zimmers.net/cbmpics/cbm/c64/vic-ii.txt
-- https://www.c64-wiki.com/wiki/Raster_interrupt
-- https://codebase64.org/doku.php?id=base:detect_pal_ntsc
-- https://www.lemon64.com/forum/viewtopic.php?p=667448#p667448
-- https://www.c64-wiki.com/wiki/ADSR
-- https://www.atarimagazines.com/compute/issue49/424_1_Programming_64_Sound.php
-- https://celso.io/retrocomputing/2019/12/23/c64-assembly
-
-
-## WebAudio
-- https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
-- https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques
-- https://github.com/pendragon-andyh/WebAudio-PulseOscillator
-- https://github.com/KristofferStrube/Blazor.WebAudio
-- https://ui.dev/web-audio-api
-- https://codepen.io/2kool2/pen/xrLeMq
-- https://dev.opera.com/articles/drum-sounds-webaudio/
-
-## Test programs
-- http://visual6502.org/wiki/index.php?title=6502TestPrograms
-- https://github.com/Klaus2m5/6502_65C02_functional_tests/blob/master/6502_functional_test.a65
-- http://www.csharp4u.com/2017/01/getting-pretty-hex-dump-of-binary-file.html?m=1
-
-## Assemblers
-Was used during development to compile actual 6502 source code to a binary, and then run it through the emulator.
-
-- https://sourceforge.net/projects/acme-crossass/
-- https://marketplace.visualstudio.com/items?itemName=rosc.vs64
-- https://nurpax.github.io/c64jasm-browser/
-- https://skilldrick.github.io/easy6502/#first-program
-
-## Monitors / Emulators
-Was used during development to test how certain instructions worked when in doubt.
-
-### VICE
-Monitor commands: https://vice-emu.sourceforge.io/vice_12.html
-
-How to load and step through a program in the VICE monitor
-```
-l "C:\Source\Repos\dotnet-6502\samples\Assembler\Generic\Build\testprogram.prg" 0 1000
-d 1000
-r PC=1000
-z
-r
-```
-
-## Credits
+# Credits
 - [Kristoffer Strube](https://github.com/KristofferStrube) for the original Blazor WASM async interop code for [WebAudio](https://github.com/KristofferStrube/Blazor.WebAudio), [DOM](https://github.com/KristofferStrube/Blazor.DOM), and [IDL](https://github.com/KristofferStrube/Blazor.WebIDL) that was the basis for a synchronous implementation in this repo. Copyright notice [here](src/libraries/Highbyte.DotNet6502.Impl.AspNet/JSInterop/JSInterop_OriginalLicense.MD).
