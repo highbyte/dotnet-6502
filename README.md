@@ -23,7 +23,7 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/highbyte/dotnet-6502)](#)
 [![GitHub License](https://img.shields.io/github/license/highbyte/dotnet-6502)](LICENSE)
 
-[<img align="top" src="doc/Screenshots/WASM_C64_LastNinja.png" width="25%" height="25%" title="Blazor WebAssembly app"/>](https://highbyte.se/dotnet-6502/app) <img align="top" src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" width="25%" height="25%" title="SilkNet native app" /> <img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SadConsole native app" />
+[<img align="top" src="doc/Screenshots/WASM_C64_LastNinja.png" width="33%" height="33%" title="Blazor WebAssembly app"/>](https://highbyte.se/dotnet-6502/app) <img align="top" src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" width="33%" height="33%" title="SilkNet native app" /> <img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" width="33%" height="33%" title="SadConsole native app" />
 
 # Overview / purpose
 
