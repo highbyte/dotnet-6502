@@ -1,7 +1,7 @@
 <h1 align="center">Highbyte.DotNet6502.App.SadConsole</h1>
 
 # Overview
-<img align="top" src="Screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SadConsole rendering in native SadConsole host window" /> <img align="top" src="Screenshots/SadConsole_C64_Monitor.png" width="38%" height="38%" title="SadConsole rendering in native SadConsole host window" />
+<img align="top" src="Screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SadConsole native app, C64 Basic" /> <img align="top" src="Screenshots/SadConsole_C64_Monitor.png" width="38%" height="38%" title="SadConsole native app, C64 Monitor" />
 
 # Features
 Native cross-platform app based on the [`SadConsole`](https://github.com/Thraka/SadConsole) terminal/ascii/console/game engine.

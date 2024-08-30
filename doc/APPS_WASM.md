@@ -1,7 +1,7 @@
 <h1 align="center">Highbyte.DotNet6502.App.WASM</h1>
 
 # Overview
-<img align="top" src="Screenshots/WASM_C64_Basic.png" width="25%" height="25%" title="Blazor WASM C64 Basic" /><img align="top" src="Screenshots/WASM_C64_LastNinja.png" width="25%" height="25%" title="Blazor WASM running The Last Ninja" /> <img align="top" src="Screenshots/WASM_C64_Monitor.png" width="38%" height="38%" title="Blazor WASM app C64 monitor" />
+<img align="top" src="Screenshots/WASM_C64_Basic.png" width="25%" height="25%" title="Blazor WebAssembly app, C64 Basic" /><img align="top" src="Screenshots/WASM_C64_LastNinja.png" width="25%" height="25%" title="BBlazor WebAssembly app, C64 Last Ninja" /> <img align="top" src="Screenshots/WASM_C64_Monitor.png" width="38%" height="38%" title="Blazor WebAssembly app, C64 monitor" />
 
 A deployed version can be found here [https://highbyte.se/dotnet-6502/app](https://highbyte.se/dotnet-6502/app)
 

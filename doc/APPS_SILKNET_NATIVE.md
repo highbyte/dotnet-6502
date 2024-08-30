@@ -1,7 +1,7 @@
 <h1 align="center">Highbyte.DotNet6502.App.SilkNetNative</h1>
 
 # Overview
-<img align="top" src="Screenshots/SilkNetNative_C64_Basic.png" width="25%" height="25%" title="SkiaSharp rendering in native Silk.NET host window" /> <img align="top" src="Screenshots/SilkNetNative_C64_raster_scroll.png" width="25%" height="25%" title="SkiaSharp rendering in native Silk.NET host window" /> <img align="top" src="Screenshots/SilkNetNative_Monitor.png" width="25%" height="25%" title="SkiaSharp rendering in native Silk.NET host window" />
+<img align="top" src="Screenshots/SilkNetNative_C64_Basic.png" width="25%" height="25%" title="SilkNet native app, C64 Basic" /> <img align="top" src="Screenshots/SilkNetNative_C64_raster_scroll.png" width="25%" height="25%" title="SilkNet native app,, C64 raster and scroll" /> <img align="top" src="Screenshots/SilkNetNative_Monitor.png" width="25%" height="25%" title="SilkNet native app, C64 monitor" />
 
 # Features
 Native cross-platform app written in .NET using a [Silk.NET](https://github.com/dotnet/Silk.NET) window.
