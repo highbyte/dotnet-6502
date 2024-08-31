@@ -56,13 +56,13 @@ Implements rendering, input handling, and audio using different technologies per
 - [`Highbyte.DotNet6502.Impl.AspNet`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implaspnet)
   - System-specific input and audio code for AspNet Blazor `WASM` app.
 - [`Highbyte.DotNet6502.Impl.NAudio`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implnaudio) 
-  - System-specific audio code for NAudio for use in native `SilkNetNative` and `SadConsole` apps.
+  - System-specific audio code for NAudio for `SilkNetNative` and `SadConsole` apps.
 - [`Highbyte.DotNet6502.Impl.SadConsole`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implsadconsole) 
-  - System-specific rendering and input code for `SadConsole` native app.
+  - System-specific rendering and input code for `SadConsole` app.
 - [`Highbyte.DotNet6502.Impl.SilkNet`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implsilknet) 
-  - System-specific rendering (OpenGL shaders) for use in native `SilkNetNative` app.
+  - System-specific rendering (OpenGL shaders) and input code for `SilkNetNative` app.
 - [`Highbyte.DotNet6502.Impl.Skia`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implskia)
-  - System-specific rendering with SkiaSharp for use in native `SilkNetNative` and Blazor `WASM` apps.
+  - System-specific rendering with SkiaSharp for `SilkNetNative`, and Blazor `WASM` apps.
 
 ## UI host apps that runs emulators
 UI host apps for emulating the systems/computers above, using different I/O techniques (rendering, input, audio).
@@ -80,7 +80,7 @@ Live version: [https://highbyte.se/dotnet-6502/app](https://highbyte.se/dotnet-6
 
 
 ### [`Highbyte.DotNet6502.App.SilkNetNative`](doc/APPS_SILKNET_NATIVE.md)
-A [Silk.NET](https://github.com/dotnet/Silk.NET) native UI.
+A [`Silk.NET`](https://github.com/dotnet/Silk.NET) native UI.
   - Rendering: `Highbyte.DotNet6502.Impl.Skia` or `Highbyte.DotNet6502.Impl.SilkNet`
   - Input: `Highbyte.DotNet6502.Impl.SilkNet` 
   - Audio: `Highbyte.DotNet6502.Impl.NAudio` 
