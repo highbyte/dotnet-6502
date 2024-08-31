@@ -18,17 +18,10 @@ public class ROM
     /// </summary>
     public byte[]? Data { get; set; }
 
-
     /// <summary>
-    /// Expected version/label of ROM that the Checksum is based on (for informational purposes)
+    /// Valid SHA1 checksum dictionary for ROM (version descriptor, SHA 1checksum)
     /// </summary>
-    public string? ExpectedVersion { get; set; }
-
-
-    /// <summary>
-    /// SHA1 checksum of ROM.
-    /// </summary>
-    public string? Checksum { get; set; }
+    public Dictionary<string, string> ValidVersionChecksums { get; set; } = new();
 
     public static List<ROM> Clone(List<ROM> roms)
     {
@@ -45,8 +38,7 @@ public class ROM
             Name = Name,
             File = File,
             Data = Data,
-            Checksum = Checksum,
-            ExpectedVersion = ExpectedVersion
+            ValidVersionChecksums = new Dictionary<string, string>(ValidVersionChecksums),
         };
     }
 
@@ -88,16 +80,10 @@ public class ROM
         if (romData != null)
         {
             var checksum = GetSHAChecksum(romData);
-            if (checksum != Checksum)
+            if (!ValidVersionChecksums.Values.Contains(checksum))
             {
-                if (!string.IsNullOrEmpty(ExpectedVersion))
-                {
-                    validationErrors.Add($"{Name} ROM checksum error. Expected ver: {ExpectedVersion}");
-                }
-                else
-                {
-                    validationErrors.Add($"{Name} ROM checksum error. Expected: {Checksum}, Actual: {checksum}");
-                }
+                validationErrors.Add($"{Name} ROM checksum error. Expected ver(s): {string.Join(',', ValidVersionChecksums.Keys)}");
+                //validationErrors.Add($"{Name} ROM checksum error. Expected one of: {string.Join(',', ValidVersionChecksums.Values)}, Actual: {checksum}");
             }
         }
 

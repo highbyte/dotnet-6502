@@ -15,25 +15,38 @@ public class C64Config : ISystemConfig
         _isDirty = false;
     }
 
+    // ROM version info from: https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/
+    // Checksums calculated with SHA1
+
     public const string KERNAL_ROM_NAME = "kernal";
-    public const string KERNAL_ROM_DEFAULT_VERSION = "901227-03";
-    public static Dictionary<string, string> KernalROMChecksums = new()
+    public static Dictionary<string, string> DefaultKernalROMChecksums = new()
     {
-        { KERNAL_ROM_DEFAULT_VERSION, "1d503e56df85a62fee696e7618dc5b4e781df1bb" }
-    };
+        // Commodore 64 KERNAL ROM Revision 1. The RS-232 timing table is designed for exactly 1 MHz system clock frequency, although no C64 runs at that clock rate. Ripped from a very old American C64.
+        { "901227-01", "87cc04d61fc748b82df09856847bb5c2754a2033" },
 
+        // Commodore 64 KERNAL ROM Revision 2. Can be found on 1982 and 1983 models.
+        { "901227-02", "0e2e4ee3f2d41f00bed72f9ab588b83e306fdb13" },
+
+        // ! RECOMENDED ! Commodore 64 KERNAL ROM Revision 3. The last revision, also used in the C128's C64 mode.
+        { "901227-03", "1d503e56df85a62fee696e7618dc5b4e781df1bb" },
+
+        // Commodore 64 KERNAL ROM Revision 3, patched for Swedish/Finnish keyboard layout.
+        { "swedish", "e4f52d9b36c030eb94524eb49f6f0774c1d02e5e" },
+
+        // Commodore PET64 or 4064 KERNAL. With black&white startup colors, and with a different bootup message. Machines with color monitors used the standard Commodore 64 KERNAL ROM.
+        { "4064.901246-01", "6c4fa9465f6091b174df27dfe679499df447503c" },
+    };
     public const string BASIC_ROM_NAME = "basic";
-    public const string BASIC_ROM_DEFAULT_VERSION = "901226-01";
-    public static Dictionary<string, string> BasicROMChecksums = new()
+    public static Dictionary<string, string> DefaultBasicROMChecksums = new()
     {
-        { BASIC_ROM_DEFAULT_VERSION, "79015323128650c742a3694c9429aa91f355905e" }
+        // Commodore 64 BASIC V2. The first and only revision.
+        { "901226-01", "79015323128650c742a3694c9429aa91f355905e" }
     };
-
     public const string CHARGEN_ROM_NAME = "chargen";
-    public const string CHARGEN_ROM_DEFAULT_VERSION = "901225-01";
-    public static Dictionary<string, string> CharGenROMChecksums = new()
+    public static Dictionary<string, string> DefaultCharGenROMChecksums = new()
     {
-        { CHARGEN_ROM_DEFAULT_VERSION, "adc7c31e18c7c7413d54802ef2f4193da14711aa" }
+        // The character generator ROM.
+        { "901225-01", "adc7c31e18c7c7413d54802ef2f4193da14711aa" }
     };
 
     public static List<string> RequiredROMs = new()
@@ -246,38 +259,22 @@ public class C64Config : ISystemConfig
 
     private void SetROMDefaultCheckum(ROM rom)
     {
-        // If checksum is already set (from config file), skip setting default checksum.
-        if (!string.IsNullOrEmpty(rom.Checksum))
+        // If checksum(s) is already set (from config file), skip setting default checksum(s).
+        if (rom.ValidVersionChecksums.Count != 0)
             return;
 
         // Set default checksums for known ROMs.
-        // Use the expected version if already set (from config file), otherwise use default version.
         if (rom.Name == BASIC_ROM_NAME)
         {
-            if (string.IsNullOrEmpty(rom.ExpectedVersion))
-                rom.ExpectedVersion = BASIC_ROM_DEFAULT_VERSION;
-            if (BasicROMChecksums.ContainsKey(rom.ExpectedVersion))
-                rom.Checksum = BasicROMChecksums[rom.ExpectedVersion];
-            else
-                throw new DotNet6502Exception($"No checksum found for {rom.Name} version {rom.ExpectedVersion}");
+            rom.ValidVersionChecksums = DefaultBasicROMChecksums;
         }
         else if (rom.Name == KERNAL_ROM_NAME)
         {
-            if (string.IsNullOrEmpty(rom.ExpectedVersion))
-                rom.ExpectedVersion = KERNAL_ROM_DEFAULT_VERSION;
-            if (KernalROMChecksums.ContainsKey(rom.ExpectedVersion))
-                rom.Checksum = KernalROMChecksums[rom.ExpectedVersion];
-            else
-                throw new DotNet6502Exception($"No checksum found for {rom.Name} version {rom.ExpectedVersion}");
+            rom.ValidVersionChecksums = DefaultKernalROMChecksums;
         }
         else if (rom.Name == CHARGEN_ROM_NAME)
         {
-            if (string.IsNullOrEmpty(rom.ExpectedVersion))
-                rom.ExpectedVersion = CHARGEN_ROM_DEFAULT_VERSION;
-            if (CharGenROMChecksums.ContainsKey(rom.ExpectedVersion))
-                rom.Checksum = CharGenROMChecksums[rom.ExpectedVersion];
-            else
-                throw new DotNet6502Exception($"No checksum found for {rom.Name} version {rom.ExpectedVersion}");
+            rom.ValidVersionChecksums = DefaultCharGenROMChecksums;
         }
     }
 
