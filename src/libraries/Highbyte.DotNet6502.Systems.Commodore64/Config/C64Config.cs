@@ -16,14 +16,33 @@ public class C64Config : ISystemConfig
     }
 
     public const string KERNAL_ROM_NAME = "kernal";
+    public const string KERNAL_ROM_DEFAULT_VERSION = "901227-03";
+    public static Dictionary<string, string> KernalROMChecksums = new()
+    {
+        { KERNAL_ROM_DEFAULT_VERSION, "1d503e56df85a62fee696e7618dc5b4e781df1bb" }
+    };
+
     public const string BASIC_ROM_NAME = "basic";
+    public const string BASIC_ROM_DEFAULT_VERSION = "901226-01";
+    public static Dictionary<string, string> BasicROMChecksums = new()
+    {
+        { BASIC_ROM_DEFAULT_VERSION, "79015323128650c742a3694c9429aa91f355905e" }
+    };
+
     public const string CHARGEN_ROM_NAME = "chargen";
+    public const string CHARGEN_ROM_DEFAULT_VERSION = "901225-01";
+    public static Dictionary<string, string> CharGenROMChecksums = new()
+    {
+        { CHARGEN_ROM_DEFAULT_VERSION, "adc7c31e18c7c7413d54802ef2f4193da14711aa" }
+    };
+
     public static List<string> RequiredROMs = new()
     {
         KERNAL_ROM_NAME, BASIC_ROM_NAME, CHARGEN_ROM_NAME
     };
 
-    public bool LoadROMs { get; set; } = true;
+    public bool LoadROMs { get; set; } = true;  // Set to false for unit tests
+
     private List<ROM> _roms = default!;
     public List<ROM> ROMs
     {
@@ -155,21 +174,18 @@ public class C64Config : ISystemConfig
                 Name = BASIC_ROM_NAME,
                 File = "basic",
                 Data = null,
-                Checksum = "79015323128650c742a3694c9429aa91f355905e",
             },
             new ROM
             {
                 Name = CHARGEN_ROM_NAME,
                 File = "chargen",
                 Data = null,
-                Checksum = "adc7c31e18c7c7413d54802ef2f4193da14711aa",
             },
             new ROM
             {
                 Name = KERNAL_ROM_NAME,
                 File = "kernal",
                 Data = null,
-                Checksum = "1d503e56df85a62fee696e7618dc5b4e781df1bb",
             },
         };
         _romDirectory = "%USERPROFILE%/Documents/C64/VICE/C64";
@@ -211,10 +227,58 @@ public class C64Config : ISystemConfig
                 File = file,
                 Data = data
             };
+
+            SetROMDefaultCheckum(rom);
+
             ROMs.Add(rom);
         }
 
         _isDirty = true;
+    }
+
+    public void SetROMDefaultChecksums()
+    {
+        foreach (var rom in ROMs)
+        {
+            SetROMDefaultCheckum(rom);
+        }
+    }
+
+    private void SetROMDefaultCheckum(ROM rom)
+    {
+        // If checksum is already set (from config file), skip setting default checksum.
+        if (!string.IsNullOrEmpty(rom.Checksum))
+            return;
+
+        // Set default checksums for known ROMs.
+        // Use the expected version if already set (from config file), otherwise use default version.
+        if (rom.Name == BASIC_ROM_NAME)
+        {
+            if (string.IsNullOrEmpty(rom.ExpectedVersion))
+                rom.ExpectedVersion = BASIC_ROM_DEFAULT_VERSION;
+            if (BasicROMChecksums.ContainsKey(rom.ExpectedVersion))
+                rom.Checksum = BasicROMChecksums[rom.ExpectedVersion];
+            else
+                throw new DotNet6502Exception($"No checksum found for {rom.Name} version {rom.ExpectedVersion}");
+        }
+        else if (rom.Name == KERNAL_ROM_NAME)
+        {
+            if (string.IsNullOrEmpty(rom.ExpectedVersion))
+                rom.ExpectedVersion = KERNAL_ROM_DEFAULT_VERSION;
+            if (KernalROMChecksums.ContainsKey(rom.ExpectedVersion))
+                rom.Checksum = KernalROMChecksums[rom.ExpectedVersion];
+            else
+                throw new DotNet6502Exception($"No checksum found for {rom.Name} version {rom.ExpectedVersion}");
+        }
+        else if (rom.Name == CHARGEN_ROM_NAME)
+        {
+            if (string.IsNullOrEmpty(rom.ExpectedVersion))
+                rom.ExpectedVersion = CHARGEN_ROM_DEFAULT_VERSION;
+            if (CharGenROMChecksums.ContainsKey(rom.ExpectedVersion))
+                rom.Checksum = CharGenROMChecksums[rom.ExpectedVersion];
+            else
+                throw new DotNet6502Exception($"No checksum found for {rom.Name} version {rom.ExpectedVersion}");
+        }
     }
 
     public object Clone()
@@ -263,11 +327,15 @@ public class C64Config : ISystemConfig
             if (!Directory.Exists(romDir))
                 validationErrors.Add($"{nameof(ROMDirectory)} is not an existing directory: {romDir}");
         }
-        foreach (var rom in ROMs)
+        // Skip other ROM validation if the ROM directory is not valid.
+        if (validationErrors.Count == 0)
         {
-            var romValidationErrors = new List<string>();
-            if (!rom.Validate(out romValidationErrors, ROMDirectory))
-                validationErrors.AddRange(romValidationErrors);
+            foreach (var rom in ROMs)
+            {
+                var romValidationErrors = new List<string>();
+                if (!rom.Validate(out romValidationErrors, ROMDirectory))
+                    validationErrors.AddRange(romValidationErrors);
+            }
         }
 
         return validationErrors.Count == 0;

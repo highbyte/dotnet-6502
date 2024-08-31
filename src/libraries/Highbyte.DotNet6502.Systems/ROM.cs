@@ -18,8 +18,15 @@ public class ROM
     /// </summary>
     public byte[]? Data { get; set; }
 
+
     /// <summary>
-    /// Checksum of ROM.
+    /// Expected version/label of ROM that the Checksum is based on (for informational purposes)
+    /// </summary>
+    public string? ExpectedVersion { get; set; }
+
+
+    /// <summary>
+    /// SHA1 checksum of ROM.
     /// </summary>
     public string? Checksum { get; set; }
 
@@ -39,6 +46,7 @@ public class ROM
             File = File,
             Data = Data,
             Checksum = Checksum,
+            ExpectedVersion = ExpectedVersion
         };
     }
 
@@ -53,17 +61,46 @@ public class ROM
         validationErrors = new List<string>();
         if (string.IsNullOrEmpty(Name))
             validationErrors.Add($"ROM {nameof(Name)} must be set.");
-        if (string.IsNullOrEmpty(File) && (Data == null || Data.Length == 0))
-            validationErrors.Add($"ROM {nameof(File)} and {nameof(Data)} must be set.");
         if (!string.IsNullOrEmpty(File) && (Data != null && Data.Length > 0))
-            validationErrors.Add($"ROM {nameof(File)} and {nameof(Data)} cannot be set.");
+        {
+            validationErrors.Add($"ROM {nameof(File)} and {nameof(Data)} cannot both be set.");
+        }
+        if (string.IsNullOrEmpty(File) && (Data == null || Data.Length == 0))
+        {
+            validationErrors.Add($"ROM {nameof(File)} or {nameof(Data)} must be set.");
+        }
 
+        bool fileExists = false;
         if (!string.IsNullOrEmpty(File))
         {
             var romFilePath = GetROMFilePath(romDirectory);
             if (!System.IO.File.Exists(romFilePath))
+            {
                 validationErrors.Add($"ROM file does not exist: {romFilePath}");
+            }
+            else
+            {
+                fileExists = true;
+            }
         }
+
+        var romData = GetRomData(romFileAssumedToExist: fileExists, romDirectory);
+        if (romData != null)
+        {
+            var checksum = GetSHAChecksum(romData);
+            if (checksum != Checksum)
+            {
+                if (!string.IsNullOrEmpty(ExpectedVersion))
+                {
+                    validationErrors.Add($"{Name} ROM checksum error. Expected ver: {ExpectedVersion}");
+                }
+                else
+                {
+                    validationErrors.Add($"{Name} ROM checksum error. Expected: {Checksum}, Actual: {checksum}");
+                }
+            }
+        }
+
         return validationErrors.Count == 0;
     }
 
@@ -72,24 +109,35 @@ public class ROM
         var romsData = new Dictionary<string, byte[]>();
         foreach (var rom in roms)
         {
-
-            byte[] fileData;
-            if (!string.IsNullOrEmpty(rom.File))
-            {
-                var romFilePath = rom.GetROMFilePath(directory);
-                fileData = System.IO.File.ReadAllBytes(romFilePath);
-            }
-            else
-            {
-                fileData = rom.Data!;
-            }
-            // TODO: Verify checksum
-            romsData.Add(rom.Name, fileData);
+            var romData = rom.GetRomData(romFileAssumedToExist: true, directory);
+            romsData.Add(rom.Name, romData!);
         }
         return romsData;
     }
 
-    public string GetROMFilePath(string romDirectory)
+    private byte[]? GetRomData(bool romFileAssumedToExist, string? directory = null)
+    {
+        byte[]? romData;
+        if (!string.IsNullOrEmpty(File))
+        {
+            if (romFileAssumedToExist)
+            {
+                var romFilePath = GetROMFilePath(directory);
+                romData = System.IO.File.ReadAllBytes(romFilePath);
+            }
+            else
+            {
+                romData = null;
+            }
+        }
+        else
+        {
+            romData = Data;
+        }
+        return romData;
+    }
+
+    public string GetROMFilePath(string? romDirectory)
     {
         if (File == null)
             throw new DotNet6502Exception($"Cannot get ROM file path if rom File is empty.");
@@ -99,5 +147,12 @@ public class ROM
         else
             romFilePath = File;
         return PathHelper.ExpandOSEnvironmentVariables(romFilePath);
+    }
+
+    private string GetSHAChecksum(byte[] data)
+    {
+        using var sha1 = System.Security.Cryptography.SHA1.Create();
+        var hash = sha1.ComputeHash(data);
+        return BitConverter.ToString(hash).Replace("-", "").ToLower();
     }
 }
