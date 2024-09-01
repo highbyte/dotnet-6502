@@ -10,7 +10,7 @@ NativeConsoleMonitor Monitor;
 
 var mem = new Memory();
 
-var computerBuilder = new GenericComputerBuilder(new NullLoggerFactory(), new GenericComputerConfig { WaitForHostToAcknowledgeFrame = false });
+var computerBuilder = new GenericComputerBuilder(new GenericComputerConfig { WaitForHostToAcknowledgeFrame = false }, new NullLoggerFactory());
 computerBuilder
     .WithCPU()
     //.WithStartAddress()

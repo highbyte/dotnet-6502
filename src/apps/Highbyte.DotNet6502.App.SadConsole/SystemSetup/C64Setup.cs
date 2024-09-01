@@ -43,6 +43,7 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
 
         var c64Config = new C64Config() { ROMs = new() };
         _configuration.GetSection($"{C64Config.ConfigSectionName}.{configurationVariant}").Bind(c64Config);
+        c64Config.SetROMDefaultChecksums();
         return Task.FromResult<ISystemConfig>(c64Config);
     }
 

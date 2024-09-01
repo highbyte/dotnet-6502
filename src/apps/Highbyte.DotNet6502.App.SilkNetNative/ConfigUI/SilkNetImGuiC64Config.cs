@@ -31,21 +31,8 @@ public class SilkNetImGuiC64Config
 
     private bool _open;
 
-    private bool IsValidConfig
-    {
-        get
-        {
-            if (_config == null)
-            {
-                _validationErrors.Clear();
-                return true;
-            }
-            else
-            {
-                return _config.IsValid(out _validationErrors);
-            }
-        }
-    }
+    private bool _isValidConfig;
+
     private List<string> _validationErrors = new();
 
     //private static Vector4 s_informationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -178,8 +165,9 @@ public class SilkNetImGuiC64Config
             if (_config!.IsDirty)
             {
                 _config.ClearDirty();
+                _isValidConfig = _config.IsValid(out _validationErrors);
             }
-            if (!IsValidConfig)
+            if (!_isValidConfig)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, s_errorColor);
                 foreach (var error in _validationErrors!)
@@ -190,7 +178,7 @@ public class SilkNetImGuiC64Config
             }
 
             // Close buttons
-            ImGui.BeginDisabled(disabled: !IsValidConfig);
+            ImGui.BeginDisabled(disabled: !_isValidConfig);
             ImGui.PushStyleColor(ImGuiCol.Button, s_okButtonColor);
             if (ImGui.Button("Ok"))
             {

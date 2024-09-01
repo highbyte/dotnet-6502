@@ -15,15 +15,47 @@ public class C64Config : ISystemConfig
         _isDirty = false;
     }
 
+    // ROM version info from: https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/
+    // Checksums calculated with SHA1
+
     public const string KERNAL_ROM_NAME = "kernal";
+    public static Dictionary<string, string> DefaultKernalROMChecksums = new()
+    {
+        // Commodore 64 KERNAL ROM Revision 1. The RS-232 timing table is designed for exactly 1 MHz system clock frequency, although no C64 runs at that clock rate. Ripped from a very old American C64.
+        { "901227-01", "87cc04d61fc748b82df09856847bb5c2754a2033" },
+
+        // Commodore 64 KERNAL ROM Revision 2. Can be found on 1982 and 1983 models.
+        { "901227-02", "0e2e4ee3f2d41f00bed72f9ab588b83e306fdb13" },
+
+        // ! RECOMENDED ! Commodore 64 KERNAL ROM Revision 3. The last revision, also used in the C128's C64 mode.
+        { "901227-03", "1d503e56df85a62fee696e7618dc5b4e781df1bb" },
+
+        // Commodore 64 KERNAL ROM Revision 3, patched for Swedish/Finnish keyboard layout.
+        { "swedish", "e4f52d9b36c030eb94524eb49f6f0774c1d02e5e" },
+
+        // Commodore PET64 or 4064 KERNAL. With black&white startup colors, and with a different bootup message. Machines with color monitors used the standard Commodore 64 KERNAL ROM.
+        { "4064.901246-01", "6c4fa9465f6091b174df27dfe679499df447503c" },
+    };
     public const string BASIC_ROM_NAME = "basic";
+    public static Dictionary<string, string> DefaultBasicROMChecksums = new()
+    {
+        // Commodore 64 BASIC V2. The first and only revision.
+        { "901226-01", "79015323128650c742a3694c9429aa91f355905e" }
+    };
     public const string CHARGEN_ROM_NAME = "chargen";
+    public static Dictionary<string, string> DefaultCharGenROMChecksums = new()
+    {
+        // The character generator ROM.
+        { "901225-01", "adc7c31e18c7c7413d54802ef2f4193da14711aa" }
+    };
+
     public static List<string> RequiredROMs = new()
     {
         KERNAL_ROM_NAME, BASIC_ROM_NAME, CHARGEN_ROM_NAME
     };
 
-    public bool LoadROMs { get; set; } = true;
+    public bool LoadROMs { get; set; } = true;  // Set to false for unit tests
+
     private List<ROM> _roms = default!;
     public List<ROM> ROMs
     {
@@ -155,21 +187,18 @@ public class C64Config : ISystemConfig
                 Name = BASIC_ROM_NAME,
                 File = "basic",
                 Data = null,
-                Checksum = "79015323128650c742a3694c9429aa91f355905e",
             },
             new ROM
             {
                 Name = CHARGEN_ROM_NAME,
                 File = "chargen",
                 Data = null,
-                Checksum = "adc7c31e18c7c7413d54802ef2f4193da14711aa",
             },
             new ROM
             {
                 Name = KERNAL_ROM_NAME,
                 File = "kernal",
                 Data = null,
-                Checksum = "1d503e56df85a62fee696e7618dc5b4e781df1bb",
             },
         };
         _romDirectory = "%USERPROFILE%/Documents/C64/VICE/C64";
@@ -211,10 +240,42 @@ public class C64Config : ISystemConfig
                 File = file,
                 Data = data
             };
+
+            SetROMDefaultCheckum(rom);
+
             ROMs.Add(rom);
         }
 
         _isDirty = true;
+    }
+
+    public void SetROMDefaultChecksums()
+    {
+        foreach (var rom in ROMs)
+        {
+            SetROMDefaultCheckum(rom);
+        }
+    }
+
+    private void SetROMDefaultCheckum(ROM rom)
+    {
+        // If checksum(s) is already set (from config file), skip setting default checksum(s).
+        if (rom.ValidVersionChecksums.Count != 0)
+            return;
+
+        // Set default checksums for known ROMs.
+        if (rom.Name == BASIC_ROM_NAME)
+        {
+            rom.ValidVersionChecksums = DefaultBasicROMChecksums;
+        }
+        else if (rom.Name == KERNAL_ROM_NAME)
+        {
+            rom.ValidVersionChecksums = DefaultKernalROMChecksums;
+        }
+        else if (rom.Name == CHARGEN_ROM_NAME)
+        {
+            rom.ValidVersionChecksums = DefaultCharGenROMChecksums;
+        }
     }
 
     public object Clone()
@@ -263,11 +324,15 @@ public class C64Config : ISystemConfig
             if (!Directory.Exists(romDir))
                 validationErrors.Add($"{nameof(ROMDirectory)} is not an existing directory: {romDir}");
         }
-        foreach (var rom in ROMs)
+        // Skip other ROM validation if the ROM directory is not valid.
+        if (validationErrors.Count == 0)
         {
-            var romValidationErrors = new List<string>();
-            if (!rom.Validate(out romValidationErrors, ROMDirectory))
-                validationErrors.AddRange(romValidationErrors);
+            foreach (var rom in ROMs)
+            {
+                var romValidationErrors = new List<string>();
+                if (!rom.Validate(out romValidationErrors, ROMDirectory))
+                    validationErrors.AddRange(romValidationErrors);
+            }
         }
 
         return validationErrors.Count == 0;

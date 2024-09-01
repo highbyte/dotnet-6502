@@ -253,11 +253,11 @@
                 var fileSize = fileBuffer.Length;
 
                 if (isKernal)
-                    SetROM(C64Config.KERNAL_ROM_NAME, fileBuffer);
+                    C64Config.SetROM(C64Config.KERNAL_ROM_NAME, data: fileBuffer);
                 else if (isBasic)
-                    SetROM(C64Config.BASIC_ROM_NAME, fileBuffer);
+                    C64Config.SetROM(C64Config.BASIC_ROM_NAME, data: fileBuffer);
                 else if (isChargen)
-                    SetROM(C64Config.CHARGEN_ROM_NAME, fileBuffer);
+                    C64Config.SetROM(C64Config.CHARGEN_ROM_NAME, data: fileBuffer);
             }
             catch (Exception)
             {
@@ -267,24 +267,6 @@
         }
         _isLoadingC64Roms = false;
         this.StateHasChanged();
-    }
-
-    private void SetROM(string romName, byte[] data)
-    {
-        ROM rom;
-        if (!C64Config.ROMs.Exists(x => x.Name == romName))
-        {
-            rom = new()
-                {
-                    Name = romName
-                };
-            C64Config.ROMs.Add(rom);
-        }
-        else
-        {
-            rom = C64Config.ROMs.Single(x => x.Name == romName);
-        }
-        rom.Data = data;
     }
 
     private void OnRendererChanged(ChangeEventArgs e)

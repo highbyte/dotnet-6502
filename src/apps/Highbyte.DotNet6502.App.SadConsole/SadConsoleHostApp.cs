@@ -6,11 +6,11 @@ using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Logging;
+using SadConsole.Components;
 using SadConsole.Configuration;
 using SadConsole.Input;
 using SadRogue.Primitives;
 using Console = SadConsole.Console;
-
 
 namespace Highbyte.DotNet6502.App.SadConsole;
 
@@ -60,7 +60,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     private const int MENU_POSITION_X = 0;
     private const int MENU_POSITION_Y = 0;
 
-    private int StartupScreenWidth => MenuConsole.CONSOLE_WIDTH + 40;
+    private int StartupScreenWidth => MenuConsole.CONSOLE_WIDTH + 60;
     private int StartupScreenHeight => MenuConsole.CONSOLE_HEIGHT + 14;
 
     private const int STATS_UPDATE_EVERY_X_FRAME = 60 * 1;
@@ -68,6 +68,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
     private const int LOGS_UPDATE_EVERY_X_FRAME = 60 * 1;
     private int _logsFrameCount = 0;
+    private DrawImage _logoDrawImage;
 
 
     /// <summary>
@@ -129,7 +130,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             .AddFrameRenderEvent(RenderSadConsole)
             ;
 
-        Settings.WindowTitle = _emulatorConfig.WindowTitle;
+        Settings.WindowTitle = "Highbyte.DotNet6502 emulator + SadConsole (with NAudio)";
         Settings.ResizeMode = Settings.WindowResizeOptions.None;
 
         // Start SadConsole window
@@ -146,7 +147,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         //return screen;
         _sadConsoleScreen = new ScreenObject();
 
-        _menuConsole = new MenuConsole(this);
+        _menuConsole = new MenuConsole(this, _loggerFactory);
         _menuConsole.Position = (MENU_POSITION_X, MENU_POSITION_Y);
         _sadConsoleScreen.Children.Add(_menuConsole);
 
@@ -174,7 +175,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
                 // Position monitor to the right of the emulator console
                 _monitorConsole.UsePixelPositioning = true;
                 // Note: _sadConsoleEmulatorConsole has already changed to UsePixelPositioning = true, so its Position.X is in pixels (not Width though).
-                var emulatorMaxX = _sadConsoleEmulatorConsole.Position.X + ((int)(_sadConsoleEmulatorConsole.Width * _sadConsoleEmulatorConsole.Font.GlyphWidth * _emulatorConfig.FontSizeScaleFactor));
+                var emulatorMaxX = _sadConsoleEmulatorConsole.Position.X + ((int)(_sadConsoleEmulatorConsole.Width * _sadConsoleEmulatorConsole.Font.GlyphWidth * CommonHostSystemConfig.DefaultFontSize.GetFontSizeScaleFactor()));
                 var infoConsoleMax = _infoConsole != null && _infoConsole.IsVisible ? _infoConsole.Position.X + _infoConsole.WidthPixels : 0;
                 _monitorConsole.Position = new Point(Math.Max(emulatorMaxX, infoConsoleMax), 0);
 
@@ -196,6 +197,16 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         };
         _sadConsoleScreen.Children.Add(_monitorConsole);
 
+        // Logo
+        int logoWidthAndHeight = 256; // Pixels
+        _logoDrawImage = new DrawImage("Resources/Images/logo-256.png");
+        _logoDrawImage.PositionMode = DrawImage.PositionModes.Pixels;
+        //var logoX = (MenuConsole.CONSOLE_WIDTH * _menuConsole.Font.GlyphWidth) + ((StartupScreenWidth - MenuConsole.CONSOLE_WIDTH) * _menuConsole.Font.GlyphWidth - logoWidthAndHeight) / 2;
+        //var logoY = ((MenuConsole.CONSOLE_HEIGHT * _menuConsole.Font.GlyphHeight) - logoWidthAndHeight) / 2;
+        var logoX = (MenuConsole.CONSOLE_WIDTH * _menuConsole.Font.GlyphWidth) + 10;
+        var logoY = 10;
+        _logoDrawImage.PositionOffset = new Point(logoX, logoY);
+        _sadConsoleScreen.SadComponents.Add(_logoDrawImage);
 
         //_sadConsoleScreen.IsFocused = true;
         _menuConsole.IsFocused = true;
@@ -208,6 +219,9 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
     public override void OnAfterSelectSystem()
     {
+        // Set the default font size configured for the system
+        _menuConsole.SetEmulatorFontSize(CommonHostSystemConfig.DefaultFontSize);
+
         // Clear any old system specific menu console
         if (_systemMenuConsole != null)
         {
@@ -246,7 +260,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         {
             font = Game.Instance.DefaultFont;
         }
-        _sadConsoleEmulatorConsole = EmulatorConsole.Create(systemAboutToBeStarted, font, _emulatorConfig.FontSize, SadConsoleUISettings.ConsoleDrawBoxBorderParameters);
+        _sadConsoleEmulatorConsole = EmulatorConsole.Create(systemAboutToBeStarted, font, CommonHostSystemConfig.DefaultFontSize, SadConsoleUISettings.CreateEmulatorConsoleDrawBoxBorderParameters(font.SolidGlyphIndex));
         _sadConsoleEmulatorConsole.UsePixelPositioning = true;
         _sadConsoleEmulatorConsole.Position = new Point((_menuConsole.Position.X * _menuConsole.Font.GlyphWidth) + (_menuConsole.Width * _menuConsole.Font.GlyphWidth), 0);
         _sadConsoleEmulatorConsole.IsFocused = true;
@@ -424,23 +438,12 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             initialVolumePercent: 20);
     }
 
-    private SadConsoleHostSystemConfigBase CommonHostSystemConfig => (SadConsoleHostSystemConfigBase)CurrentHostSystemConfig;
+    public SadConsoleHostSystemConfigBase CommonHostSystemConfig => (SadConsoleHostSystemConfigBase)CurrentHostSystemConfig;
 
     private int CalculateWindowWidthPixels()
     {
-        int emulatorConsoleFontSizeAdjustment;
-        // TODO: This is a bit of a hack for handling consoles with different font sizes, and positioning on main screen. Better way?
-        if (_emulatorConfig.FontSizeScaleFactor > 1)
-        {
-            emulatorConsoleFontSizeAdjustment = (((int)_emulatorConfig.FontSizeScaleFactor - 1) * 16);
-        }
-        else
-        {
-            emulatorConsoleFontSizeAdjustment = 0;
-        }
-
         var menuConsoleWidthPixels = _menuConsole.WidthPixels;
-        var emulatorConsoleWidthPixels = Math.Max((_sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.WidthPixels + emulatorConsoleFontSizeAdjustment : 0)
+        var emulatorConsoleWidthPixels = Math.Max((_sadConsoleEmulatorConsole != null ? _sadConsoleEmulatorConsole.WidthPixels : 0)
                                             , (_infoConsole != null && _infoConsole.IsVisible ? _infoConsole.WidthPixels : 0));
         var monitorConsoleWidthPixels = (_monitorConsole != null && _monitorConsole.IsVisible ? _monitorConsole.WidthPixels : 0);
         var widthPixels = menuConsoleWidthPixels + emulatorConsoleWidthPixels + monitorConsoleWidthPixels;
@@ -505,6 +508,10 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         if (CurrentRunningSystem != null)
             CurrentRunningSystem!.InstrumentationEnabled = false;
 
+        // Enable logo when info console is disabled (as it shouldn't be covered by the info console)
+        if (!_sadConsoleScreen.SadComponents.Contains(_logoDrawImage))
+            _sadConsoleScreen.SadComponents.Add(_logoDrawImage);
+
         // Resize main window to fit menu, emulator, monitor and other visible consoles
         Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
         //OnStatsStateChange(statsEnabled: false);
@@ -533,6 +540,10 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
         // Resize main window to fit menu, emulator, monitor and other visible consoles
         Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
+
+        // Remove logo when info console is enabled (as it may partially cover the logo)
+        if (_sadConsoleScreen.SadComponents.Contains(_logoDrawImage))
+            _sadConsoleScreen.SadComponents.Remove(_logoDrawImage);
 
         //OnStatsStateChange(statsEnabled: true);
     }

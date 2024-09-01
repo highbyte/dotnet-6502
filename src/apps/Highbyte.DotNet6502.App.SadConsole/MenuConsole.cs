@@ -1,6 +1,11 @@
+using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Utils;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;
+using Microsoft.Extensions.Logging;
+using static SadConsole.IFont;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Highbyte.DotNet6502.App.SadConsole;
 public class MenuConsole : ControlsConsole
@@ -8,13 +13,19 @@ public class MenuConsole : ControlsConsole
     public const int CONSOLE_WIDTH = USABLE_WIDTH + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     public const int CONSOLE_HEIGHT = USABLE_HEIGHT + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     private const int USABLE_WIDTH = 21;
-    private const int USABLE_HEIGHT = 15;
+    private const int USABLE_HEIGHT = 17;
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
+    private readonly ILogger _logger;
 
-    public MenuConsole(SadConsoleHostApp sadConsoleHostApp) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
+    public MenuConsole(SadConsoleHostApp sadConsoleHostApp, ILoggerFactory loggerFactory) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
         _sadConsoleHostApp = sadConsoleHostApp;
+        _logger = loggerFactory.CreateLogger(typeof(MenuConsole).Name);
+
+        // The UI font is set as default during program SadConsole startup.
+        // Note: Not yet implemented changing of UI font and size. Currently it leads to issues in the layout.
+        //FontSize = Font.GetFontSize(_sadConsoleHostApp.EmulatorConfig.UIFontSize);
 
         Controls.ThemeColors = SadConsoleUISettings.ThemeColors;
         Surface.DefaultBackground = Controls.ThemeColors.ControlHostBackground;
@@ -29,7 +40,7 @@ public class MenuConsole : ControlsConsole
         DrawUIItems();
 
         if (SadConsoleUISettings.UI_USE_CONSOLE_BORDER)
-            Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.ConsoleDrawBoxBorderParameters);
+            Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.UIConsoleDrawBoxBorderParameters);
     }
 
     private void DrawUIItems()
@@ -149,10 +160,20 @@ public class MenuConsole : ControlsConsole
         {
             Position = (fontSizeLabel.Bounds.MaxExtentX + 2, fontSizeLabel.Position.Y),
             Name = "selectFontSizeComboBox",
-            SelectedItem = _sadConsoleHostApp.EmulatorConfig.FontSize,
+            SelectedItem = Sizes.One,   // Will be overritten by SetEmulatorFontSize when a system is selected
         };
-        selectFontSizeBox.SelectedItemChanged += (s, e) => { _sadConsoleHostApp.EmulatorConfig.FontSize = (IFont.Sizes)e.Item; IsDirty = true; };
+        selectFontSizeBox.SelectedItemChanged += (s, e) => { _sadConsoleHostApp.CommonHostSystemConfig.DefaultFontSize = (IFont.Sizes)e.Item; IsDirty = true; };
         Controls.Add(selectFontSizeBox);
+
+        // Load Basic
+        var loadBinaryButton = new Button("Load Binary .prg")
+        {
+            Name = "loadBinaryButton",
+            Position = (1, fontSizeLabel.Bounds.MaxExtentY + 2),
+        };
+        loadBinaryButton.Click += LoadBinaryButton_Click;
+        Controls.Add(loadBinaryButton);
+
 
         // Helper function to create a label and add it to the console
         Label CreateLabel(string text, int col, int row, string? name = null)
@@ -170,6 +191,47 @@ public class MenuConsole : ControlsConsole
 
         // Force OnIsDirtyChanged event which will set control states (see SetControlStates)
         OnIsDirtyChanged();
+    }
+
+    private void LoadBinaryButton_Click(object? sender, EventArgs e)
+    {
+        bool wasRunning = false;
+        if (_sadConsoleHostApp.EmulatorState == EmulatorState.Running)
+        {
+            wasRunning = true;
+            _sadConsoleHostApp.Pause();
+        }
+
+        var window = new FilePickerConsole(FilePickerMode.OpenFile, Environment.CurrentDirectory, filter: "*.*");
+        window.Center();
+        window.Closed += (s2, e2) =>
+        {
+            if (window.DialogResult)
+            {
+                try
+                {
+                    var fileName = window.SelectedFile.FullName;
+                    BinaryLoader.Load(
+                        _sadConsoleHostApp.CurrentRunningSystem.Mem,
+                        fileName,
+                        out ushort loadedAtAddress,
+                        out ushort fileLength);
+
+                    _sadConsoleHostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Error loading Binary .prg: {ex.Message}");
+                }
+            }
+
+            if (wasRunning)
+                _sadConsoleHostApp.Start().Wait();
+
+            IsDirty = true;
+
+        };
+        window.Show(true);
     }
 
     protected override void OnIsDirtyChanged()
@@ -227,7 +289,17 @@ public class MenuConsole : ControlsConsole
         var selectFontSizeComboBox = Controls["selectFontSizeComboBox"];
         selectFontSizeComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
 
+        var loadBinaryButton = Controls["loadBinaryButton"];
+        loadBinaryButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
+
         if (_sadConsoleHostApp.SystemMenuConsole != null)
             _sadConsoleHostApp.SystemMenuConsole.IsDirty = true;
+    }
+
+    internal void SetEmulatorFontSize(IFont.Sizes defaultFontSize)
+    {
+        var selectFontSizeComboBox = Controls["selectFontSizeComboBox"] as ComboBox;
+        selectFontSizeComboBox.SelectedItem = defaultFontSize;
+        IsDirty = true;
     }
 }

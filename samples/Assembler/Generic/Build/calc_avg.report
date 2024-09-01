@@ -1,0 +1,18 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502\samples\Assembler\Generic\calc_avg.asm
+     1                          ;Calculate the average of two values stored in memory locations, and store the result in another memory location.
+     2                          ;Code written in 6502 assembler using ACME cross assembler syntax.
+     3                          ;Assemble with:
+     4                          ;  acme -f cbm -o calc_avg.prg calc_avg.asm
+     5                          
+     6                          ;code start address
+     7                          * = $c000
+     8                          
+     9                          ;!to "./calc_avg.prg"
+    10  c000 ad00d0             	lda $d000
+    11  c003 18                 	clc
+    12  c004 6d01d0             	adc $d001
+    13  c007 6a                 	ror
+    14  c008 8d02d0             	sta $d002
+    15                          ;In emulator, setup hitting brk instruction to stop
+    16  c00b 00                 	brk

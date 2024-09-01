@@ -100,7 +100,7 @@
     98                          !convtab raw	;Text conversion setting: pet (PetSCII), raw (none), scr (C64 screen code)
     99                          SCROLL_TEXT:
    100  c049 2020202020202020...	!text "                                                                                "
-   101  c099 4869676862797465...	!text "Highbyte, in 2022, proudly presents... A DotNet 6502 CPU emulator!    "
+   101  c099 4869676862797465...	!text "Highbyte, in 2024, proudly presents... A DotNet 6502 CPU emulator!    "
    102  c0df 5468697320736372...	!text "This scroller is written in 6502 machine code, updating the emulator host screen indirectly via shared memory.   "
    103  c150 4772656574696e67...	!text "Greetings to all my demo-scene friends from back in the late 80s & early 90s in the groups Them and Virtual!"
    104  c1bc 2020202020202020...	!text "                                                                                "

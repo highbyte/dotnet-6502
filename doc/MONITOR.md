@@ -8,7 +8,7 @@ The library need to be implemented for a specific UI technology, see the differe
 Specific emulated "Systems" (computers) can also implement additional commands that are specific for that System, see [here](#system-specific-commands).
 
 # General monitor commands
-Type ```?|help|-?|--help``` to list commands.
+Type `?|help|-?|--help` to list commands.
 ```
 > ?
 Usage:  [command]
@@ -29,9 +29,9 @@ Commands:
   z      Single step through instructions. Optionally execute a specified number of instructions.
 ```
 
-Type ```[command] -?|--help``` to list help on specific command.
+Type `[command] -?|--help` to list help on specific command.
 
-Example on help for ```d``` (disassemble) command:
+Example on help for `d` (disassemble) command:
 ```
 > d -?
 Usage:  d [options] <start> <end>
@@ -44,7 +44,7 @@ Options:
   -?|-h|--help  Show help information.
 ```
 
-Example how to load binary with ```l``` command:
+Example how to load binary with `l` command:
 
 _The machine code binary simple.prg adds two number from memory, divides by 2, stores it in another memory location_
 ```
@@ -52,7 +52,7 @@ _The machine code binary simple.prg adds two number from memory, divides by 2, s
 File loaded at 0xC000
 ```
 
-Example how to disassemble with ```d``` command:
+Example how to disassemble with `d` command:
 
 _Shows what the code in simple.prg does_
 ```
@@ -70,14 +70,14 @@ c00f  00        BRK
 c010  00        BRK
 ```
 
-Example how to fill bytes in memory with ```f``` command:
+Example how to fill bytes in memory with `f` command:
 
 _Sets value A and B in memory locations (d000 and d001) that simple.prg uses_
 ```
 > f d000 12 30
 ```
 
-Example how to set PC (Program Counter) with ```r pc``` command:
+Example how to set PC (Program Counter) with `r pc` command:
 
 _Sets PC at load address of simple.prg_
 ```
@@ -85,7 +85,7 @@ _Sets PC at load address of simple.prg_
 SP=00 PC=C000
 ```
 
-Example how to execute  ```g``` command:
+Example how to execute  `g` command:
 
 _Executes simple.prg, stops on BRK instruction. Note that PC has been changed to IRQ vector, which in this example is at 0000._
 ```
@@ -94,7 +94,7 @@ BRK instruction at c00b triggered stop.
 0000  00        BRK
 ```
 
-Example how to show contents of bytes in memory with ```m``` command:
+Example how to show contents of bytes in memory with `m` command:
 
 _Inspects values A (d000), B (d001), and result (d002)_
 ```

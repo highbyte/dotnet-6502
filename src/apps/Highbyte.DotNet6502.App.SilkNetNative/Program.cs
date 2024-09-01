@@ -62,7 +62,7 @@ windowOptions.FramesPerSecond = 60.0f;  // TODO: With Vsync=false the FramesPerS
 
 windowOptions.VSync = false;  // TODO: With Vsync=true Silk.NET seem to use incorrect UpdatePerSecond. The actual FPS its called is 10 lower than it should be (measured in the OnUpdate method)
 windowOptions.WindowState = WindowState.Normal;
-windowOptions.Title = "Highbyte.DotNet6502 emulator in Silk.NET window (+ SkiaSharp, OpenGL, and NAudio)";
+windowOptions.Title = "Highbyte.DotNet6502 emulator + Silk.NET (with ImGui, SkiaSharp, OpenGL, NAudio)";
 windowOptions.Size = new Vector2D<int>(windowWidth, windowHeight);
 windowOptions.WindowBorder = WindowBorder.Fixed;
 windowOptions.API = GraphicsAPI.Default; // = Default = OpenGL 3.3 with forward compatibility

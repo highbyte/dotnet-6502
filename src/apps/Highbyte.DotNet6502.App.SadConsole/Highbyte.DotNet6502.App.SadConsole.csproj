@@ -5,7 +5,22 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ApplicationIcon>favicon.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="favicon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\..\resources\images\logo-256.png" Link="Resources\Images\logo-256.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="favicon.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Impl.NAudio\Highbyte.DotNet6502.Impl.NAudio.csproj" />
@@ -33,5 +48,8 @@
 	<None Update="Fonts\*.*">
 	  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	</None>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Resources\Images\" />
   </ItemGroup>
 </Project>

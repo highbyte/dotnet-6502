@@ -58,6 +58,8 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
             InstrumentationEnabled = false, // Start with instrumentation off by default
         };
 
+        c64Config.SetROMDefaultChecksums();
+
         //c64Config.Validate();
 
         return c64Config;
@@ -124,7 +126,7 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
             roms.Add(new ROM
             {
                 Name = name,
-                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}")
+                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}"),
             });
         }
         name = C64Config.KERNAL_ROM_NAME;
@@ -134,7 +136,7 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
             roms.Add(new ROM
             {
                 Name = name,
-                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}")
+                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}"),
             });
         }
         name = C64Config.CHARGEN_ROM_NAME;
@@ -144,7 +146,7 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
             roms.Add(new ROM
             {
                 Name = name,
-                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}")
+                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}"),
             });
         }
 

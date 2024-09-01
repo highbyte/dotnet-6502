@@ -1,4 +1,4 @@
-<h1 align="center">How to develop</h1>
+<h1 align="center">Requirements and local development setup</h1>
 
 # Requirements
 - Windows, Linux, or Mac.
@@ -7,7 +7,7 @@
   - VSCode (Windows, Linux, Mac)
   - Visual Studio 2022 (Windows)
   - Or other preferred editor.
-- Specifics for Blazor WASM  (WebAssembly) projects
+- Specifics for Blazor WASM (`Highbyte.DotNet6502.App.WASM`) project
   - Visual Studio 2022: For building the WASM projects, add the component ".NET WebAssembly Build Tools" in Visual Studio Installer.
   - VSCode / command line: For building the WASM projects, install the dotnet workload "wasm-tool", see instruction [here](https://learn.microsoft.com/en-us/aspnet/core/blazor/tooling?view=aspnetcore-8.0&pivots=windows#net-webassembly-build-tools).
 
@@ -15,12 +15,14 @@
 See [here](SYSYEM_DIAGRAM.md)
 
 # Tests
-Most of the ```Highbyte.DotNet6502``` library code has been developed with a test-first approach.
-
 The [XUnit](https://xunit.net/) library is used.
 
+Tests are currently focused on the core `Highbyte.DotNet6502` library. Most of its code has been developed with a test-first approach.
+
+Tests may expand to parts of system-specific logic code such as `Highbyte.DotNet6502.Systems.CommodoreC64`.
+
 ## Unit tests
-To run only unit tests (for the ```Highbyte.DotNet6502``` library)
+To run only unit tests (for the `Highbyte.DotNet6502` library)
 
 ```powershell
 cd tests/Highbyte.DotNet6502.Tests
@@ -47,7 +49,7 @@ cd tests/Highbyte.DotNet6502.Tests
 dotnet test --filter TestType=Integration
 ```
 
-# Code coverage report locally (```Highbyte.DotNet6502``` library)
+# Code coverage report locally (`Highbyte.DotNet6502` library)
 
 Install report-generator global tool
 ```powershell
@@ -64,4 +66,22 @@ Generate and show reports (Linux)
 ```shell
 chmod +x ./codecov-console.sh
 ./codecov-console.sh
+```
+
+
+# Using other emulators to verify correct behavior
+When in doubt how a specific 6502 instruction actually worked, it was useful to use the monitor in the VICE emulator (that is widely known to be an accurate emulator of C64 and 6502/6510 CPU) as a reference for stepping through machine code programs.
+
+It was also useful to use VICE to see how graphics and audio is working (or not working) compared to the C64 implementation in this emulator, and use as a reference for general correctness.
+
+## VICE monitor
+Monitor commands: https://vice-emu.sourceforge.io/vice_12.html
+
+How to load and step through a program in the VICE monitor
+```
+l "C:\Source\Repos\dotnet-6502\samples\Assembler\Generic\Build\testprogram.prg" 0 1000
+d 1000
+r PC=1000
+z
+r
 ```

@@ -52,46 +52,7 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
 
         var c64Config = new C64Config() { ROMs = new() };
         _configuration.GetSection($"{C64Config.ConfigSectionName}.{configurationVariant}").Bind(c64Config);
-
-        //var c64Config = new C64Config
-        //{
-        //    C64Model = configurationVariant,
-        //    Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name, // NTSC, NTSC_old, PAL
-
-        //    //ROMDirectory = "%USERPROFILE%/Documents/C64/VICE/C64",
-        //    ROMDirectory = "%HOME%/Downloads/C64",
-        //    ROMs = new List<ROM>
-        //    {
-        //        new ROM
-        //        {
-        //            Name = C64Config.BASIC_ROM_NAME,
-        //            File = "basic.901226-01.bin",
-        //            Data = null,
-        //            Checksum = "79015323128650c742a3694c9429aa91f355905e",
-        //        },
-        //        new ROM
-        //        {
-        //            Name = C64Config.CHARGEN_ROM_NAME,
-        //            File = "characters.901225-01.bin",
-        //            Data = null,
-        //            Checksum = "adc7c31e18c7c7413d54802ef2f4193da14711aa",
-        //        },
-        //        new ROM
-        //        {
-        //            Name = C64Config.KERNAL_ROM_NAME,
-        //            File = "kernal.901227-03.bin",
-        //            Data = null,
-        //            Checksum = "1d503e56df85a62fee696e7618dc5b4e781df1bb",
-        //        }
-        //    },
-
-        //    AudioSupported = true,
-        //    AudioEnabled = true,
-
-        //    InstrumentationEnabled = false, // Start with instrumentation off by default
-        //};
-
-        //c64Config.Validate();
+        c64Config.SetROMDefaultChecksums();
         return Task.FromResult<ISystemConfig>(c64Config);
     }
 

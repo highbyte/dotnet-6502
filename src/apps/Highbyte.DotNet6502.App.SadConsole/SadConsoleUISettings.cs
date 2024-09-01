@@ -73,17 +73,11 @@ internal class SadConsoleUISettings
         return colors;
     }
 
-
-    public readonly static ColoredGlyph ConsoleBorderGlyph = new(ThemeColors.Lines, ThemeColors.ControlHostBackground);
-
-    //public static Color UIConsoleBackgroundColor = new Color(5, 15, 45);
-    //public static Color UIConsoleForegroundColor = Color.White;
-    //public readonly static ColoredGlyph ConsoleBorderGlyph = new(new Color(90, 90, 90), UIConsoleBackgroundColor);
-
-
-    public readonly static ShapeParameters ConsoleDrawBoxBorderParameters = new ShapeParameters(
+    // Default border box drawing parameters for UI consoles.
+    private readonly static ColoredGlyph s_uiConsoleBorderGlyph = new(ThemeColors.Lines, ThemeColors.ControlHostBackground);
+    public readonly static ShapeParameters UIConsoleDrawBoxBorderParameters = new ShapeParameters(
             hasBorder: true,
-            borderGlyph: ConsoleBorderGlyph,
+            borderGlyph: s_uiConsoleBorderGlyph,
             ignoreBorderForeground: false,
             ignoreBorderBackground: false,
             ignoreBorderGlyph: false,
@@ -96,4 +90,24 @@ internal class SadConsoleUISettings
             ignoreFillMirror: false,
             boxBorderStyle: ICellSurface.ConnectedLineThin,
             boxBorderStyleGlyphs: null);
+
+    // Solid border for emulator, as the font used there may not contain the box drawing characters.
+    public static ShapeParameters CreateEmulatorConsoleDrawBoxBorderParameters(int solidGlyph)
+    {
+        return new ShapeParameters(
+            hasBorder: true,
+            borderGlyph: new ColoredGlyph(ThemeColors.Lines, ThemeColors.ControlHostBackground, glyph: solidGlyph),
+            ignoreBorderForeground: false,
+            ignoreBorderBackground: false,
+            ignoreBorderGlyph: false,
+            ignoreBorderMirror: false,
+            hasFill: false,
+            fillGlyph: null,
+            ignoreFillForeground: false,
+            ignoreFillBackground: false,
+            ignoreFillGlyph: false,
+            ignoreFillMirror: false,
+            boxBorderStyle: null,
+            boxBorderStyleGlyphs: null);
+    }
 }

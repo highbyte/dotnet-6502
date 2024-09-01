@@ -43,6 +43,7 @@
   <ItemGroup>
     <Folder Include="wwwroot\6502binaries\C64\Assembler\" />
     <Folder Include="wwwroot\6502binaries\C64\Basic\" />
+    <Folder Include="wwwroot\images\" />
   </ItemGroup>
 
   <Target Name="CopyC64ExampleBinaries" AfterTargets="AfterBuild">
@@ -58,4 +59,8 @@
     <Copy SourceFiles="..\..\..\samples\Assembler\Generic\Build\snake6502.prg" DestinationFolder="wwwroot\6502binaries\Generic\Assembler" />
   </Target>
 
+  <Target Name="CopyImages" AfterTargets="AfterBuild">
+    <Copy SourceFiles="..\..\..\resources\images\logo.png" DestinationFolder="wwwroot\images" />
+  </Target>
+  
 </Project>

@@ -6,10 +6,9 @@ public class CharGen
 {
     // About the CharacterImageDraw* variables:
     // - They are replaced with a transformation when drawn on screen based on the text mode, and it's configured C64 colors.
-    // - It doesn't matter which color they are set to, just that they are different, and not a valid C64 color.
-    public static SKColor CharacterImageDrawColor = SKColors.DarkKhaki;
-    public static SKColor CharacterImageDrawMultiColorBG1 = SKColors.DarkOrchid;
-    public static SKColor CharacterImageDrawMultiColorBG2 = SKColors.DarkGoldenrod;
+    public static SKColor CharacterImageDrawColor = SKColors.White;
+    public static SKColor CharacterImageDrawMultiColorBG1 = SKColors.DarkOrchid;    // This color must not be in C64 color pallette.
+    public static SKColor CharacterImageDrawMultiColorBG2 = SKColors.DarkGoldenrod; // This color must not be a C64 color pallette.
 
     private static readonly SKPaint s_paint;
     private static readonly SKPaint s_paintMultiColorBG1;

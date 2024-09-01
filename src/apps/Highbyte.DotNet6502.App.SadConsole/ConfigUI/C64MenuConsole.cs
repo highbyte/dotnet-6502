@@ -12,7 +12,7 @@ public class C64MenuConsole : ControlsConsole
     public const int CONSOLE_WIDTH = USABLE_WIDTH + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     public const int CONSOLE_HEIGHT = USABLE_HEIGHT + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     private const int USABLE_WIDTH = 21;
-    private const int USABLE_HEIGHT = 12;
+    private const int USABLE_HEIGHT = 10;
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
     private readonly ILogger _logger;
@@ -35,7 +35,7 @@ public class C64MenuConsole : ControlsConsole
         DrawUIItems();
 
         if (SadConsoleUISettings.UI_USE_CONSOLE_BORDER)
-            Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.ConsoleDrawBoxBorderParameters);
+            Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.UIConsoleDrawBoxBorderParameters);
     }
 
 
@@ -59,21 +59,12 @@ public class C64MenuConsole : ControlsConsole
         c64SaveBasicButton.Click += C64SaveBasicButton_Click;
         Controls.Add(c64SaveBasicButton);
 
-        // Load Binary
-        var c64LoadBinaryButton = new Button("Load Binary .prg")
-        {
-            Name = "c64LoadBinaryButton",
-            Position = (1, c64SaveBasicButton.Bounds.MaxExtentY + 1),
-        };
-        c64LoadBinaryButton.Click += C64LoadBinaryButton_Click;
-        Controls.Add(c64LoadBinaryButton);
-
 
         // Config
         var c64ConfigButton = new Button("C64 Config")
         {
             Name = "c64ConfigButton",
-            Position = (1, c64LoadBinaryButton.Bounds.MaxExtentY + 2),
+            Position = (1, c64SaveBasicButton.Bounds.MaxExtentY + 2),
         };
         c64ConfigButton.Click += C64ConfigButton_Click;
         Controls.Add(c64ConfigButton);
@@ -138,12 +129,12 @@ public class C64MenuConsole : ControlsConsole
                 {
                     _logger.LogError($"Error loading Basic .prg: {ex.Message}");
                 }
-
-                IsDirty = true;
             }
 
             if (wasRunning)
-                _sadConsoleHostApp.Start();
+                _sadConsoleHostApp.Start().Wait();
+
+            IsDirty = true;
         };
         window.Show(true);
     }
@@ -183,47 +174,7 @@ public class C64MenuConsole : ControlsConsole
             }
 
             if (wasRunning)
-                _sadConsoleHostApp.Start();
-        };
-        window.Show(true);
-    }
-
-    private void C64LoadBinaryButton_Click(object? sender, EventArgs e)
-    {
-        bool wasRunning = false;
-        if (_sadConsoleHostApp.EmulatorState == EmulatorState.Running)
-        {
-            wasRunning = true;
-            _sadConsoleHostApp.Pause();
-        }
-
-        var window = new FilePickerConsole(FilePickerMode.OpenFile, Environment.CurrentDirectory, filter: "*.prg");
-        window.Center();
-        window.Closed += (s2, e2) =>
-        {
-            if (window.DialogResult)
-            {
-                try
-                {
-                    var fileName = window.SelectedFile.FullName;
-                    BinaryLoader.Load(
-                        _sadConsoleHostApp.CurrentRunningSystem.Mem,
-                        fileName,
-                        out ushort loadedAtAddress,
-                        out ushort fileLength);
-
-                    _sadConsoleHostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Error loading Binary .prg: {ex.Message}");
-                }
-
-                IsDirty = true;
-            }
-
-            if (wasRunning)
-                _sadConsoleHostApp.Start();
+                _sadConsoleHostApp.Start().Wait();
         };
         window.Show(true);
     }
@@ -263,9 +214,6 @@ public class C64MenuConsole : ControlsConsole
 
         var c64SaveBasicButton = Controls["c64SaveBasicButton"];
         c64SaveBasicButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
-
-        var c64LoadBinaryButton = Controls["c64LoadBinaryButton"];
-        c64LoadBinaryButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
         var systemComboBox = Controls["c64ConfigButton"];
         systemComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;

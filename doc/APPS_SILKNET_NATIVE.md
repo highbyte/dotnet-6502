@@ -1,21 +1,26 @@
 <h1 align="center">Highbyte.DotNet6502.App.SilkNetNative</h1>
 
 # Overview
-<img src="Screenshots/SilkNetNative_C64.png" width="50%" height="50%" title="SkiaSharp rendering in native Silk.NET host window">
-
-<img src="Screenshots/SilkNetNative_Monitor.png" width="100%" height="100%" title="SkiaSharp rendering in native Silk.NET host window">
+<img align="top" src="Screenshots/SilkNetNative_C64_Basic.png" width="25%" height="25%" title="SilkNet native app, C64 Basic" /> <img align="top" src="Screenshots/SilkNetNative_C64_raster_scroll.png" width="25%" height="25%" title="SilkNet native app,, C64 raster and scroll" /> <img align="top" src="Screenshots/SilkNetNative_Monitor.png" width="25%" height="25%" title="SilkNet native app, C64 monitor" />
 
 # Features
-Native cross-platform app written in .NET with a Window from Silk.NET, using a SkiaSharp (from ```Highbyte.DotNet6502.Impl.Skia```) or a OpenGL (from ```Highbyte.DotNet6502.Impl.SilkNet```) renderer, with a Silk.NET input handler (from ```Highbyte.DotNet6502.Impl.SilkNet```).
+Native cross-platform app written in .NET using a [Silk.NET](https://github.com/dotnet/Silk.NET) window.
 
 Uses Silk.NET [ImGui extensions](https://www.nuget.org/packages/Silk.NET.OpenGL.Extensions.ImGui/) to render UI for interactive menu, monitor, and stats window.
 
 # System: C64 
-A directory containing the C64 ROM files (Kernal, Basic, Chargen) is supplied by the user, and set in the appsettings.json file.
+- A directory containing the C64 ROM files (Kernal, Basic, Chargen) is supplied by the user. Defaults are set in the appsettings.json file, and possible to change in the UI.
 
-Rendering of raster lines for border and background colors. 
+- Renderers using either `SkiaSharp` or `SilkNet` (OpenGl)
+  - Character mode (normal and multi-color) with all renderers
+  - Bitmap mode (normal and bitmap mode) with the SkiaSharp2* and SilkNetOpenGL renderers.
+  - Sprites (normal and multi-color) with all renderers.
+  - Rendering of raster lines for border and background colors with all renderers.
 
-Generation of sound via NAudio with custom OpenAL (Silk.NET) provider (for cross platform compatibility).
+- Input using `SilkNet`
+
+- Audio via `NAudio`
+  - [NAudio](https://github.com/naudio/NAudio) + custom OpenAL (Silk.NET) provider for cross platform compatibility.
 
 # System: Generic computer 
 TODO
@@ -29,7 +34,7 @@ Start and stop of selected system.
 
 Configuration options of selected system.
 
-## Monitor
+   ## Monitor
 A togglebale machine code monitor window by pressing F12.
 
 ## Stats
