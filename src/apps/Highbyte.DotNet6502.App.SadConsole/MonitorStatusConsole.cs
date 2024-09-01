@@ -1,8 +1,6 @@
-using System.Net.NetworkInformation;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Utils;
 using SadConsole.UI;
-using SadConsole.UI.Controls;
 using SadRogue.Primitives;
 
 namespace Highbyte.DotNet6502.App.SadConsole;
@@ -63,43 +61,39 @@ internal class MonitorStatusConsole : ControlsConsole
 
     private void DisplayCPUStatus()
     {
-        if (_sadConsoleHostApp.EmulatorState == EmulatorState.Uninitialized)
+        // Make sure to clear existing text before writing new text
+        Surface.Print(1, 1, _emptyRow);
+        for (int i = 0; i < NUMBER_OF_SYS_INFO_ROWS; i++)
         {
-            Surface.Print(1, 1, _emptyRow);
-            for (int i = 0; i < NUMBER_OF_SYS_INFO_ROWS; i++)
-            {
-                Surface.Print(1, 2 + i, _emptyRow);
-            }
+            Surface.Print(1, 2 + i, _emptyRow);
         }
-        else
+
+        var system = _sadConsoleHostApp.CurrentRunningSystem!;
+
+        var cpuStateDictionary = OutputGen.GetProcessorStateDictionary(system.CPU, includeCycles: true);
+        int row = 1;
+        int col = 1;
+        const string separator = ": ";
+        foreach (var cpuState in cpuStateDictionary)
         {
-            var system = _sadConsoleHostApp.CurrentRunningSystem!;
+            Surface.Print(col, 1, cpuState.Key, foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
+            col += cpuState.Key.Length;
+            Surface.Print(col, 1, separator, foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
+            col += separator.Length;
+            Surface.Print(col, 1, cpuState.Value, foreground: Controls.ThemeColors.White, background: Controls.ThemeColors.ControlHostBackground);
+            col += cpuState.Value.Length + 1;
+        }
 
-            var cpuStateDictionary = OutputGen.GetProcessorStateDictionary(system.CPU, includeCycles: true);
-            int row = 1;
-            int col = 1;
-            const string separator = ": ";
-            foreach (var cpuState in cpuStateDictionary)
-            {
-                Surface.Print(col, 1, cpuState.Key, foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
-                col += cpuState.Key.Length;
-                Surface.Print(col, 1, separator, foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
-                col += separator.Length;
-                Surface.Print(col, 1, cpuState.Value, foreground: Controls.ThemeColors.White, background: Controls.ThemeColors.ControlHostBackground);
-                col += cpuState.Value.Length + 1;
-            }
-
-            row = 2;
-            col = 1;
-            for (int i = 0; i < NUMBER_OF_SYS_INFO_ROWS; ++i)
-            {
-                if (i < system.SystemInfo.Count)
-                    // TODO: Is a new string every time needed here? If system.SystemInfo items does not change, then a list of pre-created string can be initialized once and then reused..
-                    Surface.Print(col, row, $"SYS: {system.SystemInfo[i]}", foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
-                else
-                    Surface.Print(col, row, _emptyRow, foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
-                row++;
-            }
+        row = 2;
+        col = 1;
+        for (int i = 0; i < NUMBER_OF_SYS_INFO_ROWS; ++i)
+        {
+            if (i < system.SystemInfo.Count)
+                // TODO: Is a new string every time needed here? If system.SystemInfo items does not change, then a list of pre-created string can be initialized once and then reused..
+                Surface.Print(col, row, $"SYS: {system.SystemInfo[i]}", foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
+            else
+                Surface.Print(col, row, _emptyRow, foreground: Controls.ThemeColors.ControlHostForeground, background: Controls.ThemeColors.ControlHostBackground);
+            row++;
         }
     }
 
