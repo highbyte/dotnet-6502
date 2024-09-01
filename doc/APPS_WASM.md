@@ -50,7 +50,7 @@ Set project `Highbyte.DotNet6502.App.WASM` as startup, and start with F5.
 
 ## From command line (Windows, Linux, Mac)
 ### Run Debug build
-``` 
+```shell
 cd ./src/apps/Highbyte.DotNet6502.App.WASM
 dotnet run
 ```
