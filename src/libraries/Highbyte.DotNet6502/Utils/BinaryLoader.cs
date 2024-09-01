@@ -23,10 +23,10 @@ public static class BinaryLoader
     /// Otherwise it assumes first two bytes is load address.
     /// Returns a new Memory instance.
     /// </summary>
-    /// <param name="binaryFilePath"></param>
-    /// <param name="loadedAtAddress">The address the program as loaded at.</param>
-    /// <param name="fileLength">The file size in bytes</param>
-    /// <param name="forceLoadAddress">Optional. If not specified, the two first bytes in file is assumed to be the load address</param>
+    /// <param name="binaryFilePath">The binary file to load.</param>
+    /// <param name="loadedAtAddress">Is set to the address the binary file was loaded at.</param>
+    /// <param name="fileLength">Is set to file size in bytes.</param>
+    /// <param name="forceLoadAddress">Optional. If not specified, the two first bytes in file is assumed to be the load address.</param>
     public static Memory Load(
         string binaryFilePath,
         out ushort loadedAtAddress,
@@ -34,8 +34,23 @@ public static class BinaryLoader
         ushort? forceLoadAddress = null)
     {
         Memory mem = new(mapToDefaultRAM: true);
-        Load(mem, binaryFilePath, out loadedAtAddress, out fileLength, forceLoadAddress);
+        mem.Load(binaryFilePath, out loadedAtAddress, out fileLength, forceLoadAddress);
         return mem;
+    }
+
+
+    /// <summary>
+    /// Load binary file into memory. Assume first two bytes is load address.
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <param name="binaryFilePath"></param>
+    /// <param name="loadedAtAddress">Is set to the address the binary file was loaded to.</param>
+    public static void Load(
+        this Memory mem,
+        string binaryFilePath,
+        out ushort loadedAtAddress)
+    {
+        mem.Load(binaryFilePath, out loadedAtAddress, out var _);
     }
 
     /// <summary>
@@ -43,12 +58,13 @@ public static class BinaryLoader
     /// Otherwise it assumes first two bytes is load address.
     /// Loads into the provided Memory instance.
     /// </summary>
-    /// <param name="binaryFilePath"></param>
-    /// <param name="loadedAtAddress">The address the program as loaded at.</param>
-    /// <param name="fileLength">The file size in bytes</param>
-    /// <param name="forceLoadAddress">Optional. If not specified, the two first bytes in file is assumed to be the load address</param>
+    /// <param name="mem"></param>
+    /// <param name="binaryFilePath">The binary file to load.</param>
+    /// <param name="loadedAtAddress">Is set to the address the binary file was loaded at.</param>
+    /// <param name="fileLength">Is set to file size in bytes.</param>
+    /// <param name="forceLoadAddress">Optional. If not specified, the two first bytes in file is assumed to be the load address.</param>
     public static void Load(
-        Memory mem,
+        this Memory mem,
         string binaryFilePath,
         out ushort loadedAtAddress,
         out ushort fileLength,
@@ -68,8 +84,19 @@ public static class BinaryLoader
         mem.StoreData(loadedAtAddress, fileData);
     }
 
+    /// <summary>
+    /// Load byte array into memory. If forceLoadAddress is specified, the binary is loaded at that address.
+    /// Otherwise it assumes first two bytes is load address.
+    /// Loads into the provided Memory instance.
+    /// </summary>
+    /// <param name="fileData">Byte array of the data to load</param>
+    /// <param name="loadedAtAddress">Is set to the address the byte array was loaded to</param>
+    /// <param name="fileLength">Is set to the byte array size</param>
+    /// <param name="forceLoadAddress">Optional. If not specified, the two first bytes in file is assumed to be the load address</param>
+
+    /// <exception cref="ArgumentNullException"></exception>
     public static void Load(
-        Memory mem,
+        this Memory mem,
         byte[] fileData,
         out ushort loadedAtAddress,
         out ushort fileLength,

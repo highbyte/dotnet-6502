@@ -8,12 +8,14 @@ using Highbyte.DotNet6502.Utils;
 
 string programFile = "calc_avg.prg";    // Adjust path if necessary
 
-// Create memory (default 64KB) and load the machine code program into it. Assume two first bytes in the .prg file is the load address.
-var mem = BinaryLoader.Load(programFile, out ushort loadAddress);
+// Create memory (default 64KB)
+Memory mem = new();
+// Load the machine code program into it. Assume two first bytes in the .prg file is the load address.
+mem.Load(programFile, out ushort loadAddress);
 
 // ALT: Create memory (default 64KB) and load the machine code program into it. Assume the .prg file does not contain load address in first two bytes, thus the load address must be specified explicitly.
 //ushort loadAddress = 0xc000;
-//var mem = BinaryLoader.Load(programFile, out _, out _, forceLoadAddress: loadAddress);
+//mem.Load(programFile, out _, out _, forceLoadAddress: loadAddress);
 
 // Init variables in memory locations used by the program.
 mem[0xd000] = 64;
@@ -26,7 +28,8 @@ var cpu = new CPU();
 cpu.PC = loadAddress;
 
 // Run program. The 6502 program will run until a BRK instruction is encountered.
-cpu.Execute(mem, LegacyExecEvaluator.UntilBRKExecEvaluator);
+cpu.ExecuteUntilBRK(mem);
 
 // Inspect result of program which is stored in memory location 0xd002.
 Console.WriteLine($"Output  (0xd002) = {mem[0xd002]}");
+

@@ -171,6 +171,29 @@ public class CPUTest
     }
 
     [Fact]
+    public void ExecuteUntilBRK_Executes_Until_BRK_Instruction()
+    {
+        // Arrange
+        var cpu = new CPU();
+        var mem = new Memory();
+
+        ushort originalPC = 0x1000;
+        ushort addr = originalPC;
+        mem[addr++] = (byte)OpCodeId.NOP;
+        mem[addr++] = (byte)OpCodeId.NOP;
+        mem[addr++] = (byte)OpCodeId.NOP;
+        mem[addr++] = (byte)OpCodeId.BRK;
+        cpu.PC = originalPC;
+
+        // Act
+        var execState = cpu.ExecuteUntilBRK(
+            mem);
+
+        // Assert
+        Assert.Equal((ulong)4, execState.InstructionsExecutionCount);
+    }
+
+    [Fact]
     public void ExecuteOneInstructionMinimal_Only_Executes_One_Instruction()
     {
         // Arrange

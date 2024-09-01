@@ -189,6 +189,17 @@ public class CPU
     }
 
     /// <summary>
+    /// Executes until BRK instruction is encountered, and will fire events and collect statistics.
+    /// </summary>
+    /// <param name="mem"></param>
+    /// <returns></returns>
+    public ExecState ExecuteUntilBRK(
+        Memory mem)
+    {
+        return Execute(mem, LegacyExecEvaluator.UntilBRKExecEvaluator);
+    }
+
+    /// <summary>
     /// Executes instructions in a loop until a condition is triggered in one of the specified ExecEvaluators.
     /// Events are also triggered for different stages of the execution.
     /// Statistics are collected.

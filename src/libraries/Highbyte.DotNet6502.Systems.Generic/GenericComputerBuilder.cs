@@ -99,8 +99,7 @@ public class GenericComputerBuilder
             Debug.WriteLine($"Loading 6502 prg file from binary file.");
 
             Debug.WriteLine($"{emulatorConfig.ProgramBinaryFile}");
-            BinaryLoader.Load(
-                mem,
+            mem.Load(
                 emulatorConfig.ProgramBinaryFile,
                 out loadedAtAddress,
                 out fileLength);
