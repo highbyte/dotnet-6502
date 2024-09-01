@@ -25,18 +25,18 @@
 
 # Overview / purpose
 
-.NET cross platform libraries and applications for executing 6502 CPU machine code, and emulating specific computer systems (such as Commodore 65) in different UI contexts. Links below for details on each library/app.
+.NET cross platform libraries and applications for executing 6502 CPU machine code, and emulating specific computer systems (such as Commodore 64) in different UI contexts. Links below for details on each library/app.
 
 > [!IMPORTANT]
 > This is mainly a programming exercise, that may or may not turn into something more. See [Limitations](#limitations) below.
 
 | Blazor WebAssembly app              | SilkNet native app                  | SadConsole native app               |
 | ----------------------------------- | ----------------------------------- | ----------------------------------- |
-|[<img align="top" src="doc/Screenshots/WASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/>](https://highbyte.se/dotnet-6502/app) |  [<img align="top" src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" title="SilkNet native app, C64 Bubble Bobble" />](#highbytedotnet6502appsilknetnative) | [<img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" title="SadConsole native app, C64 Basic" />](#highbytedotnet6502appsadconsole) |
+| [<img src="doc/Screenshots/WASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/>](https://highbyte.se/dotnet-6502/app) |  [<img src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" title="SilkNet native app, C64 Bubble Bobble" />](#highbytedotnet6502appsilknetnative) | [<img src="doc/Screenshots/SadConsole_C64_Basic.png" title="SadConsole native app, C64 Basic" />](#highbytedotnet6502appsadconsole) |
 
-| Integrating CPU library             | Monitor (in each app)               |
+| Integrating CPU library             | Machine code monitor              | 
 | ----------------------------------- | ----------------------------------- |
-| |  |
+| [<img src="doc/Screenshots/Code_integration.png" title="Code integration"/>](doc/CPU_LIBRARY.md) | [<img src="doc/Screenshots/SilkNetNative_Monitor.png" title="SilkNet native app, C64 monitor"/>](doc/MONITOR.md) |
 
 ## Common libraries
 - [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) 
