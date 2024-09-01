@@ -30,7 +30,7 @@ dotnet add package Highbyte.DotNet6502 --prerelease
 ### Step 1 - Write a 6502 program in assembly
 Write a 6502 assembly program to calculate average of two values (from different memory locations) and store result in a third memory location.
 
-> [!INFORMATION]
+> [!NOTE]
 > This example uses the [ACME](https://sourceforge.net/projects/acme-crossass/) cross assembler syntax (builds exists for Windows and macOS, for Linux it requires to download source code and build).
 > There exists other 6502 cross [assemblers](http://www.6502.org/tools/asm/) that can be used (but which may have different syntax requirements).
 
@@ -38,7 +38,7 @@ Use a text editor (or IDE) to create a text file with the contents below and sav
 > [!TIP]
 > `VSCode` has an extension called [`VS64`](https://marketplace.visualstudio.com/items?itemName=rosc.vs64) that provides nice syntax highlighting for 6502 assembly code (.asm).
 
-```asm       
+```
 ;Calculates the average of two values stored in memory locations, and store the result in another memory location.
 ;Code written in 6502 assembler using ACME cross assembler syntax.
 
@@ -78,7 +78,7 @@ acme -f cbm -o calc_avg.prg calc_avg.asm
 (Format-Hex ./calc_avg.prg).HexBytes
 ```
 ```
-AD 00 D0 18 6D 01 D0 6A 8D 02 D0 00
+00 C0 AD 00 D0 18 6D 01 D0 6A 8D 02 D0 00
 ```
 
 `Bash` (Linux) and `Zsh` (macOS)
@@ -86,7 +86,7 @@ AD 00 D0 18 6D 01 D0 6A 8D 02 D0 00
 hexdump -ve '1/1 "%.2x "' ./calc_avg.prg
 ```
 ```
-ad 00 d0 18 6d 01 d0 6a 8d 02 d0 00
+00 c0 ad 00 d0 18 6d 01 d0 6a 8d 02 d0 00
 ```
 
 ### Step 4 - Load compiled 6502 binary and execute it.
