@@ -15,6 +15,7 @@ public class LegacyExecEvaluator : IExecEvaluator
     private readonly ExecOptions _execOptions;
 
     public static LegacyExecEvaluator OneInstructionExecEvaluator = new LegacyExecEvaluator(new ExecOptions { MaxNumberOfInstructions = 1 });
+    public static LegacyExecEvaluator UntilBRKExecEvaluator = new LegacyExecEvaluator(new ExecOptions { BRKInstructionStopsExecution = true });
 
     public static LegacyExecEvaluator InstructionCountExecEvaluator(ulong numberOfInstructions)
     {

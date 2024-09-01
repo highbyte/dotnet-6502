@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502.Systems.Generic;
 
@@ -10,9 +11,11 @@ public class GenericComputerBuilder
     private readonly GenericComputer _genericComputer;
     private readonly ILoggerFactory _loggerFactory;
 
-    public GenericComputerBuilder(ILoggerFactory loggerFactory) : this(loggerFactory, new GenericComputerConfig()) { }
+    public GenericComputerBuilder() : this(new GenericComputerConfig(), NullLoggerFactory.Instance) { }
 
-    public GenericComputerBuilder(ILoggerFactory loggerFactory, GenericComputerConfig genericComputerConfig)
+    public GenericComputerBuilder(ILoggerFactory loggerFactory) : this(new GenericComputerConfig(), loggerFactory) { }
+
+    public GenericComputerBuilder(GenericComputerConfig genericComputerConfig, ILoggerFactory loggerFactory)
     {
         _loggerFactory = loggerFactory;
         _genericComputer = new GenericComputer(genericComputerConfig, loggerFactory);
@@ -117,7 +120,7 @@ public class GenericComputerBuilder
         }
 
         // Initialize emulator with CPU, memory, and execution parameters
-        var computerBuilder = new GenericComputerBuilder(loggerFactory, emulatorConfig);
+        var computerBuilder = new GenericComputerBuilder(emulatorConfig, loggerFactory);
         computerBuilder
             .WithCPU()
             .WithStartAddress(loadedAtAddress)
