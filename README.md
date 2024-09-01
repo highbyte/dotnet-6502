@@ -2,7 +2,7 @@
   <img src="resources/images/logo.png" width="5%" height="5%" title="DotNet 6502 logo">
 </p>
 <h2 align="center"> 
-  A <a href="[src/Test.java](https://en.wikipedia.org/wiki/MOS_Technology_6502)">6502 CPU</a> emulator for .NET
+  A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502">6502 CPU</a> emulator for .NET
 </h2>
 
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](doc/DEVELOP.md)
