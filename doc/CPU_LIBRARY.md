@@ -70,7 +70,7 @@ acme -f cbm -o calc_avg.prg calc_avg.asm
 ### Step 3 (optional) - Inspect binary .prg file
 
 > [!NOTE]
-> If the binary was assembled with the `-f cbm` parameter (as in the example above), the two first bytes in the .prg file would be the load address specified in the source .asm file (`* = $c000`), in "little endian order" `00`,`C0`. This is usually the convention for Commodore computers, and convenient in other contexts also.
+> If the binary was assembled with the `-f cbm` parameter (as in the example above), the two first bytes in the .prg file would be the load address specified in the source .asm file (`* = $c000`), in _little endian_ order `00`,`C0`. This is usually the convention for Commodore computers, and convenient in other contexts also.
 > If the binary was assembled with the `-f plain` parameter, the binary file would not have the first two address bytes, and only contain the code (and data) declared in the source file.
 
 `PowerShell` (Windows, Linux, macOS)
