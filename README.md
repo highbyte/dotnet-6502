@@ -36,7 +36,7 @@
 
 | Run 6502 machine code in your own .NET apps | Machine code monitor              | 
 | ----------------------------------- | ----------------------------------- |
-| [<img src="doc/Screenshots/Code_integration.png" title="Code integration"/>](doc/CPU_LIBRARY.md) | [<img src="doc/Screenshots/SilkNetNative_Monitor.png" title="SilkNet native app, C64 monitor"/>](doc/MONITOR.md) |
+| [<img src="doc/Screenshots/Code_integration.png" title="Code integration"/>](#) | [<img src="doc/Screenshots/SilkNetNative_Monitor.png" title="SilkNet native app, C64 monitor"/>](#) |
 
 ## Common libraries
 - [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) 
