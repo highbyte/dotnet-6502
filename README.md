@@ -23,14 +23,20 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/highbyte/dotnet-6502)](#)
 [![GitHub License](https://img.shields.io/github/license/highbyte/dotnet-6502)](LICENSE)
 
-[<img align="top" src="doc/Screenshots/WASM_C64_LastNinja.png" width="33%" height="33%" title="Blazor WebAssembly app, C64 Last Ninja"/>](https://highbyte.se/dotnet-6502/app) [<img align="top" src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" width="33%" height="33%" title="SilkNet native app, C64 Bubble Bobble" />](#highbytedotnet6502appsilknetnative) [<img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" width="33%" height="33%" title="SadConsole native app, C64 Basic" />](#highbytedotnet6502appsadconsole)
-
 # Overview / purpose
 
-.NET cross platform libraries and applications for executing 6502 CPU machine code, and emulating specific computer systems in different UI contexts. Links below for details on each library/app.
+.NET cross platform libraries and applications for executing 6502 CPU machine code, and emulating specific computer systems (such as Commodore 65) in different UI contexts. Links below for details on each library/app.
 
 > [!IMPORTANT]
 > This is mainly a programming exercise, that may or may not turn into something more. See [Limitations](#limitations) below.
+
+| Blazor WebAssembly app              | SilkNet native app                  | SadConsole native app               |
+| ----------------------------------- | ----------------------------------- | ----------------------------------- |
+|[<img align="top" src="doc/Screenshots/WASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/>](https://highbyte.se/dotnet-6502/app) |  [<img align="top" src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" title="SilkNet native app, C64 Bubble Bobble" />](#highbytedotnet6502appsilknetnative) | [<img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" title="SadConsole native app, C64 Basic" />](#highbytedotnet6502appsadconsole) |
+
+| Integrating CPU library             | Monitor (in each app)               |
+| ----------------------------------- | ----------------------------------- |
+| |  |
 
 ## Common libraries
 - [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) 
