@@ -18,21 +18,8 @@ public class SilkNetImGuiGenericComputerConfig
 
     private string _programBinaryFile = default!;
 
-    public bool IsValidConfig
-    {
-        get
-        {
-            if (_config == null)
-            {
-                _validationErrors.Clear();
-                return true;
-            }
-            else
-            {
-                return _config.IsValid(out _validationErrors);
-            }
-        }
-    }
+    public bool _isValidConfig;
+
     private List<string> _validationErrors = new();
     //private static Vector4 s_informationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
     private static Vector4 s_errorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
@@ -152,8 +139,9 @@ public class SilkNetImGuiGenericComputerConfig
             if (_config!.IsDirty)
             {
                 _config.ClearDirty();
+                _isValidConfig = _config.IsValid(out _validationErrors);
             }
-            if (!IsValidConfig)
+            if (!_isValidConfig)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, s_errorColor);
                 foreach (var error in _validationErrors)
@@ -164,7 +152,7 @@ public class SilkNetImGuiGenericComputerConfig
             }
 
             // Close buttons
-            ImGui.BeginDisabled(disabled: !IsValidConfig);
+            ImGui.BeginDisabled(disabled: !_isValidConfig);
             ImGui.PushStyleColor(ImGuiCol.Button, s_okButtonColor);
             if (ImGui.Button("Ok"))
             {

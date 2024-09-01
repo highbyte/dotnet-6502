@@ -481,7 +481,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.EndDisabled();
         _genericComputerConfigUI.PostOnRender("GenericComputer config");
 
-        if (!_genericComputerConfigUI.IsValidConfig)
+        if (!SelectedSystemConfigIsValid())
         {
             ImGui.PushStyleColor(ImGuiCol.Text, s_errorColor);
             ImGui.TextWrapped($"Config has errors. Press GenericComputerConfig button.");
