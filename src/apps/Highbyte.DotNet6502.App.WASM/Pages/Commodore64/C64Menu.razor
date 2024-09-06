@@ -5,6 +5,7 @@
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index;
 @using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 @using Highbyte.DotNet6502.Utils;
+@using TextCopy
 
 @if(Parent.Initialized && Parent.WasmHost.SelectedSystemName == SYSTEM_NAME)
 {
@@ -54,6 +55,10 @@
             </select>
             <button @onclick="OnLoadBasicExample" disabled=@OnFilePickerDisabled>Load</button>
         </div>
+
+        <p>Misc.</p>
+        <button @onclick="PasteText" disabled=@OnPasteTextDisabled>Paste</button>
+
     </div>
 
     <div class="validation-message">
@@ -93,6 +98,7 @@
     @inject IJSRuntime Js
     @inject HttpClient HttpClient
     @inject ILoggerFactory LoggerFactory
+    @inject IClipboard Clipboard
 
     [Parameter]
     public Highbyte.DotNet6502.App.WASM.Pages.Index Parent { get; set; } = default!;
@@ -207,6 +213,8 @@
     protected bool OnFilePickerDisabled => Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
 
     protected bool OnBasicFilePickerDisabled => Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
+
+    protected bool OnPasteTextDisabled => Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
 
     /// <summary>
     /// Open Load binary file dialog
@@ -447,14 +455,9 @@
                 c64.InitBasicMemoryVariables(loadedAtAddress, fileLength);
             }
 
-            // Send "list" + Enter to the keyboard buffer to immediately list the loaded program
-            var c64Keyboard = c64.Cia.Keyboard;
-            // Bypass keyboard matrix scanning and send directly to keyboard buffer?
-            c64Keyboard.InsertPetsciiCharIntoBuffer(Petscii.CharToPetscii['l']);
-            c64Keyboard.InsertPetsciiCharIntoBuffer(Petscii.CharToPetscii['i']);
-            c64Keyboard.InsertPetsciiCharIntoBuffer(Petscii.CharToPetscii['s']);
-            c64Keyboard.InsertPetsciiCharIntoBuffer(Petscii.CharToPetscii['t']);
-            c64Keyboard.InsertPetsciiCharIntoBuffer(Petscii.CharToPetscii[(char)13]);
+            // Send "list" + NewLine (Return) to the keyboard buffer to immediately list the loaded program.
+            // Bypass keyboard matrix scanning and send directly to keyboard buffer.
+            c64.TextPaste.Paste("list\n");
 
         }
         catch (Exception ex)
@@ -464,5 +467,17 @@
         }
 
         await Parent.OnStart(new());
+    }
+
+
+    private async Task PasteText()
+    {
+        var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
+        var text = await Clipboard.GetTextAsync();
+        if (string.IsNullOrEmpty(text))
+            return;
+        c64.TextPaste.Paste(text);
+
+        await Parent.FocusEmulator();
     }
 }

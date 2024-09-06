@@ -5,6 +5,7 @@ using SadConsole.UI.Controls;
 using SadRogue.Primitives;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Utils;
+using TextCopy;
 
 namespace Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 public class C64MenuConsole : ControlsConsole
@@ -60,16 +61,27 @@ public class C64MenuConsole : ControlsConsole
         Controls.Add(c64SaveBasicButton);
 
 
+        // Save Basic
+        var c64PasteTextButton = new Button("Paste")
+        {
+            Name = "c64PasteTextButton",
+            Position = (1, c64SaveBasicButton.Bounds.MaxExtentY + 2),
+        };
+        c64PasteTextButton.Click += C64PasteTextButton_Click;
+        Controls.Add(c64PasteTextButton);
+
+
         // Config
         var c64ConfigButton = new Button("C64 Config")
         {
             Name = "c64ConfigButton",
-            Position = (1, c64SaveBasicButton.Bounds.MaxExtentY + 2),
+            Position = (1, c64PasteTextButton.Bounds.MaxExtentY + 2),
         };
         c64ConfigButton.Click += C64ConfigButton_Click;
         Controls.Add(c64ConfigButton);
 
-        var validationMessageValueLabel = CreateLabelValue(new string(' ', 20), 1, c64ConfigButton.Bounds.MaxExtentY + 2, "validationMessageValueLabel");
+
+        var validationMessageValueLabel = CreateLabelValue(new string(' ', 20), 1, c64PasteTextButton.Bounds.MaxExtentY + 2, "validationMessageValueLabel");
         validationMessageValueLabel.TextColor = Controls.GetThemeColors().Red;
 
         // Helper function to create a label and add it to the console
@@ -201,6 +213,15 @@ public class C64MenuConsole : ControlsConsole
         window.Show(true);
     }
 
+    private void C64PasteTextButton_Click(object sender, EventArgs e)
+    {
+        var c64 = (C64)_sadConsoleHostApp.CurrentRunningSystem!;
+        var text = ClipboardService.GetText();
+        if (string.IsNullOrEmpty(text))
+            return;
+        c64.TextPaste.Paste(text);
+    }
+
     protected override void OnIsDirtyChanged()
     {
         if (IsDirty)
@@ -215,8 +236,11 @@ public class C64MenuConsole : ControlsConsole
         var c64SaveBasicButton = Controls["c64SaveBasicButton"];
         c64SaveBasicButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
-        var systemComboBox = Controls["c64ConfigButton"];
-        systemComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
+        var c64ConfigButton = Controls["c64ConfigButton"];
+        c64ConfigButton.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
+
+        var c64PasteTextButton = Controls["c64PasteTextButton"];
+        c64PasteTextButton.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Running;
 
         var validationMessageValueLabel = Controls["validationMessageValueLabel"] as Label;
         (var isOk, var validationErrors) = _sadConsoleHostApp.IsValidConfigWithDetails().Result;

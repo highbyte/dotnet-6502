@@ -8,6 +8,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using NativeFileDialogSharp;
+using TextCopy;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;
 
@@ -440,6 +441,19 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
             if (wasRunning)
                 _silkNetHostApp.Start();
+        }
+        ImGui.EndDisabled();
+
+        // C64 paste text
+        ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
+        if (ImGui.Button("Paste"))
+        {
+            var c64 = (C64)_silkNetHostApp.CurrentRunningSystem!;
+            var text = ClipboardService.GetText();
+            if (string.IsNullOrEmpty(text))
+                return;
+            c64.TextPaste.Paste(text);
+
         }
         ImGui.EndDisabled();
 

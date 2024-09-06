@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Utils;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
@@ -53,9 +54,9 @@ public class C64 : ISystem, ISystemMonitor
     private readonly ElapsedMillisecondsTimedStatSystem _postInstructionAudioCallbackStat;
     private readonly ElapsedMillisecondsTimedStatSystem _postInstructionVideoCallbackStat;
 
-
     public bool RememberVic2RegistersPerRasterLine { get; set; } = true;
 
+    public C64TextPaste TextPaste { get; private set; }
 
     //public static ROM[] ROMS = new ROM[]
     //{   
@@ -99,6 +100,9 @@ public class C64 : ISystem, ISystemMonitor
 
         _postInstructionAudioCallbackStat.Stop(); // Stop stat (was continiously updated after each instruction)
         _postInstructionVideoCallbackStat.Stop(); // Stop stat (was continiously updated after each instruction)
+
+        // Check if any text should be pasted to the keyboard buffer (pasted text set by host system, and each character insterted to the C64 keyboard buffer one character per frame)
+        TextPaste.InsertNextCharacterToKeyboardBuffer();
 
         // Update sprite collision state
         _spriteCollisionStat.Start();
@@ -160,7 +164,7 @@ public class C64 : ISystem, ISystemMonitor
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
 
-    private C64(ILogger logger)
+    private C64(ILogger logger, ILoggerFactory loggerFactory)
     {
         _logger = logger;
         _spriteCollisionStat = Instrumentations.Add($"{StatsCategory}-SpriteCollision", new ElapsedMillisecondsTimedStatSystem(this));
@@ -193,8 +197,8 @@ public class C64 : ISystem, ISystemMonitor
 
         var vic2Model = c64Model.Vic2Models.Single(x => x.Name == c64Config.Vic2Model);
 
-        var logger = loggerFactory.CreateLogger(typeof(C64).Name);
-        var c64 = new C64(logger)
+        var logger = loggerFactory.CreateLogger<C64>();
+        var c64 = new C64(logger, loggerFactory)
         {
             Model = c64Model,
             RAM = ram,
@@ -219,6 +223,8 @@ public class C64 : ISystem, ISystemMonitor
 
         var mem = c64.CreateC64Memory(ram, io, romData);
         c64.Mem = mem;
+
+        c64.TextPaste = new C64TextPaste(c64, loggerFactory);
 
         // Configure the current memory configuration on startup
         SetStartupBank(c64);

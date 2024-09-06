@@ -640,7 +640,7 @@ public partial class Index
         _wasmHost.Monitor.OnKeyUp(e);
     }
 
-    private async Task FocusEmulator()
+    public async Task FocusEmulator()
     {
         await Js!.InvokeVoidAsync("focusId", "emulatorSKGLView", 100);  // Hack: Delay of x ms for focus to work.
     }
