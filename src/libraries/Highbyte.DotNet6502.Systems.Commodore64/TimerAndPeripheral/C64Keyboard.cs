@@ -148,17 +148,21 @@ public class C64Keyboard
     /// <summary>
     /// Inserts a PETSCII character directly into the keyboard buffer, bypassing keyboard matrix.
     /// Can be useful when wanting to type Basic commands on behalf of the user.
+    /// 
+    /// Returns true if the character was inserted into the buffer, false if the buffer is full (and character couldn't be inserted).
     /// </summary>
     /// <param name="petsciiChar"></param>
-    public void InsertPetsciiCharIntoBuffer(byte petsciiChar)
+    /// 
+    public bool InsertPetsciiCharIntoBuffer(byte petsciiChar)
     {
         // Address: 0x00c6: Keyboard buffer index
         // Address: 0x0277 - 0x0280: Keyboard buffer
         var bufferIndex = _c64.Mem[0x00c6];
         if (bufferIndex >= 10)
-            return;
+            return false;
         _c64.Mem[0x00c6]++;
         _c64.Mem[(ushort)(0x0277 + bufferIndex)] = petsciiChar;
+        return true;
     }
 
     /// <summary>

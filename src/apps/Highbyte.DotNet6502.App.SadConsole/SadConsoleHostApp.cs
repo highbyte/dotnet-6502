@@ -279,7 +279,8 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         {
             _monitorConsole.Init();
         }
-        _sadConsoleEmulatorConsole.IsFocused = true;
+
+        SetEmulatorConsoleFocus();
 
         if (_infoConsole.IsVisible)
         {
@@ -555,6 +556,12 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     public void SetVolumePercent(float volumePercent)
     {
         _audioHandlerContext.SetMasterVolumePercent(masterVolumePercent: volumePercent);
+    }
+
+    public void SetEmulatorConsoleFocus()
+    {
+        if (_sadConsoleEmulatorConsole != null)
+            _sadConsoleEmulatorConsole.IsFocused = true;
     }
 
     private void HandleUIKeyboardInput()

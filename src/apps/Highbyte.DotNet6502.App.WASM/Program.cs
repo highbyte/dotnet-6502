@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.App.WASM;
 using Blazored.LocalStorage;
 using Toolbelt.Blazor.Extensions.DependencyInjection;
 using Highbyte.DotNet6502.Systems.Logging.Console;
+using TextCopy;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -12,6 +13,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddBlazoredModal();
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddGamepadList();
+builder.Services.InjectClipboard();
 
 builder.Logging.ClearProviders();
 builder.Logging.AddDotNet6502Console();
