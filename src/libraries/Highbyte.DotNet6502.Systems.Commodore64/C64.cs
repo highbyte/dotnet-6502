@@ -56,6 +56,7 @@ public class C64 : ISystem, ISystemMonitor
 
     public bool RememberVic2RegistersPerRasterLine { get; set; } = true;
 
+    public C64BasicTokenParser BasicTokenParser { get; private set; }
     public C64TextPaste TextPaste { get; private set; }
 
     //public static ROM[] ROMS = new ROM[]
@@ -224,6 +225,7 @@ public class C64 : ISystem, ISystemMonitor
         var mem = c64.CreateC64Memory(ram, io, romData);
         c64.Mem = mem;
 
+        c64.BasicTokenParser = new C64BasicTokenParser(c64, loggerFactory);
         c64.TextPaste = new C64TextPaste(c64, loggerFactory);
 
         // Configure the current memory configuration on startup

@@ -57,6 +57,7 @@
         </div>
 
         <p>Misc.</p>
+        <button @onclick="CopyBasicSourceCode" disabled=@OnCopySourceCodeDisabled>Copy</button>
         <button @onclick="PasteText" disabled=@OnPasteTextDisabled>Paste</button>
 
     </div>
@@ -214,7 +215,10 @@
 
     protected bool OnBasicFilePickerDisabled => Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
 
+    protected bool OnCopySourceCodeDisabled=> Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
+    
     protected bool OnPasteTextDisabled => Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
+
 
     /// <summary>
     /// Open Load binary file dialog
@@ -469,6 +473,13 @@
         await Parent.OnStart(new());
     }
 
+    private async Task CopyBasicSourceCode()
+    {
+        var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
+        var sourceCode = c64.BasicTokenParser.GetBasicTextLines();
+        await Clipboard.SetTextAsync(sourceCode.ToLower());
+        await Parent.FocusEmulator();
+    }
 
     private async Task PasteText()
     {

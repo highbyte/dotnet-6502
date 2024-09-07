@@ -444,7 +444,18 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         }
         ImGui.EndDisabled();
 
+        // C64 copy basic source code
+        ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
+        if (ImGui.Button("Copy"))
+        {
+            var c64 = (C64)_silkNetHostApp.CurrentRunningSystem!;
+            var sourceCode = c64.BasicTokenParser.GetBasicTextLines();
+            ClipboardService.SetText(sourceCode.ToLower());
+        }
+        ImGui.EndDisabled();
+
         // C64 paste text
+        ImGui.SameLine();
         ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
         if (ImGui.Button("Paste"))
         {
@@ -453,7 +464,6 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
             if (string.IsNullOrEmpty(text))
                 return;
             c64.TextPaste.Paste(text);
-
         }
         ImGui.EndDisabled();
 
