@@ -6,6 +6,8 @@ using SadRogue.Primitives;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Utils;
 using TextCopy;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 public class C64MenuConsole : ControlsConsole
@@ -60,16 +62,23 @@ public class C64MenuConsole : ControlsConsole
         c64SaveBasicButton.Click += C64SaveBasicButton_Click;
         Controls.Add(c64SaveBasicButton);
 
+        // Copy Basic Source Code
+        var c64CopyBasicSourceCodeButton = new Button("Copy")
+        {
+            Name = "c64CopyBasicSourceCodeButton",
+            Position = (1, c64SaveBasicButton.Bounds.MaxExtentY + 2),
+        };
+        c64CopyBasicSourceCodeButton.Click += C64CopyBasicSourceCodeButton_Click;
+        Controls.Add(c64CopyBasicSourceCodeButton);
 
-        // Save Basic
+        // Paste
         var c64PasteTextButton = new Button("Paste")
         {
             Name = "c64PasteTextButton",
-            Position = (1, c64SaveBasicButton.Bounds.MaxExtentY + 2),
+            Position = (c64CopyBasicSourceCodeButton.Bounds.MaxExtentX + 9, c64CopyBasicSourceCodeButton.Position.Y),
         };
         c64PasteTextButton.Click += C64PasteTextButton_Click;
         Controls.Add(c64PasteTextButton);
-
 
         // Config
         var c64ConfigButton = new Button("C64 Config")
@@ -213,6 +222,13 @@ public class C64MenuConsole : ControlsConsole
         window.Show(true);
     }
 
+    private void C64CopyBasicSourceCodeButton_Click(object sender, EventArgs e)
+    {
+        var c64 = (C64)_sadConsoleHostApp.CurrentRunningSystem!;
+        var basicSourceCode = c64.BasicTokenParser.GetBasicTextLines();
+        ClipboardService.SetText(basicSourceCode.ToLower());
+    }
+
     private void C64PasteTextButton_Click(object sender, EventArgs e)
     {
         var c64 = (C64)_sadConsoleHostApp.CurrentRunningSystem!;
@@ -238,6 +254,9 @@ public class C64MenuConsole : ControlsConsole
 
         var c64ConfigButton = Controls["c64ConfigButton"];
         c64ConfigButton.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
+
+        var c64CopyBasicSourceCodeButton = Controls["c64CopyBasicSourceCodeButton"];
+        c64CopyBasicSourceCodeButton.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Running;
 
         var c64PasteTextButton = Controls["c64PasteTextButton"];
         c64PasteTextButton.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Running;
