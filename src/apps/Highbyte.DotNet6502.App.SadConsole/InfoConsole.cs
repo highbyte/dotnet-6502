@@ -28,11 +28,11 @@ internal class InfoConsole : ControlsConsole
 
     private List<KeyValuePair<string, Panel>> _systemInfoPanels = new ();
 
-    // C64 debug info panel
-    private List<Label> _C64DebugInfoLabels;
-    private List<Label> _C64DebugInfoLabelValues;
-    private string _emptyC64DebugInfoLabelRow;
-    private string _emptyC64DebugInfoLabelValueRow;
+    // Debug info panel
+    private List<Label> _debugInfoLabels;
+    private List<Label> _debugInfoLabelValues;
+    private string _emptyDebugInfoLabelRow;
+    private string _emptyDebugInfoLabelValueRow;
 
     /// <summary>
     /// Console to display information, stats, and logs
@@ -134,8 +134,38 @@ internal class InfoConsole : ControlsConsole
             }
         }
 
+        // System debug info panel
+        Panel debugInfoPanel = new Panel(10, 10);
+        {
+            var labelTitleLength = 25;
+            _debugInfoLabels = new List<Label>();
+            _debugInfoLabelValues = new List<Label>();
 
-        // C64 info panel
+            _emptyDebugInfoLabelRow = new string(' ', labelTitleLength + 1);
+            _emptyDebugInfoLabelValueRow = new string(' ', CONSOLE_WIDTH - 3 - labelTitleLength);
+
+            for (int i = 0; i < CONSOLE_HEIGHT - 5; i++)
+            {
+                var label = CreateLabel(_emptyDebugInfoLabelRow, 1, 1 + i, $"DebugInfoLabel{i}");
+                label.TextColor = Controls.ThemeColors.ControlForegroundNormal;
+                _debugInfoLabels.Add(label);
+
+                var labelValue = CreateLabel(_emptyDebugInfoLabelValueRow, 1 + labelTitleLength, 1 + i, $"DebugInfoLabelValue{i}");
+                labelValue.TextColor = SadConsoleUISettings.ThemeColors.White;
+                _debugInfoLabelValues.Add(labelValue);
+            }
+
+            //Helper function to create a label and add it to the console
+            Label CreateLabel(string text, int col, int row, string? name = null)
+            {
+                var labelTemp = new Label(text) { Position = new Point(col, row), Name = name };
+                debugInfoPanel.Add(labelTemp);
+                return labelTemp;
+            }
+        }
+
+
+        // C64-specific info panel
         Panel c64SystemInfoPanel = new Panel(10, 10);
         {
             const int colTab1 = 0; const int colTab2 = 30; const int colTab3 = 60;
@@ -174,40 +204,8 @@ internal class InfoConsole : ControlsConsole
             _systemInfoPanels.Add(new KeyValuePair<string, Panel>(key: C64.SystemName, value: c64SystemInfoPanel));
         }
 
-        // C64 info panel 2
-        Panel c64SystemInfoPanel2 = new Panel(10, 10);
-        {
-            var labelTitleLength = 25;
-            _C64DebugInfoLabels = new List<Label>();
-            _C64DebugInfoLabelValues = new List<Label>();
 
-            _emptyC64DebugInfoLabelRow = new string(' ', labelTitleLength + 1);
-            _emptyC64DebugInfoLabelValueRow = new string(' ', CONSOLE_WIDTH - 3 - labelTitleLength);
-
-            for (int i = 0; i < CONSOLE_HEIGHT - 5; i++)
-            {
-                var label = CreateLabel(_emptyC64DebugInfoLabelRow, 1, 1 + i, $"C64DebugInfoLabel{i}");
-                label.TextColor = Controls.ThemeColors.ControlForegroundNormal;
-                _C64DebugInfoLabels.Add(label);
-
-                var labelValue = CreateLabel(_emptyC64DebugInfoLabelValueRow, 1 + labelTitleLength, 1 + i, $"C64DebugInfoLabelValue{i}");
-                labelValue.TextColor = SadConsoleUISettings.ThemeColors.White;
-                _C64DebugInfoLabelValues.Add(labelValue);
-            }
-
-            //Helper function to create a label and add it to the console
-            Label CreateLabel(string text, int col, int row, string? name = null)
-            {
-                var labelTemp = new Label(text) { Position = new Point(col, row), Name = name };
-                c64SystemInfoPanel2.Add(labelTemp);
-                return labelTemp;
-            }
-
-            _systemInfoPanels.Add(new KeyValuePair<string, Panel>(key: C64.SystemName, value: c64SystemInfoPanel2));
-        }
-
-
-        // Generic info panel
+        // Generic-specific info panel
         Panel genericSystemInfoPanel = new Panel(10, 10); // TODO: What does size in constructor affect?
         {
             int row = 0;
@@ -227,6 +225,7 @@ internal class InfoConsole : ControlsConsole
 
         List<TabItem> tabs = new(){ new TabItem("Stats", statsPanel) { AutomaticPadding = 0 },
                                     new TabItem("Logs", logsPanel) { AutomaticPadding = 0 },
+                                    new TabItem("Debug info", debugInfoPanel) { AutomaticPadding = 0 },
                                     };
         TabControl tab = new TabControl(tabs, CONSOLE_WIDTH, CONSOLE_HEIGHT) { Name = "tab" };
         tab.Position = (0, 0);
@@ -293,18 +292,18 @@ internal class InfoConsole : ControlsConsole
         var c64 = (C64)_sadConsoleHostApp.CurrentRunningSystem!;
 
         // TODO: If there are more stats rows than can be displayed (i.e. not enough items in _statsLabels), then they are not displayed. Fix it?
-        for (int i = 0; i < _C64DebugInfoLabels.Count; ++i)
+        for (int i = 0; i < _debugInfoLabels.Count; ++i)
         {
             if (i < c64.DebugInfo.Count)
             {
                 var c64DebugInfo = c64.DebugInfo[i];
 
-                _C64DebugInfoLabels[i].DisplayText = c64DebugInfo.Key;
+                _debugInfoLabels[i].DisplayText = c64DebugInfo.Key;
 
                 // Clear any previous value (it was longer then current value)
-                _C64DebugInfoLabelValues[i].DisplayText = _emptyC64DebugInfoLabelValueRow;
+                _debugInfoLabelValues[i].DisplayText = _emptyDebugInfoLabelValueRow;
                 // Set new value
-                _C64DebugInfoLabelValues[i].DisplayText = c64DebugInfo.Value();
+                _debugInfoLabelValues[i].DisplayText = c64DebugInfo.Value();
             }
         }
     }
@@ -318,10 +317,10 @@ internal class InfoConsole : ControlsConsole
 
     private void ClearC64DebugInfo()
     {
-        for (int i = 0; i < _C64DebugInfoLabels.Count; ++i)
+        for (int i = 0; i < _debugInfoLabels.Count; ++i)
         {
-            _C64DebugInfoLabels[i].DisplayText = _emptyC64DebugInfoLabelRow;
-            _C64DebugInfoLabelValues[i].DisplayText = _emptyC64DebugInfoLabelValueRow;
+            _debugInfoLabels[i].DisplayText = _emptyDebugInfoLabelRow;
+            _debugInfoLabelValues[i].DisplayText = _emptyDebugInfoLabelValueRow;
         }
     }
 
