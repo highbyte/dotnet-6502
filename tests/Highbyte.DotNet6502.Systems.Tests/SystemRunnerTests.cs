@@ -171,6 +171,8 @@ public class TestSystem : ISystem
     public string Name => SystemName;
 
     public List<string> SystemInfo => new List<string>();
+    public List<KeyValuePair<string, Func<string>>> DebugInfo => new();
+
 
     public CPU CPU => throw new NotImplementedException();
 
@@ -200,6 +202,7 @@ public class TestSystem2 : ISystem
     public string Name => SystemName;
 
     public List<string> SystemInfo => new List<string>();
+    public List<KeyValuePair<string, Func<string>>> DebugInfo => new();
 
     public CPU CPU => throw new NotImplementedException();
 

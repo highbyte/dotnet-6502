@@ -400,4 +400,11 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
             .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{InputTimeStatName}-{x.Name}", x.Stat)))
             .ToList();
     }
+
+    public List<KeyValuePair<string, Func<string>>> GetDebugInfo()
+    {
+        if (_systemRunner == null)
+            return null;
+        return _systemRunner.System.DebugInfo;
+    }
 }

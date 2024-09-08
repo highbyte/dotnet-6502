@@ -74,6 +74,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     {
         ImGui.SetNextWindowSize(new Vector2(WIDTH, HEIGHT), ImGuiCond.Once);
         ImGui.SetNextWindowPos(new Vector2(POS_X, POS_Y), ImGuiCond.Once);
+        ImGui.SetNextWindowCollapsed(false, ImGuiCond.Appearing);
 
         //ImGui.Begin($"DotNet 6502 Emulator", ImGuiWindowFlags.NoResize);
         ImGui.Begin($"DotNet 6502 Emulator");

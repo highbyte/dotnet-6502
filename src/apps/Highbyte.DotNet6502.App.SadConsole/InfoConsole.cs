@@ -1,8 +1,9 @@
-using Highbyte.DotNet6502.Systems;
+using System.Text;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
+using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
@@ -25,7 +26,13 @@ internal class InfoConsole : ControlsConsole
 
     private ListBox _logsListBox;
 
-    private Dictionary<string, Panel> _systemInfoPanels = new Dictionary<string, Panel>();
+    private List<KeyValuePair<string, Panel>> _systemInfoPanels = new ();
+
+    // C64 debug info panel
+    private List<Label> _C64DebugInfoLabels;
+    private List<Label> _C64DebugInfoLabelValues;
+    private string _emptyC64DebugInfoLabelRow;
+    private string _emptyC64DebugInfoLabelValueRow;
 
     /// <summary>
     /// Console to display information, stats, and logs
@@ -129,7 +136,7 @@ internal class InfoConsole : ControlsConsole
 
 
         // C64 info panel
-        Panel c64SystemInfoPanel = new Panel(10, 10); // TODO: What does size in constructor affect?
+        Panel c64SystemInfoPanel = new Panel(10, 10);
         {
             const int colTab1 = 0; const int colTab2 = 30; const int colTab3 = 60;
             int row = 0;
@@ -164,8 +171,41 @@ internal class InfoConsole : ControlsConsole
                 return labelTemp;
             }
 
-            _systemInfoPanels.Add(key: C64.SystemName, value: c64SystemInfoPanel);
+            _systemInfoPanels.Add(new KeyValuePair<string, Panel>(key: C64.SystemName, value: c64SystemInfoPanel));
         }
+
+        // C64 info panel 2
+        Panel c64SystemInfoPanel2 = new Panel(10, 10);
+        {
+            var labelTitleLength = 25;
+            _C64DebugInfoLabels = new List<Label>();
+            _C64DebugInfoLabelValues = new List<Label>();
+
+            _emptyC64DebugInfoLabelRow = new string(' ', labelTitleLength + 1);
+            _emptyC64DebugInfoLabelValueRow = new string(' ', CONSOLE_WIDTH - 3 - labelTitleLength);
+
+            for (int i = 0; i < CONSOLE_HEIGHT - 5; i++)
+            {
+                var label = CreateLabel(_emptyC64DebugInfoLabelRow, 1, 1 + i, $"C64DebugInfoLabel{i}");
+                label.TextColor = Controls.ThemeColors.ControlForegroundNormal;
+                _C64DebugInfoLabels.Add(label);
+
+                var labelValue = CreateLabel(_emptyC64DebugInfoLabelValueRow, 1 + labelTitleLength, 1 + i, $"C64DebugInfoLabelValue{i}");
+                labelValue.TextColor = SadConsoleUISettings.ThemeColors.White;
+                _C64DebugInfoLabelValues.Add(labelValue);
+            }
+
+            //Helper function to create a label and add it to the console
+            Label CreateLabel(string text, int col, int row, string? name = null)
+            {
+                var labelTemp = new Label(text) { Position = new Point(col, row), Name = name };
+                c64SystemInfoPanel2.Add(labelTemp);
+                return labelTemp;
+            }
+
+            _systemInfoPanels.Add(new KeyValuePair<string, Panel>(key: C64.SystemName, value: c64SystemInfoPanel2));
+        }
+
 
         // Generic info panel
         Panel genericSystemInfoPanel = new Panel(10, 10); // TODO: What does size in constructor affect?
@@ -181,7 +221,7 @@ internal class InfoConsole : ControlsConsole
                 genericSystemInfoPanel.Add(labelTemp);
                 return labelTemp;
             }
-            _systemInfoPanels.Add(key: GenericComputer.SystemName, value: genericSystemInfoPanel);
+            _systemInfoPanels.Add(new KeyValuePair<string, Panel>(key: GenericComputer.SystemName, value: genericSystemInfoPanel));
         }
 
 
@@ -240,6 +280,51 @@ internal class InfoConsole : ControlsConsole
         _logsListBox.IsDirty = true;
     }
 
+    public void UpdateSystemDebugInfo()
+    {
+        if (_sadConsoleHostApp.CurrentRunningSystem is C64 c64System)
+        {
+            UpdateC64DebugInfo();
+        }
+    }
+
+    private void UpdateC64DebugInfo()
+    {
+        var c64 = (C64)_sadConsoleHostApp.CurrentRunningSystem!;
+
+        // TODO: If there are more stats rows than can be displayed (i.e. not enough items in _statsLabels), then they are not displayed. Fix it?
+        for (int i = 0; i < _C64DebugInfoLabels.Count; ++i)
+        {
+            if (i < c64.DebugInfo.Count)
+            {
+                var c64DebugInfo = c64.DebugInfo[i];
+
+                _C64DebugInfoLabels[i].DisplayText = c64DebugInfo.Key;
+
+                // Clear any previous value (it was longer then current value)
+                _C64DebugInfoLabelValues[i].DisplayText = _emptyC64DebugInfoLabelValueRow;
+                // Set new value
+                _C64DebugInfoLabelValues[i].DisplayText = c64DebugInfo.Value();
+            }
+        }
+    }
+    public void ClearSystemDebugInfo()
+    {
+        if (_sadConsoleHostApp.CurrentRunningSystem is C64 c64System)
+        {
+            ClearC64DebugInfo();
+        }
+    }
+
+    private void ClearC64DebugInfo()
+    {
+        for (int i = 0; i < _C64DebugInfoLabels.Count; ++i)
+        {
+            _C64DebugInfoLabels[i].DisplayText = _emptyC64DebugInfoLabelRow;
+            _C64DebugInfoLabelValues[i].DisplayText = _emptyC64DebugInfoLabelValueRow;
+        }
+    }
+
     /// <summary>
     /// Show system info help for the selected system, and hides other system info help.
     /// </summary>
@@ -247,9 +332,9 @@ internal class InfoConsole : ControlsConsole
     {
         var tab = Controls["tab"] as TabControl;
         // Remove existing system info panel
-        foreach (var systemInfoPanel in _systemInfoPanels.Values)
+        foreach (var systemInfoPanel in _systemInfoPanels)
         {
-            var tabContainingExistingSystemInfoPanel = tab.Tabs.SingleOrDefault(x => x.Content == systemInfoPanel);
+            var tabContainingExistingSystemInfoPanel = tab.Tabs.SingleOrDefault(x => x.Content == systemInfoPanel.Value);
             if (tabContainingExistingSystemInfoPanel != null)
             {
                 tab.SetActiveTab(0);
@@ -258,12 +343,19 @@ internal class InfoConsole : ControlsConsole
         }
 
         // Add current selected system info panel
-        if (_systemInfoPanels.ContainsKey(_sadConsoleHostApp.SelectedSystemName))
+        int systemInfoPanelNo = 1;
+        foreach (var systemInfoPanel in _systemInfoPanels)
         {
-            var selectedSystemPanel = _systemInfoPanels[_sadConsoleHostApp.SelectedSystemName];
-            var tabItem = new TabItem($"{_sadConsoleHostApp.SelectedSystemName} info", selectedSystemPanel);
-            tab.AddTab(tabItem);
+            if (systemInfoPanel.Key == _sadConsoleHostApp.SelectedSystemName)
+            {
+                var tabHeader = systemInfoPanelNo == 1 ? $"{_sadConsoleHostApp.SelectedSystemName} info" : $"{_sadConsoleHostApp.SelectedSystemName} info {systemInfoPanelNo}";
+                var tabItem = new TabItem($"{tabHeader}", systemInfoPanel.Value);
+                tab.AddTab(tabItem);
+
+                systemInfoPanelNo++;
+            }
         }
+
         tab.IsDirty = true;
     }
 

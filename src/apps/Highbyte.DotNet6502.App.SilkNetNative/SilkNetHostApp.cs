@@ -51,6 +51,10 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     private SilkNetImGuiStatsPanel _statsPanel = default!;
     public SilkNetImGuiStatsPanel StatsPanel => _statsPanel;
 
+    // Debug Info panel
+    private SilkNetImGuiDebugPanel _debugInfoPanel = default!;
+    public SilkNetImGuiDebugPanel DebugInfoPanel => _debugInfoPanel;
+
     // Logs panel
     private SilkNetImGuiLogsPanel _logsPanel = default!;
     public SilkNetImGuiLogsPanel LogsPanel => _logsPanel;
@@ -142,12 +146,14 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
 
         // Create other UI windows
         _statsPanel = CreateStatsUI();
-        _monitor = CreateMonitorUI(_statsPanel, _emulatorConfig.Monitor);
+        _debugInfoPanel = CreateDebugUI();
+        _monitor = CreateMonitorUI(_statsPanel, _debugInfoPanel, _emulatorConfig.Monitor);
         _logsPanel = CreateLogsUI(_logStore, _logConfig);
 
         // Add all ImGui windows to a list
         _imGuiWindows.Add(_menu);
         _imGuiWindows.Add(_statsPanel);
+        _imGuiWindows.Add(_debugInfoPanel);
         _imGuiWindows.Add(_monitor);
         _imGuiWindows.Add(_logsPanel);
     }
@@ -200,6 +206,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         // Dispose Monitor/Instrumentations panel
         //_monitor.Cleanup();
         //_statsPanel.Cleanup();
+        //_debugInfoPanel.Cleanup();
         DestroyImGuiController();
 
         // Cleanup contexts
@@ -271,7 +278,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         // If any ImGui window is visible, make sure to clear Gl buffer before rendering emulator
         if (emulatorWillBeRendered)
         {
-            if (_monitor.Visible || _statsPanel.Visible || _logsPanel.Visible)
+            if (_monitor.Visible || _statsPanel.Visible || _debugInfoPanel.Visible || _logsPanel.Visible)
                 _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
         }
     }
@@ -290,6 +297,11 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
             // Render stats if enabled and emulator was rendered
             if (_statsPanel.Visible)
                 _statsPanel.PostOnRender();
+
+            // Render debug info if enabled and emulator was rendered
+            if (_debugInfoPanel.Visible)
+                _debugInfoPanel.PostOnRender();
+
         }
         else
         {
@@ -412,7 +424,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         );
     }
 
-    private SilkNetImGuiMonitor CreateMonitorUI(SilkNetImGuiStatsPanel statsPanel, MonitorConfig monitorConfig)
+    private SilkNetImGuiMonitor CreateMonitorUI(SilkNetImGuiStatsPanel statsPanel, SilkNetImGuiDebugPanel debugInfoPanel, MonitorConfig monitorConfig)
     {
         // Init Monitor ImGui resources 
         var monitor = new SilkNetImGuiMonitor(monitorConfig);
@@ -420,7 +432,10 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         monitor.MonitorStateChange += (s, monitorEnabled) =>
         {
             if (monitorEnabled)
+            {
                 statsPanel.Disable();
+                debugInfoPanel.Disable();
+            }
         };
         return monitor;
     }
@@ -428,6 +443,11 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     private SilkNetImGuiStatsPanel CreateStatsUI()
     {
         return new SilkNetImGuiStatsPanel(GetStats);
+    }
+
+    private SilkNetImGuiDebugPanel CreateDebugUI()
+    {
+        return new SilkNetImGuiDebugPanel(GetDebugInfo);
     }
 
     private SilkNetImGuiLogsPanel CreateLogsUI(DotNet6502InMemLogStore logStore, DotNet6502InMemLoggerConfiguration logConfig)
@@ -511,6 +531,8 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         if (_statsPanel.Visible)
         {
             _statsPanel.Disable();
+            _debugInfoPanel.Disable();
+
             CurrentRunningSystem!.InstrumentationEnabled = false;
             _statsWasEnabled = false;
         }
@@ -518,6 +540,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         {
             CurrentRunningSystem!.InstrumentationEnabled = true;
             _statsPanel.Enable();
+            _debugInfoPanel.Enable();
         }
     }
 

@@ -1,47 +1,48 @@
 using System.Numerics;
-using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;
 
-public class SilkNetImGuiStatsPanel : ISilkNetImGuiWindow
+public class SilkNetImGuiDebugPanel : ISilkNetImGuiWindow
 {
     public bool Visible { get; private set; }
     public bool WindowIsFocused { get; private set; }
 
     private const int POS_X = 600;
-    private const int POS_Y = 2;
+    private const int POS_Y = 300;
     private const int WIDTH = 500;
     private const int HEIGHT = 300;
-    static Vector4 s_LabelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
+    private static Vector4 s_labelColor = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
 
-    private readonly Func<List<(string Name, IStat Stat)>> _getStats;
+    private readonly Func<List<KeyValuePair<string, Func<string>>>> _getDebugInfo;
 
-    public SilkNetImGuiStatsPanel(Func<List<(string name, IStat stat)>> getStats)
+    public SilkNetImGuiDebugPanel(Func<List<KeyValuePair<string, Func<string>>>> getDebugInfo)
     {
-        _getStats = getStats;
+        _getDebugInfo = getDebugInfo;
     }
 
     public void PostOnRender()
     {
         ImGui.SetNextWindowSize(new Vector2(WIDTH, HEIGHT), ImGuiCond.Once);
         ImGui.SetNextWindowPos(new Vector2(POS_X, POS_Y), ImGuiCond.Once);
-        ImGui.SetNextWindowCollapsed(false, ImGuiCond.Appearing);
+        ImGui.SetNextWindowCollapsed(true, ImGuiCond.Appearing);
 
         //ImGui.SetWindowPos(new Vector2(POS_X, POS_Y));
         //ImGui.SetWindowSize(new Vector2(WIDTH, HEIGHT));
 
         var strings = new List<string>();
-        foreach ((string name, IStat stat) in _getStats().OrderBy(i => i.Name))
-        {
-            if (stat.ShouldShow())
-            {
-                string line = name + ": " + stat.GetDescription();
-                strings.Add(line);
-            }
-        };
 
-        ImGui.Begin($"Stats");
-        ImGui.PushStyleColor(ImGuiCol.Text, s_LabelColor);
+        if (_getDebugInfo != null)
+        {
+            foreach (var debugInfoItem in _getDebugInfo())
+            {
+                string line = debugInfoItem.Key + ": " + debugInfoItem.Value();
+                strings.Add(line);
+            };
+        }
+
+        ImGui.Begin($"DebugInfo");
+
+        ImGui.PushStyleColor(ImGuiCol.Text, s_labelColor);
         foreach (var line in strings)
         {
             ImGui.Text(line);
