@@ -6,8 +6,6 @@ using SadRogue.Primitives;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Utils;
 using TextCopy;
-using Highbyte.DotNet6502.Systems.Commodore64.Utils;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 public class C64MenuConsole : ControlsConsole

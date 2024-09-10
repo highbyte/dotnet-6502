@@ -148,6 +148,26 @@ public static class Petscii
         return (byte)petsciiCode;
     }
 
+    // Maps petscii to screen code
+    public static byte PetscIIToC64ScreenCode(byte petsciiCode)
+    {
+        // Ref: http://sta.c64.org/cbm64scrtopet.html
+        int screenCode = petsciiCode switch
+        {
+            >= 0 and <= 31 => petsciiCode + 128,
+            >= 32 and <= 63 => petsciiCode,
+            >= 64 and <= 95 => petsciiCode - 64,
+            >= 128 and <= 159 => petsciiCode + 64,
+            >= 160 and <= 191 => petsciiCode - 64,
+            >= 192 and <= 221 => petsciiCode - 128,
+            255 => 94,
+            223 => 95,
+            _ => throw new NotImplementedException(),
+        };
+        return (byte)screenCode;
+    }
+
+
     public static byte PetscIIToAscII(byte petsciiCode)
     {
         // Ref: https://thec64community.online/thread/77/petscii-ascii-tool?page=1&scrollTo=438

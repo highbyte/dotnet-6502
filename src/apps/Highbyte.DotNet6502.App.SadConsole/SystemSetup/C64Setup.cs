@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.App.SadConsole.CodingAssistant.Inference;
+using Highbyte.DotNet6502.App.SadConsole.CodingAssistant.Inference.OpenAI;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.SadConsole;
@@ -23,10 +25,19 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
     private readonly ILoggerFactory _loggerFactory;
     private readonly IConfiguration _configuration;
 
+
+    private readonly CodeCompletionInference _codeCompletionInference;
+    private readonly OpenAIInferenceBackend _inferenceBackend;
+    private readonly CodeCompletionConfig _codeCompletionConfig;
+
     public C64Setup(ILoggerFactory loggerFactory, IConfiguration configuration)
     {
         _loggerFactory = loggerFactory;
         _configuration = configuration;
+
+        _codeCompletionInference = new CodeCompletionInference();
+        _inferenceBackend = new OpenAIInferenceBackend(configuration);
+        _codeCompletionConfig = new CodeCompletionConfig();
     }
 
     public IHostSystemConfig GetNewHostSystemConfig()
@@ -75,9 +86,18 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
         var c64 = (C64)system;
 
         var renderer = new C64SadConsoleRenderer(c64, renderContext);
-        var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory);
+        var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory, GetCodeCompletion);
         var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
         return new SystemRunner(c64, renderer, inputHandler, audioHandler);
+    }
+
+    public string GetCodeCompletion(string textBefore, string textAfter)
+    {
+        return _codeCompletionInference.GetInsertionSuggestionAsync(_inferenceBackend, _codeCompletionConfig, textBefore, textAfter).Result;
+    }
+    public async Task<string> GetCodeCompletionAsync(string textBefore, string textAfter)
+    {
+        return await _codeCompletionInference.GetInsertionSuggestionAsync(_inferenceBackend, _codeCompletionConfig, textBefore, textAfter);
     }
 }

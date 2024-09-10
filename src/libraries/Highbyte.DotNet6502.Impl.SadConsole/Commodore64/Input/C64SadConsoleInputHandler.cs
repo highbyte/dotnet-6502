@@ -2,6 +2,7 @@ using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Microsoft.Extensions.Logging;
 
@@ -16,10 +17,14 @@ public class C64SadConsoleInputHandler : IInputHandler
     private readonly C64SadConsoleKeyboard _c64SadConsoleKeyboard;
     private readonly ILogger<C64SadConsoleInputHandler> _logger;
 
+    private readonly C64BasicCodingAssistant _c64BasicCodingAssistant;
+
+
+
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-    public C64SadConsoleInputHandler(C64 c64, SadConsoleInputHandlerContext inputHandlerContext, ILoggerFactory loggerFactory)
+    public C64SadConsoleInputHandler(C64 c64, SadConsoleInputHandlerContext inputHandlerContext, ILoggerFactory loggerFactory, Func<string, string, string>? getCodeCompletion = null)
     {
         _c64 = c64;
         _inputHandlerContext = inputHandlerContext;
@@ -33,6 +38,8 @@ public class C64SadConsoleInputHandler : IInputHandler
         _logger.LogInformation($"KbLanguage: {languageName}");
 
         _c64SadConsoleKeyboard = new C64SadConsoleKeyboard(languageName);
+
+        _c64BasicCodingAssistant = new C64BasicCodingAssistant(_c64, getCodeCompletion, loggerFactory);
     }
 
     public void Init()
@@ -53,6 +60,11 @@ public class C64SadConsoleInputHandler : IInputHandler
         var c64KeysDown = GetC64KeysFromSadConsoleKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);
         var keyboard = c64.Cia.Keyboard;
         keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
+
+        if (_c64BasicCodingAssistant.IsEnabled && c64KeysDown.Count > 0)
+        {
+            _c64BasicCodingAssistant.KeyWasPressed(c64KeysDown);
+        }
     }
 
     private List<C64Key> GetC64KeysFromSadConsoleKeys(List<Keys> keysDown, out bool restoreKeyPressed, out bool capsLockOn)

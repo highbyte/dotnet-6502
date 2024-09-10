@@ -12,7 +12,8 @@ using Microsoft.Extensions.Logging;
 // ----------
 var builder = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("appsettings.json");
+    .AddJsonFile("appsettings.json")
+    .AddJsonFile("appsettings.Development.json");
 IConfiguration Configuration = builder.Build();
 
 // ----------
