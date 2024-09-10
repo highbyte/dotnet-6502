@@ -61,6 +61,7 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
 
         ImGui.SetNextWindowSize(new Vector2(WIDTH, HEIGHT));
         ImGui.SetNextWindowPos(new Vector2(POS_X, POS_Y), ImGuiCond.Once);
+        ImGui.SetNextWindowCollapsed(false, ImGuiCond.Appearing);
 
         //ImGui.SetWindowPos(new Vector2(POS_X, POS_Y));
         //ImGui.SetWindowSize(new Vector2(WIDTH, HEIGHT));

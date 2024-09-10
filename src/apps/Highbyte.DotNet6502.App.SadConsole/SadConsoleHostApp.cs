@@ -64,7 +64,10 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     private int StartupScreenHeight => MenuConsole.CONSOLE_HEIGHT + 14;
 
     private const int STATS_UPDATE_EVERY_X_FRAME = 60 * 1;
+    private const int DEBUGINFO_UPDATE_EVERY_X_FRAME = 10 * 1;
+
     private int _statsFrameCount = 0;
+    private int _debugInfoFrameCount = 0;
 
     private const int LOGS_UPDATE_EVERY_X_FRAME = 60 * 1;
     private int _logsFrameCount = 0;
@@ -368,6 +371,12 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
                 _statsFrameCount = 0;
                 _infoConsole.UpdateStats();
             }
+            _debugInfoFrameCount++;
+            if (_debugInfoFrameCount >= DEBUGINFO_UPDATE_EVERY_X_FRAME)
+            {
+                _debugInfoFrameCount = 0;
+                _infoConsole.UpdateSystemDebugInfo();
+            }
         }
 
         // Show monitor if we encounter breakpoint or other break
@@ -551,6 +560,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     public void ClearInfoStats()
     {
         _infoConsole.ClearStats();
+        _infoConsole.ClearSystemDebugInfo();
     }
 
     public void SetVolumePercent(float volumePercent)
