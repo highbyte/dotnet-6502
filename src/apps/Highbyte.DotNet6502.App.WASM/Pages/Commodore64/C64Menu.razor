@@ -476,7 +476,7 @@
     private async Task CopyBasicSourceCode()
     {
         var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
-        var sourceCode = c64.BasicTokenParser.GetBasicTextLines();
+        var sourceCode = c64.BasicTokenParser.GetBasicText();
         await Clipboard.SetTextAsync(sourceCode.ToLower());
         await Parent.FocusEmulator();
     }

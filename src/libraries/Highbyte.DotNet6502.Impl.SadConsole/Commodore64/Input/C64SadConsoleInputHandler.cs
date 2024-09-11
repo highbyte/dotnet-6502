@@ -58,13 +58,15 @@ public class C64SadConsoleInputHandler : IInputHandler
     {
 
         var c64KeysDown = GetC64KeysFromSadConsoleKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);
-        var keyboard = c64.Cia.Keyboard;
-        keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
 
         if (_c64BasicCodingAssistant.IsEnabled && c64KeysDown.Count > 0)
         {
             _c64BasicCodingAssistant.KeyWasPressed(c64KeysDown);
         }
+
+        var keyboard = c64.Cia.Keyboard;
+        keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
+
     }
 
     private List<C64Key> GetC64KeysFromSadConsoleKeys(List<Keys> keysDown, out bool restoreKeyPressed, out bool capsLockOn)

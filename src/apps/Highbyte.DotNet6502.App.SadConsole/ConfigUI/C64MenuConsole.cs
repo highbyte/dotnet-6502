@@ -223,7 +223,7 @@ public class C64MenuConsole : ControlsConsole
     private void C64CopyBasicSourceCodeButton_Click(object sender, EventArgs e)
     {
         var c64 = (C64)_sadConsoleHostApp.CurrentRunningSystem!;
-        var basicSourceCode = c64.BasicTokenParser.GetBasicTextLines();
+        var basicSourceCode = c64.BasicTokenParser.GetBasicText();
         ClipboardService.SetText(basicSourceCode.ToLower());
     }
 

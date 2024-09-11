@@ -450,7 +450,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         if (ImGui.Button("Copy"))
         {
             var c64 = (C64)_silkNetHostApp.CurrentRunningSystem!;
-            var sourceCode = c64.BasicTokenParser.GetBasicTextLines();
+            var sourceCode = c64.BasicTokenParser.GetBasicText();
             ClipboardService.SetText(sourceCode.ToLower());
         }
         ImGui.EndDisabled();

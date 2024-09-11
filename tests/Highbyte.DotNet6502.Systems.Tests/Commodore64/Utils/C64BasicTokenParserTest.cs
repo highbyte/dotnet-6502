@@ -36,7 +36,7 @@ public class C64BasicTokenParserTest
         var basicTokenParser = new C64BasicTokenParser(c64, _loggerFactory);
 
         // Act / Assert
-        Assert.Throws<ArgumentException>(() => basicTokenParser.GetBasicTextLines(new byte[] { 0x00 }));
+        Assert.Throws<ArgumentException>(() => basicTokenParser.GetBasicText(new byte[] { 0x00 }));
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public class C64BasicTokenParserTest
         var basicTokenParser = new C64BasicTokenParser(c64, _loggerFactory);
 
         // Act
-        var sourceCode = basicTokenParser.GetBasicTextLines(new byte[] { 0x00, 0x00 });
+        var sourceCode = basicTokenParser.GetBasicText(new byte[] { 0x00, 0x00 });
 
         // Assert
         Assert.Empty(sourceCode);
@@ -62,7 +62,7 @@ public class C64BasicTokenParserTest
 
         // Act
         var prg = File.ReadAllBytes(HelloWorldBasicPrgFile);
-        var sourceCode = basicTokenParser.GetBasicTextLines(prg, addNewLineAfterLastCharacter: false);
+        var sourceCode = basicTokenParser.GetBasicText(prg, addNewLineAfterLastCharacter: false);
 
         // Assert
         _output.WriteLine(sourceCode);
@@ -89,7 +89,7 @@ public class C64BasicTokenParserTest
         c64.InitBasicMemoryVariables(loadedAtAddress, fileLength);
 
         // Act
-        var sourceCode = basicTokenParser.GetBasicTextLines(addNewLineAfterLastCharacter: false);
+        var sourceCode = basicTokenParser.GetBasicText(addNewLineAfterLastCharacter: false);
 
         // Assert
         _output.WriteLine(sourceCode);

@@ -12,8 +12,16 @@ using Microsoft.Extensions.Logging;
 // ----------
 var builder = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("appsettings.json")
-    .AddJsonFile("appsettings.Development.json");
+    .AddJsonFile("appsettings.json");
+
+var devEnvironmentVariable = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT ");
+var isDevelopment = string.IsNullOrEmpty(devEnvironmentVariable) || devEnvironmentVariable.ToLower() == "development";
+if (isDevelopment) //only add secrets in development
+{
+    builder.AddUserSecrets<Program>();
+}
+
+
 IConfiguration Configuration = builder.Build();
 
 // ----------
