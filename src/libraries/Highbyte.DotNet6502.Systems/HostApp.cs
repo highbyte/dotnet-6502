@@ -366,10 +366,10 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         _systemList.ChangeCurrentSystemConfig(_selectedSystemName, CurrentSystemConfig, _selectedSystemConfigurationVariant);
     }
 
-    //public async Task PersistNewSystemConfig(ISystemConfig newConfig)
-    //{
-    //    await _systemList.PersistNewSystemConfig(_selectedSystemName, newConfig);
-    //}
+    public async Task PersistCurrentSystemConfig()
+    {
+        await _systemList.PersistSystemConfig(_selectedSystemName, _selectedSystemConfigurationVariant);
+    }
 
     public void UpdateHostSystemConfig(IHostSystemConfig newConfig)
     {

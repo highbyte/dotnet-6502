@@ -327,6 +327,7 @@ public partial class Index
             var resultData = ((ISystemConfig UpdatedSystemConfig, IHostSystemConfig UpdatedHostSystemConfig))result.Data;
 
             _wasmHost.UpdateSystemConfig(resultData.UpdatedSystemConfig);
+            await _wasmHost.PersistCurrentSystemConfig();
             _wasmHost.UpdateHostSystemConfig(resultData.UpdatedHostSystemConfig);
         }
 
