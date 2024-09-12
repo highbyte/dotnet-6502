@@ -6,6 +6,7 @@ public interface ISystem
 {
     string Name { get; }
     List<string> SystemInfo { get; }
+    List<KeyValuePair<string, Func<string>>> DebugInfo { get; }
 
     CPU CPU { get; }
     Memory Mem { get; }

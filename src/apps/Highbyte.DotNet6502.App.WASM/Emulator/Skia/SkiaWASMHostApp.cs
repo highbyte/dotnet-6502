@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.Skia;
@@ -164,8 +165,14 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
         if (_debugFrameCount >= DEBUGMESSAGE_EVERY_X_FRAME)
         {
             _debugFrameCount = 0;
-            var debugString = GetDebugMessagesHtmlString();
-            _wasmHostUIViewModel.UpdateDebug(debugString);
+            var sb = new StringBuilder();
+
+            GetIODebugMessagesHtmlString(sb);
+            if (sb.Length > 0)
+                sb.Append("<br />");
+            GetSystemDebugMessagesHtmlString(sb);
+
+            _wasmHostUIViewModel.UpdateDebug(sb.ToString());
         }
 
         // Push stats to stats UI
@@ -232,13 +239,11 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
         return stats;
     }
 
-    private string GetDebugMessagesHtmlString()
+    private void GetIODebugMessagesHtmlString(StringBuilder sb)
     {
-        string debugMessages = "";
-
         var inputDebugInfo = CurrentSystemRunner!.InputHandler.GetDebugInfo();
         var inputStatsOneString = string.Join(" # ", inputDebugInfo);
-        debugMessages += $"{BuildHtmlString("INPUT", "header")}: {BuildHtmlString(inputStatsOneString, "value")} ";
+        sb.Append($"{BuildHtmlString("INPUT", "header")}: {BuildHtmlString(inputStatsOneString, "value")} ");
         //foreach (var message in inputDebugInfo)
         //{
         //    if (debugMessages != "")
@@ -249,12 +254,21 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
         var audioDebugInfo = CurrentSystemRunner!.AudioHandler.GetDebugInfo();
         foreach (var message in audioDebugInfo)
         {
-            if (debugMessages != "")
-                debugMessages += "<br />";
-            debugMessages += $"{BuildHtmlString("AUDIO", "header")}: {BuildHtmlString(message, "value")} ";
+            if (sb.Length > 0)
+                sb.Append("<br />");
+            sb.Append($"{BuildHtmlString("AUDIO", "header")}: {BuildHtmlString(message, "value")} ");
         }
+    }
 
-        return debugMessages;
+    private void GetSystemDebugMessagesHtmlString(StringBuilder sb)
+    {
+        var systemDebugInfo = CurrentSystemRunner!.System.DebugInfo;
+        foreach (var systemDebugInfoItem in systemDebugInfo)
+        {
+            if (sb.Length > 0)
+                sb.Append("<br />");
+            sb.Append($"{BuildHtmlString(systemDebugInfoItem.Key, "header")}: {BuildHtmlString(systemDebugInfoItem.Value(), "value")} ");
+        }
     }
 
     private string BuildHtmlString(string message, string cssClass, bool startNewLine = false)

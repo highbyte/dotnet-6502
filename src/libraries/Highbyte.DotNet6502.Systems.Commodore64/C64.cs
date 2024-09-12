@@ -10,6 +10,7 @@ using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Utils;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils;
+using System.Text;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
@@ -18,7 +19,7 @@ public class C64 : ISystem, ISystemMonitor
     public const string SystemName = "C64";
     public string Name => SystemName;
     public List<string> SystemInfo => BuildSystemInfo();
-
+    public List<KeyValuePair<string, Func<string>>> DebugInfo { get; private set; }
     public C64ModelBase Model { get; private set; } = default!;
 
     public float CpuFrequencyHz => Model.CPUFrequencyHz;
@@ -171,6 +172,8 @@ public class C64 : ISystem, ISystemMonitor
         _spriteCollisionStat = Instrumentations.Add($"{StatsCategory}-SpriteCollision", new ElapsedMillisecondsTimedStatSystem(this));
         _postInstructionAudioCallbackStat = Instrumentations.Add($"{StatsCategory}-AudioPostInstrCallback", new ElapsedMillisecondsTimedStatSystem(this));
         _postInstructionVideoCallbackStat = Instrumentations.Add($"{StatsCategory}-VideoPostInstrCallback", new ElapsedMillisecondsTimedStatSystem(this));
+
+        DebugInfo = BuildDebugInfo();
     }
 
     public static C64 BuildC64(C64Config c64Config, ILoggerFactory loggerFactory)
@@ -465,6 +468,43 @@ public class C64 : ISystem, ISystemMonitor
         var row1 = $"Line: {Vic2.CurrentRasterLine} VblankCY: {Vic2.CyclesConsumedCurrentVblank} CPU bank: {CurrentBank} VIC2 bank: {Vic2.CurrentVIC2Bank}";
         var row2 = $"Model: {Model.Name} Freq: {Model.CPUFrequencyHz} VIC2 Model: {Vic2.Vic2Model.Name}";
         return new List<string>() { row1, row2 };
+    }
+
+    private List<KeyValuePair<string, Func<string>>> BuildDebugInfo()
+    {
+        List<KeyValuePair<string, Func<string>>> debugInfoList = [
+            new ("Cursor col,row", () => $"{Mem[0xd3].ToString()},{Mem[0xd6].ToString()}"),
+            new ("Current Basic line #", () =>
+            {
+                // Address 0x39: Current BASIC line number.
+                // Values:
+                // $0000-$F9FF, 0-63999: Line number.
+                // $FF00-$FFFF: Direct mode, no BASIC program is being executed.
+                var currentBasicLineNumber = Mem.FetchWord(0x39);
+                return currentBasicLineNumber switch
+                {
+                    < 0xf9ff => currentBasicLineNumber.ToString(),
+                    >=0xff00 and <0xffff => "Direct mode",
+                    _ => "Unknown"
+                };
+            }),
+            new ("Current screen line", () =>
+            {
+                // Address 0xd1/0xd2: Pointer to current line in screen memory.
+                var screenMemLineStart = Mem.FetchWord(0xd1);
+                var screenLineBytes = Mem.ReadData(screenMemLineStart, 40);
+                var sb = new StringBuilder();
+                for (var i = 0; i < screenLineBytes.Length; i++)
+                {
+                    var petsciiCode = Petscii.C64ScreenCodeToPetscII(screenLineBytes[i]);
+                    var asciiCode = Petscii.PetscIIToAscII(petsciiCode);
+                    sb.Append((char)asciiCode);
+                }
+                return sb.ToString();
+            })
+        ];
+
+        return debugInfoList;
     }
 
     public ISystemMonitorCommands GetSystemMonitorCommands()
