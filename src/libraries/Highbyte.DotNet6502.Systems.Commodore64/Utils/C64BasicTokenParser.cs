@@ -55,12 +55,12 @@ public class C64BasicTokenParser
         {
 
             // Get next line address
-            var addr = stream.ReadWord();
+            var addr = stream.FetchWord();
             if (addr < 0 || addr == 0)   // Negative -> end of stream, 0 -> end of basic program
                 break;
 
             // Get next line number
-            var lineNumber = stream.ReadWord();
+            var lineNumber = stream.FetchWord();
             if (lineNumber < 0)    // Negative -> end of stream,
                 break;
 
