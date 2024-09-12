@@ -97,6 +97,9 @@ public partial class Index
     private bool _statsVisible = false;
     private bool _monitorVisible = false;
 
+    private bool _audioContextInitializeStarted;
+
+
     [Inject]
     public IJSRuntime Js { get; set; } = default!;
 
@@ -203,10 +206,12 @@ public partial class Index
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        return;
-        if (firstRender && !_wasmHost.IsAudioHandlerContextInitialized)
+        // Workaround for audio context cannot be created before in OnInitializedAsync.
+        // Must wait for _wasmHost to be created.
+        if (!_audioContextInitializeStarted && _wasmHost != null && !_wasmHost.IsAudioHandlerContextInitialized)
         {
-            _logger.LogDebug("OnAfterRenderAsync() was called with firstRender = true");
+            _audioContextInitializeStarted = true;
+            _logger.LogDebug("AudioContext initialized in OnAfterRenderAsync()");
 
             _audioContext = await AudioContextSync.CreateAsync(Js!);
             _wasmHost.InitAudioHandlerContext();
