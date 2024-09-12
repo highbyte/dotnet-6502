@@ -215,11 +215,11 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     //    await PersistSystemConfig(systemName);
     //}
 
-    //public async Task PersistSystemConfig(string systemName, string configurationVariant)
-    //{
-    //    var systemConfig = await GetSystemConfig(systemName, configurationVariant);
-    //    await _systemConfigurers[systemName].PersistConfig(systemConfig);
-    //}
+    public async Task PersistSystemConfig(string systemName, string configurationVariant)
+    {
+        var systemConfig = await GetSystemConfig(systemName, configurationVariant);
+        await _systemConfigurers[systemName].PersistConfig(systemConfig);
+    }
 
     public async Task<bool> IsValidConfig(string systemName, string configurationVariant)
     {
