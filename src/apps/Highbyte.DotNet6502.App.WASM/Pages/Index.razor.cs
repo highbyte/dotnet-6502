@@ -328,7 +328,6 @@ public partial class Index
 
             _wasmHost.UpdateSystemConfig(resultData.UpdatedSystemConfig);
             await _wasmHost.PersistCurrentSystemConfig();
-
             _wasmHost.UpdateHostSystemConfig(resultData.UpdatedHostSystemConfig);
         }
 
