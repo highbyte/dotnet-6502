@@ -10,7 +10,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 public class C64BasicCodingAssistant
 {
     private readonly C64 _c64;
-    private readonly Func<string, string, string> _getCodeCompletion;
+    private readonly Func<string, string, Task<string>> _getCodeCompletion;
 
     //private readonly ILogger<C64BasicCodingAssistant> _logger;
     private readonly ILogger _logger;
@@ -45,7 +45,7 @@ public class C64BasicCodingAssistant
 
     private readonly System.Timers.Timer _delayAfterKeyPress = new System.Timers.Timer(DelayAfterKeyPressMilliseconds);
 
-    public C64BasicCodingAssistant(C64 c64, Func<string, string, string>? getCodeCompletion, ILoggerFactory loggerFactory)
+    public C64BasicCodingAssistant(C64 c64, Func<string, string, Task<string>>? getCodeCompletion, ILoggerFactory loggerFactory)
     {
         _c64 = c64;
         _getCodeCompletion = getCodeCompletion ?? GetFakeCodeCompletion;
@@ -181,12 +181,12 @@ public class C64BasicCodingAssistant
         _c64.Mem[0x0287] = _originalTextColorBehindSuggestion[0]; // 0x0287 = Color of character under cursor. 
     }
 
-    private void DelayAfterKeyPress_Elapsed(object? sender, ElapsedEventArgs e)
+    private async void DelayAfterKeyPress_Elapsed(object? sender, ElapsedEventArgs e)
     {
         //_logger.LogInformation("Delay reached after key press elapsed.");
         _delayAfterKeyPress.Stop();
 
-        var suggestion = GetAISuggestion();
+        var suggestion = await GetAISuggestion();
         if (string.IsNullOrEmpty(suggestion))
             return;
 
@@ -198,17 +198,17 @@ public class C64BasicCodingAssistant
         SetActiveSugestion(suggestion);
     }
 
-    private string GetAISuggestion()
+    private async Task<string> GetAISuggestion()
     {
         GetText(out string textBeforeCursor, out string textAfterCursor);
 
         _logger.LogInformation($"AI Query: text before: {textBeforeCursor}");
         _logger.LogInformation($"AI Query: text after:  {textAfterCursor}");
 
-        return _getCodeCompletion(textBeforeCursor, textAfterCursor);
+        return await _getCodeCompletion(textBeforeCursor, textAfterCursor);
     }
 
-    private string GetFakeCodeCompletion(string textBeforeCursor, string textAfterCursor)
+    private async Task<string> GetFakeCodeCompletion(string textBeforeCursor, string textAfterCursor)
     {
         if (textBeforeCursor == "10 print" && textAfterCursor == "")
             return "\"hello world!\"";

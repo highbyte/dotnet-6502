@@ -2,6 +2,7 @@ using System.Globalization;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Microsoft.Extensions.Logging;
 
@@ -16,15 +17,20 @@ public class C64AspNetInputHandler : IInputHandler
     private C64AspNetKeyboard _c64AspNetKeyboard = default!;
     private readonly C64AspNetInputConfig _c64AspNetConfig;
 
+    private readonly C64BasicCodingAssistant _c64BasicCodingAssistant;
+
+
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-    public C64AspNetInputHandler(C64 c64, AspNetInputHandlerContext inputHandlerContext, ILoggerFactory loggerFactory, C64AspNetInputConfig c64AspNetConfig)
+    public C64AspNetInputHandler(C64 c64, AspNetInputHandlerContext inputHandlerContext, ILoggerFactory loggerFactory, C64AspNetInputConfig c64AspNetConfig, Func<string, string, Task<string>>? getCodeCompletion = null)
     {
         _c64 = c64;
         _inputHandlerContext = inputHandlerContext;
         _logger = loggerFactory.CreateLogger<C64AspNetInputHandler>();
         _c64AspNetConfig = c64AspNetConfig;
+
+        _c64BasicCodingAssistant = new C64BasicCodingAssistant(_c64, getCodeCompletion, loggerFactory);
     }
 
     public void Init()
@@ -55,6 +61,12 @@ public class C64AspNetInputHandler : IInputHandler
     private void CaptureKeyboard(C64 c64)
     {
         var c64KeysDown = GetC64KeysFromAspNetKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);
+
+        if (_c64BasicCodingAssistant.IsEnabled && c64KeysDown.Count > 0)
+        {
+            _c64BasicCodingAssistant.KeyWasPressed(c64KeysDown);
+        }
+
         var keyboard = c64.Cia.Keyboard;
         keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
     }

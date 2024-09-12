@@ -19,12 +19,10 @@ public class C64SadConsoleInputHandler : IInputHandler
 
     private readonly C64BasicCodingAssistant _c64BasicCodingAssistant;
 
-
-
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-    public C64SadConsoleInputHandler(C64 c64, SadConsoleInputHandlerContext inputHandlerContext, ILoggerFactory loggerFactory, Func<string, string, string>? getCodeCompletion = null)
+    public C64SadConsoleInputHandler(C64 c64, SadConsoleInputHandlerContext inputHandlerContext, ILoggerFactory loggerFactory, Func<string, string, Task<string>>? getCodeCompletion = null)
     {
         _c64 = c64;
         _inputHandlerContext = inputHandlerContext;

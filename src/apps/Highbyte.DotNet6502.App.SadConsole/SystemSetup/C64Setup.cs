@@ -86,7 +86,7 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
         var c64 = (C64)system;
 
         var renderer = new C64SadConsoleRenderer(c64, renderContext);
-        var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory, GetCodeCompletion);
+        var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory, GetCodeCompletionAsync);
         var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
         return new SystemRunner(c64, renderer, inputHandler, audioHandler);

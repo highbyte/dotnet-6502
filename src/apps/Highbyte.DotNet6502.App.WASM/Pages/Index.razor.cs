@@ -8,12 +8,10 @@ using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.WebUtilities;
 using Toolbelt.Blazor.Gamepad;
-using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Logging.Console;
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
@@ -138,6 +136,7 @@ public partial class Index
         var systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>();
 
         var c64Setup = new C64Setup(browserContext, LoggerFactory);
+        await c64Setup.ConfigureOpenAIInference();
         systemList.AddSystem(c64Setup);
 
         var genericComputerSetup = new GenericComputerSetup(browserContext, LoggerFactory);
@@ -204,6 +203,7 @@ public partial class Index
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        return;
         if (firstRender && !_wasmHost.IsAudioHandlerContextInitialized)
         {
             _logger.LogDebug("OnAfterRenderAsync() was called with firstRender = true");
@@ -327,6 +327,8 @@ public partial class Index
             var resultData = ((ISystemConfig UpdatedSystemConfig, IHostSystemConfig UpdatedHostSystemConfig))result.Data;
 
             _wasmHost.UpdateSystemConfig(resultData.UpdatedSystemConfig);
+            await _wasmHost.PersistCurrentSystemConfig();
+
             _wasmHost.UpdateHostSystemConfig(resultData.UpdatedHostSystemConfig);
         }
 
