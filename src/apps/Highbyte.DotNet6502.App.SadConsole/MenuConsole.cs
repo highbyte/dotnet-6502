@@ -5,14 +5,13 @@ using SadConsole.UI.Controls;
 using SadRogue.Primitives;
 using Microsoft.Extensions.Logging;
 using static SadConsole.IFont;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Highbyte.DotNet6502.App.SadConsole;
 public class MenuConsole : ControlsConsole
 {
     public const int CONSOLE_WIDTH = USABLE_WIDTH + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     public const int CONSOLE_HEIGHT = USABLE_HEIGHT + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
-    private const int USABLE_WIDTH = 21;
+    public const int USABLE_WIDTH = 23;
     private const int USABLE_HEIGHT = 17;
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;

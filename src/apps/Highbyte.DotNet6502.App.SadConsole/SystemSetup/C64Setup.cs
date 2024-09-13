@@ -26,8 +26,8 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
     private readonly IConfiguration _configuration;
 
 
-    private readonly CodeCompletionInference _codeCompletionInference;
     private readonly OpenAIInferenceBackend _inferenceBackend;
+    private readonly CodeCompletionInference _codeCompletionInference;
     private readonly CodeCompletionConfig _codeCompletionConfig;
 
     public C64Setup(ILoggerFactory loggerFactory, IConfiguration configuration)
@@ -35,9 +35,9 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
         _loggerFactory = loggerFactory;
         _configuration = configuration;
 
-        _codeCompletionInference = new CodeCompletionInference();
         _inferenceBackend = new OpenAIInferenceBackend(configuration);
         _codeCompletionConfig = new CodeCompletionConfig();
+        _codeCompletionInference = new CodeCompletionInference();
     }
 
     public IHostSystemConfig GetNewHostSystemConfig()
@@ -86,17 +86,20 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
         var c64 = (C64)system;
 
         var renderer = new C64SadConsoleRenderer(c64, renderContext);
-        var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory, GetCodeCompletionAsync);
+
+        c64HostConfig.BasicAIAssistantEnabled = c64HostConfig.BasicAIAssistantDefaultEnabled;
+        Func<bool> getCodeCompletionEnabled = () => c64HostConfig.BasicAIAssistantEnabled && _inferenceBackend.IsAvailable;
+        Func<string, string, Task<string>>? getCodeCompetion = _inferenceBackend.IsAvailable ? GetCodeCompletionAsync : null;
+        var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory, getCodeCompletionEnabled, getCodeCompetion);
+
         var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
+
         return new SystemRunner(c64, renderer, inputHandler, audioHandler);
+
     }
 
-    public string GetCodeCompletion(string textBefore, string textAfter)
-    {
-        return _codeCompletionInference.GetInsertionSuggestionAsync(_inferenceBackend, _codeCompletionConfig, textBefore, textAfter).Result;
-    }
-    public async Task<string> GetCodeCompletionAsync(string textBefore, string textAfter)
+    private async Task<string> GetCodeCompletionAsync(string textBefore, string textAfter)
     {
         return await _codeCompletionInference.GetInsertionSuggestionAsync(_inferenceBackend, _codeCompletionConfig, textBefore, textAfter);
     }

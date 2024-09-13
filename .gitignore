@@ -284,3 +284,4 @@ nuget.config
 .vscode/settings.json
 
 BenchmarkDotNet.Artifacts/
+/src/apps/Highbyte.DotNet6502.App.SadConsole/appsettings.Development.json
