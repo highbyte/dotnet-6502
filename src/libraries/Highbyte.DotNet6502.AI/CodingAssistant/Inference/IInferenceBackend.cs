@@ -1,6 +1,6 @@
 // Based on https://github.com/dotnet/smartcomponents
 
-namespace Highbyte.DotNet6502.App.WASM.CodingAssistant.Inference;
+namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference;
 
 public interface IInferenceBackend
 {

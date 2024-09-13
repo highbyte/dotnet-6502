@@ -1,5 +1,4 @@
-using Highbyte.DotNet6502.App.SadConsole.CodingAssistant.Inference;
-using Highbyte.DotNet6502.App.SadConsole.CodingAssistant.Inference.OpenAI;
+using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.SadConsole;
@@ -9,6 +8,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -25,19 +25,10 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
     private readonly ILoggerFactory _loggerFactory;
     private readonly IConfiguration _configuration;
 
-
-    private readonly OpenAIInferenceBackend _inferenceBackend;
-    private readonly CodeCompletionInference _codeCompletionInference;
-    private readonly CodeCompletionConfig _codeCompletionConfig;
-
     public C64Setup(ILoggerFactory loggerFactory, IConfiguration configuration)
     {
         _loggerFactory = loggerFactory;
         _configuration = configuration;
-
-        _inferenceBackend = new OpenAIInferenceBackend(configuration);
-        _codeCompletionConfig = new CodeCompletionConfig();
-        _codeCompletionInference = new CodeCompletionInference();
     }
 
     public IHostSystemConfig GetNewHostSystemConfig()
@@ -73,7 +64,7 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
         return c64;
     }
 
-    public SystemRunner BuildSystemRunner(
+    public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
@@ -87,20 +78,12 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
 
         var renderer = new C64SadConsoleRenderer(c64, renderContext);
 
-        c64HostConfig.BasicAIAssistantEnabled = c64HostConfig.BasicAIAssistantDefaultEnabled;
-        Func<bool> getCodeCompletionEnabled = () => c64HostConfig.BasicAIAssistantEnabled && _inferenceBackend.IsAvailable;
-        Func<string, string, Task<string>>? getCodeCompetion = _inferenceBackend.IsAvailable ? GetCodeCompletionAsync : null;
-        var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory, getCodeCompletionEnabled, getCodeCompetion);
+        var openAICodeSuggestion = new OpenAICodeSuggestion(_configuration, "Commodore 64 Basic");
+        var c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, openAICodeSuggestion, _loggerFactory);
+        var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory, c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
 
         var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
-
-        return new SystemRunner(c64, renderer, inputHandler, audioHandler);
-
-    }
-
-    private async Task<string> GetCodeCompletionAsync(string textBefore, string textAfter)
-    {
-        return await _codeCompletionInference.GetInsertionSuggestionAsync(_inferenceBackend, _codeCompletionConfig, textBefore, textAfter);
+        return Task.FromResult(new SystemRunner(c64, renderer, inputHandler, audioHandler));
     }
 }

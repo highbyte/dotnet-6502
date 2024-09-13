@@ -1,5 +1,3 @@
-using Highbyte.DotNet6502.App.WASM.CodingAssistant.Inference.OpenAI;
-using Highbyte.DotNet6502.App.WASM.CodingAssistant.Inference;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
@@ -11,6 +9,9 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Blazored.LocalStorage;
+using Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
+using Highbyte.DotNet6502.AI.CodingAssistant;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
@@ -25,9 +26,6 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
     private const string LOCAL_STORAGE_ROM_PREFIX = "rom_";
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;
-    private CodeCompletionInference? _codeCompletionInference = null;
-    private OpenAIInferenceBackend? _inferenceBackend = null;
-    private CodeCompletionConfig _codeCompletionConfig;
 
     public C64Setup(BrowserContext browserContext, ILoggerFactory loggerFactory)
     {
@@ -35,16 +33,6 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         _loggerFactory = loggerFactory;
     }
 
-    public async Task ConfigureOpenAIInference()
-    {
-        var apiConfig = await GetOpenAIConfig(_browserContext.LocalStorage);
-        if (!string.IsNullOrEmpty(apiConfig.ApiKey))
-        {
-            _codeCompletionInference = new CodeCompletionInference();
-            _inferenceBackend = new OpenAIInferenceBackend(apiConfig);
-            _codeCompletionConfig = new CodeCompletionConfig();
-        }
-    }
 
     public IHostSystemConfig GetNewHostSystemConfig()
     {
@@ -96,7 +84,7 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         return c64;
     }
 
-    public SystemRunner BuildSystemRunner(
+    public async Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
@@ -125,7 +113,12 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
                 throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
         }
 
-        var inputHandler = new C64AspNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig, GetCodeCompletionAsync);
+        var apiConfig = await GetOpenAIConfig(_browserContext.LocalStorage);
+        var openAICodeSuggestion = new OpenAICodeSuggestion(apiConfig, "Commodore 64 Basic");
+        var c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, openAICodeSuggestion, _loggerFactory);
+        // TODO: // c64HostConfig.BasicAIAssistantDefaultEnabled
+        var inputHandler = new C64AspNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig, c64BasicCodingAssistant, true); // c64HostConfig.BasicAIAssistantDefaultEnabled
+
         var audioHandler = new C64WASMAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
         return new SystemRunner(c64, renderer, inputHandler, audioHandler);
@@ -201,33 +194,25 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
 
     private async Task<ApiConfig> GetOpenAIConfig(ILocalStorageService localStorageService)
     {
+        var enabled = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:Enabled");
+        bool.TryParse(enabled, out bool enabledBool);
         var apiKey = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:ApiKey");
         var deploymentName = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:DeploymentName");
         var endpoint = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:Endpoint");
+
         var selfHosted = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:SelfHosted");
         bool.TryParse(selfHosted, out bool selfHostedBool);
+
         var endPointUri = !string.IsNullOrEmpty(endpoint) ? new Uri(endpoint) : null;
+
         var apiConfig = new ApiConfig()
         {
+            Enabled = string.IsNullOrEmpty(enabled) ? !string.IsNullOrEmpty(apiKey) : enabledBool,
             ApiKey = apiKey,
             DeploymentName = deploymentName,
             Endpoint = endPointUri,
             SelfHosted = selfHostedBool,
         };
         return apiConfig;
-    }
-
-    public string GetCodeCompletion(string textBefore, string textAfter)
-    {
-        if (_codeCompletionInference == null)
-            return "NO OPENAI KEY";
-        var result = _codeCompletionInference.GetInsertionSuggestionAsync(_inferenceBackend, _codeCompletionConfig, textBefore, textAfter).Result;
-        return result;
-    }
-    public async Task<string> GetCodeCompletionAsync(string textBefore, string textAfter)
-    {
-        if (_codeCompletionInference == null)
-            return "NO OPENAI KEY";
-        return await _codeCompletionInference.GetInsertionSuggestionAsync(_inferenceBackend, _codeCompletionConfig, textBefore, textAfter);
     }
 }

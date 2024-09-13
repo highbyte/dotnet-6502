@@ -1,16 +1,13 @@
 // Based on https://github.com/dotnet/smartcomponents
 
 #if DEBUG
-using System;
-using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Console = System.Console;
 
-namespace Highbyte.DotNet6502.App.SadConsole.CodingAssistant.Inference.OpenAI;
+namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 
 // This is primarily so that E2E tests running in CI don't have to call OpenAI for real, so that:
 // [1] We don't have to make the API keys available to CI

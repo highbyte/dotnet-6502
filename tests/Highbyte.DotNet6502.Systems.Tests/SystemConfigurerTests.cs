@@ -39,7 +39,7 @@ public class SystemConfigurerTests
             return new TestSystem();
         }
 
-        public SystemRunner BuildSystemRunner(
+        public Task<SystemRunner> BuildSystemRunner(
             ISystem system,
             ISystemConfig systemConfig,
             IHostSystemConfig hostSystemConfig,
@@ -55,7 +55,7 @@ public class SystemConfigurerTests
             var inputHandler = new NullInputHandler(testSystem);
             var audioHandler = new NullAudioHandler(testSystem);
 
-            return new SystemRunner(testSystem, renderer, inputHandler, audioHandler);
+            return Task.FromResult(new SystemRunner(testSystem, renderer, inputHandler, audioHandler));
 
         }
     }
@@ -85,7 +85,7 @@ public class SystemConfigurerTests
             return new TestSystem2();
         }
 
-        public SystemRunner BuildSystemRunner(
+        public Task<SystemRunner> BuildSystemRunner(
             ISystem system,
             ISystemConfig systemConfig,
             IHostSystemConfig hostSystemConfig,
@@ -101,8 +101,7 @@ public class SystemConfigurerTests
             var inputHandler = new NullInputHandler(testSystem2);
             var audioHandler = new NullAudioHandler(testSystem2);
 
-            return new SystemRunner(testSystem2, renderer, inputHandler, audioHandler);
-
+            return Task.FromResult(new SystemRunner(testSystem2, renderer, inputHandler, audioHandler));
         }
     }
 

@@ -2,10 +2,11 @@ namespace Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 
 public class C64HostConfig : SadConsoleHostSystemConfigBase
 {
-    public bool BasicAIAssistantEnabled { get; set; }
     public bool BasicAIAssistantDefaultEnabled { get; set; }
     public C64HostConfig()
     {
+        BasicAIAssistantDefaultEnabled = false;
+
         //Font = "Fonts/C64.font";
         //DefaultFontSize = IFont.Sizes.One;
 

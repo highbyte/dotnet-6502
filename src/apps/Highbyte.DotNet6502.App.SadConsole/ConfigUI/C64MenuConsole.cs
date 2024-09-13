@@ -43,7 +43,6 @@ public class C64MenuConsole : ControlsConsole
             Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.UIConsoleDrawBoxBorderParameters);
     }
 
-
     private void DrawUIItems()
     {
         // Load Basic
@@ -83,22 +82,14 @@ public class C64MenuConsole : ControlsConsole
         Controls.Add(c64PasteTextButton);
 
         // Paste
-        var c64aiBasicAssistantCheckbox = new CheckBox("AI Basic assistant")
+        var c64aiBasicAssistantCheckbox = new CheckBox("AI Basic (F9)")
         {
             Name = "c64aiBasicAssistantCheckbox",
             Position = (1, c64CopyBasicSourceCodeButton.Bounds.MaxExtentY + 1),
-            //IsSelected = C64SadConsoleInputHandler.CodingAssistantEnabled
         };
         c64aiBasicAssistantCheckbox.IsSelectedChanged += (s, e) =>
         {
-            if (_sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Running)
-                return;
-
-            var enabled = c64aiBasicAssistantCheckbox.IsSelected;
-            ((C64HostConfig)_sadConsoleHostApp.CurrentHostSystemConfig).BasicAIAssistantEnabled = enabled;
-            ((C64HostConfig)_sadConsoleHostApp.CurrentHostSystemConfig).BasicAIAssistantDefaultEnabled = enabled;
-            C64SadConsoleInputHandler.EnableCodeAssistant(enabled);
-            IsDirty = true;
+            SetBasicAIAssistant(c64aiBasicAssistantCheckbox.IsSelected);
         };
         Controls.Add(c64aiBasicAssistantCheckbox);
 
@@ -287,7 +278,7 @@ public class C64MenuConsole : ControlsConsole
         if (_sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Running && C64SadConsoleInputHandler.CodingAssistantAvailable)
         {
             c64aiBasicAssistantCheckbox.IsEnabled = true;
-            c64aiBasicAssistantCheckbox.IsSelected = ((C64HostConfig)_sadConsoleHostApp.CurrentHostSystemConfig).BasicAIAssistantEnabled;
+            c64aiBasicAssistantCheckbox.IsSelected = C64SadConsoleInputHandler.CodingAssistantEnabled;
         }
         else
         {
@@ -303,4 +294,18 @@ public class C64MenuConsole : ControlsConsole
         validationMessageValueLabel!.IsVisible = !isOk;
     }
 
+    public void ToggleBasicAIAssistant()
+    {
+        var c64aiBasicAssistantCheckbox = Controls["c64aiBasicAssistantCheckbox"] as CheckBox;
+        SetBasicAIAssistant(!c64aiBasicAssistantCheckbox.IsSelected);
+    }
+
+    private void SetBasicAIAssistant(bool enabled)
+    {
+        if (_sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Running)
+            return;
+        C64SadConsoleInputHandler.CodingAssistantEnabled = enabled;
+        ((C64HostConfig)_sadConsoleHostApp.CurrentHostSystemConfig).BasicAIAssistantDefaultEnabled = enabled;
+        IsDirty = true;
+    }
 }

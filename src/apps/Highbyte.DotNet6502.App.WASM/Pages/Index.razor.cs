@@ -139,7 +139,6 @@ public partial class Index
         var systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>();
 
         var c64Setup = new C64Setup(browserContext, LoggerFactory);
-        await c64Setup.ConfigureOpenAIInference();
         systemList.AddSystem(c64Setup);
 
         var genericComputerSetup = new GenericComputerSetup(browserContext, LoggerFactory);

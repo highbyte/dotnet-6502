@@ -1,5 +1,6 @@
 using System.Text;
 using System.Timers;
+using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Utils;
@@ -10,11 +11,10 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 public class C64BasicCodingAssistant
 {
     private readonly C64 _c64;
-    private readonly Func<string, string, Task<string>> _getCodeCompletion;
+    private readonly ICodeSuggestion _codeSuggestion;
 
     //private readonly ILogger<C64BasicCodingAssistant> _logger;
     private readonly ILogger _logger;
-    public bool IsEnabled { get; private set; } = true;
 
     private const int DelayAfterKeyPressMilliseconds = 500;
     private const C64Key AcceptSuggestionKey = C64Key.Ctrl;
@@ -45,10 +45,11 @@ public class C64BasicCodingAssistant
 
     private readonly System.Timers.Timer _delayAfterKeyPress = new System.Timers.Timer(DelayAfterKeyPressMilliseconds);
 
-    public C64BasicCodingAssistant(C64 c64, Func<string, string, Task<string>>? getCodeCompletion, ILoggerFactory loggerFactory)
+    public bool IsAvailable => _codeSuggestion.IsAvailable;
+    public C64BasicCodingAssistant(C64 c64, ICodeSuggestion codeSuggestion, ILoggerFactory loggerFactory)
     {
         _c64 = c64;
-        _getCodeCompletion = getCodeCompletion ?? GetFakeCodeCompletion;
+        _codeSuggestion = codeSuggestion;
         //_logger = loggerFactory.CreateLogger<C64BasicCodingAssistant>();
         _logger = loggerFactory.CreateLogger("C64 code assistant");
 
@@ -57,19 +58,12 @@ public class C64BasicCodingAssistant
         _delayAfterKeyPress.AutoReset = false;  // Only trigger once
     }
 
-    public void Enable()
-    {
-        IsEnabled = true;
-    }
-
-    public void Disable()
-    {
-        IsEnabled = false;
-    }
-
     public void KeyWasPressed(List<C64Key> keysPressed)
     {
-        if (!IsEnabled || keysPressed.Count == 0)
+        if (_codeSuggestion.IsAvailable == false)
+            return;
+
+        if (keysPressed.Count == 0)
             return;
 
         _delayAfterKeyPress.Stop();
@@ -205,7 +199,7 @@ public class C64BasicCodingAssistant
         _logger.LogInformation($"AI Query: text before: {textBeforeCursor}");
         _logger.LogInformation($"AI Query: text after:  {textAfterCursor}");
 
-        return await _getCodeCompletion(textBeforeCursor, textAfterCursor);
+        return await _codeSuggestion.GetInsertionSuggestionAsync(textBeforeCursor, textAfterCursor);
     }
 
     private async Task<string> GetFakeCodeCompletion(string textBeforeCursor, string textAfterCursor)

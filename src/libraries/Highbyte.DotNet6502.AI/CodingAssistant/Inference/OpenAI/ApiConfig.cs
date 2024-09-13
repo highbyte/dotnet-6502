@@ -2,17 +2,22 @@
 
 using Microsoft.Extensions.Configuration;
 
-namespace Highbyte.DotNet6502.App.SadConsole.CodingAssistant.Inference.OpenAI;
+namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 
 public class ApiConfig
 {
-    public bool Enabled { get; }
-    public string? ApiKey { get; }
-    public string? DeploymentName { get; }
-    public Uri? Endpoint { get; }
-    public bool SelfHosted { get; }
+    public bool Enabled { get; set; }
+    public string? ApiKey { get; set; }
+    public string? DeploymentName { get; set; }
+    public Uri? Endpoint { get; set; }
+    public bool SelfHosted { get; set; }
 
     public const string CONFIG_SECTION = "OpenAI";
+
+    public ApiConfig()
+    {
+    }
+
     public ApiConfig(IConfiguration config)
     {
         var configSection = config.GetRequiredSection(CONFIG_SECTION);

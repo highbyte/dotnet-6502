@@ -13,24 +13,25 @@ public class C64SadConsoleInputHandler : IInputHandler
     private readonly C64 _c64;
     public ISystem System => _c64;
     private readonly SadConsoleInputHandlerContext _inputHandlerContext;
-    private readonly Func<bool> _getCodeCompletionEnabled;
     private readonly List<string> _debugInfo = new();
     private readonly C64SadConsoleKeyboard _c64SadConsoleKeyboard;
     private readonly ILogger<C64SadConsoleInputHandler> _logger;
-
     private readonly C64BasicCodingAssistant _c64BasicCodingAssistant;
 
-    public bool CodingAssistantAvailable => _c64BasicCodingAssistant != null;
-
-    public void EnableCodeAssistant(bool enable)
+    public bool CodingAssistantAvailable => _c64BasicCodingAssistant.IsAvailable;
+    private bool _codingAssistantEnabled;
+    public bool CodingAssistantEnabled
     {
-        if (!CodingAssistantAvailable)
-            return;
-
-        if (enable)
-            _c64BasicCodingAssistant.Enable();
-        else
-            _c64BasicCodingAssistant.Disable();
+        get
+        {
+            return _codingAssistantEnabled && CodingAssistantAvailable;
+        }
+        set
+        {
+            if (!CodingAssistantAvailable && value)
+                return;
+            _codingAssistantEnabled = value;
+        }
     }
 
     // Instrumentations
@@ -40,12 +41,14 @@ public class C64SadConsoleInputHandler : IInputHandler
         C64 c64,
         SadConsoleInputHandlerContext inputHandlerContext,
         ILoggerFactory loggerFactory,
-        Func<bool> getCodeCompletionEnabled,
-        Func<string, string, Task<string>>? getCodeCompletion = null)
+        C64BasicCodingAssistant c64BasicCodingAssistant,
+        bool c64BasicCodingAssistantDefaultEnabled)
     {
         _c64 = c64;
         _inputHandlerContext = inputHandlerContext;
-        _getCodeCompletionEnabled = getCodeCompletionEnabled;
+        _c64BasicCodingAssistant = c64BasicCodingAssistant;
+        _codingAssistantEnabled = c64BasicCodingAssistantDefaultEnabled;
+
         _logger = loggerFactory.CreateLogger<C64SadConsoleInputHandler>();
 
         // TODO: Is there a better way to current keyboard input language?
@@ -56,18 +59,6 @@ public class C64SadConsoleInputHandler : IInputHandler
         _logger.LogInformation($"KbLanguage: {languageName}");
 
         _c64SadConsoleKeyboard = new C64SadConsoleKeyboard(languageName);
-
-        // getCodeCompletion is not null if code completion via AI inference is available.
-        // If not, CodingAssistant should be enabled.
-        if (getCodeCompletion != null)
-        {
-            _c64BasicCodingAssistant = new C64BasicCodingAssistant(_c64, getCodeCompletion, loggerFactory);
-            // Set default state of CodingAssistant
-            if (getCodeCompletionEnabled())
-                _c64BasicCodingAssistant.Enable();
-            else
-                _c64BasicCodingAssistant.Disable();
-        }
     }
 
     public void Init()
@@ -84,10 +75,9 @@ public class C64SadConsoleInputHandler : IInputHandler
 
     private void CaptureKeyboard(C64 c64)
     {
-
         var c64KeysDown = GetC64KeysFromSadConsoleKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);
 
-        if (CodingAssistantAvailable && _c64BasicCodingAssistant.IsEnabled && c64KeysDown.Count > 0)
+        if (CodingAssistantEnabled && c64KeysDown.Count > 0)
         {
             _c64BasicCodingAssistant.KeyWasPressed(c64KeysDown);
         }

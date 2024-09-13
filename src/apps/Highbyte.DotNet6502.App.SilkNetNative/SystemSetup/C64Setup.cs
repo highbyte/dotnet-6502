@@ -71,7 +71,7 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
         return c64;
     }
 
-    public SystemRunner BuildSystemRunner(
+    public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
@@ -105,6 +105,6 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
         var inputHandler = new C64SilkNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig);
         var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
-        return new SystemRunner(c64, renderer, inputHandler, audioHandler);
+        return Task.FromResult(new SystemRunner(c64, renderer, inputHandler, audioHandler));
     }
 }

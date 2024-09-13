@@ -61,7 +61,7 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
         return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
     }
 
-    public SystemRunner BuildSystemRunner(
+    public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
@@ -76,6 +76,6 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
         var inputHandler = new GenericSadConsoleInputHandler(genericComputer, inputHandlerContext, genericComputerConfig.Memory.Input, _loggerFactory);
         var audioHandler = new NullAudioHandler(genericComputer);
 
-        return new SystemRunner(genericComputer, renderer, inputHandler, audioHandler);
+        return Task.FromResult(new SystemRunner(genericComputer, renderer, inputHandler, audioHandler));
     }
 }

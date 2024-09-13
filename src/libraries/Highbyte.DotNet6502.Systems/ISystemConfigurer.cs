@@ -8,7 +8,7 @@ public interface ISystemConfigurer<TRenderContext, TInputHandlerContext, TAudioH
     public Task<ISystemConfig> GetNewConfig(string configurationVariant);
     public Task PersistConfig(ISystemConfig systemConfig);
     public ISystem BuildSystem(ISystemConfig systemConfig);
-    public SystemRunner BuildSystemRunner(
+    public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,

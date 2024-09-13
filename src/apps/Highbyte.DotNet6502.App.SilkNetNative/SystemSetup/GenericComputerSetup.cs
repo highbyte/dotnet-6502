@@ -62,7 +62,7 @@ public class GenericComputerSetup : ISystemConfigurer<SilkNetRenderContextContai
         return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
     }
 
-    public SystemRunner BuildSystemRunner(
+    public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
@@ -77,6 +77,6 @@ public class GenericComputerSetup : ISystemConfigurer<SilkNetRenderContextContai
         var inputHandler = new GenericComputerSilkNetInputHandler(genericComputer, inputHandlerContext, genericComputerConfig.Memory.Input);
         var audioHandler = new NullAudioHandler(genericComputer);
 
-        return new SystemRunner(genericComputer, renderer, inputHandler, audioHandler);
+        return Task.FromResult(new SystemRunner(genericComputer, renderer, inputHandler, audioHandler));
     }
 }

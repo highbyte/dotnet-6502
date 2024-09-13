@@ -588,5 +588,15 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             if (keyboard.IsKeyPressed(Keys.F12))
                 ToggleMonitor();
         }
+
+        if (EmulatorState == EmulatorState.Running)
+        {
+            if (keyboard.IsKeyPressed(Keys.F9))
+            {
+                if (_systemMenuConsole is C64MenuConsole c64MenuConsole)
+                    c64MenuConsole.ToggleBasicAIAssistant();
+            }
+        }
+
     }
 }

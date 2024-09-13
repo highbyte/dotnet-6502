@@ -1,11 +1,9 @@
 // Based on https://github.com/dotnet/smartcomponents
 
-using System;
-using System.Threading.Tasks;
 using Azure.Core;
 using Azure.Core.Pipeline;
 
-namespace Highbyte.DotNet6502.App.SadConsole.CodingAssistant.Inference.OpenAI;
+namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 
 /// <summary>
 /// Used to resolve queries using Ollama or anything else that exposes an OpenAI-compatible

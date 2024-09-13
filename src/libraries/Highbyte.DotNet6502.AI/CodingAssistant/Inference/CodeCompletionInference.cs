@@ -1,7 +1,7 @@
 // Based on https://github.com/dotnet/smartcomponents
 using System.Text;
 
-namespace Highbyte.DotNet6502.App.WASM.CodingAssistant.Inference;
+namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference;
 
 public class CodeCompletionInference
 
@@ -9,17 +9,7 @@ public class CodeCompletionInference
     public virtual ChatParameters BuildPrompt(CodeCompletionConfig config, string textBefore, string textAfter)
     {
         var systemMessageBuilder = new StringBuilder();
-        //        systemMessageBuilder.Append(@"Predict what text the user in the given ROLE would insert at the cursor position indicated by ^^^.
-        //Only give predictions for which you have an EXTREMELY high confidence that the user would insert that EXACT text.
-        //Do not make up new information. If you're not sure, just reply with NO_PREDICTION.
-
-        //RULES:
-        //1. Reply with OK:, then in square brackets the predicted text, then END_INSERTION, and no other output.
-        //2. When a specific value or quantity cannot be inferred and would need to be provided, use the word NEED_INFO.
-        //3. If there isn't enough information to predict any words that the user would type next, just reply with the word NO_PREDICTION.
-        //4. NEVER invent new information. If you can't be sure what the user is about to type, ALWAYS stop the prediction with END_INSERTION.");
-
-        systemMessageBuilder.Append(@"You are a Code completion AI assistant who responds exclusively using Commodore 64 Basic source code.
+        systemMessageBuilder.Append(@$"You are a Code completion AI assistant who responds exclusively using {config.ProgrammingLanguage} source code.
 Predict what text the user in would insert at the cursor position indicated by ^^^.
 Only give predictions for which you have an EXTREMELY high confidence that the user would insert that EXACT text.
 Do not make up new information. If you're not sure, just reply with NO_PREDICTION.
@@ -43,50 +33,8 @@ RULES:
         [
             new(ChatMessageRole.System, systemMessageBuilder.ToString()),
 
-//            new(ChatMessageRole.User, @"ROLE: Family member sending a text
-//USER_TEXT: Hey, it's a nice day - the weather is ^^^"),
-//            new(ChatMessageRole.Assistant, @"OK:[great!]END_INSERTION"),
-
-//            new(ChatMessageRole.User, @"ROLE: Customer service assistant
-//USER_TEXT: You can find more information on^^^
-
-////Alternatively, phone us."),
-//            new(ChatMessageRole.Assistant, @"OK:[ our website at NEED_INFO]END_INSERTION"),
-
-//            new(ChatMessageRole.User, @"ROLE: Casual
-//USER_TEXT: Oh I see!
-
-//Well sure thing, we can"),
-//            new(ChatMessageRole.Assistant, @"OK:[ help you out with that!]END_INSERTION"),
-
-//            new(ChatMessageRole.User, @"ROLE: Storyteller
-//USER_TEXT: Sir Digby Chicken Caesar, also know^^^"),
-//            new(ChatMessageRole.Assistant, @"OK:[n as NEED_INFO]END_INSERTION"),
-
-//            new(ChatMessageRole.User, @"ROLE: Customer support agent
-//USER_TEXT: Goodbye for now.^^^"),
-//            new(ChatMessageRole.Assistant, @"NO_PREDICTION END_INSERTION"),
-
-//            new(ChatMessageRole.User, @"ROLE: Pirate
-//USER_TEXT: Have you found^^^"),
-//            new(ChatMessageRole.Assistant, @"OK:[ the treasure, me hearties?]END_INSERTION"),
-
-//            new(ChatMessageRole.User, @$"ROLE: {config.UserRole}
-//USER_TEXT: {textBefore}^^^{textAfter}"),
-
-//        ];
-
-            //            new(ChatMessageRole.User, @$"ROLE: {config.UserRole}
-//USER_TEXT: {textBefore}^^^{textAfter}"),
-
-
-
-            //new(ChatMessageRole.User, @$"USER_TEXT: 10 print"),
-            //new(ChatMessageRole.Assistant, @"OK:[""C64 rules!!""]END_INSERTION"),
-
             new(ChatMessageRole.User, @$"USER_TEXT: {textBefore}^^^{textAfter}")
         ];
-
 
         return new ChatParameters
         {
