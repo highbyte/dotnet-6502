@@ -59,5 +59,5 @@ systemList.AddSystem(genericComputerSetup);
 // ----------
 emulatorConfig.Validate(systemList);
 
-var silkNetHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorConfig, logStore, logConfig);
+var silkNetHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorConfig, logStore, logConfig, Configuration);
 silkNetHostApp.Run();

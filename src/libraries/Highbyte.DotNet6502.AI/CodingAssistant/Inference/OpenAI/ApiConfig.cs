@@ -6,13 +6,12 @@ namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 
 public class ApiConfig
 {
-    public bool Enabled { get; set; }
     public string? ApiKey { get; set; }
     public string? DeploymentName { get; set; }
     public Uri? Endpoint { get; set; }
     public bool SelfHosted { get; set; }
 
-    public const string CONFIG_SECTION = "OpenAI";
+    public const string CONFIG_SECTION = "CodingAssistant:OpenAI";
 
     public ApiConfig()
     {
@@ -21,12 +20,9 @@ public class ApiConfig
     public ApiConfig(IConfiguration config)
     {
         var configSection = config.GetRequiredSection(CONFIG_SECTION);
-        Enabled = configSection.GetValue<bool?>("Enabled") ?? false;
-        if (!Enabled)
-            return;
 
+        // Using OpenAI API, either a self-hosted API compatible with OpenAI, or OpenAI (or Azure OpenAI) itself.
         SelfHosted = configSection.GetValue<bool?>("SelfHosted") ?? false;
-
         if (SelfHosted)
         {
             Endpoint = configSection.GetValue<Uri>("Endpoint")

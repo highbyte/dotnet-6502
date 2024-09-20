@@ -12,6 +12,7 @@ using Blazored.LocalStorage;
 using Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
+using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggestion;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
@@ -32,7 +33,6 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         _browserContext = browserContext;
         _loggerFactory = loggerFactory;
     }
-
 
     public IHostSystemConfig GetNewHostSystemConfig()
     {
@@ -113,11 +113,27 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
                 throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
         }
 
-        var apiConfig = await GetOpenAIConfig(_browserContext.LocalStorage);
-        var openAICodeSuggestion = new OpenAICodeSuggestion(apiConfig, "Commodore 64 Basic");
-        var c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, openAICodeSuggestion, _loggerFactory);
-        // TODO: // c64HostConfig.BasicAIAssistantDefaultEnabled
-        var inputHandler = new C64AspNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig, c64BasicCodingAssistant, true); // c64HostConfig.BasicAIAssistantDefaultEnabled
+        ICodeSuggestion codeSuggestion;
+        if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
+        {
+            var openAIApiConfig = await GetOpenAIConfig(_browserContext.LocalStorage);
+            codeSuggestion = new OpenAICodeSuggestion(openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+        }
+        else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
+        {
+            var customAIEndpointConfig = await GetCustomAIEndpointConfig(_browserContext.LocalStorage);
+            codeSuggestion = new CustomAIEndpointCodeSuggestion(customAIEndpointConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+        }
+        else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.None)
+        {
+            codeSuggestion = new NoCodeSuggestion();
+        }
+        else
+        {
+            throw new NotImplementedException($"CodeSuggestionBackendType '{c64HostConfig.CodeSuggestionBackendType}' is not implemented.");
+        }
+        var c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, codeSuggestion, _loggerFactory);
+        var inputHandler = new C64AspNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig, c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
 
         var audioHandler = new C64WASMAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
@@ -194,8 +210,6 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
 
     private async Task<ApiConfig> GetOpenAIConfig(ILocalStorageService localStorageService)
     {
-        var enabled = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:Enabled");
-        bool.TryParse(enabled, out bool enabledBool);
         var apiKey = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:ApiKey");
         var deploymentName = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:DeploymentName");
         var endpoint = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:Endpoint");
@@ -207,11 +221,24 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
 
         var apiConfig = new ApiConfig()
         {
-            Enabled = string.IsNullOrEmpty(enabled) ? !string.IsNullOrEmpty(apiKey) : enabledBool,
             ApiKey = apiKey,
             DeploymentName = deploymentName,
             Endpoint = endPointUri,
             SelfHosted = selfHostedBool,
+        };
+        return apiConfig;
+    }
+
+    private async Task<CustomAIEndpointConfig> GetCustomAIEndpointConfig(ILocalStorageService localStorageService)
+    {
+        var apiKey = await localStorageService.GetItemAsStringAsync($"{CustomAIEndpointConfig.CONFIG_SECTION}:ApiKey");
+        var endpoint = await localStorageService.GetItemAsStringAsync($"{CustomAIEndpointConfig.CONFIG_SECTION}:Endpoint");
+        var endPointUri = !string.IsNullOrEmpty(endpoint) ? new Uri(endpoint) : null;
+
+        var apiConfig = new CustomAIEndpointConfig()
+        {
+            ApiKey = apiKey,
+            Endpoint = endPointUri,
         };
         return apiConfig;
     }

@@ -1,5 +1,6 @@
 // Based on https://github.com/dotnet/smartcomponents
 
+using System.Runtime.InteropServices;
 using Azure;
 using Azure.AI.OpenAI;
 using Microsoft.Extensions.Configuration;
@@ -9,20 +10,18 @@ namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 public class OpenAIInferenceBackend(ApiConfig apiConfig)
     : IInferenceBackend
 {
-    public bool IsAvailable => apiConfig.Enabled;
-
     public OpenAIInferenceBackend(IConfiguration configuration) : this(new ApiConfig(configuration))
     {
     }
 
     public async Task<string> GetChatResponseAsync(ChatParameters options)
     {
-        if (!apiConfig.Enabled)
-            throw new InvalidOperationException("OpenAI is not enabled.");
-
 #if DEBUG
-        if (ResponseCache.TryGetCachedResponse(options, out var cachedResponse))
-            return cachedResponse!;
+        if (RuntimeInformation.OSArchitecture != Architecture.Wasm)
+        {
+            if (ResponseCache.TryGetCachedResponse(options, out var cachedResponse))
+                return cachedResponse!;
+        }
 #endif
 
         var client = CreateClient(apiConfig);
@@ -60,7 +59,10 @@ public class OpenAIInferenceBackend(ApiConfig apiConfig)
         var response = completionsResponse.Value.Choices.FirstOrDefault()?.Message.Content ?? string.Empty;
 
 #if DEBUG
-        ResponseCache.SetCachedResponse(options, response);
+        if (RuntimeInformation.OSArchitecture != Architecture.Wasm)
+        {
+            ResponseCache.SetCachedResponse(options, response);
+        }
 #endif
 
         return response;

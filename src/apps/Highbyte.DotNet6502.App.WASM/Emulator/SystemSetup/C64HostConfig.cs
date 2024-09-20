@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 using Highbyte.DotNet6502.Systems;
 
@@ -11,10 +12,18 @@ public enum C64HostRenderer
 }
 public class C64HostConfig : IHostSystemConfig, ICloneable
 {
-
     public C64HostRenderer Renderer { get; set; } = C64HostRenderer.SkiaSharp;
 
     public C64AspNetInputConfig InputConfig { get; set; } = new C64AspNetInputConfig();
+
+    public bool BasicAIAssistantDefaultEnabled { get; set; }
+    public CodeSuggestionBackendTypeEnum CodeSuggestionBackendType { get; set; }
+
+    public C64HostConfig()
+    {
+        BasicAIAssistantDefaultEnabled = false;
+        CodeSuggestionBackendType = CodeSuggestionBackendTypeEnum.CustomEndpoint;
+    }
 
     public object Clone()
     {

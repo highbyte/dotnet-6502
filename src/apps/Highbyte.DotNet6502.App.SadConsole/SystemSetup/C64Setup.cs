@@ -33,8 +33,12 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
 
     public IHostSystemConfig GetNewHostSystemConfig()
     {
-        // TODO: Read System host config from appsettings.json
-        var c64HostConfig = new C64HostConfig { };
+        // TODO: Read all system host config from appsettings.json
+        var c64HostConfig = new C64HostConfig
+        {
+            BasicAIAssistantDefaultEnabled = false,
+            CodeSuggestionBackendType = Enum.Parse<CodeSuggestionBackendTypeEnum>(_configuration["CodingAssistant:CodingAssistantType"] ?? "None")
+        };
         return c64HostConfig;
     }
 
@@ -78,8 +82,8 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
 
         var renderer = new C64SadConsoleRenderer(c64, renderContext);
 
-        var openAICodeSuggestion = new OpenAICodeSuggestion(_configuration, "Commodore 64 Basic");
-        var c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, openAICodeSuggestion, _loggerFactory);
+        ICodeSuggestion codeSuggestion = CodeSuggestionConfigurator.CreateCodeSuggestion(c64HostConfig.CodeSuggestionBackendType, _configuration, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, defaultToNoneIdConfigError: true);
+        var c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, codeSuggestion, _loggerFactory);
         var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory, c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
 
         var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);

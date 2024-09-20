@@ -45,7 +45,15 @@ public class C64BasicCodingAssistant
 
     private readonly System.Timers.Timer _delayAfterKeyPress = new System.Timers.Timer(DelayAfterKeyPressMilliseconds);
 
+    public const string CODE_COMPLETION_LANGUAGE_DESCRIPTION = "Commodore 64 Basic";
+
+    public async Task CheckAvailability()
+    {
+        await _codeSuggestion.CheckAvailability();
+    }
     public bool IsAvailable => _codeSuggestion.IsAvailable;
+    public string? LastError => _codeSuggestion.LastError;
+
     public C64BasicCodingAssistant(C64 c64, ICodeSuggestion codeSuggestion, ILoggerFactory loggerFactory)
     {
         _c64 = c64;
@@ -199,14 +207,12 @@ public class C64BasicCodingAssistant
         _logger.LogInformation($"AI Query: text before: {textBeforeCursor}");
         _logger.LogInformation($"AI Query: text after:  {textAfterCursor}");
 
-        return await _codeSuggestion.GetInsertionSuggestionAsync(textBeforeCursor, textAfterCursor);
-    }
-
-    private async Task<string> GetFakeCodeCompletion(string textBeforeCursor, string textAfterCursor)
-    {
-        if (textBeforeCursor == "10 print" && textAfterCursor == "")
-            return "\"hello world!\"";
-        return string.Empty;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        string result;
+        result = await _codeSuggestion.GetInsertionSuggestionAsync(textBeforeCursor, textAfterCursor);
+        sw.Stop();
+        _logger.LogInformation($"AI response time: {sw.ElapsedMilliseconds} ms");
+        return result;
     }
 
     private void GetText(out string textBeforeCursor, out string textAfterCursor)

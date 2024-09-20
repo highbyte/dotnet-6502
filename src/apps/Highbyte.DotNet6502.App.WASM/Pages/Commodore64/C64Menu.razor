@@ -1,4 +1,5 @@
-﻿@using Highbyte.DotNet6502.Systems
+﻿@using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input
+@using Highbyte.DotNet6502.Systems
 @using Highbyte.DotNet6502.Systems.Commodore64.Config;
 @using Highbyte.DotNet6502.Systems.Commodore64;
 @using Highbyte.DotNet6502.Systems.Commodore64.Video;
@@ -59,6 +60,9 @@
         <p>Misc.</p>
         <button @onclick="CopyBasicSourceCode" disabled=@OnCopySourceCodeDisabled>Copy</button>
         <button @onclick="PasteText" disabled=@OnPasteTextDisabled>Paste</button>
+        <p></p>
+        <label for="BasicCodingAssistant">AI Basic (F9)</label>
+        <input id="BasicCodingAssistant" type="checkbox" @bind="@BasicCodingAssistantEnabled" disabled="@BasicCodingAssistantDisabled"/>
 
     </div>
 
@@ -106,6 +110,7 @@
 
     private C64Config _c64Config => (C64Config)Parent.WasmHost.CurrentSystemConfig;
     private C64HostConfig _c64HostConfig => (C64HostConfig)Parent.WasmHost.CurrentHostSystemConfig;
+    private C64AspNetInputHandler _c64AspNetInputHandler => (C64AspNetInputHandler)Parent.WasmHost.CurrentSystemRunner.InputHandler;
 
     private ILogger _logger = default!;
     private string _latestFileError = "";
@@ -185,6 +190,27 @@
 
     private bool SelectKeyboardJoystickDisabled => !JoystickKeyboardEnabled;
 
+    private bool BasicCodingAssistantEnabled
+    {
+        get
+        {
+            if (Parent.WasmHost.EmulatorState != EmulatorState.Running)
+                return false;
+            if (_c64AspNetInputHandler == null)
+                return false;
+            return _c64AspNetInputHandler.CodingAssistantEnabled;
+        }
+        set
+        {
+            if (Parent.WasmHost.EmulatorState != EmulatorState.Running)
+                return;
+            if (_c64AspNetInputHandler == null)
+                return;
+            _c64AspNetInputHandler.CodingAssistantEnabled = value;
+            ((C64HostConfig)Parent.WasmHost.CurrentHostSystemConfig).BasicAIAssistantDefaultEnabled = value;
+        }
+    }
+
 
 
     private readonly Dictionary<string, string> _assemblyExampleFiles = new()
@@ -218,6 +244,7 @@
     protected bool OnCopySourceCodeDisabled=> Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
     
     protected bool OnPasteTextDisabled => Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
+    protected bool BasicCodingAssistantDisabled => Parent.CurrentEmulatorState != EmulatorState.Running || !((C64AspNetInputHandler)Parent.WasmHost.CurrentSystemRunner.InputHandler).CodingAssistantAvailable;
 
 
     /// <summary>

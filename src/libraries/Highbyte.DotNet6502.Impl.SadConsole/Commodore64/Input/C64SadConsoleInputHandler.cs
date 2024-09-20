@@ -15,7 +15,7 @@ public class C64SadConsoleInputHandler : IInputHandler
     private readonly SadConsoleInputHandlerContext _inputHandlerContext;
     private readonly List<string> _debugInfo = new();
     private readonly C64SadConsoleKeyboard _c64SadConsoleKeyboard;
-    private readonly ILogger<C64SadConsoleInputHandler> _logger;
+    private readonly ILogger _logger;
     private readonly C64BasicCodingAssistant _c64BasicCodingAssistant;
 
     public bool CodingAssistantAvailable => _c64BasicCodingAssistant.IsAvailable;
@@ -34,6 +34,17 @@ public class C64SadConsoleInputHandler : IInputHandler
         }
     }
 
+    public async Task CheckCodingAssistantAvailability()
+    {
+        await _c64BasicCodingAssistant.CheckAvailability();
+        if (!_c64BasicCodingAssistant.IsAvailable)
+        {
+            _logger.LogError($"{_c64BasicCodingAssistant.LastError}");
+            _logger.LogWarning("Coding assistant is not available. Disabling it.");
+            _codingAssistantEnabled = false;
+        }
+    }
+
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
@@ -49,7 +60,7 @@ public class C64SadConsoleInputHandler : IInputHandler
         _c64BasicCodingAssistant = c64BasicCodingAssistant;
         _codingAssistantEnabled = c64BasicCodingAssistantDefaultEnabled;
 
-        _logger = loggerFactory.CreateLogger<C64SadConsoleInputHandler>();
+        _logger = loggerFactory.CreateLogger(typeof(C64SadConsoleInputHandler).Name);
 
         // TODO: Is there a better way to current keyboard input language?
         var currentUICulture = Thread.CurrentThread.CurrentUICulture;
