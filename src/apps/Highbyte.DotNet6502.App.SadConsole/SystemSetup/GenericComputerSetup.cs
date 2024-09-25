@@ -31,11 +31,16 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
         _configuration = configuration;
     }
 
-    public IHostSystemConfig GetNewHostSystemConfig()
+    public Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
         // TODO: Read System host config from appsettings.json
         var genericComputerHostConfig = new GenericComputerHostConfig { };
-        return genericComputerHostConfig;
+        return Task.FromResult<IHostSystemConfig>(genericComputerHostConfig);
+    }
+    public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
+    {
+        // TODO: Persist settings to file
+        return Task.CompletedTask;
     }
 
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)

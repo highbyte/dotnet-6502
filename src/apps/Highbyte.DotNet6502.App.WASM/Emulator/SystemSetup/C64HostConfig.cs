@@ -12,6 +12,8 @@ public enum C64HostRenderer
 }
 public class C64HostConfig : IHostSystemConfig, ICloneable
 {
+    public const string ConfigSectionName = "Highbyte.DotNet6502.C64HostConfig";
+
     public C64HostRenderer Renderer { get; set; } = C64HostRenderer.SkiaSharp;
 
     public C64AspNetInputConfig InputConfig { get; set; } = new C64AspNetInputConfig();

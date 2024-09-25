@@ -4,7 +4,8 @@ public interface ISystemConfigurer<TRenderContext, TInputHandlerContext, TAudioH
 {
     public string SystemName { get; }
     public List<string> ConfigurationVariants { get; }
-    public IHostSystemConfig GetNewHostSystemConfig();
+    public Task<IHostSystemConfig> GetNewHostSystemConfig();
+    public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig);
     public Task<ISystemConfig> GetNewConfig(string configurationVariant);
     public Task PersistConfig(ISystemConfig systemConfig);
     public ISystem BuildSystem(ISystemConfig systemConfig);

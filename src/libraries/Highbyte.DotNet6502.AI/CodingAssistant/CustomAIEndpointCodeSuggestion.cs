@@ -11,6 +11,7 @@ public class CustomAIEndpointCodeSuggestion : ICodeSuggestion
 {
     private bool _isAvailable;
     private string? _lastError;
+    private readonly CustomAIEndpointConfig _apiWrapperConfig;
     private readonly string _programmingLanguage;
     private readonly HttpClient _httpClient;
 
@@ -23,8 +24,9 @@ public class CustomAIEndpointCodeSuggestion : ICodeSuggestion
     {
         _isAvailable = true;
         _lastError = null;
-
+        _apiWrapperConfig = apiWrapperConfig;
         _programmingLanguage = programmingLanguage;
+
         // TODO: HttpClient should be injected, not created each time this class is created.
         _httpClient = new HttpClient
         {
@@ -71,7 +73,9 @@ public class CustomAIEndpointCodeSuggestion : ICodeSuggestion
                     TextAfter = textAfter
                 }),
                 Encoding.UTF8,
-                "application/json")
+                "application/json"),
+
+            Headers = { { "x-api-key", _apiWrapperConfig.ApiKey } }
         };
         var response = await _httpClient.SendAsync(request);
         var responseContent = await response.Content.ReadAsStringAsync();

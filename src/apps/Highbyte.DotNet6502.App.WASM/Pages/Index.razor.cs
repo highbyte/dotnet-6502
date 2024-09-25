@@ -332,7 +332,9 @@ public partial class Index
 
             _wasmHost.UpdateSystemConfig(resultData.UpdatedSystemConfig);
             await _wasmHost.PersistCurrentSystemConfig();
+
             _wasmHost.UpdateHostSystemConfig(resultData.UpdatedHostSystemConfig);
+            await _wasmHost.PersistCurrentHostSystemConfig();
         }
 
         (bool isOk, List<string> validationErrors) = await _wasmHost.IsValidConfigWithDetails();

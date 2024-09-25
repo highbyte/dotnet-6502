@@ -33,10 +33,16 @@ public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetI
         _loggerFactory = loggerFactory;
     }
 
-    public IHostSystemConfig GetNewHostSystemConfig()
+    public Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
         var genericComputerHostConfig = new GenericComputerHostConfig();
-        return genericComputerHostConfig;
+        return Task.FromResult<IHostSystemConfig>(genericComputerHostConfig);
+    }
+
+    public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
+    {
+        // TODO: Persist settings to file
+        return Task.CompletedTask;
     }
 
     public async Task<ISystemConfig> GetNewConfig(string configurationVariant)

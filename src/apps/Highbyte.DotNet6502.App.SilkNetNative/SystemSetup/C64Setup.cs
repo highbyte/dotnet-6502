@@ -30,7 +30,7 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
         _configuration = configuration;
     }
 
-    public IHostSystemConfig GetNewHostSystemConfig()
+    public Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
         // TODO: Read System host config from appsettings.json
         var c64HostConfig = new C64HostConfig
@@ -41,9 +41,14 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
                 UseFineScrollPerRasterLine = false, // Setting to true may work, depending on how code is written. Full screen scroll may not work (actual screen memory is not rendered in sync with raster line).
             }
         };
-        return c64HostConfig;
+        return Task.FromResult<IHostSystemConfig>(c64HostConfig);
     }
 
+    public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
+    {
+        // TODO: Persist settings to file
+        return Task.CompletedTask;
+    }
 
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)
     {

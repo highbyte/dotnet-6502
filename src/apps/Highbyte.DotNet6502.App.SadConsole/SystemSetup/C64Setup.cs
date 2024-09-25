@@ -31,7 +31,7 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
         _configuration = configuration;
     }
 
-    public IHostSystemConfig GetNewHostSystemConfig()
+    public Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
         // TODO: Read all system host config from appsettings.json
         var c64HostConfig = new C64HostConfig
@@ -39,7 +39,13 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
             BasicAIAssistantDefaultEnabled = false,
             CodeSuggestionBackendType = Enum.Parse<CodeSuggestionBackendTypeEnum>(_configuration["CodingAssistant:CodingAssistantType"] ?? "None")
         };
-        return c64HostConfig;
+        return Task.FromResult<IHostSystemConfig>(c64HostConfig);
+    }
+
+    public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
+    {
+        // TODO: Persist settings to file
+        return Task.CompletedTask;
     }
 
     public Task<ISystemConfig> GetNewConfig(string configurationVariant)

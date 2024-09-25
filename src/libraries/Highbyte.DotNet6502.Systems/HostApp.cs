@@ -84,7 +84,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         var list = new List<IHostSystemConfig>();
         foreach (var system in AvailableSystemNames)
         {
-            list.Add(_systemList.GetHostSystemConfig(system));
+            list.Add(_systemList.GetHostSystemConfig(system).Result);
         }
         return list;
     }
@@ -155,7 +155,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         _selectedSystemName = systemName;
 
         CurrentSystemConfig = await _systemList.GetSystemConfig(_selectedSystemName, _selectedSystemConfigurationVariant);
-        CurrentHostSystemConfig = _systemList.GetHostSystemConfig(_selectedSystemName);
+        CurrentHostSystemConfig = await _systemList.GetHostSystemConfig(_selectedSystemName);
 
         OnAfterSelectSystem();
     }
@@ -380,6 +380,15 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         // Note: Make sure to store a clone of the newConfig in the systemList, so it cannot be changed by the caller (bound to UI for example).
         CurrentHostSystemConfig = (IHostSystemConfig)newConfig.Clone();
         _systemList.ChangeCurrentHostSystemConfig(_selectedSystemName, CurrentHostSystemConfig);
+    }
+
+    /// <summary>
+    /// Persist current host system configuration
+    /// </summary>
+    /// <returns></returns>
+    public async Task PersistCurrentHostSystemConfig()
+    {
+        await _systemList.PersistHostSystemConfig(_selectedSystemName);
     }
 
     private void InitInstrumentation(ISystem system)

@@ -175,7 +175,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
 
         var system = await GetSystem(systemName, configurationVariant);
         var systemConfig = await GetSystemConfig(systemName, configurationVariant);
-        var hostSystemConfig = GetHostSystemConfig(systemName);
+        var hostSystemConfig = await GetHostSystemConfig(systemName);
         var systemRunner = await _systemConfigurers[systemName].BuildSystemRunner(system, systemConfig, hostSystemConfig, _getRenderContext(), _getInputHandlerContext(), _getAudioHandlerContext());
         systemRunner.Init();
         return systemRunner;
@@ -267,7 +267,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     }
 
 
-    public IHostSystemConfig GetHostSystemConfig(string systemName)
+    public async Task<IHostSystemConfig> GetHostSystemConfig(string systemName)
     {
         if (!Systems.Contains(systemName))
             throw new DotNet6502Exception($"System does not exist: {systemName}");
@@ -275,7 +275,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         var cacheKey = systemName;
         if (!_hostSystemConfigsCache.ContainsKey(cacheKey))
         {
-            var hostSystemConfig = _systemConfigurers[systemName].GetNewHostSystemConfig();
+            var hostSystemConfig = await _systemConfigurers[systemName].GetNewHostSystemConfig();
             ChangeCurrentHostSystemConfig(systemName, hostSystemConfig);
         }
         return _hostSystemConfigsCache[cacheKey];
@@ -295,5 +295,11 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
 
         // Update the cached config
         _hostSystemConfigsCache[cacheKey] = hostSystemConfig;
+    }
+
+    public async Task PersistHostSystemConfig(string systemName)
+    {
+        var hostSystemConfig = await GetHostSystemConfig(systemName);
+        await _systemConfigurers[systemName].PersistHostSystemConfig(hostSystemConfig);
     }
 }

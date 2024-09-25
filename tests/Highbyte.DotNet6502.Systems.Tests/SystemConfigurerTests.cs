@@ -18,11 +18,15 @@ public class SystemConfigurerTests
         public string SystemName => TestSystem.SystemName;
         public List<string> ConfigurationVariants => new List<string> { "DEFAULT" };
 
-        public IHostSystemConfig GetNewHostSystemConfig()
+        public Task<IHostSystemConfig> GetNewHostSystemConfig()
         {
-            return new TestHostSystemConfig();
+            return Task.FromResult<IHostSystemConfig>(new TestHostSystemConfig());
         }
 
+        public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
+        {
+            return Task.CompletedTask;
+        }
 
         public Task<ISystemConfig> GetNewConfig(string configurationVariant)
         {
@@ -65,9 +69,14 @@ public class SystemConfigurerTests
         public string SystemName => TestSystem2.SystemName;
         public List<string> ConfigurationVariants => new List<string> { "DEFAULT" };
 
-        public IHostSystemConfig GetNewHostSystemConfig()
+        public Task<IHostSystemConfig> GetNewHostSystemConfig()
         {
-            return new TestHostSystem2Config();
+            return Task.FromResult<IHostSystemConfig>(new TestHostSystem2Config());
+        }
+
+        public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
+        {
+            return Task.CompletedTask;
         }
 
         public Task<ISystemConfig> GetNewConfig(string configurationVariant)
