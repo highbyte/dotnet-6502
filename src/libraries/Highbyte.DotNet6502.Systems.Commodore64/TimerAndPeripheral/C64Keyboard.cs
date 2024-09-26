@@ -11,7 +11,7 @@ public class C64Keyboard
     private readonly C64Key[,] _matrix;
     private readonly List<C64Key> _pressedKeys = new List<C64Key>();
     private readonly C64 _c64;
-    private List<int> _selectedMatrixRowBitPositions = new();
+    private readonly List<int> _selectedMatrixRowBitPositions = new();
     private bool _capsLockOn;
     private readonly ILogger<C64Keyboard> _logger;
 

@@ -98,8 +98,9 @@ public class C64BasicCodingAssistant
         if (keysPressed.Contains(C64Key.Return))
         {
             // Remember basic line number that the user pressed Return on
-            var currentScreenLineText = GetAscIIStringFromScreenCodeBytes(GetCurrentScreenLineTextBytes());
-            var foundBasicLineNumber = TryGetBasicLineNumberFromScreenText(currentScreenLineText, out int basicLineNumber);
+            // Basic line number range is 0 to 63999
+            var currentScreenLineText = GetAscIIStringFromScreenCodeBytes(GetCurrentScreenLineTextBytes(0, 6)); // First 6 characters should be enough for Basic line number?
+            var foundBasicLineNumber = TryGetBasicLineNumberFromScreenText(currentScreenLineText, out int basicLineNumber, out _);
             if (foundBasicLineNumber)
                 _lastSuggestionBasicLineNumber = basicLineNumber;
         }
@@ -129,7 +130,7 @@ public class C64BasicCodingAssistant
     private void SetActiveSugestion(string suggestion)
     {
         _activeSuggestion = suggestion.ToLower();
-        _logger.LogInformation($"AI: {suggestion}");
+        //_logger.LogInformation($"Active suggestion: {suggestion}");
 
         WriteSuggestionOnScreen(_activeSuggestion);
     }
@@ -188,50 +189,94 @@ public class C64BasicCodingAssistant
         //_logger.LogInformation("Delay reached after key press elapsed.");
         _delayAfterKeyPress.Stop();
 
-        var suggestion = await GetAISuggestion();
-        if (string.IsNullOrEmpty(suggestion))
-            return;
-
         // Check so user haven't moved cursor since the delay timer started and we quiered AI
         var currentScreenCursorColumn = _c64.Mem.FetchByte(0xd3);
         var currentScreenCursorRow = _c64.Mem.FetchByte(0xd6);
         if (currentScreenCursorRow != _triggerScreenCursorRow || currentScreenCursorColumn != _triggerScreenCursorColumn)
+        {
+            _logger.LogDebug("Cursor moved between timer start and end.");
             return;
+        }
+
+        var aiCallScreenCursorColumn = _c64.Mem.FetchByte(0xd3);
+        var aiCallScreenCursorRow = _c64.Mem.FetchByte(0xd6);
+
+        var suggestion = await GetAISuggestion();
+        if (string.IsNullOrEmpty(suggestion))
+            return;
+
+        // Check so user haven't moved cursor since query was sent to AI code completion endpoint
+        currentScreenCursorColumn = _c64.Mem.FetchByte(0xd3);
+        currentScreenCursorRow = _c64.Mem.FetchByte(0xd6);
+        if (currentScreenCursorRow != aiCallScreenCursorRow || currentScreenCursorColumn != aiCallScreenCursorColumn)
+        {
+            _logger.LogDebug("Cursor moved between AI call and response");
+            return;
+        }
         SetActiveSugestion(suggestion);
     }
 
     private async Task<string> GetAISuggestion()
     {
-        GetText(out string textBeforeCursor, out string textAfterCursor);
+        bool performAISuggestion = GetText(out string textBeforeCursor, out string textAfterCursor);
+        if (!performAISuggestion)
+            return string.Empty;
 
         _logger.LogInformation($"AI Query: text before: {textBeforeCursor}");
         _logger.LogInformation($"AI Query: text after:  {textAfterCursor}");
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        string result;
-        result = await _codeSuggestion.GetInsertionSuggestionAsync(textBeforeCursor, textAfterCursor);
+        var result = await _codeSuggestion.GetInsertionSuggestionAsync(textBeforeCursor, textAfterCursor);
         sw.Stop();
+        _logger.LogInformation($"AI response: {result}");
         _logger.LogInformation($"AI response time: {sw.ElapsedMilliseconds} ms");
         return result;
     }
 
-    private void GetText(out string textBeforeCursor, out string textAfterCursor)
+    private bool GetText(out string textBeforeCursor, out string textAfterCursor)
     {
+        textBeforeCursor = string.Empty;
+        textAfterCursor = string.Empty;
+
+        // Check if current screen line has any text before the cursor
+        string currentScreenLineTextUpTilCursor;
+        int findBasicLinesUpTilLineNumber = 0;
         var cursorColumnPos = _c64.Mem.FetchByte(0xd3);
-        var screenLineBytes = GetCurrentScreenLineTextBytes();
-        var currentScreenLineTextUpTilCursor = GetAscIIStringFromScreenCodeBytes(screenLineBytes, start: 0, length: cursorColumnPos);
-
-        var foundBasicLineNumber = TryGetBasicLineNumberFromScreenText(currentScreenLineTextUpTilCursor, out int currentScreenLineBasicLineNumber);
-
-        int findBasicLinesUpTilLineNumber;
-        if (foundBasicLineNumber)
+        if (cursorColumnPos > 0)
         {
-            findBasicLinesUpTilLineNumber = currentScreenLineBasicLineNumber - 1;
-            _lastSuggestionBasicLineNumber = currentScreenLineBasicLineNumber;
+            var screenLineBytes = GetCurrentScreenLineTextBytes(0, cursorColumnPos);
+            currentScreenLineTextUpTilCursor = GetAscIIStringFromScreenCodeBytes(screenLineBytes);
+
+            // If current line does not contain any text, skip doing suggestion.
+            if (currentScreenLineTextUpTilCursor == string.Empty || currentScreenLineTextUpTilCursor.Trim() == string.Empty)
+            {
+                return false;
+            }
+
+            // Try to find Basic line number at start of line
+            var foundBasicLineNumber = TryGetBasicLineNumberFromScreenText(currentScreenLineTextUpTilCursor, out int currentScreenLineBasicLineNumber, out string currentScreenLineWithoutLineNumber);
+            if (foundBasicLineNumber)
+            {
+                findBasicLinesUpTilLineNumber = currentScreenLineBasicLineNumber - 1;
+                _lastSuggestionBasicLineNumber = currentScreenLineBasicLineNumber;
+            }
+            else
+            {
+                // No Basic line number was found on current screen line, skip doing any suggestion.
+                return false;
+            }
+
+            var isRemark = IsBasicLineARemarkStatement(currentScreenLineWithoutLineNumber);
+            if (isRemark)
+            {
+                // Skip doing suggestion on remark lines
+                return false;
+            }
         }
         else
         {
-            findBasicLinesUpTilLineNumber = _lastSuggestionBasicLineNumber;
+            // Cursor at first column, nothing to suggest
+            return false;
         }
 
         // Get entire Basic program from memory up til before the detected basicLineNumber we are currently on
@@ -244,7 +289,7 @@ public class C64BasicCodingAssistant
         {
             if (!string.IsNullOrEmpty(basicLines[i]))
             {
-                var foundBasicProgramLineNumber = TryGetBasicLineNumberFromScreenText(basicLines[i], out int basicLineNumber);
+                var foundBasicProgramLineNumber = TryGetBasicLineNumberFromScreenText(basicLines[i], out int basicLineNumber, out _);
                 if (foundBasicProgramLineNumber && basicLineNumber > findBasicLinesUpTilLineNumber)
                     break;
                 textBeforeCursorSb.AppendLine(basicLines[i]);
@@ -254,24 +299,34 @@ public class C64BasicCodingAssistant
         // Append the current screen line to total source code before cursor
         textBeforeCursorSb.Append(currentScreenLineTextUpTilCursor);
 
-        // TODO: Build textAfterCursor to include current screen line after cursor + rest of basic lines
+        // Add text after current position
         StringBuilder textAfterCursorSb = new();
-        for (var i = cursorColumnPos; i < 40; i++)
-        {
-            var petsciiCode = Petscii.C64ScreenCodeToPetscII(screenLineBytes[i]);
-            var asciiCode = Petscii.PetscIIToAscII(petsciiCode);
-            textAfterCursorSb.Append((char)asciiCode);
-        }
+        // Note: Adding the text after the cursor position current screen line may not be optimal, as it may not be relevant.
+        // Add rest of text on current screen line after the curosr
+        //for (var i = cursorColumnPos; i < 40; i++)
+        //{
+        //    var petsciiCode = Petscii.C64ScreenCodeToPetscII(screenLineBytes[i]);
+        //    var asciiCode = Petscii.PetscIIToAscII(petsciiCode);
+        //    textAfterCursorSb.Append((char)asciiCode);
+        //}
 
         // Hack: If there is nothing after cursor, add a newline to make sure there is something to query AI with
         if (textAfterCursorSb.Length == 0)
         {
             textBeforeCursorSb.AppendLine();
         }
+        //  TODO: Build textAfterCursor to include rest of basic lines
 
         // Set out parameters
         textBeforeCursor = textBeforeCursorSb.ToString();
         textAfterCursor = textAfterCursorSb.ToString().TrimEnd();
+
+        return true;
+    }
+
+    private bool IsBasicLineARemarkStatement(string currentScreenLineTextUpTilCursor)
+    {
+        return currentScreenLineTextUpTilCursor.TrimStart().StartsWith("REM", StringComparison.OrdinalIgnoreCase);
     }
 
     private void WriteAscIIStringOnCurrentScreenLine(string text, int col)
@@ -287,14 +342,21 @@ public class C64BasicCodingAssistant
         }
     }
 
-    private bool TryGetBasicLineNumberFromScreenText(string currentScreenLine, out int basicLineNumber)
+    private bool TryGetBasicLineNumberFromScreenText(string currentScreenLine, out int basicLineNumber, out string lineWithoutLineNumber)
     {
         currentScreenLine = currentScreenLine.TrimStart();
         var parts = currentScreenLine.Split(' ');
         var parseOk = int.TryParse(parts[0].Trim(), out basicLineNumber);
 
         if (!parseOk)
+        {
             basicLineNumber = -1;
+            lineWithoutLineNumber = currentScreenLine;
+        }
+        else
+        {
+            lineWithoutLineNumber = string.Join(' ', parts.Skip(1));
+        }
         return parseOk;
     }
 
@@ -319,7 +381,7 @@ public class C64BasicCodingAssistant
         return sb.ToString();
     }
 
-    private byte[] GetCurrentScreenLineTextBytes(int startCol = 0, int length = 40)
+    private byte[] GetCurrentScreenLineTextBytes(int startCol, int length)
     {
         var screenMemLineStart = _c64.Mem.FetchWord(0xd1);
         return GetRAMBytes((ushort)(screenMemLineStart + startCol), (ushort)length);
