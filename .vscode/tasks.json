@@ -66,22 +66,6 @@
             }
         },        
         {
-            "label": "build console example",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/samples/ConsoleTestPrograms/ConsoleTestPrograms.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        },
-        {
             "label": "build sadconsole app",
             "command": "dotnet",
             "type": "process",
@@ -96,35 +80,6 @@
                 "kind": "build",
                 "isDefault": true
             }
-        },
-        {
-            "label": "build (old) blazor wasm example",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/samples/BlazorWasmTest/BlazorWasmTest.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }            
-        },
-        {
-            "label": "watch console example",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "watch",
-                "run",
-                "${workspaceFolder}/samples/ConsoleTestPrograms/ConsoleTestPrograms.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile"
         },
         {
             "label": "test",

@@ -8,7 +8,7 @@
             "name": "SilkNetNative app - .NET Core Launch",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build skia native app",
+            "preLaunchTask": "build silk.net native app",
             // If you have changed target frameworks, make sure to update the program path.
             "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/bin/Debug/net8.0/Highbyte.DotNet6502.App.SilkNetNative.dll",
             "args": [],
@@ -24,32 +24,6 @@
             "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.WASM",
             "url": "http://localhost:5000",
             "browser": "chrome"
-        },           
-        {
-            "name": "Console Monitor app - .NET Core Launch",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build console monitor app",
-            // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net8.0/Highbyte.DotNet6502.App.ConsoleMonitor.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net8.0",
-            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
-            "console": "externalTerminal",
-            "stopAtEntry": false
-        },
-        {
-            "name": "Console example - .NET Core Launch",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build console example",
-            // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/samples/ConsoleTestPrograms/bin/Debug/net8.0/ConsoleTestPrograms.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/samples/ConsoleTestPrograms/bin/Debug/net8.0",
-            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
-            "console": "externalTerminal",
-            "stopAtEntry": false
         },
         {
             "name": "SadConsole app - .NET Core Launch",
@@ -63,15 +37,20 @@
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "integratedTerminal",
             "stopAtEntry": false
-        },
+        },                 
         {
-            "name": "Old Blazor WASM example - Blazor WASM Launch and Debug",
-            "type": "blazorwasm",
+            "name": "Console Monitor app - .NET Core Launch",
+            "type": "coreclr",
             "request": "launch",
-            "cwd": "${workspaceFolder}/samples/BlazorWasmTest",
-            "url": "http://localhost:5000",
-            "browser": "chrome"
-        },     
+            "preLaunchTask": "build console monitor app",
+            // If you have changed target frameworks, make sure to update the program path.
+            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net8.0/Highbyte.DotNet6502.App.ConsoleMonitor.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net8.0",
+            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
+            "console": "externalTerminal",
+            "stopAtEntry": false
+        },    
         {
             "name": ".NET Core Attach",
             "type": "coreclr",
