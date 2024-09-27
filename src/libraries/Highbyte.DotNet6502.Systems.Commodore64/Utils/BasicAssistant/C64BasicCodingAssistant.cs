@@ -189,7 +189,7 @@ public class C64BasicCodingAssistant
         //_logger.LogInformation("Delay reached after key press elapsed.");
         _delayAfterKeyPress.Stop();
 
-        // Check so user haven't moved cursor since the delay timer started and we quiered AI
+        // Check so user haven't moved cursor since the delay timer started and we queried AI
         var currentScreenCursorColumn = _c64.Mem.FetchByte(0xd3);
         var currentScreenCursorRow = _c64.Mem.FetchByte(0xd6);
         if (currentScreenCursorRow != _triggerScreenCursorRow || currentScreenCursorColumn != _triggerScreenCursorColumn)
@@ -426,5 +426,4 @@ public class C64BasicCodingAssistant
     {
         _c64.WriteIOStorage(address, data);
     }
-
 }

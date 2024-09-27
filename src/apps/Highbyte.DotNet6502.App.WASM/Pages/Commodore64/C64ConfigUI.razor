@@ -73,8 +73,8 @@
         <h4>General settings</h4>
         <div class="table">
             <div class="table-row">
-                <div class="table-cell twocol">Renderer:</div>
-                <div class="table-cell twocol">
+                <div class="table-cell table-cell-fixed-width-medium twocol">Renderer:</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">
                     <select value="@C64HostConfig.Renderer" @onchange="OnRendererChanged">
                         @foreach (var renderer in Enum.GetNames<C64HostRenderer>())
                         {
@@ -84,8 +84,8 @@
                 </div>
             </div>
             <div class="table-row">
-                <div class="table-cell twocol">Audio enabled (experimental):</div>
-                <div class="table-cell twocol"><input @bind="C64Config.AudioEnabled" @bind:event="oninput" type="checkbox" id="audioEnabled" title="Enable audio" /></div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">Audio enabled (experimental):</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol"><input @bind="C64Config.AudioEnabled" @bind:event="oninput" type="checkbox" id="audioEnabled" title="Enable audio" /></div>
             </div>
         </div>
     </div>
@@ -99,8 +99,8 @@
         }
         <div class="table">
             <div class="table-row">
-                <div class="table-cell twocol">Select current joystick</div>
-                <div class="table-cell twocol">
+                <div class="table-cell table-cell-fixed-width-medium twocol">Select current joystick</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">
                     <select value="@C64HostConfig.InputConfig.CurrentJoystick" @onchange="OnSelectJoystickChanged">
                         @foreach (var joystick in C64HostConfig.InputConfig.AvailableJoysticks.ToArray())
                         {
@@ -110,15 +110,15 @@
                 </div>
             </div>
             <div class="table-row">
-                <div class="table-cell twocol">Joystick @C64HostConfig.InputConfig.CurrentJoystick action</div>
-                <div class="table-cell twocol">Gamepad button</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">Joystick @C64HostConfig.InputConfig.CurrentJoystick action</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">Gamepad button</div>
             </div>
             @{
                 foreach (var mapKey in gamepadToJoystickMap)
                 {
                     <div class="table-row">
-                        <div class="table-cell twocol">@string.Join(",", mapKey.Value)</div>
-                        <div class="table-cell twocol">@string.Join(",", mapKey.Key)</div>
+                        <div class="table-cell table-cell-fixed-width-medium twocol">@string.Join(",", mapKey.Value)</div>
+                        <div class="table-cell table-cell-fixed-width-medium twocol">@string.Join(",", mapKey.Key)</div>
                     </div>
                 }
             }
@@ -133,13 +133,13 @@
         }
         <div class="table">
             <div class="table-row">
-                <div class="table-cell twocol">Enabled</div>
-                <div class="table-cell twocol"><input @bind="C64Config.KeyboardJoystickEnabled" @bind:event="oninput" type="checkbox" id="keyboardJoystickEnabled" title="Enable Joystick Keyboard" /></div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">Enabled</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol"><input @bind="C64Config.KeyboardJoystickEnabled" @bind:event="oninput" type="checkbox" id="keyboardJoystickEnabled" title="Enable Joystick Keyboard" /></div>
             </div>
 
             <div class="table-row">
-                <div class="table-cell twocol">Select current keyboard joystick</div>
-                <div class="table-cell twocol">
+                <div class="table-cell table-cell-fixed-width-medium twocol">Select current keyboard joystick</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">
                     <select value="@C64Config.KeyboardJoystick" @onchange="OnSelectKeyboardJoystickChanged">
                         @foreach (var joystick in C64HostConfig.InputConfig.AvailableJoysticks.ToArray())
                         {
@@ -150,14 +150,14 @@
             </div>
 
             <div class="table-row">
-                <div class="table-cell twocol">Joystick @C64Config.KeyboardJoystick action</div>
-                <div class="table-cell twocol">Key</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">Joystick @C64Config.KeyboardJoystick action</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">Key</div>
             </div>
             @{
                 foreach (var mapKey in keyToJoystickMap.GetMap(C64Config.KeyboardJoystick))
                 {
                     <div class="table-row">
-                        <div class="table-cell twocol">@string.Join(",", mapKey.Value)</div>
+                        <div class="table-cell table-cell-fixed-width-medium twocol">@string.Join(",", mapKey.Value)</div>
                         <div class="table-cell twocol">@string.Join(",", mapKey.Key)</div>
                     </div>
                 }
@@ -173,8 +173,8 @@
         <h4>Basic AI coding assistant</h4>
         <div class="table">
             <div class="table-row">
-                <div class="table-cell twocol">Assistant type</div>
-                <div class="table-cell twocol">
+                <div class="table-cell table-cell-fixed-width-medium twocol">Assistant type</div>
+                <div class="table-cell table-cell-fixed-width-large twocol">
                     <select value="@C64HostConfig.CodeSuggestionBackendType" @onchange="OnCodeSuggestionBackendTypeChanged">
                         @foreach (var codeSuggestionBackendType in Enum.GetNames<CodeSuggestionBackendTypeEnum>().ToArray())
                         {
@@ -186,11 +186,11 @@
             @if (@C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
             {
                 <div class="table-row">
-                    <div class="table-cell twocol">OpenAI API key</div>
-                    <div class="table-cell twocol">
+                    <div class="table-cell table-cell-fixed-width-medium twocol">OpenAI API key</div>
+                    <div class="table-cell table-cell-fixed-width-large twocol">
                         @if (_openAIApiConfig != null)
                         {
-                            <InputText @ref="_openAIApiKeyInputText" @bind-Value="_openAIApiConfig.ApiKey" />
+                            <InputText @ref="_openAIApiKeyInputText" @bind-Value="_openAIApiConfig.ApiKey" style="width: inherit" />
                         }
                     </div>
                 </div>
@@ -199,8 +199,8 @@
             {
                 <div class="table-row">
 
-                    <div class="table-cell twocol">Custom AI endpoint</div>
-                    <div class="table-cell twocol">
+                    <div class="table-cell table-cell-fixed-width-medium twocol">Custom AI endpoint</div>
+                    <div class="table-cell table-cell-fixed-width-large twocol">
                         @if (_customEndpointAIApiConfig != null)
                         {
                             @_customEndpointAIApiConfig.Endpoint
@@ -208,18 +208,18 @@
                     </div>
                 </div>
                 <div class="table-row">
-                    <div class="table-cell twocol">Custom endpoint API key</div>
-                    <div class="table-cell twocol">
+                    <div class="table-cell table-cell-fixed-width-medium twocol">Custom endpoint API key</div>
+                    <div class="table-cell table-cell-fixed-width-large twocol" >
                         @if (_customEndpointAIApiConfig != null)
                         {
-                            <InputText @ref="_customEndpointAIApiKeyInputText" @bind-Value="_customEndpointAIApiConfig.ApiKey"/>
+                            <InputText @ref="_customEndpointAIApiKeyInputText" @bind-Value="_customEndpointAIApiConfig.ApiKey" style="width: inherit"/>
                         }
                     </div>
                 </div>
             }
             <div class="table-row">
-                <div class="table-cell twocol"><button @onclick="TestAIAssistantEndpoint">Test</button></div>
-                <div class="table-cell twocol" >
+                <div class="table-cell table-cell-fixed-width-medium twocol"><button @onclick="TestAIAssistantEndpoint">Test</button></div>
+                <div class="table-cell twocol" style="word-break: break-word">
                     @if (!string.IsNullOrEmpty(_aiBackendValidationMessage))
                     {
                         @_aiBackendValidationMessage
