@@ -219,13 +219,12 @@
             }
             <div class="table-row">
                 <div class="table-cell twocol"><button @onclick="TestAIAssistantEndpoint">Test</button></div>
-                <div class="table-cell twocol">
+                <div class="table-cell twocol" >
                     @if (!string.IsNullOrEmpty(_aiBackendValidationMessage))
                     {
-                        <p>@_aiBackendValidationMessage</p>
+                        @_aiBackendValidationMessage
                     }
                 </div>
-
             </div>
         </div>
     </div>

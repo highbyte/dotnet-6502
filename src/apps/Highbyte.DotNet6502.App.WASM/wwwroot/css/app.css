@@ -355,6 +355,7 @@ h4 {
     display: table-cell;
     padding: 3px;
     border: 1px solid black;
+    word-wrap: break-word;
 }
 
 .table-footer {
