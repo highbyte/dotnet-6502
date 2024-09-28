@@ -27,7 +27,7 @@ public class StreamHelperTest
     public void FetchWord_Returns_Negative_If_No_Byte_Left_In_Stream()
     {
         // Arrange
-        var storedData = new byte[] { };
+        var storedData = Array.Empty<byte>();
 
         // Act
         int readWord;

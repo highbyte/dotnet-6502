@@ -28,17 +28,17 @@ public class SystemConfigurerTests
             return Task.CompletedTask;
         }
 
-        public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
-        {
-            return Task.FromResult<ISystemConfig>(new TestSystemConfig());
-        }
+        //public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
+        //{
+        //    return Task.FromResult<ISystemConfig>(new TestSystemConfig());
+        //}
 
-        public Task PersistConfig(ISystemConfig systemConfig)
-        {
-            return Task.CompletedTask;
-        }
+        //public Task PersistConfig(ISystemConfig systemConfig)
+        //{
+        //    return Task.CompletedTask;
+        //}
 
-        public ISystem BuildSystem(ISystemConfig systemConfig)
+        public ISystem BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
         {
             return new TestSystem();
         }
@@ -79,17 +79,17 @@ public class SystemConfigurerTests
             return Task.CompletedTask;
         }
 
-        public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
-        {
-            return Task.FromResult<ISystemConfig>(new TestSystem2Config());
-        }
+        //public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
+        //{
+        //    return Task.FromResult<ISystemConfig>(new TestSystem2Config());
+        //}
 
-        public Task PersistConfig(ISystemConfig systemConfig)
-        {
-            return Task.CompletedTask;
-        }
+        //public Task PersistConfig(ISystemConfig systemConfig)
+        //{
+        //    return Task.CompletedTask;
+        //}
 
-        public ISystem BuildSystem(ISystemConfig systemConfig)
+        public ISystem BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
         {
             return new TestSystem2();
         }
