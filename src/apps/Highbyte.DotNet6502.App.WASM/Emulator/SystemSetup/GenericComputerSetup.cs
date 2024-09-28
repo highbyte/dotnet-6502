@@ -45,7 +45,7 @@ public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetI
         return Task.CompletedTask;
     }
 
-    public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
+    public async Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
     {
         // Create default GenericComputerConfig object
 

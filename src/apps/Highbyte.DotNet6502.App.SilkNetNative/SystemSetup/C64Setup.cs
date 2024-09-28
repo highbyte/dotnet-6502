@@ -50,14 +50,13 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
         return Task.CompletedTask;
     }
 
-    public Task<ISystemConfig> GetNewConfig(string configurationVariant)
+    public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
     {
         if (!s_systemVariants.Contains(configurationVariant))
             throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
 
         var c64Config = new C64Config() { ROMs = new() };
         _configuration.GetSection($"{C64Config.ConfigSectionName}.{configurationVariant}").Bind(c64Config);
-        c64Config.SetROMDefaultChecksums();
         return Task.FromResult<ISystemConfig>(c64Config);
     }
 

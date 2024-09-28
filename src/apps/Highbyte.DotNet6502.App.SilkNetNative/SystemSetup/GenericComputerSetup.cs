@@ -45,7 +45,7 @@ public class GenericComputerSetup : ISystemConfigurer<SilkNetRenderContextContai
         return Task.CompletedTask;
     }
 
-    public Task<ISystemConfig> GetNewConfig(string configurationVariant)
+    public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
     {
         if (!s_systemVariants.Contains(configurationVariant))
             throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");

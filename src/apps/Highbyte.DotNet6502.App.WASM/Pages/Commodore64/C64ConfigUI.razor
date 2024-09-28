@@ -269,7 +269,7 @@
     }
 
 
-    private void UnloadROMs() => C64Config.ROMs = new List<ROM>();
+    private void UnloadROMs() => C64HostConfig.ROMs = new List<ROM>();
 
     private ApiConfig _openAIApiConfig = default!;
     private InputText _openAIApiKeyInputText = default!;
@@ -298,7 +298,7 @@
     private Dictionary<string, byte[]> GetLoadedRoms()
     {
         var dict = new Dictionary<string, byte[]>();
-        foreach (var rom in C64Config.ROMs)
+        foreach (var rom in C64HostConfig.ROMs)
         {
             dict[rom.Name] = rom.Data == null ? new byte[] { } : rom.Data;
         }
@@ -313,7 +313,7 @@
 
     private async Task OnC64RomFilePickerChange(InputFileChangeEventArgs e)
     {
-        if (C64Config == null)
+        if (C64HostConfig == null)
             return;
 
         _isLoadingC64Roms = true;
@@ -346,11 +346,11 @@
                 var fileSize = fileBuffer.Length;
 
                 if (isKernal)
-                    C64Config.SetROM(C64Config.KERNAL_ROM_NAME, data: fileBuffer);
+                    C64HostConfig.SetROM(C64Config.KERNAL_ROM_NAME, data: fileBuffer);
                 else if (isBasic)
-                    C64Config.SetROM(C64Config.BASIC_ROM_NAME, data: fileBuffer);
+                    C64HostConfig.SetROM(C64Config.BASIC_ROM_NAME, data: fileBuffer);
                 else if (isChargen)
-                    C64Config.SetROM(C64Config.CHARGEN_ROM_NAME, data: fileBuffer);
+                    C64HostConfig.SetROM(C64Config.CHARGEN_ROM_NAME, data: fileBuffer);
             }
             catch (Exception)
             {

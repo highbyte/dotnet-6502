@@ -13,6 +13,7 @@ using Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggestion;
+using System.Text.Json;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
@@ -27,7 +28,7 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
     private const string LOCAL_STORAGE_ROM_PREFIX = "rom_";
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;
-
+    private readonly ILogger<C64Setup> _logger;
     private const string DEFAULT_CUSTOMENDPOINT = "https://highbyte-dotnet6502-codecompletion.azurewebsites.net/";
     // Note: For now, use a public visible key as default just to prevent at least some random users to access the endpoint...
     private const string DEFAULT_CUSTOMENDPOINT_APIKEY = "9fe8f8161c1d43251a46bb576336a1a25d7ab607cb5a1b4b960c0949d87bced7";
@@ -36,42 +37,101 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
     {
         _browserContext = browserContext;
         _loggerFactory = loggerFactory;
+
+        _logger = loggerFactory.CreateLogger<C64Setup>();
     }
 
     public async Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
-        var c64HostConfig = new C64HostConfig();
-        await LoadHostConfig(c64HostConfig);
+
+        var configKey = $"{C64HostConfig.ConfigSectionName}";
+        var c64HostConfigJson = await _browserContext.LocalStorage.GetItemAsStringAsync(configKey);
+
+        C64HostConfig? c64HostConfig = null;
+        if (!string.IsNullOrEmpty(c64HostConfigJson))
+        {
+            try
+            {
+                c64HostConfig = JsonSerializer.Deserialize<C64HostConfig>(c64HostConfigJson)!;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to deserialize C64HostConfig from Local Storage key: '{configKey}'.");
+            }
+        }
+
+        if (c64HostConfig == null)
+        {
+            c64HostConfig = new C64HostConfig();
+        }
+
+        // TODO: After a while, remove this code that tries to load ROMs from old location.
+        // - For a while only the C64 ROMs where stored in specific local storage keys (which is now stored as part of one config key with JSON)
+        // - Try to load ROMs from the old location.
+        if (c64HostConfig.ROMs.Count == 0)
+        {
+            c64HostConfig.ROMs = await GetROMsFromLocalStorageLegacy();
+        }
+
         return c64HostConfig;
     }
 
     public async Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
     {
-        await SaveHostConfig((C64HostConfig)hostSystemConfig);
+        var c64HostConfig = (C64HostConfig)hostSystemConfig;
+        await _browserContext.LocalStorage.SetItemAsStringAsync($"{C64HostConfig.ConfigSectionName}", JsonSerializer.Serialize(c64HostConfig));
     }
 
-    public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
+    public async Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
     {
         if (!s_systemVariants.Contains(configurationVariant))
             throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
 
-        var romList = await GetROMsFromLocalStorage();
+        var configKey = $"{C64Config.ConfigSectionName}.{configurationVariant}";
+        var c64ConfigJson = await _browserContext.LocalStorage.GetItemAsStringAsync(configKey);
 
-        var c64Config = new C64Config
+        C64Config? c64Config = null;
+        if (!string.IsNullOrEmpty(c64ConfigJson))
         {
-            C64Model = configurationVariant,
-            Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name, // NTSC, NTSC_old, PAL
+            try
+            {
+                c64Config = JsonSerializer.Deserialize<C64Config>(c64ConfigJson)!;
 
-            ROMDirectory = "",  // Set ROMDirectory to skip loading ROMs from file system (ROMDirectory + File property), instead read from the Data property
-            ROMs = romList,
+                // TODO/Hack: AudioSupported is not part of serialization ([JsonIgnore]), and will thus get default value false after deserialize.
+                //            This value should always be true for WASM version.
+                //            Move this value to C64HostConfig?
+                c64Config.AudioSupported = true;
 
-            AudioSupported = true,
-            AudioEnabled = false,   // Audio disabled by default until playback is more stable
+                // Set model information that is not persisted
+                c64Config.C64Model = configurationVariant;
+                c64Config.Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name; // NTSC, NTSC_old, PAL
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to deserialize C64Config from Local Storage key: '{configKey}'.");
+            }
+        }
 
-            InstrumentationEnabled = false, // Start with instrumentation off by default
-        };
+        if (c64Config == null)
+        {
+            c64Config = new C64Config
+            {
+                C64Model = configurationVariant,
+                Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name, // NTSC, NTSC_old, PAL
 
-        c64Config.SetROMDefaultChecksums();
+                ROMDirectory = "",  // Set ROMDirectory to skip loading ROMs from file system (ROMDirectory + File property), instead read from the Data property
+
+                AudioSupported = true,
+                AudioEnabled = false,   // Audio disabled by default until playback is more stable
+
+                InstrumentationEnabled = false, // Start with instrumentation off by default
+            };
+
+        }
+
+        // Set ROMs from the shared host system config (same ROMs for the different C64 models)
+        var c64HostConfig = (C64HostConfig)hostSystemConfig;
+        c64HostConfig.ApplySettingsToSystemConfig(c64Config);
 
         //c64Config.Validate();
 
@@ -81,7 +141,7 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
     public async Task PersistConfig(ISystemConfig systemConfig)
     {
         var c64Config = (C64Config)systemConfig;
-        await SaveROMsToLocalStorage(c64Config.ROMs);
+        await _browserContext.LocalStorage.SetItemAsStringAsync($"{C64Config.ConfigSectionName}.{c64Config.C64Model}", JsonSerializer.Serialize(c64Config));
     }
 
     public ISystem BuildSystem(ISystemConfig systemConfig)
@@ -129,7 +189,7 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         return new SystemRunner(c64, renderer, inputHandler, audioHandler);
     }
 
-    private async Task<List<ROM>> GetROMsFromLocalStorage()
+    private async Task<List<ROM>> GetROMsFromLocalStorageLegacy()
     {
         var roms = new List<ROM>();
         string name;
@@ -169,18 +229,6 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         return roms;
     }
 
-    private async Task SaveROMsToLocalStorage(List<ROM> roms)
-    {
-        foreach (var requiredRomName in C64Config.RequiredROMs)
-        {
-            var rom = roms.SingleOrDefault(x => x.Name == requiredRomName);
-            if (rom != null)
-                await _browserContext.LocalStorage.SetItemAsync($"{LOCAL_STORAGE_ROM_PREFIX}{rom.Name}", rom.Data);
-            else
-                await _browserContext.LocalStorage.RemoveItemAsync($"{LOCAL_STORAGE_ROM_PREFIX}{requiredRomName}");
-        }
-    }
-
     public async Task<byte[]> GetROMFromUrl(HttpClient httpClient, string url)
     {
         return await httpClient.GetByteArrayAsync(url);
@@ -195,29 +243,6 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         //response.EnsureSuccessStatusCode();
         //byte[] responseRawData = await response.Content.ReadAsByteArrayAsync();
         //return responseRawData;
-    }
-
-    private async Task<C64HostConfig> LoadHostConfig(C64HostConfig c64HostConfig)
-    {
-        var codeSuggestionBackendTypeString = await _browserContext.LocalStorage.GetItemAsStringAsync($"{C64HostConfig.ConfigSectionName}:CodeSuggestionBackendType");
-        if (string.IsNullOrEmpty(codeSuggestionBackendTypeString))
-            codeSuggestionBackendTypeString = CodeSuggestionBackendTypeEnum.CustomEndpoint.ToString();
-        Enum.TryParse(codeSuggestionBackendTypeString, out CodeSuggestionBackendTypeEnum codeSuggestionBackendType);
-        c64HostConfig.CodeSuggestionBackendType = codeSuggestionBackendType;
-
-        var rendererString = await _browserContext.LocalStorage.GetItemAsStringAsync($"{C64HostConfig.ConfigSectionName}:Renderer");
-        if (string.IsNullOrEmpty(rendererString))
-            rendererString = C64HostRenderer.SkiaSharp.ToString();
-        Enum.TryParse(rendererString, out C64HostRenderer renderer);
-        c64HostConfig.Renderer = renderer;
-
-        return c64HostConfig;
-    }
-
-    private async Task SaveHostConfig(C64HostConfig c64HostConfig)
-    {
-        await _browserContext.LocalStorage.SetItemAsStringAsync($"{C64HostConfig.ConfigSectionName}:CodeSuggestionBackendType", c64HostConfig.CodeSuggestionBackendType.ToString());
-        await _browserContext.LocalStorage.SetItemAsStringAsync($"{C64HostConfig.ConfigSectionName}:Renderer", c64HostConfig.Renderer.ToString());
     }
 
     public static async Task<ICodeSuggestion> GetCodeSuggestionImplementation(C64HostConfig c64HostConfig, ILocalStorageService localStorageService, bool defaultToNoneIdConfigError = true)

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
@@ -6,6 +7,7 @@ public class C64AspNetInputConfig : ICloneable
 {
     public int CurrentJoystick = 2;
 
+    [JsonIgnore]
     public List<int> AvailableJoysticks = new() { 1, 2 };
 
     public Dictionary<int, Dictionary<int[], C64JoystickAction[]>> GamePadToC64JoystickMap = new()

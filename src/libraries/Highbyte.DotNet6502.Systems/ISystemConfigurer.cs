@@ -6,7 +6,7 @@ public interface ISystemConfigurer<TRenderContext, TInputHandlerContext, TAudioH
     public List<string> ConfigurationVariants { get; }
     public Task<IHostSystemConfig> GetNewHostSystemConfig();
     public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig);
-    public Task<ISystemConfig> GetNewConfig(string configurationVariant);
+    public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig);
     public Task PersistConfig(ISystemConfig systemConfig);
     public ISystem BuildSystem(ISystemConfig systemConfig);
     public Task<SystemRunner> BuildSystemRunner(

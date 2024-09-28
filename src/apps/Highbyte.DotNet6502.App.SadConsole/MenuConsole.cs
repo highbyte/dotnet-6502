@@ -138,9 +138,9 @@ public class MenuConsole : ControlsConsole
         {
             Name = "audioEnabledCheckBox",
             Position = (1, infoButton.Bounds.MaxExtentY + 2),
-            IsSelected = _sadConsoleHostApp.IsAudioSupported ? _sadConsoleHostApp.IsAudioEnabled : false,
+            IsSelected = _sadConsoleHostApp.IsAudioSupported().Result ? _sadConsoleHostApp.IsAudioEnabled().Result : false,
         };
-        audioEnabledCheckBox.IsSelectedChanged += (s, e) => { _sadConsoleHostApp.IsAudioEnabled = audioEnabledCheckBox.IsSelected; IsDirty = true; };
+        audioEnabledCheckBox.IsSelectedChanged += async (s, e) => { await _sadConsoleHostApp.SetAudioEnabled(audioEnabledCheckBox.IsSelected); IsDirty = true; };
         Controls.Add(audioEnabledCheckBox);
 
         var audioVolumeLabel = CreateLabel("Vol:", 1, audioEnabledCheckBox.Bounds.MaxExtentY + 1, "audioVolumeLabel");
@@ -233,15 +233,15 @@ public class MenuConsole : ControlsConsole
         window.Show(true);
     }
 
-    protected override void OnIsDirtyChanged()
+    protected async override void OnIsDirtyChanged()
     {
         if (IsDirty)
         {
-            SetControlStates();
+            await SetControlStates();
         }
     }
 
-    private void SetControlStates()
+    private async Task SetControlStates()
     {
         var systemComboBox = Controls["selectSystemComboBox"];
         systemComboBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
@@ -268,10 +268,10 @@ public class MenuConsole : ControlsConsole
         monitorButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
         var audioEnabledCheckBox = Controls["audioEnabledCheckBox"] as CheckBox;
-        if (_sadConsoleHostApp.IsAudioSupported)
+        if (await _sadConsoleHostApp.IsAudioSupported())
         {
             audioEnabledCheckBox.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
-            audioEnabledCheckBox.IsSelected = _sadConsoleHostApp.IsAudioEnabled;
+            audioEnabledCheckBox.IsSelected = await _sadConsoleHostApp.IsAudioEnabled();
         }
         else
         {
@@ -281,7 +281,7 @@ public class MenuConsole : ControlsConsole
 
         var audioVolumeLabel = Controls["audioVolumeLabel"];
         var audioVolumeSlider = Controls["audioVolumeSlider"];
-        audioVolumeSlider.IsEnabled = _sadConsoleHostApp.IsAudioSupported && _sadConsoleHostApp.IsAudioEnabled;
+        audioVolumeSlider.IsEnabled = await _sadConsoleHostApp.IsAudioSupported() && await _sadConsoleHostApp.IsAudioEnabled();
         audioVolumeSlider.IsVisible = audioVolumeSlider.IsEnabled;
         audioVolumeLabel.IsVisible = audioVolumeSlider.IsEnabled;
 

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.Systems;
@@ -21,6 +22,7 @@ public class ROM
     /// <summary>
     /// Valid SHA1 checksum dictionary for ROM (version descriptor, SHA 1checksum)
     /// </summary>
+    [JsonIgnore]
     public Dictionary<string, string> ValidVersionChecksums { get; set; } = new();
 
     public static List<ROM> Clone(List<ROM> roms)

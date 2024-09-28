@@ -25,6 +25,10 @@ public abstract class SadConsoleHostSystemConfigBase : IHostSystemConfig, IClone
         Font = null;
     }
 
+    public void ApplySettingsToSystemConfig(ISystemConfig systemConfig)
+    {
+    }
+
     public object Clone()
     {
         var clone = (SadConsoleHostSystemConfigBase)MemberwiseClone();

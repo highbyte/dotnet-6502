@@ -334,24 +334,18 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         return await _systemList.IsValidConfigWithDetails(_selectedSystemName, _selectedSystemConfigurationVariant);
     }
 
-    public bool IsAudioSupported
+    public async Task<bool> IsAudioSupported()
     {
-        get
-        {
-            return _systemList.IsAudioSupported(_selectedSystemName, _selectedSystemConfigurationVariant);
-        }
+        return await _systemList.IsAudioSupported(_selectedSystemName, _selectedSystemConfigurationVariant);
     }
 
-    public bool IsAudioEnabled
+    public async Task<bool> IsAudioEnabled()
     {
-        get
-        {
-            return _systemList.IsAudioEnabled(_selectedSystemName, _selectedSystemConfigurationVariant);
-        }
-        set
-        {
-            _systemList.SetAudioEnabled(_selectedSystemName, enabled: value, _selectedSystemConfigurationVariant);
-        }
+        return await _systemList.IsAudioEnabled(_selectedSystemName, _selectedSystemConfigurationVariant);
+    }
+    public async Task SetAudioEnabled(bool enabled)
+    {
+        await _systemList.SetAudioEnabled(_selectedSystemName, enabled: enabled, _selectedSystemConfigurationVariant);
     }
 
     public async Task<ISystem> GetSelectedSystem()

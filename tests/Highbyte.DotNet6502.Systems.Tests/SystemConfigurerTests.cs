@@ -28,7 +28,7 @@ public class SystemConfigurerTests
             return Task.CompletedTask;
         }
 
-        public Task<ISystemConfig> GetNewConfig(string configurationVariant)
+        public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
         {
             return Task.FromResult<ISystemConfig>(new TestSystemConfig());
         }
@@ -79,7 +79,7 @@ public class SystemConfigurerTests
             return Task.CompletedTask;
         }
 
-        public Task<ISystemConfig> GetNewConfig(string configurationVariant)
+        public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
         {
             return Task.FromResult<ISystemConfig>(new TestSystem2Config());
         }
@@ -165,6 +165,10 @@ public class SystemConfigurerTests
 
     public class TestHostSystemConfig : IHostSystemConfig
     {
+        public void ApplySettingsToSystemConfig(ISystemConfig systemConfig)
+        {
+        }
+
         public object Clone()
         {
             var clone = (TestHostSystemConfig)MemberwiseClone();
@@ -174,6 +178,10 @@ public class SystemConfigurerTests
 
     public class TestHostSystem2Config : IHostSystemConfig
     {
+        public void ApplySettingsToSystemConfig(ISystemConfig systemConfig)
+        {
+        }
+
         public object Clone()
         {
             var clone = (TestHostSystem2Config)MemberwiseClone();
