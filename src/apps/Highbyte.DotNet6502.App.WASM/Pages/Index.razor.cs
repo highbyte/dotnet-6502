@@ -247,11 +247,26 @@ public partial class Index
 
     private async Task SelectSystem(string systemName)
     {
+
+        // Workaround for breakpoints not working from @bind-Value:set or @bind-Value:after in Blazor WASM
+        // Reference: https://github.com/dotnet/runtime/issues/95481
+        await Task.CompletedTask;
+        await Task.Yield();
+
         await _wasmHost.SelectSystem(systemName);
+
+        await Task.CompletedTask;
+        await Task.Yield();
 
         await SetConfigValidationMessage();
 
+        await Task.CompletedTask;
+        await Task.Yield();
+
         await UpdateCanvasSize();
+
+        await Task.CompletedTask;
+        await Task.Yield();
 
         await this.StateHasChanged();
     }
@@ -349,7 +364,6 @@ public partial class Index
     public async Task ShowConfigUI<T>() where T : IComponent
     {
         var parameters = new ModalParameters()
-            .Add("SystemConfig", _wasmHost.CurrentSystemConfig.Clone())
             .Add("HostSystemConfig", _wasmHost.CurrentHostSystemConfig.Clone());
 
         var result = await Modal.Show<T>("Config", parameters).Result;
@@ -377,12 +391,9 @@ public partial class Index
             //Dictionary<string, object> userSettings = (Dictionary<string, object>)result.Data;
             //Console.WriteLine($"Returned: {userSettings.Keys.Count} keys");
 
-            var resultData = ((ISystemConfig UpdatedSystemConfig, IHostSystemConfig UpdatedHostSystemConfig))result.Data;
+            var updatedHostSystemConfig = (IHostSystemConfig)result.Data;
 
-            _wasmHost.UpdateSystemConfig(resultData.UpdatedSystemConfig);
-            await _wasmHost.PersistCurrentSystemConfig();
-
-            _wasmHost.UpdateHostSystemConfig(resultData.UpdatedHostSystemConfig);
+            _wasmHost.UpdateHostSystemConfig(updatedHostSystemConfig);
             await _wasmHost.PersistCurrentHostSystemConfig();
         }
 

@@ -87,8 +87,6 @@ public class GenericComputerBuilder
 
     public static GenericComputer SetupGenericComputerFromConfig(GenericComputerConfig emulatorConfig, ILoggerFactory loggerFactory)
     {
-        emulatorConfig.Validate();
-
         var mem = new Memory();
 
         ushort loadedAtAddress;

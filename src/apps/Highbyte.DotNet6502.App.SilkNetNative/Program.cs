@@ -73,4 +73,5 @@ windowOptions.ShouldSwapAutomatically = true;
 var window = Window.Create(windowOptions);
 
 var silkNetHostApp = new SilkNetHostApp(systemList, loggerFactory, emulatorConfig, window, logStore, logConfig);
+silkNetHostApp.SelectSystem(emulatorConfig.DefaultEmulator).Wait();
 silkNetHostApp.Run();

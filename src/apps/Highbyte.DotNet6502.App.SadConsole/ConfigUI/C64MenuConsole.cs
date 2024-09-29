@@ -230,8 +230,7 @@ public class C64MenuConsole : ControlsConsole
             if (window.DialogResult)
             {
                 // Update the system config
-                _sadConsoleHostApp.UpdateSystemConfig(window.C64Config);
-                //_sadConsoleHostApp.UpdateHostSystemConfig(window.C64HostConfig);
+                _sadConsoleHostApp.UpdateHostSystemConfig(window.C64HostConfig);
 
                 IsDirty = true;
                 SetControlStates(); // Setting IsDirty here above does not trigger OnIsDirtyChanged? Call SetControlStates directly here to make sure controls are updated.

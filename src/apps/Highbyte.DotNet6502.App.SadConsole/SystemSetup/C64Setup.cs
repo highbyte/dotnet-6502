@@ -17,6 +17,8 @@ namespace Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
+
+    public Task<List<string>> GetConfigurationVariants(IHostSystemConfig hostSystemConfig) => Task.FromResult(s_systemVariants);
     public List<string> ConfigurationVariants => s_systemVariants;
 
     private static readonly List<string> s_systemVariants = C64ModelInventory.C64Models.Keys.ToList();
@@ -33,49 +35,44 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
 
     public Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
-        // TODO: Read all system host config from appsettings.json
-        var c64HostConfig = new C64HostConfig
-        {
-            BasicAIAssistantDefaultEnabled = false,
-            CodeSuggestionBackendType = Enum.Parse<CodeSuggestionBackendTypeEnum>(_configuration["CodingAssistant:CodingAssistantType"] ?? "None")
-        };
+        var c64HostConfig = new C64HostConfig();
+        _configuration.GetSection($"{C64HostConfig.ConfigSectionName}").Bind(c64HostConfig);
+
+        // TODO: Why is list of ROMs are duplicated when binding from appsettings.json?
+        //       This is a workaround to remove duplicates.
+        c64HostConfig.SystemConfig.ROMs = c64HostConfig.SystemConfig.ROMs.DistinctBy(p => p.Name).ToList();
+
+        // TODO: Code suggestion AI backend type should not be set in system specific config.
+        //       For now workaround by reading from a common setting.
+        c64HostConfig.CodeSuggestionBackendType = Enum.Parse<CodeSuggestionBackendTypeEnum>(_configuration["CodingAssistant:CodingAssistantType"] ?? "None");
+
         return Task.FromResult<IHostSystemConfig>(c64HostConfig);
     }
 
     public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
     {
-        // TODO: Persist settings to file
+        // TODO: Should user settings be persisted? If so method GetNewHostSystemConfig() also needs to be updated to read from there instead of appsettings.json.
         return Task.CompletedTask;
     }
 
-    public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
+    public Task<ISystem> BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
     {
-        if (!s_systemVariants.Contains(configurationVariant))
-            throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
+        var c64HostSystemConfig = (C64HostConfig)hostSystemConfig;
+        var c64Config = new C64Config
+        {
+            C64Model = configurationVariant,
+            Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name, // NTSC, NTSC_old, PAL
+            AudioEnabled = c64HostSystemConfig.SystemConfig.AudioEnabled,
+            ROMs = c64HostSystemConfig.SystemConfig.ROMs,
+            ROMDirectory = c64HostSystemConfig.SystemConfig.ROMDirectory,
+        };
 
-        var c64Config = new C64Config() { ROMs = new() };
-        _configuration.GetSection($"{C64Config.ConfigSectionName}.{configurationVariant}").Bind(c64Config);
-        return Task.FromResult<ISystemConfig>(c64Config);
-    }
-
-    public Task PersistConfig(ISystemConfig systemConfig)
-    {
-        var c64Config = (C64Config)systemConfig;
-        // TODO: Persist settings to file
-
-        return Task.CompletedTask;
-    }
-
-    public ISystem BuildSystem(ISystemConfig systemConfig)
-    {
-        var c64Config = (C64Config)systemConfig;
         var c64 = C64.BuildC64(c64Config, _loggerFactory);
-        return c64;
+        return Task.FromResult<ISystem>(c64);
     }
 
     public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
-        ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
         SadConsoleRenderContext renderContext,
         SadConsoleInputHandlerContext inputHandlerContext,

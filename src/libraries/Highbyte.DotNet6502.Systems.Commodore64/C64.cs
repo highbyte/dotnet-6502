@@ -176,7 +176,10 @@ public class C64 : ISystem, ISystemMonitor
         DebugInfo = BuildDebugInfo();
     }
 
-    public static C64 BuildC64(C64Config c64Config, ILoggerFactory loggerFactory)
+    public static C64 BuildC64(
+        C64Config c64Config,
+        ILoggerFactory loggerFactory
+        )
     {
         var c64Model = C64ModelInventory.C64Models[c64Config.C64Model];
 
@@ -191,9 +194,9 @@ public class C64 : ISystem, ISystemMonitor
             // For unit testing, use empty ROMs
             romData = new Dictionary<string, byte[]>
             {
-                {C64Config.KERNAL_ROM_NAME, new byte[8192] },
-                {C64Config.BASIC_ROM_NAME, new byte[8192] },
-                {C64Config.CHARGEN_ROM_NAME, new byte[4096] }
+                {C64SystemConfig.KERNAL_ROM_NAME, new byte[8192] },
+                {C64SystemConfig.BASIC_ROM_NAME, new byte[8192] },
+                {C64SystemConfig.CHARGEN_ROM_NAME, new byte[4096] }
             };
         }
 
@@ -278,9 +281,9 @@ public class C64 : ISystem, ISystemMonitor
 
     private Memory CreateC64Memory(byte[] ram, byte[] io, Dictionary<string, byte[]> roms)
     {
-        var basic = roms[C64Config.BASIC_ROM_NAME];
-        var chargen = roms[C64Config.CHARGEN_ROM_NAME];
-        var kernal = roms[C64Config.KERNAL_ROM_NAME];
+        var basic = roms[C64SystemConfig.BASIC_ROM_NAME];
+        var chargen = roms[C64SystemConfig.CHARGEN_ROM_NAME];
+        var kernal = roms[C64SystemConfig.KERNAL_ROM_NAME];
 
         var mem = new Memory(numberOfConfigurations: 32, mapToDefaultRAM: false);
 

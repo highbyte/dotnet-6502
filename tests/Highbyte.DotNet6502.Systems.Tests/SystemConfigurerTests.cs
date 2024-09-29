@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
+
 namespace Highbyte.DotNet6502.Systems.Tests;
 
 public class SystemConfigurerTests
@@ -16,7 +18,7 @@ public class SystemConfigurerTests
     public class TestSystemConfigurer : ISystemConfigurer<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>
     {
         public string SystemName => TestSystem.SystemName;
-        public List<string> ConfigurationVariants => new List<string> { "DEFAULT" };
+        public Task<List<string>> GetConfigurationVariants(IHostSystemConfig hostSystemConfig) => Task.FromResult(new List<string> { "DEFAULT" });
 
         public Task<IHostSystemConfig> GetNewHostSystemConfig()
         {
@@ -28,24 +30,13 @@ public class SystemConfigurerTests
             return Task.CompletedTask;
         }
 
-        //public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
-        //{
-        //    return Task.FromResult<ISystemConfig>(new TestSystemConfig());
-        //}
-
-        //public Task PersistConfig(ISystemConfig systemConfig)
-        //{
-        //    return Task.CompletedTask;
-        //}
-
-        public ISystem BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
+        public Task<ISystem> BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
         {
-            return new TestSystem();
+            return Task.FromResult<ISystem>(new TestSystem());
         }
 
         public Task<SystemRunner> BuildSystemRunner(
             ISystem system,
-            ISystemConfig systemConfig,
             IHostSystemConfig hostSystemConfig,
             NullRenderContext renderContext,
             NullInputHandlerContext inputHandlerContext,
@@ -53,7 +44,6 @@ public class SystemConfigurerTests
             )
         {
             var testSystem = (TestSystem)system;
-            var testSystemConfig = (TestSystemConfig)systemConfig;
 
             var renderer = new NullRenderer(testSystem);
             var inputHandler = new NullInputHandler(testSystem);
@@ -67,7 +57,7 @@ public class SystemConfigurerTests
     public class TestSystem2Configurer : ISystemConfigurer<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>
     {
         public string SystemName => TestSystem2.SystemName;
-        public List<string> ConfigurationVariants => new List<string> { "DEFAULT" };
+        public Task<List<string>> GetConfigurationVariants(IHostSystemConfig hostSystemConfig) => Task.FromResult(new List<string> { "DEFAULT" });
 
         public Task<IHostSystemConfig> GetNewHostSystemConfig()
         {
@@ -79,24 +69,13 @@ public class SystemConfigurerTests
             return Task.CompletedTask;
         }
 
-        //public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
-        //{
-        //    return Task.FromResult<ISystemConfig>(new TestSystem2Config());
-        //}
-
-        //public Task PersistConfig(ISystemConfig systemConfig)
-        //{
-        //    return Task.CompletedTask;
-        //}
-
-        public ISystem BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
+        public Task<ISystem> BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
         {
-            return new TestSystem2();
+            return Task.FromResult<ISystem>(new TestSystem2());
         }
 
         public Task<SystemRunner> BuildSystemRunner(
             ISystem system,
-            ISystemConfig systemConfig,
             IHostSystemConfig hostSystemConfig,
             NullRenderContext renderContext,
             NullInputHandlerContext inputHandlerContext,
@@ -104,7 +83,6 @@ public class SystemConfigurerTests
             )
         {
             var testSystem2 = (TestSystem2)system;
-            var testSystem2Config = (TestSystemConfig)systemConfig;
 
             var renderer = new NullRenderer(testSystem2);
             var inputHandler = new NullInputHandler(testSystem2);
@@ -165,8 +143,16 @@ public class SystemConfigurerTests
 
     public class TestHostSystemConfig : IHostSystemConfig
     {
-        public void ApplySettingsToSystemConfig(ISystemConfig systemConfig)
+        private TestSystemConfig _systemConfig;
+        ISystemConfig IHostSystemConfig.SystemConfig => _systemConfig;
+
+        public TestSystemConfig SystemConfig => _systemConfig;
+
+        public bool AudioSupported => false;
+
+        public TestHostSystemConfig()
         {
+            _systemConfig = new TestSystemConfig();
         }
 
         public object Clone()
@@ -174,19 +160,47 @@ public class SystemConfigurerTests
             var clone = (TestHostSystemConfig)MemberwiseClone();
             return clone;
         }
+
+        public void Validate()
+        {
+        }
+
+        public bool IsValid(out List<string> validationErrors)
+        {
+            validationErrors = new();
+            return validationErrors.Count == 0;
+        }
     }
 
     public class TestHostSystem2Config : IHostSystemConfig
     {
-        public void ApplySettingsToSystemConfig(ISystemConfig systemConfig)
+        private TestSystem2Config _systemConfig;
+        ISystemConfig IHostSystemConfig.SystemConfig => _systemConfig;
+
+        public TestSystem2Config SystemConfig => _systemConfig;
+
+        public bool AudioSupported => false;
+
+        public TestHostSystem2Config()
         {
+            _systemConfig = new TestSystem2Config();
         }
 
         public object Clone()
         {
             var clone = (TestHostSystem2Config)MemberwiseClone();
+            clone._systemConfig = (TestSystem2Config)_systemConfig.Clone();
             return clone;
+        }
+
+        public void Validate()
+        {
+        }
+
+        public bool IsValid(out List<string> validationErrors)
+        {
+            validationErrors = new();
+            return validationErrors.Count == 0;
         }
     }
 }
-

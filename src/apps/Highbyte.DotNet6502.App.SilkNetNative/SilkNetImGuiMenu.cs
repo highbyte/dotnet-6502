@@ -42,7 +42,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     private string[] _c64AvailableJoysticks = [];
 
     private string SelectedSystemName => _silkNetHostApp.AvailableSystemNames.ToArray()[_selectedSystemItem];
-    private string SelectedSystemConfigurationVariant => _silkNetHostApp.CurrentSystemConfigurationVariants.ToArray()[_selectedSystemConfigurationVariantItem];
+    private string SelectedSystemConfigurationVariant => _silkNetHostApp.AllSelectedSystemConfigurationVariants.ToArray()[_selectedSystemConfigurationVariantItem];
 
     private SilkNetImGuiC64Config? _c64ConfigUI;
     private SilkNetImGuiGenericComputerConfig? _genericComputerConfigUI;
@@ -64,7 +64,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
         _logger = loggerFactory.CreateLogger<SilkNetImGuiMenu>();
 
-        if (_silkNetHostApp.CurrentSystemConfig is C64Config)
+        if (_silkNetHostApp.CurrentHostSystemConfig is C64HostConfig)
         {
             InitC64ImGuiWorkingVariables();
         }
@@ -101,7 +101,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.SameLine();
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
         ImGui.PushItemWidth(90);
-        if (ImGui.Combo("##configVariant", ref _selectedSystemConfigurationVariantItem, _silkNetHostApp.CurrentSystemConfigurationVariants.ToArray(), _silkNetHostApp.CurrentSystemConfigurationVariants.Count))
+        if (ImGui.Combo("##configVariant", ref _selectedSystemConfigurationVariantItem, _silkNetHostApp.AllSelectedSystemConfigurationVariants.ToArray(), _silkNetHostApp.AllSelectedSystemConfigurationVariants.Count))
         {
             _silkNetHostApp.SelectSystemConfigurationVariant(SelectedSystemConfigurationVariant).Wait();
             if (SelectedSystemName == "C64")
@@ -302,11 +302,11 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     internal void InitC64ImGuiWorkingVariables()
     {
         // One-time init of C64 config working variables for use with ImGui binding.
-        var c64Config = (C64Config)_silkNetHostApp.CurrentSystemConfig;
-        _c64KeyboardJoystickEnabled = c64Config.KeyboardJoystickEnabled;
-        _c64KeyboardJoystickIndex = c64Config.KeyboardJoystick - 1;
-
         var c64HostSystemConfig = (C64HostConfig)_silkNetHostApp.CurrentHostSystemConfig;
+        var c64SystemConfig = c64HostSystemConfig.SystemConfig;
+        _c64KeyboardJoystickEnabled = c64SystemConfig.KeyboardJoystickEnabled;
+        _c64KeyboardJoystickIndex = c64SystemConfig.KeyboardJoystick - 1;
+
         _c64SelectedJoystickIndex = c64HostSystemConfig.InputConfig.CurrentJoystick - 1;
         _c64AvailableJoysticks = c64HostSystemConfig.InputConfig.AvailableJoysticks.Select(x => x.ToString()).ToArray();
     }
@@ -332,8 +332,8 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
         if (ImGui.Checkbox("Keyboard Joystick", ref _c64KeyboardJoystickEnabled))
         {
-            var c64Config = (C64Config)_silkNetHostApp.CurrentSystemConfig;
-            c64Config.KeyboardJoystickEnabled = _c64KeyboardJoystickEnabled;
+            var c64SystemConfig = (C64SystemConfig)_silkNetHostApp.CurrentHostSystemConfig.SystemConfig;
+            c64SystemConfig.KeyboardJoystickEnabled = _c64KeyboardJoystickEnabled;
 
             if (EmulatorState != EmulatorState.Uninitialized)
             {
@@ -348,8 +348,8 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.PushItemWidth(35);
         if (ImGui.Combo("##keyboardJoystick", ref _c64KeyboardJoystickIndex, _c64AvailableJoysticks, _c64AvailableJoysticks.Length))
         {
-            var c64Config = (C64Config)_silkNetHostApp.CurrentSystemConfig;
-            c64Config.KeyboardJoystick = _c64KeyboardJoystickIndex + 1;
+            var c64SystemConfig = (C64SystemConfig)_silkNetHostApp.CurrentHostSystemConfig.SystemConfig;
+            c64SystemConfig.KeyboardJoystick = _c64KeyboardJoystickIndex + 1;
             if (EmulatorState != EmulatorState.Uninitialized)
             {
                 // System is running, also update the system directly
@@ -476,7 +476,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         }
         if (ImGui.Button("C64 config"))
         {
-            _c64ConfigUI.Init((C64Config)_silkNetHostApp.CurrentSystemConfig.Clone(), (C64HostConfig)_silkNetHostApp.CurrentHostSystemConfig.Clone());
+            _c64ConfigUI.Init((C64HostConfig)_silkNetHostApp.CurrentHostSystemConfig.Clone());
             ImGui.OpenPopup("C64 config");
         }
         ImGui.EndDisabled();
@@ -500,7 +500,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         }
         if (ImGui.Button("GenericComputer config"))
         {
-            _genericComputerConfigUI.Init((GenericComputerConfig)_silkNetHostApp.CurrentSystemConfig.Clone(), (GenericComputerHostConfig)_silkNetHostApp.CurrentHostSystemConfig.Clone());
+            _genericComputerConfigUI.Init((GenericComputerHostConfig)_silkNetHostApp.CurrentHostSystemConfig.Clone(), _silkNetHostApp.SelectedSystemConfigurationVariant);
             ImGui.OpenPopup("GenericComputer config");
         }
         ImGui.EndDisabled();

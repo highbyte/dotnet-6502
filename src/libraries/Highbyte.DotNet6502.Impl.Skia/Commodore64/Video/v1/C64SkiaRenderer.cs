@@ -138,7 +138,7 @@ public class C64SkiaRenderer : IRenderer
     {
         // Get the two character sets (shifted & unshifted) from VIC2 view of memory (considering selected 16KB bank and charset start offset)
 
-        var characterSets = c64.ROMData[C64Config.CHARGEN_ROM_NAME];
+        var characterSets = c64.ROMData[C64SystemConfig.CHARGEN_ROM_NAME];
 
         // CharGen ROM data contains two character sets (1024 bytes each).
         var characterSetShifted = characterSets.Take(Vic2CharsetManager.CHARACTERSET_SIZE).ToArray();

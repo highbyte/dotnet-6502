@@ -20,12 +20,12 @@ namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
-    public List<string> ConfigurationVariants => s_systemVariants;
+    public Task<List<string>> GetConfigurationVariants(IHostSystemConfig hostSystemConfig) => Task.FromResult(s_systemVariants);
 
     private static readonly List<string> s_systemVariants = C64ModelInventory.C64Models.Keys.ToList();
 
+    private const string LEGACY_LOCAL_STORAGE_ROM_PREFIX = "rom_";
 
-    private const string LOCAL_STORAGE_ROM_PREFIX = "rom_";
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<C64Setup> _logger;
@@ -43,7 +43,6 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
 
     public async Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
-
         var configKey = $"{C64HostConfig.ConfigSectionName}";
         var c64HostConfigJson = await _browserContext.LocalStorage.GetItemAsStringAsync(configKey);
 
@@ -53,6 +52,9 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
             try
             {
                 c64HostConfig = JsonSerializer.Deserialize<C64HostConfig>(c64HostConfigJson)!;
+
+                // Note: Because ROMDirectory should nevery be used when running WASM, make sure it is empty (regardless if config from local storage has it set).
+                c64HostConfig.SystemConfig.ROMDirectory = "";
             }
             catch (Exception ex)
             {
@@ -63,14 +65,19 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         if (c64HostConfig == null)
         {
             c64HostConfig = new C64HostConfig();
+            // Set ROMDirectory to skip loading ROMs from file system (ROMDirectory + File property),
+            // instead assume loading ROMs from byte array (Data property).
+            c64HostConfig.SystemConfig.ROMDirectory = "";
+            // Audio disabled by default until Web audio playback is more stable
+            c64HostConfig.SystemConfig.AudioEnabled = false;
         }
 
         // TODO: After a while, remove this code that tries to load ROMs from old location.
         // - For a while only the C64 ROMs where stored in specific local storage keys (which is now stored as part of one config key with JSON)
         // - Try to load ROMs from the old location.
-        if (c64HostConfig.ROMs.Count == 0)
+        if (c64HostConfig.SystemConfig.ROMs.Count == 0)
         {
-            c64HostConfig.ROMs = await GetROMsFromLocalStorageLegacy();
+            c64HostConfig.SystemConfig.ROMs = await GetROMsFromLocalStorageLegacy();
         }
 
         return c64HostConfig;
@@ -82,78 +89,24 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         await _browserContext.LocalStorage.SetItemAsStringAsync($"{C64HostConfig.ConfigSectionName}", JsonSerializer.Serialize(c64HostConfig));
     }
 
-    public async Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
+    public Task<ISystem> BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
     {
-        if (!s_systemVariants.Contains(configurationVariant))
-            throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
-
-        var configKey = $"{C64Config.ConfigSectionName}.{configurationVariant}";
-        var c64ConfigJson = await _browserContext.LocalStorage.GetItemAsStringAsync(configKey);
-
-        C64Config? c64Config = null;
-        if (!string.IsNullOrEmpty(c64ConfigJson))
+        var c64HostSystemConfig = (C64HostConfig)hostSystemConfig;
+        var c64Config = new C64Config
         {
-            try
-            {
-                c64Config = JsonSerializer.Deserialize<C64Config>(c64ConfigJson)!;
+            C64Model = configurationVariant,
+            Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name, // NTSC, NTSC_old, PAL
+            AudioEnabled = c64HostSystemConfig.SystemConfig.AudioEnabled,
+            ROMs = c64HostSystemConfig.SystemConfig.ROMs,
+            ROMDirectory = c64HostSystemConfig.SystemConfig.ROMDirectory,
+        };
 
-                // TODO/Hack: AudioSupported is not part of serialization ([JsonIgnore]), and will thus get default value false after deserialize.
-                //            This value should always be true for WASM version.
-                //            Move this value to C64HostConfig?
-                c64Config.AudioSupported = true;
-
-                // Set model information that is not persisted
-                c64Config.C64Model = configurationVariant;
-                c64Config.Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name; // NTSC, NTSC_old, PAL
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Failed to deserialize C64Config from Local Storage key: '{configKey}'.");
-            }
-        }
-
-        if (c64Config == null)
-        {
-            c64Config = new C64Config
-            {
-                C64Model = configurationVariant,
-                Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name, // NTSC, NTSC_old, PAL
-
-                ROMDirectory = "",  // Set ROMDirectory to skip loading ROMs from file system (ROMDirectory + File property), instead read from the Data property
-
-                AudioSupported = true,
-                AudioEnabled = false,   // Audio disabled by default until playback is more stable
-
-                InstrumentationEnabled = false, // Start with instrumentation off by default
-            };
-
-        }
-
-        // Set ROMs from the shared host system config (same ROMs for the different C64 models)
-        var c64HostConfig = (C64HostConfig)hostSystemConfig;
-        c64HostConfig.ApplySettingsToSystemConfig(c64Config);
-
-        //c64Config.Validate();
-
-        return c64Config;
-    }
-
-    public async Task PersistConfig(ISystemConfig systemConfig)
-    {
-        var c64Config = (C64Config)systemConfig;
-        await _browserContext.LocalStorage.SetItemAsStringAsync($"{C64Config.ConfigSectionName}.{c64Config.C64Model}", JsonSerializer.Serialize(c64Config));
-    }
-
-    public ISystem BuildSystem(ISystemConfig systemConfig)
-    {
-        var c64Config = (C64Config)systemConfig;
         var c64 = C64.BuildC64(c64Config, _loggerFactory);
-        return c64;
+        return Task.FromResult<ISystem>(c64);
     }
 
     public async Task<SystemRunner> BuildSystemRunner(
         ISystem system,
-        ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
         SkiaRenderContext renderContext,
         AspNetInputHandlerContext inputHandlerContext,
@@ -195,34 +148,34 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         string name;
         byte[] data;
 
-        name = C64Config.BASIC_ROM_NAME;
-        data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}");
+        name = C64SystemConfig.BASIC_ROM_NAME;
+        data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LEGACY_LOCAL_STORAGE_ROM_PREFIX}{name}");
         if (data != null)
         {
             roms.Add(new ROM
             {
                 Name = name,
-                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}"),
+                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LEGACY_LOCAL_STORAGE_ROM_PREFIX}{name}"),
             });
         }
-        name = C64Config.KERNAL_ROM_NAME;
-        data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}");
+        name = C64SystemConfig.KERNAL_ROM_NAME;
+        data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LEGACY_LOCAL_STORAGE_ROM_PREFIX}{name}");
         if (data != null)
         {
             roms.Add(new ROM
             {
                 Name = name,
-                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}"),
+                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LEGACY_LOCAL_STORAGE_ROM_PREFIX}{name}"),
             });
         }
-        name = C64Config.CHARGEN_ROM_NAME;
-        data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}");
+        name = C64SystemConfig.CHARGEN_ROM_NAME;
+        data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LEGACY_LOCAL_STORAGE_ROM_PREFIX}{name}");
         if (data != null)
         {
             roms.Add(new ROM
             {
                 Name = name,
-                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LOCAL_STORAGE_ROM_PREFIX}{name}"),
+                Data = await _browserContext.LocalStorage.GetItemAsync<byte[]>($"{LEGACY_LOCAL_STORAGE_ROM_PREFIX}{name}"),
             });
         }
 

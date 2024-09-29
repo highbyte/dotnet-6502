@@ -108,7 +108,7 @@
     [Parameter]
     public Highbyte.DotNet6502.App.WASM.Pages.Index Parent { get; set; } = default!;
 
-    private C64Config _c64Config => (C64Config)Parent.WasmHost.CurrentSystemConfig;
+    private C64SystemConfig _c64SystemConfig => _c64HostConfig.SystemConfig;
     private C64HostConfig _c64HostConfig => (C64HostConfig)Parent.WasmHost.CurrentHostSystemConfig;
     private C64AspNetInputHandler _c64AspNetInputHandler => (C64AspNetInputHandler)Parent.WasmHost.CurrentSystemRunner.InputHandler;
 
@@ -141,15 +141,15 @@
     {
         get
         {
-            if (_c64Config == null)
+            if (_c64SystemConfig == null)
                 return false;
-            return _c64Config?.KeyboardJoystickEnabled ?? false;
+            return _c64SystemConfig?.KeyboardJoystickEnabled ?? false;
         }
         set
         {
-            if (_c64Config == null)
+            if (_c64SystemConfig == null)
                 return;
-            _c64Config.KeyboardJoystickEnabled = value;
+            _c64SystemConfig.KeyboardJoystickEnabled = value;
 
             // If system is running, also make sure to update the joystick setting in the running system
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
@@ -169,15 +169,15 @@
     {
         get
         {
-            if (_c64Config == null)
+            if (_c64SystemConfig == null)
                 return 0;
-            return _c64Config?.KeyboardJoystick ?? 0;
+            return _c64SystemConfig?.KeyboardJoystick ?? 0;
         }
         set
         {
-            if (_c64Config == null)
+            if (_c64SystemConfig == null)
                 return;
-            _c64Config.KeyboardJoystick = value;
+            _c64SystemConfig.KeyboardJoystick = value;
 
             // If system is running, also make sure to update the joystick setting in the running system
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)

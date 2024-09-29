@@ -17,7 +17,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
-    public List<string> ConfigurationVariants => s_systemVariants;
+    public Task<List<string>> GetConfigurationVariants(IHostSystemConfig hostSystemConfig) => Task.FromResult(s_systemVariants);
 
     private static readonly List<string> s_systemVariants = C64ModelInventory.C64Models.Keys.ToList();
 
@@ -32,52 +32,34 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
 
     public Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
-        // TODO: Read System host config from appsettings.json
-        var c64HostConfig = new C64HostConfig
-        {
-            Renderer = C64HostRenderer.SkiaSharp2b,
-            SilkNetOpenGlRendererConfig = new C64SilkNetOpenGlRendererConfig()
-            {
-                UseFineScrollPerRasterLine = false, // Setting to true may work, depending on how code is written. Full screen scroll may not work (actual screen memory is not rendered in sync with raster line).
-            }
-        };
+        var c64HostConfig = new C64HostConfig();
+        _configuration.GetSection($"{C64HostConfig.ConfigSectionName}").Bind(c64HostConfig);
         return Task.FromResult<IHostSystemConfig>(c64HostConfig);
     }
 
     public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
     {
-        // TODO: Persist settings to file
+        // TODO: Should user settings be persisted? If so method GetNewHostSystemConfig() also needs to be updated to read from there instead of appsettings.json.
         return Task.CompletedTask;
     }
-
-    public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
+    public Task<ISystem> BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
     {
-        if (!s_systemVariants.Contains(configurationVariant))
-            throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
+        var c64HostSystemConfig = (C64HostConfig)hostSystemConfig;
+        var c64Config = new C64Config
+        {
+            C64Model = configurationVariant,
+            Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name, // NTSC, NTSC_old, PAL
+            AudioEnabled = c64HostSystemConfig.SystemConfig.AudioEnabled,
+            ROMs = c64HostSystemConfig.SystemConfig.ROMs,
+            ROMDirectory = c64HostSystemConfig.SystemConfig.ROMDirectory,
+        };
 
-        var c64Config = new C64Config() { ROMs = new() };
-        _configuration.GetSection($"{C64Config.ConfigSectionName}.{configurationVariant}").Bind(c64Config);
-        return Task.FromResult<ISystemConfig>(c64Config);
-    }
-
-    public Task PersistConfig(ISystemConfig systemConfig)
-    {
-        var c64Config = (C64Config)systemConfig;
-        // TODO: Persist settings to file
-
-        return Task.CompletedTask;
-    }
-
-    public ISystem BuildSystem(ISystemConfig systemConfig)
-    {
-        var c64Config = (C64Config)systemConfig;
         var c64 = C64.BuildC64(c64Config, _loggerFactory);
-        return c64;
+        return Task.FromResult<ISystem>(c64);
     }
 
     public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
-        ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
         SilkNetRenderContextContainer renderContextContainer,
         SilkNetInputHandlerContext inputHandlerContext,

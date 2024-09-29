@@ -72,13 +72,14 @@ public class HostAppTests
     }
 
     [Fact]
-    public async Task StartingIfSystemConfigIsInvalidThrowsException()
+    public async Task StartingIfHostSystemConfigIsInvalidThrowsException()
     {
         // Arrange
         var testApp = BuildTestHostApp();
         await testApp.SelectSystem(TestSystem.SystemName);
-        var systemConfig = (TestSystemConfig)testApp.CurrentSystemConfig;
-        systemConfig.TestIsValid = false;
+        var hostSystemConfig = (TestHostSystemConfig)testApp.CurrentHostSystemConfig;
+        // TODO: Test entire hostSystemConfig, not only hostSystemConfig.SystemConfig
+        hostSystemConfig.SystemConfig.TestIsValid = false;
 
         // Act / Assert
         var ex = await Assert.ThrowsAsync<DotNet6502Exception>(async () => await testApp.Start());

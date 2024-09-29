@@ -34,7 +34,7 @@
                 <p>@_validationMessage</p>
             }
             <ul>
-                @foreach (var romName in C64Config.RequiredROMs)
+                @foreach (var romName in C64SystemConfig.RequiredROMs)
                 {
                     @if (GetLoadedRoms().ContainsKey(romName))
                     {
@@ -85,7 +85,7 @@
             </div>
             <div class="table-row">
                 <div class="table-cell table-cell-fixed-width-medium twocol">Audio enabled (experimental):</div>
-                <div class="table-cell table-cell-fixed-width-medium twocol"><input @bind="C64Config.AudioEnabled" @bind:event="oninput" type="checkbox" id="audioEnabled" title="Enable audio" /></div>
+                <div class="table-cell table-cell-fixed-width-medium twocol"><input @bind="C64SystemConfig.AudioEnabled" @bind:event="oninput" type="checkbox" id="audioEnabled" title="Enable audio" /></div>
             </div>
         </div>
     </div>
@@ -129,18 +129,18 @@
 
         <h4>Joystick keyboard</h4>
         @{
-            var keyToJoystickMap = C64Config.KeyboardJoystickMap;
+            var keyToJoystickMap = C64SystemConfig.KeyboardJoystickMap;
         }
         <div class="table">
             <div class="table-row">
                 <div class="table-cell table-cell-fixed-width-medium twocol">Enabled</div>
-                <div class="table-cell table-cell-fixed-width-medium twocol"><input @bind="C64Config.KeyboardJoystickEnabled" @bind:event="oninput" type="checkbox" id="keyboardJoystickEnabled" title="Enable Joystick Keyboard" /></div>
+                <div class="table-cell table-cell-fixed-width-medium twocol"><input @bind="C64SystemConfig.KeyboardJoystickEnabled" @bind:event="oninput" type="checkbox" id="keyboardJoystickEnabled" title="Enable Joystick Keyboard" /></div>
             </div>
 
             <div class="table-row">
                 <div class="table-cell table-cell-fixed-width-medium twocol">Select current keyboard joystick</div>
                 <div class="table-cell table-cell-fixed-width-medium twocol">
-                    <select value="@C64Config.KeyboardJoystick" @onchange="OnSelectKeyboardJoystickChanged">
+                    <select value="@C64SystemConfig.KeyboardJoystick" @onchange="OnSelectKeyboardJoystickChanged">
                         @foreach (var joystick in C64HostConfig.InputConfig.AvailableJoysticks.ToArray())
                         {
                             <option value="@joystick"> @joystick </option>
@@ -150,11 +150,11 @@
             </div>
 
             <div class="table-row">
-                <div class="table-cell table-cell-fixed-width-medium twocol">Joystick @C64Config.KeyboardJoystick action</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">Joystick @C64SystemConfig.KeyboardJoystick action</div>
                 <div class="table-cell table-cell-fixed-width-medium twocol">Key</div>
             </div>
             @{
-                foreach (var mapKey in keyToJoystickMap.GetMap(C64Config.KeyboardJoystick))
+                foreach (var mapKey in keyToJoystickMap.GetMap(C64SystemConfig.KeyboardJoystick))
                 {
                     <div class="table-row">
                         <div class="table-cell table-cell-fixed-width-medium twocol">@string.Join(",", mapKey.Value)</div>
@@ -240,17 +240,9 @@
 
     [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
-    [Parameter] public ISystemConfig SystemConfig { get; set; } = default!;
-
     [Parameter] public IHostSystemConfig HostSystemConfig { get; set; } = default!;
 
-    public C64Config C64Config
-    {
-        get
-        {
-            return (C64Config)SystemConfig;
-        }
-    }
+    public C64SystemConfig C64SystemConfig => C64HostConfig.SystemConfig;
 
     public C64HostConfig C64HostConfig
     {
@@ -269,7 +261,7 @@
     }
 
 
-    private void UnloadROMs() => C64HostConfig.ROMs = new List<ROM>();
+    private void UnloadROMs() => C64HostConfig.SystemConfig.ROMs = new List<ROM>();
 
     private ApiConfig _openAIApiConfig = default!;
     private InputText _openAIApiKeyInputText = default!;
@@ -287,7 +279,7 @@
         {
             await C64Setup.SaveCustomCodingAssistantConfigToLocalStorage(LocalStorage, _customEndpointAIApiConfig);
         }
-        await BlazoredModal.CloseAsync(ModalResult.Ok((SystemConfig, HostSystemConfig)));
+        await BlazoredModal.CloseAsync(ModalResult.Ok(HostSystemConfig));
     }
     private async Task Cancel() => await BlazoredModal.CloseAsync(ModalResult.Cancel());
 
@@ -298,7 +290,7 @@
     private Dictionary<string, byte[]> GetLoadedRoms()
     {
         var dict = new Dictionary<string, byte[]>();
-        foreach (var rom in C64HostConfig.ROMs)
+        foreach (var rom in C64HostConfig.SystemConfig.ROMs)
         {
             dict[rom.Name] = rom.Data == null ? new byte[] { } : rom.Data;
         }
@@ -346,11 +338,11 @@
                 var fileSize = fileBuffer.Length;
 
                 if (isKernal)
-                    C64HostConfig.SetROM(C64Config.KERNAL_ROM_NAME, data: fileBuffer);
+                    C64HostConfig.SystemConfig.SetROM(C64SystemConfig.KERNAL_ROM_NAME, data: fileBuffer);
                 else if (isBasic)
-                    C64HostConfig.SetROM(C64Config.BASIC_ROM_NAME, data: fileBuffer);
+                    C64HostConfig.SystemConfig.SetROM(C64SystemConfig.BASIC_ROM_NAME, data: fileBuffer);
                 else if (isChargen)
-                    C64HostConfig.SetROM(C64Config.CHARGEN_ROM_NAME, data: fileBuffer);
+                    C64HostConfig.SystemConfig.SetROM(C64SystemConfig.CHARGEN_ROM_NAME, data: fileBuffer);
             }
             catch (Exception)
             {
@@ -369,7 +361,7 @@
         => C64HostConfig.InputConfig.CurrentJoystick = int.Parse(e.Value!.ToString()!);
 
     private void OnSelectKeyboardJoystickChanged(ChangeEventArgs e)
-        => C64Config.KeyboardJoystick = int.Parse(e.Value!.ToString()!);
+        => C64SystemConfig.KeyboardJoystick = int.Parse(e.Value!.ToString()!);
 
     private void OnCodeSuggestionBackendTypeChanged(ChangeEventArgs e)
     {

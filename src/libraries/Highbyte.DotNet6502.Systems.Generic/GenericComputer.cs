@@ -41,6 +41,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 
     private ILogger _logger;
     private GenericComputerConfig _genericComputerConfig;
+    public GenericComputerConfig GenericComputerConfig => _genericComputerConfig;
     private readonly LegacyExecEvaluator _oneFrameExecEvaluator;
 
     // Instrumentations
