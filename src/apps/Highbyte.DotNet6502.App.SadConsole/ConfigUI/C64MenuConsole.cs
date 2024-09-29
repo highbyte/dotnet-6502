@@ -110,7 +110,7 @@ public class C64MenuConsole : ControlsConsole
         Controls.Add(c64ConfigButton);
 
 
-        var validationMessageValueLabel = CreateLabelValue(new string(' ', 20), 1, c64PasteTextButton.Bounds.MaxExtentY + 2, "validationMessageValueLabel");
+        var validationMessageValueLabel = CreateLabelValue(new string(' ', 20), 1, c64ConfigButton.Bounds.MaxExtentY + 2, "validationMessageValueLabel");
         validationMessageValueLabel.TextColor = Controls.GetThemeColors().Red;
 
         // Helper function to create a label and add it to the console
