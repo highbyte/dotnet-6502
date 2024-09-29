@@ -8,13 +8,12 @@ using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.WebUtilities;
 using Toolbelt.Blazor.Gamepad;
-using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Logging.Console;
+using Microsoft.AspNetCore.Components.Rendering;
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
 
@@ -38,22 +37,25 @@ public partial class Index
     private bool IsSelectedSystemConfigOk => string.IsNullOrEmpty(_selectedSystemConfigValidationMessage);
     private string _selectedSystemConfigValidationMessage = "";
 
-    private bool AudioEnabledToggleDisabled => (
-            (!(_wasmHost?.IsAudioSupported ?? true)) ||
-            (CurrentEmulatorState == EmulatorState.Running || CurrentEmulatorState == EmulatorState.Paused)
-        );
-
-    private bool AudioEnabled
+    private async Task<bool> AudioEnabledToggleDisabled()
     {
-        get
-        {
-            return _wasmHost?.IsAudioEnabled ?? false;
-        }
-        set
-        {
-            if (_wasmHost != null)
-                _wasmHost.IsAudioEnabled = value;
-        }
+        if (_wasmHost == null)
+            return true;
+        var audioSuppoted = await _wasmHost.IsAudioSupported();
+        return (!audioSuppoted) ||
+                (CurrentEmulatorState == EmulatorState.Running || CurrentEmulatorState == EmulatorState.Paused);
+    }
+
+    private async Task<bool> IsAudioEnabled()
+    {
+        if (_wasmHost == null)
+            return false;
+        return await _wasmHost.IsAudioEnabled();
+    }
+    private async Task SetAudioEnabled(bool enabled)
+    {
+        if (_wasmHost != null)
+            await _wasmHost.SetAudioEnabled(enabled);
     }
 
     private float _masterVolumePercent = 10.0f;
@@ -98,6 +100,9 @@ public partial class Index
     private bool _debugVisible = false;
     private bool _statsVisible = false;
     private bool _monitorVisible = false;
+
+    private bool _audioContextInitializeStarted;
+
 
     [Inject]
     public IJSRuntime Js { get; set; } = default!;
@@ -179,7 +184,31 @@ public partial class Index
         // Set parameters from query string
         await SetDefaultsFromQueryParams(browserContext.Uri);
 
+        await SetElementVisibleState();
+
         Initialized = true;
+    }
+
+    private new async Task StateHasChanged()
+    {
+        await SetElementVisibleState();
+
+        base.StateHasChanged();
+    }
+
+    private Dictionary<string, string> _elementVisibleStates = new();
+    private async Task SetElementVisibleState()
+    {
+        const string VISIBLE = "inline";
+        const string VISIBLE_BLOCK = "inline-block";
+        const string HIDDEN = "none";
+
+        _elementVisibleStates["Canvas"] = CurrentEmulatorState != EmulatorState.Uninitialized ? VISIBLE : HIDDEN;
+        _elementVisibleStates["CanvasUninitialized"] = CurrentEmulatorState == EmulatorState.Uninitialized ? VISIBLE_BLOCK : HIDDEN;
+        _elementVisibleStates["Stats"] = _statsVisible ? VISIBLE : HIDDEN;
+        _elementVisibleStates["Debug"] = _monitorVisible ? VISIBLE : HIDDEN;
+        _elementVisibleStates["Monitor"] = _monitorVisible ? VISIBLE : HIDDEN;
+        _elementVisibleStates["AudioVolume"] = await IsAudioEnabled() ? VISIBLE : HIDDEN;
     }
 
     private async Task SetDefaultsFromQueryParams(Uri uri)
@@ -197,16 +226,19 @@ public partial class Index
         {
             if (bool.TryParse(audioEnabled, out bool audioEnabledParsed))
             {
-                _wasmHost.IsAudioEnabled = audioEnabledParsed;
+                await _wasmHost.SetAudioEnabled(audioEnabledParsed);
             }
         }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !_wasmHost.IsAudioHandlerContextInitialized)
+        // Workaround for audio context cannot be created before in OnInitializedAsync.
+        // Must wait for _wasmHost to be created.
+        if (!_audioContextInitializeStarted && _wasmHost != null && !_wasmHost.IsAudioHandlerContextInitialized)
         {
-            _logger.LogDebug("OnAfterRenderAsync() was called with firstRender = true");
+            _audioContextInitializeStarted = true;
+            _logger.LogDebug("AudioContext initialized in OnAfterRenderAsync()");
 
             _audioContext = await AudioContextSync.CreateAsync(Js!);
             _wasmHost.InitAudioHandlerContext();
@@ -217,25 +249,37 @@ public partial class Index
     {
         await _wasmHost.SelectSystem(systemName);
 
-        (bool isOk, List<string> validationErrors) = await _wasmHost.IsValidConfigWithDetails();
-
-        if (!isOk)
-            _selectedSystemConfigValidationMessage = string.Join(",", validationErrors!);
-        else
-            _selectedSystemConfigValidationMessage = "";
+        await SetConfigValidationMessage();
 
         await UpdateCanvasSize();
 
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
 
-    private async Task SelectSystemConfigurationVariant(string systemConfigurationVariant)
+    private async Task SelectedSystemChanged(string systemName)
     {
+        // Workaround for breakpoints not working from @bind-Value:set or @bind-Value:after in Blazor WASM
+        // Reference: https://github.com/dotnet/runtime/issues/95481
+        await Task.CompletedTask;
+        await Task.Yield();
+
+        await SelectSystem(systemName);
+    }
+
+    private async Task SelectSystemConfigurationVariantChanged(string systemConfigurationVariant)
+    {
+        // Workaround for breakpoints not working from @bind-Value:set or @bind-Value:after in Blazor WASM
+        // Reference: https://github.com/dotnet/runtime/issues/95481
+        await Task.CompletedTask;
+        await Task.Yield();
+
         await _wasmHost.SelectSystemConfigurationVariant(systemConfigurationVariant);
+
+        await SetConfigValidationMessage();
 
         await UpdateCanvasSize();
 
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
 
     private async Task UpdateCanvasSize()
@@ -255,7 +299,16 @@ public partial class Index
             _windowHeightStyle = $"{screen.VisibleHeight * Scale}px";
         }
 
-        this.StateHasChanged();
+        await this.StateHasChanged();
+    }
+
+    private async Task SetConfigValidationMessage()
+    {
+        (bool isOk, List<string> validationErrors) = await _wasmHost.IsValidConfigWithDetails();
+        if (!isOk)
+            _selectedSystemConfigValidationMessage = string.Join(",", validationErrors!);
+        else
+            _selectedSystemConfigValidationMessage = "";
     }
 
     protected void OnPaintSurface(SKPaintGLSurfaceEventArgs e)
@@ -328,18 +381,14 @@ public partial class Index
 
             _wasmHost.UpdateSystemConfig(resultData.UpdatedSystemConfig);
             await _wasmHost.PersistCurrentSystemConfig();
+
             _wasmHost.UpdateHostSystemConfig(resultData.UpdatedHostSystemConfig);
+            await _wasmHost.PersistCurrentHostSystemConfig();
         }
 
-        (bool isOk, List<string> validationErrors) = await _wasmHost.IsValidConfigWithDetails();
-        _selectedSystemConfigValidationMessage = "";
-        if (!isOk)
-        {
-            _selectedSystemConfigValidationMessage = string.Join(",", validationErrors);
-        }
-
+        await SetConfigValidationMessage();
         await UpdateCanvasSize();
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
 
 
@@ -377,25 +426,25 @@ public partial class Index
     {
         _debugVisible = visible;
         await FocusEmulator();
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
     public async Task ToggleDebugState()
     {
         _debugVisible = !_debugVisible;
         await FocusEmulator();
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
-    public void UpdateDebug(string debug)
+    public async Task UpdateDebug(string debug)
     {
         _debugString = debug;
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
 
     public async Task SetStatsState(bool visible)
     {
         _statsVisible = visible;
         await FocusEmulator();
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
     public async Task ToggleStatsState()
     {
@@ -403,12 +452,12 @@ public partial class Index
         // Assume to only run when emulator is running
         _wasmHost.CurrentRunningSystem!.InstrumentationEnabled = _statsVisible;
         await FocusEmulator();
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
-    public void UpdateStats(string stats)
+    public async Task UpdateStats(string stats)
     {
         _statsString = stats;
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
 
     public async Task SetMonitorState(bool visible)
@@ -418,7 +467,7 @@ public partial class Index
             await FocusMonitor();
         else
             await FocusEmulator();
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
 
     //private void BeforeUnload_BeforeUnloadHandler(object? sender, blazejewicz.Blazor.BeforeUnload.BeforeUnloadArgs e)
@@ -480,38 +529,9 @@ public partial class Index
     private string GetDisplayStyle(string displayData)
     {
         const string VISIBLE = "inline";
-        const string VISIBLE_BLOCK = "inline-block";
-        const string HIDDEN = "none";
-
-        switch (displayData)
-        {
-            case "Canvas":
-            {
-                return CurrentEmulatorState != EmulatorState.Uninitialized ? VISIBLE : HIDDEN;
-            }
-            case "CanvasUninitialized":
-            {
-                return CurrentEmulatorState == EmulatorState.Uninitialized ? VISIBLE_BLOCK : HIDDEN;
-            }
-            case "Stats":
-            {
-                return _statsVisible ? VISIBLE : HIDDEN;
-            }
-            case "Debug":
-            {
-                return _debugVisible ? VISIBLE : HIDDEN;
-            }
-            case "Monitor":
-            {
-                return _monitorVisible ? VISIBLE : HIDDEN;
-            }
-            case "AudioVolume":
-            {
-                return (_wasmHost?.IsAudioEnabled ?? false) ? VISIBLE : HIDDEN;
-            }
-            default:
-                return VISIBLE;
-        }
+        if (_elementVisibleStates.TryGetValue(displayData, out var displayStyle))
+            return displayStyle;
+        return VISIBLE;
     }
 
     public string GetSystemVisibilityDisplayStyle(string displayData, string systemName)
@@ -551,29 +571,29 @@ public partial class Index
 
         await FocusEmulator();
 
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
 
-    public void OnPause(MouseEventArgs mouseEventArgs)
+    public async Task OnPause(MouseEventArgs mouseEventArgs)
     {
         _wasmHost!.Pause();
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
 
     public async Task OnReset(MouseEventArgs mouseEventArgs)
     {
         await _wasmHost!.Reset();
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
-    public void OnStop(MouseEventArgs mouseEventArgs)
+    public async Task OnStop(MouseEventArgs mouseEventArgs)
     {
         _wasmHost!.Stop();
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
-    private void OnMonitorToggle(MouseEventArgs mouseEventArgs)
+    private async Task OnMonitorToggle(MouseEventArgs mouseEventArgs)
     {
         _wasmHost!.ToggleMonitor();
-        this.StateHasChanged();
+        await this.StateHasChanged();
     }
 
     private async Task OnStatsToggle(MouseEventArgs mouseEventArgs)

@@ -1,8 +1,13 @@
-﻿@using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup
+﻿@using Blazored.LocalStorage
+@using Highbyte.DotNet6502.AI.CodingAssistant
+@using Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI
+@using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup
 @using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 @using Highbyte.DotNet6502.Systems;
 @using Highbyte.DotNet6502.Systems.Commodore64.Config
 @using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
+@using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant
+@using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggestion
 @using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index
 
@@ -68,8 +73,8 @@
         <h4>General settings</h4>
         <div class="table">
             <div class="table-row">
-                <div class="table-cell twocol">Renderer:</div>
-                <div class="table-cell twocol">
+                <div class="table-cell table-cell-fixed-width-medium twocol">Renderer:</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">
                     <select value="@C64HostConfig.Renderer" @onchange="OnRendererChanged">
                         @foreach (var renderer in Enum.GetNames<C64HostRenderer>())
                         {
@@ -79,8 +84,8 @@
                 </div>
             </div>
             <div class="table-row">
-                <div class="table-cell twocol">Audio enabled (experimental):</div>
-                <div class="table-cell twocol"><input @bind="C64Config.AudioEnabled" @bind:event="oninput" type="checkbox" id="audioEnabled" title="Enable audio" /></div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">Audio enabled (experimental):</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol"><input @bind="C64Config.AudioEnabled" @bind:event="oninput" type="checkbox" id="audioEnabled" title="Enable audio" /></div>
             </div>
         </div>
     </div>
@@ -90,12 +95,12 @@
     <div class="column">
         <h4>Joystick</h4>
         @{
-            var gampadToJoystickMap = C64HostConfig.InputConfig.GamePadToC64JoystickMap[C64HostConfig.InputConfig.CurrentJoystick];
+            var gamepadToJoystickMap = C64HostConfig.InputConfig.GamePadToC64JoystickMap[C64HostConfig.InputConfig.CurrentJoystick];
         }
         <div class="table">
             <div class="table-row">
-                <div class="table-cell twocol">Select current joystick</div>
-                <div class="table-cell twocol">
+                <div class="table-cell table-cell-fixed-width-medium twocol">Select current joystick</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">
                     <select value="@C64HostConfig.InputConfig.CurrentJoystick" @onchange="OnSelectJoystickChanged">
                         @foreach (var joystick in C64HostConfig.InputConfig.AvailableJoysticks.ToArray())
                         {
@@ -105,15 +110,15 @@
                 </div>
             </div>
             <div class="table-row">
-                <div class="table-cell twocol">Joystick @C64HostConfig.InputConfig.CurrentJoystick action</div>
-                <div class="table-cell twocol">Gampad button</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">Joystick @C64HostConfig.InputConfig.CurrentJoystick action</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">Gamepad button</div>
             </div>
             @{
-                foreach (var mapKey in gampadToJoystickMap)
+                foreach (var mapKey in gamepadToJoystickMap)
                 {
                     <div class="table-row">
-                        <div class="table-cell twocol">@string.Join(",", mapKey.Value)</div>
-                        <div class="table-cell twocol">@string.Join(",", mapKey.Key)</div>
+                        <div class="table-cell table-cell-fixed-width-medium twocol">@string.Join(",", mapKey.Value)</div>
+                        <div class="table-cell table-cell-fixed-width-medium twocol">@string.Join(",", mapKey.Key)</div>
                     </div>
                 }
             }
@@ -128,13 +133,13 @@
         }
         <div class="table">
             <div class="table-row">
-                <div class="table-cell twocol">Enabled</div>
-                <div class="table-cell twocol"><input @bind="C64Config.KeyboardJoystickEnabled" @bind:event="oninput" type="checkbox" id="keyboardJoystickEnabled" title="Enable Joystick Keyboard" /></div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">Enabled</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol"><input @bind="C64Config.KeyboardJoystickEnabled" @bind:event="oninput" type="checkbox" id="keyboardJoystickEnabled" title="Enable Joystick Keyboard" /></div>
             </div>
 
             <div class="table-row">
-                <div class="table-cell twocol">Select current keyboard joystick</div>
-                <div class="table-cell twocol">
+                <div class="table-cell table-cell-fixed-width-medium twocol">Select current keyboard joystick</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">
                     <select value="@C64Config.KeyboardJoystick" @onchange="OnSelectKeyboardJoystickChanged">
                         @foreach (var joystick in C64HostConfig.InputConfig.AvailableJoysticks.ToArray())
                         {
@@ -145,14 +150,14 @@
             </div>
 
             <div class="table-row">
-                <div class="table-cell twocol">Joystick @C64Config.KeyboardJoystick action</div>
-                <div class="table-cell twocol">Key</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">Joystick @C64Config.KeyboardJoystick action</div>
+                <div class="table-cell table-cell-fixed-width-medium twocol">Key</div>
             </div>
             @{
                 foreach (var mapKey in keyToJoystickMap.GetMap(C64Config.KeyboardJoystick))
                 {
                     <div class="table-row">
-                        <div class="table-cell twocol">@string.Join(",", mapKey.Value)</div>
+                        <div class="table-cell table-cell-fixed-width-medium twocol">@string.Join(",", mapKey.Value)</div>
                         <div class="table-cell twocol">@string.Join(",", mapKey.Key)</div>
                     </div>
                 }
@@ -163,11 +168,75 @@
 </div>
 
 
+<div class="row">
+    <div class="column">
+        <h4>Basic AI coding assistant</h4>
+        <div class="table">
+            <div class="table-row">
+                <div class="table-cell table-cell-fixed-width-medium twocol">Assistant type</div>
+                <div class="table-cell table-cell-fixed-width-large twocol">
+                    <select value="@C64HostConfig.CodeSuggestionBackendType" @onchange="OnCodeSuggestionBackendTypeChanged">
+                        @foreach (var codeSuggestionBackendType in Enum.GetNames<CodeSuggestionBackendTypeEnum>().ToArray())
+                        {
+                            <option value="@codeSuggestionBackendType"> @codeSuggestionBackendType </option>
+                        }
+                    </select>
+                </div>
+            </div>
+            @if (@C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
+            {
+                <div class="table-row">
+                    <div class="table-cell table-cell-fixed-width-medium twocol">OpenAI API key</div>
+                    <div class="table-cell table-cell-fixed-width-large twocol">
+                        @if (_openAIApiConfig != null)
+                        {
+                            <InputText @ref="_openAIApiKeyInputText" @bind-Value="_openAIApiConfig.ApiKey" style="width: inherit" />
+                        }
+                    </div>
+                </div>
+            }
+            @if (@C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
+            {
+                <div class="table-row">
+
+                    <div class="table-cell table-cell-fixed-width-medium twocol">Custom AI endpoint</div>
+                    <div class="table-cell table-cell-fixed-width-large twocol">
+                        @if (_customEndpointAIApiConfig != null)
+                        {
+                            @_customEndpointAIApiConfig.Endpoint
+                        }
+                    </div>
+                </div>
+                <div class="table-row">
+                    <div class="table-cell table-cell-fixed-width-medium twocol">Custom endpoint API key</div>
+                    <div class="table-cell table-cell-fixed-width-large twocol" >
+                        @if (_customEndpointAIApiConfig != null)
+                        {
+                            <InputText @ref="_customEndpointAIApiKeyInputText" @bind-Value="_customEndpointAIApiConfig.ApiKey" style="width: inherit"/>
+                        }
+                    </div>
+                </div>
+            }
+            <div class="table-row">
+                <div class="table-cell table-cell-fixed-width-medium twocol"><button @onclick="TestAIAssistantEndpoint">Test</button></div>
+                <div class="table-cell twocol" style="word-break: break-word">
+                    @if (!string.IsNullOrEmpty(_aiBackendValidationMessage))
+                    {
+                        @_aiBackendValidationMessage
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <p></p>
 <button @onclick="Ok">Ok</button>
 <button @onclick="Cancel">Cancel</button>
 
 @code {
+    [Inject]
+    public ILocalStorageService LocalStorage { get; set; } = default!;
 
     [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
@@ -191,13 +260,35 @@
         }
     }
 
-    protected override void OnInitialized() => BlazoredModal.SetTitle("C64 config");
+    protected override async Task OnInitializedAsync()
+    {
+        _openAIApiConfig = await C64Setup.GetOpenAIConfig(LocalStorage);
+        _customEndpointAIApiConfig = await C64Setup.GetCustomAIEndpointConfig(LocalStorage);
+
+        BlazoredModal.SetTitle("C64 config");
+    }
 
 
-    private void UnloadROMs() => C64Config.ROMs = new List<ROM>();
+    private void UnloadROMs() => C64HostConfig.ROMs = new List<ROM>();
 
+    private ApiConfig _openAIApiConfig = default!;
+    private InputText _openAIApiKeyInputText = default!;
 
-    private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok((SystemConfig, HostSystemConfig)));
+    private CustomAIEndpointConfig _customEndpointAIApiConfig = default!;
+    private InputText _customEndpointAIApiKeyInputText = default!;
+
+    private async Task Ok()
+    {
+        if (C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
+        {
+            await C64Setup.SaveOpenAICodingAssistantConfigToLocalStorage(LocalStorage, _openAIApiConfig);
+        }
+        else if (C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
+        {
+            await C64Setup.SaveCustomCodingAssistantConfigToLocalStorage(LocalStorage, _customEndpointAIApiConfig);
+        }
+        await BlazoredModal.CloseAsync(ModalResult.Ok((SystemConfig, HostSystemConfig)));
+    }
     private async Task Cancel() => await BlazoredModal.CloseAsync(ModalResult.Cancel());
 
     private bool _isLoadingC64Roms;
@@ -207,7 +298,7 @@
     private Dictionary<string, byte[]> GetLoadedRoms()
     {
         var dict = new Dictionary<string, byte[]>();
-        foreach (var rom in C64Config.ROMs)
+        foreach (var rom in C64HostConfig.ROMs)
         {
             dict[rom.Name] = rom.Data == null ? new byte[] { } : rom.Data;
         }
@@ -215,12 +306,14 @@
     }
 
     private int LoadedROMCount => GetLoadedRoms().Count;
-
     private string _validationMessage = "";
+
+    private string _aiBackendValidationMessage = "";
+
 
     private async Task OnC64RomFilePickerChange(InputFileChangeEventArgs e)
     {
-        if (C64Config == null)
+        if (C64HostConfig == null)
             return;
 
         _isLoadingC64Roms = true;
@@ -253,11 +346,11 @@
                 var fileSize = fileBuffer.Length;
 
                 if (isKernal)
-                    C64Config.SetROM(C64Config.KERNAL_ROM_NAME, data: fileBuffer);
+                    C64HostConfig.SetROM(C64Config.KERNAL_ROM_NAME, data: fileBuffer);
                 else if (isBasic)
-                    C64Config.SetROM(C64Config.BASIC_ROM_NAME, data: fileBuffer);
+                    C64HostConfig.SetROM(C64Config.BASIC_ROM_NAME, data: fileBuffer);
                 else if (isChargen)
-                    C64Config.SetROM(C64Config.CHARGEN_ROM_NAME, data: fileBuffer);
+                    C64HostConfig.SetROM(C64Config.CHARGEN_ROM_NAME, data: fileBuffer);
             }
             catch (Exception)
             {
@@ -278,4 +371,38 @@
     private void OnSelectKeyboardJoystickChanged(ChangeEventArgs e)
         => C64Config.KeyboardJoystick = int.Parse(e.Value!.ToString()!);
 
+    private void OnCodeSuggestionBackendTypeChanged(ChangeEventArgs e)
+    {
+        _aiBackendValidationMessage = "";        
+        C64HostConfig.CodeSuggestionBackendType = Enum.Parse<CodeSuggestionBackendTypeEnum>(e.Value!.ToString()!);
+    }
+
+    private async Task TestAIAssistantEndpoint(MouseEventArgs e)
+    {
+        // Test AI assistant endpoint
+        _aiBackendValidationMessage = "Testing...";
+
+        ICodeSuggestion codeSuggestion;
+        if(C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
+        {
+            codeSuggestion = new OpenAICodeSuggestion(_openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+        }
+        else if(C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
+        {
+            codeSuggestion = new CustomAIEndpointCodeSuggestion(_customEndpointAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+        }
+        else
+        {
+            throw new NotImplementedException($"Nothing to test for CodeSuggestionBackendType {C64HostConfig.CodeSuggestionBackendType}");
+        }
+        await codeSuggestion.CheckAvailability();
+        if (codeSuggestion.IsAvailable)
+        {
+            _aiBackendValidationMessage = "OK";
+        }
+        else
+        {
+            _aiBackendValidationMessage = codeSuggestion.LastError ?? "Error";
+        }
+    }
 }

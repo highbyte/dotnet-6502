@@ -58,7 +58,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
         if (s_inputcontext.Gamepads != null && s_inputcontext.Gamepads.Count != 0)
         {
             _currentGamePad = s_inputcontext.Gamepads[0];
-            ListenForGampadInput();
+            ListenForGamepadInput();
         }
         else
         {
@@ -76,7 +76,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
             if (isConnected)
             {
                 _currentGamePad = gamepad;
-                ListenForGampadInput();
+                ListenForGamepadInput();
                 _logger.LogInformation($"Current Gamepad is now: {device.Name} {device.Index}");
             }
             else
@@ -103,7 +103,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
 
     }
 
-    private void ListenForGampadInput()
+    private void ListenForGamepadInput()
     {
         if (_currentGamePad == null)
             return;

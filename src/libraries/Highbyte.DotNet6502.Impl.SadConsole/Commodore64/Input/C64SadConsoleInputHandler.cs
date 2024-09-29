@@ -2,6 +2,7 @@ using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Microsoft.Extensions.Logging;
 
@@ -14,16 +15,52 @@ public class C64SadConsoleInputHandler : IInputHandler
     private readonly SadConsoleInputHandlerContext _inputHandlerContext;
     private readonly List<string> _debugInfo = new();
     private readonly C64SadConsoleKeyboard _c64SadConsoleKeyboard;
-    private readonly ILogger<C64SadConsoleInputHandler> _logger;
+    private readonly ILogger _logger;
+    private readonly C64BasicCodingAssistant _c64BasicCodingAssistant;
+
+    public bool CodingAssistantAvailable => _c64BasicCodingAssistant.IsAvailable;
+    private bool _codingAssistantEnabled;
+    public bool CodingAssistantEnabled
+    {
+        get
+        {
+            return _codingAssistantEnabled && CodingAssistantAvailable;
+        }
+        set
+        {
+            if (!CodingAssistantAvailable && value)
+                return;
+            _codingAssistantEnabled = value;
+        }
+    }
+
+    public async Task CheckCodingAssistantAvailability()
+    {
+        await _c64BasicCodingAssistant.CheckAvailability();
+        if (!_c64BasicCodingAssistant.IsAvailable)
+        {
+            _logger.LogError($"{_c64BasicCodingAssistant.LastError}");
+            _logger.LogWarning("Coding assistant is not available. Disabling it.");
+            _codingAssistantEnabled = false;
+        }
+    }
 
     // Instrumentations
     public Instrumentations Instrumentations { get; } = new();
 
-    public C64SadConsoleInputHandler(C64 c64, SadConsoleInputHandlerContext inputHandlerContext, ILoggerFactory loggerFactory)
+    public C64SadConsoleInputHandler(
+        C64 c64,
+        SadConsoleInputHandlerContext inputHandlerContext,
+        ILoggerFactory loggerFactory,
+        C64BasicCodingAssistant c64BasicCodingAssistant,
+        bool c64BasicCodingAssistantDefaultEnabled)
     {
         _c64 = c64;
         _inputHandlerContext = inputHandlerContext;
-        _logger = loggerFactory.CreateLogger<C64SadConsoleInputHandler>();
+        _c64BasicCodingAssistant = c64BasicCodingAssistant;
+        _codingAssistantEnabled = c64BasicCodingAssistantDefaultEnabled;
+
+        _logger = loggerFactory.CreateLogger(typeof(C64SadConsoleInputHandler).Name);
 
         // TODO: Is there a better way to current keyboard input language?
         var currentUICulture = Thread.CurrentThread.CurrentUICulture;
@@ -49,8 +86,13 @@ public class C64SadConsoleInputHandler : IInputHandler
 
     private void CaptureKeyboard(C64 c64)
     {
-
         var c64KeysDown = GetC64KeysFromSadConsoleKeys(_inputHandlerContext!.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);
+
+        if (CodingAssistantEnabled && c64KeysDown.Count > 0)
+        {
+            _c64BasicCodingAssistant.KeyWasPressed(c64KeysDown);
+        }
+
         var keyboard = c64.Cia.Keyboard;
         keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
     }

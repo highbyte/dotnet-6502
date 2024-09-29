@@ -85,22 +85,4 @@ public static class WordHelpers
     {
         return $"{value} ({value.ToHex(hexPrefix, lowerCase)})";
     }
-
-    /// <summary>
-    /// Read a little endian word from stream.
-    /// Return -1 if end of stream.
-    /// </summary>
-    /// <param name="stream"></param>
-    /// <returns></returns>
-    public static int ReadWord(this MemoryStream stream)
-    {
-        byte[] wordBytes = new byte[2];
-        var byte1 = stream.ReadByte();
-        if (byte1 < 0)
-            return -1;
-        var byte2 = stream.ReadByte();
-        if (byte2 < 0)
-            return -1;
-        return ByteHelpers.ToLittleEndianWord((byte)byte1, (byte)byte2);
-    }
 }

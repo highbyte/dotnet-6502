@@ -20,7 +20,7 @@
             <div id="system-selector" class="command-panel">
                 <div>
                     System:
-                    <InputSelect TValue="string" @bind-Value:get="this._wasmHost.SelectedSystemName" @bind-Value:set="this.SelectSystem" disabled=@OnSelectSystemNameDisabled autofocus>
+                    <InputSelect TValue="string" @bind-Value:get="this._wasmHost.SelectedSystemName" @bind-Value:set="(e) => SelectedSystemChanged(e)" disabled=@OnSelectSystemNameDisabled autofocus>
                         @foreach (var systemName in _wasmHost.AvailableSystemNames)
                         {
                             <option value="@systemName">@systemName</option>
@@ -29,7 +29,7 @@
                 </div>
                 <div>
                     Variant:
-                    <InputSelect TValue="string" @bind-Value:get="this._wasmHost.SelectedSystemConfigurationVariant" @bind-Value:set="this.SelectSystemConfigurationVariant" disabled=@OnSelectSystemNameDisabled autofocus>
+                    <InputSelect TValue="string" @bind-Value:get="this._wasmHost.SelectedSystemConfigurationVariant" @bind-Value:set="this.SelectSystemConfigurationVariantChanged" disabled=@OnSelectSystemNameDisabled autofocus>
                         @foreach (var systemConfigurationVariant in _wasmHost.CurrentSystemConfigurationVariants)
                         {
                             <option value="@systemConfigurationVariant">@systemConfigurationVariant</option>
@@ -52,7 +52,8 @@
 
                 <p></p>
                 <label for="audioEnabled">Audio enabled (experimental)</label>
-                <input id="audioEnabled" type="checkbox" @bind="@AudioEnabled" disabled=@AudioEnabledToggleDisabled />
+                @* <input id="audioEnabled" type="checkbox" @bind="@IsAudioEnabled()" disabled=@AudioEnabledToggleDisabled() /> *@
+                <input id="audioEnabled" type="checkbox" value="@IsAudioEnabled()"  onchange="@((bool e) => SetAudioEnabled(e))" disabled=@AudioEnabledToggleDisabled() />
 
                 <p></p>
                 <div class="audioVolumeStyle">

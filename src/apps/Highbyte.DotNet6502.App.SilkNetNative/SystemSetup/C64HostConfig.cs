@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 
@@ -17,6 +18,10 @@ public class C64HostConfig : IHostSystemConfig, ICloneable
     public C64HostRenderer Renderer { get; set; } = C64HostRenderer.SkiaSharp;
     public C64SilkNetOpenGlRendererConfig SilkNetOpenGlRendererConfig { get; set; } = new C64SilkNetOpenGlRendererConfig();
     public C64SilkNetInputConfig InputConfig { get; set; } = new C64SilkNetInputConfig();
+
+    public void ApplySettingsToSystemConfig(ISystemConfig systemConfig)
+    {
+    }
 
     public object Clone()
     {

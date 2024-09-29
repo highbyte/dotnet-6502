@@ -84,7 +84,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         var list = new List<IHostSystemConfig>();
         foreach (var system in AvailableSystemNames)
         {
-            list.Add(_systemList.GetHostSystemConfig(system));
+            list.Add(_systemList.GetHostSystemConfig(system).Result);
         }
         return list;
     }
@@ -155,7 +155,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         _selectedSystemName = systemName;
 
         CurrentSystemConfig = await _systemList.GetSystemConfig(_selectedSystemName, _selectedSystemConfigurationVariant);
-        CurrentHostSystemConfig = _systemList.GetHostSystemConfig(_selectedSystemName);
+        CurrentHostSystemConfig = await _systemList.GetHostSystemConfig(_selectedSystemName);
 
         OnAfterSelectSystem();
     }
@@ -334,24 +334,18 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         return await _systemList.IsValidConfigWithDetails(_selectedSystemName, _selectedSystemConfigurationVariant);
     }
 
-    public bool IsAudioSupported
+    public async Task<bool> IsAudioSupported()
     {
-        get
-        {
-            return _systemList.IsAudioSupported(_selectedSystemName, _selectedSystemConfigurationVariant);
-        }
+        return await _systemList.IsAudioSupported(_selectedSystemName, _selectedSystemConfigurationVariant);
     }
 
-    public bool IsAudioEnabled
+    public async Task<bool> IsAudioEnabled()
     {
-        get
-        {
-            return _systemList.IsAudioEnabled(_selectedSystemName, _selectedSystemConfigurationVariant);
-        }
-        set
-        {
-            _systemList.SetAudioEnabled(_selectedSystemName, enabled: value, _selectedSystemConfigurationVariant);
-        }
+        return await _systemList.IsAudioEnabled(_selectedSystemName, _selectedSystemConfigurationVariant);
+    }
+    public async Task SetAudioEnabled(bool enabled)
+    {
+        await _systemList.SetAudioEnabled(_selectedSystemName, enabled: enabled, _selectedSystemConfigurationVariant);
     }
 
     public async Task<ISystem> GetSelectedSystem()
@@ -366,6 +360,10 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         _systemList.ChangeCurrentSystemConfig(_selectedSystemName, CurrentSystemConfig, _selectedSystemConfigurationVariant);
     }
 
+    /// <summary>
+    /// Persist current configuration
+    /// </summary>
+    /// <returns></returns>
     public async Task PersistCurrentSystemConfig()
     {
         await _systemList.PersistSystemConfig(_selectedSystemName, _selectedSystemConfigurationVariant);
@@ -376,6 +374,15 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         // Note: Make sure to store a clone of the newConfig in the systemList, so it cannot be changed by the caller (bound to UI for example).
         CurrentHostSystemConfig = (IHostSystemConfig)newConfig.Clone();
         _systemList.ChangeCurrentHostSystemConfig(_selectedSystemName, CurrentHostSystemConfig);
+    }
+
+    /// <summary>
+    /// Persist current host system configuration
+    /// </summary>
+    /// <returns></returns>
+    public async Task PersistCurrentHostSystemConfig()
+    {
+        await _systemList.PersistHostSystemConfig(_selectedSystemName);
     }
 
     private void InitInstrumentation(ISystem system)

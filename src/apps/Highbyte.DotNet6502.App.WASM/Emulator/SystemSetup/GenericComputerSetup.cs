@@ -33,13 +33,19 @@ public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetI
         _loggerFactory = loggerFactory;
     }
 
-    public IHostSystemConfig GetNewHostSystemConfig()
+    public Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
         var genericComputerHostConfig = new GenericComputerHostConfig();
-        return genericComputerHostConfig;
+        return Task.FromResult<IHostSystemConfig>(genericComputerHostConfig);
     }
 
-    public async Task<ISystemConfig> GetNewConfig(string configurationVariant)
+    public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
+    {
+        // TODO: Persist settings to file
+        return Task.CompletedTask;
+    }
+
+    public async Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
     {
         // Create default GenericComputerConfig object
 
@@ -164,7 +170,7 @@ public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetI
         return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
     }
 
-    public SystemRunner BuildSystemRunner(
+    public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
@@ -179,7 +185,7 @@ public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetI
         var inputHandler = new GenericComputerAspNetInputHandler(genericComputer, inputHandlerContext, genericComputerConfig.Memory.Input);
         var audioHandler = new NullAudioHandler(genericComputer);
 
-        return new SystemRunner(genericComputer, renderer, inputHandler, audioHandler);
+        return Task.FromResult(new SystemRunner(genericComputer, renderer, inputHandler, audioHandler));
     }
 
     private (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) GetScreenSize(Uri uri)

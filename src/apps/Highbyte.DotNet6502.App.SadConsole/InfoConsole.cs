@@ -270,7 +270,7 @@ internal class InfoConsole : ControlsConsole
     {
         _logsListBox.Items.Clear();
 
-        foreach (var line in _logStore.GetLogMessages())
+        foreach (var line in _logStore.GetLogMessages().ToList())
         {
             var trimmedLine = line.TrimEnd('\r', '\n');
             //_logsListBox.Items.Add(new ColoredString(trimmedLine, foreground: Controls.ThemeColors.White, background: Controls.ThemeColors.ControlHostBackground));

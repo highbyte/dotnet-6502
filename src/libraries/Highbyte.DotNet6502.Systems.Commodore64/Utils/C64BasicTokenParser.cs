@@ -20,16 +20,16 @@ public class C64BasicTokenParser
         _c64 = c64;
     }
 
-    public string GetBasicTextLines(bool spaceAfterLineNumber = true, bool addNewLineAfterLastCharacter = true)
+    public string GetBasicText(bool spaceAfterLineNumber = true, bool addNewLineAfterLastCharacter = true)
     {
         ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
         var endAddressValue = _c64.GetBasicProgramEndAddress();
         var prgBytes = BinarySaver.BuildSaveData(_c64.Mem, startAddressValue, endAddressValue, addFileHeaderWithLoadAddress: true);
 
-        return GetBasicTextLines(prgBytes, spaceAfterLineNumber, addNewLineAfterLastCharacter);
+        return GetBasicText(prgBytes, spaceAfterLineNumber, addNewLineAfterLastCharacter);
     }
 
-    public string GetBasicTextLines(byte[] basicPrg, bool spaceAfterLineNumber = true, bool addNewLineAfterLastCharacter = true)
+    public string GetBasicText(byte[] basicPrg, bool spaceAfterLineNumber = true, bool addNewLineAfterLastCharacter = true)
     {
         if (basicPrg.Length < 2)
             throw new ArgumentException("Basic program is too short to contain a load address.");
@@ -55,12 +55,12 @@ public class C64BasicTokenParser
         {
 
             // Get next line address
-            var addr = stream.ReadWord();
+            var addr = stream.FetchWord();
             if (addr < 0 || addr == 0)   // Negative -> end of stream, 0 -> end of basic program
                 break;
 
             // Get next line number
-            var lineNumber = stream.ReadWord();
+            var lineNumber = stream.FetchWord();
             if (lineNumber < 0)    // Negative -> end of stream,
                 break;
 

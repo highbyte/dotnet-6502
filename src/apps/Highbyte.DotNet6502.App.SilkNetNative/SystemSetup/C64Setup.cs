@@ -30,7 +30,7 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
         _configuration = configuration;
     }
 
-    public IHostSystemConfig GetNewHostSystemConfig()
+    public Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
         // TODO: Read System host config from appsettings.json
         var c64HostConfig = new C64HostConfig
@@ -41,18 +41,22 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
                 UseFineScrollPerRasterLine = false, // Setting to true may work, depending on how code is written. Full screen scroll may not work (actual screen memory is not rendered in sync with raster line).
             }
         };
-        return c64HostConfig;
+        return Task.FromResult<IHostSystemConfig>(c64HostConfig);
     }
 
+    public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
+    {
+        // TODO: Persist settings to file
+        return Task.CompletedTask;
+    }
 
-    public Task<ISystemConfig> GetNewConfig(string configurationVariant)
+    public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
     {
         if (!s_systemVariants.Contains(configurationVariant))
             throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
 
         var c64Config = new C64Config() { ROMs = new() };
         _configuration.GetSection($"{C64Config.ConfigSectionName}.{configurationVariant}").Bind(c64Config);
-        c64Config.SetROMDefaultChecksums();
         return Task.FromResult<ISystemConfig>(c64Config);
     }
 
@@ -71,7 +75,7 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
         return c64;
     }
 
-    public SystemRunner BuildSystemRunner(
+    public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
@@ -105,6 +109,6 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
         var inputHandler = new C64SilkNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig);
         var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
-        return new SystemRunner(c64, renderer, inputHandler, audioHandler);
+        return Task.FromResult(new SystemRunner(c64, renderer, inputHandler, audioHandler));
     }
 }

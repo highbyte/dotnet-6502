@@ -175,8 +175,8 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
 
         var system = await GetSystem(systemName, configurationVariant);
         var systemConfig = await GetSystemConfig(systemName, configurationVariant);
-        var hostSystemConfig = GetHostSystemConfig(systemName);
-        var systemRunner = _systemConfigurers[systemName].BuildSystemRunner(system, systemConfig, hostSystemConfig, _getRenderContext(), _getInputHandlerContext(), _getAudioHandlerContext());
+        var hostSystemConfig = await GetHostSystemConfig(systemName);
+        var systemRunner = await _systemConfigurers[systemName].BuildSystemRunner(system, systemConfig, hostSystemConfig, _getRenderContext(), _getInputHandlerContext(), _getAudioHandlerContext());
         systemRunner.Init();
         return systemRunner;
     }
@@ -196,7 +196,8 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
         if (!_systemConfigsCache.ContainsKey(cacheKey))
         {
-            var systemConfig = await _systemConfigurers[systemName].GetNewConfig(configurationVariant);
+            var hostSystemConfig = await GetHostSystemConfig(systemName);
+            var systemConfig = await _systemConfigurers[systemName].GetNewConfig(configurationVariant, hostSystemConfig);
             ChangeCurrentSystemConfig(systemName, systemConfig, configurationVariant);
         }
         return _systemConfigsCache[cacheKey];
@@ -235,20 +236,20 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         return (isValid, validationErrors);
     }
 
-    public bool IsAudioSupported(string systemName, string configurationVariant)
+    public async Task<bool> IsAudioSupported(string systemName, string configurationVariant)
     {
-        var systemConfig = GetSystemConfig(systemName, configurationVariant).Result;
+        var systemConfig = await GetSystemConfig(systemName, configurationVariant);
         return systemConfig.AudioSupported;
     }
 
-    public bool IsAudioEnabled(string systemName, string configurationVariant)
+    public async Task<bool> IsAudioEnabled(string systemName, string configurationVariant)
     {
-        var systemConfig = GetSystemConfig(systemName, configurationVariant).Result;
+        var systemConfig = await GetSystemConfig(systemName, configurationVariant);
         return systemConfig.AudioEnabled;
     }
-    public void SetAudioEnabled(string systemName, bool enabled, string configurationVariant)
+    public async Task SetAudioEnabled(string systemName, bool enabled, string configurationVariant)
     {
-        var systemConfig = GetSystemConfig(systemName, configurationVariant).Result;
+        var systemConfig = await GetSystemConfig(systemName, configurationVariant);
         systemConfig.AudioEnabled = enabled;
     }
 
@@ -266,8 +267,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         }
     }
 
-
-    public IHostSystemConfig GetHostSystemConfig(string systemName)
+    public async Task<IHostSystemConfig> GetHostSystemConfig(string systemName)
     {
         if (!Systems.Contains(systemName))
             throw new DotNet6502Exception($"System does not exist: {systemName}");
@@ -275,7 +275,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         var cacheKey = systemName;
         if (!_hostSystemConfigsCache.ContainsKey(cacheKey))
         {
-            var hostSystemConfig = _systemConfigurers[systemName].GetNewHostSystemConfig();
+            var hostSystemConfig = await _systemConfigurers[systemName].GetNewHostSystemConfig();
             ChangeCurrentHostSystemConfig(systemName, hostSystemConfig);
         }
         return _hostSystemConfigsCache[cacheKey];
@@ -295,5 +295,19 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
 
         // Update the cached config
         _hostSystemConfigsCache[cacheKey] = hostSystemConfig;
+
+        // Make sure to apply up-to-date information from host config to all cached system configs for this system.
+        var systemConfigCacheKeys = _systemConfigsCache.Keys.Where(k => k.StartsWith(systemName + "_")).ToList();
+        foreach (var systemConfigCacheKey in systemConfigCacheKeys)
+        {
+            var systemConfig = _systemConfigsCache[systemConfigCacheKey];
+            hostSystemConfig.ApplySettingsToSystemConfig(systemConfig);
+        }
+    }
+
+    public async Task PersistHostSystemConfig(string systemName)
+    {
+        var hostSystemConfig = await GetHostSystemConfig(systemName);
+        await _systemConfigurers[systemName].PersistHostSystemConfig(hostSystemConfig);
     }
 }

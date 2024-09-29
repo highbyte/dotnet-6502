@@ -4,6 +4,9 @@ namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 
 public class GenericComputerHostConfig : IHostSystemConfig, ICloneable
 {
+    public void ApplySettingsToSystemConfig(ISystemConfig systemConfig)
+    {
+    }
 
     public object Clone()
     {

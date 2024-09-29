@@ -17,6 +17,7 @@ A list of applications that seem to work decently with the C64 emulator.
 | Game               | D/L URL                                        | .D64 -> PRG file            | .prg type  | Renderer (C64 Config menu)  | Comment   |
 |--------------------|------------------------------------------------|-----------------------------|------------|-----------------------------|-----------|
 | Digiloi            | https://csdb.dk/release/download.php?id=213381 | `digiloi.d64` -> `digiloi64` | Basic      | SkiaSharp*, SilkNetOpenGl   | Character mode. |
+| Elite              | https://csdb.dk/release/download.php?id=70413  | `ELITE.D64` -> `elite        [3]` | Basic      | SkiaSharp*, SilkNetOpenGl   | C64 PAL variant. Bitmap mode. Some gfx artifacts. |
 | Last Ninja         | https://csdb.dk/release/download.php?id=101848 | `lncro.d64` -> `last ninja/zcs` | Basic      | SkiaSharp2b, SilkNetOpenGl  | Bitmap mode, sprites. |
 | Mini Zork          | https://csdb.dk/release/download.php?id=42919  | `Mini-Zork(L+T).d64` -> `mini-zork   /l+t` | Basic      | SkiaSharp*, SilkNetOpenGl, SadConsole  | Character mode (default charset). |
 | Rally Speedway     | https://csdb.dk/release/download.php?id=22736  | `jolly_roger_-_rally_speedway.d64` -> `rallyspeedway` | Basic      | SkiaSharp*, SilkNetOpenGl   | Character mode, sprites. |

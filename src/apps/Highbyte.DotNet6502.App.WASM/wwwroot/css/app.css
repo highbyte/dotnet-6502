@@ -291,6 +291,8 @@ h4 {
     margin-left: auto;
     margin-right: auto;
     padding: 8px;
+    /*white-space: normal;*/ /* Allows text to wrap */
+    /*word-wrap: break-word;*/ /* Breaks long words to fit within the box */
 }
 
     .custom-modal a {
@@ -356,6 +358,21 @@ h4 {
     padding: 3px;
     border: 1px solid black;
 }
+
+.table-cell-fixed-width-small {
+    width: 100px; /* Set a fixed width */
+    overflow: auto; /* Handle overflow if content exceeds the fixed size */
+}
+.table-cell-fixed-width-medium {
+    width: 200px; /* Set a fixed width */
+    overflow: auto; /* Handle overflow if content exceeds the fixed size */
+}
+
+.table-cell-fixed-width-large {
+    width: 500px; /* Set a fixed width */
+    overflow: auto; /* Handle overflow if content exceeds the fixed size */
+}
+
 
 .table-footer {
     display: table-footer-group;

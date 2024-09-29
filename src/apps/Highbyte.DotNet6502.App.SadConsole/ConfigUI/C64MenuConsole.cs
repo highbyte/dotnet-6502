@@ -6,23 +6,32 @@ using SadRogue.Primitives;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Utils;
 using TextCopy;
-using Highbyte.DotNet6502.Systems.Commodore64.Utils;
-using Microsoft.Extensions.Logging.Abstractions;
+using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
+using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
+using Microsoft.Extensions.Configuration;
 
 namespace Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 public class C64MenuConsole : ControlsConsole
 {
     public const int CONSOLE_WIDTH = USABLE_WIDTH + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
     public const int CONSOLE_HEIGHT = USABLE_HEIGHT + (SadConsoleUISettings.UI_USE_CONSOLE_BORDER ? 2 : 0);
-    private const int USABLE_WIDTH = 21;
+    private const int USABLE_WIDTH = MenuConsole.USABLE_WIDTH;
     private const int USABLE_HEIGHT = 10;
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
+    private readonly IConfiguration _configuration;
     private readonly ILogger _logger;
 
-    public C64MenuConsole(SadConsoleHostApp sadConsoleHostApp, ILoggerFactory loggerFactory) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
+    private C64SadConsoleInputHandler C64SadConsoleInputHandler => (C64SadConsoleInputHandler)_sadConsoleHostApp.CurrentSystemRunner.InputHandler;
+
+    public C64MenuConsole(
+        SadConsoleHostApp sadConsoleHostApp,
+        ILoggerFactory loggerFactory,
+        IConfiguration configuration
+        ) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
         _sadConsoleHostApp = sadConsoleHostApp;
+        _configuration = configuration;
         _logger = loggerFactory.CreateLogger(typeof(C64MenuConsole).Name);
 
         Controls.ThemeColors = SadConsoleUISettings.ThemeColors;
@@ -40,7 +49,6 @@ public class C64MenuConsole : ControlsConsole
         if (SadConsoleUISettings.UI_USE_CONSOLE_BORDER)
             Surface.DrawBox(new Rectangle(0, 0, Width, Height), SadConsoleUISettings.UIConsoleDrawBoxBorderParameters);
     }
-
 
     private void DrawUIItems()
     {
@@ -80,11 +88,23 @@ public class C64MenuConsole : ControlsConsole
         c64PasteTextButton.Click += C64PasteTextButton_Click;
         Controls.Add(c64PasteTextButton);
 
+        // Paste
+        var c64aiBasicAssistantCheckbox = new CheckBox("AI Basic (F9)")
+        {
+            Name = "c64aiBasicAssistantCheckbox",
+            Position = (1, c64CopyBasicSourceCodeButton.Bounds.MaxExtentY + 1),
+        };
+        c64aiBasicAssistantCheckbox.IsSelectedChanged += async (s, e) =>
+        {
+            await SetBasicAIAssistant(c64aiBasicAssistantCheckbox.IsSelected);
+        };
+        Controls.Add(c64aiBasicAssistantCheckbox);
+
         // Config
         var c64ConfigButton = new Button("C64 Config")
         {
             Name = "c64ConfigButton",
-            Position = (1, c64PasteTextButton.Bounds.MaxExtentY + 2),
+            Position = (1, c64aiBasicAssistantCheckbox.Bounds.MaxExtentY + 2),
         };
         c64ConfigButton.Click += C64ConfigButton_Click;
         Controls.Add(c64ConfigButton);
@@ -202,7 +222,7 @@ public class C64MenuConsole : ControlsConsole
 
     private void C64ConfigButton_Click(object sender, EventArgs e)
     {
-        var window = new C64ConfigUIConsole(_sadConsoleHostApp);
+        var window = new C64ConfigUIConsole(_sadConsoleHostApp, _configuration);
 
         window.Center();
         window.Closed += (s2, e2) =>
@@ -225,7 +245,7 @@ public class C64MenuConsole : ControlsConsole
     private void C64CopyBasicSourceCodeButton_Click(object sender, EventArgs e)
     {
         var c64 = (C64)_sadConsoleHostApp.CurrentRunningSystem!;
-        var basicSourceCode = c64.BasicTokenParser.GetBasicTextLines();
+        var basicSourceCode = c64.BasicTokenParser.GetBasicText();
         ClipboardService.SetText(basicSourceCode.ToLower());
     }
 
@@ -261,6 +281,19 @@ public class C64MenuConsole : ControlsConsole
         var c64PasteTextButton = Controls["c64PasteTextButton"];
         c64PasteTextButton.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Running;
 
+        var c64aiBasicAssistantCheckbox = Controls["c64aiBasicAssistantCheckbox"] as CheckBox;
+        if (_sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Running && C64SadConsoleInputHandler.CodingAssistantAvailable)
+        {
+            c64aiBasicAssistantCheckbox.IsEnabled = true;
+            c64aiBasicAssistantCheckbox.IsSelected = C64SadConsoleInputHandler.CodingAssistantEnabled;
+        }
+        else
+        {
+            c64aiBasicAssistantCheckbox.IsEnabled = false;
+            c64aiBasicAssistantCheckbox.IsSelected = false;
+        }
+
+
         var validationMessageValueLabel = Controls["validationMessageValueLabel"] as Label;
         (var isOk, var validationErrors) = _sadConsoleHostApp.IsValidConfigWithDetails().Result;
         //validationMessageValueLabel!.DisplayText = isOk ? "" : string.Join(",", validationErrors!);
@@ -268,4 +301,23 @@ public class C64MenuConsole : ControlsConsole
         validationMessageValueLabel!.IsVisible = !isOk;
     }
 
+    public async Task ToggleBasicAIAssistant()
+    {
+        var c64aiBasicAssistantCheckbox = Controls["c64aiBasicAssistantCheckbox"] as CheckBox;
+        await SetBasicAIAssistant(!c64aiBasicAssistantCheckbox.IsSelected);
+    }
+
+    private async Task SetBasicAIAssistant(bool enabled)
+    {
+        if (_sadConsoleHostApp.EmulatorState != EmulatorState.Running)
+            return;
+        C64SadConsoleInputHandler.CodingAssistantEnabled = enabled;
+        if (enabled)
+        {
+            await C64SadConsoleInputHandler.CheckCodingAssistantAvailability();
+            var test = C64SadConsoleInputHandler.CodingAssistantAvailable;
+        }
+        ((C64HostConfig)_sadConsoleHostApp.CurrentHostSystemConfig).BasicAIAssistantDefaultEnabled = C64SadConsoleInputHandler.CodingAssistantEnabled;
+        IsDirty = true;
+    }
 }

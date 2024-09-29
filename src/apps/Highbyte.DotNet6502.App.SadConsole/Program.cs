@@ -12,7 +12,17 @@ using Microsoft.Extensions.Logging;
 // ----------
 var builder = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("appsettings.json");
+    .AddJsonFile("appsettings.json")
+    .AddJsonFile("appsettings.Development.json", optional: true);
+
+var devEnvironmentVariable = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT ");
+var isDevelopment = string.IsNullOrEmpty(devEnvironmentVariable) || devEnvironmentVariable.ToLower() == "development";
+if (isDevelopment) //only add secrets in development
+{
+    builder.AddUserSecrets<Program>();
+}
+
+
 IConfiguration Configuration = builder.Build();
 
 // ----------
@@ -49,5 +59,5 @@ systemList.AddSystem(genericComputerSetup);
 // ----------
 emulatorConfig.Validate(systemList);
 
-var silkNetHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorConfig, logStore, logConfig);
+var silkNetHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorConfig, logStore, logConfig, Configuration);
 silkNetHostApp.Run();

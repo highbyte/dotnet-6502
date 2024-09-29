@@ -18,13 +18,17 @@ public class SystemConfigurerTests
         public string SystemName => TestSystem.SystemName;
         public List<string> ConfigurationVariants => new List<string> { "DEFAULT" };
 
-        public IHostSystemConfig GetNewHostSystemConfig()
+        public Task<IHostSystemConfig> GetNewHostSystemConfig()
         {
-            return new TestHostSystemConfig();
+            return Task.FromResult<IHostSystemConfig>(new TestHostSystemConfig());
         }
 
+        public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
+        {
+            return Task.CompletedTask;
+        }
 
-        public Task<ISystemConfig> GetNewConfig(string configurationVariant)
+        public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
         {
             return Task.FromResult<ISystemConfig>(new TestSystemConfig());
         }
@@ -33,13 +37,12 @@ public class SystemConfigurerTests
         {
             return Task.CompletedTask;
         }
-
         public ISystem BuildSystem(ISystemConfig systemConfig)
         {
             return new TestSystem();
         }
 
-        public SystemRunner BuildSystemRunner(
+        public Task<SystemRunner> BuildSystemRunner(
             ISystem system,
             ISystemConfig systemConfig,
             IHostSystemConfig hostSystemConfig,
@@ -55,7 +58,7 @@ public class SystemConfigurerTests
             var inputHandler = new NullInputHandler(testSystem);
             var audioHandler = new NullAudioHandler(testSystem);
 
-            return new SystemRunner(testSystem, renderer, inputHandler, audioHandler);
+            return Task.FromResult(new SystemRunner(testSystem, renderer, inputHandler, audioHandler));
 
         }
     }
@@ -65,12 +68,17 @@ public class SystemConfigurerTests
         public string SystemName => TestSystem2.SystemName;
         public List<string> ConfigurationVariants => new List<string> { "DEFAULT" };
 
-        public IHostSystemConfig GetNewHostSystemConfig()
+        public Task<IHostSystemConfig> GetNewHostSystemConfig()
         {
-            return new TestHostSystem2Config();
+            return Task.FromResult<IHostSystemConfig>(new TestHostSystem2Config());
         }
 
-        public Task<ISystemConfig> GetNewConfig(string configurationVariant)
+        public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
         {
             return Task.FromResult<ISystemConfig>(new TestSystem2Config());
         }
@@ -85,7 +93,7 @@ public class SystemConfigurerTests
             return new TestSystem2();
         }
 
-        public SystemRunner BuildSystemRunner(
+        public Task<SystemRunner> BuildSystemRunner(
             ISystem system,
             ISystemConfig systemConfig,
             IHostSystemConfig hostSystemConfig,
@@ -101,8 +109,7 @@ public class SystemConfigurerTests
             var inputHandler = new NullInputHandler(testSystem2);
             var audioHandler = new NullAudioHandler(testSystem2);
 
-            return new SystemRunner(testSystem2, renderer, inputHandler, audioHandler);
-
+            return Task.FromResult(new SystemRunner(testSystem2, renderer, inputHandler, audioHandler));
         }
     }
 
@@ -157,6 +164,10 @@ public class SystemConfigurerTests
 
     public class TestHostSystemConfig : IHostSystemConfig
     {
+        public void ApplySettingsToSystemConfig(ISystemConfig systemConfig)
+        {
+        }
+
         public object Clone()
         {
             var clone = (TestHostSystemConfig)MemberwiseClone();
@@ -166,6 +177,10 @@ public class SystemConfigurerTests
 
     public class TestHostSystem2Config : IHostSystemConfig
     {
+        public void ApplySettingsToSystemConfig(ISystemConfig systemConfig)
+        {
+        }
+
         public object Clone()
         {
             var clone = (TestHostSystem2Config)MemberwiseClone();

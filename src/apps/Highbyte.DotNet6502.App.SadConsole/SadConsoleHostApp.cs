@@ -5,6 +5,7 @@ using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SadConsole.Components;
 using SadConsole.Configuration;
@@ -28,6 +29,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
     private readonly DotNet6502InMemLogStore _logStore;
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
+    private readonly IConfiguration _configuration;
     private readonly ILoggerFactory _loggerFactory;
 
     // --------------------
@@ -89,18 +91,18 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         EmulatorConfig emulatorConfig,
         //IWindow window,
         DotNet6502InMemLogStore logStore,
-        DotNet6502InMemLoggerConfiguration logConfig
-        ) : base("SadConsole", systemList, loggerFactory)
+        DotNet6502InMemLoggerConfiguration logConfig,
+        IConfiguration configuration)
+        : base("SadConsole", systemList, loggerFactory)
     {
-        _emulatorConfig = emulatorConfig;
         //_window = window;
+        _emulatorConfig = emulatorConfig;
         _logStore = logStore;
         _logConfig = logConfig;
-
+        _configuration = configuration;
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger(typeof(SadConsoleHostApp).Name);
     }
-
 
     public void Run()
     {
@@ -142,7 +144,6 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         // Continues here after SadConsole window is closed
         Game.Instance.Dispose();
     }
-
 
     private IScreenObject CreateMainSadConsoleScreen(GameHost gameHost)
     {
@@ -236,7 +237,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         // Create system specific menu console
         if (SelectedSystemName == "C64")
         {
-            _systemMenuConsole = new C64MenuConsole(this, _loggerFactory);
+            _systemMenuConsole = new C64MenuConsole(this, _loggerFactory, _configuration);
             _systemMenuConsole.Position = (MENU_POSITION_X, _menuConsole.Height);
             _sadConsoleScreen.Children.Add(_systemMenuConsole);
         }
@@ -574,7 +575,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             _sadConsoleEmulatorConsole.IsFocused = true;
     }
 
-    private void HandleUIKeyboardInput()
+    private async Task HandleUIKeyboardInput()
     {
         var keyboard = GameHost.Instance.Keyboard;
         //if (keyboard.IsKeyPressed(Keys.F10))
@@ -583,10 +584,15 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         if (keyboard.IsKeyPressed(Keys.F11))
             ToggleInfo();
 
-        if (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused)
+        if (keyboard.IsKeyPressed(Keys.F12) && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
         {
-            if (keyboard.IsKeyPressed(Keys.F12))
-                ToggleMonitor();
+            ToggleMonitor();
+        }
+
+        if (keyboard.IsKeyPressed(Keys.F9) && EmulatorState == EmulatorState.Running)
+        {
+            if (_systemMenuConsole is C64MenuConsole c64MenuConsole)
+                await c64MenuConsole.ToggleBasicAIAssistant();
         }
     }
 }

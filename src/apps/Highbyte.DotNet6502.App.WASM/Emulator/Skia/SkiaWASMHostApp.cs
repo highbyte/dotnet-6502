@@ -1,6 +1,8 @@
 using System.Data;
 using System.Text;
+using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 using Highbyte.DotNet6502.Impl.AspNet;
+using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Systems;
@@ -297,9 +299,15 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
             _wasmHostUIViewModel.ToggleDebugState();
             _wasmHostUIViewModel.ToggleStatsState();
         }
-        else if (key == "F12")
+        else if (key == "F12" && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
         {
             ToggleMonitor();
+        }
+        else if (key == "F9" && EmulatorState == EmulatorState.Running)
+        {
+            var toggeledAssistantState = !((C64AspNetInputHandler)CurrentSystemRunner.InputHandler).CodingAssistantEnabled;
+            ((C64AspNetInputHandler)CurrentSystemRunner.InputHandler).CodingAssistantEnabled = toggeledAssistantState;
+            ((C64HostConfig)CurrentHostSystemConfig).BasicAIAssistantDefaultEnabled = toggeledAssistantState;
         }
     }
 

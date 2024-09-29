@@ -1,6 +1,9 @@
+using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using Highbyte.DotNet6502.Utils;
+using Microsoft.Extensions.Configuration;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;
@@ -11,12 +14,13 @@ public class C64ConfigUIConsole : Window
     public const int CONSOLE_WIDTH = USABLE_WIDTH;
     public const int CONSOLE_HEIGHT = USABLE_HEIGHT;
     private const int USABLE_WIDTH = 60;
-    private const int USABLE_HEIGHT = 25;
+    private const int USABLE_HEIGHT = 28;
 
     public readonly C64Config C64Config;
     public readonly C64HostConfig C64HostConfig;
+    private readonly IConfiguration _configuration;
 
-    public C64ConfigUIConsole(SadConsoleHostApp sadConsoleHostApp) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
+    public C64ConfigUIConsole(SadConsoleHostApp sadConsoleHostApp, IConfiguration configuration) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
 
         C64Config = (C64Config)sadConsoleHostApp.CurrentSystemConfig.Clone();
@@ -37,6 +41,7 @@ public class C64ConfigUIConsole : Window
         UseKeyboard = true;
 
         DrawUIItems();
+        _configuration = configuration;
     }
 
     private void DrawUIItems()
@@ -133,9 +138,66 @@ public class C64ConfigUIConsole : Window
         openROMDownloadURLButton.Click += (s, e) => OpenURL(romDownloadLinkTextBox.Text);
         Controls.Add(openROMDownloadURLButton);
 
+        // AI coding assistant selection
+        var codingAssistantLabel = CreateLabel("Basic AI assistant: ", 1, romDownloadLinkTextBox.Bounds.MaxExtentY + 3);
+        var codingAssistantValue = CreateLabel($"{C64HostConfig.CodeSuggestionBackendType}", codingAssistantLabel.Bounds.MaxExtentX + 1, codingAssistantLabel.Position.Y);
+
+        var codingAssistantInfoLabel = new Label(Width - 10)
+        {
+            Name = "codingAssistantInfoLabel",
+            Position = (1, codingAssistantValue.Bounds.MaxExtentY + 1),
+            IsEnabled = false,
+            DisplayText = "Set AI assistant in appsetting.json",
+        };
+        Controls.Add(codingAssistantInfoLabel);
+
+        var codingAssistantTestButton = new Button("Test")
+        {
+            Name = "codingAssistantTestButton",
+            Position = (codingAssistantValue.Bounds.MaxExtentX + 2, codingAssistantValue.Position.Y),
+        };
+        codingAssistantTestButton.Click += async (s, e) =>
+        {
+            try
+            {
+                var codeSuggestionBackend = CodeSuggestionConfigurator.CreateCodeSuggestion(C64HostConfig.CodeSuggestionBackendType, _configuration, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+                await codeSuggestionBackend.CheckAvailability();
+                if (codeSuggestionBackend.IsAvailable)
+                {
+                    codingAssistantInfoLabel.DisplayText = "OK";
+                    codingAssistantInfoLabel.TextColor = Color.Green;
+                }
+                else
+                {
+                    codingAssistantInfoLabel.DisplayText = codeSuggestionBackend.LastError ?? "Error";
+                    codingAssistantInfoLabel.TextColor = Color.Red;
+                }
+            }
+            catch (Exception ex)
+            {
+                codingAssistantInfoLabel.DisplayText = ex.Message;
+                codingAssistantInfoLabel.TextColor = Color.Red;
+            }
+        };
+        Controls.Add(codingAssistantTestButton);
+
+
+        //ComboBox codingAssistantComboBox = new ComboBox(codingAssistantLabel.Bounds.MaxExtentX + 1, codingAssistantLabel.Position.Y, 6, Enum.GetNames<CodeSuggestionBackendTypeEnum>().ToArray())
+        //{
+        //    Position = (codingAssistantLabel.Bounds.MaxExtentX + 2, codingAssistantLabel.Position.Y),
+        //    Name = "codingAssistantComboBox",
+        //    SelectedItem = C64HostConfig.CodeSuggestionBackendType.ToString(),
+        //};
+        //codingAssistantComboBox.SelectedItemChanged += (s, e) =>
+        //{
+        //    C64HostConfig.CodeSuggestionBackendType = (CodeSuggestionBackendTypeEnum)codingAssistantComboBox.SelectedItem;
+        //    IsDirty = true;
+        //};
+        //Controls.Add(codingAssistantComboBox);
+
 
         // Validaton errors
-        var validationErrorsLabel = CreateLabel("Validation errors", 1, romDownloadLinkTextBox.Bounds.MaxExtentY + 2, "validationErrorsLabel");
+        var validationErrorsLabel = CreateLabel("Validation errors", 1, codingAssistantInfoLabel.Bounds.MaxExtentY + 2, "validationErrorsLabel");
         var validationErrorsListBox = new ListBox(Width - 3, 3)
         {
             Name = "validationErrorsListBox",
@@ -244,6 +306,9 @@ public class C64ConfigUIConsole : Window
         var chargenROMTextBox = Controls["chargenROMTextBox"] as TextBox;
         chargenROMTextBox!.Text = C64Config.ROMs.SingleOrDefault(x => x.Name == C64Config.CHARGEN_ROM_NAME).File;
         chargenROMTextBox!.IsDirty = true;
+
+        var codingAssistantTestButton = Controls["codingAssistantTestButton"] as Button;
+        codingAssistantTestButton.IsEnabled = C64HostConfig.CodeSuggestionBackendType != CodeSuggestionBackendTypeEnum.None;
 
         var isOk = C64Config.IsValid(out List<string> validationErrors);
         var okButton = Controls["okButton"] as Button;

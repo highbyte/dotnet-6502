@@ -195,26 +195,26 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         {
             // Common audio settings
 
-            ImGui.BeginDisabled(disabled: !(_silkNetHostApp.IsAudioSupported && EmulatorState == EmulatorState.Uninitialized));
+            ImGui.BeginDisabled(disabled: !(_silkNetHostApp.IsAudioSupported().Result && EmulatorState == EmulatorState.Uninitialized));
             ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
             //ImGui.SetKeyboardFocusHere(0);
             ImGui.PushItemWidth(40);
-            if (_silkNetHostApp.IsAudioSupported)
+            if (_silkNetHostApp.IsAudioSupported().Result)
             {
                 if (ImGui.Checkbox("Audio enabled (experimental)", ref _audioEnabled))
                 {
-                    _silkNetHostApp.IsAudioEnabled = _audioEnabled;
+                    _silkNetHostApp.SetAudioEnabled(_audioEnabled).Wait();
                 }
             }
             ImGui.PopStyleColor();
             ImGui.PopItemWidth();
             ImGui.EndDisabled();
 
-            ImGui.BeginDisabled(disabled: !(_silkNetHostApp.IsAudioSupported));
+            ImGui.BeginDisabled(disabled: !(_silkNetHostApp.IsAudioSupported().Result));
             ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
             //ImGui.SetKeyboardFocusHere(0);
             ImGui.PushItemWidth(40);
-            if (_silkNetHostApp.IsAudioSupported && _silkNetHostApp.IsAudioEnabled)
+            if (_silkNetHostApp.IsAudioSupported().Result && _silkNetHostApp.IsAudioEnabled().Result)
             {
                 if (ImGui.SliderFloat("Volume", ref _audioVolumePercent, 0f, 100f, ""))
                 {
@@ -450,7 +450,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         if (ImGui.Button("Copy"))
         {
             var c64 = (C64)_silkNetHostApp.CurrentRunningSystem!;
-            var sourceCode = c64.BasicTokenParser.GetBasicTextLines();
+            var sourceCode = c64.BasicTokenParser.GetBasicText();
             ClipboardService.SetText(sourceCode.ToLower());
         }
         ImGui.EndDisabled();

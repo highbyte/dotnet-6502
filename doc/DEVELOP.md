@@ -68,6 +68,12 @@ chmod +x ./codecov-console.sh
 ./codecov-console.sh
 ```
 
+# Workaround / compatibility 
+
+##  Linux
+### SkiaSharp
+On Ubuntu 22.04 (with .NET 8) there seems to be an issue with SkiaSharp (used from SilkNet native app) resulting with error `Unable to load shared library 'libSkiaSharp' or one of its dependencies.` This is referenced here https://github.com/mono/SkiaSharp/issues/2961 and here https://github.com/mono/SkiaSharp/issues/2653. Could not get the proposed workarounds to work.
+
 
 # Using other emulators to verify correct behavior
 When in doubt how a specific 6502 instruction actually worked, it was useful to use the monitor in the VICE emulator (that is widely known to be an accurate emulator of C64 and 6502/6510 CPU) as a reference for stepping through machine code programs.

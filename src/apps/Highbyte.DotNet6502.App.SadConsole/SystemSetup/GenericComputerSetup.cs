@@ -31,14 +31,19 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
         _configuration = configuration;
     }
 
-    public IHostSystemConfig GetNewHostSystemConfig()
+    public Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
         // TODO: Read System host config from appsettings.json
         var genericComputerHostConfig = new GenericComputerHostConfig { };
-        return genericComputerHostConfig;
+        return Task.FromResult<IHostSystemConfig>(genericComputerHostConfig);
+    }
+    public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
+    {
+        // TODO: Persist settings to file
+        return Task.CompletedTask;
     }
 
-    public Task<ISystemConfig> GetNewConfig(string configurationVariant)
+    public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
     {
         if (!s_systemVariants.Contains(configurationVariant))
             throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
@@ -61,7 +66,7 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
         return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
     }
 
-    public SystemRunner BuildSystemRunner(
+    public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
@@ -76,6 +81,6 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
         var inputHandler = new GenericSadConsoleInputHandler(genericComputer, inputHandlerContext, genericComputerConfig.Memory.Input, _loggerFactory);
         var audioHandler = new NullAudioHandler(genericComputer);
 
-        return new SystemRunner(genericComputer, renderer, inputHandler, audioHandler);
+        return Task.FromResult(new SystemRunner(genericComputer, renderer, inputHandler, audioHandler));
     }
 }

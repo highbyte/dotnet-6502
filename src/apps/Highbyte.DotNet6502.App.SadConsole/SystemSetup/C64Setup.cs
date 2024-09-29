@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.SadConsole;
@@ -7,6 +8,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -29,21 +31,30 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
         _configuration = configuration;
     }
 
-    public IHostSystemConfig GetNewHostSystemConfig()
+    public Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
-        // TODO: Read System host config from appsettings.json
-        var c64HostConfig = new C64HostConfig { };
-        return c64HostConfig;
+        // TODO: Read all system host config from appsettings.json
+        var c64HostConfig = new C64HostConfig
+        {
+            BasicAIAssistantDefaultEnabled = false,
+            CodeSuggestionBackendType = Enum.Parse<CodeSuggestionBackendTypeEnum>(_configuration["CodingAssistant:CodingAssistantType"] ?? "None")
+        };
+        return Task.FromResult<IHostSystemConfig>(c64HostConfig);
     }
 
-    public Task<ISystemConfig> GetNewConfig(string configurationVariant)
+    public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
+    {
+        // TODO: Persist settings to file
+        return Task.CompletedTask;
+    }
+
+    public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
     {
         if (!s_systemVariants.Contains(configurationVariant))
             throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
 
         var c64Config = new C64Config() { ROMs = new() };
         _configuration.GetSection($"{C64Config.ConfigSectionName}.{configurationVariant}").Bind(c64Config);
-        c64Config.SetROMDefaultChecksums();
         return Task.FromResult<ISystemConfig>(c64Config);
     }
 
@@ -62,7 +73,7 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
         return c64;
     }
 
-    public SystemRunner BuildSystemRunner(
+    public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
@@ -75,9 +86,13 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
         var c64 = (C64)system;
 
         var renderer = new C64SadConsoleRenderer(c64, renderContext);
-        var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory);
+
+        ICodeSuggestion codeSuggestion = CodeSuggestionConfigurator.CreateCodeSuggestion(c64HostConfig.CodeSuggestionBackendType, _configuration, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, defaultToNoneIdConfigError: true);
+        var c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, codeSuggestion, _loggerFactory);
+        var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory, c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
+
         var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
-        return new SystemRunner(c64, renderer, inputHandler, audioHandler);
+        return Task.FromResult(new SystemRunner(c64, renderer, inputHandler, audioHandler));
     }
 }

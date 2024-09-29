@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Utils;
@@ -9,6 +10,8 @@ public class C64Config : ISystemConfig
     public const string ConfigSectionName = "Highbyte.DotNet6502.C64";
 
     private bool _isDirty = false;
+
+    [JsonIgnore]
     public bool IsDirty => _isDirty;
     public void ClearDirty()
     {
@@ -54,9 +57,11 @@ public class C64Config : ISystemConfig
         KERNAL_ROM_NAME, BASIC_ROM_NAME, CHARGEN_ROM_NAME
     };
 
+    [JsonIgnore]
     public bool LoadROMs { get; set; } = true;  // Set to false for unit tests
 
     private List<ROM> _roms = default!;
+    [JsonIgnore]
     public List<ROM> ROMs
     {
         get
@@ -66,11 +71,16 @@ public class C64Config : ISystemConfig
         set
         {
             _roms = value;
+            foreach (var rom in _roms)
+            {
+                SetROMDefaultCheckum(rom);
+            }
             _isDirty = true;
         }
     }
 
     private string _romDirectory;
+    [JsonIgnore]
     public string ROMDirectory
     {
         get
@@ -85,6 +95,7 @@ public class C64Config : ISystemConfig
     }
 
     private string _c64Model;
+    [JsonIgnore]
     public string C64Model
     {
         get
@@ -99,6 +110,7 @@ public class C64Config : ISystemConfig
     }
 
     private string _vic2Model;
+    [JsonIgnore]
     public string Vic2Model
     {
         get
@@ -112,19 +124,28 @@ public class C64Config : ISystemConfig
         }
     }
 
+    [JsonIgnore]
     public TimerMode TimerMode { get; set; }
 
-    public bool InstrumentationEnabled { get; set; }
+    private bool _instrumentationEnabled;
+    [JsonIgnore]
+    public bool InstrumentationEnabled
+    {
+        get => _instrumentationEnabled;
+        set
+        {
+            _instrumentationEnabled = value;
+            _isDirty = true;
+        }
+    }
 
+    [JsonIgnore]
     public bool AudioSupported { get; set; }
 
     private bool _audioEnabled;
     public bool AudioEnabled
     {
-        get
-        {
-            return _audioEnabled;
-        }
+        get => _audioEnabled;
         set
         {
             _audioEnabled = value;
@@ -134,6 +155,7 @@ public class C64Config : ISystemConfig
 
     private string _colorMapName;
 
+    [JsonIgnore]
     public string ColorMapName
     {
         get
@@ -175,32 +197,13 @@ public class C64Config : ISystemConfig
         }
     }
 
+    [JsonIgnore]
     public C64KeyboardJoystickMap KeyboardJoystickMap { get; private set; }
 
     public C64Config()
     {
         // Defaults
-        _roms = new List<ROM>
-        {
-            new ROM
-            {
-                Name = BASIC_ROM_NAME,
-                File = "basic",
-                Data = null,
-            },
-            new ROM
-            {
-                Name = CHARGEN_ROM_NAME,
-                File = "chargen",
-                Data = null,
-            },
-            new ROM
-            {
-                Name = KERNAL_ROM_NAME,
-                File = "kernal",
-                Data = null,
-            },
-        };
+        _roms = new List<ROM>();
         _romDirectory = "%USERPROFILE%/Documents/C64/VICE/C64";
 
         _c64Model = "C64NTSC";
@@ -249,13 +252,6 @@ public class C64Config : ISystemConfig
         _isDirty = true;
     }
 
-    public void SetROMDefaultChecksums()
-    {
-        foreach (var rom in ROMs)
-        {
-            SetROMDefaultCheckum(rom);
-        }
-    }
 
     private void SetROMDefaultCheckum(ROM rom)
     {
@@ -344,6 +340,7 @@ public class C64Config : ISystemConfig
 /// UpdateEachInstruction = more realistic, but affects performance.
 /// UpdateEachRasterLine = less realistic, but better performance.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<TimerMode>))]
 public enum TimerMode
 {
     UpdateEachInstruction,
