@@ -92,8 +92,8 @@
     </style>
 }
 
-<InputFile id="filePicker" OnChange="@OnFilePickerChange" hidden />
-<InputFile id="filePickerBasic" OnChange="@OnBasicFilePickerChange" hidden />
+<InputFile id="filePicker" OnChange="@OnFilePickerChange" @oncancel="OnFilePickerCancel" hidden />
+<InputFile id="filePickerBasic" OnChange="@OnBasicFilePickerChange" @oncancel="OnFilePickerCancel" hidden />
 
 @* Fix for compiler warning CS8669 https://github.com/dotnet/razor/issues/8720 *@
 @{
@@ -108,9 +108,9 @@
     [Parameter]
     public Highbyte.DotNet6502.App.WASM.Pages.Index Parent { get; set; } = default!;
 
-    private C64Config _c64Config => (C64Config)Parent.WasmHost.CurrentSystemConfig;
+    private C64SystemConfig _c64SystemConfig => _c64HostConfig.SystemConfig;
     private C64HostConfig _c64HostConfig => (C64HostConfig)Parent.WasmHost.CurrentHostSystemConfig;
-    private C64AspNetInputHandler _c64AspNetInputHandler => (C64AspNetInputHandler)Parent.WasmHost.CurrentSystemRunner.InputHandler;
+    private C64AspNetInputHandler _c64AspNetInputHandler => (C64AspNetInputHandler)Parent.WasmHost.CurrentSystemRunner!.InputHandler;
 
     private ILogger _logger = default!;
     private string _latestFileError = "";
@@ -141,15 +141,11 @@
     {
         get
         {
-            if (_c64Config == null)
-                return false;
-            return _c64Config?.KeyboardJoystickEnabled ?? false;
+            return _c64SystemConfig?.KeyboardJoystickEnabled ?? false;
         }
         set
         {
-            if (_c64Config == null)
-                return;
-            _c64Config.KeyboardJoystickEnabled = value;
+            _c64SystemConfig.KeyboardJoystickEnabled = value;
 
             // If system is running, also make sure to update the joystick setting in the running system
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
@@ -169,15 +165,11 @@
     {
         get
         {
-            if (_c64Config == null)
-                return 0;
-            return _c64Config?.KeyboardJoystick ?? 0;
+            return _c64SystemConfig?.KeyboardJoystick ?? 0;
         }
         set
         {
-            if (_c64Config == null)
-                return;
-            _c64Config.KeyboardJoystick = value;
+            _c64SystemConfig.KeyboardJoystick = value;
 
             // If system is running, also make sure to update the joystick setting in the running system
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
@@ -196,22 +188,16 @@
         {
             if (Parent.WasmHost.EmulatorState != EmulatorState.Running)
                 return false;
-            if (_c64AspNetInputHandler == null)
-                return false;
             return _c64AspNetInputHandler.CodingAssistantEnabled;
         }
         set
         {
             if (Parent.WasmHost.EmulatorState != EmulatorState.Running)
                 return;
-            if (_c64AspNetInputHandler == null)
-                return;
             _c64AspNetInputHandler.CodingAssistantEnabled = value;
             ((C64HostConfig)Parent.WasmHost.CurrentHostSystemConfig).BasicAIAssistantDefaultEnabled = value;
         }
     }
-
-
 
     private readonly Dictionary<string, string> _assemblyExampleFiles = new()
     {
@@ -253,6 +239,8 @@
     /// <returns></returns>
     private async Task OnFilePicker(MouseEventArgs mouseEventArgs)
     {
+        _wasRunningBeforeFileDialog = Parent.CurrentEmulatorState == EmulatorState.Running;
+        await Parent.OnPause(new());
         await Js.InvokeVoidAsync("clickId", "filePicker");
     }
 
@@ -263,20 +251,17 @@
     /// <returns></returns>
     private async Task OnFilePickerChange(InputFileChangeEventArgs e)
     {
-        if (Parent.WasmHost == null)
-            return;
-
         if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
             return;
 
-        // Only expect one file
-        if (e.FileCount > 1)
-            return;
-        var file = e.File;
-        _logger.LogInformation($"File picked: {file.Name} Size: {file.Size}");
-
         try
         {
+            // Only expect one file
+            if (e.FileCount > 1)
+                return;
+            var file = e.File;
+            _logger.LogInformation($"File picked: {file.Name} Size: {file.Size}");
+
             _latestFileError = "";
             var fileBuffer = new byte[file.Size];
             //var fileStream = e.File.OpenReadStream(file.Size);
@@ -295,13 +280,16 @@
             _logger.LogInformation($"Starting loaded program by changing Program Counter to {loadedAtAddress.ToHex()}");
             Parent.WasmHost.CurrentRunningSystem!.CPU.PC = loadedAtAddress;
 
-            await Parent.OnStart(new());
-
         }
         catch (Exception ex)
         {
             _latestFileError = $"Load error: {ex.Message}";
             _logger.LogError($"Load error: {ex.Message}");
+        }
+        finally
+        {
+            if (_wasRunningBeforeFileDialog)
+                await Parent.OnStart(new());
         }
     }
 
@@ -312,8 +300,16 @@
     private async Task OnBasicFilePicker(MouseEventArgs mouseEventArgs)
     {
         _wasRunningBeforeFileDialog = Parent.CurrentEmulatorState == EmulatorState.Running;
+        await Parent.OnPause(new());
         await Js.InvokeVoidAsync("clickId", "filePickerBasic");
     }
+
+    private async Task OnFilePickerCancel(EventArgs e)
+    {
+        if (_wasRunningBeforeFileDialog)
+            await Parent.OnStart(new());
+    }
+
 
     /// <summary>
     /// Callback when C64 basic file (.prg) has been loaded from file pick dialog (from main UI, not monitor)
@@ -322,20 +318,17 @@
     /// <returns></returns>
     private async Task OnBasicFilePickerChange(InputFileChangeEventArgs e)
     {
-        if (Parent.WasmHost == null)
-            return;
-
         if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
             return;
 
-        // Only expect one file
-        if (e.FileCount > 1)
-            return;
-        var file = e.File;
-        _logger.LogInformation($"File picked: {file.Name} Size: {file.Size}");
-
         try
         {
+            // Only expect one file
+            if (e.FileCount > 1)
+                return;
+            var file = e.File;
+            _logger.LogInformation($"File picked: {file.Name} Size: {file.Size}");
+
             _latestFileError = "";
             var fileBuffer = new byte[file.Size];
             //var fileStream = e.File.OpenReadStream(file.Size);
@@ -367,15 +360,15 @@
             _latestFileError = $"Load error: {ex.Message}";
             _logger.LogError($"Load error: {ex.Message}");
         }
-
-        if (_wasRunningBeforeFileDialog)
-            await Parent.OnStart(new());
+        finally
+        {
+            if (_wasRunningBeforeFileDialog)
+                await Parent.OnStart(new());
+        }
     }
 
     private async Task OnSaveBasicFile(MouseEventArgs mouseEventArgs)
     {
-        if (Parent.WasmHost == null)
-            return;
         if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
             return;
 
@@ -422,7 +415,7 @@
         if (string.IsNullOrEmpty(url))
             return;
 
-        Parent.OnPause(new());
+        await Parent.OnPause(new());
 
         try
         {
@@ -460,7 +453,7 @@
         if (string.IsNullOrEmpty(url))
             return;
 
-        Parent.OnPause(new());
+        await Parent.OnPause(new());
 
         try
         {
@@ -518,4 +511,5 @@
 
         await Parent.FocusEmulator();
     }
+
 }

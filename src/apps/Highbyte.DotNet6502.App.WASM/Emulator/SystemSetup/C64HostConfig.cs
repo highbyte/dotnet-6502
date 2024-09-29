@@ -15,33 +15,28 @@ public enum C64HostRenderer
 }
 public class C64HostConfig : IHostSystemConfig, ICloneable
 {
-    public const string ConfigSectionName = "Highbyte.DotNet6502.C64HostConfig";
+    public const string ConfigSectionName = "Highbyte.DotNet6502.C64.WASM";
 
-    private bool _isDirty = false;
+    private C64SystemConfig _systemConfig;
+    ISystemConfig IHostSystemConfig.SystemConfig => _systemConfig;
+
+    public C64SystemConfig SystemConfig
+    {
+        get { return _systemConfig; }
+        set { _systemConfig = value; }
+    }
 
     [JsonIgnore]
-    public bool IsDirty => _isDirty;
+    public bool AudioSupported => true;
+
+
+    private bool _isDirty = false;
+    [JsonIgnore]
+    public bool IsDirty => _isDirty || _systemConfig.IsDirty;
     public void ClearDirty()
     {
         _isDirty = false;
-    }
-
-    private List<ROM> _roms = default!;
-    public List<ROM> ROMs
-    {
-        get
-        {
-            return _roms;
-        }
-        set
-        {
-            _roms = value;
-            foreach (var rom in _roms)
-            {
-                SetROMDefaultCheckum(rom);
-            }
-            _isDirty = true;
-        }
+        _systemConfig.ClearDirty();
     }
 
     public C64HostRenderer Renderer { get; set; } = C64HostRenderer.SkiaSharp;
@@ -74,74 +69,33 @@ public class C64HostConfig : IHostSystemConfig, ICloneable
     public C64HostConfig()
     {
         // Defaults
-        _roms = new List<ROM>();
+        _systemConfig = new C64SystemConfig();
 
         BasicAIAssistantDefaultEnabled = false;
         CodeSuggestionBackendType = CodeSuggestionBackendTypeEnum.CustomEndpoint;
     }
 
-    public void ApplySettingsToSystemConfig(ISystemConfig systemConfig)
+    public void Validate()
     {
-        var c64SystemConfig = (C64Config)systemConfig;
-        c64SystemConfig.ROMs = ROMs;
-        c64SystemConfig.ROMDirectory = "";
+        if (!IsValid(out List<string> validationErrors))
+            throw new DotNet6502Exception($"Config errors: {string.Join(',', validationErrors)}");
     }
 
-    public bool HasROM(string romName) => ROMs.Any(x => x.Name == romName);
-    public ROM GetROM(string romName) => ROMs.Single(x => x.Name == romName);
-
-    public void SetROM(string romName, string? file = null, byte[]? data = null)
+    public bool IsValid(out List<string> validationErrors)
     {
-        ROM rom;
-        if (HasROM(romName))
-        {
-            rom = GetROM(romName);
-            rom.File = file;
-            rom.Data = data;
-        }
-        else
-        {
-            rom = new ROM()
-            {
-                Name = romName,
-                File = file,
-                Data = data
-            };
+        validationErrors = new List<string>();
 
-            ROMs.Add(rom);
-        }
+        SystemConfig.IsValid(out var systemConfigValidationErrors);
+        validationErrors.AddRange(systemConfigValidationErrors);
 
-        SetROMDefaultCheckum(rom);
-
-        _isDirty = true;
-    }
-
-    private void SetROMDefaultCheckum(ROM rom)
-    {
-        // If checksum(s) is already set (from config file), skip setting default checksum(s).
-        if (rom.ValidVersionChecksums.Count != 0)
-            return;
-
-        // Set default checksums for known ROMs.
-        if (rom.Name == C64Config.BASIC_ROM_NAME)
-        {
-            rom.ValidVersionChecksums = C64Config.DefaultBasicROMChecksums;
-        }
-        else if (rom.Name == C64Config.KERNAL_ROM_NAME)
-        {
-            rom.ValidVersionChecksums = C64Config.DefaultKernalROMChecksums;
-        }
-        else if (rom.Name == C64Config.CHARGEN_ROM_NAME)
-        {
-            rom.ValidVersionChecksums = C64Config.DefaultCharGenROMChecksums;
-        }
+        return validationErrors.Count == 0;
     }
 
     public object Clone()
     {
         var clone = (C64HostConfig)MemberwiseClone();
+        clone._systemConfig = (C64SystemConfig)SystemConfig.Clone();
         clone.InputConfig = (C64AspNetInputConfig)InputConfig.Clone();
-        clone.ROMs = ROM.Clone(ROMs);
         return clone;
     }
 }

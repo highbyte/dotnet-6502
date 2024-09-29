@@ -409,7 +409,7 @@ public class C64SilkNetOpenGlRenderer : IRenderer, IDisposable
 
         if (fromROM)
         {
-            var charsets = c64.ROMData[C64Config.CHARGEN_ROM_NAME];
+            var charsets = c64.ROMData[C64SystemConfig.CHARGEN_ROM_NAME];
             for (int i = 0; i < charsetData.Length; i++)
             {
                 charsetData[i].CharLine = charsets[(ushort)(i)];

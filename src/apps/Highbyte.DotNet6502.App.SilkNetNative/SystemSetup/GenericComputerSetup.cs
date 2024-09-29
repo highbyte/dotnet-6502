@@ -14,14 +14,11 @@ public class GenericComputerSetup : ISystemConfigurer<SilkNetRenderContextContai
 {
     public string SystemName => GenericComputer.SystemName;
 
-    public List<string> ConfigurationVariants => s_systemVariants;
-
-    private static readonly List<string> s_systemVariants =
-    [
-        "Scroll",
-        "Snake",
-        "HelloWorld",
-    ];
+    public Task<List<string>> GetConfigurationVariants(IHostSystemConfig hostSystemConfig)
+    {
+        var examplePrograms = ((GenericComputerHostConfig)hostSystemConfig).SystemConfig.ExamplePrograms.Keys.OrderByDescending(x => x).ToList();
+        return Task.FromResult(examplePrograms);
+    }
 
     private readonly ILoggerFactory _loggerFactory;
     private readonly IConfiguration _configuration;
@@ -34,53 +31,41 @@ public class GenericComputerSetup : ISystemConfigurer<SilkNetRenderContextContai
 
     public Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
-        // TODO: Read System host config from appsettings.json
         var genericComputerHostConfig = new GenericComputerHostConfig { };
+        _configuration.GetSection($"{GenericComputerHostConfig.ConfigSectionName}").Bind(genericComputerHostConfig);
         return Task.FromResult<IHostSystemConfig>(genericComputerHostConfig);
     }
 
     public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
     {
-        // TODO: Persist settings to file
+        // TODO: Should user settings be persisted? If so method GetNewHostSystemConfig() also needs to be updated to read from there instead of appsettings.json.
         return Task.CompletedTask;
     }
 
-    public Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
+    public Task<ISystem> BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
     {
-        if (!s_systemVariants.Contains(configurationVariant))
-            throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
+        var genericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
+        var exampleProgramPath = genericComputerHostConfig.SystemConfig.ExamplePrograms[configurationVariant];
+        var genericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(configurationVariant, exampleProgramPath);
 
-        var genericComputerConfig = new GenericComputerConfig() { };
-        _configuration.GetSection($"{GenericComputerConfig.ConfigSectionName}.{configurationVariant}").Bind(genericComputerConfig);
-        return Task.FromResult<ISystemConfig>(genericComputerConfig);
-    }
-
-    public Task PersistConfig(ISystemConfig systemConfig)
-    {
-        var genericComputerConfig = (GenericComputerConfig)systemConfig;
-        // TODO: Save config settings to file
-        return Task.CompletedTask;
-    }
-
-    public ISystem BuildSystem(ISystemConfig systemConfig)
-    {
-        var genericComputerConfig = (GenericComputerConfig)systemConfig;
-        return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
+        return Task.FromResult<ISystem>(
+            GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory)
+        );
     }
 
     public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
-        ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
         SilkNetRenderContextContainer renderContext,
         SilkNetInputHandlerContext inputHandlerContext,
         NAudioAudioHandlerContext audioHandlerContext)
     {
         var genericComputer = (GenericComputer)system;
-        var genericComputerConfig = (GenericComputerConfig)systemConfig;
+        var genericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
+        var genericComputerConfig = genericComputerHostConfig.SystemConfig;
 
-        var renderer = new GenericComputerSkiaRenderer(genericComputer, renderContext.SkiaRenderContext, genericComputerConfig.Memory.Screen);
-        var inputHandler = new GenericComputerSilkNetInputHandler(genericComputer, inputHandlerContext, genericComputerConfig.Memory.Input);
+        var renderer = new GenericComputerSkiaRenderer(genericComputer, renderContext.SkiaRenderContext, genericComputer.GenericComputerConfig.Memory.Screen);
+        var inputHandler = new GenericComputerSilkNetInputHandler(genericComputer, inputHandlerContext, genericComputer.GenericComputerConfig.Memory.Input);
         var audioHandler = new NullAudioHandler(genericComputer);
 
         return Task.FromResult(new SystemRunner(genericComputer, renderer, inputHandler, audioHandler));

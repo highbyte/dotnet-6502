@@ -201,6 +201,11 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
             _monitor.Init(CurrentSystemRunner!);
     }
 
+    public override void OnBeforeStop()
+    {
+        DisableStatsPanel();
+    }
+
     public override void OnAfterClose()
     {
         // Dispose Monitor/Instrumentations panel
@@ -530,15 +535,30 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
 
         if (_statsPanel.Visible)
         {
-            _statsPanel.Disable();
-            _debugInfoPanel.Disable();
-
-            CurrentRunningSystem!.InstrumentationEnabled = false;
-            _statsWasEnabled = false;
+            DisableStatsPanel();
         }
         else
         {
-            CurrentRunningSystem!.InstrumentationEnabled = true;
+            EnableStatsPanel();
+        }
+    }
+
+    private void DisableStatsPanel()
+    {
+        if (_statsPanel.Visible)
+        {
+            _statsPanel.Disable();
+            _debugInfoPanel.Disable();
+        }
+        CurrentRunningSystem!.InstrumentationEnabled = false;
+        _statsWasEnabled = false;
+    }
+
+    private void EnableStatsPanel()
+    {
+        CurrentRunningSystem!.InstrumentationEnabled = true;
+        if (!_monitor.Visible)
+        {
             _statsPanel.Enable();
             _debugInfoPanel.Enable();
         }

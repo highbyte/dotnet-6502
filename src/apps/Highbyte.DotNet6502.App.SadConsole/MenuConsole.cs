@@ -54,17 +54,17 @@ public class MenuConsole : ControlsConsole
         selectSystemComboBox.SelectedItemChanged += async (s, e) =>
         {
             await _sadConsoleHostApp.SelectSystem(selectSystemComboBox.SelectedItem.ToString());
-            await _sadConsoleHostApp.SelectSystemConfigurationVariant(_sadConsoleHostApp.CurrentSystemConfigurationVariants.First());
+            await _sadConsoleHostApp.SelectSystemConfigurationVariant(_sadConsoleHostApp.AllSelectedSystemConfigurationVariants.First());
 
             var selectSystemVariantComboBox = Controls["selectSystemVariantComboBox"] as ComboBox;
-            selectSystemVariantComboBox.SetItems(_sadConsoleHostApp.CurrentSystemConfigurationVariants.ToArray());
+            selectSystemVariantComboBox.SetItems(_sadConsoleHostApp.AllSelectedSystemConfigurationVariants.ToArray());
             selectSystemVariantComboBox.SelectedIndex = 0;
             IsDirty = true;
         };
         Controls.Add(selectSystemComboBox);
 
         var variantLabel = CreateLabel("Variant:", 1, systemLabel.Bounds.MaxExtentY + 1);
-        ComboBox selectSystemVariantComboBox = new ComboBox(12, 15, 5, _sadConsoleHostApp.CurrentSystemConfigurationVariants.ToArray())
+        ComboBox selectSystemVariantComboBox = new ComboBox(12, 15, 5, _sadConsoleHostApp.AllSelectedSystemConfigurationVariants.ToArray())
         {
             Position = (variantLabel.Bounds.MaxExtentX + 2, variantLabel.Position.Y),
             Name = "selectSystemVariantComboBox",

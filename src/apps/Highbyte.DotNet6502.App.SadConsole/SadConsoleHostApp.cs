@@ -147,6 +147,9 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
     private IScreenObject CreateMainSadConsoleScreen(GameHost gameHost)
     {
+        // Trigger sadConsoleHostApp.SelectSystem which initilzes selected system and variants that UI creation depends on below.
+        SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
+
         //ScreenSurface screen = new(gameInstance.ScreenCellsX, gameInstance.ScreenCellsY);
         //return screen;
         _sadConsoleScreen = new ScreenObject();
@@ -223,6 +226,10 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
     public override void OnAfterSelectSystem()
     {
+        // Hack for when selecting a system during initialization triggers this event.
+        if (_menuConsole == null)
+            return;
+
         // Set the default font size configured for the system
         _menuConsole.SetEmulatorFontSize(CommonHostSystemConfig.DefaultFontSize);
 

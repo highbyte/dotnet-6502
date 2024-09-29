@@ -110,7 +110,7 @@ public class C64MenuConsole : ControlsConsole
         Controls.Add(c64ConfigButton);
 
 
-        var validationMessageValueLabel = CreateLabelValue(new string(' ', 20), 1, c64PasteTextButton.Bounds.MaxExtentY + 2, "validationMessageValueLabel");
+        var validationMessageValueLabel = CreateLabelValue(new string(' ', 20), 1, c64ConfigButton.Bounds.MaxExtentY + 2, "validationMessageValueLabel");
         validationMessageValueLabel.TextColor = Controls.GetThemeColors().Red;
 
         // Helper function to create a label and add it to the console
@@ -230,8 +230,7 @@ public class C64MenuConsole : ControlsConsole
             if (window.DialogResult)
             {
                 // Update the system config
-                _sadConsoleHostApp.UpdateSystemConfig(window.C64Config);
-                //_sadConsoleHostApp.UpdateHostSystemConfig(window.C64HostConfig);
+                _sadConsoleHostApp.UpdateHostSystemConfig(window.C64HostConfig);
 
                 IsDirty = true;
                 SetControlStates(); // Setting IsDirty here above does not trigger OnIsDirtyChanged? Call SetControlStates directly here to make sure controls are updated.

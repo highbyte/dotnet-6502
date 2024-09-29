@@ -11,7 +11,7 @@ public class SilkNetImGuiC64Config
 {
     private readonly SilkNetHostApp _silkNetHostApp;
     private readonly SilkNetImGuiMenu _mainMenu;
-    private C64Config _config;
+    private C64SystemConfig _systemConfig;
     private C64HostConfig _hostConfig;
 
     private int _selectedJoystickIndex;
@@ -46,22 +46,22 @@ public class SilkNetImGuiC64Config
         _mainMenu = mainMenu;
     }
 
-    internal void Init(C64Config c64Config, C64HostConfig c64HostConfig)
+    internal void Init(C64HostConfig c64HostConfig)
     {
-        _config = c64Config;
+        _systemConfig = c64HostConfig.SystemConfig;
         _hostConfig = c64HostConfig;
 
         // Init ImGui variables bound to UI
         _selectedJoystickIndex = _hostConfig.InputConfig.CurrentJoystick - 1;
         _availableJoysticks = _hostConfig.InputConfig.AvailableJoysticks.Select(x => x.ToString()).ToArray();
 
-        _keyboardJoystickEnabled = _config.KeyboardJoystickEnabled;
-        _keyboardJoystickIndex = _config.KeyboardJoystick - 1;
+        _keyboardJoystickEnabled = _systemConfig.KeyboardJoystickEnabled;
+        _keyboardJoystickIndex = _systemConfig.KeyboardJoystick - 1;
 
-        _romDirectory = _config.ROMDirectory;
-        _kernalRomFile = _config.HasROM(C64Config.KERNAL_ROM_NAME) ? _config.GetROM(C64Config.KERNAL_ROM_NAME).File! : "";
-        _basicRomFile = _config.HasROM(C64Config.KERNAL_ROM_NAME) ? _config.GetROM(C64Config.BASIC_ROM_NAME).File! : "";
-        _chargenRomFile = _config.HasROM(C64Config.KERNAL_ROM_NAME) ? _config.GetROM(C64Config.CHARGEN_ROM_NAME).File! : "";
+        _romDirectory = _systemConfig.ROMDirectory;
+        _kernalRomFile = _systemConfig.HasROM(C64SystemConfig.KERNAL_ROM_NAME) ? _systemConfig.GetROM(C64SystemConfig.KERNAL_ROM_NAME).File! : "";
+        _basicRomFile = _systemConfig.HasROM(C64SystemConfig.KERNAL_ROM_NAME) ? _systemConfig.GetROM(C64SystemConfig.BASIC_ROM_NAME).File! : "";
+        _chargenRomFile = _systemConfig.HasROM(C64SystemConfig.KERNAL_ROM_NAME) ? _systemConfig.GetROM(C64SystemConfig.CHARGEN_ROM_NAME).File! : "";
 
         _selectedRenderer = _availableRenderers.ToList().IndexOf(_hostConfig.Renderer.ToString());
         _openGLFineScrollPerRasterLineEnabled = _hostConfig.SilkNetOpenGlRendererConfig.UseFineScrollPerRasterLine;
@@ -72,26 +72,26 @@ public class SilkNetImGuiC64Config
         _open = true;
         if (ImGui.BeginPopupModal(dialogLabel, ref _open, ImGuiWindowFlags.AlwaysAutoResize))
         {
-            ImGui.Text("C64 model");
-            ImGui.LabelText("C64 model", $"{_config!.C64Model}");
-            ImGui.LabelText("VIC2 model", $"{_config!.Vic2Model}");
+            //ImGui.Text("C64 model");
+            //ImGui.LabelText("C64 model", $"{_config!.C64Model}");
+            //ImGui.LabelText("VIC2 model", $"{_config!.Vic2Model}");
 
             ImGui.Text("ROMs");
             if (ImGui.InputText("Directory", ref _romDirectory, 255))
             {
-                _config!.ROMDirectory = _romDirectory;
+                _systemConfig!.ROMDirectory = _romDirectory;
             }
             if (ImGui.InputText("Kernal file", ref _kernalRomFile, 100))
             {
-                _config!.SetROM(C64Config.KERNAL_ROM_NAME, _kernalRomFile);
+                _systemConfig!.SetROM(C64SystemConfig.KERNAL_ROM_NAME, _kernalRomFile);
             }
             if (ImGui.InputText("Basic file", ref _basicRomFile, 100))
             {
-                _config!.SetROM(C64Config.BASIC_ROM_NAME, _basicRomFile);
+                _systemConfig!.SetROM(C64SystemConfig.BASIC_ROM_NAME, _basicRomFile);
             }
             if (ImGui.InputText("CharGen file", ref _chargenRomFile, 100))
             {
-                _config!.SetROM(C64Config.CHARGEN_ROM_NAME, _chargenRomFile);
+                _systemConfig!.SetROM(C64SystemConfig.CHARGEN_ROM_NAME, _chargenRomFile);
             }
 
             // Renderer
@@ -133,7 +133,7 @@ public class SilkNetImGuiC64Config
             // Keyboard joystick
             if (ImGui.Checkbox("Keyboard Joystick", ref _keyboardJoystickEnabled))
             {
-                _config.KeyboardJoystickEnabled = _keyboardJoystickEnabled;
+                _systemConfig.KeyboardJoystickEnabled = _keyboardJoystickEnabled;
 
                 if (_silkNetHostApp.EmulatorState != EmulatorState.Uninitialized)
                 {
@@ -148,24 +148,24 @@ public class SilkNetImGuiC64Config
             ImGui.PushItemWidth(35);
             if (ImGui.Combo("##keyboardJoystick", ref _keyboardJoystickIndex, _availableJoysticks, _availableJoysticks.Length))
             {
-                _config.KeyboardJoystick = _keyboardJoystickIndex + 1;
+                _systemConfig.KeyboardJoystick = _keyboardJoystickIndex + 1;
             }
             ImGui.PopItemWidth();
             ImGui.EndDisabled();
 
-            var keyToJoystickMap = _config!.KeyboardJoystickMap;
+            var keyToJoystickMap = _systemConfig!.KeyboardJoystickMap;
             ImGui.BeginDisabled(disabled: true);
-            foreach (var mapKey in keyToJoystickMap.GetMap(_config.KeyboardJoystick))
+            foreach (var mapKey in keyToJoystickMap.GetMap(_systemConfig.KeyboardJoystick))
             {
                 ImGui.LabelText($"{string.Join(",", mapKey.Key)}", $"{string.Join(",", mapKey.Value)}");
             }
             ImGui.EndDisabled();
 
             // Update validation fields
-            if (_config!.IsDirty)
+            if (_hostConfig!.IsDirty)
             {
-                _config.ClearDirty();
-                _isValidConfig = _config.IsValid(out _validationErrors);
+                _hostConfig.ClearDirty();
+                _isValidConfig = _hostConfig.IsValid(out _validationErrors);
             }
             if (!_isValidConfig)
             {
@@ -183,7 +183,6 @@ public class SilkNetImGuiC64Config
             if (ImGui.Button("Ok"))
             {
                 Debug.WriteLine("Ok pressed");
-                _silkNetHostApp.UpdateSystemConfig(_config);
                 _silkNetHostApp.UpdateHostSystemConfig(_hostConfig);
                 _mainMenu.InitC64ImGuiWorkingVariables();
                 ImGui.CloseCurrentPopup();

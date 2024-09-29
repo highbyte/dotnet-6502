@@ -20,7 +20,7 @@
             <div id="system-selector" class="command-panel">
                 <div>
                     System:
-                    <InputSelect TValue="string" @bind-Value:get="this._wasmHost.SelectedSystemName" @bind-Value:set="(e) => SelectedSystemChanged(e)" disabled=@OnSelectSystemNameDisabled autofocus>
+                    <InputSelect TValue="string" @bind-Value:get="this._wasmHost.SelectedSystemName" @bind-Value:set="this.SelectedSystemChanged" disabled=@OnSelectSystemNameDisabled autofocus>
                         @foreach (var systemName in _wasmHost.AvailableSystemNames)
                         {
                             <option value="@systemName">@systemName</option>
@@ -30,7 +30,7 @@
                 <div>
                     Variant:
                     <InputSelect TValue="string" @bind-Value:get="this._wasmHost.SelectedSystemConfigurationVariant" @bind-Value:set="this.SelectSystemConfigurationVariantChanged" disabled=@OnSelectSystemNameDisabled autofocus>
-                        @foreach (var systemConfigurationVariant in _wasmHost.CurrentSystemConfigurationVariants)
+                        @foreach (var systemConfigurationVariant in this._wasmHost.AllSelectedSystemConfigurationVariants)
                         {
                             <option value="@systemConfigurationVariant">@systemConfigurationVariant</option>
                         }

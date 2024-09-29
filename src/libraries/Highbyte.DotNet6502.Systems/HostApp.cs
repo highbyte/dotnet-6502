@@ -32,7 +32,8 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
     private string _selectedSystemConfigurationVariant;
     public string SelectedSystemConfigurationVariant => _selectedSystemConfigurationVariant;
-    public List<string> CurrentSystemConfigurationVariants => _systemList.GetSystemConfigurationVariants(_selectedSystemName);
+    private List<string> _allSelectedSystemConfigurationVariants = new();
+    public List<string> AllSelectedSystemConfigurationVariants => _allSelectedSystemConfigurationVariants;
 
 
     private SystemRunner? _systemRunner = null;
@@ -41,26 +42,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     public EmulatorState EmulatorState { get; private set; } = EmulatorState.Uninitialized;
 
 
-    private ISystemConfig? _currentSystemConfig;
-    /// <summary>
-    /// The current system config.
-    /// </summary>
-    public ISystemConfig CurrentSystemConfig
-    {
-        get
-        {
-            if (_currentSystemConfig == null)
-                throw new DotNet6502Exception("Internal error. No system selected yet. Call SelectSystem() first.");
-            return _currentSystemConfig;
-        }
-        private set
-        {
-            _currentSystemConfig = value;
-        }
-    }
-
     private IHostSystemConfig? _currentHostSystemConfig;
-
 
     /// <summary>
     /// The current host system config.
@@ -122,8 +104,12 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
             throw new DotNet6502Exception("No systems added to system list.");
         _systemList = systemList;
 
-        _selectedSystemName = _systemList.Systems.First();
-        _selectedSystemConfigurationVariant = _systemList.GetSystemConfigurationVariants(_selectedSystemName).First();
+
+        //Note: Because selecting a system (incl which variants it has) requires async call,
+        //      call SelectSystem(string systemName) after HostApp is created to set the initial system.
+        _selectedSystemName = "DEFAULT SYSTEM";
+        _allSelectedSystemConfigurationVariants = new List<string> { "DEFAULT VARIANT" };
+        _selectedSystemConfigurationVariant = _allSelectedSystemConfigurationVariants.First();
     }
 
     public void SetContexts(
@@ -150,12 +136,16 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         if (!_systemList.Systems.Contains(systemName))
             throw new DotNet6502Exception($"System not found: {systemName}");
 
-        if (systemName != _selectedSystemName)
-            _selectedSystemConfigurationVariant = _systemList.GetSystemConfigurationVariants(systemName).First();
-        _selectedSystemName = systemName;
+        bool systemChanged = systemName != _selectedSystemName;
 
-        CurrentSystemConfig = await _systemList.GetSystemConfig(_selectedSystemName, _selectedSystemConfigurationVariant);
+        _selectedSystemName = systemName;
         CurrentHostSystemConfig = await _systemList.GetHostSystemConfig(_selectedSystemName);
+
+        if (systemChanged)
+        {
+            _allSelectedSystemConfigurationVariants = await _systemList.GetSystemConfigurationVariants(systemName, CurrentHostSystemConfig);
+            _selectedSystemConfigurationVariant = _allSelectedSystemConfigurationVariants.First();
+        }
 
         OnAfterSelectSystem();
     }
@@ -164,12 +154,13 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     {
         if (EmulatorState != EmulatorState.Uninitialized)
             throw new DotNet6502Exception("Cannot change system while emulator is running.");
-        if (!_systemList.GetSystemConfigurationVariants(_selectedSystemName).Contains(configurationVariant))
+        var configVariants = await _systemList.GetSystemConfigurationVariants(_selectedSystemName, CurrentHostSystemConfig);
+        if (!configVariants.Contains(configurationVariant))
             throw new DotNet6502Exception($"System configuration variant not found: {configurationVariant}");
 
         _selectedSystemConfigurationVariant = configurationVariant;
 
-        CurrentSystemConfig = await _systemList.GetSystemConfig(_selectedSystemName, configurationVariant);
+        return ;
     }
 
     public virtual void OnAfterSelectSystem() { }
@@ -351,22 +342,6 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     public async Task<ISystem> GetSelectedSystem()
     {
         return await _systemList.GetSystem(_selectedSystemName, _selectedSystemConfigurationVariant);
-    }
-
-    public void UpdateSystemConfig(ISystemConfig newConfig)
-    {
-        // Note: Make sure to store a clone of the newConfig in the systemList, so it isn't changed by the caller afterwards by mistake (bound to UI for example).
-        CurrentSystemConfig = (ISystemConfig)newConfig.Clone();
-        _systemList.ChangeCurrentSystemConfig(_selectedSystemName, CurrentSystemConfig, _selectedSystemConfigurationVariant);
-    }
-
-    /// <summary>
-    /// Persist current configuration
-    /// </summary>
-    /// <returns></returns>
-    public async Task PersistCurrentSystemConfig()
-    {
-        await _systemList.PersistSystemConfig(_selectedSystemName, _selectedSystemConfigurationVariant);
     }
 
     public void UpdateHostSystemConfig(IHostSystemConfig newConfig)

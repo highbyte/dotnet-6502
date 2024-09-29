@@ -1,4 +1,4 @@
-using System.Net.Http;
+using System.Text.Json;
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Generic.Input;
 using Highbyte.DotNet6502.Impl.Skia;
@@ -6,227 +6,138 @@ using Highbyte.DotNet6502.Impl.Skia.Generic.Video;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
-using Microsoft.AspNetCore.WebUtilities;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
 public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
     public string SystemName => GenericComputer.SystemName;
-    public List<string> ConfigurationVariants => s_systemVariants;
 
-    private static readonly List<string> s_systemVariants =
-    [
-        "Scroll",
-        "Snake",
-    ];
+    public Task<List<string>> GetConfigurationVariants(IHostSystemConfig hostSystemConfig)
+    {
+        var examplePrograms = ((GenericComputerHostConfig)hostSystemConfig).SystemConfig.ExamplePrograms.Keys.OrderByDescending(x => x).ToList();
+        return Task.FromResult(examplePrograms);
+    }
 
     //private const string DEFAULT_PRG_URL = "6502binaries/Generic/Assembler/hostinteraction_scroll_text_and_cycle_colors.prg";
     //private const string DEFAULT_PRG_URL = "6502binaries/Generic/Assembler/snake6502.prg";
 
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger<GenericComputerSetup> _logger;
 
     public GenericComputerSetup(BrowserContext browserContext, ILoggerFactory loggerFactory)
     {
         _browserContext = browserContext;
         _loggerFactory = loggerFactory;
+        _logger = loggerFactory.CreateLogger<GenericComputerSetup>();
     }
 
-    public Task<IHostSystemConfig> GetNewHostSystemConfig()
+    public async Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
-        var genericComputerHostConfig = new GenericComputerHostConfig();
-        return Task.FromResult<IHostSystemConfig>(genericComputerHostConfig);
-    }
+        var configKey = $"{GenericComputerHostConfig.ConfigSectionName}";
+        var genericComputerHostConfigJson = await _browserContext.LocalStorage.GetItemAsStringAsync(configKey);
 
-    public Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
-    {
-        // TODO: Persist settings to file
-        return Task.CompletedTask;
-    }
-
-    public async Task<ISystemConfig> GetNewConfig(string configurationVariant, IHostSystemConfig hostSystemConfig)
-    {
-        // Create default GenericComputerConfig object
-
-        // TODO: Re-implement possibility to load 6502 program binary specified in url (in addition to the pre-configured variants)
-        //// Load 6502 program binary specified in url
-        //var prgBytes = await Load6502Binary(_browserContext.HttpClient, _browserContext.Uri);
-
-        //// Get screen size specified in url
-        //(var cols, var rows, var screenMemoryAddress, var colorMemoryAddress) = GetScreenSize(_browserContext.Uri);
-
-        //cols = cols ?? 40;
-        //rows = rows ?? 25;
-        //screenMemoryAddress = screenMemoryAddress ?? 0x0400;
-        //colorMemoryAddress = colorMemoryAddress ?? 0xd800;
-
-        GenericComputerConfig genericComputerConfig;
-        string prgUrl;
-        byte[] prgBytes;
-        switch (configurationVariant)
+        GenericComputerHostConfig? genericComputerHostConfig = null;
+        if (!string.IsNullOrEmpty(genericComputerHostConfigJson))
         {
-            case "Scroll":
-                prgUrl = "6502binaries/Generic/Assembler/hostinteraction_scroll_text_and_cycle_colors.prg";
-                prgBytes = await _browserContext.HttpClient.GetByteArrayAsync(prgUrl.ToString());
-                genericComputerConfig = new GenericComputerConfig
-                {
-                    ProgramBinary = prgBytes,
-
-                    CPUCyclesPerFrame = 8000,
-                    ScreenRefreshFrequencyHz = 60,
-
-                    Memory = new EmulatorMemoryConfig
-                    {
-                        Screen = new EmulatorScreenConfig
-                        {
-                            Cols = 40,
-                            Rows = 25,
-                            BorderCols = 3,
-                            BorderRows = 3,
-                            ScreenStartAddress = 0x0400,
-                            ScreenColorStartAddress = 0xd800,
-
-                            UseAscIICharacters = true,
-                            DefaultBgColor = 0x06,     // 0x06 = Blue
-                            DefaultFgColor = 0x0e,     // 0x0e = Light blue
-                            DefaultBorderColor = 0x0b, // 0x06 = Blue
-                        },
-                        Input = new EmulatorInputConfig
-                        {
-                            KeyPressedAddress = 0xd030,
-                            KeyDownAddress = 0xd031,
-                            KeyReleasedAddress = 0xd031,
-                        }
-                    }
-                };
-                break;
-
-            case "Snake":
-                prgUrl = "6502binaries/Generic/Assembler/snake6502.prg";
-                prgBytes = await _browserContext.HttpClient.GetByteArrayAsync(prgUrl.ToString());
-                genericComputerConfig = new GenericComputerConfig
-                {
-                    ProgramBinary = prgBytes,
-                    ScreenRefreshFrequencyHz = 60,
-                    StopAtBRK = false,
-
-                    Memory = new EmulatorMemoryConfig
-                    {
-                        Screen = new EmulatorScreenConfig
-                        {
-                            Cols = 32,
-                            Rows = 32,
-                            BorderCols = 3,
-                            BorderRows = 3,
-                            ScreenStartAddress = 0x0200,
-                            ScreenColorStartAddress = 0xd800,   // Not used with this program
-
-                            ScreenRefreshStatusAddress = 0xd000, // The 6502 code should set bit 1 here when it's done for current frame
-
-                            DefaultBgColor = 0x00,     // 0x00 = Black
-                            DefaultFgColor = 0x01,     // 0x01 = White
-                            DefaultBorderColor = 0x0b, // 0x0b = Dark grey
-
-                            UseAscIICharacters = false,
-                            CharacterMap = new Dictionary<string, byte>
-                            {
-                                { "10", 32 },
-                                { "13", 32 },
-                                { "160", 219 },
-                                { "224", 219 },
-                            }
-                        },
-                        Input = new EmulatorInputConfig
-                        {
-                            KeyPressedAddress = 0xd030,
-                            KeyDownAddress = 0xd031,
-                            KeyReleasedAddress = 0xd031,
-                        }
-                    }
-                };
-                break;
-
-            default:
-                throw new ArgumentException($"Unknown configuration variant '{configurationVariant}'.");
-                break;
+            try
+            {
+                genericComputerHostConfig = JsonSerializer.Deserialize<GenericComputerHostConfig>(genericComputerHostConfigJson)!;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to deserialize GenericComputerHostConfig from Local Storage key: '{configKey}'.");
+            }
         }
 
-        //genericComputerConfig.Validate();
+        if (genericComputerHostConfig == null)
+        {
+            genericComputerHostConfig = new GenericComputerHostConfig();
 
-        return genericComputerConfig;
+            genericComputerHostConfig.SystemConfig.ExamplePrograms = new Dictionary<string, string>
+            {
+                { "Scroll", "6502binaries/Generic/Assembler/hostinteraction_scroll_text_and_cycle_colors.prg" },
+                { "Snake", "6502binaries/Generic/Assembler/snake6502.prg" },
+            };
+        }
+
+        return genericComputerHostConfig;
     }
 
-    public Task PersistConfig(ISystemConfig systemConfig)
+    public async Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
     {
-        var genericComputerConfig = (GenericComputerConfig)systemConfig;
-        // TODO: Save config settings to browser local storage
-        return Task.CompletedTask;
+        var cenericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
+        await _browserContext.LocalStorage.SetItemAsStringAsync($"{GenericComputerHostConfig.ConfigSectionName}", JsonSerializer.Serialize(cenericComputerHostConfig));
     }
 
-    public ISystem BuildSystem(ISystemConfig systemConfig)
+    public async Task<ISystem> BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
     {
-        var genericComputerConfig = (GenericComputerConfig)systemConfig;
+        var genericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
+        var exampleProgramPath = genericComputerHostConfig.SystemConfig.ExamplePrograms[configurationVariant];
+        var exampleProgramBytes = await _browserContext.HttpClient.GetByteArrayAsync(exampleProgramPath);
+        var genericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(configurationVariant, exampleProgramBytes);
+
         return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
     }
 
     public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
-        ISystemConfig systemConfig,
         IHostSystemConfig hostSystemConfig,
         SkiaRenderContext renderContext,
         AspNetInputHandlerContext inputHandlerContext,
         WASMAudioHandlerContext audioHandlerContext)
     {
         var genericComputer = (GenericComputer)system;
-        var genericComputerConfig = (GenericComputerConfig)systemConfig;
+        var genericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
+        var genericComputerConfig = genericComputerHostConfig.SystemConfig;
 
-        var renderer = new GenericComputerSkiaRenderer(genericComputer, renderContext, genericComputerConfig.Memory.Screen);
-        var inputHandler = new GenericComputerAspNetInputHandler(genericComputer, inputHandlerContext, genericComputerConfig.Memory.Input);
+        var renderer = new GenericComputerSkiaRenderer(genericComputer, renderContext, genericComputer.GenericComputerConfig.Memory.Screen);
+        var inputHandler = new GenericComputerAspNetInputHandler(genericComputer, inputHandlerContext, genericComputer.GenericComputerConfig.Memory.Input);
         var audioHandler = new NullAudioHandler(genericComputer);
 
         return Task.FromResult(new SystemRunner(genericComputer, renderer, inputHandler, audioHandler));
     }
 
-    private (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) GetScreenSize(Uri uri)
-    {
-        int? cols = null;
-        int? rows = null;
-        ushort? screenMemoryAddress = null;
-        ushort? colorMemoryAddress = null;
+    //private (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) GetScreenSize(Uri uri)
+    //{
+    //    int? cols = null;
+    //    int? rows = null;
+    //    ushort? screenMemoryAddress = null;
+    //    ushort? colorMemoryAddress = null;
 
-        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("cols", out var colsParameter))
-        {
-            if (int.TryParse(colsParameter, out var colsParsed))
-                cols = colsParsed;
-            else
-                cols = null;
-        }
-        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("rows", out var rowsParameter))
-        {
-            if (int.TryParse(rowsParameter, out var rowsParsed))
-                rows = rowsParsed;
-            else
-                rows = null;
-        }
-        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("screenMem", out var screenMemParameter))
-        {
-            if (ushort.TryParse(screenMemParameter, out var screenMemParsed))
-                screenMemoryAddress = screenMemParsed;
-            else
-                screenMemoryAddress = null;
-        }
-        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("colorMem", out var colorMemParameter))
-        {
-            if (ushort.TryParse(colorMemParameter, out var colorMemParsed))
-                colorMemoryAddress = colorMemParsed;
-            else
-                colorMemoryAddress = null;
-        }
+    //    if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("cols", out var colsParameter))
+    //    {
+    //        if (int.TryParse(colsParameter, out var colsParsed))
+    //            cols = colsParsed;
+    //        else
+    //            cols = null;
+    //    }
+    //    if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("rows", out var rowsParameter))
+    //    {
+    //        if (int.TryParse(rowsParameter, out var rowsParsed))
+    //            rows = rowsParsed;
+    //        else
+    //            rows = null;
+    //    }
+    //    if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("screenMem", out var screenMemParameter))
+    //    {
+    //        if (ushort.TryParse(screenMemParameter, out var screenMemParsed))
+    //            screenMemoryAddress = screenMemParsed;
+    //        else
+    //            screenMemoryAddress = null;
+    //    }
+    //    if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("colorMem", out var colorMemParameter))
+    //    {
+    //        if (ushort.TryParse(colorMemParameter, out var colorMemParsed))
+    //            colorMemoryAddress = colorMemParsed;
+    //        else
+    //            colorMemoryAddress = null;
+    //    }
 
-        return (cols, rows, screenMemoryAddress, colorMemoryAddress);
+    //    return (cols, rows, screenMemoryAddress, colorMemoryAddress);
 
-    }
+    //}
 
     //private async Task<byte[]> Load6502Binary(HttpClient httpClient, Uri uri)
     //{

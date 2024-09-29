@@ -16,14 +16,13 @@ public class C64ConfigUIConsole : Window
     private const int USABLE_WIDTH = 60;
     private const int USABLE_HEIGHT = 28;
 
-    public readonly C64Config C64Config;
+    public C64SystemConfig C64SystemConfig => C64HostConfig.SystemConfig;
     public readonly C64HostConfig C64HostConfig;
     private readonly IConfiguration _configuration;
 
     public C64ConfigUIConsole(SadConsoleHostApp sadConsoleHostApp, IConfiguration configuration) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
 
-        C64Config = (C64Config)sadConsoleHostApp.CurrentSystemConfig.Clone();
         C64HostConfig = (C64HostConfig)sadConsoleHostApp.CurrentHostSystemConfig.Clone();
 
         Controls.ThemeColors = SadConsoleUISettings.ThemeColors;
@@ -53,7 +52,7 @@ public class C64ConfigUIConsole : Window
             Name = "romDirectoryTextBox",
             Position = (1, romDirectoryLabel.Position.Y + 1),
         };
-        romDirectoryTextBox.TextChanged += (s, e) => { C64Config.ROMDirectory = romDirectoryTextBox.Text; IsDirty = true; };
+        romDirectoryTextBox.TextChanged += (s, e) => { C64SystemConfig.ROMDirectory = romDirectoryTextBox.Text; IsDirty = true; };
         Controls.Add(romDirectoryTextBox);
 
         var selectROMDirectoryButton = new Button("...")
@@ -71,7 +70,7 @@ public class C64ConfigUIConsole : Window
             Name = "kernalROMTextBox",
             Position = (1, kernalROMLabel.Position.Y + 1)
         };
-        kernalROMTextBox.TextChanged += (s, e) => { C64Config.SetROM(C64Config.KERNAL_ROM_NAME, kernalROMTextBox!.Text); IsDirty = true; };
+        kernalROMTextBox.TextChanged += (s, e) => { C64SystemConfig.SetROM(C64SystemConfig.KERNAL_ROM_NAME, kernalROMTextBox!.Text); IsDirty = true; };
         Controls.Add(kernalROMTextBox);
 
         var selectKernalROMButton = new Button("...")
@@ -79,7 +78,7 @@ public class C64ConfigUIConsole : Window
             Name = "selectKernalROMButton",
             Position = (kernalROMTextBox.Bounds.MaxExtentX + 2, kernalROMTextBox.Position.Y),
         };
-        selectKernalROMButton.Click += (s, e) => ShowROMFilePickerDialog(C64Config.KERNAL_ROM_NAME);
+        selectKernalROMButton.Click += (s, e) => ShowROMFilePickerDialog(C64SystemConfig.KERNAL_ROM_NAME);
         Controls.Add(selectKernalROMButton);
 
         // Basic ROM file
@@ -89,7 +88,7 @@ public class C64ConfigUIConsole : Window
             Name = "basicROMTextBox",
             Position = (1, basicROMLabel.Position.Y + 1)
         };
-        basicROMTextBox.TextChanged += (s, e) => { C64Config.SetROM(C64Config.BASIC_ROM_NAME, basicROMTextBox!.Text); IsDirty = true; };
+        basicROMTextBox.TextChanged += (s, e) => { C64SystemConfig.SetROM(C64SystemConfig.BASIC_ROM_NAME, basicROMTextBox!.Text); IsDirty = true; };
         Controls.Add(basicROMTextBox);
 
         var selectBasicROMButton = new Button("...")
@@ -97,7 +96,7 @@ public class C64ConfigUIConsole : Window
             Name = "selectBasicROMButton",
             Position = (basicROMTextBox.Bounds.MaxExtentX + 2, basicROMTextBox.Position.Y),
         };
-        selectBasicROMButton.Click += (s, e) => ShowROMFilePickerDialog(C64Config.BASIC_ROM_NAME);
+        selectBasicROMButton.Click += (s, e) => ShowROMFilePickerDialog(C64SystemConfig.BASIC_ROM_NAME);
         Controls.Add(selectBasicROMButton);
 
         // Chargen ROM file
@@ -107,7 +106,7 @@ public class C64ConfigUIConsole : Window
             Name = "chargenROMTextBox",
             Position = (1, chargenROMLabel.Position.Y + 1),
         };
-        chargenROMTextBox.TextChanged += (s, e) => { C64Config.SetROM(C64Config.CHARGEN_ROM_NAME, chargenROMTextBox!.Text); IsDirty = true; };
+        chargenROMTextBox.TextChanged += (s, e) => { C64SystemConfig.SetROM(C64SystemConfig.CHARGEN_ROM_NAME, chargenROMTextBox!.Text); IsDirty = true; };
         Controls.Add(chargenROMTextBox);
 
         var selectChargenROMButton = new Button("...")
@@ -115,7 +114,7 @@ public class C64ConfigUIConsole : Window
             Name = "selectChargenROMButton",
             Position = (chargenROMTextBox.Bounds.MaxExtentX + 2, chargenROMTextBox.Position.Y),
         };
-        selectChargenROMButton.Click += (s, e) => ShowROMFilePickerDialog(C64Config.CHARGEN_ROM_NAME);
+        selectChargenROMButton.Click += (s, e) => ShowROMFilePickerDialog(C64SystemConfig.CHARGEN_ROM_NAME);
         Controls.Add(selectChargenROMButton);
 
 
@@ -253,14 +252,14 @@ public class C64ConfigUIConsole : Window
 
     private void ShowROMFilePickerDialog(string romName)
     {
-        var currentFolder = PathHelper.ExpandOSEnvironmentVariables(C64Config.ROMDirectory);
-        var window = new FilePickerConsole(FilePickerMode.OpenFile, currentFolder, C64Config.GetROM(romName).GetROMFilePath(currentFolder));
+        var currentFolder = PathHelper.ExpandOSEnvironmentVariables(C64SystemConfig.ROMDirectory);
+        var window = new FilePickerConsole(FilePickerMode.OpenFile, currentFolder, C64SystemConfig.GetROM(romName).GetROMFilePath(currentFolder));
         window.Center();
         window.Closed += (s2, e2) =>
         {
             if (window.DialogResult)
             {
-                C64Config.SetROM(romName, Path.GetFileName(window.SelectedFile.FullName));
+                C64SystemConfig.SetROM(romName, Path.GetFileName(window.SelectedFile.FullName));
                 IsDirty = true;
             }
         };
@@ -269,14 +268,14 @@ public class C64ConfigUIConsole : Window
 
     private void ShowROMFolderPickerDialog()
     {
-        var currentFolder = PathHelper.ExpandOSEnvironmentVariables(C64Config.ROMDirectory);
+        var currentFolder = PathHelper.ExpandOSEnvironmentVariables(C64SystemConfig.ROMDirectory);
         var window = new FilePickerConsole(FilePickerMode.OpenFolder, currentFolder);
         window.Center();
         window.Closed += (s2, e2) =>
         {
             if (window.DialogResult)
             {
-                C64Config.ROMDirectory = window.SelectedDirectory.FullName;
+                C64SystemConfig.ROMDirectory = window.SelectedDirectory.FullName;
                 IsDirty = true;
             }
         };
@@ -292,25 +291,25 @@ public class C64ConfigUIConsole : Window
     private void SetControlStates()
     {
         var romDirectoryTextBox = Controls["romDirectoryTextBox"] as TextBox;
-        romDirectoryTextBox!.Text = C64Config.ROMDirectory;
+        romDirectoryTextBox!.Text = C64SystemConfig.ROMDirectory;
         romDirectoryTextBox!.IsDirty = true;
 
         var kernalROMTextBox = Controls["kernalROMTextBox"] as TextBox;
-        kernalROMTextBox!.Text = C64Config.ROMs.SingleOrDefault(x => x.Name == C64Config.KERNAL_ROM_NAME).File;
+        kernalROMTextBox!.Text = C64SystemConfig.ROMs.SingleOrDefault(x => x.Name == C64SystemConfig.KERNAL_ROM_NAME).File;
         kernalROMTextBox!.IsDirty = true;
 
         var basicROMTextBox = Controls["basicROMTextBox"] as TextBox;
-        basicROMTextBox!.Text = C64Config.ROMs.SingleOrDefault(x => x.Name == C64Config.BASIC_ROM_NAME).File;
+        basicROMTextBox!.Text = C64SystemConfig.ROMs.SingleOrDefault(x => x.Name == C64SystemConfig.BASIC_ROM_NAME).File;
         basicROMTextBox!.IsDirty = true;
 
         var chargenROMTextBox = Controls["chargenROMTextBox"] as TextBox;
-        chargenROMTextBox!.Text = C64Config.ROMs.SingleOrDefault(x => x.Name == C64Config.CHARGEN_ROM_NAME).File;
+        chargenROMTextBox!.Text = C64SystemConfig.ROMs.SingleOrDefault(x => x.Name == C64SystemConfig.CHARGEN_ROM_NAME).File;
         chargenROMTextBox!.IsDirty = true;
 
         var codingAssistantTestButton = Controls["codingAssistantTestButton"] as Button;
         codingAssistantTestButton.IsEnabled = C64HostConfig.CodeSuggestionBackendType != CodeSuggestionBackendTypeEnum.None;
 
-        var isOk = C64Config.IsValid(out List<string> validationErrors);
+        var isOk = C64SystemConfig.IsValid(out List<string> validationErrors);
         var okButton = Controls["okButton"] as Button;
         okButton!.IsEnabled = isOk;
 

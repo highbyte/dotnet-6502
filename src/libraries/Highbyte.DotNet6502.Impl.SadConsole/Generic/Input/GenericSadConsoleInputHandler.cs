@@ -1,3 +1,4 @@
+using System.Numerics;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
@@ -14,6 +15,7 @@ public class GenericSadConsoleInputHandler : IInputHandler
 
     private readonly EmulatorInputConfig _emulatorInputConfig;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger _logger;
 
     public List<string> GetDebugInfo() => new();
 
@@ -26,6 +28,7 @@ public class GenericSadConsoleInputHandler : IInputHandler
         _inputHandlerContext = inputHandlerContext;
         _emulatorInputConfig = emulatorInputConfig;
         _loggerFactory = loggerFactory;
+        _logger = loggerFactory.CreateLogger("SadConsoleInput");
     }
 
     public void Init()

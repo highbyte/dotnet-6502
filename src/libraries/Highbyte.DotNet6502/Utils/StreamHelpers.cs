@@ -10,7 +10,6 @@ public static class StreamHelpers
     /// <returns></returns>
     public static int FetchWord(this Stream stream)
     {
-        byte[] wordBytes = new byte[2];
         var byte1 = stream.ReadByte();
         if (byte1 < 0)
             return -1;

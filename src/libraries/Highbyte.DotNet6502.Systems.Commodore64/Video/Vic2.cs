@@ -336,7 +336,7 @@ public class Vic2
     {
         var ram = c64.RAM;
         var romData = c64.ROMData;
-        var chargen = romData[C64Config.CHARGEN_ROM_NAME];
+        var chargen = romData[C64SystemConfig.CHARGEN_ROM_NAME];
 
         // Vic2 can use 4 different banks of 16KB of memory each. They map into C64 RAM or Chargen ROM depending on bank.
         var vic2Mem = new Memory(memorySize: 16 * 1024, numberOfConfigurations: 4, mapToDefaultRAM: false);
