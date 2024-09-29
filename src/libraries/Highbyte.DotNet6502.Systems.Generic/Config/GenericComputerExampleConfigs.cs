@@ -53,7 +53,7 @@ public static class GenericComputerExampleConfigs
                 {
                     KeyPressedAddress = 0xd030,
                     KeyDownAddress = 0xd031,
-                    KeyReleasedAddress = 0xd031,
+                    KeyReleasedAddress = 0xd032,
                 }
             }
         });
@@ -94,7 +94,7 @@ public static class GenericComputerExampleConfigs
                 {
                     KeyPressedAddress = 0xd030,
                     KeyDownAddress = 0xd031,
-                    KeyReleasedAddress = 0xd031,
+                    KeyReleasedAddress = 0xd032,
                 }
             }
         });
@@ -129,7 +129,7 @@ public static class GenericComputerExampleConfigs
                 {
                     KeyPressedAddress = 0xd030,
                     KeyDownAddress = 0xd031,
-                    KeyReleasedAddress = 0xd031,
+                    KeyReleasedAddress = 0xd032,
                 }
             }
         });
