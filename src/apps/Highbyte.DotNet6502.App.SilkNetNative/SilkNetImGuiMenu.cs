@@ -100,7 +100,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         ImGui.Text("Variant: ");
         ImGui.SameLine();
         ImGui.BeginDisabled(disabled: !(EmulatorState == EmulatorState.Uninitialized));
-        ImGui.PushItemWidth(90);
+        ImGui.PushItemWidth(120);
         if (ImGui.Combo("##configVariant", ref _selectedSystemConfigurationVariantItem, _silkNetHostApp.AllSelectedSystemConfigurationVariants.ToArray(), _silkNetHostApp.AllSelectedSystemConfigurationVariants.Count))
         {
             _silkNetHostApp.SelectSystemConfigurationVariant(SelectedSystemConfigurationVariant).Wait();

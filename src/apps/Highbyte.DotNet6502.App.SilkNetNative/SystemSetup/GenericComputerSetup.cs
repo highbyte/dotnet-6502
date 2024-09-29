@@ -16,7 +16,7 @@ public class GenericComputerSetup : ISystemConfigurer<SilkNetRenderContextContai
 
     public Task<List<string>> GetConfigurationVariants(IHostSystemConfig hostSystemConfig)
     {
-        var examplePrograms = ((GenericComputerHostConfig)hostSystemConfig).SystemConfig.ExamplePrograms.Keys.ToList();
+        var examplePrograms = ((GenericComputerHostConfig)hostSystemConfig).SystemConfig.ExamplePrograms.Keys.OrderByDescending(x => x).ToList();
         return Task.FromResult(examplePrograms);
     }
 

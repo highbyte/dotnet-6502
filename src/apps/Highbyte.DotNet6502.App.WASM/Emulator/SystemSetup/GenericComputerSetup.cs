@@ -6,7 +6,6 @@ using Highbyte.DotNet6502.Impl.Skia.Generic.Video;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
-using Microsoft.AspNetCore.WebUtilities;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
@@ -16,7 +15,7 @@ public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetI
 
     public Task<List<string>> GetConfigurationVariants(IHostSystemConfig hostSystemConfig)
     {
-        var examplePrograms = ((GenericComputerHostConfig)hostSystemConfig).SystemConfig.ExamplePrograms.Keys.ToList();
+        var examplePrograms = ((GenericComputerHostConfig)hostSystemConfig).SystemConfig.ExamplePrograms.Keys.OrderByDescending(x => x).ToList();
         return Task.FromResult(examplePrograms);
     }
 
