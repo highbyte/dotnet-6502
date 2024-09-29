@@ -143,6 +143,8 @@ public class SystemConfigurerTests
 
     public class TestHostSystemConfig : IHostSystemConfig
     {
+        public bool TestIsValid = true;
+
         private TestSystemConfig _systemConfig;
         ISystemConfig IHostSystemConfig.SystemConfig => _systemConfig;
 
@@ -168,7 +170,7 @@ public class SystemConfigurerTests
         public bool IsValid(out List<string> validationErrors)
         {
             validationErrors = new();
-            return validationErrors.Count == 0;
+            return TestIsValid;
         }
     }
 

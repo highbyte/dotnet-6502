@@ -190,16 +190,14 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     public async Task<bool> IsValidConfig(string systemName, string configurationVariant)
     {
         var hostSystemConfig = await GetHostSystemConfig(systemName);
-        // TODO: Check hostSystemConfig.IsValid() instead of hostSystemConfig.SystemConfig.IsValid()
-        bool isValid = hostSystemConfig.SystemConfig.IsValid(out List<string> _);
+        bool isValid = hostSystemConfig.IsValid(out List<string> _);
         return isValid;
     }
 
     public async Task<(bool, List<string> validationErrors)> IsValidConfigWithDetails(string systemName, string configurationVariant)
     {
         var hostSystemConfig = await GetHostSystemConfig(systemName);
-        // TODO: Check hostSystemConfig.IsValid() instead of hostSystemConfig.SystemConfig.IsValid()
-        bool isValid = hostSystemConfig.SystemConfig.IsValid(out List<string> validationErrors);
+        bool isValid = hostSystemConfig.IsValid(out List<string> validationErrors);
         return (isValid, validationErrors);
     }
 

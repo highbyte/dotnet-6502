@@ -78,8 +78,7 @@ public class HostAppTests
         var testApp = BuildTestHostApp();
         await testApp.SelectSystem(TestSystem.SystemName);
         var hostSystemConfig = (TestHostSystemConfig)testApp.CurrentHostSystemConfig;
-        // TODO: Test entire hostSystemConfig, not only hostSystemConfig.SystemConfig
-        hostSystemConfig.SystemConfig.TestIsValid = false;
+        hostSystemConfig.TestIsValid = false;
 
         // Act / Assert
         var ex = await Assert.ThrowsAsync<DotNet6502Exception>(async () => await testApp.Start());
