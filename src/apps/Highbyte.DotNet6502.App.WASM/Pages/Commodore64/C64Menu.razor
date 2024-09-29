@@ -110,7 +110,7 @@
 
     private C64SystemConfig _c64SystemConfig => _c64HostConfig.SystemConfig;
     private C64HostConfig _c64HostConfig => (C64HostConfig)Parent.WasmHost.CurrentHostSystemConfig;
-    private C64AspNetInputHandler _c64AspNetInputHandler => (C64AspNetInputHandler)Parent.WasmHost.CurrentSystemRunner.InputHandler;
+    private C64AspNetInputHandler _c64AspNetInputHandler => (C64AspNetInputHandler)Parent.WasmHost.CurrentSystemRunner!.InputHandler;
 
     private ILogger _logger = default!;
     private string _latestFileError = "";
@@ -141,14 +141,10 @@
     {
         get
         {
-            if (_c64SystemConfig == null)
-                return false;
             return _c64SystemConfig?.KeyboardJoystickEnabled ?? false;
         }
         set
         {
-            if (_c64SystemConfig == null)
-                return;
             _c64SystemConfig.KeyboardJoystickEnabled = value;
 
             // If system is running, also make sure to update the joystick setting in the running system
@@ -169,14 +165,10 @@
     {
         get
         {
-            if (_c64SystemConfig == null)
-                return 0;
             return _c64SystemConfig?.KeyboardJoystick ?? 0;
         }
         set
         {
-            if (_c64SystemConfig == null)
-                return;
             _c64SystemConfig.KeyboardJoystick = value;
 
             // If system is running, also make sure to update the joystick setting in the running system
@@ -196,22 +188,16 @@
         {
             if (Parent.WasmHost.EmulatorState != EmulatorState.Running)
                 return false;
-            if (_c64AspNetInputHandler == null)
-                return false;
             return _c64AspNetInputHandler.CodingAssistantEnabled;
         }
         set
         {
             if (Parent.WasmHost.EmulatorState != EmulatorState.Running)
                 return;
-            if (_c64AspNetInputHandler == null)
-                return;
             _c64AspNetInputHandler.CodingAssistantEnabled = value;
             ((C64HostConfig)Parent.WasmHost.CurrentHostSystemConfig).BasicAIAssistantDefaultEnabled = value;
         }
     }
-
-
 
     private readonly Dictionary<string, string> _assemblyExampleFiles = new()
     {
@@ -263,9 +249,6 @@
     /// <returns></returns>
     private async Task OnFilePickerChange(InputFileChangeEventArgs e)
     {
-        if (Parent.WasmHost == null)
-            return;
-
         if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
             return;
 
@@ -322,9 +305,6 @@
     /// <returns></returns>
     private async Task OnBasicFilePickerChange(InputFileChangeEventArgs e)
     {
-        if (Parent.WasmHost == null)
-            return;
-
         if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
             return;
 
@@ -374,8 +354,6 @@
 
     private async Task OnSaveBasicFile(MouseEventArgs mouseEventArgs)
     {
-        if (Parent.WasmHost == null)
-            return;
         if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
             return;
 
@@ -422,7 +400,7 @@
         if (string.IsNullOrEmpty(url))
             return;
 
-        Parent.OnPause(new());
+        await Parent.OnPause(new());
 
         try
         {
@@ -460,7 +438,7 @@
         if (string.IsNullOrEmpty(url))
             return;
 
-        Parent.OnPause(new());
+        await Parent.OnPause(new());
 
         try
         {
