@@ -241,16 +241,11 @@
     [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
     [Parameter] public IHostSystemConfig HostSystemConfig { get; set; } = default!;
+    [Parameter] public string SelectedSystemConfigurationVariant { get; set; } = default!;
 
+    public C64HostConfig C64HostConfig => (C64HostConfig)HostSystemConfig;
     public C64SystemConfig C64SystemConfig => C64HostConfig.SystemConfig;
 
-    public C64HostConfig C64HostConfig
-    {
-        get
-        {
-            return (C64HostConfig)HostSystemConfig;
-        }
-    }
 
     protected override async Task OnInitializedAsync()
     {

@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Toolbelt.Blazor.Gamepad;
 using Highbyte.DotNet6502.Systems.Logging.Console;
 using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.Extensions.Azure;
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
 
@@ -363,8 +364,11 @@ public partial class Index
 
     public async Task ShowConfigUI<T>() where T : IComponent
     {
-        var parameters = new ModalParameters()
-            .Add("HostSystemConfig", _wasmHost.CurrentHostSystemConfig.Clone());
+        var parameters = new ModalParameters
+        {
+            { "HostSystemConfig", _wasmHost.CurrentHostSystemConfig.Clone() },
+            { "SelectedSystemConfigurationVariant", _wasmHost.SelectedSystemConfigurationVariant }
+        };
 
         var result = await Modal.Show<T>("Config", parameters).Result;
 

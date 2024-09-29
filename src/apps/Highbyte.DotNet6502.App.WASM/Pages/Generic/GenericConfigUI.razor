@@ -1,4 +1,5 @@
-﻿@using Highbyte.DotNet6502.Systems.Generic.Config
+﻿@using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup
+@using Highbyte.DotNet6502.Systems.Generic.Config
 @using Highbyte.DotNet6502.Systems;
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index
 @using Highbyte.DotNet6502.Utils;
@@ -7,7 +8,7 @@ General settings
 <div class="table">
     <div class="table-row">
         <div class="table-cell">Load file at start:</div>
-        <div class="table-cell">@GenericComputerConfig.ProgramBinaryFile</div>
+        <div class="table-cell">@_exampleGenericComputerConfig.ProgramBinaryFile</div>
     </div>
 </div>
 
@@ -15,35 +16,35 @@ Memory addresses
 <div class="table">
     <div class="table-row">
         <div class="table-cell twocol">Columns:</div>
-        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.Cols</div>
+        <div class="table-cell twocol">@_exampleGenericComputerConfig.Memory.Screen.Cols</div>
     </div>
     <div class="table-row">
         <div class="table-cell twocol">Rows:</div>
-        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.Rows</div>
+        <div class="table-cell twocol">@_exampleGenericComputerConfig.Memory.Screen.Rows</div>
     </div>
     <div class="table-row">
         <div class="table-cell twocol">Border cols:</div>
-        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.BorderCols</div>
+        <div class="table-cell twocol">@_exampleGenericComputerConfig.Memory.Screen.BorderCols</div>
     </div>
     <div class="table-row">
         <div class="table-cell twocol">Border rows:</div>
-        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.BorderRows</div>
+        <div class="table-cell twocol">@_exampleGenericComputerConfig.Memory.Screen.BorderRows</div>
     </div>
     <div class="table-row">
         <div class="table-cell twocol">ScreenStartAddress:</div>
-        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.ScreenStartAddress.ToHex()</div>
+        <div class="table-cell twocol">@_exampleGenericComputerConfig.Memory.Screen.ScreenStartAddress.ToHex()</div>
     </div>
     <div class="table-row">
         <div class="table-cell twocol">ScreenColorStartAddress:</div>
-        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.ScreenColorStartAddress.ToHex()</div>
+        <div class="table-cell twocol">@_exampleGenericComputerConfig.Memory.Screen.ScreenColorStartAddress.ToHex()</div>
     </div>
     <div class="table-row">
         <div class="table-cell twocol">ScreenBackgroundColorAddress:</div>
-        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.ScreenBackgroundColorAddress.ToHex()</div>
+        <div class="table-cell twocol">@_exampleGenericComputerConfig.Memory.Screen.ScreenBackgroundColorAddress.ToHex()</div>
     </div>
     <div class="table-row">
         <div class="table-cell twocol">ScreenBorderColorAddress:</div>
-        <div class="table-cell twocol">@GenericComputerConfig.Memory.Screen.ScreenBorderColorAddress.ToHex()</div>
+        <div class="table-cell twocol">@_exampleGenericComputerConfig.Memory.Screen.ScreenBorderColorAddress.ToHex()</div>
     </div>
 </div>
 
@@ -59,15 +60,21 @@ Memory addresses
 
     [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
-    [Parameter] public ISystemConfig SystemConfig { get; set; } = default!;
-
     [Parameter] public IHostSystemConfig HostSystemConfig { get; set; } = default!;
+    [Parameter] public string SelectedSystemConfigurationVariant { get; set; } = default!;
 
-    public GenericComputerConfig GenericComputerConfig => (GenericComputerConfig)SystemConfig;
+    public GenericComputerHostConfig GenericComputerHostConfig => (GenericComputerHostConfig)HostSystemConfig;
+    public GenericComputerSystemConfig GenericComputerSystemConfig => GenericComputerHostConfig.SystemConfig;
 
-    protected override void OnInitialized() => BlazoredModal.SetTitle("Generic config");
+    private GenericComputerConfig _exampleGenericComputerConfig = default!;
 
-    private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok((SystemConfig, HostSystemConfig)));
+    protected override void OnInitialized()
+    {
+        BlazoredModal.SetTitle("Generic config");
+        _exampleGenericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(SelectedSystemConfigurationVariant, GenericComputerHostConfig.SystemConfig.ExamplePrograms[SelectedSystemConfigurationVariant]);
+    }
+
+    private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(HostSystemConfig));
     private async Task Cancel() => await BlazoredModal.CloseAsync(ModalResult.Cancel());
 
     private string _validationMessage = "";
