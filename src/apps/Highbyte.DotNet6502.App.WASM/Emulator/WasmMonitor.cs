@@ -190,11 +190,16 @@ public class WasmMonitor : MonitorBase
 
             WriteOutput($"File loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
 
-            // Set PC to start of loaded file.
-            Cpu.PC = loadedAtAddress;
-
             if (_lastTriggeredAfterLoadCallback != null)
+            {
+                // If _lastTriggeredAfterLoadCallback is set, don't assume binary (do not set Program Counter to load address automatically).
                 _lastTriggeredAfterLoadCallback(this, loadedAtAddress, fileLength);
+            }
+            else
+            {
+                // Assume binary is loaded, set Program Counter to loaded address.
+                Cpu.PC = loadedAtAddress;
+            }
 
             DisplayStatus();
 
