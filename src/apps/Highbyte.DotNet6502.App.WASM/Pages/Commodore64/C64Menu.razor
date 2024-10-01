@@ -16,12 +16,12 @@
         <button @onclick="PasteText" disabled=@OnPasteTextDisabled>Paste</button>
         <p></p>
         <label for="BasicCodingAssistant">AI Basic (F9)</label>
-        <input id="BasicCodingAssistant" type="checkbox" @bind="@BasicCodingAssistantEnabled" disabled="@BasicCodingAssistantDisabled"/>
+        <input id="BasicCodingAssistant" type="checkbox" @bind="@BasicCodingAssistantEnabled" disabled="@BasicCodingAssistantDisabled"/> <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md" target="_blank">(info)</a> 
 
         <p>&nbsp;</p>
         <details>
             <summary>Load/Save</summary>
-            <p>Load/save files</p>
+            <p>Load/save files <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_COMPATIBLE_PRG.md" target="_blank">(info)</a></p>
             <button @onclick="OnBasicFilePicker" disabled=@OnBasicFilePickerDisabled>Load Basic .prg</button>
             <button @onclick="OnSaveBasicFile" disabled=@OnBasicFilePickerDisabled>Save Basic .prg</button>
             <button @onclick="OnFilePicker" disabled=@OnFilePickerDisabled>Load & start binary .prg</button>

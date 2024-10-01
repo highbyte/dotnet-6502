@@ -19,11 +19,15 @@ Current capabilities
     - Timers
     - IRQ
 - Limited SID 6581 audio chip support
-- WASM and native app UI
+- WASM and native (SilkNet and SadConsole) app UI:s
 
 # C64 programs that works and how to run them
 
 See [`SYSTEMS_C64_COMPATIBLE_PRG.md`](SYSTEMS_C64_COMPATIBLE_PRG.md)
+
+## C64 Basic AI code completion
+
+See [SYSTEMS_C64_AI_CODE_COMPLETION.md`](SYSTEMS_C64_AI_CODE_COMPLETION.md)
 
 # Implementations
 
