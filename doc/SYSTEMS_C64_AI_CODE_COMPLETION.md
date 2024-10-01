@@ -7,20 +7,23 @@ There is an experimental AI-powered Basic coding assistant available in the [C64
 ## Background
 
 > [!NOTE] 
-> If AI capabilities like GitHub CoPilot were available in the 80s, how could a similar experience be had in the existing Commodore 64 Basic editor? That was the thought experiment that lead to the idea of trying to integrate a AI coding assistant inside the C64 Basic (with existing 80s UI limitations).
+> If AI capabilities like GitHub CoPilot were available in the 80s, how could a similar experience be had in the then existing Commodore 64 Basic editor? That was the thought experiment that lead to the idea of trying to integrate a AI coding assistant inside the C64 Basic (with existing 80s UI limitations).
 
 ## Use
 > [!IMPORTANT]  
-> Assuming the coding assistant is [configured](Configure) correctly, the assistant can be used when writing Commodore 64 Basic programs inside the emulator.
+> Assuming the coding assistant is [configured](#configure) correctly, the assistant can be used when writing Commodore 64 Basic programs inside the emulator.
 
 ### Turn on/off
-Use the checkbox `AI Basic` or F9 to toggle assistant on/off.
+Use the `AI Basic` checkbox or F9 to toggle assistant on/off.
 
 ### Code suggestions
 - After a Basic line number has been entered, and then stopped typing for a short while, a suggestion for the rest of the line will be displayed in grey text. 
 - Accept the suggestion by pressing `Tab`.
 - Ignore the suggestion by pressing any other key.
-- Suggestions only appear after you've entered a line number (that is not followed by `REM` comment statement).
+
+> [!INFORMATION]
+> - Suggestions only appear after you've entered a line number (that is not followed by `REM` comment statement).
+> - If no suggestion appears, it's either because the AI backend could not give any suggestion, or that the request to the AI backend failed for some reason (verify that the connection works via Config UI, see [here](#configure)).
 
 > [!TIP]
 > You can enter a Basic line with a comment (`REM` statement) and explain what you want the program to do. Then when you start typing the next several lines it will continuously suggest new code that will build up your program based on the comment.
@@ -48,9 +51,9 @@ There is a _temporarily available_ AI backend that won't require your own OpenAI
 If you have your own OpenAI API key, you can connect to OpenAI directly. 
 
 > [!CAUTION]
-> Use this at your own risk. Using your own OpenAI API key will use your own credit grants. It's a good idea to set a limit in OpenAI for how much can be used.
-> You can inspect the network traffic from browser (F12 devtool) to see which (and how many) requests are done to OpenAI.
-> The OpenAI API key is only stored in your browser local storage, it's not stored on any server. This can be verified in the browser with the F12 devtool.
+> - Use this at your own risk. Using your own OpenAI API key will use your own credit grants. It's a good idea to set a limit in OpenAI for how much can be used.
+> - You can inspect the network traffic from browser (F12 devtool) to see which (and how many) requests are done to OpenAI.
+> - The OpenAI API key is only stored in your browser local storage, it's not stored on any server. This can be verified in the browser with the F12 devtool.
 
 - Set `AI backend type` to `OpenAI`.
 - Set `OpenAI API key` to the OpenAI API key. 
