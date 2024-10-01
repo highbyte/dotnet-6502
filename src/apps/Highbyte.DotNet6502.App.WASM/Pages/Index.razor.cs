@@ -42,9 +42,9 @@ public partial class Index
     {
         if (_wasmHost == null)
             return true;
-        var audioSuppoted = await _wasmHost.IsAudioSupported();
-        return (!audioSuppoted) ||
-                (CurrentEmulatorState == EmulatorState.Running || CurrentEmulatorState == EmulatorState.Paused);
+        var audioSupported = await _wasmHost.IsAudioSupported();
+        var audioToggleDisabled = !audioSupported || CurrentEmulatorState == EmulatorState.Running || CurrentEmulatorState == EmulatorState.Paused;
+        return audioToggleDisabled;
     }
 
     private async Task<bool> IsAudioEnabled()
@@ -53,10 +53,13 @@ public partial class Index
             return false;
         return await _wasmHost.IsAudioEnabled();
     }
+
     private async Task SetAudioEnabled(bool enabled)
     {
-        if (_wasmHost != null)
-            await _wasmHost.SetAudioEnabled(enabled);
+        if (_wasmHost == null)
+            return;
+        await _wasmHost.SetAudioEnabled(enabled);
+        await this.StateHasChangedCustom();
     }
 
     private float _masterVolumePercent = 10.0f;
@@ -190,7 +193,7 @@ public partial class Index
         Initialized = true;
     }
 
-    private new async Task StateHasChanged()
+    private async Task StateHasChangedCustom()
     {
         await SetElementVisibleState();
 
@@ -269,7 +272,7 @@ public partial class Index
         await Task.CompletedTask;
         await Task.Yield();
 
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
 
     private async Task SelectedSystemChanged(string systemName)
@@ -295,7 +298,7 @@ public partial class Index
 
         await UpdateCanvasSize();
 
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
 
     private async Task UpdateCanvasSize()
@@ -315,7 +318,7 @@ public partial class Index
             _windowHeightStyle = $"{screen.VisibleHeight * Scale}px";
         }
 
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
 
     private async Task SetConfigValidationMessage()
@@ -403,7 +406,7 @@ public partial class Index
 
         await SetConfigValidationMessage();
         await UpdateCanvasSize();
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
 
 
@@ -441,25 +444,25 @@ public partial class Index
     {
         _debugVisible = visible;
         await FocusEmulator();
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
     public async Task ToggleDebugState()
     {
         _debugVisible = !_debugVisible;
         await FocusEmulator();
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
-    public async Task UpdateDebug(string debug)
+    public void UpdateDebug(string debug)
     {
         _debugString = debug;
-        await this.StateHasChanged();
+        this.StateHasChanged();
     }
 
     public async Task SetStatsState(bool visible)
     {
         _statsVisible = visible;
         await FocusEmulator();
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
     public async Task ToggleStatsState()
     {
@@ -467,12 +470,12 @@ public partial class Index
         // Assume to only run when emulator is running
         _wasmHost.CurrentRunningSystem!.InstrumentationEnabled = _statsVisible;
         await FocusEmulator();
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
-    public async Task UpdateStats(string stats)
+    public void UpdateStats(string stats)
     {
         _statsString = stats;
-        await this.StateHasChanged();
+        this.StateHasChanged();
     }
 
     public async Task SetMonitorState(bool visible)
@@ -482,7 +485,7 @@ public partial class Index
             await FocusMonitor();
         else
             await FocusEmulator();
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
 
     //private void BeforeUnload_BeforeUnloadHandler(object? sender, blazejewicz.Blazor.BeforeUnload.BeforeUnloadArgs e)
@@ -586,29 +589,29 @@ public partial class Index
 
         await FocusEmulator();
 
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
 
     public async Task OnPause(MouseEventArgs mouseEventArgs)
     {
         _wasmHost!.Pause();
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
 
     public async Task OnReset(MouseEventArgs mouseEventArgs)
     {
         await _wasmHost!.Reset();
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
     public async Task OnStop(MouseEventArgs mouseEventArgs)
     {
         _wasmHost!.Stop();
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
     private async Task OnMonitorToggle(MouseEventArgs mouseEventArgs)
     {
         _wasmHost!.ToggleMonitor();
-        await this.StateHasChanged();
+        await this.StateHasChangedCustom();
     }
 
     private async Task OnStatsToggle(MouseEventArgs mouseEventArgs)

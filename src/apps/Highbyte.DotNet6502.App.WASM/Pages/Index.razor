@@ -53,7 +53,9 @@
 
                     <label for="audioEnabled">Audio enabled (experimental)</label>
                     @* <input id="audioEnabled" type="checkbox" @bind="@IsAudioEnabled()" disabled=@AudioEnabledToggleDisabled() /> *@
-                    <input id="audioEnabled" type="checkbox" value="@IsAudioEnabled()" onchange="@((bool e) => SetAudioEnabled(e))" disabled=@AudioEnabledToggleDisabled() />
+                    @* <input id="audioEnabled" type="checkbox" value="@IsAudioEnabled()" onchange="@(async (bool e) => await SetAudioEnabled(e))" disabled=@AudioEnabledToggleDisabled().Result /> *@
+                    @* <input id="audioEnabled" type="checkbox" value="@IsAudioEnabled()" onchange="@(async (ChangeEventArgs e) => await SetAudioEnabled(e))" disabled=@AudioEnabledToggleDisabled().Result /> *@
+                    <InputCheckbox id="audioEnabled" @bind-Value:get="this.IsAudioEnabled().Result" @bind-Value:set="(async (bool e) => await SetAudioEnabled(e))" disabled=@AudioEnabledToggleDisabled().Result />
 
                     <div class="audioVolumeStyle">
                         Volume:
