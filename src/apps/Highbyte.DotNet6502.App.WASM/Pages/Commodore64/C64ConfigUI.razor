@@ -11,7 +11,7 @@
 @using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index
 
-<details id="roms">
+<details id="roms_section">
     <summary>ROMs</summary>
     <p>The C64 system requires the following types of ROM files: <strong>Kernal, Basic, and Character generator</strong>.</p>
     <p>- Use existing C64 ROM files on your computer, or download them to your computer from the internet.</p>
@@ -29,10 +29,10 @@
             }
             else
             {
-                <p>@LoadedROMCount/@_maxC64AllowedRomFiles ROMs loaded</p>
+                <p>@LoadedROMCount/@_requiredNumberOfRomFiles ROMs loaded</p>
                 @if (!string.IsNullOrEmpty(_validationMessage))
                 {
-                    <p>@_validationMessage</p>
+                    <p class="validation-message">@_validationMessage</p>
                 }
                 <ul>
                     @foreach (var romName in C64SystemConfig.RequiredROMs)
@@ -43,7 +43,7 @@
                         }
                         else
                         {
-                            <li>@romName - not loaded</li>
+                            <li class="validation-message" style="font-weight: bold;">@romName - not loaded</li>
                         }
                     }
                 </ul>
@@ -67,8 +67,8 @@
     </div>
 </details>
 
-<details>
-    <summary>General settings</summary>
+<details id="video_audio_section">
+    <summary>Video/audio</summary>
     <div class="row">
         <div class="column">
             @* <h4>General settings</h4> *@
@@ -94,7 +94,7 @@
 
 </details>
 
-<details>
+<details id="joystick_section">
     <summary>Joystick settings</summary>
     <div class="row">
         <div class="column">
@@ -174,8 +174,7 @@
 
 </details>
 
-
-<details>
+<details id="basic_ai_section">
     <summary>Basic AI coding assistant</summary>
 
     <div class="row">
@@ -183,7 +182,7 @@
             @* <h4>Basic AI coding assistant</h4> *@
             <div class="table">
                 <div class="table-row">
-                    <div class="table-cell table-cell-fixed-width-medium twocol">Assistant type</div>
+                    <div class="table-cell table-cell-fixed-width-medium twocol">AI backend type</div>
                     <div class="table-cell table-cell-fixed-width-large twocol">
                         <select value="@C64HostConfig.CodeSuggestionBackendType" @onchange="OnCodeSuggestionBackendTypeChanged">
                             @foreach (var codeSuggestionBackendType in Enum.GetNames<CodeSuggestionBackendTypeEnum>().ToArray())
@@ -245,8 +244,11 @@
 <button @onclick="Cancel">Cancel</button>
 
 @code {
+
     [Inject]
     public ILocalStorageService LocalStorage { get; set; } = default!;
+    [Inject]
+    public IJSRuntime Js { get; set; } = default!;
 
     [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
@@ -261,6 +263,10 @@
         _openAIApiConfig = await C64Setup.GetOpenAIConfig(LocalStorage);
         _customEndpointAIApiConfig = await C64Setup.GetCustomAIEndpointConfig(LocalStorage);
         BlazoredModal.SetTitle("C64 config");
+
+        // If ROMs aren't loadad, expand HTML details element for roms (setting property open to true)
+        if (LoadedROMCount < _requiredNumberOfRomFiles)
+            await Js.InvokeVoidAsync("setOpen", "roms_section", true);
     }
 
     private void UnloadROMs() => C64HostConfig.SystemConfig.ROMs = new List<ROM>();
@@ -287,7 +293,7 @@
 
     private bool _isLoadingC64Roms;
     private long _maxC64RomFileSize = 1024 * 8;
-    private int _maxC64AllowedRomFiles = 3;
+    private int _requiredNumberOfRomFiles = 3;
 
     private Dictionary<string, byte[]> GetLoadedRoms()
     {
@@ -313,7 +319,7 @@
         _isLoadingC64Roms = true;
         _validationMessage = "";
 
-        foreach (var file in e.GetMultipleFiles(_maxC64AllowedRomFiles))
+        foreach (var file in e.GetMultipleFiles(_requiredNumberOfRomFiles))
         {
             try
             {

@@ -12,69 +12,79 @@
 {
     <div class="system-command systemCommandsStyle@(SYSTEM_NAME)">
 
-        <label for="Joystick">Joystick</label>
-        <select value="@_c64HostConfig.InputConfig.CurrentJoystick" @onchange="OnSelectJoystickChanged">
-            @foreach (var joystick in _c64HostConfig.InputConfig.AvailableJoysticks.ToArray())
-            {
-                <option value="@joystick"> @joystick </option>
-            }
-        </select>
-        
-        <p></p>
-        <label for="JoystickKeyboardEnabled">Joystick Keyboard</label>
-        <input id="JoystickKeyboardEnabled" type="checkbox" @bind="@JoystickKeyboardEnabled" />
-        <select value="@KeyboardJoystick" @onchange="OnSelectKeyboardJoystickChanged" disabled=@SelectKeyboardJoystickDisabled>
-            @foreach (var joystick in _c64HostConfig.InputConfig.AvailableJoysticks.ToArray())
-            {
-                <option value="@joystick"> @joystick </option>
-            }
-        </select>
-
-        <p>Load/save files</p>
-        <button @onclick="OnBasicFilePicker" disabled=@OnBasicFilePickerDisabled>Load Basic .prg</button>
-        <button @onclick="OnSaveBasicFile" disabled=@OnBasicFilePickerDisabled>Save Basic .prg</button>
-        <button @onclick="OnFilePicker" disabled=@OnFilePickerDisabled>Load & start binary .prg</button>
-
-        <p>Assembly example files</p>
-        <div>
-            <select value="@SelectedAssemblyExample" @onchange="OnAssemblyExampleChanged" disabled=@OnFilePickerDisabled>
-                @foreach (var exampleFileKey in _assemblyExampleFiles.Keys)
-                {
-                    <option value="@_assemblyExampleFiles[exampleFileKey]"> @exampleFileKey </option>
-                }
-            </select>
-            <button @onclick="OnLoadAssemblyExample" disabled=@OnFilePickerDisabled>Load & start</button>
-        </div>
-
-        <p>Basic example files</p>
-        <div>
-            <select value="@SelectedBasicExample" @onchange="OnBasicExampleChanged" disabled=@OnFilePickerDisabled>
-                @foreach (var exampleFileKey in _basicExampleFiles.Keys)
-                {
-                    <option value="@_basicExampleFiles[exampleFileKey]"> @exampleFileKey </option>
-                }
-            </select>
-            <button @onclick="OnLoadBasicExample" disabled=@OnFilePickerDisabled>Load</button>
-        </div>
-
-        <p>Misc.</p>
         <button @onclick="CopyBasicSourceCode" disabled=@OnCopySourceCodeDisabled>Copy</button>
         <button @onclick="PasteText" disabled=@OnPasteTextDisabled>Paste</button>
         <p></p>
         <label for="BasicCodingAssistant">AI Basic (F9)</label>
         <input id="BasicCodingAssistant" type="checkbox" @bind="@BasicCodingAssistantEnabled" disabled="@BasicCodingAssistantDisabled"/>
 
+        <p>&nbsp;</p>
+        <details>
+            <summary>Load/Save</summary>
+            <p>Load/save files</p>
+            <button @onclick="OnBasicFilePicker" disabled=@OnBasicFilePickerDisabled>Load Basic .prg</button>
+            <button @onclick="OnSaveBasicFile" disabled=@OnBasicFilePickerDisabled>Save Basic .prg</button>
+            <button @onclick="OnFilePicker" disabled=@OnFilePickerDisabled>Load & start binary .prg</button>
+
+            <p>Assembly example files</p>
+            <div>
+                <select value="@SelectedAssemblyExample" @onchange="OnAssemblyExampleChanged" disabled=@OnFilePickerDisabled>
+                    @foreach (var exampleFileKey in _assemblyExampleFiles.Keys)
+                    {
+                        <option value="@_assemblyExampleFiles[exampleFileKey]"> @exampleFileKey </option>
+                    }
+                </select>
+                <button @onclick="OnLoadAssemblyExample" disabled=@OnFilePickerDisabled>Load & start</button>
+            </div>
+
+            <p>Basic example files</p>
+            <div>
+                <select value="@SelectedBasicExample" @onchange="OnBasicExampleChanged" disabled=@OnFilePickerDisabled>
+                    @foreach (var exampleFileKey in _basicExampleFiles.Keys)
+                    {
+                        <option value="@_basicExampleFiles[exampleFileKey]"> @exampleFileKey </option>
+                    }
+                </select>
+                <button @onclick="OnLoadBasicExample" disabled=@OnFilePickerDisabled>Load</button>
+            </div>
+
+            <div class="validation-message">
+                <span>@_latestFileError</span>
+            </div>
+        </details>
+
+        <p>&nbsp;</p>
+        <details id="conf_section">
+            <summary>Configuration</summary>
+
+            <label for="Joystick">Active joystick</label>
+            <select value="@_c64HostConfig.InputConfig.CurrentJoystick" @onchange="OnSelectJoystickChanged">
+                @foreach (var joystick in _c64HostConfig.InputConfig.AvailableJoysticks.ToArray())
+                {
+                    <option value="@joystick"> @joystick </option>
+                }
+            </select>
+        
+            <label for="JoystickKeyboardEnabled">Joystick Keyboard</label>
+            <input id="JoystickKeyboardEnabled" type="checkbox" @bind="@JoystickKeyboardEnabled" />
+            <select value="@KeyboardJoystick" @onchange="OnSelectKeyboardJoystickChanged" disabled=@SelectKeyboardJoystickDisabled>
+                @foreach (var joystick in _c64HostConfig.InputConfig.AvailableJoysticks.ToArray())
+                {
+                    <option value="@joystick"> @joystick </option>
+                }
+            </select>
+
+            <div class="system-config systemConfigStyle@(SYSTEM_NAME)">
+                <button @onclick="ShowConfigUI" class="@(_c64HostConfig.IsValid(out _) ? "": "validation-message")" disabled=@ShowConfigDisabled>C64 Config</button>
+            </div>
+
+        </details>
+
+
     </div>
 
-    <div class="validation-message">
-        <span>@_latestFileError</span>
-    </div>
 
     <div class="system-help systemHelpStyle@(SYSTEM_NAME)">
-    </div>
-
-    <div class="system-config systemConfigStyle@(SYSTEM_NAME)">
-        <button @onclick="ShowConfigUI" disabled=@ShowConfigDisabled>C64 Config</button>
     </div>
 
     <style>
@@ -116,10 +126,23 @@
     private string _latestFileError = "";
     private string SYSTEM_NAME = C64.SystemName;
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // If config isn't valid, expand HTML details element for conf (setting property open to true)
+        if (firstRender)
+        {
+            if (!_c64HostConfig.IsValid(out _))
+            {
+                await Js.InvokeVoidAsync("setOpen", "conf_section", true);
+            }
+        }
+    }
+
     protected override void OnInitialized()
     {
         _logger = LoggerFactory.CreateLogger<C64Menu>();
         _logger.LogDebug("OnInitializedAsync() was called");
+
     }
 
     private void OnSelectJoystickChanged(ChangeEventArgs e)

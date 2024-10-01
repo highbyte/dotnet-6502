@@ -64,6 +64,12 @@
             anchorElement.remove();
             URL.revokeObjectURL(url);
         }
+
+        window.setOpen = (id, open) => {
+            var element = document.getElementById(id);
+            element.open = open;
+        }
+
     </script>
 
     <script>
