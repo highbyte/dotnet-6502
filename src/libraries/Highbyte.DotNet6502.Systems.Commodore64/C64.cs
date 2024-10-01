@@ -476,7 +476,6 @@ public class C64 : ISystem, ISystemMonitor
     private List<KeyValuePair<string, Func<string>>> BuildDebugInfo()
     {
         List<KeyValuePair<string, Func<string>>> debugInfoList = [
-            new ("Cursor col,row", () => $"{Mem[0xd3].ToString()},{Mem[0xd6].ToString()}"),
             new ("Current Basic line #", () =>
             {
                 // Address 0x39: Current BASIC line number.
@@ -491,8 +490,22 @@ public class C64 : ISystem, ISystemMonitor
                     _ => "Unknown"
                 };
             }),
+            new ("Cursor col,row", () =>
+            {
+                // Check that the are not in Basic run mode. If not, skip returning current screen line (only relevant when in direct mode).
+                var currentBasicLineNumber = Mem.FetchWord(0x39);
+                if (currentBasicLineNumber <0xf9ff)
+                    return string.Empty;
+
+                return $"{Mem[0xd3].ToString()},{Mem[0xd6].ToString()}";
+            }),
             new ("Current screen line", () =>
             {
+                // Check that the are not in Basic run mode. If not, skip returning current screen line (only relevant when in direct mode).
+                var currentBasicLineNumber = Mem.FetchWord(0x39);
+                if (currentBasicLineNumber <0xf9ff)
+                    return string.Empty;
+
                 // Address 0xd1/0xd2: Pointer to current line in screen memory.
                 var screenMemLineStart = Mem.FetchWord(0xd1);
                 var screenLineBytes = Mem.ReadData(screenMemLineStart, 40);
