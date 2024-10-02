@@ -8,6 +8,17 @@ public class ApiConfig
 {
     public string? ApiKey { get; set; }
     public string? DeploymentName { get; set; }
+    public string EndpointString
+    {
+        get
+        {
+            return Endpoint?.ToString() ?? string.Empty;
+        }
+        set
+        {
+            Endpoint = string.IsNullOrWhiteSpace(value) ? null : new Uri(value);
+        }
+    }
     public Uri? Endpoint { get; set; }
     public bool SelfHosted { get; set; }
 

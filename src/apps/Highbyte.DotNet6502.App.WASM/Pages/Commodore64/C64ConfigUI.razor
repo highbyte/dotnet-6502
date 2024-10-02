@@ -208,17 +208,17 @@
                 @if (@C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.SelfHostedOpenAICompatible)
                 {
                     <div class="table-row">
-                        <div class="table-cell table-cell-fixed-width-medium twocol">Self-hosted OpenAI compatible endpoint (ex: Ollama on http://localhost:11434/api)</div>
+                        <div class="table-cell table-cell-fixed-width-medium twocol">Self-hosted OpenAI compatible endpoint</div>
                         <div class="table-cell table-cell-fixed-width-large twocol">
                             @if (_selfHostedOpenAICompatibleAIApiConfig != null)
                             {
-                                @* <InputText TValue="string" @bind-Value:get="this._selfHostedOpenAICompatibleAIApiConfig.Endpoint.ToString()" @bind-Value:set="((string e) => this._selfHostedOpenAICompatibleAIApiConfig.Endpoint = new Uri(e))" style="width: inherit" /> *@
-                            }                            
+                                <InputText @ref="_selfHostedOpenAICompatibleEndpointInputText" @bind-Value="_selfHostedOpenAICompatibleAIApiConfig.EndpointString" style="width: inherit" />
+                            }
                         </div>
                     </div>
 
                     <div class="table-row">
-                        <div class="table-cell table-cell-fixed-width-medium twocol">Model name (ex: stable-code:3b-code-q4_0)</div>
+                        <div class="table-cell table-cell-fixed-width-medium twocol">Model name</div>
                         <div class="table-cell table-cell-fixed-width-large twocol">
                             @if (_selfHostedOpenAICompatibleAIApiConfig != null)
                             {

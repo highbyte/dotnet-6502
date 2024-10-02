@@ -1,5 +1,6 @@
 // Based on https://github.com/dotnet/smartcomponents
 
+using System.Net;
 using System.Runtime.InteropServices;
 using Azure;
 using Azure.AI.OpenAI;
@@ -72,7 +73,13 @@ public class OpenAIInferenceBackend(ApiConfig apiConfig)
     {
         if (apiConfig.SelfHosted)
         {
-            var transport = new SelfHostedLlmTransport(apiConfig.Endpoint!);
+            //var transport = new SelfHostedLlmTransport(apiConfig.Endpoint!);
+
+            var httpClientHandler = new HttpClientHandler();
+            var disableActivityHandler = new DisableActivityHandler(httpClientHandler);
+            var httpClient = new HttpClient(disableActivityHandler);
+            var transport = new SelfHostedLlmTransport(apiConfig.Endpoint!, httpClient);
+
             return new OpenAIClient(apiConfig.ApiKey, new() { Transport = transport });
         }
         else if (apiConfig.Endpoint is null)

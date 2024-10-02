@@ -15,7 +15,7 @@ Only give predictions for which you have an EXTREMELY high confidence that the u
 Do not make up new information. If you're not sure, just reply with NO_PREDICTION.
 
 RULES:
-1. Reply with OK:,then in square brackets (with not preceeding space) the predicted text, then END_INSERTION, and no other output.
+1. Reply with OK:,then in square brackets [] (without preceeding space) the predicted text, then END_INSERTION, and no other output.
 2. If there isn't enough information to predict any words that the user would type next, just reply with the word NO_PREDICTION.
 3. NEVER invent new information. If you can't be sure what the user is about to type, ALWAYS stop the prediction with END_INSERTION.");
 
@@ -51,8 +51,15 @@ RULES:
     {
         var chatOptions = BuildPrompt(config, textBefore, textAfter);
         var response = await inference.GetChatResponseAsync(chatOptions);
-        if (response.Length > 5 && response.StartsWith("OK:[", StringComparison.Ordinal))
+
+        if (response.Length > 5 &&
+            (response.StartsWith("OK:[", StringComparison.Ordinal)
+            || response.StartsWith("OK: [", StringComparison.Ordinal)))
         {
+            // Some tested Ollama models respons starts with "OK: [" , some with "OK:[" (even though the prompt doesn't have a space)
+            if (response.StartsWith("OK: [", StringComparison.Ordinal))
+                response = response.Replace("OK: [", "OK:[");
+
             // Avoid returning multiple sentences as it's unlikely to avoid inventing some new train of thought.
             var trimAfter = response.IndexOfAny(['.', '?', '!']);
             if (trimAfter > 0 && response.Length > trimAfter + 1 && response[trimAfter + 1] == ' ')
