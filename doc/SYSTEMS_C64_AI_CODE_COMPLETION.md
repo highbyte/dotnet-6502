@@ -59,7 +59,7 @@ If you have your own OpenAI API key, you can connect to OpenAI directly.
 - Set `OpenAI API key` to the OpenAI API key. 
 - Press `Test` to verify that OpenAI API key works against OpenAI API.
 
-#### AI backend type: `LocalOpenAICompatible`
+#### AI backend type: `SelfHostedOpenAICompatible`
 TODO
 
 #### AI backend type: `None`

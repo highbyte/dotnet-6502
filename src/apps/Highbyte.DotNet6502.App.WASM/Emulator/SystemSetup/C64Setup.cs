@@ -208,6 +208,11 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
                 var openAIApiConfig = await GetOpenAIConfig(localStorageService);
                 codeSuggestion = new OpenAICodeSuggestion(openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
             }
+            else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.SelfHostedOpenAICompatible)
+            {
+                var openAIApiConfig = await GetSelfHostedOpenAICompatibleConfig(localStorageService);
+                codeSuggestion = new OpenAICodeSuggestion(openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+            }
             else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
             {
                 var customAIEndpointConfig = await GetCustomAIEndpointConfig(localStorageService);
@@ -255,12 +260,40 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         return apiConfig;
     }
 
+    public static async Task<ApiConfig> GetSelfHostedOpenAICompatibleConfig(ILocalStorageService localStorageService)
+    {
+        var apiKey = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:ApiKey");
+        var deploymentName = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:DeploymentName");
+        if (string.IsNullOrEmpty(deploymentName))
+            deploymentName = "stable-code:3b-code-q4_0"; // Default to a Ollama model that is optimized for code completion
+        var endpoint = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:Endpoint");
+        if (string.IsNullOrEmpty(endpoint))
+            endpoint = "http://localhost:11434/api"; // Default to local Ollama 
+        Uri.TryCreate(endpoint, UriKind.Absolute, out var endPointUri);
+
+        var apiConfig = new ApiConfig()
+        {
+            ApiKey = apiKey,    // Optional for Self-hosted model.
+            DeploymentName = deploymentName, // AI model name (ex: stable-code:3b-code-q4_0)
+            Endpoint = endPointUri,     // Self-hosted OpenAI API compatible endpoint (for example Ollama)
+            SelfHosted = true // Set to true to use self-hosted OpenAI API compatible endpoint.
+        };
+        return apiConfig;
+    }
+
+
     public static async Task SaveOpenAICodingAssistantConfigToLocalStorage(ILocalStorageService localStorageService, ApiConfig apiConfig)
     {
         await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:ApiKey", apiConfig.ApiKey);
         await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:DeploymentName", apiConfig.DeploymentName);
         await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:Endpoint", apiConfig.Endpoint != null ? apiConfig.Endpoint.OriginalString : "");
-        await localStorageService.SetItemAsync($"{ApiConfig.CONFIG_SECTION}:SelfHosted", apiConfig.SelfHosted);
+    }
+
+    public static async Task SaveSelfHostedOpenAICompatibleCodingAssistantConfigToLocalStorage(ILocalStorageService localStorageService, ApiConfig apiConfig)
+    {
+        await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:ApiKey", !string.IsNullOrEmpty(apiConfig.ApiKey) ? apiConfig.ApiKey : string.Empty);
+        await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:DeploymentName", !string.IsNullOrEmpty(apiConfig.DeploymentName) ? apiConfig.DeploymentName : string.Empty);
+        await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:Endpoint", apiConfig.Endpoint != null ? apiConfig.Endpoint.OriginalString : "");
     }
 
     public static async Task<CustomAIEndpointConfig> GetCustomAIEndpointConfig(ILocalStorageService localStorageService)

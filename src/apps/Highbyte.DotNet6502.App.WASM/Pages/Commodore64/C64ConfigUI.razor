@@ -204,6 +204,40 @@
                         </div>
                     </div>
                 }
+
+                @if (@C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.SelfHostedOpenAICompatible)
+                {
+                    <div class="table-row">
+                        <div class="table-cell table-cell-fixed-width-medium twocol">Self-hosted OpenAI compatible endpoint (ex: Ollama on http://localhost:11434/api)</div>
+                        <div class="table-cell table-cell-fixed-width-large twocol">
+                            @if (_selfHostedOpenAICompatibleAIApiConfig != null)
+                            {
+                                @* <InputText TValue="string" @bind-Value:get="this._selfHostedOpenAICompatibleAIApiConfig.Endpoint.ToString()" @bind-Value:set="((string e) => this._selfHostedOpenAICompatibleAIApiConfig.Endpoint = new Uri(e))" style="width: inherit" /> *@
+                            }                            
+                        </div>
+                    </div>
+
+                    <div class="table-row">
+                        <div class="table-cell table-cell-fixed-width-medium twocol">Model name (ex: stable-code:3b-code-q4_0)</div>
+                        <div class="table-cell table-cell-fixed-width-large twocol">
+                            @if (_selfHostedOpenAICompatibleAIApiConfig != null)
+                            {
+                                <InputText @ref="_selfHostedOpenAICompatibleModelNameInputText" @bind-Value="_selfHostedOpenAICompatibleAIApiConfig.DeploymentName" style="width: inherit" />
+                            }
+                       </div>
+                    </div>
+
+                    <div class="table-row">
+                        <div class="table-cell table-cell-fixed-width-medium twocol">Self-hosted API key (optional)</div>
+                        <div class="table-cell table-cell-fixed-width-large twocol">
+                            @if (_selfHostedOpenAICompatibleAIApiConfig != null)
+                            {
+                                <InputText @ref="_selfHostedOpenAICompatibleApiKeyInputText" @bind-Value="_selfHostedOpenAICompatibleAIApiConfig.ApiKey" style="width: inherit" />
+                            }
+                        </div>
+                    </div>
+                }
+
                 @if (@C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
                 {
                     <div class="table-row">
@@ -226,15 +260,19 @@
                         </div>
                     </div>
                 }
-                <div class="table-row">
-                    <div class="table-cell table-cell-fixed-width-medium twocol"><button @onclick="TestAIAssistantEndpoint">Test</button></div>
-                    <div class="table-cell twocol" style="word-break: break-word">
-                        @if (!string.IsNullOrEmpty(_aiBackendValidationMessage))
-                        {
-                            @_aiBackendValidationMessage
-                        }
+
+                @if (@C64HostConfig.CodeSuggestionBackendType != CodeSuggestionBackendTypeEnum.None)
+                {
+                    <div class="table-row">
+                        <div class="table-cell table-cell-fixed-width-medium twocol"><button @onclick="TestAIAssistantEndpoint">Test</button></div>
+                        <div class="table-cell twocol" style="word-break: break-word">
+                            @if (!string.IsNullOrEmpty(_aiBackendValidationMessage))
+                            {
+                                @_aiBackendValidationMessage
+                            }
+                        </div>
                     </div>
-                </div>
+                }
             </div>
         </div>
     </div>
@@ -261,6 +299,7 @@
     protected override async Task OnInitializedAsync()
     {
         _openAIApiConfig = await C64Setup.GetOpenAIConfig(LocalStorage);
+        _selfHostedOpenAICompatibleAIApiConfig = await C64Setup.GetSelfHostedOpenAICompatibleConfig(LocalStorage);
         _customEndpointAIApiConfig = await C64Setup.GetCustomAIEndpointConfig(LocalStorage);
         BlazoredModal.SetTitle("C64 config");
 
@@ -274,6 +313,11 @@
     private ApiConfig _openAIApiConfig = default!;
     private InputText _openAIApiKeyInputText = default!;
 
+    private ApiConfig _selfHostedOpenAICompatibleAIApiConfig = default!;
+    private InputText _selfHostedOpenAICompatibleEndpointInputText = default!;
+    private InputText _selfHostedOpenAICompatibleModelNameInputText = default!;
+    private InputText _selfHostedOpenAICompatibleApiKeyInputText = default!;
+
     private CustomAIEndpointConfig _customEndpointAIApiConfig = default!;
     private InputText _customEndpointAIApiKeyInputText = default!;
 
@@ -282,6 +326,10 @@
         if (C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
         {
             await C64Setup.SaveOpenAICodingAssistantConfigToLocalStorage(LocalStorage, _openAIApiConfig);
+        }
+        if (C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.SelfHostedOpenAICompatible)
+        {
+            await C64Setup.SaveSelfHostedOpenAICompatibleCodingAssistantConfigToLocalStorage(LocalStorage, _selfHostedOpenAICompatibleAIApiConfig);
         }
         else if (C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
         {
@@ -387,6 +435,10 @@
         {
             codeSuggestion = new OpenAICodeSuggestion(_openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
         }
+        else if(C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.SelfHostedOpenAICompatible)
+        {
+            codeSuggestion = new OpenAICodeSuggestion(_selfHostedOpenAICompatibleAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+        }        
         else if(C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
         {
             codeSuggestion = new CustomAIEndpointCodeSuggestion(_customEndpointAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);

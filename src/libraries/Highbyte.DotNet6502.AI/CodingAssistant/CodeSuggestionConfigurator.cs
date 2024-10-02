@@ -17,6 +17,7 @@ public static class CodeSuggestionConfigurator
             {
                 CodeSuggestionBackendTypeEnum.OpenAI => new OpenAICodeSuggestion(configuration, programmingLanguage),
                 CodeSuggestionBackendTypeEnum.CustomEndpoint => new CustomAIEndpointCodeSuggestion(configuration, programmingLanguage),
+                CodeSuggestionBackendTypeEnum.SelfHostedOpenAICompatible => new OpenAICodeSuggestion(configuration, programmingLanguage),
                 CodeSuggestionBackendTypeEnum.None => new NoCodeSuggestion(),
                 _ => throw new NotImplementedException($"CodeSuggestionBackendType '{codeSuggestionBackendType}' is not implemented.")
             };

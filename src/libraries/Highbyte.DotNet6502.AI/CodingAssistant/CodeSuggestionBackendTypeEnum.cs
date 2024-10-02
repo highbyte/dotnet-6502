@@ -7,5 +7,6 @@ public enum CodeSuggestionBackendTypeEnum
 {
     None,
     OpenAI,
+    SelfHostedOpenAICompatible,
     CustomEndpoint
 }

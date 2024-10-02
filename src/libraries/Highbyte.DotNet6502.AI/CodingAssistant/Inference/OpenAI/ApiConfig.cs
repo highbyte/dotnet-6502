@@ -12,6 +12,7 @@ public class ApiConfig
     public bool SelfHosted { get; set; }
 
     public const string CONFIG_SECTION = "CodingAssistant:OpenAI";
+    public const string CONFIG_SECTION_SELF_HOSTED = "CodingAssistant:SelfHostedOpenAICompatible";
 
     public ApiConfig()
     {
