@@ -108,7 +108,7 @@ public class C64BasicTokenParser
                 break;
         }
 
-        if (addNewLineAfterLastCharacter)
+        if (sb.Length > 0 && addNewLineAfterLastCharacter)
             sb.AppendLine();
 
         return sb.ToString();
