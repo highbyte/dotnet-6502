@@ -1,4 +1,3 @@
-using Highbyte.DotNet6502.AI.CodingAssistant.Inference;
 using Microsoft.Extensions.Configuration;
 
 namespace Highbyte.DotNet6502.AI.CodingAssistant;
@@ -9,7 +8,7 @@ public static class CodeSuggestionConfigurator
         CodeSuggestionBackendTypeEnum codeSuggestionBackendType,
         IConfiguration configuration,
         string programmingLanguage,
-        List<ChatMessage> examples,
+        string additionalSystemInstruction,
         bool defaultToNoneIdConfigError = false)
     {
         ICodeSuggestion codeSuggestion;
@@ -17,8 +16,8 @@ public static class CodeSuggestionConfigurator
         {
             codeSuggestion = codeSuggestionBackendType switch
             {
-                CodeSuggestionBackendTypeEnum.OpenAI => new OpenAICodeSuggestion(configuration, programmingLanguage, examples ?? new()),
-                CodeSuggestionBackendTypeEnum.SelfHostedOpenAICompatible => new OpenAICodeSuggestion(configuration, programmingLanguage, examples ?? new()),
+                CodeSuggestionBackendTypeEnum.OpenAI => OpenAICodeSuggestion.CreateOpenAICodeSuggestionForOpenAI(configuration, programmingLanguage, additionalSystemInstruction),
+                CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama => OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(configuration, programmingLanguage, additionalSystemInstruction),
                 CodeSuggestionBackendTypeEnum.CustomEndpoint => new CustomAIEndpointCodeSuggestion(configuration, programmingLanguage),
                 CodeSuggestionBackendTypeEnum.None => new NoCodeSuggestion(),
                 _ => throw new NotImplementedException($"CodeSuggestionBackendType '{codeSuggestionBackendType}' is not implemented.")

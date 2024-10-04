@@ -11,21 +11,30 @@ public class OpenAICodeSuggestion : ICodeSuggestion
     private readonly CodeCompletionConfig _codeCompletionConfig;
     private readonly CodeCompletionInference _codeCompletionInference;
 
-    public OpenAICodeSuggestion(IConfiguration configuration, string programmingLanguage, List<ChatMessage> examples)
-        : this(new ApiConfig(configuration), programmingLanguage, examples)
+    // OpenAI
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForOpenAI(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction = "")
+    => CreateOpenAICodeSuggestionForOpenAI(new ApiConfig(configuration, selfHosted: false), programmingLanguage, additionalSystemInstruction);
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForOpenAI(ApiConfig apiConfig, string programmingLanguage, string additionalSystemInstruction)
     {
+        var codeCompletionConfig = CodeSuggestionSystemInstructions.GetOpenAICodeCompletionConfig(programmingLanguage, additionalSystemInstruction);
+        return new OpenAICodeSuggestion(apiConfig, codeCompletionConfig);
     }
 
-    public OpenAICodeSuggestion(ApiConfig apiConfig, string programmingLanguage, List<ChatMessage> examples)
+    // CodeLlama via self-hosted OpenAI compatible API (Ollama)
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForCodeLlama(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction)
+            => CreateOpenAICodeSuggestionForCodeLlama(new ApiConfig(configuration, selfHosted: true), programmingLanguage, additionalSystemInstruction);
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForCodeLlama(ApiConfig apiConfig, string programmingLanguage, string additionalSystemInstruction)
+    {
+        var codeCompletionConfig = CodeSuggestionSystemInstructions.GetCodeLlamaCodeCompletionConfig(programmingLanguage, additionalSystemInstruction);
+        return new OpenAICodeSuggestion(apiConfig, codeCompletionConfig);
+    }
+
+    private OpenAICodeSuggestion(ApiConfig apiConfig, CodeCompletionConfig codeCompletionConfig)
     {
         _isAvailable = true;
         _lastError = null;
         _inferenceBackend = new OpenAIInferenceBackend(apiConfig);
-
-        // Workaround for examples seemingly messing up OpenAI inference, but is required for local Ollama models?
-        List<ChatMessage> usingExamples = apiConfig.SelfHosted ? examples : new();
-
-        _codeCompletionConfig = new CodeCompletionConfig { ProgrammingLanguage = programmingLanguage, Examples = usingExamples };
+        _codeCompletionConfig = codeCompletionConfig;
         _codeCompletionInference = new CodeCompletionInference();
     }
 

@@ -59,8 +59,20 @@ If you have your own OpenAI API key, you can connect to OpenAI directly.
 - Set `OpenAI API key` to the OpenAI API key. 
 - Press `Test` to verify that OpenAI API key works against OpenAI API.
 
-#### AI backend type: `SelfHostedOpenAICompatible`
-TODO
+#### AI backend type: `OpenAISelfHostedCodeLlama`
+If you host your own AI model with [Ollama](https://ollama.com/), you can use a local `CodeLlama-code` model as source for the C64 Basic AI assistant.
+
+> [!IMPORTANT]  
+> - With Ollama installed, download a CodeLlama-code model for example `codellama:13b-code` or `codellama:7b-code`. The larger the model the better, as long as your machine can handle it. Other types of models (non CodeLlama-code) may not work.
+>   - Ex. download model: `ollama pull codellama:13b-code`
+> - Make sure Ollama (or any proxy in front of it) has configured [CORS Settings](https://medium.com/dcoderai/how-to-handle-cors-settings-in-ollama-a-comprehensive-guide-ee2a5a1beef0) to allow requests from the site running the WebAssembly version of the Emulator (or all *).
+
+- Set `AI backend type` to `OpenAISelfHostedCodeLlama`.
+- Set `Self-hosted OpenAI compatible endpoint (Ollama)` to the self-hosted endpoint. The default is `http://localhost:11434/api`
+- Set `Model name` to a locally installed CodeLlama-code model, for example `codellama:13b-code` or `codellama:7b-code`. Other non CodeLlama-code models may not work.
+- Optionally set `Self-hosted API key (optional)` if a API key is required to access the self-hosted endpoint (for example if Open WebUI is used as a proxy in front of Ollama endpoint).
+- Press `Test` to verify that OpenAI API key works against OpenAI API.
+
 
 #### AI backend type: `None`
 If you want to disable the coding assistant.
@@ -76,11 +88,11 @@ Using OpenAI:
 - `CodingAssistantType:OpenAI:ApiKey`: Your own OpenAI API key
 - `CodingAssistantType:OpenAI:DeploymentName`: The OpenAI model (default: `gpt-4o`)
 
-Using self-hosted OpenAI API compatible LLM (such as Ollama):
-- `CodingAssistantType:OpenAI:CodingAssistantType`: `OpenAI`
-- `CodingAssistantType:OpenAI:SelfHosted`: `true`
-- `CodingAssistantType:OpenAI:EndPoint`: The local HTTP endpoint (ex: http://localhost:11434/api)
-- `CodingAssistantType:OpenAI:DeploymentName`: The local model name (ex: llama3.1:8b)
+Using self-hosted OpenAI API compatible LLM (Ollama with CodeLlama-code model):
+- `CodingAssistantType:OpenAISelfHostedCodeLlama:CodingAssistantType`: `OpenAI`
+- `CodingAssistantType:OpenAISelfHostedCodeLlama:EndPoint`: The local Ollama HTTP endpoint (ex: `http://localhost:11434/api`)
+- `CodingAssistantType:OpenAISelfHostedCodeLlama:DeploymentName`: A local CodeLlama-code model (ex: `codellama:13b-code` or `codellama:7b-code`.)
+- `CodingAssistantType:OpenAISelfHostedCodeLlama:ApiKey`: Optional. May be required if Open WebUI proxy is in front of Ollama.
 
 Using custom AI backend:
 TODO

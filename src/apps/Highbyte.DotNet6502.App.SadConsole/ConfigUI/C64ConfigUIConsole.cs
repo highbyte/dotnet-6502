@@ -161,7 +161,7 @@ public class C64ConfigUIConsole : Window
         {
             try
             {
-                var codeSuggestionBackend = CodeSuggestionConfigurator.CreateCodeSuggestion(C64HostConfig.CodeSuggestionBackendType, _configuration, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_EXAMPLE_MESSAGES);
+                var codeSuggestionBackend = CodeSuggestionConfigurator.CreateCodeSuggestion(C64HostConfig.CodeSuggestionBackendType, _configuration, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
                 codingAssistantInfoLabel.DisplayText = "Testing...";
                 codingAssistantInfoLabel.TextColor = Color.White;
 
@@ -188,11 +188,10 @@ public class C64ConfigUIConsole : Window
         var openBasicAIHelpURLButton = new Button("Help")
         {
             Name = "openBasicAIHelpURLButton",
-            Position = (codingAssistantTestButton.Bounds.MaxExtentX + 9, codingAssistantTestButton.Position.Y),
+            Position = (codingAssistantTestButton.Bounds.MaxExtentX, codingAssistantInfoLabel.Position.Y),
         };
         openBasicAIHelpURLButton.Click += (s, e) => OpenURL("https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md");
         Controls.Add(openBasicAIHelpURLButton);
-
 
 
         //ComboBox codingAssistantComboBox = new ComboBox(codingAssistantLabel.Bounds.MaxExtentX + 1, codingAssistantLabel.Position.Y, 6, Enum.GetNames<CodeSuggestionBackendTypeEnum>().ToArray())

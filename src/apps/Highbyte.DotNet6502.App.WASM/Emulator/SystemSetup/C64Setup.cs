@@ -206,12 +206,12 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
             if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
             {
                 var openAIApiConfig = await GetOpenAIConfig(localStorageService);
-                codeSuggestion = new OpenAICodeSuggestion(openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_EXAMPLE_MESSAGES);
+                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForOpenAI(openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
             }
-            else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.SelfHostedOpenAICompatible)
+            else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama)
             {
-                var openAIApiConfig = await GetSelfHostedOpenAICompatibleConfig(localStorageService);
-                codeSuggestion = new OpenAICodeSuggestion(openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_EXAMPLE_MESSAGES);
+                var openAIApiConfig = await GetOpenAISelfHostedCodeLlamaConfig(localStorageService);
+                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
             }
             else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
             {
@@ -260,14 +260,14 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         return apiConfig;
     }
 
-    public static async Task<ApiConfig> GetSelfHostedOpenAICompatibleConfig(ILocalStorageService localStorageService)
+    public static async Task<ApiConfig> GetOpenAISelfHostedCodeLlamaConfig(ILocalStorageService localStorageService)
     {
         var apiKey = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:ApiKey");
         if (apiKey == string.Empty)
             apiKey = null;
         var deploymentName = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:DeploymentName");
         if (string.IsNullOrEmpty(deploymentName))
-            deploymentName = "codellama:13b"; // Default to a Ollama model that (sometimes) works... TODO: Improve parsing of response (which does not seem as exact as from OpenAI models), or improve prompt with examples?
+            deploymentName = "codellama:13b-code"; // Default to a Ollama CodeLlama-code model that seems to work OK (but not as good as OpenAI gpt-4o)
         var endpoint = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:Endpoint");
         if (string.IsNullOrEmpty(endpoint))
             endpoint = "http://localhost:11434/api"; // Default to local Ollama 
@@ -276,7 +276,7 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         var apiConfig = new ApiConfig()
         {
             ApiKey = apiKey,    // Optional for Self-hosted model.
-            DeploymentName = deploymentName, // AI model name (ex: stable-code:3b-code-q4_0)
+            DeploymentName = deploymentName, // AI CodeLlama-code model name (ex: codellama:13b-code, codellama:7b-code)
             Endpoint = endPointUri,     // Self-hosted OpenAI API compatible endpoint (for example Ollama)
             SelfHosted = true // Set to true to use self-hosted OpenAI API compatible endpoint.
         };
@@ -308,7 +308,7 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         //await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:Endpoint", apiConfig.Endpoint != null ? apiConfig.Endpoint.OriginalString : string.Empty);
     }
 
-    public static async Task SaveSelfHostedOpenAICompatibleCodingAssistantConfigToLocalStorage(ILocalStorageService localStorageService, ApiConfig apiConfig)
+    public static async Task SaveOpenAISelfHostedCodeLlamaCodingAssistantConfigToLocalStorage(ILocalStorageService localStorageService, ApiConfig apiConfig)
     {
         await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:ApiKey", apiConfig.ApiKey ?? string.Empty);
         await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:DeploymentName", apiConfig.DeploymentName ?? string.Empty);

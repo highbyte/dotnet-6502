@@ -1,7 +1,6 @@
 using System.Text;
 using System.Timers;
 using Highbyte.DotNet6502.AI.CodingAssistant;
-using Highbyte.DotNet6502.AI.CodingAssistant.Inference;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Utils;
@@ -46,28 +45,14 @@ public class C64BasicCodingAssistant
 
     private readonly System.Timers.Timer _delayAfterKeyPress = new System.Timers.Timer(DelayAfterKeyPressMilliseconds);
 
+    // Inference configuration
     public const string CODE_COMPLETION_LANGUAGE_DESCRIPTION = "Commodore 64 Basic";
-
-    // Examples for inference
-    public static List<ChatMessage> CODE_COMPLETION_EXAMPLE_MESSAGES = [
-            new(ChatMessageRole.User, "20 rem ask user for name\n30 ^^^"),
-            new(ChatMessageRole.Assistant, "OK:[input \"What's your name?\"; n$]END_INSERTION"),
-
-            new(ChatMessageRole.User, "10 print^^^"),
-            new(ChatMessageRole.Assistant, "OK:[\"hello world!\"]END_INSERTION"),
-
-            new(ChatMessageRole.User, "10 print \"he^^^"),
-            new(ChatMessageRole.Assistant, "OK:[llo world!\"]END_INSERTION"),
-
-            new(ChatMessageRole.User, "10 print \"Wha^^^ your name?\""),
-            new(ChatMessageRole.Assistant, "OK:[t is]END_INSERTION"),
-
-            new(ChatMessageRole.User, "20 go^^^"),
-            new(ChatMessageRole.Assistant, "OK:[to 10]END_INSERTION"),
-
-            new(ChatMessageRole.User, "30 print \"Hello world!\"\n40 go^^^"),
-            new(ChatMessageRole.Assistant, "OK:[to 30]END_INSERTION"),
-    ];
+    public const string CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION = @"
+RULES:
+1. You know about the Commodore 64 KERNAL IO memory locations for things such as border and background color.
+2. You know about how many colors the Commodore 64 has.
+3. You know about how to manipulate sprites.
+";
 
     public async Task CheckAvailability()
     {

@@ -11,10 +11,6 @@ namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 public class OpenAIInferenceBackend(ApiConfig apiConfig)
     : IInferenceBackend
 {
-    public OpenAIInferenceBackend(IConfiguration configuration) : this(new ApiConfig(configuration))
-    {
-    }
-
     public async Task<string> GetChatResponseAsync(ChatParameters options)
     {
 #if DEBUG
