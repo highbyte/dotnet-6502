@@ -161,7 +161,7 @@ public class C64ConfigUIConsole : Window
         {
             try
             {
-                var codeSuggestionBackend = CodeSuggestionConfigurator.CreateCodeSuggestion(C64HostConfig.CodeSuggestionBackendType, _configuration, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+                var codeSuggestionBackend = CodeSuggestionConfigurator.CreateCodeSuggestion(C64HostConfig.CodeSuggestionBackendType, _configuration, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_EXAMPLE_MESSAGES);
                 codingAssistantInfoLabel.DisplayText = "Testing...";
                 codingAssistantInfoLabel.TextColor = Color.White;
 

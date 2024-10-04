@@ -31,10 +31,15 @@ RULES:
 
         List<ChatMessage> messages =
         [
+            // System instruction
             new(ChatMessageRole.System, systemMessageBuilder.ToString()),
-
-            new(ChatMessageRole.User, @$"USER_TEXT: {textBefore}^^^{textAfter}")
         ];
+
+        // Add examples
+        messages.AddRange(config.Examples);
+
+        // Add user-entered text
+        messages.Add(new(ChatMessageRole.User, @$"{textBefore}^^^{textAfter}"));
 
         return new ChatParameters
         {
