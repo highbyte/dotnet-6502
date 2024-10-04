@@ -501,6 +501,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         _monitorStatusConsole.Disable();
         OnMonitorStateChange(monitorEnabled: false);
     }
+
     public void EnableMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
         _monitorConsole.Enable(execEvaluatorTriggerResult);
@@ -589,17 +590,24 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         //    ToggleLogs();
 
         if (keyboard.IsKeyPressed(Keys.F11))
-            ToggleInfo();
-
-        if (keyboard.IsKeyPressed(Keys.F12) && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
         {
+            keyboard.Clear();
+            ToggleInfo();
+        }
+
+        if (keyboard.IsKeyReleased(Keys.F12) && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
+        {
+            keyboard.Clear();
             ToggleMonitor();
         }
 
-        if (keyboard.IsKeyPressed(Keys.F9) && EmulatorState == EmulatorState.Running)
+        if (keyboard.IsKeyReleased(Keys.F9) && EmulatorState == EmulatorState.Running)
         {
+            keyboard.Clear();
             if (_systemMenuConsole is C64MenuConsole c64MenuConsole)
+            {
                 await c64MenuConsole.ToggleBasicAIAssistant();
+            }
         }
     }
 }

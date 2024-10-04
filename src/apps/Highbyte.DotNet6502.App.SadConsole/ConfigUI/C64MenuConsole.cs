@@ -303,7 +303,7 @@ public class C64MenuConsole : ControlsConsole
     public async Task ToggleBasicAIAssistant()
     {
         var c64aiBasicAssistantCheckbox = Controls["c64aiBasicAssistantCheckbox"] as CheckBox;
-        await SetBasicAIAssistant(!c64aiBasicAssistantCheckbox.IsSelected);
+        c64aiBasicAssistantCheckbox.IsSelected = !c64aiBasicAssistantCheckbox.IsSelected;
     }
 
     private async Task SetBasicAIAssistant(bool enabled)

@@ -140,13 +140,15 @@ public class C64ConfigUIConsole : Window
         // AI coding assistant selection
         var codingAssistantLabel = CreateLabel("Basic AI assistant: ", 1, romDownloadLinkTextBox.Bounds.MaxExtentY + 3);
         var codingAssistantValue = CreateLabel($"{C64HostConfig.CodeSuggestionBackendType}", codingAssistantLabel.Bounds.MaxExtentX + 1, codingAssistantLabel.Position.Y);
+        codingAssistantValue.TextColor = Controls.GetThemeColors().White;
 
         var codingAssistantInfoLabel = new Label(Width - 10)
         {
             Name = "codingAssistantInfoLabel",
             Position = (1, codingAssistantValue.Bounds.MaxExtentY + 1),
             IsEnabled = false,
-            DisplayText = "Set AI assistant in appsetting.json",
+            DisplayText = "Set AI assistant in appsetting.json.",
+            TextColor = Controls.GetThemeColors().Appearance_ControlDisabled.Foreground
         };
         Controls.Add(codingAssistantInfoLabel);
 
@@ -159,7 +161,10 @@ public class C64ConfigUIConsole : Window
         {
             try
             {
-                var codeSuggestionBackend = CodeSuggestionConfigurator.CreateCodeSuggestion(C64HostConfig.CodeSuggestionBackendType, _configuration, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+                var codeSuggestionBackend = CodeSuggestionConfigurator.CreateCodeSuggestion(C64HostConfig.CodeSuggestionBackendType, _configuration, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
+                codingAssistantInfoLabel.DisplayText = "Testing...";
+                codingAssistantInfoLabel.TextColor = Color.White;
+
                 await codeSuggestionBackend.CheckAvailability();
                 if (codeSuggestionBackend.IsAvailable)
                 {
@@ -179,6 +184,14 @@ public class C64ConfigUIConsole : Window
             }
         };
         Controls.Add(codingAssistantTestButton);
+
+        var openBasicAIHelpURLButton = new Button("Help")
+        {
+            Name = "openBasicAIHelpURLButton",
+            Position = (codingAssistantTestButton.Bounds.MaxExtentX, codingAssistantInfoLabel.Position.Y),
+        };
+        openBasicAIHelpURLButton.Click += (s, e) => OpenURL("https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md");
+        Controls.Add(openBasicAIHelpURLButton);
 
 
         //ComboBox codingAssistantComboBox = new ComboBox(codingAssistantLabel.Bounds.MaxExtentX + 1, codingAssistantLabel.Position.Y, 6, Enum.GetNames<CodeSuggestionBackendTypeEnum>().ToArray())

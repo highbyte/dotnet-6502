@@ -8,6 +8,7 @@ public static class CodeSuggestionConfigurator
         CodeSuggestionBackendTypeEnum codeSuggestionBackendType,
         IConfiguration configuration,
         string programmingLanguage,
+        string additionalSystemInstruction,
         bool defaultToNoneIdConfigError = false)
     {
         ICodeSuggestion codeSuggestion;
@@ -15,7 +16,8 @@ public static class CodeSuggestionConfigurator
         {
             codeSuggestion = codeSuggestionBackendType switch
             {
-                CodeSuggestionBackendTypeEnum.OpenAI => new OpenAICodeSuggestion(configuration, programmingLanguage),
+                CodeSuggestionBackendTypeEnum.OpenAI => OpenAICodeSuggestion.CreateOpenAICodeSuggestionForOpenAI(configuration, programmingLanguage, additionalSystemInstruction),
+                CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama => OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(configuration, programmingLanguage, additionalSystemInstruction),
                 CodeSuggestionBackendTypeEnum.CustomEndpoint => new CustomAIEndpointCodeSuggestion(configuration, programmingLanguage),
                 CodeSuggestionBackendTypeEnum.None => new NoCodeSuggestion(),
                 _ => throw new NotImplementedException($"CodeSuggestionBackendType '{codeSuggestionBackendType}' is not implemented.")

@@ -11,17 +11,30 @@ public class OpenAICodeSuggestion : ICodeSuggestion
     private readonly CodeCompletionConfig _codeCompletionConfig;
     private readonly CodeCompletionInference _codeCompletionInference;
 
-    public OpenAICodeSuggestion(IConfiguration configuration, string programmingLanguage)
-        : this(new ApiConfig(configuration), programmingLanguage)
+    // OpenAI
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForOpenAI(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction = "")
+    => CreateOpenAICodeSuggestionForOpenAI(new ApiConfig(configuration, selfHosted: false), programmingLanguage, additionalSystemInstruction);
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForOpenAI(ApiConfig apiConfig, string programmingLanguage, string additionalSystemInstruction)
     {
+        var codeCompletionConfig = CodeSuggestionSystemInstructions.GetOpenAICodeCompletionConfig(programmingLanguage, additionalSystemInstruction);
+        return new OpenAICodeSuggestion(apiConfig, codeCompletionConfig);
     }
 
-    public OpenAICodeSuggestion(ApiConfig apiConfig, string programmingLanguage)
+    // CodeLlama via self-hosted OpenAI compatible API (Ollama)
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForCodeLlama(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction)
+            => CreateOpenAICodeSuggestionForCodeLlama(new ApiConfig(configuration, selfHosted: true), programmingLanguage, additionalSystemInstruction);
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForCodeLlama(ApiConfig apiConfig, string programmingLanguage, string additionalSystemInstruction)
+    {
+        var codeCompletionConfig = CodeSuggestionSystemInstructions.GetCodeLlamaCodeCompletionConfig(programmingLanguage, additionalSystemInstruction);
+        return new OpenAICodeSuggestion(apiConfig, codeCompletionConfig);
+    }
+
+    private OpenAICodeSuggestion(ApiConfig apiConfig, CodeCompletionConfig codeCompletionConfig)
     {
         _isAvailable = true;
         _lastError = null;
         _inferenceBackend = new OpenAIInferenceBackend(apiConfig);
-        _codeCompletionConfig = new CodeCompletionConfig { ProgrammingLanguage = programmingLanguage };
+        _codeCompletionConfig = codeCompletionConfig;
         _codeCompletionInference = new CodeCompletionInference();
     }
 

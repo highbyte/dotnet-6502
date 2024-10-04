@@ -45,7 +45,14 @@ public class C64BasicCodingAssistant
 
     private readonly System.Timers.Timer _delayAfterKeyPress = new System.Timers.Timer(DelayAfterKeyPressMilliseconds);
 
+    // Inference configuration
     public const string CODE_COMPLETION_LANGUAGE_DESCRIPTION = "Commodore 64 Basic";
+    public const string CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION = @"
+RULES:
+1. You know about the Commodore 64 KERNAL IO memory locations for things such as border and background color.
+2. You know about how many colors the Commodore 64 has.
+3. You know about how to manipulate sprites.
+";
 
     public async Task CheckAvailability()
     {
@@ -310,11 +317,6 @@ public class C64BasicCodingAssistant
         //    textAfterCursorSb.Append((char)asciiCode);
         //}
 
-        // Hack: If there is nothing after cursor, add a newline to make sure there is something to query AI with
-        if (textAfterCursorSb.Length == 0)
-        {
-            textBeforeCursorSb.AppendLine();
-        }
         //  TODO: Build textAfterCursor to include rest of basic lines
 
         // Set out parameters

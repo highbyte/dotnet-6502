@@ -191,6 +191,14 @@ internal class InfoConsole : ControlsConsole
             CreateLabel("Change text color 9-16", colTab1, row, Controls.ThemeColors.ControlHostForeground);
             CreateLabel("C= + numbers 1-8", colTab2, row, Controls.ThemeColors.ControlHostForeground);
             CreateLabel("LeftCtrl + numbers 1-8", colTab3, row, Controls.ThemeColors.ControlHostForeground);
+            row++;
+            CreateLabel("AI Basic: accept suggestion", colTab1, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("CTRL", colTab2, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("Tab", colTab3, row, Controls.ThemeColors.ControlHostForeground);
+            row++;
+            CreateLabel("AI Basic: ignore suggestion", colTab1, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("Any other key than CTRL", colTab2, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("Any other key than Tab", colTab3, row, Controls.ThemeColors.ControlHostForeground);
 
             Label CreateLabel(string text, int col, int row, Color? textColor = null, string? name = null)
             {

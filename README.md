@@ -34,9 +34,9 @@
 | ----------------------------------- | ----------------------------------- | ----------------------------------- |
 | [<img src="doc/Screenshots/WASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/>](https://highbyte.se/dotnet-6502/app) |  [<img src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" title="SilkNet native app, C64 Bubble Bobble" />](#highbytedotnet6502appsilknetnative) | [<img src="doc/Screenshots/SadConsole_C64_Basic.png" title="SadConsole native app, C64 Basic" />](#highbytedotnet6502appsadconsole) |
 
-| Run 6502 machine code in your own .NET apps | Machine code monitor              | 
-| ----------------------------------- | ----------------------------------- |
-| ![Code integration](doc/Screenshots/Code_integration.png 'Code integration') | ![SilkNet native app, C64 monitor](doc/Screenshots/SilkNetNative_Monitor.png 'SilkNet native app, C64 monitor') |
+| C64 Basic AI code completion | Run 6502 machine code in your own .NET apps | Machine code monitor              | 
+| ----------------------------------- | ----------------------------------- | ----------------------------------- |
+| ![C64 Basic AI code completion](doc/Screenshots/WASM_C64_Basic_AI.png 'C64 Basic AI code completion') | ![Code integration](doc/Screenshots/Code_integration.png 'Code integration') | ![SilkNet native app, C64 monitor](doc/Screenshots/SilkNetNative_Monitor.png 'SilkNet native app, C64 monitor') |
 
 ## Common libraries
 - [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) 
@@ -107,6 +107,9 @@ A console application with a only UI being a machine code monitor.
   - Audio: none
 
 <img align="top" src="doc/Screenshots/ConsoleMonitor.png" width="25%" height="25%" title="Console monitor app" /> 
+
+## C64 Basic AI code completion
+See [here](doc/SYSTEMS_C64_AI_CODE_COMPLETION.md)
 
 # Limitations
 > [!IMPORTANT]

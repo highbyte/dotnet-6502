@@ -13,9 +13,9 @@
 @if(Initialized)
 {
     <div class="grid-container">
-        <div class="header">
+        @* <div class="header">
             <a href="https://github.com/highbyte/dotnet-6502" target="_blank">DotNet 6502</a>
-        </div>
+        </div> *@
         <div class="menu">
             <div id="system-selector" class="command-panel">
                 <div>
@@ -47,26 +47,29 @@
                 <button @onclick="OnMonitorToggle" disabled=@OnStopDisabled>Monitor</button>
                 <button @onclick="OnStatsToggle" disabled=@OnStopDisabled>Stats</button>
 
-                <p></p>
-                <span>Screen scale: <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
+                <details>
+                    <summary>Video/audio</summary>
+                    <span>Screen scale: <InputNumber @bind-Value="Scale" step="0.5" style="width: 40px" disabled=@OnSelectSystemNameDisabled>Scale: </InputNumber></span>
 
-                <p></p>
-                <label for="audioEnabled">Audio enabled (experimental)</label>
-                @* <input id="audioEnabled" type="checkbox" @bind="@IsAudioEnabled()" disabled=@AudioEnabledToggleDisabled() /> *@
-                <input id="audioEnabled" type="checkbox" value="@IsAudioEnabled()"  onchange="@((bool e) => SetAudioEnabled(e))" disabled=@AudioEnabledToggleDisabled() />
+                    <label for="audioEnabled">Audio enabled (experimental)</label>
+                    @* <input id="audioEnabled" type="checkbox" @bind="@IsAudioEnabled()" disabled=@AudioEnabledToggleDisabled() /> *@
+                    @* <input id="audioEnabled" type="checkbox" value="@IsAudioEnabled()" onchange="@(async (bool e) => await SetAudioEnabled(e))" disabled=@AudioEnabledToggleDisabled().Result /> *@
+                    @* <input id="audioEnabled" type="checkbox" value="@IsAudioEnabled()" onchange="@(async (ChangeEventArgs e) => await SetAudioEnabled(e))" disabled=@AudioEnabledToggleDisabled().Result /> *@
+                    <InputCheckbox id="audioEnabled" @bind-Value:get="this.IsAudioEnabled().Result" @bind-Value:set="(async (bool e) => await SetAudioEnabled(e))" disabled=@AudioEnabledToggleDisabled().Result />
 
-                <p></p>
-                <div class="audioVolumeStyle">
-                    Volume:
-                    <input @bind="@MasterVolumePercent" @bind:event="oninput" type="range" id="masterVolume" min="0" max="100" step="0.02" />
-                    @* <input @bind="@MasterVolumePercent" @bind:event="oninput" type="number" min="0" max="100" step="0.02" /> *@
-                </div>
+                    <div class="audioVolumeStyle">
+                        Volume:
+                        <input @bind="@MasterVolumePercent" @bind:event="oninput" type="range" id="masterVolume" min="0" max="100" step="0.02" />
+                        @* <input @bind="@MasterVolumePercent" @bind:event="oninput" type="number" min="0" max="100" step="0.02" /> *@
+                    </div>
+                </details>
             </div>
 
             <div class="command-panel">
                 <h4>@_wasmHost.SelectedSystemName</h4>
                 <C64Menu Parent=this />
                 <GenericMenu Parent=this />
+
                 <div class="validation-message">
                     <span>@_selectedSystemConfigValidationMessage</span>
                 </div>
@@ -109,13 +112,12 @@
                       @onkeyup="OnKeyUp"
                       @onfocus="OnFocus" />
 
-            <div id="canvasUninitialized"
-                 class="canvasUninitializedStyle">
+            <div id="canvasUninitialized" class="canvasUninitializedStyle">
 
-                    <h2>
-                        <img src="images/logo.png" align="middle" style="width:100px;height:100px;" title="DotNet 6502 logo" />
-                        The DotNet 6502 emulator!
-                    </h2>
+                <h2>
+                    <img src="images/logo.png" align="middle" style="width:100px;height:100px;" title="DotNet 6502 logo" />
+                    The <a href="https://github.com/highbyte/dotnet-6502" target="_blank">DotNet 6502</a> emulator!
+                </h2>
 
                 <p>
                     A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502" target="_blank">6502 CPU</a> emulator written in <a href="https://dotnet.microsoft.com/" target="_blank">.NET</a>, rendered with <a href="https://github.com/mono/SkiaSharp" target="_blank">SkiaSharp</a>, compiled to <a href="https://en.wikipedia.org/wiki/WebAssembly" target="_blank">WebAssembly</a> via <a href="https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor" target="_blank">Blazor</a>, running in a browser.

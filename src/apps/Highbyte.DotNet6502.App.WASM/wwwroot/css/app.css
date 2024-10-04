@@ -129,7 +129,7 @@ h4 {
 .grid-container {
     display: inline-grid;
     grid-template-areas:
-        'header     main    right'
+        /*'header     main    right'*/
         'menu       main    right'
         'menu       footer  right'
         'menuFooter footer  right';
@@ -199,7 +199,7 @@ h4 {
     margin-bottom: 30px; 
     font-family: 'Cascadia Code', "Courier New", monospace;
 }
-#canvasUninitialized h2 {
+#canvasUninitialized h2 a {
     color: #f7c346;
 }
 #canvasUninitialized p {

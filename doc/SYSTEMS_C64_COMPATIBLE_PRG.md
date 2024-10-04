@@ -1,6 +1,6 @@
 <h1 align="center">Compatible C64 programs</h1>
 
-A list of applications that seem to work decently with the C64 emulator.
+A list of applications that seem to work decently with the [C64 emulator](SYSTEMS_C64.md).
 
 > **Limitations:**<br>
 > - The C64 emulator currently lacks support for the C64 disk and tape drives. Therefore programs must be loaded from the emulator menu (or monitor) as **.prg** files from the host OS file system. Also, any loaded .prg file that tries to access the C64 disk or tape drive most likely will not work (hang).
