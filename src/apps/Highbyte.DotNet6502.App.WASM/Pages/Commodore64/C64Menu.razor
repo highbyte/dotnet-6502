@@ -149,15 +149,7 @@
     {
         var joystick = int.Parse(e.Value!.ToString()!);
         _c64HostConfig.InputConfig.CurrentJoystick = joystick;
-
         Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
-
-        // If system is running, also make sure to update the joystick setting in the running system
-        if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
-        {
-            C64 c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
-            c64.Cia.Joystick.KeyboardJoystick = joystick;
-        }
     }
 
     private bool JoystickKeyboardEnabled
@@ -169,6 +161,7 @@
         set
         {
             _c64SystemConfig.KeyboardJoystickEnabled = value;
+            Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
 
             // If system is running, also make sure to update the joystick setting in the running system
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
@@ -179,9 +172,10 @@
         }
     }
 
-    private void OnSelectKeyboardJoystickChanged(ChangeEventArgs e)
+    private Task OnSelectKeyboardJoystickChanged(ChangeEventArgs e)
     {
         KeyboardJoystick = int.Parse(e.Value!.ToString()!);
+        return Task.CompletedTask;
     }
 
     private int KeyboardJoystick
@@ -193,6 +187,7 @@
         set
         {
             _c64SystemConfig.KeyboardJoystick = value;
+            Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
 
             // If system is running, also make sure to update the joystick setting in the running system
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)

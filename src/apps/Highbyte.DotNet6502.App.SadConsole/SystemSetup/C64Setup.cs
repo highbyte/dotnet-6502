@@ -63,6 +63,8 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
             C64Model = configurationVariant,
             Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name, // NTSC, NTSC_old, PAL
             AudioEnabled = c64HostSystemConfig.SystemConfig.AudioEnabled,
+            KeyboardJoystickEnabled = c64HostSystemConfig.SystemConfig.KeyboardJoystickEnabled,
+            KeyboardJoystick = c64HostSystemConfig.SystemConfig.KeyboardJoystick,
             ROMs = c64HostSystemConfig.SystemConfig.ROMs,
             ROMDirectory = c64HostSystemConfig.SystemConfig.ROMDirectory,
         };

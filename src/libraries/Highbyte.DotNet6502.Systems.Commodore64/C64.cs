@@ -476,6 +476,14 @@ public class C64 : ISystem, ISystemMonitor
     private List<KeyValuePair<string, Func<string>>> BuildDebugInfo()
     {
         List<KeyValuePair<string, Func<string>>> debugInfoList = [
+            new ("Keyboard joystick enabled", () =>
+            {
+                return Cia.Joystick.KeyboardJoystickEnabled.ToString();
+            }),
+            new ("Keyboard joystick #", () =>
+            {
+                return Cia.Joystick.KeyboardJoystick.ToString();
+            }),
             new ("Current Basic line #", () =>
             {
                 // Address 0x39: Current BASIC line number.

@@ -97,6 +97,8 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
             C64Model = configurationVariant,
             Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name, // NTSC, NTSC_old, PAL
             AudioEnabled = c64HostSystemConfig.SystemConfig.AudioEnabled,
+            KeyboardJoystickEnabled = c64HostSystemConfig.SystemConfig.KeyboardJoystickEnabled,
+            KeyboardJoystick = c64HostSystemConfig.SystemConfig.KeyboardJoystick,
             ROMs = c64HostSystemConfig.SystemConfig.ROMs,
             ROMDirectory = c64HostSystemConfig.SystemConfig.ROMDirectory,
         };
@@ -206,7 +208,7 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
             if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
             {
                 var openAIApiConfig = await GetOpenAIConfig(localStorageService);
-                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForOpenAI(openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
+                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestion(openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
             }
             else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama)
             {
