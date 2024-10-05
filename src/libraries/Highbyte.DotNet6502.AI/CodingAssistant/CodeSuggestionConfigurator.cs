@@ -16,7 +16,7 @@ public static class CodeSuggestionConfigurator
         {
             codeSuggestion = codeSuggestionBackendType switch
             {
-                CodeSuggestionBackendTypeEnum.OpenAI => OpenAICodeSuggestion.CreateOpenAICodeSuggestionForOpenAI(configuration, programmingLanguage, additionalSystemInstruction),
+                CodeSuggestionBackendTypeEnum.OpenAI => OpenAICodeSuggestion.CreateOpenAICodeSuggestion(configuration, programmingLanguage, additionalSystemInstruction),
                 CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama => OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(configuration, programmingLanguage, additionalSystemInstruction),
                 CodeSuggestionBackendTypeEnum.CustomEndpoint => new CustomAIEndpointCodeSuggestion(configuration, programmingLanguage),
                 CodeSuggestionBackendTypeEnum.None => new NoCodeSuggestion(),
