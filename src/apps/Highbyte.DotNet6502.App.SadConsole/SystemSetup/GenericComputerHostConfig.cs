@@ -7,7 +7,7 @@ public class GenericComputerHostConfig : SadConsoleHostSystemConfigBase
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.GenericComputer.SadConsole";
 
-    public GenericComputerSystemConfig SystemConfig
+    public new GenericComputerSystemConfig SystemConfig
     {
         get { return (GenericComputerSystemConfig)base.SystemConfig; }
         set { base.SystemConfig = value; }

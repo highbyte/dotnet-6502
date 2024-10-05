@@ -28,6 +28,7 @@ public class C64Config
     public C64Config()
     {
         // Defaults
+        ROMDirectory = "";
         LoadROMs = true;     // Set false for unit tests
         ROMs = new List<ROM>();
 

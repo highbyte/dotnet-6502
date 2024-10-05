@@ -29,18 +29,15 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     public string SelectedSystemName => _selectedSystemName;
     public HashSet<string> AvailableSystemNames => _systemList.Systems;
 
-
     private string _selectedSystemConfigurationVariant;
     public string SelectedSystemConfigurationVariant => _selectedSystemConfigurationVariant;
     private List<string> _allSelectedSystemConfigurationVariants = new();
     public List<string> AllSelectedSystemConfigurationVariants => _allSelectedSystemConfigurationVariants;
 
-
     private SystemRunner? _systemRunner = null;
     public SystemRunner? CurrentSystemRunner => _systemRunner;
     public ISystem? CurrentRunningSystem => _systemRunner?.System;
     public EmulatorState EmulatorState { get; private set; } = EmulatorState.Uninitialized;
-
 
     private IHostSystemConfig? _currentHostSystemConfig;
 
@@ -82,11 +79,9 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     private ElapsedMillisecondsTimedStatSystem? _inputTime;
     //private ElapsedMillisecondsTimedStatSystem _audioTime;
 
-
     private readonly Instrumentations _instrumentations = new();
     private readonly PerSecondTimedStat _updateFps;
     private readonly PerSecondTimedStat _renderFps;
-
 
     public HostApp(
         string hostName,
@@ -103,7 +98,6 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         if (systemList.Systems.Count == 0)
             throw new DotNet6502Exception("No systems added to system list.");
         _systemList = systemList;
-
 
         //Note: Because selecting a system (incl which variants it has) requires async call,
         //      call SelectSystem(string systemName) after HostApp is created to set the initial system.
@@ -160,11 +154,10 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
         _selectedSystemConfigurationVariant = configurationVariant;
 
-        return ;
+        return;
     }
 
     public virtual void OnAfterSelectSystem() { }
-
 
     public virtual bool OnBeforeStart(ISystem systemAboutToBeStarted)
     {
@@ -261,7 +254,6 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         OnAfterClose();
     }
     public virtual void OnAfterClose() { }
-
 
     public virtual void OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput)
     {
@@ -381,12 +373,5 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
             .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
             .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{InputTimeStatName}-{x.Name}", x.Stat)))
             .ToList();
-    }
-
-    public List<KeyValuePair<string, Func<string>>> GetDebugInfo()
-    {
-        if (_systemRunner == null)
-            return null;
-        return _systemRunner.System.DebugInfo;
     }
 }

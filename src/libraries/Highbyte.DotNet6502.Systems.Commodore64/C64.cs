@@ -57,8 +57,8 @@ public class C64 : ISystem, ISystemMonitor
 
     public bool RememberVic2RegistersPerRasterLine { get; set; } = true;
 
-    public C64BasicTokenParser BasicTokenParser { get; private set; }
-    public C64TextPaste TextPaste { get; private set; }
+    public C64BasicTokenParser BasicTokenParser { get; private set; } = default!;
+    public C64TextPaste TextPaste { get; private set; } = default!;
 
     //public static ROM[] ROMS = new ROM[]
     //{   
@@ -573,5 +573,4 @@ public class C64 : ISystem, ISystemMonitor
     {
         _postInstructionAudioCallback = callback;
     }
-
 }

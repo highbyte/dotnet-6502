@@ -1,6 +1,5 @@
 using Highbyte.DotNet6502.Monitor;
 using SadConsole.Components;
-using SadConsole.UI.Controls;
 using SadRogue.Primitives;
 using Console = SadConsole.Console;
 
@@ -18,9 +17,6 @@ internal class MonitorConsole : Console
     private SadConsoleMonitor _monitor;
     public SadConsoleMonitor Monitor => _monitor;
     private readonly ClassicConsoleKeyboardHandler _keyboardHandlerObject;
-
-    private Label _processorStatusLabel;
-    private List<Label> _sysInfoLabels;
 
     /// <summary>
     /// Console to display the monitor

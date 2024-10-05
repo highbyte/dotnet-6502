@@ -452,7 +452,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
 
     private SilkNetImGuiDebugPanel CreateDebugUI()
     {
-        return new SilkNetImGuiDebugPanel(GetDebugInfo);
+        return new SilkNetImGuiDebugPanel(() => CurrentRunningSystem!.DebugInfo);
     }
 
     private SilkNetImGuiLogsPanel CreateLogsUI(DotNet6502InMemLogStore logStore, DotNet6502InMemLoggerConfiguration logConfig)

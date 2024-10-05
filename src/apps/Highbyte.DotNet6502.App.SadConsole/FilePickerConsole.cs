@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.IO;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 
@@ -166,7 +165,7 @@ public class FilePickerConsole : Window
                     _selectedDirectory = new DirectoryInfo(fileListBox.CurrentFolder);
                     if (_filePickerMode == FilePickerMode.OpenFile || _filePickerMode == FilePickerMode.SaveFile)
                     {
-                        if (_selectedFile != null && _selectedDirectory.FullName != _selectedFile.Directory.FullName)
+                        if (_selectedFile != null && _selectedDirectory.FullName != _selectedFile.Directory!.FullName)
                             _selectedFile = new FileInfo(Path.Combine(_selectedDirectory.FullName, _selectedFile.Name));
                     }
                     else
@@ -176,8 +175,8 @@ public class FilePickerConsole : Window
                         //selectedItemTextBox.IsDirty = true;
                     }
                 }
-
             }
+
             if (e.Item is DirectoryInfo directoryInfo)
             {
                 //Debug.WriteLine($"DirectoryInfo: {directoryInfo.FullName}");
@@ -203,7 +202,7 @@ public class FilePickerConsole : Window
                     return;
 
                 _selectedFile = fileInfo;
-                _selectedDirectory = fileInfo.Directory;
+                _selectedDirectory = fileInfo.Directory!;
 
                 selectedItemTextBox.Text = _selectedFile.Name;
                 selectedItemTextBox.IsDirty = true;

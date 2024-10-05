@@ -244,12 +244,6 @@ public class C64ConfigUIConsole : Window
             Controls.Add(labelTemp);
             return labelTemp;
         }
-        Label CreateLabelValue(string text, int col, int row, string? name = null)
-        {
-            var labelTemp = new Label(text) { Position = new Point(col, row), TextColor = Controls.GetThemeColors().Title, Name = name };
-            Controls.Add(labelTemp);
-            return labelTemp;
-        }
 
         // Force OnIsDirtyChanged event which will set control states (see SetControlStates)
         OnIsDirtyChanged();
@@ -272,7 +266,7 @@ public class C64ConfigUIConsole : Window
         {
             if (window.DialogResult)
             {
-                C64SystemConfig.SetROM(romName, Path.GetFileName(window.SelectedFile.FullName));
+                C64SystemConfig.SetROM(romName, Path.GetFileName(window.SelectedFile!.FullName));
                 IsDirty = true;
             }
         };
@@ -308,15 +302,15 @@ public class C64ConfigUIConsole : Window
         romDirectoryTextBox!.IsDirty = true;
 
         var kernalROMTextBox = Controls["kernalROMTextBox"] as TextBox;
-        kernalROMTextBox!.Text = C64SystemConfig.ROMs.SingleOrDefault(x => x.Name == C64SystemConfig.KERNAL_ROM_NAME).File;
+        kernalROMTextBox!.Text = C64SystemConfig.ROMs.Single(x => x.Name == C64SystemConfig.KERNAL_ROM_NAME).File!;
         kernalROMTextBox!.IsDirty = true;
 
         var basicROMTextBox = Controls["basicROMTextBox"] as TextBox;
-        basicROMTextBox!.Text = C64SystemConfig.ROMs.SingleOrDefault(x => x.Name == C64SystemConfig.BASIC_ROM_NAME).File;
+        basicROMTextBox!.Text = C64SystemConfig.ROMs.Single(x => x.Name == C64SystemConfig.BASIC_ROM_NAME).File!;
         basicROMTextBox!.IsDirty = true;
 
         var chargenROMTextBox = Controls["chargenROMTextBox"] as TextBox;
-        chargenROMTextBox!.Text = C64SystemConfig.ROMs.SingleOrDefault(x => x.Name == C64SystemConfig.CHARGEN_ROM_NAME).File;
+        chargenROMTextBox!.Text = C64SystemConfig.ROMs.Single(x => x.Name == C64SystemConfig.CHARGEN_ROM_NAME).File!;
         chargenROMTextBox!.IsDirty = true;
 
         var codingAssistantTestButton = Controls["codingAssistantTestButton"] as Button;
