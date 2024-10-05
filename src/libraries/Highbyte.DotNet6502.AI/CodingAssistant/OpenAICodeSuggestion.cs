@@ -12,9 +12,9 @@ public class OpenAICodeSuggestion : ICodeSuggestion
     private readonly CodeCompletionInference _codeCompletionInference;
 
     // OpenAI
-    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForOpenAI(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction = "")
-    => CreateOpenAICodeSuggestionForOpenAI(new ApiConfig(configuration, selfHosted: false), programmingLanguage, additionalSystemInstruction);
-    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForOpenAI(ApiConfig apiConfig, string programmingLanguage, string additionalSystemInstruction)
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestion(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction = "")
+    => CreateOpenAICodeSuggestion(new ApiConfig(configuration, selfHosted: false), programmingLanguage, additionalSystemInstruction);
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestion(ApiConfig apiConfig, string programmingLanguage, string additionalSystemInstruction)
     {
         var codeCompletionConfig = CodeSuggestionSystemInstructions.GetOpenAICodeCompletionConfig(programmingLanguage, additionalSystemInstruction);
         return new OpenAICodeSuggestion(apiConfig, codeCompletionConfig);

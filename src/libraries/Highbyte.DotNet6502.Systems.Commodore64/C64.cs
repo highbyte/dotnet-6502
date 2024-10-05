@@ -57,8 +57,8 @@ public class C64 : ISystem, ISystemMonitor
 
     public bool RememberVic2RegistersPerRasterLine { get; set; } = true;
 
-    public C64BasicTokenParser BasicTokenParser { get; private set; }
-    public C64TextPaste TextPaste { get; private set; }
+    public C64BasicTokenParser BasicTokenParser { get; private set; } = default!;
+    public C64TextPaste TextPaste { get; private set; } = default!;
 
     //public static ROM[] ROMS = new ROM[]
     //{   
@@ -476,6 +476,14 @@ public class C64 : ISystem, ISystemMonitor
     private List<KeyValuePair<string, Func<string>>> BuildDebugInfo()
     {
         List<KeyValuePair<string, Func<string>>> debugInfoList = [
+            new ("Keyboard joystick enabled", () =>
+            {
+                return Cia.Joystick.KeyboardJoystickEnabled.ToString();
+            }),
+            new ("Keyboard joystick #", () =>
+            {
+                return Cia.Joystick.KeyboardJoystick.ToString();
+            }),
             new ("Current Basic line #", () =>
             {
                 // Address 0x39: Current BASIC line number.
@@ -565,5 +573,4 @@ public class C64 : ISystem, ISystemMonitor
     {
         _postInstructionAudioCallback = callback;
     }
-
 }

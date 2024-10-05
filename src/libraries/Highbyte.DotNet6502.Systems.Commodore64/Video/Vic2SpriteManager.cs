@@ -1,5 +1,3 @@
-using System.Buffers;
-using System.Security.Cryptography;
 using Highbyte.DotNet6502.Systems.Utils;
 using Highbyte.DotNet6502.Utils;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2;
@@ -18,9 +16,9 @@ public class Vic2SpriteManager : IVic2SpriteManager
 
     public int SpritePointerStartAddress => Vic2.VideoMatrixBaseAddress + 0x03f8; // Default value is 0x07f8 (because Vic2.VideoMatrixBaseAddress is 0x0400 by default). 8 sprites, last is 0x07ff.
 
-    const int NUMBERS_OF_SPRITES = 8;
-    const int SCREEN_OFFSET_X = 24;
-    const int SCREEN_OFFSET_Y = 50;
+    private const int NUMBERS_OF_SPRITES = 8;
+    private const int SCREEN_OFFSET_X = 24;
+    private const int SCREEN_OFFSET_Y = 50;
     public int NumberOfSprites => NUMBERS_OF_SPRITES;
     //The Sprite top/left X position that appears on main screen (not border) position 0.
     public int ScreenOffsetX => SCREEN_OFFSET_X;
@@ -33,7 +31,6 @@ public class Vic2SpriteManager : IVic2SpriteManager
 
     public byte SpriteToBackgroundCollisionStore { get; set; }
     public bool SpriteToBackgroundCollisionIRQBlock { get; set; }
-
 
     // Pre-calculate all possible sprite combination for collision detection
     // Get all K-Combinations of sprite numbers (2)
@@ -125,11 +122,15 @@ public class Vic2SpriteManager : IVic2SpriteManager
             for (int screenLine = 0; screenLine < sprite.HeightPixels; screenLine++)
             {
                 // Get the pixels in the sprite line (24 pixels/3 bytes, or 48 pixels/ 6 bytes, depending if sprite is expanded horizontally or not)
+#pragma warning disable CA2014 // Do not use stackalloc in loops (24 or 48 times = height of sprite, should be fine)
                 Span<byte> spriteLineData = stackalloc byte[sprite.WidthBytes];
+#pragma warning restore CA2014 // Do not use stackalloc in loops
                 GetSpriteRowLineData(sprite, screenLine, ref spriteLineData);
 
                 // Get the corresponding character row line data (adjusted to align with byte boundaries for easy comparison)
+#pragma warning disable CA2014 // Do not use stackalloc in loops (24 or 48 times = height of sprite, should be fine)
                 Span<byte> otherSpriteLineData = stackalloc byte[spriteLineData.Length];
+#pragma warning restore CA2014 // Do not use stackalloc in loops
                 GetSpriteRowLineDataMatchingOtherSpritePosition(sprite, otherSprite, screenLine, ref otherSpriteLineData);
 
                 // Check collision on line
@@ -177,13 +178,17 @@ public class Vic2SpriteManager : IVic2SpriteManager
         for (int screenLine = 0; screenLine < sprite.HeightPixels; screenLine++)
         {
             // Get the pixels in the sprite line (24 pixels/3 bytes, or 48 pixels/ 6 bytes, depending if sprite is expanded vertically or not)
+#pragma warning disable CA2014 // Do not use stackalloc in loops (24 or 48 times = height of sprite, should be fine)
             Span<byte> spriteLineData = stackalloc byte[sprite.WidthBytes];
+#pragma warning restore CA2014 // Do not use stackalloc in loops
 
             GetSpriteRowLineData(sprite, screenLine, ref spriteLineData);
 
             // Get the corresponding character row line data (adjusted to align with byte boundaries for easy comparison)
             //byte[] screenLineData = GetCharacterRowLineDataMatchingSpritePosition(sprite, screenLine, spriteLineData.Length, scrollX, scrollY);
+#pragma warning disable CA2014 // Do not use stackalloc in loops (24 or 48 times = height of sprite, should be fine)
             Span<byte> screenLineData = stackalloc byte[sprite.WidthBytes + 1];
+#pragma warning restore CA2014 // Do not use stackalloc in loops
             GetCharacterRowLineDataMatchingSpritePosition(sprite, screenLine, spriteLineData.Length, scrollX, scrollY, ref screenLineData);
 
             // Check collision on line
@@ -245,7 +250,9 @@ public class Vic2SpriteManager : IVic2SpriteManager
             // If double with sprite, then expand each byte to two bytes (each pixel is 2 bits instead of 1)
             if (sprite.DoubleWidth)
             {
+#pragma warning disable CA2014 // Do not use stackalloc in loops (max 3 times, should be fine)
                 Span<byte> expandedPair = stackalloc byte[2];
+#pragma warning restore CA2014 // Do not use stackalloc in loops
                 originalSpriteLineData[i].StretchBits(ref expandedPair);
                 spriteLineData[i * 2] = expandedPair[0];
                 spriteLineData[i * 2 + 1] = expandedPair[1];
@@ -307,7 +314,6 @@ public class Vic2SpriteManager : IVic2SpriteManager
         var result = shiftedBytes[2];
         return result;
     }
-
 
     /// <summary>
     /// 
@@ -391,7 +397,6 @@ public class Vic2SpriteManager : IVic2SpriteManager
         int scrollPixelsRight = 8 - bitPositionAdjustOffset;
         Span<byte> shiftedBytes = stackalloc byte[bytes.Length];
         bytes.ShiftRight(ref shiftedBytes, scrollPixelsRight, out _);
-
 
         // All but first byte
         shiftedBytes.CopyTo(bytes);

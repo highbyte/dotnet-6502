@@ -175,7 +175,7 @@
 </details>
 
 <details id="basic_ai_section">
-    <summary>Basic AI coding assistant</summary>
+    <summary>Basic AI coding assistant <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_COMPATIBLE_PRG.md" target="_blank">(info)</a></summary>
 
     <div class="row">
         <div class="column">
@@ -433,7 +433,7 @@
         ICodeSuggestion codeSuggestion;
         if(C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
         {
-            codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForOpenAI(_openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
+            codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestion(_openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
         }
         else if(C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama)
         {

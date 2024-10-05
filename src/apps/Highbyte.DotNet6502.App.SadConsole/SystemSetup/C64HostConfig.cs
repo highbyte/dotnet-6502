@@ -8,7 +8,7 @@ public class C64HostConfig : SadConsoleHostSystemConfigBase
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.C64.SadConsole";
 
-    public C64SystemConfig SystemConfig
+    public new C64SystemConfig SystemConfig
     {
         get { return (C64SystemConfig)base.SystemConfig; }
         set { base.SystemConfig = value; }

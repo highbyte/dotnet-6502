@@ -76,7 +76,7 @@ public class C64MenuConsole : ControlsConsole
             Name = "c64CopyBasicSourceCodeButton",
             Position = (1, c64SaveBasicButton.Bounds.MaxExtentY + 2),
         };
-        c64CopyBasicSourceCodeButton.Click += C64CopyBasicSourceCodeButton_Click;
+        c64CopyBasicSourceCodeButton.Click += C64CopyBasicSourceCodeButton_Click!;
         Controls.Add(c64CopyBasicSourceCodeButton);
 
         // Paste
@@ -85,7 +85,7 @@ public class C64MenuConsole : ControlsConsole
             Name = "c64PasteTextButton",
             Position = (c64CopyBasicSourceCodeButton.Bounds.MaxExtentX + 9, c64CopyBasicSourceCodeButton.Position.Y),
         };
-        c64PasteTextButton.Click += C64PasteTextButton_Click;
+        c64PasteTextButton.Click += C64PasteTextButton_Click!;
         Controls.Add(c64PasteTextButton);
 
         // Paste
@@ -106,7 +106,7 @@ public class C64MenuConsole : ControlsConsole
             Name = "c64ConfigButton",
             Position = (1, c64aiBasicAssistantCheckbox.Bounds.MaxExtentY + 2),
         };
-        c64ConfigButton.Click += C64ConfigButton_Click;
+        c64ConfigButton.Click += C64ConfigButton_Click!;
         Controls.Add(c64ConfigButton);
 
 
@@ -114,12 +114,6 @@ public class C64MenuConsole : ControlsConsole
         validationMessageValueLabel.TextColor = Controls.GetThemeColors().Red;
 
         // Helper function to create a label and add it to the console
-        Label CreateLabel(string text, int col, int row, string? name = null)
-        {
-            var labelTemp = new Label(text) { Position = new Point(col, row), Name = name };
-            Controls.Add(labelTemp);
-            return labelTemp;
-        }
         Label CreateLabelValue(string text, int col, int row, string? name = null)
         {
             var labelTemp = new Label(text) { Position = new Point(col, row), TextColor = Controls.GetThemeColors().Title, Name = name };
@@ -148,9 +142,9 @@ public class C64MenuConsole : ControlsConsole
             {
                 try
                 {
-                    var fileName = window.SelectedFile.FullName;
+                    var fileName = window.SelectedFile!.FullName;
                     BinaryLoader.Load(
-                        _sadConsoleHostApp.CurrentRunningSystem.Mem,
+                        _sadConsoleHostApp.CurrentRunningSystem!.Mem,
                         fileName,
                         out ushort loadedAtAddress,
                         out ushort fileLength);
@@ -200,7 +194,7 @@ public class C64MenuConsole : ControlsConsole
                     var fileName = window.SelectedFile.FullName;
                     // TODO: Does FilePickerConsole check if file already exists and ask for overwrite? Or do this here?
                     ushort startAddressValue = C64.BASIC_LOAD_ADDRESS;
-                    var endAddressValue = ((C64)_sadConsoleHostApp.CurrentRunningSystem).GetBasicProgramEndAddress();
+                    var endAddressValue = ((C64)_sadConsoleHostApp.CurrentRunningSystem!).GetBasicProgramEndAddress();
                     BinarySaver.Save(
                         _sadConsoleHostApp.CurrentRunningSystem.Mem,
                         fileName,
@@ -300,10 +294,11 @@ public class C64MenuConsole : ControlsConsole
         validationMessageValueLabel!.IsVisible = !isOk;
     }
 
-    public async Task ToggleBasicAIAssistant()
+    public Task ToggleBasicAIAssistant()
     {
         var c64aiBasicAssistantCheckbox = Controls["c64aiBasicAssistantCheckbox"] as CheckBox;
         c64aiBasicAssistantCheckbox.IsSelected = !c64aiBasicAssistantCheckbox.IsSelected;
+        return Task.CompletedTask;
     }
 
     private async Task SetBasicAIAssistant(bool enabled)

@@ -182,7 +182,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
                 // Position monitor to the right of the emulator console
                 _monitorConsole.UsePixelPositioning = true;
                 // Note: _sadConsoleEmulatorConsole has already changed to UsePixelPositioning = true, so its Position.X is in pixels (not Width though).
-                var emulatorMaxX = _sadConsoleEmulatorConsole.Position.X + ((int)(_sadConsoleEmulatorConsole.Width * _sadConsoleEmulatorConsole.Font.GlyphWidth * CommonHostSystemConfig.DefaultFontSize.GetFontSizeScaleFactor()));
+                var emulatorMaxX = _sadConsoleEmulatorConsole!.Position.X + ((int)(_sadConsoleEmulatorConsole.Width * _sadConsoleEmulatorConsole.Font.GlyphWidth * CommonHostSystemConfig.DefaultFontSize.GetFontSizeScaleFactor()));
                 var infoConsoleMax = _infoConsole != null && _infoConsole.IsVisible ? _infoConsole.Position.X + _infoConsole.WidthPixels : 0;
                 _monitorConsole.Position = new Point(Math.Max(emulatorMaxX, infoConsoleMax), 0);
 
@@ -195,7 +195,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             }
             else
             {
-                _sadConsoleEmulatorConsole.IsFocused = true;
+                _sadConsoleEmulatorConsole!.IsFocused = true;
                 _sadConsoleEmulatorConsole.UseKeyboard = false;
             }
 
@@ -205,9 +205,9 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         _sadConsoleScreen.Children.Add(_monitorConsole);
 
         // Logo
-        int logoWidthAndHeight = 256; // Pixels
         _logoDrawImage = new DrawImage("Resources/Images/logo-256.png");
         _logoDrawImage.PositionMode = DrawImage.PositionModes.Pixels;
+        //int logoWidthAndHeight = 256; // Pixels
         //var logoX = (MenuConsole.CONSOLE_WIDTH * _menuConsole.Font.GlyphWidth) + ((StartupScreenWidth - MenuConsole.CONSOLE_WIDTH) * _menuConsole.Font.GlyphWidth - logoWidthAndHeight) / 2;
         //var logoY = ((MenuConsole.CONSOLE_HEIGHT * _menuConsole.Font.GlyphHeight) - logoWidthAndHeight) / 2;
         var logoX = (MenuConsole.CONSOLE_WIDTH * _menuConsole.Font.GlyphWidth) + 10;
@@ -236,7 +236,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         // Clear any old system specific menu console
         if (_systemMenuConsole != null)
         {
-            if (_sadConsoleScreen.Children.Contains(_systemMenuConsole))
+            if (_sadConsoleScreen!.Children.Contains(_systemMenuConsole))
                 _sadConsoleScreen.Children.Remove(_systemMenuConsole);
             _systemMenuConsole.Dispose();
             _systemMenuConsole = null;
@@ -246,7 +246,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         {
             _systemMenuConsole = new C64MenuConsole(this, _loggerFactory, _configuration);
             _systemMenuConsole.Position = (MENU_POSITION_X, _menuConsole.Height);
-            _sadConsoleScreen.Children.Add(_systemMenuConsole);
+            _sadConsoleScreen!.Children.Add(_systemMenuConsole);
         }
 
         _infoConsole.ShowSelectedSystemInfoHelp();
@@ -273,9 +273,9 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         }
         _sadConsoleEmulatorConsole = EmulatorConsole.Create(systemAboutToBeStarted, font, CommonHostSystemConfig.DefaultFontSize, SadConsoleUISettings.CreateEmulatorConsoleDrawBoxBorderParameters(font.SolidGlyphIndex));
         _sadConsoleEmulatorConsole.UsePixelPositioning = true;
-        _sadConsoleEmulatorConsole.Position = new Point((_menuConsole.Position.X * _menuConsole.Font.GlyphWidth) + (_menuConsole.Width * _menuConsole.Font.GlyphWidth), 0);
+        _sadConsoleEmulatorConsole.Position = new Point((_menuConsole!.Position.X * _menuConsole.Font.GlyphWidth) + (_menuConsole.Width * _menuConsole.Font.GlyphWidth), 0);
         _sadConsoleEmulatorConsole.IsFocused = true;
-        _sadConsoleScreen.Children.Add(_sadConsoleEmulatorConsole);
+        _sadConsoleScreen!.Children.Add(_sadConsoleEmulatorConsole);
 
         // Resize main window to fit menu, emulator, and other consoles
         Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
@@ -309,7 +309,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     public override void OnBeforeStop()
     {
         // Disable monitor if it is visible
-        if (_monitorConsole.IsVisible)
+        if (_monitorConsole!.IsVisible)
             DisableMonitor();
         // Clear stats in info console if it is visible (logs will still be shown)
         if (_infoConsole.IsVisible)
@@ -320,7 +320,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         // Remove the console containing the running system
         if (_sadConsoleEmulatorConsole != null)
         {
-            if (_sadConsoleScreen.Children.Contains(_sadConsoleEmulatorConsole))
+            if (_sadConsoleScreen!.Children.Contains(_sadConsoleEmulatorConsole))
                 _sadConsoleScreen.Children.Remove(_sadConsoleEmulatorConsole);
             _sadConsoleEmulatorConsole.Dispose();
             _sadConsoleEmulatorConsole = null;
@@ -346,7 +346,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     private void UpdateSadConsole(object? sender, GameHost gameHost)
     {
         // Handle UI-specific keyboard inputs such as toggle monitor, info, etc.
-        HandleUIKeyboardInput();
+        HandleUIKeyboardInput().Wait();
 
         // RunEmulatorOneFrame() will first handle input, then emulator in run for one frame.
         RunEmulatorOneFrame();
@@ -586,10 +586,10 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     private async Task HandleUIKeyboardInput()
     {
         var keyboard = GameHost.Instance.Keyboard;
-        //if (keyboard.IsKeyPressed(Keys.F10))
+        //if (keyboard.IsKeyReleased(Keys.F10))
         //    ToggleLogs();
 
-        if (keyboard.IsKeyPressed(Keys.F11))
+        if (keyboard.IsKeyReleased(Keys.F11))
         {
             keyboard.Clear();
             ToggleInfo();

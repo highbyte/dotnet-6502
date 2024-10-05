@@ -137,7 +137,7 @@ internal class InfoConsole : ControlsConsole
         // System debug info panel
         Panel debugInfoPanel = new Panel(10, 10);
         {
-            var labelTitleLength = 25;
+            var labelTitleLength = 28;
             _debugInfoLabels = new List<Label>();
             _debugInfoLabelValues = new List<Label>();
 

@@ -1,4 +1,3 @@
-using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Utils;
 using SadConsole.UI;
 using SadRogue.Primitives;
@@ -13,10 +12,8 @@ internal class MonitorStatusConsole : ControlsConsole
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
 
-    public event EventHandler<bool>? MonitorStateChange;
-
     private const int NUMBER_OF_SYS_INFO_ROWS = USABLE_HEIGHT - 1;  // 1 row for CPU state
-    private string _emptyRow = new string(' ', USABLE_WIDTH);
+    private readonly string _emptyRow = new string(' ', USABLE_WIDTH);
 
 
     /// <summary>
