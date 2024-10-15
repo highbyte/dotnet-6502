@@ -9,11 +9,11 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Blazored.LocalStorage;
-using Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggestion;
 using System.Text.Json;
+using Highbyte.DotNet6502.AI.CodingAssistant.Inference.BackendConfig;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
@@ -208,12 +208,14 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
             if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
             {
                 var openAIApiConfig = await GetOpenAIConfig(localStorageService);
-                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestion(openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
+                var chatClient = ChatClientHelper.CreateOpenAIChatClient(openAIApiConfig);
+                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestion(chatClient, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
             }
             else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama)
             {
-                var openAIApiConfig = await GetOpenAISelfHostedCodeLlamaConfig(localStorageService);
-                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
+                var ollamaConfig = await GetOpenAISelfHostedCodeLlamaConfig(localStorageService);
+                var chatClient = ChatClientHelper.CreateOllamaChatClient(ollamaConfig);
+                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(chatClient, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
             }
             else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
             {
@@ -240,47 +242,52 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
 
     }
 
-    public static async Task<ApiConfig> GetOpenAIConfig(ILocalStorageService localStorageService)
+    public static async Task<OpenAIConfig> GetOpenAIConfig(ILocalStorageService localStorageService)
     {
-        var apiKey = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:ApiKey");
+        var apiKey = await localStorageService.GetItemAsStringAsync($"{OpenAIConfig.CONFIG_SECTION}:ApiKey");
 
-        var deploymentName = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:DeploymentName");
-        if (string.IsNullOrEmpty(deploymentName))
-            deploymentName = "gpt-4o";  // Default to a OpenAI model that works well
+        // Model name is in ModelName (current) or DeploymentName (legacy)
+        var modelName = await localStorageService.GetItemAsStringAsync($"{OpenAIConfig.CONFIG_SECTION}:ModelName");
+        if (string.IsNullOrEmpty(modelName))
+            modelName = await localStorageService.GetItemAsStringAsync($"{OpenAIConfig.CONFIG_SECTION}:DeploymentName");
+        if (string.IsNullOrEmpty(modelName))
+            modelName = "gpt-4o";  // Default to a OpenAI model that works well
 
         // For future use: Endpoint can be set if OpenAI is accessed via Azure endpoint.
         //var endpoint = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:Endpoint");
         //Uri.TryCreate(endpoint, UriKind.Absolute, out var endPointUri);
 
-        var apiConfig = new ApiConfig()
+        var apiConfig = new OpenAIConfig()
         {
             ApiKey = apiKey,    // Api key for OpenAI (required), Azure OpenAI (required), or SelfHosted (optional).
-            DeploymentName = deploymentName, // AI model name
-            //Endpoint = endPointUri,     // Used if using Azure OpenAI
-            SelfHosted = false,
+            ModelName = modelName, // AI model name
         };
         return apiConfig;
     }
 
-    public static async Task<ApiConfig> GetOpenAISelfHostedCodeLlamaConfig(ILocalStorageService localStorageService)
+    public static async Task<OllamaConfig> GetOpenAISelfHostedCodeLlamaConfig(ILocalStorageService localStorageService)
     {
-        var apiKey = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:ApiKey");
+        var apiKey = await localStorageService.GetItemAsStringAsync($"{OllamaConfig.CONFIG_SECTION}:ApiKey");
         if (apiKey == string.Empty)
             apiKey = null;
-        var deploymentName = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:DeploymentName");
-        if (string.IsNullOrEmpty(deploymentName))
-            deploymentName = "codellama:13b-code"; // Default to a Ollama CodeLlama-code model that seems to work OK (but not as good as OpenAI gpt-4o)
-        var endpoint = await localStorageService.GetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:Endpoint");
+
+        // Model name is in ModelName (current) or DeploymentName (legacy)
+        var modelName = await localStorageService.GetItemAsStringAsync($"{OllamaConfig.CONFIG_SECTION}:ModelName");
+        if (string.IsNullOrEmpty(modelName))
+            modelName = await localStorageService.GetItemAsStringAsync($"{OllamaConfig.CONFIG_SECTION}:DeploymentName");
+        if (string.IsNullOrEmpty(modelName))
+            modelName = "codellama:13b-code"; // Default to a Ollama CodeLlama-code model that seems to work OK (but not as good as OpenAI gpt-4o)
+
+        var endpoint = await localStorageService.GetItemAsStringAsync($"{OllamaConfig.CONFIG_SECTION}:Endpoint");
         if (string.IsNullOrEmpty(endpoint))
             endpoint = "http://localhost:11434/api"; // Default to local Ollama 
         Uri.TryCreate(endpoint, UriKind.Absolute, out var endPointUri);
 
-        var apiConfig = new ApiConfig()
+        var apiConfig = new OllamaConfig()
         {
             ApiKey = apiKey,    // Optional for Self-hosted model.
-            DeploymentName = deploymentName, // AI CodeLlama-code model name (ex: codellama:13b-code, codellama:7b-code)
+            ModelName = modelName, // AI CodeLlama-code model name (ex: codellama:13b-code, codellama:7b-code)
             Endpoint = endPointUri,     // Self-hosted OpenAI API compatible endpoint (for example Ollama)
-            SelfHosted = true // Set to true to use self-hosted OpenAI API compatible endpoint.
         };
         return apiConfig;
     }
@@ -304,17 +311,16 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         return apiConfig;
     }
 
-    public static async Task SaveOpenAICodingAssistantConfigToLocalStorage(ILocalStorageService localStorageService, ApiConfig apiConfig)
+    public static async Task SaveOpenAICodingAssistantConfigToLocalStorage(ILocalStorageService localStorageService, OpenAIConfig openAIConfig)
     {
-        await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:ApiKey", apiConfig.ApiKey ?? string.Empty);
-        //await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:Endpoint", apiConfig.Endpoint != null ? apiConfig.Endpoint.OriginalString : string.Empty);
+        await localStorageService.SetItemAsStringAsync($"{OpenAIConfig.CONFIG_SECTION}:ApiKey", openAIConfig.ApiKey ?? string.Empty);
     }
 
-    public static async Task SaveOpenAISelfHostedCodeLlamaCodingAssistantConfigToLocalStorage(ILocalStorageService localStorageService, ApiConfig apiConfig)
+    public static async Task SaveOpenAISelfHostedCodeLlamaCodingAssistantConfigToLocalStorage(ILocalStorageService localStorageService, OllamaConfig ollamaConfig)
     {
-        await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:ApiKey", apiConfig.ApiKey ?? string.Empty);
-        await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:DeploymentName", apiConfig.DeploymentName ?? string.Empty);
-        await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:Endpoint", apiConfig.Endpoint != null ? apiConfig.Endpoint.OriginalString : string.Empty);
+        await localStorageService.SetItemAsStringAsync($"{OllamaConfig.CONFIG_SECTION}:ApiKey", ollamaConfig.ApiKey ?? string.Empty);
+        await localStorageService.SetItemAsStringAsync($"{OllamaConfig.CONFIG_SECTION}:ModelName", ollamaConfig.ModelName ?? string.Empty);
+        await localStorageService.SetItemAsStringAsync($"{OllamaConfig.CONFIG_SECTION}:Endpoint", ollamaConfig.Endpoint != null ? ollamaConfig.Endpoint.OriginalString : string.Empty);
     }
 
     public static async Task SaveCustomCodingAssistantConfigToLocalStorage(ILocalStorageService localStorageService, CustomAIEndpointConfig customAIEndpointConfig)

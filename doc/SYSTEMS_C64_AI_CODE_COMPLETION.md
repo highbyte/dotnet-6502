@@ -86,12 +86,12 @@ Configure `CodingAssistant` section in `appsettings.json`.
 Using OpenAI:
 - `CodingAssistantType:OpenAI:CodingAssistantType`: `OpenAI`
 - `CodingAssistantType:OpenAI:ApiKey`: Your own OpenAI API key
-- `CodingAssistantType:OpenAI:DeploymentName`: The OpenAI model (default: `gpt-4o`)
+- `CodingAssistantType:OpenAI:ModelName`: The OpenAI model (default: `gpt-4o`)
 
 Using self-hosted OpenAI API compatible LLM (Ollama with CodeLlama-code model):
 - `CodingAssistantType:OpenAISelfHostedCodeLlama:CodingAssistantType`: `OpenAI`
 - `CodingAssistantType:OpenAISelfHostedCodeLlama:EndPoint`: The local Ollama HTTP endpoint (ex: `http://localhost:11434/api`)
-- `CodingAssistantType:OpenAISelfHostedCodeLlama:DeploymentName`: A local CodeLlama-code model (ex: `codellama:13b-code` or `codellama:7b-code`.)
+- `CodingAssistantType:OpenAISelfHostedCodeLlama:ModelName`: A local CodeLlama-code model (ex: `codellama:13b-code` or `codellama:7b-code`.)
 - `CodingAssistantType:OpenAISelfHostedCodeLlama:ApiKey`: Optional. May be required if Open WebUI proxy is in front of Ollama.
 
 Using custom AI backend:
