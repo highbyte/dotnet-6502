@@ -433,12 +433,12 @@
         ICodeSuggestion codeSuggestion;
         if(C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
         {
-            var chatClient = ChatClientHelper.CreateOpenAIChatClient(_openAIApiConfig);
+            var chatClient = ChatClientFactory.CreateOpenAIChatClient(_openAIApiConfig);
             codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestion(chatClient, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
         }
         else if(C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama)
         {
-            var chatClient = ChatClientHelper.CreateOllamaChatClient(_openAISelfHostedCodeLlamaAIApiConfig);
+            var chatClient = ChatClientFactory.CreateOllamaChatClient(_openAISelfHostedCodeLlamaAIApiConfig);
             codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(chatClient, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
         }        
         else if(C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)

@@ -1,22 +1,43 @@
+using System.Runtime.InteropServices;
 using Azure.AI.OpenAI;
 using Azure.Identity;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using OpenAI;
 
 namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference.BackendConfig;
 
-public static class ChatClientHelper
+public static class ChatClientFactory
 {
     public static IChatClient CreateChatClient(CodeCompletionBackendType codeCompletionBackendType, IConfiguration config)
     {
-        var client = codeCompletionBackendType switch
+        var chatClient = codeCompletionBackendType switch
         {
             CodeCompletionBackendType.OpenAI => CreateOpenAIChatClient(new OpenAIConfig(config)),
             CodeCompletionBackendType.AzureOpenAI => CreateAzureOpenAIChatClient(new AzureOpenAIConfig(config)),
             CodeCompletionBackendType.Ollama => CreateOllamaChatClient(new OllamaConfig(config)),
             _ => throw new InvalidOperationException($"Invalid backend type: {codeCompletionBackendType}")
         };
+
+        // Skip DistributedCache caching for chat client, it doesn't work in wasm.
+        if (RuntimeInformation.OSArchitecture == Architecture.Wasm)
+        {
+            return chatClient;
+        }
+
+        // Use DistributedCache caching
+        var options = Options.Create(new MemoryDistributedCacheOptions
+        {
+            SizeLimit = 30 * 1024 * 1024    // Size in bytes
+        });
+        IDistributedCache cache = new MemoryDistributedCache(options);
+
+        IChatClient client = new ChatClientBuilder()
+                        .UseDistributedCache(cache)
+                        .Use(chatClient);
         return client;
     }
 

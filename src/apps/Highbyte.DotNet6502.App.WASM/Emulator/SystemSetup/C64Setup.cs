@@ -208,13 +208,13 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
             if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
             {
                 var openAIApiConfig = await GetOpenAIConfig(localStorageService);
-                var chatClient = ChatClientHelper.CreateOpenAIChatClient(openAIApiConfig);
+                var chatClient = ChatClientFactory.CreateOpenAIChatClient(openAIApiConfig);
                 codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestion(chatClient, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
             }
             else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama)
             {
                 var ollamaConfig = await GetOpenAISelfHostedCodeLlamaConfig(localStorageService);
-                var chatClient = ChatClientHelper.CreateOllamaChatClient(ollamaConfig);
+                var chatClient = ChatClientFactory.CreateOllamaChatClient(ollamaConfig);
                 codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(chatClient, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
             }
             else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
