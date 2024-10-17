@@ -13,8 +13,6 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.WebUtilities;
 using Toolbelt.Blazor.Gamepad;
 using Highbyte.DotNet6502.Systems.Logging.Console;
-using Microsoft.AspNetCore.Components.Rendering;
-using Microsoft.Extensions.Azure;
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
 
