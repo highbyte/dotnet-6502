@@ -10,9 +10,9 @@
             "request": "launch",
             "preLaunchTask": "build silk.net native app",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/bin/Debug/net8.0/Highbyte.DotNet6502.App.SilkNetNative.dll",
+            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/bin/Debug/net9.0/Highbyte.DotNet6502.App.SilkNetNative.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/bin/Debug/net8.0",
+            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SilkNetNative/bin/Debug/net9.0",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "integratedTerminal",
             "stopAtEntry": false
@@ -31,9 +31,9 @@
             "request": "launch",
             "preLaunchTask": "build sadconsole app",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SadConsole/bin/Debug/net8.0/Highbyte.DotNet6502.App.SadConsole.dll",
+            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SadConsole/bin/Debug/net9.0/Highbyte.DotNet6502.App.SadConsole.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SadConsole/bin/Debug/net8.0",
+            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.SadConsole/bin/Debug/net9.0",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "integratedTerminal",
             "stopAtEntry": false
@@ -44,9 +44,9 @@
             "request": "launch",
             "preLaunchTask": "build console monitor app",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net8.0/Highbyte.DotNet6502.App.ConsoleMonitor.dll",
+            "program": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net9.0/Highbyte.DotNet6502.App.ConsoleMonitor.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net8.0",
+            "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.ConsoleMonitor/bin/Debug/net9.0",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "externalTerminal",
             "stopAtEntry": false
