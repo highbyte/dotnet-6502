@@ -77,7 +77,7 @@ jobs:
     # Add the WASM workload manually (github/codeql-action/autobuild only seems to work with this if runs-on: windows-latest)
     - name: Install DotNet workload - WASM tools
       run: |
-        dotnet workload install wasm-tools
+        dotnet workload install wasm-tools-net8
 
     # Manually build instead of relying on Autobuild
     - name: Restore dependencies
