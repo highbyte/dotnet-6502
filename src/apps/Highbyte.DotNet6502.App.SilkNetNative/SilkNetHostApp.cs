@@ -199,6 +199,8 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         // Init monitor for current system started if this system was not started before
         if (emulatorStateBeforeStart == EmulatorState.Uninitialized)
             _monitor.Init(CurrentSystemRunner!);
+
+        //_window.Focus();
     }
 
     public override void OnBeforeStop()
