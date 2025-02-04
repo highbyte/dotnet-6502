@@ -106,5 +106,6 @@ public class SilkNetImGuiLogsPanel : ISilkNetImGuiWindow
     public void Disable()
     {
         Visible = false;
+        ImGui.SetWindowFocus(null);
     }
 }
