@@ -272,16 +272,18 @@ public class CPU
         if (CPUInterrupts.NMILineEnabled)
         {
             // TODO: Should all NMI sources be cleared here?
-            foreach (var source in CPUInterrupts.ActiveNMISources)
+            for (int i = CPUInterrupts.ActiveNMISources.Count - 1; i >= 0; i--)
             {
+                var source = CPUInterrupts.ActiveNMISources.ElementAt(i);
                 CPUInterrupts.SetNMISourceInactive(source);
             }
             ProcessHardwareNMI(mem);
         }
         else if (CPUInterrupts.IRQLineEnabled && !ProcessorStatus.InterruptDisable)
         {
-            foreach (var source in CPUInterrupts.ActiveIRQSources.Keys)
+            for (int i = CPUInterrupts.ActiveIRQSources.Count - 1; i >= 0; i--)
             {
+                var source = CPUInterrupts.ActiveIRQSources.ElementAt(i).Key;
                 // Automatically remove IRQ sources that should not manually be acknowledged.
                 if (CPUInterrupts.ActiveIRQSources[source])
                 {

@@ -61,5 +61,6 @@ public class SilkNetImGuiStatsPanel : ISilkNetImGuiWindow
     public void Disable()
     {
         Visible = false;
+        ImGui.SetWindowFocus(null);
     }
 }

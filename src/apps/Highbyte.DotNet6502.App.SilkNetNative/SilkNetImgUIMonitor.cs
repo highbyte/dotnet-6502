@@ -87,7 +87,7 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
             //_setFocusOnInput = true;  // TODO: This is not working ok when child window contains a scrollbar (cannot select scrollbar when clicking outside child window)
         }
 
-        if (ImGui.BeginChild("##scrolling", Vector2.Zero, border: false, ImGuiWindowFlags.HorizontalScrollbar | ImGuiWindowFlags.AlwaysVerticalScrollbar))
+        if (ImGui.BeginChild("##scrolling", Vector2.Zero, ImGuiChildFlags.None, ImGuiWindowFlags.HorizontalScrollbar | ImGuiWindowFlags.AlwaysVerticalScrollbar))
         {
             //ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
 
@@ -191,5 +191,6 @@ public class SilkNetImGuiMonitor : ISilkNetImGuiWindow
     {
         Visible = false;
         OnMonitorStateChange(false);
+        ImGui.SetWindowFocus(null);
     }
 }

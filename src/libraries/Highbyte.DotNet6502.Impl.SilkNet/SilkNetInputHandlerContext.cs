@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Logging;
-using Silk.NET.SDL;
+//using Silk.NET.SDL;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet;
 

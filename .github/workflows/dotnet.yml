@@ -28,7 +28,7 @@ jobs:
 
     - name: Install DotNet workload - WASM tools
       run: |
-        dotnet workload install wasm-tools
+        dotnet workload install wasm-tools-net8
 
     # - name: Clean package cache as a temporary workaround for actions/setup-dotnet#155
     #   run: |
