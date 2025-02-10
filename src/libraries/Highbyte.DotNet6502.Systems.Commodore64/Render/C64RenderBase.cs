@@ -6,14 +6,22 @@ using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2ScreenLayouts;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.Render;
 
+/// <summary>
+/// A common abstract base class that provides a common rendering logic for C64 screen data.
+/// It implements the IRenderer interface, and provides abstract methods and properties that must be implemented in derived classes.
+/// 
+/// The "rendering" is done to two uint pixel arrays (RGBA color), one for the background (borders, background, and low prio-sprites), and one for the foreground (text, bitmap, and high-prio sprites).
+/// 
+/// The class that implements this class should implement how these two pixel arrays are used to push pixels (uint RGBA color format) the screen.
+/// </summary>
 public abstract class C64RenderBase : IRenderer
 {
     // Abstract methods and properties that must be implemented in derived classes
     protected abstract string StatsCategory { get; }
-    protected abstract void RenderArrays();
-    protected abstract bool FlipY { get; }
     protected abstract Dictionary<byte, uint> C64ToRenderColorMap { get; }
     protected abstract uint TransparentColor { get; }
+    protected abstract bool FlipY { get; }
+    protected abstract void RenderArrays();
 
     protected abstract void OnBeforeInit();
     protected abstract void OnAfterInit();
@@ -25,7 +33,7 @@ public abstract class C64RenderBase : IRenderer
 
     public virtual Instrumentations Instrumentations { get; } = new();
     private ElapsedMillisecondsTimedStatSystem _spritesStat;
-    private ElapsedMillisecondsTimedStatSystem _drawStat;
+    private ElapsedMillisecondsTimedStatSystem _renderArraysStat;
 
 
     // Pre-calculated pixel arrays
@@ -119,10 +127,6 @@ public abstract class C64RenderBase : IRenderer
     private int _screenLayoutInclNonVisibleLeftBorderStartX;
     private int _screenLayoutInclNonVisibleRightBorderEndX;
 
-
-
-
-
     public C64RenderBase(C64 c64)
     {
         C64 = c64;
@@ -191,7 +195,6 @@ public abstract class C64RenderBase : IRenderer
                 _eightPixelsOneColorAndBackground.Add(((byte)pixelPattern, bitmapFgColorCode), bitmapPixels);
             }
         }
-
 
         // Text extended & bitmap standard "HiRes" mode with one foreground color and a "background" color (non-transparent)
         // 8 bits => 8 pixels
@@ -294,7 +297,6 @@ public abstract class C64RenderBase : IRenderer
         var width = vic2Screen.VisibleWidth;
         var height = vic2Screen.VisibleHeight;
 
-
         // Main screen draw area for characters, without consideration to 38 column mode or 24 row mode.
         var visibleMainScreenArea = vic2ScreenLayouts.GetLayout(LayoutType.VisibleNormalized, for24RowMode: false, for38ColMode: false);
 
@@ -337,9 +339,8 @@ public abstract class C64RenderBase : IRenderer
             var y = 0;
             foreach (var spriteRow in sprite.Data.Rows)
             {
-                // TODO: Read color values per raster line from c64.Vic2.ScreenLineIORegisterValues
-                // TODO: Verify if this is correct conversion from sprite row screen pos to the lineData dictionary
                 var lineDataKey = spriteScreenPosY + y + visibleMainScreenAreaLineData.TopBorder.Start.Y;
+
                 // Check if in total visible area, because c64ScreenLineIORegisterValues includes non-visible lines
                 if (lineDataKey < visibleMainScreenAreaLineData.TopBorder.Start.Y || lineDataKey > visibleMainScreenAreaLineData.BottomBorder.End.Y)
                     continue;
@@ -496,8 +497,6 @@ public abstract class C64RenderBase : IRenderer
         _spritesStat.Stop();
     }
 
-
-
     public void Init()
     {
         // Call derived class OnBeforeInit method
@@ -566,7 +565,7 @@ public abstract class C64RenderBase : IRenderer
         // Init instrumentation
         Instrumentations.Clear();
         _spritesStat = Instrumentations.Add($"{StatsCategory}-Sprites", new ElapsedMillisecondsTimedStatSystem(C64));
-        _drawStat = Instrumentations.Add($"{StatsCategory}-Draw", new ElapsedMillisecondsTimedStatSystem(C64));
+        _renderArraysStat = Instrumentations.Add($"{StatsCategory}-RenderArrays", new ElapsedMillisecondsTimedStatSystem(C64));
 
         // Call derived class OnAfterInit method
         OnAfterInit();
@@ -583,7 +582,9 @@ public abstract class C64RenderBase : IRenderer
         DrawSpritesToBitmapBackedByPixelArray(C64, PixelArray_BackgroundAndBorder, PixelArray_Foreground);
 
         // Call implemented abstract method to render pixel arrays to the screen
+        _renderArraysStat.Start();
         RenderArrays();
+        _renderArraysStat.Stop();
     }
 
     /// <summary>
