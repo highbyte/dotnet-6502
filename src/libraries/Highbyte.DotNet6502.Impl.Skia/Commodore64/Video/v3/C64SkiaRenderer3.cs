@@ -40,8 +40,6 @@ public class C64SkiaRenderer3 : C64RenderBase
     private SKRuntimeEffectChildren _sKRuntimeEffectChildren; // Shader children (textures)
     private SKPaint _shaderPaint;
 
-    // Lookup table for mapping C64 colors to shader colors
-    private readonly Dictionary<uint, float[]> _sKColorToShaderColorMap = new Dictionary<uint, float[]>();
     private C64SkiaColors _c64SkiaColors;
 
     public C64SkiaRenderer3(C64 c64, SkiaRenderContext skiaRenderContext) : base(c64)
@@ -53,7 +51,7 @@ public class C64SkiaRenderer3 : C64RenderBase
     private Dictionary<byte, uint> _c64ToRenderColorMap;
     protected override Dictionary<byte, uint> C64ToRenderColorMap => _c64ToRenderColorMap;
     protected override bool FlipY => false;
-    protected override uint TransparentColor => (uint)SKColors.DarkMagenta; // TODO: Shouldn't this be 0x00000000 ?
+    protected override uint TransparentColor => 0x00000000;
 
     protected override string StatsCategory => "SkiaSharp-custom";
 
@@ -98,19 +96,6 @@ public class C64SkiaRenderer3 : C64RenderBase
         _sKRuntimeEffectUniforms = new SKRuntimeEffectUniforms(_sKRuntimeEffect);
         _sKRuntimeEffectChildren = new SKRuntimeEffectChildren(_sKRuntimeEffect);
         _shaderPaint = new SKPaint();
-
-        InitShaderColorValueLookup();
-    }
-
-    private void InitShaderColorValueLookup()
-    {
-        // Map 32 bit unsigned int color values (from SKColors drawn on pixelarray/bitmap) to float[4] color values as seen in shader
-        AddColorToShaderColorMap(TransparentColor);
-
-        void AddColorToShaderColorMap(SKColor color)
-        {
-            _sKColorToShaderColorMap.Add((uint)color, [color.Red / 255.0f, color.Green / 255.0f, color.Blue / 255.0f, color.Alpha / 255.0f]);
-        }
     }
 
     private string ReplaceShaderPlaceholders(string src, C64 c64)
@@ -150,11 +135,10 @@ public class C64SkiaRenderer3 : C64RenderBase
 
     private void WriteBitmapToCanvas(SKBitmap backgroundAndBorderBitmap, SKBitmap foregroundBitmap, SKCanvas canvas)
     {
-
         // _drawCanvasWithShaderStat.Start();
 
         // shader uniform values
-        _sKRuntimeEffectUniforms["transparentColor"] = _sKColorToShaderColorMap[TransparentColor];
+        //_sKRuntimeEffectUniforms["parameterName"] = 1234;
 
         // Convert bitmaps to shader textures
         using var backgroundAndBorderTexture = backgroundAndBorderBitmap.ToShader();
