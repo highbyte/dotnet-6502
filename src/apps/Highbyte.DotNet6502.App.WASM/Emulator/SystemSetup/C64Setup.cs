@@ -14,6 +14,7 @@ using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggestion;
 using System.Text.Json;
+using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v3;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
@@ -130,6 +131,9 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
                 break;
             case C64HostRenderer.SkiaSharp2b:
                 renderer = new C64SkiaRenderer2b(c64, renderContext);
+                break;
+            case C64HostRenderer.SkiaSharp3:
+                renderer = new C64SkiaRenderer3(c64, renderContext);
                 break;
             default:
                 throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
