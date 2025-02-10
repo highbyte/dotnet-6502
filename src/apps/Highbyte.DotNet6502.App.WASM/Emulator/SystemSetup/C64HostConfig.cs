@@ -12,6 +12,7 @@ public enum C64HostRenderer
     SkiaSharp,
     SkiaSharp2,  // Experimental render directly to pixel buffer backed by a SKBitmap + Skia shader (SKSL)
     SkiaSharp2b, // Experimental render after each instruction directly to pixel buffer backed by a SKBitmap + Skia shader (SKSL)
+    SkiaSharp3,  // Consolidated renderer based on base class C64RenderBase. Similar to SkiaSharp2b, but simplified sprite color handling.
 }
 public class C64HostConfig : IHostSystemConfig, ICloneable
 {
