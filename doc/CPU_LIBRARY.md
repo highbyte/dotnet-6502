@@ -21,7 +21,7 @@ dotnet add package Highbyte.DotNet6502 --prerelease
 - Clone this repo `git clone https://github.com/highbyte/dotnet-6502.git`
 - Change dir to library `cd dotnet-6502/src/libraries/Highbyte.DotNet6502`
 - Build library `dotnet build`
-- In your app, add .dll reference to `./bin/Debug/net8.0/Highbyte.DotNet6502.dll`
+- In your app, add .dll reference to `./bin/Debug/net9.0/Highbyte.DotNet6502.dll`
 
 ## Example of basic usage of Highbyte.DotNet6502 library
 

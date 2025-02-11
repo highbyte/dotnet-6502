@@ -5,7 +5,7 @@
   A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502">6502 CPU</a> emulator for .NET
 </h2>
 
-[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)](doc/DEVELOP.md)
+[![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](doc/DEVELOP.md)
 [![language](https://img.shields.io/badge/language-C%23-239120)](doc/DEVELOP.md)
 [![OS](https://img.shields.io/badge/OS-windows%2C%20macOS%2C%20linux-0078D4)](doc/DEVELOP.md)
 [![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?logo=webassembly&logoColor=fff)](#)
