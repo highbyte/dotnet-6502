@@ -271,9 +271,6 @@ __pycache__/
 .sonar/
 .sonarqube/
 
-#We want to exlude nuget.config with GitHub Actions packageSourceCredentials. This file is created with Action setup-dotnet based on its parameters.
-nuget.config
-
 # covergereport from dotnet global tool "reportgenerator"
 **/coveragereport/
 
