@@ -5,6 +5,7 @@ using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
 using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
+using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v3;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -82,6 +83,9 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
                 break;
             case C64HostRenderer.SkiaSharp2b:
                 renderer = new C64SkiaRenderer2b(c64, renderContextContainer.SkiaRenderContext);
+                break;
+            case C64HostRenderer.SkiaSharp3:
+                renderer = new C64SkiaRenderer3(c64, renderContextContainer.SkiaRenderContext);
                 break;
             case C64HostRenderer.SilkNetOpenGl:
                 renderer = new C64SilkNetOpenGlRenderer(c64, renderContextContainer.SilkNetOpenGlRenderContext, c64HostConfig.SilkNetOpenGlRendererConfig);

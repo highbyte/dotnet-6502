@@ -49,7 +49,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 9.0.x
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -77,7 +77,7 @@ jobs:
     # Add the WASM workload manually (github/codeql-action/autobuild only seems to work with this if runs-on: windows-latest)
     - name: Install DotNet workload - WASM tools
       run: |
-        dotnet workload install wasm-tools
+        dotnet workload install wasm-tools-net8
 
     # Manually build instead of relying on Autobuild
     - name: Restore dependencies

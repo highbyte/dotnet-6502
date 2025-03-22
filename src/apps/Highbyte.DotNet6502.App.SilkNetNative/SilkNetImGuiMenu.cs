@@ -124,6 +124,8 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         if (ImGui.Button("Start"))
         {
             _silkNetHostApp.Start();
+            ImGui.SetWindowFocus(null);
+            ImGui.SetWindowCollapsed(true);
             return;
         }
         ImGui.EndDisabled();
