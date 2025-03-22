@@ -36,7 +36,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="9.0.3" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="9.0.3" />
     <PackageReference Include="SkiaSharp.Views.Blazor" Version="3.119.0-preview.0.20" />
-    <PackageReference Include="PublishSPAforGitHubPages.Build" Version="2.2.0" />
+    <PackageReference Include="PublishSPAforGitHubPages.Build" Version="3.0.0" />
     <PackageReference Include="System.Net.Http.Json" Version="9.0.3" />
     <PackageReference Include="TextCopy" Version="6.2.1" />
     <PackageReference Include="Toolbelt.Blazor.Gamepad" Version="9.0.0" />
