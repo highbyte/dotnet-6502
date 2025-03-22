@@ -35,9 +35,9 @@ public static class ChatClientFactory
         });
         IDistributedCache cache = new MemoryDistributedCache(options);
 
-        IChatClient client = new ChatClientBuilder()
+        IChatClient client = new ChatClientBuilder(chatClient)
                         .UseDistributedCache(cache)
-                        .Use(chatClient);
+                        .Build();
         return client;
     }
 

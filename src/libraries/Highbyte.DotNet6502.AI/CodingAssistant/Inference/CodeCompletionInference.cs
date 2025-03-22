@@ -2,6 +2,7 @@
 // and modified for Microsoft.Extensions.AI
 using System.Text;
 using Microsoft.Extensions.AI;
+using OpenAI.Chat;
 
 namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference;
 
@@ -22,12 +23,12 @@ public class CodeCompletionInference(IChatClient chatClient)
         };
     }
 
-    public virtual IList<ChatMessage> BuildChatMessages(CodeCompletionConfig config, string textBefore, string textAfter)
+    public virtual IList<Microsoft.Extensions.AI.ChatMessage> BuildChatMessages(CodeCompletionConfig config, string textBefore, string textAfter)
     {
         // Add system instruction
         var systemMessageBuilder = new StringBuilder();
         systemMessageBuilder.Append(config.SystemInstruction);
-        List<ChatMessage> messages =
+        List<Microsoft.Extensions.AI.ChatMessage> messages =
         [
             new(ChatRole.System, systemMessageBuilder.ToString()),
         ];
@@ -46,9 +47,8 @@ public class CodeCompletionInference(IChatClient chatClient)
     {
         var chatOptions = BuildChatOptions(config);
         var chatMessages = BuildChatMessages(config, textBefore, textAfter);
-        ChatCompletion completionsResponse = await _chatClient.CompleteAsync(chatMessages, chatOptions);
-
-        var response = completionsResponse.Choices.FirstOrDefault()?.Text ?? string.Empty;
+        ChatResponse completionsResponse = await _chatClient.GetResponseAsync(chatMessages, chatOptions);
+        var response = completionsResponse.Messages.FirstOrDefault()?.Text ?? string.Empty;
 
         return config.ParseResponse(response, textBefore, textAfter);
 
