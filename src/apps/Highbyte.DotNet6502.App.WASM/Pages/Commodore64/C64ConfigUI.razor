@@ -261,6 +261,29 @@
                     </div>
                 }
 
+                @if (@C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint2)
+                {
+                    <div class="table-row">
+
+                        <div class="table-cell table-cell-fixed-width-medium twocol">Custom AI endpoint</div>
+                        <div class="table-cell table-cell-fixed-width-large twocol">
+                            @if (_customEndpointAIApiConfig != null)
+                            {
+                                @_customEndpointAIApiConfig.Endpoint
+                            }
+                        </div>
+                    </div>
+                    <div class="table-row">
+                        <div class="table-cell table-cell-fixed-width-medium twocol">Custom endpoint API key</div>
+                        <div class="table-cell table-cell-fixed-width-large twocol">
+                            @if (_customEndpointAIApiConfig != null)
+                            {
+                                <InputText @ref="_customEndpointAIApiKeyInputText" @bind-Value="_customEndpointAIApiConfig.ApiKey" style="width: inherit" />
+                            }
+                        </div>
+                    </div>
+                }
+
                 @if (@C64HostConfig.CodeSuggestionBackendType != CodeSuggestionBackendTypeEnum.None)
                 {
                     <div class="table-row">
@@ -332,6 +355,10 @@
             await C64Setup.SaveOpenAISelfHostedCodeLlamaCodingAssistantConfigToLocalStorage(LocalStorage, _openAISelfHostedCodeLlamaAIApiConfig);
         }
         else if (C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
+        {
+            await C64Setup.SaveCustomCodingAssistantConfigToLocalStorage(LocalStorage, _customEndpointAIApiConfig);
+        }
+        else if (C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint2)
         {
             await C64Setup.SaveCustomCodingAssistantConfigToLocalStorage(LocalStorage, _customEndpointAIApiConfig);
         }
@@ -442,6 +469,10 @@
             codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(chatClient, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
         }        
         else if(C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
+        {
+            codeSuggestion = new CustomAIEndpointCodeSuggestion(_customEndpointAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+        }
+        else if (C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint2)
         {
             codeSuggestion = new CustomAIEndpointCodeSuggestion(_customEndpointAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
         }

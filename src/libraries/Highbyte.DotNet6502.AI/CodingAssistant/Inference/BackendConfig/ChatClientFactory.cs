@@ -7,18 +7,20 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using OpenAI;
+using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggestion;
 
 namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference.BackendConfig;
 
 public static class ChatClientFactory
 {
-    public static IChatClient CreateChatClient(CodeCompletionBackendType codeCompletionBackendType, IConfiguration config)
+    public static IChatClient CreateChatClient(CodeCompletionBackendType codeCompletionBackendType, IConfiguration config, string programmingLanguage)
     {
         var chatClient = codeCompletionBackendType switch
         {
             CodeCompletionBackendType.OpenAI => CreateOpenAIChatClient(new OpenAIConfig(config)),
             CodeCompletionBackendType.AzureOpenAI => CreateAzureOpenAIChatClient(new AzureOpenAIConfig(config)),
             CodeCompletionBackendType.Ollama => CreateOllamaChatClient(new OllamaConfig(config)),
+            CodeCompletionBackendType.CustomEndpoint => CreateCustomAIEndpointChatClient(new CustomAIEndpointConfig(config), programmingLanguage),
             _ => throw new InvalidOperationException($"Invalid backend type: {codeCompletionBackendType}")
         };
 
@@ -64,5 +66,10 @@ public static class ChatClientFactory
         //return new OllamaChatClient(ollamaConfig.Endpoint, ollamaConfig.ModelName, httpClient);
 
         return new OllamaChatClient(ollamaConfig.Endpoint, ollamaConfig.ModelName);
+    }
+
+    public static IChatClient CreateCustomAIEndpointChatClient(CustomAIEndpointConfig customAIEndpointConfig, string programmingLanguage)
+    {
+        return new CustomAIEndpointChatClient(customAIEndpointConfig, programmingLanguage);
     }
 }

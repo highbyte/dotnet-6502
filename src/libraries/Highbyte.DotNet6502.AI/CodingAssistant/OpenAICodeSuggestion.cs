@@ -13,7 +13,7 @@ public class OpenAICodeSuggestion : ICodeSuggestion
 
     // OpenAI
     public static OpenAICodeSuggestion CreateOpenAICodeSuggestion(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction = "")
-        => CreateOpenAICodeSuggestion(ChatClientFactory.CreateChatClient(CodeCompletionBackendType.OpenAI, configuration), programmingLanguage, additionalSystemInstruction);
+        => CreateOpenAICodeSuggestion(ChatClientFactory.CreateChatClient(CodeCompletionBackendType.OpenAI, configuration, programmingLanguage), programmingLanguage, additionalSystemInstruction);
     public static OpenAICodeSuggestion CreateOpenAICodeSuggestion(IChatClient chatClient, string programmingLanguage, string additionalSystemInstruction)
     {
         var codeCompletionConfig = CodeSuggestionSystemInstructions.GetOpenAICodeCompletionConfig(programmingLanguage, additionalSystemInstruction);
@@ -22,12 +22,22 @@ public class OpenAICodeSuggestion : ICodeSuggestion
 
     // CodeLlama via self-hosted OpenAI compatible API (Ollama)
     public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForCodeLlama(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction)
-            => CreateOpenAICodeSuggestionForCodeLlama(ChatClientFactory.CreateChatClient(CodeCompletionBackendType.Ollama, configuration), programmingLanguage, additionalSystemInstruction);
+            => CreateOpenAICodeSuggestionForCodeLlama(ChatClientFactory.CreateChatClient(CodeCompletionBackendType.Ollama, configuration, programmingLanguage), programmingLanguage, additionalSystemInstruction);
     public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForCodeLlama(IChatClient chatClient, string programmingLanguage, string additionalSystemInstruction)
     {
         var codeCompletionConfig = CodeSuggestionSystemInstructions.GetCodeLlamaCodeCompletionConfig(programmingLanguage, additionalSystemInstruction);
         return new OpenAICodeSuggestion(chatClient, codeCompletionConfig);
     }
+
+    // CustomEndpoint
+    public static OpenAICodeSuggestion CreateCustomAIEndpointCodeSuggestion(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction = "")
+        => CreateCustomAIEndpointCodeSuggestion(ChatClientFactory.CreateChatClient(CodeCompletionBackendType.CustomEndpoint, configuration, programmingLanguage), programmingLanguage, additionalSystemInstruction);
+    public static OpenAICodeSuggestion CreateCustomAIEndpointCodeSuggestion(IChatClient chatClient, string programmingLanguage, string additionalSystemInstruction)
+    {
+        var codeCompletionConfig = CodeSuggestionSystemInstructions.GetOpenAICodeCompletionConfig(programmingLanguage, additionalSystemInstruction);
+        return new OpenAICodeSuggestion(chatClient, codeCompletionConfig);
+    }
+
 
     private OpenAICodeSuggestion(IChatClient chatClient, CodeCompletionConfig codeCompletionConfig)
     {

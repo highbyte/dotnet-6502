@@ -2,7 +2,6 @@
 // and modified for Microsoft.Extensions.AI
 using System.Text;
 using Microsoft.Extensions.AI;
-using OpenAI.Chat;
 
 namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference;
 

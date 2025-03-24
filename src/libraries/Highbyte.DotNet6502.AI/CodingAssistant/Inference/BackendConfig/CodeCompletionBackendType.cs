@@ -4,5 +4,6 @@ public enum CodeCompletionBackendType
 {
     OpenAI,
     AzureOpenAI,
-    Ollama
+    Ollama,
+    CustomEndpoint
 }

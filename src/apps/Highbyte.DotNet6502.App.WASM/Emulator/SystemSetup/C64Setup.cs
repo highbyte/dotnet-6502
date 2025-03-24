@@ -226,6 +226,13 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
                 var customAIEndpointConfig = await GetCustomAIEndpointConfig(localStorageService);
                 codeSuggestion = new CustomAIEndpointCodeSuggestion(customAIEndpointConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
             }
+            else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint2)
+            {
+                var customAIEndpointConfig = await GetCustomAIEndpointConfig(localStorageService);
+                var chatClient = ChatClientFactory.CreateCustomAIEndpointChatClient(customAIEndpointConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestion(chatClient, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
+            }
+
             else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.None)
             {
                 codeSuggestion = new NoCodeSuggestion();
