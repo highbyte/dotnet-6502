@@ -34,10 +34,9 @@ public class OpenAICodeSuggestion : ICodeSuggestion
         => CreateCustomAIEndpointCodeSuggestion(ChatClientFactory.CreateChatClient(CodeCompletionBackendType.CustomEndpoint, configuration, programmingLanguage), programmingLanguage, additionalSystemInstruction);
     public static OpenAICodeSuggestion CreateCustomAIEndpointCodeSuggestion(IChatClient chatClient, string programmingLanguage, string additionalSystemInstruction)
     {
-        var codeCompletionConfig = CodeSuggestionSystemInstructions.GetOpenAICodeCompletionConfig(programmingLanguage, additionalSystemInstruction);
+        var codeCompletionConfig = new CodeCompletionConfig();
         return new OpenAICodeSuggestion(chatClient, codeCompletionConfig);
     }
-
 
     private OpenAICodeSuggestion(IChatClient chatClient, CodeCompletionConfig codeCompletionConfig)
     {
