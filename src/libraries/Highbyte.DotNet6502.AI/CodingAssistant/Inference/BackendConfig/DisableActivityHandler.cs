@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
+namespace Highbyte.DotNet6502.AI.CodingAssistant.Inference.BackendConfig;
 public class DisableActivityHandler : DelegatingHandler
 {
     /// <summary>

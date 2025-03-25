@@ -115,14 +115,14 @@ public class CustomAIEndpointCodeSuggestion : ICodeSuggestion
         }
     }
 
-    class CodeCompletionRequest
+    public class CodeCompletionRequest
     {
         public required string ProgrammingLanguage { get; set; }
         public required string TextBefore { get; set; }
         public required string TextAfter { get; set; }
     }
 
-    class CodeCompletionResponse
+    public class CodeCompletionResponse
     {
         public string? CodeInsertion { get; set; }
     }

@@ -89,9 +89,4 @@ Don't return any comments.
             }
         };
     }
-
-    internal static CodeCompletionConfig GetOpenAICodeCompletionConfig(string programmingLanguage, object additionalSystemInstruction)
-    {
-        throw new NotImplementedException();
-    }
 }

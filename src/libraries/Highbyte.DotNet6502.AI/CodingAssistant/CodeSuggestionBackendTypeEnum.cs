@@ -22,5 +22,12 @@ public enum CodeSuggestionBackendTypeEnum
     /// Does not require user to provide a OpenAI API key.
     /// May require a custom API key to the endpoint.
     /// </summary>
-    CustomEndpoint
+    CustomEndpoint,
+    /// <summary>
+    /// A custom endpoint that in turn calls OpenAI (or a self-hosted API). 
+    /// Does not require user to provide a OpenAI API key.
+    /// May require a custom API key to the endpoint.
+    /// </summary>
+    CustomEndpoint2
+
 }
