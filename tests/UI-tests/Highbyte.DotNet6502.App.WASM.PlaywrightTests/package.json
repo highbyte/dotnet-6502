@@ -1,0 +1,13 @@
+{
+  "name": "highbyte-dotnet6502-app-wasm-playwrighttests",
+  "version": "1.0.0",
+  "description": "Playwright UI tests for Highbyte.DotNet6502.App.WASM",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.53.1",
+    "@types/node": "^24.0.3"
+  }
+}

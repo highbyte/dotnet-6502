@@ -1,0 +1,12 @@
+# Ignore node modules and Playwright reports
+node_modules/
+playwright-report/
+test-results/
+tests/artifacts/
+*.log
+
+# Ignore OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.env
