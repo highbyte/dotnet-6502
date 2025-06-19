@@ -14,7 +14,11 @@ public class C64SystemConfig : ISystemConfig
         _isDirty = false;
     }
 
-    // TODO: Decide if DefaultKernalROMChecksums should exists here in C64SystemConfig, C64Config, or in C64
+    public static string DEFAULT_KERNAL_ROM_DOWNLOAD_URL = "https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/kernal.901227-03.bin";
+    public static string DEFAULT_BASIC_ROM_DOWNLOAD_URL = "https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/basic.901226-01.bin";
+    public static string DEFAULT_CHARGEN_ROM_DOWNLOAD_URL = "https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/characters.901225-01.bin";
+
+    // TODO: Decide if ROM checksums should exist in C64SystemConfig, C64Config, or in C64
     // ROM version info from: https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/
     // Checksums calculated with SHA1
     public const string KERNAL_ROM_NAME = "kernal";
@@ -84,6 +88,13 @@ public class C64SystemConfig : ISystemConfig
             _isDirty = true;
         }
     }
+
+    public Dictionary<string, string> ROMDownloadUrls { get; } = new()
+    {
+        { KERNAL_ROM_NAME, DEFAULT_KERNAL_ROM_DOWNLOAD_URL },
+        { BASIC_ROM_NAME, DEFAULT_BASIC_ROM_DOWNLOAD_URL },
+        { CHARGEN_ROM_NAME, DEFAULT_CHARGEN_ROM_DOWNLOAD_URL }
+    };
 
     private bool _audioEnabled;
     public bool AudioEnabled
