@@ -76,7 +76,7 @@ public class C64ConfigUIConsole : Window
         var openROMDownloadURLButton = new Button("Manual ROM download link")
         {
             Name = "openROMDownloadURLButton",
-            Position = (32, autoDownloadROMButton.Position.Y),
+            Position = (31, autoDownloadROMButton.Position.Y),
         };
         openROMDownloadURLButton.Click += (s, e) => OpenURL(new Uri(C64SystemConfig.ROMDownloadUrls[C64SystemConfig.KERNAL_ROM_NAME]).GetLeftPart(UriPartial.Authority));
         Controls.Add(openROMDownloadURLButton);

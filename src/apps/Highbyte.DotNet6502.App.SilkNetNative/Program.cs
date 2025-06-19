@@ -16,7 +16,9 @@ Environment.CurrentDirectory = currentAppDir;
 // ----------
 var builder = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("appsettings.json");
+    .AddJsonFile("appsettings.json")
+    .AddJsonFile("appsettings.Development.json", optional: true);
+
 IConfiguration Configuration = builder.Build();
 
 // ----------
