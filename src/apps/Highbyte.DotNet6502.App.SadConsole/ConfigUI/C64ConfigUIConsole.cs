@@ -45,8 +45,56 @@ public class C64ConfigUIConsole : Window
 
     private void DrawUIItems()
     {
+        // Automatic download of C64 ROMs
+        var autoDownloadROMButton = new Button("Auto download ROM files")
+        {
+            Name = "autoDownloadROMButton",
+            Position = (1, 2),
+        };
+        autoDownloadROMButton.Click += async (s, e) =>
+        {
+            var autoDownloadROMInfoLabel = Controls["autoDownloadROMInfoLabel"] as Label;
+            try
+            {
+                await AutoDownloadROMs();
+                autoDownloadROMInfoLabel.DisplayText = "ROMs downloaded OK";
+                autoDownloadROMInfoLabel.TextColor = Color.Green;
+            }
+            catch (Exception ex)
+            {
+                autoDownloadROMInfoLabel.DisplayText = ex.Message;
+                autoDownloadROMInfoLabel.TextColor = Color.Red;
+            }
+            finally
+            {
+                IsDirty = true; // Mark as dirty to update the UI
+            }
+        };
+        Controls.Add(autoDownloadROMButton);
+
+        // Manual download link
+        var openROMDownloadURLButton = new Button("Manual ROM download link")
+        {
+            Name = "openROMDownloadURLButton",
+            Position = (32, autoDownloadROMButton.Position.Y),
+        };
+        openROMDownloadURLButton.Click += (s, e) => OpenURL(new Uri(C64SystemConfig.ROMDownloadUrls[C64SystemConfig.KERNAL_ROM_NAME]).GetLeftPart(UriPartial.Authority));
+        Controls.Add(openROMDownloadURLButton);
+
+        // Auto ROM download status label
+        var autoDownloadROMInfoLabel = new Label(Width - 10)
+        {
+            Name = "autoDownloadROMInfoLabel",
+            Position = (1, autoDownloadROMButton.Bounds.MaxExtentY + 1),
+            IsEnabled = false,
+            DisplayText = "",
+            TextColor = Controls.GetThemeColors().Appearance_ControlDisabled.Foreground
+        };
+        Controls.Add(autoDownloadROMInfoLabel);
+
+
         // ROM directory
-        var romDirectoryLabel = CreateLabel("ROM directory", 1, 1);
+        var romDirectoryLabel = CreateLabel("ROM directory", 1, autoDownloadROMInfoLabel.Position.Y + 2);
         var romDirectoryTextBox = new TextBox(Width - 10)
         {
             Name = "romDirectoryTextBox",
@@ -118,27 +166,8 @@ public class C64ConfigUIConsole : Window
         Controls.Add(selectChargenROMButton);
 
 
-        // URL for downloading C64 ROMs
-        var romDownloadsLabel = CreateLabel("ROM download link", 1, chargenROMTextBox.Bounds.MaxExtentY + 2);
-        var romDownloadLinkTextBox = new TextBox(Width - 10)
-        {
-            Name = "romDownloadLinkTextBox",
-            Position = (1, romDownloadsLabel.Bounds.MaxExtentY + 1),
-            IsEnabled = false,
-            Text = "https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/index-t.html",
-        };
-        Controls.Add(romDownloadLinkTextBox);
-
-        var openROMDownloadURLButton = new Button("...")
-        {
-            Name = "openROMDownloadURLButton",
-            Position = (romDownloadLinkTextBox.Bounds.MaxExtentX + 2, romDownloadLinkTextBox.Position.Y),
-        };
-        openROMDownloadURLButton.Click += (s, e) => OpenURL(romDownloadLinkTextBox.Text);
-        Controls.Add(openROMDownloadURLButton);
-
         // AI coding assistant selection
-        var codingAssistantLabel = CreateLabel("Basic AI assistant: ", 1, romDownloadLinkTextBox.Bounds.MaxExtentY + 3);
+        var codingAssistantLabel = CreateLabel("Basic AI assistant: ", 1, selectChargenROMButton.Bounds.MaxExtentY + 2);
         var codingAssistantValue = CreateLabel($"{C64HostConfig.CodeSuggestionBackendType}", codingAssistantLabel.Bounds.MaxExtentX + 1, codingAssistantLabel.Position.Y);
         codingAssistantValue.TextColor = Controls.GetThemeColors().White;
 
@@ -287,6 +316,46 @@ public class C64ConfigUIConsole : Window
             }
         };
         window.Show(true);
+    }
+
+    private async Task AutoDownloadROMs()
+    {
+        var romFolder = PathHelper.ExpandOSEnvironmentVariables(C64SystemConfig.ROMDirectory);
+        if (!Directory.Exists(romFolder))
+        {
+            Directory.CreateDirectory(romFolder);
+        }
+
+        using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        //httpClient.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+        httpClient.DefaultRequestHeaders.Accept.ParseAdd("*/*");
+
+        foreach (var romDownload in C64SystemConfig.ROMDownloadUrls)
+        {
+            var romName = romDownload.Key;
+            var romUrl = romDownload.Value;
+            var filename = Path.GetFileName(new Uri(romUrl).LocalPath);
+            var dest = Path.Combine(romFolder, filename);
+            try
+            {
+                using var response = await httpClient.GetAsync(romUrl);
+                if (!response.IsSuccessStatusCode)
+                    throw new Exception($"Failed to get '{romUrl}' ({(int)response.StatusCode})");
+                await using var fs = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None);
+                await response.Content.CopyToAsync(fs);
+                System.Console.WriteLine($"Downloaded {filename} to {dest}");
+
+                // Update the C64SystemConfig with the downloaded ROM file
+                C64SystemConfig.SetROM(romName, filename);
+            }
+            catch (Exception ex)
+            {
+                if (File.Exists(dest))
+                    File.Delete(dest);
+                throw new Exception($"Error downloading {romUrl}: {ex.Message}", ex);
+            }
+        }
     }
 
     protected override void OnIsDirtyChanged()
