@@ -20,7 +20,8 @@
         <div class="column">
             <InputFile id="c64RomFilePicker" OnChange="@OnC64RomFilePickerChange" multiple hidden />
             <span>
-                <button onclick="document.getElementById('c64RomFilePicker').click()">Load ROMs</button>
+                <button @onclick="LoadROMsFromURL">Load ROMs from URLs</button>
+                <button onclick="document.getElementById('c64RomFilePicker').click()">Load ROMs from files</button>
                 <button @onclick="UnloadROMs">Unload ROMs</button>
             </span>
             @if (_isLoadingC64Roms)
@@ -287,6 +288,8 @@
     public ILocalStorageService LocalStorage { get; set; } = default!;
     [Inject]
     public IJSRuntime Js { get; set; } = default!;
+    [Inject]
+    public HttpClient HttpClient { get; set; } = default!;
 
     [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
@@ -357,6 +360,58 @@
     private string _validationMessage = "";
 
     private string _aiBackendValidationMessage = "";
+
+
+    private async Task LoadROMsFromURL()
+    {
+        await DownloadC64RomsAsync(
+            new string[]
+            {
+                "https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/kernal.901227-03.bin",
+                "https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/basic.901226-01.bin",
+                "https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/characters.901225-01.bin"
+            },
+            corsProxy: "https://api.allorigins.win/raw?url="
+        );
+    }
+
+    private async Task DownloadC64RomsAsync(string[] romUrls, string? corsProxy = null)
+    {
+        HttpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        HttpClient.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+
+        foreach (var url in romUrls)
+        {
+            var filename = Path.GetFileName(new Uri(url).LocalPath);
+
+            bool isKernal = filename.Contains("kern", StringComparison.InvariantCultureIgnoreCase);
+            bool isBasic = filename.Contains("bas", StringComparison.InvariantCultureIgnoreCase);
+            bool isChargen = filename.Contains("char", StringComparison.InvariantCultureIgnoreCase);
+            if (!isKernal && !isBasic && !isChargen)
+            {
+                _isLoadingC64Roms = false;
+                _validationMessage = $"File name {filename} does not contain one of the following string: kern, bas, char ";
+                continue;
+            }
+            string romName = isKernal ? C64SystemConfig.KERNAL_ROM_NAME :
+                            isBasic ? C64SystemConfig.BASIC_ROM_NAME :
+                            C64SystemConfig.CHARGEN_ROM_NAME;
+
+            byte[] fileBuffer;
+            var fullUrl = corsProxy != null ? $"{corsProxy}{Uri.EscapeDataString(url)}" : url;
+            try
+            {
+
+                fileBuffer = await HttpClient.GetByteArrayAsync(fullUrl);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error downloading {fullUrl}: {ex.Message}", ex);
+            }
+            C64HostConfig.SystemConfig.SetROM(romName, data: fileBuffer);
+        }
+    }
+
 
 
     private async Task OnC64RomFilePickerChange(InputFileChangeEventArgs e)
