@@ -56,6 +56,12 @@
             "type": "coreclr",
             "request": "attach",
             "processId": "${command:pickProcess}"
+        },
+        {
+            "name": ".NET Core Attach MCPServer",
+            "type": "coreclr",
+            "request": "attach",
+            "processName": "Highbyte.DotNet6502.Util.MCPServer.exe"
         }
     ]
 }

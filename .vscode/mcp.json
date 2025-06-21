@@ -1,0 +1,17 @@
+{
+    "inputs": [],
+    "servers": {
+        "DotNet6502": {
+            "type": "stdio",
+            "command": "dotnet",
+            "args": [
+                "run",
+                "--project",
+                "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\utils\\Highbyte.DotNet6502.Util.MCPServer\\Highbyte.DotNet6502.Util.MCPServer.csproj",
+                "--configuration",
+                "Debug"
+            ],
+            "cwd": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\utils\\Highbyte.DotNet6502.Util.MCPServer"
+        }
+    }
+}
