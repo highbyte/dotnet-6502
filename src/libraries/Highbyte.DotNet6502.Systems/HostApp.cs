@@ -1,6 +1,7 @@
-using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems;
 
@@ -15,7 +16,7 @@ public enum EmulatorState { Uninitialized, Running, Paused }
 /// <typeparam name="TRenderContext"></typeparam>
 /// <typeparam name="TInputHandlerContext"></typeparam>
 /// <typeparam name="TAudioHandlerContext"></typeparam>
-public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
+public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext> : IHostApp
     where TRenderContext : IRenderContext
     where TInputHandlerContext : IInputHandlerContext
     where TAudioHandlerContext : IAudioHandlerContext
@@ -52,13 +53,13 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
                 throw new DotNet6502Exception("Internal error. No system selected yet. Call SelectSystem() first.");
             return _currentHostSystemConfig;
         }
-        private set
+        set
         {
             _currentHostSystemConfig = value;
         }
     }
 
-    protected List<IHostSystemConfig> GetHostSystemConfigs()
+    public List<IHostSystemConfig> GetHostSystemConfigs()
     {
         var list = new List<IHostSystemConfig>();
         foreach (var system in AvailableSystemNames)
@@ -373,5 +374,51 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
             .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
             .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{InputTimeStatName}-{x.Name}", x.Stat)))
             .ToList();
+    }
+
+
+    private readonly ConcurrentQueue<Action> _uiActions = new();
+
+
+    public virtual bool ExternalControlDirectInvoke { get; } = false;
+    public Task ExternalControlInvokeOnUIThread(Action action)
+    {
+        // If HostApp is running on same thread as the external control code, execute the action directly.
+        if (ExternalControlDirectInvoke)
+        {
+            try
+            {
+                action();
+                return Task.CompletedTask;
+            }
+            catch (Exception ex)
+            {
+                return Task.FromException(ex);
+            }
+        }
+
+        // Otherwise, enqueue the action to be executed on the UI thread (see ExternalControlProcessUIActions);
+        var tcs = new TaskCompletionSource<object?>();
+        _uiActions.Enqueue(() =>
+        {
+            try
+            {
+                action();
+                tcs.SetResult(null);
+            }
+            catch (Exception ex)
+            {
+                tcs.SetException(ex);
+            }
+        });
+        return tcs.Task;
+    }
+
+    public void ExternalControlProcessUIActions()
+    {
+        while (_uiActions.TryDequeue(out var action))
+        {
+            action();
+        }
     }
 }

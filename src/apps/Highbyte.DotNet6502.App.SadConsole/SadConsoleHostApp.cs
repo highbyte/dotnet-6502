@@ -75,7 +75,6 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     private int _logsFrameCount = 0;
     private DrawImage _logoDrawImage;
 
-
     /// <summary>
     /// Constructor
     /// </summary>
@@ -345,6 +344,9 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     /// <param name=""></param>
     private void UpdateSadConsole(object? sender, GameHost gameHost)
     {
+        // Process any UI actions that have been queued up from other threads
+        ExternalControlProcessUIActions();
+
         // Handle UI-specific keyboard inputs such as toggle monitor, info, etc.
         HandleUIKeyboardInput().Wait();
 

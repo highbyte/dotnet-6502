@@ -5,7 +5,9 @@ using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 
 // ----------
 // Get config file
@@ -22,7 +24,6 @@ if (isDevelopment) //only add secrets in development
     builder.AddUserSecrets<Program>();
 }
 
-
 IConfiguration Configuration = builder.Build();
 
 // ----------
@@ -36,6 +37,27 @@ var loggerFactory = LoggerFactory.Create(builder =>
     builder.AddInMem(logConfig);
     builder.SetMinimumLevel(LogLevel.Trace);
 });
+
+// ----------
+// Setup DI
+// ----------
+var services = new ServiceCollection();
+
+// Register configuration and logging to DI
+services.AddSingleton<IConfiguration>(Configuration);
+services.AddLogging(loggingBuilder =>
+{
+    loggingBuilder.AddInMem(logConfig);
+    loggingBuilder.SetMinimumLevel(LogLevel.Trace);
+});
+
+// TODO: Register your own services here
+// services.AddSingleton<YourType>();
+
+var serviceProvider = services.BuildServiceProvider();
+
+// Example: resolve loggerFactory from DI if needed
+// var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
 
 // ----------
 // Get emulator host config
@@ -54,10 +76,35 @@ systemList.AddSystem(c64Setup);
 var genericComputerSetup = new GenericComputerSetup(loggerFactory, Configuration);
 systemList.AddSystem(genericComputerSetup);
 
+
+// ----------
+// Init SadConsoleHostApp
+// ----------
+emulatorConfig.Validate(systemList);
+var silkNetHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorConfig, logStore, logConfig, Configuration);
+
+// ----------
+// Start MCP server as a background host
+// ----------
+Task.Run(async () =>
+{
+    var mcpBuilder = Host.CreateApplicationBuilder();
+    mcpBuilder.Logging.AddConsole(consoleLogOptions =>
+    {
+        // Configure all logs to go to stderr
+        consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
+    });
+
+    mcpBuilder.Services
+        .AddMcpServer()
+        .WithStdioServerTransport()
+        .WithToolsFromAssembly(typeof(Highbyte.DotNet6502.Util.MCPServer.C64Tool).Assembly);
+
+    mcpBuilder.Services.AddSingleton<IHostApp>((sp) => silkNetHostApp);
+    await mcpBuilder.Build().RunAsync();
+});
+
 // ----------
 // Start SadConsoleHostApp
 // ----------
-emulatorConfig.Validate(systemList);
-
-var silkNetHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorConfig, logStore, logConfig, Configuration);
 silkNetHostApp.Run();

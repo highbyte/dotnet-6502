@@ -122,4 +122,6 @@ public class EmbeddedMCPHostApp : HostApp<NullRenderContext, NullInputHandlerCon
         {
         }
     }
+
+    public override bool ExternalControlDirectInvoke => true;
 }

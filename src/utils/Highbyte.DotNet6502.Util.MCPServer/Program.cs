@@ -29,7 +29,7 @@ builder.Services
 // ----------
 var configuration = builder.Configuration;
 
-builder.Services.AddSingleton<EmbeddedMCPHostApp>((sp) =>
+builder.Services.AddSingleton<IHostApp>((sp) =>
 {
     // ----------
     // Create emulator logging
