@@ -384,7 +384,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
 
     public virtual bool ExternalControlDirectInvoke { get; } = false;
-    public Task ExternalControlInvokeOnUIThread(Action action)
+    public Task ExternalControlInvokeOnUIThread(Func<Task> action)
     {
         // If HostApp is running on same thread as the external control code, execute the action directly.
         if (ExternalControlDirectInvoke)
@@ -402,11 +402,11 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
         // Otherwise, enqueue the action to be executed on the UI thread (see ExternalControlProcessUIActions);
         var tcs = new TaskCompletionSource<object?>();
-        _uiActions.Enqueue(() =>
+        _uiActions.Enqueue(async () =>
         {
             try
             {
-                action();
+                await action();
                 tcs.SetResult(null);
             }
             catch (Exception ex)

@@ -40,6 +40,7 @@ public interface IHostApp
     public List<(string name, IStat stat)> GetStats();
 
     public bool ExternalControlDirectInvoke { get; }
-    public Task ExternalControlInvokeOnUIThread(Action action);
+    public Task ExternalControlInvokeOnUIThread(Func<Task> action);
+
     public void ExternalControlProcessUIActions();
 }
