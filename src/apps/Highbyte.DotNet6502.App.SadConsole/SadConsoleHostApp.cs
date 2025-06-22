@@ -344,9 +344,6 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     /// <param name=""></param>
     private void UpdateSadConsole(object? sender, GameHost gameHost)
     {
-        // Process any UI actions that have been queued up from other threads
-        ExternalControlProcessUIActions();
-
         // Handle UI-specific keyboard inputs such as toggle monitor, info, etc.
         HandleUIKeyboardInput().Wait();
 
@@ -611,5 +608,23 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
                 await c64MenuConsole.ToggleBasicAIAssistant();
             }
         }
+    }
+
+    public override void ExternalControlRefreshUI()
+    {
+        // Refresh UI controls
+        if (_menuConsole != null)
+            _menuConsole.IsDirty = true;
+        if (_systemMenuConsole != null)
+            _systemMenuConsole.IsDirty = true;
+        if (_sadConsoleEmulatorConsole != null)
+            _sadConsoleEmulatorConsole.IsDirty = true;
+
+        //if (_monitorConsole != null)
+        //    _monitorConsole.IsDirty = true;
+        //if (_monitorStatusConsole != null)
+        //    _monitorStatusConsole.IsDirty = true;
+        //if (_infoConsole != null)
+        //    _infoConsole.IsDirty = true;
     }
 }

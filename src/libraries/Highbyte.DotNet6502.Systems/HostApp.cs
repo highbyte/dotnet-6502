@@ -263,6 +263,9 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     }
     public void RunEmulatorOneFrame()
     {
+        // Process any UI actions that have been queued up from other threads
+        ExternalControlProcessUIActions();
+
         // Safety check to avoid running emulator if it's not in a running state.
         if (EmulatorState != EmulatorState.Running)
             return;
@@ -420,5 +423,12 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         {
             action();
         }
+        ExternalControlRefreshUI();
+    }
+
+    public virtual void ExternalControlRefreshUI()
+    {
+        // This method can be overridden by derived classes to refresh the UI.
+        // It is called after processing UI actions to ensure the UI is up-to-date.
     }
 }
