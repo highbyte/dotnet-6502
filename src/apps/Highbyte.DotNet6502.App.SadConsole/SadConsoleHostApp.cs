@@ -28,6 +28,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     public EmulatorConfig EmulatorConfig => _emulatorConfig;
 
     private readonly DotNet6502InMemLogStore _logStore;
+    public DotNet6502InMemLogStore LogStore => _logStore;
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private readonly IConfiguration _configuration;
     private readonly ILoggerFactory _loggerFactory;

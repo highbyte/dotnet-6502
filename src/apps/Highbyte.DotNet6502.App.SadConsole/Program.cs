@@ -71,7 +71,8 @@ if (emulatorConfig.MCPServerEnabled)
     Task.Run(async () =>
     {
         var mcpBuilder = Host.CreateApplicationBuilder();
-        mcpBuilder.ConfigureDotNet6502McpServerTools(sadConsoleHostApp);
+        mcpBuilder.ConfigureDotNet6502McpServerTools(sadConsoleHostApp,
+            additionalToolsAssembly: typeof(Highbyte.DotNet6502.App.SadConsole.MCP.C64SadConsoleTools).Assembly);
         await mcpBuilder.Build().RunAsync();
     });
 }

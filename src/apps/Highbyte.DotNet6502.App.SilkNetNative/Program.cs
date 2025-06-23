@@ -88,7 +88,8 @@ if (emulatorConfig.MCPServerEnabled)
     Task.Run(async () =>
     {
         var mcpBuilder = Host.CreateApplicationBuilder();
-        mcpBuilder.ConfigureDotNet6502McpServerTools(silkNetHostApp);
+        mcpBuilder.ConfigureDotNet6502McpServerTools(silkNetHostApp, 
+            typeof(Highbyte.DotNet6502.App.SilkNetNative.MCP.C64SilkNetNativeTools).Assembly);
         await mcpBuilder.Build().RunAsync();
     });
 }
