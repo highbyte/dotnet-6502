@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Impl.Skia\Highbyte.DotNet6502.Impl.Skia.csproj" />
     <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Impl.SilkNet\Highbyte.DotNet6502.Impl.SilkNet.csproj" />
     <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+    <ProjectReference Include="..\..\utils\Highbyte.DotNet6502.Util.MCPServer\Highbyte.DotNet6502.Util.MCPServer.csproj" />
   </ItemGroup>
 
   <ItemGroup>

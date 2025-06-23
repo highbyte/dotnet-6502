@@ -14,11 +14,16 @@
         //     "cwd": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\utils\\Highbyte.DotNet6502.Util.MCPServer"
         // }
 
-        "DotNet6502": {
-            "type": "stdio",
-            "command": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\apps\\Highbyte.DotNet6502.App.SadConsole\\bin\\Debug\\net9.0\\Highbyte.DotNet6502.App.SadConsole.exe",
-             "cwd": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\apps\\Highbyte.DotNet6502.App.SadConsole\\bin\\Debug\\net9.0"
-        }
+         "DotNet6502": {
+             "type": "stdio",
+             "command": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\apps\\Highbyte.DotNet6502.App.SadConsole\\bin\\Debug\\net9.0\\Highbyte.DotNet6502.App.SadConsole.exe",
+              "cwd": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\apps\\Highbyte.DotNet6502.App.SadConsole\\bin\\Debug\\net9.0"
+         }
 
+        //"DotNet6502": {
+        //    "type": "stdio",
+        //    "command": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\apps\\Highbyte.DotNet6502.App.SilkNetNative\\bin\\Debug\\net9.0\\Highbyte.DotNet6502.App.SilkNetNative.exe",
+        //     "cwd": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\apps\\Highbyte.DotNet6502.App.SilkNetNative\\bin\\Debug\\net9.0"
+        //}
     }
 }

@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
+using Highbyte.DotNet6502.Util.MCPServer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -73,6 +74,26 @@ windowOptions.ShouldSwapAutomatically = true;
 
 var window = Window.Create(windowOptions);
 
+// ----------
+// Init SilkNetHostApp
+// ----------
 var silkNetHostApp = new SilkNetHostApp(systemList, loggerFactory, emulatorConfig, window, logStore, logConfig);
 silkNetHostApp.SelectSystem(emulatorConfig.DefaultEmulator).Wait();
+
+// ----------
+// Start MCP server as a background host if enabled
+// ----------
+if (emulatorConfig.MCPServerEnabled)
+{
+    Task.Run(async () =>
+    {
+        var mcpBuilder = Host.CreateApplicationBuilder();
+        mcpBuilder.ConfigureDotNet6502McpServerTools(silkNetHostApp);
+        await mcpBuilder.Build().RunAsync();
+    });
+}
+
+// ----------
+// Start SilkNetHostApp
+// ----------
 silkNetHostApp.Run();

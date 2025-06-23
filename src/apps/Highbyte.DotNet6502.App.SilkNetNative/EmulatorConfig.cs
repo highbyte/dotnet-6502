@@ -13,6 +13,7 @@ public class EmulatorConfig
     public float DefaultDrawScale { get; set; }
     public float CurrentDrawScale { get; set; }
     public MonitorConfig Monitor { get; set; }
+    public bool MCPServerEnabled { get; set; }
 
     public EmulatorConfig()
     {

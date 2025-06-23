@@ -61,19 +61,22 @@ systemList.AddSystem(genericComputerSetup);
 // Init SadConsoleHostApp
 // ----------
 emulatorConfig.Validate(systemList);
-var silkNetHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorConfig, logStore, logConfig, Configuration);
+var sadConsoleHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorConfig, logStore, logConfig, Configuration);
 
 // ----------
-// Start MCP server as a background host
+// Start MCP server as a background host if enabled
 // ----------
-Task.Run(async () =>
+if (emulatorConfig.MCPServerEnabled)
 {
-    var mcpBuilder = Host.CreateApplicationBuilder();
-    mcpBuilder.ConfigureDotNet6502McpServerTools(silkNetHostApp);
-    await mcpBuilder.Build().RunAsync();
-});
+    Task.Run(async () =>
+    {
+        var mcpBuilder = Host.CreateApplicationBuilder();
+        mcpBuilder.ConfigureDotNet6502McpServerTools(sadConsoleHostApp);
+        await mcpBuilder.Build().RunAsync();
+    });
+}
 
 // ----------
 // Start SadConsoleHostApp
 // ----------
-silkNetHostApp.Run();
+sadConsoleHostApp.Run();
