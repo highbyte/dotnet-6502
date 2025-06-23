@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
+using Highbyte.DotNet6502.Util.MCPServer;
 
 // ----------
 // Get config file
@@ -31,33 +32,12 @@ IConfiguration Configuration = builder.Build();
 // ----------
 DotNet6502InMemLogStore logStore = new() { WriteDebugMessage = true };
 var logConfig = new DotNet6502InMemLoggerConfiguration(logStore);
+logConfig.LogLevel = LogLevel.Information;  // LogLevel.Debug, LogLevel.Information
 var loggerFactory = LoggerFactory.Create(builder =>
 {
-    logConfig.LogLevel = LogLevel.Information;  // LogLevel.Debug, LogLevel.Information, 
     builder.AddInMem(logConfig);
     builder.SetMinimumLevel(LogLevel.Trace);
 });
-
-// ----------
-// Setup DI
-// ----------
-var services = new ServiceCollection();
-
-// Register configuration and logging to DI
-services.AddSingleton<IConfiguration>(Configuration);
-services.AddLogging(loggingBuilder =>
-{
-    loggingBuilder.AddInMem(logConfig);
-    loggingBuilder.SetMinimumLevel(LogLevel.Trace);
-});
-
-// TODO: Register your own services here
-// services.AddSingleton<YourType>();
-
-var serviceProvider = services.BuildServiceProvider();
-
-// Example: resolve loggerFactory from DI if needed
-// var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
 
 // ----------
 // Get emulator host config
@@ -89,18 +69,7 @@ var silkNetHostApp = new SadConsoleHostApp(systemList, loggerFactory, emulatorCo
 Task.Run(async () =>
 {
     var mcpBuilder = Host.CreateApplicationBuilder();
-    mcpBuilder.Logging.AddConsole(consoleLogOptions =>
-    {
-        // Configure all logs to go to stderr
-        consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
-    });
-
-    mcpBuilder.Services
-        .AddMcpServer()
-        .WithStdioServerTransport()
-        .WithToolsFromAssembly(typeof(Highbyte.DotNet6502.Util.MCPServer.C64Tool).Assembly);
-
-    mcpBuilder.Services.AddSingleton<IHostApp>((sp) => silkNetHostApp);
+    mcpBuilder.ConfigureDotNet6502McpServerTools(silkNetHostApp);
     await mcpBuilder.Build().RunAsync();
 });
 
