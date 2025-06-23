@@ -16,6 +16,7 @@ public static class ToolSetup
 
         // Add the host app as a singleton service
         builder.Services.AddSingleton<IHostApp>((sp) => hostApp);
+        builder.Services.AddSingleton<BreakpointManager>();
         builder.Logging.AddConsole(consoleLogOptions =>
         {
             // Configure all console logs to go to stderr to no interfere with with MCP server STDIO communication

@@ -20,11 +20,11 @@
         //       "cwd": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\apps\\Highbyte.DotNet6502.App.SadConsole\\bin\\Debug\\net9.0"
         //  }
 
-        //  "DotNet6502-SadConsole-Mac": {
-        //      "type": "stdio",
-        //      "command": "/Users/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SadConsole/bin/Debug/net9.0/Highbyte.DotNet6502.App.SadConsole",
-        //       "cwd": "/Users/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SadConsole/bin/Debug/net9.0"
-        //  }
+         "DotNet6502-SadConsole-Mac": {
+             "type": "stdio",
+             "command": "/Users/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SadConsole/bin/Debug/net9.0/Highbyte.DotNet6502.App.SadConsole",
+              "cwd": "/Users/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SadConsole/bin/Debug/net9.0"
+         }
          
         //"DotNet6502-SilkNet-Windows": {
         //    "type": "stdio",
@@ -32,10 +32,10 @@
         //     "cwd": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\apps\\Highbyte.DotNet6502.App.SilkNetNative\\bin\\Debug\\net9.0"
         //}
 
-        "DotNet6502-SilkNet-Mac": {
-           "type": "stdio",
-           "command": "/Users/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SilkNetNative/bin/Debug/net9.0/Highbyte.DotNet6502.App.SilkNetNative",
-            "cwd": "/Users/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SilkNetNative/bin/Debug/net9.0"
-        }        
+        // "DotNet6502-SilkNet-Mac": {
+        //    "type": "stdio",
+        //    "command": "/Users/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SilkNetNative/bin/Debug/net9.0/Highbyte.DotNet6502.App.SilkNetNative",
+        //     "cwd": "/Users/highbyte/source/repos/dotnet-6502/src/apps/Highbyte.DotNet6502.App.SilkNetNative/bin/Debug/net9.0"
+        // }        
     }
 }
