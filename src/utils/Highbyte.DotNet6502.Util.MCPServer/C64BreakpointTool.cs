@@ -30,8 +30,8 @@ public static class C64BreakpointTool
         else
             breakpoints[address].Enabled = true;
 
-        EnableOrDisableBreakpointHandling(hostApp, breakpointManager);            
-        return C64ToolHelper.BuildCallToolDataResult(new { Address = address, Enabled = true });
+        EnableOrDisableBreakpointHandling(hostApp, breakpointManager);
+        return new CallToolResult();
     }
 
     [McpServerTool, Description("Remove a breakpoint at the specified address.")]
@@ -42,7 +42,7 @@ public static class C64BreakpointTool
             breakpoints.Remove(address);
 
         EnableOrDisableBreakpointHandling(hostApp, breakpointManager);
-        return C64ToolHelper.BuildCallToolDataResult(new { Address = address, Removed = true });
+        return new CallToolResult();
     }
 
     [McpServerTool, Description("Remove all breakpoints.")]
@@ -51,22 +51,17 @@ public static class C64BreakpointTool
         var breakpoints = breakpointManager.BreakPoints;
         breakpoints.Clear();
         EnableOrDisableBreakpointHandling(hostApp, breakpointManager);
-        return C64ToolHelper.BuildCallToolDataResult(new { RemovedAll = true });
+        return new CallToolResult();
     }
 
     private static void EnableOrDisableBreakpointHandling(IHostApp hostApp, BreakpointManager breakpointManager)
     {
         if (hostApp.CurrentSystemRunner == null)
-        {
             return; // No system runner available, nothing to do.
-        }
+
         if (breakpointManager.BreakPoints.Count == 0)
-        {
-            breakpointManager.DisableBreakpointHandling(hostApp.CurrentSystemRunner);
-        }
+            breakpointManager.DisableBreakpointHandling(hostApp);
         else
-        {
-            breakpointManager.EnableBreakpointHandling(hostApp.CurrentSystemRunner);
-        }
+            breakpointManager.EnableBreakpointHandling(hostApp);
     }
 }

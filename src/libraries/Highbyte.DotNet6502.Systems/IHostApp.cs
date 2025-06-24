@@ -39,8 +39,14 @@ public interface IHostApp
 
     public List<(string name, IStat stat)> GetStats();
 
+    /// <summary>
+    /// Set to true if the host app doesn't have UI thread. Invoking external control actions will then be done on current thread.
+    /// </summary>
     public bool ExternalControlDirectInvoke { get; }
     public Task ExternalControlInvokeOnUIThread(Func<Task> action);
-
     public void ExternalControlProcessUIActions();
+    public void EnableExternalControl(
+        Func<(bool shouldRun, bool shouldReceiveInput)>? externalOnBeforeRunEmulatorOneFrame = null,
+        Action<ExecEvaluatorTriggerResult>? externalOnAfterRunEmulatorOneFrame = null);
+    public void DisableExternalControl();
 }

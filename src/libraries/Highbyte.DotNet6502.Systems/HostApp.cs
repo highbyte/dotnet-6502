@@ -78,11 +78,16 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     private ElapsedMillisecondsTimedStatSystem? _systemTime;
     private ElapsedMillisecondsTimedStatSystem? _renderTime;
     private ElapsedMillisecondsTimedStatSystem? _inputTime;
+
     //private ElapsedMillisecondsTimedStatSystem _audioTime;
 
     private readonly Instrumentations _instrumentations = new();
     private readonly PerSecondTimedStat _updateFps;
     private readonly PerSecondTimedStat _renderFps;
+
+    private bool _externalControlEnabled = false;
+    private Func<(bool shouldRun, bool shouldReceiveInput)>? _externalOnBeforeRunEmulatorOneFrame;
+    private Action<ExecEvaluatorTriggerResult>? _externalOnAfterRunEmulatorOneFrame;
 
     public HostApp(
         string hostName,
@@ -264,13 +269,27 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     public void RunEmulatorOneFrame()
     {
         // Process any UI actions that have been queued up from other threads
-        ExternalControlProcessUIActions();
+        if (_externalControlEnabled)
+        {
+            ExternalControlProcessUIActions();
+        }
 
         // Safety check to avoid running emulator if it's not in a running state.
         if (EmulatorState != EmulatorState.Running)
             return;
 
-        OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput);
+        bool shouldRun = false;
+        bool shouldReceiveInput = false;
+        if (_externalControlEnabled)
+        {
+            if (_externalOnBeforeRunEmulatorOneFrame != null)
+                (shouldRun, shouldReceiveInput) = _externalOnBeforeRunEmulatorOneFrame();
+        }
+        else
+        {
+            OnBeforeRunEmulatorOneFrame(out shouldRun, out shouldReceiveInput);
+        }
+
         if (!shouldRun)
             return;
 
@@ -285,7 +304,15 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
         _systemTime!.Start();
         var execEvaluatorTriggerResult = _systemRunner!.RunEmulatorOneFrame();
-        OnAfterRunEmulatorOneFrame(execEvaluatorTriggerResult);
+
+        if (_externalControlEnabled)
+        {
+            _externalOnAfterRunEmulatorOneFrame?.Invoke(execEvaluatorTriggerResult);
+        }
+        else
+        {
+            OnAfterRunEmulatorOneFrame(execEvaluatorTriggerResult);
+        }
         _systemTime!.Stop();
 
     }
@@ -380,11 +407,9 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     }
 
 
-    private readonly ConcurrentQueue<Action> _uiActions = new();
-
-
+    private readonly ConcurrentQueue<Action> _externalControlUIActions = new();
     public virtual bool ExternalControlDirectInvoke { get; } = false;
-    public Task ExternalControlInvokeOnUIThread(Func<Task> action)
+     public Task ExternalControlInvokeOnUIThread(Func<Task> action)
     {
         // If HostApp is running on same thread as the external control code, execute the action directly.
         if (ExternalControlDirectInvoke)
@@ -402,7 +427,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
         // Otherwise, enqueue the action to be executed on the UI thread (see ExternalControlProcessUIActions);
         var tcs = new TaskCompletionSource<object?>();
-        _uiActions.Enqueue(async () =>
+        _externalControlUIActions.Enqueue(async () =>
         {
             try
             {
@@ -419,7 +444,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
     public void ExternalControlProcessUIActions()
     {
-        while (_uiActions.TryDequeue(out var action))
+        while (_externalControlUIActions.TryDequeue(out var action))
         {
             action();
         }
@@ -430,5 +455,23 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     {
         // This method can be overridden by derived classes to refresh the UI.
         // It is called after processing UI actions to ensure the UI is up-to-date.
+    }
+
+    public void EnableExternalControl(
+        Func<(bool shouldRun, bool shouldReceiveInput)>? externalOnBeforeRunEmulatorOneFrame = null,
+        Action<ExecEvaluatorTriggerResult>? externalOnAfterRunEmulatorOneFrame = null)
+    {
+        _externalControlEnabled = true;
+        _externalOnBeforeRunEmulatorOneFrame = externalOnBeforeRunEmulatorOneFrame;
+        _externalOnAfterRunEmulatorOneFrame = externalOnAfterRunEmulatorOneFrame;
+        _logger.LogInformation("External control enabled.");
+    }
+
+    public void DisableExternalControl()
+    {
+        _externalControlEnabled = false;
+        _externalOnBeforeRunEmulatorOneFrame = null;
+        _externalOnAfterRunEmulatorOneFrame = null;
+        _logger.LogInformation("External control disabled.");
     }
 }
