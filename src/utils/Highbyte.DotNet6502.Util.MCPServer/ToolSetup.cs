@@ -16,6 +16,7 @@ public static class ToolSetup
 
         // Add the host app as a singleton service
         builder.Services.AddSingleton<IHostApp>((sp) => hostApp);
+        builder.Services.AddSingleton<StateManager>();
         builder.Services.AddSingleton<BreakpointManager>();
         builder.Logging.AddConsole(consoleLogOptions =>
         {

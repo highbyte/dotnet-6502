@@ -45,6 +45,7 @@ public interface IHostApp
     public bool ExternalControlDirectInvoke { get; }
     public Task ExternalControlInvokeOnUIThread(Func<Task> action);
     public void ExternalControlProcessUIActions();
+    public bool ExternalControlEnabled { get; }
     public void EnableExternalControl(
         Func<(bool shouldRun, bool shouldReceiveInput)>? externalOnBeforeRunEmulatorOneFrame = null,
         Action<ExecEvaluatorTriggerResult>? externalOnAfterRunEmulatorOneFrame = null);

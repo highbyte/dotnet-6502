@@ -86,6 +86,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     private readonly PerSecondTimedStat _renderFps;
 
     private bool _externalControlEnabled = false;
+    public bool ExternalControlEnabled => _externalControlEnabled;
     private Func<(bool shouldRun, bool shouldReceiveInput)>? _externalOnBeforeRunEmulatorOneFrame;
     private Action<ExecEvaluatorTriggerResult>? _externalOnAfterRunEmulatorOneFrame;
 
@@ -269,10 +270,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     public void RunEmulatorOneFrame()
     {
         // Process any UI actions that have been queued up from other threads
-        if (_externalControlEnabled)
-        {
-            ExternalControlProcessUIActions();
-        }
+        ExternalControlProcessUIActions();
 
         // Safety check to avoid running emulator if it's not in a running state.
         if (EmulatorState != EmulatorState.Running)

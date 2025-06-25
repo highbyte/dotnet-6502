@@ -62,6 +62,12 @@ public static class C64ToolHelper
         throw new InvalidOperationException("Current running system is not a C64 instance.");
     }
 
+    public static void AssertMCPControlEnabled(IHostApp hostApp, StateManager stateManager)
+    {
+        if (!stateManager.IsMCPControlEnabled(hostApp))
+            throw new DotNet6502Exception("MCP control is not enabled. Please enable it first.");
+    }
+
     public static CallToolResult BuildCallToolDataResult(object data)
     {
         // NOTE: Doesn't seem to work with returning StructuredContent, it's always empty. 

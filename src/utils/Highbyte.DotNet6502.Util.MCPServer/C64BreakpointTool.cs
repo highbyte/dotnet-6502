@@ -12,56 +12,68 @@ public static class C64BreakpointTool
     [McpServerTool, Description("List all breakpoints in the C64 emulator.")]
     public static async Task<CallToolResult> ListBreakpoints(IHostApp hostApp, BreakpointManager breakpointManager)
     {
-        var breakpoints = breakpointManager.BreakPoints;
-        var result = new List<object>();
-        foreach (var bp in breakpoints)
+        try
         {
-            result.Add(new { Address = bp.Key, Enabled = bp.Value.Enabled });
+            var breakpoints = breakpointManager.BreakPoints;
+            var result = new List<object>();
+            foreach (var bp in breakpoints)
+            {
+                result.Add(new { Address = bp.Key, Enabled = bp.Value.Enabled });
+            }
+            return C64ToolHelper.BuildCallToolDataResult(result);
         }
-        return C64ToolHelper.BuildCallToolDataResult(result);
+        catch (Exception ex)
+        {
+            return C64ToolHelper.BuildCallToolErrorResult(ex);
+        }
     }
 
     [McpServerTool, Description("Add a breakpoint at the specified address.")]
     public static async Task<CallToolResult> AddBreakpoint(IHostApp hostApp, BreakpointManager breakpointManager, ushort address)
     {
-        var breakpoints = breakpointManager.BreakPoints;
-        if (!breakpoints.ContainsKey(address))
-            breakpoints.Add(address, new BreakPoint { Enabled = true });
-        else
-            breakpoints[address].Enabled = true;
-
-        EnableOrDisableBreakpointHandling(hostApp, breakpointManager);
-        return new CallToolResult();
+        try
+        {
+            var breakpoints = breakpointManager.BreakPoints;
+            if (!breakpoints.ContainsKey(address))
+                breakpoints.Add(address, new BreakPoint { Enabled = true });
+            else
+                breakpoints[address].Enabled = true;
+            return new CallToolResult();
+        }
+        catch (Exception ex)
+        {
+            return C64ToolHelper.BuildCallToolErrorResult(ex);
+        }
     }
 
     [McpServerTool, Description("Remove a breakpoint at the specified address.")]
     public static async Task<CallToolResult> RemoveBreakpoint(IHostApp hostApp, BreakpointManager breakpointManager, ushort address)
     {
-        var breakpoints = breakpointManager.BreakPoints;
-        if (breakpoints.ContainsKey(address))
-            breakpoints.Remove(address);
-
-        EnableOrDisableBreakpointHandling(hostApp, breakpointManager);
-        return new CallToolResult();
+        try
+        {
+            var breakpoints = breakpointManager.BreakPoints;
+            if (breakpoints.ContainsKey(address))
+                breakpoints.Remove(address);
+            return new CallToolResult();
+        }
+        catch (Exception ex)
+        {
+            return C64ToolHelper.BuildCallToolErrorResult(ex);
+        }
     }
 
     [McpServerTool, Description("Remove all breakpoints.")]
     public static async Task<CallToolResult> RemoveAllBreakpoints(IHostApp hostApp, BreakpointManager breakpointManager)
     {
-        var breakpoints = breakpointManager.BreakPoints;
-        breakpoints.Clear();
-        EnableOrDisableBreakpointHandling(hostApp, breakpointManager);
-        return new CallToolResult();
-    }
-
-    private static void EnableOrDisableBreakpointHandling(IHostApp hostApp, BreakpointManager breakpointManager)
-    {
-        if (hostApp.CurrentSystemRunner == null)
-            return; // No system runner available, nothing to do.
-
-        if (breakpointManager.BreakPoints.Count == 0)
-            breakpointManager.DisableBreakpointHandling(hostApp);
-        else
-            breakpointManager.EnableBreakpointHandling(hostApp);
+        try
+        {
+            var breakpoints = breakpointManager.BreakPoints;
+            breakpoints.Clear();
+            return new CallToolResult();
+        }
+        catch (Exception ex)
+        {
+            return C64ToolHelper.BuildCallToolErrorResult(ex);
+        }
     }
 }
