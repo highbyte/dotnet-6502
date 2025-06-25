@@ -267,14 +267,14 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         shouldRun = true;
         shouldReceiveInput = true;
     }
-    public void RunEmulatorOneFrame()
+    public ExecEvaluatorTriggerResult RunEmulatorOneFrame()
     {
         // Process any UI actions that have been queued up from other threads
         ExternalControlProcessUIActions();
 
         // Safety check to avoid running emulator if it's not in a running state.
         if (EmulatorState != EmulatorState.Running)
-            return;
+            return ExecEvaluatorTriggerResult.NotTriggered;
 
         bool shouldRun = false;
         bool shouldReceiveInput = false;
@@ -289,7 +289,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         }
 
         if (!shouldRun)
-            return;
+            return ExecEvaluatorTriggerResult.NotTriggered;
 
         _updateFps.Update();
 
@@ -313,7 +313,9 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         }
         _systemTime!.Stop();
 
+        return execEvaluatorTriggerResult;
     }
+
     public virtual void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult) { }
 
     public virtual void OnBeforeDrawFrame(bool emulatorWillBeRendered) { }

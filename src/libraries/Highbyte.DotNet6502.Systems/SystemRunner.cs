@@ -91,6 +91,12 @@ public class SystemRunner
         return execEvaluatorTriggerResult;
     }
 
+    public ExecEvaluatorTriggerResult RunEmulatorOneInstruction()
+    {
+        var execEvaluatorTriggerResult = _system.ExecuteOneInstruction(this, out _, _customExecEvaluator);
+        return execEvaluatorTriggerResult;
+    }
+
     /// <summary>
     /// Called by host app that runs the emulator, once per frame tied to the host app rendering frequency.
     /// </summary>

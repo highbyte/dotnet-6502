@@ -9,7 +9,7 @@ public class StateManager
     private bool _cpuExecutionPaused = false;
     private readonly BreakpointManager _breakPointManager;
 
-    public bool CpuExecutionPaused => _cpuExecutionPaused;
+    public bool IsCpuExecutionPaused => _cpuExecutionPaused;
 
     public StateManager(BreakpointManager breakpointManager)
     {
@@ -28,6 +28,8 @@ public class StateManager
         if (IsMCPControlEnabled(hostApp))
             throw new DotNet6502Exception("MCP control is already enabled in the host app.");
 
+        PauseCPUExecution();
+
         hostApp.EnableExternalControl(OnBeforeRunEmulatorOneFrame, OnAfterRunEmulatorOneFrame);
         _originalExecEvaluator = hostApp.CurrentSystemRunner.CustomExecEvaluator;
         hostApp.CurrentSystemRunner.SetCustomExecEvaluator(new BreakPointExecEvaluator(_breakPointManager.BreakPoints));
@@ -42,14 +44,15 @@ public class StateManager
 
         hostApp.DisableExternalControl();
         hostApp.CurrentSystemRunner.SetCustomExecEvaluator(_originalExecEvaluator);
+        ResumeCPUExecution();
     }
 
-    public void PauseCPUExecution()
+    private void PauseCPUExecution()
     {
         _cpuExecutionPaused = true;
     }
 
-    public void ResumeCPUExecution()
+    private void ResumeCPUExecution()
     {
         _cpuExecutionPaused = false;
     }
@@ -64,11 +67,8 @@ public class StateManager
     {
         if (execEvaluatorTriggerResult.Triggered)
         {
-            // If a breakpoint was hit, pause the CPU execution.
-            PauseCPUExecution();
             if (execEvaluatorTriggerResult.TriggerType == ExecEvaluatorTriggerReasonType.DebugBreakPoint)
             {
-                //Console.WriteLine($"Breakpoint hit at address: {execEvaluatorTriggerResult.TriggerDescription}");
             }
         }
     }

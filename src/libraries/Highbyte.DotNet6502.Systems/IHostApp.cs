@@ -23,7 +23,7 @@ public interface IHostApp
     public Task Reset();
 
     public void Close();
-    public void RunEmulatorOneFrame();
+    public ExecEvaluatorTriggerResult RunEmulatorOneFrame();
     public void DrawFrame();
 
     public Task<bool> IsSystemConfigValid();
