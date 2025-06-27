@@ -409,24 +409,31 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
     private readonly ConcurrentQueue<Action> _externalControlUIActions = new();
     public virtual bool ExternalControlDirectInvoke { get; } = false;
-     public Task ExternalControlInvokeOnUIThread(Func<Task> action)
+    public Task ExternalControlInvokeOnUIThread(Func<Task> action)
     {
+        var tcs = new TaskCompletionSource<object?>();
+
         // If HostApp is running on same thread as the external control code, execute the action directly.
         if (ExternalControlDirectInvoke)
         {
-            try
+            Task.Run(async () =>
             {
-                action();
-                return Task.CompletedTask;
-            }
-            catch (Exception ex)
-            {
-                return Task.FromException(ex);
-            }
+                try
+                {
+                    await action();
+                    tcs.SetResult(null);
+                    //return Task.CompletedTask;
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                    //return Task.FromException(ex);
+                }
+                return tcs.Task;
+            });
         }
 
         // Otherwise, enqueue the action to be executed on the UI thread (see ExternalControlProcessUIActions);
-        var tcs = new TaskCompletionSource<object?>();
         _externalControlUIActions.Enqueue(async () =>
         {
             try
