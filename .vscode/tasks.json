@@ -120,7 +120,7 @@
         {
             "label": "build mcp server",
             "command": "dotnet",
-            "type": "attach",
+            "type": "process",
             "args": [
                 "build",
                 "${workspaceFolder}/src/utils/Highbyte.DotNet6502.Util.MCPServer/Highbyte.DotNet6502.Util.MCPServer.csproj",

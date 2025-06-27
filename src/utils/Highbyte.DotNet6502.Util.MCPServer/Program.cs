@@ -58,12 +58,9 @@ var embeddedMCPHostApp = new EmbeddedMCPHostApp(systemList, loggerFactory, emula
 embeddedMCPHostApp.Init();
 embeddedMCPHostApp.SelectSystem(C64.SystemName).Wait();
 
-// Automatically enable external control of the emulator. As the EmbeddedMCPHostApp won't run the emulator by itself on another thread, the only way we control it via MCP server commands.
-embeddedMCPHostApp.EnableExternalControl();
-
 // ----------
 // Configure MCP server and tools
 // ----------
-builder.ConfigureDotNet6502McpServerTools(embeddedMCPHostApp);
+builder.ConfigureDotNet6502McpServerTools(embeddedMCPHostApp, mcpControlEnabledFromStart: true);
 
 await builder.Build().RunAsync();

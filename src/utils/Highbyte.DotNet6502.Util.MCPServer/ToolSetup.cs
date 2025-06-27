@@ -8,13 +8,29 @@ namespace Highbyte.DotNet6502.Util.MCPServer;
 
 public static class ToolSetup
 {
-    public static void ConfigureDotNet6502McpServerTools(this IHostApplicationBuilder builder, IHostApp hostApp, Assembly? additionalToolsAssembly = null)
+    public static void ConfigureDotNet6502McpServerTools(
+        this IHostApplicationBuilder builder,
+        IHostApp hostApp,
+        Assembly? additionalToolsAssembly = null,
+        bool mcpControlEnabledFromStart = false)
     {
         // DI: Register the emulator host app
         builder.Services.AddSingleton<IHostApp>((sp) => hostApp);
 
         // DI: Register MCP server dependencies
-        builder.Services.AddSingleton<StateManager>();
+        builder.Services.AddSingleton<StateManager>((sp) =>
+        {
+
+            var breakpointManager = sp.GetRequiredService<BreakpointManager>();
+            var stateManger = new StateManager(breakpointManager);
+            if (mcpControlEnabledFromStart)
+            {
+                // Automatically start and enable external control of the emulator. 
+                hostApp.Start();
+                stateManger.EnableMCPControl(hostApp);
+            }
+            return stateManger;
+        });
         builder.Services.AddSingleton<BreakpointManager>();
 
         // Add console logging

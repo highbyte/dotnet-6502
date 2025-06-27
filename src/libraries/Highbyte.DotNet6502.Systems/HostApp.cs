@@ -429,8 +429,8 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
                     tcs.SetException(ex);
                     //return Task.FromException(ex);
                 }
-                return tcs.Task;
             });
+            return tcs.Task;
         }
 
         // Otherwise, enqueue the action to be executed on the UI thread (see ExternalControlProcessUIActions);
