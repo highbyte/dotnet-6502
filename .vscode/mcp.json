@@ -1,31 +1,27 @@
 {
     "inputs": [],
     "servers": {
-        // "DotNet6502-Embedded-Windows": {
-        //     "type": "stdio",
-        //     "command": "dotnet",
-        //     "args": [
-        //         "run",
-        //         "--project",
-        //         "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\utils\\Highbyte.DotNet6502.Util.MCPServer\\Highbyte.DotNet6502.Util.MCPServer.csproj",
-        //         "--configuration",
-        //         "Debug"
-        //     ],
-        //     "cwd": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\utils\\Highbyte.DotNet6502.Util.MCPServer"
-        // }
-
-        "DotNet6502-Embedded-Mac": {
+        "DotNet6502-Embedded-Windows": {
             "type": "stdio",
             "command": "dotnet",
             "args": [
                 "run",
                 "--project",
-                "/Users/highbyte/source/repos/dotnet-6502/src/utils/Highbyte.DotNet6502.Util.MCPServer/Highbyte.DotNet6502.Util.MCPServer.csproj",
-                "--configuration",
-                "Debug"
+                "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\utils\\Highbyte.DotNet6502.Util.MCPServer\\Highbyte.DotNet6502.Util.MCPServer.csproj"
             ],
-            "cwd": "/Users/highbyte/source/repos/dotnet-6502/src/utils/Highbyte.DotNet6502.Util.MCPServer"
-        }        
+            "cwd": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\utils\\Highbyte.DotNet6502.Util.MCPServer"
+        }
+
+        // "DotNet6502-Embedded-Mac": {
+        //     "type": "stdio",
+        //     "command": "dotnet",
+        //     "args": [
+        //         "run",
+        //         "--project",
+        //         "/Users/highbyte/source/repos/dotnet-6502/src/utils/Highbyte.DotNet6502.Util.MCPServer/Highbyte.DotNet6502.Util.MCPServer.csproj"
+        //     ],
+        //     "cwd": "/Users/highbyte/source/repos/dotnet-6502/src/utils/Highbyte.DotNet6502.Util.MCPServer"
+        // }        
 
         //  "DotNet6502-SadConsole-Windows": {
         //      "type": "stdio",
