@@ -22,6 +22,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     public EmulatorConfig EmulatorConfig => _emulatorConfig;
 
     private readonly DotNet6502InMemLogStore _logStore;
+    public DotNet6502InMemLogStore LogStore => _logStore;
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private readonly bool _defaultAudioEnabled;
     private float _defaultAudioVolumePercent;

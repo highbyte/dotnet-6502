@@ -116,6 +116,22 @@
                 "kind": "test",
                 "isDefault": true
             }
+        },
+        {
+            "label": "build mcp server",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/utils/Highbyte.DotNet6502.Util.MCPServer/Highbyte.DotNet6502.Util.MCPServer.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         }
     ]
 }

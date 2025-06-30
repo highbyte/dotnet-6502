@@ -50,12 +50,31 @@
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "externalTerminal",
             "stopAtEntry": false
-        },    
+        },
+        {
+            "name": "MCP server console app - .NET Core Launch",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build mcp server",
+            // If you have changed target frameworks, make sure to update the program path.
+            "program": "${workspaceFolder}/src/utils/Highbyte.DotNet6502.Util.MCPServer/bin/Debug/net9.0/Highbyte.DotNet6502.Util.MCPServer.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/utils/Highbyte.DotNet6502.Util.MCPServer/bin/Debug/net9.0/",
+            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
+            "console": "externalTerminal",
+            "stopAtEntry": false
+        },            
         {
             "name": ".NET Core Attach",
             "type": "coreclr",
             "request": "attach",
             "processId": "${command:pickProcess}"
+        },
+        {
+            "name": ".NET Core Attach MCPServer (Windows)",
+            "type": "coreclr",
+            "request": "attach",
+            "processName": "Highbyte.DotNet6502.Util.MCPServer.exe"
         }
     ]
 }

@@ -49,6 +49,8 @@ public class EmulatorConfig
     /// </summary>
     public GenericComputerHostConfig GenericComputerHostConfig { get; set; }
 
+    public bool MCPServerEnabled { get; set; }
+
     public EmulatorConfig()
     {
         UIFont = null;

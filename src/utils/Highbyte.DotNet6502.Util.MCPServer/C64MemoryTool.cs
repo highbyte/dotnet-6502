@@ -1,0 +1,218 @@
+using System.ComponentModel;
+using System.Text.Json.Nodes;
+using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Utils;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
+
+namespace Highbyte.DotNet6502.Util.MCPServer;
+
+[McpServerToolType]
+public static class C64MemoryTool
+{
+    [McpServerTool, Description("Returns value of specified memory address in C64 emulator")]
+    public static async Task<CallToolResult> ReadMemory(IHostApp hostApp, ushort address)
+    {
+        try
+        {
+            byte value = 0;
+            // Safest to run code that uses objects the emulator uses on the UI thread.
+            await hostApp.ExternalControlInvokeOnUIThread(async () =>
+            {
+                C64ToolHelper.AssertC64EmulatorIsRunning(hostApp);
+                var c64 = C64ToolHelper.GetC64(hostApp);
+                value = c64.Mem[address];
+            });
+            return C64ToolHelper.BuildCallToolDataResult(value);
+        }
+        catch (Exception ex)
+        {
+            return C64ToolHelper.BuildCallToolErrorResult(ex);
+        }
+    }
+
+    [McpServerTool(UseStructuredContent = true, ReadOnly = true), Description("Returns a range of values from memory start address up to specified length in C64 emulator")]
+    public static async Task<CallToolResult> ReadMemoryRange(IHostApp hostApp, ushort startAddress, ushort length)
+    {
+        try
+        {
+            byte[] values = null!;
+            // Safest to run code that uses objects the emulator uses on the UI thread.
+            await hostApp.ExternalControlInvokeOnUIThread(async () =>
+            {
+                if (length <= 0)
+                    throw new ArgumentException("Length must be greater than zero.", nameof(length));
+
+                C64ToolHelper.AssertC64EmulatorIsRunning(hostApp);
+                var c64 = C64ToolHelper.GetC64(hostApp);
+                if (startAddress + length > c64.Mem.Size)
+                    length = (ushort)(c64.Mem.Size - startAddress);
+                values = c64.Mem.ReadData(startAddress, length);
+
+            });
+            // Convert a byte array to System.Text.Json.JsonArray
+            object jsonArray = new JsonArray(values.Select(b => (JsonNode)b).ToArray());
+            var result = C64ToolHelper.BuildCallToolDataResult(jsonArray);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            return C64ToolHelper.BuildCallToolErrorResult(ex);
+        }
+    }
+
+
+    [McpServerTool, Description("Writes value at specified memory address in C64 emulator")]
+    public static async Task<CallToolResult> WriteMemory(IHostApp hostApp, ushort address, byte value)
+    {
+        try
+        {
+            // Safest to run code that uses objects the emulator uses on the UI thread.
+            await hostApp.ExternalControlInvokeOnUIThread(async () =>
+            {
+                C64ToolHelper.AssertC64EmulatorIsRunning(hostApp);
+                var c64 = C64ToolHelper.GetC64(hostApp);
+                c64.Mem[address] = value;
+            });
+            return new CallToolResult();
+        }
+        catch (Exception ex)
+        {
+            return C64ToolHelper.BuildCallToolErrorResult(ex);
+        }
+    }
+
+    /// <summary>
+    /// </summary>
+    /// <param name="hostApp"></param>
+    /// <param name="address"></param>
+    /// <param name="values">Array of bytes to write to memory></param>
+    [McpServerTool, Description("Writes a range of numeric values (array) starting at specified memory address in C64 emulator.")]
+    public static async Task<CallToolResult> WriteMemoryRange(IHostApp hostApp, ushort address, int[] values)
+    {
+        try
+        {
+            // Safest to run code that uses objects the emulator uses on the UI thread.
+            await hostApp.ExternalControlInvokeOnUIThread(async () =>
+            {
+                // Convert values to byte array
+                if (values == null || values.Length == 0)
+                    throw new ArgumentException("Values cannot be null or empty.", nameof(values));
+
+                C64ToolHelper.AssertC64EmulatorIsRunning(hostApp);
+                var c64 = C64ToolHelper.GetC64(hostApp);
+
+                var valuesAsBytes = values.Select(v => (byte)(v & 0xFF)).ToArray(); // Ensure values are within byte range
+
+                if (address + valuesAsBytes.Length > c64.Mem.Size)
+                    valuesAsBytes = valuesAsBytes.Take(c64.Mem.Size - address).ToArray();
+                c64.Mem.StoreData(address, valuesAsBytes);
+            });
+            return new CallToolResult();
+        }
+        catch (Exception ex)
+        {
+            return C64ToolHelper.BuildCallToolErrorResult(ex);
+        }
+    }
+
+    /// <summary>
+    /// </summary>
+    /// <param name="hostApp"></param>
+    /// <param name="address"></param>
+    /// <param name="hexValues">Sequence of 8-bit bytes in hex separated by space to write to memory></param>
+    [McpServerTool, Description("Writes a range of hex values separated by space starting at specified memory address in C64 emulator.")]
+    public static async Task<CallToolResult> WriteMemoryRangeAsHexString(IHostApp hostApp, ushort address, string hexValues)
+    {
+        try
+        {
+            // Safest to run code that uses objects the emulator uses on the UI thread.
+            await hostApp.ExternalControlInvokeOnUIThread(async () =>
+            {
+                // Convert hex string to byte array
+                if (string.IsNullOrWhiteSpace(hexValues))
+                    throw new ArgumentException("Hex values cannot be null or empty.", nameof(hexValues));
+                int[] values = hexValues
+                    .Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(hex => Convert.ToInt32(hex, 16))
+                    .ToArray();
+
+                await WriteMemoryRange(hostApp, address, values);
+            });
+            return new CallToolResult();
+        }
+        catch (Exception ex)
+        {
+            return C64ToolHelper.BuildCallToolErrorResult(ex);
+        }
+    }
+
+    [McpServerTool(UseStructuredContent = true, ReadOnly = true), Description("Reads current C64 screen memory and converts screen codes to ASCII characters.")]
+    public static async Task<CallToolResult> ReadScreenMemoryAsAscii(IHostApp hostApp)
+    {
+        try
+        {
+            string asciiScreen = string.Empty;
+            await hostApp.ExternalControlInvokeOnUIThread(async () =>
+            {
+                C64ToolHelper.AssertC64EmulatorIsRunning(hostApp);
+                var c64 = C64ToolHelper.GetC64(hostApp);
+                // C64 screen memory: $0400-$07E7 (1000 bytes, 40x25)
+                const ushort screenMemStart = 0x0400;
+                const int screenMemLen = 1000;
+                var screenCodes = c64.Mem.ReadData(screenMemStart, screenMemLen);
+                // Use existing conversion: screen code -> petscii -> ascii
+                var asciiSb = new System.Text.StringBuilder(screenMemLen);
+                foreach (var screenCode in screenCodes)
+                {
+                    var petscii = Highbyte.DotNet6502.Systems.Commodore64.Video.Petscii.C64ScreenCodeToPetscII(screenCode);
+                    var ascii = Highbyte.DotNet6502.Systems.Commodore64.Video.Petscii.PetscIIToAscII(petscii);
+                    asciiSb.Append((char)ascii);
+                }
+                asciiScreen = asciiSb.ToString();
+            });
+            return C64ToolHelper.BuildCallToolDataResult(asciiScreen);
+        }
+        catch (Exception ex)
+        {
+            return C64ToolHelper.BuildCallToolErrorResult(ex);
+        }
+    }
+
+    [McpServerTool(UseStructuredContent = true, ReadOnly = true), Description("Disassembles a memory range in the C64 emulator and returns the disassembly as a list of strings.")]
+    public static async Task<CallToolResult> DisassembleMemoryRange(IHostApp hostApp, ushort startAddress, ushort endAddress)
+    {
+        try
+        {
+            List<string> disassembly = new();
+            await hostApp.ExternalControlInvokeOnUIThread(async () =>
+            {
+                C64ToolHelper.AssertC64EmulatorIsRunning(hostApp);
+                var c64 = C64ToolHelper.GetC64(hostApp);
+                var cpu = c64.CPU;
+                var mem = c64.Mem;
+
+                ushort currentAddress = startAddress;
+                bool cont = true;
+                while (cont)
+                {
+                    // Use OutputGen to get disassembly for current instruction
+                    var line = Highbyte.DotNet6502.Utils.OutputGen.GetInstructionDisassembly(cpu, mem, currentAddress);
+                    disassembly.Add(line);
+                    // Get address of next instruction
+                    var nextInstructionAddress = cpu.GetNextInstructionAddress(mem, currentAddress);
+                    if (nextInstructionAddress > endAddress || (currentAddress >= nextInstructionAddress))
+                        cont = false;
+                    else
+                        currentAddress = nextInstructionAddress;
+                }
+            });
+            return C64ToolHelper.BuildCallToolDataResult(disassembly);
+        }
+        catch (Exception ex)
+        {
+            return C64ToolHelper.BuildCallToolErrorResult(ex);
+        }
+    }
+}

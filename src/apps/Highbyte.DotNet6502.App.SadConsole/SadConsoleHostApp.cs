@@ -28,6 +28,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     public EmulatorConfig EmulatorConfig => _emulatorConfig;
 
     private readonly DotNet6502InMemLogStore _logStore;
+    public DotNet6502InMemLogStore LogStore => _logStore;
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private readonly IConfiguration _configuration;
     private readonly ILoggerFactory _loggerFactory;
@@ -74,7 +75,6 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     private const int LOGS_UPDATE_EVERY_X_FRAME = 60 * 1;
     private int _logsFrameCount = 0;
     private DrawImage _logoDrawImage;
-
 
     /// <summary>
     /// Constructor
@@ -609,5 +609,23 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
                 await c64MenuConsole.ToggleBasicAIAssistant();
             }
         }
+    }
+
+    public override void ExternalControlRefreshUI()
+    {
+        // Refresh UI controls
+        if (_menuConsole != null)
+            _menuConsole.IsDirty = true;
+        if (_systemMenuConsole != null)
+            _systemMenuConsole.IsDirty = true;
+        if (_sadConsoleEmulatorConsole != null)
+            _sadConsoleEmulatorConsole.IsDirty = true;
+
+        //if (_monitorConsole != null)
+        //    _monitorConsole.IsDirty = true;
+        //if (_monitorStatusConsole != null)
+        //    _monitorStatusConsole.IsDirty = true;
+        //if (_infoConsole != null)
+        //    _infoConsole.IsDirty = true;
     }
 }
