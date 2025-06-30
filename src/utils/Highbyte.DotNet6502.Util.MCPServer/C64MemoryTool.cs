@@ -147,4 +147,72 @@ public static class C64MemoryTool
             return C64ToolHelper.BuildCallToolErrorResult(ex);
         }
     }
+
+    [McpServerTool(UseStructuredContent = true, ReadOnly = true), Description("Reads current C64 screen memory and converts screen codes to ASCII characters.")]
+    public static async Task<CallToolResult> ReadScreenMemoryAsAscii(IHostApp hostApp)
+    {
+        try
+        {
+            string asciiScreen = string.Empty;
+            await hostApp.ExternalControlInvokeOnUIThread(async () =>
+            {
+                C64ToolHelper.AssertC64EmulatorIsRunning(hostApp);
+                var c64 = C64ToolHelper.GetC64(hostApp);
+                // C64 screen memory: $0400-$07E7 (1000 bytes, 40x25)
+                const ushort screenMemStart = 0x0400;
+                const int screenMemLen = 1000;
+                var screenCodes = c64.Mem.ReadData(screenMemStart, screenMemLen);
+                // Use existing conversion: screen code -> petscii -> ascii
+                var asciiSb = new System.Text.StringBuilder(screenMemLen);
+                foreach (var screenCode in screenCodes)
+                {
+                    var petscii = Highbyte.DotNet6502.Systems.Commodore64.Video.Petscii.C64ScreenCodeToPetscII(screenCode);
+                    var ascii = Highbyte.DotNet6502.Systems.Commodore64.Video.Petscii.PetscIIToAscII(petscii);
+                    asciiSb.Append((char)ascii);
+                }
+                asciiScreen = asciiSb.ToString();
+            });
+            return C64ToolHelper.BuildCallToolDataResult(asciiScreen);
+        }
+        catch (Exception ex)
+        {
+            return C64ToolHelper.BuildCallToolErrorResult(ex);
+        }
+    }
+
+    [McpServerTool(UseStructuredContent = true, ReadOnly = true), Description("Disassembles a memory range in the C64 emulator and returns the disassembly as a list of strings.")]
+    public static async Task<CallToolResult> DisassembleMemoryRange(IHostApp hostApp, ushort startAddress, ushort endAddress)
+    {
+        try
+        {
+            List<string> disassembly = new();
+            await hostApp.ExternalControlInvokeOnUIThread(async () =>
+            {
+                C64ToolHelper.AssertC64EmulatorIsRunning(hostApp);
+                var c64 = C64ToolHelper.GetC64(hostApp);
+                var cpu = c64.CPU;
+                var mem = c64.Mem;
+
+                ushort currentAddress = startAddress;
+                bool cont = true;
+                while (cont)
+                {
+                    // Use OutputGen to get disassembly for current instruction
+                    var line = Highbyte.DotNet6502.Utils.OutputGen.GetInstructionDisassembly(cpu, mem, currentAddress);
+                    disassembly.Add(line);
+                    // Get address of next instruction
+                    var nextInstructionAddress = cpu.GetNextInstructionAddress(mem, currentAddress);
+                    if (nextInstructionAddress > endAddress || (currentAddress >= nextInstructionAddress))
+                        cont = false;
+                    else
+                        currentAddress = nextInstructionAddress;
+                }
+            });
+            return C64ToolHelper.BuildCallToolDataResult(disassembly);
+        }
+        catch (Exception ex)
+        {
+            return C64ToolHelper.BuildCallToolErrorResult(ex);
+        }
+    }
 }

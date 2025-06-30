@@ -1,16 +1,16 @@
 {
     "inputs": [],
     "servers": {
-        "DotNet6502-Embedded-Windows": {
-            "type": "stdio",
-            "command": "dotnet",
-            "args": [
-                "run",
-                "--project",
-                "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\utils\\Highbyte.DotNet6502.Util.MCPServer\\Highbyte.DotNet6502.Util.MCPServer.csproj"
-            ],
-            "cwd": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\utils\\Highbyte.DotNet6502.Util.MCPServer"
-        }
+        // "DotNet6502-Embedded-Windows": {
+        //     "type": "stdio",
+        //     "command": "dotnet",
+        //     "args": [
+        //         "run",
+        //         "--project",
+        //         "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\utils\\Highbyte.DotNet6502.Util.MCPServer\\Highbyte.DotNet6502.Util.MCPServer.csproj"
+        //     ],
+        //     "cwd": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\utils\\Highbyte.DotNet6502.Util.MCPServer"
+        // }
 
         // "DotNet6502-Embedded-Mac": {
         //     "type": "stdio",
@@ -23,11 +23,11 @@
         //     "cwd": "/Users/highbyte/source/repos/dotnet-6502/src/utils/Highbyte.DotNet6502.Util.MCPServer"
         // }        
 
-        //  "DotNet6502-SadConsole-Windows": {
-        //      "type": "stdio",
-        //      "command": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\apps\\Highbyte.DotNet6502.App.SadConsole\\bin\\Debug\\net9.0\\Highbyte.DotNet6502.App.SadConsole.exe",
-        //       "cwd": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\apps\\Highbyte.DotNet6502.App.SadConsole\\bin\\Debug\\net9.0"
-        //  }
+         "DotNet6502-SadConsole-Windows": {
+             "type": "stdio",
+             "command": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\apps\\Highbyte.DotNet6502.App.SadConsole\\bin\\Debug\\net9.0\\Highbyte.DotNet6502.App.SadConsole.exe",
+              "cwd": "C:\\Users\\highb\\source\\repos\\dotnet-6502\\src\\apps\\Highbyte.DotNet6502.App.SadConsole\\bin\\Debug\\net9.0"
+         }
 
         //  "DotNet6502-SadConsole-Mac": {
         //      "type": "stdio",
