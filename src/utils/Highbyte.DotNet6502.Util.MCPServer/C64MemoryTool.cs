@@ -88,19 +88,26 @@ public static class C64MemoryTool
     /// <param name="hostApp"></param>
     /// <param name="address"></param>
     /// <param name="values">Array of bytes to write to memory></param>
-    [McpServerTool, Description("Writes a range of values (byte array) starting at specified memory address in C64 emulator. Expects 'values' as an array of integers.")]
-    public static async Task<CallToolResult> WriteMemoryRange(IHostApp hostApp, ushort address, byte[] values)
+    [McpServerTool, Description("Writes a range of numeric values (array) starting at specified memory address in C64 emulator.")]
+    public static async Task<CallToolResult> WriteMemoryRange(IHostApp hostApp, ushort address, int[] values)
     {
         try
         {
             // Safest to run code that uses objects the emulator uses on the UI thread.
             await hostApp.ExternalControlInvokeOnUIThread(async () =>
             {
+                // Convert values to byte array
+                if (values == null || values.Length == 0)
+                    throw new ArgumentException("Values cannot be null or empty.", nameof(values));
+
                 C64ToolHelper.AssertC64EmulatorIsRunning(hostApp);
                 var c64 = C64ToolHelper.GetC64(hostApp);
-                if (address + values.Length > c64.Mem.Size)
-                    values = values.Take(c64.Mem.Size - address).ToArray();
-                c64.Mem.StoreData(address, values);
+
+                var valuesAsBytes = values.Select(v => (byte)(v & 0xFF)).ToArray(); // Ensure values are within byte range
+
+                if (address + valuesAsBytes.Length > c64.Mem.Size)
+                    valuesAsBytes = valuesAsBytes.Take(c64.Mem.Size - address).ToArray();
+                c64.Mem.StoreData(address, valuesAsBytes);
             });
             return new CallToolResult();
         }
@@ -115,7 +122,7 @@ public static class C64MemoryTool
     /// <param name="hostApp"></param>
     /// <param name="address"></param>
     /// <param name="hexValues">Sequence of 8-bit bytes in hex separated by space to write to memory></param>
-    [McpServerTool, Description("Writes a range of values starting at specified memory address in C64 emulator.")]
+    [McpServerTool, Description("Writes a range of hex values separated by space starting at specified memory address in C64 emulator.")]
     public static async Task<CallToolResult> WriteMemoryRangeAsHexString(IHostApp hostApp, ushort address, string hexValues)
     {
         try
@@ -126,9 +133,9 @@ public static class C64MemoryTool
                 // Convert hex string to byte array
                 if (string.IsNullOrWhiteSpace(hexValues))
                     throw new ArgumentException("Hex values cannot be null or empty.", nameof(hexValues));
-                var values = hexValues
+                int[] values = hexValues
                     .Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(hex => Convert.ToByte(hex, 16))
+                    .Select(hex => Convert.ToInt32(hex, 16))
                     .ToArray();
 
                 await WriteMemoryRange(hostApp, address, values);

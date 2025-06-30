@@ -44,7 +44,8 @@ public static class C64StateTool
     {
         try
         {
-            C64ToolHelper.AssertC64EmulatorIsPausedOrUninitialzied(hostApp);
+            if (hostApp.EmulatorState == EmulatorState.Running)
+                return C64ToolHelper.BuildCallToolDataResult("C64 emulator is already running.");
 
             // Safest to run code that uses objects the emulator uses on the UI thread.
             await hostApp.ExternalControlInvokeOnUIThread(async () =>

@@ -15,7 +15,15 @@ public static class ToolSetup
         bool mcpControlEnabledFromStart = false)
     {
         // DI: Register the emulator host app
-        builder.Services.AddSingleton<IHostApp>((sp) => hostApp);
+        builder.Services.AddSingleton<IHostApp>((sp) => {
+
+            if (mcpControlEnabledFromStart)
+            {
+                // Automatically start the emulator. 
+                hostApp.Start();
+            }
+            return hostApp;
+        });
 
         // DI: Register MCP server dependencies
         builder.Services.AddSingleton<StateManager>((sp) =>
@@ -25,8 +33,7 @@ public static class ToolSetup
             var stateManger = new StateManager(breakpointManager);
             if (mcpControlEnabledFromStart)
             {
-                // Automatically start and enable external control of the emulator. 
-                hostApp.Start();
+                // Enable external control of the emulator. 
                 stateManger.EnableMCPControl(hostApp);
             }
             return stateManger;

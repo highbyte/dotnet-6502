@@ -32,7 +32,7 @@ public static class C64ToolHelper
         AssertEmulatorIsC64(hostApp);
         if (hostApp.EmulatorState != EmulatorState.Paused && hostApp.EmulatorState != EmulatorState.Uninitialized)
         {
-            throw new InvalidOperationException($"C64 emulator not paused uninitialzied. Current state: {hostApp.EmulatorState}");
+            throw new InvalidOperationException($"C64 emulator not paused or uninitialzied. Current state: {hostApp.EmulatorState}");
         }
     }
 
