@@ -1,0 +1,19 @@
+
+al C:0008 .ATN
+al C:dd00 .DD00
+al C:0020 .DATA
+al C:0010 .CLK
+
+al C:0871 .byteToSend
+al C:0872 .sendBuffer
+al C:0870 .vicBankBase
+al C:0873 .portValue
+al C:082e .SendByte
+al C:083c .SendBitLoop
+al C:086a .Wait
+al C:080d .start
+al C:086c .WaitLoop
+al C:0801 .sysline
+al C:0853 .BitIs0
+al C:0823 .SendByteWithATN
+al C:0834 .SendByteCommon

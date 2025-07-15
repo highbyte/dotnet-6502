@@ -1,0 +1,103 @@
+
+; ******** Source: C:\Users\highb\source\repos\dotnet-6502-netstandard\samples\Assembler\C64\DiskDrive\diskdrive_low_level_init.asm
+     1                          * = $0801
+     2                          sysline:
+     3  0801 0b0801009e323036...!byte $0b,$08,$01,$00,$9e,$32,$30,$36,$31,$00,$00,$00 ;= SYS 2061
+     4                          * = $080d ;=2061 (Instead of $0810 not to waste unnecessary bytes)
+     5                          
+     6                          DD00    = $DD00
+     7                          ATN     = %00001000
+     8                          CLK     = %00010000
+     9                          DATA    = %00100000
+    10                          
+    11                          start:
+    12  080d 78                         SEI                     ; disable IRQs
+    13                          
+    14  080e ad00dd                     LDA DD00
+    15  0811 2907                       AND #%00000111          ; preserve VIC-II bank bits (0–2)
+    16  0813 8d7008                     STA vicBankBase
+    17                          
+    18                                  ; === Send LISTEN 8 ===
+    19  0816 a928                       LDA #$28
+    20  0818 202308                     JSR SendByteWithATN
+    21                          
+    22                                  ; ; === Send secondary address 15 ===
+    23                                  ; LDA #$6F
+    24                                  ; JSR SendByte
+    25                          
+    26                                  ; ; === Send ASCII "I" ===
+    27                                  ; LDA #'I'
+    28                                  ; JSR SendByte
+    29                          
+    30                                  ; ; === Send UNLISTEN ===
+    31                                  ; LDA #$3F
+    32                                  ; JSR SendByte
+    33                          
+    34                                  ; === Release all lines ===
+    35  081b ad7008                     LDA vicBankBase
+    36  081e 8d00dd                     STA DD00
+    37                          
+    38  0821 58                         CLI
+    39  0822 60                         RTS
+    40                          
+    41                          ; -----------------------
+    42                          ; Send a byte with ATN asserted
+    43                          SendByteWithATN:
+    44  0823 ad7008                     LDA vicBankBase
+    45  0826 0908                       ORA #ATN
+    46  0828 8d00dd                     STA DD00                ; drive ATN low
+    47  082b 4c3408                     JMP SendByteCommon
+    48                          
+    49                          ; -----------------------
+    50                          ; Send a byte (after ATN)
+    51                          SendByte:
+    52  082e ad7008                     LDA vicBankBase
+    53  0831 8d00dd                     STA DD00                ; release ATN
+    54                          SendByteCommon:
+    55  0834 a008                       LDY #8
+    56  0836 ad7108                     LDA byteToSend
+    57  0839 8d7208                     STA sendBuffer        ; shift copy (working byte)
+    58                          
+    59                          SendBitLoop:
+    60  083c ad7008                     LDA vicBankBase
+    61  083f 8d7308                     STA portValue         ; prepare clean copy
+    62                          
+    63  0842 ad7208                     LDA sendBuffer
+    64  0845 0a                         ASL
+    65  0846 8d7208                     STA sendBuffer        ; shift left, result stays
+    66  0849 9008                       BCC BitIs0
+    67  084b ad7308                     LDA portValue
+    68  084e 0920                       ORA #DATA             ; set DATA bit high
+    69  0850 8d7308                     STA portValue
+    70                          BitIs0:
+    71                                  ; Pull CLK low (bit 4 = 0)
+    72  0853 29ef                       AND #%11101111        ; make sure CLK bit is 0
+    73  0855 8d00dd                     STA DD00
+    74                          
+    75  0858 206a08                     JSR Wait
+    76                          
+    77                                  ; Release CLK (bit 4 = 1)
+    78  085b ad7308                     LDA portValue
+    79  085e 0910                       ORA #CLK
+    80  0860 8d00dd                     STA DD00
+    81                          
+    82  0863 206a08                     JSR Wait
+    83                          
+    84  0866 88                         DEY
+    85  0867 d0d3                       BNE SendBitLoop
+    86                          
+    87  0869 60                         RTS
+    88                          
+    89                          ; -----------------------
+    90                          Wait:
+    91  086a a232                       LDX #50
+    92                          WaitLoop:
+    93  086c ca                         DEX
+    94  086d d0fd                       BNE WaitLoop
+    95  086f 60                         RTS
+    96                                  
+    97                          ; -----------------------
+    98  0870 00                 vicBankBase: !by 0       ; preserved VIC bank bits
+    99  0871 00                 byteToSend:  !by 0       ; value to send
+   100  0872 00                 sendBuffer:  !by 0       ; shifting copy
+   101  0873 00                 portValue:   !by 0       ; prepared DD00 output

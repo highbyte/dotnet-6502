@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.IEC;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Systems.Instrumentation;
@@ -11,6 +12,7 @@ using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Utils;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils;
 using System.Text;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
@@ -33,6 +35,7 @@ public class C64 : ISystem, ISystemMonitor
     public Vic2 Vic2 { get; set; } = default!;
     public Cia Cia { get; set; } = default!;
     public Sid Sid { get; set; } = default!;
+    public IECBus IECBus { get; set; } = default!;
     public Dictionary<string, byte[]> ROMData { get; set; } = default!;
 
     public bool AudioEnabled { get; private set; }
@@ -134,6 +137,9 @@ public class C64 : ISystem, ISystemMonitor
         if (TimerMode == TimerMode.UpdateEachInstruction)
             Cia.ProcessTimers(instructionExecResult.CyclesConsumed);
 
+        // Update IEC bus devices
+        IECBus.TickDevices();
+
         // Advance video raster
         var cycleOnRasterLineBeforeInstruction = Vic2.CyclesConsumedCurrentVblank;
         Vic2.AdvanceRaster(instructionExecResult.CyclesConsumed);
@@ -223,10 +229,16 @@ public class C64 : ISystem, ISystemMonitor
 
         var cia = new Cia(c64, c64Config, loggerFactory);
 
+        var iecHost = new IECHost();
+        var iecBus = new IECBus(iecHost);
+        var diskDrive1541 = new DiskDrive1541(loggerFactory);
+        iecBus.Attach(diskDrive1541);
+
         c64.CPU = cpu;
         c64.Vic2 = vic2;
         c64.Cia = cia;
         c64.Sid = sid;
+        c64.IECBus = iecBus;
 
         var mem = c64.CreateC64Memory(ram, io, romData);
         c64.Mem = mem;

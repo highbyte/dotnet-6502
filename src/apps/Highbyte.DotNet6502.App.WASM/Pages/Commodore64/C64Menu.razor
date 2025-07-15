@@ -2,6 +2,7 @@
 @using Highbyte.DotNet6502.Systems
 @using Highbyte.DotNet6502.Systems.Commodore64.Config;
 @using Highbyte.DotNet6502.Systems.Commodore64;
+@using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64
 @using Highbyte.DotNet6502.Systems.Commodore64.Video;
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index;
 @using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
@@ -16,12 +17,20 @@
         <button @onclick="PasteText" disabled=@OnPasteTextDisabled>Paste</button>
         <p></p>
         <label for="BasicCodingAssistant">AI Basic (F9)</label>
-        <input id="BasicCodingAssistant" type="checkbox" @bind="@BasicCodingAssistantEnabled" disabled="@BasicCodingAssistantDisabled"/> <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md" target="_blank">(info)</a> 
+        <input id="BasicCodingAssistant" type="checkbox" @bind="@BasicCodingAssistantEnabled" disabled="@BasicCodingAssistantDisabled"/> <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md" target="_blank">(info)</a>
+
+        <p>&nbsp;</p>
+        <details>
+            <summary>Disk Drive</summary>
+            <button @onclick="OnDiskFilePicker" disabled=@OnFilePickerDisabled>Attach .d64 disk image</button>
+            <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_COMPATIBLE_PRG.md" target="_blank">(info)</a>
+            <span>@_latestDiskFileError</span>
+        </details>
 
         <p>&nbsp;</p>
         <details>
             <summary>Load/Save</summary>
-            <p>Load/save files <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_COMPATIBLE_PRG.md" target="_blank">(info)</a></p>
+            <p>Load/save files</p>
             <button @onclick="OnBasicFilePicker" disabled=@OnBasicFilePickerDisabled>Load Basic .prg</button>
             <button @onclick="OnSaveBasicFile" disabled=@OnBasicFilePickerDisabled>Save Basic .prg</button>
             <button @onclick="OnFilePicker" disabled=@OnFilePickerDisabled>Load & start binary .prg</button>
@@ -79,8 +88,6 @@
             </div>
 
         </details>
-
-
     </div>
 
 
@@ -104,6 +111,7 @@
 
 <InputFile id="filePicker" OnChange="@OnFilePickerChange" @oncancel="OnFilePickerCancel" hidden />
 <InputFile id="filePickerBasic" OnChange="@OnBasicFilePickerChange" @oncancel="OnFilePickerCancel" hidden />
+<InputFile id="filePickerDisk" OnChange="@OnDiskFilePickerChange" @oncancel="OnFilePickerCancel" hidden />
 
 @* Fix for compiler warning CS8669 https://github.com/dotnet/razor/issues/8720 *@
 @{
@@ -124,6 +132,7 @@
 
     private ILogger _logger = default!;
     private string _latestFileError = "";
+    private string _latestDiskFileError = "";
     private string SYSTEM_NAME = C64.SystemName;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -528,6 +537,63 @@
         c64.TextPaste.Paste(text);
 
         await Parent.FocusEmulator();
+    }
+
+    /// <summary>
+    /// Open Attach .d64 disk image file dialog
+    /// </summary>
+    /// <returns></returns>
+    private async Task OnDiskFilePicker(MouseEventArgs mouseEventArgs)
+    {
+        _wasRunningBeforeFileDialog = Parent.CurrentEmulatorState == EmulatorState.Running;
+        await Parent.OnPause(new());
+        await Js.InvokeVoidAsync("clickId", "filePickerDisk");
+    }
+
+    /// <summary>
+    /// Callback when .d64 disk image file has been loaded from file pick dialog
+    /// </summary>
+    /// <param name="e"></param>
+    /// <returns></returns>
+    private async Task OnDiskFilePickerChange(InputFileChangeEventArgs e)
+    {
+        if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
+            return;
+        try
+        {
+            if (e.FileCount > 1)
+                return;
+            var file = e.File;
+            _logger.LogInformation($"Disk file picked: {file.Name} Size: {file.Size}");
+            _latestDiskFileError = "";
+            var fileBuffer = new byte[file.Size];
+            await file.OpenReadStream().ReadAsync(fileBuffer);
+            // Parse the D64 disk image from the byte array
+            var d64DiskImage = D64Parser.ParseD64File(fileBuffer);
+            // Set the disk image on the running C64's DiskDrive1541
+            var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
+            var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+            if (diskDrive != null)
+            {
+                diskDrive.SetD64DiskImage(d64DiskImage);
+                _logger.LogInformation($"Disk image loaded and set: {d64DiskImage.DiskName}");
+            }
+            else
+            {
+                _latestDiskFileError = "No DiskDrive1541 found in the running C64 system.";
+                _logger.LogError(_latestDiskFileError);
+            }
+        }
+        catch (Exception ex)
+        {
+            _latestDiskFileError = $"Disk load error: {ex.Message}";
+            _logger.LogError(_latestDiskFileError);
+        }
+        finally
+        {
+            if (_wasRunningBeforeFileDialog)
+                await Parent.OnStart(new());
+        }
     }
 
 }

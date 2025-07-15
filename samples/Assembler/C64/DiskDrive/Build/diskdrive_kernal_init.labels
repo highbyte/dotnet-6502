@@ -1,0 +1,5 @@
+
+
+al C:080d .start
+al C:0801 .sysline
+al C:0826 .cmdstr
