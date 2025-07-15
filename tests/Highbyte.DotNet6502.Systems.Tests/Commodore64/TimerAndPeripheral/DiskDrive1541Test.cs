@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.IEC;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -19,12 +20,26 @@ public class DiskDrive1541Test
         Assert.True(diskDrive.SetDATALine == DeviceLineState.Holding);
     }
 
+    [Fact]
+    public void DiskDrive_Can_Attach_D64DiskImage()
+    {
+        // Arrange
+        var diskDrive = new DiskDrive1541(new NullLoggerFactory());
+
+        // Act
+        diskDrive.SetD64DiskImage(new D64DiskImage());
+
+        // Assert
+        Assert.False(diskDrive.IsDisketteInserted);
+    }
+
 
     [Fact]
     public void DiskDrive_Can_Remove_D64DiskImage()
     {
         // Arrange
         var diskDrive = new DiskDrive1541(new NullLoggerFactory());
+        diskDrive.SetD64DiskImage(new D64DiskImage());
 
         // Act
         diskDrive.RemoveD64DiskImage();

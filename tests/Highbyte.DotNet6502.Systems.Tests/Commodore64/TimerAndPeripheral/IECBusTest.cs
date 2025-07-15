@@ -40,7 +40,7 @@ public class IECBusTest
     }
 
     [Fact]
-    public void If_Device_Is_On_Bus_A_Bus_Line_Low_State_Is_Set_If_Either_Host_Or_Device_Has_Line_Holding()
+    public void If_Device_Is_On_Bus_A_Bus_Line_Low_State_Is_Set_If_Only_Host_Has_Line_Holding()
     {
         // Arrange
         var iecHost = new IECHost();
@@ -57,7 +57,7 @@ public class IECBusTest
     }
 
     [Fact]
-    public void If_Device_Is_On_Bus_A_Bus_Line_Low_State_Is_Set_If_Either_Host_Or_Device_Has_Line_Holding2()
+    public void If_Device_Is_On_Bus_A_Bus_Line_Low_State_Is_Set_If_Only_Device_Has_Line_Holding()
     {
         // Arrange
         var iecHost = new IECHost();
