@@ -39,7 +39,7 @@ public enum ByteTransferState
     /// <summary>
     /// Special case when first switching Talker/Listener roles between C64 and this drive.
     /// Waits for enough time for the previous state to be recognized by the C64 so it won't end up in endless loop.
-    /// Worarkound because this emulator does not simulate the time an eletronic signal takes between setting them on one side of the bus for it to be recognized by the memory mapped port on the other side of the bus.
+    /// Workaround because this emulator does not simulate the time an electronic signal takes between setting them on one side of the bus for it to be recognized by the memory mapped port on the other side of the bus.
     /// </summary>
     DelayedStart,
 
