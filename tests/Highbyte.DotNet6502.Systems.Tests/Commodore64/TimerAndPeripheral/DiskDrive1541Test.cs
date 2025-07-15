@@ -30,7 +30,7 @@ public class DiskDrive1541Test
         diskDrive.SetD64DiskImage(new D64DiskImage());
 
         // Assert
-        Assert.False(diskDrive.IsDisketteInserted);
+        Assert.True(diskDrive.IsDisketteInserted);
     }
 
 
