@@ -49,7 +49,7 @@ public class DiskDrive1541Test
     }
 
     [Fact]
-    public void DiskDrive_Has_Correct_DeviceNumber()
+    public void DiskDrive_Has_Default_DeviceNumber_8()
     {
         // Arrange & Act
         var diskDrive = new DiskDrive1541(new NullLoggerFactory());
@@ -369,6 +369,7 @@ public class DiskDrive1541Test
         // Arrange
         var bus = BuildBusWithDiskDrive(out DiskDrive1541 diskDrive);
         diskDrive.SetD64DiskImage(new D64DiskImage { DiskName = "TestDisk" });
+        diskDrive.SetDeviceNumber(10); // Test with non-default device number
 
         // Act - Complex scenario with mixed operations
         bus.Host.SetLines(setATNLine: DeviceLineState.Holding, setCLKLine: DeviceLineState.Holding);
@@ -384,7 +385,7 @@ public class DiskDrive1541Test
 
         // Assert - Drive should maintain its state
         Assert.True(diskDrive.IsDisketteInserted);
-        Assert.Equal(8, diskDrive.DeviceNumber);
+        Assert.Equal(10, diskDrive.DeviceNumber);
     }
 
     [Fact]
@@ -519,6 +520,128 @@ public class DiskDrive1541Test
         diskDrive.SetLines(setCLKLine: DeviceLineState.Holding, setDATALine: DeviceLineState.Holding);
 
         // Assert
+        Assert.Equal(DeviceLineState.Holding, diskDrive.SetCLKLine);
+        Assert.Equal(DeviceLineState.Holding, diskDrive.SetDATALine);
+    }
+
+    [Theory]
+    [InlineData(8)]
+    [InlineData(9)]
+    [InlineData(10)]
+    [InlineData(11)]
+    public void DiskDrive_Can_Set_Valid_DeviceNumbers(int deviceNumber)
+    {
+        // Arrange
+        var diskDrive = new DiskDrive1541(new NullLoggerFactory());
+
+        // Act
+        diskDrive.SetDeviceNumber(deviceNumber);
+
+        // Assert
+        Assert.Equal(deviceNumber, diskDrive.DeviceNumber);
+    }
+
+    [Theory]
+    [InlineData(7)]
+    [InlineData(12)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(15)]
+    public void DiskDrive_Should_Throw_For_Invalid_DeviceNumbers(int invalidDeviceNumber)
+    {
+        // Arrange
+        var diskDrive = new DiskDrive1541(new NullLoggerFactory());
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => diskDrive.SetDeviceNumber(invalidDeviceNumber));
+        Assert.Equal("deviceNumber", exception.ParamName);
+        Assert.Contains("Device number must be between 8 and 11", exception.Message);
+    }
+
+    [Fact]
+    public void DiskDrive_Should_Maintain_DeviceNumber_After_Setting()
+    {
+        // Arrange
+        var diskDrive = new DiskDrive1541(new NullLoggerFactory());
+        const int newDeviceNumber = 10;
+
+        // Act
+        diskDrive.SetDeviceNumber(newDeviceNumber);
+
+        // Perform various operations
+        diskDrive.SetD64DiskImage(new D64DiskImage());
+        diskDrive.SetLines(setCLKLine: DeviceLineState.Holding);
+        diskDrive.RemoveD64DiskImage();
+
+        // Assert
+        Assert.Equal(newDeviceNumber, diskDrive.DeviceNumber);
+    }
+
+    [Fact]
+    public void DiskDrive_Can_Change_DeviceNumber_Multiple_Times()
+    {
+        // Arrange
+        var diskDrive = new DiskDrive1541(new NullLoggerFactory());
+
+        // Act & Assert
+        diskDrive.SetDeviceNumber(9);
+        Assert.Equal(9, diskDrive.DeviceNumber);
+
+        diskDrive.SetDeviceNumber(11);
+        Assert.Equal(11, diskDrive.DeviceNumber);
+
+        diskDrive.SetDeviceNumber(8);
+        Assert.Equal(8, diskDrive.DeviceNumber);
+    }
+
+    [Fact]
+    public void DiskDrive_DeviceNumber_Should_Persist_Across_Bus_Operations()
+    {
+        // Arrange
+        var bus = BuildBusWithDiskDrive(out DiskDrive1541 diskDrive);
+        const int newDeviceNumber = 9;
+        diskDrive.SetDeviceNumber(newDeviceNumber);
+
+        // Act - Perform bus operations
+        bus.Host.SetLines(setATNLine: DeviceLineState.Holding);
+        diskDrive.OnBusChangedState();
+        diskDrive.Tick();
+
+        bus.Host.SetLines(setATNLine: DeviceLineState.NotHolding);
+        diskDrive.OnBusChangedState();
+
+        // Assert
+        Assert.Equal(newDeviceNumber, diskDrive.DeviceNumber);
+    }
+
+    [Fact]
+    public void DiskDrive_SetDeviceNumber_Should_Accept_Same_Number_Multiple_Times()
+    {
+        // Arrange
+        var diskDrive = new DiskDrive1541(new NullLoggerFactory());
+
+        // Act & Assert - Setting the same number multiple times should work
+        diskDrive.SetDeviceNumber(9);
+        Assert.Equal(9, diskDrive.DeviceNumber);
+
+        diskDrive.SetDeviceNumber(9);
+        Assert.Equal(9, diskDrive.DeviceNumber);
+    }
+
+    [Fact]
+    public void DiskDrive_SetDeviceNumber_Should_Not_Affect_Other_Properties()
+    {
+        // Arrange
+        var diskDrive = new DiskDrive1541(new NullLoggerFactory());
+        diskDrive.SetD64DiskImage(new D64DiskImage { DiskName = "TestDisk" });
+        diskDrive.SetLines(setCLKLine: DeviceLineState.Holding, setDATALine: DeviceLineState.Holding);
+
+        // Act
+        diskDrive.SetDeviceNumber(9);
+
+        // Assert - Other properties should remain unchanged
+        Assert.Equal(9, diskDrive.DeviceNumber);
+        Assert.True(diskDrive.IsDisketteInserted);
         Assert.Equal(DeviceLineState.Holding, diskDrive.SetCLKLine);
         Assert.Equal(DeviceLineState.Holding, diskDrive.SetDATALine);
     }

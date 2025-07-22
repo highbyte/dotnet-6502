@@ -11,7 +11,8 @@ public class DiskDrive1541 : IIECDevice
 
     private D64DiskImage? _d64DiskImage;
 
-    public int DeviceNumber => 8;
+    private int _deviceNumber = 8;
+    public int DeviceNumber => _deviceNumber;
 
     private DeviceLineState _setCLKLine = DeviceLineState.NotHolding;
     public DeviceLineState SetCLKLine => _setCLKLine;
@@ -74,6 +75,14 @@ public class DiskDrive1541 : IIECDevice
     public void RemoveD64DiskImage()
     {
         _d64DiskImage = null;
+    }
+
+    public void SetDeviceNumber(int deviceNumber)
+    {
+        if (deviceNumber < 8 || deviceNumber > 11)
+            throw new ArgumentOutOfRangeException(nameof(deviceNumber), deviceNumber, "Device number must be between 8 and 11.");
+        
+        _deviceNumber = deviceNumber;
     }
 
     public void SetLines(DeviceLineState? setCLKLine = null, DeviceLineState? setDATALine = null)
