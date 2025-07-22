@@ -21,10 +21,42 @@
 
         <p>&nbsp;</p>
         <details>
-            <summary>Disk Drive</summary>
+            <summary>Disk Drive & .D64 images</summary>
             <button @onclick="OnDiskFilePicker" disabled=@OnFilePickerDisabled>Attach .d64 disk image</button>
             <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_COMPATIBLE_PRG.md" target="_blank">(info)</a>
             <span>@_latestDiskFileError</span>
+            <br />
+            <br />
+            <label for="preloadedDiskSelector">Download & Auto-Load .D64 Games:</label>
+            <select id="preloadedDiskSelector" @onchange="OnPreloadedDiskChanged" disabled=@OnFilePickerDisabled>
+                <option value="">-- Select a game --</option>
+                @foreach (var disk in _preloadedD64Images)
+                {
+                    <option value="@disk.Key">@disk.Value.DisplayName</option>
+                }
+            </select>
+            @if (!string.IsNullOrEmpty(SelectedPreloadedDisk))
+            {
+                <br />
+                @if (_isLoadingPreloadedDisk)
+                {
+                    <span>Loading disk image...</span>
+                }
+                else
+                {
+                    <button @onclick="OnLoadPreloadedDisk" disabled=@OnFilePickerDisabled>Download, Load & Run Game</button>
+                    <button @onclick="OnLoadPreloadedDiskDirectory" disabled=@OnFilePickerDisabled>Download & Show Directory</button>
+                }
+                <br />
+                <span style="font-size: 0.9em; color: #666;">
+                    Download D64 disk image and either auto-run the game or show directory for manual loading.
+                </span>
+                @if (!string.IsNullOrEmpty(_latestPreloadedDiskError))
+                {
+                    <br />
+                    <span style="color: red;">@_latestPreloadedDiskError</span>
+                }
+            }
         </details>
 
         <p>&nbsp;</p>
@@ -133,7 +165,40 @@
     private ILogger _logger = default!;
     private string _latestFileError = "";
     private string _latestDiskFileError = "";
+    private string _latestPreloadedDiskError = "";
+    private bool _isLoadingPreloadedDisk = false;
     private string SYSTEM_NAME = C64.SystemName;
+   
+    // CORS proxy URL to bypass browser CORS restrictions when downloading from external sites
+    //private const string CORS_PROXY_URL = "https://thingproxy.freeboard.io/fetch/"; // Doesn't seem to work with redirects
+    //private const string CORS_PROXY_URL = "https://api.allorigins.win/raw?url="; // Doesn't work reliably
+    private const string CORS_PROXY_URL = "https://corsproxy.io/?url=";
+    private readonly Dictionary<string, D64ImageInfo> _preloadedD64Images = new()
+    {
+        {"digiloi", new D64ImageInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", "digiloi64")},
+        {"elite", new D64ImageInfo("Elite", "https://csdb.dk/release/download.php?id=70413", "elite        [3]")},
+        {"lastninja", new D64ImageInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", "last ninja/zcs")},
+        {"minizork", new D64ImageInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", "mini-zork   /l+t")},
+        {"rally", new D64ImageInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=22736", "rallyspeedway")},
+        {"montezuma", new D64ImageInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", "montezuma's rev.")},
+        {"bubblebobble", new D64ImageInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=187937", "bubble bobble")}
+    };
+
+    public string SelectedPreloadedDisk { get; set; } = default!;
+
+    private class D64ImageInfo
+    {
+        public string DisplayName { get; set; }
+        public string DownloadUrl { get; set; }
+        public string ProgramName { get; set; }
+
+        public D64ImageInfo(string displayName, string downloadUrl, string programName)
+        {
+            DisplayName = displayName;
+            DownloadUrl = downloadUrl;
+            ProgramName = programName;
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -257,7 +322,9 @@
     protected bool OnCopySourceCodeDisabled=> Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
     
     protected bool OnPasteTextDisabled => Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
-    protected bool BasicCodingAssistantDisabled => Parent.CurrentEmulatorState != EmulatorState.Running || !((C64AspNetInputHandler)Parent.WasmHost.CurrentSystemRunner.InputHandler).CodingAssistantAvailable;
+    protected bool BasicCodingAssistantDisabled => Parent.CurrentEmulatorState != EmulatorState.Running || 
+        Parent.WasmHost.CurrentSystemRunner?.InputHandler is not C64AspNetInputHandler inputHandler || 
+        !inputHandler.CodingAssistantAvailable;
 
 
     /// <summary>
@@ -592,6 +659,162 @@
         finally
         {
             if (_wasRunningBeforeFileDialog)
+                await Parent.OnStart(new());
+        }
+    }
+
+    private void OnPreloadedDiskChanged(ChangeEventArgs e)
+    {
+        SelectedPreloadedDisk = e.Value?.ToString() ?? "";
+        _latestPreloadedDiskError = "";
+    }
+
+    /// <summary>
+    /// Download and load a preloaded D64 disk image, then auto-load and run the specified program
+    /// </summary>
+    /// <returns></returns>
+    private async Task OnLoadPreloadedDisk()
+    {
+        if (string.IsNullOrEmpty(SelectedPreloadedDisk) || !_preloadedD64Images.ContainsKey(SelectedPreloadedDisk))
+            return;
+
+        var diskInfo = _preloadedD64Images[SelectedPreloadedDisk];
+        bool wasRunning = Parent.CurrentEmulatorState == EmulatorState.Running;
+        await Parent.OnPause(new());
+
+        try
+        {
+            _isLoadingPreloadedDisk = true;
+            _latestPreloadedDiskError = "";
+            StateHasChanged(); // Update UI to show loading state
+            
+            _logger.LogInformation($"Downloading D64 image: {diskInfo.DisplayName} from {diskInfo.DownloadUrl}");
+
+            // Use CORS proxy to bypass browser CORS restrictions
+            var proxiedUrl = CORS_PROXY_URL + Uri.EscapeDataString(diskInfo.DownloadUrl);
+            _logger.LogInformation($"Using proxied URL: {proxiedUrl}");
+
+            // Download the D64 file with redirect handling
+            using var response = await HttpClient!.GetAsync(proxiedUrl);
+            response.EnsureSuccessStatusCode();
+            var d64Bytes = await response.Content.ReadAsByteArrayAsync();
+            _logger.LogInformation($"Downloaded {d64Bytes.Length} bytes");
+
+            // Parse the D64 disk image
+            var d64DiskImage = D64Parser.ParseD64File(d64Bytes);
+            _logger.LogInformation($"Parsed D64 disk image: {d64DiskImage.DiskName}");
+
+            // Set the disk image on the running C64's DiskDrive1541
+            var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
+            var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+            if (diskDrive != null)
+            {
+                diskDrive.SetD64DiskImage(d64DiskImage);
+                _logger.LogInformation($"Disk image loaded and set: {d64DiskImage.DiskName}");
+
+                // Auto-load and run the program
+                if (!string.IsNullOrEmpty(diskInfo.ProgramName))
+                {
+                    _logger.LogInformation($"Auto-loading and running program: {diskInfo.ProgramName}");
+                    
+                    // Issue LOAD command for the specific program
+                    var loadCommand = $"load\"{diskInfo.ProgramName}\",8\n";
+                    c64.TextPaste.Paste(loadCommand);
+                    
+                    // Wait a moment, then issue RUN command
+                    await Task.Delay(1000);
+                    c64.TextPaste.Paste("run\n");
+                }
+            }
+            else
+            {
+                _latestPreloadedDiskError = "No DiskDrive1541 found in the running C64 system.";
+                _logger.LogError(_latestPreloadedDiskError);
+            }
+        }
+        catch (Exception ex)
+        {
+            _latestPreloadedDiskError = $"Load error: {ex.Message}";
+            _logger.LogError(_latestPreloadedDiskError);
+        }
+        finally
+        {
+            _isLoadingPreloadedDisk = false;
+            StateHasChanged(); // Update UI to hide loading state
+            
+            if (wasRunning)
+                await Parent.OnStart(new());
+        }
+    }
+
+    /// <summary>
+    /// Download and load a preloaded D64 disk image, then show directory listing
+    /// </summary>
+    /// <returns></returns>
+    private async Task OnLoadPreloadedDiskDirectory()
+    {
+        if (string.IsNullOrEmpty(SelectedPreloadedDisk) || !_preloadedD64Images.ContainsKey(SelectedPreloadedDisk))
+            return;
+
+        var diskInfo = _preloadedD64Images[SelectedPreloadedDisk];
+        bool wasRunning = Parent.CurrentEmulatorState == EmulatorState.Running;
+        await Parent.OnPause(new());
+
+        try
+        {
+            _isLoadingPreloadedDisk = true;
+            _latestPreloadedDiskError = "";
+            StateHasChanged(); // Update UI to show loading state
+            
+            _logger.LogInformation($"Downloading D64 image: {diskInfo.DisplayName} from {diskInfo.DownloadUrl}");
+
+            // Use CORS proxy to bypass browser CORS restrictions
+            var proxiedUrl = CORS_PROXY_URL + Uri.EscapeDataString(diskInfo.DownloadUrl);
+            _logger.LogInformation($"Using proxied URL: {proxiedUrl}");
+
+            // Download the D64 file with redirect handling
+            using var response = await HttpClient!.GetAsync(proxiedUrl);
+            response.EnsureSuccessStatusCode();
+            var d64Bytes = await response.Content.ReadAsByteArrayAsync();
+            _logger.LogInformation($"Downloaded {d64Bytes.Length} bytes");
+
+            // Parse the D64 disk image
+            var d64DiskImage = D64Parser.ParseD64File(d64Bytes);
+            _logger.LogInformation($"Parsed D64 disk image: {d64DiskImage.DiskName}");
+
+            // Set the disk image on the running C64's DiskDrive1541
+            var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
+            var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+            if (diskDrive != null)
+            {
+                diskDrive.SetD64DiskImage(d64DiskImage);
+                _logger.LogInformation($"Disk image loaded and set: {d64DiskImage.DiskName}");
+
+                // Load directory listing
+                _logger.LogInformation("Loading directory listing");
+                c64.TextPaste.Paste("load\"$\",8\n");
+                
+                // Wait a moment, then list the directory
+                await Task.Delay(1000);
+                c64.TextPaste.Paste("list\n");
+            }
+            else
+            {
+                _latestPreloadedDiskError = "No DiskDrive1541 found in the running C64 system.";
+                _logger.LogError(_latestPreloadedDiskError);
+            }
+        }
+        catch (Exception ex)
+        {
+            _latestPreloadedDiskError = $"Load error: {ex.Message}";
+            _logger.LogError(_latestPreloadedDiskError);
+        }
+        finally
+        {
+            _isLoadingPreloadedDisk = false;
+            StateHasChanged(); // Update UI to hide loading state
+            
+            if (wasRunning)
                 await Parent.OnStart(new());
         }
     }
