@@ -29,9 +29,9 @@
             <span>@_latestDiskFileError</span>
             <br />
             <br />
-            <label for="preloadedDiskSelector">Download & Auto-Load .D64 Games:</label>
+            <label for="preloadedDiskSelector">Download & Run .D64 programs:</label>
             <select id="preloadedDiskSelector" @onchange="OnPreloadedDiskChanged" disabled=@OnFilePickerDisabled>
-                <option value="">-- Select a game --</option>
+                <option value="">-- Select a program --</option>
                 @foreach (var disk in _preloadedD64Images)
                 {
                     <option value="@disk.Key">@disk.Value.DisplayName</option>
@@ -46,11 +46,11 @@
                 }
                 else
                 {
-                    <button @onclick="OnLoadPreloadedDisk" disabled=@OnFilePickerDisabled>Download, Load & Run Game</button>
+                    <button @onclick="OnLoadPreloadedDisk" disabled=@OnFilePickerDisabled>Download & Run Game</button>
                 }
                 <br />
                 <span style="font-size: 0.9em; color: #666;">
-                    Download D64 disk image and auto-run the game on it.
+                    Download D64 disk image and auto-run the program on it.
                 </span>
                 @if (!string.IsNullOrEmpty(_latestPreloadedDiskError))
                 {
@@ -174,17 +174,17 @@
     //private const string CORS_PROXY_URL = "https://thingproxy.freeboard.io/fetch/"; // Doesn't seem to work with redirects
     //private const string CORS_PROXY_URL = "https://api.allorigins.win/raw?url="; // Doesn't work reliably
     private const string CORS_PROXY_URL = "https://corsproxy.io/?url=";
+
     private readonly Dictionary<string, D64ImageInfo> _preloadedD64Images = new()
     {
         {"digiloi", new D64ImageInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
         {"elite", new D64ImageInfo("Elite", "https://csdb.dk/release/download.php?id=254875", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
         {"lastninja", new D64ImageInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
         {"minizork", new D64ImageInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919")},
-        {"rally", new D64ImageInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=22736", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
+        {"rally", new D64ImageInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1)},
         {"montezuma", new D64ImageInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
-        {"bubblebobble", new D64ImageInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=187937", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)}
+        {"bubblebobble", new D64ImageInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)}
     };
-
     public string SelectedPreloadedDisk { get; set; } = default!;
 
     private enum DownloadType
@@ -813,6 +813,37 @@
             _latestPreloadedDiskError = "";
             StateHasChanged(); // Update UI to show loading state
             
+            // First reset the C64 emulator
+            _logger.LogInformation("Resetting C64 emulator before loading disk image");
+
+            // Restart the C64 emulator to ensure a clean state
+            await Parent.OnReset(new());
+            
+            // Wait for BASIC to start (check periodically)
+            _logger.LogInformation("Waiting for BASIC to start...");
+            var maxWaitTime = TimeSpan.FromSeconds(10);
+            var startTime = DateTime.Now;
+            var checkInterval = TimeSpan.FromMilliseconds(100);
+            
+            C64 c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
+            while (!c64.HasBasicStarted())
+            {
+                if (DateTime.Now - startTime > maxWaitTime)
+                {
+                    throw new TimeoutException("Timeout waiting for BASIC to start");
+                }
+                await Task.Delay(checkInterval);
+            }
+            
+            _logger.LogInformation("BASIC has started successfully");
+            
+            // Add a 1-second delay to allow BASIC to settle before proceeding
+            _logger.LogInformation("Waiting 1 second for BASIC to settle...");
+            await Task.Delay(1000);
+            
+            // Pause again before proceeding with disk operations
+            await Parent.OnPause(new());
+            
             // Download and process the disk image (supports both .d64 and .zip files)
             var d64Bytes = await DownloadAndProcessDiskImage(diskInfo);
 
@@ -821,7 +852,6 @@
             _logger.LogInformation($"Parsed D64 disk image: {d64DiskImage.DiskName}");
 
             // Set the disk image on the running C64's DiskDrive1541
-            var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
             var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
             if (diskDrive != null)
             {

@@ -585,4 +585,20 @@ public class C64 : ISystem, ISystemMonitor
     {
         _postInstructionAudioCallback = callback;
     }
+
+    /// <summary>
+    /// Checks if C64 BASIC has started and completed its initialization.
+    /// This method examines the BASIC memory pointers to determine if BASIC has properly initialized.
+    /// TXTAB pointer at 0x002B-0x002C should contain the start address of the BASIC program area (typically 0x0801).
+    /// </summary>
+    /// <returns>True if BASIC has started and initialized, false otherwise</returns>
+    public bool HasBasicStarted()
+    {
+        // Check TXTAB pointer (0x002B-0x002C): Start of BASIC program text area
+        // After BASIC initialization, this should point to 0x0801 (standard BASIC program start address)
+        var txtabPointer = Mem.FetchWord(0x2B);
+        
+        // During startup, this pointer is 0x0000. After BASIC initialization, it's set to BASIC_LOAD_ADDRESS (0x0801)
+        return txtabPointer == BASIC_LOAD_ADDRESS;
+    }
 }
