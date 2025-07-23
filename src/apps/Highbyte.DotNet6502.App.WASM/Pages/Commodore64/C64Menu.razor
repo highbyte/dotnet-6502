@@ -47,11 +47,10 @@
                 else
                 {
                     <button @onclick="OnLoadPreloadedDisk" disabled=@OnFilePickerDisabled>Download, Load & Run Game</button>
-                    <button @onclick="OnLoadPreloadedDiskDirectory" disabled=@OnFilePickerDisabled>Download & Show Directory</button>
                 }
                 <br />
                 <span style="font-size: 0.9em; color: #666;">
-                    Download D64 disk image and either auto-run the game or show directory for manual loading.
+                    Download D64 disk image and auto-run the game on it.
                 </span>
                 @if (!string.IsNullOrEmpty(_latestPreloadedDiskError))
                 {
@@ -864,68 +863,4 @@
                 await Parent.OnStart(new());
         }
     }
-
-    /// <summary>
-    /// Download and load a preloaded D64 disk image, then show directory listing
-    /// </summary>
-    /// <returns></returns>
-    private async Task OnLoadPreloadedDiskDirectory()
-    {
-        if (string.IsNullOrEmpty(SelectedPreloadedDisk) || !_preloadedD64Images.ContainsKey(SelectedPreloadedDisk))
-            return;
-
-        var diskInfo = _preloadedD64Images[SelectedPreloadedDisk];
-        bool wasRunning = Parent.CurrentEmulatorState == EmulatorState.Running;
-        await Parent.OnPause(new());
-
-        try
-        {
-            _isLoadingPreloadedDisk = true;
-            _latestPreloadedDiskError = "";
-            StateHasChanged(); // Update UI to show loading state
-            
-            // Download and process the disk image (supports both .d64 and .zip files)
-            var d64Bytes = await DownloadAndProcessDiskImage(diskInfo);
-
-            // Parse the D64 disk image
-            var d64DiskImage = D64Parser.ParseD64File(d64Bytes);
-            _logger.LogInformation($"Parsed D64 disk image: {d64DiskImage.DiskName}");
-
-            // Set the disk image on the running C64's DiskDrive1541
-            var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
-            var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
-            if (diskDrive != null)
-            {
-                diskDrive.SetD64DiskImage(d64DiskImage);
-                _logger.LogInformation($"Disk image loaded and set: {d64DiskImage.DiskName}");
-
-                // Load directory listing
-                _logger.LogInformation("Loading directory listing");
-                c64.TextPaste.Paste("load\"$\",8\n");
-                
-                // Wait a moment, then list the directory
-                await Task.Delay(1000);
-                c64.TextPaste.Paste("list\n");
-            }
-            else
-            {
-                _latestPreloadedDiskError = "No DiskDrive1541 found in the running C64 system.";
-                _logger.LogError(_latestPreloadedDiskError);
-            }
-        }
-        catch (Exception ex)
-        {
-            _latestPreloadedDiskError = $"Load error: {ex.Message}";
-            _logger.LogError(_latestPreloadedDiskError);
-        }
-        finally
-        {
-            _isLoadingPreloadedDisk = false;
-            StateHasChanged(); // Update UI to hide loading state
-            
-            if (wasRunning)
-                await Parent.OnStart(new());
-        }
-    }
-
 }
