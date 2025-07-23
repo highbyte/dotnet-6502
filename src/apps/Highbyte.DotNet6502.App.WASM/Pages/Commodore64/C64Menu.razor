@@ -178,8 +178,8 @@
     private readonly Dictionary<string, D64ImageInfo> _preloadedD64Images = new()
     {
         {"digiloi", new D64ImageInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
-        {"elite", new D64ImageInfo("Elite", "https://csdb.dk/release/download.php?id=254875", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
-        {"lastninja", new D64ImageInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
+        {"elite", new D64ImageInfo("Elite", "https://csdb.dk/release/download.php?id=254875", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, renderer: C64HostRenderer.SkiaSharp3)},
+        {"lastninja", new D64ImageInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, renderer: C64HostRenderer.SkiaSharp3)},
         {"minizork", new D64ImageInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919")},
         {"rally", new D64ImageInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1)},
         {"montezuma", new D64ImageInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
@@ -208,8 +208,9 @@
         public DownloadType DownloadType { get; set; }
         public bool KeyboardJoystickEnabled { get; set; }
         public int KeyboardJoystickNumber { get; set; }
+        public C64HostRenderer Renderer { get; set; }
 
-        public D64ImageInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64, bool keyboardJoystickEnabled = false, int keyboardJoystickNumber = 2)
+        public D64ImageInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64, bool keyboardJoystickEnabled = false, int keyboardJoystickNumber = 2, C64HostRenderer renderer = C64HostRenderer.SkiaSharp)
         {
             DisplayName = displayName;
             DownloadUrl = downloadUrl;
@@ -217,6 +218,7 @@
             DownloadType = downloadType;
             KeyboardJoystickEnabled = keyboardJoystickEnabled;
             KeyboardJoystickNumber = keyboardJoystickNumber;
+            Renderer = renderer;
         }
     }
 
@@ -674,7 +676,7 @@
         catch (Exception ex)
         {
             _latestDiskFileError = $"Disk load error: {ex.Message}";
-            _logger.LogError(_latestDiskFileError);
+            _logger.LogError($"Disk load error: {ex.Message}");
         }
         finally
         {
@@ -833,6 +835,10 @@
             _logger.LogInformation($"Setting keyboard joystick number in config to: {diskInfo.KeyboardJoystickNumber}");
             _c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
 
+            // Apply renderer setting to config object while emulator is stopped
+            _logger.LogInformation($"Setting renderer in config to: {diskInfo.Renderer}");
+            _c64HostConfig.Renderer = diskInfo.Renderer;
+
             Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
             StateHasChanged(); // Update UI to show any config changes
 
@@ -910,7 +916,7 @@
         catch (Exception ex)
         {
             _latestPreloadedDiskError = $"Load error: {ex.Message}";
-            _logger.LogError(_latestPreloadedDiskError);
+            _logger.LogError($"Load error: {ex.Message}");
         }
         finally
         {
