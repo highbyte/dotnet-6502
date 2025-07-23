@@ -9,6 +9,7 @@
 @using Highbyte.DotNet6502.Utils;
 @using TextCopy
 @using System.IO.Compression
+@using System.Linq
 
 @if(Parent.Initialized && Parent.WasmHost.SelectedSystemName == SYSTEM_NAME)
 {
@@ -176,13 +177,13 @@
     private const string CORS_PROXY_URL = "https://corsproxy.io/?url=";
     private readonly Dictionary<string, D64ImageInfo> _preloadedD64Images = new()
     {
-        {"digiloi", new D64ImageInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", "digiloi64")},
-        {"elite", new D64ImageInfo("Elite", "https://csdb.dk/release/download.php?id=254875", "elite       /tpx")},
-        {"lastninja", new D64ImageInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", "last ninja/zcs", DownloadType.ZIP)},
-        {"minizork", new D64ImageInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", "mini-zork   /l+t")},
-        {"rally", new D64ImageInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=22736", "rallyspeedway")},
-        {"montezuma", new D64ImageInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", "montezuma's rev.", DownloadType.ZIP)},
-        {"bubblebobble", new D64ImageInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=187937", "bubble bobble")}
+        {"digiloi", new D64ImageInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381")},
+        {"elite", new D64ImageInfo("Elite", "https://csdb.dk/release/download.php?id=254875")},
+        {"lastninja", new D64ImageInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP)},
+        {"minizork", new D64ImageInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919")},
+        {"rally", new D64ImageInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=22736")},
+        {"montezuma", new D64ImageInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP)},
+        {"bubblebobble", new D64ImageInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=187937")}
     };
 
     public string SelectedPreloadedDisk { get; set; } = default!;
@@ -197,14 +198,14 @@
     {
         public string DisplayName { get; set; }
         public string DownloadUrl { get; set; }
-        public string ProgramName { get; set; }
+        public List<string> RunCommands { get; set; }
         public DownloadType DownloadType { get; set; }
 
-        public D64ImageInfo(string displayName, string downloadUrl, string programName, DownloadType downloadType = DownloadType.D64)
+        public D64ImageInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64)
         {
             DisplayName = displayName;
             DownloadUrl = downloadUrl;
-            ProgramName = programName;
+            RunCommands = runCommands ?? new List<string> { "load\"*\",8,1", "run" };
             DownloadType = downloadType;
         }
     }
@@ -825,17 +826,22 @@
                 _logger.LogInformation($"Disk image loaded and set: {d64DiskImage.DiskName}");
 
                 // Auto-load and run the program
-                if (!string.IsNullOrEmpty(diskInfo.ProgramName))
+                if (diskInfo.RunCommands != null && diskInfo.RunCommands.Count > 0)
                 {
-                    _logger.LogInformation($"Auto-loading and running program: {diskInfo.ProgramName}");
+                    _logger.LogInformation($"Auto-loading and running program with {diskInfo.RunCommands.Count} commands");
                     
-                    // Issue LOAD command for the specific program
-                    var loadCommand = $"load\"{diskInfo.ProgramName}\",8\n";
-                    c64.TextPaste.Paste(loadCommand);
-                    
-                    // Wait a moment, then issue RUN command
-                    await Task.Delay(1000);
-                    c64.TextPaste.Paste("run\n");
+                    // Execute each command in sequence
+                    foreach (var command in diskInfo.RunCommands)
+                    {
+                        _logger.LogInformation($"Executing command: {command}");
+                        c64.TextPaste.Paste($"{command}\n");
+                        
+                        // Wait a moment between commands (except for the last one)
+                        if (command != diskInfo.RunCommands.Last())
+                        {
+                            await Task.Delay(1000);
+                        }
+                    }
                 }
             }
             else
