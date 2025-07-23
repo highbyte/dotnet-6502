@@ -8,6 +8,7 @@
 @using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 @using Highbyte.DotNet6502.Utils;
 @using TextCopy
+@using System.IO.Compression
 
 @if(Parent.Initialized && Parent.WasmHost.SelectedSystemName == SYSTEM_NAME)
 {
@@ -176,27 +177,35 @@
     private readonly Dictionary<string, D64ImageInfo> _preloadedD64Images = new()
     {
         {"digiloi", new D64ImageInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", "digiloi64")},
-        {"elite", new D64ImageInfo("Elite", "https://csdb.dk/release/download.php?id=70413", "elite        [3]")},
-        {"lastninja", new D64ImageInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", "last ninja/zcs")},
+        {"elite", new D64ImageInfo("Elite", "https://csdb.dk/release/download.php?id=254875", "elite       /tpx")},
+        {"lastninja", new D64ImageInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", "last ninja/zcs", DownloadType.ZIP)},
         {"minizork", new D64ImageInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", "mini-zork   /l+t")},
         {"rally", new D64ImageInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=22736", "rallyspeedway")},
-        {"montezuma", new D64ImageInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", "montezuma's rev.")},
+        {"montezuma", new D64ImageInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", "montezuma's rev.", DownloadType.ZIP)},
         {"bubblebobble", new D64ImageInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=187937", "bubble bobble")}
     };
 
     public string SelectedPreloadedDisk { get; set; } = default!;
+
+    private enum DownloadType
+    {
+        D64,
+        ZIP
+    }
 
     private class D64ImageInfo
     {
         public string DisplayName { get; set; }
         public string DownloadUrl { get; set; }
         public string ProgramName { get; set; }
+        public DownloadType DownloadType { get; set; }
 
-        public D64ImageInfo(string displayName, string downloadUrl, string programName)
+        public D64ImageInfo(string displayName, string downloadUrl, string programName, DownloadType downloadType = DownloadType.D64)
         {
             DisplayName = displayName;
             DownloadUrl = downloadUrl;
             ProgramName = programName;
+            DownloadType = downloadType;
         }
     }
 
@@ -663,6 +672,118 @@
         }
     }
 
+    /// <summary>
+    /// Extracts the first .d64 file from a ZIP archive
+    /// </summary>
+    /// <param name="zipBytes">The ZIP file as byte array</param>
+    /// <returns>The .d64 file content as byte array</returns>
+    /// <exception cref="InvalidOperationException">Thrown when no .d64 file is found in the ZIP</exception>
+    private static byte[] ExtractFirstD64FromZip(byte[] zipBytes)
+    {
+        using var zipStream = new MemoryStream(zipBytes);
+        using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
+        
+        // Find the first .d64 file in the archive
+        var d64Entry = archive.Entries.FirstOrDefault(entry => 
+            entry.Name.EndsWith(".d64", StringComparison.OrdinalIgnoreCase));
+        
+        if (d64Entry == null)
+        {
+            throw new InvalidOperationException("No .d64 file found in the ZIP archive");
+        }
+        
+        // Pre-allocate array with the exact size to avoid memory fragmentation
+        var d64Bytes = new byte[d64Entry.Length];
+        
+        // Extract the .d64 file content directly into the pre-allocated array
+        using var entryStream = d64Entry.Open();
+        int totalBytesRead = 0;
+        int bytesRead;
+        
+        // Read in chunks to be memory-efficient
+        while (totalBytesRead < d64Bytes.Length && 
+               (bytesRead = entryStream.Read(d64Bytes, totalBytesRead, d64Bytes.Length - totalBytesRead)) > 0)
+        {
+            totalBytesRead += bytesRead;
+        }
+        
+        return d64Bytes;
+    }
+
+    /// <summary>
+    /// Downloads and processes a disk image file (supports both .d64 and .zip files)
+    /// </summary>
+    /// <param name="diskInfo">Information about the disk to download</param>
+    /// <returns>The .d64 file content as byte array</returns>
+    private async Task<byte[]> DownloadAndProcessDiskImage(D64ImageInfo diskInfo)
+    {
+        _logger.LogInformation($"Downloading disk image: {diskInfo.DisplayName} from {diskInfo.DownloadUrl}");
+
+        // Use CORS proxy to bypass browser CORS restrictions
+        var proxiedUrl = CORS_PROXY_URL + Uri.EscapeDataString(diskInfo.DownloadUrl);
+        _logger.LogInformation($"Using proxied URL: {proxiedUrl}");
+
+        // Check the download type to determine download strategy
+        if (diskInfo.DownloadType == DownloadType.ZIP)
+        {
+            _logger.LogInformation("Processing ZIP file to extract .d64");
+            return await DownloadAndExtractZipD64(proxiedUrl);
+        }
+        else
+        {
+            // Download direct .d64 file
+            using var response = await HttpClient!.GetAsync(proxiedUrl);
+            response.EnsureSuccessStatusCode();
+            var d64Bytes = await response.Content.ReadAsByteArrayAsync();
+            _logger.LogInformation($"Downloaded .d64 file: {d64Bytes.Length} bytes");
+            return d64Bytes;
+        }
+    }
+
+    /// <summary>
+    /// Downloads a ZIP file and extracts the first .d64 file in a memory-efficient way
+    /// </summary>
+    /// <param name="url">The URL to download the ZIP from</param>
+    /// <returns>The .d64 file content as byte array</returns>
+    private async Task<byte[]> DownloadAndExtractZipD64(string url)
+    {
+        using var response = await HttpClient!.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+        
+        // Use the response stream directly instead of loading everything into memory
+        using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var archive = new ZipArchive(responseStream, ZipArchiveMode.Read);
+        
+        // Find the first .d64 file in the archive
+        var d64Entry = archive.Entries.FirstOrDefault(entry => 
+            entry.Name.EndsWith(".d64", StringComparison.OrdinalIgnoreCase));
+        
+        if (d64Entry == null)
+        {
+            throw new InvalidOperationException("No .d64 file found in the ZIP archive");
+        }
+        
+        _logger.LogInformation($"Found .d64 file in ZIP: {d64Entry.Name}, size: {d64Entry.Length} bytes");
+        
+        // Pre-allocate array with the exact size
+        var d64Bytes = new byte[d64Entry.Length];
+        
+        // Extract the .d64 file content directly
+        using var entryStream = d64Entry.Open();
+        int totalBytesRead = 0;
+        int bytesRead;
+        
+        // Read in chunks to be memory-efficient
+        while (totalBytesRead < d64Bytes.Length && 
+               (bytesRead = await entryStream.ReadAsync(d64Bytes, totalBytesRead, d64Bytes.Length - totalBytesRead)) > 0)
+        {
+            totalBytesRead += bytesRead;
+        }
+        
+        _logger.LogInformation($"Extracted .d64 file: {d64Bytes.Length} bytes");
+        return d64Bytes;
+    }
+
     private void OnPreloadedDiskChanged(ChangeEventArgs e)
     {
         SelectedPreloadedDisk = e.Value?.ToString() ?? "";
@@ -688,17 +809,8 @@
             _latestPreloadedDiskError = "";
             StateHasChanged(); // Update UI to show loading state
             
-            _logger.LogInformation($"Downloading D64 image: {diskInfo.DisplayName} from {diskInfo.DownloadUrl}");
-
-            // Use CORS proxy to bypass browser CORS restrictions
-            var proxiedUrl = CORS_PROXY_URL + Uri.EscapeDataString(diskInfo.DownloadUrl);
-            _logger.LogInformation($"Using proxied URL: {proxiedUrl}");
-
-            // Download the D64 file with redirect handling
-            using var response = await HttpClient!.GetAsync(proxiedUrl);
-            response.EnsureSuccessStatusCode();
-            var d64Bytes = await response.Content.ReadAsByteArrayAsync();
-            _logger.LogInformation($"Downloaded {d64Bytes.Length} bytes");
+            // Download and process the disk image (supports both .d64 and .zip files)
+            var d64Bytes = await DownloadAndProcessDiskImage(diskInfo);
 
             // Parse the D64 disk image
             var d64DiskImage = D64Parser.ParseD64File(d64Bytes);
@@ -766,17 +878,8 @@
             _latestPreloadedDiskError = "";
             StateHasChanged(); // Update UI to show loading state
             
-            _logger.LogInformation($"Downloading D64 image: {diskInfo.DisplayName} from {diskInfo.DownloadUrl}");
-
-            // Use CORS proxy to bypass browser CORS restrictions
-            var proxiedUrl = CORS_PROXY_URL + Uri.EscapeDataString(diskInfo.DownloadUrl);
-            _logger.LogInformation($"Using proxied URL: {proxiedUrl}");
-
-            // Download the D64 file with redirect handling
-            using var response = await HttpClient!.GetAsync(proxiedUrl);
-            response.EnsureSuccessStatusCode();
-            var d64Bytes = await response.Content.ReadAsByteArrayAsync();
-            _logger.LogInformation($"Downloaded {d64Bytes.Length} bytes");
+            // Download and process the disk image (supports both .d64 and .zip files)
+            var d64Bytes = await DownloadAndProcessDiskImage(diskInfo);
 
             // Parse the D64 disk image
             var d64DiskImage = D64Parser.ParseD64File(d64Bytes);
