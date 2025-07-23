@@ -176,13 +176,13 @@
     private const string CORS_PROXY_URL = "https://corsproxy.io/?url=";
     private readonly Dictionary<string, D64ImageInfo> _preloadedD64Images = new()
     {
-        {"digiloi", new D64ImageInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381")},
-        {"elite", new D64ImageInfo("Elite", "https://csdb.dk/release/download.php?id=254875")},
-        {"lastninja", new D64ImageInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP)},
+        {"digiloi", new D64ImageInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
+        {"elite", new D64ImageInfo("Elite", "https://csdb.dk/release/download.php?id=254875", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
+        {"lastninja", new D64ImageInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
         {"minizork", new D64ImageInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919")},
-        {"rally", new D64ImageInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=22736")},
-        {"montezuma", new D64ImageInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP)},
-        {"bubblebobble", new D64ImageInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=187937")}
+        {"rally", new D64ImageInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=22736", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
+        {"montezuma", new D64ImageInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
+        {"bubblebobble", new D64ImageInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=187937", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)}
     };
 
     public string SelectedPreloadedDisk { get; set; } = default!;
@@ -199,13 +199,17 @@
         public string DownloadUrl { get; set; }
         public List<string> RunCommands { get; set; }
         public DownloadType DownloadType { get; set; }
+        public bool? KeyboardJoystickEnabled { get; set; }
+        public int? KeyboardJoystickNumber { get; set; }
 
-        public D64ImageInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64)
+        public D64ImageInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64, bool? keyboardJoystickEnabled = null, int? keyboardJoystickNumber = null)
         {
             DisplayName = displayName;
             DownloadUrl = downloadUrl;
             RunCommands = runCommands ?? new List<string> { "load\"*\",8,1", "run" };
             DownloadType = downloadType;
+            KeyboardJoystickEnabled = keyboardJoystickEnabled;
+            KeyboardJoystickNumber = keyboardJoystickNumber;
         }
     }
 
@@ -823,6 +827,28 @@
             {
                 diskDrive.SetD64DiskImage(d64DiskImage);
                 _logger.LogInformation($"Disk image loaded and set: {d64DiskImage.DiskName}");
+
+                // Apply keyboard joystick settings if specified in the disk info
+                if (diskInfo.KeyboardJoystickEnabled.HasValue)
+                {
+                    var keyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled.Value;
+                    _logger.LogInformation($"Setting keyboard joystick enabled to: {keyboardJoystickEnabled}");
+                    
+                    // Update running system (temporary setting, not persisted)
+                    c64.Cia.Joystick.KeyboardJoystickEnabled = keyboardJoystickEnabled;
+                }
+
+                if (diskInfo.KeyboardJoystickNumber.HasValue)
+                {
+                    var keyboardJoystickNumber = diskInfo.KeyboardJoystickNumber.Value;
+                    _logger.LogInformation($"Setting keyboard joystick number to: {keyboardJoystickNumber}");
+                    
+                    // Update running system (temporary setting, not persisted)
+                    c64.Cia.Joystick.KeyboardJoystick = keyboardJoystickNumber;
+                }
+                // Refresh UI to reflect the new settings values
+                this.StateHasChanged();
+
 
                 // Auto-load and run the program
                 if (diskInfo.RunCommands != null && diskInfo.RunCommands.Count > 0)
