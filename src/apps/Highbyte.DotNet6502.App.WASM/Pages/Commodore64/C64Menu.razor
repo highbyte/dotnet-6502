@@ -189,7 +189,14 @@
 
     private enum DownloadType
     {
+        /// <summary>
+        /// A .d64 file.
+        /// </summary>
         D64,
+        
+        /// <summary>
+        /// A .zip file that contains a .d64 file.
+        /// </summary>
         ZIP
     }
 
@@ -199,10 +206,10 @@
         public string DownloadUrl { get; set; }
         public List<string> RunCommands { get; set; }
         public DownloadType DownloadType { get; set; }
-        public bool? KeyboardJoystickEnabled { get; set; }
-        public int? KeyboardJoystickNumber { get; set; }
+        public bool KeyboardJoystickEnabled { get; set; }
+        public int KeyboardJoystickNumber { get; set; }
 
-        public D64ImageInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64, bool? keyboardJoystickEnabled = null, int? keyboardJoystickNumber = null)
+        public D64ImageInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64, bool keyboardJoystickEnabled = false, int keyboardJoystickNumber = 2)
         {
             DisplayName = displayName;
             DownloadUrl = downloadUrl;
@@ -805,8 +812,6 @@
 
         var diskInfo = _preloadedD64Images[SelectedPreloadedDisk];
 
-        bool wasRunning = Parent.CurrentEmulatorState == EmulatorState.Running;
-
         try
         {
             _isLoadingPreloadedDisk = true;
@@ -822,6 +827,16 @@
                 await Parent.OnStop(new());
             }
 
+            // Apply keyboard joystick settings to config object while emulator is stopped
+            _logger.LogInformation($"Setting keyboard joystick enabled in config to: {diskInfo.KeyboardJoystickEnabled}");
+            _c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
+            _logger.LogInformation($"Setting keyboard joystick number in config to: {diskInfo.KeyboardJoystickNumber}");
+            _c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
+
+            Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
+            StateHasChanged(); // Update UI to show any config changes
+
+            // Start the C64 emulator
             _logger.LogInformation("Starting C64 emulator");
             await Parent.OnStart(new());
 
@@ -864,24 +879,6 @@
                 diskDrive.SetD64DiskImage(d64DiskImage);
                 _logger.LogInformation($"Disk image loaded and set: {d64DiskImage.DiskName}");
 
-                // Apply keyboard joystick settings if specified in the disk info
-                if (diskInfo.KeyboardJoystickEnabled.HasValue)
-                {
-                    var keyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled.Value;
-                    _logger.LogInformation($"Setting keyboard joystick enabled to: {keyboardJoystickEnabled}");
-                    
-                    // Update running system (temporary setting, not persisted)
-                    c64.Cia.Joystick.KeyboardJoystickEnabled = keyboardJoystickEnabled;
-                }
-
-                if (diskInfo.KeyboardJoystickNumber.HasValue)
-                {
-                    var keyboardJoystickNumber = diskInfo.KeyboardJoystickNumber.Value;
-                    _logger.LogInformation($"Setting keyboard joystick number to: {keyboardJoystickNumber}");
-                    
-                    // Update running system (temporary setting, not persisted)
-                    c64.Cia.Joystick.KeyboardJoystick = keyboardJoystickNumber;
-                }
                 // Refresh UI to reflect the new settings values
                 this.StateHasChanged();
 
