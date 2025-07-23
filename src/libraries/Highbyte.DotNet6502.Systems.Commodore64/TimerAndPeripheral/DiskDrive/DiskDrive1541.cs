@@ -701,6 +701,27 @@ public class DiskDrive1541 : IIECDevice
                 _sendBuffer.Enqueue(b);
             }
         }
+        else if (filename == "*")
+        {
+            // Load first file (wildcard)
+            _logger?.LogInformation("[1541] First file load requested (wildcard *)");
+            var firstFileName = _d64DiskImage.GetFirstFileName();
+            if (firstFileName == null)
+            {
+                _logger?.LogWarning("[1541] No files found on disk for wildcard load");
+                SetSendFileError();
+            }
+            else
+            {
+                _logger?.LogInformation($"[1541] Loading first file: '{firstFileName}'");
+                var program = _d64DiskImage.ReadFileContent(firstFileName);
+                foreach (var b in program)
+                {
+                    _sendBuffer.Enqueue(b);
+                }
+                _logger?.LogInformation($"[1541] First file '{firstFileName}' loaded, {program.Length} bytes ready for transmission");
+            }
+        }
         else
         {
             // Specific file request

@@ -646,6 +646,103 @@ public class DiskDrive1541Test
         Assert.Equal(DeviceLineState.Holding, diskDrive.SetDATALine);
     }
 
+    [Fact]
+    public void D64DiskImage_GetFirstFileName_Should_Return_First_PRG_File()
+    {
+        // Arrange
+        var diskImage = new D64DiskImage
+        {
+            Files = new List<D64FileEntry>
+            {
+                new() { FileName = "SEQUENTIAL", FileType = D64FileType.SEQ, FileDoesNotExist = false },
+                new() { FileName = "FIRST GAME", FileType = D64FileType.PRG, FileDoesNotExist = false },
+                new() { FileName = "SECOND GAME", FileType = D64FileType.PRG, FileDoesNotExist = false }
+            }
+        };
+
+        // Act
+        var firstFileName = diskImage.GetFirstFileName();
+
+        // Assert
+        Assert.Equal("FIRST GAME", firstFileName);
+    }
+
+    [Fact]
+    public void D64DiskImage_GetFirstFileName_Should_Return_First_File_When_No_PRG_Files()
+    {
+        // Arrange
+        var diskImage = new D64DiskImage
+        {
+            Files = new List<D64FileEntry>
+            {
+                new() { FileName = "SEQUENTIAL", FileType = D64FileType.SEQ, FileDoesNotExist = false },
+                new() { FileName = "USER FILE", FileType = D64FileType.USR, FileDoesNotExist = false }
+            }
+        };
+
+        // Act
+        var firstFileName = diskImage.GetFirstFileName();
+
+        // Assert
+        Assert.Equal("SEQUENTIAL", firstFileName);
+    }
+
+    [Fact]
+    public void D64DiskImage_GetFirstFileName_Should_Skip_Deleted_Files()
+    {
+        // Arrange
+        var diskImage = new D64DiskImage
+        {
+            Files = new List<D64FileEntry>
+            {
+                new() { FileName = "DELETED", FileType = D64FileType.PRG, FileDoesNotExist = true },
+                new() { FileName = "FIRST GAME", FileType = D64FileType.PRG, FileDoesNotExist = false }
+            }
+        };
+
+        // Act
+        var firstFileName = diskImage.GetFirstFileName();
+
+        // Assert
+        Assert.Equal("FIRST GAME", firstFileName);
+    }
+
+    [Fact]
+    public void D64DiskImage_GetFirstFileName_Should_Return_Null_When_No_Files()
+    {
+        // Arrange
+        var diskImage = new D64DiskImage
+        {
+            Files = new List<D64FileEntry>()
+        };
+
+        // Act
+        var firstFileName = diskImage.GetFirstFileName();
+
+        // Assert
+        Assert.Null(firstFileName);
+    }
+
+    [Fact]
+    public void D64DiskImage_GetFirstFileName_Should_Return_Null_When_All_Files_Deleted()
+    {
+        // Arrange
+        var diskImage = new D64DiskImage
+        {
+            Files = new List<D64FileEntry>
+            {
+                new() { FileName = "DELETED1", FileType = D64FileType.PRG, FileDoesNotExist = true },
+                new() { FileName = "DELETED2", FileType = D64FileType.SEQ, FileDoesNotExist = true }
+            }
+        };
+
+        // Act
+        var firstFileName = diskImage.GetFirstFileName();
+
+        // Assert
+        Assert.Null(firstFileName);
+    }
+
     private IECBus BuildBusWithDiskDrive(out DiskDrive1541 diskDrive)
     {
         var iecHost = new IECHost();

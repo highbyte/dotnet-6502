@@ -206,6 +206,23 @@ public class D64DiskImage
     }
 
     /// <summary>
+    /// Get the name of the first file in the disk image.
+    /// Typically returns the first PRG file, falling back to any file type if no PRG files exist.
+    /// </summary>
+    /// <returns>The filename of the first file, or null if no files exist</returns>
+    public string? GetFirstFileName()
+    {
+        // First try to find a PRG file
+        var firstPrgFile = Files.FirstOrDefault(f => f.FileType == D64FileType.PRG && !f.FileDoesNotExist);
+        if (firstPrgFile != null)
+            return firstPrgFile.FileName;
+
+        // If no PRG files, return the first file of any type
+        var firstFile = Files.FirstOrDefault(f => !f.FileDoesNotExist);
+        return firstFile?.FileName;
+    }
+
+    /// <summary>
     /// Read the byte contents of a specified file.
     /// </summary>
     public byte[] ReadFileContent(string fileName)
