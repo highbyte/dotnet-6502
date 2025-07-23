@@ -22,7 +22,7 @@
         <input id="BasicCodingAssistant" type="checkbox" @bind="@BasicCodingAssistantEnabled" disabled="@BasicCodingAssistantDisabled"/> <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md" target="_blank">(info)</a>
 
         <p>&nbsp;</p>
-        <details>
+        <details open>
             <summary>Disk Drive & .D64 images</summary>
             <button @onclick="OnDiskFilePicker" disabled=@OnFilePickerDisabled>Attach .d64 disk image</button>
             <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_COMPATIBLE_PRG.md" target="_blank">(info)</a>
@@ -30,7 +30,7 @@
             <br />
             <br />
             <label for="preloadedDiskSelector">Download & Run .D64 programs:</label>
-            <select id="preloadedDiskSelector" @onchange="OnPreloadedDiskChanged" disabled=@OnFilePickerDisabled>
+            <select id="preloadedDiskSelector" @onchange="OnPreloadedDiskChanged">
                 <option value="">-- Select a program --</option>
                 @foreach (var disk in _preloadedD64Images)
                 {
@@ -46,7 +46,7 @@
                 }
                 else
                 {
-                    <button @onclick="OnLoadPreloadedDisk" disabled=@OnFilePickerDisabled>Download & Run Game</button>
+                    <button @onclick="OnLoadPreloadedDisk">Download & Run Game</button>
                 }
                 <br />
                 <span style="font-size: 0.9em; color: #666;">
@@ -804,8 +804,8 @@
             return;
 
         var diskInfo = _preloadedD64Images[SelectedPreloadedDisk];
+
         bool wasRunning = Parent.CurrentEmulatorState == EmulatorState.Running;
-        await Parent.OnPause(new());
 
         try
         {
@@ -816,12 +816,18 @@
             // First reset the C64 emulator
             _logger.LogInformation("Resetting C64 emulator before loading disk image");
 
-            // Restart the C64 emulator to ensure a clean state
-            await Parent.OnReset(new());
-            
+            if (Parent.CurrentEmulatorState == EmulatorState.Running || Parent.CurrentEmulatorState == EmulatorState.Paused)
+            {
+                _logger.LogInformation("Stopping C64 emulator to reset state");
+                await Parent.OnStop(new());
+            }
+
+            _logger.LogInformation("Starting C64 emulator");
+            await Parent.OnStart(new());
+
             // Wait for BASIC to start (check periodically)
             _logger.LogInformation("Waiting for BASIC to start...");
-            var maxWaitTime = TimeSpan.FromSeconds(10);
+            var maxWaitTime = TimeSpan.FromSeconds(20);
             var startTime = DateTime.Now;
             var checkInterval = TimeSpan.FromMilliseconds(100);
             
@@ -841,7 +847,7 @@
             _logger.LogInformation("Waiting 1 second for BASIC to settle...");
             await Task.Delay(1000);
             
-            // Pause again before proceeding with disk operations
+            // Pause before proceeding with disk operations
             await Parent.OnPause(new());
             
             // Download and process the disk image (supports both .d64 and .zip files)
@@ -879,7 +885,6 @@
                 // Refresh UI to reflect the new settings values
                 this.StateHasChanged();
 
-
                 // Auto-load and run the program
                 if (diskInfo.RunCommands != null && diskInfo.RunCommands.Count > 0)
                 {
@@ -915,8 +920,7 @@
             _isLoadingPreloadedDisk = false;
             StateHasChanged(); // Update UI to hide loading state
             
-            if (wasRunning)
-                await Parent.OnStart(new());
+            await Parent.OnStart(new());
         }
     }
 }
