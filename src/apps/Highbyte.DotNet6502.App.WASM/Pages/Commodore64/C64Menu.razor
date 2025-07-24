@@ -3,6 +3,7 @@
 @using Highbyte.DotNet6502.Systems.Commodore64.Config;
 @using Highbyte.DotNet6502.Systems.Commodore64;
 @using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
+@using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 @using Highbyte.DotNet6502.Systems.Commodore64.Video;
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index;
 @using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
@@ -174,7 +175,7 @@
     //private const string CORS_PROXY_URL = "https://api.allorigins.win/raw?url="; // Doesn't work reliably
     private const string CORS_PROXY_URL = "https://corsproxy.io/?url=";
 
-    private D64Downloader _d64Downloader; 
+    private D64AutoDownloadAndRun _d64AutoDownloadAndRun;
 
     private readonly Dictionary<string, D64DownloadDiskInfo> _preloadedD64Images = new()
     {
@@ -206,7 +207,7 @@
         _logger = LoggerFactory.CreateLogger<C64Menu>();
         _logger.LogDebug("OnInitializedAsync() was called");
 
-        _d64Downloader = new D64Downloader(LoggerFactory!, HttpClient!, CORS_PROXY_URL);
+        _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(LoggerFactory!, HttpClient!, Parent.WasmHost, CORS_PROXY_URL);
     }
 
     private void OnSelectJoystickChanged(ChangeEventArgs e)
@@ -670,122 +671,48 @@
             return;
 
         var diskInfo = _preloadedD64Images[SelectedPreloadedDisk];
+        _isLoadingPreloadedDisk = true;
+        _latestPreloadedDiskError = "";
+        StateHasChanged(); // Update UI to show loading state
 
         try
         {
-            _isLoadingPreloadedDisk = true;
-            _latestPreloadedDiskError = "";
-            StateHasChanged(); // Update UI to show loading state
-            
-            // First reset the C64 emulator
-            _logger.LogInformation("Resetting C64 emulator before loading disk image");
-
-            if (Parent.CurrentEmulatorState == EmulatorState.Running || Parent.CurrentEmulatorState == EmulatorState.Paused)
+        _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
+            diskInfo,
+            stateHasChangedCallback: async () =>
             {
-                _logger.LogInformation("Stopping C64 emulator to reset state");
-                await Parent.OnStop(new());
-            }
-
-            // Apply keyboard joystick settings to config object while emulator is stopped
-            _logger.LogInformation($"Setting keyboard joystick enabled in config to: {diskInfo.KeyboardJoystickEnabled}");
-            _c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
-            _logger.LogInformation($"Setting keyboard joystick number in config to: {diskInfo.KeyboardJoystickNumber}");
-            _c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
-
-            // Apply renderer setting to config object while emulator is stopped
-            C64HostRenderer renderer = diskInfo.RequiresBitmap ? C64HostRenderer.SkiaSharp3 : C64HostRenderer.SkiaSharp;
-            _logger.LogInformation($"Setting renderer in config to: {renderer}");
-            _c64HostConfig.Renderer = renderer;
-
-            // Apply audio enabled setting to config object while emulator is stopped
-            _logger.LogInformation($"Setting audio enabled in config to: {diskInfo.AudioEnabled}");
-            _c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
-
-            Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
-            StateHasChanged(); // Update UI to show any config changes
-
-            // Start the C64 emulator
-            _logger.LogInformation("Starting C64 emulator");
-            await Parent.OnStart(new());
-
-            // Wait for BASIC to start (check periodically)
-            _logger.LogInformation("Waiting for BASIC to start...");
-            var maxWaitTime = TimeSpan.FromSeconds(20);
-            var startTime = DateTime.Now;
-            var checkInterval = TimeSpan.FromMilliseconds(100);
-            
-            C64 c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
-            while (!c64.HasBasicStarted())
+                Parent.StateHasChangedCustom(); // Special method on the main UI page that makes sure the canvas visible/invisible is updated so that Stop/Start of emulator is shown
+            },
+            setConfigCallback: async (diskInfo) =>
             {
-                if (DateTime.Now - startTime > maxWaitTime)
-                {
-                    throw new TimeoutException("Timeout waiting for BASIC to start");
-                }
-                await Task.Delay(checkInterval);
-            }
-            
-            _logger.LogInformation("BASIC has started successfully");
-            
-            // Add a 1-second delay to allow BASIC to settle before proceeding
-            _logger.LogInformation("Waiting 1 second for BASIC to settle...");
-            await Task.Delay(1000);
-            
-            // Pause before proceeding with disk operations
-            await Parent.OnPause(new());
-            
-            // Download and process the disk image (supports both .d64 and .zip files)
-            var d64Bytes = await _d64Downloader.DownloadAndProcessDiskImage(diskInfo);
+                // Apply keyboard joystick settings to config object while emulator is stopped
+                _logger.LogInformation($"Setting keyboard joystick enabled in config to: {diskInfo.KeyboardJoystickEnabled}");
+                _c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
+                _logger.LogInformation($"Setting keyboard joystick number in config to: {diskInfo.KeyboardJoystickNumber}");
+                _c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
 
-            // Parse the D64 disk image
-            var d64DiskImage = D64Parser.ParseD64File(d64Bytes);
-            _logger.LogInformation($"Parsed D64 disk image: {d64DiskImage.DiskName}");
+                // Apply renderer setting to config object while emulator is stopped
+                C64HostRenderer renderer = diskInfo.RequiresBitmap ? C64HostRenderer.SkiaSharp3 : C64HostRenderer.SkiaSharp;
+                _logger.LogInformation($"Setting renderer in config to: {renderer}");
+                _c64HostConfig.Renderer = renderer;
 
-            // Set the disk image on the running C64's DiskDrive1541
-            var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
-            if (diskDrive != null)
-            {
-                diskDrive.SetD64DiskImage(d64DiskImage);
-                _logger.LogInformation($"Disk image loaded and set: {d64DiskImage.DiskName}");
+                // Apply audio enabled setting to config object while emulator is stopped
+                _logger.LogInformation($"Setting audio enabled in config to: {diskInfo.AudioEnabled}");
+                _c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
 
-                // Refresh UI to reflect the new settings values
-                this.StateHasChanged();
+                Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
+            });
 
-                // Auto-load and run the program
-                if (diskInfo.RunCommands != null && diskInfo.RunCommands.Count > 0)
-                {
-                    _logger.LogInformation($"Auto-loading and running program with {diskInfo.RunCommands.Count} commands");
-                    
-                    // Execute each command in sequence
-                    foreach (var command in diskInfo.RunCommands)
-                    {
-                        _logger.LogInformation($"Executing command: {command}");
-                        c64.TextPaste.Paste($"{command}\n");
-                        
-                        // Wait a moment between commands (except for the last one)
-                        if (command != diskInfo.RunCommands.Last())
-                        {
-                            await Task.Delay(1000);
-                        }
-                    }
-                }
-            }
-            else
-            {
-                _latestPreloadedDiskError = "No DiskDrive1541 found in the running C64 system.";
-                _logger.LogError(_latestPreloadedDiskError);
-            }
         }
         catch (Exception ex)
         {
-            _latestPreloadedDiskError = $"Load error: {ex.Message}";
-            _logger.LogError($"Load error: {ex.Message}");
+            _latestPreloadedDiskError = $"Error downloading or running disk image: {ex.Message}";
         }
         finally
         {
             _isLoadingPreloadedDisk = false;
-            StateHasChanged(); // Update UI to hide loading state
-            
-            await Parent.OnStart(new());
+            StateHasChanged(); // Update UI to show finished loading state
         }
+
     }
 }

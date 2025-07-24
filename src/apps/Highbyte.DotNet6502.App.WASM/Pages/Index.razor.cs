@@ -193,7 +193,7 @@ public partial class Index
         Initialized = true;
     }
 
-    private async Task StateHasChangedCustom()
+    public async Task StateHasChangedCustom()
     {
         await SetElementVisibleState();
 

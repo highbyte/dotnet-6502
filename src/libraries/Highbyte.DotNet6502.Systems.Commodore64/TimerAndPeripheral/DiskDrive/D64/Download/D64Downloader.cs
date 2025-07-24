@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using System.IO.Compression;
 
 
-namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
+namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 
 public class D64Downloader
 {
