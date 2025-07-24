@@ -177,13 +177,13 @@
 
     private readonly Dictionary<string, D64ImageInfo> _preloadedD64Images = new()
     {
-        {"digiloi", new D64ImageInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
-        {"elite", new D64ImageInfo("Elite", "https://csdb.dk/release/download.php?id=254875", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, renderer: C64HostRenderer.SkiaSharp3)},
-        {"lastninja", new D64ImageInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, renderer: C64HostRenderer.SkiaSharp3)},
-        {"minizork", new D64ImageInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919")},
-        {"rally", new D64ImageInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1)},
-        {"montezuma", new D64ImageInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
-        {"bubblebobble", new D64ImageInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)}
+        {"digiloi", new D64ImageInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: false)},
+        {"elite", new D64ImageInfo("Elite", "https://csdb.dk/release/download.php?id=254875", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, renderer: C64HostRenderer.SkiaSharp3, audioEnabled: false)},
+        {"lastninja", new D64ImageInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, renderer: C64HostRenderer.SkiaSharp3, audioEnabled: true)},
+        {"minizork", new D64ImageInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false)},
+        {"rally", new D64ImageInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true)},
+        {"montezuma", new D64ImageInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true)},
+        {"bubblebobble", new D64ImageInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: false)}
     };
     public string SelectedPreloadedDisk { get; set; } = default!;
 
@@ -209,8 +209,9 @@
         public bool KeyboardJoystickEnabled { get; set; }
         public int KeyboardJoystickNumber { get; set; }
         public C64HostRenderer Renderer { get; set; }
+        public bool AudioEnabled { get; set; }
 
-        public D64ImageInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64, bool keyboardJoystickEnabled = false, int keyboardJoystickNumber = 2, C64HostRenderer renderer = C64HostRenderer.SkiaSharp)
+        public D64ImageInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64, bool keyboardJoystickEnabled = false, int keyboardJoystickNumber = 2, C64HostRenderer renderer = C64HostRenderer.SkiaSharp, bool audioEnabled = false)
         {
             DisplayName = displayName;
             DownloadUrl = downloadUrl;
@@ -219,6 +220,7 @@
             KeyboardJoystickEnabled = keyboardJoystickEnabled;
             KeyboardJoystickNumber = keyboardJoystickNumber;
             Renderer = renderer;
+            AudioEnabled = audioEnabled;
         }
     }
 
@@ -838,6 +840,10 @@
             // Apply renderer setting to config object while emulator is stopped
             _logger.LogInformation($"Setting renderer in config to: {diskInfo.Renderer}");
             _c64HostConfig.Renderer = diskInfo.Renderer;
+
+            // Apply audio enabled setting to config object while emulator is stopped
+            _logger.LogInformation($"Setting audio enabled in config to: {diskInfo.AudioEnabled}");
+            _c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
 
             Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
             StateHasChanged(); // Update UI to show any config changes
