@@ -3,12 +3,12 @@
 @using Highbyte.DotNet6502.Systems.Commodore64.Config;
 @using Highbyte.DotNet6502.Systems.Commodore64;
 @using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
+@using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 @using Highbyte.DotNet6502.Systems.Commodore64.Video;
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index;
 @using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 @using Highbyte.DotNet6502.Utils;
 @using TextCopy
-@using System.IO.Compression
 @using System.Linq
 
 @if(Parent.Initialized && Parent.WasmHost.SelectedSystemName == SYSTEM_NAME)
@@ -175,52 +175,20 @@
     //private const string CORS_PROXY_URL = "https://api.allorigins.win/raw?url="; // Doesn't work reliably
     private const string CORS_PROXY_URL = "https://corsproxy.io/?url=";
 
-    private readonly Dictionary<string, D64ImageInfo> _preloadedD64Images = new()
+    private D64AutoDownloadAndRun _d64AutoDownloadAndRun;
+
+    private readonly Dictionary<string, D64DownloadDiskInfo> _preloadedD64Images = new()
     {
-        {"digiloi", new D64ImageInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
-        {"elite", new D64ImageInfo("Elite", "https://csdb.dk/release/download.php?id=254875", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, renderer: C64HostRenderer.SkiaSharp3)},
-        {"lastninja", new D64ImageInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, renderer: C64HostRenderer.SkiaSharp3)},
-        {"minizork", new D64ImageInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919")},
-        {"rally", new D64ImageInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1)},
-        {"montezuma", new D64ImageInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)},
-        {"bubblebobble", new D64ImageInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2)}
+        {"digiloi", new D64DownloadDiskInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: false)},
+        {"elite", new D64DownloadDiskInfo("Elite", "https://csdb.dk/release/download.php?id=254875", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false)},
+        {"lastninja", new D64DownloadDiskInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: true)},
+        {"minizork", new D64DownloadDiskInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false)},
+        {"rally", new D64DownloadDiskInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true)},
+        {"montezuma", new D64DownloadDiskInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true)},
+        {"bubblebobble", new D64DownloadDiskInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: false)}
     };
     public string SelectedPreloadedDisk { get; set; } = default!;
 
-    private enum DownloadType
-    {
-        /// <summary>
-        /// A .d64 file.
-        /// </summary>
-        D64,
-        
-        /// <summary>
-        /// A .zip file that contains a .d64 file.
-        /// </summary>
-        ZIP
-    }
-
-    private class D64ImageInfo
-    {
-        public string DisplayName { get; set; }
-        public string DownloadUrl { get; set; }
-        public List<string> RunCommands { get; set; }
-        public DownloadType DownloadType { get; set; }
-        public bool KeyboardJoystickEnabled { get; set; }
-        public int KeyboardJoystickNumber { get; set; }
-        public C64HostRenderer Renderer { get; set; }
-
-        public D64ImageInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64, bool keyboardJoystickEnabled = false, int keyboardJoystickNumber = 2, C64HostRenderer renderer = C64HostRenderer.SkiaSharp)
-        {
-            DisplayName = displayName;
-            DownloadUrl = downloadUrl;
-            RunCommands = runCommands ?? new List<string> { "load\"*\",8,1", "run" };
-            DownloadType = downloadType;
-            KeyboardJoystickEnabled = keyboardJoystickEnabled;
-            KeyboardJoystickNumber = keyboardJoystickNumber;
-            Renderer = renderer;
-        }
-    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -239,6 +207,7 @@
         _logger = LoggerFactory.CreateLogger<C64Menu>();
         _logger.LogDebug("OnInitializedAsync() was called");
 
+        _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(LoggerFactory!, HttpClient!, Parent.WasmHost, CORS_PROXY_URL);
     }
 
     private void OnSelectJoystickChanged(ChangeEventArgs e)
@@ -685,117 +654,6 @@
         }
     }
 
-    /// <summary>
-    /// Extracts the first .d64 file from a ZIP archive
-    /// </summary>
-    /// <param name="zipBytes">The ZIP file as byte array</param>
-    /// <returns>The .d64 file content as byte array</returns>
-    /// <exception cref="InvalidOperationException">Thrown when no .d64 file is found in the ZIP</exception>
-    private static byte[] ExtractFirstD64FromZip(byte[] zipBytes)
-    {
-        using var zipStream = new MemoryStream(zipBytes);
-        using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
-        
-        // Find the first .d64 file in the archive
-        var d64Entry = archive.Entries.FirstOrDefault(entry => 
-            entry.Name.EndsWith(".d64", StringComparison.OrdinalIgnoreCase));
-        
-        if (d64Entry == null)
-        {
-            throw new InvalidOperationException("No .d64 file found in the ZIP archive");
-        }
-        
-        // Pre-allocate array with the exact size to avoid memory fragmentation
-        var d64Bytes = new byte[d64Entry.Length];
-        
-        // Extract the .d64 file content directly into the pre-allocated array
-        using var entryStream = d64Entry.Open();
-        int totalBytesRead = 0;
-        int bytesRead;
-        
-        // Read in chunks to be memory-efficient
-        while (totalBytesRead < d64Bytes.Length && 
-               (bytesRead = entryStream.Read(d64Bytes, totalBytesRead, d64Bytes.Length - totalBytesRead)) > 0)
-        {
-            totalBytesRead += bytesRead;
-        }
-        
-        return d64Bytes;
-    }
-
-    /// <summary>
-    /// Downloads and processes a disk image file (supports both .d64 and .zip files)
-    /// </summary>
-    /// <param name="diskInfo">Information about the disk to download</param>
-    /// <returns>The .d64 file content as byte array</returns>
-    private async Task<byte[]> DownloadAndProcessDiskImage(D64ImageInfo diskInfo)
-    {
-        _logger.LogInformation($"Downloading disk image: {diskInfo.DisplayName} from {diskInfo.DownloadUrl}");
-
-        // Use CORS proxy to bypass browser CORS restrictions
-        var proxiedUrl = CORS_PROXY_URL + Uri.EscapeDataString(diskInfo.DownloadUrl);
-        _logger.LogInformation($"Using proxied URL: {proxiedUrl}");
-
-        // Check the download type to determine download strategy
-        if (diskInfo.DownloadType == DownloadType.ZIP)
-        {
-            _logger.LogInformation("Processing ZIP file to extract .d64");
-            return await DownloadAndExtractZipD64(proxiedUrl);
-        }
-        else
-        {
-            // Download direct .d64 file
-            using var response = await HttpClient!.GetAsync(proxiedUrl);
-            response.EnsureSuccessStatusCode();
-            var d64Bytes = await response.Content.ReadAsByteArrayAsync();
-            _logger.LogInformation($"Downloaded .d64 file: {d64Bytes.Length} bytes");
-            return d64Bytes;
-        }
-    }
-
-    /// <summary>
-    /// Downloads a ZIP file and extracts the first .d64 file in a memory-efficient way
-    /// </summary>
-    /// <param name="url">The URL to download the ZIP from</param>
-    /// <returns>The .d64 file content as byte array</returns>
-    private async Task<byte[]> DownloadAndExtractZipD64(string url)
-    {
-        using var response = await HttpClient!.GetAsync(url);
-        response.EnsureSuccessStatusCode();
-        
-        // Use the response stream directly instead of loading everything into memory
-        using var responseStream = await response.Content.ReadAsStreamAsync();
-        using var archive = new ZipArchive(responseStream, ZipArchiveMode.Read);
-        
-        // Find the first .d64 file in the archive
-        var d64Entry = archive.Entries.FirstOrDefault(entry => 
-            entry.Name.EndsWith(".d64", StringComparison.OrdinalIgnoreCase));
-        
-        if (d64Entry == null)
-        {
-            throw new InvalidOperationException("No .d64 file found in the ZIP archive");
-        }
-        
-        _logger.LogInformation($"Found .d64 file in ZIP: {d64Entry.Name}, size: {d64Entry.Length} bytes");
-        
-        // Pre-allocate array with the exact size
-        var d64Bytes = new byte[d64Entry.Length];
-        
-        // Extract the .d64 file content directly
-        using var entryStream = d64Entry.Open();
-        int totalBytesRead = 0;
-        int bytesRead;
-        
-        // Read in chunks to be memory-efficient
-        while (totalBytesRead < d64Bytes.Length && 
-               (bytesRead = await entryStream.ReadAsync(d64Bytes, totalBytesRead, d64Bytes.Length - totalBytesRead)) > 0)
-        {
-            totalBytesRead += bytesRead;
-        }
-        
-        _logger.LogInformation($"Extracted .d64 file: {d64Bytes.Length} bytes");
-        return d64Bytes;
-    }
 
     private void OnPreloadedDiskChanged(ChangeEventArgs e)
     {
@@ -813,117 +671,48 @@
             return;
 
         var diskInfo = _preloadedD64Images[SelectedPreloadedDisk];
+        _isLoadingPreloadedDisk = true;
+        _latestPreloadedDiskError = "";
+        StateHasChanged(); // Update UI to show loading state
 
         try
         {
-            _isLoadingPreloadedDisk = true;
-            _latestPreloadedDiskError = "";
-            StateHasChanged(); // Update UI to show loading state
-            
-            // First reset the C64 emulator
-            _logger.LogInformation("Resetting C64 emulator before loading disk image");
-
-            if (Parent.CurrentEmulatorState == EmulatorState.Running || Parent.CurrentEmulatorState == EmulatorState.Paused)
+        _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
+            diskInfo,
+            stateHasChangedCallback: async () =>
             {
-                _logger.LogInformation("Stopping C64 emulator to reset state");
-                await Parent.OnStop(new());
-            }
-
-            // Apply keyboard joystick settings to config object while emulator is stopped
-            _logger.LogInformation($"Setting keyboard joystick enabled in config to: {diskInfo.KeyboardJoystickEnabled}");
-            _c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
-            _logger.LogInformation($"Setting keyboard joystick number in config to: {diskInfo.KeyboardJoystickNumber}");
-            _c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
-
-            // Apply renderer setting to config object while emulator is stopped
-            _logger.LogInformation($"Setting renderer in config to: {diskInfo.Renderer}");
-            _c64HostConfig.Renderer = diskInfo.Renderer;
-
-            Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
-            StateHasChanged(); // Update UI to show any config changes
-
-            // Start the C64 emulator
-            _logger.LogInformation("Starting C64 emulator");
-            await Parent.OnStart(new());
-
-            // Wait for BASIC to start (check periodically)
-            _logger.LogInformation("Waiting for BASIC to start...");
-            var maxWaitTime = TimeSpan.FromSeconds(20);
-            var startTime = DateTime.Now;
-            var checkInterval = TimeSpan.FromMilliseconds(100);
-            
-            C64 c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
-            while (!c64.HasBasicStarted())
+                Parent.StateHasChangedCustom(); // Special method on the main UI page that makes sure the canvas visible/invisible is updated so that Stop/Start of emulator is shown
+            },
+            setConfigCallback: async (diskInfo) =>
             {
-                if (DateTime.Now - startTime > maxWaitTime)
-                {
-                    throw new TimeoutException("Timeout waiting for BASIC to start");
-                }
-                await Task.Delay(checkInterval);
-            }
-            
-            _logger.LogInformation("BASIC has started successfully");
-            
-            // Add a 1-second delay to allow BASIC to settle before proceeding
-            _logger.LogInformation("Waiting 1 second for BASIC to settle...");
-            await Task.Delay(1000);
-            
-            // Pause before proceeding with disk operations
-            await Parent.OnPause(new());
-            
-            // Download and process the disk image (supports both .d64 and .zip files)
-            var d64Bytes = await DownloadAndProcessDiskImage(diskInfo);
+                // Apply keyboard joystick settings to config object while emulator is stopped
+                _logger.LogInformation($"Setting keyboard joystick enabled in config to: {diskInfo.KeyboardJoystickEnabled}");
+                _c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
+                _logger.LogInformation($"Setting keyboard joystick number in config to: {diskInfo.KeyboardJoystickNumber}");
+                _c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
 
-            // Parse the D64 disk image
-            var d64DiskImage = D64Parser.ParseD64File(d64Bytes);
-            _logger.LogInformation($"Parsed D64 disk image: {d64DiskImage.DiskName}");
+                // Apply renderer setting to config object while emulator is stopped
+                C64HostRenderer renderer = diskInfo.RequiresBitmap ? C64HostRenderer.SkiaSharp3 : C64HostRenderer.SkiaSharp;
+                _logger.LogInformation($"Setting renderer in config to: {renderer}");
+                _c64HostConfig.Renderer = renderer;
 
-            // Set the disk image on the running C64's DiskDrive1541
-            var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
-            if (diskDrive != null)
-            {
-                diskDrive.SetD64DiskImage(d64DiskImage);
-                _logger.LogInformation($"Disk image loaded and set: {d64DiskImage.DiskName}");
+                // Apply audio enabled setting to config object while emulator is stopped
+                _logger.LogInformation($"Setting audio enabled in config to: {diskInfo.AudioEnabled}");
+                _c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
 
-                // Refresh UI to reflect the new settings values
-                this.StateHasChanged();
+                Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
+            });
 
-                // Auto-load and run the program
-                if (diskInfo.RunCommands != null && diskInfo.RunCommands.Count > 0)
-                {
-                    _logger.LogInformation($"Auto-loading and running program with {diskInfo.RunCommands.Count} commands");
-                    
-                    // Execute each command in sequence
-                    foreach (var command in diskInfo.RunCommands)
-                    {
-                        _logger.LogInformation($"Executing command: {command}");
-                        c64.TextPaste.Paste($"{command}\n");
-                        
-                        // Wait a moment between commands (except for the last one)
-                        if (command != diskInfo.RunCommands.Last())
-                        {
-                            await Task.Delay(1000);
-                        }
-                    }
-                }
-            }
-            else
-            {
-                _latestPreloadedDiskError = "No DiskDrive1541 found in the running C64 system.";
-                _logger.LogError(_latestPreloadedDiskError);
-            }
         }
         catch (Exception ex)
         {
-            _latestPreloadedDiskError = $"Load error: {ex.Message}";
-            _logger.LogError($"Load error: {ex.Message}");
+            _latestPreloadedDiskError = $"Error downloading or running disk image: {ex.Message}";
         }
         finally
         {
             _isLoadingPreloadedDisk = false;
-            StateHasChanged(); // Update UI to hide loading state
-            
-            await Parent.OnStart(new());
+            StateHasChanged(); // Update UI to show finished loading state
         }
+
     }
 }

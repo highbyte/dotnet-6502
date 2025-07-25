@@ -15,7 +15,7 @@ public enum EmulatorState { Uninitialized, Running, Paused }
 /// <typeparam name="TRenderContext"></typeparam>
 /// <typeparam name="TInputHandlerContext"></typeparam>
 /// <typeparam name="TAudioHandlerContext"></typeparam>
-public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
+public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext> : IHostApp
     where TRenderContext : IRenderContext
     where TInputHandlerContext : IInputHandlerContext
     where TAudioHandlerContext : IAudioHandlerContext
