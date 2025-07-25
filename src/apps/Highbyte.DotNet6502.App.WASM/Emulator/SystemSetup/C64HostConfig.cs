@@ -18,6 +18,9 @@ public class C64HostConfig : IHostSystemConfig, ICloneable
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.C64.WASM";
 
+    //public const string DefaultCorsProxyURL = "https://api.allorigins.win/raw?url=";
+    public const string DefaultCorsProxyURL = "https://thingproxy.freeboard.io/fetch/";
+
     private C64SystemConfig _systemConfig;
     ISystemConfig IHostSystemConfig.SystemConfig => _systemConfig;
 
@@ -43,6 +46,8 @@ public class C64HostConfig : IHostSystemConfig, ICloneable
     public C64HostRenderer Renderer { get; set; } = C64HostRenderer.SkiaSharp;
 
     public C64AspNetInputConfig InputConfig { get; set; } = new C64AspNetInputConfig();
+
+    public string CorsProxyURL { get; set; } = DefaultCorsProxyURL;
 
     private bool _basicAIAssistantDefaultEnabled;
     [JsonIgnore]

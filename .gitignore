@@ -281,4 +281,6 @@ __pycache__/
 .vscode/settings.json
 
 BenchmarkDotNet.Artifacts/
+
 /src/apps/Highbyte.DotNet6502.App.SadConsole/appsettings.Development.json
+/src/apps/Highbyte.DotNet6502.App.SilkNetNative/appsettings.Development.json

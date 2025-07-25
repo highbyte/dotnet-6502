@@ -1,9 +1,6 @@
-using System.Text;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
-using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
