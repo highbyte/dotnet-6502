@@ -170,11 +170,6 @@
     private bool _isLoadingPreloadedDisk = false;
     private string SYSTEM_NAME = C64.SystemName;
    
-    // CORS proxy URL to bypass browser CORS restrictions when downloading from external sites
-    //private const string CORS_PROXY_URL = "https://thingproxy.freeboard.io/fetch/"; // Doesn't seem to work with redirects
-    //private const string CORS_PROXY_URL = "https://api.allorigins.win/raw?url="; // Doesn't work reliably
-    private const string CORS_PROXY_URL = "https://corsproxy.io/?url=";
-
     private D64AutoDownloadAndRun _d64AutoDownloadAndRun;
 
     private readonly Dictionary<string, D64DownloadDiskInfo> _preloadedD64Images = new()
@@ -207,7 +202,7 @@
         _logger = LoggerFactory.CreateLogger<C64Menu>();
         _logger.LogDebug("OnInitializedAsync() was called");
 
-        _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(LoggerFactory!, HttpClient!, Parent.WasmHost, CORS_PROXY_URL);
+        _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(LoggerFactory!, HttpClient!, Parent.WasmHost, _c64HostConfig.CorsProxyURL);
     }
 
     private void OnSelectJoystickChanged(ChangeEventArgs e)
@@ -677,11 +672,11 @@
 
         try
         {
-        _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
+        await _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
             diskInfo,
             stateHasChangedCallback: async () =>
             {
-                Parent.StateHasChangedCustom(); // Special method on the main UI page that makes sure the canvas visible/invisible is updated so that Stop/Start of emulator is shown
+                await Parent.StateHasChangedCustom(); // Special method on the main UI page that makes sure the canvas visible/invisible is updated so that Stop/Start of emulator is shown
             },
             setConfigCallback: async (diskInfo) =>
             {
