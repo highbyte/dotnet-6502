@@ -22,8 +22,8 @@
             "type": "blazorwasm",
             "request": "launch",
             "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.WASM",
-            "url": "http://localhost:5000",
-            "browser": "chrome"
+            "url": "http://localhost:5000"
+            //"browser": "chrome"
         },
         {
             "name": "SadConsole app - .NET Core Launch",

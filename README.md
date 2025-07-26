@@ -52,7 +52,7 @@ Implements abstractions in `Highbyte.DotNet6502.Systems`.
 - [`Highbyte.DotNet6502.Systems.Commodore64`](doc/SYSTEMS_C64.md) 
   - Logic for emulating a Commodore 64 (C64).
   - Runs C64 ROMs (Kernal, Basic, Chargen).
-  - List of apps/games listed that's been tested to work [here](doc/SYSTEMS_C64_COMPATIBLE_PRG.md) (and how to load them).
+  - List of apps/games listed that's been tested to work [here](doc/SYSTEMS_C64_COMPATIBLE_PRG.md)
 
 - [`Highbyte.DotNet6502.Systems.Generic`](doc/SYSTEMS_GENERIC.md) 
   - Logic for emulating a generic computer based on 6502 CPU.

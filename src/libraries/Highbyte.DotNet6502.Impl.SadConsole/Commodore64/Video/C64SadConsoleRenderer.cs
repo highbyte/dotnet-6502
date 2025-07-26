@@ -204,7 +204,7 @@ public class C64SadConsoleRenderer : IRenderer
         }
         // One glyph in SadConsole font must contain a solid block. As the combined font from C64 shifted and unshifted (with both inverted removed),
         // a duplicate of an empty block (160) has been changed to contain a solid block.
-        // In the original C64 font (both shifted and unshifted) this postion was a solid block. So use it, and tell not to invert it.
+        // In the original C64 font (both shifted and unshifted) this position was a solid block. So use it, and tell not to invert it.
         else if (sourceByte == 160)
         {
             sadConsoleGlyphIndex = 160;

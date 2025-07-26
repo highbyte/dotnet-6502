@@ -19,13 +19,27 @@ Current capabilities
     - Timers
     - IRQ
 - Limited SID 6581 audio chip support
+- **Limited 1541 disk drive support**
+    - Attach `.d64` disk images
+    - Load directory and files to the C64 using the Basic `LOAD` command
 - WASM and native (SilkNet and SadConsole) app UI:s
+
+# 1541 Disk Drive Support
+
+The C64 emulator now includes limited support for the Commodore 1541 disk drive. You can:
+- Attach `.d64` disk image files to the emulator
+- Use the C64's Basic `LOAD` command to load the disk directory and files from the attached disk image
+- Example: `LOAD "$",8` to list the directory, or `LOAD "FILENAME",8` to load a file
+
+_Note: Only basic directory and file loading is supported. Advanced disk operations, file writing, and copy protection schemes are not supported._
 
 # C64 programs that works and how to run them
 
-See [`SYSTEMS_C64_COMPATIBLE_PRG.md`](SYSTEMS_C64_COMPATIBLE_PRG.md)
+See [`SYSTEMS_C64_COMPATIBLE_PRG.md`](SYSTEMS_C64_COMPATIBLE_PRG.md) for .D64 images.
 
-## C64 Basic AI code completion
+_For advanced use: how to extract PRG files from D64 disk images see [`SYSTEMS_C64_HOW_TO_EXTRACT_PRG_FROM_D64_IMAGE`](SYSTEMS_C64_HOW_TO_EXTRACT_PRG_FROM_D64_IMAGE)_
+
+# C64 Basic AI code completion
 
 See [SYSTEMS_C64_AI_CODE_COMPLETION.md`](SYSTEMS_C64_AI_CODE_COMPLETION.md)
 
