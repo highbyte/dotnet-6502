@@ -678,7 +678,7 @@
             {
                 await Parent.StateHasChangedCustom(); // Special method on the main UI page that makes sure the canvas visible/invisible is updated so that Stop/Start of emulator is shown
             },
-            setConfigCallback: async (diskInfo) =>
+            setConfigCallback: (diskInfo) =>
             {
                 // Apply keyboard joystick settings to config object while emulator is stopped
                 _logger.LogInformation($"Setting keyboard joystick enabled in config to: {diskInfo.KeyboardJoystickEnabled}");
@@ -696,6 +696,8 @@
                 _c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
 
                 Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
+
+                return Task.CompletedTask;
             });
 
         }
