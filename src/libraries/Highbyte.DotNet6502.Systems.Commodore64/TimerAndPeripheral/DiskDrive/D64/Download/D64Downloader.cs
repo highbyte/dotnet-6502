@@ -1,4 +1,3 @@
-
 using Microsoft.Extensions.Logging;
 using System.IO.Compression;
 
@@ -105,8 +104,9 @@ public class D64DownloadDiskInfo
     public int KeyboardJoystickNumber { get; set; }
     public bool RequiresBitmap { get; set; }
     public bool AudioEnabled { get; set; }
+    public string? DirectLoadPRGName { get; set; }
 
-    public D64DownloadDiskInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64, bool keyboardJoystickEnabled = false, int keyboardJoystickNumber = 2, bool requiresBitmap = false, bool audioEnabled = false)
+    public D64DownloadDiskInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64, bool keyboardJoystickEnabled = false, int keyboardJoystickNumber = 2, bool requiresBitmap = false, bool audioEnabled = false, string? directLoadPRGName = null)
     {
         DisplayName = displayName;
         DownloadUrl = downloadUrl;
@@ -116,6 +116,7 @@ public class D64DownloadDiskInfo
         KeyboardJoystickNumber = keyboardJoystickNumber;
         RequiresBitmap = requiresBitmap;
         AudioEnabled = audioEnabled;
+        DirectLoadPRGName = directLoadPRGName;
     }
 }
 

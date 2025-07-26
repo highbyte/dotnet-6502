@@ -1,5 +1,5 @@
-
 using Microsoft.Extensions.Logging;
+using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 
@@ -48,7 +48,7 @@ public class D64AutoDownloadAndRun
 
             // Wait for BASIC to start (check periodically)
             _logger.LogInformation("Waiting for BASIC to start...");
-            var maxWaitTime = TimeSpan.FromSeconds(20);
+            var maxWaitTime = TimeSpan.FromSeconds(30);
             var startTime = DateTime.Now;
             var checkInterval = TimeSpan.FromMilliseconds(100);
 
@@ -79,38 +79,71 @@ public class D64AutoDownloadAndRun
             var d64DiskImage = D64Parser.ParseD64File(d64Bytes);
             _logger.LogInformation($"Parsed D64 disk image: {d64DiskImage.DiskName}");
 
-            // Set the disk image on the running C64's DiskDrive1541
-            var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
-            if (diskDrive != null)
+            // Check if direct PRG loading is requested (will bypass the disk drive emulation, and extract a PRG file from the .D64 image and load it directly into emulator memory)
+            if (!string.IsNullOrEmpty(diskInfo.DirectLoadPRGName))
             {
-                diskDrive.SetD64DiskImage(d64DiskImage);
-                _logger.LogInformation($"Disk image loaded and set: {d64DiskImage.DiskName}");
+                _logger.LogInformation($"Direct loading PRG file: {diskInfo.DirectLoadPRGName}");
 
-                // Refresh UI to reflect the new settings values
-                await stateHasChangedCallback();
-
-                // Auto-load and run the program
-                if (diskInfo.RunCommands != null && diskInfo.RunCommands.Count > 0)
+                // Extract the specified file data directly from the D64 image
+                try
                 {
-                    _logger.LogInformation($"Auto-loading and running program with {diskInfo.RunCommands.Count} commands");
+                    var prgData = d64DiskImage.ReadFileContent(diskInfo.DirectLoadPRGName);
+                    _logger.LogInformation($"Successfully extracted file {diskInfo.DirectLoadPRGName}, size: {prgData.Length} bytes");
 
-                    // Execute each command in sequence
-                    foreach (var command in diskInfo.RunCommands)
-                    {
-                        _logger.LogInformation($"Executing command: {command}");
-                        c64.TextPaste.Paste($"{command}\n");
+                    // Load the file data directly into memory using BinaryLoader
+                    BinaryLoader.Load(
+                        c64.Mem,
+                        prgData,
+                        out ushort loadedAtAddress,
+                        out ushort fileLength);
 
-                        // Wait a moment between commands (except for the last one)
-                        if (command != diskInfo.RunCommands.Last())
-                        {
-                            await Task.Delay(1000);
-                        }
-                    }
+                    _logger.LogInformation($"Direct loaded {diskInfo.DirectLoadPRGName} at address {loadedAtAddress:X4}, length {fileLength} bytes");
+
+                    // Refresh UI to reflect the new settings values
+                    await stateHasChangedCallback();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Failed to direct load PRG file {diskInfo.DirectLoadPRGName}: {ex.Message}");
+                    throw new InvalidOperationException($"Failed to direct load PRG file {diskInfo.DirectLoadPRGName}: {ex.Message}", ex);
                 }
             }
             else
             {
-                throw new InvalidOperationException("No DiskDrive1541 found in the running C64 system.");
+                // Set the disk image on the running C64's DiskDrive1541. Let the files be loaded from the disk image via BASIC commands (below).
+                var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+                if (diskDrive != null)
+                {
+                    diskDrive.SetD64DiskImage(d64DiskImage);
+                    _logger.LogInformation($"Disk image loaded and set: {d64DiskImage.DiskName}");
+
+                    // Refresh UI to reflect the new settings values
+                    await stateHasChangedCallback();
+                }
+                else
+                {
+                    throw new InvalidOperationException("No DiskDrive1541 found in the running C64 system.");
+                }
+            }
+
+            // Run the the specified Basic commands.
+            // Note: If DirectLoadPRGName was specified, RunCommands must not include a LOAD command, only typically a RUN command.
+            if (diskInfo.RunCommands != null && diskInfo.RunCommands.Count > 0)
+            {
+                _logger.LogInformation($"Auto-loading and running program with {diskInfo.RunCommands.Count} commands");
+
+                // Execute each command in sequence
+                foreach (var command in diskInfo.RunCommands)
+                {
+                    _logger.LogInformation($"Executing command: {command}");
+                    c64.TextPaste.Paste($"{command}\n");
+
+                    // Wait a moment between commands (except for the last one)
+                    if (command != diskInfo.RunCommands.Last())
+                    {
+                        await Task.Delay(1000);
+                    }
+                }
             }
         }
         catch (Exception ex)
