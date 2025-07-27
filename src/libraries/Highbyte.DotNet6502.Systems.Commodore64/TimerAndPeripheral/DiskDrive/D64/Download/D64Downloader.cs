@@ -110,13 +110,18 @@ public class D64DownloadDiskInfo
     {
         DisplayName = displayName;
         DownloadUrl = downloadUrl;
-        RunCommands = runCommands ?? new List<string> { "load\"*\",8,1", "run" };
         DownloadType = downloadType;
         KeyboardJoystickEnabled = keyboardJoystickEnabled;
         KeyboardJoystickNumber = keyboardJoystickNumber;
         RequiresBitmap = requiresBitmap;
         AudioEnabled = audioEnabled;
+
         DirectLoadPRGName = directLoadPRGName;
+
+        if (RunCommands == null)
+        {
+            RunCommands = string.IsNullOrEmpty(directLoadPRGName) ? new List<string> { "load\"*\",8,1", "run" } : new List<string> { "run" };
+        }
     }
 }
 
