@@ -87,7 +87,8 @@ public class D64AutoDownloadAndRun
                 // Extract the specified file data directly from the D64 image
                 try
                 {
-                    var prgData = d64DiskImage.ReadFileContent(diskInfo.DirectLoadPRGName);
+                    string directLoadFileName = diskInfo.DirectLoadPRGName == "*" ? d64DiskImage.Files.First().FileName : diskInfo.DirectLoadPRGName;
+                    var prgData = d64DiskImage.ReadFileContent(directLoadFileName);
                     _logger.LogInformation($"Successfully extracted file {diskInfo.DirectLoadPRGName}, size: {prgData.Length} bytes");
 
                     // Load the file data directly into memory using BinaryLoader
