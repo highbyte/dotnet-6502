@@ -226,6 +226,10 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
         EmulatorState = EmulatorState.Uninitialized;
 
+        // TODO: Why is this necessary if cache is invalidated when config is updated?
+        // Make sure the cached System instance is removed, so it's created again next time (starting fresh).
+        _systemList.InvalidateSystemCache(SelectedSystemName, _selectedSystemConfigurationVariant);        
+
         OnAfterStop();
 
         _logger.LogInformation($"System stopped: {_selectedSystemName}");

@@ -105,8 +105,9 @@ public class D64DownloadDiskInfo
     public bool RequiresBitmap { get; set; }
     public bool AudioEnabled { get; set; }
     public string? DirectLoadPRGName { get; set; }
+    public string C64Variant { get; set; }
 
-    public D64DownloadDiskInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64, bool keyboardJoystickEnabled = false, int keyboardJoystickNumber = 2, bool requiresBitmap = false, bool audioEnabled = false, string? directLoadPRGName = null)
+    public D64DownloadDiskInfo(string displayName, string downloadUrl, List<string>? runCommands = null, DownloadType downloadType = DownloadType.D64, bool keyboardJoystickEnabled = false, int keyboardJoystickNumber = 2, bool requiresBitmap = false, bool audioEnabled = false, string? directLoadPRGName = null, string c64Variant = "C64NTSC")
     {
         DisplayName = displayName;
         DownloadUrl = downloadUrl;
@@ -115,6 +116,7 @@ public class D64DownloadDiskInfo
         KeyboardJoystickNumber = keyboardJoystickNumber;
         RequiresBitmap = requiresBitmap;
         AudioEnabled = audioEnabled;
+        C64Variant = c64Variant;
 
         DirectLoadPRGName = directLoadPRGName;
 

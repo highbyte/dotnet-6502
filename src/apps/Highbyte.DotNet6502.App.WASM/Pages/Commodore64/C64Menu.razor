@@ -174,13 +174,13 @@
 
     private readonly Dictionary<string, D64DownloadDiskInfo> _preloadedD64Images = new()
     {
-        {"bubblebobble", new D64DownloadDiskInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "bubble bobble")}, // Note: Bubble Bobble is not a bitmap game, but somehow this version fails to initialize the custom charset in text mode correctly in SkiaSharp renderer.
-        {"digiloi", new D64DownloadDiskInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "digiloi64")},
-        {"elite", new D64DownloadDiskInfo("Elite", "https://csdb.dk/release/download.php?id=268340", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false,directLoadPRGName: "*")},
-        {"lastninja", new D64DownloadDiskInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "last ninja/zcs")},
-        {"minizork", new D64DownloadDiskInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false, directLoadPRGName: "mini-zork   /l+t")},
-        {"montezuma", new D64DownloadDiskInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "montezuma's rev.")},
-        {"rallyspeedway", new D64DownloadDiskInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true, directLoadPRGName: "rally speedway")}
+        {"bubblebobble", new D64DownloadDiskInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")}, // Note: Bubble Bobble is not a bitmap game, but somehow this version fails to initialize the custom charset in text mode correctly in SkiaSharp renderer.
+        {"digiloi", new D64DownloadDiskInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
+        {"elite", new D64DownloadDiskInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false,directLoadPRGName: "*", c64Variant: "C64PAL")},
+        {"lastninja", new D64DownloadDiskInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")},
+        {"minizork", new D64DownloadDiskInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false, directLoadPRGName: "*")},
+        {"montezuma", new D64DownloadDiskInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
+        {"rallyspeedway", new D64DownloadDiskInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true, directLoadPRGName: "*")}
     };
     public string SelectedPreloadedDisk { get; set; } = default!;
 
@@ -678,7 +678,7 @@
             {
                 await Parent.StateHasChangedCustom(); // Special method on the main UI page that makes sure the canvas visible/invisible is updated so that Stop/Start of emulator is shown
             },
-            setConfigCallback: (diskInfo) =>
+            setConfigCallback: async (diskInfo) =>
             {
                 // Apply keyboard joystick settings to config object while emulator is stopped
                 _logger.LogInformation($"Setting keyboard joystick enabled in config to: {diskInfo.KeyboardJoystickEnabled}");
@@ -695,11 +695,13 @@
                 _logger.LogInformation($"Setting audio enabled in config to: {diskInfo.AudioEnabled}");
                 _c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
 
+                // Apply C64 variant setting to config object while emulator is stopped
+                _logger.LogInformation($"Setting C64 variant in config to: {diskInfo.C64Variant}");
+                await Parent.WasmHost.SelectSystemConfigurationVariant(diskInfo.C64Variant);
+
                 Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
-
-                return Task.CompletedTask;
+                await Parent.UpdateCanvasSize();
             });
-
         }
         catch (Exception ex)
         {
