@@ -634,7 +634,7 @@ public class Vic2
         // TODO: Should an enum be used for VIC2 model base type (PAL or NTSC)?
         if (Vic2Model.MaxVisibleHeight > 256)
         {
-            // When writing to this register (SCRCTRL1) the seventh bit is the highest (eighth) for the the raster line IRQ setting.
+            // When writing to this register (SCRCTRL1) the seventh bit is the highest (eighth) for the raster line IRQ setting.
             ushort bit7HighestRasterLineBitIRQ = (ushort)(value & 0b1000_0000);
             bit7HighestRasterLineBitIRQ = (ushort)(bit7HighestRasterLineBitIRQ << 1);
 
