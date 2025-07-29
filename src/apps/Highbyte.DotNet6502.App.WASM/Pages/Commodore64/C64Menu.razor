@@ -24,7 +24,7 @@
         <p>&nbsp;</p>
         <details open>
             <summary>Disk Drive & .D64 images</summary>
-            <button @onclick="OnDiskFilePicker" disabled=@OnFilePickerDisabled>Attach .d64 disk image</button>
+            <button @onclick="OnToggleDiskImage" disabled=@OnFilePickerDisabled>@DiskToggleButtonText</button>
             <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_COMPATIBLE_PRG.md" target="_blank">(info)</a>
             <span>@_latestDiskFileError</span>
             <br />
@@ -170,7 +170,7 @@
     private bool _isLoadingPreloadedDisk = false;
     private string SYSTEM_NAME = C64.SystemName;
    
-    private D64AutoDownloadAndRun _d64AutoDownloadAndRun;
+    private D64AutoDownloadAndRun _d64AutoDownloadAndRun = default!;
 
     private readonly Dictionary<string, D64DownloadDiskInfo> _preloadedD64Images = new()
     {
@@ -311,6 +311,20 @@
     protected bool BasicCodingAssistantDisabled => Parent.CurrentEmulatorState != EmulatorState.Running || 
         Parent.WasmHost.CurrentSystemRunner?.InputHandler is not C64AspNetInputHandler inputHandler || 
         !inputHandler.CodingAssistantAvailable;
+
+    protected bool IsDiskImageAttached
+    {
+        get
+        {
+            if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
+                return false;
+            var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
+            var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+            return diskDrive?.IsDisketteInserted == true;
+        }
+    }
+
+    protected string DiskToggleButtonText => IsDiskImageAttached ? "Detach .d64 disk image" : "Attach .d64 disk image";
 
 
     /// <summary>
@@ -593,14 +607,46 @@
     }
 
     /// <summary>
-    /// Open Attach .d64 disk image file dialog
+    /// Toggle .d64 disk image - attach if none attached, detach if one is attached
     /// </summary>
     /// <returns></returns>
-    private async Task OnDiskFilePicker(MouseEventArgs mouseEventArgs)
+    private async Task OnToggleDiskImage(MouseEventArgs mouseEventArgs)
     {
-        _wasRunningBeforeFileDialog = Parent.CurrentEmulatorState == EmulatorState.Running;
-        await Parent.OnPause(new());
-        await Js.InvokeVoidAsync("clickId", "filePickerDisk");
+        if (IsDiskImageAttached)
+        {
+            // Detach current disk image
+            if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
+                return;
+            
+            try
+            {
+                var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
+                var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+                if (diskDrive != null)
+                {
+                    diskDrive.RemoveD64DiskImage();
+                    _logger.LogInformation("Disk image detached successfully");
+                    _latestDiskFileError = "";
+                }
+                else
+                {
+                    _latestDiskFileError = "No DiskDrive1541 found in the running C64 system.";
+                    _logger.LogError(_latestDiskFileError);
+                }
+            }
+            catch (Exception ex)
+            {
+                _latestDiskFileError = $"Disk detach error: {ex.Message}";
+                _logger.LogError($"Disk detach error: {ex.Message}");
+            }
+        }
+        else
+        {
+            // Attach new disk image
+            _wasRunningBeforeFileDialog = Parent.CurrentEmulatorState == EmulatorState.Running;
+            await Parent.OnPause(new());
+            await Js.InvokeVoidAsync("clickId", "filePickerDisk");
+        }
     }
 
     /// <summary>
