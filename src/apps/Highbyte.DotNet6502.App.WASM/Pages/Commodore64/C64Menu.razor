@@ -2,6 +2,7 @@
 @using Highbyte.DotNet6502.Systems
 @using Highbyte.DotNet6502.Systems.Commodore64.Config;
 @using Highbyte.DotNet6502.Systems.Commodore64;
+@using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive
 @using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
 @using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 @using Highbyte.DotNet6502.Systems.Commodore64.Video;
@@ -319,7 +320,7 @@
             if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
                 return false;
             var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
-            var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+            var diskDrive = c64.IECBus?.Devices?.OfType<DiskDrive1541>().FirstOrDefault();
             return diskDrive?.IsDisketteInserted == true;
         }
     }
@@ -621,7 +622,7 @@
             try
             {
                 var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
-                var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+                var diskDrive = c64.IECBus?.Devices?.OfType<DiskDrive1541>().FirstOrDefault();
                 if (diskDrive != null)
                 {
                     diskDrive.RemoveD64DiskImage();
@@ -671,7 +672,7 @@
             var d64DiskImage = D64Parser.ParseD64File(fileBuffer);
             // Set the disk image on the running C64's DiskDrive1541
             var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
-            var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+            var diskDrive = c64.IECBus?.Devices?.OfType<DiskDrive1541>().FirstOrDefault();
             if (diskDrive != null)
             {
                 diskDrive.SetD64DiskImage(d64DiskImage);

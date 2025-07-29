@@ -112,7 +112,7 @@ public class D64AutoDownloadAndRun
             else
             {
                 // Set the disk image on the running C64's DiskDrive1541. Let the files be loaded from the disk image via BASIC commands (below).
-                var diskDrive = c64.IECBus?.Devices?.OfType<Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+                var diskDrive = c64.IECBus?.Devices?.OfType<DiskDrive1541>().FirstOrDefault();
                 if (diskDrive != null)
                 {
                     diskDrive.SetD64DiskImage(d64DiskImage);
