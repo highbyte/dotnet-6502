@@ -2,6 +2,9 @@
 
 A list of applications that seem to work decently with the [C64 emulator](SYSTEMS_C64.md).
 
+> [!CAUTION]
+> You may need a license to be allowed to use C64 apps and games.
+
 > **Limitations:**<br>
 > - The C64 emulator now has **limited support for the 1541 disk drive**. You can attach `.d64` disk images and use the Basic `LOAD` command to load the directory and files. However, only basic directory and file loading is supported. Advanced disk operations, file writing, and copy protection schemes are not supported.
 >
