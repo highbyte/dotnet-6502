@@ -2,11 +2,15 @@
 @using Highbyte.DotNet6502.Systems
 @using Highbyte.DotNet6502.Systems.Commodore64.Config;
 @using Highbyte.DotNet6502.Systems.Commodore64;
+@using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive
+@using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
+@using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 @using Highbyte.DotNet6502.Systems.Commodore64.Video;
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index;
 @using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 @using Highbyte.DotNet6502.Utils;
 @using TextCopy
+@using System.Linq
 
 @if(Parent.Initialized && Parent.WasmHost.SelectedSystemName == SYSTEM_NAME)
 {
@@ -16,12 +20,52 @@
         <button @onclick="PasteText" disabled=@OnPasteTextDisabled>Paste</button>
         <p></p>
         <label for="BasicCodingAssistant">AI Basic (F9)</label>
-        <input id="BasicCodingAssistant" type="checkbox" @bind="@BasicCodingAssistantEnabled" disabled="@BasicCodingAssistantDisabled"/> <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md" target="_blank">(info)</a> 
+        <input id="BasicCodingAssistant" type="checkbox" @bind="@BasicCodingAssistantEnabled" disabled="@BasicCodingAssistantDisabled"/> <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md" target="_blank">(info)</a>
+
+        <p>&nbsp;</p>
+        <details open>
+            <summary>Disk Drive & .D64 images</summary>
+            <button @onclick="OnToggleDiskImage" disabled=@OnFilePickerDisabled>@DiskToggleButtonText</button>
+            <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_COMPATIBLE_PRG.md" target="_blank">(info)</a>
+            <span>@_latestDiskFileError</span>
+            <br />
+            <br />
+            <label for="preloadedDiskSelector">Download & Run .D64 programs:</label>
+            <select id="preloadedDiskSelector" @onchange="OnPreloadedDiskChanged">
+                <option value="">-- Select a program --</option>
+                @foreach (var disk in _preloadedD64Images)
+                {
+                    <option value="@disk.Key">@disk.Value.DisplayName</option>
+                }
+            </select>
+            <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_COMPATIBLE_PRG.md" target="_blank">(info)</a>
+            @if (!string.IsNullOrEmpty(SelectedPreloadedDisk))
+            {
+                <br />
+                @if (_isLoadingPreloadedDisk)
+                {
+                    <span>Loading disk image...</span>
+                }
+                else
+                {
+                    <button @onclick="OnLoadPreloadedDisk">Download & Run Game</button>
+                }
+                <br />
+                <span style="font-size: 0.9em; color: #666;">
+                    Download D64 disk image and auto-run the program on it.
+                </span>
+                @if (!string.IsNullOrEmpty(_latestPreloadedDiskError))
+                {
+                    <br />
+                    <span style="color: red;">@_latestPreloadedDiskError</span>
+                }
+            }
+        </details>
 
         <p>&nbsp;</p>
         <details>
             <summary>Load/Save</summary>
-            <p>Load/save files <a href="https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_COMPATIBLE_PRG.md" target="_blank">(info)</a></p>
+            <p>Load/save files</p>
             <button @onclick="OnBasicFilePicker" disabled=@OnBasicFilePickerDisabled>Load Basic .prg</button>
             <button @onclick="OnSaveBasicFile" disabled=@OnBasicFilePickerDisabled>Save Basic .prg</button>
             <button @onclick="OnFilePicker" disabled=@OnFilePickerDisabled>Load & start binary .prg</button>
@@ -79,8 +123,6 @@
             </div>
 
         </details>
-
-
     </div>
 
 
@@ -104,6 +146,7 @@
 
 <InputFile id="filePicker" OnChange="@OnFilePickerChange" @oncancel="OnFilePickerCancel" hidden />
 <InputFile id="filePickerBasic" OnChange="@OnBasicFilePickerChange" @oncancel="OnFilePickerCancel" hidden />
+<InputFile id="filePickerDisk" OnChange="@OnDiskFilePickerChange" @oncancel="OnFilePickerCancel" hidden />
 
 @* Fix for compiler warning CS8669 https://github.com/dotnet/razor/issues/8720 *@
 @{
@@ -124,7 +167,25 @@
 
     private ILogger _logger = default!;
     private string _latestFileError = "";
+    private string _latestDiskFileError = "";
+    private string _latestPreloadedDiskError = "";
+    private bool _isLoadingPreloadedDisk = false;
     private string SYSTEM_NAME = C64.SystemName;
+   
+    private D64AutoDownloadAndRun _d64AutoDownloadAndRun = default!;
+
+    private readonly Dictionary<string, D64DownloadDiskInfo> _preloadedD64Images = new()
+    {
+        {"bubblebobble", new D64DownloadDiskInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")}, // Note: Bubble Bobble is not a bitmap game, but somehow this version fails to initialize the custom charset in text mode correctly in SkiaSharp renderer.
+        {"digiloi", new D64DownloadDiskInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
+        {"elite", new D64DownloadDiskInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false,directLoadPRGName: "*", c64Variant: "C64PAL")},
+        {"lastninja", new D64DownloadDiskInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")},
+        {"minizork", new D64DownloadDiskInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false, directLoadPRGName: "*")},
+        {"montezuma", new D64DownloadDiskInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
+        {"rallyspeedway", new D64DownloadDiskInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true, directLoadPRGName: "*")}
+    };
+    public string SelectedPreloadedDisk { get; set; } = default!;
+
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -143,6 +204,7 @@
         _logger = LoggerFactory.CreateLogger<C64Menu>();
         _logger.LogDebug("OnInitializedAsync() was called");
 
+        _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(LoggerFactory!, HttpClient!, Parent.WasmHost, _c64HostConfig.CorsProxyURL);
     }
 
     private void OnSelectJoystickChanged(ChangeEventArgs e)
@@ -248,7 +310,23 @@
     protected bool OnCopySourceCodeDisabled=> Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
     
     protected bool OnPasteTextDisabled => Parent.CurrentEmulatorState == EmulatorState.Uninitialized;
-    protected bool BasicCodingAssistantDisabled => Parent.CurrentEmulatorState != EmulatorState.Running || !((C64AspNetInputHandler)Parent.WasmHost.CurrentSystemRunner.InputHandler).CodingAssistantAvailable;
+    protected bool BasicCodingAssistantDisabled => Parent.CurrentEmulatorState != EmulatorState.Running || 
+        Parent.WasmHost.CurrentSystemRunner?.InputHandler is not C64AspNetInputHandler inputHandler || 
+        !inputHandler.CodingAssistantAvailable;
+
+    protected bool IsDiskImageAttached
+    {
+        get
+        {
+            if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
+                return false;
+            var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
+            var diskDrive = c64.IECBus?.Devices?.OfType<DiskDrive1541>().FirstOrDefault();
+            return diskDrive?.IsDisketteInserted == true;
+        }
+    }
+
+    protected string DiskToggleButtonText => IsDiskImageAttached ? "Detach .d64 disk image" : "Attach .d64 disk image";
 
 
     /// <summary>
@@ -530,4 +608,158 @@
         await Parent.FocusEmulator();
     }
 
+    /// <summary>
+    /// Toggle .d64 disk image - attach if none attached, detach if one is attached
+    /// </summary>
+    /// <returns></returns>
+    private async Task OnToggleDiskImage(MouseEventArgs mouseEventArgs)
+    {
+        if (IsDiskImageAttached)
+        {
+            // Detach current disk image
+            if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
+                return;
+            
+            try
+            {
+                var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
+                var diskDrive = c64.IECBus?.Devices?.OfType<DiskDrive1541>().FirstOrDefault();
+                if (diskDrive != null)
+                {
+                    diskDrive.RemoveD64DiskImage();
+                    _logger.LogInformation("Disk image detached successfully");
+                    _latestDiskFileError = "";
+                }
+                else
+                {
+                    _latestDiskFileError = "No DiskDrive1541 found in the running C64 system.";
+                    _logger.LogError(_latestDiskFileError);
+                }
+            }
+            catch (Exception ex)
+            {
+                _latestDiskFileError = $"Disk detach error: {ex.Message}";
+                _logger.LogError($"Disk detach error: {ex.Message}");
+            }
+        }
+        else
+        {
+            // Attach new disk image
+            _wasRunningBeforeFileDialog = Parent.CurrentEmulatorState == EmulatorState.Running;
+            await Parent.OnPause(new());
+            await Js.InvokeVoidAsync("clickId", "filePickerDisk");
+        }
+    }
+
+    /// <summary>
+    /// Callback when .d64 disk image file has been loaded from file pick dialog
+    /// </summary>
+    /// <param name="e"></param>
+    /// <returns></returns>
+    private async Task OnDiskFilePickerChange(InputFileChangeEventArgs e)
+    {
+        if (Parent.CurrentEmulatorState == EmulatorState.Uninitialized)
+            return;
+        try
+        {
+            if (e.FileCount > 1)
+                return;
+            var file = e.File;
+            _logger.LogInformation($"Disk file picked: {file.Name} Size: {file.Size}");
+            _latestDiskFileError = "";
+            var fileBuffer = new byte[file.Size];
+            await file.OpenReadStream().ReadAsync(fileBuffer);
+            // Parse the D64 disk image from the byte array
+            var d64DiskImage = D64Parser.ParseD64File(fileBuffer);
+            // Set the disk image on the running C64's DiskDrive1541
+            var c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
+            var diskDrive = c64.IECBus?.Devices?.OfType<DiskDrive1541>().FirstOrDefault();
+            if (diskDrive != null)
+            {
+                diskDrive.SetD64DiskImage(d64DiskImage);
+                _logger.LogInformation($"Disk image loaded and set: {d64DiskImage.DiskName}");
+            }
+            else
+            {
+                _latestDiskFileError = "No DiskDrive1541 found in the running C64 system.";
+                _logger.LogError(_latestDiskFileError);
+            }
+        }
+        catch (Exception ex)
+        {
+            _latestDiskFileError = $"Disk load error: {ex.Message}";
+            _logger.LogError($"Disk load error: {ex.Message}");
+        }
+        finally
+        {
+            if (_wasRunningBeforeFileDialog)
+                await Parent.OnStart(new());
+        }
+    }
+
+
+    private void OnPreloadedDiskChanged(ChangeEventArgs e)
+    {
+        SelectedPreloadedDisk = e.Value?.ToString() ?? "";
+        _latestPreloadedDiskError = "";
+    }
+
+    /// <summary>
+    /// Download and load a preloaded D64 disk image, then auto-load and run the specified program
+    /// </summary>
+    /// <returns></returns>
+    private async Task OnLoadPreloadedDisk()
+    {
+        if (string.IsNullOrEmpty(SelectedPreloadedDisk) || !_preloadedD64Images.ContainsKey(SelectedPreloadedDisk))
+            return;
+
+        var diskInfo = _preloadedD64Images[SelectedPreloadedDisk];
+        _isLoadingPreloadedDisk = true;
+        _latestPreloadedDiskError = "";
+        StateHasChanged(); // Update UI to show loading state
+
+        try
+        {
+        await _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
+            diskInfo,
+            stateHasChangedCallback: async () =>
+            {
+                await Parent.StateHasChangedCustom(); // Special method on the main UI page that makes sure the canvas visible/invisible is updated so that Stop/Start of emulator is shown
+            },
+            setConfigCallback: async (diskInfo) =>
+            {
+                // Apply keyboard joystick settings to config object while emulator is stopped
+                _logger.LogInformation($"Setting keyboard joystick enabled in config to: {diskInfo.KeyboardJoystickEnabled}");
+                _c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
+                _logger.LogInformation($"Setting keyboard joystick number in config to: {diskInfo.KeyboardJoystickNumber}");
+                _c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
+
+                // Apply renderer setting to config object while emulator is stopped
+                C64HostRenderer renderer = diskInfo.RequiresBitmap ? C64HostRenderer.SkiaSharp3 : C64HostRenderer.SkiaSharp;
+                _logger.LogInformation($"Setting renderer in config to: {renderer}");
+                _c64HostConfig.Renderer = renderer;
+
+                // Apply audio enabled setting to config object while emulator is stopped
+                _logger.LogInformation($"Setting audio enabled in config to: {diskInfo.AudioEnabled}");
+                _c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
+
+                // Apply C64 variant setting to config object while emulator is stopped
+                _logger.LogInformation($"Setting C64 variant in config to: {diskInfo.C64Variant}");
+                await Parent.WasmHost.SelectSystemConfigurationVariant(diskInfo.C64Variant);
+
+                Parent.WasmHost.UpdateHostSystemConfig(_c64HostConfig);
+                await Parent.UpdateCanvasSize();
+            });
+        }
+        catch (Exception ex)
+        {
+            _latestPreloadedDiskError = $"Error downloading or running disk image: {ex.Message}";
+        }
+        finally
+        {
+            _isLoadingPreloadedDisk = false;
+            StateHasChanged(); // Update UI to show finished loading state
+        }
+
+    }
 }

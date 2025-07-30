@@ -87,7 +87,7 @@
             "type": "process",
             "args": [
                 "test",
-                "${workspaceFolder}/tests/Highbyte.DotNet6502.Tests/Highbyte.DotNet6502.Tests.csproj",
+                "${workspaceFolder}/dotnet-6502.sln",
                 "--filter",
                 "TestType!=Integration",
                 "/property:GenerateFullPaths=true",
@@ -105,7 +105,7 @@
             "type": "process",
             "args": [
                 "test",
-                "${workspaceFolder}/tests/Highbyte.DotNet6502.Tests/Highbyte.DotNet6502.Tests.csproj",
+                "${workspaceFolder}/dotnet-6502.sln",
                 "--filter",
                 "TestType=Integration",
                 "/property:GenerateFullPaths=true",

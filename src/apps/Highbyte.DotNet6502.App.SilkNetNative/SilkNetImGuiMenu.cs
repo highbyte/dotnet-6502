@@ -23,7 +23,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     private const int POS_X = 10;
     private const int POS_Y = 10;
     private const int WIDTH = 400;
-    private const int HEIGHT = 430;
+    private const int HEIGHT = 450;
     private static Vector4 s_informationColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
     private static Vector4 s_errorColor = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
     private static Vector4 s_warningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
@@ -254,6 +254,8 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                         _silkNetHostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
 
                         _silkNetHostApp.Start();
+                        ImGui.SetWindowFocus(null);
+                        ImGui.SetWindowCollapsed(true);
                     }
                     catch (Exception ex)
                     {
@@ -398,6 +400,8 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                         // Init C64 BASIC memory variables
                         ((C64)_silkNetHostApp.CurrentRunningSystem).InitBasicMemoryVariables(loadedAtAddress, fileLength);
                     }
+                    ImGui.SetWindowFocus(null);
+                    ImGui.SetWindowCollapsed(true);
                 }
                 catch (Exception ex)
                 {
@@ -435,6 +439,8 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                         startAddressValue,
                         endAddressValue,
                         addFileHeaderWithLoadAddress: true);
+                    ImGui.SetWindowFocus(null);
+                    ImGui.SetWindowCollapsed(true);
                 }
                 catch (Exception ex)
                 {
@@ -444,6 +450,87 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
             if (wasRunning)
                 _silkNetHostApp.Start();
+        }
+        ImGui.EndDisabled();
+
+        // Toggle D64 disk image (attach/detach)
+        ImGui.BeginDisabled(disabled: EmulatorState == EmulatorState.Uninitialized);
+        var diskToggleButtonText = IsDiskImageAttached() ? "Detach D64 disk image" : "Attach D64 disk image";
+        if (ImGui.Button(diskToggleButtonText))
+        {
+            if (IsDiskImageAttached())
+            {
+                // Detach current disk image
+                try
+                {
+                    if (_silkNetHostApp.CurrentRunningSystem is C64 c64)
+                    {
+                        if (c64.IECBus.GetDeviceByNumber(8) is Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541 diskDrive)
+                        {
+                            diskDrive.RemoveD64DiskImage();
+                            _lastFileError = "";
+                        }
+                        else
+                        {
+                            _lastFileError = "DiskDrive1541 (device 8) not found.";
+                        }
+                    }
+                    else
+                    {
+                        _lastFileError = "C64 system not running.";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _lastFileError = ex.Message;
+                }
+            }
+            else
+            {
+                // Attach new disk image
+                bool wasRunning = false;
+                if (_silkNetHostApp.EmulatorState == EmulatorState.Running)
+                {
+                    wasRunning = true;
+                    _silkNetHostApp.Pause();
+                }
+                _lastFileError = "";
+                var dialogResult = Dialog.FileOpen("d64;*");
+                if (dialogResult.IsOk)
+                {
+                    try
+                    {
+                        var fileName = dialogResult.Path;
+                        // Parse D64 file
+                        var d64Image = Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.D64Parser.ParseD64File(fileName);
+                        // Get C64 and DiskDrive1541
+                        if (_silkNetHostApp.CurrentRunningSystem is C64 c64)
+                        {
+                            if (c64.IECBus.GetDeviceByNumber(8) is Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541 diskDrive)
+                            {
+                                diskDrive.SetD64DiskImage(d64Image);
+                                // Minimize window after attaching
+                                ImGui.SetWindowFocus(null);
+                                ImGui.SetWindowCollapsed(true);
+                            }
+                            else
+                            {
+                                _lastFileError = "DiskDrive1541 (device 8) not found.";
+                            }
+                        }
+                        else
+                        {
+                            _lastFileError = "C64 system not running.";
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _lastFileError = ex.Message;
+                    }
+                }
+                if (wasRunning)
+                    _silkNetHostApp.Start();
+            }
         }
         ImGui.EndDisabled();
 
@@ -529,5 +616,20 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     public void Disable()
     {
         Visible = false;
+    }
+
+    private bool IsDiskImageAttached()
+    {
+        if (EmulatorState == EmulatorState.Uninitialized)
+            return false;
+        
+        if (_silkNetHostApp.CurrentRunningSystem is C64 c64)
+        {
+            if (c64.IECBus.GetDeviceByNumber(8) is Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541 diskDrive)
+            {
+                return diskDrive.IsDisketteInserted;
+            }
+        }
+        return false;
     }
 }

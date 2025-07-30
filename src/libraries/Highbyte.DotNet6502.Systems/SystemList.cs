@@ -223,6 +223,20 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         return $"{systemName}_{configurationVariant}";
     }
 
+    /// <summary>
+    /// Invalidate the system cache for all configuration variants of the specified system.
+    /// </summary>
+    /// <param name="systemName"></param>
+    /// <param name="hostSystemConfig"></param>
+    public void InvalidateSystemCache(string systemName, IHostSystemConfig hostSystemConfig)
+    {
+        var allConfigVariants = _systemConfigurers[systemName].GetConfigurationVariants(hostSystemConfig).Result;
+        foreach (var configVariant in allConfigVariants)
+        {
+            InvalidateSystemCache(systemName, configVariant);
+        }
+    }
+
     public void InvalidateSystemCache(string systemName, string configurationVariant)
     {
         var cacheKey = BuildSystemCacheKey(systemName, configurationVariant);
@@ -267,6 +281,9 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         {
             var systemConfig = _systemConfigsCache[systemConfigCacheKey];
         }
+
+        // Make sure system cache is invalidated so new system is created on next start (to allow it to be based on new config).
+        InvalidateSystemCache(systemName, hostSystemConfig);
     }
 
     public async Task PersistHostSystemConfig(string systemName)

@@ -245,10 +245,6 @@ public class Vic2
             c64Mem.MapReader(address, ColorRAMLoad);
             c64Mem.MapWriter(address, ColorRAMStore);
         }
-
-        // Address 0xdd00: "CIA 2 Port A" (VIC2 bank, serial bus, etc) actually belongs to CIA chip, but as it affects VIC2 bank selection it's added here
-        c64Mem.MapReader(CiaAddr.CIA2_DATAA, CIA2PortALoad);
-        c64Mem.MapWriter(CiaAddr.CIA2_DATAA, CIA2PortAStore);
     }
 
     /// <summary>
@@ -541,10 +537,12 @@ public class Vic2
         return C64.ReadIOStorage(address);
     }
 
-    public void CIA2PortAStore(ushort address, byte value)
+    /// <summary>
+    /// Sets the VIC2 bank based on the value written to IO address 0xdd00.
+    /// On the C64, this is controlled by CIA 2 Port A (0xdd00). 
+    /// </summary>
+    public void SetVIC2Bank(byte dd00Value)
     {
-        C64.WriteIOStorage(address, value);
-
         // --- VIC 2 BANKS ---
         // Bits 0-1 of CIA 2 Port A (0xdd00) selects VIC2 bank (inverted order, the highest value 3 means bank 0, and value 0 means bank 3)
         // The VIC 2 chip can be access the C64 RAM in 4 different banks, with 16K visible in each bank.
@@ -565,7 +563,7 @@ public class Vic2
         // |------------|-----------------|---------------------|-----------------------
 
         int oldVIC2Bank = CurrentVIC2Bank;
-        int newBankValue = value & 0b00000011;
+        int newBankValue = dd00Value & 0b00000011;
         CurrentVIC2Bank = newBankValue switch
         {
             0b11 => 0,
@@ -583,11 +581,6 @@ public class Vic2
         }
     }
 
-    public byte CIA2PortALoad(ushort address)
-    {
-        return C64.ReadIOStorage(address);
-    }
-
     public void ScrCtrlReg1Store(ushort address, byte value)
     {
         C64.WriteIOStorage(address, (byte)(value & 0b0111_1111));
@@ -597,7 +590,7 @@ public class Vic2
         // TODO: Should an enum be used for VIC2 model base type (PAL or NTSC)?
         if (Vic2Model.MaxVisibleHeight > 256)
         {
-            // When writing to this register (SCRCTRL1) the seventh bit is the highest (eigth) for the the raster line IRQ setting.
+            // When writing to this register (SCRCTRL1) the seventh bit is the highest (eighth) for the raster line IRQ setting.
             ushort bit7HighestRasterLineBitIRQ = (ushort)(value & 0b1000_0000);
             bit7HighestRasterLineBitIRQ = (ushort)(bit7HighestRasterLineBitIRQ << 1);
 

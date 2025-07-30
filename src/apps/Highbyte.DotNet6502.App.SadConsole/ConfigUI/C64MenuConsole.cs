@@ -1,4 +1,6 @@
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
 using Highbyte.DotNet6502.Systems;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
@@ -70,11 +72,20 @@ public class C64MenuConsole : ControlsConsole
         c64SaveBasicButton.Click += C64SaveBasicButton_Click;
         Controls.Add(c64SaveBasicButton);
 
+        // Toggle D64 Disk Image (attach/detach)
+        var c64ToggleD64Button = new Button("Attach .D64 disk")
+        {
+            Name = "c64ToggleD64Button",
+            Position = (1, c64SaveBasicButton.Bounds.MaxExtentY + 1),
+        };
+        c64ToggleD64Button.Click += C64ToggleD64Button_Click;
+        Controls.Add(c64ToggleD64Button);
+
         // Copy Basic Source Code
         var c64CopyBasicSourceCodeButton = new Button("Copy")
         {
             Name = "c64CopyBasicSourceCodeButton",
-            Position = (1, c64SaveBasicButton.Bounds.MaxExtentY + 2),
+            Position = (1, c64ToggleD64Button.Bounds.MaxExtentY + 1),
         };
         c64CopyBasicSourceCodeButton.Click += C64CopyBasicSourceCodeButton_Click!;
         Controls.Add(c64CopyBasicSourceCodeButton);
@@ -214,6 +225,82 @@ public class C64MenuConsole : ControlsConsole
         window.Show(true);
     }
 
+    private void C64ToggleD64Button_Click(object? sender, EventArgs e)
+    {
+        if (IsDiskImageAttached())
+        {
+            // Detach current disk image
+            try
+            {
+                var c64 = (C64)_sadConsoleHostApp.CurrentRunningSystem!;
+                if (c64.IECBus.GetDeviceByNumber(8) is DiskDrive1541 diskDrive1541)
+                {
+                    diskDrive1541.RemoveD64DiskImage();
+                    _logger.LogInformation("D64 disk image detached successfully");
+                }
+                else
+                {
+                    _logger.LogError("DiskDrive1541 not found on IEC bus");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error detaching D64 disk image: {ex.Message}");
+            }
+            
+            IsDirty = true;
+        }
+        else
+        {
+            // Attach new disk image
+            bool wasRunning = false;
+            if (_sadConsoleHostApp.EmulatorState == EmulatorState.Running)
+            {
+                wasRunning = true;
+                _sadConsoleHostApp.Pause();
+            }
+
+            var window = new FilePickerConsole(FilePickerMode.OpenFile, Environment.CurrentDirectory, filter: "*.d64");
+            window.Center();
+            window.Closed += (s2, e2) =>
+            {
+                if (window.DialogResult)
+                {
+                    try
+                    {
+                        var fileName = window.SelectedFile!.FullName;
+
+                        // Parse the D64 file
+                        var d64DiskImage = D64Parser.ParseD64File(fileName);
+
+                        // Get the C64 system and access the DiskDrive1541
+                        var c64 = (C64)_sadConsoleHostApp.CurrentRunningSystem!;
+                        if (c64.IECBus.GetDeviceByNumber(8) is DiskDrive1541 diskDrive1541)
+                        {
+                            // Set the D64 disk image on the disk drive
+                            diskDrive1541.SetD64DiskImage(d64DiskImage);
+                            _logger.LogInformation($"Loaded D64 disk image: {fileName}");
+                        }
+                        else
+                        {
+                            _logger.LogError("DiskDrive1541 not found on IEC bus");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Error loading D64 disk image: {ex.Message}");
+                    }
+                }
+
+                if (wasRunning)
+                    _sadConsoleHostApp.Start().Wait();
+
+                IsDirty = true;
+            };
+            window.Show(true);
+        }
+    }
+
     private void C64ConfigButton_Click(object sender, EventArgs e)
     {
         var window = new C64ConfigUIConsole(_sadConsoleHostApp, _configuration);
@@ -265,6 +352,14 @@ public class C64MenuConsole : ControlsConsole
         var c64SaveBasicButton = Controls["c64SaveBasicButton"];
         c64SaveBasicButton.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
 
+        var c64ToggleD64Button = Controls["c64ToggleD64Button"] as Button;
+        if (c64ToggleD64Button != null)
+        {
+            c64ToggleD64Button.IsEnabled = _sadConsoleHostApp.EmulatorState != Systems.EmulatorState.Uninitialized;
+            // Update button text based on current state
+            c64ToggleD64Button.Text = IsDiskImageAttached() ? "Detach D64" : "Attach D64";
+        }
+
         var c64ConfigButton = Controls["c64ConfigButton"];
         c64ConfigButton.IsEnabled = _sadConsoleHostApp.EmulatorState == Systems.EmulatorState.Uninitialized;
 
@@ -313,5 +408,18 @@ public class C64MenuConsole : ControlsConsole
         }
         ((C64HostConfig)_sadConsoleHostApp.CurrentHostSystemConfig).BasicAIAssistantDefaultEnabled = C64SadConsoleInputHandler.CodingAssistantEnabled;
         IsDirty = true;
+    }
+
+    private bool IsDiskImageAttached()
+    {
+        if (_sadConsoleHostApp.EmulatorState == EmulatorState.Uninitialized)
+            return false;
+        
+        var c64 = (C64)_sadConsoleHostApp.CurrentRunningSystem!;
+        if (c64.IECBus.GetDeviceByNumber(8) is DiskDrive1541 diskDrive1541)
+        {
+            return diskDrive1541.IsDisketteInserted;
+        }
+        return false;
     }
 }

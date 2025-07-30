@@ -193,7 +193,7 @@ public partial class Index
         Initialized = true;
     }
 
-    private async Task StateHasChangedCustom()
+    public async Task StateHasChangedCustom()
     {
         await SetElementVisibleState();
 
@@ -301,7 +301,7 @@ public partial class Index
         await this.StateHasChangedCustom();
     }
 
-    private async Task UpdateCanvasSize()
+    public async Task UpdateCanvasSize()
     {
         bool isOk = await _wasmHost.IsSystemConfigValid();
         if (!isOk)
