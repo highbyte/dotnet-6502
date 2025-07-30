@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.IEC;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 
@@ -83,6 +84,10 @@ public class Cia
         c64mem.MapWriter(0xdc0b, Cia1DebugStore);
 
 
+        // CIA #2 DataPort A
+        // Address 0xdd00: "CIA 2 Port A" (VIC2 bank, serial bus, etc) actually belongs to CIA chip, but as it affects VIC2 bank selection it's added here
+        c64mem.MapReader(CiaAddr.CIA2_DATAA, CIA2PortALoad);
+        c64mem.MapWriter(CiaAddr.CIA2_DATAA, CIA2PortAStore);
         // TODO: Implement CIA #2 timers and registers
         //// CIA #2 Timer A
         //c64mem.MapReader(CiaAddr.CIA2_TIMAHI, Cia2TimerAHILoad);
@@ -241,6 +246,55 @@ public class Cia
     public byte Cia1DebugLoad(ushort address) => _c64.ReadIOStorage(address);
     public void Cia1DebugStore(ushort address, byte value) => _c64.WriteIOStorage(address, value);
 
+    public void CIA2PortAStore(ushort address, byte value)
+    {
+        _c64.WriteIOStorage(address, value);
+
+        // Note: CIA 2 Data Port A has two lines (bits) that control functionality in another chip, VIC2.
+        //       Set VIC2 bank based on bits 0-1
+        _c64.Vic2.SetVIC2Bank(value);
+
+        // Handle serial bus lines.
+        // Bit #3: Serial bus ATN OUT; 0 = High; 1 = Low.
+        // Bit #4: Serial bus CLOCK OUT; 0 = High; 1 = Low.
+        // Bit #5: Serial bus DATA OUT; 0 = High; 1 = Low.
+
+        // If ATN/CLK/DATA bit is 1 means to hold the line "Low" (pulled) -> "true".
+        _c64.IECBus.Host.SetLines(
+            setATNLine: (value & (1 << 3)) != 0 ? DeviceLineState.Holding : DeviceLineState.NotHolding,
+            setCLKLine: (value & (1 << 4)) != 0 ? DeviceLineState.Holding : DeviceLineState.NotHolding,
+            setDATALine: (value & (1 << 5)) != 0 ? DeviceLineState.Holding : DeviceLineState.NotHolding
+        );
+    }
+
+    public byte CIA2PortALoad(ushort address)
+    {
+        // CIA #2 Data Port A bit mapping:
+        // Bits #0-#1: VIC bank. Values:
+        //   %00, 0: Bank #3, $C000-$FFFF, 49152-65535.
+        //   %01, 1: Bank #2, $8000-$BFFF, 32768-49151.
+        //   %10, 2: Bank #1, $4000-$7FFF, 16384-32767.
+        //   %11, 3: Bank #0, $0000-$3FFF, 0-16383.
+
+        // Bit #2: RS232 TXD line, output bit.
+
+        // Bit #3: Serial bus ATN OUT; 0 = High; 1 = Low.
+        // Bit #4: Serial bus CLOCK OUT; 0 = High; 1 = Low.
+        // Bit #5: Serial bus DATA OUT; 0 = High; 1 = Low.
+
+        // Bit #6: Serial bus CLOCK IN; 0 = Low; 1 = High.
+        // Bit #7: Serial bus DATA IN; 0 = Low; 1 = High.
+
+        var value = _c64.ReadIOStorage(address);
+        value &= 0b00111111; // Keep VIC2 bank selection bits only (bits 0-1) and last written serial port OUTPUT values (latched)
+
+        // Get actual current serial port lines for CLOCK and DATA from bits 6-7 on the IEC bus.
+        // The bit should be reported as 1 if the bus line is released (not pulled down) = "false" state.
+        // Note: This is opposite of the device line state (output) bits 3,4,5.
+        if (_c64.IECBus.CLKLineState == BusLineState.Released) value |= 1 << 6;
+        if (_c64.IECBus.DATALineState == BusLineState.Released) value |= 1 << 7;
+        return value;
+    }
 
     // TODO: Implement CIA #2 timers and registers
     public byte Cia2TimerAHILoad(ushort _) => CiaTimers[CiaTimerType.Cia2_A].InternalTimer.Highbyte();

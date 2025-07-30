@@ -1,7 +1,6 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
-using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.IEC;
 using Highbyte.DotNet6502.Utils;
 using static Highbyte.DotNet6502.Systems.Commodore64.Video.Vic2Sprite;
 
@@ -246,10 +245,6 @@ public class Vic2
             c64Mem.MapReader(address, ColorRAMLoad);
             c64Mem.MapWriter(address, ColorRAMStore);
         }
-
-        // Address 0xdd00: "CIA 2 Port A" (VIC2 bank, serial bus, etc) actually belongs to CIA chip, but as it affects VIC2 bank selection it's added here
-        c64Mem.MapReader(CiaAddr.CIA2_DATAA, CIA2PortALoad);
-        c64Mem.MapWriter(CiaAddr.CIA2_DATAA, CIA2PortAStore);
     }
 
     /// <summary>
@@ -542,10 +537,12 @@ public class Vic2
         return C64.ReadIOStorage(address);
     }
 
-    public void CIA2PortAStore(ushort address, byte value)
+    /// <summary>
+    /// Sets the VIC2 bank based on the value written to IO address 0xdd00.
+    /// On the C64, this is controlled by CIA 2 Port A (0xdd00). 
+    /// </summary>
+    public void SetVIC2Bank(byte dd00Value)
     {
-        C64.WriteIOStorage(address, value);
-
         // --- VIC 2 BANKS ---
         // Bits 0-1 of CIA 2 Port A (0xdd00) selects VIC2 bank (inverted order, the highest value 3 means bank 0, and value 0 means bank 3)
         // The VIC 2 chip can be access the C64 RAM in 4 different banks, with 16K visible in each bank.
@@ -566,7 +563,7 @@ public class Vic2
         // |------------|-----------------|---------------------|-----------------------
 
         int oldVIC2Bank = CurrentVIC2Bank;
-        int newBankValue = value & 0b00000011;
+        int newBankValue = dd00Value & 0b00000011;
         CurrentVIC2Bank = newBankValue switch
         {
             0b11 => 0,
@@ -582,47 +579,6 @@ public class Vic2
             CharsetManager.NotifyCharsetAddressChanged();
             SpriteManager.SetAllDirty();
         }
-
-        // Handle serial bus lines.
-        // Bit #3: Serial bus ATN OUT; 0 = High; 1 = Low.
-        // Bit #4: Serial bus CLOCK OUT; 0 = High; 1 = Low.
-        // Bit #5: Serial bus DATA OUT; 0 = High; 1 = Low.
-
-        // If ATN/CLK/DATA bit is 1 means to hold the line "Low" (pulled) -> "true".
-        C64.IECBus.Host.SetLines(
-            setATNLine: (value & (1 << 3)) != 0 ? DeviceLineState.Holding : DeviceLineState.NotHolding,
-            setCLKLine: (value & (1 << 4)) != 0 ? DeviceLineState.Holding : DeviceLineState.NotHolding,
-            setDATALine: (value & (1 << 5)) != 0 ? DeviceLineState.Holding : DeviceLineState.NotHolding
-        );
-    }
-
-    public byte CIA2PortALoad(ushort address)
-    {
-        // CIA #2 Data Port A bit mapping:
-        // Bits #0-#1: VIC bank. Values:
-        //   %00, 0: Bank #3, $C000-$FFFF, 49152-65535.
-        //   %01, 1: Bank #2, $8000-$BFFF, 32768-49151.
-        //   %10, 2: Bank #1, $4000-$7FFF, 16384-32767.
-        //   %11, 3: Bank #0, $0000-$3FFF, 0-16383.
-
-        // Bit #2: RS232 TXD line, output bit.
-
-        // Bit #3: Serial bus ATN OUT; 0 = High; 1 = Low.
-        // Bit #4: Serial bus CLOCK OUT; 0 = High; 1 = Low.
-        // Bit #5: Serial bus DATA OUT; 0 = High; 1 = Low.
-
-        // Bit #6: Serial bus CLOCK IN; 0 = Low; 1 = High.
-        // Bit #7: Serial bus DATA IN; 0 = Low; 1 = High.
-
-        var value = C64.ReadIOStorage(address);
-        value &= 0b00111111; // Keep VIC2 bank selection bits only (bits 0-1) and last written serial port OUTPUT values (latched)
-
-        // Get actual current serial port lines for CLOCK and DATA from bits 6-7 on the IEC bus.
-        // The bit should be reported as 1 if the bus line is released (not pulled down) = "false" state.
-        // Note: This is opposite of the device line state (output) bits 3,4,5.
-        if (C64.IECBus.CLKLineState == BusLineState.Released) value |= 1 << 6;
-        if (C64.IECBus.DATALineState == BusLineState.Released) value |= 1 << 7;
-        return value;
     }
 
     public void ScrCtrlReg1Store(ushort address, byte value)
