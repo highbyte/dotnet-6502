@@ -343,7 +343,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
             {
                 // System is running, also update the system directly
                 C64 c64 = (C64)_silkNetHostApp.CurrentRunningSystem;
-                c64.Cia.Joystick.KeyboardJoystickEnabled = _c64KeyboardJoystickEnabled;
+                c64.Cia1.Joystick.KeyboardJoystickEnabled = _c64KeyboardJoystickEnabled;
             }
         }
 
@@ -358,7 +358,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
             {
                 // System is running, also update the system directly
                 C64 c64 = (C64)_silkNetHostApp.CurrentRunningSystem;
-                c64.Cia.Joystick.KeyboardJoystick = _c64KeyboardJoystickIndex + 1;
+                c64.Cia1.Joystick.KeyboardJoystick = _c64KeyboardJoystickIndex + 1;
             }
         }
         ImGui.PopItemWidth();

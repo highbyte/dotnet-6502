@@ -33,7 +33,8 @@ public class C64 : ISystem, ISystemMonitor
     public byte[] IO { get; set; } = default!;
     public byte CurrentBank { get; set; }
     public Vic2 Vic2 { get; set; } = default!;
-    public Cia Cia { get; set; } = default!;
+    public Cia1 Cia1 { get; set; } = default!;
+    public Cia2 Cia2 { get; set; } = default!;
     public Sid Sid { get; set; } = default!;
     public IECBus IECBus { get; set; } = default!;
     public Dictionary<string, byte[]> ROMData { get; set; } = default!;
@@ -135,7 +136,10 @@ public class C64 : ISystem, ISystemMonitor
 
         // Update CIA timers
         if (TimerMode == TimerMode.UpdateEachInstruction)
-            Cia.ProcessTimers(instructionExecResult.CyclesConsumed);
+        {
+            Cia1.ProcessTimers(instructionExecResult.CyclesConsumed);
+            Cia2.ProcessTimers(instructionExecResult.CyclesConsumed);
+        }
 
         // Update IEC bus devices
         IECBus.TickDevices();
@@ -227,7 +231,8 @@ public class C64 : ISystem, ISystemMonitor
         var vic2 = Vic2.BuildVic2(vic2Model, c64);
         var sid = Sid.BuildSid(c64);
 
-        var cia = new Cia(c64, c64Config, loggerFactory);
+        var cia1 = new Cia1(c64, c64Config, loggerFactory);
+        var cia2 = new Cia2(c64, loggerFactory);
 
         var iecHost = new IECHost();
         var iecBus = new IECBus(iecHost);
@@ -236,7 +241,8 @@ public class C64 : ISystem, ISystemMonitor
 
         c64.CPU = cpu;
         c64.Vic2 = vic2;
-        c64.Cia = cia;
+        c64.Cia1 = cia1;
+        c64.Cia2 = cia2;
         c64.Sid = sid;
         c64.IECBus = iecBus;
 
@@ -264,9 +270,10 @@ public class C64 : ISystem, ISystemMonitor
 
         if (mapIO)
         {
-            // Map IO addresses at d000
+            // Map IO addresses starting at d000
             Vic2.MapIOLocations(mem);
-            Cia.MapIOLocations(mem);
+            Cia1.MapIOLocations(mem);
+            Cia2.MapIOLocations(mem);
             Sid.MapIOLocations(mem);
         }
     }
@@ -490,11 +497,11 @@ public class C64 : ISystem, ISystemMonitor
         List<KeyValuePair<string, Func<string>>> debugInfoList = [
             new ("Keyboard joystick enabled", () =>
             {
-                return Cia.Joystick.KeyboardJoystickEnabled.ToString();
+                return Cia1.Joystick.KeyboardJoystickEnabled.ToString();
             }),
             new ("Keyboard joystick #", () =>
             {
-                return Cia.Joystick.KeyboardJoystick.ToString();
+                return Cia1.Joystick.KeyboardJoystick.ToString();
             }),
             new ("Current Basic line #", () =>
             {

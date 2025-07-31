@@ -229,7 +229,7 @@
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
             {
                 C64 c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
-                c64.Cia.Joystick.KeyboardJoystickEnabled = value;
+                c64.Cia1.Joystick.KeyboardJoystickEnabled = value;
             }
         }
     }
@@ -255,7 +255,7 @@
             if (Parent.CurrentEmulatorState != EmulatorState.Uninitialized)
             {
                 C64 c64 = (C64)Parent.WasmHost.CurrentRunningSystem!;
-                c64.Cia.Joystick.KeyboardJoystick = value;
+                c64.Cia1.Joystick.KeyboardJoystick = value;
             }
         }
     }

@@ -170,15 +170,15 @@ public class C64Keyboard
     /// </summary>
     private void HandleJoystickKeyboard()
     {
-        if (_c64.Cia.Joystick.KeyboardJoystickEnabled)
+        if (_c64.Cia1.Joystick.KeyboardJoystickEnabled)
         {
-            HandleJoystickKeyboard(_c64.Cia.Joystick.KeyboardJoystick);
+            HandleJoystickKeyboard(_c64.Cia1.Joystick.KeyboardJoystick);
         }
     }
 
     private void HandleJoystickKeyboard(int joystick)
     {
-        var joystickKeyboardMap = _c64.Cia.Joystick.KeyboardJoystickMap.GetMap(joystick);
+        var joystickKeyboardMap = _c64.Cia1.Joystick.KeyboardJoystickMap.GetMap(joystick);
         var joystickActions = new HashSet<C64JoystickAction>();
         foreach (var c64Key in joystickKeyboardMap.Keys)
         {
@@ -188,7 +188,7 @@ public class C64Keyboard
                 _pressedKeys.Remove(c64Key);    // Remove key from pressed keys to avoid duplicate actions  
             }
         }
-        _c64.Cia.Joystick.SetJoystickActions(joystick, joystickActions);
+        _c64.Cia1.Joystick.SetJoystickActions(joystick, joystickActions);
     }
 }
 

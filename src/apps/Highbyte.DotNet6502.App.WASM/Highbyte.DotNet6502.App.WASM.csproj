@@ -43,8 +43,6 @@
   </ItemGroup>
   
   <ItemGroup>
-    <Folder Include="wwwroot\6502binaries\C64\Assembler\" />
-    <Folder Include="wwwroot\6502binaries\C64\Basic\" />
     <Folder Include="wwwroot\images\" />
   </ItemGroup>
 

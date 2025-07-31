@@ -176,7 +176,7 @@ public class SilkNetImGuiC64Config
                 {
                     // System is running, also update the system directly
                     C64 c64 = (C64)_silkNetHostApp.CurrentRunningSystem;
-                    c64.Cia.Joystick.KeyboardJoystickEnabled = _keyboardJoystickEnabled;
+                    c64.Cia1.Joystick.KeyboardJoystickEnabled = _keyboardJoystickEnabled;
                 }
             }
 

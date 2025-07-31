@@ -1,0 +1,85 @@
+1 rem cia timer variables
+2 rem lo = low byte 
+3 rem hi = high byte 
+4 rem ct = ctrl reg
+6 rem ir = interrupt control reg
+7 rem id = interrupt control reg irq disable value
+8 rem ro = read only (1), skips setting timer and only watches
+9 rem tm$ = timer name
+
+10 print chr$(147)
+
+20 rem cia 1 timer a (skip modifying because it's used by C64 kernal)
+21 lo=56324:hi=56325:ct=56334:ir=56333:id=1:ro=1
+22 tm$ = "cia 1 timer a"
+27 gosub 100
+
+30 rem cia 1 timer b
+31 lo=56326:hi=56327:ct=56335:ir=56333:id=2:ro=0
+32 tm$ = "cia 1 timer b"
+37 gosub 100
+
+40 rem cia 2 timer a
+41 lo=56580:hi=56581:ct=56590:ir=56589:id=1:ro=0
+42 tm$ = "cia 2 timer a"
+47 gosub 100
+
+50 rem cia 2 timer b
+51 lo=56582:hi=56583:ct=56591:ir=56589:id=2:ro=0
+52 tm$ = "cia 2 timer b"
+57 gosub 100
+
+90 print
+92 print "all tests completed"
+95 end
+
+100 rem subroutine: run timer test
+120 print
+130 print "===================="
+140 print tm$ + " test"
+150 print "===================="
+160 print
+162 print "press return to start"
+164 input
+165 print
+
+180 if ro = 1 then print "limited test, not disabling interrupt" : goto 250
+
+200 rem disable cia interrupts first for safety
+210 poke ir, id : rem disable timer interrupt
+220 print "interrupts disabled"
+225 print
+
+250 if ro = 1 then print "limited test, only watching" : goto 325 
+
+300 print "init and start timer for 1500 cycles..."
+310 poke lo,220:poke hi,5:rem set 1500 cycles
+320 poke ct,1:rem start timer
+
+325 print "watching timer ..."
+340 for i=1 to 6
+350 t1=peek(lo):t2=peek(hi)
+360 print "timer: ";t2*256+t1
+370 for j=1 to 50:next j
+380 next i
+385 if ro = 1 then goto 395
+390 poke ct,0:rem stop timer
+395 print "timer watch complete"
+396 print
+
+400 if ro = 1 then print "limited test, skipping one-shot" : goto 590
+
+450 rem test one-shot mode on timer
+460 print "testing timer one-shot ..."
+470 poke lo,220:poke hi,5:rem set 1500 cycles
+480 poke ct,9:rem start one-shot
+490 print "one-shot timer started (1500 cycles)"
+500 for i=1 to 15
+504 t1=peek(lo):t2=peek(hi)
+505 print "timer: ";t2*256+t1
+510 c=peek(ct):if (c and 1) = 0 then print "stopped at check ";i : goto 530
+520 next i
+530 print "one-shot test complete"
+540 print
+
+590 return
