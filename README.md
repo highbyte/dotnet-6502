@@ -122,7 +122,7 @@ Missing features (but not limited to):
 - 6502 CPU
   - Support for unofficial opcodes.
 - Systems
-  - Commodore 64: cycle-exact rendering, disk/tape drive support, accurate/stable audio, etc.
+  - Commodore 64: cycle-exact rendering, full disk drive support, tape drive support, accurate/stable audio, etc.
 
 # How to develop
 See [here](doc/DEVELOP.md)
