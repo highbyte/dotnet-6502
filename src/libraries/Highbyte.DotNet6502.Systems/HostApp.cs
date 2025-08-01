@@ -29,7 +29,6 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     public string SelectedSystemName => _selectedSystemName;
     private ISystem? _selectedSystemTemporary; // A temporary storage of the selected system if asked for, and system has not been started yet.
 
-
     public HashSet<string> AvailableSystemNames => _systemList.Systems;
 
     private string _selectedSystemConfigurationVariant;
@@ -161,7 +160,6 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
         _selectedSystemConfigurationVariant = configurationVariant;
 
-
         // Pre-create a temporary variable to contain the system if it is valid.
         // This is useful if the system has not been started yet, but client requests the system object.
         if (CurrentHostSystemConfig.IsValid(out _))
@@ -172,8 +170,6 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         {
             _selectedSystemTemporary = null;
         }
-
-        return;
     }
 
     public virtual void OnAfterSelectSystem() { }

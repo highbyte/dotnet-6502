@@ -21,9 +21,9 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
     }
 
     public void SetContext(
-    Func<TRenderContext>? getRenderContext = null,
-    Func<TInputHandlerContext>? getInputHandlerContext = null,
-    Func<TAudioHandlerContext>? getAudioHandlerContext = null)
+        Func<TRenderContext>? getRenderContext = null,
+        Func<TInputHandlerContext>? getInputHandlerContext = null,
+        Func<TAudioHandlerContext>? getAudioHandlerContext = null)
     {
         if (getRenderContext != null)
         {
@@ -40,7 +40,7 @@ public class SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerConte
         if (getAudioHandlerContext != null)
         {
             if (_getAudioHandlerContext != null)
-                throw new DotNet6502Exception("AudioHandlerContext has already been set. Call SetContext only once.");  
+                throw new DotNet6502Exception("AudioHandlerContext has already been set. Call SetContext only once.");
             _getAudioHandlerContext = getAudioHandlerContext;
         }
     }
