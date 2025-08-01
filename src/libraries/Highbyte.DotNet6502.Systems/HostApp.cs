@@ -27,12 +27,15 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     // Other variables
     private string _selectedSystemName;
     public string SelectedSystemName => _selectedSystemName;
+    private ISystem? _selectedSystemTemporary; // A temporary storage of the selected system if asked for, and system has not been started yet.
+
     public HashSet<string> AvailableSystemNames => _systemList.Systems;
 
     private string _selectedSystemConfigurationVariant;
     public string SelectedSystemConfigurationVariant => _selectedSystemConfigurationVariant;
     private List<string> _allSelectedSystemConfigurationVariants = new();
     public List<string> AllSelectedSystemConfigurationVariants => _allSelectedSystemConfigurationVariants;
+
 
     private SystemRunner? _systemRunner = null;
     public SystemRunner? CurrentSystemRunner => _systemRunner;
@@ -141,6 +144,9 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
             _selectedSystemConfigurationVariant = _allSelectedSystemConfigurationVariants.First();
         }
 
+        // Make sure any state regarding the system variant is also in sync
+        await SelectSystemConfigurationVariant(_selectedSystemConfigurationVariant);
+
         OnAfterSelectSystem();
     }
 
@@ -154,7 +160,16 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
         _selectedSystemConfigurationVariant = configurationVariant;
 
-        return;
+        // Pre-create a temporary variable to contain the system if it is valid.
+        // This is useful if the system has not been started yet, but client requests the system object.
+        if (CurrentHostSystemConfig.IsValid(out _))
+        {
+            _selectedSystemTemporary = await _systemList.BuildSystem(_selectedSystemName, _selectedSystemConfigurationVariant);
+        }
+        else
+        {
+            _selectedSystemTemporary = null;
+        }
     }
 
     public virtual void OnAfterSelectSystem() { }
@@ -169,18 +184,34 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         if (EmulatorState == EmulatorState.Running)
             throw new DotNet6502Exception("Cannot start emulator if emulator is running.");
 
-        if (!await _systemList.IsValidConfig(_selectedSystemName, _selectedSystemConfigurationVariant))
+        if (!await _systemList.IsValidConfig(_selectedSystemName))
             throw new DotNet6502Exception("Cannot start emulator if current system config is invalid.");
 
-        var systemAboutToBeStarted = await _systemList.GetSystem(_selectedSystemName, _selectedSystemConfigurationVariant);
-        bool shouldStart = OnBeforeStart(systemAboutToBeStarted);
+        ISystem systemToBeStarted;
+        if (EmulatorState == EmulatorState.Uninitialized)
+        {
+            if (_selectedSystemTemporary == null)
+            {
+                // If we don't have a temporary system, build it.
+                _selectedSystemTemporary = await _systemList.BuildSystem(_selectedSystemName, _selectedSystemConfigurationVariant);
+            }
+            systemToBeStarted = _selectedSystemTemporary;
+        }
+        else
+        {
+            // We already have a system runner, so use the system from that.
+            systemToBeStarted = _systemRunner!.System;
+        }
+
+        bool shouldStart = OnBeforeStart(systemToBeStarted);
         if (!shouldStart)
             return;
 
         var emulatorStateBeforeStart = EmulatorState;
+
         // Only create a new instance of SystemRunner if we previously has not started (so resume after pause works).
         if (EmulatorState == EmulatorState.Uninitialized)
-            _systemRunner = await _systemList.BuildSystemRunner(_selectedSystemName, _selectedSystemConfigurationVariant);
+            _systemRunner = await _systemList.BuildSystemRunner(systemToBeStarted);
 
         InitInstrumentation(_systemRunner!.System);
 
@@ -225,10 +256,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         _systemRunner = default!;
 
         EmulatorState = EmulatorState.Uninitialized;
-
-        // TODO: Why is this necessary if cache is invalidated when config is updated?
-        // Make sure the cached System instance is removed, so it's created again next time (starting fresh).
-        _systemList.InvalidateSystemCache(SelectedSystemName, _selectedSystemConfigurationVariant);        
+        _selectedSystemTemporary = null; // Clear the temporary system, as it is no longer valid.
 
         OnAfterStop();
 
@@ -311,30 +339,38 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
     public async Task<bool> IsSystemConfigValid()
     {
-        return await _systemList.IsValidConfig(_selectedSystemName, _selectedSystemConfigurationVariant);
+        return await _systemList.IsValidConfig(_selectedSystemName);
     }
     public async Task<(bool, List<string> validationErrors)> IsValidConfigWithDetails()
     {
-        return await _systemList.IsValidConfigWithDetails(_selectedSystemName, _selectedSystemConfigurationVariant);
+        return await _systemList.IsValidConfigWithDetails(_selectedSystemName);
     }
 
     public async Task<bool> IsAudioSupported()
     {
-        return await _systemList.IsAudioSupported(_selectedSystemName, _selectedSystemConfigurationVariant);
+        return await _systemList.IsAudioSupported(_selectedSystemName);
     }
 
     public async Task<bool> IsAudioEnabled()
     {
-        return await _systemList.IsAudioEnabled(_selectedSystemName, _selectedSystemConfigurationVariant);
+        return await _systemList.IsAudioEnabled(_selectedSystemName);
     }
     public async Task SetAudioEnabled(bool enabled)
     {
-        await _systemList.SetAudioEnabled(_selectedSystemName, enabled: enabled, _selectedSystemConfigurationVariant);
+        await _systemList.SetAudioEnabled(_selectedSystemName, enabled: enabled);
     }
 
     public async Task<ISystem> GetSelectedSystem()
     {
-        return await _systemList.GetSystem(_selectedSystemName, _selectedSystemConfigurationVariant);
+        if (EmulatorState == EmulatorState.Uninitialized)
+        {
+            // If we havent started started the selected system yet, return a temporary instance of the system (set in SelectSystem method).
+            if (_selectedSystemTemporary == null)
+                throw new DotNet6502Exception("Internal state error.");
+            return _selectedSystemTemporary;
+        }
+        // The emulator is running, return the current system runner's system.
+        return _systemRunner!.System;
     }
 
     public void UpdateHostSystemConfig(IHostSystemConfig newConfig)

@@ -13,9 +13,9 @@ public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetI
 {
     public string SystemName => GenericComputer.SystemName;
 
-    public Task<List<string>> GetConfigurationVariants(IHostSystemConfig hostSystemConfig)
+    public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig)
     {
-        var examplePrograms = ((GenericComputerHostConfig)hostSystemConfig).SystemConfig.ExamplePrograms.Keys.OrderByDescending(x => x).ToList();
+        var examplePrograms = ((GenericComputerSystemConfig)systemConfig).ExamplePrograms.Keys.OrderByDescending(x => x).ToList();
         return Task.FromResult(examplePrograms);
     }
 
@@ -71,10 +71,10 @@ public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetI
         await _browserContext.LocalStorage.SetItemAsStringAsync($"{GenericComputerHostConfig.ConfigSectionName}", JsonSerializer.Serialize(cenericComputerHostConfig));
     }
 
-    public async Task<ISystem> BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
+    public async Task<ISystem> BuildSystem(string configurationVariant, ISystemConfig systemConfig)
     {
-        var genericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
-        var exampleProgramPath = genericComputerHostConfig.SystemConfig.ExamplePrograms[configurationVariant];
+        var genericComputerSystemConfig = (GenericComputerSystemConfig)systemConfig;
+        var exampleProgramPath = genericComputerSystemConfig.ExamplePrograms[configurationVariant];
         var exampleProgramBytes = await _browserContext.HttpClient.GetByteArrayAsync(exampleProgramPath);
         var genericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(configurationVariant, exampleProgramBytes);
 

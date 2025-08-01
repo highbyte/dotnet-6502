@@ -18,7 +18,7 @@ namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
-    public Task<List<string>> GetConfigurationVariants(IHostSystemConfig hostSystemConfig) => Task.FromResult(s_systemVariants);
+    public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig) => Task.FromResult(s_systemVariants);
 
     private static readonly List<string> s_systemVariants = C64ModelInventory.C64Models.Keys.ToList();
 
@@ -43,18 +43,18 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
         // TODO: Should user settings be persisted? If so method GetNewHostSystemConfig() also needs to be updated to read from there instead of appsettings.json.
         return Task.CompletedTask;
     }
-    public Task<ISystem> BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
+    public Task<ISystem> BuildSystem(string configurationVariant, ISystemConfig systemConfig)
     {
-        var c64HostSystemConfig = (C64HostConfig)hostSystemConfig;
+        var c64SystemConfig = (C64SystemConfig)systemConfig;
         var c64Config = new C64Config
         {
             C64Model = configurationVariant,
             Vic2Model = C64ModelInventory.C64Models[configurationVariant].Vic2Models.First().Name, // NTSC, NTSC_old, PAL
-            AudioEnabled = c64HostSystemConfig.SystemConfig.AudioEnabled,
-            KeyboardJoystickEnabled = c64HostSystemConfig.SystemConfig.KeyboardJoystickEnabled,
-            KeyboardJoystick = c64HostSystemConfig.SystemConfig.KeyboardJoystick,
-            ROMs = c64HostSystemConfig.SystemConfig.ROMs,
-            ROMDirectory = c64HostSystemConfig.SystemConfig.ROMDirectory,
+            AudioEnabled = c64SystemConfig.AudioEnabled,
+            KeyboardJoystickEnabled = c64SystemConfig.KeyboardJoystickEnabled,
+            KeyboardJoystick = c64SystemConfig.KeyboardJoystick,
+            ROMs = c64SystemConfig.ROMs,
+            ROMDirectory = c64SystemConfig.ROMDirectory,
         };
 
         var c64 = C64.BuildC64(c64Config, _loggerFactory);
