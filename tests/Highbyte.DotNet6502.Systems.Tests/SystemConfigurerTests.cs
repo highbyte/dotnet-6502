@@ -18,7 +18,7 @@ public class SystemConfigurerTests
     public class TestSystemConfigurer : ISystemConfigurer<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>
     {
         public string SystemName => TestSystem.SystemName;
-        public Task<List<string>> GetConfigurationVariants(IHostSystemConfig hostSystemConfig) => Task.FromResult(new List<string> { "DEFAULT" });
+        public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig) => Task.FromResult(new List<string> { "DEFAULT" });
 
         public Task<IHostSystemConfig> GetNewHostSystemConfig()
         {
@@ -30,7 +30,7 @@ public class SystemConfigurerTests
             return Task.CompletedTask;
         }
 
-        public Task<ISystem> BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
+        public Task<ISystem> BuildSystem(string configurationVariant, ISystemConfig systemConfig)
         {
             return Task.FromResult<ISystem>(new TestSystem());
         }
@@ -57,7 +57,7 @@ public class SystemConfigurerTests
     public class TestSystem2Configurer : ISystemConfigurer<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>
     {
         public string SystemName => TestSystem2.SystemName;
-        public Task<List<string>> GetConfigurationVariants(IHostSystemConfig hostSystemConfig) => Task.FromResult(new List<string> { "DEFAULT" });
+        public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig) => Task.FromResult(new List<string> { "DEFAULT" });
 
         public Task<IHostSystemConfig> GetNewHostSystemConfig()
         {
@@ -69,7 +69,7 @@ public class SystemConfigurerTests
             return Task.CompletedTask;
         }
 
-        public Task<ISystem> BuildSystem(string configurationVariant, IHostSystemConfig hostSystemConfig)
+        public Task<ISystem> BuildSystem(string configurationVariant, ISystemConfig systemConfig)
         {
             return Task.FromResult<ISystem>(new TestSystem2());
         }

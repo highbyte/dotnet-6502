@@ -169,18 +169,22 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         if (EmulatorState == EmulatorState.Running)
             throw new DotNet6502Exception("Cannot start emulator if emulator is running.");
 
-        if (!await _systemList.IsValidConfig(_selectedSystemName, _selectedSystemConfigurationVariant))
+        if (!await _systemList.IsValidConfig(_selectedSystemName))
             throw new DotNet6502Exception("Cannot start emulator if current system config is invalid.");
 
-        var systemAboutToBeStarted = await _systemList.GetSystem(_selectedSystemName, _selectedSystemConfigurationVariant);
-        bool shouldStart = OnBeforeStart(systemAboutToBeStarted);
+        var systemToBeStarted = EmulatorState == EmulatorState.Uninitialized
+            ? await _systemList.BuildSystem(_selectedSystemName, _selectedSystemConfigurationVariant)
+            : _systemRunner!.System;
+
+        bool shouldStart = OnBeforeStart(systemToBeStarted);
         if (!shouldStart)
             return;
 
         var emulatorStateBeforeStart = EmulatorState;
+
         // Only create a new instance of SystemRunner if we previously has not started (so resume after pause works).
         if (EmulatorState == EmulatorState.Uninitialized)
-            _systemRunner = await _systemList.BuildSystemRunner(_selectedSystemName, _selectedSystemConfigurationVariant);
+            _systemRunner = await _systemList.BuildSystemRunner(systemToBeStarted);
 
         InitInstrumentation(_systemRunner!.System);
 
@@ -307,30 +311,30 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
     public async Task<bool> IsSystemConfigValid()
     {
-        return await _systemList.IsValidConfig(_selectedSystemName, _selectedSystemConfigurationVariant);
+        return await _systemList.IsValidConfig(_selectedSystemName);
     }
     public async Task<(bool, List<string> validationErrors)> IsValidConfigWithDetails()
     {
-        return await _systemList.IsValidConfigWithDetails(_selectedSystemName, _selectedSystemConfigurationVariant);
+        return await _systemList.IsValidConfigWithDetails(_selectedSystemName);
     }
 
     public async Task<bool> IsAudioSupported()
     {
-        return await _systemList.IsAudioSupported(_selectedSystemName, _selectedSystemConfigurationVariant);
+        return await _systemList.IsAudioSupported(_selectedSystemName);
     }
 
     public async Task<bool> IsAudioEnabled()
     {
-        return await _systemList.IsAudioEnabled(_selectedSystemName, _selectedSystemConfigurationVariant);
+        return await _systemList.IsAudioEnabled(_selectedSystemName);
     }
     public async Task SetAudioEnabled(bool enabled)
     {
-        await _systemList.SetAudioEnabled(_selectedSystemName, enabled: enabled, _selectedSystemConfigurationVariant);
+        await _systemList.SetAudioEnabled(_selectedSystemName, enabled: enabled);
     }
 
     public async Task<ISystem> GetSelectedSystem()
     {
-        return await _systemList.GetSystem(_selectedSystemName, _selectedSystemConfigurationVariant);
+        return await _systemList.BuildSystem(_selectedSystemName, _selectedSystemConfigurationVariant);
     }
 
     public void UpdateHostSystemConfig(IHostSystemConfig newConfig)
