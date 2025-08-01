@@ -54,7 +54,6 @@ public class MenuConsole : ControlsConsole
         selectSystemComboBox.SelectedItemChanged += async (s, e) =>
         {
             await _sadConsoleHostApp.SelectSystem(selectSystemComboBox.SelectedItem.ToString());
-            await _sadConsoleHostApp.SelectSystemConfigurationVariant(_sadConsoleHostApp.AllSelectedSystemConfigurationVariants.First());
 
             var selectSystemVariantComboBox = Controls["selectSystemVariantComboBox"] as ComboBox;
             selectSystemVariantComboBox.SetItems(_sadConsoleHostApp.AllSelectedSystemConfigurationVariants.ToArray());
