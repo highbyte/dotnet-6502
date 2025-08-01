@@ -14,7 +14,7 @@
 - https://www.c64-wiki.com/wiki/Bank_Switching
 - https://www.pagetable.com/c64ref/c64mem/
 - https://sta.c64.org/cbm64mem.html
-- https://github.com/mist64/c64ref/blob/master/Source/c64io/c64io_mapc64.txt
+- https://github.com/mist64/c64ref/blob/main/src/c64io/c64io_mapc64.txt
 - https://www.c64-wiki.com/wiki/PETSCII_Codes_in_Listings
 - https://dustlayer.com/c64-architecture/2013/5/7/hardware-basics-part-1-tick-tock-know-your-clock
 - https://dustlayer.com/vic-ii/2013/4/22/when-visibility-matters

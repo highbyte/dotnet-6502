@@ -93,7 +93,7 @@ public class C64SadConsoleInputHandler : IInputHandler
             _c64BasicCodingAssistant.KeyWasPressed(c64KeysDown);
         }
 
-        var keyboard = c64.Cia.Keyboard;
+        var keyboard = c64.Cia1.Keyboard;
         keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
     }
 

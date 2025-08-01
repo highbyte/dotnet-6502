@@ -2,11 +2,13 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 public class CiaIRQ
 {
+    private readonly bool _useNMI;
     private readonly Dictionary<IRQSource, bool> _sourceEnableStatus = new();
     private readonly Dictionary<IRQSource, bool> _sourceConditionStatus = new();
 
-    public CiaIRQ()
+    public CiaIRQ(bool useNMI)
     {
+        _useNMI = useNMI;
         foreach (IRQSource source in Enum.GetValues(typeof(IRQSource)))
         {
             _sourceEnableStatus.Add(source, false);
@@ -16,7 +18,16 @@ public class CiaIRQ
 
     public void Trigger(IRQSource source, CPU cpu)
     {
-        cpu.CPUInterrupts.SetIRQSourceActive(source.ToString(), autoAcknowledge: true);
+        if (_useNMI)
+        {
+            // Raise NMI (Non-Maskable Interrupt)
+            cpu.CPUInterrupts.SetNMISourceActive(source.ToString());
+        }
+        else
+        {
+            // Raise IRQ (Interrupt Request)
+            cpu.CPUInterrupts.SetIRQSourceActive(source.ToString(), autoAcknowledge: true);
+        }
     }
 
     public bool IsEnabled(IRQSource source)

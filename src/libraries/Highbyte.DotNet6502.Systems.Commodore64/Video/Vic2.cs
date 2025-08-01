@@ -741,7 +741,10 @@ public class Vic2
 
             // Process timers
             if (C64.TimerMode == TimerMode.UpdateEachRasterLine)
-                C64.Cia.ProcessTimers(Vic2Model.CyclesPerLine);
+            {
+                C64.Cia1.ProcessTimers(Vic2Model.CyclesPerLine);
+                C64.Cia2.ProcessTimers(Vic2Model.CyclesPerLine);
+            }
 
             // Check if a IRQ should be issued for current raster line, and issue it.
             RaiseRasterIRQ(cpu);

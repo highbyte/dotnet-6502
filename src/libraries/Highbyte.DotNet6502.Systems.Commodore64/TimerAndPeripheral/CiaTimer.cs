@@ -7,14 +7,33 @@ public class CiaTimer
     private readonly CiaTimerType _ciaTimerType;
     private readonly IRQSource _iRQSource;
     private readonly C64 _c64;
-
+    private readonly CiaIRQ _ciaIRQ;
+    private readonly int _timerControlStartBit;
+    private readonly int _timerControlForceLoadBit;
+    private readonly int _timerControlRunModeBit;
 
     // Latch contains the value was written to timer registers, and is used as start value when timer is started.
     private ushort _internalTimer_Latch = 0;
-    public void SetInternalTimer_Latch_HI(byte highbyte) => _internalTimer_Latch.SetHighbyte(highbyte);
-    public void SetInternalTimer_Latch_LO(byte lowbyte) => _internalTimer_Latch.SetLowbyte(lowbyte);
+    public void SetInternalTimer_Latch_HI(byte highbyte)
+    {
+        _internalTimer_Latch.SetHighbyte(highbyte);
+        // If timer is not running, set the internal timer to the latch value.
+        if (!_timerIsRunning)
+        {
+            InternalTimer = _internalTimer_Latch;
+        }
+    }
+    public void SetInternalTimer_Latch_LO(byte lowbyte)
+    {
+        _internalTimer_Latch.SetLowbyte(lowbyte);
+        // If timer is not running, set the internal timer to the latch value.
+        if (!_timerIsRunning)
+        {
+            InternalTimer = _internalTimer_Latch;
+        }
+    }
 
-    // The contents of the control register for the timer. It's contents is depending on which timer type (CIA1 A/B and CIA2 A/B) it represents.
+    // The contents of the control register for the timer. It's contents is depending on which timer type (A/B) it represents.
     private byte _timerControl = 0;
     public byte TimerControl
     {
@@ -24,26 +43,17 @@ public class CiaTimer
         }
         set
         {
-            int forceLoadTimerBit = _ciaTimerType switch
-            {
-                CiaTimerType.Cia1_A => (int)Cia1TimerAControl.ForceLoadTimerA,
-                CiaTimerType.Cia1_B => (int)Cia1TimerBControl.ForceLoadTimerB,
-
-                // TODO: Implement CIA2 timers
-                //CiaTimerType.Cia2_A => (int)Cia2TimerAControl.ForceLoadTimerA,
-                //CiaTimerType.Cia2_B => (int)Cia2TimerBControl.ForceLoadTimerB,
-                CiaTimerType.Cia2_A => 4,
-                CiaTimerType.Cia2_B => 4,
-                _ => throw new NotImplementedException()
-            };
-
+            // Handle force load bit
             // Don't store bit 4 (force latch load), as it's a command (see below)
             var storeValue = value;
-            storeValue.ClearBit(forceLoadTimerBit);
+            storeValue.ClearBit(_timerControlForceLoadBit);
             _timerControl = storeValue;
-
-            if (value.IsBitSet(forceLoadTimerBit))
+            if (value.IsBitSet(_timerControlForceLoadBit))
                 ResetTimerValue();
+
+            // Handle start bit
+            if (value.IsBitSet(_timerControlStartBit))
+                StartTimer();
         }
     }
 
@@ -52,18 +62,21 @@ public class CiaTimer
 
     private bool _timerIsRunning = false;
 
-    public CiaTimer(CiaTimerType ciaTimerType, IRQSource iRQSource, C64 c64)
+    public CiaTimer(CiaTimerType ciaTimerType, IRQSource iRQSource, C64 c64, CiaIRQ ciaIRQ)
     {
-        _ciaTimerType = ciaTimerType;
         _iRQSource = iRQSource;
         _c64 = c64;
+        _ciaIRQ = ciaIRQ;
+
+        _ciaTimerType = ciaTimerType;
+        _timerControlRunModeBit = ciaTimerType == CiaTimerType.CiaA ? (int)CiaTimerAControl.TimerARunMode : (int)CiaTimerBControl.TimerBRunMode;
+        _timerControlStartBit = ciaTimerType == CiaTimerType.CiaA ? (int)CiaTimerAControl.StartTimerA : (int)CiaTimerBControl.StartTimerB;
+        _timerControlForceLoadBit = ciaTimerType == CiaTimerType.CiaA ? (int)CiaTimerAControl.ForceLoadTimerA : (int)CiaTimerBControl.ForceLoadTimerB;
     }
 
     public void ProcessTimer(ulong cyclesExecuted)
     {
-        var ciaIrq = _c64.Cia.CiaIRQ;
-
-        if (IsTimerStartFlagSet() && _timerIsRunning)
+        if (TimerControl.IsBitSet(_timerControlStartBit) && _timerIsRunning)
         {
             if (InternalTimer >= cyclesExecuted)
                 InternalTimer -= (ushort)cyclesExecuted;
@@ -71,16 +84,16 @@ public class CiaTimer
                 InternalTimer = 0;
 
             if (InternalTimer == 0)
-                ciaIrq.ConditionSet(_iRQSource);
+                _ciaIRQ.ConditionSet(_iRQSource);
 
-            if (ciaIrq.IsConditionSet(_iRQSource))
+            if (_ciaIRQ.IsConditionSet(_iRQSource))
             {
                 // Timer has reached zero. Trigger interrupt if enabled.
-                if (ciaIrq.IsEnabled(_iRQSource))
-                    ciaIrq.Trigger(_iRQSource, _c64.CPU);
+                if (_ciaIRQ.IsEnabled(_iRQSource))
+                    _ciaIRQ.Trigger(_iRQSource, _c64.CPU);
 
                 // Check if timer should be reloaded from latch. If Timer A RunMode bit is clear, timer should be continously reloaded from latch.
-                if (IsTimerRunModeContinious())
+                if (!TimerControl.IsBitSet(_timerControlRunModeBit))
                 {
                     ResetTimerValue();
                 }
@@ -92,51 +105,6 @@ public class CiaTimer
         }
     }
 
-    /// <summary>
-    /// Returns true if timer should be running.
-    /// </summary>
-    /// <returns></returns>
-    /// <exception cref="NotImplementedException"></exception>
-    private bool IsTimerStartFlagSet()
-    {
-        return _ciaTimerType switch
-        {
-            CiaTimerType.Cia1_A => TimerControl.IsBitSet((int)Cia1TimerAControl.StartTimerA),
-            CiaTimerType.Cia1_B => TimerControl.IsBitSet((int)Cia1TimerBControl.StartTimerB),
-
-            // TODO: Implement CIA2 timers
-            //CiaTimerType.Cia2_A => TimerControl.IsBitSet((int)Cia2TimerAControl.StartTimerA),
-            //CiaTimerType.Cia2_B => TimerControl.IsBitSet((int)Cia2TimerBControl.StartTimerB),
-            CiaTimerType.Cia2_A => false,
-            CiaTimerType.Cia2_B => false,
-            _ => throw new NotImplementedException()
-        };
-    }
-
-    /// <summary>
-    /// Returns true if timer should be continously be restarted when finished.
-    /// </summary>
-    /// <returns></returns>
-    /// <exception cref="NotImplementedException"></exception>
-    private bool IsTimerRunModeContinious()
-    {
-        // If run mode bit is clear, timer should be continiously reloaded from latch.
-        return _ciaTimerType switch
-        {
-            CiaTimerType.Cia1_A => !TimerControl.IsBitSet((int)Cia1TimerAControl.TimerARunMode),
-            CiaTimerType.Cia1_B => !TimerControl.IsBitSet((int)Cia1TimerBControl.TimerBRunMode),
-
-            // TODO: Implement CIA2 timers
-            //CiaTimerType.Cia2_A => !TimerControl.IsBitSet((int)Cia2TimerAControl.TimerARunMode),
-            //CiaTimerType.Cia2_B => !TimerControl.IsBitSet((int)Cia2TimerBControl.TimerBRunMode),
-            CiaTimerType.Cia2_A => false,
-            CiaTimerType.Cia2_B => false,
-
-            _ => throw new NotImplementedException()
-        };
-
-    }
-
     private void ResetTimerValue()
     {
         InternalTimer = _internalTimer_Latch;
@@ -145,12 +113,16 @@ public class CiaTimer
 
     public void StartTimer()
     {
-        _c64.Cia.CiaIRQ.ConditionClear(_iRQSource);
+        _ciaIRQ.ConditionClear(_iRQSource);
         _timerIsRunning = true;
     }
 
     private void StopTimer()
     {
+        var timerControl = TimerControl;
+        timerControl.ClearBit(_timerControlStartBit);
+        TimerControl = timerControl;
+
         _timerIsRunning = false;
     }
 }
@@ -160,16 +132,14 @@ public class CiaTimer
 /// </summary>
 public enum CiaTimerType
 {
-    Cia1_A,
-    Cia1_B,
-    Cia2_A,
-    Cia2_B
+    CiaA,
+    CiaB,
 }
 
 /// <summary>
-/// Enum values represents bit position in the CIA 1 Timer A Control register.
+/// Enum values represents bit position in the CIA Timer A Control register.
 /// </summary>
-public enum Cia1TimerAControl
+public enum CiaTimerAControl
 {
     /// <summary>
     /// 1 = Start, 0 = Stop
@@ -206,9 +176,9 @@ public enum Cia1TimerAControl
 }
 
 /// <summary>
-/// Enum values represents bit position in the Timer B Control register.
+/// Enum values represents bit position in the CIA Timer B Control register.
 /// </summary>
-public enum Cia1TimerBControl
+public enum CiaTimerBControl
 {
     /// <summary>
     /// 1 = Start, 0 = Stop

@@ -86,3 +86,9 @@ $PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
 cd C64/Graphics
 & $PETCAT_APP -w2 -o "Build\LowResMultiColor.prg" -- "LowResMultiColor.txt"
 ```
+
+``` pwsh
+$PETCAT_APP = "C:\Users\highb\Documents\C64\VICE\bin\petcat.exe"
+cd C64/Timer
+& $PETCAT_APP -w2 -o "Build\Test_CIA_Timers.prg" -- "Test_CIA_Timers.txt"
+```

@@ -51,7 +51,7 @@ public class C64TextPaste
         }
 
         var petsciiChar = Petscii.CharToPetscii[ansiChar];
-        var inserted = _c64.Cia.Keyboard.InsertPetsciiCharIntoBuffer(petsciiChar);
+        var inserted = _c64.Cia1.Keyboard.InsertPetsciiCharIntoBuffer(petsciiChar);
         if (inserted)
         {
             _charQueue.Dequeue();
