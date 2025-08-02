@@ -364,7 +364,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     {
         if (EmulatorState == EmulatorState.Uninitialized)
         {
-            // If we havent started started the selected system yet, return a temporary instance of the system (set in SelectSystem method).
+            // If we haven't started started the selected system yet, return a temporary instance of the system (set in SelectSystem method).
             if (_selectedSystemTemporary == null)
                 throw new DotNet6502Exception("Internal state error.");
             return _selectedSystemTemporary;
@@ -378,6 +378,9 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         // Note: Make sure to store a clone of the newConfig in the systemList, so it cannot be changed by the caller (bound to UI for example).
         CurrentHostSystemConfig = (IHostSystemConfig)newConfig.Clone();
         _systemList.ChangeCurrentHostSystemConfig(_selectedSystemName, CurrentHostSystemConfig);
+
+        //Re-select the system to ensure the new config is applied.
+        SelectSystem(_selectedSystemName).Wait();
     }
 
     /// <summary>
