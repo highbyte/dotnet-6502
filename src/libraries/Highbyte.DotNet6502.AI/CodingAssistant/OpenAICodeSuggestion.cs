@@ -1,5 +1,6 @@
-using Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 using Highbyte.DotNet6502.AI.CodingAssistant.Inference;
+using Highbyte.DotNet6502.AI.CodingAssistant.Inference.BackendConfig;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 
 namespace Highbyte.DotNet6502.AI.CodingAssistant;
@@ -7,35 +8,42 @@ public class OpenAICodeSuggestion : ICodeSuggestion
 {
     private bool _isAvailable;
     private string? _lastError;
-    private readonly OpenAIInferenceBackend _inferenceBackend;
     private readonly CodeCompletionConfig _codeCompletionConfig;
     private readonly CodeCompletionInference _codeCompletionInference;
 
     // OpenAI
     public static OpenAICodeSuggestion CreateOpenAICodeSuggestion(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction = "")
-    => CreateOpenAICodeSuggestion(new ApiConfig(configuration, selfHosted: false), programmingLanguage, additionalSystemInstruction);
-    public static OpenAICodeSuggestion CreateOpenAICodeSuggestion(ApiConfig apiConfig, string programmingLanguage, string additionalSystemInstruction)
+        => CreateOpenAICodeSuggestion(ChatClientFactory.CreateChatClient(CodeCompletionBackendType.OpenAI, configuration, programmingLanguage), programmingLanguage, additionalSystemInstruction);
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestion(IChatClient chatClient, string programmingLanguage, string additionalSystemInstruction)
     {
         var codeCompletionConfig = CodeSuggestionSystemInstructions.GetOpenAICodeCompletionConfig(programmingLanguage, additionalSystemInstruction);
-        return new OpenAICodeSuggestion(apiConfig, codeCompletionConfig);
+        return new OpenAICodeSuggestion(chatClient, codeCompletionConfig);
     }
 
     // CodeLlama via self-hosted OpenAI compatible API (Ollama)
     public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForCodeLlama(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction)
-            => CreateOpenAICodeSuggestionForCodeLlama(new ApiConfig(configuration, selfHosted: true), programmingLanguage, additionalSystemInstruction);
-    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForCodeLlama(ApiConfig apiConfig, string programmingLanguage, string additionalSystemInstruction)
+            => CreateOpenAICodeSuggestionForCodeLlama(ChatClientFactory.CreateChatClient(CodeCompletionBackendType.Ollama, configuration, programmingLanguage), programmingLanguage, additionalSystemInstruction);
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForCodeLlama(IChatClient chatClient, string programmingLanguage, string additionalSystemInstruction)
     {
         var codeCompletionConfig = CodeSuggestionSystemInstructions.GetCodeLlamaCodeCompletionConfig(programmingLanguage, additionalSystemInstruction);
-        return new OpenAICodeSuggestion(apiConfig, codeCompletionConfig);
+        return new OpenAICodeSuggestion(chatClient, codeCompletionConfig);
     }
 
-    private OpenAICodeSuggestion(ApiConfig apiConfig, CodeCompletionConfig codeCompletionConfig)
+    // CustomEndpoint
+    public static OpenAICodeSuggestion CreateCustomAIEndpointCodeSuggestion(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction = "")
+        => CreateCustomAIEndpointCodeSuggestion(ChatClientFactory.CreateChatClient(CodeCompletionBackendType.CustomEndpoint, configuration, programmingLanguage), programmingLanguage, additionalSystemInstruction);
+    public static OpenAICodeSuggestion CreateCustomAIEndpointCodeSuggestion(IChatClient chatClient, string programmingLanguage, string additionalSystemInstruction)
+    {
+        var codeCompletionConfig = new CodeCompletionConfig();
+        return new OpenAICodeSuggestion(chatClient, codeCompletionConfig);
+    }
+
+    private OpenAICodeSuggestion(IChatClient chatClient, CodeCompletionConfig codeCompletionConfig)
     {
         _isAvailable = true;
         _lastError = null;
-        _inferenceBackend = new OpenAIInferenceBackend(apiConfig);
         _codeCompletionConfig = codeCompletionConfig;
-        _codeCompletionInference = new CodeCompletionInference();
+        _codeCompletionInference = new CodeCompletionInference(chatClient);
     }
 
     public bool IsAvailable => _isAvailable;
@@ -51,7 +59,7 @@ public class OpenAICodeSuggestion : ICodeSuggestion
         // Call OpenAI API directly
         try
         {
-            return await _codeCompletionInference.GetInsertionSuggestionAsync(_inferenceBackend, _codeCompletionConfig, textBefore, textAfter);
+            return await _codeCompletionInference.GetInsertionSuggestionAsync(_codeCompletionConfig, textBefore, textAfter);
         }
         catch (Exception ex)
         {
