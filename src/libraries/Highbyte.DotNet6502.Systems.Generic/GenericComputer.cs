@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Systems.Generic.Render;
 using Highbyte.DotNet6502.Systems.Instrumentation;
+using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
@@ -55,6 +56,10 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 
     public Instrumentations Instrumentations { get; } = new();
 
+    private const string StatsCategoryRenderProvider = "RenderProvider";
+    private readonly ElapsedMillisecondsTimedStatSystem _renderProviderPerInstructionStat;
+    private readonly ElapsedMillisecondsTimedStatSystem _renderProviderPerFrameStat;
+
 
     public GenericComputer() : this(new GenericComputerConfig(), new NullLoggerFactory()) { }
     public GenericComputer(GenericComputerConfig genericComputerConfig, ILoggerFactory loggerFactory)
@@ -73,6 +78,9 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         InitEmulatorScreenMemory();
 
         ConfigureRenderer(genericComputerConfig);
+
+        _renderProviderPerInstructionStat = Instrumentations.Add($"{StatsCategoryRenderProvider}-Instruction", new ElapsedMillisecondsTimedStatSystem(this));
+        _renderProviderPerFrameStat = Instrumentations.Add($"{StatsCategoryRenderProvider}-Frame", new ElapsedMillisecondsTimedStatSystem(this));
 
         _logger.LogInformation($"Generic computer created.");
     }
@@ -109,6 +117,8 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         SystemRunner systemRunner,
         IExecEvaluator? execEvaluator = null)
     {
+        _renderProviderPerInstructionStat.Reset(); // Reset stat, will be continiously updated after each instruction
+
         // If we already executed cycles in current frame, reduce it from total.
         _oneFrameExecEvaluator.ExecOptions.CyclesRequested = CPUCyclesPerFrame - CyclesConsumedCurrentVblank;
 
@@ -150,8 +160,13 @@ public class GenericComputer : ISystem, ITextMode, IScreen
                 return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.Other, "WaitFrame failed"); ;
         }
 
+        _renderProviderPerInstructionStat.Stop(); // Stop stat (was continiously updated after each instruction)
+
+
         // New render pipeline
+        _renderProviderPerFrameStat.Start();
         _renderProvider?.OnEndFrame();
+        _renderProviderPerFrameStat.Stop();
 
         // Return true to indicate execution was successfull and we should continue
         return ExecEvaluatorTriggerResult.NotTriggered;
@@ -165,6 +180,10 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         var execState = CPU.ExecuteOneInstruction(Mem);
 
         instructionExecResult = execState.LastInstructionExecResult;
+
+        _renderProviderPerInstructionStat.Start(cont: true);
+        _renderProvider?.OnAfterInstruction();
+        _renderProviderPerInstructionStat.Stop(cont: true);
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
         if (execEvaluator != null)

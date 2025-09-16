@@ -65,6 +65,10 @@ public class C64 : ISystem, ISystemMonitor
     private readonly ElapsedMillisecondsTimedStatSystem _spriteCollisionStat;
     private readonly ElapsedMillisecondsTimedStatSystem _postInstructionAudioCallbackStat;
 
+    private const string StatsCategoryRenderProvider = "RenderProvider";
+    private readonly ElapsedMillisecondsTimedStatSystem _renderProviderPerInstructionStat;
+    private readonly ElapsedMillisecondsTimedStatSystem _renderProviderPerFrameStat;
+
     public bool RememberVic2RegistersPerRasterLine { get; set; } = true;
 
     public C64BasicTokenParser BasicTokenParser { get; private set; } = default!;
@@ -91,6 +95,7 @@ public class C64 : ISystem, ISystemMonitor
         IExecEvaluator? execEvaluator = null)
     {
         _postInstructionAudioCallbackStat.Reset(); // Reset stat, will be continiously updated after each instruction
+        _renderProviderPerInstructionStat.Reset(); // Reset stat, will be continiously updated after each instruction
 
         ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
         //_logger.LogTrace($"Executing one frame, {cyclesToExecute} CPU cycles.");
@@ -108,6 +113,7 @@ public class C64 : ISystem, ISystemMonitor
         }
 
         _postInstructionAudioCallbackStat.Stop(); // Stop stat (was continiously updated after each instruction)
+        _renderProviderPerInstructionStat.Stop(); // Stop stat (was continiously updated after each instruction)
 
         // Check if any text should be pasted to the keyboard buffer (pasted text set by host system, and each character insterted to the C64 keyboard buffer one character per frame)
         TextPaste.InsertNextCharacterToKeyboardBuffer();
@@ -118,7 +124,9 @@ public class C64 : ISystem, ISystemMonitor
         _spriteCollisionStat.Stop();
 
         // New render pipeline
+        _renderProviderPerFrameStat.Start();
         _renderProvider?.OnEndFrame();
+        _renderProviderPerFrameStat.Stop();
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
@@ -161,8 +169,10 @@ public class C64 : ISystem, ISystemMonitor
             _postInstructionAudioCallbackStat.Stop(cont: true);
         }
 
-        // New render pipeline, built-in image rasterizer.
+        // New render pipeline
+        _renderProviderPerInstructionStat.Start(cont: true);
         _renderProvider?.OnAfterInstruction();
+        _renderProviderPerInstructionStat.Stop(cont: true);
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
         if (execEvaluator != null)
@@ -181,6 +191,9 @@ public class C64 : ISystem, ISystemMonitor
         _logger = logger;
         _spriteCollisionStat = Instrumentations.Add($"{StatsCategory}-SpriteCollision", new ElapsedMillisecondsTimedStatSystem(this));
         _postInstructionAudioCallbackStat = Instrumentations.Add($"{StatsCategory}-AudioPostInstrCallback", new ElapsedMillisecondsTimedStatSystem(this));
+
+        _renderProviderPerInstructionStat = Instrumentations.Add($"{StatsCategoryRenderProvider}-Instruction", new ElapsedMillisecondsTimedStatSystem(this));
+        _renderProviderPerFrameStat = Instrumentations.Add($"{StatsCategoryRenderProvider}-Frame", new ElapsedMillisecondsTimedStatSystem(this));
 
         DebugInfo = BuildDebugInfo();
     }

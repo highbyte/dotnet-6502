@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using Highbyte.DotNet6502.Systems.Instrumentation;
+using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Highbyte.DotNet6502.Systems.Utils;
@@ -37,12 +39,13 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     public PixelFormat PixelFormat { get; } = PixelFormat.Bgra32; //PixelFormat.Rgba32;
     public int StrideBytes { get; }
 
-    public event EventHandler<int>? ScanlineCompleted;
+    //public event EventHandler<int>? ScanlineCompleted;
     public event EventHandler? FrameCompleted;
 
     public ReadOnlyMemory<byte> CurrentFrontBuffer => _frontBackground; // Should not be used by RenderTarget, it must use CurrentFrontLayerBuffers instead.
 
     private readonly Vic2RasterizerUintPixelGenerator _pixelGenerator;
+
     public Vic2Rasterizer(C64 c64, bool useDoubleBuffering = true)
     {
         var width = c64.Screen.VisibleWidth;
@@ -79,10 +82,10 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
         _pixelGenerator.OnAfterInstruction();
     }
 
-    public void OnEndScanline(int y)
-    {
-        ScanlineCompleted?.Invoke(this, y);
-    }
+    //public void OnEndScanline(int y)
+    //{
+    //    ScanlineCompleted?.Invoke(this, y);
+    //}
 
     public void OnEndFrame()
     {
