@@ -174,11 +174,6 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
                     (C64)CurrentRunningSystem,
                     () => _skiaGlCanvasProvider.Canvas,
                     flush: true));
-                // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
-                rtp.AddRenderTargetType<C64LegacyRenderTarget2b>(() => new C64LegacyRenderTarget2b(
-                    (C64)CurrentRunningSystem,
-                    () => _skiaGlCanvasProvider.Canvas,
-                    flush: true));
 
                 // GPU based custom source + render targets, specific to emulated system and the host renderer
                 rtp.AddRenderTargetType<C64SilkNetOpenGlRendererTarget>(() => new C64SilkNetOpenGlRendererTarget(

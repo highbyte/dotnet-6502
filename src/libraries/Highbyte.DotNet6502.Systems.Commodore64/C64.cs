@@ -53,7 +53,6 @@ public class C64 : ISystem, ISystemMonitor
     public const ushort BASIC_LOAD_ADDRESS = 0x0801;
 
     private Action<InstructionExecResult>? _postInstructionAudioCallback = null;
-    private Action<InstructionExecResult>? _postInstructionVideoCallback = null;
 
     private IRenderProvider? _renderProvider;
     public IRenderProvider? RenderProvider => _renderProvider;
@@ -65,7 +64,6 @@ public class C64 : ISystem, ISystemMonitor
     private const string StatsCategory = "Custom";
     private readonly ElapsedMillisecondsTimedStatSystem _spriteCollisionStat;
     private readonly ElapsedMillisecondsTimedStatSystem _postInstructionAudioCallbackStat;
-    private readonly ElapsedMillisecondsTimedStatSystem _postInstructionVideoCallbackStat;
 
     public bool RememberVic2RegistersPerRasterLine { get; set; } = true;
 
@@ -93,7 +91,6 @@ public class C64 : ISystem, ISystemMonitor
         IExecEvaluator? execEvaluator = null)
     {
         _postInstructionAudioCallbackStat.Reset(); // Reset stat, will be continiously updated after each instruction
-        _postInstructionVideoCallbackStat.Reset(); // Reset stat, will be continiously updated after each instruction
 
         ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
         //_logger.LogTrace($"Executing one frame, {cyclesToExecute} CPU cycles.");
@@ -111,7 +108,6 @@ public class C64 : ISystem, ISystemMonitor
         }
 
         _postInstructionAudioCallbackStat.Stop(); // Stop stat (was continiously updated after each instruction)
-        _postInstructionVideoCallbackStat.Stop(); // Stop stat (was continiously updated after each instruction)
 
         // Check if any text should be pasted to the keyboard buffer (pasted text set by host system, and each character insterted to the C64 keyboard buffer one character per frame)
         TextPaste.InsertNextCharacterToKeyboardBuffer();
@@ -165,14 +161,6 @@ public class C64 : ISystem, ISystemMonitor
             _postInstructionAudioCallbackStat.Stop(cont: true);
         }
 
-        // Handle video processing after each instruction (legacy render pipeline).
-        if (_postInstructionVideoCallback != null)
-        {
-            _postInstructionVideoCallbackStat.Start(cont: true);
-            _postInstructionVideoCallback.Invoke(instructionExecResult);
-            _postInstructionVideoCallbackStat.Stop(cont: true);
-        }
-
         // New render pipeline, built-in image rasterizer.
         _renderProvider?.OnAfterInstruction();
 
@@ -193,7 +181,6 @@ public class C64 : ISystem, ISystemMonitor
         _logger = logger;
         _spriteCollisionStat = Instrumentations.Add($"{StatsCategory}-SpriteCollision", new ElapsedMillisecondsTimedStatSystem(this));
         _postInstructionAudioCallbackStat = Instrumentations.Add($"{StatsCategory}-AudioPostInstrCallback", new ElapsedMillisecondsTimedStatSystem(this));
-        _postInstructionVideoCallbackStat = Instrumentations.Add($"{StatsCategory}-VideoPostInstrCallback", new ElapsedMillisecondsTimedStatSystem(this));
 
         DebugInfo = BuildDebugInfo();
     }
@@ -617,11 +604,6 @@ public class C64 : ISystem, ISystemMonitor
     public ushort GetBasicProgramEndAddress()
     {
         return (ushort)(Mem.FetchWord(0x2d) - 1);
-    }
-
-    public void SetPostInstructionVideoCallback(Action<InstructionExecResult> callback)
-    {
-        _postInstructionVideoCallback = callback;
     }
 
     public void SetPostInstructionAudioCallback(Action<InstructionExecResult> callback)

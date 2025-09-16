@@ -114,11 +114,6 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
                     (C64)CurrentRunningSystem,
                     _getCanvas,
                     flush: false));
-                // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
-                rtp.AddRenderTargetType<C64LegacyRenderTarget2b>(() => new C64LegacyRenderTarget2b(
-                    (C64)CurrentRunningSystem,
-                    _getCanvas,
-                    flush: false));
 
                 // Experimental Skia C64 command based target. WIP.
                 rtp.AddRenderTargetType<SkiaCommandTarget>(() => new SkiaCommandTarget(

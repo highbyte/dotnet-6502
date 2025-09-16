@@ -7,6 +7,21 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 
 [DisplayName("Rasterizer")]
 [HelpText("A VIC-II rasterizer that generates raw pixel data in two layers: background and foreground.\nThe rasterizer writes directly to byte arrays for efficient pixel manipulation.")]
+/// Generates bitmaps as byte arrays for the C64 screen.
+/// 
+/// Overview
+/// - Called after each instruction to generate Text and Bitmap graphics.
+/// - Called once per frame to generate Sprites (if possible a future improvement should make this also be called after each instruction if performance allows it).
+/// - Writes background and foreground to separate byte arrays. Renderer needs to combine these two layers.
+/// - Fast enough to be used in native apps. For browser (WASM) app if the computer is reasonably fast.
+/// 
+/// Supports:
+/// - Text mode (Standard, Extended, MultiColor)
+/// - Bitmap mode (Standard/HiRes, MultiColor)
+/// - Colors per raster line
+/// - Fine scroll per raster line
+/// - Sprites (Standard, MultiColor). No multiplexing support.
+
 public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
 {
     public string Name => "Vic2Rasterizer";
@@ -77,20 +92,6 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
         FlipBuffers();
         FrameCompleted?.Invoke(this, EventArgs.Empty);
         // Clear/prepare _back for next frame if needed
-    }
-
-    public void SetPreCreatedBufferFromLegacyRender(uint[] pixelArrayBackground, uint[] pixelArrayForeground)
-    {
-        // Note: This will create a copy of the pixelArray, it will do for now until the emulator image generation code is implemented here by writing to byte arrays instead of to uint arrays in C64RenderBase.
-        // Note: MemoryMarshal.AsBytes will require setting PixelFormat to Bgra32 so correct rgba order is used by the render code that writes it to the screen.
-        var pixelBytesBackground = MemoryMarshal.AsBytes(pixelArrayBackground.AsSpan()).ToArray();
-        var pixelBytesForeground = MemoryMarshal.AsBytes(pixelArrayForeground.AsSpan()).ToArray();
-
-        _backBackground = pixelBytesBackground;
-        _backForeground = pixelBytesForeground;
-
-        _frontBackground = pixelBytesBackground;
-        _frontForeground = pixelBytesForeground;
     }
     #endregion
 
