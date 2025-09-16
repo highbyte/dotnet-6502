@@ -135,7 +135,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
 
         // Start SadConsole window
         Game.Create(builder);
-        
+
         try
         {
             Game.Instance.Run();

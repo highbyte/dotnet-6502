@@ -117,7 +117,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         SystemRunner systemRunner,
         IExecEvaluator? execEvaluator = null)
     {
-        _renderProviderPerInstructionStat.Reset(); // Reset stat, will be continiously updated after each instruction
+        _renderProviderPerInstructionStat.Reset(); // Reset stat, will be continuously updated after each instruction
 
         // If we already executed cycles in current frame, reduce it from total.
         _oneFrameExecEvaluator.ExecOptions.CyclesRequested = CPUCyclesPerFrame - CyclesConsumedCurrentVblank;
@@ -160,7 +160,7 @@ public class GenericComputer : ISystem, ITextMode, IScreen
                 return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.Other, "WaitFrame failed"); ;
         }
 
-        _renderProviderPerInstructionStat.Stop(); // Stop stat (was continiously updated after each instruction)
+        _renderProviderPerInstructionStat.Stop(); // Stop stat (was continuously updated after each instruction)
 
 
         // New render pipeline

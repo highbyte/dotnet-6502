@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Rendering.Custom;
 using Highbyte.DotNet6502.Systems.Rendering.VideoCommands;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
@@ -16,7 +17,8 @@ public class RenderCoordinatorProvider
 
     public IRenderCoordinator CreateRenderCoordinator(
         IRenderSource renderSource,
-        IRenderTarget renderTarget)
+        IRenderTarget renderTarget,
+        Instrumentations instrumentations)
     {
         if (renderSource is IVideoFrameProvider videoFrameProvider && renderTarget is IRenderFrameTarget renderFrameTarget)
         {
@@ -24,8 +26,7 @@ public class RenderCoordinatorProvider
             FrameSourceRenderCoordinator coordinator = new FrameSourceRenderCoordinator(
                 frameSource,
                 _renderLoop,
-                renderFrameTarget,
-                new Instrumentation.Instrumentations()); // TODO: Pass in Instrumentations from outside
+                renderFrameTarget);
             return coordinator;
         }
         else if (renderSource is IVideoCommandStream videoCommandStream && renderTarget is ICommandTarget commandTarget)

@@ -42,8 +42,6 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
 
     private IHostSystemConfig? _currentHostSystemConfig;
 
-    protected readonly Instrumentations NewRendererInstrumentations = new();
-
     private RenderTargetProvider? _renderTargetProvider;
     private RenderCoordinatorProvider? _renderCoordinatorProvider;
     private IRenderCoordinator? _renderCoordinator;
@@ -76,20 +74,17 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
     }
 
     private readonly string _hostName;
-    private const string SystemTimeStatName = "Emulator-SystemTime";
-    private const string RenderTimeStatName = "RenderTimeLegacy";
-    private const string RenderTimeNewStatName = "RenderTimeNew";
+    private const string SystemTimeStatName = "SystemTime";
+    private const string RenderStatName = "Render";
     private const string InputTimeStatName = "InputTime";
     private const string AudioTimeStatName = "AudioTime";
     private readonly Instrumentations _systemInstrumentations = new();
     private ElapsedMillisecondsTimedStatSystem? _systemTime;
-    private ElapsedMillisecondsTimedStatSystem? _renderTime;
     private ElapsedMillisecondsTimedStatSystem? _inputTime;
     //private ElapsedMillisecondsTimedStatSystem _audioTime;
 
     private readonly Instrumentations _instrumentations = new();
     private readonly PerSecondTimedStat _updateFps;
-    private readonly PerSecondTimedStat _renderFps;
 
     public HostApp(
         string hostName,
@@ -99,7 +94,6 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
     {
         _hostName = hostName;
         _updateFps = _instrumentations.Add($"{_hostName}-OnUpdateFPS", new PerSecondTimedStat());
-        _renderFps = _instrumentations.Add($"{_hostName}-OnRenderFPS", new PerSecondTimedStat());
 
         _logger = loggerFactory.CreateLogger("HostApp");
 
@@ -404,7 +398,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
 
         // Assume CurrentSystemRunner.System.RenderProvider is set to the selected system's render provider (one of possibly many in in system.RenderProviders).
         var renderTarget = _renderTargetProvider.CreateRenderTargetByRenderProviderType(CurrentSystemRunner.System.RenderProvider.GetType(), renderTargetType);
-        _renderCoordinator = _renderCoordinatorProvider.CreateRenderCoordinator(CurrentSystemRunner.System.RenderProvider, renderTarget);
+        _renderCoordinator = _renderCoordinatorProvider.CreateRenderCoordinator(CurrentSystemRunner.System.RenderProvider, renderTarget, _instrumentations);
     }
 
     public async Task<bool> IsSystemConfigValid()
@@ -473,9 +467,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
     private void InitInstrumentation(ISystem system)
     {
         _systemInstrumentations.Clear();
-        NewRendererInstrumentations.Clear();
         _systemTime = _systemInstrumentations.Add($"{_hostName}-{SystemTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
-        //_renderTime = _systemInstrumentations.Add($"{_hostName}-{RenderTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
         _inputTime = _systemInstrumentations.Add($"{_hostName}-{InputTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
         //_audioTime = InstrumentationBag.Add($"{HostStatRootName}-{AudioTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
     }
@@ -486,11 +478,15 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
             return new List<(string name, IStat)>();
 
         return _instrumentations.Stats
+            // Overall stats
             .Union(_systemInstrumentations.Stats)
+            // Sub-system stat: system
             .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
-            //.Union(_systemRunner.Renderer.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{RenderTimeStatName}-{x.Name}", x.Stat)))
-            .Union(NewRendererInstrumentations.Stats.Select(x => (Name: $"{_hostName}-{RenderTimeNewStatName}-{x.Name}", x.Stat)))
+            // Sub-system stat: render
+            .Union(_renderCoordinator.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{RenderStatName}-{x.Name}", x.Stat)))
+            // Sub-system stat: audio
             .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
+            // Sub-system stat: input
             .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{InputTimeStatName}-{x.Name}", x.Stat)))
             .ToList();
     }

@@ -94,8 +94,8 @@ public class C64 : ISystem, ISystemMonitor
         SystemRunner systemRunner,
         IExecEvaluator? execEvaluator = null)
     {
-        _postInstructionAudioCallbackStat.Reset(); // Reset stat, will be continiously updated after each instruction
-        _renderProviderPerInstructionStat.Reset(); // Reset stat, will be continiously updated after each instruction
+        _postInstructionAudioCallbackStat.Reset(); // Reset stat, will be continuously updated after each instruction
+        _renderProviderPerInstructionStat.Reset(); // Reset stat, will be continuously updated after each instruction
 
         ulong cyclesToExecute = (Vic2.Vic2Model.CyclesPerFrame - Vic2.CyclesConsumedCurrentVblank);
         //_logger.LogTrace($"Executing one frame, {cyclesToExecute} CPU cycles.");
@@ -112,8 +112,8 @@ public class C64 : ISystem, ISystemMonitor
             }
         }
 
-        _postInstructionAudioCallbackStat.Stop(); // Stop stat (was continiously updated after each instruction)
-        _renderProviderPerInstructionStat.Stop(); // Stop stat (was continiously updated after each instruction)
+        _postInstructionAudioCallbackStat.Stop(); // Stop stat (was continuously updated after each instruction)
+        _renderProviderPerInstructionStat.Stop(); // Stop stat (was continuously updated after each instruction)
 
         // Check if any text should be pasted to the keyboard buffer (pasted text set by host system, and each character insterted to the C64 keyboard buffer one character per frame)
         TextPaste.InsertNextCharacterToKeyboardBuffer();
