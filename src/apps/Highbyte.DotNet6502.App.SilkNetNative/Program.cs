@@ -42,7 +42,7 @@ Configuration.GetSection(EmulatorConfig.ConfigSectionName).Bind(emulatorConfig);
 // ----------
 // Systems
 // ----------
-var systemList = new SystemList<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>();
+var systemList = new SystemList<SilkNetInputHandlerContext, NAudioAudioHandlerContext>();
 
 var c64Setup = new C64Setup(loggerFactory, Configuration);
 systemList.AddSystem(c64Setup);
@@ -75,5 +75,13 @@ windowOptions.ShouldSwapAutomatically = true;
 var window = Window.Create(windowOptions);
 
 var silkNetHostApp = new SilkNetHostApp(systemList, loggerFactory, emulatorConfig, window, logStore, logConfig);
-silkNetHostApp.SelectSystem(emulatorConfig.DefaultEmulator).Wait();
-silkNetHostApp.Run();
+
+try
+{
+    silkNetHostApp.Run();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Application exited with Exception: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+}

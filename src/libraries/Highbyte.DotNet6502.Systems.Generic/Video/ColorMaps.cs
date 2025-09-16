@@ -24,4 +24,15 @@ public static class ColorMaps
         { 0x0e, Color.FromArgb(0, 136, 255) },      // Light blue
         { 0x0f, Color.FromArgb(187, 187, 187) },    // Light grey
     };
+
+    //public static Dictionary<byte, uint> GenericColorMapPackedUint = new();
+
+    //static ColorMaps()
+    //{
+    //    foreach (var colorKeyIndex in GenericColorMap.Keys)
+    //    {
+    //        var systemColor = GenericColorMap[colorKeyIndex];
+    //        GenericColorMapPackedUint.Add(colorKeyIndex, (uint)systemColor.ToArgb());
+    //    }
+    //}
 }

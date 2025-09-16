@@ -1,19 +1,10 @@
 using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
-using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
+using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Render;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
-
-public enum C64HostRenderer
-{
-    SkiaSharp,
-    SkiaSharp2,  // Experimental render directly to pixel buffer backed by a SKBitmap + Skia shader (SKSL)
-    SkiaSharp2b, // Experimental render after each instruction directly to pixel buffer backed by a SKBitmap + Skia shader (SKSL)
-    SkiaSharp3,  // Consolidated renderer based on base class C64RenderBase. Similar to SkiaSharp2b, but simplified sprite color handling.
-    SilkNetOpenGl
-}
 
 public class C64HostConfig : IHostSystemConfig, ICloneable
 {
@@ -27,7 +18,6 @@ public class C64HostConfig : IHostSystemConfig, ICloneable
     [JsonIgnore]
     public bool AudioSupported => true;
 
-    public C64HostRenderer Renderer { get; set; } = C64HostRenderer.SkiaSharp3;
     public C64SilkNetOpenGlRendererConfig SilkNetOpenGlRendererConfig { get; set; } = new C64SilkNetOpenGlRendererConfig();
     public C64SilkNetInputConfig InputConfig { get; set; } = new C64SilkNetInputConfig();
 

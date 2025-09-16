@@ -2,6 +2,8 @@
 @using Highbyte.DotNet6502.Systems
 @using Highbyte.DotNet6502.Systems.Commodore64.Config;
 @using Highbyte.DotNet6502.Systems.Commodore64;
+@using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload
+@using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer
 @using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive
 @using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64;
 @using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
@@ -735,9 +737,9 @@
                 _c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
 
                 // Apply renderer setting to config object while emulator is stopped
-                C64HostRenderer renderer = diskInfo.RequiresBitmap ? C64HostRenderer.SkiaSharp3 : C64HostRenderer.SkiaSharp;
-                _logger.LogInformation($"Setting renderer in config to: {renderer}");
-                _c64HostConfig.Renderer = renderer;
+                Type rendererProviderType = diskInfo.RequiresBitmap ? typeof(Vic2Rasterizer) : typeof(C64CustomRenderProvider);
+                _logger.LogInformation($"Setting renderer provider in config to: {rendererProviderType}");
+                _c64HostConfig.SystemConfig.SetRenderProviderType(rendererProviderType);
 
                 // Apply audio enabled setting to config object while emulator is stopped
                 _logger.LogInformation($"Setting audio enabled in config to: {diskInfo.AudioEnabled}");

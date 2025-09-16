@@ -1,4 +1,7 @@
 using System.Text.Json.Serialization;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.VideoCommands;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
 using Highbyte.DotNet6502.Utils;
 
@@ -9,9 +12,66 @@ public class C64SystemConfig : ISystemConfig
     private bool _isDirty = false;
     [JsonIgnore]
     public bool IsDirty => _isDirty;
+
+    [JsonIgnore]
+    public Type? RenderProviderType { get; private set; }
+
+    /// <summary>
+    /// Serializable version of RenderProviderType as assembly qualified name
+    /// </summary>
+    [JsonPropertyName("RenderProviderType")]
+    public string? RenderProviderTypeName
+    {
+        get => RenderProviderType?.AssemblyQualifiedName;
+        set => SetRenderProviderType(value != null ? Type.GetType(value) : null);
+    }
+
+    [JsonIgnore]
+    public Type? RenderTargetType { get; private set; }
+
+    /// <summary>
+    /// Serializable version of RenderTargetType as assembly qualified name
+    /// </summary>
+    [JsonPropertyName("RenderTargetType")]
+    public string? RenderTargetTypeTypeName
+    {
+        get => RenderTargetType?.AssemblyQualifiedName;
+        set => SetRenderTargetType(value != null ? Type.GetType(value) : null);
+    }
+
+
     public void ClearDirty()
     {
         _isDirty = false;
+    }
+
+    public List<Type> GetSupportedRenderProviderTypes()
+    {
+        var supportedRenderProviders = new List<Type>()
+        {
+            typeof(Vic2Rasterizer),
+            typeof(C64CustomRenderProvider),
+            typeof(C64VideoCommandStream),
+            typeof(C64GpuProvider),
+        };
+        return supportedRenderProviders;
+    }
+
+    public void SetRenderProviderType(Type renderProviderType)
+    {
+        var supportedRenderProviders = GetSupportedRenderProviderTypes();
+        if (!supportedRenderProviders.Contains(renderProviderType))
+            throw new DotNet6502Exception($"RenderProvider type {renderProviderType.FullName} is not supported.");
+        RenderProviderType = renderProviderType;
+
+        _isDirty = true;
+    }
+
+    public void SetRenderTargetType(Type renderTargetType)
+    {
+        RenderTargetType = renderTargetType;
+
+        _isDirty = true;
     }
 
     public static string DEFAULT_KERNAL_ROM_DOWNLOAD_URL = "https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/kernal.901227-03.bin";
@@ -166,6 +226,8 @@ public class C64SystemConfig : ISystemConfig
         _keyboardJoystick = 2;
 
         KeyboardJoystickMap = new C64KeyboardJoystickMap();
+
+        SetRenderProviderType(GetSupportedRenderProviderTypes().First());
     }
 
     public bool HasROM(string romName) => ROMs.Any(x => x.Name == romName);

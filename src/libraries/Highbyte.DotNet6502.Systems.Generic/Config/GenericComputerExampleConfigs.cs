@@ -4,17 +4,21 @@ public static class GenericComputerExampleConfigs
 {
     private static readonly Dictionary<string, GenericComputerConfig> s_exampleConfigs = new();
 
-    public static GenericComputerConfig GetExampleConfig(string exampleName, string prgFilePath)
+    public static GenericComputerConfig GetExampleConfig(string exampleName, GenericComputerSystemConfig systemConfig)
     {
+        var prgFilePath = systemConfig.ExamplePrograms[exampleName];
         var exampleConfig = GetExampleConfigClone(exampleName);
         exampleConfig.ProgramBinaryFile = prgFilePath;
+
+        exampleConfig.RenderProviderType = systemConfig.RenderProviderType;
         return exampleConfig;
     }
 
-    public static GenericComputerConfig GetExampleConfig(string exampleName, byte[] prgBytes)
+    public static GenericComputerConfig GetExampleConfig(string exampleName, GenericComputerSystemConfig systemConfig, byte[] prgBytes)
     {
         var exampleConfig = GetExampleConfigClone(exampleName);
         exampleConfig.ProgramBinary = prgBytes;
+        exampleConfig.RenderProviderType = systemConfig.RenderProviderType;
         return exampleConfig;
     }
 

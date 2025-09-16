@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Instrumentation;
+using Highbyte.DotNet6502.Systems.Rendering;
 
 namespace Highbyte.DotNet6502.Systems;
 
@@ -23,4 +24,7 @@ public interface ISystem
 
     bool InstrumentationEnabled { get; set; }
     Instrumentations Instrumentations { get; }
+
+    IRenderProvider? RenderProvider { get; }
+    List<IRenderProvider> RenderProviders { get; }
 }

@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Instrumentation;
+using Highbyte.DotNet6502.Systems.Rendering;
 
 namespace Highbyte.DotNet6502.Systems.Tests;
 
@@ -9,17 +10,16 @@ public class SystemRunnerTests
     {
         // Arrange
         var system = new TestSystem();
-        var renderer = new TestRenderer(system, new NullRenderContext());
         var inputHandler = new TestInputHandler(system, new NullInputHandlerContext());
         var audioHandler = new TestAudioHandler(system, new NullAudioHandlerContext());
-        var systemRunner = new SystemRunner(system, renderer, inputHandler, audioHandler);
+        var systemRunner = new SystemRunner(system, inputHandler, audioHandler);
 
         // Act
         systemRunner.Init();
 
         // Assert
         Assert.Equal(system, systemRunner.System);
-        Assert.Equal(renderer, systemRunner.Renderer);
+        //Assert.Equal(renderer, systemRunner.Renderer);
         Assert.Equal(inputHandler, systemRunner.InputHandler);
         Assert.Equal(audioHandler, systemRunner.AudioHandler);
     }
@@ -29,15 +29,14 @@ public class SystemRunnerTests
     {
         // Arrange
         var system = new TestSystem();
-        var renderer = new TestRenderer(system, new NullRenderContext());
-        var systemRunner = new SystemRunner(system, renderer);
+        var systemRunner = new SystemRunner(system);
 
         // Act
         systemRunner.Init();
 
         // Assert
         Assert.Equal(system, systemRunner.System);
-        Assert.Equal(renderer, systemRunner.Renderer);
+        //Assert.Equal(renderer, systemRunner.Renderer);
         Assert.Equal(typeof(NullInputHandler), systemRunner.InputHandler.GetType());
         Assert.Equal(typeof(NullAudioHandler), systemRunner.AudioHandler.GetType());
     }
@@ -55,7 +54,7 @@ public class SystemRunnerTests
 
         // Assert
         Assert.Equal(system, systemRunner.System);
-        Assert.Equal(typeof(NullRenderer), systemRunner.Renderer.GetType());
+        //Assert.Equal(typeof(NullRenderer), systemRunner.Renderer.GetType());
         Assert.Equal(inputHandler, systemRunner.InputHandler);
         Assert.Equal(typeof(NullAudioHandler), systemRunner.AudioHandler.GetType());
     }
@@ -73,7 +72,7 @@ public class SystemRunnerTests
 
         // Assert
         Assert.Equal(system, systemRunner.System);
-        Assert.Equal(typeof(NullRenderer), systemRunner.Renderer.GetType());
+        //Assert.Equal(typeof(NullRenderer), systemRunner.Renderer.GetType());
         Assert.Equal(typeof(NullInputHandler), systemRunner.InputHandler.GetType());
         Assert.Equal(audioHandler, systemRunner.AudioHandler);
     }
@@ -83,33 +82,17 @@ public class SystemRunnerTests
     {
         // Arrange
         var system = new TestSystem();
-        var renderer = new TestRenderer(system, new NullRenderContext());
         var inputHandler = new TestInputHandler(system, new NullInputHandlerContext());
-        var systemRunner = new SystemRunner(system, renderer, inputHandler);
+        var systemRunner = new SystemRunner(system, inputHandler);
 
         // Act
         systemRunner.Init();
 
         // Assert
         Assert.Equal(system, systemRunner.System);
-        Assert.Equal(renderer, systemRunner.Renderer);
+        //Assert.Equal(renderer, systemRunner.Renderer);
         Assert.Equal(inputHandler, systemRunner.InputHandler);
         Assert.Equal(typeof(NullAudioHandler), systemRunner.AudioHandler.GetType());
-    }
-
-    [Fact]
-    public void CreatingWithDifferentSystemInRendererFails()
-    {
-        // Arrange
-        var system = new TestSystem();
-        var system2 = new TestSystem();
-        var renderer = new TestRenderer(system2, new NullRenderContext());
-        var inputHandler = new TestInputHandler(system, new NullInputHandlerContext());
-        var audioHandler = new TestAudioHandler(system, new NullAudioHandlerContext());
-
-        // Act / Assert
-        var ex = Assert.Throws<DotNet6502Exception>(() => new SystemRunner(system, renderer, inputHandler, audioHandler));
-        Assert.Contains("Renderer must be for the same system as the SystemRunner", ex.Message);
     }
 
     [Fact]
@@ -118,12 +101,11 @@ public class SystemRunnerTests
         // Arrange
         var system = new TestSystem();
         var system2 = new TestSystem();
-        var renderer = new TestRenderer(system, new NullRenderContext());
         var inputHandler = new TestInputHandler(system2, new NullInputHandlerContext());
         var audioHandler = new TestAudioHandler(system, new NullAudioHandlerContext());
 
         // Act / Assert
-        var ex = Assert.Throws<DotNet6502Exception>(() => new SystemRunner(system, renderer, inputHandler, audioHandler));
+        var ex = Assert.Throws<DotNet6502Exception>(() => new SystemRunner(system, inputHandler, audioHandler));
         Assert.Contains("InputHandler must be for the same system as the SystemRunner", ex.Message);
     }
 
@@ -133,12 +115,11 @@ public class SystemRunnerTests
         // Arrange
         var system = new TestSystem();
         var system2 = new TestSystem();
-        var renderer = new TestRenderer(system, new NullRenderContext());
         var inputHandler = new TestInputHandler(system, new NullInputHandlerContext());
         var audioHandler = new TestAudioHandler(system2, new NullAudioHandlerContext());
 
         // Act / Assert
-        var ex = Assert.Throws<DotNet6502Exception>(() => new SystemRunner(system, renderer, inputHandler, audioHandler));
+        var ex = Assert.Throws<DotNet6502Exception>(() => new SystemRunner(system, inputHandler, audioHandler));
         Assert.Contains("AudioHandler must be for the same system as the SystemRunner", ex.Message);
     }
 
@@ -147,17 +128,15 @@ public class SystemRunnerTests
     {
         // Arrange
         var system = new TestSystem();
-        var renderer = new TestRenderer(system, new NullRenderContext());
         var inputHandler = new TestInputHandler(system, new NullInputHandlerContext());
         var audioHandler = new TestAudioHandler(system, new NullAudioHandlerContext());
-        var systemRunner = new SystemRunner(system, renderer, inputHandler, audioHandler);
+        var systemRunner = new SystemRunner(system, inputHandler, audioHandler);
         systemRunner.Init();
 
         // Act
         systemRunner.Cleanup();
 
         // Assert
-        Assert.True(renderer.CleanUpWasCalled);
         Assert.True(inputHandler.CleanUpWasCalled);
         Assert.True(audioHandler.CleanUpWasCalled);
     }
@@ -194,6 +173,10 @@ public class TestSystem : ISystem
         instructionExecResult = new InstructionExecResult();
         return new ExecEvaluatorTriggerResult();
     }
+
+    private IRenderProvider? _renderProvider;
+    public IRenderProvider? RenderProvider => _renderProvider;
+    public List<IRenderProvider> RenderProviders { get; } = new();
 }
 
 public class TestSystem2 : ISystem
@@ -224,34 +207,12 @@ public class TestSystem2 : ISystem
         instructionExecResult = new InstructionExecResult();
         return new ExecEvaluatorTriggerResult();
     }
+
+    private IRenderProvider? _renderProvider;
+    public IRenderProvider? RenderProvider => _renderProvider;
+    public List<IRenderProvider> RenderProviders { get; } = new();
 }
 
-
-public class TestRenderer : IRenderer
-{
-    private readonly TestSystem _system;
-    public ISystem System => _system;
-
-    private readonly IRenderContext _renderContext;
-    public bool CleanUpWasCalled = false;
-
-    public TestRenderer(TestSystem system, IRenderContext renderContext)
-    {
-        _system = system;
-        _renderContext = renderContext;
-    }
-    public void Init()
-    {
-    }
-    public void DrawFrame()
-    {
-    }
-    public void Cleanup()
-    {
-        CleanUpWasCalled = true;
-    }
-    public Instrumentations Instrumentations { get; } = new();
-}
 
 public class TestInputHandler : IInputHandler
 {

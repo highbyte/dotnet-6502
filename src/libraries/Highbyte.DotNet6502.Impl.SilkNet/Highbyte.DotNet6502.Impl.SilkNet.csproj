@@ -40,10 +40,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Commodore64\Video\C64shader.frag">
+    <None Update="Commodore64\Render\C64shader.frag">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Commodore64\Video\C64shader.vert">
+    <None Update="Commodore64\Render\C64shader.vert">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

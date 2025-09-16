@@ -5,7 +5,7 @@ using Console = SadConsole.Console;
 namespace Highbyte.DotNet6502.Impl.SadConsole;
 public class EmulatorConsole : Console
 {
-    private const bool USE_CONSOLE_BORDER = true;
+    public const bool USE_CONSOLE_BORDER = true;
 
     private EmulatorConsole(int width, int height) : base(width, height)
     {

@@ -4,9 +4,12 @@
 @using Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup
 @using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 @using Highbyte.DotNet6502.Systems;
+@using Highbyte.DotNet6502.Systems.Commodore64
 @using Highbyte.DotNet6502.Systems.Commodore64.Config
 @using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 @using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant
+@using Highbyte.DotNet6502.Systems.Rendering;
+@using Highbyte.DotNet6502.Systems.Utils
 @using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggestion
 @using static Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.C64Joystick;
 @using static Highbyte.DotNet6502.App.WASM.Pages.Index
@@ -80,12 +83,35 @@
             @* <h4>General settings</h4> *@
             <div class="table">
                 <div class="table-row">
-                    <div class="table-cell table-cell-fixed-width-medium twocol">Renderer:</div>
                     <div class="table-cell table-cell-fixed-width-medium twocol">
-                        <select value="@C64HostConfig.Renderer" @onchange="OnRendererChanged">
-                            @foreach (var renderer in Enum.GetNames<C64HostRenderer>())
+                        Render provider:
+                        @if (SelectedRenderProviderType != null)
+                        {
+                            <span title="@TypeDisplayHelper.GetHelpText(SelectedRenderProviderType)" class="help-icon">ⓘ</span>
+                        }
+                    </div>
+                    <div class="table-cell table-cell-fixed-width-medium twocol">
+                        <select value="@(SelectedRenderProviderType?.Name ?? "")" @onchange="OnRenderProviderChanged">
+                            @foreach (var rendererProviderType in RenderProviderTypes)
                             {
-                                <option value="@renderer"> @renderer </option>
+                                <option value="@rendererProviderType.Name"> @TypeDisplayHelper.GetDisplayName(rendererProviderType) </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="table-row">
+                    <div class="table-cell table-cell-fixed-width-medium twocol">
+                        Render target:
+                        @if (SelectedRenderTargetType != null)
+                        {
+                            <span title="@TypeDisplayHelper.GetHelpText(SelectedRenderTargetType)" class="help-icon">ⓘ</span>
+                        }
+                    </div>
+                    <div class="table-cell table-cell-fixed-width-medium twocol">
+                        <select value="@(SelectedRenderTargetType?.Name ?? "")" @onchange="OnRenderTargetChanged">
+                            @foreach (var renderTargetType in RenderTargetTypes)
+                            {
+                                <option value="@renderTargetType.Name"> @TypeDisplayHelper.GetDisplayName(renderTargetType) </option>
                             }
                         </select>
                     </div>
@@ -300,9 +326,19 @@
 
     [Parameter] public IHostSystemConfig HostSystemConfig { get; set; } = default!;
     [Parameter] public string SelectedSystemConfigurationVariant { get; set; } = default!;
+    [Parameter] public List<(Type renderProviderType, Type renderTargetType)> AvailableRendererProviderAndRenderTargetTypeCombinations { get; set; } = default!;
+
 
     public C64HostConfig C64HostConfig => (C64HostConfig)HostSystemConfig;
     public C64SystemConfig C64SystemConfig => C64HostConfig.SystemConfig;
+
+    private List<Type> RenderProviderTypes => AvailableRendererProviderAndRenderTargetTypeCombinations.Select(t => t.renderProviderType).Distinct().ToList();
+    private Type? SelectedRenderProviderType => C64SystemConfig.RenderProviderType;
+    private List<Type> RenderTargetTypes => AvailableRendererProviderAndRenderTargetTypeCombinations
+        .Where(t => t.renderProviderType == SelectedRenderProviderType)
+        .Select(t => t.renderTargetType)
+        .ToList();
+    private Type? SelectedRenderTargetType => C64SystemConfig.RenderTargetType;
 
     protected override async Task OnInitializedAsync()
     {
@@ -314,6 +350,17 @@
         // If ROMs aren't loadad, expand HTML details element for roms (setting property open to true)
         if (LoadedROMCount < _requiredNumberOfRomFiles)
             await Js.InvokeVoidAsync("setOpen", "roms_section", true);
+
+        // If no render provider type is yet selected, auto-select first available render provider
+        if (C64SystemConfig.RenderProviderType == null && RenderProviderTypes.Count > 0)
+        {
+            C64SystemConfig.SetRenderProviderType(RenderProviderTypes.First());
+        }
+        // If no render provider target type is yet selected, auto-select first available render target
+        if (C64SystemConfig.RenderTargetType == null && RenderTargetTypes.Count > 0)
+        {
+            C64SystemConfig.SetRenderTargetType(RenderTargetTypes.First());
+        }
     }
 
     private void UnloadROMs() => C64HostConfig.SystemConfig.ROMs = new List<ROM>();
@@ -459,8 +506,32 @@
         this.StateHasChanged();
     }
 
-    private void OnRendererChanged(ChangeEventArgs e)
-        => C64HostConfig.Renderer = Enum.Parse<C64HostRenderer>(e.Value!.ToString()!);
+    private void OnRenderProviderChanged(ChangeEventArgs e)
+    {
+        string? selectedRenderProviderTypeName = (string?)e.Value;
+        var selectedRenderProviderType = RenderProviderTypes.FirstOrDefault(r => r.Name == selectedRenderProviderTypeName);
+        if (selectedRenderProviderType != null)
+        {
+            C64HostConfig.SystemConfig.SetRenderProviderType(selectedRenderProviderType);
+            
+            // Auto-select first available render target for this provider
+            var availableTargets = RenderTargetTypes;
+            if (availableTargets.Count > 0)
+            {
+                C64HostConfig.SystemConfig.SetRenderTargetType(availableTargets.First());
+            }
+        }
+    }
+
+    private void OnRenderTargetChanged(ChangeEventArgs e)
+    {
+        string? selectedRenderTargetTypeName = (string?)e.Value;
+        var selectedRenderTargetType = RenderTargetTypes.FirstOrDefault(r => r.Name == selectedRenderTargetTypeName);
+        if (selectedRenderTargetType != null)
+        {
+            C64HostConfig.SystemConfig.SetRenderTargetType(selectedRenderTargetType);
+        }
+    }
 
     private void OnSelectJoystickChanged(ChangeEventArgs e) 
         => C64HostConfig.InputConfig.CurrentJoystick = int.Parse(e.Value!.ToString()!);
@@ -507,3 +578,17 @@
         }
     }
 }
+
+<style>
+    .help-icon {
+        cursor: help;
+        color: #007acc;
+        margin-left: 5px;
+        font-size: 14px;
+        font-weight: bold;
+    }
+    
+    .help-icon:hover {
+        color: #005a9e;
+    }
+</style>

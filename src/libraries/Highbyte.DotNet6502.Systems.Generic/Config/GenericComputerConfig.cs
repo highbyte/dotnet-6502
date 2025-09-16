@@ -10,6 +10,8 @@ public class GenericComputerConfig
     private bool _waitForHostToAcknowledgeFrame;
     private EmulatorMemoryConfig _memory = default!;
 
+    public Type? RenderProviderType { get; set; }
+
     public string ProgramBinaryFile
     {
         get { return _programBinaryFile; }

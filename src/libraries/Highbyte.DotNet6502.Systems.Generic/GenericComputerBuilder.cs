@@ -52,6 +52,7 @@ public class GenericComputerBuilder
         )
     {
         _genericComputer.Mem = mem;
+        _genericComputer.InitEmulatorScreenMemory();
         return this;
     }
 

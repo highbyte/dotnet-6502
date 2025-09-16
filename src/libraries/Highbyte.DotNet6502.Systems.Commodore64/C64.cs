@@ -1,18 +1,22 @@
+using System.Text;
 using Highbyte.DotNet6502.Monitor.SystemSpecific;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Monitor;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.VideoCommands;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.IEC;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils;
 using Highbyte.DotNet6502.Systems.Commodore64.Video;
-using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
+using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Utils;
-using Highbyte.DotNet6502.Systems.Commodore64.Utils;
-using System.Text;
-using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems.Commodore64;
 
@@ -51,6 +55,10 @@ public class C64 : ISystem, ISystemMonitor
     private Action<InstructionExecResult>? _postInstructionAudioCallback = null;
     private Action<InstructionExecResult>? _postInstructionVideoCallback = null;
 
+    private IRenderProvider? _renderProvider;
+    public IRenderProvider? RenderProvider => _renderProvider;
+    public List<IRenderProvider> RenderProviders { get; } = new();
+
     // Instrumentations
     public bool InstrumentationEnabled { get; set; }
     public Instrumentations Instrumentations { get; } = new();
@@ -79,8 +87,6 @@ public class C64 : ISystem, ISystemMonitor
     /// Uses the optimized CPU instruction execution (ExecuteOneInstructionMinimal).
     /// </summary>
     /// <param name="execEvaluator"></param>
-    /// <param name="postInstructionCallback"></param>
-    /// <param name="detailedStats"></param>
     /// <returns></returns>
     public ExecEvaluatorTriggerResult ExecuteOneFrame(
         SystemRunner systemRunner,
@@ -114,6 +120,9 @@ public class C64 : ISystem, ISystemMonitor
         _spriteCollisionStat.Start();
         Vic2.SpriteManager.SetCollitionDetectionStatesAndIRQ();
         _spriteCollisionStat.Stop();
+
+        // New render pipeline
+        _renderProvider?.OnEndFrame();
 
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
@@ -156,13 +165,16 @@ public class C64 : ISystem, ISystemMonitor
             _postInstructionAudioCallbackStat.Stop(cont: true);
         }
 
-        // Handle video processing after each instruction.
+        // Handle video processing after each instruction (legacy render pipeline).
         if (_postInstructionVideoCallback != null)
         {
             _postInstructionVideoCallbackStat.Start(cont: true);
             _postInstructionVideoCallback.Invoke(instructionExecResult);
             _postInstructionVideoCallbackStat.Stop(cont: true);
         }
+
+        // New render pipeline, built-in image rasterizer.
+        _renderProvider?.OnAfterInstruction();
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
         if (execEvaluator != null)
@@ -255,11 +267,35 @@ public class C64 : ISystem, ISystemMonitor
         // Configure the current memory configuration on startup
         SetStartupBank(c64);
 
+        ConfigureRenderer(c64, c64Config);
+
         // Set program counter on startup to the address specified at the 6502 reset vector.
         c64.CPU.Reset(c64.Mem);
 
         logger.LogInformation("C64 created.");
         return c64;
+    }
+
+    private void SetCurrentRenderProvider(Type? renderProviderType)
+    {
+        if (renderProviderType == null)
+        {
+            _renderProvider = null;
+            return;
+        }
+        var renderProvider = RenderProviders.SingleOrDefault(rp => rp.GetType() == renderProviderType)
+            ?? throw new ArgumentException("The specified render provider type is not available.");
+        _renderProvider = renderProvider;
+    }
+
+    private static void ConfigureRenderer(C64 c64, C64Config config)
+    {
+        c64.RenderProviders.Add(new Vic2Rasterizer(c64));
+        c64.RenderProviders.Add(new C64CustomRenderProvider(c64));
+        c64.RenderProviders.Add(new C64GpuProvider(c64, useFineScrollPerRasterLine: true));
+        c64.RenderProviders.Add(new C64VideoCommandStream(c64));
+
+        c64.SetCurrentRenderProvider(config.RenderProviderType);
     }
 
     private void MapLocationsOnCurrentCPUBank(Memory mem, bool mapIO)
