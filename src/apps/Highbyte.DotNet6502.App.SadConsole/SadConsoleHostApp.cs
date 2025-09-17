@@ -3,7 +3,7 @@ using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SadConsole;
-using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
+using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Render;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
@@ -128,7 +128,6 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
             .SetStartingScreen(CreateMainSadConsoleScreen)
             .IsStartingScreenFocused(false) // Let the object focused in the create method remain.
             .AddFrameUpdateEvent(UpdateSadConsole);
-        //.AddFrameRenderEvent(RenderSadConsole); // Old rendering pipeline
 
         Settings.WindowTitle = "Highbyte.DotNet6502 emulator + SadConsole (with NAudio)";
         Settings.ResizeMode = Settings.WindowResizeOptions.None;

@@ -128,7 +128,6 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
         _window.Load += OnLoad;
         _window.Closing += OnClosing;
         _window.Update += OnUpdate;
-        //_window.Render += OnRender; // old rendering pipeline
         _window.Resize += OnResize;
 
         _window.Run();

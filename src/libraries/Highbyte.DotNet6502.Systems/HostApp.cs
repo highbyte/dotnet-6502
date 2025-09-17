@@ -182,7 +182,6 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
         return available;
     }
 
-
     public async Task SelectSystem(string systemName)
     {
         if (EmulatorState != EmulatorState.Uninitialized)
@@ -387,7 +386,6 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
 
     public virtual void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult) { }
 
-    // New rendering pipeline
     private void InitRendererForSystem()
     {
         // Skip rendering initialization if no render config has been provided (e.g., in unit tests)
