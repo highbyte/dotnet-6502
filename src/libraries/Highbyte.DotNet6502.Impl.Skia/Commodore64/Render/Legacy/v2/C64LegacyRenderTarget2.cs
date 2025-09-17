@@ -28,7 +28,7 @@ namespace Highbyte.DotNet6502.Impl.Skia.Commodore64.Render.Legacy.v2;
 /// - Fine scroll per frame.
 /// - Sprites (Standard, MultiColor)
 ///   
-/// Compared to C64SkiaRenderer:
+/// Compared to C64LegacyRenderTarget:
 /// - A bit slower, but supports Bitmap graphics and still able to run in a browser with Blazor WebAssembly.
 /// </summary>
 [DisplayName("Skia legacy v2")]

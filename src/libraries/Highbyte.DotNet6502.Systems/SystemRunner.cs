@@ -28,16 +28,12 @@ public class SystemRunner
 
     public SystemRunner(ISystem system, IInputHandler inputHandler, IAudioHandler audioHandler)
     {
-        // if (system != renderer.System)
-        //     throw new DotNet6502Exception("Renderer must be for the same system as the SystemRunner.");
         if (system != inputHandler.System)
             throw new DotNet6502Exception("InputHandler must be for the same system as the SystemRunner.");
         if (system != audioHandler.System)
             throw new DotNet6502Exception("AudioHandler must be for the same system as the SystemRunner.");
 
         _system = system;
-        //_renderer = renderer; // Old renderer pipeline
-        //_renderer = renderer ?? new NullRenderer(system);
         _inputHandler = inputHandler;
         _audioHandler = audioHandler;
     }
@@ -84,17 +80,8 @@ public class SystemRunner
         return execEvaluatorTriggerResult;
     }
 
-    /// <summary>
-    /// Called by host app that runs the emulator, once per frame tied to the host app rendering frequency.
-    /// </summary>
-    public void Draw()
-    {
-        //_renderer.DrawFrame();
-    }
-
     public void Cleanup()
     {
-        //_renderer?.Cleanup(); // Old renderer pipeline
         _audioHandler.Cleanup();
         _inputHandler.Cleanup();
     }

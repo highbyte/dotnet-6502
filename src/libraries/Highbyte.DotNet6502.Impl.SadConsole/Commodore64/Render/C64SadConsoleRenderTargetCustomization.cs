@@ -1,6 +1,6 @@
 using Highbyte.DotNet6502.Systems.Commodore64;
 
-namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
+namespace Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Render;
 public class C64SadConsoleRenderTargetCustomization
 {
     private readonly C64 _c64;
