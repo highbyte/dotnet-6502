@@ -71,7 +71,7 @@ Memory addresses
     protected override void OnInitialized()
     {
         BlazoredModal.SetTitle("Generic config");
-        _exampleGenericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(SelectedSystemConfigurationVariant, GenericComputerHostConfig.SystemConfig.ExamplePrograms[SelectedSystemConfigurationVariant]);
+        _exampleGenericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(SelectedSystemConfigurationVariant, GenericComputerHostConfig.SystemConfig);
     }
 
     private async Task Ok() => await BlazoredModal.CloseAsync(ModalResult.Ok(HostSystemConfig));

@@ -5,13 +5,18 @@ using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
 using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Impl.Skia.Commodore64.Render.Legacy.v1;
+using Highbyte.DotNet6502.Impl.Skia.Commodore64.Render.Legacy.v2;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
+using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Toolbelt.Blazor.Gamepad;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.Skia;
 
-public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
+public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
     // --------------------
     // Injected variables
@@ -32,7 +37,6 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
     // --------------------
     // Other variables / constants
     // --------------------
-    private SkiaRenderContext _renderContext = default!;
     private AspNetInputHandlerContext _inputHandlerContext = default!;
     private WASMAudioHandlerContext _audioHandlerContext = default!;
 
@@ -49,8 +53,10 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
     private const int DEBUGMESSAGE_EVERY_X_FRAME = 1;
     private int _debugFrameCount = 0;
 
+    private AspNetRenderLoop _renderloop;
+
     public SkiaWASMHostApp(
-        SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext> systemList,
+        SystemList<AspNetInputHandlerContext, WASMAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
         EmulatorConfig emulatorConfig,
 
@@ -77,12 +83,74 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
         _defaultAudioEnabled = false;
         _defaultAudioVolumePercent = 20.0f;
 
-        _renderContext = new SkiaRenderContext(_getCanvas, _getGrContext);
         _inputHandlerContext = new AspNetInputHandlerContext(_loggerFactory, _gamepadList);
         _audioHandlerContext = new WASMAudioHandlerContext(_getAudioContext, _jsRuntime, _defaultAudioVolumePercent);
 
-        base.SetContexts(getRenderContext: () => _renderContext, getInputHandlerContext: () => _inputHandlerContext, getAudioHandlerContext: () => _audioHandlerContext);
+        InitTargetRenderers(); // New rendering pipeline
+
+        base.SetContexts(
+            getInputHandlerContext: () => _inputHandlerContext,
+            getAudioHandlerContext: () => _audioHandlerContext);
     }
+
+    private void InitTargetRenderers()
+    {
+        base.SetRenderConfig(
+            (RenderTargetProvider rtp) =>
+            {
+                // Common source and render targets, independent of emulated system and the host renderer
+                rtp.AddRenderTargetType<SkiaCanvasTwoLayerRenderTarget>(() => new SkiaCanvasTwoLayerRenderTarget(
+                    new RenderSize(CurrentRunningSystem!.Screen.VisibleWidth, CurrentRunningSystem!.Screen.VisibleHeight),
+                    _getCanvas,
+                    flush: false));
+
+                // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
+                rtp.AddRenderTargetType<C64LegacyRenderTarget>(() => new C64LegacyRenderTarget(
+                    (C64)CurrentRunningSystem,
+                    _getCanvas,
+                    flush: false));
+                // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
+                rtp.AddRenderTargetType<C64LegacyRenderTarget2>(() => new C64LegacyRenderTarget2(
+                    (C64)CurrentRunningSystem,
+                    _getCanvas,
+                    flush: false));
+
+                // Experimental Skia C64 command based target. WIP.
+                rtp.AddRenderTargetType<SkiaCommandTarget>(() => new SkiaCommandTarget(
+                    _getCanvas,
+                    useCellCoordinates: true,
+                    flush: false));
+            },
+            () =>
+            {
+                _renderloop = new AspNetRenderLoop(
+                    OnBeforeRender,
+                    OnAfterRender,
+                    shouldEmitEmulationFrame: () => EmulatorState != EmulatorState.Uninitialized);
+                return _renderloop;
+            });
+    }
+
+    /// <summary>
+    /// Callback from AspNetRenderLoop (new rendering pipleline) before the emulator has been rendered to the screen.
+    /// </summary>
+    public void OnBeforeRender(double? deltaTime)
+    {
+        var emulatorWillBeRendered = EmulatorState == EmulatorState.Running;
+        if (emulatorWillBeRendered)
+        {
+            // TODO: Shouldn't scale be able to set once we start the emulator (OnBeforeStart method?) instead of every frame?
+            _getCanvas().Scale((float)_emulatorConfig.CurrentDrawScale);
+        }
+    }
+
+    /// <summary>
+    /// Callback from AspNetRenderLoop (new rendering pipleline) after the emulator has been rendered to the screen.
+    /// </summary>
+    public void OnAfterRender(double? deltaTime)
+    {
+    }
+
 
     public override void OnAfterSelectSystem()
     {
@@ -116,6 +184,10 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
         _updateTimer!.Stop();
     }
 
+    public override void OnBeforeStop()
+    {
+    }
+
     public override void OnAfterStop()
     {
         _wasmHostUIViewModel.SetDebugState(visible: false);
@@ -130,7 +202,6 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
     public override void OnAfterClose()
     {
         // Cleanup contexts
-        _renderContext?.Cleanup();
         _inputHandlerContext?.Cleanup();
         _audioHandlerContext?.Cleanup();
     }
@@ -193,30 +264,11 @@ public class SkiaWASMHostApp : HostApp<SkiaRenderContext, AspNetInputHandlerCont
             _monitor.Enable(execEvaluatorTriggerResult);
     }
 
-    /// <summary>
-    /// Called from ASP.NET Blazor SKGLView "OnPaintSurface" event to render one frame.
-    /// </summary>
-    /// <param name="args"></param>
-    public void Render()
-    {
-        // Draw emulator on screen
-        base.DrawFrame();
-    }
 
-    public override void OnBeforeDrawFrame(bool emulatorWillBeRendered)
+    // New rendering pipeline with AspNetRenderLoop
+    public void RaiseRenderLoopTick()
     {
-        if (emulatorWillBeRendered)
-        {
-            // TODO: Shouldn't scale be able to set once we start the emulator (OnBeforeStart method?) instead of every frame?
-            _getCanvas().Scale((float)_emulatorConfig.CurrentDrawScale);
-        }
-    }
-
-    public override void OnAfterDrawFrame(bool emulatorRendered)
-    {
-        if (emulatorRendered)
-        {
-        }
+        _renderloop.RaiseFrameTick();
     }
 
     public void SetVolumePercent(float volumePercent)

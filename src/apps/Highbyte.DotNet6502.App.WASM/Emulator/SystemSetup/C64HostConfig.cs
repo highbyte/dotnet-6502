@@ -6,14 +6,6 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
-[JsonConverter(typeof(JsonStringEnumConverter<C64HostRenderer>))]
-public enum C64HostRenderer
-{
-    SkiaSharp,
-    SkiaSharp2,  // Experimental render directly to pixel buffer backed by a SKBitmap + Skia shader (SKSL)
-    SkiaSharp2b, // Experimental render after each instruction directly to pixel buffer backed by a SKBitmap + Skia shader (SKSL)
-    SkiaSharp3,  // Consolidated renderer based on base class C64RenderBase. Similar to SkiaSharp2b, but simplified sprite color handling.
-}
 public class C64HostConfig : IHostSystemConfig, ICloneable
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.C64.WASM";
@@ -43,8 +35,6 @@ public class C64HostConfig : IHostSystemConfig, ICloneable
         _isDirty = false;
         _systemConfig.ClearDirty();
     }
-
-    public C64HostRenderer Renderer { get; set; } = C64HostRenderer.SkiaSharp;
 
     public C64AspNetInputConfig InputConfig { get; set; } = new C64AspNetInputConfig();
 

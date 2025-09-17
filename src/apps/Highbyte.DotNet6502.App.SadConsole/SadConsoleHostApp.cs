@@ -3,8 +3,11 @@ using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SadConsole;
+using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
+using Highbyte.DotNet6502.Systems.Rendering;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SadConsole.Components;
@@ -18,7 +21,7 @@ namespace Highbyte.DotNet6502.App.SadConsole;
 /// <summary>
 /// Host app for running Highbyte.DotNet6502 emulator in a SadConsole Window
 /// </summary>
-public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
+public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
 {
     // --------------------
     // Injected variables
@@ -55,12 +58,13 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         handler?.Invoke(this, monitorEnabled);
     }
 
-    private SadConsoleRenderContext _renderContext = default!;
     private SadConsoleInputHandlerContext _inputHandlerContext = default!;
     private NAudioAudioHandlerContext _audioHandlerContext = default!;
     private InfoConsole _infoConsole;
     private const int MENU_POSITION_X = 0;
     private const int MENU_POSITION_Y = 0;
+
+    private ErrorDialog? _currentErrorDialog;
 
     private int StartupScreenWidth => MenuConsole.CONSOLE_WIDTH + 60;
     private int StartupScreenHeight => MenuConsole.CONSOLE_HEIGHT + 14;
@@ -75,7 +79,6 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     private int _logsFrameCount = 0;
     private DrawImage _logoDrawImage;
 
-
     /// <summary>
     /// Constructor
     /// </summary>
@@ -85,7 +88,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
     public SadConsoleHostApp(
-        SystemList<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext> systemList,
+        SystemList<SadConsoleInputHandlerContext, NAudioAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
 
         EmulatorConfig emulatorConfig,
@@ -106,18 +109,11 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
     public void Run()
     {
-        //SetUninitializedWindow();
-
-        //_inputContext = CreateSilkNetInput();
-
-        _renderContext = CreateRenderContext();
         _inputHandlerContext = CreateInputHandlerContext();
         _audioHandlerContext = CreateAudioHandlerContext();
 
-        SetContexts(() => _renderContext, () => _inputHandlerContext, () => _audioHandlerContext);
-        InitRenderContext();
-        InitInputHandlerContext();
-        InitAudioHandlerContext();
+        // Set up global exception handlers
+        SetupGlobalExceptionHandlers();
 
         // ----------
         // Main SadConsole screen
@@ -131,24 +127,154 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
             .ConfigureFonts(customDefaultFont: uiFont, extraFonts: emulatorFonts)
             .SetStartingScreen(CreateMainSadConsoleScreen)
             .IsStartingScreenFocused(false) // Let the object focused in the create method remain.
-            .AddFrameUpdateEvent(UpdateSadConsole)
-            .AddFrameRenderEvent(RenderSadConsole)
-            ;
+            .AddFrameUpdateEvent(UpdateSadConsole);
+        //.AddFrameRenderEvent(RenderSadConsole); // Old rendering pipeline
 
         Settings.WindowTitle = "Highbyte.DotNet6502 emulator + SadConsole (with NAudio)";
         Settings.ResizeMode = Settings.WindowResizeOptions.None;
 
         // Start SadConsole window
         Game.Create(builder);
-        Game.Instance.Run();
-        // Continues here after SadConsole window is closed
-        Game.Instance.Dispose();
+
+        try
+        {
+            Game.Instance.Run();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unhandled exception in SadConsole Game.Instance.Run()");
+            HandleGlobalException(ex);
+        }
+        finally
+        {
+            // Continues here after SadConsole window is closed
+            Game.Instance.Dispose();
+        }
+    }
+
+    private void SetupGlobalExceptionHandlers()
+    {
+        // Set up global exception handler for unhandled exceptions in other threads
+        AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+        {
+            if (e.ExceptionObject is Exception exception)
+            {
+                _logger.LogError(exception, "Unhandled exception in AppDomain");
+                HandleGlobalException(exception);
+            }
+        };
+
+        // Set up handler for unhandled exceptions in tasks
+        TaskScheduler.UnobservedTaskException += (sender, e) =>
+        {
+            _logger.LogError(e.Exception, "Unobserved task exception");
+            HandleGlobalException(e.Exception);
+            e.SetObserved(); // Prevent the process from terminating
+        };
+    }
+
+    private void HandleGlobalException(Exception exception)
+    {
+        try
+        {
+            _logger.LogError(exception, "Unhandled exception: {Message}", exception.Message);
+            System.Console.WriteLine($"Exception: {exception.Message}");
+            System.Console.WriteLine($"Stack trace: {exception.StackTrace}");
+
+            // Pause emulator if it's running
+            if (EmulatorState == EmulatorState.Running)
+            {
+                Pause();
+            }
+
+            // Show error dialog
+            ShowErrorDialog(exception);
+        }
+        catch (Exception ex)
+        {
+            // Last resort: log the exception and exit
+            _logger.LogCritical(ex, "Failed to handle global exception properly");
+            Environment.Exit(1);
+        }
+    }
+
+    private void ShowErrorDialog(Exception exception)
+    {
+        if (_currentErrorDialog != null && _currentErrorDialog.IsVisible)
+        {
+            // Dialog already showing, don't show another one
+            return;
+        }
+
+        var errorMessage = "An unexpected error occurred in the application.";
+        
+        _currentErrorDialog = new ErrorDialog(errorMessage, exception);
+        _currentErrorDialog.Closed += (sender, e) =>
+        {
+            if (_currentErrorDialog != null)
+            {
+                if (_currentErrorDialog.UserChoice == ErrorDialog.ErrorDialogResult.Exit)
+                {
+                    // User chose to exit - close the window which will exit the game loop
+                    Settings.DoFinalDraw = false;
+                    Game.Instance.MonoGameInstance.Exit();
+                }
+                else
+                {
+                    // User chose to continue - unpause emulator if it was paused
+                    if (EmulatorState == EmulatorState.Paused)
+                    {
+                        _ = Start(); // Fire and forget
+                    }
+                }
+                _currentErrorDialog = null;
+            }
+        };
+
+        // Add the dialog to the screen and show it
+        if (_sadConsoleScreen != null)
+        {
+            _sadConsoleScreen.Children.Add(_currentErrorDialog);
+            _currentErrorDialog.Show();
+            _currentErrorDialog.IsFocused = true;
+        }
+    }
+
+    private void OnBeforeRender(double delta)
+    {
+    }
+    private void OnAfterRender(double delta)
+    {
+        // Push logs to info console (logs should be updated on screen even if emulator is not running)
+        _logsFrameCount++;
+        if (_logsFrameCount >= LOGS_UPDATE_EVERY_X_FRAME)
+        {
+            _logsFrameCount = 0;
+            _infoConsole.UpdateLogs();
+        }
+    }
+
+    // System-specific character and color transformation for SadConsole rendering
+    private Func<int, Color, Color, (int tranformedCharacter, Color transformedFgColor, Color transformedBgColor)>? GetTransformCharacterAndColor(ISystem system)
+    {
+        if (CurrentSystemRunner!.System is C64 c64)
+            return new C64SadConsoleRenderTargetCustomization(c64).TransformCharacterAndColor;
+        return null;
     }
 
     private IScreenObject CreateMainSadConsoleScreen(GameHost gameHost)
     {
-        // Trigger sadConsoleHostApp.SelectSystem which initilzes selected system and variants that UI creation depends on below.
+        // Trigger sadConsoleHostApp.SelectSystem call which in turn may trigger other system-specific UI stuff.
         SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
+
+        InitTargetRenderers(); // New rendering pipeline
+
+        SetContexts(
+            () => _inputHandlerContext,
+            () => _audioHandlerContext);
+
+        InitInputHandlerContext();
+        InitAudioHandlerContext();
 
         //ScreenSurface screen = new(gameInstance.ScreenCellsX, gameInstance.ScreenCellsY);
         //return screen;
@@ -218,10 +344,34 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         //_sadConsoleScreen.IsFocused = true;
         _menuConsole.IsFocused = true;
 
-        // Trigger sadConsoleHostApp.SelectSystem call which in turn may trigger other system-specific UI stuff.
-        SelectSystem(SelectedSystemName).Wait();
+        // Make sure all systems have a supported render target selected in their config  
+        ApplySupportedRenderTargetToSystemConfigs().Wait();
 
         return _sadConsoleScreen;
+    }
+
+    private void InitTargetRenderers()
+    {
+        // New rendering pipeline configuration
+        base.SetRenderConfig(
+            (RenderTargetProvider rtp) =>
+            {
+                // Common source and render targets, independent of emulated system and the host renderer
+                rtp.AddRenderTargetType<SadConsoleCommandTarget>(() => new SadConsoleCommandTarget(
+                    _sadConsoleEmulatorConsole,
+                    offsetX: EmulatorConsole.USE_CONSOLE_BORDER ? 1 : 0,
+                    offsetY: EmulatorConsole.USE_CONSOLE_BORDER ? 1 : 0,
+                    transformCharacterAndColor: GetTransformCharacterAndColor(CurrentRunningSystem)));
+            },
+            () =>
+            {
+                // HostFrameCallback
+                var renderloop = new SadConsoleRenderLoop(
+                    OnBeforeRender,
+                    OnAfterRender,
+                    shouldEmitEmulationFrame: () => EmulatorState != EmulatorState.Uninitialized);
+                return renderloop;
+            });
     }
 
     public override void OnAfterSelectSystem()
@@ -254,32 +404,35 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
 
     public override bool OnBeforeStart(ISystem systemAboutToBeStarted)
     {
-        // Create emulator console
-        if (_sadConsoleEmulatorConsole != null)
+        // Check if we was uninitialized (not started yet) before starting the system. Otherwise it would be just paused, and we don't want to recreate the emulator console then.
+        if (EmulatorState == EmulatorState.Uninitialized)
         {
-            if (_sadConsoleScreen.Children.Contains(_sadConsoleEmulatorConsole))
-                _sadConsoleScreen.Children.Remove(_sadConsoleEmulatorConsole);
-        }
+            // Create emulator console
+            if (_sadConsoleEmulatorConsole != null)
+            {
+                if (_sadConsoleScreen.Children.Contains(_sadConsoleEmulatorConsole))
+                    _sadConsoleScreen.Children.Remove(_sadConsoleEmulatorConsole);
+            }
 
-        IFont font;
-        if (!string.IsNullOrEmpty(CommonHostSystemConfig.Font))
-        {
-            var fontFileNameWithoutExtension = Path.GetFileNameWithoutExtension(CommonHostSystemConfig.Font);
-            font = Game.Instance.Fonts[fontFileNameWithoutExtension];
-        }
-        else
-        {
-            font = Game.Instance.DefaultFont;
-        }
-        _sadConsoleEmulatorConsole = EmulatorConsole.Create(systemAboutToBeStarted, font, CommonHostSystemConfig.DefaultFontSize, SadConsoleUISettings.CreateEmulatorConsoleDrawBoxBorderParameters(font.SolidGlyphIndex));
-        _sadConsoleEmulatorConsole.UsePixelPositioning = true;
-        _sadConsoleEmulatorConsole.Position = new Point((_menuConsole!.Position.X * _menuConsole.Font.GlyphWidth) + (_menuConsole.Width * _menuConsole.Font.GlyphWidth), 0);
-        _sadConsoleEmulatorConsole.IsFocused = true;
-        _sadConsoleScreen!.Children.Add(_sadConsoleEmulatorConsole);
+            IFont font;
+            if (!string.IsNullOrEmpty(CommonHostSystemConfig.Font))
+            {
+                var fontFileNameWithoutExtension = Path.GetFileNameWithoutExtension(CommonHostSystemConfig.Font);
+                font = Game.Instance.Fonts[fontFileNameWithoutExtension];
+            }
+            else
+            {
+                font = Game.Instance.DefaultFont;
+            }
+            _sadConsoleEmulatorConsole = EmulatorConsole.Create(systemAboutToBeStarted, font, CommonHostSystemConfig.DefaultFontSize, SadConsoleUISettings.CreateEmulatorConsoleDrawBoxBorderParameters(font.SolidGlyphIndex));
+            _sadConsoleEmulatorConsole.UsePixelPositioning = true;
+            _sadConsoleEmulatorConsole.Position = new Point((_menuConsole!.Position.X * _menuConsole.Font.GlyphWidth) + (_menuConsole.Width * _menuConsole.Font.GlyphWidth), 0);
+            _sadConsoleEmulatorConsole.IsFocused = true;
+            _sadConsoleScreen!.Children.Add(_sadConsoleEmulatorConsole);
 
-        // Resize main window to fit menu, emulator, and other consoles
-        Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
-
+            // Resize main window to fit menu, emulator, and other consoles
+            Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
+        }
         return true;
     }
 
@@ -333,7 +486,6 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         //_monitor.Cleanup();
 
         // Cleanup contexts
-        _renderContext?.Cleanup();
         _inputHandlerContext?.Cleanup();
         _audioHandlerContext?.Cleanup();
     }
@@ -342,14 +494,23 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     /// Runs on every Update Frame event.
     /// Runs the emulator logic for one frame.
     /// </summary>
-    /// <param name=""></param>
+    /// <param name="sender"></param>
+    /// <param name="gameHost"></param>
     private void UpdateSadConsole(object? sender, GameHost gameHost)
     {
-        // Handle UI-specific keyboard inputs such as toggle monitor, info, etc.
-        HandleUIKeyboardInput().Wait();
+        try
+        {
+            // Handle UI-specific keyboard inputs such as toggle monitor, info, etc.
+            HandleUIKeyboardInput().Wait();
 
-        // RunEmulatorOneFrame() will first handle input, then emulator in run for one frame.
-        RunEmulatorOneFrame();
+            // RunEmulatorOneFrame() will first handle input, then emulator in run for one frame.
+            RunEmulatorOneFrame();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception in UpdateSadConsole frame update");
+            HandleGlobalException(ex);
+        }
     }
 
     public override void OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput)
@@ -390,44 +551,6 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
         // Show monitor if we encounter breakpoint or other break
         if (execEvaluatorTriggerResult.Triggered)
             EnableMonitor(execEvaluatorTriggerResult);
-    }
-
-    /// <summary>
-    /// Runs on every Render Frame event. Draws one emulator frame on screen.
-    /// </summary>
-    /// <param name="args"></param>
-    private void RenderSadConsole(object? sender, GameHost gameHost)
-    {
-        // Draw emulator on screen
-        DrawFrame();
-
-        // Push logs to info console (logs should be updated on screen even if emulator is not running)
-        _logsFrameCount++;
-        if (_logsFrameCount >= LOGS_UPDATE_EVERY_X_FRAME)
-        {
-            _logsFrameCount = 0;
-            _infoConsole.UpdateLogs(); ;
-        }
-    }
-
-    public override void OnBeforeDrawFrame(bool emulatorWillBeRendered)
-    {
-        // If any ImGui window is visible, make sure to clear Gl buffer before rendering emulator
-        if (emulatorWillBeRendered)
-        {
-        }
-    }
-    public override void OnAfterDrawFrame(bool emulatorRendered)
-    {
-        if (emulatorRendered)
-        {
-        }
-    }
-
-
-    private SadConsoleRenderContext CreateRenderContext()
-    {
-        return new SadConsoleRenderContext(() => _sadConsoleEmulatorConsole);
     }
 
     private SadConsoleInputHandlerContext CreateInputHandlerContext()
@@ -586,6 +709,14 @@ public class SadConsoleHostApp : HostApp<SadConsoleRenderContext, SadConsoleInpu
     private async Task HandleUIKeyboardInput()
     {
         var keyboard = GameHost.Instance.Keyboard;
+
+        // if (keyboard.IsKeyReleased(Keys.F8))
+        // {
+        //     keyboard.Clear();
+        //     throw new Exception("Test unhandled exception from F8 key");
+        // }
+
+        // Toggle logs with F10 - disabled for now as logs are always updated in info console        
         //if (keyboard.IsKeyReleased(Keys.F10))
         //    ToggleLogs();
 

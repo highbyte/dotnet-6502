@@ -46,7 +46,7 @@ Configuration.GetSection(EmulatorConfig.ConfigSectionName).Bind(emulatorConfig);
 // ----------
 // Get systems
 // ----------
-var systemList = new SystemList<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext>();
+var systemList = new SystemList<SadConsoleInputHandlerContext, NAudioAudioHandlerContext>();
 
 var c64Setup = new C64Setup(loggerFactory, Configuration);
 systemList.AddSystem(c64Setup);

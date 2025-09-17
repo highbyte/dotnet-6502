@@ -9,7 +9,7 @@ using Highbyte.DotNet6502.Systems.Generic.Config;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
-public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
+public class GenericComputerSetup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
     public string SystemName => GenericComputer.SystemName;
 
@@ -76,7 +76,7 @@ public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetI
         var genericComputerSystemConfig = (GenericComputerSystemConfig)systemConfig;
         var exampleProgramPath = genericComputerSystemConfig.ExamplePrograms[configurationVariant];
         var exampleProgramBytes = await _browserContext.HttpClient.GetByteArrayAsync(exampleProgramPath);
-        var genericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(configurationVariant, exampleProgramBytes);
+        var genericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(configurationVariant, genericComputerSystemConfig, exampleProgramBytes);
 
         return GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory);
     }
@@ -84,7 +84,6 @@ public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetI
     public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         IHostSystemConfig hostSystemConfig,
-        SkiaRenderContext renderContext,
         AspNetInputHandlerContext inputHandlerContext,
         WASMAudioHandlerContext audioHandlerContext)
     {
@@ -92,11 +91,10 @@ public class GenericComputerSetup : ISystemConfigurer<SkiaRenderContext, AspNetI
         var genericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
         var genericComputerConfig = genericComputerHostConfig.SystemConfig;
 
-        var renderer = new GenericComputerSkiaRenderer(genericComputer, renderContext, genericComputer.GenericComputerConfig.Memory.Screen);
         var inputHandler = new GenericComputerAspNetInputHandler(genericComputer, inputHandlerContext, genericComputer.GenericComputerConfig.Memory.Input);
         var audioHandler = new NullAudioHandler(genericComputer);
 
-        return Task.FromResult(new SystemRunner(genericComputer, renderer, inputHandler, audioHandler));
+        return Task.FromResult(new SystemRunner(genericComputer, inputHandler, audioHandler));
     }
 
     //private (int? cols, int? rows, ushort? screenMemoryAddress, ushort? colorMemoryAddress) GetScreenSize(Uri uri)

@@ -63,7 +63,7 @@ public class EmulatorConfig
         GenericComputerHostConfig = new();
     }
 
-    public void Validate(SystemList<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext> systemList)
+    public void Validate(SystemList<SadConsoleInputHandlerContext, NAudioAudioHandlerContext> systemList)
     {
         if (!systemList.Systems.Contains(DefaultEmulator))
             throw new DotNet6502Exception($"Setting {nameof(DefaultEmulator)} value {DefaultEmulator} is not supported. Valid values are: {string.Join(',', systemList.Systems)}");

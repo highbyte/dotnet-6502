@@ -1,17 +1,25 @@
+using System.Numerics;
 using System.Reflection;
+using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Impl.SilkNet;
+using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Render;
 using Highbyte.DotNet6502.Impl.Skia;
+using Highbyte.DotNet6502.Impl.Skia.Commodore64.Render.Legacy.v1;
+using Highbyte.DotNet6502.Impl.Skia.Commodore64.Render.Legacy.v2;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
+using Highbyte.DotNet6502.Systems.Rendering;
+using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Microsoft.Extensions.Logging;
 using Silk.NET.Core;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative;
 
-public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
+public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
     // --------------------
     // Injected variables
@@ -30,7 +38,8 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     // --------------------
     // Other variables / constants
     // --------------------
-    private SilkNetRenderContextContainer _renderContextContainer = default!;
+    private SkiaGlCanvasProvider _skiaGlCanvasProvider;
+
     private SilkNetInputHandlerContext _inputHandlerContext = default!;
     private NAudioAudioHandlerContext _audioHandlerContext = default!;
 
@@ -67,6 +76,13 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     private readonly List<ISilkNetImGuiWindow> _imGuiWindows = new List<ISilkNetImGuiWindow>();
     private bool _atLeastOneImGuiWindowHasFocus => _imGuiWindows.Any(x => x.Visible && x.WindowIsFocused);
 
+    // Error dialog state
+    private bool _showErrorDialog;
+    private string _errorDialogTitle = string.Empty;
+    private string _errorDialogMessage = string.Empty;
+    private bool _errorDialogIsCritical;
+    private bool _exceptionExit;
+
 
     // GL and other ImGui resources
     private GL _gl = default!;
@@ -74,7 +90,6 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
 
     private SKImage _logoImage;
     private SKRect _logoImageDest;
-    private SkiaRenderContext _logoSkiaRenderContext;
 
     /// <summary>
     /// Constructor
@@ -86,7 +101,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
     public SilkNetHostApp(
-        SystemList<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext> systemList,
+        SystemList<SilkNetInputHandlerContext, NAudioAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
         EmulatorConfig emulatorConfig,
         IWindow window,
@@ -113,7 +128,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         _window.Load += OnLoad;
         _window.Closing += OnClosing;
         _window.Update += OnUpdate;
-        _window.Render += OnRender;
+        //_window.Render += OnRender; // old rendering pipeline
         _window.Resize += OnResize;
 
         _window.Run();
@@ -125,17 +140,65 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     {
         SetUninitializedWindow();
 
+        InitOpenGL();
+
         SetIcon();
         InitLogo();
 
-        _renderContextContainer = CreateRenderContext();
+        InitSkiaGlCanvasProvider();
+
         _inputHandlerContext = CreateInputHandlerContext();
         _audioHandlerContext = CreateAudioHandlerContext();
 
-        base.SetContexts(() => _renderContextContainer, () => _inputHandlerContext, () => _audioHandlerContext);
-        base.InitRenderContext();
+        base.SetContexts(() => _inputHandlerContext, () => _audioHandlerContext);
         base.InitInputHandlerContext();
         base.InitAudioHandlerContext();
+
+        // New rendering pipeline configuration
+        base.SetRenderConfig(
+            (RenderTargetProvider rtp) =>
+            {
+                // Common source and render targets, independent of emulated system and the host renderer
+                rtp.AddRenderTargetType<SkiaCanvasTwoLayerRenderTarget>(() => new SkiaCanvasTwoLayerRenderTarget(
+                    new RenderSize(CurrentRunningSystem!.Screen.VisibleWidth, CurrentRunningSystem!.Screen.VisibleHeight),
+                    () => _skiaGlCanvasProvider.Canvas,
+                    flush: true));
+
+                // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
+                rtp.AddRenderTargetType<C64LegacyRenderTarget>(() => new C64LegacyRenderTarget(
+                    (C64)CurrentRunningSystem,
+                    () => _skiaGlCanvasProvider.Canvas,
+                    flush: true));
+                // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
+                rtp.AddRenderTargetType<C64LegacyRenderTarget2>(() => new C64LegacyRenderTarget2(
+                    (C64)CurrentRunningSystem,
+                    () => _skiaGlCanvasProvider.Canvas,
+                    flush: true));
+
+                // GPU based custom source + render targets, specific to emulated system and the host renderer
+                rtp.AddRenderTargetType<C64SilkNetOpenGlRendererTarget>(() => new C64SilkNetOpenGlRendererTarget(
+                    (C64)CurrentRunningSystem,
+                    ((C64HostConfig)CurrentHostSystemConfig).SilkNetOpenGlRendererConfig,
+                    _gl,
+                    _window
+                    ));
+
+                // Experimental Skia C64 command based target. WIP.
+                rtp.AddRenderTargetType<SkiaCommandTarget>(() => new SkiaCommandTarget(
+                    () => _skiaGlCanvasProvider.Canvas,
+                    useCellCoordinates: true,
+                    flush: true));
+
+            },
+            () =>
+            {
+                var renderloop = new SilkOnRenderLoop(
+                    _window,
+                    OnBeforeRender,
+                    OnAfterRender,
+                    shouldEmitEmulationFrame: () => EmulatorState != EmulatorState.Uninitialized);
+                return renderloop;
+            });
 
         ConfigureSilkNetInput();
 
@@ -156,6 +219,15 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         _imGuiWindows.Add(_debugInfoPanel);
         _imGuiWindows.Add(_monitor);
         _imGuiWindows.Add(_logsPanel);
+
+        // Default system selected
+        SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
+    }
+
+    private void InitSkiaGlCanvasProvider()
+    {
+        _skiaGlCanvasProvider?.Dispose();
+        _skiaGlCanvasProvider = GetSkiaGlCanvasProvider();
     }
 
     private void SetIcon()
@@ -187,18 +259,18 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
             _window.Size = new Vector2D<int>((int)(screen.VisibleWidth * CanvasScale), (int)(screen.VisibleHeight * CanvasScale));
             _window.UpdatesPerSecond = screen.RefreshFrequencyHz;
 
-            _renderContextContainer?.Cleanup();
-            _renderContextContainer = CreateRenderContext();
-            base.InitRenderContext();
+            InitSkiaGlCanvasProvider();
         }
         return true;
     }
 
     public override void OnAfterStart(EmulatorState emulatorStateBeforeStart)
     {
-        // Init monitor for current system started if this system was not started before
         if (emulatorStateBeforeStart == EmulatorState.Uninitialized)
+        {
+            // Init monitor for current system started if this system was not started before
             _monitor.Init(CurrentSystemRunner!);
+        }
 
         //_window.Focus();
     }
@@ -216,10 +288,100 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         //_debugInfoPanel.Cleanup();
         DestroyImGuiController();
 
+        _skiaGlCanvasProvider?.Dispose();
+
         // Cleanup contexts
-        _renderContextContainer?.Cleanup();
         _inputHandlerContext?.Cleanup();
         _audioHandlerContext?.Cleanup();
+
+        _gl?.Dispose();
+    }
+
+    /// <summary>
+    /// Handles exceptions that occur in event handlers like OnUpdate, OnBeforeRender, and OnAfterRender.
+    /// Logs the exception and shows a popup dialog with options to continue or exit.
+    /// </summary>
+    /// <param name="exception">The exception that occurred</param>
+    /// <param name="methodName">The name of the method where the exception occurred</param>
+    private void HandleEventHandlerException(Exception exception, string methodName)
+    {
+        _logger.LogError(exception, "Unhandled exception in {MethodName}: {Message}", methodName, exception.Message);
+        Console.WriteLine($"Exception in {methodName}: {exception.Message}");
+        Console.WriteLine($"Stack trace: {exception.StackTrace}");
+
+        // Determine if this is a critical exception
+        _errorDialogIsCritical = exception is OutOfMemoryException || exception is StackOverflowException;
+
+        // Set up the error dialog
+        _errorDialogTitle = _errorDialogIsCritical ? "Critical Error" : "Error";
+        _errorDialogMessage = $"An error occurred in {methodName}:\n\n{exception.Message}\n\nException Type: {exception.GetType().Name}";
+
+        if (_errorDialogIsCritical)
+        {
+            _errorDialogMessage += "\n\nThis is a critical error that may require restarting the application.";
+        }
+
+        _showErrorDialog = true;
+
+        if (EmulatorState == EmulatorState.Running)
+            Pause();
+    }
+
+    /// <summary>
+    /// Renders the error dialog popup if it should be shown.
+    /// </summary>
+    private async Task RenderErrorDialog()
+    {
+        if (!_showErrorDialog || _exceptionExit)
+            return;
+
+        // Open the popup first (must happen before BeginPopupModal)
+        ImGui.OpenPopup(_errorDialogTitle);
+
+        // Center the popup
+        var viewport = ImGui.GetMainViewport();
+        var center = viewport.GetCenter();
+        ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
+        ImGui.SetNextWindowSize(new Vector2(500, 200), ImGuiCond.Appearing);
+
+        // Create the popup modal
+        if (ImGui.BeginPopupModal(_errorDialogTitle, ref _showErrorDialog, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoMove))
+        {
+            // Display the error message
+            ImGui.TextWrapped(_errorDialogMessage);
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            // Center the buttons
+            var buttonWidth = 100f;
+            var totalButtonWidth = buttonWidth * 2 + ImGui.GetStyle().ItemSpacing.X;
+            var windowWidth = ImGui.GetWindowSize().X;
+            var buttonStartX = (windowWidth - totalButtonWidth) * 0.5f;
+
+            ImGui.SetCursorPosX(buttonStartX);
+
+            // Continue button
+            if (ImGui.Button("Continue", new Vector2(buttonWidth, 0)))
+            {
+                _showErrorDialog = false;
+                ImGui.CloseCurrentPopup();
+                if (EmulatorState == EmulatorState.Paused)
+                    await Start();
+            }
+
+            ImGui.SameLine();
+
+            // Exit button
+            if (ImGui.Button("Exit", new Vector2(buttonWidth, 0)))
+            {
+                _logger.LogInformation("User chose to exit application after error dialog.");
+                _exceptionExit = true;
+                return;
+            }
+
+            ImGui.EndPopup();
+        }
     }
 
     /// <summary>
@@ -231,22 +393,31 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     /// <param name=""></param>
     protected void OnUpdate(double deltaTime)
     {
-        base.RunEmulatorOneFrame();
+        try
+        {
+            // Don't update emulator state when app is quitting
+            if (_exceptionExit || _inputHandlerContext.Quit || _monitor.Quit)
+            {
+                _window.Close();
+                return;
+            }
+
+            base.RunEmulatorOneFrame();
+        }
+        catch (Exception ex)
+        {
+            HandleEventHandlerException(ex, nameof(OnUpdate));
+        }
     }
 
     public override void OnBeforeRunEmulatorOneFrame(out bool shouldRun, out bool shouldReceiveInput)
     {
         shouldRun = false;
         shouldReceiveInput = false;
+
         // Don't update emulator state when monitor is visible
         if (_monitor.Visible)
             return;
-        // Don't update emulator state when app is quiting
-        if (_inputHandlerContext.Quit || _monitor.Quit)
-        {
-            _window.Close();
-            return;
-        }
 
         shouldRun = true;
 
@@ -262,111 +433,113 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
             _monitor.Enable(execEvaluatorTriggerResult);
     }
 
+    /// <summary>
+    /// Callback from SilkOnRenderLoop (new rendering pipleline) before the emulator has been rendered to the screen.
+    /// </summary>
+    public void OnBeforeRender(double deltaTime)
+    {
+        try
+        {
+            // Make sure ImGui is up-to-date
+            _imGuiController.Update((float)deltaTime);
+
+            var emulatorWillBeRendered = EmulatorState == EmulatorState.Running;
+            // If any ImGui window is visible, make sure to clear Gl buffer before rendering emulator
+            if (emulatorWillBeRendered)
+            {
+                if (_monitor.Visible || _statsPanel.Visible || _debugInfoPanel.Visible || _logsPanel.Visible)
+                    _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+            }
+        }
+        catch (Exception ex)
+        {
+            HandleEventHandlerException(ex, nameof(OnBeforeRender));
+        }
+    }
 
     /// <summary>
-    /// Runs on every Render Frame event. Draws one emulator frame on screen.
-    /// 
-    /// This method is called at a RenderFrequency set in the GameWindowSettings object.
+    /// Callback from SilkOnRenderLoop (new rendering pipleline) after the emulator has been rendered to the screen.
     /// </summary>
-    /// <param name="args"></param>
-    protected void OnRender(double deltaTime)
+    public void OnAfterRender(double deltaTime)
     {
-        //RenderEmulator(deltaTime);
-
-        // Make sure ImGui is up-to-date
-        _imGuiController.Update((float)deltaTime);
-
-        // Draw emulator on screen
-        base.DrawFrame();
-    }
-
-    public override void OnBeforeDrawFrame(bool emulatorWillBeRendered)
-    {
-        // If any ImGui window is visible, make sure to clear Gl buffer before rendering emulator
-        if (emulatorWillBeRendered)
+        try
         {
-            if (_monitor.Visible || _statsPanel.Visible || _debugInfoPanel.Visible || _logsPanel.Visible)
-                _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
-        }
-    }
+            bool emulatorRendered = EmulatorState == EmulatorState.Running;
 
-    public override void OnAfterDrawFrame(bool emulatorRendered)
-    {
-        if (emulatorRendered)
+            if (emulatorRendered)
+            {
+                // Flush the SkiaSharp Context (NOTE: not necessary if configured IRenderFrameTarget Skia implementation with flush: true) 
+                //_skiaGlCanvasProvider.GetGRContext().Flush();
+
+                // Render monitor if enabled and emulator was rendered
+                if (_monitor.Visible)
+                    _monitor.PostOnRender();
+
+                // Render stats if enabled and emulator was rendered
+                if (_statsPanel.Visible)
+                    _statsPanel.PostOnRender();
+
+                // Render debug info if enabled and emulator was rendered
+                if (_debugInfoPanel.Visible)
+                    _debugInfoPanel.PostOnRender();
+            }
+            else
+            {
+                DrawLogo();
+                _skiaGlCanvasProvider.GRContext.Flush();
+            }
+
+            // Render logs if enabled, regardless of if emulator was rendered or not
+            if (_logsPanel.Visible)
+                _logsPanel.PostOnRender();
+
+            // Note: This check !emulatorRendered not needed if logo is drawn when emulator is not running (see above)
+            // If emulator was not rendered, clear Gl buffer before rendering ImGui windows
+            //if (!emulatorRendered)
+            //{
+            //    if (_menu.Visible)
+            //        _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+
+            //    //Seems the canvas has to be drawn & flushed for ImGui stuff to be visible on top
+            //    var canvas = _skiaGlCanvasProvider.Canvas;
+            //    canvas.Clear();
+            //    _skiaGlCanvasProvider.GRContext.Flush();
+            //}
+
+            if (_menu.Visible)
+                _menu.PostOnRender();
+
+            // Render error dialog if needed
+            RenderErrorDialog();
+
+            // Render any ImGui UI rendered above emulator.
+            _imGuiController?.Render();
+        }
+        catch (Exception ex)
         {
-            // Flush the SkiaSharp Context
-            _renderContextContainer.SkiaRenderContext.GetGRContext().Flush();
-
-            // Render monitor if enabled and emulator was rendered
-            if (_monitor.Visible)
-                _monitor.PostOnRender();
-
-            // Render stats if enabled and emulator was rendered
-            if (_statsPanel.Visible)
-                _statsPanel.PostOnRender();
-
-            // Render debug info if enabled and emulator was rendered
-            if (_debugInfoPanel.Visible)
-                _debugInfoPanel.PostOnRender();
-
+            HandleEventHandlerException(ex, nameof(OnAfterRender));
         }
-        else
-        {
-            // If emulator was not rendered, draw logo
-            DrawLogo();
-
-            // Flush the SkiaSharp Context
-            _renderContextContainer.SkiaRenderContext.GetGRContext().Flush();
-        }
-
-        // Render logs if enabled, regardless of if emulator was rendered or not
-        if (_logsPanel.Visible)
-            _logsPanel.PostOnRender();
-
-        // Note: This check !emulatorRendered not needed if logo is drawn when emulator is not running (see above)
-        // If emulator was not rendered, clear Gl buffer before rendering ImGui windows
-        //if (!emulatorRendered)
-        //{
-        //    if (_menu.Visible)
-        //        _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
-
-        //    //Seems the canvas has to be drawn & flushed for ImGui stuff to be visible on top
-        //    var canvas = _renderContextContainer.SkiaRenderContext.GetCanvas();
-        //    canvas.Clear();
-        //    _renderContextContainer.SkiaRenderContext.GetGRContext().Flush();
-        //}
-
-        if (_menu.Visible)
-            _menu.PostOnRender();
-
-        // Render any ImGui UI rendered above emulator.
-        _imGuiController?.Render();
     }
 
     private void OnResize(Vector2D<int> vec2)
     {
     }
 
-
-    private SilkNetRenderContextContainer CreateRenderContext()
+    private SkiaGlCanvasProvider GetSkiaGlCanvasProvider()
     {
-        // Init SkipSharp resources (must be done in OnLoad, otherwise no OpenGL context will exist created by SilkNet.)
         GRGlGetProcedureAddressDelegate getProcAddress = (name) =>
         {
             var addrFound = _window.GLContext!.TryGetProcAddress(name, out var addr);
             return addrFound ? addr : 0;
         };
 
-        var skiaRenderContext = new SkiaRenderContext(
+        var skiaGlCanvasProvider = new SkiaGlCanvasProvider(
             getProcAddress,
             _window.FramebufferSize.X,
             _window.FramebufferSize.Y,
             _emulatorConfig.CurrentDrawScale * (_window.FramebufferSize.X / _window.Size.X));
 
-        var silkNetOpenGlRenderContext = new SilkNetOpenGlRenderContext(_window, _emulatorConfig.CurrentDrawScale);
-
-        var renderContextContainer = new SilkNetRenderContextContainer(skiaRenderContext, silkNetOpenGlRenderContext);
-        return renderContextContainer;
+        return skiaGlCanvasProvider;
     }
 
     private SilkNetInputHandlerContext CreateInputHandlerContext()
@@ -420,10 +593,14 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         _window.UpdatesPerSecond = DEFAULT_RENDER_HZ;
     }
 
+    private void InitOpenGL()
+    {
+        _gl = GL.GetApi(_window);
+    }
+
     private void InitImGui()
     {
         // Init ImGui resource
-        _gl = GL.GetApi(_window);
         _imGuiController = new ImGuiController(
             _gl,
             _window, // pass in our window
@@ -465,9 +642,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
     private void DestroyImGuiController()
     {
         _imGuiController?.Dispose();
-        _gl?.Dispose();
     }
-
 
     private void OnKeyDown(IKeyboard keyboard, Key key, int x)
     {
@@ -484,6 +659,7 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
                 ToggleMonitor();
         }
     }
+
     private void ToggleMainMenu()
     {
         if (_menu.Visible)
@@ -491,7 +667,6 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         else
             _menu.Enable();
     }
-
 
     public float Scale
     {
@@ -582,7 +757,6 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
         }
     }
 
-
     private void InitLogo()
     {
         //string logoFile = "Resources/Images/Logo.png";
@@ -614,8 +788,11 @@ public class SilkNetHostApp : HostApp<SilkNetRenderContextContainer, SilkNetInpu
 
     private void DrawLogo()
     {
-        var canvas = _renderContextContainer.SkiaRenderContext.GetCanvas();
+        var canvas = _skiaGlCanvasProvider.Canvas;
         canvas.Clear();
         canvas.DrawImage(_logoImage, _logoImageDest);
+
+        // Flush the SkiaSharp Context.
+        _skiaGlCanvasProvider.GRContext.Flush();
     }
 }

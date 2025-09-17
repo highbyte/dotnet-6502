@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using Highbyte.DotNet6502.Systems.Rendering;
+
 namespace Highbyte.DotNet6502.Systems;
 
 /// <summary>
@@ -19,6 +22,17 @@ public interface ISystemConfig : ICloneable
     void Validate();
 
     bool IsValid(out List<string> validationErrors);
+
+    /// <summary>
+    /// Should return a list of types that implement IRenderProvider and that the system supports.
+    /// </summary>
+    /// <returns></returns>
+    public List<Type> GetSupportedRenderProviderTypes();
+
+    public void SetRenderProviderType(Type renderProviderType);
+
+    public Type? RenderProviderType { get; }
+    public Type? RenderTargetType { get; }
 
     public bool AudioEnabled { get; set; }
 }

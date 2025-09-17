@@ -2,10 +2,6 @@ using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Input;
-using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Video;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v3;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -15,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 
-public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext>
+public class C64Setup : ISystemConfigurer<SilkNetInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
     public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig) => Task.FromResult(s_systemVariants);
@@ -55,6 +51,7 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
             KeyboardJoystick = c64SystemConfig.KeyboardJoystick,
             ROMs = c64SystemConfig.ROMs,
             ROMDirectory = c64SystemConfig.ROMDirectory,
+            RenderProviderType = systemConfig.RenderProviderType,
         };
 
         var c64 = C64.BuildC64(c64Config, _loggerFactory);
@@ -64,7 +61,6 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
     public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         IHostSystemConfig hostSystemConfig,
-        SilkNetRenderContextContainer renderContextContainer,
         SilkNetInputHandlerContext inputHandlerContext,
         NAudioAudioHandlerContext audioHandlerContext
         )
@@ -72,31 +68,9 @@ public class C64Setup : ISystemConfigurer<SilkNetRenderContextContainer, SilkNet
         var c64HostConfig = (C64HostConfig)hostSystemConfig;
         var c64 = (C64)system;
 
-        IRenderer renderer;
-        switch (c64HostConfig.Renderer)
-        {
-            case C64HostRenderer.SkiaSharp:
-                renderer = new C64SkiaRenderer(c64, renderContextContainer.SkiaRenderContext);
-                break;
-            case C64HostRenderer.SkiaSharp2:
-                renderer = new C64SkiaRenderer2(c64, renderContextContainer.SkiaRenderContext);
-                break;
-            case C64HostRenderer.SkiaSharp2b:
-                renderer = new C64SkiaRenderer2b(c64, renderContextContainer.SkiaRenderContext);
-                break;
-            case C64HostRenderer.SkiaSharp3:
-                renderer = new C64SkiaRenderer3(c64, renderContextContainer.SkiaRenderContext);
-                break;
-            case C64HostRenderer.SilkNetOpenGl:
-                renderer = new C64SilkNetOpenGlRenderer(c64, renderContextContainer.SilkNetOpenGlRenderContext, c64HostConfig.SilkNetOpenGlRendererConfig);
-                break;
-            default:
-                throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
-        }
-
         var inputHandler = new C64SilkNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig);
         var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
-        return Task.FromResult(new SystemRunner(c64, renderer, inputHandler, audioHandler));
+        return Task.FromResult(new SystemRunner(c64, inputHandler, audioHandler));
     }
 }

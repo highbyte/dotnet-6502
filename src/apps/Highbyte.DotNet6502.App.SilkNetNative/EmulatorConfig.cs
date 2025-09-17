@@ -23,7 +23,7 @@ public class EmulatorConfig
         };
     }
 
-    public void Validate(SystemList<SilkNetRenderContextContainer, SilkNetInputHandlerContext, NAudioAudioHandlerContext> systemList)
+    public void Validate(SystemList<SilkNetInputHandlerContext, NAudioAudioHandlerContext> systemList)
     {
         if (!systemList.Systems.Contains(DefaultEmulator))
             throw new DotNet6502Exception($"Setting {nameof(DefaultEmulator)} value {DefaultEmulator} is not supported. Valid values are: {string.Join(',', systemList.Systems)}");

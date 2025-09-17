@@ -1,6 +1,7 @@
-using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
+using Highbyte.DotNet6502.Systems.Rendering;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Systems;
 
@@ -8,21 +9,19 @@ public enum EmulatorState { Uninitialized, Running, Paused }
 
 /// <summary>
 /// A base class to be used as a common host application model for managing and running different emulators on a specific host platform.
-/// The generic type parameters TRenderContext, TInputHandlerContext, and TAudioHandlerContext dictates the types of rendering, input handling, and audio handling available on a specific platform.
+/// The generic type parameters TInputHandlerContext, and TAudioHandlerContext dictates the types of input handling, and audio handling available on a specific platform.
 /// 
-/// The constructor must also provide a generic SystemList parameter (with the same generic context types) that provides the different emulators and their Renderers, InputHandlers, and AudioHandlers base on the context types.
+/// The constructor must also provide a generic SystemList parameter (with the same generic context types) that provides the different emulators and their InputHandlers, and AudioHandlers base on the context types.
 /// </summary>
-/// <typeparam name="TRenderContext"></typeparam>
 /// <typeparam name="TInputHandlerContext"></typeparam>
 /// <typeparam name="TAudioHandlerContext"></typeparam>
-public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext> : IHostApp
-    where TRenderContext : IRenderContext
+public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
     where TInputHandlerContext : IInputHandlerContext
     where TAudioHandlerContext : IAudioHandlerContext
 {
     // Injected via constructor
     private readonly ILogger _logger;
-    private readonly SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerContext> _systemList;
+    private readonly SystemList<TInputHandlerContext, TAudioHandlerContext> _systemList;
 
     // Other variables
     private string _selectedSystemName;
@@ -36,13 +35,16 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     private List<string> _allSelectedSystemConfigurationVariants = new();
     public List<string> AllSelectedSystemConfigurationVariants => _allSelectedSystemConfigurationVariants;
 
-
     private SystemRunner? _systemRunner = null;
     public SystemRunner? CurrentSystemRunner => _systemRunner;
     public ISystem? CurrentRunningSystem => _systemRunner?.System;
     public EmulatorState EmulatorState { get; private set; } = EmulatorState.Uninitialized;
 
     private IHostSystemConfig? _currentHostSystemConfig;
+
+    private RenderTargetProvider? _renderTargetProvider;
+    private RenderCoordinatorProvider? _renderCoordinatorProvider;
+    private IRenderCoordinator? _renderCoordinator;
 
     /// <summary>
     /// The current host system config.
@@ -72,29 +74,26 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     }
 
     private readonly string _hostName;
-    private const string SystemTimeStatName = "Emulator-SystemTime";
-    private const string RenderTimeStatName = "RenderTime";
+    private const string SystemTimeStatName = "SystemTime";
+    private const string RenderStatName = "Render";
     private const string InputTimeStatName = "InputTime";
     private const string AudioTimeStatName = "AudioTime";
     private readonly Instrumentations _systemInstrumentations = new();
     private ElapsedMillisecondsTimedStatSystem? _systemTime;
-    private ElapsedMillisecondsTimedStatSystem? _renderTime;
     private ElapsedMillisecondsTimedStatSystem? _inputTime;
     //private ElapsedMillisecondsTimedStatSystem _audioTime;
 
     private readonly Instrumentations _instrumentations = new();
     private readonly PerSecondTimedStat _updateFps;
-    private readonly PerSecondTimedStat _renderFps;
 
     public HostApp(
         string hostName,
-        SystemList<TRenderContext, TInputHandlerContext, TAudioHandlerContext> systemList,
+        SystemList<TInputHandlerContext, TAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory
         )
     {
         _hostName = hostName;
         _updateFps = _instrumentations.Add($"{_hostName}-OnUpdateFPS", new PerSecondTimedStat());
-        _renderFps = _instrumentations.Add($"{_hostName}-OnRenderFPS", new PerSecondTimedStat());
 
         _logger = loggerFactory.CreateLogger("HostApp");
 
@@ -110,21 +109,79 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     }
 
     public void SetContexts(
-        Func<TRenderContext>? getRenderContext = null,
         Func<TInputHandlerContext>? getInputHandlerContext = null,
         Func<TAudioHandlerContext>? getAudioHandlerContext = null
-        )
+    )
     {
-        _systemList.SetContext(getRenderContext, getInputHandlerContext, getAudioHandlerContext);
+        if (_renderTargetProvider != null)
+        {
+            _systemList.SetContext(
+                _renderTargetProvider, // New rendering pipeline
+                getInputHandlerContext,
+                getAudioHandlerContext);
+        }
+        else
+        {
+            // If no render config is set, still need to set the input/audio contexts
+            _systemList.SetContext(
+                new RenderTargetProvider(), // Empty render target provider for tests
+                getInputHandlerContext,
+                getAudioHandlerContext);
+        }
     }
 
-    public void InitRenderContext() => _systemList.InitRenderContext();
     public void InitInputHandlerContext() => _systemList.InitInputHandlerContext();
     public void InitAudioHandlerContext() => _systemList.InitAudioHandlerContext();
 
-    public bool IsRenderContextInitialized => _systemList.IsRenderContextInitialized;
     public bool IsInputHandlerContextInitialized => _systemList.IsInputHandlerContextInitialized;
     public bool IsAudioHandlerContextInitialized => _systemList.IsAudioHandlerContextInitialized;
+
+    /// <summary>
+    /// Derived class must call this method once to configure rendering capabilities.
+    /// Should not be called more than once.
+    /// </summary>
+    /// <param name="configureRenderTargetProvider"></param>
+    /// <param name="createCrenderLoop"></param>
+    public void SetRenderConfig(
+        Action<RenderTargetProvider> configureRenderTargetProvider,
+        Func<IRenderLoop> createCrenderLoop)
+    {
+        _renderTargetProvider = new RenderTargetProvider();
+        configureRenderTargetProvider(_renderTargetProvider);
+
+        var renderloop = createCrenderLoop();
+        _renderCoordinatorProvider = new RenderCoordinatorProvider(renderloop);
+    }
+
+    public List<Type> GetAvailableSystemRenderProviderTypes()
+    {
+        if (_renderTargetProvider == null)
+            return new List<Type>();
+
+        var systemRenderProviderTypes = CurrentHostSystemConfig.SystemConfig.GetSupportedRenderProviderTypes();
+        var available = _renderTargetProvider.GetCompatibleConcreteRenderProviderTypes(systemRenderProviderTypes ?? new List<Type>());
+        return available;
+    }
+
+    public List<(Type renderProviderType, Type renderTargetType)> GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations()
+    {
+        List<(Type rpt, Type rtt)> available = new();
+
+        if (_renderTargetProvider == null)
+            return available;
+
+        var systemRenderProviderTypes = CurrentHostSystemConfig.SystemConfig.GetSupportedRenderProviderTypes();
+        foreach (var rpt in systemRenderProviderTypes ?? new List<Type>())
+        {
+            var compatibleRtts = _renderTargetProvider.GetConcreteRenderTargetTypesForConcreteRenderProviderType(rpt);
+            foreach (var rtt in compatibleRtts)
+            {
+                available.Add((rpt, rtt));
+            }
+        }
+        return available;
+    }
+
 
     public async Task SelectSystem(string systemName)
     {
@@ -190,7 +247,7 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         ISystem systemToBeStarted;
         if (EmulatorState == EmulatorState.Uninitialized)
         {
-            if (_selectedSystemTemporary == null)
+            if (_selectedSystemTemporary == null || _systemList.HasConfigChanged(_selectedSystemName))
             {
                 // If we don't have a temporary system, build it.
                 _selectedSystemTemporary = await _systemList.BuildSystem(_selectedSystemName, _selectedSystemConfigurationVariant);
@@ -214,6 +271,11 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
             _systemRunner = await _systemList.BuildSystemRunner(systemToBeStarted);
 
         InitInstrumentation(_systemRunner!.System);
+
+        if (EmulatorState == EmulatorState.Uninitialized)
+        {
+            InitRendererForSystem();
+        }
 
         _systemRunner.AudioHandler.StartPlaying();
 
@@ -249,10 +311,13 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
 
         OnBeforeStop();
 
-        _systemRunner!.AudioHandler.StopPlaying();
+        _systemRunner?.AudioHandler.StopPlaying();
+
+        _renderCoordinator?.DisposeAsync();
+        _renderCoordinator = null;
 
         // Cleanup systemrunner (which also cleanup renderer, inputhandler, and audiohandler)
-        _systemRunner!.Cleanup();
+        _systemRunner?.Cleanup();
         _systemRunner = default!;
 
         EmulatorState = EmulatorState.Uninitialized;
@@ -277,6 +342,11 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
     {
         if (EmulatorState != EmulatorState.Uninitialized)
             Stop();
+
+        // Cleanup coordinators
+        _renderCoordinator?.DisposeAsync();
+        _renderCoordinator = null;
+        _renderCoordinatorProvider = null;
 
         _logger.LogInformation($"Emulator closed");
 
@@ -314,28 +384,25 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         _systemTime!.Stop();
 
     }
+
     public virtual void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult) { }
 
-    public virtual void OnBeforeDrawFrame(bool emulatorWillBeRendered) { }
-
-    public void DrawFrame()
+    // New rendering pipeline
+    private void InitRendererForSystem()
     {
-        _renderFps.Update();
-
-        if (EmulatorState != EmulatorState.Running)
+        // Skip rendering initialization if no render config has been provided (e.g., in unit tests)
+        if (_renderTargetProvider == null || _renderCoordinatorProvider == null)
         {
-            OnBeforeDrawFrame(emulatorWillBeRendered: false);
-            OnAfterDrawFrame(emulatorRendered: false);
+            _renderCoordinator = null;
             return;
         }
 
-        _renderTime!.Start();
-        OnBeforeDrawFrame(emulatorWillBeRendered: true);
-        _systemRunner!.Draw();
-        OnAfterDrawFrame(emulatorRendered: true);
-        _renderTime!.Stop();
+        var renderTargetType = CurrentHostSystemConfig.SystemConfig.RenderTargetType;
+
+        // Assume CurrentSystemRunner.System.RenderProvider is set to the selected system's render provider (one of possibly many in in system.RenderProviders).
+        var renderTarget = _renderTargetProvider.CreateRenderTargetByRenderProviderType(CurrentSystemRunner.System.RenderProvider.GetType(), renderTargetType);
+        _renderCoordinator = _renderCoordinatorProvider.CreateRenderCoordinator(CurrentSystemRunner.System.RenderProvider, renderTarget, _instrumentations);
     }
-    public virtual void OnAfterDrawFrame(bool emulatorRendered) { }
 
     public async Task<bool> IsSystemConfigValid()
     {
@@ -392,11 +459,18 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
         await _systemList.PersistHostSystemConfig(_selectedSystemName);
     }
 
+    public async Task ApplySupportedRenderTargetToSystemConfigs()
+    {
+        foreach (var systemName in _systemList.Systems)
+        {
+            await _systemList.ApplySupportedRenderTargetToSystemConfig(systemName);
+        }
+    }
+
     private void InitInstrumentation(ISystem system)
     {
         _systemInstrumentations.Clear();
         _systemTime = _systemInstrumentations.Add($"{_hostName}-{SystemTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
-        _renderTime = _systemInstrumentations.Add($"{_hostName}-{RenderTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
         _inputTime = _systemInstrumentations.Add($"{_hostName}-{InputTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
         //_audioTime = InstrumentationBag.Add($"{HostStatRootName}-{AudioTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
     }
@@ -407,10 +481,15 @@ public class HostApp<TRenderContext, TInputHandlerContext, TAudioHandlerContext>
             return new List<(string name, IStat)>();
 
         return _instrumentations.Stats
+            // Overall stats
             .Union(_systemInstrumentations.Stats)
+            // Sub-system stat: system
             .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
-            .Union(_systemRunner.Renderer.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{RenderTimeStatName}-{x.Name}", x.Stat)))
+            // Sub-system stat: render
+            .Union(_renderCoordinator.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{RenderStatName}-{x.Name}", x.Stat)))
+            // Sub-system stat: audio
             .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
+            // Sub-system stat: input
             .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{InputTimeStatName}-{x.Name}", x.Stat)))
             .ToList();
     }

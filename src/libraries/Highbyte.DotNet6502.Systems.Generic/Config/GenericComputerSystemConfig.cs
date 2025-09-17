@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Systems.Generic.Render;
+
 namespace Highbyte.DotNet6502.Systems.Generic.Config;
 
 public class GenericComputerSystemConfig : ISystemConfig
@@ -5,6 +7,8 @@ public class GenericComputerSystemConfig : ISystemConfig
     private bool _isDirty = false;
 
     public bool IsDirty => _isDirty;
+    public Type RenderProviderType { get; private set; }
+    public Type RenderTargetType { get; private set; }
 
     public bool AudioEnabled { get; set; }
 
@@ -16,9 +20,27 @@ public class GenericComputerSystemConfig : ISystemConfig
         _isDirty = false;
     }
 
+    public List<Type> GetSupportedRenderProviderTypes()
+    {
+        var supportedRenderProviders = new List<Type>()
+        {
+            typeof(GenericVideoCommandStream)
+        };
+        return supportedRenderProviders;
+    }
+
+    public void SetRenderProviderType(Type renderProviderType)
+    {
+        var supportedRenderProviders = GetSupportedRenderProviderTypes();
+        if (!supportedRenderProviders.Contains(renderProviderType))
+            throw new DotNet6502Exception($"RenderProvider type {renderProviderType.FullName} is not supported.");
+        RenderProviderType = renderProviderType;
+    }
+
     public GenericComputerSystemConfig()
     {
         AudioEnabled = false;
+        SetRenderProviderType(GetSupportedRenderProviderTypes().First());
     }
 
     public object Clone()

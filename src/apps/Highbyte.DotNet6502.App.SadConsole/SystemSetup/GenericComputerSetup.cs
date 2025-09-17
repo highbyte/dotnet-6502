@@ -1,7 +1,6 @@
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Impl.SadConsole.Generic.Input;
-using Highbyte.DotNet6502.Impl.SadConsole.Generic.Video;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
@@ -10,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 
-public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
+public class GenericComputerSetup : ISystemConfigurer<SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => GenericComputer.SystemName;
 
@@ -45,8 +44,7 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
     public Task<ISystem> BuildSystem(string configurationVariant, ISystemConfig systemConfig)
     {
         var genericComputerSystemConfig = (GenericComputerSystemConfig)systemConfig;
-        var exampleProgramPath = genericComputerSystemConfig.ExamplePrograms[configurationVariant];
-        var genericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(configurationVariant, exampleProgramPath);
+        var genericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(configurationVariant, genericComputerSystemConfig);
 
         return Task.FromResult<ISystem>(
             GenericComputerBuilder.SetupGenericComputerFromConfig(genericComputerConfig, _loggerFactory)
@@ -56,18 +54,16 @@ public class GenericComputerSetup : ISystemConfigurer<SadConsoleRenderContext, S
     public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         IHostSystemConfig hostSystemConfig,
-        SadConsoleRenderContext renderContext,
         SadConsoleInputHandlerContext inputHandlerContext,
         NAudioAudioHandlerContext audioHandlerContext)
     {
         var genericComputer = (GenericComputer)system;
         var genericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
-        var genericComputerConfig = genericComputerHostConfig.SystemConfig;
+        var genericComputerSystemConfig = genericComputerHostConfig.SystemConfig;
 
-        var renderer = new GenericSadConsoleRenderer(genericComputer, renderContext, genericComputer.GenericComputerConfig.Memory.Screen);
         var inputHandler = new GenericSadConsoleInputHandler(genericComputer, inputHandlerContext, genericComputer.GenericComputerConfig.Memory.Input, _loggerFactory);
         var audioHandler = new NullAudioHandler(genericComputer);
 
-        return Task.FromResult(new SystemRunner(genericComputer, renderer, inputHandler, audioHandler));
+        return Task.FromResult(new SystemRunner(genericComputer, inputHandler, audioHandler));
     }
 }

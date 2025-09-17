@@ -1,5 +1,8 @@
 using Highbyte.DotNet6502.Systems.Generic.Config;
+using Highbyte.DotNet6502.Systems.Generic.Render;
 using Highbyte.DotNet6502.Systems.Instrumentation;
+using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
+using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -44,10 +47,18 @@ public class GenericComputer : ISystem, ITextMode, IScreen
     public GenericComputerConfig GenericComputerConfig => _genericComputerConfig;
     private readonly LegacyExecEvaluator _oneFrameExecEvaluator;
 
+    private IRenderProvider? _renderProvider;
+    public IRenderProvider? RenderProvider => _renderProvider;
+    public List<IRenderProvider> RenderProviders { get; } = new();
+
     // Instrumentations
     public bool InstrumentationEnabled { get; set; } = false;
 
     public Instrumentations Instrumentations { get; } = new();
+
+    private const string StatsCategoryRenderProvider = "RenderProvider";
+    private readonly ElapsedMillisecondsTimedStatSystem _renderProviderPerInstructionStat;
+    private readonly ElapsedMillisecondsTimedStatSystem _renderProviderPerFrameStat;
 
 
     public GenericComputer() : this(new GenericComputerConfig(), new NullLoggerFactory()) { }
@@ -64,7 +75,33 @@ public class GenericComputer : ISystem, ITextMode, IScreen
 
         CPU.InstructionExecuted += (s, e) => CPUCyclesConsumed(e.CPU, e.Mem, e.InstructionExecState.CyclesConsumed);
 
+        InitEmulatorScreenMemory();
+
+        ConfigureRenderer(genericComputerConfig);
+
+        _renderProviderPerInstructionStat = Instrumentations.Add($"{StatsCategoryRenderProvider}-Instruction", new ElapsedMillisecondsTimedStatSystem(this));
+        _renderProviderPerFrameStat = Instrumentations.Add($"{StatsCategoryRenderProvider}-Frame", new ElapsedMillisecondsTimedStatSystem(this));
+
         _logger.LogInformation($"Generic computer created.");
+    }
+
+    private void SetCurrentRenderProvider(Type? renderProviderType)
+    {
+        if (renderProviderType == null)
+        {
+            _renderProvider = null;
+            return;
+        }
+        var renderProvider = RenderProviders.SingleOrDefault(rp => rp.GetType() == renderProviderType)
+            ?? throw new ArgumentException("The specified render provider type is not available.");
+        _renderProvider = renderProvider;
+    }
+
+    private void ConfigureRenderer(GenericComputerConfig genericComputerConfig)
+    {
+        RenderProviders.Add(new GenericVideoCommandStream(this));
+
+        SetCurrentRenderProvider(genericComputerConfig.RenderProviderType);
     }
 
     public void Run(IExecEvaluator? execEvaluator = null)
@@ -80,6 +117,8 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         SystemRunner systemRunner,
         IExecEvaluator? execEvaluator = null)
     {
+        _renderProviderPerInstructionStat.Reset(); // Reset stat, will be continuously updated after each instruction
+
         // If we already executed cycles in current frame, reduce it from total.
         _oneFrameExecEvaluator.ExecOptions.CyclesRequested = CPUCyclesPerFrame - CyclesConsumedCurrentVblank;
 
@@ -121,6 +160,14 @@ public class GenericComputer : ISystem, ITextMode, IScreen
                 return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.Other, "WaitFrame failed"); ;
         }
 
+        _renderProviderPerInstructionStat.Stop(); // Stop stat (was continuously updated after each instruction)
+
+
+        // New render pipeline
+        _renderProviderPerFrameStat.Start();
+        _renderProvider?.OnEndFrame();
+        _renderProviderPerFrameStat.Stop();
+
         // Return true to indicate execution was successfull and we should continue
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
@@ -133,6 +180,10 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         var execState = CPU.ExecuteOneInstruction(Mem);
 
         instructionExecResult = execState.LastInstructionExecResult;
+
+        _renderProviderPerInstructionStat.Start(cont: true);
+        _renderProvider?.OnAfterInstruction();
+        _renderProviderPerInstructionStat.Stop(cont: true);
 
         // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
         if (execEvaluator != null)
@@ -200,4 +251,28 @@ public class GenericComputer : ISystem, ITextMode, IScreen
         else
             CPU.PC = cpuStartPos.Value;
     }
+
+    /// <summary>
+    /// Set emulator screen memory initial state
+    /// </summary>
+    public void InitEmulatorScreenMemory()
+    {
+        var emulatorScreenConfig = _genericComputerConfig.Memory.Screen;
+        // Common bg and border color for entire screen, controlled by specific address
+        Mem[emulatorScreenConfig.ScreenBorderColorAddress] = emulatorScreenConfig.DefaultBorderColor;
+        Mem[emulatorScreenConfig.ScreenBackgroundColorAddress] = emulatorScreenConfig.DefaultBgColor;
+
+        var currentScreenAddress = emulatorScreenConfig.ScreenStartAddress;
+        var currentColorAddress = emulatorScreenConfig.ScreenColorStartAddress;
+        for (var row = 0; row < emulatorScreenConfig.Rows; row++)
+        {
+            for (var col = 0; col < emulatorScreenConfig.Cols; col++)
+            {
+                Mem[currentScreenAddress++] = 0x20;    // 32 (0x20) = space
+                Mem[currentColorAddress++] = emulatorScreenConfig.DefaultFgColor;
+            }
+        }
+    }
+
+
 }

@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Rendering;
 
 namespace Highbyte.DotNet6502.Systems.Tests;
 
@@ -15,7 +16,7 @@ public class SystemConfigurerTests
     }
 
 
-    public class TestSystemConfigurer : ISystemConfigurer<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>
+    public class TestSystemConfigurer : ISystemConfigurer<NullInputHandlerContext, NullAudioHandlerContext>
     {
         public string SystemName => TestSystem.SystemName;
         public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig) => Task.FromResult(new List<string> { "DEFAULT" });
@@ -38,23 +39,21 @@ public class SystemConfigurerTests
         public Task<SystemRunner> BuildSystemRunner(
             ISystem system,
             IHostSystemConfig hostSystemConfig,
-            NullRenderContext renderContext,
             NullInputHandlerContext inputHandlerContext,
             NullAudioHandlerContext audioHandlerContext
             )
         {
             var testSystem = (TestSystem)system;
 
-            var renderer = new NullRenderer(testSystem);
             var inputHandler = new NullInputHandler(testSystem);
             var audioHandler = new NullAudioHandler(testSystem);
 
-            return Task.FromResult(new SystemRunner(testSystem, renderer, inputHandler, audioHandler));
+            return Task.FromResult(new SystemRunner(testSystem, inputHandler, audioHandler));
 
         }
     }
 
-    public class TestSystem2Configurer : ISystemConfigurer<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>
+    public class TestSystem2Configurer : ISystemConfigurer<NullInputHandlerContext, NullAudioHandlerContext>
     {
         public string SystemName => TestSystem2.SystemName;
         public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig) => Task.FromResult(new List<string> { "DEFAULT" });
@@ -77,18 +76,16 @@ public class SystemConfigurerTests
         public Task<SystemRunner> BuildSystemRunner(
             ISystem system,
             IHostSystemConfig hostSystemConfig,
-            NullRenderContext renderContext,
             NullInputHandlerContext inputHandlerContext,
             NullAudioHandlerContext audioHandlerContext
             )
         {
             var testSystem2 = (TestSystem2)system;
 
-            var renderer = new NullRenderer(testSystem2);
             var inputHandler = new NullInputHandler(testSystem2);
             var audioHandler = new NullAudioHandler(testSystem2);
 
-            return Task.FromResult(new SystemRunner(testSystem2, renderer, inputHandler, audioHandler));
+            return Task.FromResult(new SystemRunner(testSystem2, inputHandler, audioHandler));
         }
     }
 
@@ -99,6 +96,9 @@ public class SystemConfigurerTests
 
         public bool AudioSupported { get => false; set => _ = value; }
         public bool AudioEnabled { get => false; set => _ = value; }
+
+        public Type? RenderProviderType { get; private set; }
+        public Type? RenderTargetType { get; private set; }
 
         public object Clone()
         {
@@ -115,6 +115,19 @@ public class SystemConfigurerTests
         public void Validate()
         {
         }
+
+        public List<Type> GetSupportedRenderProviderTypes()
+        {
+            return new List<Type> { typeof(NullRenderProvider) };
+        }
+        public void SetRenderProviderType(Type renderProviderType)
+        {
+            RenderProviderType = renderProviderType;
+        }
+        public void SetRenderTargetType(Type renderTargetType)
+        {
+            RenderTargetType = renderTargetType;
+        }
     }
 
     public class TestSystem2Config : ISystemConfig
@@ -124,6 +137,9 @@ public class SystemConfigurerTests
 
         public bool AudioSupported { get => false; set => _ = value; }
         public bool AudioEnabled { get => false; set => _ = value; }
+
+        public Type? RenderProviderType { get; private set; }
+        public Type? RenderTargetType { get; private set; }
 
         public object Clone()
         {
@@ -138,6 +154,19 @@ public class SystemConfigurerTests
 
         public void Validate()
         {
+        }
+
+        public List<Type> GetSupportedRenderProviderTypes()
+        {
+            return new List<Type> { typeof(NullRenderProvider) };
+        }
+        public void SetRenderProviderType(Type renderProviderType)
+        {
+            RenderProviderType = renderProviderType;
+        }
+        public void SetRenderTargetType(Type renderTargetType)
+        {
+            RenderTargetType = renderTargetType;
         }
     }
 

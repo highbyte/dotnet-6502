@@ -3,7 +3,6 @@ using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
-using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Video;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -14,7 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 
-public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
+public class C64Setup : ISystemConfigurer<SadConsoleInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
 
@@ -67,6 +66,7 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
             KeyboardJoystick = c64SystemConfig.KeyboardJoystick,
             ROMs = c64SystemConfig.ROMs,
             ROMDirectory = c64SystemConfig.ROMDirectory,
+            RenderProviderType = systemConfig.RenderProviderType,
         };
 
         var c64 = C64.BuildC64(c64Config, _loggerFactory);
@@ -76,7 +76,6 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
     public Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         IHostSystemConfig hostSystemConfig,
-        SadConsoleRenderContext renderContext,
         SadConsoleInputHandlerContext inputHandlerContext,
         NAudioAudioHandlerContext audioHandlerContext
         )
@@ -84,14 +83,12 @@ public class C64Setup : ISystemConfigurer<SadConsoleRenderContext, SadConsoleInp
         var c64HostConfig = (C64HostConfig)hostSystemConfig;
         var c64 = (C64)system;
 
-        var renderer = new C64SadConsoleRenderer(c64, renderContext);
-
         ICodeSuggestion codeSuggestion = CodeSuggestionConfigurator.CreateCodeSuggestion(c64HostConfig.CodeSuggestionBackendType, _configuration, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION , defaultToNoneIdConfigError: true);
         var c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, codeSuggestion, _loggerFactory);
         var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory, c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
 
         var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
-        return Task.FromResult(new SystemRunner(c64, renderer, inputHandler, audioHandler));
+        return Task.FromResult(new SystemRunner(c64, inputHandler, audioHandler));
     }
 }

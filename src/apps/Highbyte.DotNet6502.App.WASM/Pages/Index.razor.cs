@@ -13,8 +13,6 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.WebUtilities;
 using Toolbelt.Blazor.Gamepad;
 using Highbyte.DotNet6502.Systems.Logging.Console;
-using Microsoft.AspNetCore.Components.Rendering;
-using Microsoft.Extensions.Azure;
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
 
@@ -107,7 +105,6 @@ public partial class Index
 
     private bool _audioContextInitializeStarted;
 
-
     [Inject]
     public IJSRuntime Js { get; set; } = default!;
 
@@ -144,7 +141,7 @@ public partial class Index
         };
 
         // Add systems
-        var systemList = new SystemList<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>();
+        var systemList = new SystemList<AspNetInputHandlerContext, WASMAudioHandlerContext>();
 
         var c64Setup = new C64Setup(browserContext, LoggerFactory);
         systemList.AddSystem(c64Setup);
@@ -352,13 +349,11 @@ public partial class Index
                 _canvas?.Dispose();
                 _canvas = e.Surface.Canvas;
             }
-
-            _wasmHost.InitRenderContext();
         }
 
-        _wasmHost.Render();
+        // New render pipeline. Fire the render loop tick
+        _wasmHost.RaiseRenderLoopTick();
     }
-
 
     /// <summary>
     /// Blazored.Modal instance required to open modal dialog.
@@ -372,6 +367,17 @@ public partial class Index
             { "HostSystemConfig", _wasmHost.CurrentHostSystemConfig.Clone() },
             { "SelectedSystemConfigurationVariant", _wasmHost.SelectedSystemConfigurationVariant }
         };
+
+        // Add the appropriate parameter based on the component type
+        if (typeof(T).Name == "C64ConfigUI")
+        {
+            parameters.Add("AvailableRendererProviderAndRenderTargetTypeCombinations", _wasmHost.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations());
+        }
+        else
+        {
+            // For other config UIs (like Generic), use the original parameter
+            parameters.Add("RenderProviderTypes", _wasmHost.GetAvailableSystemRenderProviderTypes().ToArray());
+        }
 
         var result = await Modal.Show<T>("Config", parameters).Result;
 
@@ -392,7 +398,7 @@ public partial class Index
             }
             //if (result.Data is not Dictionary<string, object>)
             //{
-            //    Console.WriteLine($"Returned unrecongnized type: {result.Data.GetType()}");
+            //    Console.WriteLine($"Returned unrecognized type: {result.Data.GetType()}");
             //    return;
             //}
             //Dictionary<string, object> userSettings = (Dictionary<string, object>)result.Data;

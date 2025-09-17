@@ -12,10 +12,7 @@ public class HostAppTests
         var testApp = BuildTestHostApp(setContexts: false, initContexts: false);
 
         // Act / Assert
-        var ex = Assert.Throws<DotNet6502Exception>(() => testApp.InitRenderContext());
-        Assert.Contains($"RenderContext has not been set", ex.Message);
-
-        ex = Assert.Throws<DotNet6502Exception>(() => testApp.InitInputHandlerContext());
+        var ex = Assert.Throws<DotNet6502Exception>(() => testApp.InitInputHandlerContext());
         Assert.Contains($"InputHandlerContext has not been set", ex.Message);
 
         ex = Assert.Throws<DotNet6502Exception>(() => testApp.InitAudioHandlerContext());
@@ -29,7 +26,6 @@ public class HostAppTests
         var testApp = BuildTestHostApp(setContexts: true, initContexts: false);
 
         // Act / Assert
-        testApp.InitRenderContext();
         testApp.InitInputHandlerContext();
         testApp.InitAudioHandlerContext();
     }
@@ -98,10 +94,10 @@ public class HostAppTests
         // Assert
     }
 
-    public class TestHostApp : HostApp<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>
+    public class TestHostApp : HostApp<NullInputHandlerContext, NullAudioHandlerContext>
     {
         public TestHostApp(
-            SystemList<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext> systemList
+            SystemList<NullInputHandlerContext, NullAudioHandlerContext> systemList
             ) : base("TestHost", systemList, new NullLoggerFactory())
         {
         }
@@ -109,7 +105,7 @@ public class HostAppTests
 
     private TestHostApp BuildTestHostApp(bool setContexts = true, bool initContexts = true)
     {
-        var systemList = new SystemList<NullRenderContext, NullInputHandlerContext, NullAudioHandlerContext>();
+        var systemList = new SystemList<NullInputHandlerContext, NullAudioHandlerContext>();
 
         var systemConfigurer = new TestSystemConfigurer();
         systemList.AddSystem(systemConfigurer);
@@ -121,15 +117,13 @@ public class HostAppTests
 
         if (setContexts)
         {
-            var testRenderContext = new NullRenderContext();
             var testInputHandlerContext = new NullInputHandlerContext();
             var testAudioHandlerContext = new NullAudioHandlerContext();
 
-            testApp.SetContexts(() => testRenderContext, () => testInputHandlerContext, () => testAudioHandlerContext);
+            testApp.SetContexts(() => testInputHandlerContext, () => testAudioHandlerContext);
         }
         if (initContexts)
         {
-            testApp.InitRenderContext();
             testApp.InitInputHandlerContext();
             testApp.InitAudioHandlerContext();
         }

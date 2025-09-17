@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using System.Numerics;
 using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
-using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
+using Highbyte.DotNet6502.Systems.Utils;
 using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.App.SilkNetNative.ConfigUI;
@@ -26,8 +28,54 @@ public class SilkNetImGuiC64Config
     private string? _basicRomFile;
     private string? _chargenRomFile;
 
-    private int _selectedRenderer = 0;
-    private readonly string[] _availableRenderers = Enum.GetNames<C64HostRenderer>();
+
+    private List<(Type renderProviderType, Type renderTargetType)> _availableRendererProviderAndRenderTargetTypeCombinations;
+
+    private List<Type> _renderProviderTypes => _availableRendererProviderAndRenderTargetTypeCombinations.Select(t => t.renderProviderType).Distinct().ToList();
+    private int _selectedRendererProviderIndex = 0;
+    private Type? _selectedRendererProviderType
+    {
+        get
+        {
+            if (_selectedRendererProviderIndex >= 0 && _selectedRendererProviderIndex < _renderProviderTypes.Count)
+                return _renderProviderTypes[_selectedRendererProviderIndex];
+            return null;
+        }
+    }
+
+    private int _selectedRendererTargetIndex = 0;
+    private List<Type> _renderTargetTypes => _availableRendererProviderAndRenderTargetTypeCombinations
+        .Where(t => t.renderProviderType == _selectedRendererProviderType)
+        .Select(t => t.renderTargetType)
+        .ToList();
+    private Type? _selectedRendererTargetType
+    {
+        get
+        {
+            // Fix bounds check to use _renderTargetTypes.Count
+            if (_selectedRendererTargetIndex >= 0 && _selectedRendererTargetIndex < _renderTargetTypes.Count)
+                return _renderTargetTypes[_selectedRendererTargetIndex];
+            return null;
+        }
+    }
+
+    private void UpdateSelectedRenderProvider()
+    {
+        if (_selectedRendererProviderType is not null)
+            _hostConfig.SystemConfig.SetRenderProviderType(_selectedRendererProviderType);
+        if (_renderTargetTypes.Count > 0)
+        {
+            _selectedRendererTargetIndex = 0;
+            UpdateSelectedRenderTarget();
+        }
+    }
+
+    private void UpdateSelectedRenderTarget()
+    {
+        if (_selectedRendererTargetType is not null)
+            _hostConfig.SystemConfig.SetRenderTargetType(_selectedRendererTargetType);
+    }
+
     private bool _openGLFineScrollPerRasterLineEnabled;
 
     private bool _open;
@@ -46,6 +94,13 @@ public class SilkNetImGuiC64Config
     private static Vector4 s_successColor = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
     //private static Vector4 s_warningColor = new Vector4(0.5f, 0.8f, 0.8f, 1);
     private static Vector4 s_okButtonColor = new Vector4(0.0f, 0.6f, 0.0f, 1.0f);
+    // Tooltip background color to ensure contrast against black main window
+    private static Vector4 s_tooltipBgColor = new Vector4(0.22f, 0.22f, 0.22f, 0.98f);
+
+    // Preferred max width for tooltip window
+    private const float HelpTooltipMaxWidth = 700f;
+    // Font scale to use inside tooltip window to make text larger
+    private const float HelpTooltipFontScale = 1.2f;
 
     public SilkNetImGuiC64Config(SilkNetHostApp silkNetHostApp, SilkNetImGuiMenu mainMenu)
     {
@@ -70,7 +125,21 @@ public class SilkNetImGuiC64Config
         _basicRomFile = _systemConfig.HasROM(C64SystemConfig.BASIC_ROM_NAME) ? _systemConfig.GetROM(C64SystemConfig.BASIC_ROM_NAME).File! : "";
         _chargenRomFile = _systemConfig.HasROM(C64SystemConfig.CHARGEN_ROM_NAME) ? _systemConfig.GetROM(C64SystemConfig.CHARGEN_ROM_NAME).File! : "";
 
-        _selectedRenderer = _availableRenderers.ToList().IndexOf(_hostConfig.Renderer.ToString());
+        //_availableRenderers = _silkNetHostApp.GetAvailableSystemRenderProviderTypes().Select(t => t.Name).ToArray();
+        _availableRendererProviderAndRenderTargetTypeCombinations = _silkNetHostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations();
+        var currentRenderProviderType = _hostConfig.SystemConfig.RenderProviderType;
+        if (currentRenderProviderType != null)
+            _selectedRendererProviderIndex = _renderProviderTypes.ToList().IndexOf(currentRenderProviderType);
+        else
+            _selectedRendererProviderIndex = -1;
+
+        var currentRenderTargetType = _hostConfig.SystemConfig.RenderTargetType;
+        if (currentRenderTargetType != null)
+            _selectedRendererTargetIndex = _renderTargetTypes.ToList().IndexOf(currentRenderTargetType);
+        else
+            _selectedRendererTargetIndex = _renderTargetTypes.Count > 0 ? 0 : -1;
+
+
         _openGLFineScrollPerRasterLineEnabled = _hostConfig.SilkNetOpenGlRendererConfig.UseFineScrollPerRasterLine;
 
         // Reset download status
@@ -131,24 +200,42 @@ public class SilkNetImGuiC64Config
                 _systemConfig!.SetROM(C64SystemConfig.CHARGEN_ROM_NAME, _chargenRomFile);
             }
 
-            // Renderer
-            ImGui.Text("Renderer:");
-            ImGui.SameLine();
-            ImGui.PushItemWidth(140);
-            if (ImGui.Combo("##renderer", ref _selectedRenderer, _availableRenderers, _availableRenderers.Length))
+            ImGui.Separator();
+
+            // Render provider
+            ImGui.Text("Render provider:");
+            ImGui.PushItemWidth(160);
+            if (ImGui.Combo("##renderprovider", ref _selectedRendererProviderIndex, _renderProviderTypes.Select(t => TypeDisplayHelper.GetDisplayName(t)).ToArray(), _renderProviderTypes.Count()))
             {
-                _hostConfig.Renderer = Enum.Parse<C64HostRenderer>(_availableRenderers[_selectedRenderer]);
+                UpdateSelectedRenderProvider();
             }
             ImGui.PopItemWidth();
+            ImGui.SameLine();
+            DrawWrappedHelpTextWithTooltip(_selectedRendererProviderType != null ? TypeDisplayHelper.GetHelpText(_selectedRendererProviderType) : string.Empty);
+
+            // Render target
+            ImGui.Text("Render target:");
+            ImGui.PushItemWidth(160);
+            if (ImGui.Combo("##rendertarget", ref _selectedRendererTargetIndex, _renderTargetTypes.Select(t => TypeDisplayHelper.GetDisplayName(t)).ToArray(), _renderTargetTypes.Count()))
+            {
+                UpdateSelectedRenderTarget();
+            }
+            ImGui.PopItemWidth();
+            ImGui.SameLine();
+            DrawWrappedHelpTextWithTooltip(_selectedRendererTargetType != null ? TypeDisplayHelper.GetHelpText(_selectedRendererTargetType) : string.Empty);
 
             // Renderer: OpenGL options
-            if (_hostConfig.Renderer == C64HostRenderer.SilkNetOpenGl)
+            if (_hostConfig.SystemConfig.RenderProviderType == typeof(C64GpuProvider))
             {
+                ImGui.Separator();
+                ImGui.Text("OpenGL renderer options:");
                 if (ImGui.Checkbox("Fine scroll per raster line (experimental)", ref _openGLFineScrollPerRasterLineEnabled))
                 {
                     _hostConfig.SilkNetOpenGlRendererConfig.UseFineScrollPerRasterLine = _openGLFineScrollPerRasterLineEnabled;
                 }
             }
+
+            ImGui.Separator();
 
             // Joystick
             ImGui.Text("Joystick:");
@@ -206,6 +293,8 @@ public class SilkNetImGuiC64Config
             }
             if (!_isValidConfig)
             {
+                ImGui.Separator();
+
                 ImGui.PushStyleColor(ImGuiCol.Text, s_errorColor);
                 foreach (var error in _validationErrors!)
                 {
@@ -213,6 +302,8 @@ public class SilkNetImGuiC64Config
                 }
                 ImGui.PopStyleColor();
             }
+
+            ImGui.Separator();
 
             // Close buttons
             ImGui.BeginDisabled(disabled: !_isValidConfig);
@@ -322,5 +413,35 @@ public class SilkNetImGuiC64Config
             throw new Exception($"Invalid URL: {url}");
         // Launch the URL in the default browser
         Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+    }
+
+    // Draw an info icon that shows help text in a tooltip on hover.
+    // Only displays the icon if help text is provided.
+    private static void DrawWrappedHelpTextWithTooltip(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return; // Don't draw anything if no help text
+
+        // Draw a simple info icon using text
+        ImGui.TextDisabled("(?)");
+
+        if (ImGui.IsItemHovered())
+        {
+            // Tooltip: allow this to be wider than the inline text limit.
+            // Use up to 80% of the viewport width, capped by HelpTooltipMaxWidth.
+            float viewportWidth = ImGui.GetIO().DisplaySize.X;
+            float tooltipWidth = MathF.Min(HelpTooltipMaxWidth, viewportWidth * 0.8f);
+
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, s_tooltipBgColor);
+            ImGui.SetNextWindowSize(new Vector2(tooltipWidth, 0f), ImGuiCond.Always);
+            ImGui.BeginTooltip();
+            ImGui.SetWindowFontScale(HelpTooltipFontScale);
+            ImGui.PushTextWrapPos(0); // wrap to tooltip window width
+            ImGui.TextUnformatted(text);
+            ImGui.PopTextWrapPos();
+            ImGui.SetWindowFontScale(1.0f);
+            ImGui.EndTooltip();
+            ImGui.PopStyleColor();
+        }
     }
 }

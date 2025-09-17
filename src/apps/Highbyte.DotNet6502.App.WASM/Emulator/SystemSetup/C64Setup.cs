@@ -1,9 +1,6 @@
 using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.AspNet.Commodore64.Input;
-using Highbyte.DotNet6502.Impl.Skia;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v1;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v2;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -14,11 +11,11 @@ using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggestion;
 using System.Text.Json;
-using Highbyte.DotNet6502.Impl.Skia.Commodore64.Video.v3;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
-public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerContext, WASMAudioHandlerContext>
+public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
     public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig) => Task.FromResult(s_systemVariants);
@@ -102,6 +99,7 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
             KeyboardJoystick = c64SystemConfig.KeyboardJoystick,
             ROMs = c64SystemConfig.ROMs,
             ROMDirectory = c64SystemConfig.ROMDirectory,
+            RenderProviderType = systemConfig.RenderProviderType ?? typeof(C64CustomRenderProvider),
         };
 
         var c64 = C64.BuildC64(c64Config, _loggerFactory);
@@ -111,7 +109,6 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
     public async Task<SystemRunner> BuildSystemRunner(
         ISystem system,
         IHostSystemConfig hostSystemConfig,
-        SkiaRenderContext renderContext,
         AspNetInputHandlerContext inputHandlerContext,
         WASMAudioHandlerContext audioHandlerContext
         )
@@ -120,32 +117,13 @@ public class C64Setup : ISystemConfigurer<SkiaRenderContext, AspNetInputHandlerC
         var c64 = (C64)system;
         var c64HostConfig = (C64HostConfig)hostSystemConfig;
 
-        IRenderer renderer;
-        switch (c64HostConfig.Renderer)
-        {
-            case C64HostRenderer.SkiaSharp:
-                renderer = new C64SkiaRenderer(c64, renderContext);
-                break;
-            case C64HostRenderer.SkiaSharp2:
-                renderer = new C64SkiaRenderer2(c64, renderContext);
-                break;
-            case C64HostRenderer.SkiaSharp2b:
-                renderer = new C64SkiaRenderer2b(c64, renderContext);
-                break;
-            case C64HostRenderer.SkiaSharp3:
-                renderer = new C64SkiaRenderer3(c64, renderContext);
-                break;
-            default:
-                throw new NotImplementedException($"Renderer {c64HostConfig.Renderer} not implemented.");
-        }
-
         var codeSuggestion = await GetCodeSuggestionImplementation(c64HostConfig, _browserContext.LocalStorage);
         var c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, codeSuggestion, _loggerFactory);
         var inputHandler = new C64AspNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig, c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
 
         var audioHandler = new C64WASMAudioHandler(c64, audioHandlerContext, _loggerFactory);
 
-        return new SystemRunner(c64, renderer, inputHandler, audioHandler);
+        return new SystemRunner(c64, inputHandler, audioHandler);
     }
 
     private async Task<List<ROM>> GetROMsFromLocalStorageLegacy()
