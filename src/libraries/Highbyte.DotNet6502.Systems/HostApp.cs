@@ -311,10 +311,13 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
 
         OnBeforeStop();
 
-        _systemRunner!.AudioHandler.StopPlaying();
+        _systemRunner?.AudioHandler.StopPlaying();
+
+        _renderCoordinator?.DisposeAsync();
+        _renderCoordinator = null;
 
         // Cleanup systemrunner (which also cleanup renderer, inputhandler, and audiohandler)
-        _systemRunner!.Cleanup();
+        _systemRunner?.Cleanup();
         _systemRunner = default!;
 
         EmulatorState = EmulatorState.Uninitialized;
