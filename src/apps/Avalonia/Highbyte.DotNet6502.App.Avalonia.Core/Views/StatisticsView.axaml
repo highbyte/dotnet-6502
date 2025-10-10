@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.StatisticsView"
+             x:DataType="vm:StatisticsViewModel">
+
+  <Design.DataContext>
+    <vm:StatisticsViewModel/>
+  </Design.DataContext>
+
+  <StackPanel Spacing="10">
+    <!-- Performance Stats -->
+    <TextBlock Text="Stats" 
+               Classes="h3"
+               Margin="0,20,0,0"/>
+    
+    <Border Background="#4A5568" 
+           Padding="8" 
+           CornerRadius="4">
+        <ItemsControl ItemsSource="{Binding Statistics}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                        <TextBlock Text="{Binding Name}" 
+                                   Classes="tiny-bold"
+                                   MinWidth="120"/>
+                        <TextBlock Text=": " 
+                                   Classes="tiny"/>
+                        <TextBlock Text="{Binding Value}" 
+                                   Classes="tiny"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Border>    
+  </StackPanel>
+</UserControl>

@@ -41,6 +41,11 @@ public sealed class PayloadCoordinator<TPayload> : IAsyncDisposable, IPayloadCoo
         _renderStat.Stop();
     }
 
+    public async ValueTask FlushIfDirtyAsync(CancellationToken ct = default)
+    {
+        throw new NotImplementedException("TODO: Implement support for _loop.Mode ManualInvalidation");
+    }
+
     public async ValueTask DisposeAsync()
     {
         _loop.FrameTick -= OnFrameTick;

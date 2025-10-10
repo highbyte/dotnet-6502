@@ -347,7 +347,7 @@
         _customEndpointAIApiConfig = await C64Setup.GetCustomAIEndpointConfig(LocalStorage);
         BlazoredModal.SetTitle("C64 config");
 
-        // If ROMs aren't loadad, expand HTML details element for roms (setting property open to true)
+        // If ROMs aren't loaded, expand HTML details element for roms (setting property open to true)
         if (LoadedROMCount < _requiredNumberOfRomFiles)
             await Js.InvokeVoidAsync("setOpen", "roms_section", true);
 

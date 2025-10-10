@@ -228,6 +228,7 @@ public class C64SystemConfig : ISystemConfig
         KeyboardJoystickMap = new C64KeyboardJoystickMap();
 
         SetRenderProviderType(GetSupportedRenderProviderTypes().First());
+        //SetRenderProviderType(GetSupportedRenderProviderTypes().Single(x => x == typeof(C64VideoCommandStream)));
     }
 
     public bool HasROM(string romName) => ROMs.Any(x => x.Name == romName);

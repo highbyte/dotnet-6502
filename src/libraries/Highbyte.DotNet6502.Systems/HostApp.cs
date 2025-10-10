@@ -15,7 +15,7 @@ public enum EmulatorState { Uninitialized, Running, Paused }
 /// </summary>
 /// <typeparam name="TInputHandlerContext"></typeparam>
 /// <typeparam name="TAudioHandlerContext"></typeparam>
-public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
+public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IManualRenderingProvider
     where TInputHandlerContext : IInputHandlerContext
     where TAudioHandlerContext : IAudioHandlerContext
 {
@@ -45,6 +45,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
     private RenderTargetProvider? _renderTargetProvider;
     private RenderCoordinatorProvider? _renderCoordinatorProvider;
     private IRenderCoordinator? _renderCoordinator;
+    private IRenderTarget? _currentRenderTarget;
 
     /// <summary>
     /// The current host system config.
@@ -141,16 +142,16 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
     /// Should not be called more than once.
     /// </summary>
     /// <param name="configureRenderTargetProvider"></param>
-    /// <param name="createCrenderLoop"></param>
+    /// <param name="createRenderLoop"></param>
     public void SetRenderConfig(
         Action<RenderTargetProvider> configureRenderTargetProvider,
-        Func<IRenderLoop> createCrenderLoop)
+        Func<IRenderLoop> createRenderLoop)
     {
         _renderTargetProvider = new RenderTargetProvider();
         configureRenderTargetProvider(_renderTargetProvider);
 
-        var renderloop = createCrenderLoop();
-        _renderCoordinatorProvider = new RenderCoordinatorProvider(renderloop);
+        var renderLoop = createRenderLoop();
+        _renderCoordinatorProvider = new RenderCoordinatorProvider(renderLoop);
     }
 
     public List<Type> GetAvailableSystemRenderProviderTypes()
@@ -314,6 +315,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
 
         _renderCoordinator?.DisposeAsync();
         _renderCoordinator = null;
+        _currentRenderTarget = null;
 
         // Cleanup systemrunner (which also cleanup renderer, inputhandler, and audiohandler)
         _systemRunner?.Cleanup();
@@ -345,6 +347,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
         // Cleanup coordinators
         _renderCoordinator?.DisposeAsync();
         _renderCoordinator = null;
+        _currentRenderTarget = null;
         _renderCoordinatorProvider = null;
 
         _logger.LogInformation($"Emulator closed");
@@ -392,13 +395,15 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
         if (_renderTargetProvider == null || _renderCoordinatorProvider == null)
         {
             _renderCoordinator = null;
+            _currentRenderTarget = null;
             return;
         }
 
         var renderTargetType = CurrentHostSystemConfig.SystemConfig.RenderTargetType;
 
         // Assume CurrentSystemRunner.System.RenderProvider is set to the selected system's render provider (one of possibly many in in system.RenderProviders).
-        var renderTarget = _renderTargetProvider.CreateRenderTargetByRenderProviderType(CurrentSystemRunner.System.RenderProvider.GetType(), renderTargetType);
+        var renderTarget = _renderTargetProvider.CreateRenderTargetByRenderProviderType(CurrentSystemRunner!.System.RenderProvider.GetType(), renderTargetType);
+        _currentRenderTarget = renderTarget;
         _renderCoordinator = _renderCoordinatorProvider.CreateRenderCoordinator(CurrentSystemRunner.System.RenderProvider, renderTarget, _instrumentations);
     }
 
@@ -491,4 +496,50 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
             .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{InputTimeStatName}-{x.Name}", x.Stat)))
             .ToList();
     }
+
+    #region IManualRenderingProvider implementation
+
+    /// <summary>
+    /// Gets the current render coordinator for manual invalidation rendering scenarios.
+    /// Only available when the emulator is running and using manual invalidation mode.
+    /// </summary>
+    public virtual IRenderCoordinator? GetRenderCoordinator()
+    {
+        // Only provide the render coordinator if we're in manual invalidation mode
+        if (IsManualInvalidationMode)
+        {
+            return _renderCoordinator;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Gets a render target of the specified type if it's currently active and we're in manual invalidation mode.
+    /// </summary>
+    public virtual T? GetRenderTarget<T>() where T : class, IRenderTarget
+    {
+        if (IsManualInvalidationMode)
+        {
+            return _currentRenderTarget as T;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Indicates whether the host is using manual invalidation rendering mode.
+    /// This is determined by checking if the render loop is in ManualInvalidation mode.
+    /// </summary>
+    public virtual bool IsManualInvalidationMode
+    {
+        get
+        {
+            if (_renderCoordinatorProvider?.RenderLoop != null)
+            {
+                return _renderCoordinatorProvider.RenderLoop.Mode == RenderTriggerMode.ManualInvalidation;
+            }
+            return false;
+        }
+    }
+
+    #endregion
 }

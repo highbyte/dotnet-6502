@@ -1,0 +1,65 @@
+using Avalonia;
+using Avalonia.Media;
+using Highbyte.DotNet6502.App.Avalonia.Core.Render;
+using Highbyte.DotNet6502.Systems.Rendering;
+
+namespace Highbyte.DotNet6502.App.Avalonia.Core.Controls;
+
+/// <summary>
+/// A custom control that renders the emulator display using Avalonia WriteableBitmap for broad platform compatibility.
+/// This control works efficiently on all Avalonia targets including WebAssembly.
+/// </summary>
+public class EmulatorBitmapDisplayControl : EmulatorDisplayControlBase
+{
+    private readonly IRenderCoordinator? _renderCoordinator;
+    private readonly IAvaloniaBitmapRenderTarget? _avaloniaBitmapRenderTarget;
+
+    static EmulatorBitmapDisplayControl()
+    {
+        AffectsRender<EmulatorBitmapDisplayControl>(ScaleProperty);
+    }
+
+    public EmulatorBitmapDisplayControl(
+        IRenderCoordinator? renderCoordinator,
+        IAvaloniaBitmapRenderTarget? avaloniaBitmapRenderTarget,
+        double scale,
+        bool focuable
+        ) : base()
+    {
+        _renderCoordinator = renderCoordinator;
+        _avaloniaBitmapRenderTarget = avaloniaBitmapRenderTarget;
+        Scale = scale;
+        Focusable = focuable;
+    }
+
+    public override async void Render(DrawingContext context)
+    {
+        if (_renderCoordinator == null) return;
+        await _renderCoordinator.FlushIfDirtyAsync();
+
+        if (_avaloniaBitmapRenderTarget == null) return;
+        var destRect = new Rect(0, 0, DisplayWidth * Scale, DisplayHeight * Scale);
+        context.DrawImage(_avaloniaBitmapRenderTarget.Bitmap, destRect);
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        //if (change.Property == RendererProperty)
+        //{
+        //    InvalidateVisual();
+        //    InvalidateMeasure();
+        //}
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+    }
+}

@@ -10,6 +10,8 @@ public class RenderCoordinatorProvider
 {
     private readonly IRenderLoop _renderLoop;
 
+    public IRenderLoop RenderLoop => _renderLoop;
+
     public RenderCoordinatorProvider(IRenderLoop renderLoop)
     {
         _renderLoop = renderLoop;

@@ -51,7 +51,7 @@ public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHa
             {
                 c64HostConfig = JsonSerializer.Deserialize<C64HostConfig>(c64HostConfigJson)!;
 
-                // Note: Because ROMDirectory should nevery be used when running WASM, make sure it is empty (regardless if config from local storage has it set).
+                // Note: Because ROMDirectory should never be used when running WASM, make sure it is empty (regardless if config from local storage has it set).
                 c64HostConfig.SystemConfig.ROMDirectory = "";
             }
             catch (Exception ex)

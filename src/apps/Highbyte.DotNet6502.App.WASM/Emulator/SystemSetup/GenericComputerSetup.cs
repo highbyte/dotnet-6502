@@ -65,8 +65,8 @@ public class GenericComputerSetup : ISystemConfigurer<AspNetInputHandlerContext,
 
     public async Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
     {
-        var cenericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
-        await _browserContext.LocalStorage.SetItemAsStringAsync($"{GenericComputerHostConfig.ConfigSectionName}", JsonSerializer.Serialize(cenericComputerHostConfig));
+        var genericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
+        await _browserContext.LocalStorage.SetItemAsStringAsync($"{GenericComputerHostConfig.ConfigSectionName}", JsonSerializer.Serialize(genericComputerHostConfig));
     }
 
     public async Task<ISystem> BuildSystem(string configurationVariant, ISystemConfig systemConfig)

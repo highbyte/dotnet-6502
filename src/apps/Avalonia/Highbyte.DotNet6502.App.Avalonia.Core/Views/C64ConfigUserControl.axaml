@@ -1,0 +1,316 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+        x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.C64ConfigUserControl"
+        x:DataType="vm:C64ConfigDialogViewModel">
+  
+  <!-- Simplified layout for ContentDialog - no outer border needed -->
+  <Grid RowDefinitions="Auto,*,Auto">
+    <!-- Title Header -->
+    <Border Grid.Row="0"
+            Background="#2D3748"
+            Padding="18,16"
+            CornerRadius="8,8,0,0"
+            Margin="0">
+      <TextBlock Text="Commodore 64 Configuration"
+                 Classes="h1"
+                 HorizontalAlignment="Center"/>
+    </Border>
+
+    <!-- Main content with two columns -->
+    <Grid Grid.Row="1" ColumnDefinitions="460,460" ColumnSpacing="20" Margin="20">
+      
+      <!-- Left Column -->
+      <StackPanel Grid.Column="0" Spacing="18">
+
+        <!-- ROM Section -->
+        <Border Background="#252F3F"
+                BorderBrush="#4A5568"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="16">
+          <StackPanel Spacing="12">
+            <TextBlock Text="ROM Management"
+                       Classes="h2"/>
+            <TextBlock Text="The emulator requires Kernal, Basic, and Character ROMs."
+                       Classes="help-text"/>
+            <TextBlock Text="{Binding RomStatusSummary}"
+                       Classes="label"/>
+
+            <ItemsControl ItemsSource="{Binding RomStatuses}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:RomStatusViewModel">
+                  <StackPanel Spacing="4" Margin="0,2">
+                    <!-- WebAssembly version - display only -->
+                    <Grid ColumnDefinitions="90,*" ColumnSpacing="6" 
+                          IsVisible="{Binding IsRunningInWebAssembly}">
+                      <TextBlock Grid.Column="0" 
+                                 Text="{Binding Name}:"
+                                 Classes="field-label"
+                                 VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="2" 
+                                 Text="{Binding Details}"
+                                 Foreground="{Binding ForegroundColor}"
+                                 VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Desktop version - editable File name -->
+                    <Grid ColumnDefinitions="90,*" ColumnSpacing="6"
+                          IsVisible="{Binding !IsRunningInWebAssembly}">
+                      <TextBlock Grid.Column="0" 
+                                 Text="{Binding Name}:"
+                                 Classes="field-label"
+                                 VerticalAlignment="Center"/>
+                      <TextBox Grid.Column="1" 
+                               Text="{Binding RomFile, Mode=TwoWay}"
+                               Watermark="File name"
+                               Classes="field-aligned"
+                               VerticalAlignment="Center"/>
+                    </Grid>
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+              <!-- ROM Directory setting (only for desktop) -->
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" Margin="0,8,0,0"
+                    IsVisible="{Binding !IsRunningInWebAssembly}">
+                  <TextBlock Grid.Column="0"
+                             Text="ROM directory:"
+                             Classes="field-label"
+                             VerticalAlignment="Center"/>
+                  <TextBox Grid.Column="1"
+                           Text="{Binding RomDirectory}"
+                            Watermark="Directory path"
+                           Classes="field-aligned"
+                           VerticalAlignment="Center"/>
+              </Grid>
+
+
+              <StackPanel Orientation="Horizontal" Spacing="8">
+              <!-- Download button for WASM app to in-memory byte array -->
+              <Button Content="Download ROMs"
+                      Click="DownloadRomsToByteArray_Click"
+                      MinWidth="130"
+                      Classes="primary wide"
+                      IsVisible="{Binding IsRunningInWebAssembly}"
+                      IsEnabled="{Binding IsNotBusy}"/>
+              <!-- Load button for WASM app to files via file picker to in-memory byte array -->
+              <Button Content="Load ROMs from files"
+                      MinWidth="150"
+                      Classes="secondary extraWide"
+                      IsVisible="{Binding IsRunningInWebAssembly}"
+                      IsEnabled="{Binding IsNotBusy}"
+                      Click="LoadRoms_Click"/>
+              <!-- Clear for WASM app to clear ROM byte arrays -->
+              <Button Content="Clear"
+                      Click="ClearRoms_Click"
+                      MinWidth="90"
+                      Classes="cancel"
+                      IsVisible="{Binding IsRunningInWebAssembly}"
+                      IsEnabled="{Binding IsNotBusy}"/>
+
+              <!-- Download button for Desktop app to files -->
+              <Button Content="Download ROM Files"
+                      Click="DownloadRomsToFiles_Click"
+                      MinWidth="130"
+                      Classes="primary extraWide"
+                      IsVisible="{Binding !IsRunningInWebAssembly}"
+                      IsEnabled="{Binding IsNotBusy}"/>                    
+            </StackPanel>
+
+          </StackPanel>
+        </Border>
+
+        <!-- Render and Audio Section -->
+        <Border Background="#252F3F"
+                BorderBrush="#4A5568"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="16">
+          <StackPanel Spacing="12">
+            <TextBlock Text="Video &amp; Audio"
+                       Classes="h2"/>
+
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="12">
+              <TextBlock Grid.Row="0" Grid.Column="0" 
+                         Text="Render provider:" 
+                         Classes="field-label"
+                         VerticalAlignment="Center"/>
+              <ComboBox Grid.Row="0" Grid.Column="1"
+                        ItemsSource="{Binding RenderProviders}"
+                        SelectedItem="{Binding SelectedRenderProvider}"
+                        ToolTip.Tip="{Binding SelectedRenderProviderHelpText}"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        MaxDropDownHeight="200"
+                        Classes="field-aligned">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:RenderProviderOption">
+                    <TextBlock Text="{Binding DisplayName}"/>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+
+              <TextBlock Grid.Row="1" Grid.Column="0" 
+                         Text="Render target:" 
+                         Classes="field-label"
+                         VerticalAlignment="Center"/>
+              <ComboBox Grid.Row="1" Grid.Column="1"
+                        ItemsSource="{Binding RenderTargets}"
+                        SelectedItem="{Binding SelectedRenderTarget}"
+                        ToolTip.Tip="{Binding SelectedRenderTargetHelpText}"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        MaxDropDownHeight="200"
+                        Classes="field-aligned">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:RenderTargetOption">
+                    <TextBlock Text="{Binding DisplayName}"/>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+
+              <CheckBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                        Content="Enable SID audio (experimental)"
+                        IsChecked="{Binding AudioEnabled}"
+                        Classes="field-aligned"
+                        VerticalAlignment="Center"/>
+            </Grid>
+
+          </StackPanel>
+        </Border>
+
+      </StackPanel>
+
+      <!-- Right Column -->
+      <StackPanel Grid.Column="1" Spacing="18">
+
+        <!-- Input Section -->
+        <Border Background="#252F3F"
+                BorderBrush="#4A5568"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="16">
+          <StackPanel Spacing="12">
+            <TextBlock Text="Input &amp; Joystick"
+                       Classes="h2"/>
+
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="12">
+              <TextBlock Grid.Row="0" Grid.Column="0" 
+                         Text="Active joystick port:" 
+                         Classes="field-label"
+                         VerticalAlignment="Center"/>
+              <ComboBox Grid.Row="0" Grid.Column="1"
+                        ItemsSource="{Binding AvailableJoysticks}"
+                        SelectedItem="{Binding SelectedHostJoystick}"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Classes="small field-aligned"
+                        MinWidth="80"
+                        MaxDropDownHeight="100"/>
+
+              <CheckBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                        Content="Enable keyboard joystick controls"
+                        IsChecked="{Binding KeyboardJoystickEnabled}"
+                        Classes="field-aligned"
+                        VerticalAlignment="Center"/>
+
+              <TextBlock Grid.Row="2" Grid.Column="0" 
+                         Text="Keyboard joystick port:" 
+                         Classes="field-label"
+                         VerticalAlignment="Center"/>
+              <ComboBox Grid.Row="2" Grid.Column="1"
+                        ItemsSource="{Binding AvailableJoysticks}"
+                        SelectedItem="{Binding SelectedKeyboardJoystick}"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Classes="small field-aligned"
+                        MinWidth="80"
+                        MaxDropDownHeight="100"/>
+            </Grid>
+
+            <!-- Collapsible Keyboard Mappings Section -->
+            <Expander Header="Keyboard mappings"
+                      Foreground="#CBD5E0"
+                      IsExpanded="False">
+              <ItemsControl ItemsSource="{Binding KeyboardMappings}"
+                            Margin="0,8,0,0">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:KeyMappingEntry">
+                    <DockPanel Margin="0,2">
+                      <TextBlock Text="{Binding Action}"
+                                 Classes="field-label"
+                                 Width="100"/>
+                      <TextBlock Text="{Binding Key}"
+                                 Classes="body"/>
+                    </DockPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Expander>
+          </StackPanel>
+        </Border>
+
+        <!-- Messages -->
+        <StackPanel Spacing="6">
+          <TextBlock Text="{Binding StatusMessage}"
+                     Classes="success"
+                     TextWrapping="Wrap"
+                     IsVisible="{Binding HasStatusMessage}"/>
+          
+          <!-- Validation Error Messages with Border (similar to MainView) -->
+          <Border Background="Transparent" 
+                  BorderBrush="#E53E3E"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="10"
+                  IsVisible="{Binding HasValidationErrors}">
+            <ItemsControl ItemsSource="{Binding ValidationErrors}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2">
+                    <TextBlock Text="•" 
+                               Foreground="#E53E3E" 
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding}" 
+                               Classes="small"
+                               Foreground="White"
+                               TextWrapping="Wrap"
+                               VerticalAlignment="Center"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Border>
+
+          <!-- Progress Bar for busy state -->
+          <ProgressBar IsVisible="{Binding IsBusy}"
+                       IsIndeterminate="True"
+                       Height="4"
+                       Margin="0,8,0,0"/>
+        </StackPanel>
+
+      </StackPanel>
+
+    </Grid>
+
+    <!-- Button Section in separate row -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="20,0,20,20">
+      <ProgressBar Grid.Column="0"
+                   IsVisible="{Binding IsBusy}"
+                   IsIndeterminate="True"/>
+      <Button Grid.Column="1"
+              Content="Cancel"
+              Classes="cancel"
+              Click="Cancel_Click"/>
+      <Button Grid.Column="2"
+              Content="{Binding OkButtonText}"
+              Classes="primary"
+              IsDefault="True"
+              IsEnabled="{Binding CanSave}"
+              Click="Save_Click"/>
+    </Grid>
+
+  </Grid>
+</UserControl>

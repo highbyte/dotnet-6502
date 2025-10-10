@@ -1,0 +1,287 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+             xmlns:controls="using:Highbyte.DotNet6502.App.Avalonia.Core.Controls"
+             xmlns:views="using:Highbyte.DotNet6502.App.Avalonia.Core.Views"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.MainView"
+             x:DataType="vm:MainViewModel">
+
+    <UserControl.DataContext>
+        <vm:MainViewModel/>
+    </UserControl.DataContext>
+
+    <Grid ShowGridLines="False">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200" />
+            <ColumnDefinition Width="*" MinWidth="960" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Menu and Controls Panel (Left) -->
+        <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="3" 
+                Background="#2D3748" 
+                BorderBrush="#4A5568" 
+                BorderThickness="0,0,1,0"
+                Padding="10">
+            <StackPanel Spacing="6">
+                <!-- System Selection -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="System:" 
+                               Classes="section-header"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+                    
+                    <ComboBox Grid.Column="1"
+                              Name="SystemSelectionComboBox"
+                              ItemsSource="{Binding AvailableSystems}"
+                              SelectedItem="{Binding SelectedSystemName}"
+                              SelectionChanged="OnSystemSelectionChanged"
+                              IsEnabled="{Binding IsSystemSelectionEnabled}"
+                              Classes="compact"
+                              MinWidth="100"/>
+                </Grid>
+
+                <!-- System Variant Selection -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="Variant:" 
+                               Classes="section-header"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+                    
+                    <ComboBox Grid.Column="1"
+                              Name="SystemVariantSelectionComboBox"
+                              ItemsSource="{Binding AvailableSystemVariants}"
+                              SelectedItem="{Binding SelectedSystemVariant}"
+                              SelectionChanged="OnSystemVariantSelectionChanged"
+                              IsEnabled="{Binding IsVariantSelectionEnabled}"
+                              Classes="compact"
+                              MinWidth="100"/>
+                </Grid>
+
+                <!-- Status -->
+                <TextBlock Text="Status:" 
+                           Classes="section-header"
+                           Margin="0,8,0,4"/>
+                
+                <Border Background="#4A5568" 
+                        CornerRadius="4"
+                        Padding="8">
+                    <TextBlock Text="{Binding EmulatorState}" 
+                               Classes="status"/>
+                </Border>
+                
+                <!-- Emulator Controls -->
+                <TextBlock Text="Controls:" 
+                           Classes="section-header"
+                           Margin="0,8,0,4"/>
+                
+                <StackPanel Spacing="4">
+                    <!-- First row: Start and Pause -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="90" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Content="Start" 
+                                Classes="primary"
+                                IsEnabled="{Binding IsStartButtonEnabled}"
+                                Command="{Binding StartEmulatorCommand}"/>
+                        <Button Grid.Column="2"
+                                Content="Pause" 
+                                Classes="warning"
+                                IsEnabled="{Binding IsPauseButtonEnabled}"
+                                Command="{Binding PauseEmulatorCommand}"/>
+                    </Grid>
+                    
+                    <!-- Second row: Reset and Stop -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="90" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Content="Reset" 
+                                Classes="secondary"
+                                IsEnabled="{Binding IsResetButtonEnabled}"
+                                Command="{Binding ResetEmulatorCommand}"/>
+                        <Button Grid.Column="2"
+                                Content="Stop" 
+                                Classes="danger"
+                                IsEnabled="{Binding IsStopButtonEnabled}"
+                                Command="{Binding StopEmulatorCommand}"/>
+                    </Grid>
+                </StackPanel>
+                
+                <!-- Display Settings -->
+                <StackPanel Spacing="6">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="Scale:" 
+                                   Classes="body"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,0"/>
+                        <Slider Grid.Column="1"
+                                Minimum="1" Maximum="4" Value="2" 
+                                TickFrequency="0.5" 
+                                IsSnapToTickEnabled="True"
+                                VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Audio Settings -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="Audio:" 
+                                   Classes="body"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,0"/>
+                        <CheckBox Grid.Column="1"
+                                  Content="Enabled" 
+                                  Foreground="White"
+                                  VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+                
+                <!-- C64 Specific Settings -->
+                <StackPanel Spacing="6"
+                        Margin="0,12,0,0"
+                        IsVisible="{Binding IsC64SystemSelected}">
+                    <TextBlock Text="C64 Configuration:" 
+                               Classes="section-header"/>
+                    <TextBlock Text="Manage ROMs, video, and input settings for the Commodore 64." 
+                               Classes="small"
+                               TextWrapping="Wrap"/>
+                    <Button Content="C64 Config"
+                        Classes="accent wide"
+                        Click="OpenC64Config_Click"/>
+                </StackPanel>
+
+            </StackPanel>
+        </Border>
+
+        <!-- Main Emulator Display Area (Center) -->
+        <Border Grid.Row="0" Grid.Column="1" Grid.RowSpan="3"
+                Background="#1A202C"
+                Padding="10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                
+                <!-- Emulator Canvas/Display -->
+                <Border Grid.Row="0"
+                        Background="#000000" 
+                        BorderBrush="#4A5568" 
+                        BorderThickness="2"
+                        CornerRadius="4"
+                        Margin="0,0,0,10"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <Grid>
+                        <!-- Emulator Display Control -->
+                        <views:EmulatorView Name="EmulatorView"
+                                            IsVisible="{Binding IsEmulatorRunning}"/>
+
+                        <!-- Overlay message when not running -->
+                        <TextBlock Text="Emulator display will appear here"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Classes="overlay"
+                                   IsVisible="{Binding IsEmulatorNotRunning}"/>
+                    </Grid>
+                </Border>
+                
+                <!-- Information Area - Configuration Validation -->
+                <Border Grid.Row="1"
+                        Background="#2D3748" 
+                        BorderBrush="#4A5568" 
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="15"
+                        MinHeight="120"
+                        VerticalAlignment="Top">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Spacing="10">
+                            <!-- Show validation errors if any exist -->
+                            <StackPanel Spacing="8" IsVisible="{Binding HasValidationErrors}">
+                                <TextBlock Text="Configuration Errors:" 
+                                           Classes="section-header"
+                                           Foreground="#E53E3E"/>
+                                
+                                <Border Background="Transparent" 
+                                        BorderBrush="#E53E3E"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        Padding="10">
+                                    <ItemsControl ItemsSource="{Binding ValidationErrors}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2">
+                                                    <TextBlock Text="•" 
+                                                               Foreground="#E53E3E" 
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding}" 
+                                                               Classes="small"
+                                                               Foreground="White"
+                                                               TextWrapping="Wrap"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                            </StackPanel>
+                            
+                            <!-- Show default information when no validation errors -->
+                            <StackPanel Spacing="5" IsVisible="{Binding !HasValidationErrors}">
+                                <TextBlock Text="System Information" 
+                                           Classes="body"/>
+                                <TextBlock Text="Configuration is valid. No errors to display."
+                                           Classes="small"
+                                           FontStyle="Italic"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Info and Stats Panel (Right) -->
+        <Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="3"
+                Background="#2D3748"
+                BorderBrush="#4A5568"
+                BorderThickness="1,0,0,0"
+                Padding="10"
+                IsVisible="true">
+            <ScrollViewer>
+                <views:StatisticsView />
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

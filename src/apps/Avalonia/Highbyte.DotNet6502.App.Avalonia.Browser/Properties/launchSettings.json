@@ -1,0 +1,30 @@
+{
+  "profiles": {
+    "Avalonia.Browser": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:7169;http://localhost:5235",
+      "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}"
+    },
+    "Avalonia.Browser Debug Fix": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:7169;http://localhost:5235"
+    },
+    "Avalonia.Browser (No Debug)": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
+      },
+      "applicationUrl": "https://localhost:7169;http://localhost:5235"
+    }
+  }
+}
