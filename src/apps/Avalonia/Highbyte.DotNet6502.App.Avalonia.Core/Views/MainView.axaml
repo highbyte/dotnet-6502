@@ -94,18 +94,18 @@
                     <!-- First row: Start and Pause -->
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
                                 Content="Start" 
-                                Classes="primary"
+                                Classes="primary grid"
                                 IsEnabled="{Binding IsStartButtonEnabled}"
                                 Command="{Binding StartEmulatorCommand}"/>
                         <Button Grid.Column="2"
                                 Content="Pause" 
-                                Classes="warning"
+                                Classes="warning grid"
                                 IsEnabled="{Binding IsPauseButtonEnabled}"
                                 Command="{Binding PauseEmulatorCommand}"/>
                     </Grid>
@@ -113,18 +113,18 @@
                     <!-- Second row: Reset and Stop -->
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="90" />
+                            <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
                                 Content="Reset" 
-                                Classes="secondary"
+                                Classes="secondary grid"
                                 IsEnabled="{Binding IsResetButtonEnabled}"
                                 Command="{Binding ResetEmulatorCommand}"/>
                         <Button Grid.Column="2"
                                 Content="Stop" 
-                                Classes="danger"
+                                Classes="danger grid"
                                 IsEnabled="{Binding IsStopButtonEnabled}"
                                 Command="{Binding StopEmulatorCommand}"/>
                     </Grid>
