@@ -5,9 +5,15 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
+using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Utils;
 using System.Runtime.InteropServices;
+using System;
+using System.IO;
+using System.Linq;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
@@ -158,5 +164,168 @@ public partial class MainView : UserControl
                 mainGrid.Children.Remove(overlay);
             }
         }
+    }
+
+    // C64-specific event handlers
+    private async void CopyBasicSource_Click(object? sender, RoutedEventArgs e)
+    {
+        await CopyBasicSourceCode();
+    }
+
+    private async void PasteText_Click(object? sender, RoutedEventArgs e)
+    {
+        await PasteText();
+    }
+
+    private async void ToggleDiskImage_Click(object? sender, RoutedEventArgs e)
+    {
+        await ToggleDiskImage();
+    }
+
+    private void OpenBasicAssistantInfo_Click(object? sender, RoutedEventArgs e)
+    {
+        // Open the info link for Basic coding assistant
+        if (TopLevel.GetTopLevel(this) is { } topLevel)
+        {
+            topLevel.Launcher.LaunchUriAsync(new Uri("https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md"));
+        }
+    }
+
+    private void OpenDiskInfo_Click(object? sender, RoutedEventArgs e)
+    {
+        // Open the info link for disk functionality
+        if (TopLevel.GetTopLevel(this) is { } topLevel)
+        {
+            topLevel.Launcher.LaunchUriAsync(new Uri("https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_COMPATIBLE_PRG.md"));
+        }
+    }
+
+    // The actual implementation methods will be connected to the ViewModel commands
+    // by updating the ViewModel command initialization to call these methods
+    public async Task CopyBasicSourceCode()
+    {
+        if (App.HostApp?.EmulatorState != Systems.EmulatorState.Running || 
+            !IsC64System())
+            return;
+
+        try
+        {
+            var c64 = (C64)App.HostApp.CurrentRunningSystem!;
+            var sourceCode = c64.BasicTokenParser.GetBasicText();
+            
+            if (TopLevel.GetTopLevel(this) is { } topLevel)
+            {
+                await topLevel.Clipboard?.SetTextAsync(sourceCode.ToLower())!;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Handle error - could show a dialog or log it
+            System.Console.WriteLine($"Error copying Basic source: {ex.Message}");
+        }
+    }
+
+    public async Task PasteText()
+    {
+        if (App.HostApp?.EmulatorState != Systems.EmulatorState.Running || 
+            !IsC64System())
+            return;
+
+        try
+        {
+            if (TopLevel.GetTopLevel(this) is { } topLevel)
+            {
+                var text = await topLevel.Clipboard?.GetTextAsync()!;
+                if (!string.IsNullOrEmpty(text))
+                {
+                    var c64 = (C64)App.HostApp.CurrentRunningSystem!;
+                    c64.TextPaste.Paste(text);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            System.Console.WriteLine($"Error pasting text: {ex.Message}");
+        }
+    }
+
+    public async Task ToggleDiskImage()
+    {
+        if (App.HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized || 
+            !IsC64System())
+            return;
+
+        try
+        {
+            var c64 = (C64)App.HostApp.CurrentRunningSystem!;
+            var diskDrive = c64.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+            
+            if (diskDrive?.IsDisketteInserted == true)
+            {
+                // Detach current disk image
+                diskDrive.RemoveD64DiskImage();
+            }
+            else
+            {
+                // Attach new disk image - open file dialog
+                await AttachDiskImage();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"Error toggling disk image: {ex.Message}");
+        }
+    }
+
+    private async Task AttachDiskImage()
+    {
+        if (TopLevel.GetTopLevel(this) is not { } topLevel)
+            return;
+
+        var storageProvider = topLevel.StorageProvider;
+        if (storageProvider.CanOpen)
+        {
+            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Select D64 Disk Image",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("D64 Disk Images") { Patterns = new[] { "*.d64" } },
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                }
+            });
+
+            if (files.Count > 0)
+            {
+                try
+                {
+                    await using var stream = await files[0].OpenReadAsync();
+                    var fileBuffer = new byte[stream.Length];
+                    await stream.ReadAsync(fileBuffer);
+
+                    // Parse the D64 disk image
+                    var d64DiskImage = Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.D64Parser.ParseD64File(fileBuffer);
+                    
+                    // Set the disk image on the running C64's DiskDrive1541
+                    var c64 = (C64)App.HostApp!.CurrentRunningSystem!;
+                    var diskDrive = c64.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+                    if (diskDrive != null)
+                    {
+                        diskDrive.SetD64DiskImage(d64DiskImage);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Error loading disk image: {ex.Message}");
+                }
+            }
+        }
+    }
+
+    private bool IsC64System()
+    {
+        return string.Equals(App.HostApp?.SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
     }
 }
