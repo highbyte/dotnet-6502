@@ -287,12 +287,14 @@
         <Style Selector="Button">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Padding" Value="12,4"/>
             <Setter Property="Width" Value="90"/>
             <Setter Property="Height" Value="32"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
 
         <!-- Wide buttons for longer button text -->
@@ -306,7 +308,6 @@
         <!-- Primary action buttons (Start, Save, etc.) -->
         <Style Selector="Button.primary">
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="16,8"/>
             <Setter Property="Background" Value="#38A169"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderBrush" Value="#2F855A"/>
@@ -314,7 +315,6 @@
         
         <!-- Secondary action buttons (Pause, Reset, etc.) -->
         <Style Selector="Button.secondary">
-            <Setter Property="Padding" Value="14,7"/>
             <Setter Property="Background" Value="#3182CE"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderBrush" Value="#2C5282"/>
@@ -378,7 +378,6 @@
         
         <!-- Cancel/dismiss buttons -->
         <Style Selector="Button.cancel">
-            <Setter Property="Padding" Value="14,7"/>
             <Setter Property="Background" Value="#4A5568"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderBrush" Value="#2D3748"/>
