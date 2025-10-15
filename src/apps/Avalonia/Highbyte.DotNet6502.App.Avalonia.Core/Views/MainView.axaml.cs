@@ -328,4 +328,40 @@ public partial class MainView : UserControl
     {
         return string.Equals(App.HostApp?.SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
     }
+
+    private void ToggleDiskSection_Click(object? sender, RoutedEventArgs e)
+    {
+        var headerButton = this.FindControl<Button>("DiskSectionHeader");
+        var contentBorder = this.FindControl<Border>("DiskSectionContent");
+        
+        if (headerButton != null && contentBorder != null)
+        {
+            contentBorder.IsVisible = !contentBorder.IsVisible;
+            headerButton.Content = contentBorder.IsVisible ? "▼ Disk Drive & .D64 images" : "▶ Disk Drive & .D64 images";
+        }
+    }
+
+    private void ToggleLoadSaveSection_Click(object? sender, RoutedEventArgs e)
+    {
+        var headerButton = this.FindControl<Button>("LoadSaveSectionHeader");
+        var contentBorder = this.FindControl<Border>("LoadSaveSectionContent");
+        
+        if (headerButton != null && contentBorder != null)
+        {
+            contentBorder.IsVisible = !contentBorder.IsVisible;
+            headerButton.Content = contentBorder.IsVisible ? "▼ Load/Save" : "▶ Load/Save";
+        }
+    }
+
+    private void ToggleConfigSection_Click(object? sender, RoutedEventArgs e)
+    {
+        var headerButton = this.FindControl<Button>("ConfigSectionHeader");
+        var contentBorder = this.FindControl<Border>("ConfigSectionContent");
+        
+        if (headerButton != null && contentBorder != null)
+        {
+            contentBorder.IsVisible = !contentBorder.IsVisible;
+            headerButton.Content = contentBorder.IsVisible ? "▼ Configuration" : "▶ Configuration";
+        }
+    }
 }
