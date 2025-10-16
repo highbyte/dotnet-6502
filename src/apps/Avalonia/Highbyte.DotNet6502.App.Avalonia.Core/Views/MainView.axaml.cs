@@ -25,6 +25,12 @@ public partial class MainView : UserControl
         DataContext ??= new MainViewModel();
     }
 
+    private void MainView_Loaded(object? sender, RoutedEventArgs e)
+    {
+        // Initialize button styling
+        UpdateDiskToggleButtonStyle();
+    }
+
     // Keep the same selection handler pattern used in MainWindow
     private void OnSystemSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
@@ -271,10 +277,39 @@ public partial class MainView : UserControl
                 // Attach new disk image - open file dialog
                 await AttachDiskImage();
             }
+            
+            // Notify the ViewModel that the disk image state has changed
+            if (DataContext is ViewModels.MainViewModel viewModel)
+            {
+                viewModel.NotifyDiskImageStateChanged();
+            }
+            
+            // Update button styling
+            UpdateDiskToggleButtonStyle();
         }
         catch (Exception ex)
         {
             System.Console.WriteLine($"Error toggling disk image: {ex.Message}");
+        }
+    }
+
+    private void UpdateDiskToggleButtonStyle()
+    {
+        var diskToggleButton = this.FindControl<Button>("DiskToggleButton");
+        if (diskToggleButton != null && DataContext is ViewModels.MainViewModel viewModel)
+        {
+            // Clear existing classes
+            diskToggleButton.Classes.Clear();
+            
+            // Add the appropriate class based on disk attachment state
+            if (viewModel.IsDiskImageAttached)
+            {
+                diskToggleButton.Classes.Add("warning");
+            }
+            else
+            {
+                diskToggleButton.Classes.Add("secondary");
+            }
         }
     }
 

@@ -4,7 +4,8 @@
              xmlns:controls="using:Highbyte.DotNet6502.App.Avalonia.Core.Controls"
              xmlns:views="using:Highbyte.DotNet6502.App.Avalonia.Core.Views"
              x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.MainView"
-             x:DataType="vm:MainViewModel">
+             x:DataType="vm:MainViewModel"
+             Loaded="MainView_Loaded">
 
     <UserControl.DataContext>
         <vm:MainViewModel/>
@@ -262,7 +263,7 @@
                                     </Grid.ColumnDefinitions>
                                     <Button Grid.Column="0"
                                             Content="{Binding DiskToggleButtonText}"
-                                            Classes="secondary"
+                                            Name="DiskToggleButton"
                                             IsEnabled="{Binding IsFileOperationEnabled}"
                                             Click="ToggleDiskImage_Click"
                                             FontSize="11"

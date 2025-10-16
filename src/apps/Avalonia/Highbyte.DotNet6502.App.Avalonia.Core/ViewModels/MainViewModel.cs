@@ -132,8 +132,19 @@ public class MainViewModel : ViewModelBase
     {
         get
         {
-            // Implementation will be added in code-behind
-            return false; // Placeholder
+            try
+            {
+                if (EmulatorState == EmulatorState.Uninitialized || !IsC64SystemSelected)
+                    return false;
+                
+                var c64 = Core.App.HostApp?.CurrentRunningSystem as Systems.Commodore64.C64;
+                var diskDrive = c64?.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+                return diskDrive?.IsDisketteInserted == true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
     public string DiskToggleButtonText => IsDiskImageAttached ? "Detach .d64 disk image" : "Attach .d64 disk image";
@@ -824,6 +835,30 @@ public class MainViewModel : ViewModelBase
     {
         UpdateSystemConfigValidity();
         NotifyEmulatorStateChanged();
+    }
+
+    /// <summary>
+    /// Notify that the disk image state has changed (attached/detached)
+    /// </summary>
+    public void NotifyDiskImageStateChanged()
+    {
+        try
+        {
+            this.RaisePropertyChanged(nameof(IsDiskImageAttached));
+            this.RaisePropertyChanged(nameof(DiskToggleButtonText));
+        }
+        catch (Exception ex)
+        {
+            // Safe error handling for WebAssembly/AOT environments
+            try
+            {
+                System.Console.WriteLine($"Error in NotifyDiskImageStateChanged: {ex?.Message ?? "Unknown error"}");
+            }
+            catch
+            {
+                System.Console.WriteLine("Error in NotifyDiskImageStateChanged: Unable to access exception details");
+            }
+        }
     }
 }
 
