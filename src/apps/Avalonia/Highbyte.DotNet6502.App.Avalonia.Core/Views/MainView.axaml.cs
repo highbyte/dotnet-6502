@@ -567,7 +567,9 @@ public partial class MainView : UserControl
                     c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
 
                     // Apply renderer setting to config object while emulator is stopped
-                    Type rendererProviderType = diskInfo.RequiresBitmap ? typeof(Vic2Rasterizer) : typeof(C64VideoCommandStream);
+                    // TODO: If/when a optimized RenderType for use without bitmap graphics is available, set rendererProviderType appropriately here.
+                    //Type rendererProviderType = diskInfo.RequiresBitmap ? typeof(Vic2Rasterizer) : typeof(C64VideoCommandStream);
+                    Type rendererProviderType = typeof(Vic2Rasterizer);
                     c64HostConfig.SystemConfig.SetRenderProviderType(rendererProviderType);
 
                     // Apply audio enabled setting to config object while emulator is stopped
