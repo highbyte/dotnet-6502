@@ -179,7 +179,17 @@ public class MainViewModel : ViewModelBase
                 if (C64HostConfig != null)
                 {
                     C64HostConfig.InputConfig.CurrentJoystick = value;
-                    Core.App.HostApp?.UpdateHostSystemConfig(C64HostConfig);
+
+                    if (EmulatorState != EmulatorState.Uninitialized)
+                    {
+                        // TODO: Does a running C64 not have it's own setting for current joystick (like it has for if Joystick keyboard is enabled or not)?
+                        //C64 c64 = (C64)App.HostApp!.CurrentRunningSystem!;
+                    }
+                    else
+                    {
+                        // If not running, update the config so it will be used when starting the system
+                        App.HostApp?.UpdateHostSystemConfig(C64HostConfig);
+                    }
                 }
                 this.RaisePropertyChanged();
             }
@@ -197,7 +207,18 @@ public class MainViewModel : ViewModelBase
             if (C64HostConfig?.SystemConfig != null)
             {
                 C64HostConfig.SystemConfig.KeyboardJoystickEnabled = value;
-                Core.App.HostApp?.UpdateHostSystemConfig(C64HostConfig);
+
+                // If system is running, make sure to update the joystick setting in the running system
+                if (EmulatorState != EmulatorState.Uninitialized)
+                {
+                    C64 c64 = (C64)App.HostApp!.CurrentRunningSystem!;
+                    c64.Cia1.Joystick.KeyboardJoystickEnabled = value;
+                }
+                else
+                {
+                    // If not running, update the config so it will be used when starting the system
+                    App.HostApp?.UpdateHostSystemConfig(C64HostConfig);
+                }
                 this.RaisePropertyChanged();
                 this.RaisePropertyChanged(nameof(IsKeyboardJoystickSelectionEnabled));
             }
@@ -215,7 +236,18 @@ public class MainViewModel : ViewModelBase
             if (C64HostConfig?.SystemConfig != null)
             {
                 C64HostConfig.SystemConfig.KeyboardJoystick = value;
-                Core.App.HostApp?.UpdateHostSystemConfig(C64HostConfig);
+
+                // If system is running, make sure to update the joystick setting in the running system
+                if (EmulatorState != EmulatorState.Uninitialized)
+                {
+                    C64 c64 = (C64)App.HostApp!.CurrentRunningSystem!;
+                    c64.Cia1.Joystick.KeyboardJoystick = value;
+                }
+                else
+                {
+                    // If not running, update the config so it will be used when starting the system
+                    App.HostApp?.UpdateHostSystemConfig(C64HostConfig);
+                }
                 this.RaisePropertyChanged();
             }
         }

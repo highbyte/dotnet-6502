@@ -498,7 +498,7 @@
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <CheckBox Grid.Column="0"
-                                              Content="Joystick Keyboard" 
+                                              Content="Joystick KB" 
                                               Foreground="White"
                                               IsChecked="{Binding JoystickKeyboardEnabled}"
                                               IsEnabled="{Binding IsFileOperationEnabled}"
