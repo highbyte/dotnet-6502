@@ -382,6 +382,36 @@
             <Setter Property="Foreground" Value="#3182CE"/>
         </Style>
         
+        <!-- Information buttons (? icon buttons) -->
+        <Style Selector="Button.info">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="MinWidth" Value="22"/>
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="CornerRadius" Value="11"/>
+            <Setter Property="Background" Value="#4A5568"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#6B7280"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        
+        <!-- Information button hover effects -->
+        <Style Selector="Button.info:pointerover">
+            <Setter Property="Background" Value="#5A6570"/>
+            <Setter Property="BorderBrush" Value="#8B8B8B"/>
+        </Style>
+        
+        <Style Selector="Button.info:pressed">
+            <Setter Property="Background" Value="#3A4148"/>
+            <Setter Property="BorderBrush" Value="#5A5A5A"/>
+        </Style>
+        
         <!-- Cancel/dismiss buttons -->
         <Style Selector="Button.cancel">
             <Setter Property="Background" Value="#4A5568"/>

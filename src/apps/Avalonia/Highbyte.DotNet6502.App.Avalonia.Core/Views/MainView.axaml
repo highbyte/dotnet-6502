@@ -223,14 +223,9 @@
                                   IsEnabled="{Binding BasicCodingAssistantAvailable}"
                                   VerticalAlignment="Center"/>
                         <Button Grid.Column="2"
-                                Content="ⓘ"
-                                Classes="link"
+                                Content="i"
+                                Classes="info"
                                 Click="OpenBasicAssistantInfo_Click"
-                                FontSize="12"
-                                Padding="4,2"
-                                MinWidth="22"
-                                Width="22"
-                                Height="20"
                                 Margin="4,0,0,0"/>
                     </Grid>
 
@@ -270,14 +265,9 @@
                                             Padding="6,3"
                                             Height="24"/>
                                     <Button Grid.Column="1"
-                                            Content="ⓘ"
-                                            Classes="link"
+                                            Content="i"
+                                            Classes="info"
                                             Click="OpenDiskInfo_Click"
-                                            FontSize="12"
-                                            Padding="4,2"
-                                            MinWidth="22"
-                                            Width="22"
-                                            Height="20"
                                             Margin="4,0,0,0"/>
                                 </Grid>
                                 
@@ -299,14 +289,9 @@
                                               Classes="compact"
                                               MinWidth="60"/>
                                     <Button Grid.Column="1"
-                                            Content="ⓘ"
-                                            Classes="link"
+                                            Content="i"
+                                            Classes="info"
                                             Click="OpenDiskInfo_Click"
-                                            FontSize="12"
-                                            Padding="4,2"
-                                            MinWidth="22"
-                                            Width="22"
-                                            Height="20"
                                             Margin="4,0,0,0"/>
                                 </Grid>
                                 

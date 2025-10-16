@@ -7,7 +7,9 @@
   </PropertyGroup>
   
   <ItemGroup>
+    <!-- Fonts and other assets used by Avalonia UI (not emulated systems) -->
     <AvaloniaResource Include="Assets\**" />
+    <!-- Fonts used for rendering emulated systems (not UI) -->
     <AvaloniaResource Include="Resources\Fonts\*.ttf" />
   </ItemGroup>
 
@@ -40,5 +42,4 @@
       <DependentUpon>EmulatorView.axaml</DependentUpon>
     </Compile>
   </ItemGroup>
-
 </Project>
