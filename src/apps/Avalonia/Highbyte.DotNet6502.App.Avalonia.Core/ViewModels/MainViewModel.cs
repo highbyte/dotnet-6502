@@ -164,22 +164,21 @@ public class MainViewModel : ViewModelBase
 
     // Configuration
     public ObservableCollection<int> AvailableJoysticks { get; } = new();
-    private int _currentJoystick = 1;
     public int CurrentJoystick
     {
-        get => _currentJoystick;
+        get
+        {
+            return C64HostConfig?.InputConfig?.CurrentJoystick ?? 1;
+        }
         set
         {
-            var oldValue = _currentJoystick;
-            _currentJoystick = value;
-
-            if (oldValue != value)
+            if (C64HostConfig?.InputConfig != null)
             {
-                // Update the config when joystick changes
-                if (C64HostConfig != null)
-                {
-                    C64HostConfig.InputConfig.CurrentJoystick = value;
+                var oldValue = C64HostConfig.InputConfig.CurrentJoystick;
+                C64HostConfig.InputConfig.CurrentJoystick = value;
 
+                if (oldValue != value)
+                {
                     if (EmulatorState != EmulatorState.Uninitialized)
                     {
                         // TODO: Does a running C64 not have it's own setting for current joystick (like it has for if Joystick keyboard is enabled or not)?
@@ -190,8 +189,8 @@ public class MainViewModel : ViewModelBase
                         // If not running, update the config so it will be used when starting the system
                         App.HostApp?.UpdateHostSystemConfig(C64HostConfig);
                     }
+                    this.RaisePropertyChanged();
                 }
-                this.RaisePropertyChanged();
             }
         }
     }
