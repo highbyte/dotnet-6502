@@ -9,11 +9,14 @@ using Avalonia.Platform.Storage;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Utils;
-using System.Runtime.InteropServices;
 using System;
-using System.IO;
 using System.Linq;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
+using Microsoft.Extensions.Logging;
+using System.Net.Http;
+using Highbyte.DotNet6502.Systems.Commodore64.Render.VideoCommands;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
@@ -321,7 +324,7 @@ public partial class MainView : UserControl
     // by updating the ViewModel command initialization to call these methods
     public async Task CopyBasicSourceCode()
     {
-        if (App.HostApp?.EmulatorState != Systems.EmulatorState.Running || 
+        if (App.HostApp?.EmulatorState != Systems.EmulatorState.Running ||
             !IsC64System())
             return;
 
@@ -329,7 +332,7 @@ public partial class MainView : UserControl
         {
             var c64 = (C64)App.HostApp.CurrentRunningSystem!;
             var sourceCode = c64.BasicTokenParser.GetBasicText();
-            
+
             if (TopLevel.GetTopLevel(this) is { } topLevel)
             {
                 await topLevel.Clipboard?.SetTextAsync(sourceCode.ToLower())!;
@@ -344,7 +347,7 @@ public partial class MainView : UserControl
 
     public async Task PasteText()
     {
-        if (App.HostApp?.EmulatorState != Systems.EmulatorState.Running || 
+        if (App.HostApp?.EmulatorState != Systems.EmulatorState.Running ||
             !IsC64System())
             return;
 
@@ -369,7 +372,7 @@ public partial class MainView : UserControl
 
     public async Task ToggleDiskImage()
     {
-        if (App.HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized || 
+        if (App.HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized ||
             !IsC64System())
             return;
 
@@ -377,7 +380,7 @@ public partial class MainView : UserControl
         {
             var c64 = (C64)App.HostApp.CurrentRunningSystem!;
             var diskDrive = c64.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
-            
+
             if (diskDrive?.IsDisketteInserted == true)
             {
                 // Detach current disk image
@@ -388,13 +391,13 @@ public partial class MainView : UserControl
                 // Attach new disk image - open file dialog
                 await AttachDiskImage();
             }
-            
+
             // Notify the ViewModel that the disk image state has changed
             if (DataContext is ViewModels.MainViewModel viewModel)
             {
                 viewModel.NotifyDiskImageStateChanged();
             }
-            
+
             // Update button styling
             UpdateDiskToggleButtonStyle();
         }
@@ -411,7 +414,7 @@ public partial class MainView : UserControl
         {
             // Clear existing classes
             diskToggleButton.Classes.Clear();
-            
+
             // Add the appropriate class based on disk attachment state
             if (viewModel.IsDiskImageAttached)
             {
@@ -449,18 +452,15 @@ public partial class MainView : UserControl
                 {
                     await using var stream = await files[0].OpenReadAsync();
                     var fileBuffer = new byte[stream.Length];
-                    await stream.ReadAsync(fileBuffer);
+                    await stream.ReadExactlyAsync(fileBuffer);
 
                     // Parse the D64 disk image
                     var d64DiskImage = Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.D64Parser.ParseD64File(fileBuffer);
-                    
+
                     // Set the disk image on the running C64's DiskDrive1541
                     var c64 = (C64)App.HostApp!.CurrentRunningSystem!;
                     var diskDrive = c64.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
-                    if (diskDrive != null)
-                    {
-                        diskDrive.SetD64DiskImage(d64DiskImage);
-                    }
+                    diskDrive?.SetD64DiskImage(d64DiskImage);
                 }
                 catch (Exception ex)
                 {
@@ -479,7 +479,7 @@ public partial class MainView : UserControl
     {
         var headerButton = this.FindControl<Button>("DiskSectionHeader");
         var contentBorder = this.FindControl<Border>("DiskSectionContent");
-        
+
         if (headerButton != null && contentBorder != null)
         {
             contentBorder.IsVisible = !contentBorder.IsVisible;
@@ -491,7 +491,7 @@ public partial class MainView : UserControl
     {
         var headerButton = this.FindControl<Button>("LoadSaveSectionHeader");
         var contentBorder = this.FindControl<Border>("LoadSaveSectionContent");
-        
+
         if (headerButton != null && contentBorder != null)
         {
             contentBorder.IsVisible = !contentBorder.IsVisible;
@@ -503,7 +503,7 @@ public partial class MainView : UserControl
     {
         var headerButton = this.FindControl<Button>("ConfigSectionHeader");
         var contentBorder = this.FindControl<Border>("ConfigSectionContent");
-        
+
         if (headerButton != null && contentBorder != null)
         {
             contentBorder.IsVisible = !contentBorder.IsVisible;
@@ -512,10 +512,86 @@ public partial class MainView : UserControl
     }
 
     // Additional event handlers for file operations (placeholder implementations)
-    private void LoadPreloadedDisk_Click(object? sender, RoutedEventArgs e)
+    private async void LoadPreloadedDisk_Click(object? sender, RoutedEventArgs e)
     {
-        // TODO: Implement preloaded disk loading functionality
-        System.Console.WriteLine("LoadPreloadedDisk_Click - Not implemented yet");
+        if (DataContext is not MainViewModel viewModel)
+            return;
+
+        string selectedPreloadedDisk = viewModel.SelectedPreloadedDisk;
+        if (string.IsNullOrEmpty(selectedPreloadedDisk) || !_preloadedD64Images.ContainsKey(selectedPreloadedDisk))
+            return;
+
+        var diskInfo = _preloadedD64Images[selectedPreloadedDisk];
+        _isLoadingPreloadedDisk = true;
+        _latestPreloadedDiskError = "";
+
+        System.Console.WriteLine($"Starting to load preloaded disk: {diskInfo.DisplayName}");
+
+        try
+        {
+            // Initialize D64AutoDownloadAndRun if not already done
+            if (_d64AutoDownloadAndRun == null)
+            {
+                var httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+                var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
+                {
+                    builder.SetMinimumLevel(LogLevel.Information);
+                });
+
+                var c64HostConfig = App.HostApp!.CurrentHostSystemConfig as C64HostConfig;
+                _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(
+                    loggerFactory,
+                    httpClient,
+                    App.HostApp!,
+                    corsProxyUrl: PlatformDetection.IsRunningInWebAssembly() ? c64HostConfig.CorsProxyURL: null);
+            }
+
+            await _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
+                diskInfo,
+                stateHasChangedCallback: async () =>
+                {
+                    viewModel.ForceStateRefresh();
+                    await Task.CompletedTask;
+                },
+                setConfigCallback: async (diskInfo) =>
+                {
+                    if (App.HostApp?.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
+                        return;
+
+                    var c64SystemConfig = c64HostConfig.SystemConfig;
+
+                    // Apply keyboard joystick settings to config object while emulator is stopped
+                    c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
+                    c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
+
+                    // Apply renderer setting to config object while emulator is stopped
+                    Type rendererProviderType = diskInfo.RequiresBitmap ? typeof(Vic2Rasterizer) : typeof(C64VideoCommandStream);
+                    c64HostConfig.SystemConfig.SetRenderProviderType(rendererProviderType);
+
+                    // Apply audio enabled setting to config object while emulator is stopped
+                    c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
+
+                    // Apply C64 variant setting to config object while emulator is stopped
+                    await App.HostApp.SelectSystemConfigurationVariant(diskInfo.C64Variant);
+
+                    App.HostApp.UpdateHostSystemConfig(c64HostConfig);
+                });
+        }
+        catch (Exception ex)
+        {
+            _latestPreloadedDiskError = $"Error downloading or running disk image: {ex.Message}";
+            System.Console.WriteLine($"LoadPreloadedDisk_Click error: {_latestPreloadedDiskError}");
+        }
+        finally
+        {
+            _isLoadingPreloadedDisk = false;
+            System.Console.WriteLine($"Finished loading preloaded disk. Loading state: {_isLoadingPreloadedDisk}");
+            if (!string.IsNullOrEmpty(_latestPreloadedDiskError))
+                System.Console.WriteLine($"Final error state: {_latestPreloadedDiskError}");
+            viewModel.ForceStateRefresh();
+        }
     }
 
     private void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
@@ -547,4 +623,22 @@ public partial class MainView : UserControl
         // TODO: Implement Basic example loading functionality
         System.Console.WriteLine("LoadBasicExample_Click - Not implemented yet");
     }
+
+
+    private readonly Dictionary<string, D64DownloadDiskInfo> _preloadedD64Images = new()
+    {
+        {"bubblebobble", new D64DownloadDiskInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")}, // Note: Bubble Bobble is not a bitmap game, but somehow this version fails to initialize the custom charset in text mode correctly in SkiaSharp renderer.
+        {"digiloi", new D64DownloadDiskInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
+        {"elite", new D64DownloadDiskInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false,directLoadPRGName: "*", c64Variant: "C64PAL")},
+        {"lastninja", new D64DownloadDiskInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")},
+        {"minizork", new D64DownloadDiskInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false, directLoadPRGName: "*")},
+        {"montezuma", new D64DownloadDiskInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
+        {"rallyspeedway", new D64DownloadDiskInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true, directLoadPRGName: "*")}
+    };
+
+    // Fields for preloaded disk loading functionality
+    private string _latestPreloadedDiskError = "";
+    private bool _isLoadingPreloadedDisk = false;
+    private D64AutoDownloadAndRun? _d64AutoDownloadAndRun;
+
 }
