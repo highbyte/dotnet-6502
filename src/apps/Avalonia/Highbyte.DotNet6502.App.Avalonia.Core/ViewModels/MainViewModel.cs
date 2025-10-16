@@ -1,12 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
+
 using System.Linq;
-using System.Reactive;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using System.Windows.Input;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
@@ -91,21 +88,10 @@ public class MainViewModel : ViewModelBase
 
     public ObservableCollection<string> AvailableSystems { get; } = new();
 
-    // Commands for interacting with the emulator
-    // Use ICommand interface for WebAssembly compatibility
-    public ICommand StartEmulatorCommand { get; private set; }
-    public ICommand StopEmulatorCommand { get; private set; }
-    public ICommand PauseEmulatorCommand { get; private set; }
-    public ICommand ResetEmulatorCommand { get; private set; }
-    public ICommand SelectSystemCommand { get; private set; }
-    public ICommand SelectSystemVariantCommand { get; private set; }
-
-    // C64-specific properties and commands
+    // C64-specific properties
     private C64HostConfig? C64HostConfig => Core.App.HostApp?.CurrentHostSystemConfig as C64HostConfig;
-    
+
     // Copy/Paste functionality
-    public ICommand CopyBasicSourceCommand { get; private set; }
-    public ICommand PasteTextCommand { get; private set; }
     public bool IsCopyPasteEnabled => EmulatorState == EmulatorState.Running && IsC64SystemSelected;
 
     // AI Basic coding assistant
@@ -127,7 +113,6 @@ public class MainViewModel : ViewModelBase
     public bool BasicCodingAssistantAvailable => EmulatorState == EmulatorState.Running && IsC64SystemSelected;
 
     // Disk Drive functionality
-    public ICommand ToggleDiskImageCommand { get; private set; }
     public bool IsDiskImageAttached
     {
         get
@@ -136,7 +121,7 @@ public class MainViewModel : ViewModelBase
             {
                 if (EmulatorState == EmulatorState.Uninitialized || !IsC64SystemSelected)
                     return false;
-                
+
                 var c64 = Core.App.HostApp?.CurrentRunningSystem as Systems.Commodore64.C64;
                 var diskDrive = c64?.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
                 return diskDrive?.IsDisketteInserted == true;
@@ -148,7 +133,7 @@ public class MainViewModel : ViewModelBase
         }
     }
     public string DiskToggleButtonText => IsDiskImageAttached ? "Detach .d64 disk image" : "Attach .d64 disk image";
-    
+
     // Preloaded D64 programs
     public ObservableCollection<KeyValuePair<string, string>> PreloadedD64Programs { get; } = new();
     private string _selectedPreloadedDisk = "";
@@ -157,14 +142,8 @@ public class MainViewModel : ViewModelBase
         get => _selectedPreloadedDisk;
         set => this.RaiseAndSetIfChanged(ref _selectedPreloadedDisk, value);
     }
-    public ICommand LoadPreloadedDiskCommand { get; private set; }
     public bool IsLoadingPreloadedDisk { get; private set; }
 
-    // Load/Save functionality
-    public ICommand LoadBasicFileCommand { get; private set; }
-    public ICommand SaveBasicFileCommand { get; private set; }
-    public ICommand LoadBinaryFileCommand { get; private set; }
-    
     // Assembly examples
     public ObservableCollection<KeyValuePair<string, string>> AssemblyExamples { get; } = new();
     private string _selectedAssemblyExample = "";
@@ -173,8 +152,7 @@ public class MainViewModel : ViewModelBase
         get => _selectedAssemblyExample;
         set => this.RaiseAndSetIfChanged(ref _selectedAssemblyExample, value);
     }
-    public ICommand LoadAssemblyExampleCommand { get; private set; }
-    
+
     // Basic examples
     public ObservableCollection<KeyValuePair<string, string>> BasicExamples { get; } = new();
     private string _selectedBasicExample = "";
@@ -183,7 +161,6 @@ public class MainViewModel : ViewModelBase
         get => _selectedBasicExample;
         set => this.RaiseAndSetIfChanged(ref _selectedBasicExample, value);
     }
-    public ICommand LoadBasicExampleCommand { get; private set; }
 
     // Configuration
     public ObservableCollection<int> AvailableJoysticks { get; } = new();
@@ -195,7 +172,7 @@ public class MainViewModel : ViewModelBase
         {
             var oldValue = _currentJoystick;
             _currentJoystick = value;
-            
+
             if (oldValue != value)
             {
                 // Update the config when joystick changes
@@ -251,85 +228,11 @@ public class MainViewModel : ViewModelBase
 
     public MainViewModel()
     {
-        // Initialize commands with WebAssembly compatibility
-        InitializeCommands();
+        // Initialize data collections  
+        InitializeC64Data();
 
         // Initialize with available systems when HostApp is ready
         InitializeAvailableSystems();
-    }
-
-    private void InitializeCommands()
-    {
-        if (PlatformDetection.IsRunningInWebAssembly())
-        {
-            // WebAssembly: Use simple command implementations to avoid ReactiveCommand issues
-            StartEmulatorCommand = new WebAssemblyCommand(() => StartEmulatorSync());
-            StopEmulatorCommand = new WebAssemblyCommand(() => StopEmulator());
-            PauseEmulatorCommand = new WebAssemblyCommand(() => PauseEmulator());
-            ResetEmulatorCommand = new WebAssemblyCommand(() => ResetEmulator());
-            SelectSystemCommand = new WebAssemblyCommand<string>(systemName => SelectSystemSync(systemName));
-            SelectSystemVariantCommand = new WebAssemblyCommand<string>(variant => SelectSystemVariantSync(variant));
-            
-            // C64-specific commands - these will be handled by events for now
-            CopyBasicSourceCommand = new WebAssemblyCommand(() => { });
-            PasteTextCommand = new WebAssemblyCommand(() => { });
-            ToggleDiskImageCommand = new WebAssemblyCommand(() => { });
-            LoadPreloadedDiskCommand = new WebAssemblyCommand(() => { });
-            LoadBasicFileCommand = new WebAssemblyCommand(() => { });
-            SaveBasicFileCommand = new WebAssemblyCommand(() => { });
-            LoadBinaryFileCommand = new WebAssemblyCommand(() => { });
-            LoadAssemblyExampleCommand = new WebAssemblyCommand(() => { });
-            LoadBasicExampleCommand = new WebAssemblyCommand(() => { });
-        }
-        else
-        {
-            try
-            {
-                // Desktop: Use ReactiveCommand for full functionality
-                StartEmulatorCommand = ReactiveCommand.CreateFromTask(StartEmulator);
-                StopEmulatorCommand = ReactiveCommand.Create(StopEmulator);
-                PauseEmulatorCommand = ReactiveCommand.Create(PauseEmulator);
-                ResetEmulatorCommand = ReactiveCommand.Create(ResetEmulator);
-                SelectSystemCommand = ReactiveCommand.CreateFromTask<string>(SelectSystemAsync);
-                SelectSystemVariantCommand = ReactiveCommand.CreateFromTask<string>(SelectSystemVariantAsync);
-                
-                // C64-specific commands - these will be handled by events for now
-                CopyBasicSourceCommand = ReactiveCommand.Create(() => { });
-                PasteTextCommand = ReactiveCommand.Create(() => { });
-                ToggleDiskImageCommand = ReactiveCommand.Create(() => { });
-                LoadPreloadedDiskCommand = ReactiveCommand.Create(() => { });
-                LoadBasicFileCommand = ReactiveCommand.Create(() => { });
-                SaveBasicFileCommand = ReactiveCommand.Create(() => { });
-                LoadBinaryFileCommand = ReactiveCommand.Create(() => { });
-                LoadAssemblyExampleCommand = ReactiveCommand.Create(() => { });
-                LoadBasicExampleCommand = ReactiveCommand.Create(() => { });
-            }
-            catch (Exception ex)
-            {
-                // Fallback to simple commands if ReactiveCommand fails
-                System.Console.WriteLine($"Warning: ReactiveCommand initialization failed, using fallback commands: {ex.Message}");
-                StartEmulatorCommand = new WebAssemblyCommand(() => StartEmulatorSync());
-                StopEmulatorCommand = new WebAssemblyCommand(() => StopEmulator());
-                PauseEmulatorCommand = new WebAssemblyCommand(() => PauseEmulator());
-                ResetEmulatorCommand = new WebAssemblyCommand(() => ResetEmulator());
-                SelectSystemCommand = new WebAssemblyCommand<string>(systemName => SelectSystemSync(systemName));
-                SelectSystemVariantCommand = new WebAssemblyCommand<string>(variant => SelectSystemVariantSync(variant));
-                
-                // C64-specific commands fallback
-                CopyBasicSourceCommand = new WebAssemblyCommand(() => { });
-                PasteTextCommand = new WebAssemblyCommand(() => { });
-                ToggleDiskImageCommand = new WebAssemblyCommand(() => { });
-                LoadPreloadedDiskCommand = new WebAssemblyCommand(() => { });
-                LoadBasicFileCommand = new WebAssemblyCommand(() => { });
-                SaveBasicFileCommand = new WebAssemblyCommand(() => { });
-                LoadBinaryFileCommand = new WebAssemblyCommand(() => { });
-                LoadAssemblyExampleCommand = new WebAssemblyCommand(() => { });
-                LoadBasicExampleCommand = new WebAssemblyCommand(() => { });
-            }
-        }
-        
-        // Initialize data collections
-        InitializeC64Data();
     }
 
     private void InitializeC64Data()
@@ -363,134 +266,7 @@ public class MainViewModel : ViewModelBase
         BasicExamples.Add(new KeyValuePair<string, string>("6502binaries/C64/Basic/PlaySoundVoice1TriangleScale.prg", "PlaySound"));
     }
 
-    /// <summary>
-    /// Synchronous wrapper for StartEmulator for WebAssembly compatibility
-    /// </summary>
-    private void StartEmulatorSync()
-    {
-        // Fire and forget the async operation to avoid blocking the UI thread
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await StartEmulator();
-            }
-            catch (Exception ex)
-            {
-                // Safe error handling for WebAssembly/AOT environments
-                var errorMessage = "Unknown error";
-                try
-                {
-                    errorMessage = ex?.Message ?? "Exception message was null";
-                }
-                catch
-                {
-                    errorMessage = "Error accessing exception message";
-                }
-                
-                System.Console.WriteLine($"Error starting emulator: {errorMessage}");
-                
-                // Also log exception type if possible
-                try
-                {
-                    System.Console.WriteLine($"Exception type: {ex?.GetType()?.Name ?? "Unknown"}");
-                }
-                catch
-                {
-                    // Ignore errors when accessing exception type
-                }
-                
-                // Ensure UI is updated even if there's an error
-                global::Avalonia.Threading.Dispatcher.UIThread.Post(NotifyEmulatorStateChanged);
-            }
-        });
-    }
 
-    /// <summary>
-    /// Synchronous wrapper for SelectSystemAsync for WebAssembly compatibility
-    /// </summary>
-    private void SelectSystemSync(string systemName)
-    {
-        // Fire and forget the async operation to avoid blocking the UI thread
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await SelectSystemAsync(systemName);
-            }
-            catch (Exception ex)
-            {
-                // Safe error handling for WebAssembly/AOT environments
-                var errorMessage = "Unknown error";
-                try
-                {
-                    errorMessage = ex?.Message ?? "Exception message was null";
-                }
-                catch
-                {
-                    errorMessage = "Error accessing exception message";
-                }
-                
-                System.Console.WriteLine($"Error selecting system: {errorMessage}");
-                
-                // Also log exception type if possible
-                try
-                {
-                    System.Console.WriteLine($"Exception type: {ex?.GetType()?.Name ?? "Unknown"}");
-                }
-                catch
-                {
-                    // Ignore errors when accessing exception type
-                }
-                
-                // Ensure UI is updated even if there's an error
-                global::Avalonia.Threading.Dispatcher.UIThread.Post(NotifyEmulatorStateChanged);
-            }
-        });
-    }
-
-    /// <summary>
-    /// Synchronous wrapper for SelectSystemVariantAsync for WebAssembly compatibility
-    /// </summary>
-    private void SelectSystemVariantSync(string variant)
-    {
-        // Fire and forget the async operation to avoid blocking the UI thread
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await SelectSystemVariantAsync(variant);
-            }
-            catch (Exception ex)
-            {
-                // Safe error handling for WebAssembly/AOT environments
-                var errorMessage = "Unknown error";
-                try
-                {
-                    errorMessage = ex?.Message ?? "Exception message was null";
-                }
-                catch
-                {
-                    errorMessage = "Error accessing exception message";
-                }
-                
-                System.Console.WriteLine($"Error selecting system variant: {errorMessage}");
-                
-                // Also log exception type if possible
-                try
-                {
-                    System.Console.WriteLine($"Exception type: {ex?.GetType()?.Name ?? "Unknown"}");
-                }
-                catch
-                {
-                    // Ignore errors when accessing exception type
-                }
-                
-                // Ensure UI is updated even if there's an error
-                global::Avalonia.Threading.Dispatcher.UIThread.Post(NotifyEmulatorStateChanged);
-            }
-        });
-    }
 
     private void NotifyEmulatorStateChanged()
     {
@@ -549,14 +325,14 @@ public class MainViewModel : ViewModelBase
                 try
                 {
                     var (isValid, validationErrors) = await Core.App.HostApp.IsValidConfigWithDetails();
-                    
+
                     var hasChanged = _isSystemConfigValid != isValid ||
                                      !_validationErrors.SequenceEqual(validationErrors);
-                    
+
                     if (hasChanged)
                     {
                         _isSystemConfigValid = isValid;
-                        
+
                         // Update validation errors on UI thread
                         global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                         {
@@ -565,7 +341,7 @@ public class MainViewModel : ViewModelBase
                             {
                                 _validationErrors.Add(error);
                             }
-                            
+
                             this.RaisePropertyChanged(nameof(IsStartButtonEnabled));
                             this.RaisePropertyChanged(nameof(HasValidationErrors));
                         });
@@ -575,16 +351,16 @@ public class MainViewModel : ViewModelBase
                 {
                     // If we can't determine validity, assume invalid
                     var hasChanged = _isSystemConfigValid || _validationErrors.Count > 0;
-                    
+
                     if (hasChanged)
                     {
                         _isSystemConfigValid = false;
-                        
+
                         global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                         {
                             _validationErrors.Clear();
                             _validationErrors.Add("Unable to validate system configuration");
-                            
+
                             this.RaisePropertyChanged(nameof(IsStartButtonEnabled));
                             this.RaisePropertyChanged(nameof(HasValidationErrors));
                         });
@@ -642,186 +418,9 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private async Task SelectSystemAsync(string systemName)
-    {
-        try
-        {
-            if (Core.App.HostApp != null && Core.App.HostApp.SelectedSystemName != systemName)
-            {
-                await Core.App.HostApp.SelectSystem(systemName);
-                // Update available variants when system changes
-                UpdateAvailableVariants();
-                // Notify UI that the selection has changed
-                NotifyEmulatorStateChanged();
-            }
-        }
-        catch (Exception)
-        {
-            // Handle exception if needed
-            // The UI will still reflect the actual state from HostApp
-            NotifyEmulatorStateChanged();
-        }
-    }
 
-    private async Task SelectSystemVariantAsync(string variant)
-    {
-        try
-        {
-            if (Core.App.HostApp != null && Core.App.HostApp.SelectedSystemConfigurationVariant != variant)
-            {
-                await Core.App.HostApp.SelectSystemConfigurationVariant(variant);
-                // Notify UI that the selection has changed
-                NotifyEmulatorStateChanged();
-            }
-        }
-        catch (Exception)
-        {
-            // Handle exception if needed
-            // The UI will still reflect the actual state from HostApp
-            NotifyEmulatorStateChanged();
-        }
-    }
 
-    private async Task StartEmulator()
-    {
-        try
-        {
-            // Additional null checks for WebAssembly safety
-            if (Core.App.HostApp == null)
-            {
-                System.Console.WriteLine("Error starting emulator: HostApp is null");
-                return;
-            }
 
-            if (string.IsNullOrEmpty(SelectedSystemName))
-            {
-                System.Console.WriteLine("Error starting emulator: SelectedSystemName is null or empty");
-                return;
-            }
-
-            if (SelectedSystemName == "Loading...")
-            {
-                System.Console.WriteLine("Error starting emulator: System is still loading");
-                return;
-            }
-
-            // WebAssembly-specific: Ensure the system is properly selected before starting
-            // This addresses potential race conditions where the UI is ready before system initialization
-            if (PlatformDetection.IsRunningInWebAssembly())
-            {
-                // Double-check that the selected system name matches what the HostApp has
-                if (Core.App.HostApp.SelectedSystemName != SelectedSystemName)
-                {
-                    System.Console.WriteLine($"Warning: Re-selecting system {SelectedSystemName} to ensure proper initialization");
-                    try
-                    {
-                        await Core.App.HostApp.SelectSystem(SelectedSystemName);
-                    }
-                    catch (Exception selectEx)
-                    {
-                        System.Console.WriteLine($"Error re-selecting system: {selectEx.Message}");
-                        return;
-                    }
-                }
-
-                // Additional safety check: Ensure the system is properly configured
-                try
-                {
-                    var isValid = await Core.App.HostApp.IsSystemConfigValid();
-                    if (!isValid)
-                    {
-                        System.Console.WriteLine("Error starting emulator: System configuration is not valid");
-                        return;
-                    }
-                }
-                catch (Exception configEx)
-                {
-                    System.Console.WriteLine($"Error checking system config: {configEx.Message}");
-                    return;
-                }
-            }
-
-            // System selection is now handled in the SelectedSystemName setter
-            // Just start the emulation
-            Console.WriteLine($"Starting emulator with system: {SelectedSystemName}");
-            await Core.App.HostApp.Start();
-            Console.WriteLine("Emulator started successfully");
-        }
-        catch (Exception ex)
-        {
-            // Safe error handling for WebAssembly/AOT environments
-            var errorMessage = "Unknown error";
-            try
-            {
-                errorMessage = ex?.Message ?? "Exception message was null";
-            }
-            catch
-            {
-                errorMessage = "Error accessing exception message";
-            }
-
-            System.Console.WriteLine($"Error in StartEmulator: {errorMessage}");
-
-            // Handle exception if needed
-            throw;
-        }
-        finally
-        {
-            // Always notify that state may have changed
-            NotifyEmulatorStateChanged();
-        }
-    }
-
-    private void StopEmulator()
-    {
-        try
-        {
-            Core.App.HostApp?.Stop();
-        }
-        catch (Exception)
-        {
-            // Handle exception if needed
-        }
-        finally
-        {
-            // Always notify that state may have changed
-            NotifyEmulatorStateChanged();
-        }
-    }
-
-    private void PauseEmulator()
-    {
-        try
-        {
-            Core.App.HostApp?.Pause();
-        }
-        catch (Exception)
-        {
-            // Handle exception if needed
-        }
-        finally
-        {
-            // Always notify that state may have changed
-            NotifyEmulatorStateChanged();
-        }
-    }
-
-    private void ResetEmulator()
-    {
-        try
-        {
-            Core.App.HostApp?.Reset();
-        }
-        catch (Exception)
-        {
-            // Handle exception if needed
-        }
-        finally
-        {
-            // Always notify that state may have changed
-            NotifyEmulatorStateChanged();
-        }
-    }
 
     /// <summary>
     /// Toggle the visibility of the statistics panel
@@ -859,65 +458,5 @@ public class MainViewModel : ViewModelBase
                 System.Console.WriteLine("Error in NotifyDiskImageStateChanged: Unable to access exception details");
             }
         }
-    }
-}
-
-/// <summary>
-/// Simple ICommand implementation for WebAssembly compatibility
-/// Avoids ReactiveCommand issues in AOT/WebAssembly environments
-/// </summary>
-public class WebAssemblyCommand : ICommand
-{
-    private readonly Action _execute;
-    private readonly Func<bool>? _canExecute;
-
-    public WebAssemblyCommand(Action execute, Func<bool>? canExecute = null)
-    {
-        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-        _canExecute = canExecute;
-    }
-
-    public event EventHandler? CanExecuteChanged
-    {
-        add { }
-        remove { }
-    }
-
-    public bool CanExecute(object? parameter) => _canExecute?.Invoke() ?? true;
-
-    public void Execute(object? parameter) => _execute();
-}
-
-/// <summary>
-/// Generic simple ICommand implementation for WebAssembly compatibility
-/// </summary>
-public class WebAssemblyCommand<T> : ICommand
-{
-    private readonly Action<T> _execute;
-    private readonly Func<T, bool>? _canExecute;
-
-    public WebAssemblyCommand(Action<T> execute, Func<T, bool>? canExecute = null)
-    {
-        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-        _canExecute = canExecute;
-    }
-
-    public event EventHandler? CanExecuteChanged
-    {
-        add { }
-        remove { }
-    }
-
-    public bool CanExecute(object? parameter)
-    {
-        if (parameter is T typedParameter)
-            return _canExecute?.Invoke(typedParameter) ?? true;
-        return false;
-    }
-
-    public void Execute(object? parameter)
-    {
-        if (parameter is T typedParameter)
-            _execute(typedParameter);
     }
 }

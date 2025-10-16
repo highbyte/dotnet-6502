@@ -112,12 +112,12 @@
                                 Content="Start" 
                                 Classes="primary grid"
                                 IsEnabled="{Binding IsStartButtonEnabled}"
-                                Command="{Binding StartEmulatorCommand}"/>
+                                Click="StartButton_Click"/>
                         <Button Grid.Column="2"
                                 Content="Pause" 
                                 Classes="warning grid"
                                 IsEnabled="{Binding IsPauseButtonEnabled}"
-                                Command="{Binding PauseEmulatorCommand}"/>
+                                Click="PauseButton_Click"/>
                     </Grid>
                     
                     <!-- Second row: Reset and Stop -->
@@ -131,12 +131,12 @@
                                 Content="Reset" 
                                 Classes="secondary grid"
                                 IsEnabled="{Binding IsResetButtonEnabled}"
-                                Command="{Binding ResetEmulatorCommand}"/>
+                                Click="ResetButton_Click"/>
                         <Button Grid.Column="2"
                                 Content="Stop" 
                                 Classes="danger grid"
                                 IsEnabled="{Binding IsStopButtonEnabled}"
-                                Command="{Binding StopEmulatorCommand}"/>
+                                Click="StopButton_Click"/>
                     </Grid>
                 </StackPanel>
                 
@@ -313,7 +313,7 @@
                                 <Button Content="Download &amp; Run"
                                         Classes="primary"
                                         IsEnabled="{Binding IsFileOperationEnabled}"
-                                        Command="{Binding LoadPreloadedDiskCommand}"
+                                        Click="LoadPreloadedDisk_Click"
                                         IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                         FontSize="11"
                                         Padding="6,3"
@@ -367,7 +367,7 @@
                                             Content="Load Basic" 
                                             Classes="secondary"
                                             IsEnabled="{Binding IsFileOperationEnabled}"
-                                            Command="{Binding LoadBasicFileCommand}"
+                                            Click="LoadBasicFile_Click"
                                             FontSize="10"
                                             Padding="4,2"
                                             Height="22"/>
@@ -375,7 +375,7 @@
                                             Content="Save Basic" 
                                             Classes="secondary"
                                             IsEnabled="{Binding IsFileOperationEnabled}"
-                                            Command="{Binding SaveBasicFileCommand}"
+                                            Click="SaveBasicFile_Click"
                                             FontSize="10"
                                             Padding="4,2"
                                             Height="22"/>
@@ -384,7 +384,7 @@
                                 <Button Content="Load &amp; start binary"
                                         Classes="secondary"
                                         IsEnabled="{Binding IsFileOperationEnabled}"
-                                        Command="{Binding LoadBinaryFileCommand}"
+                                        Click="LoadBinaryFile_Click"
                                         FontSize="11"
                                         Padding="6,3"
                                         Height="24"/>
@@ -411,7 +411,7 @@
                                             Content="Load &amp; start"
                                             Classes="primary"
                                             IsEnabled="{Binding IsFileOperationEnabled}"
-                                            Command="{Binding LoadAssemblyExampleCommand}"
+                                            Click="LoadAssemblyExample_Click"
                                             FontSize="10"
                                             Padding="4,2"
                                             Height="22"
@@ -440,7 +440,7 @@
                                             Content="Load"
                                             Classes="primary"
                                             IsEnabled="{Binding IsFileOperationEnabled}"
-                                            Command="{Binding LoadBasicExampleCommand}"
+                                            Click="LoadBasicExample_Click"
                                             FontSize="10"
                                             Padding="4,2"
                                             Height="22"

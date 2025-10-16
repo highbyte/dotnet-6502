@@ -32,26 +32,137 @@ public partial class MainView : UserControl
     }
 
     // Keep the same selection handler pattern used in MainWindow
-    private void OnSystemSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private async void OnSystemSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (DataContext is MainViewModel viewModel && e.AddedItems.Count > 0)
         {
             var selectedSystem = e.AddedItems[0]?.ToString();
-            if (!string.IsNullOrEmpty(selectedSystem) && viewModel.SelectSystemCommand.CanExecute(selectedSystem))
+            if (!string.IsNullOrEmpty(selectedSystem) && App.HostApp != null)
             {
-                viewModel.SelectSystemCommand.Execute(selectedSystem);
+                try
+                {
+                    await App.HostApp.SelectSystem(selectedSystem);
+                    viewModel.ForceStateRefresh();
+                }
+                catch (Exception)
+                {
+                    // Handle exception if needed - the UI will reflect the actual state from HostApp
+                    viewModel.ForceStateRefresh();
+                }
             }
         }
     }
 
-    private void OnSystemVariantSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private async void OnSystemVariantSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (DataContext is MainViewModel viewModel && e.AddedItems.Count > 0)
         {
             var selectedVariant = e.AddedItems[0]?.ToString();
-            if (!string.IsNullOrEmpty(selectedVariant) && viewModel.SelectSystemVariantCommand.CanExecute(selectedVariant))
+            if (!string.IsNullOrEmpty(selectedVariant) && App.HostApp != null)
             {
-                viewModel.SelectSystemVariantCommand.Execute(selectedVariant);
+                try
+                {
+                    await App.HostApp.SelectSystemConfigurationVariant(selectedVariant);
+                    viewModel.ForceStateRefresh();
+                }
+                catch (Exception)
+                {
+                    // Handle exception if needed - the UI will reflect the actual state from HostApp
+                    viewModel.ForceStateRefresh();
+                }
+            }
+        }
+    }
+
+    // Emulator Control Event Handlers
+    private async void StartButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (App.HostApp != null)
+        {
+            try
+            {
+                await App.HostApp.Start();
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.ForceStateRefresh();
+                }
+            }
+            catch (Exception)
+            {
+                // Handle exception if needed
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.ForceStateRefresh();
+                }
+            }
+        }
+    }
+
+    private void PauseButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (App.HostApp != null)
+        {
+            try
+            {
+                App.HostApp.Pause();
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.ForceStateRefresh();
+                }
+            }
+            catch (Exception)
+            {
+                // Handle exception if needed
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.ForceStateRefresh();
+                }
+            }
+        }
+    }
+
+    private void StopButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (App.HostApp != null)
+        {
+            try
+            {
+                App.HostApp.Stop();
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.ForceStateRefresh();
+                }
+            }
+            catch (Exception)
+            {
+                // Handle exception if needed
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.ForceStateRefresh();
+                }
+            }
+        }
+    }
+
+    private void ResetButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (App.HostApp != null)
+        {
+            try
+            {
+                App.HostApp.Reset();
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.ForceStateRefresh();
+                }
+            }
+            catch (Exception)
+            {
+                // Handle exception if needed
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.ForceStateRefresh();
+                }
             }
         }
     }
@@ -398,5 +509,42 @@ public partial class MainView : UserControl
             contentBorder.IsVisible = !contentBorder.IsVisible;
             headerButton.Content = contentBorder.IsVisible ? "▼ Configuration" : "▶ Configuration";
         }
+    }
+
+    // Additional event handlers for file operations (placeholder implementations)
+    private void LoadPreloadedDisk_Click(object? sender, RoutedEventArgs e)
+    {
+        // TODO: Implement preloaded disk loading functionality
+        System.Console.WriteLine("LoadPreloadedDisk_Click - Not implemented yet");
+    }
+
+    private void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
+    {
+        // TODO: Implement Basic file loading functionality
+        System.Console.WriteLine("LoadBasicFile_Click - Not implemented yet");
+    }
+
+    private void SaveBasicFile_Click(object? sender, RoutedEventArgs e)
+    {
+        // TODO: Implement Basic file saving functionality
+        System.Console.WriteLine("SaveBasicFile_Click - Not implemented yet");
+    }
+
+    private void LoadBinaryFile_Click(object? sender, RoutedEventArgs e)
+    {
+        // TODO: Implement binary file loading functionality
+        System.Console.WriteLine("LoadBinaryFile_Click - Not implemented yet");
+    }
+
+    private void LoadAssemblyExample_Click(object? sender, RoutedEventArgs e)
+    {
+        // TODO: Implement assembly example loading functionality
+        System.Console.WriteLine("LoadAssemblyExample_Click - Not implemented yet");
+    }
+
+    private void LoadBasicExample_Click(object? sender, RoutedEventArgs e)
+    {
+        // TODO: Implement Basic example loading functionality
+        System.Console.WriteLine("LoadBasicExample_Click - Not implemented yet");
     }
 }
