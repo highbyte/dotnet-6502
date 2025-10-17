@@ -146,6 +146,24 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             _updateTimer = CreateAsyncUpdateTimerForSystem(CurrentSystemRunner!.System);
         }
         _updateTimer.Start();
+
+        // Use Dispatcher to ensure focus is set after the UI has finished processing
+        global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            // First, ensure the main window has focus
+            if (global::Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                var mainWindow = desktop.MainWindow;
+                if (mainWindow != null)
+                {
+                    mainWindow.Activate();
+                    mainWindow.Focus();
+                }
+            }
+            
+            // Then focus the emulator view
+            _emulatorView.Focus();
+        }, global::Avalonia.Threading.DispatcherPriority.Loaded);
     }
 
     public override void OnAfterPause()
