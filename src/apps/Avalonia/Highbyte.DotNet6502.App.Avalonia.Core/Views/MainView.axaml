@@ -5,7 +5,8 @@
              xmlns:views="using:Highbyte.DotNet6502.App.Avalonia.Core.Views"
              x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.MainView"
              x:DataType="vm:MainViewModel"
-             Loaded="MainView_Loaded">
+             Loaded="MainView_Loaded"
+             Focusable="false">
 
     <UserControl.DataContext>
         <vm:MainViewModel/>
@@ -58,7 +59,8 @@
                               SelectionChanged="OnSystemSelectionChanged"
                               IsEnabled="{Binding IsSystemSelectionEnabled}"
                               Classes="compact"
-                              MinWidth="100"/>
+                              MinWidth="100"
+                              Focusable="False"/>
                 </Grid>
 
                 <!-- System Variant Selection -->
@@ -80,7 +82,8 @@
                               SelectionChanged="OnSystemVariantSelectionChanged"
                               IsEnabled="{Binding IsVariantSelectionEnabled}"
                               Classes="compact"
-                              MinWidth="100"/>
+                              MinWidth="100"
+                              Focusable="False"/>
                 </Grid>
 
                 <!-- Status -->
@@ -112,12 +115,14 @@
                                 Content="Start" 
                                 Classes="primary grid"
                                 IsEnabled="{Binding IsStartButtonEnabled}"
-                                Click="StartButton_Click"/>
+                                Click="StartButton_Click"
+                                Focusable="False"/>
                         <Button Grid.Column="2"
                                 Content="Pause" 
                                 Classes="warning grid"
                                 IsEnabled="{Binding IsPauseButtonEnabled}"
-                                Click="PauseButton_Click"/>
+                                Click="PauseButton_Click"
+                                Focusable="False"/>
                     </Grid>
                     
                     <!-- Second row: Reset and Stop -->
@@ -131,12 +136,14 @@
                                 Content="Reset" 
                                 Classes="secondary grid"
                                 IsEnabled="{Binding IsResetButtonEnabled}"
-                                Click="ResetButton_Click"/>
+                                Click="ResetButton_Click"
+                                Focusable="False"/>
                         <Button Grid.Column="2"
                                 Content="Stop" 
                                 Classes="danger grid"
                                 IsEnabled="{Binding IsStopButtonEnabled}"
-                                Click="StopButton_Click"/>
+                                Click="StopButton_Click"
+                                Focusable="False"/>
                     </Grid>
                 </StackPanel>
                 
@@ -156,7 +163,8 @@
                                 Minimum="1" Maximum="4" Value="2" 
                                 TickFrequency="0.5" 
                                 IsSnapToTickEnabled="True"
-                                VerticalAlignment="Center"/>
+                                VerticalAlignment="Center"
+                                Focusable="False"/>
                     </Grid>
 
                     <!-- Audio Settings -->
@@ -173,7 +181,8 @@
                         <CheckBox Grid.Column="1"
                                   Content="Enabled" 
                                   Foreground="White"
-                                  VerticalAlignment="Center"/>
+                                  VerticalAlignment="Center"
+                                  Focusable="False"/>
                     </Grid>
                 </StackPanel>
                 

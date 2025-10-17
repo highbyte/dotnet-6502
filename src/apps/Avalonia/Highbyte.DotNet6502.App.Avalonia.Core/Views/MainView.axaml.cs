@@ -1,7 +1,9 @@
 using System;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
+using Highbyte.DotNet6502.Systems;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
@@ -11,6 +13,7 @@ public partial class MainView : UserControl
     {
         InitializeComponent();
         DataContext ??= new MainViewModel();
+        Focusable = false;
     }
 
     private void MainView_Loaded(object? sender, RoutedEventArgs e)
@@ -73,6 +76,8 @@ public partial class MainView : UserControl
                 {
                     viewModel.ForceStateRefresh();
                 }
+
+                FocusEmulator();
             }
             catch (Exception)
             {
@@ -152,5 +157,26 @@ public partial class MainView : UserControl
                 }
             }
         }
+    }
+
+    private void FocusEmulator()
+    {
+        // Use Dispatcher to ensure focus is set after the UI has finished processing
+        global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            // First, ensure the main window has focus
+            if (global::Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                var mainWindow = desktop.MainWindow;
+                if (mainWindow != null)
+                {
+                    mainWindow.Activate();
+                    mainWindow.Focus();
+                }
+            }
+
+            // Then focus the emulator view
+            App.HostApp.EmulatorView.Focus();
+        }, global::Avalonia.Threading.DispatcherPriority.Loaded);
     }
 }

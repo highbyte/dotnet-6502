@@ -30,7 +30,7 @@ public partial class EmulatorView : UserControl
         // Make the control focusable so it can receive keyboard events
         Focusable = true;
         IsTabStop = true;
-        
+
         // Tell the host app about the emulator view so the correct renderer can be set when a system is started.
         var hostApp = Core.App.HostApp!;
 
