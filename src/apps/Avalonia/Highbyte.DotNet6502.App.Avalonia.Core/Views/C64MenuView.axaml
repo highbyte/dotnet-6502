@@ -5,6 +5,11 @@
              x:DataType="vm:C64MenuViewModel"
              Focusable="False">
 
+    <UserControl.Styles>
+        <!-- Include non-focusable styles -->
+        <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
+    </UserControl.Styles>
+
     <!-- C64 Specific Settings -->
     <StackPanel Spacing="6"
                 Margin="0,12,0,0"
@@ -26,8 +31,7 @@
                     Click="CopyBasicSource_Click"
                     FontSize="11"
                     Padding="6,3"
-                    Height="24"
-                    Focusable="False"/>
+                    Height="24"/>
             <Button Grid.Column="2"
                     Content="Paste" 
                     Classes="accent"
@@ -35,8 +39,7 @@
                     Click="PasteText_Click"
                     FontSize="11"
                     Padding="6,3"
-                    Height="24"
-                    Focusable="False"/>
+                    Height="24"/>
         </Grid>
         
         <!-- AI Basic coding assistant -->
@@ -51,14 +54,12 @@
                       Foreground="White"
                       IsChecked="{Binding BasicCodingAssistantEnabled}"
                       IsEnabled="{Binding BasicCodingAssistantAvailable}"
-                      VerticalAlignment="Center"
-                      Focusable="False"/>
+                      VerticalAlignment="Center"/>
             <Button Grid.Column="2"
                     Content="i"
                     Classes="info"
                     Click="OpenBasicAssistantInfo_Click"
-                    Margin="4,0,0,0"
-                    Focusable="False"/>
+                    Margin="4,0,0,0"/>
         </Grid>
 
         <!-- Disk Drive & D64 images -->
@@ -75,8 +76,7 @@
                     Padding="6,2"
                     FontSize="10"
                     Height="20"
-                    Click="ToggleDiskSection_Click"
-                    Focusable="False"/>
+                    Click="ToggleDiskSection_Click"/>
             
             <Border Name="DiskSectionContent"
                     Background="#2D3748"
@@ -96,14 +96,12 @@
                                 Click="ToggleDiskImage_Click"
                                 FontSize="11"
                                 Padding="6,3"
-                                Height="24"
-                                Focusable="False"/>
+                                Height="24"/>
                         <Button Grid.Column="1"
                                 Content="i"
                                 Classes="info"
                                 Click="OpenDiskInfo_Click"
-                                Margin="4,0,0,0"
-                                Focusable="False"/>
+                                Margin="4,0,0,0"/>
                     </Grid>
                     
                     <TextBlock Text="Download &amp; Run .D64 programs"
@@ -122,14 +120,12 @@
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="{Binding IsFileOperationEnabled}"
                                   Classes="compact"
-                                  MinWidth="60"
-                                  Focusable="False"/>
+                                  MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="i"
                                 Classes="info"
                                 Click="OpenDiskInfo_Click"
-                                Margin="4,0,0,0"
-                                Focusable="False"/>
+                                Margin="4,0,0,0"/>
                     </Grid>
                     
                     <Button Content="Download &amp; Run"
@@ -139,8 +135,7 @@
                             IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                             FontSize="11"
                             Padding="6,3"
-                            Height="24"
-                            Focusable="False"/>
+                            Height="24"/>
                     
                     <TextBlock Text="Download D64 disk image and auto-run the program on it."
                                Classes="small"
@@ -166,8 +161,7 @@
                     Padding="6,2"
                     FontSize="10"
                     Height="20"
-                    Click="ToggleLoadSaveSection_Click"
-                    Focusable="False"/>
+                    Click="ToggleLoadSaveSection_Click"/>
             
             <Border Name="LoadSaveSectionContent"
                     Background="#2D3748"
@@ -194,8 +188,7 @@
                                 Click="LoadBasicFile_Click"
                                 FontSize="10"
                                 Padding="4,2"
-                                Height="22"
-                                Focusable="False"/>
+                                Height="22"/>
                         <Button Grid.Column="2"
                                 Content="Save Basic" 
                                 Classes="secondary"
@@ -203,8 +196,7 @@
                                 Click="SaveBasicFile_Click"
                                 FontSize="10"
                                 Padding="4,2"
-                                Height="22"
-                                Focusable="False"/>
+                                Height="22"/>
                     </Grid>
                     
                     <Button Content="Load &amp; start binary"
@@ -213,8 +205,7 @@
                             Click="LoadBinaryFile_Click"
                             FontSize="11"
                             Padding="6,3"
-                            Height="24"
-                            Focusable="False"/>
+                            Height="24"/>
 
                     <TextBlock Text="Assembly example files" 
                                Classes="small"
@@ -233,8 +224,7 @@
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="{Binding IsFileOperationEnabled}"
                                   Classes="compact"
-                                  MinWidth="60"
-                                  Focusable="False"/>
+                                  MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load &amp; start"
                                 Classes="primary"
@@ -243,8 +233,7 @@
                                 FontSize="10"
                                 Padding="4,2"
                                 Height="22"
-                                Margin="4,0,0,0"
-                                Focusable="False"/>
+                                Margin="4,0,0,0"/>
                     </Grid>
 
                     <TextBlock Text="Basic example files" 
@@ -264,8 +253,7 @@
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="{Binding IsFileOperationEnabled}"
                                   Classes="compact"
-                                  MinWidth="60"
-                                  Focusable="False"/>
+                                  MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load"
                                 Classes="primary"
@@ -274,8 +262,7 @@
                                 FontSize="10"
                                 Padding="4,2"
                                 Height="22"
-                                Margin="4,0,0,0"
-                                Focusable="False"/>
+                                Margin="4,0,0,0"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -295,8 +282,7 @@
                     Padding="6,2"
                     FontSize="10"
                     Height="20"
-                    Click="ToggleConfigSection_Click"
-                    Focusable="False" />
+                    Click="ToggleConfigSection_Click"/>
             
             <Border Name="ConfigSectionContent"
                     Background="#2D3748"
@@ -320,8 +306,7 @@
                                   ItemsSource="{Binding AvailableJoysticks}"
                                   SelectedItem="{Binding CurrentJoystick}"
                                   Classes="compact"
-                                  MinWidth="30"
-                                  Focusable="False"/>
+                                  MinWidth="30"/>
                     </Grid>
 
                     <Grid>
@@ -336,16 +321,14 @@
                                   VerticalAlignment="Center"
                                   FontSize="10"
                                   Height="22"
-                                  Margin="0,0,6,0"
-                                  Focusable="False"/>
+                                  Margin="0,0,6,0"/>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding AvailableJoysticks}"
                                   SelectedItem="{Binding KeyboardJoystick}"
                                   IsEnabled="{Binding IsKeyboardJoystickSelectionEnabled}"
                                   Classes="compact"
                                   MinWidth="30"
-                                  VerticalAlignment="Center"
-                                  Focusable="False"/>
+                                  VerticalAlignment="Center"/>
                     </Grid>
 
                     <Button Content="C64 Config"
@@ -354,8 +337,7 @@
                             IsEnabled="{Binding IsC64ConfigEnabled}"
                             FontSize="11"
                             Padding="6,3"
-                            Height="24"
-                            Focusable="False"/>
+                            Height="24"/>
                 </StackPanel>
             </Border>
         </StackPanel>

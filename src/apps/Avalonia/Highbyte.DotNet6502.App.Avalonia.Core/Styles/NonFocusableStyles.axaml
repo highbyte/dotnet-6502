@@ -1,0 +1,23 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <!-- Global styles to prevent UI controls from taking focus -->
+    <!-- These will apply to ALL controls of the specified type within any view that includes this Styles collection -->
+    
+    <Style Selector="Button">
+        <Setter Property="Focusable" Value="False"/>
+    </Style>
+    
+    <Style Selector="ComboBox">
+        <Setter Property="Focusable" Value="False"/>
+    </Style>
+    
+    <Style Selector="Slider">
+        <Setter Property="Focusable" Value="False"/>
+    </Style>
+    
+    <Style Selector="CheckBox">
+        <Setter Property="Focusable" Value="False"/>
+    </Style>
+    
+</Styles>
