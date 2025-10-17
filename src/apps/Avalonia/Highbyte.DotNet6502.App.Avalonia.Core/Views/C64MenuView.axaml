@@ -1,0 +1,340 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.C64MenuView"
+             x:DataType="vm:C64MenuViewModel">
+
+    <!-- C64 Specific Settings -->
+    <StackPanel Spacing="6"
+                Margin="0,12,0,0"
+                IsVisible="{Binding IsC64SystemSelected}">
+        <TextBlock Text="C64 Settings:" 
+                   Classes="section-header"/>
+        
+        <!-- Copy/Paste buttons -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0"
+                    Content="Copy" 
+                    Classes="accent"
+                    IsEnabled="{Binding IsCopyPasteEnabled}"
+                    Click="CopyBasicSource_Click"
+                    FontSize="11"
+                    Padding="6,3"
+                    Height="24"/>
+            <Button Grid.Column="2"
+                    Content="Paste" 
+                    Classes="accent"
+                    IsEnabled="{Binding IsCopyPasteEnabled}"
+                    Click="PasteText_Click"
+                    FontSize="11"
+                    Padding="6,3"
+                    Height="24"/>
+        </Grid>
+        
+        <!-- AI Basic coding assistant -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <CheckBox Grid.Column="0"
+                      Content="AI Basic (F9)" 
+                      Foreground="White"
+                      IsChecked="{Binding BasicCodingAssistantEnabled}"
+                      IsEnabled="{Binding BasicCodingAssistantAvailable}"
+                      VerticalAlignment="Center"/>
+            <Button Grid.Column="2"
+                    Content="i"
+                    Classes="info"
+                    Click="OpenBasicAssistantInfo_Click"
+                    Margin="4,0,0,0"/>
+        </Grid>
+
+        <!-- Disk Drive & D64 images -->
+        <StackPanel Margin="0,4,0,0">
+            <Button Name="DiskSectionHeader"
+                    Content="▼ Disk Drive &amp; .D64 images"
+                    Classes="link"
+                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                    Foreground="White"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Left"
+                    Padding="6,2"
+                    FontSize="10"
+                    Height="20"
+                    Click="ToggleDiskSection_Click"/>
+            
+            <Border Name="DiskSectionContent"
+                    Background="#2D3748"
+                    BorderThickness="1,0,1,1"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                    Padding="8">
+                <StackPanel Spacing="3">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Content="{Binding DiskToggleButtonText}"
+                                Name="DiskToggleButton"
+                                IsEnabled="{Binding IsFileOperationEnabled}"
+                                Click="ToggleDiskImage_Click"
+                                FontSize="11"
+                                Padding="6,3"
+                                Height="24"/>
+                        <Button Grid.Column="1"
+                                Content="i"
+                                Classes="info"
+                                Click="OpenDiskInfo_Click"
+                                Margin="4,0,0,0"/>
+                    </Grid>
+                    
+                    <TextBlock Text="Download &amp; Run .D64 programs"
+                               Classes="small"
+                               FontSize="10"
+                               Margin="0,2,0,0"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Grid.Column="0"
+                                  ItemsSource="{Binding PreloadedD64Programs}"
+                                  SelectedValue="{Binding SelectedPreloadedDisk}"
+                                  DisplayMemberBinding="{Binding Value}"
+                                  SelectedValueBinding="{Binding Key}"
+                                  IsEnabled="{Binding IsFileOperationEnabled}"
+                                  Classes="compact"
+                                  MinWidth="60"/>
+                        <Button Grid.Column="1"
+                                Content="i"
+                                Classes="info"
+                                Click="OpenDiskInfo_Click"
+                                Margin="4,0,0,0"/>
+                    </Grid>
+                    
+                    <Button Content="Download &amp; Run"
+                            Classes="primary"
+                            IsEnabled="{Binding IsFileOperationEnabled}"
+                            Click="LoadPreloadedDisk_Click"
+                            IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                            FontSize="11"
+                            Padding="6,3"
+                            Height="24"/>
+                    
+                    <TextBlock Text="Download D64 disk image and auto-run the program on it."
+                               Classes="small"
+                               TextWrapping="Wrap"
+                               FontSize="9"
+                               Foreground="#888888"
+                               IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Load/Save -->
+        <StackPanel Margin="0,4,0,0">
+            <Button Name="LoadSaveSectionHeader"
+                    Content="▼ Load/Save"
+                    Classes="link"
+                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                    Foreground="White"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Left"
+                    Padding="6,2"
+                    FontSize="10"
+                    Height="20"
+                    Click="ToggleLoadSaveSection_Click"/>
+            
+            <Border Name="LoadSaveSectionContent"
+                    Background="#2D3748"
+                    BorderThickness="1,0,1,1"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                    Padding="8"
+                    IsVisible="False">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="Load/save .prg files" 
+                               Classes="small"
+                               FontSize="10"
+                               Foreground="#888888"/>
+                    
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Content="Load Basic" 
+                                Classes="secondary"
+                                IsEnabled="{Binding IsFileOperationEnabled}"
+                                Click="LoadBasicFile_Click"
+                                FontSize="10"
+                                Padding="4,2"
+                                Height="22"/>
+                        <Button Grid.Column="2"
+                                Content="Save Basic" 
+                                Classes="secondary"
+                                IsEnabled="{Binding IsFileOperationEnabled}"
+                                Click="SaveBasicFile_Click"
+                                FontSize="10"
+                                Padding="4,2"
+                                Height="22"/>
+                    </Grid>
+                    
+                    <Button Content="Load &amp; start binary"
+                            Classes="secondary"
+                            IsEnabled="{Binding IsFileOperationEnabled}"
+                            Click="LoadBinaryFile_Click"
+                            FontSize="11"
+                            Padding="6,3"
+                            Height="24"/>
+
+                    <TextBlock Text="Assembly example files" 
+                               Classes="small"
+                               FontSize="10"
+                               Foreground="#888888"
+                               Margin="0,4,0,0"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Grid.Column="0"
+                                  ItemsSource="{Binding AssemblyExamples}"
+                                  SelectedValue="{Binding SelectedAssemblyExample}"
+                                  DisplayMemberBinding="{Binding Value}"
+                                  SelectedValueBinding="{Binding Key}"
+                                  IsEnabled="{Binding IsFileOperationEnabled}"
+                                  Classes="compact"
+                                  MinWidth="60"/>
+                        <Button Grid.Column="1"
+                                Content="Load &amp; start"
+                                Classes="primary"
+                                IsEnabled="{Binding IsFileOperationEnabled}"
+                                Click="LoadAssemblyExample_Click"
+                                FontSize="10"
+                                Padding="4,2"
+                                Height="22"
+                                Margin="4,0,0,0"/>
+                    </Grid>
+
+                    <TextBlock Text="Basic example files" 
+                               Classes="small"
+                               FontSize="10"
+                               Foreground="#888888"
+                               Margin="0,4,0,0"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Grid.Column="0"
+                                  ItemsSource="{Binding BasicExamples}"
+                                  SelectedValue="{Binding SelectedBasicExample}"
+                                  DisplayMemberBinding="{Binding Value}"
+                                  SelectedValueBinding="{Binding Key}"
+                                  IsEnabled="{Binding IsFileOperationEnabled}"
+                                  Classes="compact"
+                                  MinWidth="60"/>
+                        <Button Grid.Column="1"
+                                Content="Load"
+                                Classes="primary"
+                                IsEnabled="{Binding IsFileOperationEnabled}"
+                                Click="LoadBasicExample_Click"
+                                FontSize="10"
+                                Padding="4,2"
+                                Height="22"
+                                Margin="4,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Configuration -->
+        <StackPanel Margin="0,4,0,0">
+            <Button Name="ConfigSectionHeader"
+                    Content="▼ Configuration"
+                    Classes="link"
+                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                    Foreground="White"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Left"
+                    Padding="6,2"
+                    FontSize="10"
+                    Height="20"
+                    Click="ToggleConfigSection_Click"/>
+            
+            <Border Name="ConfigSectionContent"
+                    Background="#2D3748"
+                    BorderThickness="1,0,1,1"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                    Padding="8"
+                    IsVisible="False">
+                <StackPanel Spacing="3">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="Active joystick:"
+                                   Classes="small"
+                                   VerticalAlignment="Center"
+                                   FontSize="10"
+                                   Margin="0,0,6,0"/>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding AvailableJoysticks}"
+                                  SelectedItem="{Binding CurrentJoystick}"
+                                  Classes="compact"
+                                  MinWidth="30"/>
+                    </Grid>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Grid.Column="0"
+                                  Content="Joystick KB" 
+                                  Foreground="White"
+                                  IsChecked="{Binding JoystickKeyboardEnabled}"
+                                  VerticalAlignment="Center"
+                                  FontSize="10"
+                                  Height="22"
+                                  Margin="0,0,6,0"/>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding AvailableJoysticks}"
+                                  SelectedItem="{Binding KeyboardJoystick}"
+                                  IsEnabled="{Binding IsKeyboardJoystickSelectionEnabled}"
+                                  Classes="compact"
+                                  MinWidth="30"
+                                  VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Button Content="C64 Config"
+                            Classes="accent"
+                            Click="OpenC64Config_Click"
+                            IsEnabled="{Binding IsC64ConfigEnabled}"
+                            FontSize="11"
+                            Padding="6,3"
+                            Height="24"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+    </StackPanel>
+</UserControl>
