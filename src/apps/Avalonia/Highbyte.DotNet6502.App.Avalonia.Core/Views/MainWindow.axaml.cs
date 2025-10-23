@@ -14,6 +14,4 @@ public partial class MainWindow : Window
         MinHeight = 600;
         CanResize = false; // Make window non-resizable
     }
-
-    // Selection handling is implemented in MainView now.
 }

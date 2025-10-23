@@ -21,6 +21,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
 {
     private readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly DotNet6502InMemLogStore _logStore;
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private readonly bool _defaultAudioEnabled;
@@ -34,6 +35,9 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     private PeriodicAsyncTimer? _updateTimer;
     private EmulatorView _emulatorView = default!;
     public EmulatorView EmulatorView => _emulatorView;
+
+    // Expose LoggerFactory for use in views that are note created through DI.
+    public ILoggerFactory LoggerFactory => _loggerFactory;
 
     // Public properties for external access
     public SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> SystemList => _systemList;
@@ -54,6 +58,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig) : this(systemList, loggerFactory, emulatorConfig)
     {
+        _loggerFactory = loggerFactory;
         _logStore = logStore;
         _logConfig = logConfig;
     }
@@ -233,7 +238,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         return new NullAudioHandlerContext();
     }
 
-    //internal void SetEmulatorView(EmulatorView emulatorView)
     internal void SetEmulatorView(EmulatorView emulatorView)
     {
         _emulatorView = emulatorView;

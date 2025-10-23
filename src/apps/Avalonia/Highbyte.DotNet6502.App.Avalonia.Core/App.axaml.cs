@@ -15,6 +15,7 @@ using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
 
@@ -32,7 +33,8 @@ public partial class App : Application
     private readonly Func<string, Task<string>>? _getCustomConfigJson;
     private readonly Func<string, string, Task>? _saveCustomConfigJson;
 
-    public static AvaloniaHostApp? HostApp { get; protected internal set; }
+    private AvaloniaHostApp _hostApp = default!;
+    private IServiceProvider _serviceProvider = default!;
 
     /// <summary>
     /// Used from Desktop app where resources are loaded from local file system and logs are stored in memory.
@@ -111,10 +113,10 @@ public partial class App : Application
     }
 
     // Allow other assemblies (e.g., Web) to set HostApp safely without exposing a public setter on the property
-    public static void SetHostApp(AvaloniaHostApp hostApp)
-    {
-        HostApp = hostApp;
-    }
+    //public static void SetHostApp(AvaloniaHostApp hostApp)
+    //{
+    //    HostApp = hostApp;
+    //}
 
     public override void Initialize()
     {
@@ -123,7 +125,6 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
 
         Console.WriteLine("App Initialize end");
-
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -132,29 +133,128 @@ public partial class App : Application
 
         // Initialize the emulator host app
         InitializeHostApp();
+        // Select default system but don't start emulation yet
+        SetDefaultSystemSelection();
+
+        // Setup DI container
+        SetupDependencyInjection();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
-            // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
-            desktop.MainWindow = new MainWindow
-            {
-                DataContext = new MainViewModel()
-            };
+
+            var mainWindow = new MainWindow();
+
+            // Get MainViewModel from DI and set as DataContext
+            // MainWindow.Content (MainView) is created by XAML and inherits DataContext
+            var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
+            mainWindow.DataContext = mainViewModel;
+
+            desktop.MainWindow = mainWindow;
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
         {
-            singleViewPlatform.MainView = new MainView
-            {
-                DataContext = new MainViewModel()
-            };
+            // MainView is created by XAML
+            var mainView = new MainView();
+
+            // Get MainViewModel from DI and set as DataContext
+            var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
+            mainView.DataContext = mainViewModel;
+
+            singleViewPlatform.MainView = mainView;
         }
+
+        // Tell the host app about the emulator view so the correct renderer can be set when a system is started.
+        SetHostAppEmulatorViewReference();
 
         base.OnFrameworkInitializationCompleted();
 
         Console.WriteLine("AppOnFrameworkInitializationCompleted end");
+    }
 
+    private void SetDefaultSystemSelection()
+    {
+        // Select default system but don't start emulation yet
+        // In WebAssembly, we need to schedule the async operation to run after initialization completes
+        if (!PlatformDetection.IsRunningInWebAssembly())
+        {
+            // Desktop: can safely use .Wait() during initialization
+            _hostApp.SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
+            _logger.LogInformation($"Default system '{_emulatorConfig.DefaultEmulator}' selected during initialization");
+        }
+        else
+        {
+            // WebAssembly: Schedule the async operation to run after initialization
+            // Use Dispatcher to ensure it runs on UI thread after the UI is ready
+            Dispatcher.UIThread.Post(async () =>
+            {
+                try
+                {
+                    await _hostApp.SelectSystem(_emulatorConfig.DefaultEmulator);
+                    _logger.LogInformation($"Default system '{_emulatorConfig.DefaultEmulator}' selected during initialization");
+
+                    // Notify UI that system selection is complete
+                    NotifySystemSelectionCompleted();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to select default system in WebAssembly");
+                }
+            });
+        }
+
+    }
+
+    private void SetupDependencyInjection()
+    {
+        var services = new ServiceCollection();
+
+        // Register singletons
+        services.AddSingleton(_hostApp);
+        services.AddSingleton(_emulatorConfig);
+        services.AddSingleton(_loggerFactory);
+        if (_logStore != null)
+            services.AddSingleton(_logStore);
+        if (_logConfig != null)
+            services.AddSingleton(_logConfig);
+
+        // Register ViewModels as transient (new instance each time)
+        services.AddTransient<MainViewModel>();
+        services.AddTransient<C64MenuViewModel>();
+        services.AddTransient<StatisticsViewModel>();
+
+        // Views are NOT registered - XAML creates them!
+        // They get their ViewModels through DataContext binding
+
+        _serviceProvider = services.BuildServiceProvider();
+    }
+
+    private void SetHostAppEmulatorViewReference()
+    {
+        EmulatorView? emulatorView = null;
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopApp)
+        {
+            if (desktopApp.MainWindow?.Content is MainView mainView)
+            {
+                emulatorView = mainView.GetEmulatorView();
+            }
+        }
+        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewApp)
+        {
+            if (singleViewApp.MainView is MainView mainView)
+            {
+                emulatorView = mainView.GetEmulatorView();
+            }
+        }
+
+        if (emulatorView != null && _hostApp != null)
+        {
+            _hostApp.SetEmulatorView(emulatorView);
+        }
+        else
+        {
+            _logger.LogWarning("EmulatorView not found or HostApp not initialized");
+        }
     }
 
     private void DisableAvaloniaDataAnnotationValidation()
@@ -194,33 +294,37 @@ public partial class App : Application
             // ----------
             _emulatorConfig.Validate(systemList);
 
-            HostApp = new AvaloniaHostApp(
+            _hostApp = new AvaloniaHostApp(
                 systemList,
                 _loggerFactory,
                 _emulatorConfig,
                 _logStore,
                 _logConfig);
 
-            // Select default system but don't start emulation yet
-            // In WebAssembly, DON'T auto-select the system - let the user select it manually from the UI
-            // This avoids race conditions and runtime errors during WASM initialization
-            if (!PlatformDetection.IsRunningInWebAssembly())
-            {
-                // Desktop: can safely use .Wait() during initialization
-                HostApp.SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
-            }
-            else
-            {
-                // WebAssembly: Can't Wait() during initialization - must be async
-                HostApp.SelectSystem(_emulatorConfig.DefaultEmulator);
-            }
-            _logger.LogInformation($"Default system '{_emulatorConfig.DefaultEmulator}' selected during initialization");
-
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to initialize HostApp: {ex}");
             throw;
+        }
+    }
+
+    private void NotifySystemSelectionCompleted()
+    {
+        // Find the MainViewModel and notify it that system selection is complete
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            if (desktop.MainWindow?.DataContext is MainViewModel mainViewModel)
+            {
+                mainViewModel.OnSystemSelectionCompleted();
+            }
+        }
+        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
+        {
+            if (singleViewPlatform.MainView?.DataContext is MainViewModel mainViewModel)
+            {
+                mainViewModel.OnSystemSelectionCompleted();
+            }
         }
     }
 
@@ -309,9 +413,9 @@ public partial class App : Application
         System.Console.WriteLine($"Stack trace: {exception.StackTrace}");
 
         // Pause emulator if it's running
-        if (HostApp?.EmulatorState == EmulatorState.Running)
+        if (_hostApp?.EmulatorState == EmulatorState.Running)
         {
-            HostApp.Pause();
+            _hostApp.Pause();
         }
 
         // Show error dialog - ensure it runs on UI thread
@@ -376,9 +480,9 @@ public partial class App : Application
                 else
                 {
                     // User chose to continue - unpause emulator if it was paused
-                    if (HostApp?.EmulatorState == EmulatorState.Paused)
+                    if (_hostApp?.EmulatorState == EmulatorState.Paused)
                     {
-                        _ = HostApp.Start(); // Fire and forget
+                        _ = _hostApp.Start(); // Fire and forget
                     }
                 }
             }

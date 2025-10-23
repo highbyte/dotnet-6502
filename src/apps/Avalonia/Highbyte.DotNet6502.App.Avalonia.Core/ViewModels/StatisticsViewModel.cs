@@ -16,13 +16,16 @@ public class StatisticItem
 public class StatisticsViewModel : ViewModelBase, IDisposable
 {
     private readonly DispatcherTimer _updateTimer;
+    private readonly AvaloniaHostApp _hostApp;
     private bool _disposed = false;
 
     // Dynamic Statistics Collection
     public ObservableCollection<StatisticItem> Statistics { get; } = new ObservableCollection<StatisticItem>();
 
-    public StatisticsViewModel()
+    public StatisticsViewModel(AvaloniaHostApp hostApp)
     {
+        _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
+
         // Create a timer that updates every second
         _updateTimer = new DispatcherTimer
         {
@@ -32,15 +35,16 @@ public class StatisticsViewModel : ViewModelBase, IDisposable
         _updateTimer.Start();
     }
 
+
     private void UpdateStats(object? sender, EventArgs e)
     {
-        if (_disposed || App.HostApp == null)
+        if (_disposed || _hostApp == null)
             return;
 
         try
         {
             // Get statistics from the host app
-            var stats = App.HostApp.GetStats();
+            var stats = _hostApp.GetStats();
 
             UpdatePerformanceStats(stats);
         }

@@ -7,34 +7,30 @@
              x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.StatisticsView"
              x:DataType="vm:StatisticsViewModel">
 
-  <Design.DataContext>
-    <vm:StatisticsViewModel/>
-  </Design.DataContext>
+    <StackPanel Spacing="10">
+        <!-- Performance Stats -->
+        <TextBlock Text="Stats"
+                   Classes="h3"
+                   Margin="0,20,0,0"/>
 
-  <StackPanel Spacing="10">
-    <!-- Performance Stats -->
-    <TextBlock Text="Stats" 
-               Classes="h3"
-               Margin="0,20,0,0"/>
-    
-    <Border Background="#4A5568" 
-           Padding="8" 
-           CornerRadius="4">
-        <ItemsControl ItemsSource="{Binding Statistics}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Orientation="Horizontal" Margin="0,2">
-                        <TextBlock Text="{Binding Name}" 
-                                   Classes="tiny-bold"
-                                   MinWidth="120"/>
-                        <TextBlock Text=": " 
-                                   Classes="tiny"/>
-                        <TextBlock Text="{Binding Value}" 
-                                   Classes="tiny"/>
-                    </StackPanel>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-    </Border>    
-  </StackPanel>
+        <Border Background="#4A5568"
+               Padding="8"
+               CornerRadius="4">
+            <ItemsControl ItemsSource="{Binding Statistics}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="{Binding Name}"
+                                       Classes="tiny-bold"
+                                       MinWidth="120"/>
+                            <TextBlock Text=": "
+                                       Classes="tiny"/>
+                            <TextBlock Text="{Binding Value}"
+                                       Classes="tiny"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+    </StackPanel>
 </UserControl>

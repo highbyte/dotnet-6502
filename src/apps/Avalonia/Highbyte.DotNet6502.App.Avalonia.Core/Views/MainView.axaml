@@ -8,14 +8,12 @@
              Loaded="MainView_Loaded"
              Focusable="false">
 
-    <UserControl.DataContext>
-        <vm:MainViewModel/>
-    </UserControl.DataContext>
+    <!-- DataContext will be set from code-behind via DI -->
 
     <UserControl.Styles>
         <!-- Include non-focusable styles -->
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
-        
+
         <!-- Existing compact ComboBox style -->
         <Style Selector="ComboBox.compact">
             <Setter Property="FontSize" Value="10"/>
@@ -38,9 +36,9 @@
         </Grid.ColumnDefinitions>
 
         <!-- Menu and Controls Panel (Left) -->
-        <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="3" 
-                Background="#2D3748" 
-                BorderBrush="#4A5568" 
+        <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="3"
+                Background="#2D3748"
+                BorderBrush="#4A5568"
                 BorderThickness="0,0,1,0"
                 Padding="10">
             <StackPanel Spacing="6">
@@ -51,11 +49,11 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0"
-                               Text="System:" 
+                               Text="System:"
                                Classes="section-header"
                                VerticalAlignment="Center"
                                Margin="0,0,8,0"/>
-                    
+
                     <ComboBox Grid.Column="1"
                               Name="SystemSelectionComboBox"
                               ItemsSource="{Binding AvailableSystems}"
@@ -73,11 +71,11 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0"
-                               Text="Variant:" 
+                               Text="Variant:"
                                Classes="section-header"
                                VerticalAlignment="Center"
                                Margin="0,0,8,0"/>
-                    
+
                     <ComboBox Grid.Column="1"
                               Name="SystemVariantSelectionComboBox"
                               ItemsSource="{Binding AvailableSystemVariants}"
@@ -89,22 +87,22 @@
                 </Grid>
 
                 <!-- Status -->
-                <TextBlock Text="Status:" 
+                <TextBlock Text="Status:"
                            Classes="section-header"
                            Margin="0,8,0,4"/>
-                
-                <Border Background="#4A5568" 
+
+                <Border Background="#4A5568"
                         CornerRadius="4"
                         Padding="8">
-                    <TextBlock Text="{Binding EmulatorState}" 
+                    <TextBlock Text="{Binding EmulatorState}"
                                Classes="status"/>
                 </Border>
-                
+
                 <!-- Emulator Controls -->
-                <TextBlock Text="Controls:" 
+                <TextBlock Text="Controls:"
                            Classes="section-header"
                            Margin="0,8,0,4"/>
-                
+
                 <StackPanel Spacing="4">
                     <!-- First row: Start and Pause -->
                     <Grid>
@@ -114,17 +112,17 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
-                                Content="Start" 
+                                Content="Start"
                                 Classes="primary grid"
                                 IsEnabled="{Binding IsStartButtonEnabled}"
                                 Click="StartButton_Click"/>
                         <Button Grid.Column="2"
-                                Content="Pause" 
+                                Content="Pause"
                                 Classes="warning grid"
                                 IsEnabled="{Binding IsPauseButtonEnabled}"
                                 Click="PauseButton_Click"/>
                     </Grid>
-                    
+
                     <!-- Second row: Reset and Stop -->
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -133,18 +131,18 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
-                                Content="Reset" 
+                                Content="Reset"
                                 Classes="secondary grid"
                                 IsEnabled="{Binding IsResetButtonEnabled}"
                                 Click="ResetButton_Click"/>
                         <Button Grid.Column="2"
-                                Content="Stop" 
+                                Content="Stop"
                                 Classes="danger grid"
                                 IsEnabled="{Binding IsStopButtonEnabled}"
                                 Click="StopButton_Click"/>
                     </Grid>
                 </StackPanel>
-                
+
                 <!-- Display Settings -->
                 <StackPanel Spacing="6">
                     <Grid>
@@ -153,13 +151,13 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0"
-                                   Text="Scale:" 
+                                   Text="Scale:"
                                    Classes="body"
                                    VerticalAlignment="Center"
                                    Margin="0,0,8,0"/>
                         <Slider Grid.Column="1"
-                                Minimum="1" Maximum="4" Value="2" 
-                                TickFrequency="0.5" 
+                                Minimum="1" Maximum="4" Value="2"
+                                TickFrequency="0.5"
                                 IsSnapToTickEnabled="True"
                                 VerticalAlignment="Center"/>
                     </Grid>
@@ -171,19 +169,19 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0"
-                                   Text="Audio:" 
+                                   Text="Audio:"
                                    Classes="body"
                                    VerticalAlignment="Center"
                                    Margin="0,0,8,0"/>
                         <CheckBox Grid.Column="1"
-                                  Content="Enabled" 
+                                  Content="Enabled"
                                   Foreground="White"
                                   VerticalAlignment="Center"/>
                     </Grid>
                 </StackPanel>
-                
+
                 <!-- C64 Menu -->
-                <views:C64MenuView DataContext="{Binding C64Settings}" />
+                <views:C64MenuView DataContext="{Binding C64MenuViewModel}" />
 
             </StackPanel>
         </Border>
@@ -197,11 +195,11 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                
+
                 <!-- Emulator Canvas/Display -->
                 <Border Grid.Row="0"
-                        Background="#000000" 
-                        BorderBrush="#4A5568" 
+                        Background="#000000"
+                        BorderBrush="#4A5568"
                         BorderThickness="2"
                         CornerRadius="4"
                         Margin="0,0,0,10"
@@ -220,11 +218,11 @@
                                    IsVisible="{Binding IsEmulatorNotRunning}"/>
                     </Grid>
                 </Border>
-                
+
                 <!-- Information Area - Configuration Validation -->
                 <Border Grid.Row="1"
-                        Background="#2D3748" 
-                        BorderBrush="#4A5568" 
+                        Background="#2D3748"
+                        BorderBrush="#4A5568"
                         BorderThickness="1"
                         CornerRadius="4"
                         Padding="15"
@@ -234,11 +232,11 @@
                         <StackPanel Spacing="10">
                             <!-- Show validation errors if any exist -->
                             <StackPanel Spacing="8" IsVisible="{Binding HasValidationErrors}">
-                                <TextBlock Text="Configuration Errors:" 
+                                <TextBlock Text="Configuration Errors:"
                                            Classes="section-header"
                                            Foreground="#E53E3E"/>
-                                
-                                <Border Background="Transparent" 
+
+                                <Border Background="Transparent"
                                         BorderBrush="#E53E3E"
                                         BorderThickness="1"
                                         CornerRadius="4"
@@ -247,10 +245,10 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2">
-                                                    <TextBlock Text="•" 
-                                                               Foreground="#E53E3E" 
+                                                    <TextBlock Text="•"
+                                                               Foreground="#E53E3E"
                                                                VerticalAlignment="Center"/>
-                                                    <TextBlock Text="{Binding}" 
+                                                    <TextBlock Text="{Binding}"
                                                                Classes="small"
                                                                Foreground="White"
                                                                TextWrapping="Wrap"
@@ -261,10 +259,10 @@
                                     </ItemsControl>
                                 </Border>
                             </StackPanel>
-                            
+
                             <!-- Show default information when no validation errors -->
                             <StackPanel Spacing="5" IsVisible="{Binding !HasValidationErrors}">
-                                <TextBlock Text="System Information" 
+                                <TextBlock Text="System Information"
                                            Classes="body"/>
                                 <TextBlock Text="Configuration is valid. No errors to display."
                                            Classes="small"
@@ -279,12 +277,12 @@
         <!-- Info and Stats Panel (Right) -->
         <Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="3"
                 Background="#2D3748"
-                BorderBrush="#4A5568"
-                BorderThickness="1,0,0,0"
-                Padding="10"
-                IsVisible="true">
+         BorderBrush="#4A5568"
+        BorderThickness="1,0,0,0"
+      Padding="10"
+     IsVisible="true">
             <ScrollViewer>
-                <views:StatisticsView />
+                <views:StatisticsView DataContext="{Binding StatisticsViewModel}" />
             </ScrollViewer>
         </Border>
     </Grid>

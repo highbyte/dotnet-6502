@@ -4,27 +4,50 @@ using System.Linq;
 using System.Threading.Tasks;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Microsoft.Extensions.Logging;
 using ReactiveUI;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
 public class MainViewModel : ViewModelBase
 {
-    public string SelectedSystemName
+    private readonly AvaloniaHostApp _hostApp;
+    private readonly ILogger<MainViewModel> _logger;
+
+    // Expose HostApp for child views/viewmodels that need it
+    public AvaloniaHostApp HostApp => _hostApp;
+
+    // Child ViewModels exposed as properties for XAML binding
+    public C64MenuViewModel C64MenuViewModel { get; }
+    public StatisticsViewModel StatisticsViewModel { get; }
+
+    // Constructor with dependency injection - child ViewModels injected!
+    public MainViewModel(
+        AvaloniaHostApp hostApp,
+        C64MenuViewModel c64MenuViewModel,  // Injected by DI with AvaloniaHostApp
+        StatisticsViewModel statisticsViewModel,
+        ILoggerFactory loggerFactory)
     {
-        get => Core.App.HostApp?.SelectedSystemName ?? "Not initialized";
+        _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
+        _logger = loggerFactory?.CreateLogger<MainViewModel>() ?? throw new ArgumentNullException(nameof(loggerFactory));
+
+        // Store injected child ViewModels
+        C64MenuViewModel = c64MenuViewModel ?? throw new ArgumentNullException(nameof(c64MenuViewModel));
+        StatisticsViewModel = statisticsViewModel ?? throw new ArgumentNullException(nameof(statisticsViewModel));
+        InitializeAvailableSystems();
     }
 
-    public string SelectedSystemVariant
-    {
-        get => Core.App.HostApp?.SelectedSystemConfigurationVariant ?? "Not initialized";
-    }
+    // NO Init() method - everything happens in constructor!
+
+    public string SelectedSystemName => _hostApp.SelectedSystemName;
+
+    public string SelectedSystemVariant => _hostApp.SelectedSystemConfigurationVariant;
 
     public ObservableCollection<string> AvailableSystemVariants { get; } = new();
 
     public EmulatorState EmulatorState
     {
-        get => Core.App.HostApp?.EmulatorState ?? EmulatorState.Uninitialized;
+        get => _hostApp?.EmulatorState ?? EmulatorState.Uninitialized;
     }
 
     public bool IsEmulatorNotRunning => EmulatorState != EmulatorState.Running;
@@ -85,21 +108,17 @@ public class MainViewModel : ViewModelBase
 
     public ObservableCollection<string> AvailableSystems { get; } = new();
 
-    // C64 Menu ViewModel
-    public C64MenuViewModel C64Settings { get; private set; }
-
-    public MainViewModel()
+    /// <summary>
+    /// Called when system selection has completed (especially important in WebAssembly where SelectSystem is async)
+    /// </summary>
+    public void OnSystemSelectionCompleted()
     {
-        // Initialize C64 Menu ViewModel
-        C64Settings = new C64MenuViewModel(this);
+        // Update available variants based on the newly selected system
+        UpdateAvailableVariants();
 
-        // Initialize with available systems when HostApp is ready
-        InitializeAvailableSystems();
+        // Force a full UI refresh to update all bindings
+        NotifyEmulatorStateChanged();
     }
-
-
-
-
 
     private void NotifyEmulatorStateChanged()
     {
@@ -124,7 +143,7 @@ public class MainViewModel : ViewModelBase
             this.RaisePropertyChanged(nameof(IsResetButtonEnabled));
 
             // Notify C64-specific property changes
-            C64Settings.NotifyEmulatorStateChanged();
+            C64MenuViewModel?.NotifyEmulatorStateChanged();
         }
         catch (Exception ex)
         {
@@ -142,14 +161,14 @@ public class MainViewModel : ViewModelBase
 
     private void UpdateSystemConfigValidity()
     {
-        if (Core.App.HostApp != null)
+        if (_hostApp != null)
         {
             // Use ConfigureAwait(false) to avoid deadlock and run async operation in background
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    var (isValid, validationErrors) = await Core.App.HostApp.IsValidConfigWithDetails();
+                    var (isValid, validationErrors) = await _hostApp.IsValidConfigWithDetails();
 
                     var hasChanged = _isSystemConfigValid != isValid ||
                                      !_validationErrors.SequenceEqual(validationErrors);
@@ -208,9 +227,9 @@ public class MainViewModel : ViewModelBase
     {
         AvailableSystems.Clear();
 
-        if (Core.App.HostApp?.SystemList != null)
+        if (_hostApp?.SystemList != null)
         {
-            foreach (var systemName in Core.App.HostApp.SystemList.Systems)
+            foreach (var systemName in _hostApp.SystemList.Systems)
             {
                 AvailableSystems.Add(systemName);
             }
@@ -234,18 +253,14 @@ public class MainViewModel : ViewModelBase
     {
         AvailableSystemVariants.Clear();
 
-        if (Core.App.HostApp?.AllSelectedSystemConfigurationVariants != null)
+        if (_hostApp?.AllSelectedSystemConfigurationVariants != null)
         {
-            foreach (var variant in Core.App.HostApp.AllSelectedSystemConfigurationVariants)
+            foreach (var variant in _hostApp.AllSelectedSystemConfigurationVariants)
             {
                 AvailableSystemVariants.Add(variant);
             }
         }
     }
-
-
-
-
 
     /// <summary>
     /// Toggle the visibility of the statistics panel
@@ -266,6 +281,6 @@ public class MainViewModel : ViewModelBase
     /// </summary>
     public void NotifyDiskImageStateChanged()
     {
-        C64Settings.NotifyDiskImageStateChanged();
+        C64MenuViewModel.NotifyDiskImageStateChanged();
     }
 }

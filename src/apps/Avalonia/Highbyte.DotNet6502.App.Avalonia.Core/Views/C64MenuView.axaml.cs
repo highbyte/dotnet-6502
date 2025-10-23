@@ -9,35 +9,53 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
+using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.VideoCommands;
+using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
 using Microsoft.Extensions.Logging;
-using Avalonia.VisualTree;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 public partial class C64MenuView : UserControl
 {
+    // Access ViewModel and HostApp through DataContext
+    private C64MenuViewModel? ViewModel => DataContext as C64MenuViewModel;
+    private AvaloniaHostApp? HostApp => ViewModel?.HostApp;
+
+    // Parameterless constructor for XAML compatibility
     public C64MenuView()
     {
         InitializeComponent();
+
+        // Subscribe to DataContext changes
+        this.DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        // Refresh UI when ViewModel is set
+        if (ViewModel != null)
+        {
+            UpdateDiskToggleButtonStyle();
+        }
     }
 
     private void UpdateDiskToggleButtonStyle()
     {
         var diskToggleButton = this.FindControl<Button>("DiskToggleButton");
-        if (diskToggleButton != null && DataContext is ViewModels.C64MenuViewModel viewModel)
+        if (diskToggleButton != null && ViewModel != null)
         {
             // Clear existing classes
             diskToggleButton.Classes.Clear();
 
             // Add the appropriate class based on disk attachment state
-            if (viewModel.IsDiskImageAttached)
+            if (ViewModel.IsDiskImageAttached)
             {
                 diskToggleButton.Classes.Add("warning");
             }
@@ -50,13 +68,13 @@ public partial class C64MenuView : UserControl
 
     private async void OpenC64Config_Click(object? sender, RoutedEventArgs e)
     {
-        if (App.HostApp == null)
+        if (HostApp == null)
             return;
 
-        if (App.HostApp.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
+        if (HostApp.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
             return;
 
-        var renderProviderOptions = App.HostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations();
+        var renderProviderOptions = HostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations();
 
         // Check if running on WASM/Browser platform
         if (PlatformDetection.IsRunningInWebAssembly())
@@ -74,7 +92,7 @@ public partial class C64MenuView : UserControl
     private async Task ShowC64ConfigDialog(C64HostConfig c64HostConfig,
         List<(System.Type renderProviderType, System.Type renderTargetType)> renderProviderOptions)
     {
-        var dialog = new C64ConfigDialog(App.HostApp!, c64HostConfig, renderProviderOptions);
+        var dialog = new C64ConfigDialog(HostApp!, c64HostConfig, renderProviderOptions);
 
         bool? result;
         if (TopLevel.GetTopLevel(this) is Window owner)
@@ -89,7 +107,7 @@ public partial class C64MenuView : UserControl
             result = await tcs.Task;
         }
 
-        if (result == true && DataContext is C64MenuViewModel viewModel)
+        if (result == true && ViewModel is C64MenuViewModel viewModel)
         {
             viewModel.NotifyEmulatorStateChanged();
         }
@@ -99,7 +117,7 @@ public partial class C64MenuView : UserControl
         List<(System.Type renderProviderType, System.Type renderTargetType)> renderProviderOptions)
     {
         // Create the UserControl-based config
-        var configControl = new C64ConfigUserControl(App.HostApp!, c64HostConfig, renderProviderOptions);
+        var configControl = new C64ConfigUserControl(HostApp!, c64HostConfig, renderProviderOptions);
 
         // Create a custom overlay with better modal behavior
         var overlay = new Panel
@@ -149,9 +167,9 @@ public partial class C64MenuView : UserControl
                 // Wait for the configuration to complete
                 var result = await taskCompletionSource.Task;
 
-                if (result && DataContext is C64MenuViewModel c64ViewModel)
+                if (result && ViewModel != null)
                 {
-                    c64ViewModel.NotifyEmulatorStateChanged();
+                    ViewModel.NotifyEmulatorStateChanged();
                 }
             }
             finally
@@ -199,13 +217,13 @@ public partial class C64MenuView : UserControl
     // Core C64 functionality methods
     public async Task CopyBasicSourceCode()
     {
-        if (App.HostApp?.EmulatorState != Systems.EmulatorState.Running ||
+        if (HostApp?.EmulatorState != Systems.EmulatorState.Running ||
             !IsC64System())
             return;
 
         try
         {
-            var c64 = (C64)App.HostApp.CurrentRunningSystem!;
+            var c64 = (C64)HostApp.CurrentRunningSystem!;
             var sourceCode = c64.BasicTokenParser.GetBasicText();
 
             if (TopLevel.GetTopLevel(this) is { } topLevel)
@@ -222,8 +240,8 @@ public partial class C64MenuView : UserControl
 
     public async Task PasteText()
     {
-        if (App.HostApp?.EmulatorState != Systems.EmulatorState.Running ||
-            !IsC64System())
+        if (HostApp?.EmulatorState != Systems.EmulatorState.Running ||
+       !IsC64System())
             return;
 
         try
@@ -233,7 +251,7 @@ public partial class C64MenuView : UserControl
                 var text = await topLevel.Clipboard?.GetTextAsync()!;
                 if (!string.IsNullOrEmpty(text))
                 {
-                    var c64 = (C64)App.HostApp.CurrentRunningSystem!;
+                    var c64 = (C64)HostApp.CurrentRunningSystem!;
                     c64.TextPaste.Paste(text);
                 }
             }
@@ -247,13 +265,13 @@ public partial class C64MenuView : UserControl
 
     public async Task ToggleDiskImage()
     {
-        if (App.HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized ||
-            !IsC64System())
+        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized ||
+ !IsC64System())
             return;
 
         try
         {
-            var c64 = (C64)App.HostApp.CurrentRunningSystem!;
+            var c64 = (C64)HostApp.CurrentRunningSystem!;
             var diskDrive = c64.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
 
             if (diskDrive?.IsDisketteInserted == true)
@@ -268,7 +286,7 @@ public partial class C64MenuView : UserControl
             }
 
             // Notify the ViewModel that the disk image state has changed
-            if (DataContext is ViewModels.C64MenuViewModel viewModel)
+            if (ViewModel is C64MenuViewModel viewModel)
             {
                 viewModel.NotifyDiskImageStateChanged();
             }
@@ -295,10 +313,10 @@ public partial class C64MenuView : UserControl
                 Title = "Select D64 Disk Image",
                 AllowMultiple = false,
                 FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("D64 Disk Images") { Patterns = new[] { "*.d64" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
+               {
+     new FilePickerFileType("D64 Disk Images") { Patterns = new[] { "*.d64" } },
+              new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+        }
             });
 
             if (files.Count > 0)
@@ -313,7 +331,7 @@ public partial class C64MenuView : UserControl
                     var d64DiskImage = Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.D64Parser.ParseD64File(fileBuffer);
 
                     // Set the disk image on the running C64's DiskDrive1541
-                    var c64 = (C64)App.HostApp!.CurrentRunningSystem!;
+                    var c64 = (C64)HostApp!.CurrentRunningSystem!;
                     var diskDrive = c64.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
                     diskDrive?.SetD64DiskImage(d64DiskImage);
                 }
@@ -327,7 +345,7 @@ public partial class C64MenuView : UserControl
 
     private bool IsC64System()
     {
-        return string.Equals(App.HostApp?.SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(HostApp?.SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
     }
 
     private void ToggleDiskSection_Click(object? sender, RoutedEventArgs e)
@@ -369,7 +387,7 @@ public partial class C64MenuView : UserControl
     // File operation event handlers
     private async void LoadPreloadedDisk_Click(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not C64MenuViewModel viewModel)
+        if (ViewModel is not C64MenuViewModel viewModel)
             return;
 
         string selectedPreloadedDisk = viewModel.SelectedPreloadedDisk;
@@ -391,50 +409,50 @@ public partial class C64MenuView : UserControl
                 httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
                 var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
-                {
-                    builder.SetMinimumLevel(LogLevel.Information);
-                });
+             {
+                 builder.SetMinimumLevel(LogLevel.Information);
+             });
 
-                var c64HostConfig = App.HostApp!.CurrentHostSystemConfig as C64HostConfig;
+                var c64HostConfig = HostApp!.CurrentHostSystemConfig as C64HostConfig;
                 _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(
-                    loggerFactory,
-                    httpClient,
-                    App.HostApp!,
-                    corsProxyUrl: PlatformDetection.IsRunningInWebAssembly() ? c64HostConfig.CorsProxyURL: null);
+       loggerFactory,
+            httpClient,
+       HostApp!,
+         corsProxyUrl: PlatformDetection.IsRunningInWebAssembly() ? c64HostConfig.CorsProxyURL : null);
             }
 
             await _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
-                diskInfo,
-                stateHasChangedCallback: async () =>
-                {
-                    viewModel.NotifyEmulatorStateChanged();
-                    await Task.CompletedTask;
-                },
-                setConfigCallback: async (diskInfo) =>
-                {
-                    if (App.HostApp?.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
-                        return;
+            diskInfo,
+              stateHasChangedCallback: async () =>
+           {
+               viewModel.NotifyEmulatorStateChanged();
+               await Task.CompletedTask;
+           },
+       setConfigCallback: async (diskInfo) =>
+           {
+               if (HostApp?.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
+                   return;
 
-                    var c64SystemConfig = c64HostConfig.SystemConfig;
+               var c64SystemConfig = c64HostConfig.SystemConfig;
 
-                    // Apply keyboard joystick settings to config object while emulator is stopped
-                    c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
-                    c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
+               // Apply keyboard joystick settings to config object while emulator is stopped
+               c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
+               c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
 
-                    // Apply renderer setting to config object while emulator is stopped
-                    // TODO: If/when a optimized RenderType for use without bitmap graphics is available, set rendererProviderType appropriately here.
-                    //Type rendererProviderType = diskInfo.RequiresBitmap ? typeof(Vic2Rasterizer) : typeof(C64VideoCommandStream);
-                    Type rendererProviderType = typeof(Vic2Rasterizer);
-                    c64HostConfig.SystemConfig.SetRenderProviderType(rendererProviderType);
+               // Apply renderer setting to config object while emulator is stopped
+               // TODO: If/when a optimized RenderType for use without bitmap graphics is available, set rendererProviderType appropriately here.
+               //Type rendererProviderType = diskInfo.RequiresBitmap ? typeof(Vic2Rasterizer) : typeof(C64VideoCommandStream);
+               Type rendererProviderType = typeof(Vic2Rasterizer);
+               c64HostConfig.SystemConfig.SetRenderProviderType(rendererProviderType);
 
-                    // Apply audio enabled setting to config object while emulator is stopped
-                    c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
+               // Apply audio enabled setting to config object while emulator is stopped
+               c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
 
-                    // Apply C64 variant setting to config object while emulator is stopped
-                    await App.HostApp.SelectSystemConfigurationVariant(diskInfo.C64Variant);
+               // Apply C64 variant setting to config object while emulator is stopped
+               await HostApp.SelectSystemConfigurationVariant(diskInfo.C64Variant);
 
-                    App.HostApp.UpdateHostSystemConfig(c64HostConfig);
-                });
+               HostApp.UpdateHostSystemConfig(c64HostConfig);
+           });
         }
         catch (Exception ex)
         {

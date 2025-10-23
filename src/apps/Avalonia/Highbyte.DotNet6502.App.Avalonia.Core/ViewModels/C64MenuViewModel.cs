@@ -11,22 +11,22 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
 public class C64MenuViewModel : ViewModelBase
 {
-    // Reference to the main view model for shared properties
-    private readonly MainViewModel _mainViewModel;
+    private readonly AvaloniaHostApp _avaloniaHostApp;
+    public AvaloniaHostApp HostApp => _avaloniaHostApp;
 
-    public C64MenuViewModel(MainViewModel mainViewModel)
+    public C64MenuViewModel(AvaloniaHostApp avaloniaHostApp)
     {
-        _mainViewModel = mainViewModel;
+        _avaloniaHostApp = avaloniaHostApp ?? throw new ArgumentNullException(nameof(avaloniaHostApp));
         InitializeC64Data();
     }
 
-    // Shared properties from MainViewModel that are still needed
-    public EmulatorState EmulatorState => _mainViewModel.EmulatorState;
-    public string SelectedSystemName => _mainViewModel.SelectedSystemName;
+    // Properties that previously accessed MainViewModel can now access HostApp directly
+    public EmulatorState EmulatorState => _avaloniaHostApp.EmulatorState;
+    public string SelectedSystemName => _avaloniaHostApp.SelectedSystemName;
     public bool IsC64SystemSelected => string.Equals(SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
 
     // C64-specific properties
-    private C64HostConfig? C64HostConfig => Core.App.HostApp?.CurrentHostSystemConfig as C64HostConfig;
+    private C64HostConfig? C64HostConfig => _avaloniaHostApp?.CurrentHostSystemConfig as C64HostConfig;
 
     // Copy/Paste functionality
     public bool IsCopyPasteEnabled => EmulatorState == EmulatorState.Running && IsC64SystemSelected;
@@ -62,7 +62,7 @@ public class C64MenuViewModel : ViewModelBase
                 if (EmulatorState == EmulatorState.Uninitialized || !IsC64SystemSelected)
                     return false;
 
-                var c64 = Core.App.HostApp?.CurrentRunningSystem as Systems.Commodore64.C64;
+                var c64 = _avaloniaHostApp?.CurrentRunningSystem as Systems.Commodore64.C64;
                 var diskDrive = c64?.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
                 return diskDrive?.IsDisketteInserted == true;
             }
@@ -122,12 +122,12 @@ public class C64MenuViewModel : ViewModelBase
                     if (EmulatorState != EmulatorState.Uninitialized)
                     {
                         // TODO: Does a running C64 not have it's own setting for current joystick (like it has for if Joystick keyboard is enabled or not)?
-                        //C64 c64 = (C64)App.HostApp!.CurrentRunningSystem!;
+                        //C64 c64 = (C64)_avaloniaHostApp!.CurrentRunningSystem!;
                     }
                     else
                     {
                         // If not running, update the config so it will be used when starting the system
-                        App.HostApp?.UpdateHostSystemConfig(C64HostConfig);
+                        _avaloniaHostApp?.UpdateHostSystemConfig(C64HostConfig);
                     }
                     this.RaisePropertyChanged();
                 }
@@ -150,13 +150,13 @@ public class C64MenuViewModel : ViewModelBase
                 // If system is running, make sure to update the joystick setting in the running system
                 if (EmulatorState != EmulatorState.Uninitialized)
                 {
-                    C64 c64 = (C64)App.HostApp!.CurrentRunningSystem!;
+                    C64 c64 = (C64)_avaloniaHostApp!.CurrentRunningSystem!;
                     c64.Cia1.Joystick.KeyboardJoystickEnabled = value;
                 }
                 else
                 {
                     // If not running, update the config so it will be used when starting the system
-                    App.HostApp?.UpdateHostSystemConfig(C64HostConfig);
+                    _avaloniaHostApp?.UpdateHostSystemConfig(C64HostConfig);
                 }
                 this.RaisePropertyChanged();
                 this.RaisePropertyChanged(nameof(IsKeyboardJoystickSelectionEnabled));
@@ -179,13 +179,13 @@ public class C64MenuViewModel : ViewModelBase
                 // If system is running, make sure to update the joystick setting in the running system
                 if (EmulatorState != EmulatorState.Uninitialized)
                 {
-                    C64 c64 = (C64)App.HostApp!.CurrentRunningSystem!;
+                    C64 c64 = (C64)_avaloniaHostApp!.CurrentRunningSystem!;
                     c64.Cia1.Joystick.KeyboardJoystick = value;
                 }
                 else
                 {
                     // If not running, update the config so it will be used when starting the system
-                    App.HostApp?.UpdateHostSystemConfig(C64HostConfig);
+                    _avaloniaHostApp?.UpdateHostSystemConfig(C64HostConfig);
                 }
                 this.RaisePropertyChanged();
             }

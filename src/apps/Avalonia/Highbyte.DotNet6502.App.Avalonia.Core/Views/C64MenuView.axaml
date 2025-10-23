@@ -1,9 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+     xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
              x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.C64MenuView"
-             x:DataType="vm:C64MenuViewModel"
-             Focusable="False">
+      x:DataType="vm:C64MenuViewModel"
+   Focusable="False">
+
+    <!-- DataContext will be set from constructor via DI -->
 
     <UserControl.Styles>
         <!-- Include non-focusable styles -->
@@ -14,9 +16,9 @@
     <StackPanel Spacing="6"
                 Margin="0,12,0,0"
                 IsVisible="{Binding IsC64SystemSelected}">
-        <TextBlock Text="C64 Settings:" 
+        <TextBlock Text="C64 Settings:"
                    Classes="section-header"/>
-        
+
         <!-- Copy/Paste buttons -->
         <Grid>
             <Grid.ColumnDefinitions>
@@ -25,7 +27,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Button Grid.Column="0"
-                    Content="Copy" 
+                    Content="Copy"
                     Classes="accent"
                     IsEnabled="{Binding IsCopyPasteEnabled}"
                     Click="CopyBasicSource_Click"
@@ -33,7 +35,7 @@
                     Padding="6,3"
                     Height="24"/>
             <Button Grid.Column="2"
-                    Content="Paste" 
+                    Content="Paste"
                     Classes="accent"
                     IsEnabled="{Binding IsCopyPasteEnabled}"
                     Click="PasteText_Click"
@@ -41,7 +43,7 @@
                     Padding="6,3"
                     Height="24"/>
         </Grid>
-        
+
         <!-- AI Basic coding assistant -->
         <Grid>
             <Grid.ColumnDefinitions>
@@ -50,7 +52,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <CheckBox Grid.Column="0"
-                      Content="AI Basic (F9)" 
+                      Content="AI Basic (F9)"
                       Foreground="White"
                       IsChecked="{Binding BasicCodingAssistantEnabled}"
                       IsEnabled="{Binding BasicCodingAssistantAvailable}"
@@ -77,7 +79,7 @@
                     FontSize="10"
                     Height="20"
                     Click="ToggleDiskSection_Click"/>
-            
+
             <Border Name="DiskSectionContent"
                     Background="#2D3748"
                     BorderThickness="1,0,1,1"
@@ -103,7 +105,7 @@
                                 Click="OpenDiskInfo_Click"
                                 Margin="4,0,0,0"/>
                     </Grid>
-                    
+
                     <TextBlock Text="Download &amp; Run .D64 programs"
                                Classes="small"
                                FontSize="10"
@@ -127,7 +129,7 @@
                                 Click="OpenDiskInfo_Click"
                                 Margin="4,0,0,0"/>
                     </Grid>
-                    
+
                     <Button Content="Download &amp; Run"
                             Classes="primary"
                             IsEnabled="{Binding IsFileOperationEnabled}"
@@ -136,7 +138,7 @@
                             FontSize="11"
                             Padding="6,3"
                             Height="24"/>
-                    
+
                     <TextBlock Text="Download D64 disk image and auto-run the program on it."
                                Classes="small"
                                TextWrapping="Wrap"
@@ -162,7 +164,7 @@
                     FontSize="10"
                     Height="20"
                     Click="ToggleLoadSaveSection_Click"/>
-            
+
             <Border Name="LoadSaveSectionContent"
                     Background="#2D3748"
                     BorderThickness="1,0,1,1"
@@ -170,11 +172,11 @@
                     Padding="8"
                     IsVisible="False">
                 <StackPanel Spacing="3">
-                    <TextBlock Text="Load/save .prg files" 
+                    <TextBlock Text="Load/save .prg files"
                                Classes="small"
                                FontSize="10"
                                Foreground="#888888"/>
-                    
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -182,7 +184,7 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
-                                Content="Load Basic" 
+                                Content="Load Basic"
                                 Classes="secondary"
                                 IsEnabled="{Binding IsFileOperationEnabled}"
                                 Click="LoadBasicFile_Click"
@@ -190,7 +192,7 @@
                                 Padding="4,2"
                                 Height="22"/>
                         <Button Grid.Column="2"
-                                Content="Save Basic" 
+                                Content="Save Basic"
                                 Classes="secondary"
                                 IsEnabled="{Binding IsFileOperationEnabled}"
                                 Click="SaveBasicFile_Click"
@@ -198,7 +200,7 @@
                                 Padding="4,2"
                                 Height="22"/>
                     </Grid>
-                    
+
                     <Button Content="Load &amp; start binary"
                             Classes="secondary"
                             IsEnabled="{Binding IsFileOperationEnabled}"
@@ -207,7 +209,7 @@
                             Padding="6,3"
                             Height="24"/>
 
-                    <TextBlock Text="Assembly example files" 
+                    <TextBlock Text="Assembly example files"
                                Classes="small"
                                FontSize="10"
                                Foreground="#888888"
@@ -236,7 +238,7 @@
                                 Margin="4,0,0,0"/>
                     </Grid>
 
-                    <TextBlock Text="Basic example files" 
+                    <TextBlock Text="Basic example files"
                                Classes="small"
                                FontSize="10"
                                Foreground="#888888"
@@ -283,7 +285,7 @@
                     FontSize="10"
                     Height="20"
                     Click="ToggleConfigSection_Click"/>
-            
+
             <Border Name="ConfigSectionContent"
                     Background="#2D3748"
                     BorderThickness="1,0,1,1"
@@ -315,7 +317,7 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <CheckBox Grid.Column="0"
-                                  Content="Joystick KB" 
+                                  Content="Joystick KB"
                                   Foreground="White"
                                   IsChecked="{Binding JoystickKeyboardEnabled}"
                                   VerticalAlignment="Center"

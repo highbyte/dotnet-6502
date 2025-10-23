@@ -18,5 +18,6 @@
         <vm:MainViewModel/>
     </Design.DataContext>
 
+    <!-- MainView will inherit DataContext from Window -->
     <views:MainView />
 </Window>

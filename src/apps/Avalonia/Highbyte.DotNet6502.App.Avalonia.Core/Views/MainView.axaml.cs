@@ -3,17 +3,22 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
-using Highbyte.DotNet6502.Systems;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 public partial class MainView : UserControl
 {
+    // Access HostApp through ViewModel
+    private AvaloniaHostApp? HostApp => (DataContext as MainViewModel)?.HostApp;
+
+    // Parameterless constructor - child views created by XAML!
     public MainView()
     {
         InitializeComponent();
-        DataContext ??= new MainViewModel();
-        Focusable = false;
+        // DataContext will be set from App.axaml.cs via DI
+        // Child views (C64MenuView, StatisticsView, EmulatorView) are created by XAML
+        // and get their DataContext through XAML bindings
+
     }
 
     private void MainView_Loaded(object? sender, RoutedEventArgs e)
@@ -21,17 +26,22 @@ public partial class MainView : UserControl
         // Initialization complete
     }
 
-    // Keep the same selection handler pattern used in MainWindow
+    // Keep the same selection handler pattern
     private async void OnSystemSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (HostApp == null)
+            return;
+
         if (DataContext is MainViewModel viewModel && e.AddedItems.Count > 0)
         {
             var selectedSystem = e.AddedItems[0]?.ToString();
-            if (!string.IsNullOrEmpty(selectedSystem) && App.HostApp != null)
+
+            if (!string.IsNullOrEmpty(selectedSystem) && HostApp.SelectedSystemName != selectedSystem)
             {
                 try
                 {
-                    await App.HostApp.SelectSystem(selectedSystem);
+                    await HostApp.SelectSystem(selectedSystem);
+                    viewModel.OnSystemSelectionCompleted();
                     viewModel.ForceStateRefresh();
                 }
                 catch (Exception)
@@ -45,14 +55,16 @@ public partial class MainView : UserControl
 
     private async void OnSystemVariantSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (HostApp == null)
+            return;
         if (DataContext is MainViewModel viewModel && e.AddedItems.Count > 0)
         {
             var selectedVariant = e.AddedItems[0]?.ToString();
-            if (!string.IsNullOrEmpty(selectedVariant) && App.HostApp != null)
+            if (!string.IsNullOrEmpty(selectedVariant) && HostApp.SelectedSystemConfigurationVariant != selectedVariant)
             {
                 try
                 {
-                    await App.HostApp.SelectSystemConfigurationVariant(selectedVariant);
+                    await HostApp.SelectSystemConfigurationVariant(selectedVariant);
                     viewModel.ForceStateRefresh();
                 }
                 catch (Exception)
@@ -67,11 +79,11 @@ public partial class MainView : UserControl
     // Emulator Control Event Handlers
     private async void StartButton_Click(object? sender, RoutedEventArgs e)
     {
-        if (App.HostApp != null)
+        if (HostApp != null)
         {
             try
             {
-                await App.HostApp.Start();
+                await HostApp.Start();
                 if (DataContext is MainViewModel viewModel)
                 {
                     viewModel.ForceStateRefresh();
@@ -92,11 +104,11 @@ public partial class MainView : UserControl
 
     private void PauseButton_Click(object? sender, RoutedEventArgs e)
     {
-        if (App.HostApp != null)
+        if (HostApp != null)
         {
             try
             {
-                App.HostApp.Pause();
+                HostApp.Pause();
                 if (DataContext is MainViewModel viewModel)
                 {
                     viewModel.ForceStateRefresh();
@@ -115,11 +127,11 @@ public partial class MainView : UserControl
 
     private void StopButton_Click(object? sender, RoutedEventArgs e)
     {
-        if (App.HostApp != null)
+        if (HostApp != null)
         {
             try
             {
-                App.HostApp.Stop();
+                HostApp.Stop();
                 if (DataContext is MainViewModel viewModel)
                 {
                     viewModel.ForceStateRefresh();
@@ -138,11 +150,11 @@ public partial class MainView : UserControl
 
     private async void ResetButton_Click(object? sender, RoutedEventArgs e)
     {
-        if (App.HostApp != null)
+        if (HostApp != null)
         {
             try
             {
-                await App.HostApp.Reset();
+                await HostApp.Reset();
                 if (DataContext is MainViewModel viewModel)
                 {
                     viewModel.ForceStateRefresh();
@@ -159,24 +171,30 @@ public partial class MainView : UserControl
         }
     }
 
+    // Public property to access the EmulatorView
+    public EmulatorView? GetEmulatorView()
+    {
+        return this.FindControl<EmulatorView>("EmulatorView");
+    }
+
     private void FocusEmulator()
     {
         // Use Dispatcher to ensure focus is set after the UI has finished processing
         global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            // First, ensure the main window has focus
-            if (global::Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-            {
-                var mainWindow = desktop.MainWindow;
-                if (mainWindow != null)
-                {
-                    mainWindow.Activate();
-                    mainWindow.Focus();
-                }
-            }
+           {
+               // First, ensure the main window has focus
+               if (global::Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+               {
+                   var mainWindow = desktop.MainWindow;
+                   if (mainWindow != null)
+                   {
+                       mainWindow.Activate();
+                       mainWindow.Focus();
+                   }
+               }
 
-            // Then focus the emulator view
-            App.HostApp.EmulatorView.Focus();
-        }, global::Avalonia.Threading.DispatcherPriority.Loaded);
+               // Then focus the emulator view
+               HostApp?.EmulatorView?.Focus();
+           }, global::Avalonia.Threading.DispatcherPriority.Loaded);
     }
 }
