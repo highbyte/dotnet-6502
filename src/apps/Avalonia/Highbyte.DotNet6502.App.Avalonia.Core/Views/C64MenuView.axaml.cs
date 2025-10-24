@@ -350,40 +350,87 @@ public partial class C64MenuView : UserControl
 
     private void ToggleDiskSection_Click(object? sender, RoutedEventArgs e)
     {
-        var headerButton = this.FindControl<Button>("DiskSectionHeader");
-        var contentBorder = this.FindControl<Border>("DiskSectionContent");
-
-        if (headerButton != null && contentBorder != null)
-        {
-            contentBorder.IsVisible = !contentBorder.IsVisible;
-            headerButton.Content = contentBorder.IsVisible ? "▼ Disk Drive & .D64 images" : "▶ Disk Drive & .D64 images";
-        }
+        ToggleSection("DiskSectionHeader", "DiskSectionContent",
+                  new[] { ("LoadSaveSectionHeader", "LoadSaveSectionContent"),
+                         ("ConfigSectionHeader", "ConfigSectionContent") });
     }
 
     private void ToggleLoadSaveSection_Click(object? sender, RoutedEventArgs e)
     {
-        var headerButton = this.FindControl<Button>("LoadSaveSectionHeader");
-        var contentBorder = this.FindControl<Border>("LoadSaveSectionContent");
-
-        if (headerButton != null && contentBorder != null)
-        {
-            contentBorder.IsVisible = !contentBorder.IsVisible;
-            headerButton.Content = contentBorder.IsVisible ? "▼ Load/Save" : "▶ Load/Save";
-        }
+        ToggleSection("LoadSaveSectionHeader", "LoadSaveSectionContent",
+                new[] { ("DiskSectionHeader", "DiskSectionContent"),
+                    ("ConfigSectionHeader", "ConfigSectionContent") });
     }
 
     private void ToggleConfigSection_Click(object? sender, RoutedEventArgs e)
     {
-        var headerButton = this.FindControl<Button>("ConfigSectionHeader");
-        var contentBorder = this.FindControl<Border>("ConfigSectionContent");
+        ToggleSection("ConfigSectionHeader", "ConfigSectionContent",
+                  new[] { ("DiskSectionHeader", "DiskSectionContent"),
+                      ("LoadSaveSectionHeader", "LoadSaveSectionContent") });
+    }
+
+    /// <summary>
+    /// Toggles a collapsible section and collapses other specified sections if this one is being expanded.
+    /// The arrow character (▼/▶) at the start of the button content is automatically toggled.
+    /// </summary>
+    /// <param name="headerButtonName">Name of the header button control</param>
+    /// <param name="contentBorderName">Name of the content border control</param>
+    /// <param name="otherSectionsToCollapse">Array of tuples containing (headerName, contentName) for sections to collapse</param>
+    private void ToggleSection(
+        string headerButtonName,
+        string contentBorderName,
+        (string headerName, string contentName)[] otherSectionsToCollapse)
+    {
+        var headerButton = this.FindControl<Button>(headerButtonName);
+        var contentBorder = this.FindControl<Border>(contentBorderName);
 
         if (headerButton != null && contentBorder != null)
         {
-            contentBorder.IsVisible = !contentBorder.IsVisible;
-            headerButton.Content = contentBorder.IsVisible ? "▼ Configuration" : "▶ Configuration";
+            bool newExpandedState = !contentBorder.IsVisible;
+            SetSectionState(headerButton, contentBorder, newExpandedState);
+
+            // Collapse other sections if this section is being expanded
+            if (newExpandedState)
+            {
+                foreach (var (headerName, contentName) in otherSectionsToCollapse)
+                {
+                    var otherHeaderButton = this.FindControl<Button>(headerName);
+                    var otherContentBorder = this.FindControl<Border>(contentName);
+
+                    if (otherHeaderButton != null && otherContentBorder != null)
+                    {
+                        SetSectionState(otherHeaderButton, otherContentBorder, expanded: false);
+                    }
+                }
+            }
         }
     }
 
+    /// <summary>
+    /// Sets the state of a collapsible section (expanded or collapsed).
+    /// Updates both the visibility of the content and the arrow character in the header button.
+    /// </summary>
+    /// <param name="headerButton">The header button control</param>
+    /// <param name="contentBorder">The content border control</param>
+    /// <param name="expanded">True to expand the section, false to collapse it</param>
+    private void SetSectionState(Button headerButton, Border contentBorder, bool expanded)
+    {
+        contentBorder.IsVisible = expanded;
+
+        if (headerButton.Content is string content)
+        {
+            if (expanded)
+            {
+                // Expand: change ▶ to ▼
+                headerButton.Content = content.Replace("▶", "▼");
+            }
+            else
+            {
+                // Collapse: change ▼ to ▶
+                headerButton.Content = content.Replace("▼", "▶");
+            }
+        }
+    }
     // File operation event handlers
     private async void LoadPreloadedDisk_Click(object? sender, RoutedEventArgs e)
     {
@@ -415,44 +462,44 @@ public partial class C64MenuView : UserControl
 
                 var c64HostConfig = HostApp!.CurrentHostSystemConfig as C64HostConfig;
                 _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(
-       loggerFactory,
-            httpClient,
-       HostApp!,
-         corsProxyUrl: PlatformDetection.IsRunningInWebAssembly() ? c64HostConfig.CorsProxyURL : null);
+                   loggerFactory,
+                   httpClient,
+                   HostApp!,
+                    corsProxyUrl: PlatformDetection.IsRunningInWebAssembly() ? c64HostConfig.CorsProxyURL : null);
             }
 
             await _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
-            diskInfo,
-              stateHasChangedCallback: async () =>
-           {
-               viewModel.NotifyEmulatorStateChanged();
-               await Task.CompletedTask;
-           },
-       setConfigCallback: async (diskInfo) =>
-           {
-               if (HostApp?.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
-                   return;
+                diskInfo,
+                stateHasChangedCallback: async () =>
+                {
+                    viewModel.NotifyEmulatorStateChanged();
+                    await Task.CompletedTask;
+                },
+                setConfigCallback: async (diskInfo) =>
+                {
+                    if (HostApp?.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
+                        return;
 
-               var c64SystemConfig = c64HostConfig.SystemConfig;
+                    var c64SystemConfig = c64HostConfig.SystemConfig;
 
-               // Apply keyboard joystick settings to config object while emulator is stopped
-               c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
-               c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
+                    // Apply keyboard joystick settings to config object while emulator is stopped
+                    c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
+                    c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
 
-               // Apply renderer setting to config object while emulator is stopped
-               // TODO: If/when a optimized RenderType for use without bitmap graphics is available, set rendererProviderType appropriately here.
-               //Type rendererProviderType = diskInfo.RequiresBitmap ? typeof(Vic2Rasterizer) : typeof(C64VideoCommandStream);
-               Type rendererProviderType = typeof(Vic2Rasterizer);
-               c64HostConfig.SystemConfig.SetRenderProviderType(rendererProviderType);
+                    // Apply renderer setting to config object while emulator is stopped
+                    // TODO: If/when a optimized RenderType for use without bitmap graphics is available, set rendererProviderType appropriately here.
+                    //Type rendererProviderType = diskInfo.RequiresBitmap ? typeof(Vic2Rasterizer) : typeof(C64VideoCommandStream);
+                    Type rendererProviderType = typeof(Vic2Rasterizer);
+                    c64HostConfig.SystemConfig.SetRenderProviderType(rendererProviderType);
 
-               // Apply audio enabled setting to config object while emulator is stopped
-               c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
+                    // Apply audio enabled setting to config object while emulator is stopped
+                    c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
 
-               // Apply C64 variant setting to config object while emulator is stopped
-               await HostApp.SelectSystemConfigurationVariant(diskInfo.C64Variant);
+                    // Apply C64 variant setting to config object while emulator is stopped
+                    await HostApp.SelectSystemConfigurationVariant(diskInfo.C64Variant);
 
-               HostApp.UpdateHostSystemConfig(c64HostConfig);
-           });
+                    HostApp.UpdateHostSystemConfig(c64HostConfig);
+                });
         }
         catch (Exception ex)
         {

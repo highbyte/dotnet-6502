@@ -1,9 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-     xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
              x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.C64MenuView"
-      x:DataType="vm:C64MenuViewModel"
-   Focusable="False">
+             x:DataType="vm:C64MenuViewModel"
+             Focusable="False">
 
     <!-- DataContext will be set from constructor via DI -->
 
