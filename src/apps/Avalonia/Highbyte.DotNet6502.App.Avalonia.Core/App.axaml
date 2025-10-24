@@ -2,287 +2,322 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:Highbyte.DotNet6502.App.Avalonia.Core"
              x:Class="Highbyte.DotNet6502.App.Avalonia.Core.App"
-             RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+             RequestedThemeVariant="Dark">
+    <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.DataTemplates>
         <local:ViewLocator/>
     </Application.DataTemplates>
 
+    <!-- Application-wide resource colors -->
+    <!-- 80s Sci-Fi muted color palette -->
+    <Application.Resources>
+        <SolidColorBrush x:Key="PrimaryBg">#1A2332</SolidColorBrush>
+        <SolidColorBrush x:Key="SecondaryBg">#2A3544</SolidColorBrush>
+        <SolidColorBrush x:Key="AccentBg">#3A4556</SolidColorBrush>
+        <SolidColorBrush x:Key="PrimaryText">#E8EEF5</SolidColorBrush>
+        <SolidColorBrush x:Key="SecondaryText">#8B9BB0</SolidColorBrush>
+        <SolidColorBrush x:Key="HighlightGold">#B8A876</SolidColorBrush>
+        <SolidColorBrush x:Key="AccentBlue">#6B8CAE</SolidColorBrush>
+        <SolidColorBrush x:Key="SuccessColor">#5B8A7D</SolidColorBrush>
+        <SolidColorBrush x:Key="WarningColor">#B89D5F</SolidColorBrush>
+        <SolidColorBrush x:Key="DangerColor">#A85E5E</SolidColorBrush>
+        <SolidColorBrush x:Key="BorderColor">#4A5566</SolidColorBrush>
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
-        
+
+        <!-- Override FluentTheme default colors -->
+        <Style Selector="Window">
+            <Setter Property="Background" Value="{DynamicResource PrimaryBg}"/>
+        </Style>
+
         <!-- Typography Styles -->
         <Style Selector="TextBlock.h1">
             <Setter Property="FontSize" Value="20"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
         </Style>
-        
+
         <Style Selector="TextBlock.h2">
             <Setter Property="FontSize" Value="16"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <Style Selector="TextBlock.h3">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <Style Selector="TextBlock.body">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <Style Selector="TextBlock.body-light">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Foreground" Value="#A0AEC0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
         </Style>
-        
+
         <Style Selector="TextBlock.small">
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Foreground" Value="#A0AEC0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
         </Style>
-        
+
         <Style Selector="TextBlock.small-bold">
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#CBD5E0"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <Style Selector="TextBlock.tiny">
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <Style Selector="TextBlock.tiny-bold">
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <Style Selector="TextBlock.label">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#CBD5E0"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
         </Style>
-        
-        <Style Selector="TextBlock.error">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#F44336"/>
-        </Style>
-        
+
         <Style Selector="TextBlock.success">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#68D391"/>
+            <Setter Property="Foreground" Value="{DynamicResource SuccessColor}"/>
         </Style>
-        
+
         <Style Selector="TextBlock.warning">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#F6AD55"/>
+            <Setter Property="Foreground" Value="{DynamicResource WarningColor}"/>
         </Style>
-        
+
         <Style Selector="TextBlock.error">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#E53E3E"/>
+            <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
         </Style>
-        
+
         <Style Selector="TextBlock.monospace">
             <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="LightGray"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
         </Style>
-        
+
         <!-- Status text styling -->
         <Style Selector="TextBlock.status">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Foreground" Value="#F7FAFC"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <!-- Section headers in panels -->
         <Style Selector="TextBlock.section-header">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#CBD5E0"/>
+            <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
             <Setter Property="Margin" Value="0,20,0,5"/>
         </Style>
-        
+
         <!-- Field labels -->
         <Style Selector="TextBlock.field-label">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Foreground" Value="#CBD5E0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
         </Style>
-        
+
         <!-- Help text -->
         <Style Selector="TextBlock.help-text">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Foreground" Value="#A0AEC0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
-        
+
         <!-- Italic overlay text -->
         <Style Selector="TextBlock.overlay">
             <Setter Property="FontSize" Value="16"/>
             <Setter Property="FontStyle" Value="Italic"/>
-            <Setter Property="Foreground" Value="#718096"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
         </Style>
-        
+
         <!-- TextBox Styles - Matching TextBlock label styles -->
-        
+
         <!-- Default TextBox style -->
         <Style Selector="TextBox">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="MinHeight" Value="32"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="CornerRadius" Value="2"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
         </Style>
-        
+
+        <Style Selector="TextBox:focus">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+        </Style>
+
+        <Style Selector="TextBox:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+        </Style>
+
         <!-- TextBox matching h1 size (20px) -->
         <Style Selector="TextBox.h1">
             <Setter Property="FontSize" Value="20"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="MinHeight" Value="44"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
         </Style>
-        
+
         <!-- TextBox matching h2 size (16px) -->
         <Style Selector="TextBox.h2">
             <Setter Property="FontSize" Value="16"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="10,7"/>
             <Setter Property="MinHeight" Value="38"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <!-- TextBox matching h3 size (14px) -->
         <Style Selector="TextBox.h3">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="9,6"/>
             <Setter Property="MinHeight" Value="34"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <!-- TextBox matching body size (12px) -->
         <Style Selector="TextBox.body">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="MinHeight" Value="32"/>
-            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <!-- TextBox matching small size (11px) -->
         <Style Selector="TextBox.small">
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Padding" Value="6,4"/>
             <Setter Property="MinHeight" Value="28"/>
-            <Setter Property="Foreground" Value="#A0AEC0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
         </Style>
-        
+
         <!-- TextBox matching tiny size (10px) -->
         <Style Selector="TextBox.tiny">
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Padding" Value="6,4"/>
             <Setter Property="MinHeight" Value="26"/>
-            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <!-- TextBox matching label size (12px) -->
         <Style Selector="TextBox.label">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="6,4"/>
             <Setter Property="MinHeight" Value="28"/>
-            <Setter Property="Foreground" Value="#CBD5E0"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
-        
+
         <!-- TextBox matching field-label size (12px) -->
         <Style Selector="TextBox.field-label">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Padding" Value="6,4"/>
             <Setter Property="MinHeight" Value="28"/>
-            <Setter Property="Foreground" Value="#CBD5E0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
-        
+
         <!-- TextBox matching help-text size (12px) -->
         <Style Selector="TextBox.help-text">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="MinHeight" Value="32"/>
-            <Setter Property="Foreground" Value="#A0AEC0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
         </Style>
-        
+
         <!-- TextBox matching monospace style -->
         <Style Selector="TextBox.monospace">
             <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="MinHeight" Value="32"/>
-            <Setter Property="Foreground" Value="LightGray"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
         </Style>
-        
+
         <!-- TextBox matching status size (12px) -->
         <Style Selector="TextBox.status">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="MinHeight" Value="32"/>
-            <Setter Property="Foreground" Value="#F7FAFC"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <!-- TextBox matching section-header size (12px) -->
         <Style Selector="TextBox.section-header">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="MinHeight" Value="32"/>
-            <Setter Property="Foreground" Value="#CBD5E0"/>
+            <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
         </Style>
-        
+
         <!-- TextBox for large input -->
         <Style Selector="TextBox.large">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Padding" Value="10,8"/>
             <Setter Property="MinHeight" Value="38"/>
-            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <!-- TextBox for compact spaces -->
         <Style Selector="TextBox.compact">
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Padding" Value="6,3"/>
             <Setter Property="MinHeight" Value="26"/>
-            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
+        <!-- Field-aligned TextBox -->
+        <Style Selector="TextBox.field-aligned">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
         <!-- Button Styles -->
-        
+
         <!-- Default button style -->
         <Style Selector="Button">
             <Setter Property="FontSize" Value="12"/>
@@ -290,11 +325,23 @@
             <Setter Property="Padding" Value="12,4"/>
             <Setter Property="MinWidth" Value="60"/>
             <Setter Property="Height" Value="32"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="CornerRadius" Value="2"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        </Style>
+
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+        </Style>
+
+        <Style Selector="Button:pressed">
+            <Setter Property="Background" Value="{DynamicResource PrimaryBg}"/>
         </Style>
 
         <!-- Grid button style - for buttons that should fill grid cells -->
@@ -306,50 +353,75 @@
         <!-- Wide buttons for longer button text -->
         <Style Selector="Button.wide">
             <Setter Property="Width" Value="120"/>
-        </Style>        
+        </Style>
         <Style Selector="Button.extraWide">
             <Setter Property="Width" Value="180"/>
-        </Style>        
-        
+        </Style>
+
         <!-- Primary action buttons (Start, Save, etc.) -->
         <Style Selector="Button.primary">
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Background" Value="#38A169"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#2F855A"/>
+            <Setter Property="Background" Value="{DynamicResource SuccessColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+            <Setter Property="BorderBrush" Value="#4A6D62"/>
         </Style>
-        
+
+        <Style Selector="Button.primary:pointerover">
+            <Setter Property="Background" Value="#6B9F8F"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource HighlightGold}"/>
+        </Style>
+
         <!-- Secondary action buttons (Pause, Reset, etc.) -->
         <Style Selector="Button.secondary">
-            <Setter Property="Background" Value="#3182CE"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#2C5282"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+            <Setter Property="BorderBrush" Value="#5A7C9E"/>
         </Style>
-        
+
+        <Style Selector="Button.secondary:pointerover">
+            <Setter Property="Background" Value="#7B9CBE"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource HighlightGold}"/>
+        </Style>
+
         <!-- Warning action buttons (Pause, Stop, etc.) -->
         <Style Selector="Button.warning">
             <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Background" Value="#DD6B20"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#C05621"/>
+            <Setter Property="Background" Value="{DynamicResource WarningColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+            <Setter Property="BorderBrush" Value="#A88D4F"/>
         </Style>
-        
+
+        <Style Selector="Button.warning:pointerover">
+            <Setter Property="Background" Value="#C8AD6F"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource HighlightGold}"/>
+        </Style>
+
         <!-- Danger action buttons (Stop, Delete, etc.) -->
         <Style Selector="Button.danger">
             <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Background" Value="#E53E3E"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#C53030"/>
+            <Setter Property="Background" Value="{DynamicResource DangerColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+            <Setter Property="BorderBrush" Value="#984E4E"/>
         </Style>
-        
+
+        <Style Selector="Button.danger:pointerover">
+            <Setter Property="Background" Value="#B86E6E"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningColor}"/>
+        </Style>
+
         <!-- Accent buttons (special features) -->
         <Style Selector="Button.accent">
             <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Background" Value="#805AD5"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#6B46C1"/>
+            <Setter Property="Background" Value="{DynamicResource HighlightGold}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryBg}"/>
+            <Setter Property="BorderBrush" Value="#A89866"/>
         </Style>
-        
+
+        <Style Selector="Button.accent:pointerover">
+            <Setter Property="Background" Value="#C8B886"/>
+            <Setter Property="BorderBrush" Value="#D8C896"/>
+        </Style>
+
         <!-- Small buttons for compact spaces -->
         <Style Selector="Button.small">
             <Setter Property="FontSize" Value="11"/>
@@ -357,7 +429,7 @@
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="MinHeight" Value="28"/>
         </Style>
-        
+
         <!-- Large buttons for important actions -->
         <Style Selector="Button.large">
             <Setter Property="FontSize" Value="14"/>
@@ -365,7 +437,7 @@
             <Setter Property="Padding" Value="20,10"/>
             <Setter Property="MinHeight" Value="44"/>
         </Style>
-        
+
         <!-- Compact buttons with minimal padding -->
         <Style Selector="Button.compact">
             <Setter Property="FontSize" Value="11"/>
@@ -373,15 +445,19 @@
             <Setter Property="Padding" Value="6,3"/>
             <Setter Property="MinHeight" Value="24"/>
         </Style>
-        
+
         <!-- Text-only buttons (no background) -->
         <Style Selector="Button.text">
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="#3182CE"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
         </Style>
-        
+
+        <Style Selector="Button.text:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
+        </Style>
+
         <!-- Information buttons (? icon buttons) -->
         <Style Selector="Button.info">
             <Setter Property="FontSize" Value="10"/>
@@ -391,45 +467,62 @@
             <Setter Property="MinWidth" Value="16"/>
             <Setter Property="Width" Value="16"/>
             <Setter Property="Height" Value="16"/>
-            <Setter Property="CornerRadius" Value="11"/>
-            <Setter Property="Background" Value="#4A5568"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#6B7280"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
-        
+
         <!-- Information button hover effects -->
         <Style Selector="Button.info:pointerover">
-            <Setter Property="Background" Value="#5A6570"/>
-            <Setter Property="BorderBrush" Value="#8B8B8B"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
         <Style Selector="Button.info:pressed">
-            <Setter Property="Background" Value="#3A4148"/>
-            <Setter Property="BorderBrush" Value="#5A5A5A"/>
+            <Setter Property="Background" Value="{DynamicResource PrimaryBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
         </Style>
-        
+
         <!-- Cancel/dismiss buttons -->
         <Style Selector="Button.cancel">
-            <Setter Property="Background" Value="#4A5568"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
         </Style>
-        
+
+        <Style Selector="Button.cancel:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        </Style>
+
         <!-- ComboBox Styles -->
-        
+
         <!-- Default ComboBox style -->
         <Style Selector="ComboBox">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="Padding" Value="6,4"/>
             <Setter Property="MinHeight" Value="28"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="CornerRadius" Value="2"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
         </Style>
-        
+
+        <Style Selector="ComboBox:pointerover /template/ Border#Background">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+        </Style>
+
+        <Style Selector="ComboBox:focus /template/ Border#Background">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+        </Style>
+
         <!-- Small ComboBox for compact spaces -->
         <Style Selector="ComboBox.small">
             <Setter Property="FontSize" Value="11"/>
@@ -437,7 +530,7 @@
             <Setter Property="Padding" Value="4,3"/>
             <Setter Property="MinHeight" Value="24"/>
         </Style>
-        
+
         <!-- Large ComboBox for important selections -->
         <Style Selector="ComboBox.large">
             <Setter Property="FontSize" Value="14"/>
@@ -445,7 +538,7 @@
             <Setter Property="Padding" Value="10,8"/>
             <Setter Property="MinHeight" Value="38"/>
         </Style>
-        
+
         <!-- Compact ComboBox with minimal padding -->
         <Style Selector="ComboBox.compact">
             <Setter Property="FontSize" Value="11"/>
@@ -453,7 +546,7 @@
             <Setter Property="Padding" Value="4,2"/>
             <Setter Property="MinHeight" Value="22"/>
         </Style>
-        
+
         <!-- Field-aligned ComboBox to match field-label TextBlocks -->
         <Style Selector="ComboBox.field-aligned">
             <Setter Property="FontSize" Value="12"/>
@@ -462,21 +555,21 @@
             <Setter Property="MinHeight" Value="26"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
-        
+
         <!-- ComboBox item text styling -->
         <Style Selector="ComboBox TextBlock">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
         </Style>
-        
+
         <Style Selector="ComboBox.small TextBlock">
             <Setter Property="FontSize" Value="11"/>
         </Style>
-        
+
         <Style Selector="ComboBox.large TextBlock">
             <Setter Property="FontSize" Value="14"/>
         </Style>
-        
+
         <Style Selector="ComboBox.compact TextBlock">
             <Setter Property="FontSize" Value="11"/>
         </Style>
@@ -485,72 +578,92 @@
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
-        <!-- Updated TextBox Styles with better alignment -->
-        
-        <!-- TextBox matching label size (12px) with reduced padding for better alignment -->
-        <Style Selector="TextBox.label">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="6,4"/>
-            <Setter Property="MinHeight" Value="28"/>
-            <Setter Property="Foreground" Value="#CBD5E0"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        
-        <!-- TextBox matching field-label size (12px) with reduced padding -->
-        <Style Selector="TextBox.field-label">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Padding" Value="6,4"/>
-            <Setter Property="MinHeight" Value="28"/>
-            <Setter Property="Foreground" Value="#CBD5E0"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-
-        <!-- Field-aligned TextBox to match field-label TextBlocks -->
-        <Style Selector="TextBox.field-aligned">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Padding" Value="6,3"/>
-            <Setter Property="MinHeight" Value="26"/>
-            <Setter Property="Foreground" Value="#CBD5E0"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-
         <!-- CheckBox Styles -->
-        
+
         <!-- Default CheckBox style -->
         <Style Selector="CheckBox">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         </Style>
-        
+
+        <Style Selector="CheckBox /template/ Border#NormalRectangle">
+            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        </Style>
+
+        <Style Selector="CheckBox:pointerover /template/ Border#NormalRectangle">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+        </Style>
+
+        <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
+            <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+        </Style>
+
+        <Style Selector="CheckBox:checked:pointerover /template/ Border#NormalRectangle">
+            <Setter Property="Background" Value="#7B9CBE"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource HighlightGold}"/>
+        </Style>
+
         <!-- Field-aligned CheckBox to match field-label TextBlocks -->
         <Style Selector="CheckBox.field-aligned">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Foreground" Value="#CBD5E0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
         </Style>
-        
+
         <!-- Small CheckBox for compact spaces -->
         <Style Selector="CheckBox.small">
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Foreground" Value="#A0AEC0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
         </Style>
-        
+
         <!-- Large CheckBox for important selections -->
         <Style Selector="CheckBox.large">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Normal"/>
-            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        </Style>
+
+        <!-- Slider Styles -->
+        <Style Selector="Slider">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+        </Style>
+
+        <Style Selector="Slider /template/ Thumb">
+            <Setter Property="Background" Value="{DynamicResource HighlightGold}"/>
+        </Style>
+
+        <Style Selector="Slider /template/ Thumb:pointerover">
+            <Setter Property="Background" Value="#C8B886"/>
+        </Style>
+
+        <!-- Border Styles -->
+        <Style Selector="Border">
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        </Style>
+
+        <!-- Panel/Container backgrounds -->
+        <Style Selector="Panel">
+            <Setter Property="Background" Value="Transparent"/>
         </Style>
 
         <!-- Expander item text styling -->
         <Style Selector="Expander">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        </Style>
+
+        <Style Selector="Expander /template/ ToggleButton">
+            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        </Style>
+
+        <Style Selector="Expander /template/ ToggleButton:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
         </Style>
     </Application.Styles>
 </Application>
