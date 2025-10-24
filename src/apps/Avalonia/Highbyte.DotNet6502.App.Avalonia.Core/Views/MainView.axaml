@@ -42,19 +42,27 @@
                 BorderThickness="0,0,1,0"
                 Padding="10">
             <StackPanel Spacing="6">
-                <!-- System Selection -->
+                <!-- System Selection, Variant, and Status - Unified Grid -->
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="Labels" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0"
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="6" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="6" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- System Selection -->
+                    <TextBlock Grid.Row="0" Grid.Column="0"
                                Text="System:"
                                Classes="label"
                                VerticalAlignment="Center"
                                Margin="0,0,8,0"/>
-
-                    <ComboBox Grid.Column="1"
+                    <ComboBox Grid.Row="0" Grid.Column="1"
                               Name="SystemSelectionComboBox"
                               ItemsSource="{Binding AvailableSystems}"
                               SelectedItem="{Binding SelectedSystemName}"
@@ -62,21 +70,14 @@
                               IsEnabled="{Binding IsSystemSelectionEnabled}"
                               Classes="compact"
                               MinWidth="100"/>
-                </Grid>
 
-                <!-- System Variant Selection -->
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0"
+                    <!-- System Variant Selection -->
+                    <TextBlock Grid.Row="2" Grid.Column="0"
                                Text="Variant:"
                                Classes="label"
                                VerticalAlignment="Center"
                                Margin="0,0,8,0"/>
-
-                    <ComboBox Grid.Column="1"
+                    <ComboBox Grid.Row="2" Grid.Column="1"
                               Name="SystemVariantSelectionComboBox"
                               ItemsSource="{Binding AvailableSystemVariants}"
                               SelectedItem="{Binding SelectedSystemVariant}"
@@ -84,20 +85,14 @@
                               IsEnabled="{Binding IsVariantSelectionEnabled}"
                               Classes="compact"
                               MinWidth="100"/>
-                </Grid>
 
-                <!-- Status -->
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0"
+                    <!-- Status -->
+                    <TextBlock Grid.Row="4" Grid.Column="0"
                                Text="Status:"
                                Classes="label"
                                VerticalAlignment="Center"
                                Margin="0,0,8,0"/>
-                    <TextBlock Grid.Column="1"
+                    <TextBlock Grid.Row="4" Grid.Column="1"
                                Text="{Binding EmulatorState}"
                                Classes="status"/>
                 </Grid>

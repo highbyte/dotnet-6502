@@ -12,12 +12,12 @@
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
     </UserControl.Styles>
 
-    <!-- C64 Specific Settings -->
+    <!-- C64 Specific actions and settings -->
     <StackPanel Spacing="6"
                 Margin="0,12,0,0"
                 IsVisible="{Binding IsC64SystemSelected}">
-        <TextBlock Text="C64 Settings:"
-                   Classes="section-header"/>
+        <TextBlock Text="C64"
+                   Classes="section-header" />
 
         <!-- Copy/Paste buttons -->
         <Grid>
