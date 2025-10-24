@@ -42,27 +42,6 @@ public partial class C64MenuView : UserControl
         // Refresh UI when ViewModel is set
         if (ViewModel != null)
         {
-            UpdateDiskToggleButtonStyle();
-        }
-    }
-
-    private void UpdateDiskToggleButtonStyle()
-    {
-        var diskToggleButton = this.FindControl<Button>("DiskToggleButton");
-        if (diskToggleButton != null && ViewModel != null)
-        {
-            // Clear existing classes
-            diskToggleButton.Classes.Clear();
-
-            // Add the appropriate class based on disk attachment state
-            if (ViewModel.IsDiskImageAttached)
-            {
-                diskToggleButton.Classes.Add("warning");
-            }
-            else
-            {
-                diskToggleButton.Classes.Add("secondary");
-            }
         }
     }
 
@@ -265,8 +244,7 @@ public partial class C64MenuView : UserControl
 
     public async Task ToggleDiskImage()
     {
-        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized ||
- !IsC64System())
+        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized || !IsC64System())
             return;
 
         try
@@ -290,9 +268,6 @@ public partial class C64MenuView : UserControl
             {
                 viewModel.NotifyDiskImageStateChanged();
             }
-
-            // Update button styling
-            UpdateDiskToggleButtonStyle();
         }
         catch (Exception ex)
         {

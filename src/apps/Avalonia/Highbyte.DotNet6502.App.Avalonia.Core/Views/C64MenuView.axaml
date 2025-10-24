@@ -28,7 +28,6 @@
             </Grid.ColumnDefinitions>
             <Button Grid.Column="0"
                     Content="Copy"
-                    Classes="accent"
                     IsEnabled="{Binding IsCopyPasteEnabled}"
                     Click="CopyBasicSource_Click"
                     FontSize="11"
@@ -36,7 +35,6 @@
                     Height="24"/>
             <Button Grid.Column="2"
                     Content="Paste"
-                    Classes="accent"
                     IsEnabled="{Binding IsCopyPasteEnabled}"
                     Click="PasteText_Click"
                     FontSize="11"
@@ -185,7 +183,6 @@
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
                                 Content="Load Basic"
-                                Classes="secondary"
                                 IsEnabled="{Binding IsFileOperationEnabled}"
                                 Click="LoadBasicFile_Click"
                                 FontSize="10"
@@ -193,7 +190,6 @@
                                 Height="22"/>
                         <Button Grid.Column="2"
                                 Content="Save Basic"
-                                Classes="secondary"
                                 IsEnabled="{Binding IsFileOperationEnabled}"
                                 Click="SaveBasicFile_Click"
                                 FontSize="10"
@@ -202,7 +198,7 @@
                     </Grid>
 
                     <Button Content="Load &amp; start binary"
-                            Classes="secondary"
+                            Classes="primary"
                             IsEnabled="{Binding IsFileOperationEnabled}"
                             Click="LoadBinaryFile_Click"
                             FontSize="11"
@@ -334,7 +330,6 @@
                     </Grid>
 
                     <Button Content="C64 Config"
-                            Classes="accent"
                             Click="OpenC64Config_Click"
                             IsEnabled="{Binding IsC64ConfigEnabled}"
                             FontSize="11"

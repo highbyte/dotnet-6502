@@ -50,7 +50,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0"
                                Text="System:"
-                               Classes="section-header"
+                               Classes="label"
                                VerticalAlignment="Center"
                                Margin="0,0,8,0"/>
 
@@ -72,7 +72,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0"
                                Text="Variant:"
-                               Classes="section-header"
+                               Classes="label"
                                VerticalAlignment="Center"
                                Margin="0,0,8,0"/>
 
@@ -87,22 +87,22 @@
                 </Grid>
 
                 <!-- Status -->
-                <TextBlock Text="Status:"
-                           Classes="section-header"
-                           Margin="0,8,0,4"/>
-
-                <Border Background="#4A5568"
-                        CornerRadius="4"
-                        Padding="8">
-                    <TextBlock Text="{Binding EmulatorState}"
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="Status:"
+                               Classes="label"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding EmulatorState}"
                                Classes="status"/>
-                </Border>
+                </Grid>
 
-                <!-- Emulator Controls -->
-                <TextBlock Text="Controls:"
-                           Classes="section-header"
-                           Margin="0,8,0,4"/>
-
+                <!-- Control Buttons -->
                 <StackPanel Spacing="4">
                     <!-- First row: Start and Pause -->
                     <Grid>
@@ -152,7 +152,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0"
                                    Text="Scale:"
-                                   Classes="body"
+                                   Classes="label"
                                    VerticalAlignment="Center"
                                    Margin="0,0,8,0"/>
                         <Slider Grid.Column="1"
@@ -163,21 +163,9 @@
                     </Grid>
 
                     <!-- Audio Settings -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0"
-                                   Text="Audio:"
-                                   Classes="body"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,8,0"/>
-                        <CheckBox Grid.Column="1"
-                                  Content="Enabled"
-                                  Foreground="White"
-                                  VerticalAlignment="Center"/>
-                    </Grid>
+                    <CheckBox Grid.Column="1"
+                                Content="Audio"
+                                VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <!-- C64 Menu -->

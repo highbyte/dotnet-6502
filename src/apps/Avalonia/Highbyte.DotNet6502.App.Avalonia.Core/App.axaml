@@ -409,19 +409,6 @@
             <Setter Property="BorderBrush" Value="{DynamicResource WarningColor}"/>
         </Style>
 
-        <!-- Accent buttons (special features) -->
-        <Style Selector="Button.accent">
-            <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Background" Value="{DynamicResource HighlightGold}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryBg}"/>
-            <Setter Property="BorderBrush" Value="#A89866"/>
-        </Style>
-
-        <Style Selector="Button.accent:pointerover">
-            <Setter Property="Background" Value="#C8B886"/>
-            <Setter Property="BorderBrush" Value="#D8C896"/>
-        </Style>
-
         <!-- Small buttons for compact spaces -->
         <Style Selector="Button.small">
             <Setter Property="FontSize" Value="11"/>
