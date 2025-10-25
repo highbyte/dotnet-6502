@@ -296,7 +296,10 @@ public partial class MainView : UserControl
         if (HostApp?.Monitor == null)
             return;
 
-        var monitorControl = new MonitorUserControl(HostApp, HostApp.Monitor);
+        var monitorControl = new MonitorUserControl(HostApp, HostApp.Monitor)
+        {
+            MaxHeight = 600  // Limit height in Browser mode to prevent unbounded expansion
+        };
 
         _monitorOverlay = new Panel
         {
