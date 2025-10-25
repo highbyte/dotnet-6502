@@ -67,7 +67,7 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Used from Browser app where resources are loaded from HTTP and logs are written to browser F12 console.
+    /// Used from Browser app where resources are loaded from HTTP and logs are written to browser Dev console.
     /// </summary>
     /// <param name="configuration"></param>
     /// <param name="emulatorConfig"></param>
@@ -136,10 +136,14 @@ public partial class App : Application
 
 #if DEBUG
         // Rebind DevTools away from F12 (e.g., Ctrl+F12)
-        this.AttachDevTools(new DevToolsOptions
+        // Only attach DevTools when running as a desktop application
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime)
         {
-            Gesture = new KeyGesture(Key.F12, KeyModifiers.Control)
-        });
+            this.AttachDevTools(new DevToolsOptions
+            {
+                Gesture = new KeyGesture(Key.F12, KeyModifiers.Control)
+            });
+        }
 #endif
 
         // Initialize the emulator host app
