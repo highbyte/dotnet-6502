@@ -22,6 +22,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     // Injected via constructor
     private readonly ILogger _logger;
     private readonly SystemList<TInputHandlerContext, TAudioHandlerContext> _systemList;
+    private readonly bool _useStatsNamePrefix;
 
     // Other variables
     private string _selectedSystemName;
@@ -75,6 +76,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     }
 
     private readonly string _hostName;
+    private string _statsPrefix => string.IsNullOrEmpty(_hostName) || !_useStatsNamePrefix ? string.Empty : $"{_hostName}-";
     private const string SystemTimeStatName = "SystemTime";
     private const string RenderStatName = "Render";
     private const string InputTimeStatName = "InputTime";
@@ -90,17 +92,19 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     public HostApp(
         string hostName,
         SystemList<TInputHandlerContext, TAudioHandlerContext> systemList,
-        ILoggerFactory loggerFactory
+        ILoggerFactory loggerFactory,
+        bool useStatsNamePrefix = true
         )
     {
         _hostName = hostName;
-        _updateFps = _instrumentations.Add($"{_hostName}-OnUpdateFPS", new PerSecondTimedStat());
+        _updateFps = _instrumentations.Add($"{_statsPrefix}OnUpdateFPS", new PerSecondTimedStat());
 
         _logger = loggerFactory.CreateLogger("HostApp");
 
         if (systemList.Systems.Count == 0)
             throw new DotNet6502Exception("No systems added to system list.");
         _systemList = systemList;
+        _useStatsNamePrefix = useStatsNamePrefix;
 
         //Note: Because selecting a system (incl which variants it has) requires async call,
         //      call SelectSystem(string systemName) after HostApp is created to set the initial system.
@@ -473,9 +477,9 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     private void InitInstrumentation(ISystem system)
     {
         _systemInstrumentations.Clear();
-        _systemTime = _systemInstrumentations.Add($"{_hostName}-{SystemTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
-        _inputTime = _systemInstrumentations.Add($"{_hostName}-{InputTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
-        //_audioTime = InstrumentationBag.Add($"{HostStatRootName}-{AudioTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
+        _systemTime = _systemInstrumentations.Add($"{_statsPrefix}{SystemTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
+        _inputTime = _systemInstrumentations.Add($"{_statsPrefix}{InputTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
+        //_audioTime = InstrumentationBag.Add($"{_statsPrefix}{AudioTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
     }
 
     public List<(string name, IStat stat)> GetStats()
@@ -483,18 +487,22 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         if (_systemRunner == null)
             return new List<(string name, IStat)>();
 
-        return _instrumentations.Stats
+        var stats = _instrumentations.Stats
             // Overall stats
             .Union(_systemInstrumentations.Stats)
             // Sub-system stat: system
-            .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
-            // Sub-system stat: render
-            .Union(_renderCoordinator.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{RenderStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{SystemTimeStatName}-{x.Name}", x.Stat)))
             // Sub-system stat: audio
-            .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{AudioTimeStatName}-{x.Name}", x.Stat)))
             // Sub-system stat: input
-            .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{InputTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{InputTimeStatName}-{x.Name}", x.Stat)))
             .ToList();
+
+        // Sub-system stat: render
+        if (_renderCoordinator != null)
+            stats.AddRange(_renderCoordinator.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{RenderStatName}-{x.Name}", x.Stat)));
+
+        return stats;
     }
 
     #region IManualRenderingProvider implementation

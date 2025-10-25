@@ -13,14 +13,20 @@ public class StatisticItem
     public string Value { get; set; } = string.Empty;
 }
 
+public class StatisticSection
+{
+    public string Title { get; set; } = string.Empty;
+    public ObservableCollection<StatisticItem> Items { get; } = new();
+}
+
 public class StatisticsViewModel : ViewModelBase, IDisposable
 {
     private readonly DispatcherTimer _updateTimer;
     private readonly AvaloniaHostApp _hostApp;
     private bool _disposed = false;
 
-    // Dynamic Statistics Collection
-    public ObservableCollection<StatisticItem> Statistics { get; } = new ObservableCollection<StatisticItem>();
+    // Dynamic Statistics Collection grouped by section
+    public ObservableCollection<StatisticSection> Sections { get; } = new();
 
     public StatisticsViewModel(AvaloniaHostApp hostApp)
     {
@@ -56,38 +62,56 @@ public class StatisticsViewModel : ViewModelBase, IDisposable
 
     private void UpdatePerformanceStats(List<(string name, IStat stat)> stats)
     {
-        // Clear existing statistics
-        Statistics.Clear();
+        Sections.Clear();
 
-        // Add new statistics from the host app
-        foreach ((string name, IStat stat) in stats.OrderBy(i => i.name))
+        var groupedStats = new Dictionary<string, List<StatisticItem>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach ((string name, IStat stat) in stats.OrderBy(i => i.name, StringComparer.OrdinalIgnoreCase))
         {
             if (!stat.ShouldShow())
                 continue;
 
             var description = stat.GetDescription();
+            var nameParts = name.Split('-', StringSplitOptions.RemoveEmptyEntries);
 
-            Statistics.Add(new StatisticItem
+            var sectionName = nameParts.Length > 1
+                ? string.Join('-', nameParts[..^1])
+                : "Main";
+
+            var displayName = nameParts.Length > 1
+                ? nameParts[^1]
+                : nameParts[0];
+
+            if (!groupedStats.TryGetValue(sectionName, out var items))
             {
-                Name = name,
+                items = new List<StatisticItem>();
+                groupedStats[sectionName] = items;
+            }
+
+            items.Add(new StatisticItem
+            {
+                Name = displayName,
                 Value = description
             });
         }
-    }
 
-    private string GetDisplayName(string statName)
-    {
-        var displayName = statName;
-        // Remove host name prefix if present
-        var parts = statName.Split('-');
-        if (parts.Length > 1)
+        foreach (var section in groupedStats
+                     .OrderBy(kvp => kvp.Key.Equals("Root", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                     .ThenBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase))
         {
-            displayName = string.Join(" ", parts.Skip(1));
-        }
+            var statisticSection = new StatisticSection
+            {
+                Title = section.Key
+            };
 
-        // Convert from PascalCase to readable format
-        //displayName = System.Text.RegularExpressions.Regex.Replace(displayName, "([a-z])([A-Z])", "$1 $2");
-        return displayName;
+            foreach (var item in section.Value
+                         .OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                statisticSection.Items.Add(item);
+            }
+
+            Sections.Add(statisticSection);
+        }
     }
 
     public void Dispose()

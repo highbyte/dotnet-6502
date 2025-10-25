@@ -78,6 +78,8 @@ public class MainViewModel : ViewModelBase
     public bool IsStopButtonEnabled => EmulatorState != EmulatorState.Uninitialized;
 
     public bool IsResetButtonEnabled => EmulatorState != EmulatorState.Uninitialized;
+    public bool IsMonitorButtonEnabled => EmulatorState != EmulatorState.Uninitialized;
+    public bool IsStatsButtonEnabled => EmulatorState != EmulatorState.Uninitialized;
 
     // Private field to cache system config validity - updated when system changes
     private bool _isSystemConfigValid = false;
@@ -141,6 +143,8 @@ public class MainViewModel : ViewModelBase
             this.RaisePropertyChanged(nameof(IsPauseButtonEnabled));
             this.RaisePropertyChanged(nameof(IsStopButtonEnabled));
             this.RaisePropertyChanged(nameof(IsResetButtonEnabled));
+            this.RaisePropertyChanged(nameof(IsMonitorButtonEnabled));
+            this.RaisePropertyChanged(nameof(IsStatsButtonEnabled));
 
             // Notify C64-specific property changes
             C64MenuViewModel?.NotifyEmulatorStateChanged();

@@ -136,6 +136,25 @@
                                 IsEnabled="{Binding IsStopButtonEnabled}"
                                 Click="StopButton_Click"/>
                     </Grid>
+
+                    <!-- Third row: Monitor and Stats -->
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Content="Monitor"
+                                Classes="grid"
+                                IsEnabled="{Binding IsMonitorButtonEnabled}"
+                                Click="MonitorButton_Click"/>
+                        <Button Grid.Column="2"
+                                Content="Stats"
+                                Classes="grid"
+                                IsEnabled="{Binding IsStatsButtonEnabled}"
+                                Click="StatsButton_Click"/>
+                    </Grid>                    
                 </StackPanel>
 
                 <!-- Display Settings -->
@@ -260,10 +279,10 @@
         <!-- Info and Stats Panel (Right) -->
         <Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="3"
                 Background="#2D3748"
-         BorderBrush="#4A5568"
-        BorderThickness="1,0,0,0"
-      Padding="10"
-     IsVisible="true">
+                BorderBrush="#4A5568"
+                BorderThickness="1,0,0,0"
+                Padding="10"
+                IsVisible="{Binding IsStatisticsPanelVisible}">
             <ScrollViewer>
                 <views:StatisticsView DataContext="{Binding StatisticsViewModel}" />
             </ScrollViewer>

@@ -171,6 +171,52 @@ public partial class MainView : UserControl
         }
     }
 
+    private async void MonitorButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (HostApp != null)
+        {
+            try
+            {
+                // TODO
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.ForceStateRefresh();
+                }
+            }
+            catch (Exception)
+            {
+                // Handle exception if needed
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.ForceStateRefresh();
+                }
+            }
+        }
+    }
+
+    private async void StatsButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (HostApp != null)
+        {
+            try
+            {
+                HostApp.ToggleStatisticsPanel();
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.ForceStateRefresh();
+                }
+            }
+            catch (Exception)
+            {
+                // Handle exception if needed
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.ForceStateRefresh();
+                }
+            }
+        }
+    }
+
     // Public property to access the EmulatorView
     public EmulatorView? GetEmulatorView()
     {

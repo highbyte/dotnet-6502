@@ -73,7 +73,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
         EmulatorConfig emulatorConfig
-        ) : base("Avalonia", systemList, loggerFactory)
+        ) : base("Avalonia", systemList, loggerFactory, useStatsNamePrefix: false)
     {
         _logger = loggerFactory.CreateLogger(typeof(AvaloniaHostApp).Name);
         _emulatorConfig = emulatorConfig;

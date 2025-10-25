@@ -7,7 +7,8 @@
              x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.StatisticsView"
              x:DataType="vm:StatisticsViewModel">
 
-    <StackPanel Spacing="10">
+    <StackPanel Spacing="10"
+                Grid.IsSharedSizeScope="True">
         <!-- Performance Stats -->
         <TextBlock Text="Stats"
                    Classes="h3"
@@ -16,17 +17,34 @@
         <Border Background="#4A5568"
                Padding="8"
                CornerRadius="4">
-            <ItemsControl ItemsSource="{Binding Statistics}">
+            <ItemsControl ItemsSource="{Binding Sections}"
+                          HorizontalAlignment="Stretch">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                            <TextBlock Text="{Binding Name}"
-                                       Classes="tiny-bold"
-                                       MinWidth="120"/>
-                            <TextBlock Text=": "
-                                       Classes="tiny"/>
-                            <TextBlock Text="{Binding Value}"
-                                       Classes="tiny"/>
+                        <StackPanel Margin="0,8,0,0"
+                                    HorizontalAlignment="Stretch">
+                            <TextBlock Text="{Binding Title, StringFormat='{}{0}:'}"
+                                       Classes="label"/>
+                            <ItemsControl ItemsSource="{Binding Items}"
+                                          HorizontalAlignment="Stretch">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,2"
+                                              HorizontalAlignment="Stretch">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"
+                                                                  SharedSizeGroup="StatName"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Name}"
+                                                       Classes="tiny"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Value}"
+                                                       Classes="tiny"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
