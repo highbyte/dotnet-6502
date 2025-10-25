@@ -16,7 +16,7 @@ public class AvaloniaMonitor : MonitorBase
     private const int MaxOutputLines = 500;
 
     private readonly ObservableCollection<MonitorEntry> _outputLines = new();
-    private readonly ObservableCollection<string> _statusLines = new();
+    private readonly ObservableCollection<StatusLineEntry> _statusLines = new();
 
     private readonly List<string> _history = new();
     private int _historyIndex;
@@ -30,7 +30,7 @@ public class AvaloniaMonitor : MonitorBase
 
     public ObservableCollection<MonitorEntry> OutputLines => _outputLines;
 
-    public ObservableCollection<string> StatusLines => _statusLines;
+    public ObservableCollection<StatusLineEntry> StatusLines => _statusLines;
 
     public bool IsVisible { get; private set; }
 
@@ -115,11 +115,19 @@ public class AvaloniaMonitor : MonitorBase
         {
             _statusLines.Clear();
 
+            // First line: CPU registers
+            var cpuLine = new StatusLineEntry();
             foreach (var register in cpuState)
-                _statusLines.Add($"{register.Key}: {register.Value}");
+                cpuLine.AddItem(register.Key, register.Value);
+            _statusLines.Add(cpuLine);
 
+            // Additional lines: System info
             foreach (var info in systemInfo)
-                _statusLines.Add($"SYS: {info}");
+            {
+                var sysLine = new StatusLineEntry();
+                sysLine.AddItem("SYS", info);
+                _statusLines.Add(sysLine);
+            }
         });
     }
 
@@ -247,3 +255,18 @@ public class AvaloniaMonitor : MonitorBase
 }
 
 public record MonitorEntry(string Text, MessageSeverity Severity, bool IsCommand);
+
+public class StatusLineEntry
+{
+    public List<StatusItem> Items { get; private set; } = new();
+
+    public void AddItem(string key, object value)
+    {
+        Items.Add(new StatusItem(key, value));
+    }
+
+    public override string ToString()
+    {
+        return string.Join(", ", Items.Select(item => $"{item.Key}: {item.Value}"));
+    }
+}

@@ -75,9 +75,31 @@
         <Border Grid.Row="2" Classes="status-container" Padding="12">
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="140">
                 <ItemsControl ItemsSource="{Binding StatusLines}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="4"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding}" Classes="status-line monitor-font"/>
+                        <DataTemplate x:DataType="monitor:StatusLineEntry">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <ItemsControl ItemsSource="{Binding Items}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="12"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="{Binding Key}" Classes="status-line monitor-font" Foreground="#A0AEC0" FontWeight="Bold"/>
+                                                <TextBlock Text=":" Classes="status-line monitor-font" Foreground="#A0AEC0"/>
+                                                <TextBlock Text="{Binding Value}" Classes="status-line monitor-font" Foreground="#E2E8F0"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

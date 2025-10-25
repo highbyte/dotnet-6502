@@ -18,7 +18,7 @@ public class MonitorViewModel : ViewModelBase
 
     public ObservableCollection<MonitorEntry> OutputLines => _monitor.OutputLines;
 
-    public ObservableCollection<string> StatusLines => _monitor.StatusLines;
+    public ObservableCollection<StatusLineEntry> StatusLines => _monitor.StatusLines;
 
     public string InputText
     {
