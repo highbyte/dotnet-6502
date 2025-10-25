@@ -338,6 +338,16 @@ public partial class MainView : UserControl
             mainGrid.Children.Remove(_monitorOverlay);
 
         _monitorOverlay = null;
+
+        // Restore focus to EmulatorView after closing overlay in Browser mode
+        if (PlatformDetection.IsRunningInWebAssembly())
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                var emulatorView = this.FindControl<EmulatorView>("EmulatorView");
+                emulatorView?.Focus();
+            }, DispatcherPriority.Loaded);
+        }
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
