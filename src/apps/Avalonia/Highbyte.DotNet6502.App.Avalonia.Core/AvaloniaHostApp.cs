@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.Input;
+using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
 using Highbyte.DotNet6502.App.Avalonia.Core.Render;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.App.Avalonia.Core.Views;
@@ -35,6 +36,16 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     private PeriodicAsyncTimer? _updateTimer;
     private EmulatorView _emulatorView = default!;
     public EmulatorView EmulatorView => _emulatorView;
+
+    private AvaloniaMonitor? _monitor;
+    public AvaloniaMonitor? Monitor => _monitor;
+
+    public event EventHandler<bool>? MonitorVisibilityChanged;
+
+    private void RaiseMonitorVisibilityChanged(bool isVisible)
+    {
+        MonitorVisibilityChanged?.Invoke(this, isVisible);
+    }
 
     // Expose LoggerFactory for use in views that are note created through DI.
     public ILoggerFactory LoggerFactory => _loggerFactory;
@@ -152,6 +163,12 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             _updateTimer = CreateAsyncUpdateTimerForSystem(CurrentSystemRunner!.System);
         }
         _updateTimer.Start();
+
+        if (emulatorStateBeforeStart == EmulatorState.Uninitialized)
+        {
+            _monitor = new AvaloniaMonitor(CurrentSystemRunner!, _emulatorConfig.Monitor);
+            RaiseMonitorVisibilityChanged(false);
+        }
     }
 
     public override void OnAfterPause()
@@ -168,6 +185,13 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             _updateTimer.Dispose();
             _updateTimer = null;
         }
+
+        if (_monitor != null)
+        {
+            if (_monitor.IsVisible)
+                DisableMonitor();
+            _monitor = null;
+        }
     }
 
     public override void OnAfterClose()
@@ -183,6 +207,13 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             _updateTimer.Elapsed -= UpdateTimerElapsed;
             _updateTimer.Dispose();
             _updateTimer = null;
+        }
+
+        if (_monitor != null)
+        {
+            if (_monitor.IsVisible)
+                DisableMonitor();
+            _monitor = null;
         }
     }
 
@@ -212,6 +243,13 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
 
         // Don't update emulator state when emulator is not running
         if (EmulatorState != EmulatorState.Running)
+        {
+            shouldRun = false;
+            shouldReceiveInput = false;
+            return;
+        }
+
+        if (_monitor?.IsVisible == true)
         {
             shouldRun = false;
             shouldReceiveInput = false;
@@ -280,6 +318,45 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         viewModel.ToggleStatisticsPanel();
     }
 
+    public void ToggleMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
+    {
+        if (_monitor == null)
+            return;
+
+        if (EmulatorState == EmulatorState.Uninitialized)
+            return;
+
+        if (_monitor.IsVisible)
+            DisableMonitor();
+        else
+            EnableMonitor(execEvaluatorTriggerResult);
+    }
+
+    public void EnableMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
+    {
+        if (_monitor == null)
+            return;
+
+        _monitor.Enable(execEvaluatorTriggerResult);
+        RaiseMonitorVisibilityChanged(true);
+    }
+
+    public void DisableMonitor()
+    {
+        if (_monitor == null)
+        {
+            RaiseMonitorVisibilityChanged(false);
+            return;
+        }
+
+        if (_monitor.IsVisible)
+        {
+            _monitor.Disable();
+        }
+
+        RaiseMonitorVisibilityChanged(false);
+    }
+
     /// <summary>
     /// Receive Key Down event in emulator canvas.
     /// Also check for special non-emulator functions such as monitor and stats/debug
@@ -297,10 +374,11 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             // Toggle statistics/debug view
             ToggleStatisticsPanel();
         }
-        // else if (key == "F12" && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
-        // {
-        //     ToggleMonitor();
-        // }
+        else if (key == Key.F12 && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
+        {
+            _logger.LogInformation("F12 pressed - toggling monitor");
+            ToggleMonitor();
+        }
         // else if (key == "F9" && EmulatorState == EmulatorState.Running)
         // {
         //     var toggeledAssistantState = !((C64AspNetInputHandler)CurrentSystemRunner.InputHandler).CodingAssistantEnabled;

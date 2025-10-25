@@ -1,7 +1,13 @@
 using System;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using Avalonia.Layout;
+using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
@@ -11,14 +17,30 @@ public partial class MainView : UserControl
     // Access HostApp through ViewModel
     private AvaloniaHostApp? HostApp => (DataContext as MainViewModel)?.HostApp;
 
+    private AvaloniaHostApp? _subscribedHostApp;
+    private MonitorDialog? _monitorWindow;
+    private Panel? _monitorOverlay;
+
     // Parameterless constructor - child views created by XAML!
     public MainView()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
         // DataContext will be set from App.axaml.cs via DI
         // Child views (C64MenuView, StatisticsView, EmulatorView) are created by XAML
         // and get their DataContext through XAML bindings
 
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (_subscribedHostApp != null)
+            _subscribedHostApp.MonitorVisibilityChanged -= OnMonitorVisibilityChanged;
+
+        _subscribedHostApp = HostApp;
+
+        if (_subscribedHostApp != null)
+            _subscribedHostApp.MonitorVisibilityChanged += OnMonitorVisibilityChanged;
     }
 
     private void MainView_Loaded(object? sender, RoutedEventArgs e)
@@ -171,27 +193,161 @@ public partial class MainView : UserControl
         }
     }
 
-    private async void MonitorButton_Click(object? sender, RoutedEventArgs e)
+    private void MonitorButton_Click(object? sender, RoutedEventArgs e)
     {
-        if (HostApp != null)
+        if (HostApp == null)
+            return;
+
+        try
         {
-            try
+            HostApp.ToggleMonitor();
+        }
+        catch (Exception)
+        {
+            if (DataContext is MainViewModel viewModel)
             {
-                // TODO
-                if (DataContext is MainViewModel viewModel)
-                {
-                    viewModel.ForceStateRefresh();
-                }
-            }
-            catch (Exception)
-            {
-                // Handle exception if needed
-                if (DataContext is MainViewModel viewModel)
-                {
-                    viewModel.ForceStateRefresh();
-                }
+                viewModel.ForceStateRefresh();
             }
         }
+    }
+
+    private void OnMonitorVisibilityChanged(object? sender, bool isVisible)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (isVisible)
+                ShowMonitorUI();
+            else
+                CloseMonitorUI();
+        });
+    }
+
+    private void ShowMonitorUI()
+    {
+        if (HostApp?.Monitor == null)
+            return;
+
+        if (PlatformDetection.IsRunningInWebAssembly())
+        {
+            ShowMonitorOverlay();
+        }
+        else
+        {
+            ShowMonitorWindow();
+        }
+    }
+
+    private void CloseMonitorUI()
+    {
+        CloseMonitorWindow();
+        CloseMonitorOverlay();
+    }
+
+    private void ShowMonitorWindow()
+    {
+        if (_monitorWindow != null)
+        {
+            _monitorWindow.Activate();
+            return;
+        }
+
+        if (HostApp?.Monitor == null)
+            return;
+
+        _monitorWindow = new MonitorDialog(HostApp, HostApp.Monitor);
+        _monitorWindow.Closed += MonitorWindowClosed;
+
+        if (TopLevel.GetTopLevel(this) is Window owner)
+            _monitorWindow.Show(owner);
+        else
+            _monitorWindow.Show();
+    }
+
+    private void MonitorWindowClosed(object? sender, EventArgs e)
+    {
+        if (_monitorWindow != null)
+        {
+            _monitorWindow.Closed -= MonitorWindowClosed;
+            _monitorWindow = null;
+        }
+
+        if (HostApp?.Monitor?.IsVisible == true)
+            HostApp.DisableMonitor();
+    }
+
+    private void CloseMonitorWindow()
+    {
+        if (_monitorWindow == null)
+            return;
+
+        var window = _monitorWindow;
+        _monitorWindow = null;
+        window.Closed -= MonitorWindowClosed;
+
+        if (window.IsVisible)
+            window.Close();
+    }
+
+    private void ShowMonitorOverlay()
+    {
+        if (_monitorOverlay != null)
+            return;
+
+        if (HostApp?.Monitor == null)
+            return;
+
+        var monitorControl = new MonitorUserControl(HostApp, HostApp.Monitor);
+
+        _monitorOverlay = new Panel
+        {
+            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
+            ZIndex = 1000
+        };
+
+        var dialogContainer = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(42, 42, 42)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Margin = new Thickness(20),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = monitorControl
+        };
+
+        _monitorOverlay.Children.Add(dialogContainer);
+
+        if (Content is Grid mainGrid)
+        {
+            Grid.SetRowSpan(_monitorOverlay, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
+            Grid.SetColumnSpan(_monitorOverlay, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
+            mainGrid.Children.Add(_monitorOverlay);
+        }
+    }
+
+    private void CloseMonitorOverlay()
+    {
+        if (_monitorOverlay == null)
+            return;
+
+        if (Content is Grid mainGrid && mainGrid.Children.Contains(_monitorOverlay))
+            mainGrid.Children.Remove(_monitorOverlay);
+
+        _monitorOverlay = null;
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+
+        if (_subscribedHostApp != null)
+        {
+            _subscribedHostApp.MonitorVisibilityChanged -= OnMonitorVisibilityChanged;
+            _subscribedHostApp = null;
+        }
+
+        CloseMonitorUI();
     }
 
     private async void StatsButton_Click(object? sender, RoutedEventArgs e)

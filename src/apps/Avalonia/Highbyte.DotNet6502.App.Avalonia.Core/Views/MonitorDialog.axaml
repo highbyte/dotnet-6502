@@ -1,0 +1,16 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:Highbyte.DotNet6502.App.Avalonia.Core.Views"
+        x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.MonitorDialog"
+        Title="Machine Code Monitor"
+        Width="860"
+        Height="620"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        SystemDecorations="BorderOnly"
+        ShowInTaskbar="False"
+    Background="#1A202C">
+
+  <ContentControl x:Name="MonitorContent"/>
+
+</Window>

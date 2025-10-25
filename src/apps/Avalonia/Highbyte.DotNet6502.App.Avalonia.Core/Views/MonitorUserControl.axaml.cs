@@ -1,0 +1,114 @@
+using System.Collections.Specialized;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
+using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
+using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
+using Highbyte.DotNet6502.Monitor;
+
+namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
+
+public partial class MonitorUserControl : UserControl
+{
+    private readonly AvaloniaHostApp _hostApp;
+    private readonly AvaloniaMonitor _monitor;
+    private readonly MonitorViewModel _viewModel;
+
+    private ScrollViewer? _outputScrollViewer;
+    private TextBox? _commandTextBox;
+
+    public MonitorUserControl(AvaloniaHostApp hostApp, AvaloniaMonitor monitor)
+    {
+        _hostApp = hostApp;
+        _monitor = monitor;
+
+        InitializeComponent();
+
+        _outputScrollViewer = this.FindControl<ScrollViewer>("OutputScrollViewer");
+        _commandTextBox = this.FindControl<TextBox>("CommandTextBox");
+
+        _viewModel = new MonitorViewModel(monitor);
+        DataContext = _viewModel;
+
+        _monitor.OutputLines.CollectionChanged += OnOutputLinesChanged;
+
+        AttachedToVisualTree += OnAttachedToVisualTree;
+        DetachedFromVisualTree += OnDetachedFromVisualTree;
+    }
+
+    private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        _commandTextBox?.Focus();
+        _viewModel.RefreshStatus();
+        ScrollToEnd();
+    }
+
+    private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        _monitor.OutputLines.CollectionChanged -= OnOutputLinesChanged;
+    }
+
+    private void OnOutputLinesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        ScrollToEnd();
+    }
+
+    private void ScrollToEnd()
+    {
+        if (_outputScrollViewer != null)
+            _outputScrollViewer.ScrollToEnd();
+    }
+
+    private void SendButton_Click(object? sender, RoutedEventArgs e)
+    {
+        SubmitCommand();
+    }
+
+    private void CommandTextBox_KeyDown(object? sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Enter:
+                SubmitCommand();
+                e.Handled = true;
+                break;
+            case Key.Up:
+                _viewModel.NavigateHistoryPrevious();
+                if (_commandTextBox is { } upTextBox)
+                    upTextBox.CaretIndex = upTextBox.Text?.Length ?? 0;
+                e.Handled = true;
+                break;
+            case Key.Down:
+                _viewModel.NavigateHistoryNext();
+                if (_commandTextBox is { } downTextBox)
+                    downTextBox.CaretIndex = downTextBox.Text?.Length ?? 0;
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                _viewModel.ClearInput();
+                e.Handled = true;
+                break;
+            case Key.F12:
+                _hostApp.ToggleMonitor();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void SubmitCommand()
+    {
+        var result = _viewModel.Submit();
+
+        if (result == CommandResult.Continue || result == CommandResult.Quit)
+            _hostApp.DisableMonitor();
+
+        _commandTextBox?.Focus();
+    }
+
+    private void CloseButton_Click(object? sender, RoutedEventArgs e)
+    {
+        _hostApp.DisableMonitor();
+    }
+}
