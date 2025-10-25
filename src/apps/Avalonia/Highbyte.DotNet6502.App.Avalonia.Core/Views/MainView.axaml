@@ -31,7 +31,7 @@
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="200" />
-            <ColumnDefinition Width="*" MinWidth="960" />
+            <ColumnDefinition Width="*" MinWidth="800" />
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
@@ -172,10 +172,12 @@
                                    VerticalAlignment="Center"
                                    Margin="0,0,8,0"/>
                         <Slider Grid.Column="1"
-                                Minimum="1" Maximum="4" Value="2"
+                                Minimum="1" Maximum="4" 
+                                Value="{Binding Scale}"
                                 TickFrequency="0.5"
                                 IsSnapToTickEnabled="True"
-                                VerticalAlignment="Center"/>
+                                VerticalAlignment="Center"
+                                Classes="compact"/>
                     </Grid>
 
                     <!-- Audio Settings -->
@@ -208,11 +210,12 @@
                         CornerRadius="4"
                         Margin="0,0,0,10"
                         HorizontalAlignment="Center"
-                        VerticalAlignment="Center">
+                        VerticalAlignment="Top">
                     <Grid>
                         <!-- Emulator Display Control -->
                         <views:EmulatorView Name="EmulatorView"
-                                            IsVisible="{Binding IsEmulatorRunning}"/>
+ Scale="{Binding Scale}"
+     IsVisible="{Binding IsEmulatorRunning}"/>
 
                         <!-- Overlay message when not running -->
                         <TextBlock Text="Emulator display will appear here"

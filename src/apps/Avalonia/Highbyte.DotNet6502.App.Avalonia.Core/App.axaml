@@ -628,6 +628,12 @@
             <Setter Property="Background" Value="#C8B886"/>
         </Style>
 
+        <!-- Compact Slider style with smaller thumb -->
+        <Style Selector="Slider.compact /template/ Thumb">
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="12"/>
+        </Style>
+
         <!-- Border Styles -->
         <Style Selector="Border">
             <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>

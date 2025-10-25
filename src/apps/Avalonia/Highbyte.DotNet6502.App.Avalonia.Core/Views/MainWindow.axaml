@@ -10,7 +10,7 @@
         Title="Highbyte.DotNet6502.App.Avalonia"
         WindowStartupLocation="Manual"
         Position="50,50"
-        SizeToContent="Width">
+        SizeToContent="WidthAndHeight">
 
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,

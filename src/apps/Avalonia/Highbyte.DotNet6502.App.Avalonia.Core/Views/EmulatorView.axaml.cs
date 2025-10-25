@@ -1,4 +1,5 @@
 using System;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.Controls;
@@ -16,6 +17,15 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 public partial class EmulatorView : UserControl
 {
     private EmulatorDisplayControlBase? _renderControl;
+
+    public static readonly StyledProperty<double> ScaleProperty =
+        AvaloniaProperty.Register<EmulatorView, double>(nameof(Scale), 2.0);
+
+    public double Scale
+    {
+        get => GetValue(ScaleProperty);
+        set => SetValue(ScaleProperty, value);
+    }
 
     // Access HostApp through ViewModel
     private AvaloniaHostApp? HostApp
@@ -58,6 +68,20 @@ public partial class EmulatorView : UserControl
         IsTabStop = true;
     }
 
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property == ScaleProperty)
+        {
+            // Update the render control's scale when this control's scale changes
+            if (_renderControl != null)
+            {
+                _renderControl.Scale = Scale;
+            }
+        }
+    }
+
     public void ConfigureRendererControl(IRenderCoordinator? renderCoordinator, IAvaloniaBitmapRenderTarget? avaloniaBitmapRenderTarget)
     {
         // Remove existing control if any
@@ -79,6 +103,12 @@ public partial class EmulatorView : UserControl
             _renderControl = CreateBitmapDisplayControl(renderCoordinator, avaloniaBitmapRenderTarget);
         }
 
+        // Apply current scale to the new control
+        if (_renderControl != null)
+        {
+            _renderControl.Scale = Scale;
+        }
+
         // Set the new control
         RenderingControlContainer.Content = _renderControl;
     }
@@ -86,9 +116,9 @@ public partial class EmulatorView : UserControl
     private EmulatorBitmapDisplayControl CreateBitmapDisplayControl(IRenderCoordinator? renderCoordinator, IAvaloniaBitmapRenderTarget? avaloniaBitmapRenderTarget)
     {
         var control = new EmulatorBitmapDisplayControl(
-     renderCoordinator,
-       avaloniaBitmapRenderTarget,
-            2.0,
+            renderCoordinator,
+     avaloniaBitmapRenderTarget,
+     Scale,  // Use current Scale value
         true);
         control.SetDisplaySize(320, 200);
         return control;
@@ -97,12 +127,12 @@ public partial class EmulatorView : UserControl
     private EmulatorAvaloniaCommandControl CreateAvaloniaCommandControl(IRenderCoordinator? renderCoordinator, AvaloniaCommandTarget avaloniaCommandTarget)
     {
         var control = new EmulatorAvaloniaCommandControl(
-            renderCoordinator,
-            avaloniaCommandTarget,
-         2.0,
-   true);
-        control.SetDisplaySize(320, 200);
-        return control;
+ renderCoordinator,
+   avaloniaCommandTarget,
+    Scale,  // Use current Scale value
+            true);
+      control.SetDisplaySize(320, 200);
+    return control;
     }
 
     /// <summary>

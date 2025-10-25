@@ -107,6 +107,14 @@ public class MainViewModel : ViewModelBase
     // Statistics panel column width - bind this to the grid column width
     public string StatisticsPanelColumnWidth => "250";
 
+    // Display scale for emulator
+    private double _scale = 2.0;
+    public double Scale
+    {
+        get => _scale;
+        set => this.RaiseAndSetIfChanged(ref _scale, value);
+    }
+
     public ObservableCollection<string> AvailableSystems { get; } = new();
 
     /// <summary>
