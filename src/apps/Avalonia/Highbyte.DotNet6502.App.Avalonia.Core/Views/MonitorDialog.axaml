@@ -5,11 +5,12 @@
         Title="Machine Code Monitor"
         Width="860"
         Height="620"
+        MinWidth="600"
+        MinHeight="400"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
-        SystemDecorations="BorderOnly"
-        ShowInTaskbar="False"
-    Background="#1A202C">
+        SystemDecorations="Full"
+        ShowInTaskbar="False">
 
   <ContentControl x:Name="MonitorContent"/>
 

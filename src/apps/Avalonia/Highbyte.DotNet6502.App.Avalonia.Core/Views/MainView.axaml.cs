@@ -258,7 +258,7 @@ public partial class MainView : UserControl
         _monitorWindow.Closed += MonitorWindowClosed;
 
         if (TopLevel.GetTopLevel(this) is Window owner)
-            _monitorWindow.Show(owner);
+            _ = _monitorWindow.ShowDialog(owner);
         else
             _monitorWindow.Show();
     }

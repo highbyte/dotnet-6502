@@ -1,8 +1,10 @@
 using System.Collections.Specialized;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
@@ -40,9 +42,18 @@ public partial class MonitorUserControl : UserControl
 
     private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
-        _commandTextBox?.Focus();
         _viewModel.RefreshStatus();
         ScrollToEnd();
+
+        // Set focus after a small delay to ensure the control is fully rendered
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(100);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                _commandTextBox?.Focus();
+            });
+        });
     }
 
     private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
@@ -57,8 +68,7 @@ public partial class MonitorUserControl : UserControl
 
     private void ScrollToEnd()
     {
-        if (_outputScrollViewer != null)
-            _outputScrollViewer.ScrollToEnd();
+        _outputScrollViewer?.ScrollToEnd();
     }
 
     private void SendButton_Click(object? sender, RoutedEventArgs e)
