@@ -105,7 +105,6 @@ public class MainViewModel : ViewModelBase
     }
 
     // Statistics panel column width - bind this to the grid column width
-    //public string StatisticsPanelColumnWidth => IsStatisticsPanelVisible ? "Auto" : "0";
     public string StatisticsPanelColumnWidth => "250";
 
     public ObservableCollection<string> AvailableSystems { get; } = new();

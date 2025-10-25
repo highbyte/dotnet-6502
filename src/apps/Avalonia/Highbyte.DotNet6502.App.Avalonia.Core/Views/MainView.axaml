@@ -148,11 +148,13 @@
                                 Content="Monitor"
                                 Classes="grid"
                                 IsEnabled="{Binding IsMonitorButtonEnabled}"
+                                ToolTip.Tip="Toggle with F12"
                                 Click="MonitorButton_Click"/>
                         <Button Grid.Column="2"
                                 Content="Stats"
                                 Classes="grid"
                                 IsEnabled="{Binding IsStatsButtonEnabled}"
+                                ToolTip.Tip="Toggle with F11"
                                 Click="StatsButton_Click"/>
                     </Grid>                    
                 </StackPanel>
