@@ -4,8 +4,11 @@ using System.Net.Http;
 using System.Reactive;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
+using Avalonia.Diagnostics;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core.Input;
@@ -130,6 +133,14 @@ public partial class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         Console.WriteLine("AppOnFrameworkInitializationCompleted called");
+
+#if DEBUG
+        // Rebind DevTools away from F12 (e.g., Ctrl+F12)
+        this.AttachDevTools(new DevToolsOptions
+        {
+            Gesture = new KeyGesture(Key.F12, KeyModifiers.Control)
+        });
+#endif
 
         // Initialize the emulator host app
         InitializeHostApp();

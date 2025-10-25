@@ -6,7 +6,13 @@ public partial class MainWindow : Window
 {
     public MainWindow()
     {
+#if DEBUG
+        // Temporarily disable the automatic opening of dev tools via F12 as it conflicts with emulator key input. Is enabled via another key in App.axaml.cs
+        InitializeComponent(attachDevTools: false);
+#else
         InitializeComponent();
+#endif
+
         Title = "Highbyte.DotNet6502 Emulator - Avalonia";
         // Remove fixed Width since SizeToContent="Width" will handle it
         Height = 800;

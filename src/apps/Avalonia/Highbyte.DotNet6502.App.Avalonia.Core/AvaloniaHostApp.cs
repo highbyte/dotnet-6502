@@ -361,20 +361,24 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     /// Receive Key Down event in emulator canvas.
     /// Also check for special non-emulator functions such as monitor and stats/debug
     /// </summary>
-    /// <param name="e"></param>
-    public void OnKeyDown(Key key)
+    /// <param name="key"></param>
+    /// <param name="modifiers"></param>
+    public void OnKeyDown(Key key, KeyModifiers modifiers = KeyModifiers.None)
     {
         // Send event to emulator
         _inputHandlerContext.AddKeyDown(key);
 
         // Check for other emulator functions
+
+        // If F11 is pressed, toggle statistics/debug view
         if (key == Key.F11)
         {
             _logger.LogInformation("F11 pressed - toggling statistics/debug view");
-            // Toggle statistics/debug view
             ToggleStatisticsPanel();
         }
-        else if (key == Key.F12 && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
+        // If F12 is pressed without Ctrl or Shift modifier, toggle monitor
+        else if (key == Key.F12 && (modifiers & KeyModifiers.Control) == 0 && (modifiers & KeyModifiers.Shift) == 0
+                && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
         {
             _logger.LogInformation("F12 pressed - toggling monitor");
             ToggleMonitor();
@@ -392,7 +396,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     /// Also check for special non-emulator functions such as monitor and stats/debug
     /// </summary>
     /// <param name="e"></param>
-    public void OnKeyUp(Key key)
+    public void OnKeyUp(Key key, KeyModifiers modifiers = KeyModifiers.None)
     {
         // Send event to emulator
         _inputHandlerContext.RemoveKeyDown(key);
