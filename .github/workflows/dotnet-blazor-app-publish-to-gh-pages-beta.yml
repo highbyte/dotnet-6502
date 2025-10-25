@@ -14,7 +14,8 @@ on:
 env:
    CONFIGURATION: "Release"
 
-   PROJECT_FILE: "src/apps/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj"
+   # PROJECT_FILE: "src/apps/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj"
+   PROJECT_FILE: "src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/Highbyte.DotNet6502.App.Avalonia.Browser.csproj"
    PROJECT_GH_PAGES_DIR: "app-test"
    BUILD_OUTPUT_WORKING_DIR: "build"
    GH_PAGES_WORKING_DIR: "ghpages"
