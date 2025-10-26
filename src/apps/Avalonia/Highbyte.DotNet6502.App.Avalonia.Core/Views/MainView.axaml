@@ -156,7 +156,7 @@
                                 IsEnabled="{Binding IsStatsButtonEnabled}"
                                 ToolTip.Tip="Toggle with F11"
                                 Click="StatsButton_Click"/>
-                    </Grid>                    
+                    </Grid>
                 </StackPanel>
 
                 <!-- Display Settings -->
@@ -172,7 +172,7 @@
                                    VerticalAlignment="Center"
                                    Margin="0,0,8,0"/>
                         <Slider Grid.Column="1"
-                                Minimum="1" Maximum="4" 
+                                Minimum="1" Maximum="4"
                                 Value="{Binding Scale}"
                                 TickFrequency="0.5"
                                 IsSnapToTickEnabled="True"
@@ -203,28 +203,46 @@
                 </Grid.RowDefinitions>
 
                 <!-- Emulator Canvas/Display -->
-                <Border Grid.Row="0"
+                <!--<Border Grid.Row="0"
                         Background="#000000"
                         BorderBrush="#4A5568"
-                        BorderThickness="2"
+                        BorderThickness="0"
                         CornerRadius="4"
                         Margin="0,0,0,10"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Top">
                     <Grid>
-                        <!-- Emulator Display Control -->
+                        --><!-- Emulator Display Control --><!--
                         <views:EmulatorView Name="EmulatorView"
- Scale="{Binding Scale}"
-     IsVisible="{Binding IsEmulatorRunning}"/>
+                                            Scale="{Binding Scale}"
+                                            IsVisible="{Binding IsEmulatorRunning}"/>
 
-                        <!-- Overlay message when not running -->
-                        <TextBlock Text="Emulator display will appear here"
+                        --><!-- Overlay message when not running --><!--
+                        <TextBlock Text="DotNet 6502 emulator"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
-                                   Classes="overlay"
+                                   Classes="h1"
                                    IsVisible="{Binding IsEmulatorNotRunning}"/>
                     </Grid>
-                </Border>
+                </Border>-->
+
+                <Grid Grid.Row="0"
+                        Margin="0,0,0,10"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top"
+                        >
+                    <!-- Emulator Display Control -->
+                    <views:EmulatorView Name="EmulatorView"
+                                        Scale="{Binding Scale}"
+                                        IsVisible="{Binding IsEmulatorRunning}"/>
+
+                    <!-- Overlay message when not running -->
+                    <TextBlock Text="DotNet 6502 emulator"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Classes="h1"
+                                IsVisible="{Binding IsEmulatorNotRunning}"/>
+                </Grid>
 
                 <!-- Information Area - Configuration Validation -->
                 <Border Grid.Row="1"
@@ -271,7 +289,7 @@
                             <StackPanel Spacing="5" IsVisible="{Binding !HasValidationErrors}">
                                 <TextBlock Text="System Information"
                                            Classes="body"/>
-                                <TextBlock Text="Configuration is valid. No errors to display."
+                                <TextBlock Text="Configuration is valid."
                                            Classes="small"
                                            FontStyle="Italic"/>
                             </StackPanel>
