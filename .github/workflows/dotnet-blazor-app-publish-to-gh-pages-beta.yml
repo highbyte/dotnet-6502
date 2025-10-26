@@ -1,4 +1,4 @@
-name: Publish Test .NET Blazor WASM app to GitHub Pages (separate url)
+name: Publish Test Browser app to GitHub Pages (separate url)
 
 on:
 #  push:
@@ -50,17 +50,17 @@ jobs:
           mkdir ${{ env.GH_PAGES_WORKING_DIR }}
           echo '' > ${{ env.GH_PAGES_WORKING_DIR }}/.nojekyll
                           
-      # Publish the Blazor WASM site to a build working folder
+      # Publish the static website to a build working folder
       - name: Publish
-        # Note: Could not get -p:GHPagesInjectBrotliLoader=true to work. Gets error "Uncaught ReferenceError: Blazor is not defined" from "brotliloader.min.js"
+        # Note: Could not get -p:GHPagesInjectBrotliLoader=true to work with Blazor. Gets error "Uncaught ReferenceError: Blazor is not defined" from "brotliloader.min.js"
         run: dotnet publish ${{ env.PROJECT_FILE }} -p:Version=${{ env.VERSION }} -c:${{ env.CONFIGURATION }} -p:GHPages=true -p:GHPagesBase="/${{ github.event.repository.name }}/${{ env.PROJECT_GH_PAGES_DIR }}/" -p:GHPagesInjectBrotliLoader=false -o:${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}
 
-      # Copy the published Blazor WASM site from wwwroot folder in publish output dir
+      # Copy the published static website from wwwroot folder in publish output dir
       - name: Copy published wwwroot contents to a subdirectory in GH pages working dir root
         run: |
           cp -r ${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/wwwroot/ ${{ env.GH_PAGES_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/
 
-      # Deploy the Blazor WASM site
+      # Deploy the static website to GitHub Pages
       - name: Deploy to Github Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
