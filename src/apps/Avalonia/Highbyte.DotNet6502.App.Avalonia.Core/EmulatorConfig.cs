@@ -8,7 +8,7 @@ public class EmulatorConfig
 {
     public const string ConfigSectionName = "Highbyte.DotNet6502.AvaloniaConfig";
 
-    public string DefaultEmulator { get; set; } = "Generic";
+    public string DefaultEmulator { get; set; } = "C64";
     public float DefaultDrawScale { get; set; } = 2.0f;
     public float CurrentDrawScale { get; set; } = 2.0f;
     public bool ShowErrorDialog { get; set; } = true;

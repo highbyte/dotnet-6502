@@ -34,15 +34,47 @@ public partial class C64MenuView : UserControl
     {
         InitializeComponent();
 
-        // Subscribe to DataContext changes
-        this.DataContextChanged += OnDataContextChanged;
+        // Subscribe to visibility property changes to update section states when view becomes visible
+        this.PropertyChanged += OnPropertyChanged;
     }
 
-    private void OnDataContextChanged(object? sender, EventArgs e)
+    private void OnPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
-        // Refresh UI when ViewModel is set
-        if (ViewModel != null)
+        // When the IsVisible property changes to true, update section states if needed
+        if (e.Property == IsVisibleProperty && this.IsVisible && ViewModel != null)
         {
+            UpdateSectionStatesIfNeeded();
+        }
+    }
+
+    private void UpdateSectionStatesIfNeeded()
+    {
+        // If there are validation errors, expand config section and collapse others
+        if (ViewModel != null && ViewModel.HasConfigValidationErrors)
+        {
+            // Collapse Disk Section
+            var diskHeaderButton = this.FindControl<Button>("DiskSectionHeader");
+            var diskContentBorder = this.FindControl<Border>("DiskSectionContent");
+            if (diskHeaderButton != null && diskContentBorder != null)
+            {
+                SetSectionState(diskHeaderButton, diskContentBorder, expanded: false);
+            }
+
+            // Collapse Load/Save Section
+            var loadSaveHeaderButton = this.FindControl<Button>("LoadSaveSectionHeader");
+            var loadSaveContentBorder = this.FindControl<Border>("LoadSaveSectionContent");
+            if (loadSaveHeaderButton != null && loadSaveContentBorder != null)
+            {
+                SetSectionState(loadSaveHeaderButton, loadSaveContentBorder, expanded: false);
+            }
+
+            // Expand Config Section
+            var configHeaderButton = this.FindControl<Button>("ConfigSectionHeader");
+            var configContentBorder = this.FindControl<Border>("ConfigSectionContent");
+            if (configHeaderButton != null && configContentBorder != null)
+            {
+                SetSectionState(configHeaderButton, configContentBorder, expanded: true);
+            }
         }
     }
 
@@ -87,9 +119,16 @@ public partial class C64MenuView : UserControl
             result = await tcs.Task;
         }
 
-        if (result == true && ViewModel is C64MenuViewModel viewModel)
+        if (result == true)
         {
-            viewModel.NotifyEmulatorStateChanged();
+            // Notify C64MenuViewModel of state changes
+            if (ViewModel is C64MenuViewModel viewModel)
+            {
+                viewModel.NotifyEmulatorStateChanged();
+            }
+
+            // Notify MainViewModel to refresh validation errors
+            NotifyMainViewModelOfConfigChange();
         }
     }
 
@@ -161,9 +200,13 @@ public partial class C64MenuView : UserControl
                 // Wait for the configuration to complete
                 var result = await taskCompletionSource.Task;
 
-                if (result && ViewModel != null)
+                if (result)
                 {
-                    ViewModel.NotifyEmulatorStateChanged();
+                    // Notify C64MenuViewModel of state changes
+                    ViewModel?.NotifyEmulatorStateChanged();
+
+                    // Notify MainViewModel to refresh validation errors
+                    NotifyMainViewModelOfConfigChange();
                 }
             }
             finally
@@ -171,6 +214,27 @@ public partial class C64MenuView : UserControl
                 // Clean up - remove the overlay
                 mainGrid.Children.Remove(overlay);
             }
+        }
+    }
+
+    /// <summary>
+    /// Helper method to notify MainViewModel to refresh validation errors after configuration changes
+    /// </summary>
+    private void NotifyMainViewModelOfConfigChange()
+    {
+        try
+        {
+            // Find the parent MainView
+            var mainView = this.FindAncestorOfType<MainView>(true);
+            if (mainView?.DataContext is MainViewModel mainViewModel)
+            {
+                // Force a full state refresh to update validation errors
+                mainViewModel.ForceStateRefresh();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error notifying MainViewModel of config change: {ex.Message}");
         }
     }
 

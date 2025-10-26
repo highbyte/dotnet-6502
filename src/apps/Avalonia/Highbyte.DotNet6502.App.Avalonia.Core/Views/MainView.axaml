@@ -187,7 +187,7 @@
                 </StackPanel>
 
                 <!-- C64 Menu -->
-                <views:C64MenuView DataContext="{Binding C64MenuViewModel}" />
+                <views:C64MenuView DataContext="{Binding C64MenuViewModel}" IsVisible="{Binding $parent[UserControl].DataContext.IsC64SystemSelected}" />
 
             </StackPanel>
         </Border>

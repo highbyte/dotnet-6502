@@ -23,20 +23,19 @@ public class C64MenuViewModel : ViewModelBase
     // Properties that previously accessed MainViewModel can now access HostApp directly
     public EmulatorState EmulatorState => _avaloniaHostApp.EmulatorState;
     public string SelectedSystemName => _avaloniaHostApp.SelectedSystemName;
-    public bool IsC64SystemSelected => string.Equals(SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
 
     // C64-specific properties
     private C64HostConfig? C64HostConfig => _avaloniaHostApp?.CurrentHostSystemConfig as C64HostConfig;
 
     // Copy/Paste functionality
-    public bool IsCopyPasteEnabled => EmulatorState == EmulatorState.Running && IsC64SystemSelected;
+    public bool IsCopyPasteEnabled => EmulatorState == EmulatorState.Running;
 
     // AI Basic coding assistant
     public bool BasicCodingAssistantEnabled
     {
         get
         {
-            if (EmulatorState != EmulatorState.Running || !IsC64SystemSelected)
+            if (EmulatorState != EmulatorState.Running)
                 return false;
             // Implementation will be added in code-behind
             return false; // Placeholder
@@ -47,10 +46,10 @@ public class C64MenuViewModel : ViewModelBase
             this.RaisePropertyChanged();
         }
     }
-    public bool BasicCodingAssistantAvailable => EmulatorState == EmulatorState.Running && IsC64SystemSelected;
+    public bool BasicCodingAssistantAvailable => EmulatorState == EmulatorState.Running;
 
     // Configuration functionality
-    public bool IsC64ConfigEnabled => EmulatorState == EmulatorState.Uninitialized && IsC64SystemSelected;
+    public bool IsC64ConfigEnabled => EmulatorState == EmulatorState.Uninitialized;
 
     // Disk Drive functionality
     public bool IsDiskImageAttached
@@ -59,7 +58,7 @@ public class C64MenuViewModel : ViewModelBase
         {
             try
             {
-                if (EmulatorState == EmulatorState.Uninitialized || !IsC64SystemSelected)
+                if (EmulatorState == EmulatorState.Uninitialized)
                     return false;
 
                 var c64 = _avaloniaHostApp?.CurrentRunningSystem as Systems.Commodore64.C64;
@@ -195,7 +194,19 @@ public class C64MenuViewModel : ViewModelBase
     public bool IsKeyboardJoystickSelectionEnabled => JoystickKeyboardEnabled;
 
     // File operation enabled states
-    public bool IsFileOperationEnabled => EmulatorState != EmulatorState.Uninitialized && IsC64SystemSelected;
+    public bool IsFileOperationEnabled => EmulatorState != EmulatorState.Uninitialized;
+
+    // Configuration validation
+    public bool HasConfigValidationErrors
+    {
+        get
+        {
+            if (C64HostConfig == null)
+                return false;
+
+            return !C64HostConfig.IsValid(out _);
+        }
+    }
 
     private void InitializeC64Data()
     {
@@ -261,7 +272,6 @@ public class C64MenuViewModel : ViewModelBase
         {
             this.RaisePropertyChanged(nameof(EmulatorState));
             this.RaisePropertyChanged(nameof(SelectedSystemName));
-            this.RaisePropertyChanged(nameof(IsC64SystemSelected));
 
             // Notify C64-specific property changes
             this.RaisePropertyChanged(nameof(IsCopyPasteEnabled));
@@ -274,6 +284,7 @@ public class C64MenuViewModel : ViewModelBase
             this.RaisePropertyChanged(nameof(KeyboardJoystick));
             this.RaisePropertyChanged(nameof(IsKeyboardJoystickSelectionEnabled));
             this.RaisePropertyChanged(nameof(CurrentJoystick));
+            this.RaisePropertyChanged(nameof(HasConfigValidationErrors));
         }
         catch (Exception ex)
         {

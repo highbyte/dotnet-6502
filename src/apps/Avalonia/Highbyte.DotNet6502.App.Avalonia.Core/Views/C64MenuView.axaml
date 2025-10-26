@@ -15,7 +15,7 @@
     <!-- C64 Specific actions and settings -->
     <StackPanel Spacing="6"
                 Margin="0,12,0,0"
-                IsVisible="{Binding IsC64SystemSelected}">
+>
         <TextBlock Text="C64"
                    Classes="section-header" />
 
