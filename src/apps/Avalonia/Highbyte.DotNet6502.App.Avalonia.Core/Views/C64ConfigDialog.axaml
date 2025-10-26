@@ -7,9 +7,12 @@
         Title="C64 Configuration"
         Width="1020"
         Height="650"
+        MinWidth="500"
+        MinHeight="400"
+
         WindowStartupLocation="CenterOwner"
         CanResize="True"
-        SystemDecorations="BorderOnly"
+        SystemDecorations="Full"
         ShowInTaskbar="False"
         Background="#1A202C">
   

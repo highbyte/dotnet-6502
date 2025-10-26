@@ -4,8 +4,14 @@
         x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.C64ConfigUserControl"
         x:DataType="vm:C64ConfigDialogViewModel">
   
+  <UserControl.Styles>
+    <Style Selector="StackPanel.wrap-item">
+      <Setter Property="Margin" Value="0,0,8,8"/>
+    </Style>
+  </UserControl.Styles>
+  
   <!-- Simplified layout for ContentDialog - no outer border needed -->
-  <Grid RowDefinitions="Auto,*,Auto" Margin="0,0,0,0">
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,0">
     <!-- Title Header -->
     <Border Grid.Row="0"
             Background="#2D3748"
@@ -17,19 +23,18 @@
                  HorizontalAlignment="Center"/>
     </Border>
 
-    <!-- Main content with two columns -->
-    <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="8" Margin="8,8,8,0">
+    <!-- Main content with wrapping layout - scrollable -->
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <WrapPanel Orientation="Horizontal" Margin="8,8,8,8"> 
       
-      <!-- Left Column -->
-      <StackPanel Grid.Column="0" Spacing="8">
-
-        <!-- ROM Section -->
+      <!-- ROM Section -->
+      <StackPanel Width="460" Classes="wrap-item">
         <Border Background="#252F3F"
                 BorderBrush="#4A5568"
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="6">
-          <StackPanel Spacing="12">
+          <StackPanel Spacing="8">
             <TextBlock Text="ROM Management"
                        Classes="h2"/>
             <TextBlock Text="The emulator requires Kernal, Basic, and Character ROMs."
@@ -73,7 +78,7 @@
             </ItemsControl>
 
               <!-- ROM Directory setting (only for desktop) -->
-              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" Margin="0,8,0,0"
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,8,0,0"
                     IsVisible="{Binding !IsRunningInWebAssembly}">
                   <TextBlock Grid.Column="0"
                              Text="ROM directory:"
@@ -121,8 +126,10 @@
 
           </StackPanel>
         </Border>
+      </StackPanel>
 
-        <!-- Render and Audio Section -->
+      <!-- Render and Audio Section -->
+      <StackPanel Width="460" Classes="wrap-item">
         <Border Background="#252F3F"
                 BorderBrush="#4A5568"
                 BorderThickness="1"
@@ -132,7 +139,7 @@
             <TextBlock Text="Video &amp; Audio"
                        Classes="h2"/>
 
-            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="12">
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="8">
               <TextBlock Grid.Row="0" Grid.Column="0" 
                          Text="Render provider:" 
                          Classes="field-label"
@@ -180,13 +187,10 @@
 
           </StackPanel>
         </Border>
+      </StackPanel>      
 
-      </StackPanel>
-
-      <!-- Right Column -->
-  <StackPanel Grid.Column="1" Spacing="8">
-
-        <!-- Input Section -->
+      <!-- Input Section -->
+      <StackPanel Width="460" Classes="wrap-item">
         <Border Background="#252F3F"
                 BorderBrush="#4A5568"
                 BorderThickness="1"
@@ -251,52 +255,45 @@
             </Expander>
           </StackPanel>
         </Border>
-
-        <!-- Messages -->
-        <StackPanel Spacing="6">
-          <TextBlock Text="{Binding StatusMessage}"
-                     Classes="success"
-                     TextWrapping="Wrap"
-                     IsVisible="{Binding HasStatusMessage}"/>
-          
-          <!-- Validation Error Messages with Border (similar to MainView) -->
-          <Border Background="Transparent" 
-                  BorderBrush="#E53E3E"
-                  BorderThickness="1"
-                  CornerRadius="4"
-                  Padding="6"
-                  IsVisible="{Binding HasValidationErrors}">
-            <ItemsControl ItemsSource="{Binding ValidationErrors}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2">
-                    <TextBlock Text="•" 
-                               Foreground="#E53E3E" 
-                               VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding}" 
-                               Classes="small"
-                               Foreground="White"
-                               TextWrapping="Wrap"
-                               VerticalAlignment="Center"/>
-                  </StackPanel>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </Border>
-
-          <!-- Progress Bar for busy state -->
-          <ProgressBar IsVisible="{Binding IsBusy}"
-                       IsIndeterminate="True"
-                       Height="4"
-                       Margin="0,8,0,0"/>
-        </StackPanel>
-
       </StackPanel>
+    </WrapPanel>
+    </ScrollViewer>
 
-    </Grid>
+    <!-- Messages and status in separate row -->
+    <StackPanel Grid.Row="2" Spacing="8" Margin="8,8,8,8">
+        <TextBlock Text="{Binding StatusMessage}"
+                    Classes="success"
+                    TextWrapping="Wrap"
+                    IsVisible="{Binding HasStatusMessage}"/>
+        
+        <!-- Validation Error Messages with Border (similar to MainView) -->
+        <Border Background="Transparent" 
+                BorderBrush="#E53E3E"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="6"
+                IsVisible="{Binding HasValidationErrors}">
+          <ItemsControl ItemsSource="{Binding ValidationErrors}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2">
+                  <TextBlock Text="•" 
+                              Foreground="#E53E3E" 
+                              VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding}" 
+                              Classes="small"
+                              Foreground="White"
+                              TextWrapping="Wrap"
+                              VerticalAlignment="Center"/>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+    </StackPanel>
 
     <!-- Button Section in separate row -->
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="20,0,20,20">
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="20,0,20,20">
       <ProgressBar Grid.Column="0"
                    IsVisible="{Binding IsBusy}"
                    IsIndeterminate="True"/>
