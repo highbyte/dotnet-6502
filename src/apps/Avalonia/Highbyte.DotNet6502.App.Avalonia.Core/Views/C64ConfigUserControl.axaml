@@ -5,11 +5,11 @@
         x:DataType="vm:C64ConfigDialogViewModel">
   
   <!-- Simplified layout for ContentDialog - no outer border needed -->
-  <Grid RowDefinitions="Auto,*,Auto">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="0,0,0,0">
     <!-- Title Header -->
     <Border Grid.Row="0"
             Background="#2D3748"
-            Padding="18,16"
+            Padding="5,5"
             CornerRadius="8,8,0,0"
             Margin="0">
       <TextBlock Text="Commodore 64 Configuration"
@@ -18,17 +18,17 @@
     </Border>
 
     <!-- Main content with two columns -->
-    <Grid Grid.Row="1" ColumnDefinitions="460,460" ColumnSpacing="20" Margin="20">
+    <Grid Grid.Row="1" ColumnDefinitions="460,460" ColumnSpacing="8" Margin="8,8,8,0">
       
       <!-- Left Column -->
-      <StackPanel Grid.Column="0" Spacing="18">
+      <StackPanel Grid.Column="0" Spacing="8">
 
         <!-- ROM Section -->
         <Border Background="#252F3F"
                 BorderBrush="#4A5568"
                 BorderThickness="1"
                 CornerRadius="8"
-                Padding="16">
+                Padding="6">
           <StackPanel Spacing="12">
             <TextBlock Text="ROM Management"
                        Classes="h2"/>
@@ -127,8 +127,8 @@
                 BorderBrush="#4A5568"
                 BorderThickness="1"
                 CornerRadius="8"
-                Padding="16">
-          <StackPanel Spacing="12">
+                Padding="6">
+          <StackPanel Spacing="8">
             <TextBlock Text="Video &amp; Audio"
                        Classes="h2"/>
 
@@ -184,15 +184,15 @@
       </StackPanel>
 
       <!-- Right Column -->
-      <StackPanel Grid.Column="1" Spacing="18">
+  <StackPanel Grid.Column="1" Spacing="8">
 
         <!-- Input Section -->
         <Border Background="#252F3F"
                 BorderBrush="#4A5568"
                 BorderThickness="1"
                 CornerRadius="8"
-                Padding="16">
-          <StackPanel Spacing="12">
+                Padding="6">
+          <StackPanel Spacing="8">
             <TextBlock Text="Input &amp; Joystick"
                        Classes="h2"/>
 
@@ -264,7 +264,7 @@
                   BorderBrush="#E53E3E"
                   BorderThickness="1"
                   CornerRadius="4"
-                  Padding="10"
+                  Padding="6"
                   IsVisible="{Binding HasValidationErrors}">
             <ItemsControl ItemsSource="{Binding ValidationErrors}">
               <ItemsControl.ItemTemplate>
