@@ -136,7 +136,21 @@ public partial class C64MenuView : UserControl
         overlay.Children.Add(dialogContainer);
 
         // Get the parent main Grid and add overlay
-        if (this.GetVisualRoot() is Window window && window.Content is Grid mainGrid)
+        // Find the root MainView's Grid by walking up the visual tree
+        var root = this.GetVisualRoot();
+        Grid? mainGrid = null;
+        
+        if (root is Window window && window.Content is Grid contentGrid)
+        {
+            mainGrid = contentGrid;
+        }
+        
+        if (mainGrid == null)
+        {
+            mainGrid = this.FindAncestorOfType<MainView>(true)?.Content as Grid;
+        }
+
+        if (mainGrid != null)
         {
             Grid.SetRowSpan(overlay, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
             Grid.SetColumnSpan(overlay, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
