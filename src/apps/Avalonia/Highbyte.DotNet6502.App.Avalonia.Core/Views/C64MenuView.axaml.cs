@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -34,12 +35,11 @@ public partial class C64MenuView : UserControl
     {
         InitializeComponent();
 
-        UpdateSectionStatesIfNeeded();
-
         // Subscribe to visibility property changes to update section states when view becomes visible
         this.PropertyChanged += (s, e) =>
         {
-            // When the IsVisible property changes to true, update section states if needed
+            // When the IsVisible property changes to true, update section states if needed.
+            // Useful when C64 is not default system and view becomes visible later. Also seem to cover Browser/WASM when C64 is default, because of timing issue during startup.
             if (e.Property == IsVisibleProperty && this.IsVisible && ViewModel != null)
             {
                 UpdateSectionStatesIfNeeded();
@@ -48,43 +48,110 @@ public partial class C64MenuView : UserControl
 
         this.DataContextChanged += (s, e) =>
         {
-            // When DataContext changes, update section states if needed
-            UpdateSectionStatesIfNeeded();
-        };
-    }
+            // Useful when C64 is the default system and will be Visible on startup (thus PropertyChanged IsVisible will not happen).
+            // This is run during startup.
 
-    private void OnPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
-    {
+            // !!! Note!!!
+            // UpdateSectionStatesIfNeeded() is not working from here in Browser/WASM, it crashes the app.
+            // It's because there is no current system yet selected at this point (but it is when running in Desktop).
+            // The code in UpdateSectionStatesIfNeeded depends on HasConfigValidationErrors property which depends on _avaloniaHostApp.CurrentHostSystemConfig which throws an exception.
+            // Same exception occurs in Loaded event handler.
+            // Seems the PropertyChanged event handler handles all scenarios correctly for Browser, even when starting up with C64 as default system.
+
+            if (ViewModel != null)
+            {
+
+                // Dont run if running in WebAssembly/Browser to avoid crash
+                if (!PlatformDetection.IsRunningInWebAssembly())
+                    UpdateSectionStatesIfNeeded();
+            }
+        };
     }
 
     private void UpdateSectionStatesIfNeeded()
     {
         // If there are validation errors, expand config section and collapse others
-        if (ViewModel != null && ViewModel.HasConfigValidationErrors)
+        try
         {
-            // Collapse Disk Section
-            var diskHeaderButton = this.FindControl<Button>("DiskSectionHeader");
-            var diskContentBorder = this.FindControl<Border>("DiskSectionContent");
-            if (diskHeaderButton != null && diskContentBorder != null)
+            if (ViewModel != null && ViewModel.HasConfigValidationErrors)
             {
-                SetSectionState(diskHeaderButton, diskContentBorder, expanded: false);
-            }
+                // Collapse Disk Section
+                var diskHeaderButton = this.FindControl<Button>("DiskSectionHeader");
+                var diskContentBorder = this.FindControl<Border>("DiskSectionContent");
+                if (diskHeaderButton != null && diskContentBorder != null)
+                {
+                    SetSectionState(diskHeaderButton, diskContentBorder, expanded: false);
+                }
 
-            // Collapse Load/Save Section
-            var loadSaveHeaderButton = this.FindControl<Button>("LoadSaveSectionHeader");
-            var loadSaveContentBorder = this.FindControl<Border>("LoadSaveSectionContent");
-            if (loadSaveHeaderButton != null && loadSaveContentBorder != null)
-            {
-                SetSectionState(loadSaveHeaderButton, loadSaveContentBorder, expanded: false);
-            }
+                // Collapse Load/Save Section
+                var loadSaveHeaderButton = this.FindControl<Button>("LoadSaveSectionHeader");
+                var loadSaveContentBorder = this.FindControl<Border>("LoadSaveSectionContent");
+                if (loadSaveHeaderButton != null && loadSaveContentBorder != null)
+                {
+                    SetSectionState(loadSaveHeaderButton, loadSaveContentBorder, expanded: false);
+                }
 
-            // Expand Config Section
-            var configHeaderButton = this.FindControl<Button>("ConfigSectionHeader");
-            var configContentBorder = this.FindControl<Border>("ConfigSectionContent");
-            if (configHeaderButton != null && configContentBorder != null)
-            {
-                SetSectionState(configHeaderButton, configContentBorder, expanded: true);
+                // Expand Config Section
+                var configHeaderButton = this.FindControl<Button>("ConfigSectionHeader");
+                var configContentBorder = this.FindControl<Border>("ConfigSectionContent");
+                if (configHeaderButton != null && configContentBorder != null)
+                {
+                    SetSectionState(configHeaderButton, configContentBorder, expanded: true);
+                }
+
+                var c64ConfigButton = this.FindControl<Button>("C64Config");
+                if (c64ConfigButton != null)
+                    StartButtonFlash(c64ConfigButton, Colors.DarkOrange, stopAfterClick: true);
             }
+        }
+        catch (Exception ex)
+        {
+            // Silently ignore exceptions during initialization when CurrentHostSystemConfig is not yet ready
+            // This can happen in Browser mode when the async system selection has not completed yet
+            System.Diagnostics.Debug.WriteLine($"UpdateSectionStatesIfNeeded: Skipping update due to uninitialized state - {ex.Message}");
+        }
+    }
+
+
+    private async void StartButtonFlash(Button button, Color flashColor, bool stopAfterClick)
+    {
+        _buttonFlashCancellation = new CancellationTokenSource();
+        var originalBrush = button.Background;
+        var flashBrush = new SolidColorBrush(flashColor);
+
+
+        EventHandler<RoutedEventArgs>? tempHandler = null;
+        tempHandler = (s, e) =>
+        {
+            _buttonFlashCancellation?.Cancel();
+            button.Click -= tempHandler;
+        };
+        if (stopAfterClick)
+        {
+            // Add the temporary handler
+            button.Click += tempHandler;
+        }
+
+        try
+        {
+            while (!_buttonFlashCancellation.Token.IsCancellationRequested)
+            {
+                button.Background = flashBrush;
+                await Task.Delay(700, _buttonFlashCancellation.Token); // Match delay with flash duration to be at least as long as BrushTransition Duration (otherwise abrupt change may occur)
+
+                button.Background = originalBrush;
+                await Task.Delay(2000, _buttonFlashCancellation.Token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Animation was cancelled, restore original background
+            button.Background = originalBrush;
+        }
+        finally
+        {
+            // Clean up the handler in case animation completed naturally
+            button.Click -= tempHandler;
         }
     }
 
@@ -916,4 +983,5 @@ public partial class C64MenuView : UserControl
     private string _latestPreloadedDiskError = "";
     private bool _isLoadingPreloadedDisk = false;
     private D64AutoDownloadAndRun? _d64AutoDownloadAndRun;
+    private CancellationTokenSource _buttonFlashCancellation;
 }

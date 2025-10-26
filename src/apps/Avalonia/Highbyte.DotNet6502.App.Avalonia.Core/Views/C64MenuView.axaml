@@ -329,13 +329,20 @@
                                   VerticalAlignment="Center"/>
                     </Grid>
 
-                    <Button Content="C64 Config"
+                    <Button Name ="C64Config"
+                            Content="C64 Config"
                             Click="OpenC64Config_Click"
                             IsEnabled="{Binding IsC64ConfigEnabled}"
-                            Classes.danger="{Binding HasConfigValidationErrors}"
                             FontSize="11"
                             Padding="6,3"
-                            Height="24"/>
+                            Height="24">
+                        <Button.Transitions>
+                            <Transitions>
+                                <BrushTransition Property="Background" Duration="0:0:0.7"/>
+                            </Transitions>
+                        </Button.Transitions>
+                    </Button>
+
                 </StackPanel>
             </Border>
         </StackPanel>
