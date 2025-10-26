@@ -34,17 +34,27 @@ public partial class C64MenuView : UserControl
     {
         InitializeComponent();
 
+        UpdateSectionStatesIfNeeded();
+
         // Subscribe to visibility property changes to update section states when view becomes visible
-        this.PropertyChanged += OnPropertyChanged;
+        this.PropertyChanged += (s, e) =>
+        {
+            // When the IsVisible property changes to true, update section states if needed
+            if (e.Property == IsVisibleProperty && this.IsVisible && ViewModel != null)
+            {
+                UpdateSectionStatesIfNeeded();
+            }
+        };
+
+        this.DataContextChanged += (s, e) =>
+        {
+            // When DataContext changes, update section states if needed
+            UpdateSectionStatesIfNeeded();
+        };
     }
 
     private void OnPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
-        // When the IsVisible property changes to true, update section states if needed
-        if (e.Property == IsVisibleProperty && this.IsVisible && ViewModel != null)
-        {
-            UpdateSectionStatesIfNeeded();
-        }
     }
 
     private void UpdateSectionStatesIfNeeded()
