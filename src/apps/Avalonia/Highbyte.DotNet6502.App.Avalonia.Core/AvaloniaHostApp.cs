@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
+using Avalonia.Platform;
 using Highbyte.DotNet6502.App.Avalonia.Core.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
 using Highbyte.DotNet6502.App.Avalonia.Core.Render;
@@ -183,12 +184,37 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         }
     }
 
-    private float GetUsefulScaleBasedOnEmulatorScreenDimensions(IScreen screen, float currentScale, bool alwaysUseMaxScale)
+    private float GetUsefulScaleBasedOnEmulatorScreenDimensions(IScreen emulatorScreenPixels, float currentScale, bool alwaysUseMaxScale)
     {
         // Try to get the actual available space based on screen resolution
         try
         {
-            var success = TryGetEmulatorMaxAvailableSize(out double availableWidth, out double availableHeight);
+
+            var app = global::Avalonia.Application.Current;
+            if (app == null)
+                return currentScale;
+
+            // Get the main window based on application lifetime type
+            Window? mainWindow = null;
+            if (app.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                mainWindow = desktop.MainWindow;
+            }
+            else
+            {
+                // For other (Browser/WASM): can't reliably get screen resolution, use fallback
+                return currentScale;
+            }
+            if (mainWindow == null || !mainWindow.IsVisible)
+                return currentScale;
+
+            // Get host OS screen that (mostly) contains the main window
+            var screenInfo = GetCurrentScreenInfo(mainWindow);
+            if (screenInfo == null)
+                return currentScale;
+
+            // Calculate available size for emulator within the main window based on screen resolution
+            var success = TryGetEmulatorMaxAvailableSize(mainWindow, screenInfo, out double availableWidth, out double availableHeight);
             if (!success || availableWidth <= 0 || availableHeight <= 0)
             {
                 _logger.LogDebug("Could not determine available size for emulator based on screen resolution - using current scale.");
@@ -196,8 +222,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             }
 
             // Calculate the scale that fits the emulator within available space
-            var scaleX = (float)availableWidth / screen.VisibleWidth;
-            var scaleY = (float)availableHeight / screen.VisibleHeight;
+            var scaleX = (float)availableWidth / emulatorScreenPixels.VisibleWidth;
+            var scaleY = (float)availableHeight / emulatorScreenPixels.VisibleHeight;
             var maxScale = Math.Min(scaleX, scaleY);
 
             // Round scale down to nearest 0.5 step to prefer slightly smaller fit
@@ -206,7 +232,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             _logger.LogDebug(
                $"MaxScale calculation: " +
                   $"AvailableSize({availableWidth:F0}x{availableHeight:F0}) " +
-                       $"EmulatorScreenSize({screen.VisibleWidth}x{screen.VisibleHeight}) " +
+                       $"EmulatorScreenSize({emulatorScreenPixels.VisibleWidth}x{emulatorScreenPixels.VisibleHeight}) " +
                             $"ScaleX({scaleX:F2}) ScaleY({scaleY:F2}) MaxScale({maxScale:F2})");
 
             // If the always using maxium scale was not requested, use the current scale if it currently fits (currentScale <= maxScale)
@@ -228,34 +254,12 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         }
     }
 
-    private bool TryGetEmulatorMaxAvailableSize(out double availableWidth, out double availableHeight)
+    private Screen? GetCurrentScreenInfo(Window mainWindow)
     {
-        availableWidth = 0;
-        availableHeight = 0;
-
-        var app = global::Avalonia.Application.Current;
-        if (app == null)
-            return false;
-
-        Window? mainWindow = null;
-        // Get the main window based on application lifetime type
-        if (app.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            mainWindow = desktop.MainWindow;
-        }
-        else
-        {
-            // For other (Browser/WASM): can't reliably get screen resolution, use fallback
-            return false;
-        }
-
-        if (mainWindow == null || !mainWindow.IsVisible)
-            return false;
-
         // Get the screen that contains the main window
         var screens = mainWindow.Screens;
         if (screens == null || screens.ScreenCount == 0)
-            return false;
+            return null;
 
         // Get the screen bounds from the screen that the window is on
         // Use the window's center point to determine which screen it's on
@@ -267,6 +271,13 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             // Fallback to primary screen if we can't determine which screen the window is on
             screenInfo = screens.Primary;
         }
+        return screenInfo;
+    }
+
+    private bool TryGetEmulatorMaxAvailableSize(Window mainWindow, Screen screenInfo, out double availableWidth, out double availableHeight)
+    {
+        availableWidth = 0;
+        availableHeight = 0;
 
         if (screenInfo == null || screenInfo.Bounds.Width <= 0 || screenInfo.Bounds.Height <= 0)
             return false;
