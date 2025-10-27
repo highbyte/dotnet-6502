@@ -34,6 +34,21 @@ public class MainViewModel : ViewModelBase
         // Store injected child ViewModels
         C64MenuViewModel = c64MenuViewModel ?? throw new ArgumentNullException(nameof(c64MenuViewModel));
         StatisticsViewModel = statisticsViewModel ?? throw new ArgumentNullException(nameof(statisticsViewModel));
+        
+        // Initialize local scale from host app
+        _scale = _hostApp.Scale;
+        
+        // Subscribe to scale changes from AvaloniaHostApp (e.g., when set from OnAfterStart)
+        _hostApp.PropertyChanged += (sender, e) =>
+        {
+            if (e.PropertyName == nameof(AvaloniaHostApp.Scale))
+            {
+                // Update local backing field when AvaloniaHostApp.Scale changes externally
+                _scale = _hostApp.Scale;
+                this.RaisePropertyChanged(nameof(Scale));
+            }
+        };
+        
         InitializeAvailableSystems();
     }
 
@@ -112,7 +127,11 @@ public class MainViewModel : ViewModelBase
     public double Scale
     {
         get => _scale;
-        set => this.RaiseAndSetIfChanged(ref _scale, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _scale, value);
+            _hostApp.Scale = (float)value;
+        }
     }
 
     public ObservableCollection<string> AvailableSystems { get; } = new();

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
@@ -18,7 +19,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 /// <summary>
 /// Host app for running Highbyte.DotNet6502 emulator in an Avalonia window
 /// </summary>
-public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHandlerContext>
+public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHandlerContext>, INotifyPropertyChanged
 {
     private readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;
@@ -41,6 +42,13 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     public AvaloniaMonitor? Monitor => _monitor;
 
     public event EventHandler<bool>? MonitorVisibilityChanged;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 
     private void RaiseMonitorVisibilityChanged(bool isVisible)
     {
@@ -157,6 +165,9 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             );
         _emulatorView.RenderControl!.SetDisplaySize(screen.VisibleWidth, screen.VisibleHeight);
 
+        // Automatically adjust scale if emulator dimensions are too wide/tall.
+        Scale = GetUsefulScaleBasedOnEmulatorScreenDimensions(screen, Scale);
+
         // Create timer for current system on initial start. Assume Stop() sets _updateTimer to null.
         if (_updateTimer == null)
         {
@@ -169,6 +180,32 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             _monitor = new AvaloniaMonitor(CurrentSystemRunner!, _emulatorConfig.Monitor);
             RaiseMonitorVisibilityChanged(false);
         }
+    }
+
+    private float GetUsefulScaleBasedOnEmulatorScreenDimensions(IScreen screen, float currentScale)
+    {
+        // Automatically adjust scale if emulator dimensions are too wide/tall.
+        // TODO: Desktop: How to get host window dimensions? And adjust (remove) for area used by menus, side panels, etc.
+        // TODO: Browser: Should this not be done? Can I get the browser window dimensions? 
+        var hostVisibleEmulatorWidthMax = 1920 - 500;
+        var hostVisibleEmulatorHeightMax = 1080 - 400;
+
+        float useScale;
+        if (screen.VisibleWidth * currentScale > hostVisibleEmulatorWidthMax
+            || screen.VisibleHeight * currentScale > hostVisibleEmulatorHeightMax)
+        {
+            // Calculate scale that fits within host visible area
+            var scaleX = (float)hostVisibleEmulatorWidthMax / screen.VisibleWidth;
+            var scaleY = (float)hostVisibleEmulatorHeightMax / screen.VisibleHeight;
+            useScale = Math.Min(scaleX, scaleY);
+            // Round scale down to nearest 0.5 step
+            useScale = (float)(Math.Floor(useScale * 2) / 2);
+        }
+        else
+        {
+            useScale = currentScale;
+        }
+        return useScale;
     }
 
     public override void OnAfterPause()
@@ -268,8 +305,17 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     public float Scale
     {
         get { return _emulatorConfig.CurrentDrawScale; }
-        set { _emulatorConfig.CurrentDrawScale = value; }
+        set
+        {
+            if (_emulatorConfig.CurrentDrawScale != value)
+            {
+                _emulatorConfig.CurrentDrawScale = value;
+                OnPropertyChanged(nameof(Scale));
+            }
+        }
     }
+
+    public event EventHandler? ScaleChanged;
 
     private NullAudioHandlerContext CreateAudioHandlerContext()
     {

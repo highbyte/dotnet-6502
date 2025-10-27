@@ -91,6 +91,11 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
         {
             _logger.LogWarning("No JSON config available, using default config.");
             hostConfig = new GenericComputerHostConfig();
+            hostConfig.SystemConfig.ExamplePrograms = new Dictionary<string, string?>
+            {
+                { "Scroll", "6502binaries/Generic/Assembler/hostinteraction_scroll_text_and_cycle_colors.prg" },
+                { "Snake", "6502binaries/Generic/Assembler/snake6502.prg" },
+            };
         }
 
         // foreach (var kvp in hostConfig.SystemConfig.ExamplePrograms)
@@ -116,7 +121,7 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
 
         var genericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
         await _saveCustomConfigJson(GenericComputerHostConfig.ConfigSectionName, JsonSerializer.Serialize(genericComputerHostConfig));
-   }
+    }
 
     public async Task<ISystem> BuildSystem(string configurationVariant, ISystemConfig systemConfig)
     {
