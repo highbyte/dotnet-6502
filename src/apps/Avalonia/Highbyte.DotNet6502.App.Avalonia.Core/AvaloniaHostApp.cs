@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
@@ -166,7 +167,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         _emulatorView.RenderControl!.SetDisplaySize(screen.VisibleWidth, screen.VisibleHeight);
 
         // Automatically adjust scale if emulator dimensions are too wide/tall.
-        Scale = GetUsefulScaleBasedOnEmulatorScreenDimensions(screen, Scale);
+        Scale = GetUsefulScaleBasedOnEmulatorScreenDimensions(screen, Scale, alwaysUseMaxScale: false);
 
         // Create timer for current system on initial start. Assume Stop() sets _updateTimer to null.
         if (_updateTimer == null)
@@ -182,30 +183,179 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         }
     }
 
-    private float GetUsefulScaleBasedOnEmulatorScreenDimensions(IScreen screen, float currentScale)
+    private float GetUsefulScaleBasedOnEmulatorScreenDimensions(IScreen screen, float currentScale, bool alwaysUseMaxScale)
     {
-        // Automatically adjust scale if emulator dimensions are too wide/tall.
-        // TODO: Desktop: How to get host window dimensions? And adjust (remove) for area used by menus, side panels, etc.
-        // TODO: Browser: Should this not be done? Can I get the browser window dimensions? 
-        var hostVisibleEmulatorWidthMax = 1920 - 500;
-        var hostVisibleEmulatorHeightMax = 1080 - 400;
-
-        float useScale;
-        if (screen.VisibleWidth * currentScale > hostVisibleEmulatorWidthMax
-            || screen.VisibleHeight * currentScale > hostVisibleEmulatorHeightMax)
+        // Try to get the actual available space based on screen resolution
+        try
         {
-            // Calculate scale that fits within host visible area
-            var scaleX = (float)hostVisibleEmulatorWidthMax / screen.VisibleWidth;
-            var scaleY = (float)hostVisibleEmulatorHeightMax / screen.VisibleHeight;
-            useScale = Math.Min(scaleX, scaleY);
-            // Round scale down to nearest 0.5 step
-            useScale = (float)(Math.Floor(useScale * 2) / 2);
+            var success = TryGetEmulatorMaxAvailableSize(out double availableWidth, out double availableHeight);
+            if (!success || availableWidth <= 0 || availableHeight <= 0)
+            {
+                _logger.LogDebug("Could not determine available size for emulator based on screen resolution - using current scale.");
+                return currentScale;
+            }
+
+            // Calculate the scale that fits the emulator within available space
+            var scaleX = (float)availableWidth / screen.VisibleWidth;
+            var scaleY = (float)availableHeight / screen.VisibleHeight;
+            var maxScale = Math.Min(scaleX, scaleY);
+
+            // Round scale down to nearest 0.5 step to prefer slightly smaller fit
+            maxScale = (float)(Math.Floor(maxScale * 2) / 2);
+
+            _logger.LogDebug(
+               $"MaxScale calculation: " +
+                  $"AvailableSize({availableWidth:F0}x{availableHeight:F0}) " +
+                       $"EmulatorScreenSize({screen.VisibleWidth}x{screen.VisibleHeight}) " +
+                            $"ScaleX({scaleX:F2}) ScaleY({scaleY:F2}) MaxScale({maxScale:F2})");
+
+            // If the always using maxium scale was not requested, use the current scale if it currently fits (currentScale <= maxScale)
+            if (!alwaysUseMaxScale && currentScale <= maxScale)
+            {
+                _logger.LogDebug(
+                   $"Calculated max scale ({maxScale:F2}) is greater than or equal to current scale ({currentScale:F2}) - keeping current scale.");
+                return currentScale;
+            }
+
+            _logger.LogDebug($"Using calculated max scale: {maxScale:F2}");
+            return maxScale;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning($"Error calculating useful scale based on screen dimensions: {ex.Message}");
+            // Fall through to return current scale on error
+            return currentScale;
+        }
+    }
+
+    private bool TryGetEmulatorMaxAvailableSize(out double availableWidth, out double availableHeight)
+    {
+        availableWidth = 0;
+        availableHeight = 0;
+
+        var app = global::Avalonia.Application.Current;
+        if (app == null)
+            return false;
+
+        Window? mainWindow = null;
+        // Get the main window based on application lifetime type
+        if (app.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            mainWindow = desktop.MainWindow;
         }
         else
         {
-            useScale = currentScale;
+            // For other (Browser/WASM): can't reliably get screen resolution, use fallback
+            return false;
         }
-        return useScale;
+
+        if (mainWindow == null || !mainWindow.IsVisible)
+            return false;
+
+        // Get the screen that contains the main window
+        var screens = mainWindow.Screens;
+        if (screens == null || screens.ScreenCount == 0)
+            return false;
+
+        // Get the screen bounds from the screen that the window is on
+        // Use the window's center point to determine which screen it's on
+        var windowCenter = new PixelPoint((int)(mainWindow.Position.X + mainWindow.Bounds.Width / 2), (int)(mainWindow.Position.Y + mainWindow.Bounds.Height / 2));
+        var screenInfo = screens.ScreenFromPoint(windowCenter);
+
+        if (screenInfo == null || screenInfo.Bounds.Width <= 0 || screenInfo.Bounds.Height <= 0)
+        {
+            // Fallback to primary screen if we can't determine which screen the window is on
+            screenInfo = screens.Primary;
+        }
+
+        if (screenInfo == null || screenInfo.Bounds.Width <= 0 || screenInfo.Bounds.Height <= 0)
+            return false;
+
+        // Get the MainView from the window's content
+        if (mainWindow.Content is not UserControl mainView)
+            return false;
+
+        // MainView's content should be a Grid
+        if (mainView.Content is not Grid mainViewGrid)
+            return false;
+
+        // MainView grid structure (from MainView.axaml):
+        // Columns: 0=Menu(200), 1=Emulator(*), 2=Stats(Auto)
+        // Rows: 0=Auto, 1=*, 2=Auto
+        // EmulatorView is in Row 0, Column 1
+
+        // Calculate screen-based available space
+        // Note: screenInfo.Bounds is in PHYSICAL pixels, need to convert to logical coordinates using Scaling
+        double totalScreenWidthPhysical = screenInfo.Bounds.Width;
+        double totalScreenHeightPhysical = screenInfo.Bounds.Height;
+        double dpiScale = screenInfo.Scaling;
+
+        // Convert physical pixels to logical coordinates
+        double totalScreenWidth = totalScreenWidthPhysical / dpiScale;
+        double totalScreenHeight = totalScreenHeightPhysical / dpiScale;
+
+        _logger.LogDebug(
+          $"Screen info: Physical({totalScreenWidthPhysical:F0}x{totalScreenHeightPhysical:F0}), " +
+          $"Scaling({dpiScale:F2}), Logical({totalScreenWidth:F0}x{totalScreenHeight:F0})");
+
+        // Calculate width consumed by other columns
+        // Fixed widths are already in logical coordinates (specified in XAML), so use them as-is
+        double widthColumn0 = 200; // Menu column fixed width (from MainView.axaml), already in logical units
+        double widthColumn2 = 0; // Stats panel width (Auto) - calculate from actual content or use reasonable estimate
+
+        // Try to get actual widths from the grid definitions
+        if (mainViewGrid.ColumnDefinitions.Count >= 3)
+        {
+            var col0Def = mainViewGrid.ColumnDefinitions[0];
+            var col2Def = mainViewGrid.ColumnDefinitions[2];
+
+            // Column 0: Width="200"
+            if (col0Def.Width.IsAbsolute)
+                widthColumn0 = col0Def.Width.Value;
+
+            // Column 2: Width="Auto" - estimate from content if possible
+            if (col2Def.Width.IsAuto)
+            {
+                // For auto columns, we need to estimate. Check if we can get the actual width.
+                // If column 2 (stats panel) is visible, try to get its width
+                var statsPanel = FindChildByGrid(mainViewGrid, 0, 2) as Border;
+                if (statsPanel?.IsVisible == true && statsPanel.Bounds.Width > 0)
+                {
+                    widthColumn2 = statsPanel.Bounds.Width;
+                }
+                else
+                {
+                    widthColumn2 = 250; // Estimate 250 if not yet measured, in logical units
+                }
+            }
+        }
+
+        // Calculate height consumed by other rows
+        double heightRow1 = 120; // Information area estimated minimum height, in logical units
+
+        // Calculate available space for the EmulatorView based on screen resolution
+        // All values are now in logical coordinates
+        availableWidth = totalScreenWidth - widthColumn0 - widthColumn2;
+        availableHeight = totalScreenHeight - heightRow1;
+
+        // Account for padding and borders in MainView center area
+        double padding = 10 * 2; // Left and right padding in the border containing the emulator, in logical units
+        availableWidth -= padding;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Helper method to find a child control in a grid by row and column
+    /// </summary>
+    private Control? FindChildByGrid(Grid grid, int row, int column)
+    {
+        foreach (var child in grid.Children)
+        {
+            if (child is Control ctrl && Grid.GetRow(ctrl) == row && Grid.GetColumn(ctrl) == column)
+                return ctrl;
+        }
+        return null;
     }
 
     public override void OnAfterPause()
@@ -315,8 +465,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         }
     }
 
-    public event EventHandler? ScaleChanged;
-
     private NullAudioHandlerContext CreateAudioHandlerContext()
     {
         return new NullAudioHandlerContext();
@@ -424,7 +572,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         }
         // If F12 is pressed without Ctrl or Shift modifier, toggle monitor
         else if (key == Key.F12 && (modifiers & KeyModifiers.Control) == 0 && (modifiers & KeyModifiers.Shift) == 0
-                && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
+ && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
         {
             _logger.LogInformation("F12 pressed - toggling monitor");
             ToggleMonitor();
