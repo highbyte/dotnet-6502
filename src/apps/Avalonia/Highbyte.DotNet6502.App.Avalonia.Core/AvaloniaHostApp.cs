@@ -336,7 +336,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
                 }
                 else
                 {
-                    widthColumn2 = 250; // Estimate 250 if not yet measured, in logical units
+                    widthColumn2 = 0; // Assume 0 if not visible
                 }
             }
         }
