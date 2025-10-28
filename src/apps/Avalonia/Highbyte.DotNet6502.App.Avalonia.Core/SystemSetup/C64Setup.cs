@@ -28,19 +28,16 @@ public class C64Setup : ISystemConfigurer<AvaloniaInputHandlerContext, NullAudio
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<C64Setup> _logger;
     private readonly IConfiguration _configuration;
-    private readonly HttpClient? _httpClient;
 
     public C64Setup(
         ILoggerFactory loggerFactory,
         IConfiguration configuration,
-        HttpClient? httpClient,
         Func<string, Task<string>>? getCustomConfigJson = null,
         Func<string, string, Task>? saveCustomConfigJson = null)
     {
         _loggerFactory = loggerFactory;
         _logger = _loggerFactory.CreateLogger<C64Setup>();
         _configuration = configuration;
-        _httpClient = httpClient;
         _getCustomConfigJson = getCustomConfigJson;
         _saveCustomConfigJson = saveCustomConfigJson;
     }

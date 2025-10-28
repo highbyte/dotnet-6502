@@ -31,19 +31,21 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<GenericComputerSetup> _logger;
     private readonly IConfiguration _configuration;
-    private readonly HttpClient? _httpClient;
+    private readonly EmulatorConfig _emulatorConfig;
+    private readonly HttpClient? _appUrlHttpClient;
 
     public GenericComputerSetup(
         ILoggerFactory loggerFactory,
         IConfiguration configuration,
-        HttpClient? httpClient,
+        EmulatorConfig emulatorConfig,
         Func<string, Task<string>>? getCustomConfigJson = null,
         Func<string, string, Task>? saveCustomConfigJson = null)
     {
         _loggerFactory = loggerFactory;
         _logger = _loggerFactory.CreateLogger<GenericComputerSetup>();
         _configuration = configuration;
-        _httpClient = httpClient;
+        _emulatorConfig = emulatorConfig;
+        _appUrlHttpClient = emulatorConfig.GetAppUrlHttpClient();
         _getCustomConfigJson = getCustomConfigJson;
         _saveCustomConfigJson = saveCustomConfigJson;
     }
@@ -128,7 +130,7 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
         var genericComputerSystemConfig = (GenericComputerSystemConfig)systemConfig ?? throw new ArgumentException($"systemConfig is not of type {nameof(GenericComputerSystemConfig)}");
 
         GenericComputerConfig? genericComputerConfig = null;
-        if (_httpClient != null)
+        if (_emulatorConfig.LoadResourcesOverHttp && _appUrlHttpClient != null)
         {
             if (!genericComputerSystemConfig.ExamplePrograms.ContainsKey(configurationVariant))
                 throw new ArgumentException($"No example program with name '{configurationVariant}' exists in system config.");
@@ -137,7 +139,7 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
             {
                 try
                 {
-                    var exampleProgramBytes = await _httpClient.GetByteArrayAsync(exampleProgramPath);
+                    var exampleProgramBytes = await _appUrlHttpClient.GetByteArrayAsync(exampleProgramPath);
                     genericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(configurationVariant, genericComputerSystemConfig, exampleProgramBytes);
                 }
                 catch (Exception ex)

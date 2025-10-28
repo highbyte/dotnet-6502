@@ -2,9 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Net.Http;
+using System.Reflection;
+using System.Threading.Tasks;
+using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
+using Highbyte.DotNet6502.Utils;
 using ReactiveUI;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
@@ -12,11 +16,23 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 public class C64MenuViewModel : ViewModelBase
 {
     private readonly AvaloniaHostApp _avaloniaHostApp;
+    private readonly EmulatorConfig _emulatorConfig;
+    private readonly HttpClient? _appUrlHttpClient;
+
+    private readonly Assembly _examplesAssembly = Assembly.GetExecutingAssembly();
+    private string? ExampleFileAssemblyName => _examplesAssembly.GetName().Name;
+
     public AvaloniaHostApp HostApp => _avaloniaHostApp;
 
-    public C64MenuViewModel(AvaloniaHostApp avaloniaHostApp)
+    public C64MenuViewModel(
+        AvaloniaHostApp avaloniaHostApp,
+        EmulatorConfig emulatorConfig)
     {
         _avaloniaHostApp = avaloniaHostApp ?? throw new ArgumentNullException(nameof(avaloniaHostApp));
+        _emulatorConfig = emulatorConfig;
+        _appUrlHttpClient = emulatorConfig.GetAppUrlHttpClient();
+
+        _examplesAssembly = Assembly.GetExecutingAssembly();
         InitializeC64Data();
     }
 
@@ -226,17 +242,22 @@ public class C64MenuViewModel : ViewModelBase
         PreloadedD64Programs.Add(new KeyValuePair<string, string>("montezuma", "Montezuma's Revenge"));
         PreloadedD64Programs.Add(new KeyValuePair<string, string>("rallyspeedway", "Rally Speedway"));
 
+        // Debug: List all embedded resource names
+        var resourceNames = _examplesAssembly.GetManifestResourceNames();
+        foreach (var name in resourceNames)
+        {
+            System.Console.WriteLine(name);
+        }
         // Initialize assembly examples
         AssemblyExamples.Clear();
         AssemblyExamples.Add(new KeyValuePair<string, string>("", "-- Select an example --"));
-        AssemblyExamples.Add(new KeyValuePair<string, string>("6502binaries/C64/Assembler/smooth_scroller_and_raster.prg", "SmoothScroller"));
-        AssemblyExamples.Add(new KeyValuePair<string, string>("6502binaries/C64/Assembler/scroller_and_raster.prg", "Scroller"));
-
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.smooth_scroller_and_raster.prg", "SmoothScroller"));
+        AssemblyExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.C64.scroller_and_raster.prg", "Scroller"));
         // Initialize basic examples
         BasicExamples.Clear();
         BasicExamples.Add(new KeyValuePair<string, string>("", "-- Select an example --"));
-        BasicExamples.Add(new KeyValuePair<string, string>("6502binaries/C64/Basic/HelloWorld.prg", "HelloWorld"));
-        BasicExamples.Add(new KeyValuePair<string, string>("6502binaries/C64/Basic/PlaySoundVoice1TriangleScale.prg", "PlaySound"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.C64.HelloWorld.prg", "HelloWorld"));
+        BasicExamples.Add(new KeyValuePair<string, string>($"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Basic.C64.PlaySoundVoice1TriangleScale.prg", "PlaySound"));
     }
 
     /// <summary>
@@ -299,4 +320,56 @@ public class C64MenuViewModel : ViewModelBase
             }
         }
     }
+
+    public async Task LoadAssemblyExample()
+    {
+        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
+            return;
+
+        string? file = SelectedAssemblyExample;
+        if (string.IsNullOrEmpty(file))
+            return;
+
+        bool wasRunning = HostApp.EmulatorState == Systems.EmulatorState.Running;
+        if (wasRunning)
+            HostApp.Pause();
+
+        try
+        {
+            byte[] prgBytes;
+            // Load the .prg file from embedded resource
+            using (var resourceStream = _examplesAssembly.GetManifestResourceStream(file))
+            {
+                if (resourceStream == null)
+                    throw new Exception($"Cannot find file in embedded resources. Resource: {file}");
+                // Read contents of stream as byte array
+                prgBytes = new byte[resourceStream.Length];
+                resourceStream.ReadExactly(prgBytes);
+            }
+
+            // Load file into memory
+            BinaryLoader.Load(
+                HostApp.CurrentRunningSystem!.Mem,
+                prgBytes,
+                out ushort loadedAtAddress,
+                out ushort fileLength);
+
+            // Set Program Counter to start of loaded file
+            HostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
+
+            System.Console.WriteLine($"Assembly example loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+            System.Console.WriteLine($"Program Counter set to {loadedAtAddress.ToHex()}");
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"Error loading assembly example: {ex.Message}");
+            throw;
+        }
+        finally
+        {
+            if (wasRunning)
+                await HostApp.Start();
+        }
+    }
+
 }

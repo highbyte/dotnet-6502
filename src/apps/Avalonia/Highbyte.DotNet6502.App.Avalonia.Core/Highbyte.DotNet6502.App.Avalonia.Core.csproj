@@ -12,6 +12,20 @@
     <!-- Fonts used for rendering emulated systems (not UI) -->
     <AvaloniaResource Include="Resources\Fonts\*.ttf" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <None Remove="Resources\Sample6502Programs\Assembler\C64\scroller_and_raster.prg" />
+    <None Remove="Resources\Sample6502Programs\Assembler\C64\smooth_scroller_and_raster.prg" />
+    <None Remove="Resources\Sample6502Programs\Basic\C64\HelloWorld.prg" />
+    <None Remove="Resources\Sample6502Programs\Basic\C64\PlaySoundVoice1TriangleScale.prg" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\scroller_and_raster.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\smooth_scroller_and_raster.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Basic\C64\HelloWorld.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Basic\C64\PlaySoundVoice1TriangleScale.prg" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" />

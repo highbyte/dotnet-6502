@@ -1,3 +1,5 @@
+using System;
+using System.Net.Http;
 using Highbyte.DotNet6502.App.Avalonia.Core.Input;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
@@ -12,8 +14,10 @@ public class EmulatorConfig
     public float DefaultDrawScale { get; set; } = 2.0f;
     public float CurrentDrawScale { get; set; } = 2.0f;
     public bool ShowErrorDialog { get; set; } = true;
+    public bool LoadResourcesOverHttp { get; set; } = false;
     public MonitorConfig Monitor { get; set; } = new();
 
+    private Func<HttpClient>? _getAppUrlHttpClient = null;
     public EmulatorConfig()
     {
         DefaultEmulator = DefaultEmulator;
@@ -23,6 +27,18 @@ public class EmulatorConfig
 
         // Initialize MonitorConfig or other properties as needed
         Monitor = new();
+    }
+
+    public void EnableLoadResourceOverHttp(Func<HttpClient> getAppUrlHttpClient)
+    {
+        LoadResourcesOverHttp = true;
+        _getAppUrlHttpClient = getAppUrlHttpClient;
+    }
+    public HttpClient? GetAppUrlHttpClient()
+    {
+        if (!LoadResourcesOverHttp || _getAppUrlHttpClient == null)
+            return null;
+        return _getAppUrlHttpClient();
     }
 
     public void Validate(SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> systemList)

@@ -286,10 +286,9 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 Directory.CreateDirectory(romFolder);
             }
 
-            using var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-            //httpClient.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
-            httpClient.DefaultRequestHeaders.Accept.ParseAdd("*/*");
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            //_httpClient.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+            _httpClient.DefaultRequestHeaders.Accept.ParseAdd("*/*");
 
             foreach (var romDownload in _workingConfig.SystemConfig.ROMDownloadUrls)
             {
@@ -299,7 +298,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 var dest = Path.Combine(romFolder, filename);
                 try
                 {
-                    using var response = await httpClient.GetAsync(romUrl);
+                    using var response = await _httpClient.GetAsync(romUrl);
                     if (!response.IsSuccessStatusCode)
                         throw new Exception($"Failed to get '{romUrl}' ({(int)response.StatusCode})");
                     await using var fs = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None);

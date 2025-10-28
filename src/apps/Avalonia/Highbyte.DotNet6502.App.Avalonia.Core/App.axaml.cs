@@ -32,7 +32,6 @@ public partial class App : Application
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
-    private readonly Func<HttpClient>? _getHttpClient;
     private readonly Func<string, Task<string>>? _getCustomConfigJson;
     private readonly Func<string, string, Task>? _saveCustomConfigJson;
 
@@ -47,8 +46,6 @@ public partial class App : Application
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
     /// <param name="loggerFactory"></param>
-    /// <param name="loadResourcesFromHttp"></param>
-    /// <param name="getHttpClient"></param>
     /// <param name="getCustomConfigJson"></param>
     /// <param name="saveCustomConfigJson"></param>
     public App(
@@ -57,8 +54,6 @@ public partial class App : Application
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
-        bool loadResourcesFromHttp = false,
-        Func<HttpClient>? getHttpClient = null,
         Func<string, Task<string>>? getCustomConfigJson = null,
         Func<string, string, Task>? saveCustomConfigJson = null) : this(configuration, emulatorConfig, loggerFactory)
     {
@@ -72,18 +67,15 @@ public partial class App : Application
     /// <param name="configuration"></param>
     /// <param name="emulatorConfig"></param>
     /// <param name="loggerFactory"></param>
-    /// <param name="getHttpClient"></param>
     /// <param name="getCustomConfigJson"></param>
     /// <param name="saveCustomConfigJson"></param>
     public App(
         IConfiguration configuration,
         EmulatorConfig emulatorConfig,
         ILoggerFactory loggerFactory,
-        Func<HttpClient> getHttpClient,
         Func<string, Task<string>> getCustomConfigJson,
         Func<string, string, Task> saveCustomConfigJson) : this(configuration, emulatorConfig, loggerFactory)
     {
-        _getHttpClient = getHttpClient;
         _getCustomConfigJson = getCustomConfigJson;
         _saveCustomConfigJson = saveCustomConfigJson;
     }
@@ -289,7 +281,6 @@ public partial class App : Application
     {
         try
         {
-            HttpClient? httpClient = _getHttpClient != null ? _getHttpClient() : null;
             Func<string, Task<string>>? getCustomConfigJson = _getCustomConfigJson ?? null;
             Func<string, string, Task>? saveCustomConfigJson = _saveCustomConfigJson ?? null;
 
@@ -298,10 +289,10 @@ public partial class App : Application
             // ----------
             var systemList = new SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext>();
 
-            var c64Setup = new C64Setup(_loggerFactory, _configuration, httpClient, getCustomConfigJson, saveCustomConfigJson);
+            var c64Setup = new C64Setup(_loggerFactory, _configuration, getCustomConfigJson, saveCustomConfigJson);
             systemList.AddSystem(c64Setup);
 
-            var genericComputerSetup = new GenericComputerSetup(_loggerFactory, _configuration, httpClient, getCustomConfigJson, saveCustomConfigJson);
+            var genericComputerSetup = new GenericComputerSetup(_loggerFactory, _configuration, _emulatorConfig, getCustomConfigJson, saveCustomConfigJson);
             systemList.AddSystem(genericComputerSetup);
 
             // ----------

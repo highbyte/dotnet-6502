@@ -35,6 +35,8 @@ public partial class C64MenuView : UserControl
     {
         InitializeComponent();
 
+        _httpClient = new HttpClient();
+
         // Subscribe to visibility property changes to update section states when view becomes visible
         this.PropertyChanged += (s, e) =>
         {
@@ -199,10 +201,7 @@ public partial class C64MenuView : UserControl
         if (result == true)
         {
             // Notify C64MenuViewModel of state changes
-            if (ViewModel is C64MenuViewModel viewModel)
-            {
-                viewModel.NotifyEmulatorStateChanged();
-            }
+            ViewModel?.NotifyEmulatorStateChanged();
 
             // Notify MainViewModel to refresh validation errors
             NotifyMainViewModelOfConfigChange();
@@ -255,12 +254,12 @@ public partial class C64MenuView : UserControl
         // Find the root MainView's Grid by walking up the visual tree
         var root = this.GetVisualRoot();
         Grid? mainGrid = null;
-        
+
         if (root is Window window && window.Content is Grid contentGrid)
         {
             mainGrid = contentGrid;
         }
-        
+
         if (mainGrid == null)
         {
             mainGrid = this.FindAncestorOfType<MainView>(true)?.Content as Grid;
@@ -420,10 +419,7 @@ public partial class C64MenuView : UserControl
             }
 
             // Notify the ViewModel that the disk image state has changed
-            if (ViewModel is C64MenuViewModel viewModel)
-            {
-                viewModel.NotifyDiskImageStateChanged();
-            }
+            ViewModel?.NotifyDiskImageStateChanged();
         }
         catch (Exception ex)
         {
@@ -565,10 +561,7 @@ public partial class C64MenuView : UserControl
     // File operation event handlers
     private async void LoadPreloadedDisk_Click(object? sender, RoutedEventArgs e)
     {
-        if (ViewModel is not C64MenuViewModel viewModel)
-            return;
-
-        string selectedPreloadedDisk = viewModel.SelectedPreloadedDisk;
+        string selectedPreloadedDisk = ViewModel!.SelectedPreloadedDisk;
         if (string.IsNullOrEmpty(selectedPreloadedDisk) || !_preloadedD64Images.ContainsKey(selectedPreloadedDisk))
             return;
 
@@ -583,8 +576,7 @@ public partial class C64MenuView : UserControl
             // Initialize D64AutoDownloadAndRun if not already done
             if (_d64AutoDownloadAndRun == null)
             {
-                var httpClient = new HttpClient();
-                httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
                 var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
              {
@@ -594,7 +586,7 @@ public partial class C64MenuView : UserControl
                 var c64HostConfig = HostApp!.CurrentHostSystemConfig as C64HostConfig;
                 _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(
                    loggerFactory,
-                   httpClient,
+                   _httpClient,
                    HostApp!,
                     corsProxyUrl: PlatformDetection.IsRunningInWebAssembly() ? c64HostConfig.CorsProxyURL : null);
             }
@@ -603,7 +595,7 @@ public partial class C64MenuView : UserControl
                 diskInfo,
                 stateHasChangedCallback: async () =>
                 {
-                    viewModel.NotifyEmulatorStateChanged();
+                    ViewModel.NotifyEmulatorStateChanged();
                     await Task.CompletedTask;
                 },
                 setConfigCallback: async (diskInfo) =>
@@ -643,7 +635,7 @@ public partial class C64MenuView : UserControl
             System.Console.WriteLine($"Finished loading preloaded disk. Loading state: {_isLoadingPreloadedDisk}");
             if (!string.IsNullOrEmpty(_latestPreloadedDiskError))
                 System.Console.WriteLine($"Final error state: {_latestPreloadedDiskError}");
-            viewModel.NotifyEmulatorStateChanged();
+            ViewModel.NotifyEmulatorStateChanged();
         }
     }
 
@@ -856,53 +848,7 @@ public partial class C64MenuView : UserControl
 
     private async void LoadAssemblyExample_Click(object? sender, RoutedEventArgs e)
     {
-        await LoadAssemblyExample();
-    }
-
-    private async Task LoadAssemblyExample()
-    {
-        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized || !IsC64System())
-            return;
-
-        if (ViewModel is not C64MenuViewModel viewModel)
-            return;
-
-        string url = viewModel.SelectedAssemblyExample;
-        if (string.IsNullOrEmpty(url))
-            return;
-
-        bool wasRunning = HostApp.EmulatorState == Systems.EmulatorState.Running;
-        if (wasRunning)
-            HostApp.Pause();
-
-        try
-        {
-            // Download the .prg file
-            var httpClient = new HttpClient();
-            var prgBytes = await httpClient.GetByteArrayAsync(url);
-
-            // Load file into memory
-            BinaryLoader.Load(
-    HostApp.CurrentRunningSystem!.Mem,
-     prgBytes,
-       out ushort loadedAtAddress,
-         out ushort fileLength);
-
-            // Set Program Counter to start of loaded file
-            HostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
-
-            System.Console.WriteLine($"Assembly example loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
-            System.Console.WriteLine($"Program Counter set to {loadedAtAddress.ToHex()}");
-
-            // Start the emulator
-            await HostApp.Start();
-        }
-        catch (Exception ex)
-        {
-            System.Console.WriteLine($"Error loading assembly example: {ex.Message}");
-            if (wasRunning)
-                await HostApp.Start();
-        }
+        await ViewModel!.LoadAssemblyExample();
     }
 
     private async void LoadBasicExample_Click(object? sender, RoutedEventArgs e)
@@ -915,10 +861,7 @@ public partial class C64MenuView : UserControl
         if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized || !IsC64System())
             return;
 
-        if (ViewModel is not C64MenuViewModel viewModel)
-            return;
-
-        string url = viewModel.SelectedBasicExample;
+        string? url = ViewModel?.SelectedBasicExample;
         if (string.IsNullOrEmpty(url))
             return;
 
@@ -929,8 +872,7 @@ public partial class C64MenuView : UserControl
         try
         {
             // Download the .prg file
-            var httpClient = new HttpClient();
-            var prgBytes = await httpClient.GetByteArrayAsync(url);
+            var prgBytes = await _httpClient.GetByteArrayAsync(url);
 
             // Load file into memory
             BinaryLoader.Load(
@@ -984,4 +926,5 @@ public partial class C64MenuView : UserControl
     private bool _isLoadingPreloadedDisk = false;
     private D64AutoDownloadAndRun? _d64AutoDownloadAndRun;
     private CancellationTokenSource _buttonFlashCancellation;
+    private HttpClient _httpClient;
 }

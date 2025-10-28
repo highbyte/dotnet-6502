@@ -29,8 +29,9 @@ internal sealed partial class Program
             builder.SetMinimumLevel(LogLevel.Information);
         });
 
-        // Emulator config (defaults)
+        // Emulator config
         var emulatorConfig = new EmulatorConfig();
+        emulatorConfig.EnableLoadResourceOverHttp(GetAppUrlHttpClient);
 
         try
         {
@@ -119,7 +120,11 @@ internal sealed partial class Program
     //     }
     // }
 
-    private static HttpClient GetHttpClient()
+    /// <summary>
+    /// Gets a HttpClient with BaseAddress set to the current app origin.
+    /// </summary>
+    /// <returns></returns>
+    private static HttpClient GetAppUrlHttpClient()
     {
         var httpClient = new HttpClient();
         httpClient.BaseAddress = new Uri(GetCurrentOrigin());
@@ -193,7 +198,6 @@ internal sealed partial class Program
                                 configuration,
                                 emulatorConfig,
                                 loggerFactory,
-                                getHttpClient: GetHttpClient,   // Load example programs from HTTP
                                 getCustomConfigJson: GetConfigJsonFromLocalStorage, // Load configuration from custom provided JSON read from Browser Local Storage
                                 saveCustomConfigJson: PersistJsonToLocalStorage // Save configuration to custom provided JSON in Browser Local Storage
                             );
