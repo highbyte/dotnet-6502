@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
-using Avalonia.Platform.Storage;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
@@ -530,7 +529,7 @@ public class C64MenuViewModel : ViewModelBase
         }
     }
 
-    public async Task LoadBasicFile(IStorageProvider storageProvider)
+    public async Task LoadBasicFile(byte[] fileBuffer)
     {
         if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;
@@ -541,47 +540,20 @@ public class C64MenuViewModel : ViewModelBase
 
         try
         {
-            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            BinaryLoader.Load(
+                HostApp.CurrentRunningSystem!.Mem,
+                fileBuffer,
+                out ushort loadedAtAddress,
+                out ushort fileLength);
+
+            if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
             {
-                Title = "Load Basic PRG File",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
-            });
-
-            if (files.Count > 0)
+                System.Console.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
+            }
+            else
             {
-                try
-                {
-                    await using var stream = await files[0].OpenReadAsync();
-                    var fileBuffer = new byte[stream.Length];
-                    await stream.ReadExactlyAsync(fileBuffer);
-
-                    BinaryLoader.Load(
-                        HostApp.CurrentRunningSystem!.Mem,
-                        fileBuffer,
-                        out ushort loadedAtAddress,
-                        out ushort fileLength);
-
-                    if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
-                    {
-                        System.Console.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
-                    }
-                    else
-                    {
-                        var c64 = (C64)HostApp.CurrentRunningSystem!;
-                        c64.InitBasicMemoryVariables(loadedAtAddress, fileLength);
-                    }
-
-                    System.Console.WriteLine($"Basic program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
-                }
-                catch (Exception ex)
-                {
-                    System.Console.WriteLine($"Error loading Basic .prg: {ex.Message}");
-                }
+                var c64 = (C64)HostApp.CurrentRunningSystem!;
+                c64.InitBasicMemoryVariables(loadedAtAddress, fileLength);
             }
         }
         finally
@@ -591,10 +563,10 @@ public class C64MenuViewModel : ViewModelBase
         }
     }
 
-    public async Task SaveBasicFile(IStorageProvider storageProvider)
+    public async Task<byte[]> GetBasicProgramAsPrgFileBytes()
     {
         if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
-            return;
+            return Array.Empty<byte>();
 
         bool wasRunning = HostApp.EmulatorState == Systems.EmulatorState.Running;
         if (wasRunning)
@@ -602,41 +574,17 @@ public class C64MenuViewModel : ViewModelBase
 
         try
         {
-            var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-            {
-                Title = "Save Basic PRG File",
-                SuggestedFileName = "program.prg",
-                FileTypeChoices = new[]
-                {
-                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
-            });
+            ushort startAddress = C64.BASIC_LOAD_ADDRESS;
+            var c64 = (C64)HostApp.CurrentRunningSystem!;
+            var endAddress = c64.GetBasicProgramEndAddress();
 
-            if (file != null)
-            {
-                try
-                {
-                    ushort startAddress = C64.BASIC_LOAD_ADDRESS;
-                    var c64 = (C64)HostApp.CurrentRunningSystem!;
-                    var endAddress = c64.GetBasicProgramEndAddress();
+            var saveData = BinarySaver.BuildSaveData(
+                HostApp.CurrentRunningSystem.Mem,
+                startAddress,
+                endAddress,
+                addFileHeaderWithLoadAddress: true);
 
-                    var saveData = BinarySaver.BuildSaveData(
-                        HostApp.CurrentRunningSystem.Mem,
-                        startAddress,
-                        endAddress,
-                        addFileHeaderWithLoadAddress: true);
-
-                    await using var stream = await file.OpenWriteAsync();
-                    await stream.WriteAsync(saveData);
-
-                    System.Console.WriteLine($"Basic program saved from {startAddress.ToHex()} to {endAddress.ToHex()}");
-                }
-                catch (Exception ex)
-                {
-                    System.Console.WriteLine($"Error saving Basic .prg: {ex.Message}");
-                }
-            }
+            return saveData;
         }
         finally
         {
@@ -645,7 +593,7 @@ public class C64MenuViewModel : ViewModelBase
         }
     }
 
-    public async Task LoadBinaryFile(IStorageProvider storageProvider)
+    public async Task LoadBinaryFile(byte[] fileBuffer)
     {
         if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;
@@ -656,43 +604,18 @@ public class C64MenuViewModel : ViewModelBase
 
         try
         {
-            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Load & Start Binary PRG File",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
-            });
+            BinaryLoader.Load(
+                HostApp.CurrentRunningSystem!.Mem,
+                fileBuffer,
+                out ushort loadedAtAddress,
+                out ushort fileLength);
 
-            if (files.Count > 0)
-            {
-                try
-                {
-                    await using var stream = await files[0].OpenReadAsync();
-                    var fileBuffer = new byte[stream.Length];
-                    await stream.ReadExactlyAsync(fileBuffer);
+            HostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
 
-                    BinaryLoader.Load(
-                        HostApp.CurrentRunningSystem!.Mem,
-                        fileBuffer,
-                        out ushort loadedAtAddress,
-                        out ushort fileLength);
+            System.Console.WriteLine($"Binary program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+            System.Console.WriteLine($"Program Counter set to {loadedAtAddress.ToHex()}");
 
-                    HostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
-
-                    System.Console.WriteLine($"Binary program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
-                    System.Console.WriteLine($"Program Counter set to {loadedAtAddress.ToHex()}");
-
-                    await HostApp.Start();
-                }
-                catch (Exception ex)
-                {
-                    System.Console.WriteLine($"Error loading binary .prg: {ex.Message}");
-                }
-            }
+            await HostApp.Start();
         }
         finally
         {

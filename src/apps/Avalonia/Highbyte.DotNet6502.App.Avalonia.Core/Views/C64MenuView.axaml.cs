@@ -561,17 +561,71 @@ public partial class C64MenuView : UserControl
         var storageProvider = topLevel.StorageProvider;
         if (!storageProvider.CanOpen)
             return;
-        await ViewModel.LoadBasicFile(storageProvider);
+
+        var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Load Basic PRG File",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
+                new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+            }
+        });
+
+        if (files.Count > 0)
+        {
+            try
+            {
+                await using var stream = await files[0].OpenReadAsync();
+                var fileBuffer = new byte[stream.Length];
+                await stream.ReadExactlyAsync(fileBuffer);
+
+                await ViewModel.LoadBasicFile(fileBuffer);
+
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error loading Basic .prg: {ex.Message}");
+            }
+        }
     }
 
     private async void SaveBasicFile_Click(object? sender, RoutedEventArgs e)
     {
-       if (TopLevel.GetTopLevel(this) is not { } topLevel)
+        if (TopLevel.GetTopLevel(this) is not { } topLevel)
             return;
         var storageProvider = topLevel.StorageProvider;
         if (!storageProvider.CanSave)
             return;
-        await ViewModel.SaveBasicFile(storageProvider);
+
+        try
+        {
+            var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save Basic PRG File",
+                SuggestedFileName = "program",
+                FileTypeChoices = new[]
+                {
+                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                }
+            });
+
+            if (file != null)
+            {
+                var saveData = await ViewModel.GetBasicProgramAsPrgFileBytes();
+
+                await using var stream = await file.OpenWriteAsync();
+                await stream.WriteAsync(saveData);
+                System.Console.WriteLine($"Basic program saved to {file.Name}");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"Error saving Basic .prg: {ex.Message}");
+        }
+
     }
 
     private async void LoadBinaryFile_Click(object? sender, RoutedEventArgs e)
@@ -581,7 +635,33 @@ public partial class C64MenuView : UserControl
         var storageProvider = topLevel.StorageProvider;
         if (!storageProvider.CanOpen)
             return;
-        await ViewModel.LoadBinaryFile(storageProvider);
+
+        var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Load & Start Binary PRG File",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
+                new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+            }
+        });
+
+        if (files.Count > 0)
+        {
+            try
+            {
+                await using var stream = await files[0].OpenReadAsync();
+                var fileBuffer = new byte[stream.Length];
+                await stream.ReadExactlyAsync(fileBuffer);
+
+                await ViewModel.LoadBinaryFile(fileBuffer);
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error loading binary .prg: {ex.Message}");
+            }
+        }
     }
 
     private async void LoadAssemblyExample_Click(object? sender, RoutedEventArgs e)
