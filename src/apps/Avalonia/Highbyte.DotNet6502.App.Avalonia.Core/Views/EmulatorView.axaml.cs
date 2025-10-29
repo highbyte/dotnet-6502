@@ -1,4 +1,3 @@
-using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -76,9 +75,7 @@ public partial class EmulatorView : UserControl
         {
             // Update the render control's scale when this control's scale changes
             if (_renderControl != null)
-            {
                 _renderControl.Scale = Scale;
-            }
         }
     }
 
@@ -108,7 +105,6 @@ public partial class EmulatorView : UserControl
         {
             _renderControl.Scale = Scale;
         }
-
         // Set the new control
         RenderingControlContainer.Content = _renderControl;
     }

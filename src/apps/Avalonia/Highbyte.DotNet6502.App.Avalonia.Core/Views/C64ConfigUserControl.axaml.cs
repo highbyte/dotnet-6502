@@ -34,7 +34,6 @@ public partial class C64ConfigUserControl : UserControl
         DataContext = _viewModel;
     }
 
-
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);

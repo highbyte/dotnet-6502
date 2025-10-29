@@ -689,7 +689,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         if (!_workingConfig.IsValid(out var validationErrors))
         {
             ValidationMessage = string.Join(Environment.NewLine, validationErrors);
-            
+
             // Update ValidationErrors collection
             _validationErrors.Clear();
             foreach (var error in validationErrors)
@@ -702,7 +702,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
             ValidationMessage = string.Empty;
             _validationErrors.Clear();
         }
-        
+
         // Notify UI about changes
         this.RaisePropertyChanged(nameof(HasValidationErrors));
         this.RaisePropertyChanged(nameof(CanSave));

@@ -5,9 +5,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 using Avalonia.Layout;
-using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;

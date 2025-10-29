@@ -34,10 +34,10 @@ public class MainViewModel : ViewModelBase
         // Store injected child ViewModels
         C64MenuViewModel = c64MenuViewModel ?? throw new ArgumentNullException(nameof(c64MenuViewModel));
         StatisticsViewModel = statisticsViewModel ?? throw new ArgumentNullException(nameof(statisticsViewModel));
-        
+
         // Initialize local scale from host app
         _scale = _hostApp.Scale;
-        
+
         // Subscribe to scale changes from AvaloniaHostApp (e.g., when set from OnAfterStart)
         _hostApp.PropertyChanged += (sender, e) =>
         {
@@ -48,7 +48,7 @@ public class MainViewModel : ViewModelBase
                 this.RaisePropertyChanged(nameof(Scale));
             }
         };
-        
+
         InitializeAvailableSystems();
     }
 

@@ -50,7 +50,7 @@ public partial class ErrorDialog : Window
     public ErrorDialog(string errorMessage, Exception? exception = null) : this()
     {
         ErrorMessage = errorMessage;
-        
+
         if (exception != null)
         {
             ExceptionDetails = $"{exception.GetType().Name}: {exception.Message}\n\nStack Trace:\n{exception.StackTrace}";

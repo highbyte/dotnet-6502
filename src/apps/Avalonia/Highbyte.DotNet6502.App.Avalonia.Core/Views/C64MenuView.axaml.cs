@@ -104,7 +104,6 @@ public partial class C64MenuView : UserControl
         }
     }
 
-
     private async void StartButtonFlash(Button button, Color flashColor, bool stopAfterClick)
     {
         _buttonFlashCancellation = new CancellationTokenSource();
