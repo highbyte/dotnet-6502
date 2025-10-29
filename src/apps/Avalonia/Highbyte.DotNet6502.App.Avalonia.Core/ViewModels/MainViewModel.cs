@@ -293,11 +293,11 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Toggle the visibility of the statistics panel
+    /// Set the visibility of the statistics panel
     /// </summary>
-    public void ToggleStatisticsPanel()
+    public void SetStatisticsPanelVisible(bool visible)
     {
-        IsStatisticsPanelVisible = !IsStatisticsPanelVisible;
+        IsStatisticsPanelVisible = visible;
     }
 
     public void ForceStateRefresh()

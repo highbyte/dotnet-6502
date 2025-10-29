@@ -374,6 +374,18 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         _updateTimer?.Stop();
     }
 
+    public override void OnBeforeStop()
+    {
+        SetStatisticsPanelVisible(false);
+
+        if (_monitor != null)
+        {
+            if (_monitor.IsVisible)
+                DisableMonitor();
+            _monitor = null;
+        }
+    }
+
     public override void OnAfterStop()
     {
         _updateTimer?.Stop();
@@ -382,13 +394,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             _updateTimer.Elapsed -= UpdateTimerElapsed;
             _updateTimer.Dispose();
             _updateTimer = null;
-        }
-
-        if (_monitor != null)
-        {
-            if (_monitor.IsVisible)
-                DisableMonitor();
-            _monitor = null;
         }
     }
 
@@ -486,15 +491,11 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         _emulatorView = emulatorView;
     }
 
-    /// <summary>
-    /// Toggle the visibility of the statistics panel
-    /// </summary>
-    public void ToggleStatisticsPanel()
+    private MainViewModel? GetMainViewModel()
     {
-        if (CurrentRunningSystem == null) return;
         var app = global::Avalonia.Application.Current;
         if (app == null)
-            return;
+            return null;
 
         MainViewModel? viewModel = null;
 
@@ -515,12 +516,25 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
                 //         viewModel = bCtrl.DataContext as MainViewModel;
                 //     break;
         }
+        return viewModel;
+    }
 
+    /// <summary>
+    /// Toggle the visibility of the statistics panel
+    /// </summary>
+    public void ToggleStatisticsPanel()
+    {
+        if (CurrentRunningSystem == null) return;
+        SetStatisticsPanelVisible(!CurrentRunningSystem.InstrumentationEnabled);
+    }
+
+    public void SetStatisticsPanelVisible(bool isVisible)
+    {
+        var viewModel = GetMainViewModel();
         if (viewModel == null)
             return;
-
-        CurrentRunningSystem.InstrumentationEnabled = !CurrentRunningSystem.InstrumentationEnabled;
-        viewModel.ToggleStatisticsPanel();
+        CurrentRunningSystem?.InstrumentationEnabled = isVisible;
+        viewModel.SetStatisticsPanelVisible(isVisible);
     }
 
     public void ToggleMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
