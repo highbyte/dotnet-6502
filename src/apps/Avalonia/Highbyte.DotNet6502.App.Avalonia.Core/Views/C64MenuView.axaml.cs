@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -13,14 +12,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
-using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
-using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
-using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
-using Highbyte.DotNet6502.Systems.Commodore64.Render.VideoCommands;
-using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.Download;
-using Highbyte.DotNet6502.Utils;
-using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
@@ -34,8 +26,6 @@ public partial class C64MenuView : UserControl
     public C64MenuView()
     {
         InitializeComponent();
-
-        _httpClient = new HttpClient();
 
         // Subscribe to visibility property changes to update section states when view becomes visible
         this.PropertyChanged += (s, e) =>
@@ -561,289 +551,37 @@ public partial class C64MenuView : UserControl
     // File operation event handlers
     private async void LoadPreloadedDisk_Click(object? sender, RoutedEventArgs e)
     {
-        string selectedPreloadedDisk = ViewModel!.SelectedPreloadedDisk;
-        if (string.IsNullOrEmpty(selectedPreloadedDisk) || !_preloadedD64Images.ContainsKey(selectedPreloadedDisk))
-            return;
-
-        var diskInfo = _preloadedD64Images[selectedPreloadedDisk];
-        _isLoadingPreloadedDisk = true;
-        _latestPreloadedDiskError = "";
-
-        System.Console.WriteLine($"Starting to load preloaded disk: {diskInfo.DisplayName}");
-
-        try
-        {
-            // Initialize D64AutoDownloadAndRun if not already done
-            if (_d64AutoDownloadAndRun == null)
-            {
-                _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-
-                var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
-             {
-                 builder.SetMinimumLevel(LogLevel.Information);
-             });
-
-                var c64HostConfig = HostApp!.CurrentHostSystemConfig as C64HostConfig;
-                _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(
-                   loggerFactory,
-                   _httpClient,
-                   HostApp!,
-                    corsProxyUrl: PlatformDetection.IsRunningInWebAssembly() ? c64HostConfig.CorsProxyURL : null);
-            }
-
-            await _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
-                diskInfo,
-                stateHasChangedCallback: async () =>
-                {
-                    ViewModel.NotifyEmulatorStateChanged();
-                    await Task.CompletedTask;
-                },
-                setConfigCallback: async (diskInfo) =>
-                {
-                    if (HostApp?.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
-                        return;
-
-                    var c64SystemConfig = c64HostConfig.SystemConfig;
-
-                    // Apply keyboard joystick settings to config object while emulator is stopped
-                    c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
-                    c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
-
-                    // Apply renderer setting to config object while emulator is stopped
-                    // TODO: If/when a optimized RenderType for use without bitmap graphics is available, set rendererProviderType appropriately here.
-                    //Type rendererProviderType = diskInfo.RequiresBitmap ? typeof(Vic2Rasterizer) : typeof(C64VideoCommandStream);
-                    Type rendererProviderType = typeof(Vic2Rasterizer);
-                    c64HostConfig.SystemConfig.SetRenderProviderType(rendererProviderType);
-
-                    // Apply audio enabled setting to config object while emulator is stopped
-                    c64SystemConfig.AudioEnabled = diskInfo.AudioEnabled;
-
-                    // Apply C64 variant setting to config object while emulator is stopped
-                    await HostApp.SelectSystemConfigurationVariant(diskInfo.C64Variant);
-
-                    HostApp.UpdateHostSystemConfig(c64HostConfig);
-                });
-        }
-        catch (Exception ex)
-        {
-            _latestPreloadedDiskError = $"Error downloading or running disk image: {ex.Message}";
-            System.Console.WriteLine($"LoadPreloadedDisk_Click error: {_latestPreloadedDiskError}");
-        }
-        finally
-        {
-            _isLoadingPreloadedDisk = false;
-            System.Console.WriteLine($"Finished loading preloaded disk. Loading state: {_isLoadingPreloadedDisk}");
-            if (!string.IsNullOrEmpty(_latestPreloadedDiskError))
-                System.Console.WriteLine($"Final error state: {_latestPreloadedDiskError}");
-            ViewModel.NotifyEmulatorStateChanged();
-        }
+        await ViewModel!.LoadPreloadedDiskImage();
     }
 
     private async void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
     {
-        await LoadBasicFile();
+        if (TopLevel.GetTopLevel(this) is not { } topLevel)
+            return;
+        var storageProvider = topLevel.StorageProvider;
+        if (!storageProvider.CanOpen)
+            return;
+        await ViewModel.LoadBasicFile(storageProvider);
     }
 
     private async void SaveBasicFile_Click(object? sender, RoutedEventArgs e)
     {
-        await SaveBasicFile();
+       if (TopLevel.GetTopLevel(this) is not { } topLevel)
+            return;
+        var storageProvider = topLevel.StorageProvider;
+        if (!storageProvider.CanSave)
+            return;
+        await ViewModel.SaveBasicFile(storageProvider);
     }
 
     private async void LoadBinaryFile_Click(object? sender, RoutedEventArgs e)
     {
-        await LoadBinaryFile();
-    }
-
-    private async Task LoadBasicFile()
-    {
-        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized || !IsC64System())
-            return;
-
         if (TopLevel.GetTopLevel(this) is not { } topLevel)
             return;
-
         var storageProvider = topLevel.StorageProvider;
         if (!storageProvider.CanOpen)
             return;
-
-        bool wasRunning = HostApp.EmulatorState == Systems.EmulatorState.Running;
-        if (wasRunning)
-            HostApp.Pause();
-
-        try
-        {
-            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Load Basic PRG File",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
-            });
-
-            if (files.Count > 0)
-            {
-                try
-                {
-                    await using var stream = await files[0].OpenReadAsync();
-                    var fileBuffer = new byte[stream.Length];
-                    await stream.ReadExactlyAsync(fileBuffer);
-
-                    BinaryLoader.Load(
-                        HostApp.CurrentRunningSystem!.Mem,
-                        fileBuffer,
-                        out ushort loadedAtAddress,
-                        out ushort fileLength);
-
-                    if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
-                    {
-                        System.Console.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
-                    }
-                    else
-                    {
-                        var c64 = (C64)HostApp.CurrentRunningSystem!;
-                        c64.InitBasicMemoryVariables(loadedAtAddress, fileLength);
-                    }
-
-                    System.Console.WriteLine($"Basic program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
-                }
-                catch (Exception ex)
-                {
-                    System.Console.WriteLine($"Error loading Basic .prg: {ex.Message}");
-                }
-            }
-        }
-        finally
-        {
-            if (wasRunning)
-                await HostApp.Start();
-        }
-    }
-
-    private async Task SaveBasicFile()
-    {
-        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized || !IsC64System())
-            return;
-
-        if (TopLevel.GetTopLevel(this) is not { } topLevel)
-            return;
-
-        var storageProvider = topLevel.StorageProvider;
-        if (!storageProvider.CanSave)
-            return;
-
-        bool wasRunning = HostApp.EmulatorState == Systems.EmulatorState.Running;
-        if (wasRunning)
-            HostApp.Pause();
-
-        try
-        {
-            var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-            {
-                Title = "Save Basic PRG File",
-                SuggestedFileName = "program.prg",
-                FileTypeChoices = new[]
-                {
-                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
-            });
-
-            if (file != null)
-            {
-                try
-                {
-                    ushort startAddress = C64.BASIC_LOAD_ADDRESS;
-                    var c64 = (C64)HostApp.CurrentRunningSystem!;
-                    var endAddress = c64.GetBasicProgramEndAddress();
-
-                    var saveData = BinarySaver.BuildSaveData(
-                        HostApp.CurrentRunningSystem.Mem,
-                        startAddress,
-                        endAddress,
-                        addFileHeaderWithLoadAddress: true);
-
-                    await using var stream = await file.OpenWriteAsync();
-                    await stream.WriteAsync(saveData);
-
-                    System.Console.WriteLine($"Basic program saved from {startAddress.ToHex()} to {endAddress.ToHex()}");
-                }
-                catch (Exception ex)
-                {
-                    System.Console.WriteLine($"Error saving Basic .prg: {ex.Message}");
-                }
-            }
-        }
-        finally
-        {
-            if (wasRunning)
-                await HostApp.Start();
-        }
-    }
-
-    private async Task LoadBinaryFile()
-    {
-        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
-            return;
-
-        if (TopLevel.GetTopLevel(this) is not { } topLevel)
-            return;
-
-        var storageProvider = topLevel.StorageProvider;
-        if (!storageProvider.CanOpen)
-            return;
-
-        bool wasRunning = HostApp.EmulatorState == Systems.EmulatorState.Running;
-        if (wasRunning)
-            HostApp.Pause();
-
-        try
-        {
-            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Load & Start Binary PRG File",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
-            });
-
-            if (files.Count > 0)
-            {
-                try
-                {
-                    await using var stream = await files[0].OpenReadAsync();
-                    var fileBuffer = new byte[stream.Length];
-                    await stream.ReadExactlyAsync(fileBuffer);
-
-                    BinaryLoader.Load(
-                        HostApp.CurrentRunningSystem!.Mem,
-                        fileBuffer,
-                        out ushort loadedAtAddress,
-                        out ushort fileLength);
-
-                    HostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
-
-                    System.Console.WriteLine($"Binary program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
-                    System.Console.WriteLine($"Program Counter set to {loadedAtAddress.ToHex()}");
-
-                    await HostApp.Start();
-                }
-                catch (Exception ex)
-                {
-                    System.Console.WriteLine($"Error loading binary .prg: {ex.Message}");
-                }
-            }
-        }
-        finally
-        {
-            if (wasRunning && HostApp.EmulatorState != Systems.EmulatorState.Running)
-                await HostApp.Start();
-        }
+        await ViewModel.LoadBinaryFile(storageProvider);
     }
 
     private async void LoadAssemblyExample_Click(object? sender, RoutedEventArgs e)
@@ -853,78 +591,8 @@ public partial class C64MenuView : UserControl
 
     private async void LoadBasicExample_Click(object? sender, RoutedEventArgs e)
     {
-        await LoadBasicExample();
+        await ViewModel!.LoadBasicExample();
     }
 
-    private async Task LoadBasicExample()
-    {
-        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized || !IsC64System())
-            return;
-
-        string? url = ViewModel?.SelectedBasicExample;
-        if (string.IsNullOrEmpty(url))
-            return;
-
-        bool wasRunning = HostApp.EmulatorState == Systems.EmulatorState.Running;
-        if (wasRunning)
-            HostApp.Pause();
-
-        try
-        {
-            // Download the .prg file
-            var prgBytes = await _httpClient.GetByteArrayAsync(url);
-
-            // Load file into memory
-            BinaryLoader.Load(
-                HostApp.CurrentRunningSystem!.Mem,
-              prgBytes,
-              out ushort loadedAtAddress,
-                  out ushort fileLength);
-
-            var c64 = (C64)HostApp.CurrentRunningSystem!;
-            if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
-            {
-                // Probably not a Basic program that was loaded. Don't init BASIC memory variables.
-                System.Console.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
-            }
-            else
-            {
-                // Init C64 BASIC memory variables
-                c64.InitBasicMemoryVariables(loadedAtAddress, fileLength);
-            }
-
-            // Send "list" + NewLine (Return) to the keyboard buffer to immediately list the loaded program
-            c64.TextPaste.Paste("list\n");
-
-            System.Console.WriteLine($"Basic example loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
-
-            // Start the emulator
-            await HostApp.Start();
-        }
-        catch (Exception ex)
-        {
-            System.Console.WriteLine($"Error loading basic example: {ex.Message}");
-            if (wasRunning)
-                await HostApp.Start();
-        }
-    }
-
-    // Private fields for preloaded disk functionality
-    private readonly Dictionary<string, D64DownloadDiskInfo> _preloadedD64Images = new()
-    {
-        {"bubblebobble", new D64DownloadDiskInfo("Bubble Bobble", "https://csdb.dk/release/download.php?id=191127", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")}, // Note: Bubble Bobble is not a bitmap game, but somehow this version fails to initialize the custom charset in text mode correctly in SkiaSharp renderer.
-        {"digiloi", new D64DownloadDiskInfo("Digiloi", "https://csdb.dk/release/download.php?id=213381", keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
-        {"elite", new D64DownloadDiskInfo("Elite", "https://csdb.dk/release/download.php?id=70413", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false,directLoadPRGName: "*", c64Variant: "C64PAL")},
-        {"lastninja", new D64DownloadDiskInfo("Last Ninja", "https://csdb.dk/release/download.php?id=101848", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, requiresBitmap: true, audioEnabled: false, directLoadPRGName: "*")},
-        {"minizork", new D64DownloadDiskInfo("Mini Zork", "https://csdb.dk/release/download.php?id=42919", audioEnabled: false, directLoadPRGName: "*")},
-        {"montezuma", new D64DownloadDiskInfo("Montezuma's Revenge", "https://csdb.dk/release/download.php?id=128101", downloadType: DownloadType.ZIP, keyboardJoystickEnabled: true, keyboardJoystickNumber: 2, audioEnabled: true, directLoadPRGName: "*")},
-        {"rallyspeedway", new D64DownloadDiskInfo("Rally Speedway", "https://csdb.dk/release/download.php?id=219614", keyboardJoystickEnabled: true, keyboardJoystickNumber: 1, audioEnabled: true, directLoadPRGName: "*")}
-    };
-
-    // Fields for preloaded disk loading functionality
-    private string _latestPreloadedDiskError = "";
-    private bool _isLoadingPreloadedDisk = false;
-    private D64AutoDownloadAndRun? _d64AutoDownloadAndRun;
     private CancellationTokenSource _buttonFlashCancellation;
-    private HttpClient _httpClient;
 }
