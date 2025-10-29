@@ -12,6 +12,10 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 public partial class C64ConfigUserControl : UserControl
 {
     private readonly C64ConfigDialogViewModel _viewModel;
+    /// <summary>
+    /// Gets the ViewModel for direct access when used in ContentDialog
+    /// </summary>
+    public C64ConfigDialogViewModel ViewModel => _viewModel;
 
     public event EventHandler<bool>? ConfigurationChanged;
 
@@ -30,10 +34,6 @@ public partial class C64ConfigUserControl : UserControl
         DataContext = _viewModel;
     }
 
-    /// <summary>
-    /// Gets the ViewModel for direct access when used in ContentDialog
-    /// </summary>
-    public C64ConfigDialogViewModel ViewModel => _viewModel;
 
     private void InitializeComponent()
     {
@@ -49,6 +49,7 @@ public partial class C64ConfigUserControl : UserControl
     {
         if (TopLevel.GetTopLevel(this)?.StorageProvider == null)
             return;
+        var storageProvider = TopLevel.GetTopLevel(this)!.StorageProvider;
 
         var options = new FilePickerOpenOptions
         {
@@ -64,11 +65,10 @@ public partial class C64ConfigUserControl : UserControl
             }
         };
 
-        var files = await TopLevel.GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(options);
+        var files = await storageProvider.OpenFilePickerAsync(options);
         if (files != null && files.Count > 0)
         {
             var romDataList = new List<(string fileName, byte[] data)>();
-
             foreach (var file in files)
             {
                 try

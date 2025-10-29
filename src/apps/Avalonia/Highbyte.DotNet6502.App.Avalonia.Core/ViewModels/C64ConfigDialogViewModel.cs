@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using Highbyte.DotNet6502.App.Avalonia.Core.Config;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.Systems;
-using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Utils;
 using Highbyte.DotNet6502.Utils;
