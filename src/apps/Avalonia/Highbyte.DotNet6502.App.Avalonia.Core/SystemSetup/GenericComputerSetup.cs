@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Highbyte.DotNet6502.App.Avalonia.Core.Input;
@@ -19,6 +20,9 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
 
     private readonly Func<string, Task<string>>? _getCustomConfigJson = null;
     private readonly Func<string, string, Task>? _saveCustomConfigJson = null;
+
+    private readonly Assembly _examplesAssembly = Assembly.GetExecutingAssembly();
+    private string? ExampleFileAssemblyName => _examplesAssembly.GetName().Name;
 
     public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig)
     {
@@ -95,8 +99,8 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
             hostConfig = new GenericComputerHostConfig();
             hostConfig.SystemConfig.ExamplePrograms = new Dictionary<string, string?>
             {
-                { "Scroll", "6502binaries/Generic/Assembler/hostinteraction_scroll_text_and_cycle_colors.prg" },
-                { "Snake", "6502binaries/Generic/Assembler/snake6502.prg" },
+                { "Scroll", $"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.Generic.hostinteraction_scroll_text_and_cycle_colors.prg" },
+                { "Snake",  $"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.Generic.snake6502.prg" }
             };
         }
 
@@ -129,27 +133,37 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
     {
         var genericComputerSystemConfig = (GenericComputerSystemConfig)systemConfig ?? throw new ArgumentException($"systemConfig is not of type {nameof(GenericComputerSystemConfig)}");
 
+        if (!genericComputerSystemConfig.ExamplePrograms.ContainsKey(configurationVariant))
+            throw new ArgumentException($"No example program with name '{configurationVariant}' exists in system config.");
+        var exampleProgramPath = genericComputerSystemConfig.ExamplePrograms[configurationVariant];
+
         GenericComputerConfig? genericComputerConfig = null;
-        if (_emulatorConfig.LoadResourcesOverHttp && _appUrlHttpClient != null)
+        if (!string.IsNullOrEmpty(exampleProgramPath))
         {
-            if (!genericComputerSystemConfig.ExamplePrograms.ContainsKey(configurationVariant))
-                throw new ArgumentException($"No example program with name '{configurationVariant}' exists in system config.");
-            var exampleProgramPath = genericComputerSystemConfig.ExamplePrograms[configurationVariant];
-            if (!string.IsNullOrEmpty(exampleProgramPath))
+            try
             {
-                try
+                // Check if exampleProgramPath starts with ExampleFileAssemblyName. If not prepend it.
+                if (!exampleProgramPath.StartsWith(ExampleFileAssemblyName!))
                 {
-                    var exampleProgramBytes = await _appUrlHttpClient.GetByteArrayAsync(exampleProgramPath);
-                    genericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(configurationVariant, genericComputerSystemConfig, exampleProgramBytes);
+                    exampleProgramPath = $"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.Generic.{exampleProgramPath}";
                 }
-                catch (Exception ex)
+                var file = exampleProgramPath;
+                byte[] exampleProgramBytes;
+                // Load the .prg file from embedded resource
+                using (var resourceStream = _examplesAssembly.GetManifestResourceStream(file))
                 {
-                    throw;
+                    if (resourceStream == null)
+                        throw new Exception($"Cannot find file in embedded resources. Resource: {file}");
+                    // Read contents of stream as byte array
+                    exampleProgramBytes = new byte[resourceStream.Length];
+                    resourceStream.ReadExactly(exampleProgramBytes);
                 }
+                genericComputerConfig = GenericComputerExampleConfigs.GetExampleConfig(configurationVariant, genericComputerSystemConfig, exampleProgramBytes);
             }
-        }
-        else
-        {
+            catch (Exception ex)
+            {
+                throw;
+            }
         }
 
         if (genericComputerConfig == null)
