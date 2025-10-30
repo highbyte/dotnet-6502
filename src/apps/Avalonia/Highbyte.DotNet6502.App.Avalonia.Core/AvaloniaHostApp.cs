@@ -533,7 +533,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         var viewModel = GetMainViewModel();
         if (viewModel == null)
             return;
-        CurrentRunningSystem?.InstrumentationEnabled = isVisible;
+        if (CurrentRunningSystem != null)
+            CurrentRunningSystem.InstrumentationEnabled = isVisible;
         viewModel.SetStatisticsPanelVisible(isVisible);
     }
 
