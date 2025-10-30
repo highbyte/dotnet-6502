@@ -127,7 +127,7 @@ internal sealed partial class Program
     private static HttpClient GetAppUrlHttpClient()
     {
         var httpClient = new HttpClient();
-        httpClient.BaseAddress = new Uri(GetCurrentOrigin());
+        httpClient.BaseAddress = new Uri(GetCurrentAppBaseUrl());
         return httpClient;
     }
 
@@ -152,8 +152,8 @@ internal sealed partial class Program
         await Task.Run(() => JSInterop.SetLocalStorage(configKey, jsonString));
     }
 
-    // For Avalonia Browser, use a simple approach to get current origin
-    private static string GetCurrentOrigin()
+    // For Avalonia Browser, derive the app base URL (including hosting path)
+    private static string GetCurrentAppBaseUrl()
     {
         try
         {
@@ -165,7 +165,14 @@ internal sealed partial class Program
                 var url = args[1]; // The URL is passed as the second argument in main.js
                 if (!string.IsNullOrEmpty(url) && Uri.TryCreate(url, UriKind.Absolute, out var uri))
                 {
-                    return uri.GetLeftPart(UriPartial.Authority);
+                    var appBase = uri.GetLeftPart(UriPartial.Path);
+
+                    if (!appBase.EndsWith("/", StringComparison.Ordinal))
+                    {
+                        appBase += "/";
+                    }
+
+                    return appBase;
                 }
             }
         }
@@ -184,7 +191,7 @@ internal sealed partial class Program
         }
 
         // Fallback for development
-        return "https://localhost:5000";
+        return "https://localhost:5000/";
     }
 
     public static AppBuilder BuildAvaloniaApp(
