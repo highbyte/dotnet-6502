@@ -183,10 +183,14 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
     {
         var genericComputer = (GenericComputer)system;
         var genericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
-        var genericComputerConfig = genericComputerHostConfig.SystemConfig;
+        //var genericComputerConfig = genericComputerHostConfig.SystemConfig;
 
-        // TODO: Create specific Avalonia input handler for Generic computer
-        var inputHandler = new AvaloniaGenericInputHandler(genericComputer, inputHandlerContext, _loggerFactory);
+        // Create specific Avalonia input handler for Generic computer
+        var inputHandler = new AvaloniaGenericInputHandler(
+            genericComputer,
+            inputHandlerContext,
+            genericComputer.GenericComputerConfig.Memory.Input,
+            _loggerFactory);
 
         // Generic computer doesn't use audio
         var audioHandler = new NullAudioHandler(genericComputer);
