@@ -60,6 +60,9 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     // Expose LoggerFactory for use in views that are note created through DI.
     public ILoggerFactory LoggerFactory => _loggerFactory;
 
+    // Expose LogStore for use in views that are not created through DI (e.g., to display logs in the UI).
+    public DotNet6502InMemLogStore? LogStore => _logStore;
+
     // Public properties for external access
     public SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> SystemList => _systemList;
     public EmulatorConfig EmulatorConfig => _emulatorConfig;

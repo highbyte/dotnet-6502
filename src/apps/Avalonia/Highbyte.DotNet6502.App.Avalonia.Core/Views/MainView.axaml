@@ -243,7 +243,7 @@
                         BorderThickness="1"
                         CornerRadius="4"
                         Padding="0"
-                        MinHeight="200"
+                        Height="200"
                         VerticalAlignment="Top">
                     <TabControl Name="InformationTabControl">
                         <!-- Information Tab -->
@@ -307,12 +307,25 @@
                         <TabItem Name="LogTabItem" Header="Log">
                             <Border Background="#2D3748" Padding="4">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <StackPanel Spacing="4">
-                                        <TextBlock Text="No log entries available."
-                                                   Classes="small"
-                                                   FontStyle="Italic"
-                                                   Foreground="#A0AEC0"/>
-                                    </StackPanel>
+                                    <ItemsControl ItemsSource="{Binding LogMessages}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Spacing="0"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           Classes="monospace"
+                                                           Foreground="#A0AEC0"
+                                                           TextWrapping="Wrap"
+                                                           Margin="0"
+                                                           Padding="0"
+                                                           FontSize="10"
+                                                           LineHeight="10"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </ScrollViewer>
                             </Border>
                         </TabItem>

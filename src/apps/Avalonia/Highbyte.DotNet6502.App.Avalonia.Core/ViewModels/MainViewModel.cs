@@ -35,8 +35,11 @@ public class MainViewModel : ViewModelBase
         C64MenuViewModel = c64MenuViewModel ?? throw new ArgumentNullException(nameof(c64MenuViewModel));
         StatisticsViewModel = statisticsViewModel ?? throw new ArgumentNullException(nameof(statisticsViewModel));
 
-        // Initialize local scale from host app
-        _scale = _hostApp.Scale;
+    // Initialize local scale from host app
+    _scale = _hostApp.Scale;
+
+    // Populate log messages initially
+    RefreshLogMessages();
 
         // Subscribe to scale changes from AvaloniaHostApp (e.g., when set from OnAfterStart)
         _hostApp.PropertyChanged += (sender, e) =>
@@ -104,6 +107,10 @@ public class MainViewModel : ViewModelBase
     public ObservableCollection<string> ValidationErrors => _validationErrors;
 
     public bool HasValidationErrors => _validationErrors.Count > 0;
+
+    // Private field for log messages collection
+    private readonly ObservableCollection<string> _logMessages = new();
+    public ObservableCollection<string> LogMessages => _logMessages;
 
     // Statistics panel visibility
     private bool _isStatisticsPanelVisible = false;
@@ -304,6 +311,28 @@ public class MainViewModel : ViewModelBase
     {
         UpdateSystemConfigValidity();
         NotifyEmulatorStateChanged();
+        RefreshLogMessages();
+    }
+
+    /// <summary>
+    /// Refresh the log messages from the HostApp's log store
+    /// </summary>
+    public void RefreshLogMessages()
+    {
+        if (_hostApp?.LogStore != null)
+        {
+            var logs = _hostApp.LogStore.GetLogMessages();
+            
+            // Only update if the logs have changed
+            if (logs.Count != _logMessages.Count || !logs.SequenceEqual(_logMessages))
+            {
+                _logMessages.Clear();
+                foreach (var log in logs)
+                {
+                    _logMessages.Add(log);
+                }
+            }
+        }
     }
 
     /// <summary>
