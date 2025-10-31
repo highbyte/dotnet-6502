@@ -247,7 +247,7 @@
                         VerticalAlignment="Top">
                     <TabControl Name="InformationTabControl">
                         <!-- Information Tab -->
-                        <TabItem Header="Information">
+                        <TabItem Name="InformationTabItem" Header="Information">
                             <Border Background="#2D3748" Padding="4">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Spacing="4">
@@ -261,7 +261,7 @@
                         </TabItem>
 
                         <!-- Config Errors Tab -->
-                        <TabItem Header="Config errors">
+                        <TabItem Name="ConfigErrorsTabItem" Header="Config errors">
                             <Border Background="#2D3748" Padding="4">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Spacing="4">
@@ -304,7 +304,7 @@
                         </TabItem>
 
                         <!-- Log Tab -->
-                        <TabItem Header="Log">
+                        <TabItem Name="LogTabItem" Header="Log">
                             <Border Background="#2D3748" Padding="4">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Spacing="4">

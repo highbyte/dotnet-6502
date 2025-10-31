@@ -71,9 +71,12 @@ public partial class MainView : UserControl
             // Use Dispatcher to ensure the control is properly initialized
             Dispatcher.UIThread.Post(() =>
             {
-                if (this.FindControl<TabControl>("InformationTabControl") is TabControl tabControl && tabControl.Items.Count > 1)
+                if (this.FindControl<TabItem>("ConfigErrorsTabItem") is TabItem configErrorsTab)
                 {
-                    tabControl.SelectedIndex = 1; // Config errors tab is at index 1
+                    if (this.FindControl<TabControl>("InformationTabControl") is TabControl tabControl)
+                    {
+                        tabControl.SelectedItem = configErrorsTab;
+                    }
                 }
             });
         }
