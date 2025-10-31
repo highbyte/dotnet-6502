@@ -3,13 +3,14 @@ using System.IO;
 using Avalonia;
 using Avalonia.ReactiveUI;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.App.Avalonia.Core.Logging;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 
-sealed class Program
+internal sealed class Program
 {
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
@@ -46,13 +47,17 @@ sealed class Program
             builder.SetMinimumLevel(LogLevel.Trace);
         });
 
+        // Create an ILogger for bridging Avalonia logs
+        var avaloniaILogger = loggerFactory.CreateLogger("Avalonia");
+        var avaloniaLoggerBridge = new AvaloniaLoggerBridge(avaloniaILogger, LogLevel.Warning);
+
         // ----------
         // Get emulator host config
         // ----------
         var emulatorConfig = new EmulatorConfig();
         configuration.GetSection(EmulatorConfig.ConfigSectionName).Bind(emulatorConfig);
 
-        BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory)
+        BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge)
             .StartWithClassicDesktopLifetime(args);
     }
 
@@ -62,10 +67,16 @@ sealed class Program
         EmulatorConfig emulatorConfig,
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        AvaloniaLoggerBridge avaloniaLoggerBridge)
         => AppBuilder.Configure(() => new Core.App(configuration, emulatorConfig, logStore, logConfig, loggerFactory))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace()
-            .UseReactiveUI();
+            .UseReactiveUI()
+            .AfterSetup(_ =>
+            {
+                // Set up the Avalonia logger bridge to route logs via Avalonia Logger through ILogger
+                global::Avalonia.Logging.Logger.Sink = avaloniaLoggerBridge;
+            });
 }
