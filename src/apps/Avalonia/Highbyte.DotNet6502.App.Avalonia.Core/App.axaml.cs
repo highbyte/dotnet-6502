@@ -55,43 +55,20 @@ public partial class App : Application
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
         Func<string, Task<string>>? getCustomConfigJson = null,
-        Func<string, string, Task>? saveCustomConfigJson = null) : this(configuration, emulatorConfig, loggerFactory)
-    {
-        _logStore = logStore;
-        _logConfig = logConfig;
-    }
-
-    /// <summary>
-    /// Used from Browser app where resources are loaded from HTTP and logs are written to browser Dev console.
-    /// </summary>
-    /// <param name="configuration"></param>
-    /// <param name="emulatorConfig"></param>
-    /// <param name="loggerFactory"></param>
-    /// <param name="getCustomConfigJson"></param>
-    /// <param name="saveCustomConfigJson"></param>
-    public App(
-        IConfiguration configuration,
-        EmulatorConfig emulatorConfig,
-        ILoggerFactory loggerFactory,
-        Func<string, Task<string>> getCustomConfigJson,
-        Func<string, string, Task> saveCustomConfigJson) : this(configuration, emulatorConfig, loggerFactory)
-    {
-        _getCustomConfigJson = getCustomConfigJson;
-        _saveCustomConfigJson = saveCustomConfigJson;
-    }
-
-    private App(
-        IConfiguration configuration,
-        EmulatorConfig emulatorConfig,
-        ILoggerFactory loggerFactory)
+        Func<string, string, Task>? saveCustomConfigJson = null)
     {
         Console.WriteLine("App constructor called");
 
+        _configuration = configuration;
+        _emulatorConfig = emulatorConfig;
+        _loggerFactory = loggerFactory;
+        _logStore = logStore;
+        _logConfig = logConfig;
+        _getCustomConfigJson = getCustomConfigJson;
+        _saveCustomConfigJson = saveCustomConfigJson;
+
         try
         {
-            _configuration = configuration;
-            _emulatorConfig = emulatorConfig;
-            _loggerFactory = loggerFactory;
             _logger = loggerFactory.CreateLogger(typeof(App).Name);
 
             _logger.LogInformation("About to initialize exception handlers.");

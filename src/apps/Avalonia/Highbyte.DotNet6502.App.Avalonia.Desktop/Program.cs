@@ -69,7 +69,12 @@ internal sealed class Program
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
         AvaloniaLoggerBridge avaloniaLoggerBridge)
-        => AppBuilder.Configure(() => new Core.App(configuration, emulatorConfig, logStore, logConfig, loggerFactory))
+        => AppBuilder.Configure(() => new Core.App(
+                configuration,
+                emulatorConfig,
+                logStore,
+                logConfig,
+                loggerFactory))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace()

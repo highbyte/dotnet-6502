@@ -22,11 +22,13 @@ internal sealed partial class Program
         // Use empty configuration for now, as we currently load config from Local Storage
         var configuration = await GetEmptyConfigurationAsync();
 
-        //var loggerFactory = new LoggerFactory(new[] { new DotNet6502InMemLoggerProvider(logConfig) });
-        // Use proper logging factory for WASM
+        // Configure logging
+        DotNet6502InMemLogStore logStore = new() { WriteDebugMessage = true };
+        var logConfig = new DotNet6502InMemLoggerConfiguration(logStore);
         var loggerFactory = LoggerFactory.Create(builder =>
         {
-            builder.AddDotNet6502Console();
+            builder.AddInMem(logConfig);    // Log to in-memory log store
+            builder.AddDotNet6502Console(); // Logs to console (which will be visible in browser F12 DevTools console)
             builder.SetMinimumLevel(LogLevel.Information);
         });
 
@@ -41,7 +43,7 @@ internal sealed partial class Program
         try
         {
             Console.WriteLine("Starting Avalonia Browser app...");
-            await BuildAvaloniaApp(configuration, emulatorConfig, loggerFactory, avaloniaLoggerBridge)
+            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge)
                 .WithInterFont()
                 .StartBrowserAppAsync("out");
 
@@ -202,6 +204,8 @@ internal sealed partial class Program
     public static AppBuilder BuildAvaloniaApp(
         IConfiguration configuration,
         EmulatorConfig emulatorConfig,
+        DotNet6502InMemLogStore logStore,
+        DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
         AvaloniaLoggerBridge avaloniaLoggerBridge)
     {
@@ -210,6 +214,8 @@ internal sealed partial class Program
             return new App(
                                 configuration,
                                 emulatorConfig,
+                                logStore,
+                                logConfig,
                                 loggerFactory,
                                 getCustomConfigJson: GetConfigJsonFromLocalStorage, // Load configuration from custom provided JSON read from Browser Local Storage
                                 saveCustomConfigJson: PersistJsonToLocalStorage // Save configuration to custom provided JSON in Browser Local Storage

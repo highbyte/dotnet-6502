@@ -13,14 +13,6 @@
     <UserControl.Styles>
         <!-- Include non-focusable styles -->
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
-
-        <!-- Existing compact ComboBox style -->
-        <Style Selector="ComboBox.compact">
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="Height" Value="22"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-        </Style>
     </UserControl.Styles>
 
     <Grid ShowGridLines="False">
@@ -244,57 +236,87 @@
                                 IsVisible="{Binding IsEmulatorNotRunning}"/>
                 </Grid>
 
-                <!-- Information Area - Configuration Validation -->
+                <!-- Information Area - Tabbed Interface -->
                 <Border Grid.Row="1"
                         Background="#2D3748"
                         BorderBrush="#4A5568"
                         BorderThickness="1"
                         CornerRadius="4"
-                        Padding="15"
-                        MinHeight="120"
+                        Padding="0"
+                        MinHeight="200"
                         VerticalAlignment="Top">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel Spacing="10">
-                            <!-- Show validation errors if any exist -->
-                            <StackPanel Spacing="8" IsVisible="{Binding HasValidationErrors}">
-                                <TextBlock Text="Configuration Errors:"
-                                           Classes="section-header"
-                                           Foreground="#E53E3E"/>
+                    <TabControl Name="InformationTabControl">
+                        <!-- Information Tab -->
+                        <TabItem Header="Information">
+                            <Border Background="#2D3748" Padding="4">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="No information available."
+                                                   Classes="small"
+                                                   FontStyle="Italic"
+                                                   Foreground="#A0AEC0"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </TabItem>
 
-                                <Border Background="Transparent"
-                                        BorderBrush="#E53E3E"
-                                        BorderThickness="1"
-                                        CornerRadius="4"
-                                        Padding="10">
-                                    <ItemsControl ItemsSource="{Binding ValidationErrors}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2">
-                                                    <TextBlock Text="•"
-                                                               Foreground="#E53E3E"
-                                                               VerticalAlignment="Center"/>
-                                                    <TextBlock Text="{Binding}"
-                                                               Classes="small"
-                                                               Foreground="White"
-                                                               TextWrapping="Wrap"
-                                                               VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </Border>
-                            </StackPanel>
+                        <!-- Config Errors Tab -->
+                        <TabItem Header="Config errors">
+                            <Border Background="#2D3748" Padding="4">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Spacing="4">
+                                        <!-- Show validation errors if any exist -->
+                                        <StackPanel Spacing="8" IsVisible="{Binding HasValidationErrors}">
+                                            <Border Background="Transparent"
+                                                    BorderBrush="#E53E3E"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Padding="10">
+                                                <ItemsControl ItemsSource="{Binding ValidationErrors}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2">
+                                                                <TextBlock Text="•"
+                                                                           Foreground="#E53E3E"
+                                                                           VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding}"
+                                                                           Classes="small"
+                                                                           Foreground="White"
+                                                                           TextWrapping="Wrap"
+                                                                           VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Border>
+                                        </StackPanel>
 
-                            <!-- Show default information when no validation errors -->
-                            <StackPanel Spacing="5" IsVisible="{Binding !HasValidationErrors}">
-                                <TextBlock Text="System Information"
-                                           Classes="body"/>
-                                <TextBlock Text="Configuration is valid."
-                                           Classes="small"
-                                           FontStyle="Italic"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </ScrollViewer>
+                                        <!-- Show default message when no validation errors -->
+                                        <StackPanel Spacing="5" IsVisible="{Binding !HasValidationErrors}">
+                                            <TextBlock Text="Configuration is valid."
+                                                       Classes="small"
+                                                       FontStyle="Italic"
+                                                       Foreground="#A0AEC0"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </TabItem>
+
+                        <!-- Log Tab -->
+                        <TabItem Header="Log">
+                            <Border Background="#2D3748" Padding="4">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="No log entries available."
+                                                   Classes="small"
+                                                   FontStyle="Italic"
+                                                   Foreground="#A0AEC0"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </TabItem>
+                    </TabControl>
                 </Border>
             </Grid>
         </Border>

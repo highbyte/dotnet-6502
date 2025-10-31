@@ -16,6 +16,7 @@ public partial class MainView : UserControl
     private AvaloniaHostApp? HostApp => (DataContext as MainViewModel)?.HostApp;
 
     private AvaloniaHostApp? _subscribedHostApp;
+    private MainViewModel? _subscribedViewModel;
     private MonitorDialog? _monitorWindow;
     private Panel? _monitorOverlay;
 
@@ -39,6 +40,43 @@ public partial class MainView : UserControl
 
         if (_subscribedHostApp != null)
             _subscribedHostApp.MonitorVisibilityChanged += OnMonitorVisibilityChanged;
+
+        // Unsubscribe from previous ViewModel's property changes
+        if (_subscribedViewModel != null)
+            _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+
+        // Subscribe to new ViewModel's property changes
+        _subscribedViewModel = DataContext as MainViewModel;
+        if (_subscribedViewModel != null)
+        {
+            _subscribedViewModel.PropertyChanged += OnViewModelPropertyChanged;
+            // Check immediately in case validation errors are already set
+            CheckAndSelectValidationErrorsTab();
+        }
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // Listen for changes to HasValidationErrors property
+        if (e.PropertyName == nameof(MainViewModel.HasValidationErrors))
+        {
+            CheckAndSelectValidationErrorsTab();
+        }
+    }
+
+    private void CheckAndSelectValidationErrorsTab()
+    {
+        if (_subscribedViewModel?.HasValidationErrors == true)
+        {
+            // Use Dispatcher to ensure the control is properly initialized
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (this.FindControl<TabControl>("InformationTabControl") is TabControl tabControl && tabControl.Items.Count > 1)
+                {
+                    tabControl.SelectedIndex = 1; // Config errors tab is at index 1
+                }
+            });
+        }
     }
 
     private void MainView_Loaded(object? sender, RoutedEventArgs e)
@@ -356,6 +394,12 @@ public partial class MainView : UserControl
         {
             _subscribedHostApp.MonitorVisibilityChanged -= OnMonitorVisibilityChanged;
             _subscribedHostApp = null;
+        }
+
+        if (_subscribedViewModel != null)
+        {
+            _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _subscribedViewModel = null;
         }
 
         CloseMonitorUI();

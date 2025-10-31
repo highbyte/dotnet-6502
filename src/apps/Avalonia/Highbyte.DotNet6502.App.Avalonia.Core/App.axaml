@@ -566,6 +566,14 @@
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
+        <!-- TabItem Styles -->
+
+        <!-- Compact TabItem style for smaller headers -->
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="4,2"/>
+        </Style>
+
         <!-- CheckBox Styles -->
 
         <!-- Default CheckBox style -->
