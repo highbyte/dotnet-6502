@@ -416,37 +416,12 @@ public partial class MainView : UserControl
     }
     private void MainView_AttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
-        // Find the LogTabItem's ScrollViewer
-        var logTab = this.FindControl<TabItem>("LogTabItem");
-        if (logTab?.Content is Border border)
+        // Directly find the LogScrollViewer by name
+        _logScrollViewer = this.FindControl<ScrollViewer>("LogScrollViewer");
+        if (_logScrollViewer != null)
         {
-            _logScrollViewer = FindScrollViewer(border);
-            if (_logScrollViewer != null)
-            {
-                _logScrollViewer.ScrollChanged += LogScrollViewer_ScrollChanged;
-            }
+            _logScrollViewer.ScrollChanged += LogScrollViewer_ScrollChanged;
         }
-    }
-
-    private ScrollViewer? FindScrollViewer(Control control)
-    {
-        if (control is ScrollViewer sv)
-            return sv;
-        if (control is ContentControl cc && cc.Content is Control child)
-            return FindScrollViewer(child);
-        if (control is Panel panel)
-        {
-            foreach (var panelChild in panel.Children)
-            {
-                if (panelChild is Control childControl)
-                {
-                    var result = FindScrollViewer(childControl);
-                    if (result != null)
-                        return result;
-                }
-            }
-        }
-        return null;
     }
 
     private void LogScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e)

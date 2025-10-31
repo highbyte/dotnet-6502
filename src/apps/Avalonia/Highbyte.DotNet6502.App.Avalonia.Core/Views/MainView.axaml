@@ -306,7 +306,7 @@
                         <!-- Log Tab -->
                         <TabItem Name="LogTabItem" Header="Log">
                             <Border Background="#2D3748" Padding="4">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ScrollViewer x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto">
                                     <ItemsControl ItemsSource="{Binding LogMessages}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
