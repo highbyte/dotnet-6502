@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.Layout;
+using System.Threading.Tasks;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
@@ -20,11 +21,16 @@ public partial class MainView : UserControl
     private MonitorDialog? _monitorWindow;
     private Panel? _monitorOverlay;
 
+    // For log auto-scroll
+    private ScrollViewer? _logScrollViewer;
+    private bool _logAutoScrollEnabled = true;
+
     // Parameterless constructor - child views created by XAML!
     public MainView()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        this.AttachedToVisualTree += MainView_AttachedToVisualTree;
         // DataContext will be set from App.axaml.cs via DI
         // Child views (C64MenuView, StatisticsView, EmulatorView) are created by XAML
         // and get their DataContext through XAML bindings
@@ -52,6 +58,8 @@ public partial class MainView : UserControl
             _subscribedViewModel.PropertyChanged += OnViewModelPropertyChanged;
             // Check immediately in case validation errors are already set
             CheckAndSelectValidationErrorsTab();
+            // Listen for log changes
+            _subscribedViewModel.LogMessages.CollectionChanged += LogMessages_CollectionChanged;
         }
     }
 
@@ -402,10 +410,69 @@ public partial class MainView : UserControl
         if (_subscribedViewModel != null)
         {
             _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _subscribedViewModel.LogMessages.CollectionChanged -= LogMessages_CollectionChanged;
             _subscribedViewModel = null;
         }
+    }
+    private void MainView_AttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        // Find the LogTabItem's ScrollViewer
+        var logTab = this.FindControl<TabItem>("LogTabItem");
+        if (logTab?.Content is Border border)
+        {
+            _logScrollViewer = FindScrollViewer(border);
+            if (_logScrollViewer != null)
+            {
+                _logScrollViewer.ScrollChanged += LogScrollViewer_ScrollChanged;
+            }
+        }
+    }
 
-        CloseMonitorUI();
+    private ScrollViewer? FindScrollViewer(Control control)
+    {
+        if (control is ScrollViewer sv)
+            return sv;
+        if (control is ContentControl cc && cc.Content is Control child)
+            return FindScrollViewer(child);
+        if (control is Panel panel)
+        {
+            foreach (var panelChild in panel.Children)
+            {
+                if (panelChild is Control childControl)
+                {
+                    var result = FindScrollViewer(childControl);
+                    if (result != null)
+                        return result;
+                }
+            }
+        }
+        return null;
+    }
+
+    private void LogScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        if (_logScrollViewer == null)
+            return;
+        // If user is at the bottom, enable auto-scroll
+        double tolerance = 2.0;
+        bool isAtBottom = _logScrollViewer.Offset.Y >= _logScrollViewer.Extent.Height - _logScrollViewer.Viewport.Height - tolerance;
+        _logAutoScrollEnabled = isAtBottom;
+    }
+
+    private void LogMessages_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (_logScrollViewer == null)
+            return;
+        if (_logAutoScrollEnabled)
+        {
+            // Scroll to bottom after layout/render
+            Dispatcher.UIThread.Post(async () =>
+            {
+                await Task.Delay(10); // Small delay to ensure layout
+                double maxY = Math.Max(0, _logScrollViewer.Extent.Height - _logScrollViewer.Viewport.Height);
+                _logScrollViewer.Offset = new Vector(_logScrollViewer.Offset.X, maxY);
+            }, DispatcherPriority.Loaded);
+        }
     }
 
     private async void StatsButton_Click(object? sender, RoutedEventArgs e)

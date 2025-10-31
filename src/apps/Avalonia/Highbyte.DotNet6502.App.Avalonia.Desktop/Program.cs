@@ -38,7 +38,7 @@ internal sealed class Program
         // ----------
         // Create logging
         // ----------
-        DotNet6502InMemLogStore logStore = new() { WriteDebugMessage = true };
+        DotNet6502InMemLogStore logStore = new(insertAtStart: false) { WriteDebugMessage = true };
         var logConfig = new DotNet6502InMemLoggerConfiguration(logStore);
         var loggerFactory = LoggerFactory.Create(builder =>
         {

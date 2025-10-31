@@ -35,11 +35,23 @@ public class MainViewModel : ViewModelBase
         C64MenuViewModel = c64MenuViewModel ?? throw new ArgumentNullException(nameof(c64MenuViewModel));
         StatisticsViewModel = statisticsViewModel ?? throw new ArgumentNullException(nameof(statisticsViewModel));
 
-    // Initialize local scale from host app
-    _scale = _hostApp.Scale;
+        // Initialize local scale from host app
+        _scale = _hostApp.Scale;
 
-    // Populate log messages initially
-    RefreshLogMessages();
+        // Populate log messages initially
+        RefreshLogMessages();
+        // Subscribe to new log messages
+        if (_hostApp.LogStore != null)
+        {
+            _hostApp.LogStore.LogMessageAdded += (sender, logMessage) =>
+            {
+                // Always add at end for UI order
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    _logMessages.Add(logMessage);
+                });
+            };
+        }
 
         // Subscribe to scale changes from AvaloniaHostApp (e.g., when set from OnAfterStart)
         _hostApp.PropertyChanged += (sender, e) =>
@@ -311,7 +323,6 @@ public class MainViewModel : ViewModelBase
     {
         UpdateSystemConfigValidity();
         NotifyEmulatorStateChanged();
-        RefreshLogMessages();
     }
 
     /// <summary>
@@ -322,7 +333,7 @@ public class MainViewModel : ViewModelBase
         if (_hostApp?.LogStore != null)
         {
             var logs = _hostApp.LogStore.GetLogMessages();
-            
+
             // Only update if the logs have changed
             if (logs.Count != _logMessages.Count || !logs.SequenceEqual(_logMessages))
             {
