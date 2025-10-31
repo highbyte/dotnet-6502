@@ -1,7 +1,7 @@
 using System;
 using Avalonia;
 using Avalonia.Controls;
-using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
+using Avalonia.Media;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 
@@ -11,6 +11,8 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 /// </summary>
 public abstract class EmulatorDisplayControlBase : Control
 {
+    private readonly Func<bool> _shouldEmitEmulationFrame;
+
     private int _displayWidth = 320;
     private int _displayHeight = 200;
 
@@ -67,9 +69,18 @@ public abstract class EmulatorDisplayControlBase : Control
     {
     }
 
-    public EmulatorDisplayControlBase()
+    public EmulatorDisplayControlBase(Func<bool> shouldEmitEmulationFrame)
     {
+        _shouldEmitEmulationFrame = shouldEmitEmulationFrame;
     }
+
+    public override async void Render(DrawingContext context)
+    {
+        if (_shouldEmitEmulationFrame())
+            OnRender(context);
+    }
+
+    protected abstract void OnRender(DrawingContext context);
 
     protected override Size MeasureOverride(Size availableSize)
     {

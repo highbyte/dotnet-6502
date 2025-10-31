@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Media;
 using Highbyte.DotNet6502.App.Avalonia.Core.Render;
@@ -23,16 +24,17 @@ public class EmulatorAvaloniaCommandControl : EmulatorDisplayControlBase
         IRenderCoordinator? renderCoordinator,
         AvaloniaCommandTarget? avaloniaCommandTarget,
         double scale,
-        bool focuable
-        ) : base()
+        bool focusable,
+        Func<bool> shouldEmitEmulationFrame
+        ) : base(shouldEmitEmulationFrame)
     {
         _renderCoordinator = renderCoordinator;
         _avaloniaCommandTarget = avaloniaCommandTarget;
         Scale = scale;
-        Focusable = focuable;
+        Focusable = focusable;
     }
 
-    public override async void Render(DrawingContext context)
+    protected override async void OnRender(DrawingContext context)
     {
         if (_renderCoordinator == null || _avaloniaCommandTarget == null)
             return;

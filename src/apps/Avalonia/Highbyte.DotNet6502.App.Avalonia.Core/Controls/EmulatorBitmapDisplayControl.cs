@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Media;
 using Highbyte.DotNet6502.App.Avalonia.Core.Render;
@@ -23,16 +24,17 @@ public class EmulatorBitmapDisplayControl : EmulatorDisplayControlBase
         IRenderCoordinator? renderCoordinator,
         IAvaloniaBitmapRenderTarget? avaloniaBitmapRenderTarget,
         double scale,
-        bool focuable
-        ) : base()
+        bool focusable,
+        Func<bool> shouldEmitEmulationFrame
+        ) : base(shouldEmitEmulationFrame)
     {
         _renderCoordinator = renderCoordinator;
         _avaloniaBitmapRenderTarget = avaloniaBitmapRenderTarget;
         Scale = scale;
-        Focusable = focuable;
+        Focusable = focusable;
     }
 
-    public override async void Render(DrawingContext context)
+    protected override async void OnRender(DrawingContext context)
     {
         if (_renderCoordinator == null) return;
         await _renderCoordinator.FlushIfDirtyAsync();
