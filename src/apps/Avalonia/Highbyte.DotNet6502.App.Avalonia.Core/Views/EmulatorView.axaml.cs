@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 using Highbyte.DotNet6502.App.Avalonia.Core.Render;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
+using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoCommands;
 
@@ -113,9 +114,10 @@ public partial class EmulatorView : UserControl
     {
         var control = new EmulatorBitmapDisplayControl(
             renderCoordinator,
-     avaloniaBitmapRenderTarget,
-     Scale,  // Use current Scale value
-        true);
+            avaloniaBitmapRenderTarget,
+            Scale,  // Use current Scale value
+            true,
+            () => HostApp.EmulatorState == EmulatorState.Running);
         control.SetDisplaySize(320, 200);
         return control;
     }
@@ -123,12 +125,13 @@ public partial class EmulatorView : UserControl
     private EmulatorAvaloniaCommandControl CreateAvaloniaCommandControl(IRenderCoordinator? renderCoordinator, AvaloniaCommandTarget avaloniaCommandTarget)
     {
         var control = new EmulatorAvaloniaCommandControl(
- renderCoordinator,
-   avaloniaCommandTarget,
-    Scale,  // Use current Scale value
-            true);
-      control.SetDisplaySize(320, 200);
-    return control;
+            renderCoordinator,
+            avaloniaCommandTarget,
+            Scale,  // Use current Scale value
+            true,
+            () => HostApp.EmulatorState == EmulatorState.Running);
+        control.SetDisplaySize(320, 200);
+        return control;
     }
 
     /// <summary>
