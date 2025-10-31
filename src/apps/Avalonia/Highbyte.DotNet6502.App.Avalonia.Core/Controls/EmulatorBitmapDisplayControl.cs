@@ -1,5 +1,6 @@
 using System;
 using Avalonia;
+using Avalonia.Logging;
 using Avalonia.Media;
 using Highbyte.DotNet6502.App.Avalonia.Core.Render;
 using Highbyte.DotNet6502.Systems.Rendering;
@@ -34,10 +35,46 @@ public class EmulatorBitmapDisplayControl : EmulatorDisplayControlBase
         Focusable = focusable;
     }
 
-    protected override async void OnRender(DrawingContext context)
+    protected override void OnRender(DrawingContext context)
     {
         if (_renderCoordinator == null) return;
-        await _renderCoordinator.FlushIfDirtyAsync();
+
+        try
+        {
+            // Call FlushIfDirtyAsync and handle result
+            var valueTask = _renderCoordinator.FlushIfDirtyAsync();
+
+            // If the task is already completed, we can check it synchronously
+            if (valueTask.IsCompleted)
+            {
+                // GetAwaiter().GetResult() will throw if the task faulted
+                valueTask.GetAwaiter().GetResult();
+            }
+            else
+            {
+                // Task is still pending - fire-and-forget but observe for exceptions
+                var task = valueTask.AsTask();
+                _ = task.ContinueWith(t =>
+                {
+                    if (t.IsFaulted && t.Exception != null)
+                    {
+                        // Rethrow from async context to be caught by outer catch
+                        throw t.Exception;
+                    }
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            // Catch rendering exceptions and log only
+            // Following official Avalonia best practice from ServerCompositionCustomVisual:
+            // Only log exceptions in render methods, never re-throw or re-post
+            System.Diagnostics.Debug.WriteLine($"OnRender exception: {ex}");
+
+            // Logger.TryGet(LogEventLevel.Error, LogArea.Visual)
+            //     ?.Log(_handler, $"Exception in {_handler.GetType().Name}.{nameof(CompositionCustomVisualHandler.OnRender)} {0}", e);
+
+        }
 
         if (_avaloniaBitmapRenderTarget == null) return;
         var destRect = new Rect(0, 0, DisplayWidth * Scale, DisplayHeight * Scale);

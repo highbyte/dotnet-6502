@@ -55,7 +55,20 @@ public sealed class FrameSourceRenderCoordinator : IRenderCoordinator
         {
             // Render on UI thread (we are usually already on it in host tick)
             if (frame != null)
+            {
                 _ = PresentLatestAsync(frame);
+
+                // Testing alternative way to present without async/await in OnFrameTick
+                // var task = PresentLatestAsync(frame);
+                // // Observe exceptions to prevent unobserved task exceptions
+                // task.ContinueWith(t =>
+                // {
+                //     if (t.IsFaulted && t.Exception != null)
+                //     {
+                //         // Exception is now observed, let global handlers deal with it
+                //     }
+                // }, TaskScheduler.FromCurrentSynchronizationContext());
+            }
         }
         else
         {
