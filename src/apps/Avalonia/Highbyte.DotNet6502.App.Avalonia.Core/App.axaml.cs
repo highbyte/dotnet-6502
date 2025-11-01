@@ -109,8 +109,6 @@ public partial class App : Application
 
         // Initialize the emulator host app
         InitializeHostApp();
-        // Select default system but don't start emulation yet
-        SetDefaultSystemSelection();
 
         // Setup DI container
         SetupDependencyInjection();
@@ -146,35 +144,6 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
 
         Console.WriteLine("AppOnFrameworkInitializationCompleted end");
-    }
-
-    private void SetDefaultSystemSelection()
-    {
-        // Select default system but don't start emulation yet
-        // In WebAssembly, we need to schedule the async operation to run after initialization completes
-        if (!PlatformDetection.IsRunningInWebAssembly())
-        {
-            // Desktop: can safely use .Wait() during initialization
-            _hostApp.SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
-            _logger.LogInformation($"Default system '{_emulatorConfig.DefaultEmulator}' selected during initialization");
-        }
-        else
-        {
-            // WebAssembly: Schedule the async operation to run after initialization
-            // Use Dispatcher to ensure it runs on UI thread after the UI is ready
-            Dispatcher.UIThread.Post(async () =>
-            {
-                try
-                {
-                    await _hostApp.SelectSystem(_emulatorConfig.DefaultEmulator);
-                    _logger.LogInformation($"Default system '{_emulatorConfig.DefaultEmulator}' selected during initialization");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to select default system in WebAssembly");
-                }
-            });
-        }
     }
 
     private void SetupDependencyInjection()

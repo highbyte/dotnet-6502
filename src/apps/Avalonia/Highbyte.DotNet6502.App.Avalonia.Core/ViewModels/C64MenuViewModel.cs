@@ -369,7 +369,7 @@ public class C64MenuViewModel : ViewModelBase
                 System.Console.WriteLine($"Final error state: {_latestPreloadedDiskError}");
         }
     }
-    
+
     public async Task LoadAssemblyExample()
     {
         if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)

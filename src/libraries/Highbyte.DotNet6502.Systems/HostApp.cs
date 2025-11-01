@@ -89,7 +89,11 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         get
         {
             if (_currentHostSystemConfig == null)
-                throw new DotNet6502Exception("Internal error. No system selected yet. Call SelectSystem() first.");
+            {
+                return null;
+                // Trouble with Avalonia Browser binding because of timing of initialization would cause this exception to be thrown.
+                // throw new DotNet6502Exception("Internal error. No system selected yet. Call SelectSystem() first.");
+            }
             return _currentHostSystemConfig;
         }
         private set

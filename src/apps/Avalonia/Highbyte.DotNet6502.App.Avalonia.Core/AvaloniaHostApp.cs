@@ -546,7 +546,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         ValidationErrors = new ObservableCollection<string>(errors);
     }
 
-
     private NullAudioHandlerContext CreateAudioHandlerContext()
     {
         return new NullAudioHandlerContext();

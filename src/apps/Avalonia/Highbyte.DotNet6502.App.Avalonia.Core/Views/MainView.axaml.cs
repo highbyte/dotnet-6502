@@ -13,8 +13,9 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 public partial class MainView : UserControl
 {
-    // Access HostApp through ViewModel
-    private AvaloniaHostApp? HostApp => (DataContext as MainViewModel)?.HostApp;
+    private bool _isInitialized;
+
+    private AvaloniaHostApp? HostApp => (DataContext as MainViewModel)?.HostApp; // Access HostApp through ViewModel
 
     private MainViewModel? _subscribedViewModel;
     private MonitorDialog? _monitorWindow;
@@ -34,6 +35,19 @@ public partial class MainView : UserControl
         // Child views (C64MenuView, StatisticsView, EmulatorView) are created by XAML
         // and get their DataContext through XAML bindings
 
+        this.Loaded += OnViewLoaded;
+    }
+
+    private async void OnViewLoaded(object? sender, RoutedEventArgs e)
+    {
+        if (_isInitialized)
+            return;
+        _isInitialized = true;
+
+        if (DataContext is MainViewModel viewModel)
+        {
+            await viewModel.InitializeAsync();
+        }
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)

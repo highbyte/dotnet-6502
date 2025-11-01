@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive.Linq;
+using System.Threading.Tasks;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Microsoft.Extensions.Logging;
@@ -12,6 +13,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 public class MainViewModel : ViewModelBase
 {
     private readonly AvaloniaHostApp _hostApp;
+    private readonly EmulatorConfig _emulatorConfig;
     private readonly ILogger<MainViewModel> _logger;
 
     // Expose HostApp for child views/viewmodels that need it
@@ -78,11 +80,13 @@ public class MainViewModel : ViewModelBase
     // Constructor with dependency injection - child ViewModels injected!
     public MainViewModel(
         AvaloniaHostApp hostApp,
+        EmulatorConfig emulatorConfig,
         C64MenuViewModel c64MenuViewModel,  // Injected by DI with AvaloniaHostApp
         StatisticsViewModel statisticsViewModel,
         ILoggerFactory loggerFactory)
     {
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
+        _emulatorConfig = emulatorConfig;
         _logger = loggerFactory?.CreateLogger<MainViewModel>() ?? throw new ArgumentNullException(nameof(loggerFactory));
 
         // Store injected child ViewModels
@@ -154,6 +158,29 @@ public class MainViewModel : ViewModelBase
                 });
             };
         }
+
+        // System-specific ViewModel initializations
+        this.WhenAnyValue(x => x.SelectedSystemName)
+            .Subscribe(_ => this.RaisePropertyChanged(nameof(IsC64SystemSelected)));
+    }
+
+    private void NotifySystemSpecificBindings()
+    {
+        this.RaisePropertyChanged(nameof(IsC64SystemSelected));
+    }
+
+    public async Task InitializeAsync()
+    {
+        await SetDefaultSystemSelection();
+    }
+
+    private async Task SetDefaultSystemSelection()
+    {
+        if (HostApp == null)
+            return;
+
+        _logger.LogInformation($"Setting default system '{_emulatorConfig.DefaultEmulator}' during MainViewModel initialization");
+        await HostApp.SelectSystem(_emulatorConfig.DefaultEmulator);
     }
 
     /// <summary>
