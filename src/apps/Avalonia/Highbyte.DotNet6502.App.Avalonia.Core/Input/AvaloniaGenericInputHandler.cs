@@ -57,9 +57,12 @@ public class AvaloniaGenericInputHandler : IInputHandler
         {
             Key key = _inputHandlerContext.KeysDown.First();
             // TODO: Handle all kinds of keys
-            byte keyCode = (byte)GenericComputerAvaloniaKeyboard.AvaloniaToGenericKeyMap[key];
+            if (GenericComputerAvaloniaKeyboard.AvaloniaToGenericKeyMap.ContainsKey(key))
+            {
+                byte keyCode = (byte)GenericComputerAvaloniaKeyboard.AvaloniaToGenericKeyMap[key];
+                genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = keyCode;
+            }
 
-            genericComputer.Mem[_emulatorInputConfig.KeyDownAddress] = keyCode;
         }
 
         if (_inputHandlerContext.KeysDown.Count == 0)

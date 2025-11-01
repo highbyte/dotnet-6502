@@ -16,7 +16,6 @@ public partial class MainView : UserControl
     // Access HostApp through ViewModel
     private AvaloniaHostApp? HostApp => (DataContext as MainViewModel)?.HostApp;
 
-    private AvaloniaHostApp? _subscribedHostApp;
     private MainViewModel? _subscribedViewModel;
     private MonitorDialog? _monitorWindow;
     private Panel? _monitorOverlay;
@@ -39,14 +38,6 @@ public partial class MainView : UserControl
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        if (_subscribedHostApp != null)
-            _subscribedHostApp.MonitorVisibilityChanged -= OnMonitorVisibilityChanged;
-
-        _subscribedHostApp = HostApp;
-
-        if (_subscribedHostApp != null)
-            _subscribedHostApp.MonitorVisibilityChanged += OnMonitorVisibilityChanged;
-
         // Unsubscribe from previous ViewModel's property changes
         if (_subscribedViewModel != null)
             _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
@@ -63,31 +54,40 @@ public partial class MainView : UserControl
         }
     }
 
+    // If scale can change at runtime, listen for property changes
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         // Listen for changes to HasValidationErrors property
-        if (e.PropertyName == nameof(MainViewModel.HasValidationErrors))
+        if (e.PropertyName == nameof(MainViewModel.ValidationErrors))
         {
             CheckAndSelectValidationErrorsTab();
+        }
+
+        if (e.PropertyName == nameof(MainViewModel.IsMonitorVisible) && DataContext is MainViewModel viewModel)
+        {
+            if (viewModel.IsMonitorVisible)
+                ShowMonitorUI();
+            else
+                CloseMonitorUI();
         }
     }
 
     private void CheckAndSelectValidationErrorsTab()
     {
-        if (_subscribedViewModel?.HasValidationErrors == true)
+        if (_subscribedViewModel == null || _subscribedViewModel.EmulatorStateFlags.IsSystemConfigValid)
+            return;
+
+        // Use Dispatcher to ensure the control is properly initialized
+        Dispatcher.UIThread.Post(() =>
         {
-            // Use Dispatcher to ensure the control is properly initialized
-            Dispatcher.UIThread.Post(() =>
+            if (this.FindControl<TabItem>("ConfigErrorsTabItem") is TabItem configErrorsTab)
             {
-                if (this.FindControl<TabItem>("ConfigErrorsTabItem") is TabItem configErrorsTab)
+                if (this.FindControl<TabControl>("InformationTabControl") is TabControl tabControl)
                 {
-                    if (this.FindControl<TabControl>("InformationTabControl") is TabControl tabControl)
-                    {
-                        tabControl.SelectedItem = configErrorsTab;
-                    }
+                    tabControl.SelectedItem = configErrorsTab;
                 }
-            });
-        }
+            }
+        });
     }
 
     private void MainView_Loaded(object? sender, RoutedEventArgs e)
@@ -110,13 +110,10 @@ public partial class MainView : UserControl
                 try
                 {
                     await HostApp.SelectSystem(selectedSystem);
-                    viewModel.OnSystemSelectionCompleted();
-                    viewModel.ForceStateRefresh();
                 }
                 catch (Exception)
                 {
                     // Handle exception if needed - the UI will reflect the actual state from HostApp
-                    viewModel.ForceStateRefresh();
                 }
             }
         }
@@ -134,12 +131,10 @@ public partial class MainView : UserControl
                 try
                 {
                     await HostApp.SelectSystemConfigurationVariant(selectedVariant);
-                    viewModel.ForceStateRefresh();
                 }
                 catch (Exception)
                 {
                     // Handle exception if needed - the UI will reflect the actual state from HostApp
-                    viewModel.ForceStateRefresh();
                 }
             }
         }
@@ -153,20 +148,12 @@ public partial class MainView : UserControl
             try
             {
                 await HostApp.Start();
-                if (DataContext is MainViewModel viewModel)
-                {
-                    viewModel.ForceStateRefresh();
-                }
 
                 FocusEmulator();
             }
             catch (Exception)
             {
                 // Handle exception if needed
-                if (DataContext is MainViewModel viewModel)
-                {
-                    viewModel.ForceStateRefresh();
-                }
             }
         }
     }
@@ -178,18 +165,10 @@ public partial class MainView : UserControl
             try
             {
                 HostApp.Pause();
-                if (DataContext is MainViewModel viewModel)
-                {
-                    viewModel.ForceStateRefresh();
-                }
             }
             catch (Exception)
             {
                 // Handle exception if needed
-                if (DataContext is MainViewModel viewModel)
-                {
-                    viewModel.ForceStateRefresh();
-                }
             }
         }
     }
@@ -201,18 +180,10 @@ public partial class MainView : UserControl
             try
             {
                 HostApp.Stop();
-                if (DataContext is MainViewModel viewModel)
-                {
-                    viewModel.ForceStateRefresh();
-                }
             }
             catch (Exception)
             {
                 // Handle exception if needed
-                if (DataContext is MainViewModel viewModel)
-                {
-                    viewModel.ForceStateRefresh();
-                }
             }
         }
     }
@@ -224,18 +195,10 @@ public partial class MainView : UserControl
             try
             {
                 await HostApp.Reset();
-                if (DataContext is MainViewModel viewModel)
-                {
-                    viewModel.ForceStateRefresh();
-                }
             }
             catch (Exception)
             {
                 // Handle exception if needed
-                if (DataContext is MainViewModel viewModel)
-                {
-                    viewModel.ForceStateRefresh();
-                }
             }
         }
     }
@@ -249,24 +212,9 @@ public partial class MainView : UserControl
         {
             HostApp.ToggleMonitor();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            if (DataContext is MainViewModel viewModel)
-            {
-                viewModel.ForceStateRefresh();
-            }
         }
-    }
-
-    private void OnMonitorVisibilityChanged(object? sender, bool isVisible)
-    {
-        Dispatcher.UIThread.Post(() =>
-        {
-            if (isVisible)
-                ShowMonitorUI();
-            else
-                CloseMonitorUI();
-        });
     }
 
     private void ShowMonitorUI()
@@ -401,12 +349,6 @@ public partial class MainView : UserControl
     {
         base.OnDetachedFromVisualTree(e);
 
-        if (_subscribedHostApp != null)
-        {
-            _subscribedHostApp.MonitorVisibilityChanged -= OnMonitorVisibilityChanged;
-            _subscribedHostApp = null;
-        }
-
         if (_subscribedViewModel != null)
         {
             _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
@@ -457,18 +399,10 @@ public partial class MainView : UserControl
             try
             {
                 HostApp.ToggleStatisticsPanel();
-                if (DataContext is MainViewModel viewModel)
-                {
-                    viewModel.ForceStateRefresh();
-                }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // Handle exception if needed
-                if (DataContext is MainViewModel viewModel)
-                {
-                    viewModel.ForceStateRefresh();
-                }
             }
         }
     }

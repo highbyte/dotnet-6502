@@ -49,11 +49,23 @@ public class C64MenuViewModel : ViewModelBase
 
         _examplesAssembly = Assembly.GetExecutingAssembly();
         InitializeC64Data();
+
+        _avaloniaHostApp
+            .WhenAnyValue(x => x.EmulatorState)
+            .Subscribe(_ =>
+            {
+                this.RaisePropertyChanged(nameof(IsC64ConfigEnabled));
+                this.RaisePropertyChanged(nameof(IsCopyPasteEnabled));
+                this.RaisePropertyChanged(nameof(IsDiskImageAttached));
+                this.RaisePropertyChanged(nameof(DiskToggleButtonText));
+                this.RaisePropertyChanged(nameof(BasicCodingAssistantAvailable));
+                this.RaisePropertyChanged(nameof(BasicCodingAssistantEnabled));
+
+                this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
+            });
     }
 
-    // Properties that previously accessed MainViewModel can now access HostApp directly
-    public EmulatorState EmulatorState => _avaloniaHostApp.EmulatorState;
-    public string SelectedSystemName => _avaloniaHostApp.SelectedSystemName;
+    private EmulatorState EmulatorState => _avaloniaHostApp.EmulatorState;
 
     // C64-specific properties
     private C64HostConfig? C64HostConfig => _avaloniaHostApp?.CurrentHostSystemConfig as C64HostConfig;
@@ -188,7 +200,7 @@ public class C64MenuViewModel : ViewModelBase
                     // If not running, update the config so it will be used when starting the system
                     _avaloniaHostApp?.UpdateHostSystemConfig(C64HostConfig);
                 }
-                this.RaisePropertyChanged();
+                this.RaisePropertyChanged(nameof(JoystickKeyboardEnabled));
                 this.RaisePropertyChanged(nameof(IsKeyboardJoystickSelectionEnabled));
             }
         }
@@ -276,64 +288,12 @@ public class C64MenuViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Notify that the disk image state has changed (attached/detached)
+    /// Force refresh of all data bindings in the ViewModel.
+    /// Useful when multiple properties have changed and you want to notify the UI to update all bindings, like after changing system configuration.
     /// </summary>
-    public void NotifyDiskImageStateChanged()
+    public void RefreshAllBindings()
     {
-        try
-        {
-            this.RaisePropertyChanged(nameof(IsDiskImageAttached));
-            this.RaisePropertyChanged(nameof(DiskToggleButtonText));
-        }
-        catch (Exception ex)
-        {
-            // Safe error handling for WebAssembly/AOT environments
-            try
-            {
-                System.Console.WriteLine($"Error in NotifyDiskImageStateChanged: {ex?.Message ?? "Unknown error"}");
-            }
-            catch
-            {
-                System.Console.WriteLine("Error in NotifyDiskImageStateChanged: Unable to access exception details");
-            }
-        }
-    }
-
-    /// <summary>
-    /// Notify C64-specific property changes when emulator state changes
-    /// </summary>
-    public void NotifyEmulatorStateChanged()
-    {
-        try
-        {
-            this.RaisePropertyChanged(nameof(EmulatorState));
-            this.RaisePropertyChanged(nameof(SelectedSystemName));
-
-            // Notify C64-specific property changes
-            this.RaisePropertyChanged(nameof(IsCopyPasteEnabled));
-            this.RaisePropertyChanged(nameof(BasicCodingAssistantAvailable));
-            this.RaisePropertyChanged(nameof(IsC64ConfigEnabled));
-            this.RaisePropertyChanged(nameof(IsDiskImageAttached));
-            this.RaisePropertyChanged(nameof(DiskToggleButtonText));
-            this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
-            this.RaisePropertyChanged(nameof(JoystickKeyboardEnabled));
-            this.RaisePropertyChanged(nameof(KeyboardJoystick));
-            this.RaisePropertyChanged(nameof(IsKeyboardJoystickSelectionEnabled));
-            this.RaisePropertyChanged(nameof(CurrentJoystick));
-            this.RaisePropertyChanged(nameof(HasConfigValidationErrors));
-        }
-        catch (Exception ex)
-        {
-            // Safe error handling for WebAssembly/AOT environments
-            try
-            {
-                System.Console.WriteLine($"Error in C64MenuViewModel.NotifyEmulatorStateChanged: {ex?.Message ?? "Unknown error"}");
-            }
-            catch
-            {
-                System.Console.WriteLine("Error in C64MenuViewModel.NotifyEmulatorStateChanged: Unable to access exception details");
-            }
-        }
+        this.RaisePropertyChanged(string.Empty); // Notifies all property bindings
     }
 
     public async Task LoadPreloadedDiskImage()
@@ -370,11 +330,6 @@ public class C64MenuViewModel : ViewModelBase
 
             await _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
                 diskInfo,
-                stateHasChangedCallback: async () =>
-                {
-                    NotifyEmulatorStateChanged();
-                    await Task.CompletedTask;
-                },
                 setConfigCallback: async (diskInfo) =>
                 {
                     if (HostApp?.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
@@ -412,9 +367,7 @@ public class C64MenuViewModel : ViewModelBase
             System.Console.WriteLine($"Finished loading preloaded disk. Loading state: {_isLoadingPreloadedDisk}");
             if (!string.IsNullOrEmpty(_latestPreloadedDiskError))
                 System.Console.WriteLine($"Final error state: {_latestPreloadedDiskError}");
-            NotifyEmulatorStateChanged();
         }
-
     }
     
     public async Task LoadAssemblyExample()

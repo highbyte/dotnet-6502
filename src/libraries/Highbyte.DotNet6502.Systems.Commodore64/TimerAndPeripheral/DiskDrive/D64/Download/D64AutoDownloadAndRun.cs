@@ -23,7 +23,6 @@ public class D64AutoDownloadAndRun
 
     public async Task DownloadAndRunDiskImage(
         D64DownloadDiskInfo diskInfo,
-        Func<Task> stateHasChangedCallback,
         Func<D64DownloadDiskInfo, Task> setConfigCallback)
     {
         try
@@ -35,16 +34,13 @@ public class D64AutoDownloadAndRun
             {
                 _logger.LogInformation("Stopping C64 emulator to reset state");
                 _hostApp.Stop();
-                await stateHasChangedCallback();
             }
 
             await setConfigCallback(diskInfo);
-            await stateHasChangedCallback();
 
             // Start the C64 emulator
             _logger.LogInformation("Starting C64 emulator");
             await _hostApp.Start();
-            await stateHasChangedCallback();
 
             // Wait for BASIC to start (check periodically)
             _logger.LogInformation("Waiting for BASIC to start...");
@@ -70,7 +66,6 @@ public class D64AutoDownloadAndRun
 
             // Pause before proceeding with disk operations
             _hostApp.Pause();
-            await stateHasChangedCallback();
 
             // Download and process the disk image (supports both .d64 and .zip files)
             var d64Bytes = await _d64Downloader.DownloadAndProcessDiskImage(diskInfo);
@@ -100,8 +95,6 @@ public class D64AutoDownloadAndRun
 
                     _logger.LogInformation($"Direct loaded {diskInfo.DirectLoadPRGName} at address {loadedAtAddress:X4}, length {fileLength} bytes");
 
-                    // Refresh UI to reflect the new settings values
-                    await stateHasChangedCallback();
                 }
                 catch (Exception ex)
                 {
@@ -117,9 +110,6 @@ public class D64AutoDownloadAndRun
                 {
                     diskDrive.SetD64DiskImage(d64DiskImage);
                     _logger.LogInformation($"Disk image loaded and set: {d64DiskImage.DiskName}");
-
-                    // Refresh UI to reflect the new settings values
-                    await stateHasChangedCallback();
                 }
                 else
                 {
@@ -155,7 +145,6 @@ public class D64AutoDownloadAndRun
         finally
         {
             await _hostApp.Start();
-            await stateHasChangedCallback();
         }
     }
 }

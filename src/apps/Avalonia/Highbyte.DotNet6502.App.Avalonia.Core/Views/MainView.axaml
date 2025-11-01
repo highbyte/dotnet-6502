@@ -59,7 +59,7 @@
                               ItemsSource="{Binding AvailableSystems}"
                               SelectedItem="{Binding SelectedSystemName}"
                               SelectionChanged="OnSystemSelectionChanged"
-                              IsEnabled="{Binding IsSystemSelectionEnabled}"
+                              IsEnabled="{Binding EmulatorStateFlags.IsSystemSelectionEnabled}"
                               Classes="compact"
                               MinWidth="100"/>
 
@@ -74,7 +74,7 @@
                               ItemsSource="{Binding AvailableSystemVariants}"
                               SelectedItem="{Binding SelectedSystemVariant}"
                               SelectionChanged="OnSystemVariantSelectionChanged"
-                              IsEnabled="{Binding IsVariantSelectionEnabled}"
+                              IsEnabled="{Binding EmulatorStateFlags.IsVariantSelectionEnabled}"
                               Classes="compact"
                               MinWidth="100"/>
 
@@ -101,12 +101,12 @@
                         <Button Grid.Column="0"
                                 Content="Start"
                                 Classes="primary grid"
-                                IsEnabled="{Binding IsStartButtonEnabled}"
+                                IsEnabled="{Binding EmulatorStateFlags.IsStartButtonEnabled}"
                                 Click="StartButton_Click"/>
                         <Button Grid.Column="2"
                                 Content="Pause"
                                 Classes="warning grid"
-                                IsEnabled="{Binding IsPauseButtonEnabled}"
+                                IsEnabled="{Binding EmulatorStateFlags.IsPauseButtonEnabled}"
                                 Click="PauseButton_Click"/>
                     </Grid>
 
@@ -120,12 +120,12 @@
                         <Button Grid.Column="0"
                                 Content="Reset"
                                 Classes="secondary grid"
-                                IsEnabled="{Binding IsResetButtonEnabled}"
+                                IsEnabled="{Binding EmulatorStateFlags.IsResetButtonEnabled}"
                                 Click="ResetButton_Click"/>
                         <Button Grid.Column="2"
                                 Content="Stop"
                                 Classes="danger grid"
-                                IsEnabled="{Binding IsStopButtonEnabled}"
+                                IsEnabled="{Binding EmulatorStateFlags.IsStopButtonEnabled}"
                                 Click="StopButton_Click"/>
                     </Grid>
 
@@ -139,13 +139,13 @@
                         <Button Grid.Column="0"
                                 Content="Monitor"
                                 Classes="grid"
-                                IsEnabled="{Binding IsMonitorButtonEnabled}"
+                                IsEnabled="{Binding EmulatorStateFlags.IsMonitorButtonEnabled}"
                                 ToolTip.Tip="Toggle with F12"
                                 Click="MonitorButton_Click"/>
                         <Button Grid.Column="2"
                                 Content="Stats"
                                 Classes="grid"
-                                IsEnabled="{Binding IsStatsButtonEnabled}"
+                                IsEnabled="{Binding EmulatorStateFlags.IsStatsButtonEnabled}"
                                 ToolTip.Tip="Toggle with F11"
                                 Click="StatsButton_Click"/>
                     </Grid>
@@ -207,14 +207,14 @@
                         --><!-- Emulator Display Control --><!--
                         <views:EmulatorView Name="EmulatorView"
                                             Scale="{Binding Scale}"
-                                            IsVisible="{Binding IsEmulatorRunning}"/>
+                                            IsVisible="{Binding EmulatorStateFlags.IsEmulatorRunning}"/>
 
                         --><!-- Overlay message when not running --><!--
                         <TextBlock Text="DotNet 6502 emulator"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
                                    Classes="h1"
-                                   IsVisible="{Binding IsEmulatorNotRunning}"/>
+                                   IsVisible="{Binding EmulatorStateFlags.IsEmulatorNotRunning}"/>
                     </Grid>
                 </Border>-->
 
@@ -226,14 +226,12 @@
                     <!-- Emulator Display Control -->
                     <views:EmulatorView Name="EmulatorView"
                                         Scale="{Binding Scale}"
-                                        IsVisible="{Binding IsEmulatorRunning}"/>
+                                        IsVisible="{Binding EmulatorStateFlags.IsEmulatorRunning}"/>
 
                     <!-- Overlay message when not running -->
-                    <TextBlock Text="DotNet 6502 emulator"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Classes="h1"
-                                IsVisible="{Binding IsEmulatorNotRunning}"/>
+                    <views:EmulatorPlaceholderView Name="EmulatorPlaceholderView"
+                                                   Scale="{Binding Scale}"
+                                                   IsVisible="{Binding EmulatorStateFlags.IsEmulatorNotRunning}"/>
                 </Grid>
 
                 <!-- Information Area - Tabbed Interface -->
@@ -265,8 +263,7 @@
                             <Border Background="#2D3748" Padding="4">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Spacing="4">
-                                        <!-- Show validation errors if any exist -->
-                                        <StackPanel Spacing="8" IsVisible="{Binding HasValidationErrors}">
+                                        <StackPanel Spacing="8" IsVisible="{Binding !EmulatorStateFlags.IsSystemConfigValid}">
                                             <Border Background="Transparent"
                                                     BorderBrush="#E53E3E"
                                                     BorderThickness="1"
@@ -291,8 +288,7 @@
                                             </Border>
                                         </StackPanel>
 
-                                        <!-- Show default message when no validation errors -->
-                                        <StackPanel Spacing="5" IsVisible="{Binding !HasValidationErrors}">
+                                        <StackPanel Spacing="5" IsVisible="{Binding EmulatorStateFlags.IsSystemConfigValid}">
                                             <TextBlock Text="Configuration is valid."
                                                        Classes="small"
                                                        FontStyle="Italic"

@@ -61,6 +61,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Views\EmulatorPlaceholderView.axaml.cs">
+      <DependentUpon>EmulatorPlaceholderView.axaml</DependentUpon>
+    </Compile>
     <Compile Update="Views\EmulatorView.axaml.cs">
       <DependentUpon>EmulatorView.axaml</DependentUpon>
     </Compile>

@@ -1,10 +1,8 @@
 using System;
 using System.Linq;
-using System.Net.Http;
 using System.Reactive;
 using System.Threading.Tasks;
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Diagnostics;
@@ -83,12 +81,6 @@ public partial class App : Application
             throw;
         }
     }
-
-    // Allow other assemblies (e.g., Web) to set HostApp safely without exposing a public setter on the property
-    //public static void SetHostApp(AvaloniaHostApp hostApp)
-    //{
-    //    HostApp = hostApp;
-    //}
 
     public override void Initialize()
     {
@@ -176,9 +168,6 @@ public partial class App : Application
                 {
                     await _hostApp.SelectSystem(_emulatorConfig.DefaultEmulator);
                     _logger.LogInformation($"Default system '{_emulatorConfig.DefaultEmulator}' selected during initialization");
-
-                    // Notify UI that system selection is complete
-                    NotifySystemSelectionCompleted();
                 }
                 catch (Exception ex)
                 {
@@ -186,7 +175,6 @@ public partial class App : Application
                 }
             });
         }
-
     }
 
     private void SetupDependencyInjection()
@@ -289,25 +277,6 @@ public partial class App : Application
         {
             Console.WriteLine($"Failed to initialize HostApp: {ex}");
             throw;
-        }
-    }
-
-    private void NotifySystemSelectionCompleted()
-    {
-        // Find the MainViewModel and notify it that system selection is complete
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            if (desktop.MainWindow?.DataContext is MainViewModel mainViewModel)
-            {
-                mainViewModel.OnSystemSelectionCompleted();
-            }
-        }
-        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
-        {
-            if (singleViewPlatform.MainView?.DataContext is MainViewModel mainViewModel)
-            {
-                mainViewModel.OnSystemSelectionCompleted();
-            }
         }
     }
 

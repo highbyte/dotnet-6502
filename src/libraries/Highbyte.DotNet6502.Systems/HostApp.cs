@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
@@ -29,24 +30,56 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     public string SelectedSystemName => _selectedSystemName;
     private ISystem? _selectedSystemTemporary; // A temporary storage of the selected system if asked for, and system has not been started yet.
 
-    public HashSet<string> AvailableSystemNames => _systemList.Systems;
+    public HashSet<string> AvailableSystemNames
+    {
+        get
+        {
+            return _systemList.Systems;
+        }
+    }
 
     private string _selectedSystemConfigurationVariant;
     public string SelectedSystemConfigurationVariant => _selectedSystemConfigurationVariant;
+
     private List<string> _allSelectedSystemConfigurationVariants = new();
-    public List<string> AllSelectedSystemConfigurationVariants => _allSelectedSystemConfigurationVariants;
+    public List<string> AllSelectedSystemConfigurationVariants
+    {
+        get
+        {
+            return _allSelectedSystemConfigurationVariants;
+        }
+        set
+        {
+            _allSelectedSystemConfigurationVariants = value;
+            OnAfterAllSystemConfigurationVariantsChanged();
+        }
+    }
 
     private SystemRunner? _systemRunner = null;
     public SystemRunner? CurrentSystemRunner => _systemRunner;
     public ISystem? CurrentRunningSystem => _systemRunner?.System;
-    public EmulatorState EmulatorState { get; private set; } = EmulatorState.Uninitialized;
-
+    public EmulatorState EmulatorState
+    {
+        get
+        {
+            return _emulatorState;
+        }
+        private set
+        {
+            _emulatorState = value;
+            OnAfterEmulatorStateChange();
+        }
+    }
     private IHostSystemConfig? _currentHostSystemConfig;
 
     private RenderTargetProvider? _renderTargetProvider;
     private RenderCoordinatorProvider? _renderCoordinatorProvider;
     private IRenderCoordinator? _renderCoordinator;
     private IRenderTarget? _currentRenderTarget;
+
+    // Events
+    public event EventHandler? SelectedSystemChanged;
+    public event EventHandler? SelectedSystemVariantChanged;
 
     /// <summary>
     /// The current host system config.
@@ -84,6 +117,8 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     private readonly Instrumentations _systemInstrumentations = new();
     private ElapsedMillisecondsTimedStatSystem? _systemTime;
     private ElapsedMillisecondsTimedStatSystem? _inputTime;
+    private EmulatorState _emulatorState = EmulatorState.Uninitialized;
+
     //private ElapsedMillisecondsTimedStatSystem _audioTime;
 
     private readonly Instrumentations _instrumentations = new();
@@ -187,6 +222,8 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         return available;
     }
 
+    public virtual void OnAfterEmulatorStateChange() { }
+
     public async Task SelectSystem(string systemName)
     {
         if (EmulatorState != EmulatorState.Uninitialized)
@@ -199,17 +236,20 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         _selectedSystemName = systemName;
         CurrentHostSystemConfig = await _systemList.GetHostSystemConfig(_selectedSystemName);
 
+        OnAfterSelectedSystemChanged();
+
+        SelectedSystemChanged?.Invoke(this, EventArgs.Empty);
+
+        // If system changed, make sure any state regarding the system variant is also in sync
         if (systemChanged)
         {
-            _allSelectedSystemConfigurationVariants = await _systemList.GetSystemConfigurationVariants(systemName, CurrentHostSystemConfig);
-            _selectedSystemConfigurationVariant = _allSelectedSystemConfigurationVariants.First();
+            AllSelectedSystemConfigurationVariants = await _systemList.GetSystemConfigurationVariants(systemName, CurrentHostSystemConfig);
+            var selectedSystemConfigurationVariant = _allSelectedSystemConfigurationVariants.First();
+            await SelectSystemConfigurationVariant(selectedSystemConfigurationVariant);
         }
-
-        // Make sure any state regarding the system variant is also in sync
-        await SelectSystemConfigurationVariant(_selectedSystemConfigurationVariant);
-
-        OnAfterSelectSystem();
     }
+
+    public virtual void OnAfterAllSystemConfigurationVariantsChanged() { }
 
     public async Task SelectSystemConfigurationVariant(string configurationVariant)
     {
@@ -231,9 +271,14 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         {
             _selectedSystemTemporary = null;
         }
+
+        OnAfterSelectedSystemVariantChanged();
+
+        SelectedSystemVariantChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public virtual void OnAfterSelectSystem() { }
+    public virtual void OnAfterSelectedSystemChanged() { }
+    public virtual void OnAfterSelectedSystemVariantChanged() { }
 
     public virtual bool OnBeforeStart(ISystem systemAboutToBeStarted)
     {
@@ -242,6 +287,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
 
     public async Task Start()
     {
+
         if (EmulatorState == EmulatorState.Running)
             throw new DotNet6502Exception("Cannot start emulator if emulator is running.");
 

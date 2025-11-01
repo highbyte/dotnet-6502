@@ -1,7 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Reactive.Linq;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Microsoft.Extensions.Logging;
@@ -21,6 +21,60 @@ public class MainViewModel : ViewModelBase
     public C64MenuViewModel C64MenuViewModel { get; }
     public StatisticsViewModel StatisticsViewModel { get; }
 
+    // --- Start Binding Properties ---
+
+    private readonly ObservableAsPropertyHelper<string> _selectedSystemName;
+    public string SelectedSystemName => _selectedSystemName.Value;
+
+    private readonly ObservableAsPropertyHelper<string> _selectedSystemConfigurationVariant;
+    public string SelectedSystemVariant => _selectedSystemConfigurationVariant.Value;
+
+
+    private readonly ObservableAsPropertyHelper<ObservableCollection<string>> _availableSystems;
+    public ObservableCollection<string> AvailableSystems => _availableSystems.Value;
+
+    private readonly ObservableAsPropertyHelper<ObservableCollection<string>> _availableSystemVariants;
+    public ObservableCollection<string> AvailableSystemVariants => _availableSystemVariants.Value;
+
+
+    private readonly ObservableAsPropertyHelper<EmulatorState> _emulatorState;
+    public EmulatorState EmulatorState => _emulatorState.Value;
+
+    public EmulatorStateFlags EmulatorStateFlags { get; }
+
+    private readonly ObservableAsPropertyHelper<double> _scale;
+    public double Scale
+    {
+        get => _scale.Value;
+        set
+        {
+            _hostApp.Scale = (float)value;
+        }
+    }
+
+    public bool IsC64SystemSelected => string.Equals(SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
+
+    // Private field to cache validation errors
+    private readonly ObservableAsPropertyHelper<ObservableCollection<string>> _validationErrors;
+    public ObservableCollection<string> ValidationErrors => _validationErrors.Value;
+
+    // Private field for log messages collection
+    private readonly ObservableCollection<string> _logMessages = new();
+    public ObservableCollection<string> LogMessages => _logMessages;
+
+
+    // Statistics panel visibility
+    private readonly ObservableAsPropertyHelper<bool> _isStatisticsPanelVisible;
+    public bool IsStatisticsPanelVisible => _isStatisticsPanelVisible.Value;
+    // Statistics panel column width - bind this to the grid column width
+    public string StatisticsPanelColumnWidth => "250";
+
+    // Monitor visibility
+    private readonly ObservableAsPropertyHelper<bool> _isMonitorVisible;
+    public bool IsMonitorVisible => _isMonitorVisible.Value;
+
+    // --- End Binding Properties ---
+
     // Constructor with dependency injection - child ViewModels injected!
     public MainViewModel(
         AvaloniaHostApp hostApp,
@@ -35,8 +89,56 @@ public class MainViewModel : ViewModelBase
         C64MenuViewModel = c64MenuViewModel ?? throw new ArgumentNullException(nameof(c64MenuViewModel));
         StatisticsViewModel = statisticsViewModel ?? throw new ArgumentNullException(nameof(statisticsViewModel));
 
-        // Initialize local scale from host app
-        _scale = _hostApp.Scale;
+        EmulatorStateFlags = new EmulatorStateFlags(_hostApp.EmulatorState);
+
+        // Set up reactive properties
+        _selectedSystemName = _hostApp
+            .WhenAnyValue(x => x.SelectedSystemName)
+            .ToProperty(this, x => x.SelectedSystemName);
+
+        _selectedSystemConfigurationVariant = _hostApp
+            .WhenAnyValue(x => x.SelectedSystemConfigurationVariant)
+            .ToProperty(this, x => x.SelectedSystemVariant);
+
+        _availableSystems = _hostApp
+            .WhenAnyValue(x => x.AvailableSystemNames)
+            .Select(systems => new ObservableCollection<string>(systems))
+            .ToProperty(this, x => x.AvailableSystems);
+
+        _availableSystemVariants = _hostApp
+            .WhenAnyValue(x => x.AllSelectedSystemConfigurationVariants)
+            .Select(variants => new ObservableCollection<string>(variants))
+            .ToProperty(this, x => x.AvailableSystemVariants);
+
+        _emulatorState = _hostApp
+            .WhenAnyValue(x => x.EmulatorState)
+            .Do(state =>
+            {
+                EmulatorStateFlags.EmulatorState = state;
+            })
+            .ToProperty(this, x => x.EmulatorState);
+
+        _scale = _hostApp
+            .WhenAnyValue(x => x.Scale)
+            .Select(s => (double)s)
+            .ToProperty(this, x => x.Scale);
+
+        _validationErrors = _hostApp
+            .WhenAnyValue(x => x.ValidationErrors)
+            .Select(errors => new ObservableCollection<string>(errors))
+            .Do(errors =>
+            {
+                EmulatorStateFlags.IsSystemConfigValid = errors.Count == 0; ;
+            })
+            .ToProperty(this, x => x.ValidationErrors);
+
+        _isStatisticsPanelVisible = _hostApp
+            .WhenAnyValue(x => x.IsStatsPanelVisible)
+            .ToProperty(this, x => x.IsStatisticsPanelVisible);
+
+        _isMonitorVisible = _hostApp
+            .WhenAnyValue(x => x.IsMonitorVisible)
+            .ToProperty(this, x => x.IsMonitorVisible);
 
         // Populate log messages initially
         RefreshLogMessages();
@@ -52,277 +154,6 @@ public class MainViewModel : ViewModelBase
                 });
             };
         }
-
-        // Subscribe to scale changes from AvaloniaHostApp (e.g., when set from OnAfterStart)
-        _hostApp.PropertyChanged += (sender, e) =>
-        {
-            if (e.PropertyName == nameof(AvaloniaHostApp.Scale))
-            {
-                // Update local backing field when AvaloniaHostApp.Scale changes externally
-                _scale = _hostApp.Scale;
-                this.RaisePropertyChanged(nameof(Scale));
-            }
-        };
-
-        InitializeAvailableSystems();
-    }
-
-    // NO Init() method - everything happens in constructor!
-
-    public string SelectedSystemName => _hostApp.SelectedSystemName;
-
-    public string SelectedSystemVariant => _hostApp.SelectedSystemConfigurationVariant;
-
-    public ObservableCollection<string> AvailableSystemVariants { get; } = new();
-
-    public EmulatorState EmulatorState
-    {
-        get => _hostApp?.EmulatorState ?? EmulatorState.Uninitialized;
-    }
-
-    public bool IsEmulatorNotRunning => EmulatorState != EmulatorState.Running;
-
-    public bool IsEmulatorRunning => EmulatorState == EmulatorState.Running;
-
-    public bool IsC64SystemSelected => string.Equals(SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Generic method to check if a specific system is selected
-    /// </summary>
-    /// <param name="systemName">The system name to check (e.g., "C64")</param>
-    /// <returns>True if the specified system is selected</returns>
-    public bool IsSystemSelected(string systemName)
-    {
-        return string.Equals(SelectedSystemName, systemName, StringComparison.OrdinalIgnoreCase);
-    }
-
-    // UI Control Enabled Properties based on EmulatorState
-    public bool IsSystemSelectionEnabled => EmulatorState == EmulatorState.Uninitialized;
-
-    public bool IsVariantSelectionEnabled => EmulatorState == EmulatorState.Uninitialized;
-
-    public bool IsStartButtonEnabled => _isSystemConfigValid && EmulatorState != EmulatorState.Running;
-
-    public bool IsPauseButtonEnabled => EmulatorState == EmulatorState.Running;
-
-    public bool IsStopButtonEnabled => EmulatorState != EmulatorState.Uninitialized;
-
-    public bool IsResetButtonEnabled => EmulatorState != EmulatorState.Uninitialized;
-    public bool IsMonitorButtonEnabled => EmulatorState != EmulatorState.Uninitialized;
-    public bool IsStatsButtonEnabled => EmulatorState != EmulatorState.Uninitialized;
-
-    // Private field to cache system config validity - updated when system changes
-    private bool _isSystemConfigValid = false;
-
-    // Private field to cache validation errors
-    private readonly ObservableCollection<string> _validationErrors = new();
-    public ObservableCollection<string> ValidationErrors => _validationErrors;
-
-    public bool HasValidationErrors => _validationErrors.Count > 0;
-
-    // Private field for log messages collection
-    private readonly ObservableCollection<string> _logMessages = new();
-    public ObservableCollection<string> LogMessages => _logMessages;
-
-    // Statistics panel visibility
-    private bool _isStatisticsPanelVisible = false;
-    public bool IsStatisticsPanelVisible
-    {
-        get => _isStatisticsPanelVisible;
-        set
-        {
-            if (this.RaiseAndSetIfChanged(ref _isStatisticsPanelVisible, value))
-            {
-                this.RaisePropertyChanged(nameof(StatisticsPanelColumnWidth));
-            }
-        }
-    }
-
-    // Statistics panel column width - bind this to the grid column width
-    public string StatisticsPanelColumnWidth => "250";
-
-    // Display scale for emulator
-    private double _scale = 2.0;
-    public double Scale
-    {
-        get => _scale;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _scale, value);
-            _hostApp.Scale = (float)value;
-        }
-    }
-
-    public ObservableCollection<string> AvailableSystems { get; } = new();
-
-    /// <summary>
-    /// Called when system selection has completed (especially important in WebAssembly where SelectSystem is async)
-    /// </summary>
-    public void OnSystemSelectionCompleted()
-    {
-        // Update available variants based on the newly selected system
-        UpdateAvailableVariants();
-
-        // Force a full UI refresh to update all bindings
-        NotifyEmulatorStateChanged();
-    }
-
-    private void NotifyEmulatorStateChanged()
-    {
-        try
-        {
-            // Update system config validity
-            UpdateSystemConfigValidity();
-
-            this.RaisePropertyChanged(nameof(SelectedSystemName));
-            this.RaisePropertyChanged(nameof(SelectedSystemVariant));
-            this.RaisePropertyChanged(nameof(EmulatorState));
-            this.RaisePropertyChanged(nameof(IsEmulatorNotRunning));
-            this.RaisePropertyChanged(nameof(IsEmulatorRunning));
-            this.RaisePropertyChanged(nameof(IsC64SystemSelected));
-
-            // Notify UI control enabled state changes
-            this.RaisePropertyChanged(nameof(IsSystemSelectionEnabled));
-            this.RaisePropertyChanged(nameof(IsVariantSelectionEnabled));
-            this.RaisePropertyChanged(nameof(IsStartButtonEnabled));
-            this.RaisePropertyChanged(nameof(IsPauseButtonEnabled));
-            this.RaisePropertyChanged(nameof(IsStopButtonEnabled));
-            this.RaisePropertyChanged(nameof(IsResetButtonEnabled));
-            this.RaisePropertyChanged(nameof(IsMonitorButtonEnabled));
-            this.RaisePropertyChanged(nameof(IsStatsButtonEnabled));
-
-            // Notify C64-specific property changes
-            C64MenuViewModel?.NotifyEmulatorStateChanged();
-        }
-        catch (Exception ex)
-        {
-            // Safe error handling for WebAssembly/AOT environments
-            try
-            {
-                System.Console.WriteLine($"Error in NotifyEmulatorStateChanged: {ex?.Message ?? "Unknown error"}");
-            }
-            catch
-            {
-                System.Console.WriteLine("Error in NotifyEmulatorStateChanged: Unable to access exception details");
-            }
-        }
-    }
-
-    private void UpdateSystemConfigValidity()
-    {
-        if (_hostApp != null)
-        {
-            // Use ConfigureAwait(false) to avoid deadlock and run async operation in background
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    var (isValid, validationErrors) = await _hostApp.IsValidConfigWithDetails();
-
-                    var hasChanged = _isSystemConfigValid != isValid ||
-                                     !_validationErrors.SequenceEqual(validationErrors);
-
-                    if (hasChanged)
-                    {
-                        _isSystemConfigValid = isValid;
-
-                        // Update validation errors on UI thread
-                        global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                        {
-                            _validationErrors.Clear();
-                            foreach (var error in validationErrors)
-                            {
-                                _validationErrors.Add(error);
-                            }
-
-                            this.RaisePropertyChanged(nameof(IsStartButtonEnabled));
-                            this.RaisePropertyChanged(nameof(HasValidationErrors));
-                        });
-                    }
-                }
-                catch
-                {
-                    // If we can't determine validity, assume invalid
-                    var hasChanged = _isSystemConfigValid || _validationErrors.Count > 0;
-
-                    if (hasChanged)
-                    {
-                        _isSystemConfigValid = false;
-
-                        global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                        {
-                            _validationErrors.Clear();
-                            _validationErrors.Add("Unable to validate system configuration");
-
-                            this.RaisePropertyChanged(nameof(IsStartButtonEnabled));
-                            this.RaisePropertyChanged(nameof(HasValidationErrors));
-                        });
-                    }
-                }
-            });
-        }
-        else
-        {
-            _isSystemConfigValid = false;
-            global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                _validationErrors.Clear();
-                this.RaisePropertyChanged(nameof(HasValidationErrors));
-            });
-        }
-    }
-
-    private void InitializeAvailableSystems()
-    {
-        AvailableSystems.Clear();
-
-        if (_hostApp?.SystemList != null)
-        {
-            foreach (var systemName in _hostApp.SystemList.Systems)
-            {
-                AvailableSystems.Add(systemName);
-            }
-
-            if (AvailableSystems.Any())
-            {
-                // SelectedSystemName is now read directly from App.HostApp.SelectedSystemName
-                // Update available variants for the selected system
-                UpdateAvailableVariants();
-                // Notify UI that the selected system name may have changed
-                NotifyEmulatorStateChanged();
-            }
-        }
-        else
-        {
-            AvailableSystems.Add("Loading...");
-        }
-    }
-
-    private void UpdateAvailableVariants()
-    {
-        AvailableSystemVariants.Clear();
-
-        if (_hostApp?.AllSelectedSystemConfigurationVariants != null)
-        {
-            foreach (var variant in _hostApp.AllSelectedSystemConfigurationVariants)
-            {
-                AvailableSystemVariants.Add(variant);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Set the visibility of the statistics panel
-    /// </summary>
-    public void SetStatisticsPanelVisible(bool visible)
-    {
-        IsStatisticsPanelVisible = visible;
-    }
-
-    public void ForceStateRefresh()
-    {
-        UpdateSystemConfigValidity();
-        NotifyEmulatorStateChanged();
     }
 
     /// <summary>
@@ -330,27 +161,17 @@ public class MainViewModel : ViewModelBase
     /// </summary>
     public void RefreshLogMessages()
     {
-        if (_hostApp?.LogStore != null)
+        if (_hostApp?.LogStore == null)
+            return;
+        var logs = _hostApp.LogStore.GetLogMessages();
+        // Only update if the logs have changed
+        if (logs.Count != _logMessages.Count || !logs.SequenceEqual(_logMessages))
         {
-            var logs = _hostApp.LogStore.GetLogMessages();
-
-            // Only update if the logs have changed
-            if (logs.Count != _logMessages.Count || !logs.SequenceEqual(_logMessages))
+            _logMessages.Clear();
+            foreach (var log in logs)
             {
-                _logMessages.Clear();
-                foreach (var log in logs)
-                {
-                    _logMessages.Add(log);
-                }
+                _logMessages.Add(log);
             }
         }
-    }
-
-    /// <summary>
-    /// Notify that the disk image state has changed (attached/detached)
-    /// </summary>
-    public void NotifyDiskImageStateChanged()
-    {
-        C64MenuViewModel.NotifyDiskImageStateChanged();
     }
 }

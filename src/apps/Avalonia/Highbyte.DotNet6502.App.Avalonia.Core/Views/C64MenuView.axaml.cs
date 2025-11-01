@@ -190,10 +190,7 @@ public partial class C64MenuView : UserControl
         if (result == true)
         {
             // Notify C64MenuViewModel of state changes
-            ViewModel?.NotifyEmulatorStateChanged();
-
-            // Notify MainViewModel to refresh validation errors
-            NotifyMainViewModelOfConfigChange();
+            ViewModel?.RefreshAllBindings();
         }
     }
 
@@ -268,10 +265,7 @@ public partial class C64MenuView : UserControl
                 if (result)
                 {
                     // Notify C64MenuViewModel of state changes
-                    ViewModel?.NotifyEmulatorStateChanged();
-
-                    // Notify MainViewModel to refresh validation errors
-                    NotifyMainViewModelOfConfigChange();
+                    ViewModel?.RefreshAllBindings();
                 }
             }
             finally
@@ -279,27 +273,6 @@ public partial class C64MenuView : UserControl
                 // Clean up - remove the overlay
                 mainGrid.Children.Remove(overlay);
             }
-        }
-    }
-
-    /// <summary>
-    /// Helper method to notify MainViewModel to refresh validation errors after configuration changes
-    /// </summary>
-    private void NotifyMainViewModelOfConfigChange()
-    {
-        try
-        {
-            // Find the parent MainView
-            var mainView = this.FindAncestorOfType<MainView>(true);
-            if (mainView?.DataContext is MainViewModel mainViewModel)
-            {
-                // Force a full state refresh to update validation errors
-                mainViewModel.ForceStateRefresh();
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Error notifying MainViewModel of config change: {ex.Message}");
         }
     }
 
@@ -408,7 +381,7 @@ public partial class C64MenuView : UserControl
             }
 
             // Notify the ViewModel that the disk image state has changed
-            ViewModel?.NotifyDiskImageStateChanged();
+            ViewModel?.RefreshAllBindings();
         }
         catch (Exception ex)
         {

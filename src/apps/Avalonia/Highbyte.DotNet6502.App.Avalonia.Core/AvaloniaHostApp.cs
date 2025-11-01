@@ -1,5 +1,7 @@
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -40,21 +42,28 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     private EmulatorView _emulatorView = default!;
     public EmulatorView EmulatorView => _emulatorView;
 
+
+    public bool IsStatsPanelVisible
+    {
+        get
+        {
+            if (CurrentRunningSystem == null)
+                return false;
+            return CurrentRunningSystem.InstrumentationEnabled;
+        }
+    }
+
     private AvaloniaMonitor? _monitor;
     public AvaloniaMonitor? Monitor => _monitor;
 
-    public event EventHandler<bool>? MonitorVisibilityChanged;
+    public bool IsMonitorVisible => _monitor?.IsVisible ?? false;
+
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
     protected void OnPropertyChanged(string propertyName)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    private void RaiseMonitorVisibilityChanged(bool isVisible)
-    {
-        MonitorVisibilityChanged?.Invoke(this, isVisible);
     }
 
     // Expose LoggerFactory for use in views that are note created through DI.
@@ -138,9 +147,43 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             });
     }
 
-    public override void OnAfterSelectSystem()
+    public override void OnAfterEmulatorStateChange()
     {
-        // Additional setup after system selection if needed
+        OnPropertyChanged(nameof(EmulatorState));
+    }
+
+    public override void OnAfterSelectedSystemChanged()
+    {
+        OnPropertyChanged(nameof(SelectedSystemName));
+
+        ValidateConfigAsync();
+
+        //// Additional setup after system selection if needed
+        //// Set placeholder size to match emulator display area
+        //var selectedSystem = GetSelectedSystem().GetAwaiter().GetResult();
+        //var screen = selectedSystem.Screen;
+
+        //MainView? mainView = GetMainView();
+        //if (mainView != null && screen != null)
+        //{
+        //    var placeholder = mainView.FindControl<Views.EmulatorPlaceholderView>("EmulatorPlaceholderView");
+        //    if (placeholder != null)
+        //    {
+        //        int width = (int)(screen.VisibleWidth);
+        //        int height = (int)(screen.VisibleHeight);
+        //        placeholder.SetDisplaySize(width, height);
+        //    }
+        //}
+    }
+
+    public override void OnAfterAllSystemConfigurationVariantsChanged()
+    {
+        OnPropertyChanged(nameof(AllSelectedSystemConfigurationVariants));
+    }
+
+    public override void OnAfterSelectedSystemVariantChanged()
+    {
+        OnPropertyChanged(nameof(SelectedSystemConfigurationVariant));
     }
 
     public override bool OnBeforeStart(ISystem systemAboutToBeStarted)
@@ -182,10 +225,62 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
 
         if (emulatorStateBeforeStart == EmulatorState.Uninitialized)
         {
+            DisableMonitor();
             _monitor = new AvaloniaMonitor(CurrentSystemRunner!, _emulatorConfig.Monitor);
-            RaiseMonitorVisibilityChanged(false);
         }
     }
+
+    public override void OnAfterPause()
+    {
+        _updateTimer?.Stop();
+    }
+
+    public override void OnBeforeStop()
+    {
+        SetStatisticsPanelVisible(false);
+
+        if (_monitor != null)
+        {
+            if (_monitor.IsVisible)
+                DisableMonitor();
+            _monitor = null;
+        }
+    }
+
+    public override void OnAfterStop()
+    {
+        _updateTimer?.Stop();
+        if (_updateTimer != null)
+        {
+            _updateTimer.Elapsed -= UpdateTimerElapsed;
+            _updateTimer.Dispose();
+            _updateTimer = null;
+        }
+    }
+
+    public override void OnAfterClose()
+    {
+        // Cleanup contexts
+        _inputHandlerContext?.Cleanup();
+        _audioHandlerContext?.Cleanup();
+
+        // Cleanup timer
+        _updateTimer?.Stop();
+        if (_updateTimer != null)
+        {
+            _updateTimer.Elapsed -= UpdateTimerElapsed;
+            _updateTimer.Dispose();
+            _updateTimer = null;
+        }
+
+        if (_monitor != null)
+        {
+            if (_monitor.IsVisible)
+                DisableMonitor();
+            _monitor = null;
+        }
+    }
+
 
     private float GetUsefulScaleBasedOnEmulatorScreenDimensions(IScreen emulatorScreenPixels, float currentScale, bool alwaysUseMaxScale)
     {
@@ -372,56 +467,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         return null;
     }
 
-    public override void OnAfterPause()
-    {
-        _updateTimer?.Stop();
-    }
-
-    public override void OnBeforeStop()
-    {
-        SetStatisticsPanelVisible(false);
-
-        if (_monitor != null)
-        {
-            if (_monitor.IsVisible)
-                DisableMonitor();
-            _monitor = null;
-        }
-    }
-
-    public override void OnAfterStop()
-    {
-        _updateTimer?.Stop();
-        if (_updateTimer != null)
-        {
-            _updateTimer.Elapsed -= UpdateTimerElapsed;
-            _updateTimer.Dispose();
-            _updateTimer = null;
-        }
-    }
-
-    public override void OnAfterClose()
-    {
-        // Cleanup contexts
-        _inputHandlerContext?.Cleanup();
-        _audioHandlerContext?.Cleanup();
-
-        // Cleanup timer
-        _updateTimer?.Stop();
-        if (_updateTimer != null)
-        {
-            _updateTimer.Elapsed -= UpdateTimerElapsed;
-            _updateTimer.Dispose();
-            _updateTimer = null;
-        }
-
-        if (_monitor != null)
-        {
-            if (_monitor.IsVisible)
-                DisableMonitor();
-            _monitor = null;
-        }
-    }
 
     private PeriodicAsyncTimer CreateAsyncUpdateTimerForSystem(ISystem system)
     {
@@ -484,6 +529,24 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         }
     }
 
+    private ObservableCollection<string> _validationErrors = new();
+    public ObservableCollection<string> ValidationErrors
+    {
+        get => _validationErrors;
+        private set
+        {
+            _validationErrors = value;
+            OnPropertyChanged(nameof(ValidationErrors));
+        }
+    }
+
+    public async Task ValidateConfigAsync()
+    {
+        var (isValid, errors) = await IsValidConfigWithDetails();
+        ValidationErrors = new ObservableCollection<string>(errors);
+    }
+
+
     private NullAudioHandlerContext CreateAudioHandlerContext()
     {
         return new NullAudioHandlerContext();
@@ -522,6 +585,24 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         return viewModel;
     }
 
+    private MainView? GetMainView()
+    {
+        MainView? mainView = null;
+        var app = global::Avalonia.Application.Current;
+        if (app == null)
+            return null;
+
+        if (app.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            mainView = desktop.MainWindow?.Content as MainView;
+        }
+        else if (app.ApplicationLifetime is ISingleViewApplicationLifetime singleView)
+        {
+            mainView = singleView.MainView as MainView;
+        }
+        return mainView;
+    }
+
     /// <summary>
     /// Toggle the visibility of the statistics panel
     /// </summary>
@@ -533,12 +614,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
 
     public void SetStatisticsPanelVisible(bool isVisible)
     {
-        var viewModel = GetMainViewModel();
-        if (viewModel == null)
+        if (CurrentRunningSystem == null)
             return;
-        if (CurrentRunningSystem != null)
-            CurrentRunningSystem.InstrumentationEnabled = isVisible;
-        viewModel.SetStatisticsPanelVisible(isVisible);
+        CurrentRunningSystem.InstrumentationEnabled = isVisible;
+        OnPropertyChanged(nameof(IsStatsPanelVisible));
     }
 
     public void ToggleMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
@@ -557,27 +636,20 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
 
     public void EnableMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
-        if (_monitor == null)
-            return;
-
-        _monitor.Enable(execEvaluatorTriggerResult);
-        RaiseMonitorVisibilityChanged(true);
+        if (_monitor != null && !_monitor.IsVisible)
+        {
+            _monitor.Enable(execEvaluatorTriggerResult);
+            OnPropertyChanged(nameof(IsMonitorVisible));
+        }
     }
 
     public void DisableMonitor()
     {
-        if (_monitor == null)
-        {
-            RaiseMonitorVisibilityChanged(false);
-            return;
-        }
-
-        if (_monitor.IsVisible)
+        if (_monitor != null && _monitor.IsVisible)
         {
             _monitor.Disable();
+            OnPropertyChanged(nameof(IsMonitorVisible));
         }
-
-        RaiseMonitorVisibilityChanged(false);
     }
 
     /// <summary>
@@ -601,7 +673,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         }
         // If F12 is pressed without Ctrl or Shift modifier, toggle monitor
         else if (key == Key.F12 && (modifiers & KeyModifiers.Control) == 0 && (modifiers & KeyModifiers.Shift) == 0
- && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
+                 && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
         {
             _logger.LogInformation("F12 pressed - toggling monitor");
             ToggleMonitor();
