@@ -221,11 +221,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         {
             _updateTimer = CreateAsyncUpdateTimerForSystem(CurrentSystemRunner!.System);
         }
-        else
-        {
-            _updateTimer.Elapsed -= UpdateTimerElapsed; // Remove previous handler to avoid multiple subscriptions
-            _updateTimer.Elapsed += UpdateTimerElapsed;
-        }
 
         _updateTimer.Start();
 
@@ -247,7 +242,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
 
         if (_monitor != null)
         {
-            if (_monitor.IsVisible)
+            if (IsMonitorVisible)
                 DisableMonitor();
             _monitor = null;
         }
@@ -279,14 +274,12 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             _updateTimer = null;
         }
 
-        if (_monitor != null)
+        if (IsMonitorVisible)
         {
-            if (_monitor.IsVisible)
-                DisableMonitor();
+            DisableMonitor();
             _monitor = null;
         }
     }
-
 
     private float GetUsefulScaleBasedOnEmulatorScreenDimensions(IScreen emulatorScreenPixels, float currentScale, bool alwaysUseMaxScale)
     {
@@ -506,7 +499,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             return;
         }
 
-        if (_monitor?.IsVisible == true)
+        if (IsMonitorVisible)
         {
             shouldRun = false;
             shouldReceiveInput = false;
@@ -633,7 +626,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         if (EmulatorState == EmulatorState.Uninitialized)
             return;
 
-        if (_monitor.IsVisible)
+        if (IsMonitorVisible)
             DisableMonitor();
         else
             EnableMonitor(execEvaluatorTriggerResult);
@@ -641,20 +634,14 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
 
     public void EnableMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
-        if (_monitor != null && !_monitor.IsVisible)
-        {
-            _monitor.Enable(execEvaluatorTriggerResult);
-            OnPropertyChanged(nameof(IsMonitorVisible));
-        }
+        _monitor?.Enable(execEvaluatorTriggerResult);
+        OnPropertyChanged(nameof(IsMonitorVisible));
     }
 
     public void DisableMonitor()
     {
-        if (_monitor != null && _monitor.IsVisible)
-        {
-            _monitor.Disable();
-            OnPropertyChanged(nameof(IsMonitorVisible));
-        }
+        _monitor?.Disable();
+        OnPropertyChanged(nameof(IsMonitorVisible));
     }
 
     /// <summary>

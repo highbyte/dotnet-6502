@@ -1,10 +1,4 @@
 ﻿
-Browser-specific:
-- When starting C64 assembly example programs the frame rate doubles. Some event or timer that get dobule triggered?  Not a problem in Desktop (seemingly).
-
-Monitor:
-- Activating monitor with F12, then typing commands, after that the Close button or "g" command no longer works to close the monitor and resume the emulator.
-
 EmulatorPlaceholderView: 
 - Fix setting size based on selected emulator.
 

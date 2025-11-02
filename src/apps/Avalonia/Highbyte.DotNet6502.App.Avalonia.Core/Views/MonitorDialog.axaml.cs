@@ -109,7 +109,7 @@ public partial class MonitorDialog : Window
         PositionChanged -= OnPositionChanged;
         Closed -= OnClosed;
 
-        if (_monitor.IsVisible)
+        if (_hostApp.IsMonitorVisible)
             _hostApp.DisableMonitor();
     }
 }
