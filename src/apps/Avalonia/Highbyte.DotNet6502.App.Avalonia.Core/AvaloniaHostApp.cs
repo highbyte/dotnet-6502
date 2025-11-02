@@ -7,10 +7,10 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Platform;
+using Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 using Highbyte.DotNet6502.App.Avalonia.Core.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
 using Highbyte.DotNet6502.App.Avalonia.Core.Render;
-using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
@@ -38,9 +38,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     private NullAudioHandlerContext _audioHandlerContext = default!;
 
     private PeriodicAsyncTimer? _updateTimer;
-    private EmulatorView _emulatorView = default!;
-    public EmulatorView EmulatorView => _emulatorView;
 
+    private EmulatorDisplayControlBase? _renderControl;
 
     public bool IsStatsPanelVisible
     {
@@ -140,7 +139,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             () =>
             {
                 var renderloop = new AvaloniaInvalidateRenderLoop(
-                    () => _emulatorView.RenderControl,
+                    () => _renderControl,  // Use the registered render control set by EmulatorView
                     shouldEmitEmulationFrame: () => EmulatorState != EmulatorState.Uninitialized);
                 return renderloop;
             });
@@ -181,19 +180,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     {
         Console.WriteLine($"Emulator started: {CurrentRunningSystem.Name} Variant: {SelectedSystemConfigurationVariant}");
 
-        //((IAvaloniaRenderer)CurrentSystemRunner!.Renderer).SetNewFrameHasBeenDrawnCallback(() =>
-        //{
-        //    // Invalidate the display to trigger a redraw
-        //    _emulatorView.DisplayControl!.InvalidateVisual();
-        //});
-
         var screen = CurrentRunningSystem!.Screen;
-        // Set the size of the display control based on the system screen size
-        _emulatorView.ConfigureRendererControl(
-            renderCoordinator: GetRenderCoordinator(),
-            avaloniaBitmapRenderTarget: GetRenderTarget<IAvaloniaBitmapRenderTarget>()
-            );
-        _emulatorView.RenderControl!.SetDisplaySize(screen.VisibleWidth, screen.VisibleHeight);
 
         // Automatically adjust scale if emulator dimensions are too wide/tall.
         Scale = GetUsefulScaleBasedOnEmulatorScreenDimensions(screen, Scale, alwaysUseMaxScale: false);
@@ -530,11 +517,15 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         return new NullAudioHandlerContext();
     }
 
-    internal void SetEmulatorView(EmulatorView emulatorView)
+    /// <summary>
+    /// Register the render control from EmulatorView to be used by the rendering pipeline.
+    /// This method should be called by EmulatorView when it's ready.
+    /// </summary>
+    /// <param name="renderControl"></param>
+    public void RegisterRenderControl(EmulatorDisplayControlBase renderControl)
     {
-        _emulatorView = emulatorView;
+        _renderControl = renderControl;
     }
-
 
     /// <summary>
     /// Toggle the visibility of the statistics panel

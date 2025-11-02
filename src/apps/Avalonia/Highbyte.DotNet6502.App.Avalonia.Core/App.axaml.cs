@@ -138,8 +138,8 @@ public partial class App : Application
             singleViewPlatform.MainView = mainView;
         }
 
-        // Tell the host app about the emulator view so the correct renderer can be set when a system is started.
-        SetHostAppEmulatorViewReference();
+        // Note: RenderControl registration is now handled by EmulatorView.OnDataContextChanged()
+        // when the DataContext is set, following the dependency inversion pattern.
 
         base.OnFrameworkInitializationCompleted();
 
@@ -170,34 +170,6 @@ public partial class App : Application
         // They get their ViewModels through DataContext binding
 
         _serviceProvider = services.BuildServiceProvider();
-    }
-
-    private void SetHostAppEmulatorViewReference()
-    {
-        EmulatorView? emulatorView = null;
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopApp)
-        {
-            if (desktopApp.MainWindow?.Content is MainView mainView)
-            {
-                emulatorView = mainView.GetEmulatorView();
-            }
-        }
-        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewApp)
-        {
-            if (singleViewApp.MainView is MainView mainView)
-            {
-                emulatorView = mainView.GetEmulatorView();
-            }
-        }
-
-        if (emulatorView != null && _hostApp != null)
-        {
-            _hostApp.SetEmulatorView(emulatorView);
-        }
-        else
-        {
-            _logger.LogWarning("EmulatorView not found or HostApp not initialized");
-        }
     }
 
     private void DisableAvaloniaDataAnnotationValidation()

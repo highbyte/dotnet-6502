@@ -81,6 +81,7 @@ public partial class EmulatorView : UserControl
         {
             //_subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
             _subscribedViewModel.RequestFocus -= OnRequestFocus;
+            _subscribedViewModel.RequestRenderConfiguration -= OnRequestRenderConfiguration;
         }
 
         // Subscribe to new ViewModel's events and property changes
@@ -89,6 +90,10 @@ public partial class EmulatorView : UserControl
         {
             //_subscribedViewModel.PropertyChanged += OnViewModelPropertyChanged;
             _subscribedViewModel.RequestFocus += OnRequestFocus;
+            _subscribedViewModel.RequestRenderConfiguration += OnRequestRenderConfiguration;
+
+            // Note: We don't register the render control here because it's null at this point.
+            // Registration happens in OnRequestRenderConfiguration after the control is created.
         }
     }
 
@@ -97,6 +102,34 @@ public partial class EmulatorView : UserControl
         Dispatcher.UIThread.Post(() =>
         {
             Focus();
+        }, DispatcherPriority.Background);
+    }
+
+    private void OnRequestRenderConfiguration(object? sender, RenderConfigurationEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            // Remove existing control if any
+            if (_renderControl != null)
+            {
+                RenderingControlContainer.Content = null;
+                _renderControl = null;
+            }
+
+            var renderControl = CreateRendererControl(e.RenderCoordinator, e.AvaloniaBitmapRenderTarget);
+            renderControl.SetDisplaySize(e.Screen.VisibleWidth, e.Screen.VisibleHeight);
+
+            // Set the new control to be rendered as content
+            RenderingControlContainer.Content = renderControl;
+
+            // Remember the render control
+            _renderControl = renderControl;
+
+            // Register the render control with HostApp after it's been created
+            if (HostApp != null && _renderControl != null)
+            {
+                HostApp.RegisterRenderControl(_renderControl);
+            }
         }, DispatcherPriority.Background);
     }
 
@@ -112,34 +145,24 @@ public partial class EmulatorView : UserControl
         }
     }
 
-    public void ConfigureRendererControl(IRenderCoordinator? renderCoordinator, IAvaloniaBitmapRenderTarget? avaloniaBitmapRenderTarget)
+    private EmulatorDisplayControlBase CreateRendererControl(IRenderCoordinator? renderCoordinator, IAvaloniaBitmapRenderTarget? avaloniaBitmapRenderTarget)
     {
-        // Remove existing control if any
-        if (_renderControl != null)
-        {
-            RenderingControlContainer.Content = null;
-            _renderControl = null;
-        }
-
+        EmulatorDisplayControlBase renderControl;
         // Check if we have an Avalonia command target instead of bitmap target
         var avaloniaCommandTarget = HostApp?.GetRenderTarget<ICommandTarget>();
         if (avaloniaCommandTarget is AvaloniaCommandTarget commandTarget)
         {
-            _renderControl = CreateAvaloniaCommandControl(renderCoordinator, commandTarget);
+            renderControl = CreateAvaloniaCommandControl(renderCoordinator, commandTarget);
         }
         else
         {
             // Use bitmap display control for other targets
-            _renderControl = CreateBitmapDisplayControl(renderCoordinator, avaloniaBitmapRenderTarget);
+            renderControl = CreateBitmapDisplayControl(renderCoordinator, avaloniaBitmapRenderTarget);
         }
 
         // Apply current scale to the new control
-        if (_renderControl != null)
-        {
-            _renderControl.Scale = Scale;
-        }
-        // Set the new control
-        RenderingControlContainer.Content = _renderControl;
+        renderControl.Scale = Scale;
+        return renderControl;
     }
 
     private EmulatorBitmapDisplayControl CreateBitmapDisplayControl(IRenderCoordinator? renderCoordinator, IAvaloniaBitmapRenderTarget? avaloniaBitmapRenderTarget)
