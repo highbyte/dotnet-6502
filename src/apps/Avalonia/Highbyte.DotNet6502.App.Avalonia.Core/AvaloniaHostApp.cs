@@ -688,13 +688,4 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         // Send event to emulator
         _inputHandlerContext.RemoveKeyDown(key);
     }
-
-    /// <summary>
-    /// Receive Focus on emulator canvas.
-    /// </summary>
-    /// <param name="e"></param>
-    // public void OnFocus(FocusEventArgs e)
-    // {
-    //     _inputHandlerContext.OnFocus(e);
-    // }
 }

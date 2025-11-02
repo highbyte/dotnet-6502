@@ -225,8 +225,9 @@
                         >
                     <!-- Emulator Display Control -->
                     <views:EmulatorView Name="EmulatorView"
-                                        Scale="{Binding Scale}"
-                                        IsVisible="{Binding EmulatorStateFlags.IsEmulatorRunning}"/>
+                                        Scale="{Binding $parent[UserControl].DataContext.Scale}"
+                                        DataContext="{Binding EmulatorViewModel}"
+                                        IsVisible="{Binding $parent[UserControl].DataContext.EmulatorStateFlags.IsEmulatorRunning}"/>
 
                     <!-- Overlay message when not running -->
                     <views:EmulatorPlaceholderView Name="EmulatorPlaceholderView"

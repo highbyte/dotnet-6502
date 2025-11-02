@@ -22,6 +22,7 @@ public class MainViewModel : ViewModelBase
     // Child ViewModels exposed as properties for XAML binding
     public C64MenuViewModel C64MenuViewModel { get; }
     public StatisticsViewModel StatisticsViewModel { get; }
+    public EmulatorViewModel EmulatorViewModel { get; }
 
     // --- Start Binding Properties ---
 
@@ -83,6 +84,7 @@ public class MainViewModel : ViewModelBase
         EmulatorConfig emulatorConfig,
         C64MenuViewModel c64MenuViewModel,  // Injected by DI with AvaloniaHostApp
         StatisticsViewModel statisticsViewModel,
+        EmulatorViewModel emulatorViewModel,
         ILoggerFactory loggerFactory)
     {
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
@@ -92,6 +94,7 @@ public class MainViewModel : ViewModelBase
         // Store injected child ViewModels
         C64MenuViewModel = c64MenuViewModel ?? throw new ArgumentNullException(nameof(c64MenuViewModel));
         StatisticsViewModel = statisticsViewModel ?? throw new ArgumentNullException(nameof(statisticsViewModel));
+        EmulatorViewModel = emulatorViewModel ?? throw new ArgumentNullException(nameof(emulatorViewModel));
 
         EmulatorStateFlags = new EmulatorStateFlags(_hostApp.EmulatorState);
 

@@ -162,8 +162,6 @@ public partial class MainView : UserControl
             try
             {
                 await HostApp.Start();
-
-                FocusEmulator();
             }
             catch (Exception)
             {
@@ -425,26 +423,5 @@ public partial class MainView : UserControl
     public EmulatorView? GetEmulatorView()
     {
         return this.FindControl<EmulatorView>("EmulatorView");
-    }
-
-    private void FocusEmulator()
-    {
-        // Use Dispatcher to ensure focus is set after the UI has finished processing
-        global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-           {
-               // First, ensure the main window has focus
-               if (global::Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-               {
-                   var mainWindow = desktop.MainWindow;
-                   if (mainWindow != null)
-                   {
-                       mainWindow.Activate();
-                       mainWindow.Focus();
-                   }
-               }
-
-               // Then focus the emulator view
-               HostApp?.EmulatorView?.Focus();
-           }, global::Avalonia.Threading.DispatcherPriority.Loaded);
     }
 }

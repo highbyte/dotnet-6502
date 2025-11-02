@@ -162,6 +162,7 @@ public partial class App : Application
         // Register ViewModels as transient (new instance each time)
         services.AddTransient<MainViewModel>();
         services.AddTransient<C64MenuViewModel>();
+        services.AddTransient<EmulatorViewModel>();
         services.AddTransient<StatisticsViewModel>();
 
         // Views are NOT registered - XAML creates them!

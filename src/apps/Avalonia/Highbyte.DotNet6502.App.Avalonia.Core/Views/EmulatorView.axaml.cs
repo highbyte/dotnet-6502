@@ -1,6 +1,8 @@
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 using Highbyte.DotNet6502.App.Avalonia.Core.Render;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
@@ -16,6 +18,8 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 /// </summary>
 public partial class EmulatorView : UserControl
 {
+    private EmulatorViewModel? _subscribedViewModel;
+
     private EmulatorDisplayControlBase? _renderControl;
 
     public static readonly StyledProperty<double> ScaleProperty =
@@ -66,6 +70,34 @@ public partial class EmulatorView : UserControl
         // Make the control focusable so it can receive keyboard events
         Focusable = true;
         IsTabStop = true;
+
+        DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        // Unsubscribe from previous ViewModel's events and property changes
+        if (_subscribedViewModel != null)
+        {
+            //_subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _subscribedViewModel.RequestFocus -= OnRequestFocus;
+        }
+
+        // Subscribe to new ViewModel's events and property changes
+        _subscribedViewModel = DataContext as EmulatorViewModel;
+        if (_subscribedViewModel != null)
+        {
+            //_subscribedViewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _subscribedViewModel.RequestFocus += OnRequestFocus;
+        }
+    }
+
+    private void OnRequestFocus(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            Focus();
+        }, DispatcherPriority.Background);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
