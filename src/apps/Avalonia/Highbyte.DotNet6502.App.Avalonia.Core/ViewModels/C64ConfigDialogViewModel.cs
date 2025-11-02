@@ -496,14 +496,9 @@ public class C64ConfigDialogViewModel : ViewModelBase
         SelectedRenderProvider = RenderProviders.FirstOrDefault(rp => rp.Type == _workingConfig.SystemConfig.RenderProviderType)
             ?? RenderProviders.FirstOrDefault();
 
-        if (SelectedRenderProvider != null && _workingConfig.SystemConfig.RenderProviderType == null)
-        {
-            _workingConfig.SystemConfig.SetRenderProviderType(SelectedRenderProvider.Type);
-        }
-
         if (SelectedRenderProvider != null)
         {
-            UpdateRenderTargetsForProvider(SelectedRenderProvider.Type);
+            _workingConfig.SystemConfig.SetRenderProviderType(SelectedRenderProvider.Type);
         }
     }
 
@@ -520,11 +515,6 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 .Distinct()
                 .ToList();
 
-            if (_workingConfig.SystemConfig.RenderTargetType != null && !targetTypes.Contains(_workingConfig.SystemConfig.RenderTargetType))
-            {
-                targetTypes.Add(_workingConfig.SystemConfig.RenderTargetType);
-            }
-
             foreach (var targetType in targetTypes)
             {
                 RenderTargets.Add(new RenderTargetOption(
@@ -536,7 +526,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
             SelectedRenderTarget = RenderTargets.FirstOrDefault(rt => rt.Type == _workingConfig.SystemConfig.RenderTargetType)
                 ?? RenderTargets.FirstOrDefault();
 
-            if (SelectedRenderTarget != null && _workingConfig.SystemConfig.RenderTargetType == null)
+            if (SelectedRenderTarget != null)
             {
                 _workingConfig.SystemConfig.SetRenderTargetType(SelectedRenderTarget.Type);
             }
