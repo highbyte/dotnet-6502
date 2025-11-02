@@ -159,8 +159,8 @@ public partial class C64MenuView : UserControl
         // Check if running on WASM/Browser platform
         if (PlatformDetection.IsRunningInWebAssembly())
         {
-            // For WASM, use ContentDialog instead of Window
-            await ShowC64ConfigContentDialog(c64HostConfig, renderProviderOptions);
+            // For WASM, show usercontrol overlay instead of Window
+            await ShowC64UserControlOverlay(c64HostConfig, renderProviderOptions);
         }
         else
         {
@@ -194,7 +194,7 @@ public partial class C64MenuView : UserControl
         }
     }
 
-    private async Task ShowC64ConfigContentDialog(C64HostConfig c64HostConfig,
+    private async Task ShowC64UserControlOverlay(C64HostConfig c64HostConfig,
         List<(System.Type renderProviderType, System.Type renderTargetType)> renderProviderOptions)
     {
         // Create the UserControl-based config

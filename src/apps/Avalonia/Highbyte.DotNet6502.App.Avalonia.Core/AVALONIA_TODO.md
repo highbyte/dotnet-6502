@@ -1,6 +1,6 @@
-﻿MainView / MainViewModel
-- Using HostApp directly should probably be moved to ViewModel.
-
+﻿Monitor: 
+- Verify that breakpoints trigger monitor
+ 
 C64MenuView / C64MenuViewModel: 
 - Move logic to ViewModel, use Reactive commands instead of button click handlers.
 
