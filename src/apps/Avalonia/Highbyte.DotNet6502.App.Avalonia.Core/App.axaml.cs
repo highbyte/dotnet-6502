@@ -163,6 +163,7 @@ public partial class App : Application
         services.AddTransient<MainViewModel>();
         services.AddTransient<C64MenuViewModel>();
         services.AddTransient<EmulatorViewModel>();
+        services.AddTransient<EmulatorPlaceholderViewModel>();
         services.AddTransient<StatisticsViewModel>();
 
         // Views are NOT registered - XAML creates them!

@@ -23,6 +23,7 @@ public class MainViewModel : ViewModelBase
     public C64MenuViewModel C64MenuViewModel { get; }
     public StatisticsViewModel StatisticsViewModel { get; }
     public EmulatorViewModel EmulatorViewModel { get; }
+    public EmulatorPlaceholderViewModel EmulatorPlaceholderViewModel { get; }
 
     // --- Start Binding Properties ---
 
@@ -85,6 +86,7 @@ public class MainViewModel : ViewModelBase
         C64MenuViewModel c64MenuViewModel,  // Injected by DI with AvaloniaHostApp
         StatisticsViewModel statisticsViewModel,
         EmulatorViewModel emulatorViewModel,
+        EmulatorPlaceholderViewModel emulatorPlaceholderViewModel,
         ILoggerFactory loggerFactory)
     {
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
@@ -95,6 +97,7 @@ public class MainViewModel : ViewModelBase
         C64MenuViewModel = c64MenuViewModel ?? throw new ArgumentNullException(nameof(c64MenuViewModel));
         StatisticsViewModel = statisticsViewModel ?? throw new ArgumentNullException(nameof(statisticsViewModel));
         EmulatorViewModel = emulatorViewModel ?? throw new ArgumentNullException(nameof(emulatorViewModel));
+        EmulatorPlaceholderViewModel = emulatorPlaceholderViewModel ?? throw new ArgumentNullException(nameof(emulatorPlaceholderViewModel));
 
         EmulatorStateFlags = new EmulatorStateFlags(_hostApp.EmulatorState);
 

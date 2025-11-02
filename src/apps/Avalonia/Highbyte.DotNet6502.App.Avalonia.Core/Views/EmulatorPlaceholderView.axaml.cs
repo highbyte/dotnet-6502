@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
@@ -10,6 +11,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 /// </summary>
 public partial class EmulatorPlaceholderView : UserControl
 {
+    private EmulatorPlaceholderViewModel? _subscribedViewModel;
 
     public static readonly StyledProperty<double> ScaleProperty =
         AvaloniaProperty.Register<EmulatorPlaceholderView, double>(nameof(Scale), 2.0);
@@ -23,39 +25,44 @@ public partial class EmulatorPlaceholderView : UserControl
         set => SetValue(ScaleProperty, value);
     }
 
-    // Access HostApp through ViewModel
-    private AvaloniaHostApp? HostApp
-    {
-        get
-        {
-            // Navigate up the visual tree to find MainView's DataContext
-            var parent = this.Parent;
-            while (parent != null)
-            {
-                if (parent is MainView mainView && mainView.DataContext is MainViewModel mainViewModel)
-                {
-                    return mainViewModel.HostApp;
-                }
-                if (parent is Control control)
-                    parent = control.Parent;
-                else
-                    break;
-            }
-            return null;
-        }
-    }
-
     public EmulatorPlaceholderView()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
     }
 
-    public void SetDisplaySize(int width, int height)
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        // Unsubscribe from previous ViewModel's events and property changes
+        if (_subscribedViewModel != null)
+        {
+            //_subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _subscribedViewModel.SizeChanged -= OnSizeChanged;
+        }
+
+        // Subscribe to new ViewModel's events and property changes
+        _subscribedViewModel = DataContext as EmulatorPlaceholderViewModel;
+        if (_subscribedViewModel != null)
+        {
+            //_subscribedViewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _subscribedViewModel.SizeChanged += OnSizeChanged;
+        }
+    }
+
+    private void OnSizeChanged(object? sender, EventArgs e)
+    {
+        SetDisplaySize(
+            _subscribedViewModel?.ScreenInfo?.VisibleWidth ?? 320,
+            _subscribedViewModel?.ScreenInfo?.VisibleHeight ?? 200);
+    }
+
+    private void SetDisplaySize(int width, int height)
     {
         _displayWidth = width;
         _displayHeight = height;
-    }
 
+        InvalidateMeasure();
+    }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {

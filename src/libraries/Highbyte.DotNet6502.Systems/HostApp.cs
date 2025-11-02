@@ -58,6 +58,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
     private SystemRunner? _systemRunner = null;
     public SystemRunner? CurrentSystemRunner => _systemRunner;
     public ISystem? CurrentRunningSystem => _systemRunner?.System;
+    public IScreen? CurrentSystemScreenInfo => _systemRunner != null ? _systemRunner?.System.Screen : _selectedSystemTemporary?.Screen;
     public EmulatorState EmulatorState
     {
         get

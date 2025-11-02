@@ -10,7 +10,6 @@ using Avalonia.Platform;
 using Highbyte.DotNet6502.App.Avalonia.Core.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
 using Highbyte.DotNet6502.App.Avalonia.Core.Render;
-using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
@@ -157,23 +156,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         OnPropertyChanged(nameof(SelectedSystemName));
 
         ValidateConfigAsync();
-
-        //// Additional setup after system selection if needed
-        //// Set placeholder size to match emulator display area
-        //var selectedSystem = GetSelectedSystem().GetAwaiter().GetResult();
-        //var screen = selectedSystem.Screen;
-
-        //MainView? mainView = GetMainView();
-        //if (mainView != null && screen != null)
-        //{
-        //    var placeholder = mainView.FindControl<Views.EmulatorPlaceholderView>("EmulatorPlaceholderView");
-        //    if (placeholder != null)
-        //    {
-        //        int width = (int)(screen.VisibleWidth);
-        //        int height = (int)(screen.VisibleHeight);
-        //        placeholder.SetDisplaySize(width, height);
-        //    }
-        //}
     }
 
     public override void OnAfterAllSystemConfigurationVariantsChanged()
@@ -466,7 +448,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         return null;
     }
 
-
     private PeriodicAsyncTimer CreateAsyncUpdateTimerForSystem(ISystem system)
     {
         // Number of milliseconds between each invocation of the main loop
@@ -479,7 +460,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         updateTimer.Elapsed += UpdateTimerElapsed;
         return updateTimer;
     }
-
 
     private void UpdateTimerElapsed(object? sender, EventArgs e)
     {
@@ -555,51 +535,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         _emulatorView = emulatorView;
     }
 
-    private MainViewModel? GetMainViewModel()
-    {
-        var app = global::Avalonia.Application.Current;
-        if (app == null)
-            return null;
-
-        MainViewModel? viewModel = null;
-
-        switch (app.ApplicationLifetime)
-        {
-            case IClassicDesktopStyleApplicationLifetime desktop:
-                viewModel = desktop.MainWindow?.DataContext as MainViewModel;
-                break;
-
-            case ISingleViewApplicationLifetime singleView:   // Used by Avalonia Browser / Mobile style hosting
-                if (singleView.MainView is Control ctrl)
-                    viewModel = ctrl.DataContext as MainViewModel;
-                break;
-
-                // (Optional future-proof) If you later multi-target a browser-specific lifetime interface:
-                // case IBrowserApplicationLifetime browser:
-                //     if (browser.MainView is Control bCtrl)
-                //         viewModel = bCtrl.DataContext as MainViewModel;
-                //     break;
-        }
-        return viewModel;
-    }
-
-    private MainView? GetMainView()
-    {
-        MainView? mainView = null;
-        var app = global::Avalonia.Application.Current;
-        if (app == null)
-            return null;
-
-        if (app.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            mainView = desktop.MainWindow?.Content as MainView;
-        }
-        else if (app.ApplicationLifetime is ISingleViewApplicationLifetime singleView)
-        {
-            mainView = singleView.MainView as MainView;
-        }
-        return mainView;
-    }
 
     /// <summary>
     /// Toggle the visibility of the statistics panel

@@ -1,8 +1,4 @@
 ﻿
-EmulatorPlaceholderView: 
-- Fix setting size based on selected emulator.
-
-
 MainView / MainViewModel
 - Using HostApp directly should probably be moved to ViewModel.
 - Use Reactive commands in ViewModel instead of button click handlers.
