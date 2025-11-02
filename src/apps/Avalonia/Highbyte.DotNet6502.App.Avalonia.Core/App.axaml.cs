@@ -125,10 +125,13 @@ public partial class App : Application
 
             // Get MainViewModel from DI and set as DataContext
             // MainWindow.Content (MainView) is created by XAML and inherits DataContext
-            Console.WriteLine("Getting MainViewModel");
+            Console.WriteLine("Getting mainViewModel");
             var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
+
+            Console.WriteLine("Setting mainWindow.DataContext = mainViewModel");
             mainWindow.DataContext = mainViewModel;
 
+            Console.WriteLine("Setting desktop.MainWindow = mainWindow");
             desktop.MainWindow = mainWindow;
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
@@ -138,11 +141,27 @@ public partial class App : Application
             var mainView = new MainView();
 
             // Get MainViewModel from DI and set as DataContext
-            Console.WriteLine("Getting MainViewModel");
-            var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
-            mainView.DataContext = mainViewModel;
+            Console.WriteLine("Getting mainViewModel");
+            try
+            {
+                var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
 
-            singleViewPlatform.MainView = mainView;
+                Console.WriteLine("Setting mainView.DataContext = mainViewModel");
+                mainView.DataContext = mainViewModel;
+
+                Console.WriteLine("Setting singleViewPlatform.MainView = mainView");
+                singleViewPlatform.MainView = mainView;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Fatal error setting DataContext: {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner exception: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+                }
+                throw;
+            }
         }
 
         // Note: RenderControl registration is now handled by EmulatorView.OnDataContextChanged()

@@ -68,7 +68,7 @@ internal sealed partial class Program
             }
             throw;
         }
-        Console.WriteLine("Avalonia Browser app exiting.");
+        //Console.WriteLine("Avalonia Browser app exiting.");
         return 0;
     }
 

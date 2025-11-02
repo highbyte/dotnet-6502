@@ -114,7 +114,11 @@ public partial class MainView : UserControl
             var selectedSystem = e.AddedItems[0]?.ToString();
             if (!string.IsNullOrEmpty(selectedSystem))
             {
-                viewModel.SelectSystemCommand.Execute(selectedSystem).Subscribe();
+                //viewModel.SelectSystemCommand.Execute(selectedSystem).Subscribe();
+                // Using Subscribe with explicit handler required for it to work in Browser (seem to use different internal code compared to .Subscribe() without parameters.
+                viewModel.SelectSystemCommand.Execute(selectedSystem).Subscribe(
+                    onNext: _ => { },
+                    onError: ex => Console.WriteLine($"Error: {ex.Message}"));
             }
         }
     }
@@ -126,7 +130,11 @@ public partial class MainView : UserControl
             var selectedVariant = e.AddedItems[0]?.ToString();
             if (!string.IsNullOrEmpty(selectedVariant))
             {
-                viewModel.SelectSystemVariantCommand.Execute(selectedVariant).Subscribe();
+                //viewModel.SelectSystemVariantCommand.Execute(selectedVariant).Subscribe();
+                // Using Subscribe with explicit handler required for it to work in Browser (seem to use different internal code compared to .Subscribe() without parameters.
+                viewModel.SelectSystemVariantCommand.Execute(selectedVariant).Subscribe(
+                    onNext: _ => { },
+                    onError: ex => Console.WriteLine($"Error: {ex.Message}"));
             }
         }
     }

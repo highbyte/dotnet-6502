@@ -195,7 +195,7 @@ public class MainViewModel : ViewModelBase
 
         // Initialize ReactiveCommands for ComboBox selections
         SelectSystemCommand = ReactiveCommand.CreateFromTask<string>(
-            async (selectedSystem) =>
+        async (selectedSystem) =>
             {
                 if (!string.IsNullOrEmpty(selectedSystem) && _hostApp.SelectedSystemName != selectedSystem)
                 {
@@ -204,20 +204,21 @@ public class MainViewModel : ViewModelBase
             },
             this.WhenAnyValue(
                 x => x.EmulatorState,
-                state => state == EmulatorState.Uninitialized));
+                state => state == EmulatorState.Uninitialized),
+                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         SelectSystemVariantCommand = ReactiveCommand.CreateFromTask<string>(
             async (selectedVariant) =>
-            {
-                if (!string.IsNullOrEmpty(selectedVariant) && _hostApp.SelectedSystemConfigurationVariant != selectedVariant)
-                {
-                    await _hostApp.SelectSystemConfigurationVariant(selectedVariant);
-                }
-            },
+                 {
+                     if (!string.IsNullOrEmpty(selectedVariant) && _hostApp.SelectedSystemConfigurationVariant != selectedVariant)
+                     {
+                         await _hostApp.SelectSystemConfigurationVariant(selectedVariant);
+                     }
+                 },
             this.WhenAnyValue(
                 x => x.EmulatorState,
-                state => state == EmulatorState.Uninitialized));
-
+                state => state == EmulatorState.Uninitialized),
+                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         // Initialize ReactiveCommands for buttons
         StartCommand = ReactiveCommand.CreateFromTask(
@@ -225,38 +226,43 @@ public class MainViewModel : ViewModelBase
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 x => x.IsSystemConfigValid,
-                (state, isValid) => isValid && state != EmulatorState.Running));
+                (state, isValid) => isValid && state != EmulatorState.Running),
+                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         PauseCommand = ReactiveCommand.Create(
             () => _hostApp.Pause(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
-                state => state == EmulatorState.Running));
+                state => state == EmulatorState.Running),
+                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         StopCommand = ReactiveCommand.Create(
             () => _hostApp.Stop(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
-                state => state != EmulatorState.Uninitialized));
+                state => state != EmulatorState.Uninitialized),
+                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         ResetCommand = ReactiveCommand.CreateFromTask(
             async () => await _hostApp.Reset(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
-                state => state != EmulatorState.Uninitialized));
+                state => state != EmulatorState.Uninitialized),
+                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         MonitorCommand = ReactiveCommand.Create(
             () => _hostApp.ToggleMonitor(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
-                state => state != EmulatorState.Uninitialized));
+                state => state != EmulatorState.Uninitialized),
+                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         StatsCommand = ReactiveCommand.Create(
             () => _hostApp.ToggleStatisticsPanel(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
-                state => state != EmulatorState.Uninitialized));
-
+                state => state != EmulatorState.Uninitialized),
+                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         // Handle command exceptions
         SelectSystemCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error selecting system"));
