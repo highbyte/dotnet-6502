@@ -221,6 +221,12 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         {
             _updateTimer = CreateAsyncUpdateTimerForSystem(CurrentSystemRunner!.System);
         }
+        else
+        {
+            _updateTimer.Elapsed -= UpdateTimerElapsed; // Remove previous handler to avoid multiple subscriptions
+            _updateTimer.Elapsed += UpdateTimerElapsed;
+        }
+
         _updateTimer.Start();
 
         if (emulatorStateBeforeStart == EmulatorState.Uninitialized)
