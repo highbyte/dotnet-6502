@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Reactive;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Highbyte.DotNet6502.Systems;
@@ -27,6 +28,7 @@ public class MainViewModel : ViewModelBase
 
     // --- Start Binding Properties ---
 
+    // Read-only properties derived from HostApp
     private readonly ObservableAsPropertyHelper<string> _selectedSystemName;
     public string SelectedSystemName => _selectedSystemName.Value;
 
@@ -44,7 +46,9 @@ public class MainViewModel : ViewModelBase
     private readonly ObservableAsPropertyHelper<EmulatorState> _emulatorState;
     public EmulatorState EmulatorState => _emulatorState.Value;
 
-    public EmulatorStateFlags EmulatorStateFlags { get; }
+
+    private readonly ObservableAsPropertyHelper<bool> _isSystemConfigValid;
+    public bool IsSystemConfigValid => _isSystemConfigValid.Value;
 
     private readonly ObservableAsPropertyHelper<double> _scale;
     public double Scale
@@ -57,6 +61,10 @@ public class MainViewModel : ViewModelBase
     }
 
     public bool IsC64SystemSelected => string.Equals(SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
+
+    // Computed properties for control enabled states based on EmulatorState and IsSystemConfigValid
+    public bool IsEmulatorRunning => EmulatorState == EmulatorState.Running;
+    public bool IsEmulatorUninitialzied => EmulatorState == EmulatorState.Uninitialized;
 
     // Private field to cache validation errors
     private readonly ObservableAsPropertyHelper<ObservableCollection<string>> _validationErrors;
@@ -79,6 +87,17 @@ public class MainViewModel : ViewModelBase
 
     // --- End Binding Properties ---
 
+    // --- ReactiveUI Commands ---
+    public ReactiveCommand<Unit, Unit> StartCommand { get; }
+    public ReactiveCommand<Unit, Unit> PauseCommand { get; }
+    public ReactiveCommand<Unit, Unit> StopCommand { get; }
+    public ReactiveCommand<Unit, Unit> ResetCommand { get; }
+    public ReactiveCommand<Unit, Unit> MonitorCommand { get; }
+    public ReactiveCommand<Unit, Unit> StatsCommand { get; }
+    public ReactiveCommand<string, Unit> SelectSystemCommand { get; }
+    public ReactiveCommand<string, Unit> SelectSystemVariantCommand { get; }
+    // --- End ReactiveUI Commands ---
+
     // Constructor with dependency injection - child ViewModels injected!
     public MainViewModel(
         AvaloniaHostApp hostApp,
@@ -99,9 +118,7 @@ public class MainViewModel : ViewModelBase
         EmulatorViewModel = emulatorViewModel ?? throw new ArgumentNullException(nameof(emulatorViewModel));
         EmulatorPlaceholderViewModel = emulatorPlaceholderViewModel ?? throw new ArgumentNullException(nameof(emulatorPlaceholderViewModel));
 
-        EmulatorStateFlags = new EmulatorStateFlags(_hostApp.EmulatorState);
-
-        // Set up reactive properties
+        // Set up reactive properties - all derived from HostApp (read-only)
         _selectedSystemName = _hostApp
             .WhenAnyValue(x => x.SelectedSystemName)
             .ToProperty(this, x => x.SelectedSystemName);
@@ -122,11 +139,16 @@ public class MainViewModel : ViewModelBase
 
         _emulatorState = _hostApp
             .WhenAnyValue(x => x.EmulatorState)
-            .Do(state =>
-            {
-                EmulatorStateFlags.EmulatorState = state;
-            })
             .ToProperty(this, x => x.EmulatorState);
+
+        // Subscribe to EmulatorState changes AFTER ToProperty to ensure the value is updated first
+        this.WhenAnyValue(x => x.EmulatorState)
+             .Subscribe(_ =>
+              {
+                  // Notify all computed properties that depend on EmulatorState
+                  this.RaisePropertyChanged(nameof(IsEmulatorRunning));
+                  this.RaisePropertyChanged(nameof(IsEmulatorUninitialzied));
+              });
 
         _scale = _hostApp
             .WhenAnyValue(x => x.Scale)
@@ -136,11 +158,12 @@ public class MainViewModel : ViewModelBase
         _validationErrors = _hostApp
             .WhenAnyValue(x => x.ValidationErrors)
             .Select(errors => new ObservableCollection<string>(errors))
-            .Do(errors =>
-            {
-                EmulatorStateFlags.IsSystemConfigValid = errors.Count == 0; ;
-            })
             .ToProperty(this, x => x.ValidationErrors);
+
+        _isSystemConfigValid = _hostApp
+            .WhenAnyValue(x => x.ValidationErrors)
+            .Select(errors => errors.Count == 0)
+            .ToProperty(this, x => x.IsSystemConfigValid);
 
         _isStatisticsPanelVisible = _hostApp
             .WhenAnyValue(x => x.IsStatsPanelVisible)
@@ -149,6 +172,81 @@ public class MainViewModel : ViewModelBase
         _isMonitorVisible = _hostApp
             .WhenAnyValue(x => x.IsMonitorVisible)
             .ToProperty(this, x => x.IsMonitorVisible);
+
+        // Initialize ReactiveCommands for ComboBox selections
+        SelectSystemCommand = ReactiveCommand.CreateFromTask<string>(
+            async (selectedSystem) =>
+            {
+                if (!string.IsNullOrEmpty(selectedSystem) && _hostApp.SelectedSystemName != selectedSystem)
+                {
+                    await _hostApp.SelectSystem(selectedSystem);
+                }
+            },
+            this.WhenAnyValue(
+                x => x.EmulatorState,
+                state => state == EmulatorState.Uninitialized));
+
+        SelectSystemVariantCommand = ReactiveCommand.CreateFromTask<string>(
+            async (selectedVariant) =>
+            {
+                if (!string.IsNullOrEmpty(selectedVariant) && _hostApp.SelectedSystemConfigurationVariant != selectedVariant)
+                {
+                    await _hostApp.SelectSystemConfigurationVariant(selectedVariant);
+                }
+            },
+            this.WhenAnyValue(
+                x => x.EmulatorState,
+                state => state == EmulatorState.Uninitialized));
+
+
+        // Initialize ReactiveCommands for buttons
+        StartCommand = ReactiveCommand.CreateFromTask(
+            async () => await _hostApp.Start(),
+            this.WhenAnyValue(
+                x => x.EmulatorState,
+                x => x.IsSystemConfigValid,
+                (state, isValid) => isValid && state != EmulatorState.Running));
+
+        PauseCommand = ReactiveCommand.Create(
+            () => _hostApp.Pause(),
+            this.WhenAnyValue(
+                x => x.EmulatorState,
+                state => state == EmulatorState.Running));
+
+        StopCommand = ReactiveCommand.Create(
+            () => _hostApp.Stop(),
+            this.WhenAnyValue(
+                x => x.EmulatorState,
+                state => state != EmulatorState.Uninitialized));
+
+        ResetCommand = ReactiveCommand.CreateFromTask(
+            async () => await _hostApp.Reset(),
+            this.WhenAnyValue(
+                x => x.EmulatorState,
+                state => state != EmulatorState.Uninitialized));
+
+        MonitorCommand = ReactiveCommand.Create(
+            () => _hostApp.ToggleMonitor(),
+            this.WhenAnyValue(
+                x => x.EmulatorState,
+                state => state != EmulatorState.Uninitialized));
+
+        StatsCommand = ReactiveCommand.Create(
+            () => _hostApp.ToggleStatisticsPanel(),
+            this.WhenAnyValue(
+                x => x.EmulatorState,
+                state => state != EmulatorState.Uninitialized));
+
+
+        // Handle command exceptions
+        SelectSystemCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error selecting system"));
+        SelectSystemVariantCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error selecting system variant"));
+        StartCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Start command"));
+        PauseCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Pause command"));
+        StopCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Stop command"));
+        ResetCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Reset command"));
+        MonitorCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Monitor command"));
+        StatsCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Stats command"));
 
         // Populate log messages initially
         RefreshLogMessages();
@@ -167,12 +265,7 @@ public class MainViewModel : ViewModelBase
 
         // System-specific ViewModel initializations
         this.WhenAnyValue(x => x.SelectedSystemName)
-            .Subscribe(_ => this.RaisePropertyChanged(nameof(IsC64SystemSelected)));
-    }
-
-    private void NotifySystemSpecificBindings()
-    {
-        this.RaisePropertyChanged(nameof(IsC64SystemSelected));
+                 .Subscribe(_ => this.RaisePropertyChanged(nameof(IsC64SystemSelected)));
     }
 
     public async Task InitializeAsync()

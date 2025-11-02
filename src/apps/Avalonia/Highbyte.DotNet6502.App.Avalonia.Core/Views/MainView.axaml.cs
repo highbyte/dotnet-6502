@@ -87,7 +87,7 @@ public partial class MainView : UserControl
 
     private void CheckAndSelectValidationErrorsTab()
     {
-        if (_subscribedViewModel == null || _subscribedViewModel.EmulatorStateFlags.IsSystemConfigValid)
+        if (_subscribedViewModel == null || _subscribedViewModel.IsSystemConfigValid)
             return;
 
         // Use Dispatcher to ensure the control is properly initialized
@@ -108,131 +108,33 @@ public partial class MainView : UserControl
         // Initialization complete
     }
 
-    // Keep the same selection handler pattern
-    private async void OnSystemSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    // ComboBox SelectionChanged handlers - invoke commands
+    private void OnSystemSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (HostApp == null)
-            return;
-
         if (DataContext is MainViewModel viewModel && e.AddedItems.Count > 0)
         {
             var selectedSystem = e.AddedItems[0]?.ToString();
-
-            if (!string.IsNullOrEmpty(selectedSystem) && HostApp.SelectedSystemName != selectedSystem)
+            if (!string.IsNullOrEmpty(selectedSystem))
             {
-                try
-                {
-                    await HostApp.SelectSystem(selectedSystem);
-                }
-                catch (Exception)
-                {
-                    // Handle exception if needed - the UI will reflect the actual state from HostApp
-                }
+                viewModel.SelectSystemCommand.Execute(selectedSystem).Subscribe();
             }
         }
     }
 
-    private async void OnSystemVariantSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private void OnSystemVariantSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (HostApp == null)
-            return;
         if (DataContext is MainViewModel viewModel && e.AddedItems.Count > 0)
         {
             var selectedVariant = e.AddedItems[0]?.ToString();
-            if (!string.IsNullOrEmpty(selectedVariant) && HostApp.SelectedSystemConfigurationVariant != selectedVariant)
+            if (!string.IsNullOrEmpty(selectedVariant))
             {
-                try
-                {
-                    await HostApp.SelectSystemConfigurationVariant(selectedVariant);
-                }
-                catch (Exception)
-                {
-                    // Handle exception if needed - the UI will reflect the actual state from HostApp
-                }
+                viewModel.SelectSystemVariantCommand.Execute(selectedVariant).Subscribe();
             }
-        }
-    }
-
-    // Emulator Control Event Handlers
-    private async void StartButton_Click(object? sender, RoutedEventArgs e)
-    {
-        if (HostApp != null)
-        {
-            try
-            {
-                await HostApp.Start();
-            }
-            catch (Exception)
-            {
-                // Handle exception if needed
-            }
-        }
-    }
-
-    private void PauseButton_Click(object? sender, RoutedEventArgs e)
-    {
-        if (HostApp != null)
-        {
-            try
-            {
-                HostApp.Pause();
-            }
-            catch (Exception)
-            {
-                // Handle exception if needed
-            }
-        }
-    }
-
-    private void StopButton_Click(object? sender, RoutedEventArgs e)
-    {
-        if (HostApp != null)
-        {
-            try
-            {
-                HostApp.Stop();
-            }
-            catch (Exception)
-            {
-                // Handle exception if needed
-            }
-        }
-    }
-
-    private async void ResetButton_Click(object? sender, RoutedEventArgs e)
-    {
-        if (HostApp != null)
-        {
-            try
-            {
-                await HostApp.Reset();
-            }
-            catch (Exception)
-            {
-                // Handle exception if needed
-            }
-        }
-    }
-
-    private void MonitorButton_Click(object? sender, RoutedEventArgs e)
-    {
-        if (HostApp == null)
-            return;
-
-        try
-        {
-            HostApp.ToggleMonitor();
-        }
-        catch (Exception ex)
-        {
         }
     }
 
     private void ShowMonitorUI()
     {
-        if (HostApp?.Monitor == null)
-            return;
-
         if (PlatformDetection.IsRunningInWebAssembly())
         {
             ShowMonitorOverlay();
@@ -257,10 +159,7 @@ public partial class MainView : UserControl
             return;
         }
 
-        if (HostApp?.Monitor == null)
-            return;
-
-        _monitorWindow = new MonitorDialog(HostApp, HostApp.Monitor);
+        _monitorWindow = new MonitorDialog(HostApp);
         _monitorWindow.Closed += MonitorWindowClosed;
 
         if (TopLevel.GetTopLevel(this) is Window owner)
@@ -277,8 +176,11 @@ public partial class MainView : UserControl
             _monitorWindow = null;
         }
 
-        if (HostApp?.Monitor?.IsVisible == true)
-            HostApp.DisableMonitor();
+        if (DataContext is MainViewModel viewModel)
+        {
+            if (viewModel.IsMonitorVisible)
+                HostApp?.DisableMonitor();
+        }
     }
 
     private void CloseMonitorWindow()
@@ -299,10 +201,7 @@ public partial class MainView : UserControl
         if (_monitorOverlay != null)
             return;
 
-        if (HostApp?.Monitor == null)
-            return;
-
-        var monitorControl = new MonitorUserControl(HostApp, HostApp.Monitor)
+        var monitorControl = new MonitorUserControl(HostApp)
         {
             MaxHeight = 600  // Limit height in Browser mode to prevent unbounded expansion
         };
@@ -400,21 +299,6 @@ public partial class MainView : UserControl
                 double maxY = Math.Max(0, _logScrollViewer.Extent.Height - _logScrollViewer.Viewport.Height);
                 _logScrollViewer.Offset = new Vector(_logScrollViewer.Offset.X, maxY);
             }, DispatcherPriority.Loaded);
-        }
-    }
-
-    private async void StatsButton_Click(object? sender, RoutedEventArgs e)
-    {
-        if (HostApp != null)
-        {
-            try
-            {
-                HostApp.ToggleStatisticsPanel();
-            }
-            catch (Exception ex)
-            {
-                // Handle exception if needed
-            }
         }
     }
 

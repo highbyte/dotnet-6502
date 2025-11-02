@@ -9,7 +9,6 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 public partial class MonitorDialog : Window
 {
     private readonly AvaloniaHostApp _hostApp;
-    private readonly AvaloniaMonitor _monitor;
 
     // Static fields to remember window position and size across instances
     private static PixelPoint? s_lastPosition;
@@ -17,14 +16,13 @@ public partial class MonitorDialog : Window
     private static WindowState? s_lastWindowState;
     private bool _isPositionInitialized = false;
 
-    public MonitorDialog(AvaloniaHostApp hostApp, AvaloniaMonitor monitor)
+    public MonitorDialog(AvaloniaHostApp hostApp)
     {
         _hostApp = hostApp;
-        _monitor = monitor;
 
         InitializeComponent();
 
-        var monitorControl = new MonitorUserControl(hostApp, monitor);
+        var monitorControl = new MonitorUserControl(hostApp);
         Content = monitorControl;
 
         // Restore previous window position and size if available

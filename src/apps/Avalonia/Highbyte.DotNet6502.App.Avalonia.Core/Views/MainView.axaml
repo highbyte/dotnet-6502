@@ -1,12 +1,12 @@
 <UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
-             xmlns:controls="using:Highbyte.DotNet6502.App.Avalonia.Core.Controls"
-             xmlns:views="using:Highbyte.DotNet6502.App.Avalonia.Core.Views"
-             x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.MainView"
-             x:DataType="vm:MainViewModel"
-             Loaded="MainView_Loaded"
-             Focusable="false">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+    xmlns:controls="using:Highbyte.DotNet6502.App.Avalonia.Core.Controls"
+    xmlns:views="using:Highbyte.DotNet6502.App.Avalonia.Core.Views"
+    x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.MainView"
+    x:DataType="vm:MainViewModel"
+    Loaded="MainView_Loaded"
+    Focusable="false">
 
     <!-- DataContext will be set from code-behind via DI -->
 
@@ -29,10 +29,10 @@
 
         <!-- Menu and Controls Panel (Left) -->
         <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="3"
-                Background="#2D3748"
-                BorderBrush="#4A5568"
-                BorderThickness="0,0,1,0"
-                Padding="10">
+            Background="#2D3748"
+            BorderBrush="#4A5568"
+            BorderThickness="0,0,1,0"
+            Padding="10">
             <StackPanel Spacing="6">
                 <!-- System Selection, Variant, and Status - Unified Grid -->
                 <Grid>
@@ -40,6 +40,7 @@
                         <ColumnDefinition Width="Auto" SharedSizeGroup="Labels" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
+                    
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="6" />
@@ -50,43 +51,43 @@
 
                     <!-- System Selection -->
                     <TextBlock Grid.Row="0" Grid.Column="0"
-                               Text="System:"
-                               Classes="label"
-                               VerticalAlignment="Center"
-                               Margin="0,0,8,0"/>
+                        Text="System:"
+                        Classes="label"
+                        VerticalAlignment="Center"
+                        Margin="0,0,8,0"/>
                     <ComboBox Grid.Row="0" Grid.Column="1"
-                              Name="SystemSelectionComboBox"
-                              ItemsSource="{Binding AvailableSystems}"
-                              SelectedItem="{Binding SelectedSystemName}"
-                              SelectionChanged="OnSystemSelectionChanged"
-                              IsEnabled="{Binding EmulatorStateFlags.IsSystemSelectionEnabled}"
-                              Classes="compact"
-                              MinWidth="100"/>
+                        Name="SystemSelectionComboBox"
+                        ItemsSource="{Binding AvailableSystems}"
+                        SelectedItem="{Binding SelectedSystemName}"
+                        SelectionChanged="OnSystemSelectionChanged"
+                        IsEnabled="{Binding IsEmulatorUninitialzied}"
+                        Classes="compact"
+                        MinWidth="100"/>
 
                     <!-- System Variant Selection -->
                     <TextBlock Grid.Row="2" Grid.Column="0"
-                               Text="Variant:"
-                               Classes="label"
-                               VerticalAlignment="Center"
-                               Margin="0,0,8,0"/>
+                        Text="Variant:"
+                        Classes="label"
+                        VerticalAlignment="Center"
+                        Margin="0,0,8,0"/>
                     <ComboBox Grid.Row="2" Grid.Column="1"
-                              Name="SystemVariantSelectionComboBox"
-                              ItemsSource="{Binding AvailableSystemVariants}"
-                              SelectedItem="{Binding SelectedSystemVariant}"
-                              SelectionChanged="OnSystemVariantSelectionChanged"
-                              IsEnabled="{Binding EmulatorStateFlags.IsVariantSelectionEnabled}"
-                              Classes="compact"
-                              MinWidth="100"/>
+                        Name="SystemVariantSelectionComboBox"
+                        ItemsSource="{Binding AvailableSystemVariants}"
+                        SelectedItem="{Binding SelectedSystemVariant}"
+                        SelectionChanged="OnSystemVariantSelectionChanged"
+                        IsEnabled="{Binding IsEmulatorUninitialzied}"
+                        Classes="compact"
+                        MinWidth="100"/>
 
                     <!-- Status -->
                     <TextBlock Grid.Row="4" Grid.Column="0"
-                               Text="Status:"
-                               Classes="label"
-                               VerticalAlignment="Center"
-                               Margin="0,0,8,0"/>
+                        Text="Status:"
+                        Classes="label"
+                        VerticalAlignment="Center"
+                        Margin="0,0,8,0"/>
                     <TextBlock Grid.Row="4" Grid.Column="1"
-                               Text="{Binding EmulatorState}"
-                               Classes="status"/>
+                        Text="{Binding EmulatorState}"
+                        Classes="status"/>
                 </Grid>
 
                 <!-- Control Buttons -->
@@ -99,15 +100,13 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
-                                Content="Start"
-                                Classes="primary grid"
-                                IsEnabled="{Binding EmulatorStateFlags.IsStartButtonEnabled}"
-                                Click="StartButton_Click"/>
+                            Content="Start"
+                            Classes="primary grid"
+                            Command="{Binding StartCommand}"/>
                         <Button Grid.Column="2"
-                                Content="Pause"
-                                Classes="warning grid"
-                                IsEnabled="{Binding EmulatorStateFlags.IsPauseButtonEnabled}"
-                                Click="PauseButton_Click"/>
+                            Content="Pause"
+                            Classes="warning grid"
+                            Command="{Binding PauseCommand}"/>
                     </Grid>
 
                     <!-- Second row: Reset and Stop -->
@@ -118,15 +117,13 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
-                                Content="Reset"
-                                Classes="secondary grid"
-                                IsEnabled="{Binding EmulatorStateFlags.IsResetButtonEnabled}"
-                                Click="ResetButton_Click"/>
+                            Content="Reset"
+                            Classes="secondary grid"
+                            Command="{Binding ResetCommand}"/>
                         <Button Grid.Column="2"
-                                Content="Stop"
-                                Classes="danger grid"
-                                IsEnabled="{Binding EmulatorStateFlags.IsStopButtonEnabled}"
-                                Click="StopButton_Click"/>
+                            Content="Stop"
+                            Classes="danger grid"
+                            Command="{Binding StopCommand}"/>
                     </Grid>
 
                     <!-- Third row: Monitor and Stats -->
@@ -137,17 +134,15 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
-                                Content="Monitor"
-                                Classes="grid"
-                                IsEnabled="{Binding EmulatorStateFlags.IsMonitorButtonEnabled}"
-                                ToolTip.Tip="Toggle with F12"
-                                Click="MonitorButton_Click"/>
+                            Content="Monitor"
+                            Classes="grid"
+                            Command="{Binding MonitorCommand}"
+                            ToolTip.Tip="Toggle with F12"/>
                         <Button Grid.Column="2"
-                                Content="Stats"
-                                Classes="grid"
-                                IsEnabled="{Binding EmulatorStateFlags.IsStatsButtonEnabled}"
-                                ToolTip.Tip="Toggle with F11"
-                                Click="StatsButton_Click"/>
+                            Content="Stats"
+                            Classes="grid"
+                            Command="{Binding StatsCommand}"
+                            ToolTip.Tip="Toggle with F11"/>
                     </Grid>
                 </StackPanel>
 
@@ -159,23 +154,23 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0"
-                                   Text="Scale:"
-                                   Classes="label"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,8,0"/>
+                            Text="Scale:"
+                            Classes="label"
+                            VerticalAlignment="Center"
+                            Margin="0,0,8,0"/>
                         <Slider Grid.Column="1"
-                                Minimum="1" Maximum="4"
-                                Value="{Binding Scale}"
-                                TickFrequency="0.5"
-                                IsSnapToTickEnabled="True"
-                                VerticalAlignment="Center"
-                                Classes="compact"/>
+                            Minimum="1" Maximum="4"
+                            Value="{Binding Scale}"
+                            TickFrequency="0.5"
+                            IsSnapToTickEnabled="True"
+                            VerticalAlignment="Center"
+                            Classes="compact"/>
                     </Grid>
 
                     <!-- Audio Settings -->
                     <CheckBox Grid.Column="1"
-                                Content="Audio"
-                                VerticalAlignment="Center"/>
+                 Content="Audio"
+                        VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <!-- C64 Menu -->
@@ -186,65 +181,43 @@
 
         <!-- Main Emulator Display Area (Center) -->
         <Border Grid.Row="0" Grid.Column="1" Grid.RowSpan="3"
-                Background="#1A202C"
-                Padding="10">
+            Background="#1A202C"
+            Padding="10">
+            
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <!-- Emulator Canvas/Display -->
-                <!--<Border Grid.Row="0"
-                        Background="#000000"
-                        BorderBrush="#4A5568"
-                        BorderThickness="0"
-                        CornerRadius="4"
-                        Margin="0,0,0,10"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Top">
-                    <Grid>
-                        --><!-- Emulator Display Control --><!--
-                        <views:EmulatorView Name="EmulatorView"
-                                            Scale="{Binding Scale}"
-                                            IsVisible="{Binding EmulatorStateFlags.IsEmulatorRunning}"/>
-
-                        --><!-- Overlay message when not running --><!--
-                        <TextBlock Text="DotNet 6502 emulator"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   Classes="h1"
-                                   IsVisible="{Binding EmulatorStateFlags.IsEmulatorNotRunning}"/>
-                    </Grid>
-                </Border>-->
-
                 <Grid Grid.Row="0"
-                        Margin="0,0,0,10"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Top"
-                        >
+                    Margin="0,0,0,10"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top">
+                    
                     <!-- Emulator Display Control -->
                     <views:EmulatorView Name="EmulatorView"
-                                        DataContext="{Binding EmulatorViewModel}"
-                                        Scale="{Binding $parent[UserControl].DataContext.Scale}"
-                                        IsVisible="{Binding $parent[UserControl].DataContext.EmulatorStateFlags.IsEmulatorRunning}"/>
+   DataContext="{Binding EmulatorViewModel}"
+          Scale="{Binding $parent[UserControl].DataContext.Scale}"
+     IsVisible="{Binding $parent[UserControl].DataContext.IsEmulatorRunning}"/>
 
-                    <!-- Overlay message when not running -->
-                    <views:EmulatorPlaceholderView Name="EmulatorPlaceholderView"
-                                        DataContext="{Binding EmulatorPlaceholderViewModel}"
-                                        Scale="{Binding $parent[UserControl].DataContext.Scale}"
-                                        IsVisible="{Binding !$parent[UserControl].DataContext.EmulatorStateFlags.IsEmulatorRunning}"/>
+    <!-- Overlay message when not running -->
+       <views:EmulatorPlaceholderView Name="EmulatorPlaceholderView"
+    DataContext="{Binding EmulatorPlaceholderViewModel}"
+          Scale="{Binding $parent[UserControl].DataContext.Scale}"
+  IsVisible="{Binding !$parent[UserControl].DataContext.IsEmulatorRunning}"/>
                 </Grid>
 
                 <!-- Information Area - Tabbed Interface -->
                 <Border Grid.Row="1"
-                        Background="#2D3748"
-                        BorderBrush="#4A5568"
-                        BorderThickness="1"
-                        CornerRadius="4"
-                        Padding="0"
-                        Height="200"
-                        VerticalAlignment="Top">
+                    Background="#2D3748"
+                    BorderBrush="#4A5568"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="0"
+                    Height="200"
+                    VerticalAlignment="Top">
+                    
                     <TabControl Name="InformationTabControl">
                         <!-- Information Tab -->
                         <TabItem Name="InformationTabItem" Header="Information">
@@ -252,9 +225,9 @@
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="No information available."
-                                                   Classes="small"
-                                                   FontStyle="Italic"
-                                                   Foreground="#A0AEC0"/>
+                                            Classes="small"
+                                            FontStyle="Italic"
+                                            Foreground="#A0AEC0"/>
                                     </StackPanel>
                                 </ScrollViewer>
                             </Border>
@@ -265,24 +238,24 @@
                             <Border Background="#2D3748" Padding="4">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Spacing="4">
-                                        <StackPanel Spacing="8" IsVisible="{Binding !EmulatorStateFlags.IsSystemConfigValid}">
+                                        <StackPanel Spacing="8" IsVisible="{Binding !IsSystemConfigValid}">
                                             <Border Background="Transparent"
-                                                    BorderBrush="#E53E3E"
-                                                    BorderThickness="1"
-                                                    CornerRadius="4"
-                                                    Padding="10">
+                                                BorderBrush="#E53E3E"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="10">
                                                 <ItemsControl ItemsSource="{Binding ValidationErrors}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2">
                                                                 <TextBlock Text="•"
-                                                                           Foreground="#E53E3E"
-                                                                           VerticalAlignment="Center"/>
+                                                                    Foreground="#E53E3E"
+                                                                    VerticalAlignment="Center"/>
                                                                 <TextBlock Text="{Binding}"
-                                                                           Classes="small"
-                                                                           Foreground="White"
-                                                                           TextWrapping="Wrap"
-                                                                           VerticalAlignment="Center"/>
+                                                                    Classes="small"
+                                                                    Foreground="White"
+                                                                    TextWrapping="Wrap"
+                                                                    VerticalAlignment="Center"/>
                                                             </StackPanel>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
@@ -290,11 +263,11 @@
                                             </Border>
                                         </StackPanel>
 
-                                        <StackPanel Spacing="5" IsVisible="{Binding EmulatorStateFlags.IsSystemConfigValid}">
+                                        <StackPanel Spacing="5" IsVisible="{Binding IsSystemConfigValid}">
                                             <TextBlock Text="Configuration is valid."
-                                                       Classes="small"
-                                                       FontStyle="Italic"
-                                                       Foreground="#A0AEC0"/>
+                                       Classes="small"
+                                       FontStyle="Italic"
+                                        Foreground="#A0AEC0"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </ScrollViewer>
@@ -314,13 +287,13 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding}"
-                                                           Classes="monospace"
-                                                           Foreground="#A0AEC0"
-                                                           TextWrapping="Wrap"
-                                                           Margin="0"
-                                                           Padding="0"
-                                                           FontSize="10"
-                                                           LineHeight="10"/>
+                                            Classes="monospace"
+                                                Foreground="#A0AEC0"
+                                             TextWrapping="Wrap"
+                                             Margin="0"
+                                          Padding="0"
+                                               FontSize="10"
+                                              LineHeight="10"/>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -334,11 +307,11 @@
 
         <!-- Info and Stats Panel (Right) -->
         <Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="3"
-                Background="#2D3748"
+         Background="#2D3748"
                 BorderBrush="#4A5568"
-                BorderThickness="1,0,0,0"
-                Padding="10"
-                IsVisible="{Binding IsStatisticsPanelVisible}">
+  BorderThickness="1,0,0,0"
+   Padding="10"
+      IsVisible="{Binding IsStatisticsPanelVisible}">
             <ScrollViewer>
                 <views:StatisticsView DataContext="{Binding StatisticsViewModel}" />
             </ScrollViewer>

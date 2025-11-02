@@ -1,10 +1,5 @@
-﻿C64ConfigView / C64ConfigViewModel:
-- Selecting RenderProvider should filter the available RenderTargets.
-
-
-MainView / MainViewModel
+﻿MainView / MainViewModel
 - Using HostApp directly should probably be moved to ViewModel.
-- Use Reactive commands in ViewModel instead of button click handlers.
 
 C64MenuView / C64MenuViewModel: 
 - Move logic to ViewModel, use Reactive commands instead of button click handlers.

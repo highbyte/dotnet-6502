@@ -5,7 +5,6 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Monitor;
@@ -15,26 +14,26 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 public partial class MonitorUserControl : UserControl
 {
     private readonly AvaloniaHostApp _hostApp;
-    private readonly AvaloniaMonitor _monitor;
     private readonly MonitorViewModel _viewModel;
+
+    private AvaloniaMonitor Monitor => _hostApp.Monitor;
 
     private ScrollViewer? _outputScrollViewer;
     private TextBox? _commandTextBox;
 
-    public MonitorUserControl(AvaloniaHostApp hostApp, AvaloniaMonitor monitor)
+    public MonitorUserControl(AvaloniaHostApp hostApp)
     {
         _hostApp = hostApp;
-        _monitor = monitor;
 
         InitializeComponent();
 
         _outputScrollViewer = this.FindControl<ScrollViewer>("OutputScrollViewer");
         _commandTextBox = this.FindControl<TextBox>("CommandTextBox");
 
-        _viewModel = new MonitorViewModel(monitor);
+        _viewModel = new MonitorViewModel(Monitor);
         DataContext = _viewModel;
 
-        _monitor.OutputLines.CollectionChanged += OnOutputLinesChanged;
+        Monitor.OutputLines.CollectionChanged += OnOutputLinesChanged;
 
         AttachedToVisualTree += OnAttachedToVisualTree;
         DetachedFromVisualTree += OnDetachedFromVisualTree;
@@ -58,7 +57,7 @@ public partial class MonitorUserControl : UserControl
 
     private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
-        _monitor.OutputLines.CollectionChanged -= OnOutputLinesChanged;
+        Monitor.OutputLines.CollectionChanged -= OnOutputLinesChanged;
     }
 
     private void OnOutputLinesChanged(object? sender, NotifyCollectionChangedEventArgs e)
