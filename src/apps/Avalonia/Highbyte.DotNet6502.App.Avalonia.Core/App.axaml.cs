@@ -108,19 +108,24 @@ public partial class App : Application
 #endif
 
         // Initialize the emulator host app
+        Console.WriteLine("Calling InitializeHostApp");
         InitializeHostApp();
 
         // Setup DI container
+        Console.WriteLine("Calling SetupDependencyInjection");
         SetupDependencyInjection();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            Console.WriteLine("ApplicationLifetime is IClassicDesktopStyleApplicationLifetime");
+
             DisableAvaloniaDataAnnotationValidation();
 
             var mainWindow = new MainWindow();
 
             // Get MainViewModel from DI and set as DataContext
             // MainWindow.Content (MainView) is created by XAML and inherits DataContext
+            Console.WriteLine("Getting MainViewModel");
             var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
             mainWindow.DataContext = mainViewModel;
 
@@ -128,10 +133,12 @@ public partial class App : Application
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
         {
+            Console.WriteLine("ApplicationLifetime is ISingleViewApplicationLifetime");
             // MainView is created by XAML
             var mainView = new MainView();
 
             // Get MainViewModel from DI and set as DataContext
+            Console.WriteLine("Getting MainViewModel");
             var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
             mainView.DataContext = mainViewModel;
 
@@ -141,6 +148,7 @@ public partial class App : Application
         // Note: RenderControl registration is now handled by EmulatorView.OnDataContextChanged()
         // when the DataContext is set, following the dependency inversion pattern.
 
+        Console.WriteLine("Calling OnFrameworkInitializationCompleted");
         base.OnFrameworkInitializationCompleted();
 
         Console.WriteLine("AppOnFrameworkInitializationCompleted end");
