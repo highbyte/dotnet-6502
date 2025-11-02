@@ -85,6 +85,26 @@ public class MainViewModel : ViewModelBase
     private readonly ObservableAsPropertyHelper<bool> _isMonitorVisible;
     public bool IsMonitorVisible => _isMonitorVisible.Value;
 
+    // Monitor ViewModel - created when monitor is enabled
+    private MonitorViewModel? _monitorViewModel;
+    public MonitorViewModel? MonitorViewModel
+    {
+        get
+        {
+            // Lazy creation: if monitor is visible but ViewModel is null, create it
+            if (_monitorViewModel == null && IsMonitorVisible)
+            {
+                _monitorViewModel = CreateMonitorViewModel();
+            }
+            return _monitorViewModel;
+        }
+        private set => this.RaiseAndSetIfChanged(ref _monitorViewModel, value);
+    }
+    public void ClearMonitorViewModel()
+    {
+        MonitorViewModel = null;
+    }
+
     // --- End Binding Properties ---
 
     // --- ReactiveUI Commands ---
@@ -299,5 +319,23 @@ public class MainViewModel : ViewModelBase
                 _logMessages.Add(log);
             }
         }
+    }
+
+    /// <summary>
+    /// Creates a MonitorViewModel for the current monitor instance.
+    /// This method should be called by views that need to display the monitor.
+    /// </summary>
+    /// <returns>MonitorViewModel if monitor is available, null otherwise</returns>
+    private MonitorViewModel? CreateMonitorViewModel()
+    {
+        if (_hostApp.Monitor == null)
+            return null;
+
+        var viewModel = new MonitorViewModel(_hostApp.Monitor);
+
+        // Subscribe to the ViewModel's CloseRequested event to disable monitor when requested
+        viewModel.CloseRequested += (sender, e) => _hostApp.DisableMonitor();
+
+        return viewModel;
     }
 }

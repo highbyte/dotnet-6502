@@ -14,8 +14,6 @@ public partial class MainView : UserControl
 {
     private bool _isInitialized;
 
-    private AvaloniaHostApp? HostApp => (DataContext as MainViewModel)?.HostApp; // Access HostApp through ViewModel
-
     private MainViewModel? _subscribedViewModel;
     private MonitorDialog? _monitorWindow;
     private Panel? _monitorOverlay;
@@ -142,6 +140,7 @@ public partial class MainView : UserControl
         else
         {
             ShowMonitorWindow();
+            //ShowMonitorOverlay();
         }
     }
 
@@ -159,8 +158,20 @@ public partial class MainView : UserControl
             return;
         }
 
-        _monitorWindow = new MonitorDialog(HostApp);
-        _monitorWindow.Closed += MonitorWindowClosed;
+        if (DataContext is not MainViewModel viewModel)
+            return;
+
+        if (viewModel.MonitorViewModel == null)
+            return;
+
+        _monitorWindow = new MonitorDialog
+        {
+            DataContext = viewModel.MonitorViewModel
+        };
+        _monitorWindow.Closed += (sender, e) =>
+          {
+              _monitorWindow = null;
+          };
 
         if (TopLevel.GetTopLevel(this) is Window owner)
             _ = _monitorWindow.ShowDialog(owner);
@@ -168,29 +179,18 @@ public partial class MainView : UserControl
             _monitorWindow.Show();
     }
 
-    private void MonitorWindowClosed(object? sender, EventArgs e)
-    {
-        if (_monitorWindow != null)
-        {
-            _monitorWindow.Closed -= MonitorWindowClosed;
-            _monitorWindow = null;
-        }
-
-        if (DataContext is MainViewModel viewModel)
-        {
-            if (viewModel.IsMonitorVisible)
-                HostApp?.DisableMonitor();
-        }
-    }
-
     private void CloseMonitorWindow()
     {
         if (_monitorWindow == null)
             return;
 
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.ClearMonitorViewModel();
+        }
+
         var window = _monitorWindow;
         _monitorWindow = null;
-        window.Closed -= MonitorWindowClosed;
 
         if (window.IsVisible)
             window.Close();
@@ -201,7 +201,13 @@ public partial class MainView : UserControl
         if (_monitorOverlay != null)
             return;
 
-        var monitorControl = new MonitorUserControl(HostApp)
+        if (DataContext is not MainViewModel viewModel)
+            return;
+
+        if (viewModel.MonitorViewModel == null)
+            return;
+
+        var monitorControl = new MonitorUserControl(viewModel.MonitorViewModel)
         {
             MaxHeight = 600  // Limit height in Browser mode to prevent unbounded expansion
         };
@@ -244,15 +250,17 @@ public partial class MainView : UserControl
 
         _monitorOverlay = null;
 
-        // Restore focus to EmulatorView after closing overlay in Browser mode
-        if (PlatformDetection.IsRunningInWebAssembly())
+        if (DataContext is MainViewModel viewModel)
         {
-            Dispatcher.UIThread.Post(() =>
-            {
-                var emulatorView = this.FindControl<EmulatorView>("EmulatorView");
-                emulatorView?.Focus();
-            }, DispatcherPriority.Loaded);
+            viewModel.ClearMonitorViewModel();
         }
+
+        // Restore focus to EmulatorView
+        Dispatcher.UIThread.Post(() =>
+        {
+            var emulatorView = this.FindControl<EmulatorView>("EmulatorView");
+            emulatorView?.Focus();
+        }, DispatcherPriority.Loaded);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)

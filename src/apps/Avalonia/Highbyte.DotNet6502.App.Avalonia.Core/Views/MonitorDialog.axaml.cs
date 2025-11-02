@@ -3,27 +3,21 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
+using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 public partial class MonitorDialog : Window
 {
-    private readonly AvaloniaHostApp _hostApp;
-
     // Static fields to remember window position and size across instances
     private static PixelPoint? s_lastPosition;
     private static Size? s_lastSize;
     private static WindowState? s_lastWindowState;
     private bool _isPositionInitialized = false;
 
-    public MonitorDialog(AvaloniaHostApp hostApp)
+    public MonitorDialog()
     {
-        _hostApp = hostApp;
-
         InitializeComponent();
-
-        var monitorControl = new MonitorUserControl(hostApp);
-        Content = monitorControl;
 
         // Restore previous window position and size if available
         RestoreWindowBounds();
@@ -32,11 +26,25 @@ public partial class MonitorDialog : Window
         Opened += OnOpened;
         PositionChanged += OnPositionChanged;
         Closed += OnClosed;
+        DataContextChanged += OnDataContextChanged;
     }
 
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        // When DataContext is set to a MonitorViewModel, create and add the MonitorUserControl
+        if (DataContext is MonitorViewModel viewModel)
+        {
+            var monitorControl = new MonitorUserControl(viewModel);
+            Content = monitorControl;
+
+            // Subscribe to ViewModel's CloseRequested event
+            viewModel.CloseRequested += OnViewModelCloseRequested;
+        }
     }
 
     private void RestoreWindowBounds()
@@ -98,16 +106,24 @@ public partial class MonitorDialog : Window
         }
     }
 
+    private void OnViewModelCloseRequested(object? sender, EventArgs e)
+    {
+        // Close the dialog when ViewModel requests it
+        Close();
+    }
+
     private void OnClosed(object? sender, EventArgs e)
     {
         // Save window bounds before closing
         SaveWindowBounds();
 
+        // Unsubscribe from ViewModel event if it exists
+        if (DataContext is MonitorViewModel viewModel)
+            viewModel.CloseRequested -= OnViewModelCloseRequested;
+
         Opened -= OnOpened;
         PositionChanged -= OnPositionChanged;
         Closed -= OnClosed;
-
-        if (_hostApp.IsMonitorVisible)
-            _hostApp.DisableMonitor();
+        DataContextChanged -= OnDataContextChanged;
     }
 }

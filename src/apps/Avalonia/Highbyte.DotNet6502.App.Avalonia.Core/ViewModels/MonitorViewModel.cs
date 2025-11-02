@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
 using Highbyte.DotNet6502.Monitor;
@@ -10,6 +11,9 @@ public class MonitorViewModel : ViewModelBase
     private readonly AvaloniaMonitor _monitor;
 
     private string _inputText = string.Empty;
+
+    // Event to notify when monitor should be closed (for Continue or Quit commands)
+    public event EventHandler? CloseRequested;
 
     public MonitorViewModel(AvaloniaMonitor monitor)
     {
@@ -32,7 +36,23 @@ public class MonitorViewModel : ViewModelBase
     {
         var command = InputText?.TrimEnd() ?? string.Empty;
         InputText = string.Empty;
-        return _monitor.ProcessCommand(command);
+        var result = _monitor.ProcessCommand(command);
+
+        // Raise event if monitor should be closed
+        if (result == CommandResult.Continue || result == CommandResult.Quit)
+        {
+            CloseRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Request the monitor to be closed. This will trigger the CloseRequested event.
+    /// </summary>
+    public void RequestClose()
+    {
+        CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public void NavigateHistoryPrevious()

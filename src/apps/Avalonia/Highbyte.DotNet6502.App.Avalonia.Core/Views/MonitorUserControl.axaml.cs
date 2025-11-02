@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Specialized;
 using System.Threading.Tasks;
 using Avalonia;
@@ -13,27 +14,23 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 public partial class MonitorUserControl : UserControl
 {
-    private readonly AvaloniaHostApp _hostApp;
     private readonly MonitorViewModel _viewModel;
-
-    private AvaloniaMonitor Monitor => _hostApp.Monitor;
 
     private ScrollViewer? _outputScrollViewer;
     private TextBox? _commandTextBox;
 
-    public MonitorUserControl(AvaloniaHostApp hostApp)
+    public MonitorUserControl(MonitorViewModel viewModel)
     {
-        _hostApp = hostApp;
+        _viewModel = viewModel;
 
         InitializeComponent();
 
         _outputScrollViewer = this.FindControl<ScrollViewer>("OutputScrollViewer");
         _commandTextBox = this.FindControl<TextBox>("CommandTextBox");
 
-        _viewModel = new MonitorViewModel(Monitor);
         DataContext = _viewModel;
 
-        Monitor.OutputLines.CollectionChanged += OnOutputLinesChanged;
+        _viewModel.OutputLines.CollectionChanged += OnOutputLinesChanged;
 
         AttachedToVisualTree += OnAttachedToVisualTree;
         DetachedFromVisualTree += OnDetachedFromVisualTree;
@@ -57,7 +54,7 @@ public partial class MonitorUserControl : UserControl
 
     private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
-        Monitor.OutputLines.CollectionChanged -= OnOutputLinesChanged;
+        _viewModel.OutputLines.CollectionChanged -= OnOutputLinesChanged;
     }
 
     private void OnOutputLinesChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -100,7 +97,8 @@ public partial class MonitorUserControl : UserControl
                 e.Handled = true;
                 break;
             case Key.F12:
-                _hostApp.ToggleMonitor();
+                // Request close via ViewModel
+                _viewModel.RequestClose();
                 e.Handled = true;
                 break;
         }
@@ -108,16 +106,14 @@ public partial class MonitorUserControl : UserControl
 
     private void SubmitCommand()
     {
-        var result = _viewModel.Submit();
-
-        if (result == CommandResult.Continue || result == CommandResult.Quit)
-            _hostApp.DisableMonitor();
-
+        _viewModel.Submit();
         _commandTextBox?.Focus();
     }
 
     private void CloseButton_Click(object? sender, RoutedEventArgs e)
     {
-        _hostApp.DisableMonitor();
+        // Submit an empty command which will trigger the close if needed
+        // Or better, add a public method to ViewModel to request close
+        _viewModel.RequestClose();
     }
 }
