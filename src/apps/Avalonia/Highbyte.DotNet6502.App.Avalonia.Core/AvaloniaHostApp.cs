@@ -11,7 +11,6 @@ using Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 using Highbyte.DotNet6502.App.Avalonia.Core.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
 using Highbyte.DotNet6502.App.Avalonia.Core.Render;
-using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
@@ -56,7 +55,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     public AvaloniaMonitor? Monitor => _monitor;
 
     public bool IsMonitorVisible => _monitor?.IsVisible ?? false;
-
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -476,11 +474,9 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
 
     public override void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult)
     {
-        // Handle any post-frame logic here, such as:
-        // - Updating debug information
-        // - Handling breakpoints
-        // - Updating performance statistics
-        // This can be expanded later as needed
+        // Show monitor if we encounter breakpoint or other break
+        if (execEvaluatorTriggerResult.Triggered)
+            EnableMonitor(execEvaluatorTriggerResult);
     }
 
     public float Scale
