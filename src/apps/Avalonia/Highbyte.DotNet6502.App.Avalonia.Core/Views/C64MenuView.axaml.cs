@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -209,15 +208,17 @@ public partial class C64MenuView : UserControl
         else
         {
             // For desktop platforms, use the Window dialog
-            //await ShowC64ConfigDialog();
-            await C64ConfigUserControlOverlay();
+            await ShowC64ConfigDialog();
+            //await C64ConfigUserControlOverlay();
         }
     }
 
     private async Task ShowC64ConfigDialog()
     {
-        var dialog = new C64ConfigDialog();
-        dialog.DataContext = new C64ConfigDialogViewModel(ViewModel!.HostApp!);
+        var dialog = new C64ConfigDialog
+        {
+            DataContext = new C64ConfigDialogViewModel(ViewModel!.HostApp!)
+        };
 
         bool? result;
         if (TopLevel.GetTopLevel(this) is Window owner)
@@ -242,8 +243,10 @@ public partial class C64MenuView : UserControl
     private async Task C64ConfigUserControlOverlay()
     {
         // Create the UserControl-based config
-        var configControl = new C64ConfigUserControl();
-        configControl.DataContext = new C64ConfigDialogViewModel(ViewModel!.HostApp!);
+        var configControl = new C64ConfigUserControl
+        {
+            DataContext = new C64ConfigDialogViewModel(ViewModel!.HostApp!)
+        };
 
         // Create a custom overlay with better modal behavior
         var overlay = new Panel

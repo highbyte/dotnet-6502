@@ -10,13 +10,31 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 public partial class C64ConfigUserControl : UserControl
 {
+    private C64ConfigDialogViewModel? _previousViewModel;
     private C64ConfigDialogViewModel? ViewModel => DataContext as C64ConfigDialogViewModel;
-
+    private EventHandler<bool>? _configurationChangedHandlers;
 
     public event EventHandler<bool>? ConfigurationChanged
     {
-        add => ViewModel?.ConfigurationChanged += value;
-        remove => ViewModel?.ConfigurationChanged -= value;
+        add
+        {
+            // Note: Special code to handle creating C64ConfigUserControl directly (used in Browser) or via C64ConfigDialog Window (used in Desktop app)
+            _configurationChangedHandlers += value;
+            // If ViewModel is already available, subscribe immediately
+            if (ViewModel != null)
+            {
+                ViewModel.ConfigurationChanged += value;
+            }
+        }
+        remove
+        {
+            _configurationChangedHandlers -= value;
+            // Unsubscribe from ViewModel if available
+            if (ViewModel != null)
+            {
+                ViewModel.ConfigurationChanged -= value;
+            }
+        }
     }
 
     public C64ConfigUserControl()
@@ -27,6 +45,20 @@ public partial class C64ConfigUserControl : UserControl
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
+        // Note: Special code to handle creating C64ConfigUserControl directly (used in Browser) or via C64ConfigDialog Window (used in Desktop app)
+        // Unsubscribe from previous ViewModel
+        if (_previousViewModel != null && _configurationChangedHandlers != null)
+        {
+            _previousViewModel.ConfigurationChanged -= _configurationChangedHandlers;
+        }
+
+        // Subscribe to new ViewModel
+        if (ViewModel != null && _configurationChangedHandlers != null)
+        {
+            ViewModel.ConfigurationChanged += _configurationChangedHandlers;
+        }
+
+        _previousViewModel = ViewModel;
     }
 
     private void InitializeComponent()

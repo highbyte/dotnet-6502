@@ -16,7 +16,7 @@
         ShowInTaskbar="False"
         Background="#1A202C">
   
-  <views:C64ConfigUserControl x:Name="ConfigUserControl" 
+  <views:C64ConfigUserControl x:Name="ConfigUserControl"
                               ConfigurationChanged="OnConfigurationChanged"/>
   
 </Window>
