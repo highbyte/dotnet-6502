@@ -115,7 +115,7 @@
                                   SelectedValue="{Binding SelectedPreloadedDisk}"
                                   DisplayMemberBinding="{Binding Value}"
                                   SelectedValueBinding="{Binding Key}"
-                                  IsEnabled="{Binding IsFileOperationEnabled}"
+                                  IsEnabled="true"
                                   Classes="compact"
                                   MinWidth="60"/>
                         <Button Grid.Column="1"

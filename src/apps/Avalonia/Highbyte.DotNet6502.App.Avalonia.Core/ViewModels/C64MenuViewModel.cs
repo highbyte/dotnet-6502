@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net.Http;
+using System.Reactive;
+using System.Reactive.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using System.Reactive;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
@@ -20,6 +21,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 public class C64MenuViewModel : ViewModelBase
 {
     private readonly AvaloniaHostApp _avaloniaHostApp;
+    public AvaloniaHostApp HostApp => _avaloniaHostApp;
 
     private readonly Assembly _examplesAssembly = Assembly.GetExecutingAssembly();
     private string? ExampleFileAssemblyName => _examplesAssembly.GetName().Name;
@@ -39,9 +41,6 @@ public class C64MenuViewModel : ViewModelBase
     private string _latestPreloadedDiskError = "";
     private bool _isLoadingPreloadedDisk = false;
     private D64AutoDownloadAndRun? _d64AutoDownloadAndRun;
-
-
-    public AvaloniaHostApp HostApp => _avaloniaHostApp;
 
     // --- ReactiveUI Commands ---
     public ReactiveCommand<Unit, Unit> CopyBasicSourceCommand { get; }
@@ -65,71 +64,63 @@ public class C64MenuViewModel : ViewModelBase
 
         _avaloniaHostApp
             .WhenAnyValue(x => x.EmulatorState)
-  .Subscribe(_ =>
+            .Subscribe(_ =>
             {
                 this.RaisePropertyChanged(nameof(IsC64ConfigEnabled));
                 this.RaisePropertyChanged(nameof(IsCopyPasteEnabled));
                 this.RaisePropertyChanged(nameof(IsDiskImageAttached));
+                this.RaisePropertyChanged(nameof(CanToggleDisk));
                 this.RaisePropertyChanged(nameof(DiskToggleButtonText));
                 this.RaisePropertyChanged(nameof(BasicCodingAssistantAvailable));
                 this.RaisePropertyChanged(nameof(BasicCodingAssistantEnabled));
-
                 this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
             });
 
         // Initialize ReactiveCommands
-        var canCopyPaste = this.WhenAnyValue(x => x.IsCopyPasteEnabled);
-
         CopyBasicSourceCommand = ReactiveCommand.CreateFromTask(
-     async () => await CopyBasicSourceCode(),
-       canCopyPaste,
-      RxApp.MainThreadScheduler);
+            async () => await CopyBasicSourceCode(),
+            this.WhenAnyValue(x => x.IsCopyPasteEnabled),
+            RxApp.MainThreadScheduler);
 
         PasteTextCommand = ReactiveCommand.CreateFromTask(
-       async () => await PasteTextInternal(),
-         canCopyPaste,
-       RxApp.MainThreadScheduler);
-
-        var canToggleDisk = this.WhenAnyValue(
-         x => x.EmulatorState,
-                state => state != EmulatorState.Uninitialized);
+            async () => await PasteTextInternal(),
+            this.WhenAnyValue(x => x.IsCopyPasteEnabled),
+            RxApp.MainThreadScheduler);
 
         ToggleDiskImageCommand = ReactiveCommand.CreateFromTask(
-        async () => await ToggleDiskImageInternal(),
-     canToggleDisk,
-   RxApp.MainThreadScheduler);
-
-        var canLoadFiles = this.WhenAnyValue(x => x.IsFileOperationEnabled);
+            async () => await ToggleDiskImageInternal(),
+            this.WhenAnyValue(x => x.CanToggleDisk),
+            RxApp.MainThreadScheduler);
 
         LoadPreloadedDiskCommand = ReactiveCommand.CreateFromTask(
-                  async () => await LoadPreloadedDiskImage(),
-            canLoadFiles,
-                  RxApp.MainThreadScheduler);
+            async () => await LoadPreloadedDiskImage(),
+            Observable.Return(true),
+            RxApp.MainThreadScheduler);
 
         LoadAssemblyExampleCommand = ReactiveCommand.CreateFromTask(
- async () => await LoadAssemblyExample(),
-            canLoadFiles,
+             async () => await LoadAssemblyExample(),
+            this.WhenAnyValue(x => x.IsFileOperationEnabled),
             RxApp.MainThreadScheduler);
 
         LoadBasicExampleCommand = ReactiveCommand.CreateFromTask(
             async () => await LoadBasicExample(),
-              canLoadFiles,
-                   RxApp.MainThreadScheduler);
+            this.WhenAnyValue(x => x.IsFileOperationEnabled),
+            RxApp.MainThreadScheduler);
 
         LoadBasicFileCommand = ReactiveCommand.CreateFromTask<byte[]>(
             async (fileBuffer) => await LoadBasicFile(fileBuffer),
-     canLoadFiles,
-         RxApp.MainThreadScheduler);
+            this.WhenAnyValue(x => x.IsFileOperationEnabled),
+            RxApp.MainThreadScheduler);
 
         SaveBasicFileCommand = ReactiveCommand.CreateFromTask(
-     async () => await GetBasicProgramAsPrgFileBytes(),
-      canLoadFiles,
-          RxApp.MainThreadScheduler);
+            async () => await GetBasicProgramAsPrgFileBytes(),
+            this.WhenAnyValue(x => x.IsFileOperationEnabled),
+            RxApp.MainThreadScheduler);
 
         LoadBinaryFileCommand = ReactiveCommand.CreateFromTask<byte[]>(
-               async (fileBuffer) => await LoadBinaryFile(fileBuffer),
-            canLoadFiles,
-               RxApp.MainThreadScheduler);
+            async (fileBuffer) => await LoadBinaryFile(fileBuffer),
+            this.WhenAnyValue(x => x.IsFileOperationEnabled),
+            RxApp.MainThreadScheduler);
     }
 
     private EmulatorState EmulatorState => _avaloniaHostApp.EmulatorState;
@@ -181,6 +172,9 @@ public class C64MenuViewModel : ViewModelBase
             }
         }
     }
+
+    public bool CanToggleDisk => EmulatorState != EmulatorState.Uninitialized;
+
     public string DiskToggleButtonText => IsDiskImageAttached ? "Detach .d64 disk image" : "Attach .d64 disk image";
 
     // Preloaded D64 programs
@@ -490,7 +484,7 @@ public class C64MenuViewModel : ViewModelBase
         }
     }
 
-    public async Task LoadPreloadedDiskImage()
+    private async Task LoadPreloadedDiskImage()
     {
         string selectedPreloadedDisk = SelectedPreloadedDisk;
         if (string.IsNullOrEmpty(selectedPreloadedDisk) || !_preloadedD64Images.ContainsKey(selectedPreloadedDisk))
@@ -557,6 +551,9 @@ public class C64MenuViewModel : ViewModelBase
         }
         finally
         {
+            // Force binding refresh for all properties, config settings for keyboard/joystick may have changed
+            RefreshAllBindings();
+
             _isLoadingPreloadedDisk = false;
             System.Console.WriteLine($"Finished loading preloaded disk. Loading state: {_isLoadingPreloadedDisk}");
             if (!string.IsNullOrEmpty(_latestPreloadedDiskError))
@@ -564,7 +561,7 @@ public class C64MenuViewModel : ViewModelBase
         }
     }
 
-    public async Task LoadAssemblyExample()
+    private async Task LoadAssemblyExample()
     {
         if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;
@@ -615,7 +612,7 @@ public class C64MenuViewModel : ViewModelBase
         }
     }
 
-    public async Task LoadBasicExample()
+    private async Task LoadBasicExample()
     {
         if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;
@@ -676,7 +673,7 @@ public class C64MenuViewModel : ViewModelBase
         }
     }
 
-    public async Task LoadBasicFile(byte[] fileBuffer)
+    private async Task LoadBasicFile(byte[] fileBuffer)
     {
         if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;
@@ -740,7 +737,7 @@ public class C64MenuViewModel : ViewModelBase
         }
     }
 
-    public async Task LoadBinaryFile(byte[] fileBuffer)
+    private async Task LoadBinaryFile(byte[] fileBuffer)
     {
         if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized)
             return;

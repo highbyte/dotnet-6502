@@ -274,9 +274,9 @@ public partial class C64MenuView : UserControl
         // Set up event handling for configuration completion
         var taskCompletionSource = new TaskCompletionSource<bool>();
         configControl.ConfigurationChanged += (s, saved) =>
-     {
-         taskCompletionSource.SetResult(saved);
-     };
+        {
+            taskCompletionSource.SetResult(saved);
+        };
 
         overlay.Children.Add(dialogContainer);
 
