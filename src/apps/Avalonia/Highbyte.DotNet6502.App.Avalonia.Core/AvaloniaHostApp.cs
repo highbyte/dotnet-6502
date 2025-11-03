@@ -184,11 +184,11 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         // Automatically adjust scale if emulator dimensions are too wide/tall.
         Scale = GetUsefulScaleBasedOnEmulatorScreenDimensions(screen, Scale, alwaysUseMaxScale: false);
 
+        // Stop and dispose any existing update timer
+        StopAndDisposeUpdateTimer();
+
         // Create timer for current system on initial start. Assume Stop() sets _updateTimer to null.
-        if (_updateTimer == null)
-        {
-            _updateTimer = CreateAsyncUpdateTimerForSystem(CurrentSystemRunner!.System);
-        }
+        _updateTimer = CreateAsyncUpdateTimerForSystem(CurrentSystemRunner!.System);
 
         _updateTimer.Start();
 
@@ -218,13 +218,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
 
     public override void OnAfterStop()
     {
-        _updateTimer?.Stop();
-        if (_updateTimer != null)
-        {
-            _updateTimer.Elapsed -= UpdateTimerElapsed;
-            _updateTimer.Dispose();
-            _updateTimer = null;
-        }
+        StopAndDisposeUpdateTimer();
     }
 
     public override void OnAfterClose()
@@ -445,6 +439,17 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         };
         updateTimer.Elapsed += UpdateTimerElapsed;
         return updateTimer;
+    }
+
+    private void StopAndDisposeUpdateTimer()
+    {
+        if (_updateTimer != null)
+        {
+            _updateTimer.Elapsed -= UpdateTimerElapsed;
+            _updateTimer.Stop();
+            _updateTimer.Dispose();
+            _updateTimer = null;
+        }
     }
 
     private void UpdateTimerElapsed(object? sender, EventArgs e)
