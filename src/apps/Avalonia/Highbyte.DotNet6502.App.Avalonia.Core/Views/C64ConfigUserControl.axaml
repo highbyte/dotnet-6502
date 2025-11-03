@@ -95,7 +95,7 @@
               <StackPanel Orientation="Horizontal" Spacing="8">
               <!-- Download button for WASM app to in-memory byte array -->
               <Button Content="Download ROMs"
-                      Click="DownloadRomsToByteArray_Click"
+                      Command="{Binding DownloadRomsToByteArrayCommand}"
                       MinWidth="130"
                       Classes="primary wide"
                       IsVisible="{Binding IsRunningInWebAssembly}"
@@ -109,7 +109,7 @@
                       Click="LoadRoms_Click"/>
               <!-- Clear for WASM app to clear ROM byte arrays -->
               <Button Content="Clear"
-                      Click="ClearRoms_Click"
+                      Command="{Binding ClearRomsCommand}"
                       MinWidth="90"
                       Classes="cancel"
                       IsVisible="{Binding IsRunningInWebAssembly}"
@@ -117,7 +117,7 @@
 
               <!-- Download button for Desktop app to files -->
               <Button Content="Download ROM Files"
-                      Click="DownloadRomsToFiles_Click"
+                      Command="{Binding DownloadRomsToFilesCommand}"
                       MinWidth="130"
                       Classes="primary extraWide"
                       IsVisible="{Binding !IsRunningInWebAssembly}"
@@ -300,13 +300,13 @@
       <Button Grid.Column="1"
               Content="Cancel"
               Classes="cancel"
-              Click="Cancel_Click"/>
+              Command="{Binding CancelCommand}"/>
       <Button Grid.Column="2"
               Content="{Binding OkButtonText}"
               Classes="primary"
               IsDefault="True"
               IsEnabled="{Binding CanSave}"
-              Click="Save_Click"/>
+              Command="{Binding SaveCommand}"/>
     </Grid>
 
   </Grid>

@@ -4,44 +4,34 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
-using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 public partial class C64ConfigUserControl : UserControl
 {
-    private readonly C64ConfigDialogViewModel _viewModel;
-    /// <summary>
-    /// Gets the ViewModel for direct access when used in ContentDialog
-    /// </summary>
-    public C64ConfigDialogViewModel ViewModel => _viewModel;
+    private C64ConfigDialogViewModel? ViewModel => DataContext as C64ConfigDialogViewModel;
 
-    public event EventHandler<bool>? ConfigurationChanged;
+
+    public event EventHandler<bool>? ConfigurationChanged
+    {
+        add => ViewModel?.ConfigurationChanged += value;
+        remove => ViewModel?.ConfigurationChanged -= value;
+    }
 
     public C64ConfigUserControl()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
     }
 
-    public C64ConfigUserControl(
-        AvaloniaHostApp hostApp,
-        C64HostConfig originalConfig,
-        List<(System.Type renderProviderType, System.Type renderTargetType)> renderCombinations)
+    private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        InitializeComponent();
-        _viewModel = new C64ConfigDialogViewModel(hostApp, originalConfig, renderCombinations);
-        DataContext = _viewModel;
     }
 
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
-    }
-
-    private async void DownloadRomsToByteArray_Click(object? sender, RoutedEventArgs e)
-    {
-        await _viewModel.AutoDownloadRomsToByteArrayAsync();
     }
 
     private async void LoadRoms_Click(object? sender, RoutedEventArgs e)
@@ -86,31 +76,8 @@ public partial class C64ConfigUserControl : UserControl
 
             if (romDataList.Count > 0)
             {
-                await _viewModel.LoadRomsFromDataAsync(romDataList);
+                await ViewModel.LoadRomsFromDataAsync(romDataList);
             }
-        }
-    }
-
-    private void ClearRoms_Click(object? sender, RoutedEventArgs e)
-    {
-        _viewModel.UnloadRoms();
-    }
-
-    private async void DownloadRomsToFiles_Click(object? sender, RoutedEventArgs e)
-    {
-        await _viewModel.AutoDownloadROMsToFilesAsync();
-    }
-
-    private void Cancel_Click(object? sender, RoutedEventArgs e)
-    {
-        ConfigurationChanged?.Invoke(this, false);
-    }
-
-    private async void Save_Click(object? sender, RoutedEventArgs e)
-    {
-        if (await _viewModel.TryApplyChanges())
-        {
-            ConfigurationChanged?.Invoke(this, true);
         }
     }
 }

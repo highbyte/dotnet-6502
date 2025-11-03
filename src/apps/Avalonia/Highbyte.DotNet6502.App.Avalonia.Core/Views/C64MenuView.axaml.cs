@@ -204,19 +204,20 @@ public partial class C64MenuView : UserControl
         if (PlatformDetection.IsRunningInWebAssembly())
         {
             // For WASM, show usercontrol overlay instead of Window
-            await ShowC64UserControlOverlay(c64HostConfig, renderProviderOptions);
+            await C64ConfigUserControlOverlay();
         }
         else
         {
             // For desktop platforms, use the Window dialog
-            await ShowC64ConfigDialog(c64HostConfig, renderProviderOptions);
+            //await ShowC64ConfigDialog();
+            await C64ConfigUserControlOverlay();
         }
     }
 
-    private async Task ShowC64ConfigDialog(C64HostConfig c64HostConfig,
-        List<(System.Type renderProviderType, System.Type renderTargetType)> renderProviderOptions)
+    private async Task ShowC64ConfigDialog()
     {
-        var dialog = new C64ConfigDialog(ViewModel!.HostApp!, c64HostConfig, renderProviderOptions);
+        var dialog = new C64ConfigDialog();
+        dialog.DataContext = new C64ConfigDialogViewModel(ViewModel!.HostApp!);
 
         bool? result;
         if (TopLevel.GetTopLevel(this) is Window owner)
@@ -238,11 +239,11 @@ public partial class C64MenuView : UserControl
         }
     }
 
-    private async Task ShowC64UserControlOverlay(C64HostConfig c64HostConfig,
-        List<(System.Type renderProviderType, System.Type renderTargetType)> renderProviderOptions)
+    private async Task C64ConfigUserControlOverlay()
     {
         // Create the UserControl-based config
-        var configControl = new C64ConfigUserControl(ViewModel!.HostApp!, c64HostConfig, renderProviderOptions);
+        var configControl = new C64ConfigUserControl();
+        configControl.DataContext = new C64ConfigDialogViewModel(ViewModel!.HostApp!);
 
         // Create a custom overlay with better modal behavior
         var overlay = new Panel

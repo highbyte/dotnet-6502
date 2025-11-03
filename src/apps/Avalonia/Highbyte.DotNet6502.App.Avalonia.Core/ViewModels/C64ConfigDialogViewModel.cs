@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reactive;
 using System.Threading.Tasks;
 using Highbyte.DotNet6502.App.Avalonia.Core.Config;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
@@ -38,15 +39,20 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private RenderTargetOption? _selectedRenderTarget;
     private bool _suppressRenderTargetUpdate;
 
+    // ReactiveUI Commands
+    public ReactiveCommand<Unit, Unit> DownloadRomsToByteArrayCommand { get; }
+    public ReactiveCommand<Unit, Unit> DownloadRomsToFilesCommand { get; }
+    public ReactiveCommand<Unit, Unit> ClearRomsCommand { get; }
+    public ReactiveCommand<Unit, Unit> SaveCommand { get; }
+    public ReactiveCommand<Unit, Unit> CancelCommand { get; }
+
     public C64ConfigDialogViewModel(
-        AvaloniaHostApp hostApp,
-        C64HostConfig originalConfig,
-        List<(Type renderProviderType, Type renderTargetType)> renderCombinations)
+        AvaloniaHostApp hostApp)
     {
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
-        _originalConfig = originalConfig ?? throw new ArgumentNullException(nameof(originalConfig));
-        _renderCombinations = renderCombinations ?? new List<(Type, Type)>();
-        _workingConfig = (C64HostConfig)originalConfig.Clone();
+        _originalConfig = hostApp.CurrentHostSystemConfig as C64HostConfig ?? throw new Exception("hostApp.CurrentHostSystemConfig must be type C64HostConfig");
+        _renderCombinations = hostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations() ?? new List<(Type, Type)>();
+        _workingConfig = (C64HostConfig)_originalConfig.Clone();
         _httpClient = new HttpClient();
 
         AvailableJoysticks = new ObservableCollection<int>(_workingConfig.InputConfig.AvailableJoysticks);
@@ -60,7 +66,36 @@ public class C64ConfigDialogViewModel : ViewModelBase
         UpdateRomStatuses();
         UpdateKeyboardMappings();
         UpdateValidationMessageFromConfig();
+
+        // Initialize ReactiveUI Commands with MainThreadScheduler for Browser compatibility
+        DownloadRomsToByteArrayCommand = ReactiveCommand.CreateFromTask(
+            AutoDownloadRomsToByteArrayAsync,
+            outputScheduler: RxApp.MainThreadScheduler);
+
+        DownloadRomsToFilesCommand = ReactiveCommand.CreateFromTask(
+            AutoDownloadROMsToFilesAsync,
+            outputScheduler: RxApp.MainThreadScheduler);
+
+        ClearRomsCommand = ReactiveCommand.Create(
+            UnloadRoms,
+            outputScheduler: RxApp.MainThreadScheduler);
+
+        SaveCommand = ReactiveCommand.CreateFromTask(
+            async () =>
+            {
+                if (await TryApplyChanges())
+                {
+                    ConfigurationChanged?.Invoke(this, true);
+                }
+            },
+            outputScheduler: RxApp.MainThreadScheduler);
+
+        CancelCommand = ReactiveCommand.Create(
+            () => ConfigurationChanged?.Invoke(this, false),
+            outputScheduler: RxApp.MainThreadScheduler);
     }
+
+    public event EventHandler<bool>? ConfigurationChanged;
 
     public ObservableCollection<RomStatusViewModel> RomStatuses { get; } = new();
     public ObservableCollection<RenderProviderOption> RenderProviders { get; } = new();

@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
-using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
@@ -17,19 +15,9 @@ public partial class C64ConfigDialog : Window
     private static WindowState? s_lastWindowState;
     private bool _isPositionInitialized = false;
 
-    public C64ConfigDialog(
-        AvaloniaHostApp hostApp,
-        C64HostConfig originalConfig,
-        List<(System.Type renderProviderType, System.Type renderTargetType)> renderCombinations)
+    public C64ConfigDialog()
     {
         InitializeComponent();
-
-        // Initialize the UserControl with the required parameters
-        var configUserControl = new C64ConfigUserControl(hostApp, originalConfig, renderCombinations);
-        configUserControl.ConfigurationChanged += OnConfigurationChanged;
-
-        // Replace the placeholder UserControl with the initialized one
-        Content = configUserControl;
 
         DialogResultValue = false;
 
@@ -106,7 +94,7 @@ public partial class C64ConfigDialog : Window
         }
     }
 
-    private void OnConfigurationChanged(object? sender, bool saved)
+    public void OnConfigurationChanged(object? sender, bool saved)
     {
         DialogResultValue = saved;
         Close(saved);
