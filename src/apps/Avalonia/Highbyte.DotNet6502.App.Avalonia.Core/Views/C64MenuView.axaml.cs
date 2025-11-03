@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -12,52 +11,98 @@ using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
-using Highbyte.DotNet6502.Systems.Commodore64;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 public partial class C64MenuView : UserControl
 {
-    // Access ViewModel and HostApp through DataContext
+    // Access ViewModel through DataContext
     private C64MenuViewModel? ViewModel => DataContext as C64MenuViewModel;
-    private AvaloniaHostApp? HostApp => ViewModel?.HostApp;
 
     // Parameterless constructor for XAML compatibility
     public C64MenuView()
     {
         InitializeComponent();
 
+        // Subscribe to ViewModel events for UI operations
+        this.DataContextChanged += (s, e) =>
+        {
+            if (ViewModel != null)
+            {
+                // Subscribe to clipboard and file operation requests
+                ViewModel.ClipboardCopyRequested += OnClipboardCopyRequested;
+                ViewModel.ClipboardPasteRequested += OnClipboardPasteRequested;
+                ViewModel.AttachDiskImageRequested += OnAttachDiskImageRequested;
+
+                // Update section states if needed (not in WebAssembly to avoid crash)
+                if (!PlatformDetection.IsRunningInWebAssembly())
+                    UpdateSectionStatesIfNeeded();
+            }
+        };
+
         // Subscribe to visibility property changes to update section states when view becomes visible
         this.PropertyChanged += (s, e) =>
         {
-            // When the IsVisible property changes to true, update section states if needed.
-            // Useful when C64 is not default system and view becomes visible later. Also seem to cover Browser/WASM when C64 is default, because of timing issue during startup.
             if (e.Property == IsVisibleProperty && this.IsVisible && ViewModel != null)
             {
                 UpdateSectionStatesIfNeeded();
             }
         };
+    }
 
-        this.DataContextChanged += (s, e) =>
+    // Event handlers for ViewModel requests (pure UI operations)
+    private async void OnClipboardCopyRequested(object? sender, string text)
+    {
+        if (TopLevel.GetTopLevel(this) is { } topLevel)
         {
-            // Useful when C64 is the default system and will be Visible on startup (thus PropertyChanged IsVisible will not happen).
-            // This is run during startup.
+            await topLevel.Clipboard?.SetTextAsync(text)!;
+        }
+    }
 
-            // !!! Note!!!
-            // UpdateSectionStatesIfNeeded() is not working from here in Browser/WASM, it crashes the app.
-            // It's because there is no current system yet selected at this point (but it is when running in Desktop).
-            // The code in UpdateSectionStatesIfNeeded depends on HasConfigValidationErrors property which depends on _avaloniaHostApp.CurrentHostSystemConfig which throws an exception.
-            // Same exception occurs in Loaded event handler.
-            // Seems the PropertyChanged event handler handles all scenarios correctly for Browser, even when starting up with C64 as default system.
+    private async void OnClipboardPasteRequested(object? sender, EventArgs e)
+    {
+        if (ViewModel != null && TopLevel.GetTopLevel(this) is { } topLevel)
+        {
+            var text = await topLevel.Clipboard?.GetTextAsync()!;
+            ViewModel.ClipboardPasteResult = text;
+        }
+    }
 
-            if (ViewModel != null)
+    private async void OnAttachDiskImageRequested(object? sender, EventArgs e)
+    {
+        if (ViewModel == null || TopLevel.GetTopLevel(this) is not { } topLevel)
+            return;
+
+        var storageProvider = topLevel.StorageProvider;
+        if (storageProvider.CanOpen)
+        {
+            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
+                Title = "Select D64 Disk Image",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("D64 Disk Images") { Patterns = new[] { "*.d64" } },
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+               }
+            });
 
-                // Dont run if running in WebAssembly/Browser to avoid crash
-                if (!PlatformDetection.IsRunningInWebAssembly())
-                    UpdateSectionStatesIfNeeded();
+            if (files.Count > 0)
+            {
+                try
+                {
+                    await using var stream = await files[0].OpenReadAsync();
+                    var fileBuffer = new byte[stream.Length];
+                    await stream.ReadExactlyAsync(fileBuffer);
+
+                    ViewModel.DiskImageFileResult = fileBuffer;
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Error reading disk image file: {ex.Message}");
+                }
             }
-        };
+        }
     }
 
     private void UpdateSectionStatesIfNeeded()
@@ -110,7 +155,6 @@ public partial class C64MenuView : UserControl
         var originalBrush = button.Background;
         var flashBrush = new SolidColorBrush(flashColor);
 
-
         EventHandler<RoutedEventArgs>? tempHandler = null;
         tempHandler = (s, e) =>
         {
@@ -148,13 +192,13 @@ public partial class C64MenuView : UserControl
 
     private async void OpenC64Config_Click(object? sender, RoutedEventArgs e)
     {
-        if (HostApp == null)
+        if (ViewModel?.HostApp == null)
             return;
 
-        if (HostApp.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
+        if (ViewModel.HostApp.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
             return;
 
-        var renderProviderOptions = HostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations();
+        var renderProviderOptions = ViewModel.HostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations();
 
         // Check if running on WASM/Browser platform
         if (PlatformDetection.IsRunningInWebAssembly())
@@ -172,7 +216,7 @@ public partial class C64MenuView : UserControl
     private async Task ShowC64ConfigDialog(C64HostConfig c64HostConfig,
         List<(System.Type renderProviderType, System.Type renderTargetType)> renderProviderOptions)
     {
-        var dialog = new C64ConfigDialog(HostApp!, c64HostConfig, renderProviderOptions);
+        var dialog = new C64ConfigDialog(ViewModel!.HostApp!, c64HostConfig, renderProviderOptions);
 
         bool? result;
         if (TopLevel.GetTopLevel(this) is Window owner)
@@ -198,7 +242,7 @@ public partial class C64MenuView : UserControl
         List<(System.Type renderProviderType, System.Type renderTargetType)> renderProviderOptions)
     {
         // Create the UserControl-based config
-        var configControl = new C64ConfigUserControl(HostApp!, c64HostConfig, renderProviderOptions);
+        var configControl = new C64ConfigUserControl(ViewModel!.HostApp!, c64HostConfig, renderProviderOptions);
 
         // Create a custom overlay with better modal behavior
         var overlay = new Panel
@@ -230,9 +274,9 @@ public partial class C64MenuView : UserControl
         // Set up event handling for configuration completion
         var taskCompletionSource = new TaskCompletionSource<bool>();
         configControl.ConfigurationChanged += (s, saved) =>
-        {
-            taskCompletionSource.SetResult(saved);
-        };
+     {
+         taskCompletionSource.SetResult(saved);
+     };
 
         overlay.Children.Add(dialogContainer);
 
@@ -276,22 +320,6 @@ public partial class C64MenuView : UserControl
         }
     }
 
-    // C64-specific event handlers
-    private async void CopyBasicSource_Click(object? sender, RoutedEventArgs e)
-    {
-        await CopyBasicSourceCode();
-    }
-
-    private async void PasteText_Click(object? sender, RoutedEventArgs e)
-    {
-        await PasteText();
-    }
-
-    private async void ToggleDiskImage_Click(object? sender, RoutedEventArgs e)
-    {
-        await ToggleDiskImage();
-    }
-
     private void OpenBasicAssistantInfo_Click(object? sender, RoutedEventArgs e)
     {
         // Open the info link for Basic coding assistant
@@ -310,161 +338,144 @@ public partial class C64MenuView : UserControl
         }
     }
 
-    // Core C64 functionality methods
-    public async Task CopyBasicSourceCode()
-    {
-        if (HostApp?.EmulatorState != Systems.EmulatorState.Running ||
-            !IsC64System())
-            return;
-
-        try
-        {
-            var c64 = (C64)HostApp.CurrentRunningSystem!;
-            var sourceCode = c64.BasicTokenParser.GetBasicText();
-
-            if (TopLevel.GetTopLevel(this) is { } topLevel)
-            {
-                await topLevel.Clipboard?.SetTextAsync(sourceCode.ToLower())!;
-            }
-        }
-        catch (Exception ex)
-        {
-            // Handle error - could show a dialog or log it
-            System.Console.WriteLine($"Error copying Basic source: {ex.Message}");
-        }
-    }
-
-    public async Task PasteText()
-    {
-        if (HostApp?.EmulatorState != Systems.EmulatorState.Running ||
-       !IsC64System())
-            return;
-
-        try
-        {
-            if (TopLevel.GetTopLevel(this) is { } topLevel)
-            {
-                var text = await topLevel.Clipboard?.GetTextAsync()!;
-                if (!string.IsNullOrEmpty(text))
-                {
-                    var c64 = (C64)HostApp.CurrentRunningSystem!;
-                    c64.TextPaste.Paste(text);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            // Handle error
-            System.Console.WriteLine($"Error pasting text: {ex.Message}");
-        }
-    }
-
-    public async Task ToggleDiskImage()
-    {
-        if (HostApp?.EmulatorState == Systems.EmulatorState.Uninitialized || !IsC64System())
-            return;
-
-        try
-        {
-            var c64 = (C64)HostApp.CurrentRunningSystem!;
-            var diskDrive = c64.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
-
-            if (diskDrive?.IsDisketteInserted == true)
-            {
-                // Detach current disk image
-                diskDrive.RemoveD64DiskImage();
-            }
-            else
-            {
-                // Attach new disk image - open file dialog
-                await AttachDiskImage();
-            }
-
-            // Notify the ViewModel that the disk image state has changed
-            ViewModel?.RefreshAllBindings();
-        }
-        catch (Exception ex)
-        {
-            System.Console.WriteLine($"Error toggling disk image: {ex.Message}");
-        }
-    }
-
-    private async Task AttachDiskImage()
+    // File operation event handlers - now delegate to ViewModel commands
+    private async void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
     {
         if (TopLevel.GetTopLevel(this) is not { } topLevel)
             return;
-
         var storageProvider = topLevel.StorageProvider;
-        if (storageProvider.CanOpen)
+        if (!storageProvider.CanOpen)
+            return;
+
+        var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            Title = "Load Basic PRG File",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
             {
-                Title = "Select D64 Disk Image",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-               {
-     new FilePickerFileType("D64 Disk Images") { Patterns = new[] { "*.d64" } },
-              new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-        }
-            });
+                new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
+                new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+            }
+        });
 
-            if (files.Count > 0)
+        if (files.Count > 0)
+        {
+            try
             {
-                try
-                {
-                    await using var stream = await files[0].OpenReadAsync();
-                    var fileBuffer = new byte[stream.Length];
-                    await stream.ReadExactlyAsync(fileBuffer);
+                await using var stream = await files[0].OpenReadAsync();
+                var fileBuffer = new byte[stream.Length];
+                await stream.ReadExactlyAsync(fileBuffer);
 
-                    // Parse the D64 disk image
-                    var d64DiskImage = Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.D64Parser.ParseD64File(fileBuffer);
-
-                    // Set the disk image on the running C64's DiskDrive1541
-                    var c64 = (C64)HostApp!.CurrentRunningSystem!;
-                    var diskDrive = c64.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
-                    diskDrive?.SetD64DiskImage(d64DiskImage);
-                }
-                catch (Exception ex)
-                {
-                    System.Console.WriteLine($"Error loading disk image: {ex.Message}");
-                }
+                // Execute the command - it will await the Task internally
+                ViewModel!.LoadBasicFileCommand.Execute(fileBuffer).Subscribe();
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error loading Basic .prg: {ex.Message}");
             }
         }
     }
 
-    private bool IsC64System()
+    private async void SaveBasicFile_Click(object? sender, RoutedEventArgs e)
     {
-        return string.Equals(HostApp?.SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
+        if (TopLevel.GetTopLevel(this) is not { } topLevel)
+            return;
+        var storageProvider = topLevel.StorageProvider;
+        if (!storageProvider.CanSave)
+            return;
+
+        try
+        {
+            var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save Basic PRG File",
+                SuggestedFileName = "program",
+                FileTypeChoices = new[]
+                {
+                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                }
+            });
+
+            if (file != null)
+            {
+                // Call ViewModel method directly to get the byte array
+                var saveData = await ViewModel!.GetBasicProgramAsPrgFileBytes();
+
+                await using var stream = await file.OpenWriteAsync();
+                await stream.WriteAsync(saveData);
+                System.Console.WriteLine($"Basic program saved to {file.Name}");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"Error saving Basic .prg: {ex.Message}");
+        }
     }
 
+    private async void LoadBinaryFile_Click(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is not { } topLevel)
+            return;
+        var storageProvider = topLevel.StorageProvider;
+        if (!storageProvider.CanOpen)
+            return;
+
+        var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Load & Start Binary PRG File",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
+                new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+            }
+        });
+
+        if (files.Count > 0)
+        {
+            try
+            {
+                await using var stream = await files[0].OpenReadAsync();
+                var fileBuffer = new byte[stream.Length];
+                await stream.ReadExactlyAsync(fileBuffer);
+
+                // Execute the command - it will await the Task internally
+                ViewModel!.LoadBinaryFileCommand.Execute(fileBuffer).Subscribe();
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error loading binary .prg: {ex.Message}");
+            }
+        }
+    }
+
+    // Section toggle handlers (pure UI functionality)
     private void ToggleDiskSection_Click(object? sender, RoutedEventArgs e)
     {
         ToggleSection("DiskSectionHeader", "DiskSectionContent",
-                  new[] { ("LoadSaveSectionHeader", "LoadSaveSectionContent"),
-                         ("ConfigSectionHeader", "ConfigSectionContent") });
+            new[] { ("LoadSaveSectionHeader", "LoadSaveSectionContent"),
+                    ("ConfigSectionHeader", "ConfigSectionContent") });
     }
 
     private void ToggleLoadSaveSection_Click(object? sender, RoutedEventArgs e)
     {
         ToggleSection("LoadSaveSectionHeader", "LoadSaveSectionContent",
-                new[] { ("DiskSectionHeader", "DiskSectionContent"),
+            new[] { ("DiskSectionHeader", "DiskSectionContent"),
                     ("ConfigSectionHeader", "ConfigSectionContent") });
     }
 
     private void ToggleConfigSection_Click(object? sender, RoutedEventArgs e)
     {
         ToggleSection("ConfigSectionHeader", "ConfigSectionContent",
-                  new[] { ("DiskSectionHeader", "DiskSectionContent"),
-                      ("LoadSaveSectionHeader", "LoadSaveSectionContent") });
+            new[] { ("DiskSectionHeader", "DiskSectionContent"),
+                    ("LoadSaveSectionHeader", "LoadSaveSectionContent") });
     }
 
     /// <summary>
     /// Toggles a collapsible section and collapses other specified sections if this one is being expanded.
     /// The arrow character (▼/▶) at the start of the button content is automatically toggled.
     /// </summary>
-    /// <param name="headerButtonName">Name of the header button control</param>
-    /// <param name="contentBorderName">Name of the content border control</param>
-    /// <param name="otherSectionsToCollapse">Array of tuples containing (headerName, contentName) for sections to collapse</param>
     private void ToggleSection(
         string headerButtonName,
         string contentBorderName,
@@ -499,9 +510,6 @@ public partial class C64MenuView : UserControl
     /// Sets the state of a collapsible section (expanded or collapsed).
     /// Updates both the visibility of the content and the arrow character in the header button.
     /// </summary>
-    /// <param name="headerButton">The header button control</param>
-    /// <param name="contentBorder">The content border control</param>
-    /// <param name="expanded">True to expand the section, false to collapse it</param>
     private void SetSectionState(Button headerButton, Border contentBorder, bool expanded)
     {
         contentBorder.IsVisible = expanded;
@@ -519,131 +527,6 @@ public partial class C64MenuView : UserControl
                 headerButton.Content = content.Replace("▼", "▶");
             }
         }
-    }
-    // File operation event handlers
-    private async void LoadPreloadedDisk_Click(object? sender, RoutedEventArgs e)
-    {
-        await ViewModel!.LoadPreloadedDiskImage();
-    }
-
-    private async void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
-    {
-        if (TopLevel.GetTopLevel(this) is not { } topLevel)
-            return;
-        var storageProvider = topLevel.StorageProvider;
-        if (!storageProvider.CanOpen)
-            return;
-
-        var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "Load Basic PRG File",
-            AllowMultiple = false,
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-            }
-        });
-
-        if (files.Count > 0)
-        {
-            try
-            {
-                await using var stream = await files[0].OpenReadAsync();
-                var fileBuffer = new byte[stream.Length];
-                await stream.ReadExactlyAsync(fileBuffer);
-
-                await ViewModel.LoadBasicFile(fileBuffer);
-
-            }
-            catch (Exception ex)
-            {
-                System.Console.WriteLine($"Error loading Basic .prg: {ex.Message}");
-            }
-        }
-    }
-
-    private async void SaveBasicFile_Click(object? sender, RoutedEventArgs e)
-    {
-        if (TopLevel.GetTopLevel(this) is not { } topLevel)
-            return;
-        var storageProvider = topLevel.StorageProvider;
-        if (!storageProvider.CanSave)
-            return;
-
-        try
-        {
-            var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-            {
-                Title = "Save Basic PRG File",
-                SuggestedFileName = "program",
-                FileTypeChoices = new[]
-                {
-                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-                }
-            });
-
-            if (file != null)
-            {
-                var saveData = await ViewModel.GetBasicProgramAsPrgFileBytes();
-
-                await using var stream = await file.OpenWriteAsync();
-                await stream.WriteAsync(saveData);
-                System.Console.WriteLine($"Basic program saved to {file.Name}");
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Console.WriteLine($"Error saving Basic .prg: {ex.Message}");
-        }
-
-    }
-
-    private async void LoadBinaryFile_Click(object? sender, RoutedEventArgs e)
-    {
-        if (TopLevel.GetTopLevel(this) is not { } topLevel)
-            return;
-        var storageProvider = topLevel.StorageProvider;
-        if (!storageProvider.CanOpen)
-            return;
-
-        var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "Load & Start Binary PRG File",
-            AllowMultiple = false,
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-            }
-        });
-
-        if (files.Count > 0)
-        {
-            try
-            {
-                await using var stream = await files[0].OpenReadAsync();
-                var fileBuffer = new byte[stream.Length];
-                await stream.ReadExactlyAsync(fileBuffer);
-
-                await ViewModel.LoadBinaryFile(fileBuffer);
-            }
-            catch (Exception ex)
-            {
-                System.Console.WriteLine($"Error loading binary .prg: {ex.Message}");
-            }
-        }
-    }
-
-    private async void LoadAssemblyExample_Click(object? sender, RoutedEventArgs e)
-    {
-        await ViewModel!.LoadAssemblyExample();
-    }
-
-    private async void LoadBasicExample_Click(object? sender, RoutedEventArgs e)
-    {
-        await ViewModel!.LoadBasicExample();
     }
 
     private CancellationTokenSource _buttonFlashCancellation;

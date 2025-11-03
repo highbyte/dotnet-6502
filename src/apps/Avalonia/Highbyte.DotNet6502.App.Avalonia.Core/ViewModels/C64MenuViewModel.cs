@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
+using System.Reactive;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
@@ -42,6 +43,18 @@ public class C64MenuViewModel : ViewModelBase
 
     public AvaloniaHostApp HostApp => _avaloniaHostApp;
 
+    // --- ReactiveUI Commands ---
+    public ReactiveCommand<Unit, Unit> CopyBasicSourceCommand { get; }
+    public ReactiveCommand<Unit, Unit> PasteTextCommand { get; }
+    public ReactiveCommand<Unit, Unit> ToggleDiskImageCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadPreloadedDiskCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadAssemblyExampleCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadBasicExampleCommand { get; }
+    public ReactiveCommand<byte[], Unit> LoadBasicFileCommand { get; }
+    public ReactiveCommand<Unit, byte[]> SaveBasicFileCommand { get; }
+    public ReactiveCommand<byte[], Unit> LoadBinaryFileCommand { get; }
+    // --- End ReactiveUI Commands ---
+
     public C64MenuViewModel(
         AvaloniaHostApp avaloniaHostApp)
     {
@@ -52,7 +65,7 @@ public class C64MenuViewModel : ViewModelBase
 
         _avaloniaHostApp
             .WhenAnyValue(x => x.EmulatorState)
-            .Subscribe(_ =>
+  .Subscribe(_ =>
             {
                 this.RaisePropertyChanged(nameof(IsC64ConfigEnabled));
                 this.RaisePropertyChanged(nameof(IsCopyPasteEnabled));
@@ -63,6 +76,60 @@ public class C64MenuViewModel : ViewModelBase
 
                 this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
             });
+
+        // Initialize ReactiveCommands
+        var canCopyPaste = this.WhenAnyValue(x => x.IsCopyPasteEnabled);
+
+        CopyBasicSourceCommand = ReactiveCommand.CreateFromTask(
+     async () => await CopyBasicSourceCode(),
+       canCopyPaste,
+      RxApp.MainThreadScheduler);
+
+        PasteTextCommand = ReactiveCommand.CreateFromTask(
+       async () => await PasteTextInternal(),
+         canCopyPaste,
+       RxApp.MainThreadScheduler);
+
+        var canToggleDisk = this.WhenAnyValue(
+         x => x.EmulatorState,
+                state => state != EmulatorState.Uninitialized);
+
+        ToggleDiskImageCommand = ReactiveCommand.CreateFromTask(
+        async () => await ToggleDiskImageInternal(),
+     canToggleDisk,
+   RxApp.MainThreadScheduler);
+
+        var canLoadFiles = this.WhenAnyValue(x => x.IsFileOperationEnabled);
+
+        LoadPreloadedDiskCommand = ReactiveCommand.CreateFromTask(
+                  async () => await LoadPreloadedDiskImage(),
+            canLoadFiles,
+                  RxApp.MainThreadScheduler);
+
+        LoadAssemblyExampleCommand = ReactiveCommand.CreateFromTask(
+ async () => await LoadAssemblyExample(),
+            canLoadFiles,
+            RxApp.MainThreadScheduler);
+
+        LoadBasicExampleCommand = ReactiveCommand.CreateFromTask(
+            async () => await LoadBasicExample(),
+              canLoadFiles,
+                   RxApp.MainThreadScheduler);
+
+        LoadBasicFileCommand = ReactiveCommand.CreateFromTask<byte[]>(
+            async (fileBuffer) => await LoadBasicFile(fileBuffer),
+     canLoadFiles,
+         RxApp.MainThreadScheduler);
+
+        SaveBasicFileCommand = ReactiveCommand.CreateFromTask(
+     async () => await GetBasicProgramAsPrgFileBytes(),
+      canLoadFiles,
+          RxApp.MainThreadScheduler);
+
+        LoadBinaryFileCommand = ReactiveCommand.CreateFromTask<byte[]>(
+               async (fileBuffer) => await LoadBinaryFile(fileBuffer),
+            canLoadFiles,
+               RxApp.MainThreadScheduler);
     }
 
     private EmulatorState EmulatorState => _avaloniaHostApp.EmulatorState;
@@ -294,6 +361,133 @@ public class C64MenuViewModel : ViewModelBase
     public void RefreshAllBindings()
     {
         this.RaisePropertyChanged(string.Empty); // Notifies all property bindings
+    }
+
+    // Core C64 functionality methods
+    private async Task CopyBasicSourceCode()
+    {
+        if (_avaloniaHostApp?.EmulatorState != EmulatorState.Running ||
+          !IsC64System())
+            return;
+
+        try
+        {
+            var c64 = (C64)_avaloniaHostApp.CurrentRunningSystem!;
+            var sourceCode = c64.BasicTokenParser.GetBasicText();
+
+            // Request View to copy to clipboard
+            await RequestClipboardCopy(sourceCode.ToLower());
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"Error copying Basic source: {ex.Message}");
+        }
+    }
+
+    private async Task PasteTextInternal()
+    {
+        if (_avaloniaHostApp?.EmulatorState != EmulatorState.Running || !IsC64System())
+            return;
+
+        try
+        {
+            // Request text from View's clipboard
+            var text = await RequestClipboardPaste();
+            if (!string.IsNullOrEmpty(text))
+            {
+                var c64 = (C64)_avaloniaHostApp.CurrentRunningSystem!;
+                c64.TextPaste.Paste(text);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"Error pasting text: {ex.Message}");
+        }
+    }
+
+    private async Task ToggleDiskImageInternal()
+    {
+        if (_avaloniaHostApp?.EmulatorState == EmulatorState.Uninitialized || !IsC64System())
+            return;
+
+        try
+        {
+            var c64 = (C64)_avaloniaHostApp.CurrentRunningSystem!;
+            var diskDrive = c64.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+
+            if (diskDrive?.IsDisketteInserted == true)
+            {
+                // Detach current disk image
+                diskDrive.RemoveD64DiskImage();
+            }
+            else
+            {
+                // Request View to show file picker and attach disk image
+                await RequestAttachDiskImage();
+            }
+
+            // Notify that the disk image state has changed
+            RefreshAllBindings();
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"Error toggling disk image: {ex.Message}");
+        }
+    }
+
+    private bool IsC64System()
+    {
+        return string.Equals(_avaloniaHostApp?.SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Events for View to handle clipboard and file operations
+    public event EventHandler<string>? ClipboardCopyRequested;
+    public event EventHandler? ClipboardPasteRequested;
+    public event EventHandler? AttachDiskImageRequested;
+
+    // Properties for View to provide results
+    public string? ClipboardPasteResult { get; set; }
+    public byte[]? DiskImageFileResult { get; set; }
+
+    private async Task RequestClipboardCopy(string text)
+    {
+        ClipboardCopyRequested?.Invoke(this, text);
+        await Task.CompletedTask;
+    }
+
+    private async Task<string?> RequestClipboardPaste()
+    {
+        ClipboardPasteResult = null;
+        ClipboardPasteRequested?.Invoke(this, EventArgs.Empty);
+        // View should synchronously set ClipboardPasteResult
+        await Task.CompletedTask;
+        return ClipboardPasteResult;
+    }
+
+    private async Task RequestAttachDiskImage()
+    {
+        DiskImageFileResult = null;
+        AttachDiskImageRequested?.Invoke(this, EventArgs.Empty);
+        // View should handle file picker and set DiskImageFileResult
+        await Task.Delay(100); // Give UI time to process
+
+        if (DiskImageFileResult != null)
+        {
+            try
+            {
+                // Parse the D64 disk image
+                var d64DiskImage = Systems.Commodore64.TimerAndPeripheral.DiskDrive.D64.D64Parser.ParseD64File(DiskImageFileResult);
+
+                // Set the disk image on the running C64's DiskDrive1541
+                var c64 = (C64)_avaloniaHostApp!.CurrentRunningSystem!;
+                var diskDrive = c64.IECBus?.Devices?.OfType<Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541>().FirstOrDefault();
+                diskDrive?.SetD64DiskImage(d64DiskImage);
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error loading disk image: {ex.Message}");
+            }
+        }
     }
 
     public async Task LoadPreloadedDiskImage()
