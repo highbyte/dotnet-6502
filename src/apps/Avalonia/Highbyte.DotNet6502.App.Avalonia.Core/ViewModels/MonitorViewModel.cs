@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Reactive;
 using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
 using Highbyte.DotNet6502.Monitor;
 using ReactiveUI;
@@ -18,7 +19,14 @@ public class MonitorViewModel : ViewModelBase
     public MonitorViewModel(AvaloniaMonitor monitor)
     {
         _monitor = monitor;
+
+        // Initialize ReactiveUI commands
+        SendCommand = ReactiveCommand.Create(ExecuteSend);
+        CloseCommand = ReactiveCommand.Create(ExecuteClose);
     }
+
+    public ReactiveCommand<Unit, Unit> SendCommand { get; }
+    public ReactiveCommand<Unit, Unit> CloseCommand { get; }
 
     public ObservableCollection<MonitorEntry> OutputLines => _monitor.OutputLines;
 
@@ -31,6 +39,16 @@ public class MonitorViewModel : ViewModelBase
     }
 
     public bool IsMonitorVisible => _monitor.IsVisible;
+
+    private void ExecuteSend()
+    {
+        Submit();
+    }
+
+    private void ExecuteClose()
+    {
+        RequestClose();
+    }
 
     public CommandResult Submit()
     {

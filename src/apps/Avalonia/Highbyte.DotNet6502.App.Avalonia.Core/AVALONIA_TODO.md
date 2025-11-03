@@ -1,6 +1,3 @@
-﻿C64ConfigDialog/C64ConfigUserControl:
-- Move logic to ViewModel, use Reactive commands instead of button click handlers.
-
-MonitorDialog/MonitorUserControl (and related ViewModels):
-- Move logic to ViewModel, use Reactive commands instead of button click handlers.
-
+﻿
+AvaloniaCommandTarget
+- Make rendering via C64 Commands Provider work with AvaloniaCommandTarget. Correctly map C64 screen codes to the font used.

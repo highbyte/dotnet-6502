@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
@@ -67,17 +66,12 @@ public partial class MonitorUserControl : UserControl
         _outputScrollViewer?.ScrollToEnd();
     }
 
-    private void SendButton_Click(object? sender, RoutedEventArgs e)
-    {
-        SubmitCommand();
-    }
-
     private void CommandTextBox_KeyDown(object? sender, KeyEventArgs e)
     {
         switch (e.Key)
         {
             case Key.Enter:
-                SubmitCommand();
+                _viewModel.SendCommand.Execute().Subscribe();
                 e.Handled = true;
                 break;
             case Key.Up:
@@ -97,23 +91,9 @@ public partial class MonitorUserControl : UserControl
                 e.Handled = true;
                 break;
             case Key.F12:
-                // Request close via ViewModel
-                _viewModel.RequestClose();
+                _viewModel.CloseCommand.Execute().Subscribe();
                 e.Handled = true;
                 break;
         }
-    }
-
-    private void SubmitCommand()
-    {
-        _viewModel.Submit();
-        _commandTextBox?.Focus();
-    }
-
-    private void CloseButton_Click(object? sender, RoutedEventArgs e)
-    {
-        // Submit an empty command which will trigger the close if needed
-        // Or better, add a public method to ViewModel to request close
-        _viewModel.RequestClose();
     }
 }

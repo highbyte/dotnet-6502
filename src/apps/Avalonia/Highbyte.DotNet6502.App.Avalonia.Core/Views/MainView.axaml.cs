@@ -141,12 +141,15 @@ public partial class MainView : UserControl
 
     private void ShowMonitorUI()
     {
+        // Check if running on WASM/Browser platform
         if (PlatformDetection.IsRunningInWebAssembly())
         {
+            // For WASM, show usercontrol overlay instead of Window
             ShowMonitorOverlay();
         }
         else
         {
+            // For desktop platforms, use the Window dialog
             ShowMonitorWindow();
             //ShowMonitorOverlay();
         }
