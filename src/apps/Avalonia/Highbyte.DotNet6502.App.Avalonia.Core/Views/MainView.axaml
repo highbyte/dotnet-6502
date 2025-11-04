@@ -192,21 +192,22 @@
                 </Grid.RowDefinitions>
 
                 <Grid Grid.Row="0"
+                    Name="EmulatorDisplayGrid"
                     Margin="0,0,0,10"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Top">
                     
                     <!-- Emulator Display Control -->
                     <views:EmulatorView Name="EmulatorView"
-   DataContext="{Binding EmulatorViewModel}"
-          Scale="{Binding $parent[UserControl].DataContext.Scale}"
-     IsVisible="{Binding $parent[UserControl].DataContext.IsEmulatorRunning}"/>
+                        DataContext="{Binding EmulatorViewModel}"
+                        Scale="{Binding $parent[UserControl].DataContext.Scale}"
+                        IsVisible="{Binding $parent[UserControl].DataContext.IsEmulatorRunning}"/>
 
-    <!-- Overlay message when not running -->
-       <views:EmulatorPlaceholderView Name="EmulatorPlaceholderView"
-    DataContext="{Binding EmulatorPlaceholderViewModel}"
-          Scale="{Binding $parent[UserControl].DataContext.Scale}"
-  IsVisible="{Binding !$parent[UserControl].DataContext.IsEmulatorRunning}"/>
+                <!-- Overlay message when not running -->
+                   <views:EmulatorPlaceholderView Name="EmulatorPlaceholderView"
+                        DataContext="{Binding EmulatorPlaceholderViewModel}"
+                        Scale="{Binding $parent[UserControl].DataContext.Scale}"
+                        IsVisible="{Binding !$parent[UserControl].DataContext.IsEmulatorRunning}"/>
                 </Grid>
 
                 <!-- Information Area - Tabbed Interface -->
@@ -217,13 +218,15 @@
                     CornerRadius="4"
                     Padding="0"
                     Height="200"
-                    VerticalAlignment="Top">
+                    VerticalAlignment="Top"
+                    HorizontalAlignment="Stretch"
+                    Width="{Binding #EmulatorDisplayGrid.Bounds.Width}">
                     
                     <TabControl Name="InformationTabControl">
                         <!-- Information Tab -->
                         <TabItem Name="InformationTabItem" Header="Information">
                             <Border Background="#2D3748" Padding="4">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="No information available."
                                             Classes="small"
@@ -237,7 +240,7 @@
                         <!-- Config Errors Tab -->
                         <TabItem Name="ConfigErrorsTabItem" Header="Config errors">
                             <Border Background="#2D3748" Padding="4">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                                     <StackPanel Spacing="4">
                                         <StackPanel Spacing="8" IsVisible="{Binding !IsSystemConfigValid}">
                                             <Border Background="Transparent"
@@ -266,9 +269,9 @@
 
                                         <StackPanel Spacing="5" IsVisible="{Binding IsSystemConfigValid}">
                                             <TextBlock Text="Configuration is valid."
-                                       Classes="small"
-                                       FontStyle="Italic"
-                                        Foreground="#A0AEC0"/>
+                                                Classes="small"
+                                                FontStyle="Italic"
+                                                Foreground="#A0AEC0"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </ScrollViewer>
@@ -278,7 +281,7 @@
                         <!-- Log Tab -->
                         <TabItem Name="LogTabItem" Header="Log">
                             <Border Background="#2D3748" Padding="4">
-                                <ScrollViewer x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto">
+                                <ScrollViewer x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                                     <ItemsControl ItemsSource="{Binding LogMessages}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -288,13 +291,13 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding}"
-                                            Classes="monospace"
-                                                Foreground="#A0AEC0"
-                                             TextWrapping="Wrap"
-                                             Margin="0"
-                                          Padding="0"
-                                               FontSize="10"
-                                              LineHeight="10"/>
+                                                    Classes="monospace"
+                                                    Foreground="#A0AEC0"
+                                                    TextWrapping="NoWrap"
+                                                    Margin="0"
+                                                    Padding="0"
+                                                    FontSize="10"
+                                                    LineHeight="10"/>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -310,9 +313,9 @@
         <Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="3"
          Background="#2D3748"
                 BorderBrush="#4A5568"
-  BorderThickness="1,0,0,0"
-   Padding="10"
-      IsVisible="{Binding IsStatisticsPanelVisible}">
+                BorderThickness="1,0,0,0"
+                Padding="10"
+                IsVisible="{Binding IsStatisticsPanelVisible}">
             <ScrollViewer>
                 <views:StatisticsView DataContext="{Binding StatisticsViewModel}" />
             </ScrollViewer>
