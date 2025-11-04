@@ -1,6 +1,8 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Reactive;
+using System.Reactive.Linq;
+using System.Threading.Tasks;
 using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
 using Highbyte.DotNet6502.Monitor;
 using ReactiveUI;
@@ -21,8 +23,14 @@ public class MonitorViewModel : ViewModelBase
         _monitor = monitor;
 
         // Initialize ReactiveUI commands
-        SendCommand = ReactiveCommand.Create(ExecuteSend);
-        CloseCommand = ReactiveCommand.Create(ExecuteClose);
+        SendCommand = ReactiveCommand.CreateFromTask(
+            ExecuteSend,
+            Observable.Return(true),
+            RxApp.MainThreadScheduler);
+        CloseCommand = ReactiveCommand.CreateFromTask(
+            ExecuteClose,
+            Observable.Return(true),
+            RxApp.MainThreadScheduler);
     }
 
     public ReactiveCommand<Unit, Unit> SendCommand { get; }
@@ -40,12 +48,12 @@ public class MonitorViewModel : ViewModelBase
 
     public bool IsMonitorVisible => _monitor.IsVisible;
 
-    private void ExecuteSend()
+    private async Task ExecuteSend()
     {
         Submit();
     }
 
-    private void ExecuteClose()
+    private async Task ExecuteClose()
     {
         RequestClose();
     }
@@ -59,7 +67,7 @@ public class MonitorViewModel : ViewModelBase
         // Raise event if monitor should be closed
         if (result == CommandResult.Continue || result == CommandResult.Quit)
         {
-            CloseRequested?.Invoke(this, EventArgs.Empty);
+            RequestClose();
         }
 
         return result;
@@ -70,6 +78,7 @@ public class MonitorViewModel : ViewModelBase
     /// </summary>
     public void RequestClose()
     {
+        Console.WriteLine("MonitorViewModel: RequestClose called.");
         CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 

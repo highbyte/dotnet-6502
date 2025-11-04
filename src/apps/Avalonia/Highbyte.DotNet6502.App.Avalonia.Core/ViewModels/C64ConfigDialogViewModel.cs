@@ -76,8 +76,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
             AutoDownloadROMsToFilesAsync,
             outputScheduler: RxApp.MainThreadScheduler);
 
-        ClearRomsCommand = ReactiveCommand.Create(
-            UnloadRoms,
+        ClearRomsCommand = ReactiveCommand.CreateFromTask(
+            () =>
+            {
+                UnloadRoms();
+                return Task.CompletedTask;
+            },
             outputScheduler: RxApp.MainThreadScheduler);
 
         SaveCommand = ReactiveCommand.CreateFromTask(
@@ -90,8 +94,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
             },
             outputScheduler: RxApp.MainThreadScheduler);
 
-        CancelCommand = ReactiveCommand.Create(
-            () => ConfigurationChanged?.Invoke(this, false),
+        CancelCommand = ReactiveCommand.CreateFromTask(
+            () =>
+            {
+                ConfigurationChanged?.Invoke(this, false);
+                return Task.CompletedTask;
+            },
             outputScheduler: RxApp.MainThreadScheduler);
     }
 
