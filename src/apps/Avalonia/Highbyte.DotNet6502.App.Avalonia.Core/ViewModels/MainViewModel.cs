@@ -205,7 +205,7 @@ public class MainViewModel : ViewModelBase
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Uninitialized),
-                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         SelectSystemVariantCommand = ReactiveCommand.CreateFromTask<string>(
             async (selectedVariant) =>
@@ -227,42 +227,58 @@ public class MainViewModel : ViewModelBase
                 x => x.EmulatorState,
                 x => x.IsSystemConfigValid,
                 (state, isValid) => isValid && state != EmulatorState.Running),
-                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        PauseCommand = ReactiveCommand.Create(
-            () => _hostApp.Pause(),
+        PauseCommand = ReactiveCommand.CreateFromTask(
+            () =>
+            {
+                _hostApp.Pause();
+                return Task.CompletedTask;
+            },
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Running),
-                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        StopCommand = ReactiveCommand.Create(
-            () => _hostApp.Stop(),
+        StopCommand = ReactiveCommand.CreateFromTask(
+            () =>
+            {
+                _hostApp.Stop();
+                return Task.CompletedTask;
+            },
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
-                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         ResetCommand = ReactiveCommand.CreateFromTask(
             async () => await _hostApp.Reset(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
-                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        MonitorCommand = ReactiveCommand.Create(
-            () => _hostApp.ToggleMonitor(),
+        MonitorCommand = ReactiveCommand.CreateFromTask(
+            () =>
+            {
+                _hostApp.ToggleMonitor();
+                return Task.CompletedTask;
+            },
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
-                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        StatsCommand = ReactiveCommand.Create(
-            () => _hostApp.ToggleStatisticsPanel(),
+        StatsCommand = ReactiveCommand.CreateFromTask(
+            () =>
+            {
+                _hostApp.ToggleStatisticsPanel();
+                return Task.CompletedTask;
+            },
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
-                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         // Handle command exceptions
         SelectSystemCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error selecting system"));

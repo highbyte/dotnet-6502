@@ -77,9 +77,14 @@ public partial class MainView : UserControl
         if (e.PropertyName == nameof(MainViewModel.IsMonitorVisible) && DataContext is MainViewModel viewModel)
         {
             if (viewModel.IsMonitorVisible)
+            {
                 ShowMonitorUI();
+            }
             else
-                CloseMonitorUI();
+            {
+                // Ensure UI operations run on UI thread
+                Dispatcher.UIThread.Post(() => CloseMonitorUI(), DispatcherPriority.Loaded);
+            }
         }
     }
 
@@ -150,8 +155,8 @@ public partial class MainView : UserControl
         else
         {
             // For desktop platforms, use the Window dialog
-            ShowMonitorWindow();
-            //ShowMonitorOverlay();
+            //ShowMonitorWindow();
+            ShowMonitorOverlay();
         }
     }
 
@@ -253,9 +258,11 @@ public partial class MainView : UserControl
 
     private void CloseMonitorOverlay()
     {
+        Console.WriteLine("MainView: CloseMonitorOverlay called.");
         if (_monitorOverlay == null)
             return;
 
+        Console.WriteLine("MainView: Removing monitor overlay from visual tree.");
         if (Content is Grid mainGrid && mainGrid.Children.Contains(_monitorOverlay))
             mainGrid.Children.Remove(_monitorOverlay);
 
@@ -263,15 +270,15 @@ public partial class MainView : UserControl
 
         if (DataContext is MainViewModel viewModel)
         {
+            Console.WriteLine("MainView: Clearing MonitorViewModel.");
             viewModel.ClearMonitorViewModel();
         }
 
         // Restore focus to EmulatorView
-        Dispatcher.UIThread.Post(() =>
-        {
-            var emulatorView = this.FindControl<EmulatorView>("EmulatorView");
-            emulatorView?.Focus();
-        }, DispatcherPriority.Loaded);
+        Console.WriteLine("MainView: Setting focus to EmulatorView.");
+        var emulatorView = this.FindControl<EmulatorView>("EmulatorView");
+        emulatorView?.Focus();
+        Console.WriteLine("MainView: Focus set to EmulatorView.");
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)

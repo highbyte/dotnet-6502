@@ -68,10 +68,14 @@ public partial class MonitorUserControl : UserControl
 
     private void CommandTextBox_KeyDown(object? sender, KeyEventArgs e)
     {
+
         switch (e.Key)
         {
             case Key.Enter:
-                _viewModel.SendCommand.Execute().Subscribe();
+                // Using Subscribe with explicit handler required for it to work in Browser (seem to use different internal code compared to .Subscribe() without parameters.
+                _viewModel.SendCommand.Execute().Subscribe(
+                    onNext: _ => { },
+                    onError: ex => Console.WriteLine($"Error: {ex.Message}"));
                 e.Handled = true;
                 break;
             case Key.Up:
@@ -91,7 +95,9 @@ public partial class MonitorUserControl : UserControl
                 e.Handled = true;
                 break;
             case Key.F12:
-                _viewModel.CloseCommand.Execute().Subscribe();
+                _viewModel.CloseCommand.Execute().Subscribe(
+                    onNext: _ => { },
+                    onError: ex => Console.WriteLine($"Error: {ex.Message}"));
                 e.Handled = true;
                 break;
         }
