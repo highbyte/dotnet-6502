@@ -40,8 +40,11 @@
     <ProjectReference Include="..\Highbyte.DotNet6502.App.Avalonia.Core\Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
   </ItemGroup>
 
-  <Target Name="CopyImages" AfterTargets="AfterBuild">
+  <Target Name="CopySharedAssets" AfterTargets="AfterBuild">
+    <!-- Copy logo image -->
     <Copy SourceFiles="..\..\..\..\resources\images\logo.png" DestinationFolder="wwwroot\images" />
+    <!-- Copy favicon from Core project's Assets folder -->
+    <Copy SourceFiles="..\Highbyte.DotNet6502.App.Avalonia.Core\Assets\favicon.ico" DestinationFolder="wwwroot" />
   </Target>
 
 </Project>

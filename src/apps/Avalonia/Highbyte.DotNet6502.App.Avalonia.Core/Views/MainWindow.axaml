@@ -7,7 +7,8 @@
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="900"
         x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="Highbyte.DotNet6502.App.Avalonia"
+        Title="DotNet 6502 Emulator"
+        Icon="avares://Highbyte.DotNet6502.App.Avalonia.Core/Assets/favicon.ico"
         WindowStartupLocation="Manual"
         Position="50,50"
         SizeToContent="WidthAndHeight">
