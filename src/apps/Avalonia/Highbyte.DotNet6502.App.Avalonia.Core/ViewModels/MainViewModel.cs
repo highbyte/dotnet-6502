@@ -17,7 +17,7 @@ public class MainViewModel : ViewModelBase
     private readonly EmulatorConfig _emulatorConfig;
     private readonly ILogger<MainViewModel> _logger;
 
-    // Expose HostApp for child views/viewmodels that need it
+    // Expose HostApp for EmulatorView that currently needs it (TODO: Consider removing this dependency via MainViewModel. Better that EmulatorViewModel provides it.)
     public AvaloniaHostApp HostApp => _hostApp;
 
     // Child ViewModels exposed as properties for XAML binding
