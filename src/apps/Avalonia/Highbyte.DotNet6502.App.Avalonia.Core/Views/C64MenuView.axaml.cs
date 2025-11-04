@@ -370,8 +370,8 @@ public partial class C64MenuView : UserControl
                 var fileBuffer = new byte[stream.Length];
                 await stream.ReadExactlyAsync(fileBuffer);
 
-                // Execute the command - it will await the Task internally
-                ViewModel!.LoadBasicFileCommand.Execute(fileBuffer).Subscribe();
+                // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
+                _ = ViewModel!.LoadBasicFileCommand.Execute(fileBuffer);
             }
             catch (Exception ex)
             {
@@ -444,8 +444,8 @@ public partial class C64MenuView : UserControl
                 var fileBuffer = new byte[stream.Length];
                 await stream.ReadExactlyAsync(fileBuffer);
 
-                // Execute the command - it will await the Task internally
-                ViewModel!.LoadBinaryFileCommand.Execute(fileBuffer).Subscribe();
+                // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
+                _ = ViewModel!.LoadBinaryFileCommand.Execute(fileBuffer);
             }
             catch (Exception ex)
             {

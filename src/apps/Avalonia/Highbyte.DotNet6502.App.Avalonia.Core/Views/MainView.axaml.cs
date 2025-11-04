@@ -119,8 +119,7 @@ public partial class MainView : UserControl
             var selectedSystem = e.AddedItems[0]?.ToString();
             if (!string.IsNullOrEmpty(selectedSystem))
             {
-                // Fire and forget - let the ReactiveCommand handle scheduling and execution
-                // This works in WebAssembly because we're not subscribing to the observable
+                // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
                 _ = viewModel.SelectSystemCommand.Execute(selectedSystem);
             }
         }

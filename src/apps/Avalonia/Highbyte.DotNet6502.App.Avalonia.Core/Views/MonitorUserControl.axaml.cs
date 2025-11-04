@@ -72,11 +72,8 @@ public partial class MonitorUserControl : UserControl
         switch (e.Key)
         {
             case Key.Enter:
-                // Using Subscribe with explicit handler required for it to work in Browser (seem to use different internal code compared to .Subscribe() without parameters.
-                _viewModel.SendCommand.Execute().Subscribe(
-                    onNext: _ => { },
-                    onError: ex => Console.WriteLine($"Error: {ex.Message}"));
-                e.Handled = true;
+                // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
+                _viewModel.SendCommand.Execute();
                 break;
             case Key.Up:
                 _viewModel.NavigateHistoryPrevious();
@@ -95,10 +92,8 @@ public partial class MonitorUserControl : UserControl
                 e.Handled = true;
                 break;
             case Key.F12:
-                _viewModel.CloseCommand.Execute().Subscribe(
-                    onNext: _ => { },
-                    onError: ex => Console.WriteLine($"Error: {ex.Message}"));
-                e.Handled = true;
+                // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
+                _viewModel.CloseCommand.Execute();
                 break;
         }
     }
