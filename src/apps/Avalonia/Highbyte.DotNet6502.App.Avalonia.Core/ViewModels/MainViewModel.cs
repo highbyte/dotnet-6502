@@ -67,6 +67,10 @@ public class MainViewModel : ViewModelBase
     private readonly ObservableAsPropertyHelper<ObservableCollection<string>> _validationErrors;
     public ObservableCollection<string> ValidationErrors => _validationErrors.Value;
 
+    // Computed property that updates when ValidationErrors changes
+    private readonly ObservableAsPropertyHelper<bool> _hasValidationErrors;
+    public bool HasValidationErrors => _hasValidationErrors.Value;
+
     // Private field for log messages collection
     private readonly ObservableCollection<string> _logMessages = new();
     public ObservableCollection<string> LogMessages => _logMessages;
@@ -177,6 +181,11 @@ public class MainViewModel : ViewModelBase
             .Select(errors => new ObservableCollection<string>(errors))
             .ToProperty(this, x => x.ValidationErrors);
 
+        _hasValidationErrors = _hostApp
+            .WhenAnyValue(x => x.ValidationErrors)
+            .Select(errors => errors != null && errors.Count > 0)
+            .ToProperty(this, x => x.HasValidationErrors);
+
         _isStatisticsPanelVisible = _hostApp
             .WhenAnyValue(x => x.IsStatsPanelVisible)
             .ToProperty(this, x => x.IsStatisticsPanelVisible);
@@ -217,8 +226,8 @@ public class MainViewModel : ViewModelBase
             async () => await _hostApp.Start(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
-                x => x.ValidationErrors.Count,
-                (state, errorCount) => errorCount == 0 && state != EmulatorState.Running),
+                x => x.HasValidationErrors,
+                (state, hasErrors) => !hasErrors && state != EmulatorState.Running),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         PauseCommand = ReactiveCommand.CreateFromTask(

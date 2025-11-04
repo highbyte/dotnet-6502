@@ -312,6 +312,9 @@ public partial class C64MenuView : UserControl
 
                 if (result)
                 {
+                    // Re-validate config in HostApp to update ValidationErrors
+                    await ViewModel!.HostApp!.ValidateConfigAsync();
+                    
                     // Notify C64MenuViewModel of state changes
                     ViewModel?.RefreshAllBindings();
                 }

@@ -242,12 +242,7 @@
                             <Border Background="#2D3748" Padding="4">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                                     <StackPanel Spacing="4">
-                                        <StackPanel Spacing="8">
-                                            <StackPanel.IsVisible>
-                                                <Binding Path="ValidationErrors.Count" 
-                                                         Converter="{x:Static ObjectConverters.NotEqual}" 
-                                                         ConverterParameter="0"/>
-                                            </StackPanel.IsVisible>
+                                        <StackPanel Spacing="8" IsVisible="{Binding HasValidationErrors}">
                                             <Border Background="Transparent"
                                                 BorderBrush="#E53E3E"
                                                 BorderThickness="1"
@@ -272,12 +267,7 @@
                                             </Border>
                                         </StackPanel>
 
-                                        <StackPanel Spacing="5">
-                                            <StackPanel.IsVisible>
-                                                <Binding Path="ValidationErrors.Count" 
-                                                         Converter="{x:Static ObjectConverters.Equal}" 
-                                                         ConverterParameter="0"/>
-                                            </StackPanel.IsVisible>
+                                        <StackPanel Spacing="5" IsVisible="{Binding !HasValidationErrors}">
                                             <TextBlock Text="Configuration is valid."
                                                 Classes="small"
                                                 FontStyle="Italic"
