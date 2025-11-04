@@ -6,7 +6,8 @@
     x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.MainView"
     x:DataType="vm:MainViewModel"
     Loaded="MainView_Loaded"
-    Focusable="false">
+    Focusable="false"
+    Opacity="0">
 
     <!-- DataContext will be set from code-behind via DI -->
 

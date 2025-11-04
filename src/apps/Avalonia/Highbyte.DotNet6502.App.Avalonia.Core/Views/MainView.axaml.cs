@@ -5,8 +5,10 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.Layout;
+using Avalonia.Styling;
 using System.Threading.Tasks;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
+using AvaloniaAnimation = Avalonia.Animation;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
@@ -41,10 +43,37 @@ public partial class MainView : UserControl
             return;
         _isInitialized = true;
 
+        // Start fade-in animation
+        await FadeIn();
+
         if (DataContext is MainViewModel viewModel)
         {
             await viewModel.InitializeAsync();
         }
+    }
+
+    private async Task FadeIn()
+    {
+        var animation = new AvaloniaAnimation.Animation
+        {
+            Duration = TimeSpan.FromMilliseconds(500),
+            FillMode = AvaloniaAnimation.FillMode.Forward,
+            Children =
+            {
+                new AvaloniaAnimation.KeyFrame
+                {
+                    Cue = new AvaloniaAnimation.Cue(0.0),
+                    Setters = { new Setter(OpacityProperty, 0.0) }
+                },
+                new AvaloniaAnimation.KeyFrame
+                {
+                    Cue = new AvaloniaAnimation.Cue(1.0),
+                    Setters = { new Setter(OpacityProperty, 1.0) }
+                }
+            }
+        };
+
+        await animation.RunAsync(this);
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
