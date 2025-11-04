@@ -47,9 +47,6 @@ public class MainViewModel : ViewModelBase
     public EmulatorState EmulatorState => _emulatorState.Value;
 
 
-    private readonly ObservableAsPropertyHelper<bool> _isSystemConfigValid;
-    public bool IsSystemConfigValid => _isSystemConfigValid.Value;
-
     private readonly ObservableAsPropertyHelper<double> _scale;
     public double Scale
     {
@@ -62,7 +59,7 @@ public class MainViewModel : ViewModelBase
 
     public bool IsC64SystemSelected => string.Equals(SelectedSystemName, C64.SystemName, StringComparison.OrdinalIgnoreCase);
 
-    // Computed properties for control enabled states based on EmulatorState and IsSystemConfigValid
+    // Computed properties for control enabled states based on EmulatorState
     public bool IsEmulatorRunning => EmulatorState == EmulatorState.Running;
     public bool IsEmulatorUninitialzied => EmulatorState == EmulatorState.Uninitialized;
 
@@ -180,11 +177,6 @@ public class MainViewModel : ViewModelBase
             .Select(errors => new ObservableCollection<string>(errors))
             .ToProperty(this, x => x.ValidationErrors);
 
-        _isSystemConfigValid = _hostApp
-            .WhenAnyValue(x => x.ValidationErrors)
-            .Select(errors => errors.Count == 0)
-            .ToProperty(this, x => x.IsSystemConfigValid);
-
         _isStatisticsPanelVisible = _hostApp
             .WhenAnyValue(x => x.IsStatsPanelVisible)
             .ToProperty(this, x => x.IsStatisticsPanelVisible);
@@ -225,8 +217,8 @@ public class MainViewModel : ViewModelBase
             async () => await _hostApp.Start(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
-                x => x.IsSystemConfigValid,
-                (state, isValid) => isValid && state != EmulatorState.Running),
+                x => x.ValidationErrors.Count,
+                (state, errorCount) => errorCount == 0 && state != EmulatorState.Running),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         PauseCommand = ReactiveCommand.CreateFromTask(

@@ -97,7 +97,7 @@ public partial class MainView : UserControl
     // If scale can change at runtime, listen for property changes
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        // Listen for changes to HasValidationErrors property
+        // Listen for changes to ValidationErrors property
         if (e.PropertyName == nameof(MainViewModel.ValidationErrors))
         {
             CheckAndSelectValidationErrorsTab();
@@ -119,13 +119,19 @@ public partial class MainView : UserControl
 
     private void CheckAndSelectValidationErrorsTab()
     {
-        if (_subscribedViewModel == null || _subscribedViewModel.IsSystemConfigValid)
+        if (_subscribedViewModel == null)
+            return;
+
+        // Check the actual ValidationErrors collection instead of IsSystemConfigValid
+        // to avoid timing issues with reactive property updates
+        if (_subscribedViewModel.ValidationErrors == null ||
+            _subscribedViewModel.ValidationErrors.Count == 0)
             return;
 
         // Use Dispatcher to ensure the control is properly initialized
         Dispatcher.UIThread.Post(() =>
         {
-            if (this.FindControl<TabItem>("ConfigErrorsTabItem") is TabItem configErrorsTab)
+            if (this.FindControl<TabItem>("ConfigStatusTabItem") is TabItem configErrorsTab)
             {
                 if (this.FindControl<TabControl>("InformationTabControl") is TabControl tabControl)
                 {
