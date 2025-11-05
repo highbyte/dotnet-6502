@@ -14,12 +14,6 @@
     <UserControl.Styles>
         <!-- Include non-focusable styles -->
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
-        
-        <!-- Style for error log tab -->
-        <Style Selector="TabItem.error-log">
-            <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-        </Style>
     </UserControl.Styles>
 
     <Grid ShowGridLines="False">
