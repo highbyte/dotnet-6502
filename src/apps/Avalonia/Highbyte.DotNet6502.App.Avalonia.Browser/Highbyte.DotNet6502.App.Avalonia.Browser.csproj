@@ -41,8 +41,8 @@
   </ItemGroup>
 
   <Target Name="CopySharedAssets" AfterTargets="AfterBuild">
-    <!-- Copy logo image -->
-    <Copy SourceFiles="..\..\..\..\resources\images\logo.png" DestinationFolder="wwwroot\images" />
+    <!-- Copy logo image from Core project's Assets folder -->
+    <Copy SourceFiles="..\Highbyte.DotNet6502.App.Avalonia.Core\Assets\logo.png" DestinationFolder="wwwroot\images" />
     <!-- Copy favicon from Core project's Assets folder -->
     <Copy SourceFiles="..\Highbyte.DotNet6502.App.Avalonia.Core\Assets\favicon.ico" DestinationFolder="wwwroot" />
   </Target>

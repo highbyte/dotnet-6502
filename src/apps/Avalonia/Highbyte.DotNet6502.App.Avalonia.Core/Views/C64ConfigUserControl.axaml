@@ -103,7 +103,7 @@
               <!-- Load button for WASM app to files via file picker to in-memory byte array -->
               <Button Content="Load ROMs from files"
                       MinWidth="150"
-                      Classes="secondary extraWide"
+                      Classes="extraWide"
                       IsVisible="{Binding IsRunningInWebAssembly}"
                       IsEnabled="{Binding IsNotBusy}"
                       Click="LoadRoms_Click"/>

@@ -6,11 +6,18 @@
              Focusable="False"
              IsTabStop="False">
 
-    <TextBlock Text="DotNet 6502 emulator"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Classes="h1" />
-
+    <StackPanel HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+        <Image Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Assets/logo.png"
+               Width="128"
+               Height="128"
+               Margin="0,0,0,20"
+               HorizontalAlignment="Center" />
+        
+        <TextBlock Text="DotNet 6502 emulator"
+                   HorizontalAlignment="Center"
+                   Classes="h1" />
+    </StackPanel>
 
     <!--<Grid Background="Black">
         <TextBlock x:Name="MessageTextBlock"
