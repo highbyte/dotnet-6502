@@ -68,7 +68,7 @@ public abstract class DotNet6502LoggerBase : ILogger
 
             var logMsg = builder.ToString();
 
-            WriteLog(logMsg);
+            WriteLog(logLevel, logMsg);
         }
         finally
         {
@@ -87,5 +87,6 @@ public abstract class DotNet6502LoggerBase : ILogger
         };
     }
 
+    public abstract void WriteLog(LogLevel logLevel, string message);
     public abstract void WriteLog(string message);
 }

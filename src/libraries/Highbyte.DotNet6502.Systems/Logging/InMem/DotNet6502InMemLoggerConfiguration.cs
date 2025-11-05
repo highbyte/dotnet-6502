@@ -15,5 +15,7 @@ public class DotNet6502InMemLoggerConfiguration
         _logStore = logStore;
     }
 
+    public void WriteLog(LogLevel logLevel, string message) => _logStore.WriteLog(logLevel, message);
+    
     public void WriteLog(string message) => _logStore.WriteLog(message);
 }

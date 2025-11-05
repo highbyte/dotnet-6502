@@ -296,12 +296,12 @@ public class MainViewModel : ViewModelBase
         // Subscribe to new log messages
         if (_hostApp.LogStore != null)
         {
-            _hostApp.LogStore.LogMessageAdded += (sender, logMessage) =>
+            _hostApp.LogStore.LogMessageAdded += (sender, logEntry) =>
             {
                 // Always add at end for UI order
                 global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    _logMessages.Add(logMessage);
+                    _logMessages.Add(logEntry.Message);
                 });
             };
         }

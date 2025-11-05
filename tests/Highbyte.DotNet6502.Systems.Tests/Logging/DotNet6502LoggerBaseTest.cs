@@ -126,14 +126,23 @@ public class DotNet6502LoggerBaseTest
 public class FakeLogger : DotNet6502LoggerBase
 {
     public List<string> LogMessages { get; } = new();
+    public List<(LogLevel LogLevel, string Message)> FullLogMessages { get; } = new();
+    
     public FakeLogger(ObjectPool<StringBuilder> stringBuilderPool, string categoryName) : base(stringBuilderPool, categoryName)
     {
     }
 
     public override bool IsEnabled(LogLevel logLevel) => true;
 
+    public override void WriteLog(LogLevel logLevel, string message)
+    {
+        LogMessages.Add(message);
+        FullLogMessages.Add((logLevel, message));
+    }
+
     public override void WriteLog(string message)
     {
         LogMessages.Add(message);
+        FullLogMessages.Add((LogLevel.Information, message));
     }
 }
