@@ -197,6 +197,13 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             DisableMonitor();
             _monitor = new AvaloniaMonitor(CurrentSystemRunner!, _emulatorConfig.Monitor);
         }
+
+        // _logger.LogTrace("Test trace");
+        // _logger.LogDebug("Test debug");
+        // _logger.LogInformation("Test information");
+        // _logger.LogWarning("Test warning");
+        // _logger.LogError("Test error");
+        // _logger.LogCritical("Test critical");
     }
 
     public override void OnAfterPause()

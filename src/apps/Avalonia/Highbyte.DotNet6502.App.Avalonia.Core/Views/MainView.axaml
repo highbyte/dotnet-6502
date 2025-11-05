@@ -14,6 +14,12 @@
     <UserControl.Styles>
         <!-- Include non-focusable styles -->
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
+        
+        <!-- Style for error log tab -->
+        <Style Selector="TabItem.error-log">
+            <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
     </UserControl.Styles>
 
     <Grid ShowGridLines="False">
@@ -279,9 +285,16 @@
                         </TabItem>
 
                         <!-- Log Tab -->
-                        <TabItem Name="LogTabItem" Header="Log">
+                        <TabItem Name="LogTabItem" Header="{Binding LogTabHeader}" Classes.error-log="{Binding HasLogErrors}">
                             <Border Background="#2D3748" Padding="4">
-                                <ScrollViewer x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <!-- Log content -->
+                                    <ScrollViewer Grid.Column="0" x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                                     <ItemsControl ItemsSource="{Binding LogMessages}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -290,18 +303,61 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding}"
-                                                    Classes="monospace"
-                                                    Foreground="#A0AEC0"
-                                                    TextWrapping="NoWrap"
-                                                    Margin="0"
-                                                    Padding="0"
-                                                    FontSize="10"
-                                                    LineHeight="10"/>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="16" />  <!-- Fixed width for symbol alignment -->
+                                                        <ColumnDefinition Width="*" />   <!-- Flexible width for message -->
+                                                    </Grid.ColumnDefinitions>
+                                                    
+                                                    <!-- Symbol container with proper alignment -->
+                                                    <Border Grid.Column="0" 
+                                                        Height="13"
+                                                        VerticalAlignment="Top">
+                                                        <TextBlock 
+                                                            Text="{Binding Symbol}"
+                                                            Classes.log-trace="{Binding IsTrace}"
+                                                            Classes.log-debug="{Binding IsDebug}"
+                                                            Classes.log-info="{Binding IsInfo}"
+                                                            Classes.log-warning="{Binding IsWarning}"
+                                                            Classes.log-error="{Binding IsError}"
+                                                            Classes.log-critical="{Binding IsCritical}"
+                                                            TextWrapping="NoWrap"
+                                                            FontSize="12"
+                                                            
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    
+                                                    <!-- Message text -->
+                                                    <TextBlock Grid.Column="1" 
+                                                        Text="{Binding Message}"
+                                                        Classes="monospace"
+                                                        Foreground="#A0AEC0"
+                                                        TextWrapping="NoWrap"
+                                                        Margin="0"
+                                                        Padding="0"
+                                                        FontSize="10"
+                                                        LineHeight="13"
+                                                        VerticalAlignment="Top"/>
+                                                </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </ScrollViewer>
+                                
+                                <!-- Clear button column -->
+                                <Border Grid.Column="1" Padding="4,0,0,0" VerticalAlignment="Top">
+                                    <Button Command="{Binding ClearLogCommand}"
+                                            Classes="compact"
+                                            Width="60"
+                                            Height="20"
+                                            FontSize="10"
+                                            Padding="2"
+                                            ToolTip.Tip="Clear log messages">
+                                        Clear
+                                    </Button>
+                                </Border>
+                                </Grid>
                             </Border>
                         </TabItem>
                     </TabControl>

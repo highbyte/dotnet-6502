@@ -6,6 +6,7 @@ using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
+using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
 
@@ -72,8 +73,23 @@ public class MainViewModel : ViewModelBase
     public bool HasValidationErrors => _hasValidationErrors.Value;
 
     // Private field for log messages collection
-    private readonly ObservableCollection<string> _logMessages = new();
-    public ObservableCollection<string> LogMessages => _logMessages;
+    private readonly ObservableCollection<LogDisplayEntry> _logMessages = new();
+    public ObservableCollection<LogDisplayEntry> LogMessages => _logMessages;
+
+    // Log tab header properties
+    private string _logTabHeader = "Log";
+    public string LogTabHeader
+    {
+        get => _logTabHeader;
+        private set => this.RaiseAndSetIfChanged(ref _logTabHeader, value);
+    }
+
+    private bool _hasLogErrors = false;
+    public bool HasLogErrors
+    {
+        get => _hasLogErrors;
+        private set => this.RaiseAndSetIfChanged(ref _hasLogErrors, value);
+    }
 
 
     // Statistics panel visibility
@@ -115,6 +131,7 @@ public class MainViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit> ResetCommand { get; }
     public ReactiveCommand<Unit, Unit> MonitorCommand { get; }
     public ReactiveCommand<Unit, Unit> StatsCommand { get; }
+    public ReactiveCommand<Unit, Unit> ClearLogCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemVariantCommand { get; }
     // --- End ReactiveUI Commands ---
@@ -281,6 +298,21 @@ public class MainViewModel : ViewModelBase
                 state => state != EmulatorState.Uninitialized),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
+        ClearLogCommand = ReactiveCommand.Create(
+            () =>
+            {
+                _logMessages.Clear();
+                UpdateLogTabHeader();
+                if (_hostApp.LogStore is DotNet6502InMemLogStore logStore)
+                {
+                    logStore.Clear();
+                }
+            },
+            this.WhenAnyValue(
+                x => x.LogMessages.Count,
+                count => count > 0),
+            RxApp.MainThreadScheduler);
+
         // Handle command exceptions
         SelectSystemCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error selecting system"));
         SelectSystemVariantCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error selecting system variant"));
@@ -301,7 +333,8 @@ public class MainViewModel : ViewModelBase
                 // Always add at end for UI order
                 global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    _logMessages.Add(logEntry.Message);
+                    _logMessages.Add(new LogDisplayEntry(logEntry));
+                    UpdateLogTabHeader();
                 });
             };
         }
@@ -332,16 +365,27 @@ public class MainViewModel : ViewModelBase
     {
         if (_hostApp?.LogStore == null)
             return;
-        var logs = _hostApp.LogStore.GetLogMessages();
+        var logs = _hostApp.LogStore.GetFullLogMessages();
         // Only update if the logs have changed
-        if (logs.Count != _logMessages.Count || !logs.SequenceEqual(_logMessages))
+        if (logs.Count != _logMessages.Count || !logs.Select(l => l.Message).SequenceEqual(_logMessages.Select(l => l.Message)))
         {
             _logMessages.Clear();
             foreach (var log in logs)
             {
-                _logMessages.Add(log);
+                _logMessages.Add(new LogDisplayEntry(log));
             }
         }
+        UpdateLogTabHeader();
+    }
+
+    /// <summary>
+    /// Updates the log tab header and error state based on error/critical message count
+    /// </summary>
+    private void UpdateLogTabHeader()
+    {
+        var errorCount = _logMessages.Count(m => m.LogLevel == LogLevel.Error || m.LogLevel == LogLevel.Critical);
+        LogTabHeader = errorCount > 0 ? $"Log ({errorCount})" : "Log";
+        HasLogErrors = errorCount > 0;
     }
 
     /// <summary>
@@ -360,5 +404,55 @@ public class MainViewModel : ViewModelBase
         viewModel.CloseRequested += (sender, e) => _hostApp.DisableMonitor();
 
         return viewModel;
+    }
+}
+
+/// <summary>
+/// Wrapper class for displaying log entries with appropriate symbols/icons
+/// </summary>
+public class LogDisplayEntry
+{
+    public string Symbol { get; }
+    public string Message { get; }
+    public LogLevel LogLevel { get; }
+    public string FormattedDisplay { get; }
+    
+    // Boolean properties for conditional class binding
+    public bool IsTrace { get; }
+    public bool IsDebug { get; }
+    public bool IsInfo { get; }
+    public bool IsWarning { get; }
+    public bool IsError { get; }
+    public bool IsCritical { get; }
+
+    public LogDisplayEntry(LogEntry logEntry)
+    {
+        LogLevel = logEntry.LogLevel;
+        Message = logEntry.Message;
+        Symbol = GetSymbolForLogLevel(logEntry.LogLevel);
+        FormattedDisplay = $"{Symbol} {Message}";
+        
+        // Set boolean flags for conditional class binding
+        IsTrace = logEntry.LogLevel == Microsoft.Extensions.Logging.LogLevel.Trace;
+        IsDebug = logEntry.LogLevel == Microsoft.Extensions.Logging.LogLevel.Debug;
+        IsInfo = logEntry.LogLevel == Microsoft.Extensions.Logging.LogLevel.Information;
+        IsWarning = logEntry.LogLevel == Microsoft.Extensions.Logging.LogLevel.Warning;
+        IsError = logEntry.LogLevel == Microsoft.Extensions.Logging.LogLevel.Error;
+        IsCritical = logEntry.LogLevel == Microsoft.Extensions.Logging.LogLevel.Critical;
+    }
+
+    private static string GetSymbolForLogLevel(LogLevel logLevel)
+    {
+        return logLevel switch
+        {
+            LogLevel.Trace => "○",        // Hollow circle for trace (can be colored)
+            LogLevel.Debug => "●",        // Filled circle for debug (can be colored)
+            LogLevel.Information => "●",  // Filled circle for info (can be colored)
+            LogLevel.Warning => "●",      // Filled circle for warning (can be colored)
+            LogLevel.Error => "●",        // Filled circle for error (can be colored)
+            LogLevel.Critical => "❌",    // Red cross mark for critical (kept as requested)
+            LogLevel.None => "○",         // Hollow circle for general/none (can be colored)
+            _ => "?"                      // Question mark for unknown
+        };
     }
 }

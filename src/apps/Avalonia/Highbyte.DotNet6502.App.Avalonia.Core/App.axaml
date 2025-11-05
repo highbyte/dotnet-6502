@@ -112,6 +112,31 @@
             <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
         </Style>
 
+        <!-- Log symbol styles -->
+        <Style Selector="TextBlock.log-trace">
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+        </Style>
+
+        <Style Selector="TextBlock.log-debug">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+        </Style>
+
+        <Style Selector="TextBlock.log-info">
+            <Setter Property="Foreground" Value="{DynamicResource SuccessColor}"/>
+        </Style>
+
+        <Style Selector="TextBlock.log-warning">
+            <Setter Property="Foreground" Value="{DynamicResource WarningColor}"/>
+        </Style>
+
+        <Style Selector="TextBlock.log-error">
+            <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
+        </Style>
+
+        <Style Selector="TextBlock.log-critical">
+            <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
+        </Style>
+
         <Style Selector="TextBlock.monospace">
             <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
             <Setter Property="FontSize" Value="12"/>
