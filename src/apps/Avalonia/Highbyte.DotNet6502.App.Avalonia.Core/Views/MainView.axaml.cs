@@ -91,6 +91,8 @@ public partial class MainView : UserControl
             CheckAndSelectValidationErrorsTab();
             // Listen for log changes
             _subscribedViewModel.LogMessages.CollectionChanged += LogMessages_CollectionChanged;
+            // Set up tab selection tracking
+            SetupTabSelectionTracking();
         }
     }
 
@@ -355,6 +357,30 @@ public partial class MainView : UserControl
                 double maxY = Math.Max(0, _logScrollViewer.Extent.Height - _logScrollViewer.Viewport.Height);
                 _logScrollViewer.Offset = new Vector(_logScrollViewer.Offset.X, maxY);
             }, DispatcherPriority.Loaded);
+        }
+    }
+
+    private void SetupTabSelectionTracking()
+    {
+        // Find the TabControl and set up selection change tracking
+        var tabControl = this.FindControl<TabControl>("InformationTabControl");
+        if (tabControl != null)
+        {
+            // Subscribe to tab selection changes
+            tabControl.SelectionChanged += OnTabSelectionChanged;
+            // Initialize current tab name
+            if (_subscribedViewModel != null && tabControl.SelectedItem is TabItem selectedTab)
+            {
+                _subscribedViewModel.SelectedTabName = selectedTab.Name ?? "";
+            }
+        }
+    }
+
+    private void OnTabSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_subscribedViewModel != null && sender is TabControl tabControl && tabControl.SelectedItem is TabItem selectedTab)
+        {
+            _subscribedViewModel.SelectedTabName = selectedTab.Name ?? "";
         }
     }
 

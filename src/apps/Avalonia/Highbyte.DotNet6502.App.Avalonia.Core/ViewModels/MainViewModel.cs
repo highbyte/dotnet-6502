@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
+using System.Timers;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
@@ -12,7 +14,7 @@ using ReactiveUI;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
-public class MainViewModel : ViewModelBase
+public class MainViewModel : ViewModelBase, IDisposable
 {
     private readonly AvaloniaHostApp _hostApp;
     private readonly EmulatorConfig _emulatorConfig;
@@ -91,6 +93,61 @@ public class MainViewModel : ViewModelBase
         private set => this.RaiseAndSetIfChanged(ref _hasLogErrors, value);
     }
 
+    // Tab tracking for performance optimization
+    private string _selectedTabName = "";
+    public string SelectedTabName
+    {
+        get => _selectedTabName;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedTabName, value);
+            
+            // Notify that log tab visibility may have changed
+            this.RaisePropertyChanged(nameof(IsLogTabVisible));
+            
+            // If log tab just became visible and there are pending updates, trigger immediate update
+            if (IsLogTabVisible)
+            {
+                lock (_logUpdateLock)
+                {
+                    if (_hasPendingLogUpdates)
+                    {
+                        // Copy new messages from backing store to UI collection
+                        var newMessages = _logMessagesBackingStore.Skip(_logMessages.Count).ToList();
+                        _hasPendingLogUpdates = false;
+                        
+                        global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            try
+                            {
+                                // Add new messages to UI collection
+                                foreach (var message in newMessages)
+                                {
+                                    _logMessages.Add(message);
+                                }
+                                UpdateLogTabHeader();
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error updating log UI on tab switch");
+                            }
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Check if log tab is currently visible by name
+    public bool IsLogTabVisible => string.Equals(_selectedTabName, "LogTabItem", StringComparison.OrdinalIgnoreCase);
+
+    // Timer for batched UI updates
+    private Timer? _logUpdateTimer;
+    private readonly object _logUpdateLock = new object();
+    private bool _hasPendingLogUpdates = false;
+    
+    // Thread-safe backing collection for log messages
+    private readonly List<LogDisplayEntry> _logMessagesBackingStore = new();
 
     // Statistics panel visibility
     private readonly ObservableAsPropertyHelper<bool> _isStatisticsPanelVisible;
@@ -301,7 +358,12 @@ public class MainViewModel : ViewModelBase
         ClearLogCommand = ReactiveCommand.Create(
             () =>
             {
-                _logMessages.Clear();
+                lock (_logUpdateLock)
+                {
+                    _logMessagesBackingStore.Clear();
+                    _logMessages.Clear();
+                    _hasPendingLogUpdates = false;
+                }
                 UpdateLogTabHeader();
                 if (_hostApp.LogStore is DotNet6502InMemLogStore logStore)
                 {
@@ -323,6 +385,9 @@ public class MainViewModel : ViewModelBase
         MonitorCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Monitor command"));
         StatsCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Stats command"));
 
+        // Initialize timer for batched log UI updates
+        InitializeLogUpdateTimer();
+
         // Populate log messages initially
         RefreshLogMessages();
         // Subscribe to new log messages
@@ -330,12 +395,12 @@ public class MainViewModel : ViewModelBase
         {
             _hostApp.LogStore.LogMessageAdded += (sender, logEntry) =>
             {
-                // Always add at end for UI order
-                global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                // Add message to backing store on current thread (no UI dispatch!)
+                lock (_logUpdateLock)
                 {
-                    _logMessages.Add(new LogDisplayEntry(logEntry));
-                    UpdateLogTabHeader();
-                });
+                    _logMessagesBackingStore.Add(new LogDisplayEntry(logEntry));
+                    _hasPendingLogUpdates = true;
+                }
             };
         }
 
@@ -359,6 +424,62 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Initialize the timer for batched log UI updates
+    /// </summary>
+    private void InitializeLogUpdateTimer()
+    {
+        _logUpdateTimer = new Timer(500); // Interval in ms
+        _logUpdateTimer.Elapsed += OnLogUpdateTimerElapsed;
+        _logUpdateTimer.AutoReset = true;
+        _logUpdateTimer.Start();
+    }
+
+    /// <summary>
+    /// Timer callback for batched log UI updates - only updates UI when log tab is visible
+    /// </summary>
+    private void OnLogUpdateTimerElapsed(object? sender, ElapsedEventArgs e)
+    {
+        lock (_logUpdateLock)
+        {
+            // Only update UI notifications if there are pending updates and log tab is visible
+            if (_hasPendingLogUpdates && IsLogTabVisible)
+            {
+                // Copy new messages from backing store to UI collection
+                var newMessages = _logMessagesBackingStore.Skip(_logMessages.Count).ToList();
+                _hasPendingLogUpdates = false;
+                
+                // Dispatch UI update to UI thread
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    try
+                    {
+                        // Add new messages to UI collection
+                        foreach (var message in newMessages)
+                        {
+                            _logMessages.Add(message);
+                        }
+                        UpdateLogTabHeader();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error updating log UI");
+                    }
+                });
+            }
+            // If log tab is not visible, keep pending updates flag to update later when tab becomes visible
+            else if (_hasPendingLogUpdates && !IsLogTabVisible)
+            {
+                // Keep the flag, will update when tab becomes visible
+            }
+            else
+            {
+                // Reset flag if no pending updates
+                _hasPendingLogUpdates = false;
+            }
+        }
+    }
+
+    /// <summary>
     /// Refresh the log messages from the HostApp's log store
     /// </summary>
     public void RefreshLogMessages()
@@ -366,13 +487,24 @@ public class MainViewModel : ViewModelBase
         if (_hostApp?.LogStore == null)
             return;
         var logs = _hostApp.LogStore.GetFullLogMessages();
-        // Only update if the logs have changed
-        if (logs.Count != _logMessages.Count || !logs.Select(l => l.Message).SequenceEqual(_logMessages.Select(l => l.Message)))
+        
+        lock (_logUpdateLock)
         {
-            _logMessages.Clear();
+            // Update both backing store and UI collection with initial data
+            _logMessagesBackingStore.Clear();
             foreach (var log in logs)
             {
-                _logMessages.Add(new LogDisplayEntry(log));
+                _logMessagesBackingStore.Add(new LogDisplayEntry(log));
+            }
+            
+            // Only update UI collection if the logs have changed
+            if (logs.Count != _logMessages.Count || !logs.Select(l => l.Message).SequenceEqual(_logMessages.Select(l => l.Message)))
+            {
+                _logMessages.Clear();
+                foreach (var entry in _logMessagesBackingStore)
+                {
+                    _logMessages.Add(entry);
+                }
             }
         }
         UpdateLogTabHeader();
@@ -404,6 +536,20 @@ public class MainViewModel : ViewModelBase
         viewModel.CloseRequested += (sender, e) => _hostApp.DisableMonitor();
 
         return viewModel;
+    }
+
+    /// <summary>
+    /// Dispose of resources including the log update timer
+    /// </summary>
+    public void Dispose()
+    {
+        if (_logUpdateTimer != null)
+        {
+            _logUpdateTimer.Stop();
+            _logUpdateTimer.Elapsed -= OnLogUpdateTimerElapsed;
+            _logUpdateTimer.Dispose();
+            _logUpdateTimer = null;
+        }
     }
 }
 
