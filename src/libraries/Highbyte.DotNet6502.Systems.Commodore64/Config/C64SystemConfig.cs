@@ -74,9 +74,10 @@ public class C64SystemConfig : ISystemConfig
         _isDirty = true;
     }
 
-    public static string DEFAULT_KERNAL_ROM_DOWNLOAD_URL = "https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/kernal.901227-03.bin";
-    public static string DEFAULT_BASIC_ROM_DOWNLOAD_URL = "https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/basic.901226-01.bin";
-    public static string DEFAULT_CHARGEN_ROM_DOWNLOAD_URL = "https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/characters.901225-01.bin";
+    public static string DEFAULT_KERNAL_ROM_DOWNLOAD_BASE_URL = "https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/";
+    public static string DEFAULT_KERNAL_ROM_DOWNLOAD_URL = $"{DEFAULT_KERNAL_ROM_DOWNLOAD_BASE_URL}/kernal.901227-03.bin";
+    public static string DEFAULT_BASIC_ROM_DOWNLOAD_URL = $"{DEFAULT_KERNAL_ROM_DOWNLOAD_BASE_URL}/basic.901226-01.bin";
+    public static string DEFAULT_CHARGEN_ROM_DOWNLOAD_URL = $"{DEFAULT_KERNAL_ROM_DOWNLOAD_BASE_URL}/characters.901225-01.bin";
 
     // TODO: Decide if ROM checksums should exist in C64SystemConfig, C64Config, or in C64
     // ROM version info from: https://www.commodore.ca/manuals/funet/cbm/firmware/computers/c64/

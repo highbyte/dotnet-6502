@@ -591,6 +591,83 @@
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
+
+        <!-- Default Expander style -->
+        <Style Selector="Expander">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="MinHeight" Value="28"/>
+            <Setter Property="CornerRadius" Value="2"/>
+            <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        </Style>
+
+        <Style Selector="Expander:pointerover /template/ Border#Background">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+        </Style>
+
+        <Style Selector="Expander:focus /template/ Border#Background">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+        </Style>
+
+        <!-- Small Expander for compact spaces -->
+        <Style Selector="Expander.small">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Padding" Value="4,3"/>
+            <Setter Property="MinHeight" Value="24"/>
+        </Style>
+
+        <!-- Large Expander for important selections -->
+        <Style Selector="Expander.large">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="MinHeight" Value="38"/>
+        </Style>
+
+        <!-- Compact Expander with minimal padding -->
+        <Style Selector="Expander.compact">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="MinHeight" Value="22"/>
+        </Style>
+
+        <!-- Field-aligned Expander to match field-label TextBlocks -->
+        <Style Selector="Expander.field-aligned">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Expander item text styling -->
+        <Style Selector="Expander TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+        </Style>
+
+        <Style Selector="Expander.small TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+
+        <Style Selector="Expander.large TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+
+        <Style Selector="Expander.compact TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+
+        <Style Selector="Expander.field-aligned TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+
         <!-- TabItem Styles -->
 
         <!-- Compact TabItem style for smaller headers -->

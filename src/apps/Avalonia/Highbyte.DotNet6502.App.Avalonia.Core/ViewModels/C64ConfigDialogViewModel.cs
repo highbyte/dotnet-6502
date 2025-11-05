@@ -283,6 +283,13 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
     public async Task AutoDownloadRomsToByteArrayAsync()
     {
+        // Request acknowledgement before downloading
+        if (!await RequestRomLicenseAcknowledgement())
+        {
+            StatusMessage = "ROM download cancelled.";
+            return;
+        }
+
         try
         {
             IsBusy = true;
@@ -308,6 +315,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         finally
         {
             IsBusy = false;
+            RomStatuses.Clear();
             UpdateRomStatuses();
             UpdateValidationMessageFromConfig();
         }
@@ -315,6 +323,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
     public async Task AutoDownloadROMsToFilesAsync()
     {
+        // Request acknowledgement before downloading
+        if (!await RequestRomLicenseAcknowledgement())
+        {
+            StatusMessage = "";
+            return;
+        }
 
         try
         {
@@ -368,6 +382,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         finally
         {
             IsBusy = false;
+            RomStatuses.Clear();
             UpdateRomStatuses();
             UpdateValidationMessageFromConfig();
         }
@@ -635,6 +650,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
             RomStatuses.Remove(obsolete);
         }
 
+        // Notify that RomStatuses collection has been updated
+        this.RaisePropertyChanged(nameof(RomStatuses));
         this.RaisePropertyChanged(nameof(RomStatusSummary));
     }
 
@@ -772,6 +789,34 @@ public class C64ConfigDialogViewModel : ViewModelBase
         return C64SystemConfig.RequiredROMs.FirstOrDefault(required =>
             nameWithoutExtension.Contains(required, StringComparison.OrdinalIgnoreCase));
     }
+
+    private Task<bool> RequestRomLicenseAcknowledgement()
+    {
+        var tcs = new TaskCompletionSource<bool>();
+        
+        var args = new RomLicenseAcknowledgementEventArgs(tcs);
+        RomLicenseAcknowledgementRequested?.Invoke(this, args);
+        
+        return tcs.Task;
+    }
+
+    // Add event for ROM license acknowledgement request
+    public event EventHandler<RomLicenseAcknowledgementEventArgs>? RomLicenseAcknowledgementRequested;
+}
+
+public class RomLicenseAcknowledgementEventArgs : EventArgs
+{
+    private readonly TaskCompletionSource<bool> _taskCompletionSource;
+
+    public RomLicenseAcknowledgementEventArgs(TaskCompletionSource<bool> taskCompletionSource)
+    {
+        _taskCompletionSource = taskCompletionSource;
+    }
+
+    public void SetResult(bool acknowledged)
+    {
+        _taskCompletionSource.TrySetResult(acknowledged);
+    }
 }
 
 public class RomStatusViewModel : ReactiveObject
@@ -837,6 +882,7 @@ public class RomStatusViewModel : ReactiveObject
     {
         IsLoaded = data.IsLoaded;
         Details = data.Details;
+        RomFile = data.RomFile;
         ForegroundColor = data.ForegroundColor;
         SetRomFile(data.RomFile, suppressCallback: true);
     }

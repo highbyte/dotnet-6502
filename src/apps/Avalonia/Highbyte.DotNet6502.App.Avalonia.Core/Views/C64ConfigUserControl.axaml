@@ -237,9 +237,10 @@
             <!-- Collapsible Keyboard Mappings Section -->
             <Expander Header="Keyboard mappings"
                       Foreground="#CBD5E0"
-                      IsExpanded="False">
+                      IsExpanded="False"
+                      Classes="small field-aligned">
               <ItemsControl ItemsSource="{Binding KeyboardMappings}"
-                            Margin="0,8,0,0">
+                            Margin="0,4,0,0">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:KeyMappingEntry">
                     <DockPanel Margin="0,2">
