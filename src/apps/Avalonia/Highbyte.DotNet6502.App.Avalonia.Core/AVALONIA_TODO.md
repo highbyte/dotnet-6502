@@ -1,4 +1,8 @@
-﻿Audio:
+﻿Avalonia browser app:
+- Detect old version loaded from browser cache and let user refresh via button
+- May also be implemented in the Blazor WASM app.
+
+Audio:
 - Implement via existing NAudio code in AvaDesktop app
 - Maybe for future in Avalonia Browser: Investigate audio/synth alternatives that is compatible with WebAssembly. Preferably without having to write browser WebAudio JS API interop code.
 
