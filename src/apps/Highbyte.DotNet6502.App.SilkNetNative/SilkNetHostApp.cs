@@ -241,7 +241,7 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
         base.Close();
     }
 
-    public override void OnAfterSelectSystem()
+    public override void OnAfterSelectedSystemChanged()
     {
     }
 

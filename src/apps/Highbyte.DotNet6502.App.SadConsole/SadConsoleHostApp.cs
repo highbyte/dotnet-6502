@@ -373,7 +373,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
             });
     }
 
-    public override void OnAfterSelectSystem()
+    public override void OnAfterSelectedSystemChanged()
     {
         // Hack for when selecting a system during initialization triggers this event.
         if (_menuConsole == null)

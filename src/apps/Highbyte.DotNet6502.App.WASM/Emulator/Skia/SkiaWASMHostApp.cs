@@ -152,7 +152,7 @@ public class SkiaWASMHostApp : HostApp<AspNetInputHandlerContext, WASMAudioHandl
     }
 
 
-    public override void OnAfterSelectSystem()
+    public override void OnAfterSelectedSystemChanged()
     {
     }
 
