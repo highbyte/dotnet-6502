@@ -16,6 +16,18 @@
         <h2>Loading...</h2>
     </div>
 </div>
+<script>
+// Safari compatibility check
+if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
+    // Show a warning but allow user to continue
+    if (confirm('⚠️ Safari Compatibility Notice\n\nThis emulator may not work correctly in Safari due to WebAssembly limitations. Please use Chrome/Edge (or other Chromium-based browsers), or Firefox.\n\nContinue anyway?')) {
+        // User chose to continue - load the app
+    } else {
+        // User chose not to continue - redirect to notice page
+        window.location.href = './safari-notice.html';
+    }
+}
+</script>
 <script type='module' src="./main.js"></script>
 </body>
 
