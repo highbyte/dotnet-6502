@@ -1,6 +1,9 @@
 ﻿Stats panel (Browser):
 - Change to it appears directly on the right side of emulator view (column 1).
 
+C64 AI Basic:
+- Implement like in Blazor WASM app
+
 Avalonia browser app:
 - Detect old version loaded from browser cache and let user refresh via button
 - May also be implemented in the Blazor WASM app.
