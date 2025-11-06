@@ -52,10 +52,69 @@ public class C64VideoCommandStream : IRenderProvider, IVideoCommandStream
     // Called only from legacy render pipeline
     public void GenerateCommands()
     {
+        GenerateConfig(_c64);
         RenderBorder(_c64);
         RenderMainScreen(_c64);
     }
 
+    private void GenerateConfig(C64 c64)
+    {
+        var configCommand = new SetConfig(
+            GlyphToUnicodeConverter: FromC64ScreenCodeToUnicode);
+
+        _commands.Enqueue(configCommand);
+    }
+
+    private string FromC64ScreenCodeToUnicode(byte c64ScreenCode)
+    {
+        // Convert C64 screen code to PETSCII, then to ASCII, then to string
+        try
+        {
+            string representAsString;
+            switch (c64ScreenCode)
+            {
+                case 0xa0:  //160, C64 inverted space
+                case 0xe0:  //224, Also C64 inverted space?
+                    // Unicode for Inverted square in https://style64.org/c64-truetype font
+                    representAsString = ((char)0x2588).ToString();
+                    break;
+
+                default:
+                    var petsciiCode = Petscii.C64ScreenCodeToPetscII(c64ScreenCode);
+                    var asciiCode = Petscii.PetscIIToAscII(petsciiCode);
+
+                    switch (asciiCode)
+                    {
+                        case 0x00:  // Uninitialized
+                            representAsString = " "; // Replace with space
+                            break;
+
+                        default:
+                            // Check if asciiCode is a letter
+                            if (asciiCode >= 0x61 && asciiCode <= 0x7A) // a-z
+                            {
+                                // Even though both upper and lowercase characters are used in the 6502 program (and in the font), show all as uppercase for C64 look.
+                                // Convert to uppercase
+                                //asciiCode = asciiCode - 0x20;
+                                representAsString = Convert.ToString((char)asciiCode).ToUpper();
+                            }
+                            else
+                            {
+                                representAsString = Convert.ToString((char)asciiCode);
+                            }
+                            break;
+                    }
+                    break;
+            }
+
+            return representAsString;
+        }
+        catch
+        {
+            // Fallback for any conversion errors
+            return " ";
+        }
+    }
 
     private void RenderMainScreen(C64 c64)
     {

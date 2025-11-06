@@ -28,6 +28,7 @@ public sealed class SkiaCommandTarget : ICommandTarget, IDisposable
     // Color caches to avoid repeated SKColor allocations
     private static readonly ConcurrentDictionary<uint, SKColor> _argbColorCache = new();
     private static readonly ConcurrentDictionary<Color, SKColor> _systemColorCache = new();
+    private Func<byte, string> _glyphToUnicodeMapper;
     private const int MaxColorCacheItemSize = 1024; // Prevent unlimited memory growth
 
     public string Name => "SkiaCommandTarget";
@@ -71,6 +72,10 @@ public sealed class SkiaCommandTarget : ICommandTarget, IDisposable
 
         switch (cmd)
         {
+            case SetConfig(var glyphToUnicodeConverter):
+                _glyphToUnicodeMapper = glyphToUnicodeConverter;
+                break;
+
             case FillRect(var x, var y, var w, var h, var color):
                 DrawFillRect(canvas, x, y, w, h, color);
                 break;
@@ -190,25 +195,40 @@ public sealed class SkiaCommandTarget : ICommandTarget, IDisposable
 
     private string GetDrawTextFromCharacter(byte chr)
     {
-        string representAsString;
-        switch (chr)
+        if (_glyphToUnicodeMapper != null)
         {
-            case 0x00:  // Uninitialized
-            case 0x0a:  // NewLine/CarrigeReturn
-            case 0x0d:  // NewLine/CarrigeReturn
-                representAsString = " "; // Replace with space
-                break;
-            case 0xa0:  //160, C64 inverted space
-            case 0xe0:  //224, Also C64 inverted space?
-                // Unicode for Inverted square in https://style64.org/c64-truetype font
-                representAsString = ((char)0x2588).ToString();
-                break;
-            default:
-                // Even though both upper and lowercase characters are used in the 6502 program (and in the font), show all as uppercase for C64 look.
-                representAsString = Convert.ToString((char)chr).ToUpper();
-                break;
+            return _glyphToUnicodeMapper(chr);
         }
-        return representAsString;
+
+        // Default handling of assuming chr is a ascii code
+        return Convert.ToString((char)chr).ToUpper();
+
+        // return chr switch
+        // {
+        //     0x00 or 0x0a or 0x0d => " ", // Uninitialized, NewLine/CarriageReturn
+        //     0xa0 or 0xe0 => "█", // C64 inverted space - Unicode block character
+        //     _ => Convert.ToString((char)chr).ToUpper() // Show all as uppercase for C64 look
+        // };
+
+        // string representAsString;
+        // switch (chr)
+        // {
+        //     case 0x00:  // Uninitialized
+        //     case 0x0a:  // NewLine/CarrigeReturn
+        //     case 0x0d:  // NewLine/CarrigeReturn
+        //         representAsString = " "; // Replace with space
+        //         break;
+        //     case 0xa0:  //160, C64 inverted space
+        //     case 0xe0:  //224, Also C64 inverted space?
+        //         // Unicode for Inverted square in https://style64.org/c64-truetype font
+        //         representAsString = ((char)0x2588).ToString();
+        //         break;
+        //     default:
+        //         // Even though both upper and lowercase characters are used in the 6502 program (and in the font), show all as uppercase for C64 look.
+        //         representAsString = Convert.ToString((char)chr).ToUpper();
+        //         break;
+        // }
+        // return representAsString;
     }
 
     public void Dispose()

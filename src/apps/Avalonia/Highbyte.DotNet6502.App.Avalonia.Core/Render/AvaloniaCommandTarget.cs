@@ -18,6 +18,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Render;
 public sealed class AvaloniaCommandTarget : ICommandTarget, IDisposable
 {
     private DrawingContext? _currentContext;
+    private Func<byte, string> _glyphToUnicodeMapper;
     private readonly Dictionary<uint, IBrush> _brushCache = new();
     private readonly int _cellWidth;
     private readonly int _cellHeight;
@@ -71,6 +72,10 @@ public sealed class AvaloniaCommandTarget : ICommandTarget, IDisposable
 
         switch (cmd)
         {
+            case SetConfig(var glyphToUnicodeConverter):
+                _glyphToUnicodeMapper = glyphToUnicodeConverter;
+                break;
+
             case FillRect(var x, var y, var w, var h, var color):
                 DrawFillRect(_currentContext, x, y, w, h, color);
                 break;
@@ -142,7 +147,8 @@ public sealed class AvaloniaCommandTarget : ICommandTarget, IDisposable
 
             // Position the text within the cell
             // For better positioning, align text to top-left and add small padding
-            var textPoint = new Point(pixelX + 1, pixelY + 1);
+            //var textPoint = new Point(pixelX + 1, pixelY + 1);
+            var textPoint = new Point(pixelX, pixelY);
             context.DrawText(formattedText, textPoint);
         }
     }
@@ -198,11 +204,18 @@ public sealed class AvaloniaCommandTarget : ICommandTarget, IDisposable
 
     private string GetDrawTextFromCharacter(byte chr)
     {
-        return chr switch
+        // chr can by either a ascii code or a system-specific glyph id / screen code
+        if (_glyphToUnicodeMapper != null)
         {
-            0x00 or 0x0a or 0x0d => " ", // Uninitialized, NewLine/CarriageReturn
-            0xa0 or 0xe0 => "█", // C64 inverted space - Unicode block character
-            _ => Convert.ToString((char)chr).ToUpper() // Show all as uppercase for C64 look
-        };
+            return _glyphToUnicodeMapper(chr);
+        }
+
+        // Default handling of assuming chr is a ascii code
+        return Convert.ToString((char)chr).ToUpper();
+    }
+
+    public void SetGlyphToUnicodeMapper(Func<byte, string> glyphToUnicodeMapper)
+    {
+        _glyphToUnicodeMapper = glyphToUnicodeMapper;
     }
 }

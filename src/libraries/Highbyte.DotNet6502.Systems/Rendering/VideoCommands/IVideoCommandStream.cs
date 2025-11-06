@@ -11,6 +11,7 @@ public interface IVideoCommandStream : IRenderSource
 
 public interface IVideoCommand { }
 
+public sealed record SetConfig(Func<byte, string> GlyphToUnicodeConverter) : IVideoCommand;
 public sealed record FillRect(int X, int Y, int W, int H, uint ColorArgb) : IVideoCommand;
 public sealed record DrawGlyphArgb(int X, int Y, int GlyphId, uint ForeColorArgb, uint BackColorArgb) : IVideoCommand;
 

@@ -133,7 +133,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
                     new RenderSize(CurrentRunningSystem!.Screen.VisibleWidth, CurrentRunningSystem!.Screen.VisibleHeight)));
 
                 // Avalonia-specific command based target for Skia-like rendering using Avalonia drawing primitives
-                rtp.AddRenderTargetType<AvaloniaCommandTarget>(() => new AvaloniaCommandTarget(cellWidth: 8, cellHeight: 8, fontSize: 8));
+                rtp.AddRenderTargetType<AvaloniaCommandTarget>(() => new AvaloniaCommandTarget(
+                    cellWidth: 8,
+                    cellHeight: 8,
+                    fontSize: 8));
             },
             () =>
             {
