@@ -24,8 +24,8 @@
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="200" />
-            <ColumnDefinition Width="*" MinWidth="800" />
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="200" />
         </Grid.ColumnDefinitions>
 
         <!-- Menu and Controls Panel (Left) -->
@@ -361,12 +361,12 @@
 
         <!-- Info and Stats Panel (Right) -->
         <Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="3"
-         Background="#2D3748"
-                BorderBrush="#4A5568"
-                BorderThickness="1,0,0,0"
-                Padding="10"
-                IsVisible="{Binding IsStatisticsPanelVisible}">
-            <ScrollViewer>
+            Background="#2D3748"
+            BorderBrush="#4A5568"
+            BorderThickness="1,0,0,0"
+            Padding="10"
+            IsVisible="{Binding IsStatisticsPanelVisible}">
+            <ScrollViewer HorizontalAlignment="Stretch">
                 <views:StatisticsView DataContext="{Binding StatisticsViewModel}" />
             </ScrollViewer>
         </Border>

@@ -18,19 +18,16 @@
                Padding="8"
                CornerRadius="4">
             <ItemsControl ItemsSource="{Binding Sections}"
-                          HorizontalAlignment="Stretch">
+                          HorizontalAlignment="Left">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Margin="0,8,0,0"
-                                    HorizontalAlignment="Stretch">
+                        <StackPanel Margin="0,8,0,0">
                             <TextBlock Text="{Binding Title, StringFormat='{}{0}:'}"
                                        Classes="label"/>
-                            <ItemsControl ItemsSource="{Binding Items}"
-                                          HorizontalAlignment="Stretch">
+                            <ItemsControl ItemsSource="{Binding Items}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Margin="0,2"
-                                              HorizontalAlignment="Stretch">
+                                        <Grid Margin="0,2">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"
                                                                   SharedSizeGroup="StatName"/>
