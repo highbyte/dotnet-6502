@@ -21,7 +21,7 @@ env:
    GH_PAGES_WORKING_DIR: "ghpages"
    GH_PAGES_BRANCH_NAME: "gh-pages"
    
-   VERSION: "0.0.1-test" # Hardcoded version for test/lab builds
+   VERSION: "0.0.2-test" # Hardcoded version for test/lab builds
    
 jobs:
   deploy:
