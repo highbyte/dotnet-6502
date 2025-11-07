@@ -47,4 +47,14 @@
     <Copy SourceFiles="..\Highbyte.DotNet6502.App.Avalonia.Core\Assets\favicon.ico" DestinationFolder="wwwroot" />
   </Target>
 
+  <Target Name="ReplaceVersionPlaceholders" AfterTargets="Publish">
+    <!-- Replace version placeholders in published files -->
+    <ItemGroup>
+      <FilesToUpdate Include="$(PublishUrl)wwwroot\**\*.html" />
+      <FilesToUpdate Include="$(PublishUrl)wwwroot\**\*.js" />
+    </ItemGroup>
+    <Message Text="Replacing version placeholders in published files..." />
+    <!-- This will be handled by the GitHub Actions workflow -->
+  </Target>
+
 </Project>

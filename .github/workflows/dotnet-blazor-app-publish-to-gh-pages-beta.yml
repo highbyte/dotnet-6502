@@ -55,6 +55,12 @@ jobs:
         # Note: Could not get -p:GHPagesInjectBrotliLoader=true to work with Blazor. Gets error "Uncaught ReferenceError: Blazor is not defined" from "brotliloader.min.js"
         run: dotnet publish ${{ env.PROJECT_FILE }} -p:Version=${{ env.VERSION }} -c:${{ env.CONFIGURATION }} -p:GHPages=true -p:GHPagesBase="/${{ github.event.repository.name }}/${{ env.PROJECT_GH_PAGES_DIR }}/" -p:GHPagesInjectBrotliLoader=false -o:${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}
 
+      # Replace version placeholders in HTML files
+      - name: Replace version placeholders
+        run: |
+          find ${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/wwwroot -name "*.html" -exec sed -i 's/{{APP_VERSION}}/${{ env.VERSION }}/g' {} \;
+          find ${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/wwwroot -name "*.js" -exec sed -i 's/{{APP_VERSION}}/${{ env.VERSION }}/g' {} \;
+
       # Copy the published static website from wwwroot folder in publish output dir
       - name: Copy published wwwroot contents to a subdirectory in GH pages working dir root
         run: |

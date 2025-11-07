@@ -5,8 +5,9 @@
     <title>DotNet 6502 Emulator</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="app-version" content="{{APP_VERSION}}">
     <link rel="icon" type="image/x-icon" href="./favicon.ico">
-    <link rel="stylesheet" href="./app.css" />
+    <link rel="stylesheet" href="./app.css?v={{APP_VERSION}}" />
 </head>
 
 <body style="margin: 0; overflow: hidden">
@@ -17,6 +18,62 @@
     </div>
 </div>
 <script>
+// Version check and cache management
+window.APP_VERSION = '{{APP_VERSION}}';
+
+// Check for app updates
+function checkForUpdates() {
+    const currentVersion = document.querySelector('meta[name="app-version"]')?.content;
+    const storedVersion = localStorage.getItem('app-version');
+    
+    if (storedVersion && storedVersion !== currentVersion) {
+        showUpdateNotification();
+    } else {
+        localStorage.setItem('app-version', currentVersion);
+    }
+}
+
+// Show update notification
+function showUpdateNotification() {
+    const notification = document.createElement('div');
+    notification.id = 'update-notification';
+    notification.innerHTML = `
+        <div style="position: fixed; top: 0; left: 0; right: 0; background: #4CAF50; color: white; padding: 12px; text-align: center; z-index: 10000; font-family: Arial, sans-serif;">
+            <span>🔄 A new version is available! </span>
+            <button onclick="forceRefresh()" style="margin-left: 10px; padding: 4px 12px; background: white; color: #4CAF50; border: none; border-radius: 4px; cursor: pointer;">
+                Update Now
+            </button>
+            <button onclick="dismissUpdate()" style="margin-left: 8px; padding: 4px 8px; background: transparent; color: white; border: 1px solid white; border-radius: 4px; cursor: pointer;">
+                ✕
+            </button>
+        </div>
+    `;
+    document.body.appendChild(notification);
+}
+
+// Force refresh with cache clearing
+function forceRefresh() {
+    // Clear localStorage version
+    localStorage.removeItem('app-version');
+    
+    // Force reload bypassing all caches
+    window.location.reload(true);
+}
+
+// Dismiss update notification
+function dismissUpdate() {
+    const notification = document.getElementById('update-notification');
+    if (notification) {
+        notification.remove();
+    }
+    // Update stored version to current to avoid showing again
+    const currentVersion = document.querySelector('meta[name="app-version"]')?.content;
+    localStorage.setItem('app-version', currentVersion);
+}
+
+// Check for updates when page loads
+document.addEventListener('DOMContentLoaded', checkForUpdates);
+
 // Safari compatibility check
 if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
     // Show a warning but allow user to continue
@@ -28,7 +85,7 @@ if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chr
     }
 }
 </script>
-<script type='module' src="./main.js"></script>
+<script type='module' src="./main.js?v={{APP_VERSION}}"></script>
 </body>
 
 </html>

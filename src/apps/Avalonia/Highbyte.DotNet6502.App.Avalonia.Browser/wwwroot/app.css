@@ -12,6 +12,22 @@
     pointer-events: none;
 }
 
+/* Update notification styles */
+#update-notification {
+    animation: slideInFromTop 0.3s ease-out;
+}
+
+@keyframes slideInFromTop {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
 /* Fade-in animation for splash screen content */
 .avalonia-splash img {
     animation: fadeIn 0.4s ease-in;
