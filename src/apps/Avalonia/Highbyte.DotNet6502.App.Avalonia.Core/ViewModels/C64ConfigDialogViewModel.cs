@@ -6,13 +6,17 @@ using System.Linq;
 using System.Net.Http;
 using System.Reactive;
 using System.Threading.Tasks;
+using Highbyte.DotNet6502.AI.CodingAssistant;
+using Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 using Highbyte.DotNet6502.App.Avalonia.Core.Config;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using Highbyte.DotNet6502.Systems.Utils;
 using Highbyte.DotNet6502.Utils;
 using ReactiveUI;
+using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggestion;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
@@ -39,10 +43,21 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private RenderTargetOption? _selectedRenderTarget;
     private bool _suppressRenderTargetUpdate;
 
+    // AI Coding Assistant properties
+    private CodeSuggestionBackendTypeEnum _selectedAIBackendType;
+    private string _openAIApiKey = string.Empty;
+    private string _openAISelfHostedEndpoint = "http://localhost:11434/api";
+    private string _openAISelfHostedModelName = "codellama:13b-code";
+    private string _openAISelfHostedApiKey = string.Empty;
+    private string _customEndpointApiKey = string.Empty;
+    private string _customEndpoint = "https://highbyte-dotnet6502-codecompletion.azurewebsites.net/";
+    private string _aiTestStatusMessage = string.Empty;
+
     // ReactiveUI Commands
     public ReactiveCommand<Unit, Unit> DownloadRomsToByteArrayCommand { get; }
     public ReactiveCommand<Unit, Unit> DownloadRomsToFilesCommand { get; }
     public ReactiveCommand<Unit, Unit> ClearRomsCommand { get; }
+    public ReactiveCommand<Unit, Unit> TestAIBackendCommand { get; }
     public ReactiveCommand<Unit, Unit> SaveCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
 
@@ -61,6 +76,10 @@ public class C64ConfigDialogViewModel : ViewModelBase
         SelectedKeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;
         SelectedHostJoystick = _workingConfig.InputConfig.CurrentJoystick;
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
+
+        // Initialize AI Coding Assistant properties
+        SelectedAIBackendType = _workingConfig.CodeSuggestionBackendType;
+        LoadAIConfiguration();
 
         InitializeRenderOptions();
         UpdateRomStatuses();
@@ -82,6 +101,10 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 UnloadRoms();
                 return Task.CompletedTask;
             },
+            outputScheduler: RxApp.MainThreadScheduler);
+
+        TestAIBackendCommand = ReactiveCommand.CreateFromTask(
+            TestAIBackendAsync,
             outputScheduler: RxApp.MainThreadScheduler);
 
         SaveCommand = ReactiveCommand.CreateFromTask(
@@ -533,6 +556,200 @@ public class C64ConfigDialogViewModel : ViewModelBase
         }
     }
 
+    // AI Coding Assistant properties
+    private CodeSuggestionBackendTypeOption? _selectedAIBackendTypeOption;
+
+    public ObservableCollection<CodeSuggestionBackendTypeOption> AIBackendTypes { get; } = new()
+    {
+        new CodeSuggestionBackendTypeOption(CodeSuggestionBackendTypeEnum.None, "None"),
+        // Note: Disabled until fully implemented
+        //new CodeSuggestionBackendTypeOption(CodeSuggestionBackendTypeEnum.OpenAI, "OpenAI"),
+        //new CodeSuggestionBackendTypeOption(CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama, "OpenAI Self-Hosted (Ollama)"),
+        new CodeSuggestionBackendTypeOption(CodeSuggestionBackendTypeEnum.CustomEndpoint, "Custom Endpoint")
+    };
+
+    public CodeSuggestionBackendTypeOption? SelectedAIBackendTypeOption
+    {
+        get => _selectedAIBackendTypeOption;
+        set
+        {
+            if (ReferenceEquals(_selectedAIBackendTypeOption, value))
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedAIBackendTypeOption, value);
+            if (value != null)
+            {
+                SelectedAIBackendType = value.Type;
+            }
+        }
+    }
+
+    public CodeSuggestionBackendTypeEnum SelectedAIBackendType
+    {
+        get => _selectedAIBackendType;
+        set
+        {
+            if (_selectedAIBackendType == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedAIBackendType, value);
+            _workingConfig.CodeSuggestionBackendType = value;
+            
+            // Update the selected option to match
+            var matchingOption = AIBackendTypes.FirstOrDefault(o => o.Type == value);
+            if (matchingOption != null && !ReferenceEquals(_selectedAIBackendTypeOption, matchingOption))
+            {
+                _selectedAIBackendTypeOption = matchingOption;
+                this.RaisePropertyChanged(nameof(SelectedAIBackendTypeOption));
+            }
+            
+            AITestStatusMessage = string.Empty;
+            this.RaisePropertyChanged(nameof(ShowOpenAISettings));
+            this.RaisePropertyChanged(nameof(ShowSelfHostedSettings));
+            this.RaisePropertyChanged(nameof(ShowCustomEndpointSettings));
+            this.RaisePropertyChanged(nameof(ShowAITestButton));
+        }
+    }
+
+    public bool ShowOpenAISettings => SelectedAIBackendType == CodeSuggestionBackendTypeEnum.OpenAI;
+    public bool ShowSelfHostedSettings => SelectedAIBackendType == CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama;
+    public bool ShowCustomEndpointSettings => SelectedAIBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint;
+    public bool ShowAITestButton => SelectedAIBackendType != CodeSuggestionBackendTypeEnum.None;
+
+    public string OpenAIApiKey
+    {
+        get => _openAIApiKey;
+        set => this.RaiseAndSetIfChanged(ref _openAIApiKey, value);
+    }
+
+    public string OpenAISelfHostedEndpoint
+    {
+        get => _openAISelfHostedEndpoint;
+        set => this.RaiseAndSetIfChanged(ref _openAISelfHostedEndpoint, value);
+    }
+
+    public string OpenAISelfHostedModelName
+    {
+        get => _openAISelfHostedModelName;
+        set => this.RaiseAndSetIfChanged(ref _openAISelfHostedModelName, value);
+    }
+
+    public string OpenAISelfHostedApiKey
+    {
+        get => _openAISelfHostedApiKey;
+        set => this.RaiseAndSetIfChanged(ref _openAISelfHostedApiKey, value);
+    }
+
+    public string CustomEndpointApiKey
+    {
+        get => _customEndpointApiKey;
+        set => this.RaiseAndSetIfChanged(ref _customEndpointApiKey, value);
+    }
+
+    public string CustomEndpoint
+    {
+        get => _customEndpoint;
+        set => this.RaiseAndSetIfChanged(ref _customEndpoint, value);
+    }
+
+    public string AITestStatusMessage
+    {
+        get => _aiTestStatusMessage;
+        set => this.RaiseAndSetIfChanged(ref _aiTestStatusMessage, value);
+    }
+
+    public string AIHelpUrl => "https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md";
+
+    private void LoadAIConfiguration()
+    {
+        // Load AI configuration from persistent storage
+        // For now, we'll use default values - in a real implementation,
+        // these would be loaded from configuration storage similar to how the Blazor app uses LocalStorage
+        
+        // Default values are already set in field initializers
+        // In the future, this could load from app settings or a config file
+    }
+
+    private async Task SaveAIConfiguration()
+    {
+        // Save AI configuration to persistent storage
+        // Similar to how Blazor app saves to LocalStorage
+        // For Avalonia, this could use preferences or a config file
+        
+        await Task.CompletedTask; // Placeholder for now
+    }
+
+    private async Task TestAIBackendAsync()
+    {
+        try
+        {
+            AITestStatusMessage = "Testing...";
+
+            ICodeSuggestion codeSuggestion;
+
+            if (SelectedAIBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
+            {
+                var apiConfig = new ApiConfig
+                {
+                    ApiKey = OpenAIApiKey,
+                    DeploymentName = "gpt-4o",
+                    SelfHosted = false
+                };
+                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestion(
+                    apiConfig,
+                    C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION,
+                    C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
+            }
+            else if (SelectedAIBackendType == CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama)
+            {
+                Uri.TryCreate(OpenAISelfHostedEndpoint, UriKind.Absolute, out var endpointUri);
+                var apiConfig = new ApiConfig
+                {
+                    ApiKey = string.IsNullOrWhiteSpace(OpenAISelfHostedApiKey) ? null : OpenAISelfHostedApiKey,
+                    DeploymentName = OpenAISelfHostedModelName,
+                    Endpoint = endpointUri,
+                    SelfHosted = true
+                };
+                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(
+                    apiConfig,
+                    C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION,
+                    C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
+            }
+            else if (SelectedAIBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
+            {
+                Uri.TryCreate(CustomEndpoint, UriKind.Absolute, out var endpointUri);
+                var customConfig = new CustomAIEndpointConfig
+                {
+                    ApiKey = CustomEndpointApiKey,
+                    Endpoint = endpointUri
+                };
+                codeSuggestion = new CustomAIEndpointCodeSuggestion(
+                    customConfig,
+                    C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+            }
+            else
+            {
+                AITestStatusMessage = "No backend selected to test.";
+                return;
+            }
+
+            await codeSuggestion.CheckAvailability();
+            
+            if (codeSuggestion.IsAvailable)
+            {
+                AITestStatusMessage = "OK";
+            }
+            else
+            {
+                AITestStatusMessage = codeSuggestion.LastError ?? "Error";
+            }
+        }
+        catch (Exception ex)
+        {
+            AITestStatusMessage = $"Error: {ex.Message}";
+        }
+    }
+
     private void InitializeRenderOptions()
     {
         RenderProviders.Clear();
@@ -774,6 +991,10 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
         _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
         _originalConfig.InputConfig = (C64AvaloniaInputConfig)_workingConfig.InputConfig.Clone();
+        
+        // Apply AI Coding Assistant settings
+        _originalConfig.CodeSuggestionBackendType = _workingConfig.CodeSuggestionBackendType;
+        _originalConfig.BasicAIAssistantDefaultEnabled = _workingConfig.BasicAIAssistantDefaultEnabled;
     }
 
     private static string? DetectRomName(string fileName)
@@ -913,6 +1134,8 @@ public record RenderProviderOption(Type Type, string DisplayName, string HelpTex
 public record RenderTargetOption(Type Type, string DisplayName, string HelpText);
 
 public record KeyMappingEntry(string Key, string Action);
+
+public record CodeSuggestionBackendTypeOption(CodeSuggestionBackendTypeEnum Type, string DisplayName);
 
 internal readonly record struct RomStatusData(
     string Name,

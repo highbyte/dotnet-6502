@@ -155,7 +155,9 @@ public class C64MenuViewModel : ViewModelBase
             this.RaisePropertyChanged(nameof(BasicCodingAssistantEnabled));
         }
     }
-    public bool BasicCodingAssistantAvailable => EmulatorState == EmulatorState.Running;
+
+    public bool BasicCodingAssistantAvailable => EmulatorState == EmulatorState.Running &&
+         ((AvaloniaC64InputHandler)HostApp.CurrentSystemRunner!.InputHandler).CodingAssistantAvailable;
 
     // Configuration functionality
     public bool IsC64ConfigEnabled => EmulatorState == EmulatorState.Uninitialized;

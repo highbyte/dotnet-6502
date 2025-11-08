@@ -6,7 +6,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "applicationUrl": "https://localhost:7169;http://localhost:5235",
+      "applicationUrl": "http://localhost:5000;",
       "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}"
     },
     "Avalonia.Browser Debug Fix": {
@@ -15,7 +15,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "applicationUrl": "https://localhost:7169;http://localhost:5235"
+      "applicationUrl": "http://localhost:5000;"
     },
     "Avalonia.Browser (No Debug)": {
       "commandName": "Project",
@@ -24,7 +24,7 @@
         "ASPNETCORE_ENVIRONMENT": "Development",
         "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
       },
-      "applicationUrl": "https://localhost:7169;http://localhost:5235"
+      "applicationUrl": "http://localhost:5000;"
     }
   }
 }

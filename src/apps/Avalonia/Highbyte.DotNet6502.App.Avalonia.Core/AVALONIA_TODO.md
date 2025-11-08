@@ -1,5 +1,5 @@
 ﻿C64 AI Basic:
-- Implement like in Blazor WASM app
+- Implement Config UI that works both for Avalonia Desktop and Avalonia Browser
 
 Audio:
 - Implement via existing NAudio code in AvaDesktop app

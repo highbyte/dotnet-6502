@@ -363,4 +363,15 @@ public partial class C64ConfigUserControl : UserControl
             }
         }
     }
+
+    private void OpenAIHelpUrl_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel == null)
+            return;
+
+        if (TopLevel.GetTopLevel(this) is { } tl)
+        {
+            tl.Launcher.LaunchUriAsync(new Uri(ViewModel.AIHelpUrl));
+        }
+    }
 }

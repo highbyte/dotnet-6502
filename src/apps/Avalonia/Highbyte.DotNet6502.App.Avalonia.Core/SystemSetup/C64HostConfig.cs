@@ -81,6 +81,9 @@ public class C64HostConfig : IHostSystemConfig, ICloneable
     public C64HostConfig()
     {
         _systemConfig = new C64SystemConfig();
+
+        BasicAIAssistantDefaultEnabled = false;
+        CodeSuggestionBackendType = CodeSuggestionBackendTypeEnum.CustomEndpoint;
     }
 
     public object Clone()
