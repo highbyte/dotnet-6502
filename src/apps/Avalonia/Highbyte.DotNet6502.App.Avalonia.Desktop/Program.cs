@@ -30,7 +30,7 @@ internal sealed class Program
         var isDevelopment = string.IsNullOrEmpty(devEnvironmentVariable) || devEnvironmentVariable.ToLower() == "development";
         if (isDevelopment)
         {
-            builder.AddUserSecrets<Core.App>();
+            builder.AddUserSecrets<Program>();
         }
 
         IConfiguration configuration = builder.Build();

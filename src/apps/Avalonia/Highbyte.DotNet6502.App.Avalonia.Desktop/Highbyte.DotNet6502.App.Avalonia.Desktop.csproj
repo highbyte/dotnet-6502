@@ -6,6 +6,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <UserSecretsId>111df26c-165e-489c-9fbf-0d96435b1972</UserSecretsId>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -33,6 +34,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="appsettings.Development.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="appsettings.Development.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

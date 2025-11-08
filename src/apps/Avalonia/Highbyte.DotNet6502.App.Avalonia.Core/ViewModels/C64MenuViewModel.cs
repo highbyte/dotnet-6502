@@ -7,6 +7,7 @@ using System.Reactive;
 using System.Reactive.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Highbyte.DotNet6502.App.Avalonia.Core.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
@@ -138,13 +139,15 @@ public class C64MenuViewModel : ViewModelBase
         {
             if (EmulatorState != EmulatorState.Running)
                 return false;
-            // Implementation will be added in code-behind
-            return false; // Placeholder
+            return C64HostConfig != null
+                ? ((AvaloniaC64InputHandler)HostApp.CurrentSystemRunner!.InputHandler).CodingAssistantEnabled : false;
+
         }
         set
         {
-            // Implementation will be added in code-behind
-            this.RaisePropertyChanged();
+            ((AvaloniaC64InputHandler)HostApp.CurrentSystemRunner!.InputHandler).CodingAssistantEnabled = value;
+            C64HostConfig?.BasicAIAssistantDefaultEnabled = value;
+            this.RaisePropertyChanged(nameof(BasicCodingAssistantEnabled));
         }
     }
     public bool BasicCodingAssistantAvailable => EmulatorState == EmulatorState.Running;

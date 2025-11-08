@@ -195,7 +195,7 @@ public partial class EmulatorView : UserControl
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         // Prevent keys from being processed by Avalonia's focus system
-        e.Handled = true;
+        //e.Handled = true;
         HostApp?.OnKeyDown(e.Key, e.KeyModifiers);
     }
 

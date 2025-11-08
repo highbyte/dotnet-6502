@@ -148,13 +148,13 @@ internal sealed partial class Program
         public static partial void SetLocalStorage(string key, string? value);
     }
 
-    private static async Task<string> GetConfigJsonFromLocalStorage(string configKey)
+    private static async Task<string> GetConfigStringFromLocalStorage(string configKey)
     {
         var jsonString = await Task.Run(() => JSInterop.GetLocalStorage(configKey) ?? string.Empty);
         return jsonString;
     }
 
-    private static async Task PersistJsonToLocalStorage(string configKey, string jsonString)
+    private static async Task PersistStringToLocalStorage(string configKey, string jsonString)
     {
         await Task.Run(() => JSInterop.SetLocalStorage(configKey, jsonString));
     }
@@ -217,8 +217,8 @@ internal sealed partial class Program
                                 logStore,
                                 logConfig,
                                 loggerFactory,
-                                getCustomConfigJson: GetConfigJsonFromLocalStorage, // Load configuration from custom provided JSON read from Browser Local Storage
-                                saveCustomConfigJson: PersistJsonToLocalStorage // Save configuration to custom provided JSON in Browser Local Storage
+                                getCustomConfigString: GetConfigStringFromLocalStorage, // Load configuration from custom provided JSON read from Browser Local Storage
+                                saveCustomConfigString: PersistStringToLocalStorage // Save configuration to custom provided JSON in Browser Local Storage
                             );
         })
         .AfterSetup(_ =>

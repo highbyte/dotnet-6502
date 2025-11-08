@@ -30,8 +30,8 @@ public partial class App : Application
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
-    private readonly Func<string, Task<string>>? _getCustomConfigJson;
-    private readonly Func<string, string, Task>? _saveCustomConfigJson;
+    private readonly Func<string, Task<string>>? _getCustomConfigString;
+    private readonly Func<string, string, Task>? _saveCustomConfigString;
 
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
@@ -44,16 +44,16 @@ public partial class App : Application
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
     /// <param name="loggerFactory"></param>
-    /// <param name="getCustomConfigJson"></param>
-    /// <param name="saveCustomConfigJson"></param>
+    /// <param name="getCustomConfigString"></param>
+    /// <param name="saveCustomConfigString"></param>
     public App(
         IConfiguration configuration,
         EmulatorConfig emulatorConfig,
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
-        Func<string, Task<string>>? getCustomConfigJson = null,
-        Func<string, string, Task>? saveCustomConfigJson = null)
+        Func<string, Task<string>>? getCustomConfigString = null,
+        Func<string, string, Task>? saveCustomConfigString = null)
     {
         Console.WriteLine("App constructor called");
 
@@ -62,8 +62,8 @@ public partial class App : Application
         _loggerFactory = loggerFactory;
         _logStore = logStore;
         _logConfig = logConfig;
-        _getCustomConfigJson = getCustomConfigJson;
-        _saveCustomConfigJson = saveCustomConfigJson;
+        _getCustomConfigString = getCustomConfigString;
+        _saveCustomConfigString = saveCustomConfigString;
 
         try
         {
@@ -217,18 +217,18 @@ public partial class App : Application
     {
         try
         {
-            Func<string, Task<string>>? getCustomConfigJson = _getCustomConfigJson ?? null;
-            Func<string, string, Task>? saveCustomConfigJson = _saveCustomConfigJson ?? null;
+            Func<string, Task<string>>? getCustomConfigString = _getCustomConfigString ?? null;
+            Func<string, string, Task>? saveCustomConfigString = _saveCustomConfigString ?? null;
 
             // ----------
             // Get systems
             // ----------
             var systemList = new SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext>();
 
-            var c64Setup = new C64Setup(_loggerFactory, _configuration, getCustomConfigJson, saveCustomConfigJson);
+            var c64Setup = new C64Setup(_loggerFactory, _configuration, getCustomConfigString, saveCustomConfigString);
             systemList.AddSystem(c64Setup);
 
-            var genericComputerSetup = new GenericComputerSetup(_loggerFactory, _configuration, _emulatorConfig, getCustomConfigJson, saveCustomConfigJson);
+            var genericComputerSetup = new GenericComputerSetup(_loggerFactory, _configuration, _emulatorConfig, getCustomConfigString, saveCustomConfigString);
             systemList.AddSystem(genericComputerSetup);
 
             // ----------

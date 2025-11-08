@@ -6,6 +6,7 @@ using Highbyte.DotNet6502.App.Avalonia.Core.Config;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
+using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Microsoft.Extensions.Logging;
 
@@ -13,28 +14,48 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Input;
 
 public class AvaloniaC64InputHandler : IInputHandler
 {
-    private readonly C64 _c64;
-    private readonly AvaloniaInputHandlerContext _inputHandlerContext;
-    private readonly ILogger _logger;
-    private readonly C64AvaloniaInputConfig _inputConfig;
-
-    private C64AvaloniaKeyboard _c64AvaloniaKeyboard = default!;
-
     public Instrumentations Instrumentations { get; } = new();
+    private readonly C64 _c64;
     public ISystem System => _c64;
 
     public List<string> GetDebugInfo() => new();
+
+    private readonly ILogger _logger;
+    private readonly AvaloniaInputHandlerContext _inputHandlerContext;
+    private C64AvaloniaKeyboard _c64AvaloniaKeyboard = default!;
+    private readonly C64AvaloniaInputConfig _inputConfig;
+    private readonly C64BasicCodingAssistant _c64BasicCodingAssistant;
+
+    public bool CodingAssistantAvailable => _c64BasicCodingAssistant.IsAvailable;
+    private bool _codingAssistantEnabled;
+    public bool CodingAssistantEnabled
+    {
+        get
+        {
+            return _codingAssistantEnabled && CodingAssistantAvailable;
+        }
+        set
+        {
+            if (!CodingAssistantAvailable && value)
+                return;
+            _codingAssistantEnabled = value;
+        }
+    }
 
     public AvaloniaC64InputHandler(
         C64 c64,
         AvaloniaInputHandlerContext inputHandlerContext,
         ILoggerFactory loggerFactory,
-        C64AvaloniaInputConfig inputConfig)
+        C64AvaloniaInputConfig inputConfig,
+        C64BasicCodingAssistant c64BasicCodingAssistant,
+        bool c64BasicCodingAssistantDefaultEnabled)
     {
         _c64 = c64;
         _inputHandlerContext = inputHandlerContext;
         _logger = loggerFactory.CreateLogger(typeof(AvaloniaC64InputHandler).Name);
         _inputConfig = inputConfig;
+        _c64BasicCodingAssistant = c64BasicCodingAssistant;
+        _codingAssistantEnabled = c64BasicCodingAssistantDefaultEnabled;
     }
 
     public void Init()
@@ -66,6 +87,12 @@ public class AvaloniaC64InputHandler : IInputHandler
     private void CaptureKeyboard(C64 c64)
     {
         var c64KeysDown = GetC64KeysFromAvaloniaKeys(_inputHandlerContext.KeysDown, out bool restoreKeyPressed, out bool capsLockOn);
+
+        if (CodingAssistantEnabled && c64KeysDown.Count > 0)
+        {
+            _c64BasicCodingAssistant.KeyWasPressed(c64KeysDown);
+        }
+
         var keyboard = c64.Cia1.Keyboard;
         keyboard.SetKeysPressed(c64KeysDown, restoreKeyPressed, capsLockOn);
     }
@@ -77,7 +104,7 @@ public class AvaloniaC64InputHandler : IInputHandler
         var c64KeysDown = new List<C64Key>();
         var foundMappings = new List<Key[]>();
         var map = _c64AvaloniaKeyboard.AvaloniaToC64KeyMap;
-        
+
         foreach (var mapKeys in map.Keys)
         {
             int matchCount = 0;
@@ -126,7 +153,7 @@ public class AvaloniaC64InputHandler : IInputHandler
     {
         var c64JoystickActions = new HashSet<C64JoystickAction>();
         var map = _inputConfig.KeyToC64JoystickMap[_inputConfig.CurrentJoystick];
-        
+
         foreach (var keyDown in keysDown)
         {
             if (map.TryGetValue(keyDown, out var joystickAction))
@@ -134,7 +161,7 @@ public class AvaloniaC64InputHandler : IInputHandler
                 c64JoystickActions.Add(joystickAction);
             }
         }
-        
+
         return c64JoystickActions;
     }
 }

@@ -11,7 +11,9 @@ using Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 using Highbyte.DotNet6502.App.Avalonia.Core.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
 using Highbyte.DotNet6502.App.Avalonia.Core.Render;
+using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
@@ -608,12 +610,17 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             _logger.LogInformation("F12 pressed - toggling monitor");
             ToggleMonitor();
         }
-        // else if (key == "F9" && EmulatorState == EmulatorState.Running)
-        // {
-        //     var toggeledAssistantState = !((C64AspNetInputHandler)CurrentSystemRunner.InputHandler).CodingAssistantEnabled;
-        //     ((C64AspNetInputHandler)CurrentSystemRunner.InputHandler).CodingAssistantEnabled = toggeledAssistantState;
-        //     ((C64HostConfig)CurrentHostSystemConfig).BasicAIAssistantDefaultEnabled = toggeledAssistantState;
-        // }
+
+        // System-specific key handling. TODO: Make abstraction that let each system register callbacks for special keys (or similar).
+        if (CurrentRunningSystem is C64)
+        {
+            if (key == Key.F9 && EmulatorState == EmulatorState.Running)
+            {
+                var toggeledAssistantState = !((AvaloniaC64InputHandler)CurrentSystemRunner!.InputHandler).CodingAssistantEnabled;
+                ((AvaloniaC64InputHandler)CurrentSystemRunner!.InputHandler).CodingAssistantEnabled = toggeledAssistantState;
+                ((C64HostConfig)CurrentHostSystemConfig).BasicAIAssistantDefaultEnabled = toggeledAssistantState;
+            }
+        }
     }
 
     /// <summary>

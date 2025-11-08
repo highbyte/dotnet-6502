@@ -3,11 +3,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
+using Highbyte.DotNet6502.App.Avalonia.Core.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
@@ -314,7 +316,7 @@ public partial class C64MenuView : UserControl
                 {
                     // Re-validate config in HostApp to update ValidationErrors
                     await ViewModel!.HostApp!.ValidateConfigAsync();
-                    
+
                     // Notify C64MenuViewModel of state changes
                     ViewModel?.RefreshAllBindings();
                 }
