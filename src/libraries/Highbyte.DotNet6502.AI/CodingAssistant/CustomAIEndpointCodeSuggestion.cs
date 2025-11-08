@@ -105,13 +105,9 @@ public class CustomAIEndpointCodeSuggestion : ICodeSuggestion
 
         public CustomAIEndpointConfig(IConfiguration config)
         {
-            var configSection = config.GetRequiredSection(CONFIG_SECTION);
-
-            Endpoint = configSection.GetValue<Uri>("Endpoint")
-                ?? throw new InvalidOperationException($"Missing required configuration value: {CONFIG_SECTION}:Endpoint.");
-
-            ApiKey = configSection.GetValue<string>("ApiKey")
-                ?? throw new InvalidOperationException($"Missing required configuration value: {CONFIG_SECTION}:ApiKey");
+            var configSection = config.GetSection(CONFIG_SECTION);
+            Endpoint = configSection.GetValue<Uri>("Endpoint", new Uri("https://highbyte-dotnet6502-codecompletion.azurewebsites.net/"));
+            ApiKey = configSection.GetValue<string>("ApiKey");
         }
     }
 

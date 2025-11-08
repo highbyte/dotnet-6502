@@ -38,10 +38,8 @@ public class ApiConfig
             //Self-hosted API compatible with OpenAI (with CodeLllama-code model),
             SelfHosted = true;
 
-            var configSection = config.GetRequiredSection(CONFIG_SECTION_SELF_HOSTED);
-
-            Endpoint = configSection.GetValue<Uri>("Endpoint")
-                ?? throw new InvalidOperationException($"Missing required configuration value: {CONFIG_SECTION_SELF_HOSTED}:Endpoint. This is required for SelfHosted inference.");
+            var configSection = config.GetSection(CONFIG_SECTION_SELF_HOSTED);
+            Endpoint = configSection.GetValue<Uri>("Endpoint", new Uri("http://localhost:11434/api"));
 
             // Ollama uses this, but other self-hosted backends might not, so it's optional.
             DeploymentName = configSection.GetValue<string>("DeploymentName");
@@ -57,14 +55,12 @@ public class ApiConfig
             var configSection = config.GetRequiredSection(CONFIG_SECTION);
 
             // If set, we assume Azure OpenAI. If not, we assume OpenAI.
-            Endpoint = configSection.GetValue<Uri>("Endpoint");
+            Endpoint = configSection.GetValue<Uri?>("Endpoint", null);
 
             // For Azure OpenAI, it's your deployment name. For OpenAI, it's the model name.
-            DeploymentName = configSection.GetValue<string>("DeploymentName")
-                ?? throw new InvalidOperationException($"Missing required configuration value: {CONFIG_SECTION}:DeploymentName");
+            DeploymentName = configSection.GetValue<string>("DeploymentName", "gpt-4o");
 
-            ApiKey = configSection.GetValue<string>("ApiKey")
-                ?? throw new InvalidOperationException($"Missing required configuration value: {CONFIG_SECTION}:ApiKey");
+            ApiKey = configSection.GetValue<string>("ApiKey");
         }
     }
 }

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
@@ -218,7 +219,17 @@ public class C64SystemConfig : ISystemConfig
     {
         // Defaults
         _roms = new List<ROM>();
-        _romDirectory = "%USERPROFILE%/Documents/C64/VICE/C64";
+
+        // Only set default ROM directory if running on Desktop OS.
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("BROWSER")) ||
+            RuntimeInformation.OSArchitecture == Architecture.Wasm)
+        {
+            _romDirectory = string.Empty;
+        }
+        else
+        {
+            _romDirectory = "%USERPROFILE%/Documents/C64/VICE/C64";
+        }
 
         _colorMapName = ColorMaps.DEFAULT_COLOR_MAP_NAME;
 

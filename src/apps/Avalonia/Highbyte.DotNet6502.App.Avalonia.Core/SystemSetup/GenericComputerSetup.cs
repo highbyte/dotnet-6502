@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -18,7 +17,6 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
 {
     public string SystemName => GenericComputer.SystemName;
 
-    private readonly Func<string, Task<string>>? _getCustomConfigJson = null;
     private readonly Func<string, string, Task>? _saveCustomConfigJson = null;
 
     private readonly Assembly _examplesAssembly = Assembly.GetExecutingAssembly();
@@ -35,68 +33,28 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<GenericComputerSetup> _logger;
     private readonly IConfiguration _configuration;
-    private readonly EmulatorConfig _emulatorConfig;
-    private readonly HttpClient? _appUrlHttpClient;
 
     public GenericComputerSetup(
         ILoggerFactory loggerFactory,
         IConfiguration configuration,
         EmulatorConfig emulatorConfig,
-        Func<string, Task<string>>? getCustomConfigJson = null,
         Func<string, string, Task>? saveCustomConfigJson = null)
     {
         _loggerFactory = loggerFactory;
         _logger = _loggerFactory.CreateLogger<GenericComputerSetup>();
         _configuration = configuration;
-        _emulatorConfig = emulatorConfig;
-        _appUrlHttpClient = emulatorConfig.GetAppUrlHttpClient();
-        _getCustomConfigJson = getCustomConfigJson;
         _saveCustomConfigJson = saveCustomConfigJson;
     }
 
     public async Task<IHostSystemConfig> GetNewHostSystemConfig()
     {
-        if (_getCustomConfigJson == null)
-        {
-            return await GetNewHostSystemConfigFromAppSettings();
-        }
+        _logger.LogInformation("Loading GenericComputerHostConfig from appsettings.json.");
 
-        _logger.LogInformation("Loading GenericComputerHostConfig from custom JSON source.");
-        // Get config from supplied raw JSON string
-        GenericComputerHostConfig? hostConfig = null;
-        try
-        {
-            // Get config from supplied raw JSON string
-            string jsonString = await _getCustomConfigJson(GenericComputerHostConfig.ConfigSectionName);
+        var hostConfig = new GenericComputerHostConfig();
+        _configuration.GetSection($"{GenericComputerHostConfig.ConfigSectionName}").Bind(hostConfig);
 
-            if (!string.IsNullOrEmpty(jsonString))
-            {
-                // Deserialize using a JsonSerializerContext configured for source generation (to be compatible with AOT compilation)
-                var deserializedConfig = JsonSerializer.Deserialize(
-                    jsonString,
-                    HostConfigJsonContext.Default.GenericComputerHostConfig);
-
-                if (deserializedConfig != null)
-                {
-                    _logger.LogInformation("Successfully deserialized GenericComputerHostConfig from JSON.");
-                    hostConfig = deserializedConfig;
-                }
-                else
-                {
-                    _logger.LogWarning("Deserialized GenericComputerHostConfig is null, using default config.");
-                }
-            }
-        }
-        catch (Exception ex)
+        if (hostConfig.SystemConfig.ExamplePrograms.Count == 0 || (hostConfig.SystemConfig.ExamplePrograms.Count == 1 && hostConfig.SystemConfig.ExamplePrograms.Keys.First() == "None"))
         {
-            // Log error and continue with default config
-            _logger.LogWarning(ex, "Failed to load config from JSON, using default config");
-        }
-
-        if (hostConfig == null)
-        {
-            _logger.LogWarning("No JSON config available, using default config.");
-            hostConfig = new GenericComputerHostConfig();
             hostConfig.SystemConfig.ExamplePrograms = new Dictionary<string, string?>
             {
                 { "Scroll", $"{ExampleFileAssemblyName}.Resources.Sample6502Programs.Assembler.Generic.hostinteraction_scroll_text_and_cycle_colors.prg" },
@@ -111,14 +69,6 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
         return hostConfig;
     }
 
-    private Task<IHostSystemConfig> GetNewHostSystemConfigFromAppSettings()
-    {
-        _logger.LogInformation("Loading GenericComputerHostConfig from appsettings.json.");
-
-        var genericHostConfig = new GenericComputerHostConfig();
-        _configuration.GetSection($"{GenericComputerHostConfig.ConfigSectionName}").Bind(genericHostConfig);
-        return Task.FromResult<IHostSystemConfig>(genericHostConfig);
-    }
 
     public async Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
     {

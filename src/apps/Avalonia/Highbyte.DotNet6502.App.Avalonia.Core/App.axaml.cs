@@ -30,21 +30,19 @@ public partial class App : Application
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
-    private readonly Func<string, Task<string>>? _getCustomConfigString;
     private readonly Func<string, string, Task>? _saveCustomConfigString;
 
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
     /// <summary>
-    /// Used from Desktop app where resources are loaded from local file system and logs are stored in memory.
+    /// Avalonia App constructor.
     /// </summary>
     /// <param name="configuration"></param>
     /// <param name="emulatorConfig"></param>
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
     /// <param name="loggerFactory"></param>
-    /// <param name="getCustomConfigString"></param>
     /// <param name="saveCustomConfigString"></param>
     public App(
         IConfiguration configuration,
@@ -52,7 +50,6 @@ public partial class App : Application
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
-        Func<string, Task<string>>? getCustomConfigString = null,
         Func<string, string, Task>? saveCustomConfigString = null)
     {
         Console.WriteLine("App constructor called");
@@ -62,7 +59,6 @@ public partial class App : Application
         _loggerFactory = loggerFactory;
         _logStore = logStore;
         _logConfig = logConfig;
-        _getCustomConfigString = getCustomConfigString;
         _saveCustomConfigString = saveCustomConfigString;
 
         try
@@ -217,7 +213,6 @@ public partial class App : Application
     {
         try
         {
-            Func<string, Task<string>>? getCustomConfigString = _getCustomConfigString ?? null;
             Func<string, string, Task>? saveCustomConfigString = _saveCustomConfigString ?? null;
 
             // ----------
@@ -225,10 +220,10 @@ public partial class App : Application
             // ----------
             var systemList = new SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext>();
 
-            var c64Setup = new C64Setup(_loggerFactory, _configuration, getCustomConfigString, saveCustomConfigString);
+            var c64Setup = new C64Setup(_loggerFactory, _configuration, saveCustomConfigString);
             systemList.AddSystem(c64Setup);
 
-            var genericComputerSetup = new GenericComputerSetup(_loggerFactory, _configuration, _emulatorConfig, getCustomConfigString, saveCustomConfigString);
+            var genericComputerSetup = new GenericComputerSetup(_loggerFactory, _configuration, _emulatorConfig, saveCustomConfigString);
             systemList.AddSystem(genericComputerSetup);
 
             // ----------

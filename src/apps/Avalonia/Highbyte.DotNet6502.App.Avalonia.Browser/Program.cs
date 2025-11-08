@@ -1,8 +1,10 @@
 using System;
-using System.IO;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Browser;
@@ -15,12 +17,24 @@ using Microsoft.Extensions.Logging;
 
 internal sealed partial class Program
 {
+    private const string LOCAL_STORAGE_CONFIG_KEY = "dotnet6502.emulator.avalonia.config";
+
+    [RequiresUnreferencedCode("Calls JsonSerializer.Deserialize(String) and JsonSerializer.Serialize(object)")]
     private static async Task<int> Main(string[] args)
     {
-        // Load configuration from appsettings.json in wwwroot
-        //var configuration = await LoadConfigurationFromAppsettingsAsync();
-        // Use empty configuration for now, as we currently load config from Local Storage
-        var configuration = await GetEmptyConfigurationAsync();
+        // Load configuration from Browser Local Storage using source-generated JSON serialization
+        string configJson = await GetConfigStringFromLocalStorage(LOCAL_STORAGE_CONFIG_KEY);
+        Console.WriteLine("Configuration loaded from browser local storage to JSON string.");
+
+        var configDict = GetConfigDictionary(configJson);
+        Console.WriteLine("Configuration dictionary created from JSON string.");
+
+        var configurationBuilder = new ConfigurationBuilder();
+        configurationBuilder.AddInMemoryCollection(configDict);
+        Console.WriteLine("Configuration dictionary string added to IConfiguration.");
+
+        var configuration = configurationBuilder.Build();
+        Console.WriteLine("Configuration build succeeded.");
 
         // Configure logging
         DotNet6502InMemLogStore logStore = new() { WriteDebugMessage = true };
@@ -72,60 +86,37 @@ internal sealed partial class Program
         return 0;
     }
 
-    private static async Task<IConfiguration> GetEmptyConfigurationAsync()
+    private static Dictionary<string, string?> GetConfigDictionary(string configJson)
     {
-        return await Task.FromResult(new ConfigurationBuilder()
-            .AddInMemoryCollection()
-            .Build());
+        Dictionary<string, string?> configDict = [];
+
+        // If we have a config JSON string from Local Storage, deserialize and add it to IConfiguration
+        if (!string.IsNullOrEmpty(configJson))
+        {
+            try
+            {
+                var jsonDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(configJson, HostConfigJsonContext.Default.DictionaryStringJsonElement);
+
+                if (jsonDict != null)
+                {
+                    // Flatten the dictionary to IConfiguration format
+                    foreach (var kvp in jsonDict)
+                    {
+                        JsonHelper.FlattenJsonElementToDictionary(kvp.Value, kvp.Key, configDict);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Could not parse configuration JSON from Local Storage: {ex.Message}");
+            }
+        }
+        else
+        {
+            Console.WriteLine("No configuration JSON found in browser local storage.");
+        }
+        return configDict;
     }
-    // private static async Task<IConfiguration> LoadConfigurationFromAppsettingsAsync()
-    // {
-    //     var configBuilder = new ConfigurationBuilder();
-
-    //     try
-    //     {
-    //         using var httpClient = GetHttpClient();
-
-    //         // Load base appsettings.json
-    //         Stream appSettingsStream = await httpClient.GetStreamAsync("appsettings.json");
-    //         configBuilder.AddJsonStream(appSettingsStream);
-
-    //         // string jsonContent = await  httpClient.GetStringAsync("appsettings.json");
-    //         // Console.WriteLine($"appsettings.json content length: {jsonContent.Length}");
-    //         // Console.WriteLine($"appsettings.json content (first 2000 chars): {jsonContent.Substring(0, Math.Min(2000, jsonContent.Length))}");
-    //         // configBuilder.AddJsonStream(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(jsonContent)));
-
-    //         // Try to load development settings if available
-    //         try
-    //         {
-    //             appSettingsStream = await httpClient.GetStreamAsync("appsettings.Development.json");
-    //             configBuilder.AddJsonStream(appSettingsStream);
-    //         }
-    //         catch
-    //         {
-    //             // Development settings are optional, ignore if not found
-    //         }
-    //         return configBuilder.Build();
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         // Safe error handling for WebAssembly/AOT environments
-    //         try
-    //         {
-    //             var errorMessage = ex?.Message ?? "Unknown error";
-    //             Console.WriteLine($"Warning: Could not load configuration from appsettings.json. {errorMessage}");
-    //         }
-    //         catch
-    //         {
-    //             Console.WriteLine("Warning: Could not load configuration from appsettings.json. Unable to access exception details");
-    //         }
-
-    //         // Fallback to in-memory configuration if appsettings.json cannot be loaded
-    //         return new ConfigurationBuilder()
-    //             .AddInMemoryCollection()
-    //             .Build();
-    //     }
-    // }
 
     /// <summary>
     /// Gets a HttpClient with BaseAddress set to the current app origin.
@@ -154,9 +145,56 @@ internal sealed partial class Program
         return jsonString;
     }
 
-    private static async Task PersistStringToLocalStorage(string configKey, string jsonString)
+    private static async Task PersistStringToLocalStorage(string configKey, string configKeyJsonValue)
     {
-        await Task.Run(() => JSInterop.SetLocalStorage(configKey, jsonString));
+        // Load existing config from Local Storage
+        string configJson = await GetConfigStringFromLocalStorage(LOCAL_STORAGE_CONFIG_KEY);
+        Console.WriteLine("Configuration loaded from browser local storage to JSON string.");
+
+        // Parse existing config or start with empty dictionary
+        Dictionary<string, JsonElement> existingConfig;
+        if (!string.IsNullOrEmpty(configJson))
+        {
+            try
+            {
+                existingConfig = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(configJson, HostConfigJsonContext.Default.DictionaryStringJsonElement)
+                    ?? new Dictionary<string, JsonElement>();
+                Console.WriteLine("Existing configuration parsed from JSON string.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Could not parse existing configuration JSON: {ex.Message}. Starting with empty config.");
+                existingConfig = new Dictionary<string, JsonElement>();
+            }
+        }
+        else
+        {
+            existingConfig = new Dictionary<string, JsonElement>();
+            Console.WriteLine("No existing configuration found. Starting with empty config.");
+        }
+
+        // Parse the new section value
+        try
+        {
+            JsonElement newSectionValue = JsonSerializer.Deserialize<JsonElement>(configKeyJsonValue, HostConfigJsonContext.Default.JsonElement);
+
+            // Update or add the section
+            existingConfig[configKey] = newSectionValue;
+            Console.WriteLine($"Configuration section '{configKey}' updated.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: Could not parse configuration value for key '{configKey}': {ex.Message}");
+            throw;
+        }
+
+        // Serialize back to JSON string
+        string updatedConfigJson = JsonSerializer.Serialize(existingConfig, HostConfigJsonContext.Default.DictionaryStringJsonElement);
+        Console.WriteLine("Updated configuration serialized to JSON string.");
+
+        // Persist updated config back to Local Storage
+        await Task.Run(() => JSInterop.SetLocalStorage(LOCAL_STORAGE_CONFIG_KEY, updatedConfigJson));
+        Console.WriteLine("Updated configuration JSON string saved to browser local storage.");
     }
 
     // For Avalonia Browser, derive the app base URL (including hosting path)
@@ -177,7 +215,7 @@ internal sealed partial class Program
                     if (!appBase.EndsWith("/", StringComparison.Ordinal))
                     {
                         appBase += "/";
-                    }
+                      }
 
                     return appBase;
                 }
@@ -217,7 +255,7 @@ internal sealed partial class Program
                                 logStore,
                                 logConfig,
                                 loggerFactory,
-                                getCustomConfigString: GetConfigStringFromLocalStorage, // Load configuration from custom provided JSON read from Browser Local Storage
+                                //getCustomConfigString: GetConfigStringFromLocalStorage, // Load configuration from custom provided JSON read from Browser Local Storage
                                 saveCustomConfigString: PersistStringToLocalStorage // Save configuration to custom provided JSON in Browser Local Storage
                             );
         })

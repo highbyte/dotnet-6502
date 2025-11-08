@@ -151,13 +151,17 @@ public class C64MenuViewModel : ViewModelBase
         set
         {
             ((AvaloniaC64InputHandler)HostApp.CurrentSystemRunner!.InputHandler).CodingAssistantEnabled = value;
-            C64HostConfig?.BasicAIAssistantDefaultEnabled = value;
+            if (C64HostConfig != null)
+            {
+                C64HostConfig.BasicAIAssistantDefaultEnabled = value;
+            }
             this.RaisePropertyChanged(nameof(BasicCodingAssistantEnabled));
         }
     }
 
     public bool BasicCodingAssistantAvailable => EmulatorState == EmulatorState.Running &&
-         ((AvaloniaC64InputHandler)HostApp.CurrentSystemRunner!.InputHandler).CodingAssistantAvailable;
+            HostApp.CurrentRunningSystem is C64 &&
+            ((AvaloniaC64InputHandler)HostApp.CurrentSystemRunner!.InputHandler).CodingAssistantAvailable;
 
     // Configuration functionality
     public bool IsC64ConfigEnabled => EmulatorState == EmulatorState.Uninitialized;
