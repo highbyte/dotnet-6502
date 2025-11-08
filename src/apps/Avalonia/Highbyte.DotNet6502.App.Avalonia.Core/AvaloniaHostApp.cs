@@ -43,7 +43,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
 
     private EmulatorDisplayControlBase? _renderControl;
 
-    public bool IsStatsPanelVisible
+    internal bool IsStatsPanelVisible
     {
         get
         {
@@ -56,7 +56,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     private AvaloniaMonitor? _monitor;
     public AvaloniaMonitor? Monitor => _monitor;
 
-    public bool IsMonitorVisible => _monitor?.IsVisible ?? false;
+    internal bool IsMonitorVisible => _monitor?.IsVisible ?? false;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -66,14 +66,14 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     }
 
     // Expose LoggerFactory for use in views that are note created through DI.
-    public ILoggerFactory LoggerFactory => _loggerFactory;
+    internal ILoggerFactory LoggerFactory => _loggerFactory;
 
     // Expose LogStore for use in views that are not created through DI (e.g., to display logs in the UI).
-    public DotNet6502InMemLogStore? LogStore => _logStore;
+    internal DotNet6502InMemLogStore? LogStore => _logStore;
 
     // Public properties for external access
-    public SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> SystemList => _systemList;
-    public EmulatorConfig EmulatorConfig => _emulatorConfig;
+    internal SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> SystemList => _systemList;
+    internal EmulatorConfig EmulatorConfig => _emulatorConfig;
 
     /// <summary>
     /// Constructor used from desktop app where we log to an in-memory log store that can be viewed in the UI
@@ -83,7 +83,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     /// <param name="emulatorConfig"></param>
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
-    public AvaloniaHostApp(
+    internal AvaloniaHostApp(
         SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
         EmulatorConfig emulatorConfig,
@@ -176,6 +176,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         // Force a full GC to free up memory, so it won't risk accumulate memory usage if GC has not run for a while.
         var m0 = GC.GetTotalMemory(forceFullCollection: true);
         _logger.LogInformation("Allocated memory before starting emulator: " + m0);
+
+        _inputHandlerContext.ClearKeysDown();
 
         return true;
     }
@@ -496,7 +498,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             EnableMonitor(execEvaluatorTriggerResult);
     }
 
-    public float Scale
+    internal float Scale
     {
         get { return _emulatorConfig.CurrentDrawScale; }
         set
@@ -510,7 +512,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     }
 
     private ObservableCollection<string> _validationErrors = new();
-    public ObservableCollection<string> ValidationErrors
+    internal ObservableCollection<string> ValidationErrors
     {
         get => _validationErrors;
         private set
@@ -520,7 +522,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         }
     }
 
-    public async Task ValidateConfigAsync()
+    internal async Task ValidateConfigAsync()
     {
         var (isValid, errors) = await IsValidConfigWithDetails();
         ValidationErrors = new ObservableCollection<string>(errors);
@@ -536,7 +538,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     /// This method should be called by EmulatorView when it's ready.
     /// </summary>
     /// <param name="renderControl"></param>
-    public void RegisterRenderControl(EmulatorDisplayControlBase renderControl)
+    internal void RegisterRenderControl(EmulatorDisplayControlBase renderControl)
     {
         _renderControl = renderControl;
     }
@@ -544,13 +546,13 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     /// <summary>
     /// Toggle the visibility of the statistics panel
     /// </summary>
-    public void ToggleStatisticsPanel()
+    internal void ToggleStatisticsPanel()
     {
         if (CurrentRunningSystem == null) return;
         SetStatisticsPanelVisible(!CurrentRunningSystem.InstrumentationEnabled);
     }
 
-    public void SetStatisticsPanelVisible(bool isVisible)
+    internal void SetStatisticsPanelVisible(bool isVisible)
     {
         if (CurrentRunningSystem == null)
             return;
@@ -558,7 +560,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         OnPropertyChanged(nameof(IsStatsPanelVisible));
     }
 
-    public void ToggleMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
+    internal void ToggleMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
         if (_monitor == null)
             return;
@@ -572,17 +574,21 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             EnableMonitor(execEvaluatorTriggerResult);
     }
 
-    public void EnableMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
+    internal void EnableMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
         _monitor?.Enable(execEvaluatorTriggerResult);
         OnPropertyChanged(nameof(IsMonitorVisible));
     }
 
-    public void DisableMonitor()
+    internal void DisableMonitor()
     {
         _monitor?.Disable();
         OnPropertyChanged(nameof(IsMonitorVisible));
     }
+
+    // Events for publishing key events
+    internal event EventHandler<HostKeyEventArgs>? KeyDownEvent;
+    internal event EventHandler<HostKeyEventArgs>? KeyUpEvent;
 
     /// <summary>
     /// Receive Key Down event in emulator canvas.
@@ -590,10 +596,13 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     /// </summary>
     /// <param name="key"></param>
     /// <param name="modifiers"></param>
-    public void OnKeyDown(Key key, KeyModifiers modifiers = KeyModifiers.None)
+    internal void OnKeyDown(Key key, KeyModifiers modifiers = KeyModifiers.None)
     {
         // Send event to emulator
         _inputHandlerContext.AddKeyDown(key);
+
+        // Publish KeyDown event for subscribers
+        KeyDownEvent?.Invoke(this, new HostKeyEventArgs { Key = key, KeyModifiers = modifiers });
 
         // Check for other emulator functions
 
@@ -610,17 +619,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
             _logger.LogInformation("F12 pressed - toggling monitor");
             ToggleMonitor();
         }
-
-        // System-specific key handling. TODO: Make abstraction that let each system register callbacks for special keys (or similar).
-        if (CurrentRunningSystem is C64)
-        {
-            if (key == Key.F9 && EmulatorState == EmulatorState.Running)
-            {
-                var toggeledAssistantState = !((AvaloniaC64InputHandler)CurrentSystemRunner!.InputHandler).CodingAssistantEnabled;
-                ((AvaloniaC64InputHandler)CurrentSystemRunner!.InputHandler).CodingAssistantEnabled = toggeledAssistantState;
-                ((C64HostConfig)CurrentHostSystemConfig).BasicAIAssistantDefaultEnabled = toggeledAssistantState;
-            }
-        }
     }
 
     /// <summary>
@@ -628,9 +626,13 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     /// Also check for special non-emulator functions such as monitor and stats/debug
     /// </summary>
     /// <param name="e"></param>
-    public void OnKeyUp(Key key, KeyModifiers modifiers = KeyModifiers.None)
+    internal void OnKeyUp(Key key, KeyModifiers modifiers = KeyModifiers.None)
     {
         // Send event to emulator
         _inputHandlerContext.RemoveKeyDown(key);
+
+        // Publish KeyUp event for subscribers
+        KeyUpEvent?.Invoke(this, new HostKeyEventArgs { Key = key, KeyModifiers = modifiers });
     }
+
 }

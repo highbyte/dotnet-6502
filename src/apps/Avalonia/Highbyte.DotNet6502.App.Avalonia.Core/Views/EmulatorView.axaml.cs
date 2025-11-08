@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 using Highbyte.DotNet6502.App.Avalonia.Core.Render;
@@ -195,7 +196,7 @@ public partial class EmulatorView : UserControl
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         // Prevent keys from being processed by Avalonia's focus system
-        //e.Handled = true;
+        e.Handled = true;
         HostApp?.OnKeyDown(e.Key, e.KeyModifiers);
     }
 

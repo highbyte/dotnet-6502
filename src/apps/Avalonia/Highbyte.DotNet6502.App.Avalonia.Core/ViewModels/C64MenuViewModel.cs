@@ -7,6 +7,7 @@ using System.Reactive;
 using System.Reactive.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Avalonia.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.Systems;
@@ -76,6 +77,10 @@ public class C64MenuViewModel : ViewModelBase
                 this.RaisePropertyChanged(nameof(BasicCodingAssistantEnabled));
                 this.RaisePropertyChanged(nameof(IsFileOperationEnabled));
             });
+
+        // Subscribe to KeyDown events from AvaloniaHostApp
+        _avaloniaHostApp.KeyDownEvent += OnHostKeyDown;
+        _avaloniaHostApp.KeyUpEvent += OnHostKeyUp;
 
         // Initialize ReactiveCommands
         CopyBasicSourceCommand = ReactiveCommand.CreateFromTask(
@@ -769,5 +774,26 @@ public class C64MenuViewModel : ViewModelBase
             if (wasRunning && HostApp.EmulatorState != Systems.EmulatorState.Running)
                 await HostApp.Start();
         }
+    }
+
+    /// <summary>
+    /// Handle KeyDown events from AvaloniaHostApp
+    /// </summary>
+    private void OnHostKeyDown(object? sender, HostKeyEventArgs e)
+    {
+        // Check for F9 key to toggle coding assistant
+        if (e.Key == Key.F9 && EmulatorState == EmulatorState.Running)
+        {
+            var toggledAssistantState = !BasicCodingAssistantEnabled;
+            BasicCodingAssistantEnabled = toggledAssistantState;
+        }
+    }
+
+    /// <summary>
+    /// Handle KeyUp events from AvaloniaHostApp
+    /// </summary>
+    private void OnHostKeyUp(object? sender, HostKeyEventArgs e)
+    {
+        // Currently no special handling for KeyUp events
     }
 }

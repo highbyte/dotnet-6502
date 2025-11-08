@@ -13,7 +13,7 @@ public class AvaloniaInputHandlerContext : IInputHandlerContext
     private bool _capsLockOn;
 
     public bool GetCapsLockState() => _capsLockOn;
-    
+
     public void SetCapsLockState(bool capsLockOn) => _capsLockOn = capsLockOn;
 
     public void AddKeyDown(Key key)
