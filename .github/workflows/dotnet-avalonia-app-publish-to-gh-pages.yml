@@ -1,4 +1,4 @@
-name: Publish Test Browser app to GitHub Pages (separate url)
+name: Publish Avalonia browser app to GitHub Pages (separate url)
 
 on:
 #  push:
@@ -7,18 +7,18 @@ on:
   workflow_dispatch:
 
   #Trigger when tag is created
-#  push:
-#    tags:
-#        - 'v*.*.*'
+  push:
+    tags:
+        - 'v*.*.*'
 
 env:
    CONFIGURATION: "Release"
 
-   PROJECT_FILE: "src/apps/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj"
-   PROJECT_GH_PAGES_DIR: "app-test"
+   PROJECT_FILE: "src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/Highbyte.DotNet6502.App.Avalonia.Browser.csproj"
+   PROJECT_GH_PAGES_DIR: "app2"
    BUILD_OUTPUT_WORKING_DIR: "build"
    GH_PAGES_WORKING_DIR: "ghpages"
-   GH_PAGES_BRANCH_NAME: "gh-pages"
+   GH_PAGES_BRANCH_NAME: "gh-pages" 
    
 jobs:
   deploy:
@@ -27,13 +27,14 @@ jobs:
       # Checkout the code
       - uses: actions/checkout@v4
 
-      # Generate auto-incrementing version number for test builds
-      - name: Generate version number
-        run: echo "VERSION=0.1.${{ github.run_number }}-test" >> $GITHUB_ENV
-
-      # Get version from tag
-      # - name: Get version from tag with 'v' prefix
-      #   run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+      # Get version from tag or set fallback version for manual dispatch
+      - name: Set version from tag or fallback
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+          else
+            echo "VERSION=0.1.${{ github.run_number }}-test" >> $GITHUB_ENV
+          fi
 
       # Install .NET Core SDK
       - name: Setup .NET Core
@@ -56,12 +57,6 @@ jobs:
         # Note: Could not get -p:GHPagesInjectBrotliLoader=true to work with Blazor. Gets error "Uncaught ReferenceError: Blazor is not defined" from "brotliloader.min.js"
         run: dotnet publish ${{ env.PROJECT_FILE }} -p:Version=${{ env.VERSION }} -c:${{ env.CONFIGURATION }} -p:GHPages=true -p:GHPagesBase="/${{ github.event.repository.name }}/${{ env.PROJECT_GH_PAGES_DIR }}/" -p:GHPagesInjectBrotliLoader=false -o:${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}
 
-      # Replace version placeholders in HTML files
-      - name: Replace version placeholders
-        run: |
-          find ${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/wwwroot -name "*.html" -exec sed -i 's/{{APP_VERSION}}/${{ env.VERSION }}/g' {} \;
-          find ${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/wwwroot -name "*.js" -exec sed -i 's/{{APP_VERSION}}/${{ env.VERSION }}/g' {} \;
-
       # Copy the published static website from wwwroot folder in publish output dir
       - name: Copy published wwwroot contents to a subdirectory in GH pages working dir root
         run: |
@@ -79,5 +74,5 @@ jobs:
           clean: false
           clean-exclude: |  # If clean: true, keep the live app folder in the gh-pages branch (where non lab/test builds are deployed to)
             app/**/*
-            app2/**/*
+            app-test/**/*
             app2-test/**/*

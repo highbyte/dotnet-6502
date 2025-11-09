@@ -1,4 +1,4 @@
-name: Publish Test Browser app to GitHub Pages (separate url)
+name: Publish Test Avalonia browser app to GitHub Pages (separate url)
 
 on:
 #  push:
@@ -14,8 +14,8 @@ on:
 env:
    CONFIGURATION: "Release"
 
-   PROJECT_FILE: "src/apps/Highbyte.DotNet6502.App.WASM/Highbyte.DotNet6502.App.WASM.csproj"
-   PROJECT_GH_PAGES_DIR: "app-test"
+   PROJECT_FILE: "src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/Highbyte.DotNet6502.App.Avalonia.Browser.csproj"
+   PROJECT_GH_PAGES_DIR: "app2-test"
    BUILD_OUTPUT_WORKING_DIR: "build"
    GH_PAGES_WORKING_DIR: "ghpages"
    GH_PAGES_BRANCH_NAME: "gh-pages"
@@ -79,5 +79,5 @@ jobs:
           clean: false
           clean-exclude: |  # If clean: true, keep the live app folder in the gh-pages branch (where non lab/test builds are deployed to)
             app/**/*
+            app-test/**/*
             app2/**/*
-            app2-test/**/*

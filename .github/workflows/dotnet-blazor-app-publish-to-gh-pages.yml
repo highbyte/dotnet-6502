@@ -4,7 +4,7 @@ on:
 #  push:
 #    branches:
 #      - master
-#  workflow_dispatch:
+  workflow_dispatch:
 
   #Trigger when tag is created
   push:
@@ -27,9 +27,14 @@ jobs:
       # Checkout the code
       - uses: actions/checkout@v4
 
-      # Get version from tag
-      - name: Get version from tag with 'v' prefix
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+      # Get version from tag or set fallback version for manual dispatch
+      - name: Set version from tag or fallback
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+          else
+            echo "VERSION=0.1.${{ github.run_number }}-test" >> $GITHUB_ENV
+          fi
 
       # Install .NET Core SDK
       - name: Setup .NET Core
@@ -67,5 +72,7 @@ jobs:
           #target-folder: app #If not specified, the contents for folder above is copied to the root of the GH pages branch.
           single-commit: true
           clean: false
-          clean-exclude: app-test/**/*  # If clean: true, keep the lab/test app folder in the gh-pages branch
-
+          clean-exclude: |  # If clean: true, keep the live app folder in the gh-pages branch (where non lab/test builds are deployed to)
+            app-test/**/*
+            app2/**/*            
+            app2-test/**/*
