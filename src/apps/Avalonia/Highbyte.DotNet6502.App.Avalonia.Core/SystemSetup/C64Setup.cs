@@ -21,7 +21,7 @@ public class C64Setup : ISystemConfigurer<AvaloniaInputHandlerContext, NullAudio
 {
     public string SystemName => C64.SystemName;
 
-    private readonly Func<string, string, Task>? _saveCustomConfigString = null;
+    private readonly Func<string, string, string?, Task>? _saveCustomConfigString = null;
 
     public Task<List<string>> GetConfigurationVariants(ISystemConfig systemConfig) => Task.FromResult(s_systemVariants);
 
@@ -34,7 +34,7 @@ public class C64Setup : ISystemConfigurer<AvaloniaInputHandlerContext, NullAudio
     public C64Setup(
         ILoggerFactory loggerFactory,
         IConfiguration configuration,
-        Func<string, string, Task>? saveCustomConfigString = null)
+        Func<string, string, string?, Task>? saveCustomConfigString = null)
     {
         _loggerFactory = loggerFactory;
         _logger = _loggerFactory.CreateLogger<C64Setup>();
@@ -49,10 +49,6 @@ public class C64Setup : ISystemConfigurer<AvaloniaInputHandlerContext, NullAudio
         _configuration.GetSection($"{C64HostConfig.ConfigSectionName}").Bind(c64HostConfig);
         _logger.LogInformation("Successfully loaded C64HostConfig from IConfiguration.");
 
-        // TODO: Code suggestion AI backend type should not be set in system specific config.
-        //       For now workaround by reading from a common setting.
-        c64HostConfig.CodeSuggestionBackendType = Enum.Parse<CodeSuggestionBackendTypeEnum>(_configuration["CodingAssistant:CodingAssistantType"] ?? "None");
-
         return c64HostConfig;
     }
 
@@ -64,7 +60,7 @@ public class C64Setup : ISystemConfigurer<AvaloniaInputHandlerContext, NullAudio
             return;
         }
         var json = JsonSerializer.Serialize(hostSystemConfig, HostConfigJsonContext.Default.C64HostConfig);
-        await _saveCustomConfigString(C64HostConfig.ConfigSectionName, json);
+        await _saveCustomConfigString(C64HostConfig.ConfigSectionName, json, null);
     }
 
     public Task<ISystem> BuildSystem(string configurationVariant, ISystemConfig systemConfig)
@@ -96,34 +92,14 @@ public class C64Setup : ISystemConfigurer<AvaloniaInputHandlerContext, NullAudio
         var c64HostConfig = (C64HostConfig)hostSystemConfig;
         var c64 = (C64)system;
 
-
         ICodeSuggestion codeSuggestion;
         C64BasicCodingAssistant c64BasicCodingAssistant;
-        codeSuggestion = CodeSuggestionConfigurator.CreateCodeSuggestion(c64HostConfig.CodeSuggestionBackendType, _configuration, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION, defaultToNoneIdConfigError: true);
+        codeSuggestion = CodeSuggestionConfigurator.CreateCodeSuggestion(c64HostConfig.CodeSuggestionBackendType, _configuration, _loggerFactory, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION, defaultToNoneIdConfigError: true);
         c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, codeSuggestion, _loggerFactory);
 
         var inputHandler = new AvaloniaC64InputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig, c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
         var audioHandler = new NullAudioHandler(c64);
 
         return new SystemRunner(c64, inputHandler, audioHandler);
-    }
-
-    public static async Task SaveOpenAICodingAssistantConfigToLocalStorage(Func<string, string, Task> saveCustomConfigJson, ApiConfig apiConfig)
-    {
-        //await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:ApiKey", apiConfig.ApiKey ?? string.Empty);
-        ////await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION}:Endpoint", apiConfig.Endpoint != null ? apiConfig.Endpoint.OriginalString : string.Empty);
-    }
-
-    public static async Task SaveOpenAISelfHostedCodeLlamaCodingAssistantConfigToLocalStorage(Func<string, string, Task> saveCustomConfigJson, ApiConfig apiConfig)
-    {
-        //await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:ApiKey", apiConfig.ApiKey ?? string.Empty);
-        //await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:DeploymentName", apiConfig.DeploymentName ?? string.Empty);
-        //await localStorageService.SetItemAsStringAsync($"{ApiConfig.CONFIG_SECTION_SELF_HOSTED}:Endpoint", apiConfig.Endpoint != null ? apiConfig.Endpoint.OriginalString : string.Empty);
-    }
-
-    public static async Task SaveCustomCodingAssistantConfigToLocalStorage(Func<string, string, Task> saveCustomConfigJson, CustomAIEndpointConfig customAIEndpointConfig)
-    {
-        //await localStorageService.SetItemAsStringAsync($"{CustomAIEndpointConfig.CONFIG_SECTION}:ApiKey", customAIEndpointConfig.ApiKey ?? string.Empty);
-        //await localStorageService.SetItemAsStringAsync($"{CustomAIEndpointConfig.CONFIG_SECTION}:Endpoint", customAIEndpointConfig.Endpoint != null ? customAIEndpointConfig.Endpoint.OriginalString : string.Empty);
     }
 }

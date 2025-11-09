@@ -1,6 +1,7 @@
 using Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 using Highbyte.DotNet6502.AI.CodingAssistant.Inference;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.AI.CodingAssistant;
 public class OpenAICodeSuggestion : ICodeSuggestion
@@ -10,32 +11,35 @@ public class OpenAICodeSuggestion : ICodeSuggestion
     private readonly OpenAIInferenceBackend _inferenceBackend;
     private readonly CodeCompletionConfig _codeCompletionConfig;
     private readonly CodeCompletionInference _codeCompletionInference;
+    private readonly ILogger<OpenAICodeSuggestion> _logger;
 
     // OpenAI
-    public static OpenAICodeSuggestion CreateOpenAICodeSuggestion(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction = "")
-    => CreateOpenAICodeSuggestion(new ApiConfig(configuration, selfHosted: false), programmingLanguage, additionalSystemInstruction);
-    public static OpenAICodeSuggestion CreateOpenAICodeSuggestion(ApiConfig apiConfig, string programmingLanguage, string additionalSystemInstruction)
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestion(IConfiguration configuration, ILoggerFactory loggerFactory, string programmingLanguage, string additionalSystemInstruction = "")
+    => CreateOpenAICodeSuggestion(new ApiConfig(configuration, selfHosted: false), loggerFactory, programmingLanguage, additionalSystemInstruction);
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestion(ApiConfig apiConfig, ILoggerFactory loggerFactory, string programmingLanguage, string additionalSystemInstruction)
     {
         var codeCompletionConfig = CodeSuggestionSystemInstructions.GetOpenAICodeCompletionConfig(programmingLanguage, additionalSystemInstruction);
-        return new OpenAICodeSuggestion(apiConfig, codeCompletionConfig);
+        return new OpenAICodeSuggestion(apiConfig, loggerFactory, codeCompletionConfig);
     }
 
     // CodeLlama via self-hosted OpenAI compatible API (Ollama)
-    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForCodeLlama(IConfiguration configuration, string programmingLanguage, string additionalSystemInstruction)
-            => CreateOpenAICodeSuggestionForCodeLlama(new ApiConfig(configuration, selfHosted: true), programmingLanguage, additionalSystemInstruction);
-    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForCodeLlama(ApiConfig apiConfig, string programmingLanguage, string additionalSystemInstruction)
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForCodeLlama(IConfiguration configuration, ILoggerFactory loggerFactory, string programmingLanguage, string additionalSystemInstruction)
+            => CreateOpenAICodeSuggestionForCodeLlama(new ApiConfig(configuration, selfHosted: true), loggerFactory, programmingLanguage, additionalSystemInstruction);
+    public static OpenAICodeSuggestion CreateOpenAICodeSuggestionForCodeLlama(ApiConfig apiConfig, ILoggerFactory loggerFactory, string programmingLanguage, string additionalSystemInstruction)
     {
         var codeCompletionConfig = CodeSuggestionSystemInstructions.GetCodeLlamaCodeCompletionConfig(programmingLanguage, additionalSystemInstruction);
-        return new OpenAICodeSuggestion(apiConfig, codeCompletionConfig);
+        return new OpenAICodeSuggestion(apiConfig, loggerFactory, codeCompletionConfig);
     }
 
-    private OpenAICodeSuggestion(ApiConfig apiConfig, CodeCompletionConfig codeCompletionConfig)
+    private OpenAICodeSuggestion(ApiConfig apiConfig, ILoggerFactory loggerFactory, CodeCompletionConfig codeCompletionConfig)
     {
         _isAvailable = true;
         _lastError = null;
         _inferenceBackend = new OpenAIInferenceBackend(apiConfig);
         _codeCompletionConfig = codeCompletionConfig;
         _codeCompletionInference = new CodeCompletionInference();
+
+        _logger = loggerFactory.CreateLogger<OpenAICodeSuggestion>();
     }
 
     public bool IsAvailable => _isAvailable;
@@ -55,8 +59,10 @@ public class OpenAICodeSuggestion : ICodeSuggestion
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error getting code suggestion from OpenAI API.");
             _isAvailable = false;
             _lastError = ex.Message;
+
             return string.Empty;
         }
     }

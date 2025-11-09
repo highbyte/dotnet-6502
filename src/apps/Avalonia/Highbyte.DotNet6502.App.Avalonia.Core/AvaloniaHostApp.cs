@@ -1,6 +1,8 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -17,6 +19,7 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
@@ -31,6 +34,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     private readonly ILoggerFactory _loggerFactory;
     private readonly DotNet6502InMemLogStore _logStore;
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
+    private readonly Func<string, string, string?, Task>? _saveCustomConfigString;
+    private readonly Func<string, IConfigurationSection, string?, Task>? _saveCustomConfigSection;
     private readonly bool _defaultAudioEnabled;
     private readonly float _defaultAudioVolumePercent;
 
@@ -76,7 +81,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     internal EmulatorConfig EmulatorConfig => _emulatorConfig;
 
     /// <summary>
-    /// Constructor used from desktop app where we log to an in-memory log store that can be viewed in the UI
+    /// Constructor for AvaloniaHostApp.
     /// </summary>
     /// <param name="systemList"></param>
     /// <param name="loggerFactory"></param>
@@ -88,25 +93,18 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         ILoggerFactory loggerFactory,
         EmulatorConfig emulatorConfig,
         DotNet6502InMemLogStore logStore,
-        DotNet6502InMemLoggerConfiguration logConfig) : this(systemList, loggerFactory, emulatorConfig)
+        DotNet6502InMemLoggerConfiguration logConfig,
+        Func<string, string, string?, Task>? saveCustomConfigString,
+        Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection
+
+        ) : base("Avalonia", systemList, loggerFactory, useStatsNamePrefix: false)
     {
         _loggerFactory = loggerFactory;
         _logStore = logStore;
         _logConfig = logConfig;
-    }
+        _saveCustomConfigString = saveCustomConfigString;
+        _saveCustomConfigSection = saveCustomConfigSection;
 
-    /// <summary>
-    /// Constructor used from browser app where we log to browser console
-    /// </summary>
-    /// <param name="systemList"></param>
-    /// <param name="loggerFactory"></param>
-    /// <param name="emulatorConfig"></param>
-    public AvaloniaHostApp(
-        SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> systemList,
-        ILoggerFactory loggerFactory,
-        EmulatorConfig emulatorConfig
-        ) : base("Avalonia", systemList, loggerFactory, useStatsNamePrefix: false)
-    {
         _logger = loggerFactory.CreateLogger(typeof(AvaloniaHostApp).Name);
         _emulatorConfig = emulatorConfig;
         _emulatorConfig.CurrentDrawScale = _emulatorConfig.DefaultDrawScale;
@@ -635,4 +633,12 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         KeyUpEvent?.Invoke(this, new HostKeyEventArgs { Key = key, KeyModifiers = modifiers });
     }
 
+    internal async Task PersistConfigSection(string configSectionName, IConfigurationSection configSection)
+    {
+        if (_saveCustomConfigSection == null)
+            return;
+        if (configSection == null)
+            return;
+        await _saveCustomConfigSection(configSectionName, configSection, null);
+    }
 }

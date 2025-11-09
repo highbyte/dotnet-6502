@@ -3,15 +3,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
-using Highbyte.DotNet6502.App.Avalonia.Core.Input;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
@@ -217,9 +218,22 @@ public partial class C64MenuView : UserControl
 
     private async Task ShowC64ConfigDialog()
     {
+        // Get C64ConfigDialogViewModel from DI
+        var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+        if (serviceProvider == null)
+        {
+            System.Console.WriteLine("Error: Could not get service provider");
+            return;
+        }
+
+        var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
+        {
+            builder.SetMinimumLevel(LogLevel.Information);
+        });
+
         var dialog = new C64ConfigDialog
         {
-            DataContext = new C64ConfigDialogViewModel(ViewModel!.HostApp!)
+            DataContext = new C64ConfigDialogViewModel(ViewModel!.HostApp!, serviceProvider.GetRequiredService<IConfiguration>(), loggerFactory)
         };
 
         bool? result;
@@ -244,10 +258,23 @@ public partial class C64MenuView : UserControl
 
     private async Task C64ConfigUserControlOverlay()
     {
+        // Get C64ConfigDialogViewModel from DI
+        var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+        if (serviceProvider == null)
+        {
+            System.Console.WriteLine("Error: Could not get service provider");
+            return;
+        }
+
+        var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
+        {
+            builder.SetMinimumLevel(LogLevel.Information);
+        });
+
         // Create the UserControl-based config
         var configControl = new C64ConfigUserControl
         {
-            DataContext = new C64ConfigDialogViewModel(ViewModel!.HostApp!)
+            DataContext = new C64ConfigDialogViewModel(ViewModel!.HostApp!, serviceProvider.GetRequiredService<IConfiguration>(), loggerFactory)
         };
 
         // Create a custom overlay with better modal behavior

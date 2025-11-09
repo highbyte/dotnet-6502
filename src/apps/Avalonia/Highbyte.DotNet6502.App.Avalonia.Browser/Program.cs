@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
@@ -17,13 +18,13 @@ using Microsoft.Extensions.Logging;
 
 internal sealed partial class Program
 {
-    private const string LOCAL_STORAGE_CONFIG_KEY = "dotnet6502.emulator.avalonia.config";
+    private const string LOCAL_STORAGE_MAIN_CONFIG_KEY = "dotnet6502.emulator.avalonia.config";
 
     [RequiresUnreferencedCode("Calls JsonSerializer.Deserialize(String) and JsonSerializer.Serialize(object)")]
     private static async Task<int> Main(string[] args)
     {
         // Load configuration from Browser Local Storage using source-generated JSON serialization
-        string configJson = await GetConfigStringFromLocalStorage(LOCAL_STORAGE_CONFIG_KEY);
+        string configJson = await GetConfigStringFromLocalStorage(LOCAL_STORAGE_MAIN_CONFIG_KEY);
         Console.WriteLine("Configuration loaded from browser local storage to JSON string.");
 
         var configDict = GetConfigDictionary(configJson);
@@ -52,6 +53,8 @@ internal sealed partial class Program
 
         // Emulator config
         var emulatorConfig = new EmulatorConfig();
+        configuration.GetSection($"{EmulatorConfig.ConfigSectionName}").Bind(emulatorConfig);
+
         emulatorConfig.EnableLoadResourceOverHttp(GetAppUrlHttpClient);
 
         try
@@ -145,10 +148,13 @@ internal sealed partial class Program
         return jsonString;
     }
 
-    private static async Task PersistStringToLocalStorage(string configKey, string configKeyJsonValue)
+    private static async Task PersistStringToLocalStorage(string configKey, string configKeyJsonValue, string? localStorageKey = LOCAL_STORAGE_MAIN_CONFIG_KEY)
     {
+        if (string.IsNullOrEmpty(localStorageKey))
+            localStorageKey = LOCAL_STORAGE_MAIN_CONFIG_KEY;
+
         // Load existing config from Local Storage
-        string configJson = await GetConfigStringFromLocalStorage(LOCAL_STORAGE_CONFIG_KEY);
+        string configJson = await GetConfigStringFromLocalStorage(localStorageKey);
         Console.WriteLine("Configuration loaded from browser local storage to JSON string.");
 
         // Parse existing config or start with empty dictionary
@@ -193,8 +199,17 @@ internal sealed partial class Program
         Console.WriteLine("Updated configuration serialized to JSON string.");
 
         // Persist updated config back to Local Storage
-        await Task.Run(() => JSInterop.SetLocalStorage(LOCAL_STORAGE_CONFIG_KEY, updatedConfigJson));
+        await Task.Run(() => JSInterop.SetLocalStorage(localStorageKey, updatedConfigJson));
         Console.WriteLine("Updated configuration JSON string saved to browser local storage.");
+    }
+
+    private static async Task PersistConfigSectionToLocalStorage(string configSectionName, IConfigurationSection configKeySection, string? localStorageKey = LOCAL_STORAGE_MAIN_CONFIG_KEY)
+    {
+        // Serialize the IConfigurationSection to JSON string using source-generated serialization
+        var configKeyJsonValue = JsonSerializer.Serialize(configKeySection.GetChildren().ToDictionary(x => x.Key, x => x.Value), HostConfigJsonContext.Default.DictionaryStringString);
+
+        // Persist the JSON string to Local Storage
+        await PersistStringToLocalStorage(configSectionName, configKeyJsonValue);
     }
 
     // For Avalonia Browser, derive the app base URL (including hosting path)
@@ -255,8 +270,8 @@ internal sealed partial class Program
                                 logStore,
                                 logConfig,
                                 loggerFactory,
-                                //getCustomConfigString: GetConfigStringFromLocalStorage, // Load configuration from custom provided JSON read from Browser Local Storage
-                                saveCustomConfigString: PersistStringToLocalStorage // Save configuration to custom provided JSON in Browser Local Storage
+                                saveCustomConfigString: PersistStringToLocalStorage, // Save configuration to custom provided JSON in Browser Local Storage
+                                saveCustomConfigSection: PersistConfigSectionToLocalStorage // Save configuration to custom provided IConfigurationSection in Browser Local Storage
                             );
         })
         .AfterSetup(_ =>

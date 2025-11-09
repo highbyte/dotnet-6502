@@ -59,7 +59,7 @@ public class GenericComputerHostConfig : IHostSystemConfig, ICloneable
 
     public object Clone()
     {
-        var clone = new GenericComputerHostConfig();
+        var clone = (GenericComputerHostConfig)this.MemberwiseClone();
         clone._systemConfig = (GenericComputerSystemConfig)_systemConfig.Clone();
         clone.InputConfig = (GenericComputerAvaloniaInputConfig)InputConfig.Clone();
         return clone;

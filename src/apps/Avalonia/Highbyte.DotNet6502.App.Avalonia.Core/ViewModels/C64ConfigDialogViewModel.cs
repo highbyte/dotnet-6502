@@ -15,6 +15,8 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using Highbyte.DotNet6502.Systems.Utils;
 using Highbyte.DotNet6502.Utils;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using ReactiveUI;
 using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggestion;
 
@@ -25,6 +27,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private const long MaxRomFileSizeBytes = 8 * 1024;
 
     private readonly AvaloniaHostApp _hostApp;
+    private readonly IConfiguration _configuration;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly C64HostConfig _originalConfig;
     private readonly C64HostConfig _workingConfig;
     private readonly List<(Type renderProviderType, Type renderTargetType)> _renderCombinations;
@@ -43,14 +47,11 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private RenderTargetOption? _selectedRenderTarget;
     private bool _suppressRenderTargetUpdate;
 
-    // AI Coding Assistant properties
+    // AI Coding Assistant properties - now using config objects
     private CodeSuggestionBackendTypeEnum _selectedAIBackendType;
-    private string _openAIApiKey = string.Empty;
-    private string _openAISelfHostedEndpoint = "http://localhost:11434/api";
-    private string _openAISelfHostedModelName = "codellama:13b-code";
-    private string _openAISelfHostedApiKey = string.Empty;
-    private string _customEndpointApiKey = string.Empty;
-    private string _customEndpoint = "https://highbyte-dotnet6502-codecompletion.azurewebsites.net/";
+    private ApiConfig _openAIConfig = new();
+    private ApiConfig _openAISelfHostedConfig = new();
+    private CustomAIEndpointConfig _customEndpointConfig = new();
     private string _aiTestStatusMessage = string.Empty;
 
     // ReactiveUI Commands
@@ -62,9 +63,13 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
 
     public C64ConfigDialogViewModel(
-        AvaloniaHostApp hostApp)
+        AvaloniaHostApp hostApp,
+        IConfiguration configuration,
+        ILoggerFactory loggerFactory)
     {
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
+        _configuration = configuration;
+        _loggerFactory = loggerFactory;
         _originalConfig = hostApp.CurrentHostSystemConfig as C64HostConfig ?? throw new Exception("hostApp.CurrentHostSystemConfig must be type C64HostConfig");
         _renderCombinations = hostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations() ?? new List<(Type, Type)>();
         _workingConfig = (C64HostConfig)_originalConfig.Clone();
@@ -541,6 +546,13 @@ public class C64ConfigDialogViewModel : ViewModelBase
             _hostApp.UpdateHostSystemConfig(_originalConfig);
             await _hostApp.PersistCurrentHostSystemConfig();
 
+            var openAIConfigSection = _openAIConfig.GetConfigurationSection(_configuration);
+            var openAISelfhostedConfigSection = _openAISelfHostedConfig.GetConfigurationSection(_configuration);
+            var customEndpointConfigSection = _customEndpointConfig.GetConfigurationSection(_configuration);
+            await _hostApp.PersistConfigSection(ApiConfig.CONFIG_SECTION, openAIConfigSection);
+            await _hostApp.PersistConfigSection(ApiConfig.CONFIG_SECTION_SELF_HOSTED, openAISelfhostedConfigSection);
+            await _hostApp.PersistConfigSection(CustomAIEndpointConfig.CONFIG_SECTION, customEndpointConfigSection);
+
             StatusMessage = "Configuration saved.";
             return true;
 
@@ -562,9 +574,8 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public ObservableCollection<CodeSuggestionBackendTypeOption> AIBackendTypes { get; } = new()
     {
         new CodeSuggestionBackendTypeOption(CodeSuggestionBackendTypeEnum.None, "None"),
-        // Note: Disabled until fully implemented
-        //new CodeSuggestionBackendTypeOption(CodeSuggestionBackendTypeEnum.OpenAI, "OpenAI"),
-        //new CodeSuggestionBackendTypeOption(CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama, "OpenAI Self-Hosted (Ollama)"),
+        new CodeSuggestionBackendTypeOption(CodeSuggestionBackendTypeEnum.OpenAI, "OpenAI"),
+        new CodeSuggestionBackendTypeOption(CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama, "OpenAI Self-Hosted (Ollama)"),
         new CodeSuggestionBackendTypeOption(CodeSuggestionBackendTypeEnum.CustomEndpoint, "Custom Endpoint")
     };
 
@@ -589,20 +600,17 @@ public class C64ConfigDialogViewModel : ViewModelBase
         get => _selectedAIBackendType;
         set
         {
-            if (_selectedAIBackendType == value)
-                return;
-
             this.RaiseAndSetIfChanged(ref _selectedAIBackendType, value);
             _workingConfig.CodeSuggestionBackendType = value;
-            
+
             // Update the selected option to match
             var matchingOption = AIBackendTypes.FirstOrDefault(o => o.Type == value);
-            if (matchingOption != null && !ReferenceEquals(_selectedAIBackendTypeOption, matchingOption))
+             if (matchingOption != null && !ReferenceEquals(_selectedAIBackendTypeOption, matchingOption))
             {
                 _selectedAIBackendTypeOption = matchingOption;
                 this.RaisePropertyChanged(nameof(SelectedAIBackendTypeOption));
             }
-            
+
             AITestStatusMessage = string.Empty;
             this.RaisePropertyChanged(nameof(ShowOpenAISettings));
             this.RaisePropertyChanged(nameof(ShowSelfHostedSettings));
@@ -618,38 +626,75 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
     public string OpenAIApiKey
     {
-        get => _openAIApiKey;
-        set => this.RaiseAndSetIfChanged(ref _openAIApiKey, value);
+        get => _openAIConfig.ApiKey ?? string.Empty;
+        set
+        {
+            if (_openAIConfig.ApiKey == value)
+                return;
+            _openAIConfig.ApiKey = value;
+            this.RaisePropertyChanged();
+        }
     }
 
     public string OpenAISelfHostedEndpoint
     {
-        get => _openAISelfHostedEndpoint;
-        set => this.RaiseAndSetIfChanged(ref _openAISelfHostedEndpoint, value);
+        get => _openAISelfHostedConfig.EndpointString;
+        set
+        {
+            if (_openAISelfHostedConfig.EndpointString == value)
+                return;
+            _openAISelfHostedConfig.EndpointString = value;
+            this.RaisePropertyChanged();
+        }
     }
 
     public string OpenAISelfHostedModelName
     {
-        get => _openAISelfHostedModelName;
-        set => this.RaiseAndSetIfChanged(ref _openAISelfHostedModelName, value);
+        get => _openAISelfHostedConfig.DeploymentName ?? string.Empty;
+        set
+        {
+            if (_openAISelfHostedConfig.DeploymentName == value)
+                return;
+            _openAISelfHostedConfig.DeploymentName = value;
+            this.RaisePropertyChanged();
+        }
     }
 
     public string OpenAISelfHostedApiKey
     {
-        get => _openAISelfHostedApiKey;
-        set => this.RaiseAndSetIfChanged(ref _openAISelfHostedApiKey, value);
+        get => _openAISelfHostedConfig.ApiKey ?? string.Empty;
+        set
+        {
+            if (_openAISelfHostedConfig.ApiKey == value)
+                return;
+            _openAISelfHostedConfig.ApiKey = value;
+            this.RaisePropertyChanged();
+        }
     }
 
     public string CustomEndpointApiKey
     {
-        get => _customEndpointApiKey;
-        set => this.RaiseAndSetIfChanged(ref _customEndpointApiKey, value);
+        get => _customEndpointConfig.ApiKey ?? string.Empty;
+        set
+        {
+            if (_customEndpointConfig.ApiKey == value)
+                return;
+            _customEndpointConfig.ApiKey = value;
+            this.RaisePropertyChanged();
+        }
     }
 
     public string CustomEndpoint
     {
-        get => _customEndpoint;
-        set => this.RaiseAndSetIfChanged(ref _customEndpoint, value);
+        get => _customEndpointConfig.Endpoint?.OriginalString ?? string.Empty;
+        set
+        {
+            var newUri = string.IsNullOrWhiteSpace(value) ? null : new Uri(value);
+            if (_customEndpointConfig.Endpoint == newUri)
+                return;
+            _customEndpointConfig.Endpoint = newUri;
+            this.RaisePropertyChanged();
+        }
     }
 
     public string AITestStatusMessage
@@ -662,69 +707,59 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
     private void LoadAIConfiguration()
     {
-        // Load AI configuration from persistent storage
-        // For now, we'll use default values - in a real implementation,
-        // these would be loaded from configuration storage similar to how the Blazor app uses LocalStorage
-        
-        // Default values are already set in field initializers
-        // In the future, this could load from app settings or a config file
+        // Load AI settings from configuration object
+        _openAIConfig = new ApiConfig(_configuration, selfHosted: false);
+        _openAISelfHostedConfig = new ApiConfig(_configuration, selfHosted: true);
+        _customEndpointConfig = new CustomAIEndpointConfig(_configuration);
+
+        // Raise property changed for all UI-bound properties
+        this.RaisePropertyChanged(nameof(OpenAIApiKey));
+        this.RaisePropertyChanged(nameof(OpenAISelfHostedEndpoint));
+        this.RaisePropertyChanged(nameof(OpenAISelfHostedModelName));
+        this.RaisePropertyChanged(nameof(OpenAISelfHostedApiKey));
+        this.RaisePropertyChanged(nameof(CustomEndpointApiKey));
+        this.RaisePropertyChanged(nameof(CustomEndpoint));
     }
 
-    private async Task SaveAIConfiguration()
+    private void WriteAIConfiguration()
     {
-        // Save AI configuration to persistent storage
-        // Similar to how Blazor app saves to LocalStorage
-        // For Avalonia, this could use preferences or a config file
-        
-        await Task.CompletedTask; // Placeholder for now
+        // Write AI settings to configuration object
+        _openAIConfig.WriteToConfiguration(_configuration);
+        _openAISelfHostedConfig.WriteToConfiguration(_configuration);
+        _customEndpointConfig.WriteToConfiguration(_configuration);
     }
 
     private async Task TestAIBackendAsync()
     {
         try
         {
+            IsBusy = true;
+
             AITestStatusMessage = "Testing...";
 
             ICodeSuggestion codeSuggestion;
 
             if (SelectedAIBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
             {
-                var apiConfig = new ApiConfig
-                {
-                    ApiKey = OpenAIApiKey,
-                    DeploymentName = "gpt-4o",
-                    SelfHosted = false
-                };
                 codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestion(
-                    apiConfig,
+                    _openAIConfig,
+                    _loggerFactory,
                     C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION,
                     C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
             }
             else if (SelectedAIBackendType == CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama)
             {
-                Uri.TryCreate(OpenAISelfHostedEndpoint, UriKind.Absolute, out var endpointUri);
-                var apiConfig = new ApiConfig
-                {
-                    ApiKey = string.IsNullOrWhiteSpace(OpenAISelfHostedApiKey) ? null : OpenAISelfHostedApiKey,
-                    DeploymentName = OpenAISelfHostedModelName,
-                    Endpoint = endpointUri,
-                    SelfHosted = true
-                };
                 codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(
-                    apiConfig,
+                    _openAISelfHostedConfig,
+                    _loggerFactory,
                     C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION,
                     C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
             }
             else if (SelectedAIBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
             {
-                Uri.TryCreate(CustomEndpoint, UriKind.Absolute, out var endpointUri);
-                var customConfig = new CustomAIEndpointConfig
-                {
-                    ApiKey = CustomEndpointApiKey,
-                    Endpoint = endpointUri
-                };
                 codeSuggestion = new CustomAIEndpointCodeSuggestion(
-                    customConfig,
+                    _customEndpointConfig,
+                    _loggerFactory,
                     C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
             }
             else
@@ -734,7 +769,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
             }
 
             await codeSuggestion.CheckAvailability();
-            
+
             if (codeSuggestion.IsAvailable)
             {
                 AITestStatusMessage = "OK";
@@ -747,6 +782,10 @@ public class C64ConfigDialogViewModel : ViewModelBase
         catch (Exception ex)
         {
             AITestStatusMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
         }
     }
 
@@ -991,10 +1030,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
         _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
         _originalConfig.InputConfig = (C64AvaloniaInputConfig)_workingConfig.InputConfig.Clone();
-        
+
         // Apply AI Coding Assistant settings
         _originalConfig.CodeSuggestionBackendType = _workingConfig.CodeSuggestionBackendType;
         _originalConfig.BasicAIAssistantDefaultEnabled = _workingConfig.BasicAIAssistantDefaultEnabled;
+
+        WriteAIConfiguration();
     }
 
     private static string? DetectRomName(string fileName)

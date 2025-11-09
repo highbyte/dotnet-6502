@@ -88,7 +88,7 @@ public class C64HostConfig : IHostSystemConfig, ICloneable
 
     public object Clone()
     {
-        var clone = new C64HostConfig();
+        var clone = (C64HostConfig)this.MemberwiseClone();
         clone._systemConfig = (C64SystemConfig)_systemConfig.Clone();
         clone.InputConfig = (C64AvaloniaInputConfig)InputConfig.Clone();
         return clone;

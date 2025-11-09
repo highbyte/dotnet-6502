@@ -52,7 +52,7 @@ public class ApiConfig
             // OpenAI or Azure OpenAI
             SelfHosted = false;
 
-            var configSection = config.GetRequiredSection(CONFIG_SECTION);
+            var configSection = config.GetSection(CONFIG_SECTION);
 
             // If set, we assume Azure OpenAI. If not, we assume OpenAI.
             Endpoint = configSection.GetValue<Uri?>("Endpoint", null);
@@ -61,6 +61,36 @@ public class ApiConfig
             DeploymentName = configSection.GetValue<string>("DeploymentName", "gpt-4o");
 
             ApiKey = configSection.GetValue<string>("ApiKey");
+        }
+    }
+
+    public void WriteToConfiguration(IConfiguration config)
+    {
+        if (SelfHosted)
+        {
+            var configSection = GetConfigurationSection(config);
+            configSection["Endpoint"] = Endpoint?.OriginalString;
+            configSection["DeploymentName"] = DeploymentName;
+            configSection["ApiKey"] = ApiKey;
+        }
+        else
+        {
+            var configSection = GetConfigurationSection(config);
+            configSection["Endpoint"] = Endpoint?.OriginalString;
+            configSection["DeploymentName"] = DeploymentName;
+            configSection["ApiKey"] = ApiKey;
+        }
+    }
+
+    public IConfigurationSection GetConfigurationSection(IConfiguration config)
+    {
+        if (SelfHosted)
+        {
+            return config.GetSection(CONFIG_SECTION_SELF_HOSTED);
+        }
+        else
+        {
+            return config.GetSection(CONFIG_SECTION);
         }
     }
 }

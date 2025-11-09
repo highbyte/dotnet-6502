@@ -12,6 +12,8 @@ using System.Text.Json.Serialization;
 [
     JsonSerializable(typeof(JsonElement)),
     JsonSerializable(typeof(Dictionary<string, JsonElement>)),
+    JsonSerializable(typeof(Dictionary<string, string?>)),
+    JsonSerializable(typeof(Dictionary<string, object?>)),
 ]
 internal partial class HostConfigJsonContext : JsonSerializerContext
 {

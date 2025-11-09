@@ -30,7 +30,8 @@ public partial class App : Application
     private readonly DotNet6502InMemLoggerConfiguration _logConfig;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
-    private readonly Func<string, string, Task>? _saveCustomConfigString;
+    private readonly Func<string, string, string?, Task>? _saveCustomConfigString;
+    private readonly Func<string, IConfigurationSection, string?, Task>? _saveCustomConfigSection;
 
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
@@ -50,7 +51,8 @@ public partial class App : Application
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
-        Func<string, string, Task>? saveCustomConfigString = null)
+        Func<string, string, string?, Task>? saveCustomConfigString = null,
+        Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection = null)
     {
         Console.WriteLine("App constructor called");
 
@@ -60,6 +62,7 @@ public partial class App : Application
         _logStore = logStore;
         _logConfig = logConfig;
         _saveCustomConfigString = saveCustomConfigString;
+        _saveCustomConfigSection = saveCustomConfigSection;
 
         try
         {
@@ -176,6 +179,7 @@ public partial class App : Application
         // Register singletons
         services.AddSingleton(_hostApp);
         services.AddSingleton(_emulatorConfig);
+        services.AddSingleton(_configuration);
         services.AddSingleton(_loggerFactory);
         if (_logStore != null)
             services.AddSingleton(_logStore);
@@ -209,21 +213,24 @@ public partial class App : Application
         }
     }
 
+    /// <summary>
+    /// Get the service provider for dependency injection.
+    /// </summary>
+    public IServiceProvider? GetServiceProvider() => _serviceProvider;
+
     private void InitializeHostApp()
     {
         try
         {
-            Func<string, string, Task>? saveCustomConfigString = _saveCustomConfigString ?? null;
-
             // ----------
             // Get systems
             // ----------
             var systemList = new SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext>();
 
-            var c64Setup = new C64Setup(_loggerFactory, _configuration, saveCustomConfigString);
+            var c64Setup = new C64Setup(_loggerFactory, _configuration, _saveCustomConfigString);
             systemList.AddSystem(c64Setup);
 
-            var genericComputerSetup = new GenericComputerSetup(_loggerFactory, _configuration, _emulatorConfig, saveCustomConfigString);
+            var genericComputerSetup = new GenericComputerSetup(_loggerFactory, _configuration, _emulatorConfig, _saveCustomConfigString);
             systemList.AddSystem(genericComputerSetup);
 
             // ----------
@@ -236,7 +243,9 @@ public partial class App : Application
                 _loggerFactory,
                 _emulatorConfig,
                 _logStore,
-                _logConfig);
+                _logConfig,
+                _saveCustomConfigString,
+                _saveCustomConfigSection);
 
         }
         catch (Exception ex)

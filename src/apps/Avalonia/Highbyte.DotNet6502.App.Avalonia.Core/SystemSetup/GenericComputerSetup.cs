@@ -17,7 +17,7 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
 {
     public string SystemName => GenericComputer.SystemName;
 
-    private readonly Func<string, string, Task>? _saveCustomConfigJson = null;
+    private readonly Func<string, string, string?, Task>? _saveCustomConfigJson = null;
 
     private readonly Assembly _examplesAssembly = Assembly.GetExecutingAssembly();
     private string? ExampleFileAssemblyName => _examplesAssembly.GetName().Name;
@@ -38,7 +38,7 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
         ILoggerFactory loggerFactory,
         IConfiguration configuration,
         EmulatorConfig emulatorConfig,
-        Func<string, string, Task>? saveCustomConfigJson = null)
+        Func<string, string, string?, Task>? saveCustomConfigJson = null)
     {
         _loggerFactory = loggerFactory;
         _logger = _loggerFactory.CreateLogger<GenericComputerSetup>();
@@ -69,14 +69,13 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
         return hostConfig;
     }
 
-
     public async Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
     {
         if (_saveCustomConfigJson == null)
             return;
 
         var genericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
-        await _saveCustomConfigJson(GenericComputerHostConfig.ConfigSectionName, JsonSerializer.Serialize(genericComputerHostConfig));
+        await _saveCustomConfigJson(GenericComputerHostConfig.ConfigSectionName, JsonSerializer.Serialize(genericComputerHostConfig), null);
     }
 
     public async Task<ISystem> BuildSystem(string configurationVariant, ISystemConfig systemConfig)
