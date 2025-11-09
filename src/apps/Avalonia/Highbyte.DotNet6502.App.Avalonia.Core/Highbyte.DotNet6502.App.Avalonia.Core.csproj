@@ -53,6 +53,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Avalonia\Highbyte.DotNet6502.Impl.Avalonia.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Skia\Highbyte.DotNet6502.Impl.Skia.csproj" />

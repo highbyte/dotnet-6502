@@ -214,7 +214,7 @@ internal class InfoConsole : ControlsConsole
         Panel genericSystemInfoPanel = new Panel(10, 10); // TODO: What does size in constructor affect?
         {
             int row = 0;
-            CreateLabel("A generic 6502-based computer, with custom defined memory layout and IO functionallity.", 0, row, Controls.ThemeColors.ControlHostForeground);
+            CreateLabel("A generic 6502-based computer, with custom defined memory layout and IO functionality.", 0, row, Controls.ThemeColors.ControlHostForeground);
 
             Label CreateLabel(string text, int col, int row, Color? textColor = null, string? name = null)
             {
