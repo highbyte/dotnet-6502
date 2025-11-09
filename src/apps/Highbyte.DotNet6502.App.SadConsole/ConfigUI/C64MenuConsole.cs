@@ -21,6 +21,7 @@ public class C64MenuConsole : ControlsConsole
     private const int USABLE_HEIGHT = 10;
 
     private readonly SadConsoleHostApp _sadConsoleHostApp;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger _logger;
 
@@ -33,6 +34,7 @@ public class C64MenuConsole : ControlsConsole
         ) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
         _sadConsoleHostApp = sadConsoleHostApp;
+        _loggerFactory = loggerFactory;
         _configuration = configuration;
         _logger = loggerFactory.CreateLogger(typeof(C64MenuConsole).Name);
 
@@ -303,7 +305,7 @@ public class C64MenuConsole : ControlsConsole
 
     private void C64ConfigButton_Click(object sender, EventArgs e)
     {
-        var window = new C64ConfigUIConsole(_sadConsoleHostApp, _configuration);
+        var window = new C64ConfigUIConsole(_sadConsoleHostApp, _configuration, _loggerFactory);
 
         window.Center();
         window.Closed += (s2, e2) =>
@@ -313,10 +315,13 @@ public class C64MenuConsole : ControlsConsole
                 // Update the system config
                 _sadConsoleHostApp.UpdateHostSystemConfig(window.C64HostConfig);
 
-                IsDirty = true;
-                SetControlStates(); // Setting IsDirty here above does not trigger OnIsDirtyChanged? Call SetControlStates directly here to make sure controls are updated.
+                if (Surface is not null)
+                {
+                    IsDirty = true;
+                    SetControlStates(); // Setting IsDirty here above does not trigger OnIsDirtyChanged? Call SetControlStates directly here to make sure controls are updated.
 
-                _sadConsoleHostApp.MenuConsole.IsDirty = true;
+                    _sadConsoleHostApp.MenuConsole.IsDirty = true;
+                }
             }
         };
         window.Show(true);

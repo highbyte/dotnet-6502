@@ -321,6 +321,9 @@
     public IJSRuntime Js { get; set; } = default!;
     [Inject]
     public HttpClient HttpClient { get; set; } = default!;
+    [Inject]
+    public ILoggerFactory LoggerFactory { get; set; } = default!;
+
 
     [CascadingParameter] BlazoredModalInstance BlazoredModal { get; set; } = default!;
 
@@ -553,15 +556,15 @@
         ICodeSuggestion codeSuggestion;
         if(C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
         {
-            codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestion(_openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
+            codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestion(_openAIApiConfig, LoggerFactory, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
         }
         else if(C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama)
         {
-            codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(_openAISelfHostedCodeLlamaAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
+            codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(_openAISelfHostedCodeLlamaAIApiConfig, LoggerFactory, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
         }        
         else if(C64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
         {
-            codeSuggestion = new CustomAIEndpointCodeSuggestion(_customEndpointAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+            codeSuggestion = new CustomAIEndpointCodeSuggestion(_customEndpointAIApiConfig, LoggerFactory, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
         }
         else
         {

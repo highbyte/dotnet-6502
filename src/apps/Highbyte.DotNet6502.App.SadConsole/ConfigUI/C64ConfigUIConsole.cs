@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using SadConsole.UI;
 using SadConsole.UI.Controls;
 using SadRogue.Primitives;
@@ -19,8 +20,9 @@ public class C64ConfigUIConsole : Window
     public C64SystemConfig C64SystemConfig => C64HostConfig.SystemConfig;
     public readonly C64HostConfig C64HostConfig;
     private readonly IConfiguration _configuration;
+    private readonly ILoggerFactory _loggerFactory;
 
-    public C64ConfigUIConsole(SadConsoleHostApp sadConsoleHostApp, IConfiguration configuration) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
+    public C64ConfigUIConsole(SadConsoleHostApp sadConsoleHostApp, IConfiguration configuration, ILoggerFactory loggerFactory) : base(CONSOLE_WIDTH, CONSOLE_HEIGHT)
     {
 
         C64HostConfig = (C64HostConfig)sadConsoleHostApp.CurrentHostSystemConfig.Clone();
@@ -41,6 +43,7 @@ public class C64ConfigUIConsole : Window
 
         DrawUIItems();
         _configuration = configuration;
+        _loggerFactory = loggerFactory;
     }
 
     private void DrawUIItems()
@@ -190,7 +193,7 @@ public class C64ConfigUIConsole : Window
         {
             try
             {
-                var codeSuggestionBackend = CodeSuggestionConfigurator.CreateCodeSuggestion(C64HostConfig.CodeSuggestionBackendType, _configuration, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
+                var codeSuggestionBackend = CodeSuggestionConfigurator.CreateCodeSuggestion(C64HostConfig.CodeSuggestionBackendType, _configuration, _loggerFactory, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
                 codingAssistantInfoLabel.DisplayText = "Testing...";
                 codingAssistantInfoLabel.TextColor = Color.White;
 

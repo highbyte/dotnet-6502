@@ -490,7 +490,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
         {
             // If we haven't started started the selected system yet, return a temporary instance of the system (set in SelectSystem method).
             if (_selectedSystemTemporary == null)
-                throw new DotNet6502Exception("Internal state error.");
+                return null; //throw new DotNet6502Exception("Internal state error.");
             return _selectedSystemTemporary;
         }
         // The emulator is running, return the current system runner's system.

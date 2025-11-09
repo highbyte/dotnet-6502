@@ -39,6 +39,10 @@ public sealed class SadConsoleCommandTarget : ICommandTarget
     {
         switch (cmd)
         {
+            case SetConfig(var glyphToUnicodeConverter):
+                // Note: glyphToUnicodeConverter not used in SadConsole implementation, see _transformCharacterAndColor instead (converts to SadConsole-specific character index and colors)
+                break;
+
             case FillRect(var x, var y, var w, var h, var color):
                 _screenSurface.Surface.Fill(
                     new Rectangle(x + _offsetX, y + _offsetY, w, h),

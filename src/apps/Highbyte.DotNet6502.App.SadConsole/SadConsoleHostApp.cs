@@ -206,7 +206,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         }
 
         var errorMessage = "An unexpected error occurred in the application.";
-        
+
         _currentErrorDialog = new ErrorDialog(errorMessage, exception);
         _currentErrorDialog.Closed += (sender, e) =>
         {
@@ -263,7 +263,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
 
     private IScreenObject CreateMainSadConsoleScreen(GameHost gameHost)
     {
-        // Trigger sadConsoleHostApp.SelectSystem call which in turn may trigger other system-specific UI stuff.
+        // Trigger SelectSystem which sets current system to default system. A selected system is required for the setup code below.
         SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
 
         InitTargetRenderers(); // New rendering pipeline
@@ -328,6 +328,9 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
             Game.Instance.ResizeWindow(CalculateWindowWidthPixels(), CalculateWindowHeightPixels());
         };
         _sadConsoleScreen.Children.Add(_monitorConsole);
+
+        // Trigger SelectSystem call again to update system-specific UI stuff.
+        SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
 
         // Logo
         _logoDrawImage = new DrawImage("Resources/Images/logo-256.png");
