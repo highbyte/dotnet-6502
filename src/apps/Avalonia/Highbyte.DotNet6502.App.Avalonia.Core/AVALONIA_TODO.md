@@ -1,7 +1,4 @@
-﻿C64 AI Basic:
-- Implement Config UI that works both for Avalonia Desktop and Avalonia Browser
-
-Audio:
+﻿Audio:
 - Implement via existing NAudio code in AvaDesktop app
 - Maybe for future in Avalonia Browser: Investigate audio/synth alternatives that is compatible with WebAssembly. Preferably without having to write browser WebAudio JS API interop code.
 
