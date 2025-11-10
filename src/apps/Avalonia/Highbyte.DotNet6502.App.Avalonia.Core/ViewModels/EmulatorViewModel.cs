@@ -1,6 +1,6 @@
 using System;
 using System.ComponentModel;
-using Highbyte.DotNet6502.App.Avalonia.Core.Render;
+using Highbyte.DotNet6502.Impl.Avalonia.Render;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Rendering;
 

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Avalonia.Input;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Core.Config;
+namespace Highbyte.DotNet6502.Impl.Avalonia.Generic.Input;
 
 public class GenericComputerAvaloniaInputConfig : ICloneable
 {

@@ -8,7 +8,7 @@ using Avalonia.Platform;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Highbyte.DotNet6502.Systems.Utils;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Core.Render;
+namespace Highbyte.DotNet6502.Impl.Avalonia.Render;
 
 [DisplayName("Avalonia 2-layer Bitmap")]
 [HelpText("Renders two layers to a Avalonia Bitmap using CPU for compositing.\nIt uses two RenderFrames (byte arrays) provided by the render source.\nThe render source must provide exactly two layers: background and foreground.")]

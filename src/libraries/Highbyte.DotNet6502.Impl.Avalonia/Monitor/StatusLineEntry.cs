@@ -1,7 +1,4 @@
-using System.Collections.Generic;
-using System.Linq;
-
-namespace Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
+namespace Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 
 public class StatusLineEntry
 {

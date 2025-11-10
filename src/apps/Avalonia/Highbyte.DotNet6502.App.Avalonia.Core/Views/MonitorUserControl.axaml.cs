@@ -1,13 +1,10 @@
-using System;
 using System.Collections.Specialized;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
-using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
-using Highbyte.DotNet6502.Monitor;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 

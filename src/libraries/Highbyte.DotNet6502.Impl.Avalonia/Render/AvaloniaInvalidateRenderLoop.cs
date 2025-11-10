@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Highbyte.DotNet6502.Systems.Rendering;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Core.Render;
+namespace Highbyte.DotNet6502.Impl.Avalonia.Render;
 public sealed class AvaloniaInvalidateRenderLoop : IRenderLoop
 {
     private readonly Func<Control?> _getControl;

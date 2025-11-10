@@ -3,7 +3,7 @@ using System.Linq;
 using Avalonia.Logging;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Core.Logging;
+namespace Highbyte.DotNet6502.Impl.Avalonia.Logging;
 
 /// <summary>
 /// Bridges Avalonia.Logging.Logger output to Microsoft.Extensions.Logging.ILogger.

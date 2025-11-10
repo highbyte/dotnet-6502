@@ -187,8 +187,8 @@ public partial class MainView : UserControl
         else
         {
             // For desktop platforms, use the Window dialog
-            //ShowMonitorWindow();
-            ShowMonitorOverlay();
+            ShowMonitorWindow();
+            //ShowMonitorOverlay();
         }
     }
 

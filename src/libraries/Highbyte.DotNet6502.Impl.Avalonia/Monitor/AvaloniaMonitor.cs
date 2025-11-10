@@ -1,14 +1,11 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
 using Avalonia.Threading;
+using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Utils;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
+namespace Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 
 public class AvaloniaMonitor : MonitorBase
 {

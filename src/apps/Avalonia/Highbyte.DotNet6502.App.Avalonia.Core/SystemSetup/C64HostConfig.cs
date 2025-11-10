@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using Highbyte.DotNet6502.AI.CodingAssistant;
-using Highbyte.DotNet6502.App.Avalonia.Core.Config;
+using Highbyte.DotNet6502.Impl.Avalonia.Commodore64.Input;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 

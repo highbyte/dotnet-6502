@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Avalonia.Input;
 using Highbyte.DotNet6502.Systems;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Core.Input;
+namespace Highbyte.DotNet6502.Impl.Avalonia.Input;
 
 public class AvaloniaInputHandlerContext : IInputHandlerContext
 {

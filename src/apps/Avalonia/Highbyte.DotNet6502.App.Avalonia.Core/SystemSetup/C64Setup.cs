@@ -4,8 +4,8 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Highbyte.DotNet6502.AI.CodingAssistant;
-using Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
-using Highbyte.DotNet6502.App.Avalonia.Core.Input;
+using Highbyte.DotNet6502.Impl.Avalonia.Commodore64.Input;
+using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -13,7 +13,6 @@ using Highbyte.DotNet6502.Systems.Commodore64.Models;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggestion;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 

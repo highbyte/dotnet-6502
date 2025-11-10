@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
-             xmlns:monitor="using:Highbyte.DotNet6502.App.Avalonia.Core.Monitor"
+             xmlns:monitor="using:Highbyte.DotNet6502.Impl.Avalonia.Monitor"
              x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.MonitorUserControl"
              x:DataType="vm:MonitorViewModel">
 

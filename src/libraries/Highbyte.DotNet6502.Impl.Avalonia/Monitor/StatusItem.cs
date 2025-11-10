@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
+namespace Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 
 /// <summary>
 /// Represents a single status item (key-value pair) for display in the monitor status

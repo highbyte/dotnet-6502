@@ -2,13 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Input;
+using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Core.Input;
+namespace Highbyte.DotNet6502.Impl.Avalonia.Generic.Input;
 
 public class AvaloniaGenericInputHandler : IInputHandler
 {

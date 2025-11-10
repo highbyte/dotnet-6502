@@ -2,7 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Avalonia.Input;
-using Highbyte.DotNet6502.App.Avalonia.Core.Config;
+using Highbyte.DotNet6502;
+using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
@@ -10,7 +11,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Microsoft.Extensions.Logging;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Core.Input;
+namespace Highbyte.DotNet6502.Impl.Avalonia.Commodore64.Input;
 
 public class AvaloniaC64InputHandler : IInputHandler
 {

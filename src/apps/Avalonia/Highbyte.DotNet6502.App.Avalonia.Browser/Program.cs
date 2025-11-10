@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Browser;
 using Highbyte.DotNet6502.App.Avalonia.Core;
-using Highbyte.DotNet6502.App.Avalonia.Core.Logging;
+using Highbyte.DotNet6502.Impl.Avalonia.Logging;
 using Highbyte.DotNet6502.Systems.Logging.Console;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;

@@ -1,6 +1,6 @@
 using System;
 using System.Net.Http;
-using Highbyte.DotNet6502.App.Avalonia.Core.Input;
+using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 

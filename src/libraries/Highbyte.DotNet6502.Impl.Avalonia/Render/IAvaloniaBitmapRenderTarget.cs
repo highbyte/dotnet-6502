@@ -1,7 +1,7 @@
 using Avalonia.Media.Imaging;
 using Highbyte.DotNet6502.Systems.Rendering;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Core.Render;
+namespace Highbyte.DotNet6502.Impl.Avalonia.Render;
 
 public interface IAvaloniaBitmapRenderTarget : IRenderTarget
 {

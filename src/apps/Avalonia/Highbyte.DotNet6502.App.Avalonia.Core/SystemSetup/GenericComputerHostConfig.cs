@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
-using Highbyte.DotNet6502.App.Avalonia.Core.Config;
+using Highbyte.DotNet6502.Impl.Avalonia.Generic.Input;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 

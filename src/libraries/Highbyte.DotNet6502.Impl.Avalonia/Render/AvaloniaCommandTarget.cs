@@ -7,7 +7,7 @@ using Highbyte.DotNet6502.Systems.Rendering.VideoCommands;
 using Highbyte.DotNet6502.Systems.Utils;
 using SystemColor = System.Drawing.Color;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Core.Render;
+namespace Highbyte.DotNet6502.Impl.Avalonia.Render;
 
 /// <summary>
 /// Avalonia-specific command target that renders video commands to an Avalonia DrawingContext.

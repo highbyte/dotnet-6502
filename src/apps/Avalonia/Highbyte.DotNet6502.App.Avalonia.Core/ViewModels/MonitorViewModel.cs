@@ -3,7 +3,7 @@ using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
-using Highbyte.DotNet6502.App.Avalonia.Core.Monitor;
+using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Monitor;
 using ReactiveUI;
 

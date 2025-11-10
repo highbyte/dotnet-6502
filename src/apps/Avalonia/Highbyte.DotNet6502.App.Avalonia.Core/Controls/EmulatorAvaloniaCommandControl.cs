@@ -1,7 +1,7 @@
 using System;
 using Avalonia;
 using Avalonia.Media;
-using Highbyte.DotNet6502.App.Avalonia.Core.Render;
+using Highbyte.DotNet6502.Impl.Avalonia.Render;
 using Highbyte.DotNet6502.Systems.Rendering;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Controls;

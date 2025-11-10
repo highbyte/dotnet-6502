@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Avalonia.Input;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Core.Config;
+namespace Highbyte.DotNet6502.Impl.Avalonia.Commodore64.Input;
 
 public class C64AvaloniaInputConfig : ICloneable
 {
