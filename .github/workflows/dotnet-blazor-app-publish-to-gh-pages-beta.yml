@@ -1,4 +1,4 @@
-name: Publish Test Browser app to GitHub Pages (separate url)
+name: Publish Blazor Browser app to GitHub Pages to Test (separate url)
 
 on:
 #  push:
