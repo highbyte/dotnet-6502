@@ -1,0 +1,377 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+    xmlns:controls="using:Highbyte.DotNet6502.App.Avalonia.Core.Controls"
+    xmlns:views="using:Highbyte.DotNet6502.App.Avalonia.Core.Views"
+    x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.MainView"
+    x:DataType="vm:MainViewModel"
+    Loaded="MainView_Loaded"
+    Focusable="false"
+    Opacity="0">
+
+    <!-- DataContext will be set from code-behind via DI -->
+
+    <UserControl.Styles>
+        <!-- Include non-focusable styles -->
+        <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
+    </UserControl.Styles>
+
+    <Grid ShowGridLines="False">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="200" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Menu and Controls Panel (Left) -->
+        <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="3"
+            Background="#2D3748"
+            BorderBrush="#4A5568"
+            BorderThickness="0,0,1,0"
+            Padding="10">
+            <StackPanel Spacing="6">
+                <!-- System Selection, Variant, and Status - Unified Grid -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="Labels" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="6" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="6" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- System Selection -->
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                        Text="System:"
+                        Classes="label"
+                        VerticalAlignment="Center"
+                        Margin="0,0,8,0"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1"
+                        Name="SystemSelectionComboBox"
+                        ItemsSource="{Binding AvailableSystems}"
+                        SelectedItem="{Binding SelectedSystemName}"
+                        SelectionChanged="OnSystemSelectionChanged"
+                        IsEnabled="{Binding IsEmulatorUninitialzied}"
+                        Classes="compact"
+                        MinWidth="100"/>
+
+                    <!-- System Variant Selection -->
+                    <TextBlock Grid.Row="2" Grid.Column="0"
+                        Text="Variant:"
+                        Classes="label"
+                        VerticalAlignment="Center"
+                        Margin="0,0,8,0"/>
+                    <ComboBox Grid.Row="2" Grid.Column="1"
+                        Name="SystemVariantSelectionComboBox"
+                        ItemsSource="{Binding AvailableSystemVariants}"
+                        SelectedItem="{Binding SelectedSystemVariant}"
+                        SelectionChanged="OnSystemVariantSelectionChanged"
+                        IsEnabled="{Binding IsEmulatorUninitialzied}"
+                        Classes="compact"
+                        MinWidth="100"/>
+
+                    <!-- Status -->
+                    <TextBlock Grid.Row="4" Grid.Column="0"
+                        Text="Status:"
+                        Classes="label"
+                        VerticalAlignment="Center"
+                        Margin="0,0,8,0"/>
+                    <TextBlock Grid.Row="4" Grid.Column="1"
+                        Text="{Binding EmulatorState}"
+                        Classes="status"/>
+                </Grid>
+
+                <!-- Control Buttons -->
+                <StackPanel Spacing="4">
+                    <!-- First row: Start and Pause -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                            Content="Start"
+                            Classes="primary grid"
+                            Command="{Binding StartCommand}"/>
+                        <Button Grid.Column="2"
+                            Content="Pause"
+                            Classes="warning grid"
+                            Command="{Binding PauseCommand}"/>
+                    </Grid>
+
+                    <!-- Second row: Reset and Stop -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                            Content="Reset"
+                            Classes="secondary grid"
+                            Command="{Binding ResetCommand}"/>
+                        <Button Grid.Column="2"
+                            Content="Stop"
+                            Classes="danger grid"
+                            Command="{Binding StopCommand}"/>
+                    </Grid>
+
+                    <!-- Third row: Monitor and Stats -->
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                            Content="Monitor"
+                            Classes="grid"
+                            Command="{Binding MonitorCommand}"
+                            ToolTip.Tip="Toggle with F12"/>
+                        <Button Grid.Column="2"
+                            Content="Stats"
+                            Classes="grid"
+                            Command="{Binding StatsCommand}"
+                            ToolTip.Tip="Toggle with F11"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Common display and audio settings -->
+                <StackPanel Spacing="6">
+                    <!-- Display Settings -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                            Text="Scale:"
+                            Classes="label"
+                            VerticalAlignment="Center"
+                            Margin="0,0,8,0"/>
+                        <Slider Grid.Column="1"
+                            Minimum="1" Maximum="4"
+                            Value="{Binding Scale}"
+                            TickFrequency="0.5"
+                            IsSnapToTickEnabled="True"
+                            VerticalAlignment="Center"
+                            Classes="compact"/>
+                    </Grid>
+
+                    <!-- Audio Settings -->
+                    <CheckBox Grid.Column="1"
+                        Content="Audio"
+                        IsVisible="{Binding AudioSupported}"
+                        IsChecked="{Binding AudioEnabled}"
+                        VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- C64 Menu -->
+                <views:C64MenuView DataContext="{Binding C64MenuViewModel}" IsVisible="{Binding $parent[UserControl].DataContext.IsC64SystemSelected}" />
+
+            </StackPanel>
+        </Border>
+
+        <!-- Main Emulator Display Area (Center) -->
+        <Border Grid.Row="0" Grid.Column="1" Grid.RowSpan="3"
+            Background="#1A202C"
+            Padding="10">
+            
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0"
+                    Name="EmulatorDisplayGrid"
+                    Margin="0,0,0,10"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top">
+                    
+                    <!-- Emulator Display Control -->
+                    <views:EmulatorView Name="EmulatorView"
+                        DataContext="{Binding EmulatorViewModel}"
+                        Scale="{Binding $parent[UserControl].DataContext.Scale}"
+                        IsVisible="{Binding $parent[UserControl].DataContext.IsEmulatorRunning}"/>
+
+                <!-- Overlay message when not running -->
+                   <views:EmulatorPlaceholderView Name="EmulatorPlaceholderView"
+                        DataContext="{Binding EmulatorPlaceholderViewModel}"
+                        Scale="{Binding $parent[UserControl].DataContext.Scale}"
+                        IsVisible="{Binding !$parent[UserControl].DataContext.IsEmulatorRunning}"/>
+                </Grid>
+
+                <!-- Information Area - Tabbed Interface -->
+                <Border Grid.Row="1"
+                    Background="#2D3748"
+                    BorderBrush="#4A5568"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="0"
+                    Height="200"
+                    VerticalAlignment="Top"
+                    HorizontalAlignment="Left"
+                    Width="{Binding #EmulatorDisplayGrid.Bounds.Width}">
+                    
+                    <TabControl Name="InformationTabControl">
+                        <!-- Information Tab -->
+                        <TabItem Name="InformationTabItem" Header="Information">
+                            <Border Background="#2D3748" Padding="4">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="No information available."
+                                            Classes="small"
+                                            FontStyle="Italic"
+                                            Foreground="#A0AEC0"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </TabItem>
+
+                        <!-- Config Status Tab -->
+                        <TabItem Name="ConfigStatusTabItem" Header="Config status">
+                            <Border Background="#2D3748" Padding="4">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                    <StackPanel Spacing="4">
+                                        <StackPanel Spacing="8" IsVisible="{Binding HasValidationErrors}">
+                                            <Border Background="Transparent"
+                                                BorderBrush="#E53E3E"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="10">
+                                                <ItemsControl ItemsSource="{Binding ValidationErrors}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2">
+                                                                <TextBlock Text="•"
+                                                                    Foreground="#E53E3E"
+                                                                    VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding}"
+                                                                    Classes="small"
+                                                                    Foreground="White"
+                                                                    TextWrapping="Wrap"
+                                                                    VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="5" IsVisible="{Binding !HasValidationErrors}">
+                                            <TextBlock Text="Configuration is valid."
+                                                Classes="small"
+                                                FontStyle="Italic"
+                                                Foreground="#A0AEC0"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </TabItem>
+
+                        <!-- Log Tab -->
+                        <TabItem Name="LogTabItem" Header="{Binding LogTabHeader}" Classes.error-log="{Binding HasLogErrors}">
+                            <Border Background="#2D3748" Padding="4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <!-- Log content -->
+                                    <ScrollViewer Grid.Column="0" x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding LogMessages}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Spacing="0"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="16" />  <!-- Fixed width for symbol alignment -->
+                                                        <ColumnDefinition Width="*" />   <!-- Flexible width for message -->
+                                                    </Grid.ColumnDefinitions>
+                                                    
+                                                    <!-- Symbol container with proper alignment -->
+                                                    <Border Grid.Column="0" 
+                                                        Height="13"
+                                                        VerticalAlignment="Top">
+                                                        <TextBlock 
+                                                            Text="{Binding Symbol}"
+                                                            Classes.log-trace="{Binding IsTrace}"
+                                                            Classes.log-debug="{Binding IsDebug}"
+                                                            Classes.log-info="{Binding IsInfo}"
+                                                            Classes.log-warning="{Binding IsWarning}"
+                                                            Classes.log-error="{Binding IsError}"
+                                                            Classes.log-critical="{Binding IsCritical}"
+                                                            TextWrapping="NoWrap"
+                                                            FontSize="12"
+                                                            
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    
+                                                    <!-- Message text -->
+                                                    <TextBlock Grid.Column="1" 
+                                                        Text="{Binding Message}"
+                                                        Classes="monospace"
+                                                        Foreground="#A0AEC0"
+                                                        TextWrapping="NoWrap"
+                                                        Margin="0"
+                                                        Padding="0"
+                                                        FontSize="10"
+                                                        LineHeight="13"
+                                                        VerticalAlignment="Top"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                                
+                                <!-- Clear button column -->
+                                <Border Grid.Column="1" Padding="4,0,0,0" VerticalAlignment="Top">
+                                    <Button Command="{Binding ClearLogCommand}"
+                                            Classes="compact"
+                                            Width="60"
+                                            Height="20"
+                                            FontSize="10"
+                                            Padding="2"
+                                            ToolTip.Tip="Clear log messages">
+                                        Clear
+                                    </Button>
+                                </Border>
+                                </Grid>
+                            </Border>
+                        </TabItem>
+                    </TabControl>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Info and Stats Panel (Right) -->
+        <Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="3"
+            Background="#2D3748"
+            BorderBrush="#4A5568"
+            BorderThickness="1,0,0,0"
+            Padding="10"
+            IsVisible="{Binding IsStatisticsPanelVisible}">
+            <ScrollViewer HorizontalAlignment="Stretch">
+                <views:StatisticsView DataContext="{Binding StatisticsViewModel}" />
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

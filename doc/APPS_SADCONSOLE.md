@@ -7,9 +7,14 @@
 Native cross-platform app based on the [`SadConsole`](https://github.com/Thraka/SadConsole) terminal/ascii/console/game engine.
 
 # System: C64 
-- A directory containing the C64 ROM files (Kernal, Basic, Chargen) is supplied by the user. Defaults are set in the appsettings.json file, and possible to change in the UI.
-- Only video mode that works in C64 character mode (not multicolor) with built-in characters set from ROM is supported. 
-- Generation of sound via NAudio with custom OpenAL (Silk.NET) provider (for cross platform compatibility).
+- A directory containing the C64 ROM files (Kernal, Basic, Chargen) is supplied by the user. Defaults are set in the appsettings.json file, and possible to change in the UI. Also a auto-download option exists (license required).
+
+- Renderer provider `Video commands` -> target `Skia commands`
+  - Character mode (normal).
+  - Only video mode that works in C64 character mode (not multicolor) with built-in characters set from ROM is supported. 
+
+- Audio via `NAudio`
+  - [NAudio](https://github.com/naudio/NAudio) + custom OpenAL (Silk.NET) provider for cross platform compatibility.
 
 # System: Generic computer 
 TODO

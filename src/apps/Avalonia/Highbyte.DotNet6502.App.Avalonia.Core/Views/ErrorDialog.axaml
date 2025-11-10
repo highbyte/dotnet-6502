@@ -1,0 +1,109 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.ErrorDialog"
+        x:DataType="views:ErrorDialog"
+        xmlns:views="clr-namespace:Highbyte.DotNet6502.App.Avalonia.Core.Views"
+        Title="Application Error"
+        Width="500"
+        Height="400"
+        WindowStartupLocation="CenterOwner"
+        CanResize="false"
+        SystemDecorations="BorderOnly"
+        ShowInTaskbar="false"
+        Topmost="true"
+        Background="#2A2A2A">
+  
+  <Border BorderBrush="#F44336" 
+          BorderThickness="2" 
+          CornerRadius="5"
+          Margin="10"
+          Background="#3A3A3A">
+    <Grid Margin="15">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+      
+      <!-- Error icon/title -->
+      <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+        <Ellipse Width="24" Height="24" Fill="#F44336" Margin="0,0,10,0"/>
+        <TextBlock Text="ERROR!" Classes="error" VerticalAlignment="Center"/>
+      </StackPanel>
+      
+      <!-- Main error message -->
+      <TextBox Grid.Row="1" 
+               x:Name="ErrorMessageTextBox"
+               Text="{Binding ErrorMessage}"
+               TextWrapping="Wrap"
+               Margin="0,0,0,12"
+               Classes="h3"
+               IsReadOnly="True"
+               BorderThickness="0"
+               Background="#1A000000"
+               Padding="5"
+               Foreground="White"/>
+      
+      <!-- Exception details -->
+      <ScrollViewer Grid.Row="2" 
+                    x:Name="ExceptionDetailsScrollViewer"
+                    Margin="0,0,0,12"
+                    IsVisible="{Binding ShowDetails}"
+                    HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Auto"
+                    MaxHeight="200">
+        <StackPanel>
+          <TextBlock Text="Exception Details:" 
+                     Classes="warning"
+                     Margin="0,0,0,5"/>
+          <TextBox Text="{Binding ExceptionDetails}" 
+                   TextWrapping="Wrap" 
+                   Classes="monospace"
+                   Padding="5"
+                   Background="#1A000000"
+                   MaxWidth="420"
+                   IsReadOnly="True"
+                   BorderThickness="1"
+                   BorderBrush="#333333"
+                   AcceptsReturn="True"/>
+        </StackPanel>
+      </ScrollViewer>
+      
+      <!-- Show Details Button (only visible if there's an exception) -->
+      <StackPanel Grid.Row="3" 
+                  Orientation="Horizontal" 
+                  HorizontalAlignment="Center"
+                  Margin="0,0,0,12"
+                  IsVisible="{Binding HasException}">
+        <Button x:Name="ShowDetailsButton"
+                Content="{Binding ShowDetailsButtonText}"
+                Width="120"
+                Height="30"
+                Classes="text"
+                Click="ShowDetailsButton_Click"/>
+      </StackPanel>
+      
+      <!-- Buttons -->
+      <StackPanel Grid.Row="4" 
+                  Orientation="Horizontal" 
+                  HorizontalAlignment="Center"
+                  Spacing="10">
+        <Button x:Name="ContinueButton"
+                Content="Continue"
+                Width="100"
+                Height="35"
+                Classes="primary"
+                Click="ContinueButton_Click"
+                IsDefault="True"/>
+        <Button x:Name="ExitButton"
+                Content="Exit"
+                Width="100"
+                Height="35"
+                Classes="danger"
+                Click="ExitButton_Click"/>
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>

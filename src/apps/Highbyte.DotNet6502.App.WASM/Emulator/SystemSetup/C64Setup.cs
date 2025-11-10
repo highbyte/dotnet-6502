@@ -51,7 +51,7 @@ public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHa
             {
                 c64HostConfig = JsonSerializer.Deserialize<C64HostConfig>(c64HostConfigJson)!;
 
-                // Note: Because ROMDirectory should nevery be used when running WASM, make sure it is empty (regardless if config from local storage has it set).
+                // Note: Because ROMDirectory should never be used when running WASM, make sure it is empty (regardless if config from local storage has it set).
                 c64HostConfig.SystemConfig.ROMDirectory = "";
             }
             catch (Exception ex)
@@ -117,7 +117,7 @@ public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHa
         var c64 = (C64)system;
         var c64HostConfig = (C64HostConfig)hostSystemConfig;
 
-        var codeSuggestion = await GetCodeSuggestionImplementation(c64HostConfig, _browserContext.LocalStorage);
+        var codeSuggestion = await GetCodeSuggestionImplementation(c64HostConfig, _loggerFactory, _browserContext.LocalStorage);
         var c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, codeSuggestion, _loggerFactory);
         var inputHandler = new C64AspNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig, c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
 
@@ -182,7 +182,7 @@ public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHa
         //return responseRawData;
     }
 
-    public static async Task<ICodeSuggestion> GetCodeSuggestionImplementation(C64HostConfig c64HostConfig, ILocalStorageService localStorageService, bool defaultToNoneIdConfigError = true)
+    public static async Task<ICodeSuggestion> GetCodeSuggestionImplementation(C64HostConfig c64HostConfig, ILoggerFactory loggerFactory, ILocalStorageService localStorageService, bool defaultToNoneIdConfigError = true)
     {
         ICodeSuggestion codeSuggestion;
         try
@@ -190,17 +190,17 @@ public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHa
             if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAI)
             {
                 var openAIApiConfig = await GetOpenAIConfig(localStorageService);
-                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestion(openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
+                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestion(openAIApiConfig, loggerFactory, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
             }
             else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.OpenAISelfHostedCodeLlama)
             {
                 var openAIApiConfig = await GetOpenAISelfHostedCodeLlamaConfig(localStorageService);
-                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(openAIApiConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
+                codeSuggestion = OpenAICodeSuggestion.CreateOpenAICodeSuggestionForCodeLlama(openAIApiConfig, loggerFactory, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION, C64BasicCodingAssistant.CODE_COMPLETION_ADDITIONAL_SYSTEM_INSTRUCTION);
             }
             else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.CustomEndpoint)
             {
                 var customAIEndpointConfig = await GetCustomAIEndpointConfig(localStorageService);
-                codeSuggestion = new CustomAIEndpointCodeSuggestion(customAIEndpointConfig, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
+                codeSuggestion = new CustomAIEndpointCodeSuggestion(customAIEndpointConfig, loggerFactory, C64BasicCodingAssistant.CODE_COMPLETION_LANGUAGE_DESCRIPTION);
             }
             else if (c64HostConfig.CodeSuggestionBackendType == CodeSuggestionBackendTypeEnum.None)
             {

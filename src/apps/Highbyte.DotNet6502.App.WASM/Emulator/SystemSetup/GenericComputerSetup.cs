@@ -17,9 +17,6 @@ public class GenericComputerSetup : ISystemConfigurer<AspNetInputHandlerContext,
         return Task.FromResult(examplePrograms);
     }
 
-    //private const string DEFAULT_PRG_URL = "6502binaries/Generic/Assembler/hostinteraction_scroll_text_and_cycle_colors.prg";
-    //private const string DEFAULT_PRG_URL = "6502binaries/Generic/Assembler/snake6502.prg";
-
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<GenericComputerSetup> _logger;
@@ -65,8 +62,8 @@ public class GenericComputerSetup : ISystemConfigurer<AspNetInputHandlerContext,
 
     public async Task PersistHostSystemConfig(IHostSystemConfig hostSystemConfig)
     {
-        var cenericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
-        await _browserContext.LocalStorage.SetItemAsStringAsync($"{GenericComputerHostConfig.ConfigSectionName}", JsonSerializer.Serialize(cenericComputerHostConfig));
+        var genericComputerHostConfig = (GenericComputerHostConfig)hostSystemConfig;
+        await _browserContext.LocalStorage.SetItemAsStringAsync($"{GenericComputerHostConfig.ConfigSectionName}", JsonSerializer.Serialize(genericComputerHostConfig));
     }
 
     public async Task<ISystem> BuildSystem(string configurationVariant, ISystemConfig systemConfig)

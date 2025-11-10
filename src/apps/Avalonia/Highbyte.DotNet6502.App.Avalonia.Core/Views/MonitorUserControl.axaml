@@ -1,0 +1,153 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+             xmlns:monitor="using:Highbyte.DotNet6502.Impl.Avalonia.Monitor"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.MonitorUserControl"
+             x:DataType="vm:MonitorViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Border.monitor-container">
+            <Setter Property="Background" Value="#1A202C"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+        </Style>
+        <Style Selector="Border.command-container">
+            <Setter Property="Background" Value="#1A202C"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+        </Style>
+        <Style Selector="Border.status-container">
+            <Setter Property="Background" Value="#252F3F"/>
+            <Setter Property="BorderBrush" Value="#4A5568"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="TextBlock.monitor-line[Tag=Information]">
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+        </Style>
+        <Style Selector="TextBlock.monitor-line[Tag=Warning]">
+            <Setter Property="Foreground" Value="#F6E05E"/>
+        </Style>
+        <Style Selector="TextBlock.monitor-line[Tag=Error]">
+            <Setter Property="Foreground" Value="#FEB2B2"/>
+        </Style>
+        <Style Selector="TextBlock.monitor-font">
+            <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="TextBox.monitor-font">
+            <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="TextBox.command-input">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="0,4,0,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBox.command-input:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.command-input:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.command-input /template/ ScrollViewer#PART_ScrollViewer">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBox.command-input /template/ TextPresenter#PART_TextPresenter">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="LineHeight" Value="16"/>
+        </Style>
+        <Style Selector="TextBlock.status-line">
+            <Setter Property="Foreground" Value="#CBD5E0"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="*">
+
+        <!-- Title Header -->
+        <Border Grid.Row="0"
+                Background="#2D3748"
+                Padding="5,5"
+                CornerRadius="8,8,0,0">
+            <TextBlock Text="Monitor"
+                       Classes="h1"
+                       HorizontalAlignment="Center"/>
+        </Border>
+
+        <!-- Output Area -->
+        <Border Grid.Row="1" Classes="monitor-container" Padding="6" Margin="0,0,0,8">
+            <ScrollViewer x:Name="OutputScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding OutputLines}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="4"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="monitor:MonitorEntry">
+                            <TextBlock Text="{Binding Text}" Classes="monitor-line monitor-font" Tag="{Binding Severity}" TextWrapping="Wrap"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        
+        <!-- Command textbox -->
+        <Border Grid.Row="2" Classes="command-container" Padding="6" Margin="0,0,0,8">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="0" VerticalAlignment="Center">
+                <TextBlock Grid.Column="0" Text=">&#160;" VerticalAlignment="Center" Foreground="#A0AEC0" Classes="monitor-font"/>
+                <TextBox Grid.Column="1"
+                     x:Name="CommandTextBox"
+                     Text="{Binding InputText, Mode=TwoWay}"
+                     KeyDown="CommandTextBox_KeyDown"
+                     Watermark="Enter monitor command"
+                     Classes="monitor-font command-input"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
+                    <Button Content="Send" Command="{Binding SendCommand}" Classes="primary"/>
+                    <Button Content="Close" Command="{Binding CloseCommand}" Classes="cancel"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Status information -->
+        <Border Grid.Row="3" Classes="status-container" Padding="6" Margin="0,0,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="140">
+                <ItemsControl ItemsSource="{Binding StatusLines}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="4"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="monitor:StatusLineEntry">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <ItemsControl ItemsSource="{Binding Items}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="12"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="{Binding Key}" Classes="status-line monitor-font" Foreground="#A0AEC0" FontWeight="Bold"/>
+                                                <TextBlock Text=":" Classes="status-line monitor-font" Foreground="#A0AEC0"/>
+                                                <TextBlock Text="{Binding Value}" Classes="status-line monitor-font" Foreground="#E2E8F0"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

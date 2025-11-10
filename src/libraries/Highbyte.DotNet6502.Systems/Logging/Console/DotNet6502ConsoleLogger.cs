@@ -17,5 +17,6 @@ public class DotNet6502ConsoleLogger : DotNet6502LoggerBase
     }
 
     public override bool IsEnabled(LogLevel logLevel) => logLevel >= _getCurrentConfig().LogLevel;
+    public override void WriteLog(LogLevel logLevel, string message) => System.Console.WriteLine(message);
     public override void WriteLog(string message) => System.Console.WriteLine(message);
 }

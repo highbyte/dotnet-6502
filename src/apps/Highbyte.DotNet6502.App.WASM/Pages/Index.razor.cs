@@ -309,10 +309,13 @@ public partial class Index
         else
         {
             var system = await _wasmHost.GetSelectedSystem();
-            // Set SKGLView dimensions
-            var screen = system.Screen;
-            _windowWidthStyle = $"{screen.VisibleWidth * Scale}px";
-            _windowHeightStyle = $"{screen.VisibleHeight * Scale}px";
+            if (system != null)
+            {
+                // Set SKGLView dimensions
+                var screen = system.Screen;
+                _windowWidthStyle = $"{screen.VisibleWidth * Scale}px";
+                _windowHeightStyle = $"{screen.VisibleHeight * Scale}px";
+            }
         }
 
         await this.StateHasChangedCustom();

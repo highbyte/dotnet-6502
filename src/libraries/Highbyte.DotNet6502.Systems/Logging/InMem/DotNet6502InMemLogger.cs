@@ -17,5 +17,6 @@ public class DotNet6502InMemLogger : DotNet6502LoggerBase
     }
 
     public override bool IsEnabled(LogLevel logLevel) => logLevel >= _getCurrentConfig().LogLevel;
+    public override void WriteLog(LogLevel logLevel, string message) => _getCurrentConfig().WriteLog(logLevel, message);
     public override void WriteLog(string message) => _getCurrentConfig().WriteLog(message);
 }

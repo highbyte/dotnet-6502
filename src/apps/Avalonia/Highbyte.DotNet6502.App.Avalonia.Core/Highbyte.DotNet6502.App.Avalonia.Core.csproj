@@ -1,0 +1,72 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <!-- Fonts and other assets used by Avalonia UI (not emulated systems) -->
+    <AvaloniaResource Include="Assets\**" />
+    <!-- Fonts used for rendering emulated systems (not UI) -->
+    <AvaloniaResource Include="Resources\Fonts\*.ttf" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <None Remove="Resources\Sample6502Programs\Assembler\C64\scroller_and_raster.prg" />
+    <None Remove="Resources\Sample6502Programs\Assembler\C64\smooth_scroller_and_raster.prg" />
+    <None Remove="Resources\Sample6502Programs\Basic\C64\HelloWorld.prg" />
+    <None Remove="Resources\Sample6502Programs\Basic\C64\PlaySoundVoice1TriangleScale.prg" />
+  </ItemGroup>
+
+  <!-- C64 sample programs -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\scroller_and_raster.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\C64\smooth_scroller_and_raster.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Basic\C64\HelloWorld.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Basic\C64\PlaySoundVoice1TriangleScale.prg" />
+  </ItemGroup>
+
+  <!-- Generic 6502 sample programs -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\Generic\hostinteraction_scroll_text_and_cycle_colors.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\Generic\snake6502.prg" />
+    <EmbeddedResource Include="Resources\Sample6502Programs\Assembler\Generic\hello_world.prg" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="Avalonia.ReactiveUI" />
+    <PackageReference Include="Avalonia.Skia" />
+   
+    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+    <PackageReference Include="Avalonia.Diagnostics">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Avalonia\Highbyte.DotNet6502.Impl.Avalonia.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Monitor\Highbyte.DotNet6502.Monitor.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Skia\Highbyte.DotNet6502.Impl.Skia.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems.Commodore64\Highbyte.DotNet6502.Systems.Commodore64.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Views\EmulatorPlaceholderView.axaml.cs">
+      <DependentUpon>EmulatorPlaceholderView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\EmulatorView.axaml.cs">
+      <DependentUpon>EmulatorView.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+        xmlns:views="using:Highbyte.DotNet6502.App.Avalonia.Core.Views"
+        x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.C64ConfigDialog"
+        x:DataType="vm:C64ConfigDialogViewModel"
+        Title="C64 Configuration"
+        Width="1020"
+        Height="650"
+        MinWidth="500"
+        MinHeight="400"
+
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        SystemDecorations="Full"
+        ShowInTaskbar="False"
+        Background="#1A202C">
+  
+  <views:C64ConfigUserControl x:Name="ConfigUserControl"
+                              ConfigurationChanged="OnConfigurationChanged"/>
+  
+</Window>

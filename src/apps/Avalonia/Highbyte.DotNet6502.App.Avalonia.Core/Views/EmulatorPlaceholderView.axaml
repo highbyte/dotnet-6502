@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.EmulatorPlaceholderView"
+             x:DataType="vm:EmulatorPlaceholderViewModel"
+             Focusable="False"
+             IsTabStop="False">
+
+    <StackPanel HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+        <Image Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Assets/logo.png"
+               Width="64"
+               Height="64"
+               Margin="0,0,0,20"
+               HorizontalAlignment="Center" />
+        
+        <TextBlock Text="DotNet 6502 emulator"
+                   HorizontalAlignment="Center"
+                   Classes="h1" />
+    </StackPanel>
+
+    <!--<Grid Background="Black">
+        <TextBlock x:Name="MessageTextBlock"
+        Text="DotNet 6502 emulator"
+        Foreground="White"
+        FontSize="24"
+        HorizontalAlignment="Center"
+        VerticalAlignment="Center"/>
+    </Grid>-->
+    
+</UserControl>

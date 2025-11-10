@@ -206,7 +206,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         }
 
         var errorMessage = "An unexpected error occurred in the application.";
-        
+
         _currentErrorDialog = new ErrorDialog(errorMessage, exception);
         _currentErrorDialog.Closed += (sender, e) =>
         {
@@ -263,7 +263,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
 
     private IScreenObject CreateMainSadConsoleScreen(GameHost gameHost)
     {
-        // Trigger sadConsoleHostApp.SelectSystem call which in turn may trigger other system-specific UI stuff.
+        // Trigger SelectSystem which sets current system to default system. A selected system is required for the setup code below.
         SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
 
         InitTargetRenderers(); // New rendering pipeline
@@ -329,14 +329,17 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         };
         _sadConsoleScreen.Children.Add(_monitorConsole);
 
+        // Trigger SelectSystem call again to update system-specific UI stuff.
+        SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
+
         // Logo
-        _logoDrawImage = new DrawImage("Resources/Images/logo-256.png");
+        _logoDrawImage = new DrawImage("Resources/Images/logo.png");
         _logoDrawImage.PositionMode = DrawImage.PositionModes.Pixels;
         //int logoWidthAndHeight = 256; // Pixels
         //var logoX = (MenuConsole.CONSOLE_WIDTH * _menuConsole.Font.GlyphWidth) + ((StartupScreenWidth - MenuConsole.CONSOLE_WIDTH) * _menuConsole.Font.GlyphWidth - logoWidthAndHeight) / 2;
         //var logoY = ((MenuConsole.CONSOLE_HEIGHT * _menuConsole.Font.GlyphHeight) - logoWidthAndHeight) / 2;
-        var logoX = (MenuConsole.CONSOLE_WIDTH * _menuConsole.Font.GlyphWidth) + 10;
-        var logoY = 10;
+        var logoX = (MenuConsole.CONSOLE_WIDTH * _menuConsole.Font.GlyphWidth) + 20;
+        var logoY = 20;
         _logoDrawImage.PositionOffset = new Point(logoX, logoY);
         _sadConsoleScreen.SadComponents.Add(_logoDrawImage);
 
@@ -373,7 +376,7 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
             });
     }
 
-    public override void OnAfterSelectSystem()
+    public override void OnAfterSelectedSystemChanged()
     {
         // Hack for when selecting a system during initialization triggers this event.
         if (_menuConsole == null)

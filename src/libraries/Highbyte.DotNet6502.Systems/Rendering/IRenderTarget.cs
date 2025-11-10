@@ -7,5 +7,4 @@ namespace Highbyte.DotNet6502.Systems.Rendering;
 public interface IRenderTarget
 {
     public string Name { get; }
-
 }

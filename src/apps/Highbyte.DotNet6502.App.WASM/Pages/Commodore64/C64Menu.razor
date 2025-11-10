@@ -724,10 +724,10 @@
         {
         await _d64AutoDownloadAndRun.DownloadAndRunDiskImage(
             diskInfo,
-            stateHasChangedCallback: async () =>
-            {
-                await Parent.StateHasChangedCustom(); // Special method on the main UI page that makes sure the canvas visible/invisible is updated so that Stop/Start of emulator is shown
-            },
+            // stateHasChangedCallback: async () =>
+            // {
+            //     await Parent.StateHasChangedCustom(); // Special method on the main UI page that makes sure the canvas visible/invisible is updated so that Stop/Start of emulator is shown
+            // },
             setConfigCallback: async (diskInfo) =>
             {
                 // Apply keyboard joystick settings to config object while emulator is stopped

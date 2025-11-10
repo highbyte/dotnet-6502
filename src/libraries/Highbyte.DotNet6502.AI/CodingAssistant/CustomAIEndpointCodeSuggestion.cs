@@ -1,26 +1,28 @@
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.AI.CodingAssistant;
 
 /// <summary>
 /// Get code completion via a custom AI wrapper endpoint without requiring OpenAI API key (or similar) from the calling application.
 /// </summary>
-public class CustomAIEndpointCodeSuggestion : ICodeSuggestion
+public partial class CustomAIEndpointCodeSuggestion : ICodeSuggestion
 {
     private bool _isAvailable;
     private string? _lastError;
     private readonly CustomAIEndpointConfig _apiWrapperConfig;
     private readonly string _programmingLanguage;
     private readonly HttpClient _httpClient;
+    private readonly ILogger<CustomAIEndpointCodeSuggestion> _logger;
 
-    public CustomAIEndpointCodeSuggestion(IConfiguration configuration, string programmingLanguage)
-        : this(new CustomAIEndpointConfig(configuration), programmingLanguage)
+    public CustomAIEndpointCodeSuggestion(IConfiguration configuration, ILoggerFactory loggerFactory, string programmingLanguage)
+        : this(new CustomAIEndpointConfig(configuration), loggerFactory, programmingLanguage)
     {
     }
 
-    public CustomAIEndpointCodeSuggestion(CustomAIEndpointConfig apiWrapperConfig, string programmingLanguage)
+    public CustomAIEndpointCodeSuggestion(CustomAIEndpointConfig apiWrapperConfig, ILoggerFactory loggerFactory, string programmingLanguage)
     {
         _isAvailable = true;
         _lastError = null;
@@ -28,10 +30,13 @@ public class CustomAIEndpointCodeSuggestion : ICodeSuggestion
         _programmingLanguage = programmingLanguage;
 
         // TODO: HttpClient should be injected, not created each time this class is created.
+        var endpoint = string.IsNullOrEmpty(_apiWrapperConfig.Endpoint?.OriginalString) ? new Uri(CustomAIEndpointConfig.DEFAULT_ENDPOINT) : _apiWrapperConfig.Endpoint;
         _httpClient = new HttpClient
         {
-            BaseAddress = apiWrapperConfig.Endpoint
+            BaseAddress = endpoint
         };
+
+        _logger = loggerFactory.CreateLogger<CustomAIEndpointCodeSuggestion>();
     }
 
     /// <summary>
@@ -54,6 +59,7 @@ public class CustomAIEndpointCodeSuggestion : ICodeSuggestion
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error getting code completion suggestion from custom AI endpoint.");
             _isAvailable = false;
             _lastError = ex.Message;
             return string.Empty;
@@ -63,6 +69,7 @@ public class CustomAIEndpointCodeSuggestion : ICodeSuggestion
     private async Task<string> GetInsertSuggestionAsyncInternal(string textBefore, string textAfter)
     {
         // Use custom endpoint
+        var apiKey = string.IsNullOrEmpty(_apiWrapperConfig.ApiKey) ? CustomAIEndpointConfig.DEFAULT_API_KEY : _apiWrapperConfig.ApiKey;
         var request = new HttpRequestMessage(HttpMethod.Post, "CodeCompletionProxy")
         {
             Content = new StringContent(JsonSerializer.Serialize(
@@ -75,7 +82,7 @@ public class CustomAIEndpointCodeSuggestion : ICodeSuggestion
                 Encoding.UTF8,
                 "application/json"),
 
-            Headers = { { "x-api-key", _apiWrapperConfig.ApiKey } }
+            Headers = { { "x-api-key", apiKey } }
         };
         var response = await _httpClient.SendAsync(request);
         var responseContent = await response.Content.ReadAsStringAsync();
@@ -89,30 +96,6 @@ public class CustomAIEndpointCodeSuggestion : ICodeSuggestion
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         return responseTyped?.CodeInsertion ?? string.Empty;
 
-    }
-
-    public class CustomAIEndpointConfig
-    {
-        public string? ApiKey { get; set; }
-
-        public Uri? Endpoint { get; set; }
-
-        public const string CONFIG_SECTION = "CodingAssistant:CustomEndpoint";
-
-        public CustomAIEndpointConfig()
-        {
-        }
-
-        public CustomAIEndpointConfig(IConfiguration config)
-        {
-            var configSection = config.GetRequiredSection(CONFIG_SECTION);
-
-            Endpoint = configSection.GetValue<Uri>("Endpoint")
-                ?? throw new InvalidOperationException($"Missing required configuration value: {CONFIG_SECTION}:Endpoint.");
-
-            ApiKey = configSection.GetValue<string>("ApiKey")
-                ?? throw new InvalidOperationException($"Missing required configuration value: {CONFIG_SECTION}:ApiKey");
-        }
     }
 
     class CodeCompletionRequest

@@ -1,0 +1,61 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net9.0-browser</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    
+    <!-- Fix for inclusion of SkiaSharp native assets -->
+    <WasmBuildNative>true</WasmBuildNative>
+
+    <!-- WASM SIMD optimization - improves performance -->
+    <WasmEnableSIMD>true</WasmEnableSIMD>
+
+    <!-- AOT compilation is not supported for Avalonia Browser WASM with SkiaSharp -->
+    <RunAOTCompilation>true</RunAOTCompilation> 
+
+    <!-- Optionally disable aggressive trimming to prevent runtime hangs -->
+    <!--<PublishTrimmed>false</PublishTrimmed>-->
+
+    <!-- Emscripten linker optimization - O1 for safety, O2/O3 for more speed -->
+    <EmccLinkOptimizationFlag>-O3</EmccLinkOptimizationFlag>
+
+    <!-- Reduce ICU data size for faster loading (unless you need full internationalization) -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <WasmIncludeFullIcuData>false</WasmIncludeFullIcuData>
+
+    <!-- DEBUGGING FIX: Disable problematic debug features for VS2022 -->
+    <!--<WasmEnableWebcil>false</WasmEnableWebcil>
+    <WasmDebugLevel>0</WasmDebugLevel>-->
+
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Browser" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+    <!-- <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" /> -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Highbyte.DotNet6502.App.Avalonia.Core\Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
+  </ItemGroup>
+
+  <Target Name="CopySharedAssets" AfterTargets="AfterBuild">
+    <!-- Copy logo image from Core project's Assets folder -->
+    <Copy SourceFiles="..\Highbyte.DotNet6502.App.Avalonia.Core\Assets\logo.png" DestinationFolder="wwwroot\images" />
+    <!-- Copy favicon from Core project's Assets folder -->
+    <Copy SourceFiles="..\Highbyte.DotNet6502.App.Avalonia.Core\Assets\favicon.ico" DestinationFolder="wwwroot" />
+  </Target>
+
+  <Target Name="ReplaceVersionPlaceholders" AfterTargets="Publish">
+    <!-- Replace version placeholders in published files -->
+    <ItemGroup>
+      <FilesToUpdate Include="$(PublishUrl)wwwroot\**\*.html" />
+      <FilesToUpdate Include="$(PublishUrl)wwwroot\**\*.js" />
+    </ItemGroup>
+    <Message Text="Replacing version placeholders in published files..." />
+    <!-- This will be handled by the GitHub Actions workflow -->
+  </Target>
+
+</Project>

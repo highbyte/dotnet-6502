@@ -1,0 +1,12 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+             xmlns:controls="using:Highbyte.DotNet6502.App.Avalonia.Core.Controls"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.EmulatorView"
+             x:DataType="vm:EmulatorViewModel"
+             Focusable="True"
+             IsTabStop="True">
+
+    <ContentPresenter x:Name="RenderingControlContainer" />
+
+</UserControl>

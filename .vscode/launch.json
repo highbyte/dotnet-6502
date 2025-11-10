@@ -22,8 +22,8 @@
             "type": "blazorwasm",
             "request": "launch",
             "cwd": "${workspaceFolder}/src/apps/Highbyte.DotNet6502.App.WASM",
-            "url": "http://localhost:5000",
-            "browser": "edge"
+            "url": "http://localhost:5000"
+            //"browser": "chrome"
         },
         {
             "name": "SadConsole app - .NET Core Launch",
@@ -50,7 +50,27 @@
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "externalTerminal",
             "stopAtEntry": false
-        },    
+        },
+        {
+            "name": "Avalonia desktop app - .NET Core Launch",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build avalonia desktop app",
+            // If you have changed target frameworks, make sure to update the program path.
+            "program": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net9.0/Highbyte.DotNet6502.App.Avalonia.Desktop.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net9.0",
+            // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "C#: Highbyte.DotNet6502.App.Avalonia.Browser",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser/Highbyte.DotNet6502.App.Avalonia.Browser.csproj",
+            "launchConfigurationId": "TargetFramework=;Avalonia.Browser"
+        },
         {
             "name": ".NET Core Attach",
             "type": "coreclr",

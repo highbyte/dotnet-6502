@@ -33,9 +33,9 @@ Use the `AI Basic` checkbox or F9 to toggle assistant on/off.
 
 ## Configure
 > [!IMPORTANT]  
-> The AI coding assistant is currently available in the `WebAssembly` and `SadConsole` versions of the emulator.
+> The AI coding assistant is currently available in the `Blazor WebAssembly`, `Avalonia` and `SadConsole` versions of the emulator.
 
-###  WebAssembly version
+###  Blazor WebAssembly and Avalonia Browser version
 The configuration is done in the `Configuration` section -> `C64 Config` button -> `Basic AI coding assistant` section.
 
 #### AI backend type: `CustomEndpoint` (temporarily available)
@@ -45,7 +45,7 @@ There is a _temporarily available_ AI backend that won't require your own OpenAI
 - It will be a bit slower than using OpenAI directly.
 
 > [!NOTE]
-> The field `Custom endpoint API key` is currently pre-populated with a public available key for the custom endpoint (_it's not an OpenAI key_). This is for future use.
+> The field `Custom endpoint API key` is currently pre-populated with a public available key (or blank for default) for the custom endpoint (_it's not an OpenAI key_). This is for future use.
 
 #### AI backend type: `OpenAI`
 If you have your own OpenAI API key, you can connect to OpenAI directly. 
@@ -80,7 +80,7 @@ If you want to disable the coding assistant.
 
 ![C64 Basic AI code completion](Screenshots/WASM_C64_Basic_AI_Config.png 'C64 Basic AI code completion')
 
-###  SadConsole version
+###  SadConsole and Avalonia Desktop version
 Configure `CodingAssistant` section in `appsettings.json`.
 
 Using OpenAI:

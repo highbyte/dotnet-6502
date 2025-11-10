@@ -9,7 +9,6 @@ public class GenericComputerConfig
     private float _screenRefreshFrequencyHz;
     private bool _waitForHostToAcknowledgeFrame;
     private EmulatorMemoryConfig _memory = default!;
-
     public Type? RenderProviderType { get; set; }
 
     public string ProgramBinaryFile
@@ -91,7 +90,7 @@ public class GenericComputerConfig
         StopAtBRK = true;
         CPUCyclesPerFrame = 5000;
         ScreenRefreshFrequencyHz = 60.0f;
-        WaitForHostToAcknowledgeFrame = true;
+        WaitForHostToAcknowledgeFrame = false;
     }
 
     public object Clone()

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Highbyte.DotNet6502.Utils;
 using Microsoft.Extensions.Logging;
@@ -10,6 +9,7 @@ public class GenericComputerBuilder
 {
     private readonly GenericComputer _genericComputer;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger<GenericComputerBuilder> _logger;
 
     public GenericComputerBuilder() : this(new GenericComputerConfig(), NullLoggerFactory.Instance) { }
 
@@ -18,6 +18,7 @@ public class GenericComputerBuilder
     public GenericComputerBuilder(GenericComputerConfig genericComputerConfig, ILoggerFactory loggerFactory)
     {
         _loggerFactory = loggerFactory;
+        _logger = loggerFactory.CreateLogger<GenericComputerBuilder>();
         _genericComputer = new GenericComputer(genericComputerConfig, loggerFactory);
     }
 
@@ -88,33 +89,40 @@ public class GenericComputerBuilder
 
     public static GenericComputer SetupGenericComputerFromConfig(GenericComputerConfig emulatorConfig, ILoggerFactory loggerFactory)
     {
+        var logger = loggerFactory.CreateLogger<GenericComputerBuilder>();
         var mem = new Memory();
-
         ushort loadedAtAddress;
         ushort fileLength;
         if (!string.IsNullOrEmpty(emulatorConfig.ProgramBinaryFile))
         {
             // .prg is loaded from file.
-            Debug.WriteLine($"Loading 6502 prg file from binary file.");
+            logger.LogDebug($"Loading 6502 prg file from binary file.");
 
-            Debug.WriteLine($"{emulatorConfig.ProgramBinaryFile}");
+            logger.LogDebug($"{emulatorConfig.ProgramBinaryFile}");
             mem.Load(
                 emulatorConfig.ProgramBinaryFile,
                 out loadedAtAddress,
                 out fileLength);
         }
-        else
+        else if (emulatorConfig.ProgramBinary != null && emulatorConfig.ProgramBinary.Length > 2)
         {
-            Debug.WriteLine($"Loading 6502 prg file from byte array.");
+            logger.LogDebug($"Loading 6502 prg file from byte array.");
             // .prg file was passed as binary array.
             var prgBytes = emulatorConfig.ProgramBinary;
             // First two bytes of binary file is assumed to be start address, little endian notation.
             loadedAtAddress = ByteHelpers.ToLittleEndianWord(prgBytes[0], prgBytes[1]);
+
             // The rest of the bytes are considered the code & data
             var codeAndDataActual = new byte[prgBytes.Length - 2];
             Array.Copy(prgBytes, 2, codeAndDataActual, 0, prgBytes.Length - 2);
             mem.StoreData(loadedAtAddress, codeAndDataActual);
             fileLength = (ushort)codeAndDataActual.Length;
+        }
+        else
+        {
+            // No program loaded.
+            loadedAtAddress = 0;
+            fileLength = 0;
         }
 
         // Initialize emulator with CPU, memory, and execution parameters

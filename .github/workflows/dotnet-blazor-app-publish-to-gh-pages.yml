@@ -1,10 +1,10 @@
-name: Publish .NET Blazor WASM app to GitHub Pages
+name: Publish Browser app to GitHub Pages
 
 on:
 #  push:
 #    branches:
 #      - master
-#  workflow_dispatch:
+  workflow_dispatch:
 
   #Trigger when tag is created
   push:
@@ -27,9 +27,14 @@ jobs:
       # Checkout the code
       - uses: actions/checkout@v4
 
-      # Get version from tag
-      - name: Get version from tag with 'v' prefix
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+      # Get version from tag or set fallback version for manual dispatch
+      - name: Set version from tag or fallback
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+          else
+            echo "VERSION=0.1.${{ github.run_number }}-test" >> $GITHUB_ENV
+          fi
 
       # Install .NET Core SDK
       - name: Setup .NET Core
@@ -47,19 +52,19 @@ jobs:
           mkdir ${{ env.GH_PAGES_WORKING_DIR }}
           echo '' > ${{ env.GH_PAGES_WORKING_DIR }}/.nojekyll
                           
-      # Publish the Blazor WASM site to a build working folder
+      # Publish the static website to a build working folder
       - name: Publish
-        # Note: Could not get -p:GHPagesInjectBrotliLoader=true to work. Gets error "Uncaught ReferenceError: Blazor is not defined" from "brotliloader.min.js"
+        # Note: Could not get -p:GHPagesInjectBrotliLoader=true to work with Blazor. Gets error "Uncaught ReferenceError: Blazor is not defined" from "brotliloader.min.js"
         run: dotnet publish ${{ env.PROJECT_FILE }} -p:Version=${{ env.VERSION }} -c:${{ env.CONFIGURATION }} -p:GHPages=true -p:GHPagesBase="/${{ github.event.repository.name }}/${{ env.PROJECT_GH_PAGES_DIR }}/" -p:GHPagesInjectBrotliLoader=false -o:${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}
 
-      # Copy the published Blazor WASM site from wwwroot folder in publish output dir
+      # Copy the published static website from wwwroot folder in publish output dir
       - name: Copy published wwwroot contents to a subdirectory in GH pages working dir root
         run: |
           cp -r ${{ env.BUILD_OUTPUT_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/wwwroot/ ${{ env.GH_PAGES_WORKING_DIR }}/${{ env.PROJECT_GH_PAGES_DIR }}/
 
-      # Deploy the Blazor WASM site
+      # Deploy the static website to GitHub Pages
       - name: Deploy to Github Pages
-        uses: JamesIves/github-pages-deploy-action@v4
+        uses: JamesIves/github-pages-deploy-action@4a3abc783e1a24aeb44c16e869ad83caf6b4cc23
         with:
           # token: ${{ secrets.ACCESS_TOKEN }} # Use if custom token needed to another repo
           branch: ${{ env.GH_PAGES_BRANCH_NAME }}  # The branch the action should deploy to.
@@ -67,5 +72,7 @@ jobs:
           #target-folder: app #If not specified, the contents for folder above is copied to the root of the GH pages branch.
           single-commit: true
           clean: false
-          clean-exclude: app-test/**/*  # If clean: true, keep the lab/test app folder in the gh-pages branch
-
+          clean-exclude: |  # If clean: true, keep the live app folder in the gh-pages branch (where non lab/test builds are deployed to)
+            app-test/**/*
+            app2/**/*            
+            app2-test/**/*

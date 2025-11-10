@@ -15,36 +15,71 @@ public enum EmulatorState { Uninitialized, Running, Paused }
 /// </summary>
 /// <typeparam name="TInputHandlerContext"></typeparam>
 /// <typeparam name="TAudioHandlerContext"></typeparam>
-public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
+public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IManualRenderingProvider
     where TInputHandlerContext : IInputHandlerContext
     where TAudioHandlerContext : IAudioHandlerContext
 {
     // Injected via constructor
     private readonly ILogger _logger;
     private readonly SystemList<TInputHandlerContext, TAudioHandlerContext> _systemList;
+    private readonly bool _useStatsNamePrefix;
 
     // Other variables
     private string _selectedSystemName;
     public string SelectedSystemName => _selectedSystemName;
     private ISystem? _selectedSystemTemporary; // A temporary storage of the selected system if asked for, and system has not been started yet.
 
-    public HashSet<string> AvailableSystemNames => _systemList.Systems;
+    public HashSet<string> AvailableSystemNames
+    {
+        get
+        {
+            return _systemList.Systems;
+        }
+    }
 
     private string _selectedSystemConfigurationVariant;
     public string SelectedSystemConfigurationVariant => _selectedSystemConfigurationVariant;
+
     private List<string> _allSelectedSystemConfigurationVariants = new();
-    public List<string> AllSelectedSystemConfigurationVariants => _allSelectedSystemConfigurationVariants;
+    public List<string> AllSelectedSystemConfigurationVariants
+    {
+        get
+        {
+            return _allSelectedSystemConfigurationVariants;
+        }
+        set
+        {
+            _allSelectedSystemConfigurationVariants = value;
+            OnAfterAllSystemConfigurationVariantsChanged();
+        }
+    }
 
     private SystemRunner? _systemRunner = null;
     public SystemRunner? CurrentSystemRunner => _systemRunner;
     public ISystem? CurrentRunningSystem => _systemRunner?.System;
-    public EmulatorState EmulatorState { get; private set; } = EmulatorState.Uninitialized;
-
+    public IScreen? CurrentSystemScreenInfo => _systemRunner != null ? _systemRunner?.System.Screen : _selectedSystemTemporary?.Screen;
+    public EmulatorState EmulatorState
+    {
+        get
+        {
+            return _emulatorState;
+        }
+        private set
+        {
+            _emulatorState = value;
+            OnAfterEmulatorStateChange();
+        }
+    }
     private IHostSystemConfig? _currentHostSystemConfig;
 
     private RenderTargetProvider? _renderTargetProvider;
     private RenderCoordinatorProvider? _renderCoordinatorProvider;
     private IRenderCoordinator? _renderCoordinator;
+    private IRenderTarget? _currentRenderTarget;
+
+    // Events
+    public event EventHandler? SelectedSystemChanged;
+    public event EventHandler? SelectedSystemVariantChanged;
 
     /// <summary>
     /// The current host system config.
@@ -54,7 +89,11 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
         get
         {
             if (_currentHostSystemConfig == null)
-                throw new DotNet6502Exception("Internal error. No system selected yet. Call SelectSystem() first.");
+            {
+                return null;
+                // Trouble with Avalonia Browser binding because of timing of initialization would cause this exception to be thrown.
+                // throw new DotNet6502Exception("Internal error. No system selected yet. Call SelectSystem() first.");
+            }
             return _currentHostSystemConfig;
         }
         private set
@@ -74,6 +113,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
     }
 
     private readonly string _hostName;
+    private string _statsPrefix => string.IsNullOrEmpty(_hostName) || !_useStatsNamePrefix ? string.Empty : $"{_hostName}-";
     private const string SystemTimeStatName = "SystemTime";
     private const string RenderStatName = "Render";
     private const string InputTimeStatName = "InputTime";
@@ -81,6 +121,8 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
     private readonly Instrumentations _systemInstrumentations = new();
     private ElapsedMillisecondsTimedStatSystem? _systemTime;
     private ElapsedMillisecondsTimedStatSystem? _inputTime;
+    private EmulatorState _emulatorState = EmulatorState.Uninitialized;
+
     //private ElapsedMillisecondsTimedStatSystem _audioTime;
 
     private readonly Instrumentations _instrumentations = new();
@@ -89,17 +131,19 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
     public HostApp(
         string hostName,
         SystemList<TInputHandlerContext, TAudioHandlerContext> systemList,
-        ILoggerFactory loggerFactory
+        ILoggerFactory loggerFactory,
+        bool useStatsNamePrefix = true
         )
     {
         _hostName = hostName;
-        _updateFps = _instrumentations.Add($"{_hostName}-OnUpdateFPS", new PerSecondTimedStat());
+        _updateFps = _instrumentations.Add($"{_statsPrefix}OnUpdateFPS", new PerSecondTimedStat());
 
         _logger = loggerFactory.CreateLogger("HostApp");
 
         if (systemList.Systems.Count == 0)
             throw new DotNet6502Exception("No systems added to system list.");
         _systemList = systemList;
+        _useStatsNamePrefix = useStatsNamePrefix;
 
         //Note: Because selecting a system (incl which variants it has) requires async call,
         //      call SelectSystem(string systemName) after HostApp is created to set the initial system.
@@ -141,16 +185,16 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
     /// Should not be called more than once.
     /// </summary>
     /// <param name="configureRenderTargetProvider"></param>
-    /// <param name="createCrenderLoop"></param>
+    /// <param name="createRenderLoop"></param>
     public void SetRenderConfig(
         Action<RenderTargetProvider> configureRenderTargetProvider,
-        Func<IRenderLoop> createCrenderLoop)
+        Func<IRenderLoop> createRenderLoop)
     {
         _renderTargetProvider = new RenderTargetProvider();
         configureRenderTargetProvider(_renderTargetProvider);
 
-        var renderloop = createCrenderLoop();
-        _renderCoordinatorProvider = new RenderCoordinatorProvider(renderloop);
+        var renderLoop = createRenderLoop();
+        _renderCoordinatorProvider = new RenderCoordinatorProvider(renderLoop);
     }
 
     public List<Type> GetAvailableSystemRenderProviderTypes()
@@ -182,6 +226,8 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
         return available;
     }
 
+    public virtual void OnAfterEmulatorStateChange() { }
+
     public async Task SelectSystem(string systemName)
     {
         if (EmulatorState != EmulatorState.Uninitialized)
@@ -194,17 +240,20 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
         _selectedSystemName = systemName;
         CurrentHostSystemConfig = await _systemList.GetHostSystemConfig(_selectedSystemName);
 
+        OnAfterSelectedSystemChanged();
+
+        SelectedSystemChanged?.Invoke(this, EventArgs.Empty);
+
+        // If system changed, make sure any state regarding the system variant is also in sync
         if (systemChanged)
         {
-            _allSelectedSystemConfigurationVariants = await _systemList.GetSystemConfigurationVariants(systemName, CurrentHostSystemConfig);
-            _selectedSystemConfigurationVariant = _allSelectedSystemConfigurationVariants.First();
+            AllSelectedSystemConfigurationVariants = await _systemList.GetSystemConfigurationVariants(systemName, CurrentHostSystemConfig);
+            var selectedSystemConfigurationVariant = _allSelectedSystemConfigurationVariants.First();
+            await SelectSystemConfigurationVariant(selectedSystemConfigurationVariant);
         }
-
-        // Make sure any state regarding the system variant is also in sync
-        await SelectSystemConfigurationVariant(_selectedSystemConfigurationVariant);
-
-        OnAfterSelectSystem();
     }
+
+    public virtual void OnAfterAllSystemConfigurationVariantsChanged() { }
 
     public async Task SelectSystemConfigurationVariant(string configurationVariant)
     {
@@ -226,9 +275,14 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
         {
             _selectedSystemTemporary = null;
         }
+
+        OnAfterSelectedSystemVariantChanged();
+
+        SelectedSystemVariantChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public virtual void OnAfterSelectSystem() { }
+    public virtual void OnAfterSelectedSystemChanged() { }
+    public virtual void OnAfterSelectedSystemVariantChanged() { }
 
     public virtual bool OnBeforeStart(ISystem systemAboutToBeStarted)
     {
@@ -237,6 +291,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
 
     public async Task Start()
     {
+
         if (EmulatorState == EmulatorState.Running)
             throw new DotNet6502Exception("Cannot start emulator if emulator is running.");
 
@@ -314,6 +369,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
 
         _renderCoordinator?.DisposeAsync();
         _renderCoordinator = null;
+        _currentRenderTarget = null;
 
         // Cleanup systemrunner (which also cleanup renderer, inputhandler, and audiohandler)
         _systemRunner?.Cleanup();
@@ -345,6 +401,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
         // Cleanup coordinators
         _renderCoordinator?.DisposeAsync();
         _renderCoordinator = null;
+        _currentRenderTarget = null;
         _renderCoordinatorProvider = null;
 
         _logger.LogInformation($"Emulator closed");
@@ -392,13 +449,15 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
         if (_renderTargetProvider == null || _renderCoordinatorProvider == null)
         {
             _renderCoordinator = null;
+            _currentRenderTarget = null;
             return;
         }
 
         var renderTargetType = CurrentHostSystemConfig.SystemConfig.RenderTargetType;
 
         // Assume CurrentSystemRunner.System.RenderProvider is set to the selected system's render provider (one of possibly many in in system.RenderProviders).
-        var renderTarget = _renderTargetProvider.CreateRenderTargetByRenderProviderType(CurrentSystemRunner.System.RenderProvider.GetType(), renderTargetType);
+        var renderTarget = _renderTargetProvider.CreateRenderTargetByRenderProviderType(CurrentSystemRunner!.System.RenderProvider.GetType(), renderTargetType);
+        _currentRenderTarget = renderTarget;
         _renderCoordinator = _renderCoordinatorProvider.CreateRenderCoordinator(CurrentSystemRunner.System.RenderProvider, renderTarget, _instrumentations);
     }
 
@@ -431,7 +490,7 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
         {
             // If we haven't started started the selected system yet, return a temporary instance of the system (set in SelectSystem method).
             if (_selectedSystemTemporary == null)
-                throw new DotNet6502Exception("Internal state error.");
+                return null; //throw new DotNet6502Exception("Internal state error.");
             return _selectedSystemTemporary;
         }
         // The emulator is running, return the current system runner's system.
@@ -468,9 +527,9 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
     private void InitInstrumentation(ISystem system)
     {
         _systemInstrumentations.Clear();
-        _systemTime = _systemInstrumentations.Add($"{_hostName}-{SystemTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
-        _inputTime = _systemInstrumentations.Add($"{_hostName}-{InputTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
-        //_audioTime = InstrumentationBag.Add($"{HostStatRootName}-{AudioTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
+        _systemTime = _systemInstrumentations.Add($"{_statsPrefix}{SystemTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
+        _inputTime = _systemInstrumentations.Add($"{_statsPrefix}{InputTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
+        //_audioTime = InstrumentationBag.Add($"{_statsPrefix}{AudioTimeStatName}", new ElapsedMillisecondsTimedStatSystem(system));
     }
 
     public List<(string name, IStat stat)> GetStats()
@@ -478,17 +537,67 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp
         if (_systemRunner == null)
             return new List<(string name, IStat)>();
 
-        return _instrumentations.Stats
+        var stats = _instrumentations.Stats
             // Overall stats
             .Union(_systemInstrumentations.Stats)
             // Sub-system stat: system
-            .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{SystemTimeStatName}-{x.Name}", x.Stat)))
-            // Sub-system stat: render
-            .Union(_renderCoordinator.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{RenderStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.System.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{SystemTimeStatName}-{x.Name}", x.Stat)))
             // Sub-system stat: audio
-            .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{AudioTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.AudioHandler.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{AudioTimeStatName}-{x.Name}", x.Stat)))
             // Sub-system stat: input
-            .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{_hostName}-{InputTimeStatName}-{x.Name}", x.Stat)))
+            .Union(_systemRunner.InputHandler.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{InputTimeStatName}-{x.Name}", x.Stat)))
             .ToList();
+
+        // Sub-system stat: render
+        if (_renderCoordinator != null)
+            stats.AddRange(_renderCoordinator.Instrumentations.Stats.Select(x => (Name: $"{_statsPrefix}{RenderStatName}-{x.Name}", x.Stat)));
+
+        return stats;
     }
+
+    #region IManualRenderingProvider implementation
+
+    /// <summary>
+    /// Gets the current render coordinator for manual invalidation rendering scenarios.
+    /// Only available when the emulator is running and using manual invalidation mode.
+    /// </summary>
+    public virtual IRenderCoordinator? GetRenderCoordinator()
+    {
+        // Only provide the render coordinator if we're in manual invalidation mode
+        if (IsManualInvalidationMode)
+        {
+            return _renderCoordinator;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Gets a render target of the specified type if it's currently active and we're in manual invalidation mode.
+    /// </summary>
+    public virtual T? GetRenderTarget<T>() where T : class, IRenderTarget
+    {
+        if (IsManualInvalidationMode)
+        {
+            return _currentRenderTarget as T;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Indicates whether the host is using manual invalidation rendering mode.
+    /// This is determined by checking if the render loop is in ManualInvalidation mode.
+    /// </summary>
+    public virtual bool IsManualInvalidationMode
+    {
+        get
+        {
+            if (_renderCoordinatorProvider?.RenderLoop != null)
+            {
+                return _renderCoordinatorProvider.RenderLoop.Mode == RenderTriggerMode.ManualInvalidation;
+            }
+            return false;
+        }
+    }
+
+    #endregion
 }

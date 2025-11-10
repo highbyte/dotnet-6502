@@ -33,7 +33,8 @@ public class SilkNetImGuiGenericComputerConfig
     {
         _hostConfig = genericHostConfig;
         // Note: the example program config is currently read only.
-        _exampleProgramConfig = GenericComputerExampleConfigs.GetExampleConfig(selectedSystemConfigurationVariant, genericHostConfig.SystemConfig);
+        var genericComputerSystemConfig = genericHostConfig.SystemConfig;
+        _exampleProgramConfig = GenericComputerExampleConfigs.GetExampleConfig(selectedSystemConfigurationVariant, genericComputerSystemConfig);
     }
 
     public void PostOnRender(string dialogLabel)

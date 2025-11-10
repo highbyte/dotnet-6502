@@ -282,5 +282,6 @@ __pycache__/
 
 BenchmarkDotNet.Artifacts/
 
-/src/apps/Highbyte.DotNet6502.App.SadConsole/appsettings.Development.json
-/src/apps/Highbyte.DotNet6502.App.SilkNetNative/appsettings.Development.json
+src/apps/Highbyte.DotNet6502.App.SadConsole/appsettings.Development.json
+src/apps/Highbyte.DotNet6502.App.SilkNetNative/appsettings.Development.json
+src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/appsettings.Development.json

@@ -39,7 +39,7 @@ public sealed class FrameSourceRenderCoordinator : IRenderCoordinator
         }
         else
         {
-            _renderStat = _instrumentations.Add($"RequestRedraw", new ElapsedMillisecondsTimedStat());
+            _renderStat = _instrumentations.Add($"FlushIfDirty", new ElapsedMillisecondsTimedStat());
 
             // Manual invalidation: source will push frames; we ask host to redraw once per frame
             _source.FrameProduced += OnFrameProduced_RequestRedraw;
@@ -55,7 +55,20 @@ public sealed class FrameSourceRenderCoordinator : IRenderCoordinator
         {
             // Render on UI thread (we are usually already on it in host tick)
             if (frame != null)
+            {
                 _ = PresentLatestAsync(frame);
+
+                // Testing alternative way to present without async/await in OnFrameTick
+                // var task = PresentLatestAsync(frame);
+                // // Observe exceptions to prevent unobserved task exceptions
+                // task.ContinueWith(t =>
+                // {
+                //     if (t.IsFaulted && t.Exception != null)
+                //     {
+                //         // Exception is now observed, let global handlers deal with it
+                //     }
+                // }, TaskScheduler.FromCurrentSynchronizationContext());
+            }
         }
         else
         {
@@ -67,8 +80,6 @@ public sealed class FrameSourceRenderCoordinator : IRenderCoordinator
 
     private void OnFrameProduced_RequestRedraw(object? s, RenderFrame frame)
     {
-        _renderStat.Start();
-
         // Keep only the newest frame; dispose prior retained one.
         RenderFrame? old = null;
         lock (_sync)
@@ -79,13 +90,14 @@ public sealed class FrameSourceRenderCoordinator : IRenderCoordinator
 
         // tell host “please render soon”; control’s Render() will call PresentLatestAsync
         _loop.RequestRedraw();
-
-        _renderStat.Stop();
     }
 
     /// Call this from your host-control’s Render() (invalidate-driven) to flush the latest frame.
     public async ValueTask FlushIfDirtyAsync(CancellationToken ct = default)
     {
+        _renderFps.Update();
+        _renderStat.Start();
+
         RenderFrame? frame = null;
         lock (_sync)
         {
@@ -101,6 +113,8 @@ public sealed class FrameSourceRenderCoordinator : IRenderCoordinator
         {
             await frame.DisposeAsync();
         }
+
+        _renderStat.Stop();
     }
 
     private async Task PresentLatestAsync(RenderFrame frame)

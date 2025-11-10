@@ -241,7 +241,7 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
         base.Close();
     }
 
-    public override void OnAfterSelectSystem()
+    public override void OnAfterSelectedSystemChanged()
     {
     }
 
@@ -770,8 +770,8 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
             _logoImage = SKImage.FromEncodedData(resourceStream);
         }
 
-        float logo_width = 256;
-        float logo_height = 256;
+        float logo_width = 128;
+        float logo_height = 128;
         float logo_x = DEFAULT_WIDTH / 2 - logo_width / 2;
         float logo_y = DEFAULT_HEIGHT / 2 - logo_height / 2;
 
