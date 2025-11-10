@@ -1,4 +1,8 @@
-﻿Fix unit test failure (SonarScan):
+﻿Safari notice:
+- Proceed Button goes to site root, not root of the app.
+- Non-safari browsers on iOS gets the Safari notice. Is this expected?
+
+Fix unit test failure (SonarScan):
   [xUnit.net 00:00:02.29]     Highbyte.DotNet6502.Tests.Instructions.TXA_test.TXA_Clears_Zero_Flag_If_Result_Is_Not_Zero [FAIL]
   Failed Highbyte.DotNet6502.Tests.Instructions.TXA_test.TXA_Clears_Zero_Flag_If_Result_Is_Not_Zero [< 1 ms]
   Error Message:
