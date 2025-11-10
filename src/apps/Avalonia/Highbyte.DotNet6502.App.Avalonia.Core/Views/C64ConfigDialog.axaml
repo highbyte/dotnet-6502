@@ -14,7 +14,7 @@
         CanResize="True"
         SystemDecorations="Full"
         ShowInTaskbar="False"
-        Background="#1A202C">
+        Background="{DynamicResource ViewDefaultBg}">
   
   <views:C64ConfigUserControl x:Name="ConfigUserControl"
                               ConfigurationChanged="OnConfigurationChanged"/>

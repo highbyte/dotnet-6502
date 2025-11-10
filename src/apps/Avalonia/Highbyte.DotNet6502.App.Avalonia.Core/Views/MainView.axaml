@@ -7,7 +7,8 @@
     x:DataType="vm:MainViewModel"
     Loaded="MainView_Loaded"
     Focusable="false"
-    Opacity="0">
+    Opacity="0"
+    Background="{DynamicResource ViewDefaultBg}">
 
     <!-- DataContext will be set from code-behind via DI -->
 
@@ -25,7 +26,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="200" />
             <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="200" />
+            <ColumnDefinition MaxWidth="200" />
         </Grid.ColumnDefinitions>
 
         <!-- Menu and Controls Panel (Left) -->
@@ -185,7 +186,7 @@
 
         <!-- Main Emulator Display Area (Center) -->
         <Border Grid.Row="0" Grid.Column="1" Grid.RowSpan="3"
-            Background="#1A202C"
+            Background="{DynamicResource ViewDefaultBg}"
             Padding="10">
             
             <Grid>

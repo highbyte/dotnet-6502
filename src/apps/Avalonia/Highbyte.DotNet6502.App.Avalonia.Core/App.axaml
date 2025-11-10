@@ -12,6 +12,7 @@
     <!-- Application-wide resource colors -->
     <!-- 80s Sci-Fi muted color palette -->
     <Application.Resources>
+        <SolidColorBrush x:Key="ViewDefaultBg">#1A202C</SolidColorBrush>
         <SolidColorBrush x:Key="PrimaryBg">#1A2332</SolidColorBrush>
         <SolidColorBrush x:Key="SecondaryBg">#2A3544</SolidColorBrush>
         <SolidColorBrush x:Key="AccentBg">#3A4556</SolidColorBrush>
@@ -30,7 +31,7 @@
 
         <!-- Override FluentTheme default colors -->
         <Style Selector="Window">
-            <Setter Property="Background" Value="{DynamicResource PrimaryBg}"/>
+            <Setter Property="Background" Value="{DynamicResource ViewDefaultBg}"/>
         </Style>
 
         <!-- Typography Styles -->
@@ -90,6 +91,12 @@
 
         <Style Selector="TextBlock.label">
             <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+        </Style>
+
+        <Style Selector="TextBlock.label-small">
+            <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
         </Style>
