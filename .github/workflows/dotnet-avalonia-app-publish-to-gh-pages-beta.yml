@@ -1,4 +1,4 @@
-name: Publish Test Avalonia browser app to GitHub Pages (separate url)
+name: Publish Avalonia browser app to GitHub Pages Test (separate url)
 
 on:
 #  push:

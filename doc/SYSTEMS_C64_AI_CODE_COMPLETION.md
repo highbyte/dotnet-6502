@@ -28,7 +28,7 @@ Use the `AI Basic` checkbox or F9 to toggle assistant on/off.
 > [!TIP]
 > You can enter a Basic line with a comment (`REM` statement) and explain what you want the program to do. Then when you start typing the next several lines it will continuously suggest new code that will build up your program based on the comment.
 
-![C64 Basic AI code completion](Screenshots/WASM_C64_Basic_AI.png 'C64 Basic AI code completion')
+![C64 Basic AI code completion](Screenshots/BlazorWASM_C64_Basic_AI.png 'C64 Basic AI code completion')
 
 
 ## Configure
@@ -78,7 +78,7 @@ If you host your own AI model with [Ollama](https://ollama.com/), you can use a 
 If you want to disable the coding assistant.
 - Set `AI backend type` to `None`.
 
-![C64 Basic AI code completion](Screenshots/WASM_C64_Basic_AI_Config.png 'C64 Basic AI code completion')
+![C64 Basic AI code completion](Screenshots/BlazorWASM_C64_Basic_AI_Config.png 'C64 Basic AI code completion')
 
 ###  SadConsole and Avalonia Desktop version
 Configure `CodingAssistant` section in `appsettings.json`.
