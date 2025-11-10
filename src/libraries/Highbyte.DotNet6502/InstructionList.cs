@@ -10,6 +10,9 @@ public class InstructionList
     public Dictionary<byte, OpCode> OpCodeDictionary { get; private set; }
     public Dictionary<byte, Instruction> InstructionDictionary { get; private set; }
 
+    // Override hook for tests to replace dynamic instruction discovery.
+    private static Func<InstructionList>? _getAllInstructionDynamicOverride;
+
     public InstructionList(Dictionary<byte, OpCode> opCodeDictionary, Dictionary<byte, Instruction> instructionDictionary)
     {
         OpCodeDictionary = opCodeDictionary;
@@ -113,7 +116,8 @@ public class InstructionList
 
         // Run verification to ensure the manual list above (won't work when publised in AOT release mode)
 #if DEBUG
-        var insListVerification = GetAllInstructionDynamcic();
+        // Allow tests to override the dynamic discovery to force verification failures.
+        var insListVerification = _getAllInstructionDynamicOverride?.Invoke() ?? GetAllInstructionDynamcic();
         if (instrucionList.InstructionDictionary.Count != insListVerification.InstructionDictionary.Count)
             throw new Exception("Instruction list in InstructionList.GetAllInstructions() is not up to date. It must include all Instruction implementations.");
 #endif
