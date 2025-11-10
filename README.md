@@ -91,7 +91,22 @@ Live version: [https://highbyte.se/dotnet-6502/app](https://highbyte.se/dotnet-6
 [<img align="top" src="doc/Screenshots/WASM_C64_Basic.png" width="25%" height="25%" title="Blazor WebAssembly app, C64 Basic" />](https://highbyte.se/dotnet-6502/app) [<img align="top" src="doc/Screenshots/WASM_C64_Monitor.png" width="38%" height="38%" title="Blazor WebAssembly app, C64 monitor" />](https://highbyte.se/dotnet-6502/app)
 
 ### [`Highbyte.DotNet6502.App.Avalonia.Browser`](doc/APPS_AVALONIA.md)
-TODO
+A [`Avalonia Browser`](https://avaloniaui.net) WebAssembly UI. 
+  - Rendering: `Highbyte.DotNet6502.Impl.Avalonia`
+  - Input: `Highbyte.DotNet6502.Impl.Avalonia` 
+  - Audio: -
+
+TODO: Screenshot
+
+Live version: [https://highbyte.se/dotnet-6502/app-test](https://highbyte.se/dotnet-6502/app-test)
+
+### [`Highbyte.DotNet6502.App.Avalonia.Desktop`](doc/APPS_AVALONIA.md)
+A [`Avalonia Desktop`](https://avaloniaui.net) UI. 
+  - Rendering: `Highbyte.DotNet6502.Impl.Avalonia`
+  - Input: `Highbyte.DotNet6502.Impl.Avalonia` 
+  - Audio: -
+
+TODO: Screenshot
 
 ### [`Highbyte.DotNet6502.App.SilkNetNative`](doc/APPS_SILKNET_NATIVE.md)
 A [`Silk.NET`](https://github.com/dotnet/Silk.NET) native UI.
