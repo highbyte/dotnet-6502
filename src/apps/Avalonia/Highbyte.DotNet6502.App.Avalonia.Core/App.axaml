@@ -355,6 +355,43 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
 
+
+        <!-- SelectableTextBlock Styles -->
+        <!-- SelectableTextBlock matching small size (11px) -->
+        <Style Selector="SelectableTextBlock.small">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+        </Style>
+
+        <Style Selector="SelectableTextBlock.small">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+        </Style>
+
+        <Style Selector="SelectableTextBlock.small-bold">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        </Style>
+
+        <Style Selector="SelectableTextBlock.tiny">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        </Style>
+
+        <Style Selector="SelectableTextBlock.tiny-bold">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        </Style>
+
+        <Style Selector="SelectableTextBlock.monospace">
+            <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+        </Style>
+        
         <!-- Button Styles -->
 
         <!-- Default button style -->
