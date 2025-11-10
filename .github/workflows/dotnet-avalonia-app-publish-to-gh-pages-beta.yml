@@ -29,7 +29,7 @@ jobs:
 
       # Generate auto-incrementing version number for test builds
       - name: Generate version number
-        run: echo "VERSION=0.1.${{ github.run_number }}-test" >> $GITHUB_ENV
+        run: echo "VERSION=0.25.${{ github.run_number }}-alpha" >> $GITHUB_ENV
 
       # Get version from tag
       # - name: Get version from tag with 'v' prefix
