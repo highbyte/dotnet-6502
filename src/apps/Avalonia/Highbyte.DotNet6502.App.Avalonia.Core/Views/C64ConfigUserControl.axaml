@@ -204,7 +204,8 @@
                 <TextBlock Grid.Row="0" Grid.Column="0" 
                             Text="Active joystick port:" 
                             Classes="field-label"
-                            VerticalAlignment="Center"/>
+                            VerticalAlignment="Center"
+                            IsEnabled="false" />
                 <ComboBox Grid.Row="0" Grid.Column="1"
                         ItemsSource="{Binding AvailableJoysticks}"
                         SelectedItem="{Binding SelectedHostJoystick}"
@@ -212,7 +213,8 @@
                         VerticalAlignment="Center"
                         Classes="small field-aligned"
                         MinWidth="80"
-                        MaxDropDownHeight="100"/>
+                        MaxDropDownHeight="100"
+                        IsEnabled="false" />
 
                 <CheckBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
                         Content="Enable keyboard joystick controls"

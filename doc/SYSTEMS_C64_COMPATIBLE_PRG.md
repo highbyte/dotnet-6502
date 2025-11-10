@@ -19,13 +19,13 @@ A list of applications that seem to work decently with the [C64 emulator](SYSTEM
 
 | Game               | D/L URL                                        | .D64 -> PRG file            | .prg type  | Renderer (C64 Config menu)  | Comment   |
 |--------------------|------------------------------------------------|-----------------------------|------------|-----------------------------|-----------|
-| Digiloi            | https://csdb.dk/release/download.php?id=213381 | `digiloi.d64` -> `digiloi64` | Basic      | SkiaSharp*, SilkNetOpenGl   | Character mode. |
-| Elite (NTSC)       | https://csdb.dk/release/download.php?id=254875  | `Elite.D64` -> `elite       /tpx` | Basic      | SkiaSharp2b/3, SilkNetOpenGl   | C64 NTSC variant. Bitmap mode.|
-| Elite (PAL)        | https://csdb.dk/release/download.php?id=70413  | `.zip` -> `ELITE.D64` -> `elite        [3]` | Basic      | SkiaSharp2b/3, SilkNetOpenGl   | C64 PAL variant. Bitmap mode. Some gfx artifacts. |
-| Last Ninja         | https://csdb.dk/release/download.php?id=101848 | `.zip` -> `lncro.d64` -> `last ninja/zcs` | Basic      | SkiaSharp2b/3, SilkNetOpenGl  | Bitmap mode, sprites. |
-| Mini Zork          | https://csdb.dk/release/download.php?id=42919  | `Mini-Zork(L+T).d64` -> `mini-zork   /l+t` | Basic      | SkiaSharp*, SilkNetOpenGl, SadConsole  | Character mode (default charset). |
-| Rally Speedway     | https://csdb.dk/release/download.php?id=22736  | `jolly_roger_-_rally_speedway.d64` -> `rallyspeedway` | Basic      | SkiaSharp*, SilkNetOpenGl   | Character mode, sprites. |
-| Montezuma's Revenge | https://csdb.dk/release/download.php?id=128101 | `.zip` -> `Montezuma's Revenge - 1103.d64` -> `montezuma's rev.` | Basic     | SkiaSharp*, SilkNetOpenGl   | Character mode, sprites. |
-| Bubble Bobble      | https://csdb.dk/release/download.php?id=187937 | `Bubble Bobble.d64` -> `bubble bobble`  | Basic      | SkiaSharp*, SilkNetOpenGl   | Character mode, sprites. |
+| Digiloi            | https://csdb.dk/release/download.php?id=213381 | `digiloi.d64` -> `digiloi64` | Basic      | Rasterizer, Custom (v1+)  | Character mode. |
+| Elite (NTSC)       | https://csdb.dk/release/download.php?id=254875  | `Elite.D64` -> `elite       /tpx` | Basic      | Rasterizer, Custom (v2+), GPU Packet   | C64 NTSC variant. Bitmap mode.|
+| Elite (PAL)        | https://csdb.dk/release/download.php?id=70413  | `.zip` -> `ELITE.D64` -> `elite        [3]` | Basic      | Rasterizer, Custom (v2+), GPU Packet    | C64 PAL variant. Bitmap mode. Some gfx artifacts. |
+| Last Ninja         | https://csdb.dk/release/download.php?id=101848 | `.zip` -> `lncro.d64` -> `last ninja/zcs` | Basic      | Rasterizer, Custom (v2+), GPU Packet   | Bitmap mode, sprites. |
+| Mini Zork          | https://csdb.dk/release/download.php?id=42919  | `Mini-Zork(L+T).d64` -> `mini-zork   /l+t` | Basic      | Rasterizer, Custom (v1+), GPU Packet, Video Commands   | Character mode (default charset). |
+| Rally Speedway     | https://csdb.dk/release/download.php?id=22736  | `jolly_roger_-_rally_speedway.d64` -> `rallyspeedway` | Basic      | Rasterizer, Custom (v1+), GPU Packet  | Character mode, sprites. |
+| Montezuma's Revenge | https://csdb.dk/release/download.php?id=128101 | `.zip` -> `Montezuma's Revenge - 1103.d64` -> `montezuma's rev.` | Basic     | Rasterizer, Custom (v2+), GPU Packet   | Character mode, sprites. |
+| Bubble Bobble      | https://csdb.dk/release/download.php?id=187937 | `Bubble Bobble.d64` -> `bubble bobble`  | Basic      | Rasterizer, Custom (v1+), GPU Packet   | Character mode, sprites. |
 
 

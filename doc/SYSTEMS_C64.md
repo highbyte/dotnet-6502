@@ -6,23 +6,29 @@ A partial implementation of a Commodore 64.
 
 Current capabilities
 - Run Commodore Basic 2.0 from ROM (user supplied Kernal, Basic, and Chargen ROM files).
-- Limited VIC2 video chip support 
+- Limited VIC2 video chip support (Render provider: Rasterizer)
     - Standard, extended and multi-color character modes
-    - Standard and multi-color bitmap mode _(newer SkiaRenderer 2/2b in native & WASM, and OpenGL renderer in native only)
+    - Standard and multi-color bitmap mode
     - Sprites (hi-res & multi-color)
     - IRQ (raster, sprite collision)
     - Background and border color possible to per raster line
-    - Fine scrolling per raster line (new newer SkiaRenderer 2b in native & WASM only)
+    - Fine scrolling per raster line
+
+- Minimal VIC2 video chip support (Render provider: VideoCommands)
+    - Standard character mode (normal case only), no custom character set.
+
 - Limited CIA chip support
     - Keyboard
     - Joystick
     - Timers
     - IRQ
+
 - Limited SID 6581 audio chip support
 - **Limited 1541 disk drive support**
     - Attach `.d64` disk images
     - Load directory and files to the C64 using the Basic `LOAD` command
-- WASM and native (SilkNet and SadConsole) app UI:s
+
+- Blazor Browser (WASM), Avalonia Browser (WASM) and Desktop, SilkNet Desktop, and SadConsole Desktop app UI:s
 
 # 1541 Disk Drive Support
 

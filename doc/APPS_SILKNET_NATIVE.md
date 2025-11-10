@@ -11,6 +11,34 @@ Uses Silk.NET [ImGui extensions](https://www.nuget.org/packages/Silk.NET.OpenGL.
 # System: C64 
 - A directory containing the C64 ROM files (Kernal, Basic, Chargen) is supplied by the user. Defaults are set in the appsettings.json file, and possible to change in the UI.
 
+- Renderer provider `Rasterizer` -> target `Skia 2-layer canvas`
+  - Character mode (normal and multi-color).
+  - Bitmap mode (normal and bitmap mode).
+  - Sprites (normal and multi-color).
+  - Rendering of raster lines for border and background colors.
+
+- Renderer provider `Custom` -> target `Skia legacy v1`
+  - Character mode (normal and multi-color).
+  - Pre-rendered images for each character.
+  - Sprites (normal and multi-color).
+  - Rendering of raster lines for border and background colors.
+
+- Renderer provider `Custom` -> target `Skia legacy v2`
+  - Character mode (normal and multi-color).
+  - Bitmap mode (normal and bitmap mode).
+  - Sprites (normal and multi-color).
+  - Rendering of raster lines for border and background colors.
+
+- Renderer provider `Video commands` -> target `Skia commands`
+  - Character mode (normal).
+
+- Renderer provider `Custom GPU packet` -> target `SilkNet OpenGL`
+  - Character mode (normal and multi-color).
+  - Bitmap mode (normal and bitmap mode).
+  - Sprites (normal and multi-color).
+  - Rendering of raster lines for border and background colors.
+
+
 - Renderers using either `SkiaSharp` or `SilkNet` (OpenGl)
   - Character mode (normal and multi-color) with all renderers
   - Bitmap mode (normal and bitmap mode) with the SkiaSharp2* and SilkNetOpenGL renderers.
@@ -28,14 +56,14 @@ TODO
 # UI
 
 ## Menu
-A togglebale main menu by pressing F6.
+A toggleable main menu by pressing F6.
 
 Start and stop of selected system.
 
 Configuration options of selected system.
 
    ## Monitor
-A togglebale machine code monitor window by pressing F12.
+A toggleable machine code monitor window by pressing F12.
 
 ## Stats
-A togglebale stats window by pressing F11.
+A toggleable stats window by pressing F11.

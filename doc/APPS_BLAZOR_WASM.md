@@ -9,13 +9,28 @@ A deployed version can be found here [https://highbyte.se/dotnet-6502/app](https
 A web app written in Blazor WASM (Web Assembly), using [`SkiaSharp.Views.Blazor`](https://www.nuget.org/packages/SkiaSharp.Views.Blazor) library to provide a Canvas for drawing on with main [`SkiaSharp`](https://www.nuget.org/packages/SkiaSharp) library.
 
 # System: C64 
-- Via C64 config UI you have to upload binaries for the ROMs that a C64 uses (Kernal, Basic, Chargen).
+- Via C64 config UI you have to upload binaries for the ROMs that a C64 uses (Kernal, Basic, Chargen). Or use a convenient auto-download functionality (with a license notice).
 
-- Renderers: `SkiaSharp`, `SkiaSharp2`, `SkiaSharp2b`
-  - Character mode (normal and multi-color) with all renderers
-  - Bitmap mode (normal and bitmap mode) only with the `SkiaSharp2*` renderers.
-  - Sprites (normal and multi-color) with all renderers.
-  - Rendering of raster lines for border and background colors with all renderers.
+- Renderer provider `Rasterizer` -> target `Skia 2-layer canvas`
+  - Character mode (normal and multi-color).
+  - Bitmap mode (normal and bitmap mode).
+  - Sprites (normal and multi-color).
+  - Rendering of raster lines for border and background colors.
+
+- Renderer provider `Custom` -> target `Skia legacy v1`
+  - Character mode (normal and multi-color).
+  - Pre-rendered images for each character.
+  - Sprites (normal and multi-color).
+  - Rendering of raster lines for border and background colors.
+
+- Renderer provider `Custom` -> target `Skia legacy v2`
+  - Character mode (normal and multi-color).
+  - Bitmap mode (normal and bitmap mode).
+  - Sprites (normal and multi-color).
+  - Rendering of raster lines for border and background colors.
+
+- Renderer provider `Video commands` -> target `Skia commands`
+  - Character mode (normal).
 
 - Input using `AspNet`
 
@@ -37,7 +52,7 @@ Configuration options of selected system.
 A Blazor WASM implementation of the [machine code monitor](MONITOR.md) is available by pressing F12.
 
 ## Stats
-A togglebale stats window by pressing F11.
+A toggleable stats window by pressing F11.
 
 # How to run locally
 
@@ -47,6 +62,9 @@ For system requirements, see details [here](DEVELOP.md#Requirements)
 
 Open solution `dotnet-6502.sln`.
 Set project `Highbyte.DotNet6502.App.WASM` as startup, and start with F5.
+
+> [!IMPORTANT]  
+> Running a Debug build of the Blazor WASM app is very slow. To get acceptable performance a published release build with AOT is required. It can make local debugging tricky sometimes.
 
 ## From command line (Windows, Linux, Mac)
 ### Run Debug build

@@ -1,3 +1,6 @@
+
+TODO: This probably needs to be modified to be up-to-date, or removed.
+
 ```mermaid
 classDiagram
 
@@ -11,6 +14,12 @@ App_WASM --> Impl_Skia_X
 App_WASM --> Impl_AspNet_X
 App_WASM --> App_WASM_Monitor
 App_WASM_Monitor --> MonitorBase
+
+App_AvaloniaCore
+App_AvaloniaCore --> SystemRunner
+App_AvaloniaCore --> System_C64
+App_AvaloniaCore --> System_X
+App_AvaloniaCore --> Impl_Avalonia
 
 App_SilkNetNative
 App_SilkNetNative --> SystemRunner
