@@ -7,7 +7,8 @@
     x:DataType="vm:MainViewModel"
     Loaded="MainView_Loaded"
     Focusable="false"
-    Opacity="0">
+    Opacity="0"
+    Background="{DynamicResource ViewDefaultBg}">
 
     <!-- DataContext will be set from code-behind via DI -->
 
@@ -25,7 +26,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="200" />
             <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="200" />
+            <ColumnDefinition MaxWidth="200" />
         </Grid.ColumnDefinitions>
 
         <!-- Menu and Controls Panel (Left) -->
@@ -185,7 +186,7 @@
 
         <!-- Main Emulator Display Area (Center) -->
         <Border Grid.Row="0" Grid.Column="1" Grid.RowSpan="3"
-            Background="#1A202C"
+            Background="{DynamicResource ViewDefaultBg}"
             Padding="10">
             
             <Grid>
@@ -220,7 +221,7 @@
                     BorderThickness="1"
                     CornerRadius="4"
                     Padding="0"
-                    Height="200"
+                    Height="250"
                     VerticalAlignment="Top"
                     HorizontalAlignment="Left"
                     Width="{Binding #EmulatorDisplayGrid.Bounds.Width}">
@@ -230,12 +231,8 @@
                         <TabItem Name="InformationTabItem" Header="Information">
                             <Border Background="#2D3748" Padding="4">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                                    <StackPanel Spacing="4">
-                                        <TextBlock Text="No information available."
-                                            Classes="small"
-                                            FontStyle="Italic"
-                                            Foreground="#A0AEC0"/>
-                                    </StackPanel>
+                                    <!-- C64 Info panel-->
+                                    <views:C64InfoView DataContext="{Binding C64InfoViewModel}" IsVisible="{Binding $parent[UserControl].DataContext.IsC64SystemSelected}" />
                                 </ScrollViewer>
                             </Border>
                         </TabItem>

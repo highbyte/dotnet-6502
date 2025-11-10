@@ -23,7 +23,7 @@
                     <DataTemplate>
                         <StackPanel Margin="0,8,0,0">
                             <TextBlock Text="{Binding Title, StringFormat='{}{0}:'}"
-                                       Classes="label"/>
+                                       Classes="label label-small"/>
                             <ItemsControl ItemsSource="{Binding Items}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>

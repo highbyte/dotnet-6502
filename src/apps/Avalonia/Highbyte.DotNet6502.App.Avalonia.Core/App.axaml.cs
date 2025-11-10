@@ -193,6 +193,7 @@ public partial class App : Application
         services.AddTransient<StatisticsViewModel>();
         services.AddTransient<C64MenuViewModel>();
         services.AddTransient<C64ConfigDialogViewModel>();
+        services.AddTransient<C64InfoViewModel>();
 
         // Views are NOT registered - XAML creates them!
         // They get their ViewModels through DataContext binding

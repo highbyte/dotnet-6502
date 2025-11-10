@@ -16,7 +16,7 @@
     <StackPanel Spacing="6"
                 Margin="0,12,0,0"
 >
-        <TextBlock Text="C64"
+        <TextBlock Text="Commodore 64"
                    Classes="section-header" />
 
         <!-- Copy/Paste buttons -->

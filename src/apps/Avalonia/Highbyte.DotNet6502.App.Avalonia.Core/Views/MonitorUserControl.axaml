@@ -7,13 +7,13 @@
 
     <UserControl.Styles>
         <Style Selector="Border.monitor-container">
-            <Setter Property="Background" Value="#1A202C"/>
+            <Setter Property="Background" Value="{DynamicResource ViewDefaultBg}"/>
             <Setter Property="BorderBrush" Value="#2D3748"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
         </Style>
         <Style Selector="Border.command-container">
-            <Setter Property="Background" Value="#1A202C"/>
+            <Setter Property="Background" Value="{DynamicResource ViewDefaultBg}"/>
             <Setter Property="BorderBrush" Value="#2D3748"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
