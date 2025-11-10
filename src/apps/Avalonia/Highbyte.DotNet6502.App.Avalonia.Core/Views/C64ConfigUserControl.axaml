@@ -380,7 +380,9 @@
                         HorizontalAlignment="Left"/>
                 <TextBlock Text="{Binding AITestStatusMessage}"
                             TextWrapping="Wrap"
-                            Foreground="#CBD5E0"
+                            Classes="tiny"
+                            Classes.success="{Binding AITestStatusIsSuccess}"
+                            Classes.warning="{Binding !AITestStatusIsSuccess}"
                             IsVisible="{Binding AITestStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
             </StackPanel>
             </StackPanel>

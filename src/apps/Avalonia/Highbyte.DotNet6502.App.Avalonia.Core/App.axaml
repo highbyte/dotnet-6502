@@ -95,21 +95,28 @@
         </Style>
 
         <Style Selector="TextBlock.success">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{DynamicResource SuccessColor}"/>
         </Style>
 
         <Style Selector="TextBlock.warning">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{DynamicResource WarningColor}"/>
         </Style>
 
         <Style Selector="TextBlock.error">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
+        </Style>
+
+        <!-- Combined tiny status styles -->
+        <Style Selector="TextBlock.tiny.success">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{DynamicResource SuccessColor}"/>
+        </Style>
+
+        <Style Selector="TextBlock.tiny.warning">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Foreground" Value="{DynamicResource WarningColor}"/>
         </Style>
 
         <!-- Log symbol styles -->

@@ -53,6 +53,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private ApiConfig _openAISelfHostedConfig = new();
     private CustomAIEndpointConfig _customEndpointConfig = new();
     private string _aiTestStatusMessage = string.Empty;
+    private bool _aiTestStatusIsSuccess = false;
 
     // ReactiveUI Commands
     public ReactiveCommand<Unit, Unit> DownloadRomsToByteArrayCommand { get; }
@@ -612,6 +613,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
             }
 
             AITestStatusMessage = string.Empty;
+            AITestStatusIsSuccess = false;
             this.RaisePropertyChanged(nameof(ShowOpenAISettings));
             this.RaisePropertyChanged(nameof(ShowSelfHostedSettings));
             this.RaisePropertyChanged(nameof(ShowCustomEndpointSettings));
@@ -703,6 +705,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _aiTestStatusMessage, value);
     }
 
+    public bool AITestStatusIsSuccess
+    {
+        get => _aiTestStatusIsSuccess;
+        set => this.RaiseAndSetIfChanged(ref _aiTestStatusIsSuccess, value);
+    }
+
     public string AIHelpUrl => "https://github.com/highbyte/dotnet-6502/blob/master/doc/SYSTEMS_C64_AI_CODE_COMPLETION.md";
 
     private void LoadAIConfiguration()
@@ -736,6 +744,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
             IsBusy = true;
 
             AITestStatusMessage = "Testing...";
+            AITestStatusIsSuccess = false;
 
             ICodeSuggestion codeSuggestion;
 
@@ -765,6 +774,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
             else
             {
                 AITestStatusMessage = "No backend selected to test.";
+                AITestStatusIsSuccess = false;
                 return;
             }
 
@@ -773,15 +783,18 @@ public class C64ConfigDialogViewModel : ViewModelBase
             if (codeSuggestion.IsAvailable)
             {
                 AITestStatusMessage = "OK";
+                AITestStatusIsSuccess = true;
             }
             else
             {
                 AITestStatusMessage = codeSuggestion.LastError ?? "Error";
+                AITestStatusIsSuccess = false;
             }
         }
         catch (Exception ex)
         {
             AITestStatusMessage = $"Error: {ex.Message}";
+            AITestStatusIsSuccess = false;
         }
         finally
         {
