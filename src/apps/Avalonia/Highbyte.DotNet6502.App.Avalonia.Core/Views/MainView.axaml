@@ -221,7 +221,7 @@
                     BorderThickness="1"
                     CornerRadius="4"
                     Padding="0"
-                    Height="200"
+                    Height="250"
                     VerticalAlignment="Top"
                     HorizontalAlignment="Left"
                     Width="{Binding #EmulatorDisplayGrid.Bounds.Width}">
@@ -231,12 +231,8 @@
                         <TabItem Name="InformationTabItem" Header="Information">
                             <Border Background="#2D3748" Padding="4">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                                    <StackPanel Spacing="4">
-                                        <TextBlock Text="No information available."
-                                            Classes="small"
-                                            FontStyle="Italic"
-                                            Foreground="#A0AEC0"/>
-                                    </StackPanel>
+                                    <!-- C64 Info panel-->
+                                    <views:C64InfoView DataContext="{Binding C64InfoViewModel}" IsVisible="{Binding $parent[UserControl].DataContext.IsC64SystemSelected}" />
                                 </ScrollViewer>
                             </Border>
                         </TabItem>

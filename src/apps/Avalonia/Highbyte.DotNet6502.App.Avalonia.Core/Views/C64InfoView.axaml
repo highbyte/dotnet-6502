@@ -1,0 +1,207 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+             x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.C64InfoView"
+             x:DataType="vm:C64InfoViewModel"
+             Focusable="False">
+
+    <!-- DataContext will be set from constructor via DI -->
+
+    <UserControl.Styles>
+        <!-- Include non-focusable styles -->
+        <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/NonFocusableStyles.axaml"/>
+    </UserControl.Styles>
+
+    <!-- C64 Specific information -->
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="2" Margin="2">
+            
+            <!-- C64 Keyboard Mapping Table -->
+            <TextBlock Text="Commodore 64 keyboard mapping" Classes="section-header" Margin="2"/>
+            
+            <Border BorderBrush="{DynamicResource BorderColor}" 
+                    BorderThickness="1" 
+                    CornerRadius="2"
+                    Background="{DynamicResource SecondaryBg}">
+                <Grid Margin="0">
+                    <Grid.RowDefinitions>
+                        <!-- Header row -->
+                        <RowDefinition Height="Auto" />
+                        <!-- Data rows -->
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="150" />
+                        <ColumnDefinition Width="*" MinWidth="120" />
+                        <ColumnDefinition Width="*" MinWidth="150" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Header Row -->
+                    <Border Grid.Row="0" Grid.Column="0" 
+                            Background="{DynamicResource AccentBg}" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,1" 
+                            Padding="4,2">
+                        <TextBlock Text="Command" Classes="tiny-bold" />
+                    </Border>
+                    
+                    <Border Grid.Row="0" Grid.Column="1" 
+                            Background="{DynamicResource AccentBg}" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,1" 
+                            Padding="4,2">
+                        <TextBlock Text="C64 key" Classes="tiny-bold" />
+                    </Border>
+                    
+                    <Border Grid.Row="0" Grid.Column="2" 
+                            Background="{DynamicResource AccentBg}" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,0,1" 
+                            Padding="4,2">
+                        <TextBlock Text="PC / Mac key" Classes="tiny-bold" />
+                    </Border>
+
+                    <!-- Row 1: Stop running Basic program -->
+                    <Border Grid.Row="1" Grid.Column="0" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,1" 
+                            Padding="4,2">
+                        <TextBlock Text="Stop running Basic program" Classes="tiny" TextWrapping="Wrap" />
+                    </Border>
+                    
+                    <Border Grid.Row="1" Grid.Column="1" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,1" 
+                            Padding="4,2">
+                        <TextBlock Text="Run/Stop" Classes="tiny" />
+                    </Border>
+                    
+                    <Border Grid.Row="1" Grid.Column="2" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,0,1" 
+                            Padding="4,2">
+                        <TextBlock Text="Esc" Classes="tiny" />
+                    </Border>
+
+                    <!-- Row 2: Soft reset -->
+                    <Border Grid.Row="2" Grid.Column="0" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,1" 
+                            Padding="4,2">
+                        <TextBlock Text="Soft reset" Classes="tiny" TextWrapping="Wrap" />
+                    </Border>
+                    
+                    <Border Grid.Row="2" Grid.Column="1" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,1" 
+                            Padding="4,2">
+                        <TextBlock Text="Run/Stop + Restore" Classes="tiny" />
+                    </Border>
+                    
+                    <Border Grid.Row="2" Grid.Column="2" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,0,1" 
+                            Padding="4,2">
+                        <TextBlock Text="Esc + PageUp (fn + ArrowUp on Mac)" Classes="tiny" TextWrapping="Wrap" />
+                    </Border>
+
+                    <!-- Row 3: Change text color 1-8 -->
+                    <Border Grid.Row="3" Grid.Column="0" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,1" 
+                            Padding="4,2">
+                        <TextBlock Text="Change text color 1-8" Classes="tiny" TextWrapping="Wrap" />
+                    </Border>
+                    
+                    <Border Grid.Row="3" Grid.Column="1" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,1" 
+                            Padding="4,2">
+                        <TextBlock Text="CTRL + numbers 1-8" Classes="tiny" TextWrapping="Wrap" />
+                    </Border>
+                    
+                    <Border Grid.Row="3" Grid.Column="2" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,0,1" 
+                            Padding="4,2">
+                        <TextBlock Text="Tab + numbers 1-8" Classes="tiny" TextWrapping="Wrap" />
+                    </Border>
+
+                    <!-- Row 4: Change text color 9-16 -->
+                    <Border Grid.Row="4" Grid.Column="0" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,1" 
+                            Padding="4,2">
+                        <TextBlock Text="Change text color 9-16" Classes="tiny" TextWrapping="Wrap" />
+                    </Border>
+                    
+                    <Border Grid.Row="4" Grid.Column="1" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,1" 
+                            Padding="4,2">
+                        <TextBlock Text="C= + numbers 1-8" Classes="tiny" TextWrapping="Wrap" />
+                    </Border>
+                    
+                    <Border Grid.Row="4" Grid.Column="2" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,0,1" 
+                            Padding="4,2">
+                        <TextBlock Text="LeftCtrl + numbers 1-8" Classes="tiny" TextWrapping="Wrap" />
+                    </Border>
+
+                    <!-- Row 5: AI Basic: accept suggestion -->
+                    <Border Grid.Row="5" Grid.Column="0" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,1" 
+                            Padding="4,2">
+                        <TextBlock Text="AI Basic: accept suggestion" Classes="tiny" TextWrapping="Wrap" />
+                    </Border>
+                    
+                    <Border Grid.Row="5" Grid.Column="1" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,1" 
+                            Padding="4,2">
+                        <TextBlock Text="CTRL" Classes="tiny" />
+                    </Border>
+                    
+                    <Border Grid.Row="5" Grid.Column="2" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,0,1" 
+                            Padding="4,2">
+                        <TextBlock Text="Tab" Classes="tiny" />
+                    </Border>
+
+                    <!-- Row 6: AI Basic: ignore suggestion -->
+                    <Border Grid.Row="6" Grid.Column="0" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,0" 
+                            Padding="4,2">
+                        <TextBlock Text="AI Basic: ignore suggestion" Classes="tiny" TextWrapping="Wrap" />
+                    </Border>
+                    
+                    <Border Grid.Row="6" Grid.Column="1" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,1,0" 
+                            Padding="4,2">
+                        <TextBlock Text="Any other key than CTRL" Classes="tiny" TextWrapping="Wrap" />
+                    </Border>
+                    
+                    <Border Grid.Row="6" Grid.Column="2" 
+                            BorderBrush="{DynamicResource BorderColor}" 
+                            BorderThickness="0,0,0,0" 
+                            Padding="4,2">
+                        <TextBlock Text="Any other key than Tab" Classes="tiny" TextWrapping="Wrap" />
+                    </Border>
+                </Grid>
+            </Border>
+            
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

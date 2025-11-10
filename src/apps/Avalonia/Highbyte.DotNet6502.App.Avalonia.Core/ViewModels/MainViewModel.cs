@@ -25,6 +25,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     // Child ViewModels exposed as properties for XAML binding
     public C64MenuViewModel C64MenuViewModel { get; }
+    public C64InfoViewModel C64InfoViewModel { get; }
     public StatisticsViewModel StatisticsViewModel { get; }
     public EmulatorViewModel EmulatorViewModel { get; }
     public EmulatorPlaceholderViewModel EmulatorPlaceholderViewModel { get; }
@@ -204,7 +205,8 @@ public class MainViewModel : ViewModelBase, IDisposable
     public MainViewModel(
         AvaloniaHostApp hostApp,
         EmulatorConfig emulatorConfig,
-        C64MenuViewModel c64MenuViewModel,  // Injected by DI with AvaloniaHostApp
+        C64MenuViewModel c64MenuViewModel,
+        C64InfoViewModel c64InfoViewModel,
         StatisticsViewModel statisticsViewModel,
         EmulatorViewModel emulatorViewModel,
         EmulatorPlaceholderViewModel emulatorPlaceholderViewModel,
@@ -216,6 +218,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 
         // Store injected child ViewModels
         C64MenuViewModel = c64MenuViewModel ?? throw new ArgumentNullException(nameof(c64MenuViewModel));
+        C64InfoViewModel = c64InfoViewModel ?? throw new ArgumentNullException(nameof(c64InfoViewModel));
         StatisticsViewModel = statisticsViewModel ?? throw new ArgumentNullException(nameof(statisticsViewModel));
         EmulatorViewModel = emulatorViewModel ?? throw new ArgumentNullException(nameof(emulatorViewModel));
         EmulatorPlaceholderViewModel = emulatorPlaceholderViewModel ?? throw new ArgumentNullException(nameof(emulatorPlaceholderViewModel));
