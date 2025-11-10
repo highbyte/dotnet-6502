@@ -12,7 +12,7 @@ public partial class CustomAIEndpointCodeSuggestion
 
         public const string CONFIG_SECTION = "CodingAssistant:CustomEndpoint";
 
-        private const string DEFAULT_ENDPOINT = "https://highbyte-dotnet6502-codecompletion.azurewebsites.net/";
+        public const string DEFAULT_ENDPOINT = "https://highbyte-dotnet6502-codecompletion.azurewebsites.net/";
         // Note: DEFAULT_API_KEY is the "public" API key for the custom endpoint, separate from others.
         public const string DEFAULT_API_KEY = "9fe8f8161c1d43251a46bb576336a1a25d7ab607cb5a1b4b960c0949d87bced7";
 
@@ -23,7 +23,7 @@ public partial class CustomAIEndpointCodeSuggestion
         public CustomAIEndpointConfig(IConfiguration config)
         {
             var configSection = config.GetSection(CONFIG_SECTION);
-            Endpoint = configSection.GetValue<Uri>("Endpoint", new Uri(DEFAULT_ENDPOINT));
+            Endpoint = configSection.GetValue<Uri>("Endpoint");
             ApiKey = configSection.GetValue<string>("ApiKey");
         }
 

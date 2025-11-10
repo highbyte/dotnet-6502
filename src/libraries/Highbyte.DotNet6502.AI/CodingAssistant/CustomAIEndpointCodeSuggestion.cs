@@ -30,9 +30,10 @@ public partial class CustomAIEndpointCodeSuggestion : ICodeSuggestion
         _programmingLanguage = programmingLanguage;
 
         // TODO: HttpClient should be injected, not created each time this class is created.
+        var endpoint = string.IsNullOrEmpty(_apiWrapperConfig.Endpoint?.OriginalString) ? new Uri(CustomAIEndpointConfig.DEFAULT_ENDPOINT) : _apiWrapperConfig.Endpoint;
         _httpClient = new HttpClient
         {
-            BaseAddress = apiWrapperConfig.Endpoint
+            BaseAddress = endpoint
         };
 
         _logger = loggerFactory.CreateLogger<CustomAIEndpointCodeSuggestion>();
