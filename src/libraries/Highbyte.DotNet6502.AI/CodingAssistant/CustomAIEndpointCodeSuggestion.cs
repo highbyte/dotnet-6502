@@ -1,6 +1,7 @@
-using Microsoft.Extensions.Configuration;
-using System.Text.Json;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.AI.CodingAssistant;
@@ -73,14 +74,17 @@ public partial class CustomAIEndpointCodeSuggestion : ICodeSuggestion
         var request = new HttpRequestMessage(HttpMethod.Post, "CodeCompletionProxy")
         {
             Content = new StringContent(JsonSerializer.Serialize(
-                new CodeCompletionRequest
-                {
-                    ProgrammingLanguage = _programmingLanguage,
-                    TextBefore = textBefore,
-                    TextAfter = textAfter
-                }),
+                    new CodeCompletionRequest
+                    {
+                        ProgrammingLanguage = _programmingLanguage,
+                        TextBefore = textBefore,
+                        TextAfter = textAfter
+                    },
+                    CodeCompletionSerializerContext.Default.CodeCompletionRequest
+                    ),
                 Encoding.UTF8,
-                "application/json"),
+                "application/json"
+                ),
 
             Headers = { { "x-api-key", apiKey } }
         };
@@ -93,7 +97,7 @@ public partial class CustomAIEndpointCodeSuggestion : ICodeSuggestion
 
         var responseTyped = JsonSerializer.Deserialize<CodeCompletionResponse>(
             responseContent,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            CodeCompletionSerializerContext.Default.CodeCompletionResponse);
         return responseTyped?.CodeInsertion ?? string.Empty;
 
     }
@@ -109,4 +113,20 @@ public partial class CustomAIEndpointCodeSuggestion : ICodeSuggestion
     {
         public string? CodeInsertion { get; set; }
     }
+
+    /// <summary>
+    /// Source generation context for JSON serialization.
+    /// Makes it AOT friendly and faster.
+    /// </summary>
+    [JsonSourceGenerationOptions(
+        PropertyNameCaseInsensitive = true // your option from the code
+    )]
+    [
+        JsonSerializable(typeof(CodeCompletionRequest)),
+        JsonSerializable(typeof(CodeCompletionResponse)),
+    ]
+    partial class CodeCompletionSerializerContext : JsonSerializerContext
+    {
+    }
+
 }
