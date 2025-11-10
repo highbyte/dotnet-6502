@@ -64,7 +64,7 @@ jobs:
 
       # Deploy the static website to GitHub Pages
       - name: Deploy to Github Pages
-        uses: JamesIves/github-pages-deploy-action@v4
+        uses: JamesIves/github-pages-deploy-action@4a3abc783e1a24aeb44c16e869ad83caf6b4cc23
         with:
           # token: ${{ secrets.ACCESS_TOKEN }} # Use if custom token needed to another repo
           branch: ${{ env.GH_PAGES_BRANCH_NAME }}  # The branch the action should deploy to.
