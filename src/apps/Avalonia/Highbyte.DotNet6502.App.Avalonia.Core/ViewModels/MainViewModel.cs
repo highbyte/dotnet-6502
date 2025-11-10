@@ -4,8 +4,10 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Timers;
+using Avalonia.Data;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
@@ -102,10 +104,10 @@ public class MainViewModel : ViewModelBase, IDisposable
         set
         {
             this.RaiseAndSetIfChanged(ref _selectedTabName, value);
-            
+
             // Notify that log tab visibility may have changed
             this.RaisePropertyChanged(nameof(IsLogTabVisible));
-            
+
             // If log tab just became visible and there are pending updates, trigger immediate update
             if (IsLogTabVisible)
             {
@@ -116,7 +118,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                         // Copy new messages from backing store to UI collection
                         var newMessages = _logMessagesBackingStore.Skip(_logMessages.Count).ToList();
                         _hasPendingLogUpdates = false;
-                        
+
                         global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                         {
                             try
@@ -146,7 +148,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     private Timer? _logUpdateTimer;
     private readonly object _logUpdateLock = new object();
     private bool _hasPendingLogUpdates = false;
-    
+
     // Thread-safe backing collection for log messages
     private readonly List<LogDisplayEntry> _logMessagesBackingStore = new();
 
@@ -200,6 +202,9 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<string, Unit> SelectSystemCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemVariantCommand { get; }
     // --- End ReactiveUI Commands ---
+
+    //public string Version => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
+    public string Version => Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
 
     // Constructor with dependency injection - child ViewModels injected!
     public MainViewModel(
@@ -468,7 +473,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                 // Copy new messages from backing store to UI collection
                 var newMessages = _logMessagesBackingStore.Skip(_logMessages.Count).ToList();
                 _hasPendingLogUpdates = false;
-                
+
                 // Dispatch UI update to UI thread
                 global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
@@ -508,7 +513,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         if (_hostApp?.LogStore == null)
             return;
         var logs = _hostApp.LogStore.GetFullLogMessages();
-        
+
         lock (_logUpdateLock)
         {
             // Update both backing store and UI collection with initial data
@@ -517,7 +522,7 @@ public class MainViewModel : ViewModelBase, IDisposable
             {
                 _logMessagesBackingStore.Add(new LogDisplayEntry(log));
             }
-            
+
             // Only update UI collection if the logs have changed
             if (logs.Count != _logMessages.Count || !logs.Select(l => l.Message).SequenceEqual(_logMessages.Select(l => l.Message)))
             {
@@ -583,7 +588,7 @@ public class LogDisplayEntry
     public string Message { get; }
     public LogLevel LogLevel { get; }
     public string FormattedDisplay { get; }
-    
+
     // Boolean properties for conditional class binding
     public bool IsTrace { get; }
     public bool IsDebug { get; }
@@ -598,7 +603,7 @@ public class LogDisplayEntry
         Message = logEntry.Message;
         Symbol = GetSymbolForLogLevel(logEntry.LogLevel);
         FormattedDisplay = $"{Symbol} {Message}";
-        
+
         // Set boolean flags for conditional class binding
         IsTrace = logEntry.LogLevel == Microsoft.Extensions.Logging.LogLevel.Trace;
         IsDebug = logEntry.LogLevel == Microsoft.Extensions.Logging.LogLevel.Debug;

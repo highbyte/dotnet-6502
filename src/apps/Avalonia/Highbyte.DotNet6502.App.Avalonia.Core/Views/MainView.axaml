@@ -354,6 +354,102 @@
                                 </Grid>
                             </Border>
                         </TabItem>
+
+                        <!-- General info -->
+                        <TabItem Name="GeneralInfoTabItem" Header="General info">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                <StackPanel Spacing="2" Margin="2" HorizontalAlignment="Left">
+
+                                    <Border BorderBrush="{DynamicResource BorderColor}"
+                                            BorderThickness="1"
+                                            CornerRadius="2"
+                                            Background="{DynamicResource SecondaryBg}"
+                                            Width="500">
+                                        <Grid Margin="0">
+                                            <Grid.RowDefinitions>
+                                                <!-- Header row -->
+                                                <!--<RowDefinition Height="Auto" />-->
+                                                <!-- Data rows -->
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" MinWidth="30" MaxWidth="100" />
+                                                <ColumnDefinition Width="*" MinWidth="100"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Header Row -->
+                                            <!--<Border Grid.Row="0" Grid.Column="0"
+                                                    Background="{DynamicResource AccentBg}"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <TextBlock Text="Key" Classes="tiny-bold" />
+                                            </Border>
+
+                                            <Border Grid.Row="0" Grid.Column="1"
+                                                    Background="{DynamicResource AccentBg}"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <TextBlock Text="Value" Classes="tiny-bold" />
+                                            </Border>-->
+
+                                            <!-- Row 1: Version -->
+                                            <Border Grid.Row="0" Grid.Column="0"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <TextBlock Text="Version" Classes="tiny-bold" TextWrapping="Wrap" />
+                                            </Border>
+
+                                            <Border Grid.Row="0" Grid.Column="1"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <SelectableTextBlock Text="{Binding Version}" Classes="tiny" />
+                                            </Border>
+
+                                            <!-- Row 2: By -->
+                                            <Border Grid.Row="1" Grid.Column="0"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <TextBlock Text="By" Classes="tiny-bold" TextWrapping="Wrap" />
+                                            </Border>
+
+                                            <Border Grid.Row="1" Grid.Column="1"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <SelectableTextBlock Text="Highbyte" Classes="tiny" />
+                                            </Border>
+
+                                            <!-- Row 2: Repo -->
+                                            <Border Grid.Row="2" Grid.Column="0"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <TextBlock Text="Repo" Classes="tiny-bold" TextWrapping="Wrap" />
+                                            </Border>
+
+                                            <Border Grid.Row="2" Grid.Column="1"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <SelectableTextBlock Text="https://github.com/highbyte/dotnet-6502" Classes="tiny" />
+                                            </Border>
+
+                                        </Grid>
+                                    </Border>
+
+                                </StackPanel>
+                            </ScrollViewer>
+
+                        </TabItem>
+                        
                     </TabControl>
                 </Border>
             </Grid>
