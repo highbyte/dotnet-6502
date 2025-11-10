@@ -333,13 +333,13 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
 
         // Logo
-        _logoDrawImage = new DrawImage("Resources/Images/logo-256.png");
+        _logoDrawImage = new DrawImage("Resources/Images/logo.png");
         _logoDrawImage.PositionMode = DrawImage.PositionModes.Pixels;
         //int logoWidthAndHeight = 256; // Pixels
         //var logoX = (MenuConsole.CONSOLE_WIDTH * _menuConsole.Font.GlyphWidth) + ((StartupScreenWidth - MenuConsole.CONSOLE_WIDTH) * _menuConsole.Font.GlyphWidth - logoWidthAndHeight) / 2;
         //var logoY = ((MenuConsole.CONSOLE_HEIGHT * _menuConsole.Font.GlyphHeight) - logoWidthAndHeight) / 2;
-        var logoX = (MenuConsole.CONSOLE_WIDTH * _menuConsole.Font.GlyphWidth) + 10;
-        var logoY = 10;
+        var logoX = (MenuConsole.CONSOLE_WIDTH * _menuConsole.Font.GlyphWidth) + 20;
+        var logoY = 20;
         _logoDrawImage.PositionOffset = new Point(logoX, logoY);
         _sadConsoleScreen.SadComponents.Add(_logoDrawImage);
 

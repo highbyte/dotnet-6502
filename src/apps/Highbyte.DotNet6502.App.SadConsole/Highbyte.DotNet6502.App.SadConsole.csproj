@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\..\resources\images\logo-256.png" Link="Resources\Images\logo-256.png">
+    <Content Include="..\..\..\resources\images\logo-128.png" Link="Resources\Images\logo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

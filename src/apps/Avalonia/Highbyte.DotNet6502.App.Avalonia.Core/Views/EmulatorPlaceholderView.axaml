@@ -9,8 +9,8 @@
     <StackPanel HorizontalAlignment="Center"
                 VerticalAlignment="Center">
         <Image Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Assets/logo.png"
-               Width="128"
-               Height="128"
+               Width="64"
+               Height="64"
                Margin="0,0,0,20"
                HorizontalAlignment="Center" />
         

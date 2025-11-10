@@ -33,7 +33,7 @@
     animation: fadeIn 0.4s ease-in;
 }
 
-.avalonia-splash h2 {
+.avalonia-splash h4 {
     animation: fadeIn 0.6s ease-in;
     color: #A0AEC0;
 }
