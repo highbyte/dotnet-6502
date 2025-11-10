@@ -174,6 +174,13 @@ public class MainViewModel : ViewModelBase, IDisposable
         }
         private set => this.RaiseAndSetIfChanged(ref _monitorViewModel, value);
     }
+
+    // Audio properties - track AudioSupported and AudioEnabled from HostApp
+    private readonly ObservableAsPropertyHelper<bool> _audioSupported;
+    public bool AudioSupported => _audioSupported.Value;
+
+    private readonly ObservableAsPropertyHelper<bool> _audioEnabled;
+    public bool AudioEnabled => _audioEnabled.Value;
     public void ClearMonitorViewModel()
     {
         MonitorViewModel = null;
@@ -267,6 +274,17 @@ public class MainViewModel : ViewModelBase, IDisposable
         _isMonitorVisible = _hostApp
             .WhenAnyValue(x => x.IsMonitorVisible)
             .ToProperty(this, x => x.IsMonitorVisible);
+
+        // Initialize Audio properties - track changes to CurrentHostSystemConfig
+        _audioSupported = _hostApp
+            .WhenAnyValue(x => x.CurrentHostSystemConfig)
+            .Select(config => config?.AudioSupported ?? false)
+            .ToProperty(this, x => x.AudioSupported);
+
+        _audioEnabled = _hostApp
+            .WhenAnyValue(x => x.CurrentHostSystemConfig)
+            .Select(config => config?.SystemConfig?.AudioEnabled ?? false)
+            .ToProperty(this, x => x.AudioEnabled);
 
         // Initialize ReactiveCommands for ComboBox selections
         SelectSystemCommand = ReactiveCommand.CreateFromTask<string>(

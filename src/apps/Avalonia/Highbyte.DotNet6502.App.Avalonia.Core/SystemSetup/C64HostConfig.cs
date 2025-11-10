@@ -23,7 +23,7 @@ public class C64HostConfig : IHostSystemConfig, ICloneable
     }
 
     [JsonIgnore]
-    public bool AudioSupported => true;
+    public bool AudioSupported => false;
 
     public C64AvaloniaInputConfig InputConfig { get; set; } = new C64AvaloniaInputConfig();
 

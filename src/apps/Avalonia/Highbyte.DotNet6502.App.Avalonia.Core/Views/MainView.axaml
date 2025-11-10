@@ -147,8 +147,9 @@
                     </Grid>
                 </StackPanel>
 
-                <!-- Display Settings -->
+                <!-- Common display and audio settings -->
                 <StackPanel Spacing="6">
+                    <!-- Display Settings -->
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -170,7 +171,9 @@
 
                     <!-- Audio Settings -->
                     <CheckBox Grid.Column="1"
-                 Content="Audio"
+                        Content="Audio"
+                        IsVisible="{Binding AudioSupported}"
+                        IsChecked="{Binding AudioEnabled}"
                         VerticalAlignment="Center"/>
                 </StackPanel>
 
