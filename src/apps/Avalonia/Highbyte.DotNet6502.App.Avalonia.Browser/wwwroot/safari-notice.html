@@ -53,15 +53,17 @@
     <h1>DotNet-6502 Emulator</h1>
     
     <div class="notice error">
-        <h3>⚠️ Safari Compatibility Issue</h3>
-        <p>Your browser is detected as 'Safari'. Unfortunately, due to current limitations in Safari's WebAssembly implementation, this app may not work correctly in Safari.</p>
+        <h3>⚠️ Safari Desktop Compatibility Issue</h3>
+        <p>You're using Safari on macOS. Unfortunately, due to current limitations in Safari Desktop's WebAssembly implementation, this app may not work correctly.</p>
         
-        <p><strong>Technical Details:</strong> The emulator requires AOT (Ahead-of-Time) compiled .NET WebAssembly for 60fps performance. Safari's WebAssembly engine currently has compatibility issues with .NET AOT-compiled applications.</p>
+        <p><strong>Technical Details:</strong> The emulator requires AOT (Ahead-of-Time) compiled .NET WebAssembly for 60fps performance. Safari Desktop's WebAssembly engine currently has compatibility issues with .NET AOT-compiled applications.</p>
+        
+        <p><strong>Note:</strong> Safari on iOS/iPhone works fine! This issue is specific to Safari on macOS.</p>
     </div>
 
     <div class="notice">
-        <h3>📱 Recommended Browsers</h3>
-        <p>For the best experience, please use one of these browsers:</p>
+        <h3>📱 Recommended Browsers (Desktop)</h3>
+        <p>For the best experience on macOS, please use one of these browsers:</p>
         
         <div class="browser-list">
             <div class="browser-item recommended">
@@ -74,20 +76,32 @@
                 <strong>🦊 Firefox</strong><br>
             </div>
             <div class="browser-item unsupported">
-                <strong>🧭 Safari</strong><br>
-                <small>Currently unsupported</small>
+                <strong>🧭 Safari (macOS only)</strong><br>
+                <small>Desktop version unsupported</small>
             </div>
+        </div>
+        
+        <div class="notice success" style="margin-top: 20px;">
+            <p><strong>✅ iOS/iPhone Users:</strong> Safari works fine on iOS! This issue only affects Safari on macOS.</p>
         </div>
     </div>
 
     <div style="margin-top: 40px;">
         <p><a href="/" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">🔙 Try Anyway (May Not Work)</a></p>
-        <p><small>If you're using a different browser, you can ignore this notice.</small></p>
+        <p><small>If you're using a different browser or Safari on iOS, you can ignore this notice.</small></p>
     </div>
 
     <script>
-        // Auto-redirect if not Safari after 10 seconds
-        if (!navigator.userAgent.includes('Safari') || navigator.userAgent.includes('Chrome')) {
+        // Auto-redirect if not desktop Safari after 10 seconds
+        function isDesktopSafari() {
+            const ua = navigator.userAgent;
+            const isSafari = ua.includes('Safari') && !ua.includes('Chrome');
+            const isIOS = /iPhone|iPad|iPod/.test(ua) || 
+                          (ua.includes('Mac') && 'ontouchend' in document);
+            return isSafari && !isIOS;
+        }
+        
+        if (!isDesktopSafari()) {
             setTimeout(() => {
                 window.location.href = '/';
             }, 10000);
