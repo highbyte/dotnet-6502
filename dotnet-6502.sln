@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.0.11201.2 d18.0
+VisualStudioVersion = 18.0.11201.2
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502", "src\libraries\Highbyte.DotNet6502\Highbyte.DotNet6502.csproj", "{F613F6C7-F4BF-47F8-86A5-69DF8EDF12B3}"
 EndProject
@@ -56,6 +56,11 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.App.Avalonia.Desktop", "src\apps\Avalonia\Highbyte.DotNet6502.App.Avalonia.Desktop\Highbyte.DotNet6502.App.Avalonia.Desktop.csproj", "{EA445F52-61F9-D506-4339-754E00624A6D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.App.Avalonia.Browser", "src\apps\Avalonia\Highbyte.DotNet6502.App.Avalonia.Browser\Highbyte.DotNet6502.App.Avalonia.Browser.csproj", "{D7B553CF-FA99-EC3B-9BC0-D0AE903EF7DD}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{007567C9-F877-43B1-962C-958FAEC11050}"
+	ProjectSection(SolutionItems) = preProject
+		Directory.Packages.props = Directory.Packages.props
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
