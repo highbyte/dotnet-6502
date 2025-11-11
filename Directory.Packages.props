@@ -1,0 +1,106 @@
+<Project>
+  <!-- https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Avalonia packages -->
+    <!-- Important: keep version in sync! -->
+    <PackageVersion Include="Avalonia" Version="11.3.6" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.6" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.6" />
+    <PackageVersion Include="Avalonia.Diagnostics" Version="11.3.6" />
+    <PackageVersion Include="Avalonia.Desktop" Version="11.3.6" />
+    <PackageVersion Include="Avalonia.iOS" Version="11.3.6" />
+    <PackageVersion Include="Avalonia.Browser" Version="11.3.6" />
+    <PackageVersion Include="Avalonia.Android" Version="11.3.6" />
+    <PackageVersion Include="Avalonia.ReactiveUI" Version="11.3.6" />
+    <PackageVersion Include="Avalonia.Skia" Version="11.3.6" />
+
+    <!-- Azure packages -->
+    <PackageVersion Include="Azure.AI.OpenAI" Version="1.0.0-beta.11" />
+
+    <!-- Benchmarking -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.3" />
+
+    <!-- Blazor packages -->
+    <PackageVersion Include="Blazored.LocalStorage" Version="4.5.0" />
+    <PackageVersion Include="Blazored.Modal" Version="7.3.1" />
+
+    <!-- CommunityToolkit -->
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+
+    <!-- Testing packages -->
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+
+    <!-- Microsoft Extensions packages -->
+    <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="9.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="9.0.9" />
+    <PackageVersion Include="Microsoft.AspNetCore.WebUtilities" Version="9.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.FileExtensions" Version="9.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="9.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="9.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Configuration" Version="9.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="9.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="9.0.9" />
+
+    <!-- Microsoft Testing packages -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+
+    <!-- MonoGame -->
+    <PackageVersion Include="MonoGame.Framework.DesktopGL" Version="3.8.4" />
+
+    <!-- NAudio -->
+    <PackageVersion Include="NAudio.Core" Version="2.2.1" />
+
+    <!-- Native File Dialog -->
+    <PackageVersion Include="NativeFileDialogSharp" Version="0.6.0-alpha" />
+
+    <!-- Publishing -->
+    <PackageVersion Include="PublishSPAforGitHubPages.Build" Version="3.0.1" />
+
+    <!-- SadConsole -->
+    <PackageVersion Include="SadConsole.Extended" Version="10.6.0" />
+    <PackageVersion Include="SadConsole.Host.MonoGame" Version="10.6.0" />
+
+    <!-- Silk.NET packages -->
+    <PackageVersion Include="Silk.NET.Input" Version="2.22.0" />
+    <PackageVersion Include="Silk.NET.OpenAL" Version="2.22.0" />
+    <PackageVersion Include="Silk.NET.OpenAL.Extensions.EXT" Version="2.22.0" />
+    <PackageVersion Include="Silk.NET.OpenAL.Soft.Native" Version="1.23.1" />
+    <PackageVersion Include="Silk.NET.OpenGL" Version="2.22.0" />
+    <PackageVersion Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.22.0" />
+    <PackageVersion Include="Silk.NET.Windowing" Version="2.22.0" />
+
+    <!-- SkiaSharp -->
+    <PackageVersion Include="SkiaSharp" Version="3.119.0" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.WebAssembly" Version="3.119.1" />
+    <PackageVersion Include="SkiaSharp.Views.Blazor" Version="3.119.0" />
+
+    <!-- SourceLink -->
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
+
+    <!-- System packages -->
+    <PackageVersion Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    <PackageVersion Include="System.Net.Http.Json" Version="9.0.9" />
+
+    <!-- Text and clipboard -->
+    <PackageVersion Include="TextCopy" Version="6.2.1" />
+
+    <!-- Toolbelt -->
+    <PackageVersion Include="Toolbelt.Blazor.Gamepad" Version="9.0.0" />
+
+    <!-- Xamarin -->
+    <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.15" />
+
+    <!-- xUnit testing -->
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+</Project>

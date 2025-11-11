@@ -26,10 +26,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NAudio.Core" Version="2.2.1" />
-    <PackageReference Include="Silk.NET.OpenAL" Version="2.22.0" />
-    <PackageReference Include="Silk.NET.OpenAL.Extensions.EXT" Version="2.22.0" />
-    <PackageReference Include="Silk.NET.OpenAL.Soft.Native" Version="1.23.1" />
+    <PackageReference Include="NAudio.Core" />
+    <PackageReference Include="Silk.NET.OpenAL" />
+    <PackageReference Include="Silk.NET.OpenAL.Extensions.EXT" />
+    <PackageReference Include="Silk.NET.OpenAL.Soft.Native" />
   </ItemGroup>
 
   <ItemGroup>
