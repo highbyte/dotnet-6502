@@ -248,47 +248,22 @@ public partial class Index
 
     private async Task SelectSystem(string systemName)
     {
-
-        // Workaround for breakpoints not working from @bind-Value:set or @bind-Value:after in Blazor WASM
-        // Reference: https://github.com/dotnet/runtime/issues/95481
-        await Task.CompletedTask;
-        await Task.Yield();
-
         await _wasmHost.SelectSystem(systemName);
-
-        await Task.CompletedTask;
-        await Task.Yield();
 
         await SetConfigValidationMessage();
 
-        await Task.CompletedTask;
-        await Task.Yield();
-
         await UpdateCanvasSize();
-
-        await Task.CompletedTask;
-        await Task.Yield();
 
         await this.StateHasChangedCustom();
     }
 
     private async Task SelectedSystemChanged(string systemName)
     {
-        // Workaround for breakpoints not working from @bind-Value:set or @bind-Value:after in Blazor WASM
-        // Reference: https://github.com/dotnet/runtime/issues/95481
-        await Task.CompletedTask;
-        await Task.Yield();
-
         await SelectSystem(systemName);
     }
 
     private async Task SelectSystemConfigurationVariantChanged(string systemConfigurationVariant)
     {
-        // Workaround for breakpoints not working from @bind-Value:set or @bind-Value:after in Blazor WASM
-        // Reference: https://github.com/dotnet/runtime/issues/95481
-        await Task.CompletedTask;
-        await Task.Yield();
-
         await _wasmHost.SelectSystemConfigurationVariant(systemConfigurationVariant);
 
         await SetConfigValidationMessage();
