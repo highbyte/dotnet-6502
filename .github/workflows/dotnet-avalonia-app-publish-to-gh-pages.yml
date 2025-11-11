@@ -1,4 +1,4 @@
-name: Publish Avalonia browser app to GitHub Pages (separate url)
+name: Publish Avalonia browser app to GitHub Pages
 
 on:
 #  push:
@@ -10,6 +10,11 @@ on:
   push:
     tags:
         - 'v*.*.*'
+
+# Prevent concurrent deployments to GitHub Pages
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
 
 env:
    CONFIGURATION: "Release"
