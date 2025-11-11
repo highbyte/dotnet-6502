@@ -11,6 +11,11 @@ on:
 #    tags:
 #        - 'v*.*.*'
 
+# Prevent concurrent deployments to GitHub Pages
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
 env:
    CONFIGURATION: "Release"
 

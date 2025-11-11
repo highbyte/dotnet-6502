@@ -1,5 +1,4 @@
-using Highbyte.DotNet6502;
-using System.Reflection;
+using Highbyte.DotNet6502.Instructions;
 
 namespace Highbyte.DotNet6502.Tests;
 
@@ -17,38 +16,38 @@ public class InstructionListTests
         Assert.NotNull(list.InstructionDictionary);
         Assert.True(list.OpCodeDictionary.Count > 0, "OpCodeDictionary should contain at least one opcode");
         Assert.True(list.InstructionDictionary.Count > 0, "InstructionDictionary should contain at least one instruction");
+        
+        // Note: In DEBUG mode, GetAllInstructions() automatically verifies that the manual instruction list
+        // matches the dynamically discovered instructions. If they don't match, it throws an exception.
+        // This test validates that verification passes (by not throwing).
     }
 
 #if DEBUG
     [Fact]
-    public void GetAllInstructions_Verification_Throws_When_DynamicList_Mismatch()
+    public void VerifyInstructionListsMatch_Should_Not_Throw_When_Counts_Match()
     {
-        // Arrange: create a fake InstructionList with different count to force verification failure
-        var fakeOpCodes = new Dictionary<byte, OpCode>();
-        var fakeInstructions = new Dictionary<byte, Instruction>();
-        var fakeList = new InstructionList(fakeOpCodes, fakeInstructions);
+        // Arrange
+        var instructions = new List<Instruction> { new ADC(), new AND() };
+        var list1 = new InstructionList(instructions);
+        var list2 = new InstructionList(instructions);
 
-        // Use reflection to set the private static override field
-        var field = typeof(InstructionList).GetField("_getAllInstructionDynamicOverride", BindingFlags.NonPublic | BindingFlags.Static);
-        Assert.NotNull(field);
+        // Act & Assert - should not throw
+        InstructionList.VerifyInstructionListsMatch(list1, list2);
+    }
 
-        // Backup original
-        var original = field.GetValue(null);
+    [Fact]
+    public void VerifyInstructionListsMatch_Should_Throw_When_Counts_Differ()
+    {
+        // Arrange
+        var list1 = new InstructionList(new List<Instruction> { new ADC(), new AND() });
+        var list2 = new InstructionList(new List<Instruction> { new ADC() });
 
-        try
-        {
-            // Set override to return the fake list
-            Func<InstructionList> del = () => fakeList;
-            field.SetValue(null, del);
-
-            // Act & Assert: should throw due to mismatch
-            Assert.Throws<Exception>(() => InstructionList.GetAllInstructions());
-        }
-        finally
-        {
-            // Restore original
-            field.SetValue(null, original);
-        }
+        // Act & Assert
+        var ex = Assert.Throws<DotNet6502Exception>(() => 
+            InstructionList.VerifyInstructionListsMatch(list1, list2));
+        
+        Assert.Contains("manual list has", ex.Message);
+        Assert.Contains("dynamic discovery found", ex.Message);
     }
 #endif
 }
