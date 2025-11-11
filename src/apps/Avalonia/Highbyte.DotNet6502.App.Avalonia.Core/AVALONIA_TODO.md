@@ -1,4 +1,8 @@
-﻿Control C64 joystick with Controller
+﻿Multiple GH pages at same time
+- Get error from one of them: Canceling since a higher priority waiting request for pages build and deployment @ gh-pages exists
+
+
+Control C64 joystick with Controller
 - Is there built-in support in Avalonia for both desktop and browser?
 
 Audio:
