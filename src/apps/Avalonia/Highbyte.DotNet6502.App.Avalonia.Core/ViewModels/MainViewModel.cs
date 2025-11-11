@@ -227,6 +227,8 @@ public class MainViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public string OSVersion => RuntimeInformation.OSDescription;
+
     // Constructor with dependency injection - child ViewModels injected!
     public MainViewModel(
         AvaloniaHostApp hostApp,
