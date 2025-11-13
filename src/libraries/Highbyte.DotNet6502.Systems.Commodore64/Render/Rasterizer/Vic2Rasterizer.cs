@@ -38,7 +38,6 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
 
     // Thread-safe buffer access: allows multiple readers OR one writer
     private readonly ReaderWriterLockSlim _bufferLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
-    private readonly ReaderWriterLockSlim _bufferLock2 = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
 
     public RenderSize NativeSize { get; }
     public PixelFormat PixelFormat { get; } = PixelFormat.Bgra32; //PixelFormat.Rgba32;
@@ -51,7 +50,7 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     {
         get
         {
-            _bufferLock2.EnterReadLock();
+            _bufferLock.EnterReadLock();
             try
             {
                 // Return thin wrapper around the memory (zero-copy)
@@ -59,7 +58,7 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
             }
             finally
             {
-                _bufferLock2.ExitReadLock();
+                _bufferLock.ExitReadLock();
             }
         }
     }
