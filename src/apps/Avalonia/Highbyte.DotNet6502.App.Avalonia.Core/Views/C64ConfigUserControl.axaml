@@ -13,28 +13,19 @@
   <!-- Simplified layout for ContentDialog - no outer border needed -->
   <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,0">
     <!-- Title Header -->
-    <Border Grid.Row="0"
-            Background="#2D3748"
-            Padding="5,5"
-            CornerRadius="8,8,0,0"
-            Margin="0">
+    <Border Grid.Row="0" Classes="panel-container" CornerRadius="8,8,0,0" Margin="0">
       <TextBlock Text="Commodore 64 Configuration"
-                 Classes="h1"
-                 HorizontalAlignment="Center"/>
+                 Classes="h1 h-center"/>
     </Border>
 
     <!-- Main content with wrapping layout - scrollable -->
-    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <ScrollViewer Grid.Row="1" Classes="vertical-only">
       <WrapPanel Orientation="Horizontal" Margin="8,8,8,8"> 
       
         <!-- ROM Section -->
         <StackPanel Width="460" Classes="wrap-item">
-        <Border Background="#252F3F"
-                BorderBrush="#4A5568"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="6">
-            <StackPanel Spacing="8">
+        <Border Classes="content-section">
+            <StackPanel Classes="spacing-normal">
             <TextBlock Text="ROM Management"
                         Classes="h2"/>
             <TextBlock Text="The emulator requires Kernal, Basic, and Character ROMs."
@@ -45,32 +36,29 @@
             <ItemsControl ItemsSource="{Binding RomStatuses}">
                 <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:RomStatusViewModel">
-                    <StackPanel Spacing="4" Margin="0,2">
+                    <StackPanel Classes="spacing-small" Margin="0,2">
                     <!-- WebAssembly version - display only -->
-                    <Grid ColumnDefinitions="90,*" ColumnSpacing="6" 
+                    <Grid ColumnDefinitions="90,*" Classes="spacing-medium"
                             IsVisible="{Binding IsRunningInWebAssembly}">
                         <TextBlock Grid.Column="0" 
                                     Text="{Binding Name}:"
-                                    Classes="field-label"
-                                    VerticalAlignment="Center"/>
+                                    Classes="field-label v-center"/>
                         <TextBlock Grid.Column="2" 
                                     Text="{Binding Details}"
                                     Foreground="{Binding ForegroundColor}"
-                                    VerticalAlignment="Center"/>
+                                    Classes="v-center"/>
                     </Grid>
 
                     <!-- Desktop version - editable File name -->
-                    <Grid ColumnDefinitions="90,*" ColumnSpacing="6"
+                    <Grid ColumnDefinitions="90,*" Classes="spacing-medium"
                             IsVisible="{Binding !IsRunningInWebAssembly}">
                         <TextBlock Grid.Column="0" 
                                     Text="{Binding Name}:"
-                                    Classes="field-label"
-                                    VerticalAlignment="Center"/>
+                                    Classes="field-label v-center"/>
                         <TextBox Grid.Column="1" 
                                 Text="{Binding RomFile, Mode=TwoWay}"
                                 Watermark="File name"
-                                Classes="field-aligned"
-                                VerticalAlignment="Center"/>
+                                Classes="field-aligned v-center"/>
                     </Grid>
                     </StackPanel>
                 </DataTemplate>
@@ -78,21 +66,19 @@
             </ItemsControl>
 
                 <!-- ROM Directory setting (only for desktop) -->
-                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,8,0,0"
+                <Grid ColumnDefinitions="Auto,*" Classes="spacing-normal" Margin="0,8,0,0"
                     IsVisible="{Binding !IsRunningInWebAssembly}">
                     <TextBlock Grid.Column="0"
                                 Text="ROM directory:"
-                                Classes="field-label"
-                                VerticalAlignment="Center"/>
+                                Classes="field-label v-center"/>
                     <TextBox Grid.Column="1"
                             Text="{Binding RomDirectory}"
                             Watermark="Directory path"
-                            Classes="field-aligned"
-                            VerticalAlignment="Center"/>
+                            Classes="field-aligned v-center"/>
                 </Grid>
 
 
-                <StackPanel Orientation="Horizontal" Spacing="8">
+                <StackPanel Orientation="Horizontal" Classes="spacing-normal">
                 <!-- Download button for WASM app to in-memory byte array -->
                 <Button Content="Download ROMs"
                         Command="{Binding DownloadRomsToByteArrayCommand}"
@@ -130,28 +116,21 @@
 
         <!-- Render and Audio Section -->
         <StackPanel Width="460" Classes="wrap-item">
-        <Border Background="#252F3F"
-                BorderBrush="#4A5568"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="6">
-            <StackPanel Spacing="8">
+        <Border Classes="content-section">
+            <StackPanel Classes="spacing-normal">
             <TextBlock Text="Video &amp; Audio"
                         Classes="h2"/>
 
-            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-normal">
                 <TextBlock Grid.Row="0" Grid.Column="0" 
                             Text="Render provider:" 
-                            Classes="field-label"
-                            VerticalAlignment="Center"/>
+                            Classes="field-label v-center"/>
                 <ComboBox Grid.Row="0" Grid.Column="1"
                         ItemsSource="{Binding RenderProviders}"
                         SelectedItem="{Binding SelectedRenderProvider}"
                         ToolTip.Tip="{Binding SelectedRenderProviderHelpText}"
-                        HorizontalAlignment="Stretch"
-                        VerticalAlignment="Center"
-                        MaxDropDownHeight="200"
-                        Classes="field-aligned">
+                        Classes="field-aligned h-stretch v-center"
+                        MaxDropDownHeight="200">
                 <ComboBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:RenderProviderOption">
                     <TextBlock Text="{Binding DisplayName}"/>
@@ -161,16 +140,13 @@
 
                 <TextBlock Grid.Row="1" Grid.Column="0" 
                             Text="Render target:" 
-                            Classes="field-label"
-                            VerticalAlignment="Center"/>
+                            Classes="field-label v-center"/>
                 <ComboBox Grid.Row="1" Grid.Column="1"
                         ItemsSource="{Binding RenderTargets}"
                         SelectedItem="{Binding SelectedRenderTarget}"
                         ToolTip.Tip="{Binding SelectedRenderTargetHelpText}"
-                        HorizontalAlignment="Stretch"
-                        VerticalAlignment="Center"
-                        MaxDropDownHeight="200"
-                        Classes="field-aligned">
+                        Classes="field-aligned h-stretch v-center"
+                        MaxDropDownHeight="200">
                 <ComboBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:RenderTargetOption">
                     <TextBlock Text="{Binding DisplayName}"/>
@@ -181,8 +157,7 @@
                 <CheckBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
                         Content="Enable SID audio (experimental)"
                         IsChecked="{Binding AudioEnabled}"
-                        Classes="field-aligned"
-                        VerticalAlignment="Center"/>
+                        Classes="field-aligned v-center"/>
             </Grid>
 
             </StackPanel>
@@ -191,27 +166,20 @@
 
         <!-- Input Section -->
         <StackPanel Width="460" Classes="wrap-item">
-        <Border Background="#252F3F"
-                BorderBrush="#4A5568"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="6">
-            <StackPanel Spacing="8">
+        <Border Classes="content-section">
+            <StackPanel Classes="spacing-normal">
             <TextBlock Text="Input &amp; Joystick"
                         Classes="h2"/>
 
-            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="12">
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-wide">
                 <TextBlock Grid.Row="0" Grid.Column="0" 
                             Text="Active joystick port:" 
-                            Classes="field-label"
-                            VerticalAlignment="Center"
+                            Classes="field-label v-center"
                             IsEnabled="false" />
                 <ComboBox Grid.Row="0" Grid.Column="1"
                         ItemsSource="{Binding AvailableJoysticks}"
                         SelectedItem="{Binding SelectedHostJoystick}"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Center"
-                        Classes="small field-aligned"
+                        Classes="small field-aligned h-left v-center"
                         MinWidth="80"
                         MaxDropDownHeight="100"
                         IsEnabled="false" />
@@ -219,28 +187,23 @@
                 <CheckBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
                         Content="Enable keyboard joystick controls"
                         IsChecked="{Binding KeyboardJoystickEnabled}"
-                        Classes="field-aligned"
-                        VerticalAlignment="Center"/>
+                        Classes="field-aligned v-center"/>
 
                 <TextBlock Grid.Row="2" Grid.Column="0" 
                             Text="Keyboard joystick port:" 
-                            Classes="field-label"
-                            VerticalAlignment="Center"/>
+                            Classes="field-label v-center"/>
                 <ComboBox Grid.Row="2" Grid.Column="1"
                         ItemsSource="{Binding AvailableJoysticks}"
                         SelectedItem="{Binding SelectedKeyboardJoystick}"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Center"
-                        Classes="small field-aligned"
+                        Classes="small field-aligned h-left v-center"
                         MinWidth="80"
                         MaxDropDownHeight="100"/>
             </Grid>
 
             <!-- Collapsible Keyboard Mappings Section -->
             <Expander Header="Keyboard mappings"
-                        Foreground="#CBD5E0"
-                        IsExpanded="False"
-                        Classes="small field-aligned">
+                        Classes="small field-aligned dimmed"
+                        IsExpanded="False">
                 <ItemsControl ItemsSource="{Binding KeyboardMappings}"
                             Margin="0,4,0,0">
                 <ItemsControl.ItemTemplate>
@@ -262,16 +225,11 @@
 
         <!-- AI Coding Assistant Section -->
         <StackPanel Width="460" Classes="wrap-item">
-        <Border Background="#252F3F"
-                BorderBrush="#4A5568"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="6">
-            <StackPanel Spacing="8">
-            <StackPanel Orientation="Horizontal" Spacing="8">
+        <Border Classes="content-section">
+            <StackPanel Classes="spacing-normal">
+            <StackPanel Orientation="Horizontal" Classes="spacing-normal">
                 <TextBlock Text="Basic AI Coding Assistant"
-                            Classes="h2"
-                            VerticalAlignment="Center"/>
+                            Classes="h2 v-center"/>
                 <Button Content="i"
                         Classes="info"
                         Padding="4,0"
@@ -279,17 +237,14 @@
                         Click="OpenAIHelpUrl_Click"/>
             </StackPanel>
 
-            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Classes="spacing-normal">
                 <TextBlock Grid.Row="0" Grid.Column="0" 
                             Text="AI backend type:" 
-                            Classes="field-label"
-                            VerticalAlignment="Center"/>
+                            Classes="field-label v-center"/>
                 <ComboBox Grid.Row="0" Grid.Column="1"
                         ItemsSource="{Binding AIBackendTypes}"
                         SelectedItem="{Binding SelectedAIBackendTypeOption}"
-                        HorizontalAlignment="Stretch"
-                        VerticalAlignment="Center"
-                        Classes="field-aligned">
+                        Classes="field-aligned h-stretch v-center">
                     <ComboBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:CodeSuggestionBackendTypeOption">
                             <TextBlock Text="{Binding DisplayName}"/>
@@ -300,91 +255,67 @@
                 <!-- OpenAI Settings -->
                 <TextBlock Grid.Row="1" Grid.Column="0" 
                         Text="OpenAI API key:" 
-                        Classes="field-label"
-                        VerticalAlignment="Center"
+                        Classes="field-label v-center"
                         IsVisible="{Binding ShowOpenAISettings}"/>
                 <TextBox Grid.Row="1" Grid.Column="1"
                         Text="{Binding OpenAIApiKey}"
                         Watermark="Enter OpenAI API key"
-                        Classes="field-aligned"
-                        VerticalAlignment="Center"
+                        Classes="field-aligned v-center"
                         IsVisible="{Binding ShowOpenAISettings}"/>
 
                 <!-- Self-Hosted Settings -->
                 <TextBlock Grid.Row="2" Grid.Column="0" 
                         Text="Ollama endpoint:" 
-                        Classes="field-label"
-                        VerticalAlignment="Center"
+                        Classes="field-label v-center"
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
                 <TextBox Grid.Row="2" Grid.Column="1"
                         Text="{Binding OpenAISelfHostedEndpoint}"
                         Watermark="http://localhost:11434/api"
-                        Classes="field-aligned"
-                        VerticalAlignment="Center"
+                        Classes="field-aligned v-center"
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
 
                 <TextBlock Grid.Row="3" Grid.Column="0" 
                         Text="Model name:" 
-                        Classes="field-label"
-                        VerticalAlignment="Center"
+                        Classes="field-label v-center"
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
                 <TextBox Grid.Row="3" Grid.Column="1"
                         Text="{Binding OpenAISelfHostedModelName}"
                         Watermark="codellama:13b-code"
-                        Classes="field-aligned"
-                        VerticalAlignment="Center"
+                        Classes="field-aligned v-center"
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
 
                 <TextBlock Grid.Row="4" Grid.Column="0" 
                         Text="API key (optional):" 
-                        Classes="field-label"
-                        VerticalAlignment="Center"
+                        Classes="field-label v-center"
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
                 <TextBox Grid.Row="4" Grid.Column="1"
                         Text="{Binding OpenAISelfHostedApiKey}"
                         Watermark="Optional API key"
-                        Classes="field-aligned"
-                        VerticalAlignment="Center"
+                        Classes="field-aligned v-center"
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
-
-                <!-- Custom Endpoint Settings -->
-                <!-- <TextBlock Grid.Row="5" Grid.Column="0" 
-                        Text="Custom endpoint:" 
-                        Classes="field-label"
-                        VerticalAlignment="Center"
-                        IsVisible="{Binding ShowCustomEndpointSettings}"/>
-                <TextBlock Grid.Row="5" Grid.Column="1"
-                        Text="{Binding CustomEndpoint}"
-                        Classes="field-aligned"
-                        TextWrapping="Wrap"
-                        VerticalAlignment="Center"
-                        IsVisible="{Binding ShowCustomEndpointSettings}"/> -->
 
                 <TextBlock Grid.Row="6" Grid.Column="0" 
                         Text="Endpoint API key:" 
-                        Classes="field-label"
-                        VerticalAlignment="Center"
+                        Classes="field-label v-center"
                         IsVisible="{Binding ShowCustomEndpointSettings}"/>
                 <TextBox Grid.Row="6" Grid.Column="1"
                         Text="{Binding CustomEndpointApiKey}"
                         Watermark="API key - leave blank for default"
-                        Classes="field-aligned"
-                        VerticalAlignment="Center"
+                        Classes="field-aligned v-center"
                         IsVisible="{Binding ShowCustomEndpointSettings}"/>
             </Grid>
 
             <!-- Test Button and Status -->
-            <StackPanel Spacing="8" IsVisible="{Binding ShowAITestButton}">
+            <StackPanel Classes="spacing-normal" IsVisible="{Binding ShowAITestButton}">
                 <Button Content="Test Connection"
                         Command="{Binding TestAIBackendCommand}"
                         MinWidth="130"
-                        Classes="primary"
-                        HorizontalAlignment="Left"/>
+                        Classes="primary h-left"/>
                 <TextBlock Text="{Binding AITestStatusMessage}"
                             TextWrapping="Wrap"
                             Classes="tiny"
-                            Classes.success="{Binding AITestStatusIsSuccess}"
-                            Classes.warning="{Binding !AITestStatusIsSuccess}"
+                            Classes.success-text="{Binding AITestStatusIsSuccess}"
+                            Classes.warning-text="{Binding !AITestStatusIsSuccess}"
                             IsVisible="{Binding AITestStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
             </StackPanel>
             </StackPanel>
@@ -394,31 +325,24 @@
     </ScrollViewer>
 
     <!-- Messages and status in separate row -->
-    <StackPanel Grid.Row="2" Spacing="8" Margin="8,8,8,8">
+    <StackPanel Grid.Row="2" Classes="spacing-normal" Margin="8,8,8,8">
         <TextBlock Text="{Binding StatusMessage}"
-                    Classes="success"
+                    Classes="success-text"
                     TextWrapping="Wrap"
                     IsVisible="{Binding HasStatusMessage}"/>
         
         <!-- Validation Error Messages with Border (similar to MainView) -->
-        <Border Background="Transparent" 
-                BorderBrush="#E53E3E"
-                BorderThickness="1"
-                CornerRadius="4"
-                Padding="6"
+        <Border Classes="error-container-compact"
                 IsVisible="{Binding HasValidationErrors}">
           <ItemsControl ItemsSource="{Binding ValidationErrors}">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
                 <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2">
                   <TextBlock Text="•" 
-                              Foreground="#E53E3E" 
-                              VerticalAlignment="Center"/>
+                              Classes="error-bullet v-center"/>
                   <TextBlock Text="{Binding}" 
-                              Classes="small"
-                              Foreground="White"
-                              TextWrapping="Wrap"
-                              VerticalAlignment="Center"/>
+                              Classes="small white v-center"
+                              TextWrapping="Wrap"/>
                 </StackPanel>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
@@ -427,7 +351,7 @@
     </StackPanel>
 
     <!-- Button Section in separate row -->
-    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" Margin="20,0,20,20">
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Classes="spacing-wide" Margin="20,0,20,20">
       <ProgressBar Grid.Column="0"
                    IsVisible="{Binding IsBusy}"
                    IsIndeterminate="True"/>

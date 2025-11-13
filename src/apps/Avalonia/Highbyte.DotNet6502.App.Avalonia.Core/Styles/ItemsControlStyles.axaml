@@ -1,0 +1,61 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <!-- ========================================== -->
+    <!-- TABITEM STYLES                             -->
+    <!-- ========================================== -->
+    
+    <Style Selector="TabItem">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="4,2"/>
+    </Style>
+
+    <Style Selector="TabItem.error-log">
+        <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
+    </Style>
+
+    <!-- ========================================== -->
+    <!-- ITEMSCONTROL PANEL STYLES                  -->
+    <!-- ========================================== -->
+    
+    <Style Selector="ItemsControl.vertical-tight">
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="0"/>
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style Selector="ItemsControl.vertical-small">
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="4"/>
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style Selector="ItemsControl.vertical-normal">
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="8"/>
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style Selector="ItemsControl.horizontal-normal">
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="12"/>
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</Styles>

@@ -1,0 +1,257 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <!-- ========================================== -->
+    <!-- TEXTBOX STYLES                             -->
+    <!-- ========================================== -->
+
+    <!-- Default TextBox style -->
+    <Style Selector="TextBox">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="CornerRadius" Value="2"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+    </Style>
+
+    <Style Selector="TextBox:focus">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <Style Selector="TextBox:pointerover">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <!-- Field-aligned TextBox -->
+    <Style Selector="TextBox.field-aligned">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="6,3"/>
+        <Setter Property="MinHeight" Value="26"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Monospace TextBox -->
+    <Style Selector="TextBox.monospace">
+        <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+    </Style>
+
+    <!-- ========================================== -->
+    <!-- COMBOBOX STYLES                            -->
+    <!-- ========================================== -->
+
+    <!-- Default ComboBox style -->
+    <Style Selector="ComboBox">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="CornerRadius" Value="2"/>
+        <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+    </Style>
+
+    <Style Selector="ComboBox:pointerover /template/ Border#Background">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <Style Selector="ComboBox:focus /template/ Border#Background">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <!-- ComboBox size variants -->
+    <Style Selector="ComboBox.small">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="4,3"/>
+        <Setter Property="MinHeight" Value="24"/>
+    </Style>
+
+    <Style Selector="ComboBox.large">
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="MinHeight" Value="38"/>
+    </Style>
+
+    <Style Selector="ComboBox.compact">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="MinHeight" Value="22"/>
+    </Style>
+
+    <Style Selector="ComboBox.field-aligned">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="6,3"/>
+        <Setter Property="MinHeight" Value="26"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <!-- ComboBox item text sizing -->
+    <Style Selector="ComboBox TextBlock">
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+
+    <Style Selector="ComboBox.small TextBlock">
+        <Setter Property="FontSize" Value="11"/>
+    </Style>
+
+    <Style Selector="ComboBox.large TextBlock">
+        <Setter Property="FontSize" Value="14"/>
+    </Style>
+
+    <Style Selector="ComboBox.compact TextBlock">
+        <Setter Property="FontSize" Value="11"/>
+    </Style>
+
+    <Style Selector="ComboBox.field-aligned TextBlock">
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+
+    <!-- ========================================== -->
+    <!-- CHECKBOX STYLES                            -->
+    <!-- ========================================== -->
+
+    <!-- Default CheckBox style -->
+    <Style Selector="CheckBox">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+    </Style>
+
+    <Style Selector="CheckBox /template/ Border#NormalRectangle">
+        <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+    </Style>
+
+    <Style Selector="CheckBox:pointerover /template/ Border#NormalRectangle">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
+        <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <Style Selector="CheckBox:checked:pointerover /template/ Border#NormalRectangle">
+        <Setter Property="Background" Value="#7B9CBE"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource HighlightGold}"/>
+    </Style>
+
+    <!-- CheckBox variants -->
+    <Style Selector="CheckBox.field-aligned">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+    </Style>
+
+    <Style Selector="CheckBox.small">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+    </Style>
+
+    <Style Selector="CheckBox.large">
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+    </Style>
+
+    <!-- ========================================== -->
+    <!-- SLIDER STYLES                              -->
+    <!-- ========================================== -->
+    
+    <Style Selector="Slider">
+        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <Style Selector="Slider /template/ Thumb">
+        <Setter Property="Background" Value="{DynamicResource HighlightGold}"/>
+    </Style>
+
+    <Style Selector="Slider /template/ Thumb:pointerover">
+        <Setter Property="Background" Value="#C8B886"/>
+    </Style>
+
+    <Style Selector="Slider.compact /template/ Thumb">
+        <Setter Property="Width" Value="12"/>
+        <Setter Property="Height" Value="12"/>
+    </Style>
+
+    <!-- ========================================== -->
+    <!-- EXPANDER STYLES                            -->
+    <!-- ========================================== -->
+
+    <!-- Default Expander style -->
+    <Style Selector="Expander">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="CornerRadius" Value="2"/>
+        <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+    </Style>
+
+    <Style Selector="Expander:pointerover /template/ Border#Background">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <Style Selector="Expander:focus /template/ Border#Background">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <!-- Expander size variants -->
+    <Style Selector="Expander.small">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="4,3"/>
+        <Setter Property="MinHeight" Value="24"/>
+    </Style>
+
+    <Style Selector="Expander.large">
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="MinHeight" Value="38"/>
+    </Style>
+
+    <Style Selector="Expander.compact">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="MinHeight" Value="22"/>
+    </Style>
+
+    <Style Selector="Expander.field-aligned">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="6,3"/>
+        <Setter Property="MinHeight" Value="26"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Expander item text sizing -->
+    <Style Selector="Expander TextBlock">
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+
+    <Style Selector="Expander.small TextBlock">
+        <Setter Property="FontSize" Value="11"/>
+    </Style>
+
+    <Style Selector="Expander.large TextBlock">
+        <Setter Property="FontSize" Value="14"/>
+    </Style>
+
+    <Style Selector="Expander.compact TextBlock">
+        <Setter Property="FontSize" Value="11"/>
+    </Style>
+
+    <Style Selector="Expander.field-aligned TextBlock">
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton">
+        <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton:pointerover">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+</Styles>

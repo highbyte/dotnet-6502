@@ -1,0 +1,222 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <!-- ========================================== -->
+    <!-- BUTTON BASE STYLES                         -->
+    <!-- ========================================== -->
+
+    <!-- Default button style -->
+    <Style Selector="Button">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Padding" Value="12,4"/>
+        <Setter Property="MinWidth" Value="60"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="CornerRadius" Value="2"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+    </Style>
+
+    <Style Selector="Button:pointerover">
+        <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <Style Selector="Button:pressed">
+        <Setter Property="Background" Value="{DynamicResource PrimaryBg}"/>
+    </Style>
+
+    <!-- ========================================== -->
+    <!-- BUTTON SIZE VARIANTS                       -->
+    <!-- ========================================== -->
+
+    <Style Selector="Button.tiny">
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="Height" Value="22"/>
+    </Style>
+
+    <Style Selector="Button.compact">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Padding" Value="6,3"/>
+        <Setter Property="MinHeight" Value="24"/>
+    </Style>
+
+    <Style Selector="Button.small">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="MinHeight" Value="28"/>
+    </Style>
+
+    <Style Selector="Button.large">
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Padding" Value="20,10"/>
+        <Setter Property="MinHeight" Value="44"/>
+    </Style>
+
+    <!-- ========================================== -->
+    <!-- BUTTON LAYOUT VARIANTS                     -->
+    <!-- ========================================== -->
+
+    <Style Selector="Button.grid">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="MinWidth" Value="0"/>
+    </Style>
+
+    <Style Selector="Button.wide">
+        <Setter Property="Width" Value="120"/>
+    </Style>
+
+    <Style Selector="Button.extraWide">
+        <Setter Property="Width" Value="180"/>
+    </Style>
+
+    <!-- ========================================== -->
+    <!-- BUTTON SEMANTIC VARIANTS                   -->
+    <!-- ========================================== -->
+
+    <Style Selector="Button.primary">
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Background" Value="{DynamicResource SuccessColor}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="BorderBrush" Value="#4A6D62"/>
+    </Style>
+
+    <Style Selector="Button.primary:pointerover">
+        <Setter Property="Background" Value="#6B9F8F"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource HighlightGold}"/>
+    </Style>
+
+    <Style Selector="Button.secondary">
+        <Setter Property="Background" Value="{DynamicResource AccentBlue}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="BorderBrush" Value="#5A7C9E"/>
+    </Style>
+
+    <Style Selector="Button.secondary:pointerover">
+        <Setter Property="Background" Value="#7B9CBE"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource HighlightGold}"/>
+    </Style>
+
+    <Style Selector="Button.warning">
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Background" Value="{DynamicResource WarningColor}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="BorderBrush" Value="#A88D4F"/>
+    </Style>
+
+    <Style Selector="Button.warning:pointerover">
+        <Setter Property="Background" Value="#C8AD6F"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource HighlightGold}"/>
+    </Style>
+
+    <Style Selector="Button.danger">
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Background" Value="{DynamicResource DangerColor}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="BorderBrush" Value="#984E4E"/>
+    </Style>
+
+    <Style Selector="Button.danger:pointerover">
+        <Setter Property="Background" Value="#B86E6E"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource WarningColor}"/>
+    </Style>
+
+    <Style Selector="Button.cancel">
+        <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+    </Style>
+
+    <Style Selector="Button.cancel:pointerover">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+    </Style>
+
+    <!-- ========================================== -->
+    <!-- BUTTON TEXT-ONLY VARIANTS                  -->
+    <!-- ========================================== -->
+
+    <Style Selector="Button.text">
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <Style Selector="Button.text:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
+    </Style>
+
+    <Style Selector="Button.link">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.link:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
+    </Style>
+
+    <!-- ========================================== -->
+    <!-- BUTTON SPECIAL PURPOSE VARIANTS            -->
+    <!-- ========================================== -->
+
+    <!-- Information buttons (i icon buttons) -->
+    <Style Selector="Button.info">
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="MinWidth" Value="16"/>
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="ToolTip.Tip" Value="Open link"/>
+    </Style>
+
+    <Style Selector="Button.info:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+    </Style>
+
+    <Style Selector="Button.info:pressed">
+        <Setter Property="Background" Value="{DynamicResource PrimaryBg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+    </Style>
+
+    <!-- Info button spacing helper -->
+    <Style Selector="Button.info-spacing">
+        <Setter Property="Margin" Value="4,0,0,0"/>
+    </Style>
+
+    <!-- Section toggle button (collapsible headers) -->
+    <Style Selector="Button.section-toggle">
+        <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundBaseLowBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="Height" Value="20"/>
+    </Style>
+
+</Styles>

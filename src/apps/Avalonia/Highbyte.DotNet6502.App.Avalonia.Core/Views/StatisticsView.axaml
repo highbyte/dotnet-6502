@@ -7,18 +7,15 @@
              x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.StatisticsView"
              x:DataType="vm:StatisticsViewModel">
 
-    <StackPanel Spacing="10"
+    <StackPanel Classes="spacing-large"
                 Grid.IsSharedSizeScope="True">
         <!-- Performance Stats -->
         <TextBlock Text="Stats"
                    Classes="h3"
                    Margin="0,20,0,0"/>
 
-        <Border Background="#4A5568"
-               Padding="8"
-               CornerRadius="4">
-            <ItemsControl ItemsSource="{Binding Sections}"
-                          HorizontalAlignment="Left">
+        <Border Classes="stats-container">
+            <ItemsControl ItemsSource="{Binding Sections}" Classes="h-left">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Margin="0,8,0,0">

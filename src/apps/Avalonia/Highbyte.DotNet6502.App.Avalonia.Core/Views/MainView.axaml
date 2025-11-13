@@ -30,14 +30,10 @@
         </Grid.ColumnDefinitions>
 
         <!-- Menu and Controls Panel (Left) -->
-        <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="3"
-            Background="#2D3748"
-            BorderBrush="#4A5568"
-            BorderThickness="0,0,1,0"
-            Padding="10">
-            <StackPanel Spacing="6">
+        <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="3" Classes="panel-container">
+            <StackPanel Classes="spacing-medium">
                 <!-- System Selection, Variant, and Status - Unified Grid -->
-                <Grid>
+                <Grid Classes="spacing-medium">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" SharedSizeGroup="Labels" />
                         <ColumnDefinition Width="*" />
@@ -93,9 +89,9 @@
                 </Grid>
 
                 <!-- Control Buttons -->
-                <StackPanel Spacing="4">
+                <StackPanel Classes="spacing-small">
                     <!-- First row: Start and Pause -->
-                    <Grid>
+                    <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="4" />
@@ -112,7 +108,7 @@
                     </Grid>
 
                     <!-- Second row: Reset and Stop -->
-                    <Grid>
+                    <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="4" />
@@ -129,7 +125,7 @@
                     </Grid>
 
                     <!-- Third row: Monitor and Stats -->
-                    <Grid Margin="0,10,0,0">
+                    <Grid Margin="0,10,0,0" Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="4" />
@@ -149,7 +145,7 @@
                 </StackPanel>
 
                 <!-- Common display and audio settings -->
-                <StackPanel Spacing="6">
+                <StackPanel Classes="spacing-medium">
                     <!-- Display Settings -->
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -158,9 +154,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0"
                             Text="Scale:"
-                            Classes="label"
-                            VerticalAlignment="Center"
-                            Margin="0,0,8,0"/>
+                            Classes="label v-center label-spacing"/>
                         <Slider Grid.Column="1"
                             Minimum="1" Maximum="4"
                             Value="{Binding Scale}"
@@ -175,7 +169,7 @@
                         Content="Audio"
                         IsVisible="{Binding AudioSupported}"
                         IsChecked="{Binding AudioEnabled}"
-                        VerticalAlignment="Center"/>
+                        Classes="v-center"/>
                 </StackPanel>
 
                 <!-- C64 Menu -->
@@ -216,21 +210,15 @@
 
                 <!-- Information Area - Tabbed Interface -->
                 <Border Grid.Row="1"
-                    Background="#2D3748"
-                    BorderBrush="#4A5568"
-                    BorderThickness="1"
-                    CornerRadius="4"
-                    Padding="0"
+                    Classes="panel-container v-top h-left"
                     Height="230"
-                    VerticalAlignment="Top"
-                    HorizontalAlignment="Left"
                     Width="{Binding #EmulatorDisplayGrid.Bounds.Width}">
                     
                     <TabControl Name="InformationTabControl">
                         <!-- Information Tab -->
                         <TabItem Name="InformationTabItem" Header="Information">
-                            <Border Background="#2D3748" Padding="4">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                            <Border Classes="tab-content">
+                                <ScrollViewer Classes="auto-scroll">
                                     <!-- C64 Info panel-->
                                     <views:C64InfoView DataContext="{Binding C64InfoViewModel}" IsVisible="{Binding $parent[UserControl].DataContext.IsC64SystemSelected}" />
                                 </ScrollViewer>
@@ -239,27 +227,20 @@
 
                         <!-- Config Status Tab -->
                         <TabItem Name="ConfigStatusTabItem" Header="Config status">
-                            <Border Background="#2D3748" Padding="4">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                                    <StackPanel Spacing="4">
-                                        <StackPanel Spacing="8" IsVisible="{Binding HasValidationErrors}">
-                                            <Border Background="Transparent"
-                                                BorderBrush="#E53E3E"
-                                                BorderThickness="1"
-                                                CornerRadius="4"
-                                                Padding="10">
+                            <Border Classes="tab-content">
+                                <ScrollViewer Classes="auto-scroll">
+                                    <StackPanel Classes="spacing-small">
+                                        <StackPanel Classes="spacing-normal" IsVisible="{Binding HasValidationErrors}">
+                                            <Border Classes="error-container">
                                                 <ItemsControl ItemsSource="{Binding ValidationErrors}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2">
                                                                 <TextBlock Text="•"
-                                                                    Foreground="#E53E3E"
-                                                                    VerticalAlignment="Center"/>
+                                                                    Classes="error-bullet v-center"/>
                                                                 <TextBlock Text="{Binding}"
-                                                                    Classes="small"
-                                                                    Foreground="White"
-                                                                    TextWrapping="Wrap"
-                                                                    VerticalAlignment="Center"/>
+                                                                    Classes="small white v-center"
+                                                                    TextWrapping="Wrap"/>
                                                             </StackPanel>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
@@ -269,9 +250,8 @@
 
                                         <StackPanel Spacing="5" IsVisible="{Binding !HasValidationErrors}">
                                             <TextBlock Text="Configuration is valid."
-                                                Classes="small"
-                                                FontStyle="Italic"
-                                                Foreground="#A0AEC0"/>
+                                                Classes="small dimmed"
+                                                FontStyle="Italic"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </ScrollViewer>
@@ -280,7 +260,7 @@
 
                         <!-- Log Tab -->
                         <TabItem Name="LogTabItem" Header="{Binding LogTabHeader}" Classes.error-log="{Binding HasLogErrors}">
-                            <Border Background="#2D3748" Padding="4">
+                            <Border Classes="tab-content">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -288,8 +268,8 @@
                                     </Grid.ColumnDefinitions>
                                     
                                     <!-- Log content -->
-                                    <ScrollViewer Grid.Column="0" x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding LogMessages}">
+                                    <ScrollViewer Grid.Column="0" x:Name="LogScrollViewer" Classes="auto-scroll">
+                                    <ItemsControl ItemsSource="{Binding LogMessages}" Classes="vertical-tight">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <StackPanel Spacing="0"/>
@@ -340,7 +320,7 @@
                                 </ScrollViewer>
                                 
                                 <!-- Clear button column -->
-                                <Border Grid.Column="1" Padding="4,0,0,0" VerticalAlignment="Top">
+                                <Border Grid.Column="1" Padding="4,0,0,0" Classes="v-top">
                                     <Button Command="{Binding ClearLogCommand}"
                                             Classes="compact"
                                             Width="60"
@@ -357,19 +337,12 @@
 
                         <!-- General info -->
                         <TabItem Name="GeneralInfoTabItem" Header="General info">
-                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                                <StackPanel Spacing="2" Margin="2" HorizontalAlignment="Left">
+                            <ScrollViewer Classes="auto-scroll">
+                                <StackPanel Classes="spacing-tight h-left" Margin="2">
 
-                                    <Border BorderBrush="{DynamicResource BorderColor}"
-                                            BorderThickness="1"
-                                            CornerRadius="2"
-                                            Background="{DynamicResource SecondaryBg}"
-                                            Width="500">
+                                    <Border Classes="section-container" Width="500">
                                         <Grid Margin="0">
                                             <Grid.RowDefinitions>
-                                                <!-- Header row -->
-                                                <!--<RowDefinition Height="Auto" />-->
-                                                <!-- Data rows -->
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
@@ -383,110 +356,57 @@
                                                 <ColumnDefinition Width="*" MinWidth="100"/>
                                             </Grid.ColumnDefinitions>
 
-                                            <!-- Header Row -->
-                                            <!--<Border Grid.Row="0" Grid.Column="0"
-                                                    Background="{DynamicResource AccentBg}"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
-                                                <TextBlock Text="Key" Classes="tiny-bold" />
-                                            </Border>
-
-                                            <Border Grid.Row="0" Grid.Column="1"
-                                                    Background="{DynamicResource AccentBg}"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
-                                                <TextBlock Text="Value" Classes="tiny-bold" />
-                                            </Border>-->
-
                                             <!-- Row 1: Version -->
-                                            <Border Grid.Row="0" Grid.Column="0"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
+                                            <Border Grid.Row="0" Grid.Column="0" Classes="table-cell">
                                                 <TextBlock Text="Version" Classes="tiny bold" TextWrapping="Wrap" />
                                             </Border>
 
-                                            <Border Grid.Row="0" Grid.Column="1"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
+                                            <Border Grid.Row="0" Grid.Column="1" Classes="table-cell">
                                                 <SelectableTextBlock Text="{Binding Version}" Classes="tiny" />
                                             </Border>
 
                                             <!-- Row 2: By -->
-                                            <Border Grid.Row="1" Grid.Column="0"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
+                                            <Border Grid.Row="1" Grid.Column="0" Classes="table-cell">
                                                 <TextBlock Text="By" Classes="tiny bold" TextWrapping="Wrap" />
                                             </Border>
 
-                                            <Border Grid.Row="1" Grid.Column="1"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
+                                            <Border Grid.Row="1" Grid.Column="1" Classes="table-cell">
                                                 <SelectableTextBlock Text="Highbyte" Classes="tiny" />
                                             </Border>
 
-                                            <!-- Row 2: Repo -->
-                                            <Border Grid.Row="2" Grid.Column="0"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
+                                            <!-- Row 3: Repo -->
+                                            <Border Grid.Row="2" Grid.Column="0" Classes="table-cell">
                                                 <TextBlock Text="Repo" Classes="tiny bold" TextWrapping="Wrap" />
                                             </Border>
 
-                                            <Border Grid.Row="2" Grid.Column="1"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
+                                            <Border Grid.Row="2" Grid.Column="1" Classes="table-cell">
                                                 <SelectableTextBlock Text="https://github.com/highbyte/dotnet-6502" Classes="tiny" />
                                             </Border>
 
                                             <!-- Row: OS version -->
-                                            <Border Grid.Row="3" Grid.Column="0"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
+                                            <Border Grid.Row="3" Grid.Column="0" Classes="table-cell">
                                                 <TextBlock Text="OS" Classes="tiny bold" TextWrapping="Wrap" />
                                             </Border>
 
-                                            <Border Grid.Row="3" Grid.Column="1"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
+                                            <Border Grid.Row="3" Grid.Column="1" Classes="table-cell">
                                                 <SelectableTextBlock Text="{Binding OSVersion}" Classes="tiny" />
                                             </Border>
 
                                             <!-- Row: NET runtime version -->
-                                            <Border Grid.Row="4" Grid.Column="0"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
+                                            <Border Grid.Row="4" Grid.Column="0" Classes="table-cell">
                                                 <TextBlock Text=".NET" Classes="tiny bold" TextWrapping="Wrap" />
                                             </Border>
 
-                                            <Border Grid.Row="4" Grid.Column="1"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
+                                            <Border Grid.Row="4" Grid.Column="1" Classes="table-cell">
                                                 <SelectableTextBlock Text="{Binding DotNetVersion}" Classes="tiny" />
                                             </Border>
 
                                             <!-- Row: Avalonia version -->
-                                            <Border Grid.Row="5" Grid.Column="0"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
+                                            <Border Grid.Row="5" Grid.Column="0" Classes="table-cell-last-row">
                                                 <TextBlock Text="Avalonia" Classes="tiny bold" TextWrapping="Wrap" />
                                             </Border>
 
-                                            <Border Grid.Row="5" Grid.Column="1"
-                                                    BorderBrush="{DynamicResource BorderColor}"
-                                                    BorderThickness="0,0,1,1"
-                                                    Padding="4,2">
+                                            <Border Grid.Row="5" Grid.Column="1" Classes="table-cell-last-row">
                                                 <SelectableTextBlock Text="{Binding AvaloniaVersion}" Classes="tiny" />
                                             </Border>
 
@@ -504,13 +424,9 @@
         </Border>
 
         <!-- Info and Stats Panel (Right) -->
-        <Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="3"
-            Background="#2D3748"
-            BorderBrush="#4A5568"
-            BorderThickness="1,0,0,0"
-            Padding="10"
+        <Border Grid.Row="0" Grid.Column="2" Grid.RowSpan="3" Classes="panel-container"
             IsVisible="{Binding IsStatisticsPanelVisible}">
-            <ScrollViewer HorizontalAlignment="Stretch">
+            <ScrollViewer Classes="h-stretch">
                 <views:StatisticsView DataContext="{Binding StatisticsViewModel}" />
             </ScrollViewer>
         </Border>
