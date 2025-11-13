@@ -38,6 +38,18 @@ public sealed class RenderFrame : IAsyncDisposable
     public RenderFrame(IReadOnlyList<LayerInfo> infos, IReadOnlyList<IMemoryOwner<uint>> owners, TimeSpan timestamp = default)
     {
         if (infos.Count != owners.Count) throw new ArgumentException("infos/owners length mismatch");
+        
+        // Validate that all layers have matching dimensions to prevent out-of-bounds access
+        if (infos.Count > 1)
+        {
+            var firstSize = infos[0].Size;
+            for (var i = 1; i < infos.Count; i++)
+            {
+                if (infos[i].Size.Width != firstSize.Width || infos[i].Size.Height != firstSize.Height)
+                    throw new ArgumentException($"Layer {i} size mismatch: expected {firstSize.Width}x{firstSize.Height}, got {infos[i].Size.Width}x{infos[i].Size.Height}");
+            }
+        }
+        
         LayerInfos = infos; LayerOwners = owners; Timestamp = timestamp;
 
         // Derive overall frame “Size/Format” from the top-most (or first) layer by convention
