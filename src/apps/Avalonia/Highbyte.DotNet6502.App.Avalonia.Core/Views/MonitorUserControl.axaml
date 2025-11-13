@@ -72,15 +72,14 @@
         <!-- Title Header -->
         <Border Grid.Row="0"
                 Background="#2D3748"
-                Padding="5,5"
-                CornerRadius="8,8,0,0">
+                Classes="padding-small radius-large-top">
             <TextBlock Text="Monitor"
                        Classes="h1"
                        HorizontalAlignment="Center"/>
         </Border>
 
         <!-- Output Area -->
-        <Border Grid.Row="1" Classes="monitor-container" Padding="6" Margin="0,0,0,8">
+        <Border Grid.Row="1" Classes="monitor-container padding-small margin-bottom-medium">
             <ScrollViewer x:Name="OutputScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl ItemsSource="{Binding OutputLines}">
                     <ItemsControl.ItemsPanel>
@@ -99,7 +98,7 @@
 
         
         <!-- Command textbox -->
-        <Border Grid.Row="2" Classes="command-container" Padding="6" Margin="0,0,0,8">
+        <Border Grid.Row="2" Classes="command-container padding-small margin-bottom-medium">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="0" VerticalAlignment="Center">
                 <TextBlock Grid.Column="0" Text=">&#160;" VerticalAlignment="Center" Foreground="#A0AEC0" Classes="monitor-font"/>
                 <TextBox Grid.Column="1"
@@ -108,7 +107,7 @@
                      KeyDown="CommandTextBox_KeyDown"
                      Watermark="Enter monitor command"
                      Classes="monitor-font command-input"/>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Classes="margin-left-medium">
                     <Button Content="Send" Command="{Binding SendCommand}" Classes="primary"/>
                     <Button Content="Close" Command="{Binding CloseCommand}" Classes="cancel"/>
                 </StackPanel>
@@ -116,7 +115,7 @@
         </Border>
 
         <!-- Status information -->
-        <Border Grid.Row="3" Classes="status-container" Padding="6" Margin="0,0,0,0">
+        <Border Grid.Row="3" Classes="status-container padding-small margin-none">
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="140">
                 <ItemsControl ItemsSource="{Binding StatusLines}">
                     <ItemsControl.ItemsPanel>

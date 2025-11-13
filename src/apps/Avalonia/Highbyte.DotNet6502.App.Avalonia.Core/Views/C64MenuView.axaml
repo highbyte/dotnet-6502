@@ -13,7 +13,7 @@
     </UserControl.Styles>
 
     <!-- C64 Specific actions and settings -->
-    <StackPanel Classes="spacing-medium" Margin="0,12,0,0">
+    <StackPanel Classes="spacing-medium margin-top-large">
         <TextBlock Text="Commodore 64"
                    Classes="section-header" />
 
@@ -52,7 +52,7 @@
         </Grid>
 
         <!-- Disk Drive & D64 images -->
-        <StackPanel Margin="0,4,0,0">
+        <StackPanel Classes="margin-top-small">
             <Button Name="DiskSectionHeader"
                     Content="▼ Disk Drive &amp; .D64 images"
                     Classes="section-toggle"
@@ -77,8 +77,7 @@
                     </Grid>
 
                     <TextBlock Text="Download &amp; Run .D64 programs"
-                               Classes="small muted"
-                               Margin="0,2,0,0"/>
+                               Classes="small muted margin-top-tiny"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -112,7 +111,7 @@
         </StackPanel>
 
         <!-- Load/Save -->
-        <StackPanel Margin="0,4,0,0">
+        <StackPanel Classes="margin-top-small">
             <Button Name="LoadSaveSectionHeader"
                     Content="▼ Load/Save"
                     Classes="section-toggle"
@@ -146,8 +145,7 @@
                             Click="LoadBinaryFile_Click"/>
 
                     <TextBlock Text="Assembly example files"
-                               Classes="small muted"
-                               Margin="0,4,0,0"/>
+                               Classes="small muted margin-top-small"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -163,14 +161,11 @@
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load &amp; start"
-                                Classes="primary tiny"
-                                Command="{Binding LoadAssemblyExampleCommand}"
-                                Margin="4,0,0,0"/>
+                                Classes="primary tiny margin-left-small"/>
                     </Grid>
 
                     <TextBlock Text="Basic example files"
-                               Classes="small muted"
-                               Margin="0,4,0,0"/>
+                               Classes="small muted margin-top-small"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -186,16 +181,15 @@
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load"
-                                Classes="primary tiny"
-                                Command="{Binding LoadBasicExampleCommand}"
-                                Margin="4,0,0,0"/>
+                                Classes="primary tiny margin-left-small"
+                                Command="{Binding LoadBasicExampleCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>
         </StackPanel>
 
         <!-- Configuration -->
-        <StackPanel Margin="0,4,0,0">
+        <StackPanel Classes="margin-top-small">
             <Button Name="ConfigSectionHeader"
                     Content="▼ Configuration"
                     Classes="section-toggle"
@@ -210,8 +204,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0"
                                    Text="Active joystick:"
-                                   Classes="small v-center"
-                                   Margin="0,0,6,0"/>
+                                   Classes="small v-center margin-right-small"/>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding AvailableJoysticks}"
                                   SelectedItem="{Binding CurrentJoystick}"
@@ -226,9 +219,8 @@
                         </Grid.ColumnDefinitions>
                         <CheckBox Grid.Column="0"
                                   Content="Joystick KB"
-                                  Classes="white v-center small"
-                                  IsChecked="{Binding JoystickKeyboardEnabled}"
-                                  Margin="0,0,6,0"/>
+                                  Classes="white v-center small margin-right-small"
+                                  IsChecked="{Binding JoystickKeyboardEnabled}"/>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding AvailableJoysticks}"
                                   SelectedItem="{Binding KeyboardJoystick}"

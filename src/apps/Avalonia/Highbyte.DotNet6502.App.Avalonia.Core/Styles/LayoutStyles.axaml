@@ -106,7 +106,7 @@
         <Setter Property="Spacing" Value="10"/>
     </Style>
 
-    <!-- Wrap item for WrapPanel -->
+    <!-- Wrap item for WrapPanel - removed inline margin in favor of using .margin-right-medium .margin-bottom-medium classes -->
     <Style Selector="StackPanel.wrap-item">
         <Setter Property="Margin" Value="0,0,8,8"/>
     </Style>
@@ -126,6 +126,11 @@
     </Style>
 
     <Style Selector="Grid.spacing-normal">
+        <Setter Property="ColumnSpacing" Value="8"/>
+        <Setter Property="RowSpacing" Value="8"/>
+    </Style>
+
+    <Style Selector="Grid.spacing-medium">
         <Setter Property="ColumnSpacing" Value="8"/>
         <Setter Property="RowSpacing" Value="8"/>
     </Style>

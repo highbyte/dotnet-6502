@@ -11,16 +11,16 @@
   </UserControl.Styles>
   
   <!-- Simplified layout for ContentDialog - no outer border needed -->
-  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,0">
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Classes="margin-none">
     <!-- Title Header -->
-    <Border Grid.Row="0" Classes="panel-container" CornerRadius="8,8,0,0" Margin="0">
+    <Border Grid.Row="0" Classes="panel-container radius-large-top" Margin="0">
       <TextBlock Text="Commodore 64 Configuration"
                  Classes="h1 h-center"/>
     </Border>
 
     <!-- Main content with wrapping layout - scrollable -->
     <ScrollViewer Grid.Row="1" Classes="vertical-only">
-      <WrapPanel Orientation="Horizontal" Margin="8,8,8,8"> 
+      <WrapPanel Orientation="Horizontal" Classes="margin-medium"> 
       
         <!-- ROM Section -->
         <StackPanel Width="460" Classes="wrap-item">
@@ -36,7 +36,7 @@
             <ItemsControl ItemsSource="{Binding RomStatuses}">
                 <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:RomStatusViewModel">
-                    <StackPanel Classes="spacing-small" Margin="0,2">
+                    <StackPanel Classes="spacing-small margin-v-tiny">
                     <!-- WebAssembly version - display only -->
                     <Grid ColumnDefinitions="90,*" Classes="spacing-medium"
                             IsVisible="{Binding IsRunningInWebAssembly}">
@@ -66,7 +66,7 @@
             </ItemsControl>
 
                 <!-- ROM Directory setting (only for desktop) -->
-                <Grid ColumnDefinitions="Auto,*" Classes="spacing-normal" Margin="0,8,0,0"
+                <Grid ColumnDefinitions="Auto,*" Classes="spacing-normal margin-top-medium"
                     IsVisible="{Binding !IsRunningInWebAssembly}">
                     <TextBlock Grid.Column="0"
                                 Text="ROM directory:"
@@ -205,10 +205,10 @@
                         Classes="small field-aligned dimmed"
                         IsExpanded="False">
                 <ItemsControl ItemsSource="{Binding KeyboardMappings}"
-                            Margin="0,4,0,0">
+                            Classes="margin-top-small">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:KeyMappingEntry">
-                    <DockPanel Margin="0,2">
+                    <DockPanel Classes="margin-v-tiny">
                         <TextBlock Text="{Binding Action}"
                                     Classes="field-label"
                                     Width="100"/>
@@ -231,8 +231,7 @@
                 <TextBlock Text="Basic AI Coding Assistant"
                             Classes="h2 v-center"/>
                 <Button Content="i"
-                        Classes="info"
-                        Padding="4,0"
+                        Classes="info padding-small"
                         ToolTip.Tip="Click for more information about the AI coding assistant"
                         Click="OpenAIHelpUrl_Click"/>
             </StackPanel>
@@ -325,7 +324,7 @@
     </ScrollViewer>
 
     <!-- Messages and status in separate row -->
-    <StackPanel Grid.Row="2" Classes="spacing-normal" Margin="8,8,8,8">
+    <StackPanel Grid.Row="2" Classes="spacing-normal margin-medium">
         <TextBlock Text="{Binding StatusMessage}"
                     Classes="success-text"
                     TextWrapping="Wrap"
@@ -337,7 +336,7 @@
           <ItemsControl ItemsSource="{Binding ValidationErrors}">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2">
+                <StackPanel Orientation="Horizontal" Spacing="5" Classes="margin-v-tiny">
                   <TextBlock Text="•" 
                               Classes="error-bullet v-center"/>
                   <TextBlock Text="{Binding}" 

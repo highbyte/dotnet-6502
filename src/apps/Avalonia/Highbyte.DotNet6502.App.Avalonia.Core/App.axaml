@@ -33,6 +33,7 @@
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/ButtonStyles.axaml"/>
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/InputStyles.axaml"/>
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/LayoutStyles.axaml"/>
+        <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/ShapeStyles.axaml"/>
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/TableStyles.axaml"/>
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/ItemsControlStyles.axaml"/>
         <StyleInclude Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Styles/UtilityStyles.axaml"/>

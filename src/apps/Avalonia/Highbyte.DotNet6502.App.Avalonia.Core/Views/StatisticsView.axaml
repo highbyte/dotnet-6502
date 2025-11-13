@@ -11,20 +11,19 @@
                 Grid.IsSharedSizeScope="True">
         <!-- Performance Stats -->
         <TextBlock Text="Stats"
-                   Classes="h3"
-                   Margin="0,20,0,0"/>
+                   Classes="h3 margin-top-xlarge"/>
 
         <Border Classes="stats-container">
             <ItemsControl ItemsSource="{Binding Sections}" Classes="h-left">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Margin="0,8,0,0">
+                        <StackPanel Classes="margin-top-medium">
                             <TextBlock Text="{Binding Title, StringFormat='{}{0}:'}"
                                        Classes="label label-small"/>
                             <ItemsControl ItemsSource="{Binding Items}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Margin="0,2">
+                                        <Grid Classes="margin-v-tiny">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"
                                                                   SharedSizeGroup="StatName"/>
