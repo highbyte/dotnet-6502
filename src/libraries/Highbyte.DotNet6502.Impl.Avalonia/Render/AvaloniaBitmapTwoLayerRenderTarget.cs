@@ -82,14 +82,9 @@ public sealed class AvaloniaBitmapTwoLayerRenderTarget : IRenderFrameTarget, IAv
             var fgPixel = fgPixels[i];
 
             // Use direct uint comparison for transparency check
-            if (fgPixel != TRANSPARENT_COLOR)
-            {
-                destPtr[i] = fgPixel; // Foreground pixel (opaque, overwrite background)
-            }
-            else
-            {
-                destPtr[i] = bgPixels[i]; // Background pixel (foreground is transparent)
-            }
+            destPtr[i] = fgPixel != TRANSPARENT_COLOR 
+                ? fgPixel           // Foreground pixel (opaque, overwrite background)
+                : bgPixels[i];      // Background pixel (foreground is transparent)
         }
     }
 
@@ -111,15 +106,7 @@ public sealed class AvaloniaBitmapTwoLayerRenderTarget : IRenderFrameTarget, IAv
             for (int x = 0; x < width; x++)
             {
                 var fgPixel = fgRow[x];
-
-                if (fgPixel != TRANSPARENT_COLOR)
-                {
-                    destRowPtr[x] = fgPixel;
-                }
-                else
-                {
-                    destRowPtr[x] = bgRow[x];
-                }
+                destRowPtr[x] = fgPixel != TRANSPARENT_COLOR ? fgPixel : bgRow[x];
             }
         }
     }
