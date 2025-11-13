@@ -44,8 +44,8 @@ public sealed class CommonFrameSource : IFrameSource
             // Rent a uint buffer and copy the pixels into it. Use the multi-layer
             // RenderFrame ctor with a single layer so we can keep uint[] pixel ownership.
             var frontBuffer = _videoFrameProvider.CurrentFrontBuffer;
-            var ownerUint = _poolUint.Rent(frontBuffer.Length);
-            frontBuffer.Span.CopyTo(ownerUint.Memory.Span);
+            // Zero-copy: wrap the ReadOnlyMemory<uint> in a non-owning memory owner
+            var ownerUint = new NonOwningMemoryOwner<uint>(frontBuffer);
 
             var info = new LayerInfo(_videoFrameProvider.NativeSize, _videoFrameProvider.PixelFormat, _videoFrameProvider.StrideBytes, 1f, BlendMode.Normal, 0);
             var owners = new IMemoryOwner<uint>[] { ownerUint };
