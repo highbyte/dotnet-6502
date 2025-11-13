@@ -14,13 +14,13 @@
 
     <!-- C64 Specific information -->
     <ScrollViewer Classes="auto-scroll">
-        <StackPanel Classes="spacing-tight margin-tiny">
+        <StackPanel Classes="spacing-tight">
             
             <!-- C64 Keyboard Mapping Table -->
-            <TextBlock Text="Commodore 64 keyboard mapping" Classes="section-header margin-tiny"/>
+            <TextBlock Text="Commodore 64 keyboard mapping" Classes="section-header"/>
             
             <Border Classes="section-container">
-                <Grid Classes="margin-none">
+                <Grid>
                     <Grid.RowDefinitions>
                         <!-- Header row -->
                         <RowDefinition Height="Auto" />

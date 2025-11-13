@@ -11,13 +11,13 @@
                 Grid.IsSharedSizeScope="True">
         <!-- Performance Stats -->
         <TextBlock Text="Stats"
-                   Classes="h3 margin-top-xlarge"/>
+                   Classes="h3"/>
 
         <Border Classes="stats-container">
             <ItemsControl ItemsSource="{Binding Sections}" Classes="h-left">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Classes="margin-top-medium">
+                        <StackPanel>
                             <TextBlock Text="{Binding Title, StringFormat='{}{0}:'}"
                                        Classes="label label-small"/>
                             <ItemsControl ItemsSource="{Binding Items}">
