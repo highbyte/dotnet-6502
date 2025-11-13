@@ -5,7 +5,7 @@ using BenchmarkDotNet.Jobs;
 
 namespace Highbyte.DotNet6502.Benchmarks.Commodore64.Render;
 
-[SimpleJob(RuntimeMoniker.HostProcess, launchCount:1, warmupCount:1)]
+[SimpleJob(RuntimeMoniker.HostProcess, launchCount:3, warmupCount:3)]
 [MemoryDiagnoser]
 public class Vic2RasterizerPixelWriteBenchmarks
 {
