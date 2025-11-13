@@ -40,6 +40,9 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     private readonly ReaderWriterLockSlim _bufferLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
     private readonly ReaderWriterLockSlim _bufferLock2 = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
 
+    // Cached layer buffers to avoid repeated allocations
+    private ReadOnlyMemory<uint>[] _cachedLayerBuffers = null!;
+
     public RenderSize NativeSize { get; }
     public PixelFormat PixelFormat { get; } = PixelFormat.Bgra32; //PixelFormat.Rgba32;
     public int StrideBytes { get; }
@@ -81,6 +84,13 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
 
         _c64 = c64;
         _useDoubleBuffering = useDoubleBuffering;
+
+        // Initialize cached layer buffers
+        _cachedLayerBuffers = new ReadOnlyMemory<uint>[]
+        {
+            _frontBackground.AsMemory(),
+            _frontForeground.AsMemory()
+        };
 
         _pixelGenerator = new Vic2RasterizerUintPixelGenerator(
             _c64,
@@ -149,12 +159,8 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
             _bufferLock.EnterReadLock();
             try
             {
-                return new List<ReadOnlyMemory<uint>>()
-                {
-                    // Return thin wrapper around the memory (zero-copy)
-                    _frontBackground.AsMemory(),
-                    _frontForeground.AsMemory()
-                };
+                // Return cached array to avoid repeated allocations
+                return _cachedLayerBuffers;
             }
             finally
             {
@@ -179,6 +185,10 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
             var tmpFrontForeground = _frontForeground;
             _frontForeground = _backForeground;
             _backForeground = tmpFrontForeground;
+
+            // Update cached layer buffers after swap
+            _cachedLayerBuffers[0] = _frontBackground.AsMemory();
+            _cachedLayerBuffers[1] = _frontForeground.AsMemory();
         }
         finally
         {
