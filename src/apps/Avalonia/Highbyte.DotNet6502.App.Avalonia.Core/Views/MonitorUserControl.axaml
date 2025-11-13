@@ -78,8 +78,8 @@
         <!-- Title Header -->
         <Border Grid.Row="0"
                 Background="#2D3748"
-                Classes="radius-large-top"
-                Padding="4">
+                CornerRadius="8,8,0,0"
+                Classes="panel-container">
             <TextBlock Text="Monitor"
                        Classes="h1"
                        HorizontalAlignment="Center"/>

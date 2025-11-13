@@ -21,7 +21,7 @@
     <!--<Grid Background="Black">
         <TextBlock x:Name="MessageTextBlock"
         Text="DotNet 6502 emulator"
-        Foreground="White"
+        Foreground=""
         FontSize="24"
         HorizontalAlignment="Center"
         VerticalAlignment="Center"/>

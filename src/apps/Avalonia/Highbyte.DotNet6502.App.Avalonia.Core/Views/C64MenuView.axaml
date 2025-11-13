@@ -42,12 +42,12 @@
             </Grid.ColumnDefinitions>
             <CheckBox Grid.Column="0"
                       Content="AI Basic (F9)"
-                      Classes="white v-center"
+                      Classes=""
                       IsChecked="{Binding BasicCodingAssistantEnabled}"
                       IsEnabled="{Binding BasicCodingAssistantAvailable}"/>
             <Button Grid.Column="2"
                     Content="i"
-                    Classes="info info-spacing"
+                    Classes="info"
                     Click="OpenBasicAssistantInfo_Click"/>
         </Grid>
 
@@ -69,10 +69,10 @@
                                 Content="{Binding DiskToggleButtonText}"
                                 Name="DiskToggleButton"
                                 Command="{Binding ToggleDiskImageCommand}"
-                                Classes="compact"/>
+                                Classes="tiny"/>
                         <Button Grid.Column="1"
                                 Content="i"
-                                Classes="info info-spacing"
+                                Classes="info"
                                 Click="OpenDiskInfo_Click"/>
                     </Grid>
 
@@ -89,21 +89,21 @@
                                   DisplayMemberBinding="{Binding Value}"
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="true"
-                                  Classes="compact"
+                                  Classes="tiny"
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="i"
-                                Classes="info info-spacing"
+                                Classes="info"
                                 Click="OpenDiskInfo_Click"/>
                     </Grid>
 
                     <Button Content="Download &amp; Run"
-                            Classes="primary compact"
+                            Classes="primary tiny"
                             Command="{Binding LoadPreloadedDiskCommand}"
                             IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
                     <TextBlock Text="Download D64 disk image and auto-run the program on it."
-                               Classes="small muted"
+                               Classes="tiny muted"
                                TextWrapping="Wrap"
                                IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                 </StackPanel>
@@ -140,7 +140,7 @@
                     </Grid>
 
                     <Button Content="Load &amp; start binary"
-                            Classes="primary compact"
+                            Classes="primary tiny"
                             IsEnabled="{Binding IsFileOperationEnabled}"
                             Click="LoadBinaryFile_Click"/>
 
@@ -157,11 +157,11 @@
                                   DisplayMemberBinding="{Binding Value}"
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="{Binding IsFileOperationEnabled}"
-                                  Classes="compact"
+                                  Classes="tiny field-aligned"
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load &amp; start"
-                                Classes="primary tiny"/>
+                                Classes="primary tiny field-aligned"/>
                     </Grid>
 
                     <TextBlock Text="Basic example files"
@@ -177,11 +177,11 @@
                                   DisplayMemberBinding="{Binding Value}"
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="{Binding IsFileOperationEnabled}"
-                                  Classes="compact"
+                                  Classes="tiny field-aligned"
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load"
-                                Classes="primary tiny"
+                                Classes="primary tiny field-aligned"
                                 Command="{Binding LoadBasicExampleCommand}"/>
                     </Grid>
                 </StackPanel>
@@ -204,11 +204,11 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0"
                                    Text="Active joystick:"
-                                   Classes="small v-center"/>
+                                   Classes="tiny field-label"/>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding AvailableJoysticks}"
                                   SelectedItem="{Binding CurrentJoystick}"
-                                  Classes="compact v-center"
+                                  Classes="tiny field-aligned"
                                   MinWidth="30"/>
                     </Grid>
 
@@ -218,14 +218,14 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <CheckBox Grid.Column="0"
-                                  Content="Joystick KB"
-                                  Classes="white v-center small"
+                                  Content="Joystick KB:"
+                                  Classes="tiny field-aligned"
                                   IsChecked="{Binding JoystickKeyboardEnabled}"/>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding AvailableJoysticks}"
                                   SelectedItem="{Binding KeyboardJoystick}"
                                   IsEnabled="{Binding IsKeyboardJoystickSelectionEnabled}"
-                                  Classes="compact v-center"
+                                  Classes="tiny field-aligned"
                                   MinWidth="30"/>
                     </Grid>
 
@@ -233,7 +233,7 @@
                             Content="C64 Config"
                             Click="OpenC64Config_Click"
                             IsEnabled="{Binding IsC64ConfigEnabled}"
-                            Classes="compact">
+                            Classes="tiny">
                         <Button.Transitions>
                             <Transitions>
                                 <BrushTransition Property="Background" Duration="0:0:0.7"/>

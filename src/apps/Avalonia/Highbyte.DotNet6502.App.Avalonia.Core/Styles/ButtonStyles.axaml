@@ -220,4 +220,9 @@
         <Setter Property="Height" Value="20"/>
     </Style>
 
+
+    <Style Selector="Button.field-aligned">
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
 </Styles>

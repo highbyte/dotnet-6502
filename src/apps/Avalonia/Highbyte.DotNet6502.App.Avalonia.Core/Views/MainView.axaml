@@ -151,13 +151,12 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0"
                             Text="Scale:"
-                            Classes="label v-center label-spacing"/>
+                            Classes="label"/>
                         <Slider Grid.Column="1"
                             Minimum="1" Maximum="4"
                             Value="{Binding Scale}"
                             TickFrequency="0.5"
                             IsSnapToTickEnabled="True"
-                            VerticalAlignment="Center"
                             Classes="compact"/>
                     </Grid>
 
@@ -165,8 +164,7 @@
                     <CheckBox Grid.Column="1"
                         Content="Audio"
                         IsVisible="{Binding AudioSupported}"
-                        IsChecked="{Binding AudioEnabled}"
-                        Classes="v-center"/>
+                        IsChecked="{Binding AudioEnabled}"/>
                 </StackPanel>
 
                 <!-- C64 Menu -->
@@ -178,7 +176,7 @@
         <!-- Main Emulator Display Area (Center) -->
         <Border Grid.Row="0" Grid.Column="1" Grid.RowSpan="3"
             Background="{DynamicResource ViewDefaultBg}"
-            Padding="10">
+            Classes="panel-container">
             
             <Grid>
                 <Grid.RowDefinitions>
@@ -233,9 +231,9 @@
                                                         <DataTemplate>
                                                             <StackPanel Orientation="Horizontal" Classes="spacing-compact">
                                                                 <TextBlock Text="•"
-                                                                    Classes="error-bullet v-center"/>
+                                                                    Classes="error-bullet"/>
                                                                 <TextBlock Text="{Binding}"
-                                                                    Classes="small white v-center"
+                                                                    Classes="small"
                                                                     TextWrapping="Wrap"/>
                                                             </StackPanel>
                                                         </DataTemplate>
@@ -285,29 +283,19 @@
                                                         VerticalAlignment="Top">
                                                         <TextBlock 
                                                             Text="{Binding Symbol}"
+                                                            Classes="log-symbol"
                                                             Classes.log-trace="{Binding IsTrace}"
                                                             Classes.log-debug="{Binding IsDebug}"
                                                             Classes.log-info="{Binding IsInfo}"
                                                             Classes.log-warning="{Binding IsWarning}"
                                                             Classes.log-error="{Binding IsError}"
-                                                            Classes.log-critical="{Binding IsCritical}"
-                                                            TextWrapping="NoWrap"
-                                                            FontSize="12"
-                                                            
-                                                            HorizontalAlignment="Left"
-                                                            VerticalAlignment="Center"/>
+                                                            Classes.log-critical="{Binding IsCritical}"/>
                                                     </Border>
                                                     
                                                     <!-- Message text -->
                                                     <TextBlock Grid.Column="1" 
                                                         Text="{Binding Message}"
-                                                        Classes="monospace"
-                                                        Foreground="#A0AEC0"
-                                                        TextWrapping="NoWrap"
-                                                        Padding="0"
-                                                        FontSize="10"
-                                                        LineHeight="13"
-                                                        VerticalAlignment="Top"/>
+                                                        Classes="log-message"/>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -315,13 +303,12 @@
                                 </ScrollViewer>
                                 
                                 <!-- Clear button column -->
-                                <Border Grid.Column="1" Padding="4,0,0,0" Classes="v-top">
+                                <Border Grid.Column="1" Classes="v-top">
                                     <Button Command="{Binding ClearLogCommand}"
                                             Classes="compact"
                                             Width="60"
                                             Height="20"
                                             FontSize="10"
-                                            Padding="2"
                                             ToolTip.Tip="Clear log messages">
                                         Clear
                                     </Button>
