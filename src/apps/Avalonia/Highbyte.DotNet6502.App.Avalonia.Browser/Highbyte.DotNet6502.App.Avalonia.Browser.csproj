@@ -17,7 +17,7 @@
     <!-- Add additional LLVM optimization -->
     <WasmEnableLLVM>true</WasmEnableLLVM>
 
-    <!-- Use interpreter for startup, JIT for hot paths. Used if AOT isn' enabled, like in Debug mode -->
+    <!-- Use interpreter for startup, JIT for hot paths. Used if AOT isn't enabled, like in Debug mode -->
     <WasmEnableJiterpreter>true</WasmEnableJiterpreter>
 
     <!-- Optionally disable aggressive trimming to prevent runtime hangs -->
