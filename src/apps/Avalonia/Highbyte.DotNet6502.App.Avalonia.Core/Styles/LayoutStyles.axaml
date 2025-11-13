@@ -8,6 +8,7 @@
     <!-- Default Border style -->
     <Style Selector="Border">
         <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        <Setter Property="Margin" Value="0"/>
     </Style>
 
     <!-- Panel container - used for main panels/sections -->
@@ -17,6 +18,7 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="4"/>
         <Setter Property="Padding" Value="10"/>
+        <Setter Property="Margin" Value="0,8,0,0"/>
     </Style>
 
     <!-- Section container - used for content sections -->
@@ -25,6 +27,7 @@
         <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="2"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
     </Style>
 
     <!-- Content section - used for configuration sections -->
@@ -34,12 +37,14 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="8"/>
         <Setter Property="Padding" Value="6"/>
+        <Setter Property="Margin" Value="0,6,0,0"/>
     </Style>
 
     <!-- Tab content border -->
     <Style Selector="Border.tab-content">
         <Setter Property="Background" Value="#2D3748"/>
         <Setter Property="Padding" Value="4"/>
+        <Setter Property="Margin" Value="0"/>
     </Style>
 
     <!-- Collapsible section content -->
@@ -48,6 +53,7 @@
         <Setter Property="BorderThickness" Value="1,0,1,1"/>
         <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"/>
         <Setter Property="Padding" Value="8"/>
+        <Setter Property="Margin" Value="0"/>
     </Style>
 
     <!-- Error/validation border -->
@@ -57,6 +63,7 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="4"/>
         <Setter Property="Padding" Value="10"/>
+        <Setter Property="Margin" Value="0,8,0,0"/>
     </Style>
 
     <Style Selector="Border.error-container-compact">
@@ -65,6 +72,7 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="4"/>
         <Setter Property="Padding" Value="6"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
     </Style>
 
     <!-- Status container -->
@@ -73,6 +81,7 @@
         <Setter Property="BorderBrush" Value="#4A5568"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Margin" Value="0"/>
     </Style>
 
     <!-- Statistics container -->
@@ -80,33 +89,85 @@
         <Setter Property="Background" Value="#4A5568"/>
         <Setter Property="Padding" Value="8"/>
         <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
     </Style>
 
     <!-- ========================================== -->
     <!-- STACKPANEL SPACING STYLES                  -->
     <!-- ========================================== -->
     
+    <!-- Default StackPanel style with minimal margin -->
+    <Style Selector="StackPanel">
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="Spacing" Value="0"/>
+    </Style>
+    
+    <Style Selector="StackPanel.spacing-none">
+        <Setter Property="Spacing" Value="0"/>
+        <Setter Property="Margin" Value="0"/>
+    </Style>
+    
     <Style Selector="StackPanel.spacing-tight">
         <Setter Property="Spacing" Value="2"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
     </Style>
 
     <Style Selector="StackPanel.spacing-small">
         <Setter Property="Spacing" Value="4"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
+    </Style>
+    
+    <Style Selector="StackPanel.spacing-compact">
+        <Setter Property="Spacing" Value="5"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
     </Style>
 
     <Style Selector="StackPanel.spacing-medium">
         <Setter Property="Spacing" Value="6"/>
+        <Setter Property="Margin" Value="0,6,0,0"/>
     </Style>
 
     <Style Selector="StackPanel.spacing-normal">
         <Setter Property="Spacing" Value="8"/>
+        <Setter Property="Margin" Value="0,8,0,0"/>
     </Style>
 
     <Style Selector="StackPanel.spacing-large">
         <Setter Property="Spacing" Value="10"/>
+        <Setter Property="Margin" Value="0,12,0,0"/>
+    </Style>
+    
+    <Style Selector="StackPanel.spacing-wide">
+        <Setter Property="Spacing" Value="12"/>
+        <Setter Property="Margin" Value="0,12,0,0"/>
     </Style>
 
-    <!-- Wrap item for WrapPanel - removed inline margin in favor of using .margin-right-medium .margin-bottom-medium classes -->
+    <Style Selector="StackPanel[Orientation=Horizontal].spacing-tight">
+        <Setter Property="Spacing" Value="2"/>
+        <Setter Property="Margin" Value="0"/>
+    </Style>
+    
+    <Style Selector="StackPanel[Orientation=Horizontal].spacing-small">
+        <Setter Property="Spacing" Value="4"/>
+        <Setter Property="Margin" Value="0"/>
+    </Style>
+    
+    <Style Selector="StackPanel[Orientation=Horizontal].spacing-compact">
+        <Setter Property="Spacing" Value="5"/>
+        <Setter Property="Margin" Value="0"/>
+    </Style>
+    
+    <Style Selector="StackPanel[Orientation=Horizontal].spacing-normal">
+        <Setter Property="Spacing" Value="8"/>
+        <Setter Property="Margin" Value="0"/>
+    </Style>
+    
+    <Style Selector="StackPanel[Orientation=Horizontal].spacing-wide">
+        <Setter Property="Spacing" Value="12"/>
+        <Setter Property="Margin" Value="0"/>
+    </Style>
+
+    <!-- Wrap item for WrapPanel -->
     <Style Selector="StackPanel.wrap-item">
         <Setter Property="Margin" Value="0,0,8,8"/>
     </Style>
@@ -115,29 +176,39 @@
     <!-- GRID SPACING STYLES                        -->
     <!-- ========================================== -->
     
+    <!-- Default Grid style -->
+    <Style Selector="Grid">
+        <Setter Property="Margin" Value="0"/>
+    </Style>
+    
     <Style Selector="Grid.spacing-tight">
         <Setter Property="ColumnSpacing" Value="4"/>
         <Setter Property="RowSpacing" Value="4"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
     </Style>
 
     <Style Selector="Grid.spacing-small">
         <Setter Property="ColumnSpacing" Value="6"/>
         <Setter Property="RowSpacing" Value="6"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
     </Style>
 
     <Style Selector="Grid.spacing-normal">
         <Setter Property="ColumnSpacing" Value="8"/>
         <Setter Property="RowSpacing" Value="8"/>
+        <Setter Property="Margin" Value="0,8,0,0"/>
     </Style>
 
     <Style Selector="Grid.spacing-medium">
         <Setter Property="ColumnSpacing" Value="8"/>
         <Setter Property="RowSpacing" Value="8"/>
+        <Setter Property="Margin" Value="0,8,0,0"/>
     </Style>
 
     <Style Selector="Grid.spacing-wide">
         <Setter Property="ColumnSpacing" Value="12"/>
         <Setter Property="RowSpacing" Value="12"/>
+        <Setter Property="Margin" Value="0,12,0,0"/>
     </Style>
 
     <!-- ========================================== -->

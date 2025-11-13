@@ -10,6 +10,7 @@
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="Medium"/>
         <Setter Property="Padding" Value="12,4"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
         <Setter Property="MinWidth" Value="60"/>
         <Setter Property="Height" Value="32"/>
         <Setter Property="CornerRadius" Value="2"/>
@@ -38,6 +39,7 @@
     <Style Selector="Button.tiny">
         <Setter Property="FontSize" Value="10"/>
         <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="Margin" Value="0,2,0,0"/>
         <Setter Property="Height" Value="22"/>
     </Style>
 
@@ -45,12 +47,14 @@
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="Padding" Value="6,3"/>
+        <Setter Property="Margin" Value="0,3,0,0"/>
         <Setter Property="MinHeight" Value="24"/>
     </Style>
 
     <Style Selector="Button.small">
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
         <Setter Property="MinHeight" Value="28"/>
     </Style>
 
@@ -58,6 +62,7 @@
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Padding" Value="20,10"/>
+        <Setter Property="Margin" Value="0,8,0,0"/>
         <Setter Property="MinHeight" Value="44"/>
     </Style>
 
@@ -175,7 +180,7 @@
     <Style Selector="Button.info">
         <Setter Property="FontSize" Value="10"/>
         <Setter Property="Padding" Value="0"/>
-        <Setter Property="Margin" Value="0"/>
+        <Setter Property="Margin" Value="4,0,0,0"/>
         <Setter Property="MinWidth" Value="16"/>
         <Setter Property="Width" Value="16"/>
         <Setter Property="Height" Value="16"/>
@@ -201,17 +206,13 @@
         <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
     </Style>
 
-    <!-- Info button spacing helper -->
-    <Style Selector="Button.info-spacing">
-        <Setter Property="Margin" Value="4,0,0,0"/>
-    </Style>
-
     <!-- Section toggle button (collapsible headers) -->
     <Style Selector="Button.section-toggle">
         <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundBaseLowBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"/>
         <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
         <Setter Property="HorizontalAlignment" Value="Stretch"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
         <Setter Property="Padding" Value="6,2"/>

@@ -23,7 +23,7 @@
                             <ItemsControl ItemsSource="{Binding Items}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Classes="margin-v-tiny">
+                                        <Grid Classes="">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"
                                                                   SharedSizeGroup="StatName"/>

@@ -5,37 +5,48 @@
     <!-- TEXTBLOCK SIZE STYLES                      -->
     <!-- ========================================== -->
     
+    <!-- Default TextBlock style -->
+    <Style Selector="TextBlock">
+        <Setter Property="Margin" Value="0,2,0,0"/>
+    </Style>
+    
     <Style Selector="TextBlock.h1">
         <Setter Property="FontSize" Value="20"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
+        <Setter Property="Margin" Value="0,12,0,8"/>
     </Style>
 
     <Style Selector="TextBlock.h2">
         <Setter Property="FontSize" Value="16"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="Margin" Value="0,8,0,4"/>
     </Style>
 
     <Style Selector="TextBlock.h3">
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="Margin" Value="0,6,0,4"/>
     </Style>
 
     <Style Selector="TextBlock.body">
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="Margin" Value="0,2,0,0"/>
     </Style>
 
     <Style Selector="TextBlock.small">
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+        <Setter Property="Margin" Value="0,2,0,0"/>
     </Style>
 
     <Style Selector="TextBlock.tiny">
         <Setter Property="FontSize" Value="10"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="Margin" Value="0,2,0,0"/>
     </Style>
 
     <!-- ========================================== -->
@@ -145,24 +156,28 @@
     <Style Selector="TextBlock.status">
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="Margin" Value="0,2,0,0"/>
     </Style>
 
     <Style Selector="TextBlock.help-text">
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
     </Style>
 
     <Style Selector="TextBlock.overlay">
         <Setter Property="FontSize" Value="16"/>
         <Setter Property="FontStyle" Value="Italic"/>
         <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
     </Style>
 
     <Style Selector="TextBlock.monospace">
         <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+        <Setter Property="Margin" Value="0,2,0,0"/>
     </Style>
 
     <!-- ========================================== -->
@@ -206,29 +221,24 @@
     </Style>
 
     <!-- ========================================== -->
-    <!-- TEXTBLOCK MARGIN STYLES                    -->
-    <!-- ========================================== -->
-    
-    <Style Selector="TextBlock.label-spacing">
-        <Setter Property="Margin" Value="0,0,8,0"/>
-    </Style>
-
-    <Style Selector="TextBlock.item-spacing">
-        <Setter Property="Margin" Value="0,2"/>
-    </Style>
-
-    <!-- ========================================== -->
     <!-- SELECTABLE TEXTBLOCK STYLES                -->
     <!-- ========================================== -->
+    
+    <!-- Default SelectableTextBlock style -->
+    <Style Selector="SelectableTextBlock">
+        <Setter Property="Margin" Value="0,2,0,0"/>
+    </Style>
     
     <Style Selector="SelectableTextBlock.small">
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+        <Setter Property="Margin" Value="0,2,0,0"/>
     </Style>
 
     <Style Selector="SelectableTextBlock.tiny">
         <Setter Property="FontSize" Value="10"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+        <Setter Property="Margin" Value="0,2,0,0"/>
     </Style>
 
     <Style Selector="SelectableTextBlock.bold">
@@ -237,6 +247,7 @@
 
     <Style Selector="SelectableTextBlock.monospace">
         <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+        <Setter Property="Margin" Value="0,2,0,0"/>
     </Style>
 
 </Styles>

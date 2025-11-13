@@ -84,7 +84,7 @@
                 <ItemsControl ItemsSource="{Binding OutputLines}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Spacing="4"/>
+                            <StackPanel Classes="spacing-small"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -107,7 +107,7 @@
                      KeyDown="CommandTextBox_KeyDown"
                      Watermark="Enter monitor command"
                      Classes="monitor-font command-input"/>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Classes="margin-left-medium">
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Classes="spacing-normal">
                     <Button Content="Send" Command="{Binding SendCommand}" Classes="primary"/>
                     <Button Content="Close" Command="{Binding CloseCommand}" Classes="cancel"/>
                 </StackPanel>
@@ -120,21 +120,21 @@
                 <ItemsControl ItemsSource="{Binding StatusLines}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Spacing="4"/>
+                            <StackPanel Classes="spacing-small"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="monitor:StatusLineEntry">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
+                            <StackPanel Orientation="Horizontal" Classes="spacing-wide">
                                 <ItemsControl ItemsSource="{Binding Items}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" Spacing="12"/>
+                                            <StackPanel Orientation="Horizontal" Classes="spacing-wide"/>
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <StackPanel Orientation="Horizontal" Classes="spacing-small">
                                                 <TextBlock Text="{Binding Key}" Classes="status-line monitor-font" Foreground="#A0AEC0" FontWeight="Bold"/>
                                                 <TextBlock Text=":" Classes="status-line monitor-font" Foreground="#A0AEC0"/>
                                                 <TextBlock Text="{Binding Value}" Classes="status-line monitor-font" Foreground="#E2E8F0"/>
