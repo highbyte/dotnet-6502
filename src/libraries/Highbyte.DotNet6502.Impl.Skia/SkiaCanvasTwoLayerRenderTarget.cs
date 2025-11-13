@@ -65,6 +65,7 @@ public sealed class SkiaCanvasTwoLayerRenderTarget : IRenderFrameTarget
             _ => throw new NotSupportedException($"Pixel format {fgInfo.PixelFormat} not supported in {nameof(SkiaCanvasTwoLayerRenderTarget)}")
         };
 
+
         var bgImageInfo = new SKImageInfo(bgInfo.Size.Width, bgInfo.Size.Height, bgColorType, SKAlphaType.Unpremul);
         var fgImageInfo = new SKImageInfo(fgInfo.Size.Width, fgInfo.Size.Height, fgColorType, SKAlphaType.Unpremul);
 

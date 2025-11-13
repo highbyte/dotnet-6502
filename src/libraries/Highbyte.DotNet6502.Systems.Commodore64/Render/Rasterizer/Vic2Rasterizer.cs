@@ -1,7 +1,6 @@
-using System.Runtime.InteropServices;
+using System;
 using System.Runtime.CompilerServices;
-using Highbyte.DotNet6502.Systems.Instrumentation;
-using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
+using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Highbyte.DotNet6502.Systems.Utils;
@@ -9,13 +8,14 @@ using Highbyte.DotNet6502.Systems.Utils;
 namespace Highbyte.DotNet6502.Systems.Commodore64.Render.Rasterizer;
 
 [DisplayName("Rasterizer")]
-[HelpText("A VIC-II rasterizer that generates raw pixel data in two layers: background and foreground.\nThe rasterizer writes directly to byte arrays for efficient pixel manipulation.")]
-/// Generates bitmaps as byte arrays for the C64 screen.
+[HelpText("A VIC-II rasterizer that generates raw pixel data in two layers: background and foreground.\nThe rasterizer writes directly to uint arrays for efficient 32-bit pixel manipulation.")]
+/// Generates bitmaps as uint arrays for the C64 screen.
 /// 
 /// Overview
 /// - Called after each instruction to generate Text and Bitmap graphics.
 /// - Called once per frame to generate Sprites (if possible a future improvement should make this also be called after each instruction if performance allows it).
-/// - Writes background and foreground to separate byte arrays. Renderer needs to combine these two layers.
+/// - Writes background and foreground to separate uint arrays. Renderer needs to combine these two layers.
+/// - Uses uint arrays directly for 32-bit pixel operations (no casting overhead).
 /// - Fast enough to be used in native apps. For browser (WASM) app if the computer is reasonably fast.
 /// 
 /// Supports:
@@ -31,10 +31,16 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
 
     private readonly C64 _c64;
 
-    // Double buffered raw bytes (front/back)
+    // Double buffered raw uint pixels (front/back) - direct 32-bit pixel access
     private readonly bool _useDoubleBuffering;
-    private byte[] _frontBackground, _frontForeground;  // Buffer 1 Front -> Read by RenderTarget
-    private byte[] _backBackground, _backForeground;    // Buffer 2 Back -> Written to by Rasterizer
+    private uint[] _frontBackground, _frontForeground;  // Buffer 1 Front -> Read by RenderTarget
+    private uint[] _backBackground, _backForeground;    // Buffer 2 Back -> Written to by Rasterizer
+
+    // Thread-safe buffer access: allows multiple readers OR one writer
+    private readonly ReaderWriterLockSlim _bufferLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
+
+    // Cached layer buffers to avoid repeated allocations
+    private ReadOnlyMemory<uint>[] _cachedLayerBuffers = null!;
 
     public RenderSize NativeSize { get; }
     public PixelFormat PixelFormat { get; } = PixelFormat.Bgra32; //PixelFormat.Rgba32;
@@ -43,7 +49,22 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     //public event EventHandler<int>? ScanlineCompleted;
     public event EventHandler? FrameCompleted;
 
-    public ReadOnlyMemory<byte> CurrentFrontBuffer => _frontBackground; // Should not be used by RenderTarget, it must use CurrentFrontLayerBuffers instead.
+    public ReadOnlyMemory<uint> CurrentFrontBuffer
+    {
+        get
+        {
+            _bufferLock.EnterReadLock();
+            try
+            {
+                // Return thin wrapper around the memory (zero-copy)
+                return _frontBackground.AsMemory();
+            }
+            finally
+            {
+                _bufferLock.ExitReadLock();
+            }
+        }
+    }
 
     private readonly Vic2RasterizerUintPixelGenerator _pixelGenerator;
 
@@ -53,15 +74,26 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
         var height = c64.Screen.VisibleHeight;
         NativeSize = new(width, height);
         StrideBytes = width * 4;
-        _frontBackground = new byte[StrideBytes * height];
-        _frontForeground = new byte[StrideBytes * height];
-        _backBackground = new byte[StrideBytes * height];
-        _backForeground = new byte[StrideBytes * height];
+
+        var pixelCount = width * height;
+        _frontBackground = GC.AllocateUninitializedArray<uint>(pixelCount, pinned: true);
+        _frontForeground = GC.AllocateUninitializedArray<uint>(pixelCount, pinned: true);
+        _backBackground = GC.AllocateUninitializedArray<uint>(pixelCount, pinned: true);
+        _backForeground = GC.AllocateUninitializedArray<uint>(pixelCount, pinned: true);
+
         _c64 = c64;
         _useDoubleBuffering = useDoubleBuffering;
 
+        // Initialize cached layer buffers
+        _cachedLayerBuffers = new ReadOnlyMemory<uint>[]
+        {
+            _frontBackground.AsMemory(),
+            _frontForeground.AsMemory()
+        };
+
         _pixelGenerator = new Vic2RasterizerUintPixelGenerator(
             _c64,
+            SetPixel,
             SetBackgroundPixels,
             ClearBackgroundPixels,
             SetForegroundPixels,
@@ -88,6 +120,7 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     //    ScanlineCompleted?.Invoke(this, y);
     //}
 
+    // Called once per frame after all OnAfterInstruction calls are executed
     public void OnEndFrame()
     {
         _pixelGenerator.OnEndFrame();
@@ -118,25 +151,48 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
             ZOrder: 1)
     };
 
-    public IReadOnlyList<ReadOnlyMemory<byte>> CurrentFrontLayerBuffers => new List<ReadOnlyMemory<byte>>()
+    public IReadOnlyList<ReadOnlyMemory<uint>> CurrentFrontLayerBuffers
     {
-        _frontBackground,
-        _frontForeground
-    };
+        get
+        {
+            _bufferLock.EnterReadLock();
+            try
+            {
+                // Return cached array to avoid repeated allocations
+                return _cachedLayerBuffers;
+            }
+            finally
+            {
+                _bufferLock.ExitReadLock();
+            }
+        }
+    }
 
     public void FlipBuffers()
     {
         if (!_useDoubleBuffering)
             return;
 
-        // Swap front/back references using a temp variable
-        var tmpFrontBackground = _frontBackground;
-        _frontBackground = _backBackground;
-        _backBackground = tmpFrontBackground;
+        _bufferLock.EnterWriteLock();
+        try
+        {
+            // Swap front/back references using a temp variable
+            var tmpFrontBackground = _frontBackground;
+            _frontBackground = _backBackground;
+            _backBackground = tmpFrontBackground;
 
-        var tmpFrontForeground = _frontForeground;
-        _frontForeground = _backForeground;
-        _backForeground = tmpFrontForeground;
+            var tmpFrontForeground = _frontForeground;
+            _frontForeground = _backForeground;
+            _backForeground = tmpFrontForeground;
+
+            // Update cached layer buffers after swap
+            _cachedLayerBuffers[0] = _frontBackground.AsMemory();
+            _cachedLayerBuffers[1] = _frontForeground.AsMemory();
+        }
+        finally
+        {
+            _bufferLock.ExitWriteLock();
+        }
     }
     #endregion
 
@@ -145,40 +201,30 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetBackgroundPixels(Span<uint> source, int sourceIndex, int destIndex, int width)
     {
-        Span<uint> dest = MemoryMarshal.Cast<byte, uint>(_backBackground.AsSpan());
+        Span<uint> dest = _backBackground.AsSpan();
         source.Slice(sourceIndex, width).CopyTo(dest.Slice(destIndex, width));
     }
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ClearBackgroundPixels(int destIndex, int width)
     {
-        Span<uint> dest = MemoryMarshal.Cast<byte, uint>(_backBackground.AsSpan());
+        Span<uint> dest = _backBackground.AsSpan();
         dest.Slice(destIndex, width).Clear();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetForegroundPixels(Span<uint> source, int sourceIndex, int destIndex, int width)
     {
-        Span<uint> dest = MemoryMarshal.Cast<byte, uint>(_backForeground.AsSpan());
+        Span<uint> dest = _backForeground.AsSpan();
         source.Slice(sourceIndex, width).CopyTo(dest.Slice(destIndex, width));
     }
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ClearForegroundPixels(int destIndex, int width)
     {
-        Span<uint> dest = MemoryMarshal.Cast<byte, uint>(_backForeground.AsSpan());
+        Span<uint> dest = _backForeground.AsSpan();
         dest.Slice(destIndex, width).Clear();
     }
-
-
-    // Efficient pixel write APIs on top of a byte[] using 32-bit stores.
-    // .NET 10 change: MemoryMarshal.Cast requires explicit AsSpan() call for arrays.
-    // AggressiveInlining ensures the JIT optimizes away method call overhead in release builds.
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private Span<uint> GetBackBackgroundBufferU32() => MemoryMarshal.Cast<byte, uint>(_backBackground.AsSpan());
-    
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private Span<uint> GetBackForegroundBufferU32() => MemoryMarshal.Cast<byte, uint>(_backForeground.AsSpan());
 
     // Assume CPU is little-endian. All mainstream desktop/laptop CPUs run little-endian: x86-64 (Intel/AMD) and ARM64 (Apple Silicon, Qualcomm, most Chromebooks).
     // BGRA order (PixelFormat.Bgra32), packed as 0xAARRGGBB in register => B,G,R,A in memory (little-endian).
@@ -186,19 +232,48 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static uint PackBgra(byte b, byte g, byte r, byte a)
         => (uint)(b | g << 8 | r << 16 | a << 24);
-    
+
+
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetPixelPackedBgra(int x, int y, uint packedBgra, bool foreground)
+    public void SetPixel(uint packedBgra, int index, bool foreground)
+    {
+        // RELEASE builds optimization:
+        //   - Removes the per-access bounds-check for the hot per-pixel write path.
+        //   - If there's any chance index can be out-of-range, this will lead to memory corruption.
+        // DEBUG builds
+        //   - Keep the bounds-checks to catch possible bugs during development.
+
+        if (foreground)
+        {
+#if DEBUG
+            _backForeground[index] = packedBgra;
+#else
+            ref uint baseRef = ref MemoryMarshal.GetArrayDataReference(_backForeground);
+            Unsafe.Add(ref baseRef, index) = packedBgra;
+#endif
+        }
+        else
+        {
+#if DEBUG
+            _backBackground[index] = packedBgra;
+#else
+            ref uint baseRef = ref MemoryMarshal.GetArrayDataReference(_backBackground);
+            Unsafe.Add(ref baseRef, index) = packedBgra;
+#endif
+        }
+    }
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetPixelPackedBgra(uint packedBgra, int x, int y, bool foreground)
     {
         var index = y * NativeSize.Width + x;
-        Span<uint> buffer = foreground 
-            ? MemoryMarshal.Cast<byte, uint>(_backForeground.AsSpan())
-            : MemoryMarshal.Cast<byte, uint>(_backBackground.AsSpan());
-        buffer[index] = packedBgra; // single 32-bit store
+        SetPixel(packedBgra, index, foreground);
     }
-    
-    public void SetPixelBgra(int x, int y, byte b, byte g, byte r, byte a, bool foreground)
-        => SetPixelPackedBgra(x, y, PackBgra(b, g, r, a), foreground);
 
-    #endregion
+    public void SetPixelBgra(byte b, byte g, byte r, byte a, int x, int y, bool foreground)
+        => SetPixelPackedBgra(PackBgra(b, g, r, a), x, y, foreground);
+
+#endregion
 }

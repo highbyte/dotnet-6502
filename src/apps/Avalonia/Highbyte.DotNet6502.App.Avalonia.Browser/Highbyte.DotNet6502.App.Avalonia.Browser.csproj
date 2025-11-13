@@ -12,18 +12,25 @@
     <WasmEnableSIMD>true</WasmEnableSIMD>
 
     <!-- AOT compilation is not supported for Avalonia Browser WASM with SkiaSharp -->
-    <RunAOTCompilation>true</RunAOTCompilation> 
+    <RunAOTCompilation>true</RunAOTCompilation>
+    
+    <!-- Add additional LLVM optimization -->
+    <WasmEnableLLVM>true</WasmEnableLLVM>
+
+    <!-- Use interpreter for startup, JIT for hot paths. Used if AOT isn't enabled, like in Debug mode -->
+    <WasmEnableJiterpreter>true</WasmEnableJiterpreter>
 
     <!-- Optionally disable aggressive trimming to prevent runtime hangs -->
     <!--<PublishTrimmed>false</PublishTrimmed>-->
 
     <!-- Emscripten linker optimization - O1 for safety, O2/O3 for more speed -->
     <EmccLinkOptimizationFlag>-O3</EmccLinkOptimizationFlag>
-
+    
     <!-- Reduce ICU data size for faster loading (unless you need full internationalization) -->
     <InvariantGlobalization>false</InvariantGlobalization>
     <WasmIncludeFullIcuData>false</WasmIncludeFullIcuData>
 
+    
     <!-- DEBUGGING FIX: Disable problematic debug features for VS2022 -->
     <!--<WasmEnableWebcil>false</WasmEnableWebcil>
     <WasmDebugLevel>0</WasmDebugLevel>-->

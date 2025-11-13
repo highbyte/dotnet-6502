@@ -18,5 +18,6 @@ public interface IVideoFrameLayerProvider : IVideoFrameProvider
     IReadOnlyList<LayerInfo> Layers { get; }
 
     /// Current front buffers for each layer (index matches Layers).
-    IReadOnlyList<ReadOnlyMemory<byte>> CurrentFrontLayerBuffers { get; }
+    /// Uses uint[] for direct 32-bit pixel access without casting overhead.
+    IReadOnlyList<ReadOnlyMemory<uint>> CurrentFrontLayerBuffers { get; }
 }

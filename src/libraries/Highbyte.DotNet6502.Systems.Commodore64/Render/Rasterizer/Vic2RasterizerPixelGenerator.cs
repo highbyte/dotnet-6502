@@ -112,7 +112,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
     private int _screenLayoutInclNonVisibleLeftBorderStartX;
     private int _screenLayoutInclNonVisibleRightBorderEndX;
 
-
+    private readonly Action<uint, int, bool> _setPixel; // pixelColor, destIndex, foreground
     private readonly Action<Span<uint>, int, int, int> _setBackgroundPixels; // source, sourceIndex, destIndex, width
     private readonly Action<int, int> _clearBackgroundPixels; // destIndex, width
     private readonly Action<Span<uint>, int, int, int> _setForegroundPixels; // source, sourceIndex, destIndex, width
@@ -120,6 +120,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
     public Vic2RasterizerUintPixelGenerator(
         C64 c64,
+        Action<uint, int, bool> setPixel,
         Action<Span<uint>, int, int, int> setBackgroundPixels,
         Action<int, int> clearBackgroundPixels,
         Action<Span<uint>, int, int, int> setForegroundPixels,
@@ -131,6 +132,7 @@ public sealed class Vic2RasterizerUintPixelGenerator
         var width = c64.Vic2.Vic2Screen.VisibleWidth;
         var height = c64.Vic2.Vic2Screen.VisibleHeight;
 
+        _setPixel = setPixel;
         _setBackgroundPixels = setBackgroundPixels;
         _clearBackgroundPixels = clearBackgroundPixels;
         _setForegroundPixels = setForegroundPixels;
@@ -643,11 +645,13 @@ public sealed class Vic2RasterizerUintPixelGenerator
                     //if ((backgroundPixelArray[bitmapIndex] & BLUE_COLOR_MASK) == HIGH_PRIO_SPRITE_BLUE)
                     //    return;
                     //backgroundPixelArray[bitmapIndex] = color;
-                    _setBackgroundPixels(new uint[] { color }, 0, bitmapIndex, 1);
+                    //_setBackgroundPixels(new uint[] { color }, 0, bitmapIndex, 1);
+                    _setPixel(color, bitmapIndex, false); // false = background
                 else
                 {
                     //foregroundPixelArray[bitmapIndex] = color;
-                    _setForegroundPixels(new uint[] { color }, 0, bitmapIndex, 1);
+                    //_setForegroundPixels(new uint[] { color }, 0, bitmapIndex, 1);
+                    _setPixel(color, bitmapIndex, true); // true = foreground
                 }
             }
 
@@ -656,7 +660,6 @@ public sealed class Vic2RasterizerUintPixelGenerator
 
         _spritesStat.Stop();
     }
-
 
     private void DrawBorderPixels(int normalizedScreenLine)
     {
