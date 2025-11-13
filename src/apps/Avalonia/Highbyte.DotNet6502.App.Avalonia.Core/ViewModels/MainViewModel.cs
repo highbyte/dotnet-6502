@@ -13,6 +13,7 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
+using System.Runtime.InteropServices;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
@@ -205,6 +206,28 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     //public string Version => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
     public string Version => Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
+
+    // New properties to display runtime versions
+    public string DotNetVersion => RuntimeInformation.FrameworkDescription;
+
+    public string AvaloniaVersion
+    {
+        get
+        {
+            try
+            {
+                var asm = typeof(global::Avalonia.Controls.Control).Assembly;
+                var infoAttr = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+                return infoAttr?.InformationalVersion ?? asm.GetName().Version?.ToString() ?? "Unknown";
+            }
+            catch
+            {
+                return "Unknown";
+            }
+        }
+    }
+
+    public string OSVersion => RuntimeInformation.OSDescription;
 
     // Constructor with dependency injection - child ViewModels injected!
     public MainViewModel(

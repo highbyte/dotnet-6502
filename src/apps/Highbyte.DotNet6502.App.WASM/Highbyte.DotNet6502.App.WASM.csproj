@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
@@ -37,7 +37,6 @@
     <PackageReference Include="Microsoft.AspNetCore.WebUtilities" />
     <PackageReference Include="SkiaSharp.Views.Blazor" />
     <PackageReference Include="PublishSPAforGitHubPages.Build" />
-    <PackageReference Include="System.Net.Http.Json" />
     <PackageReference Include="TextCopy" />
     <PackageReference Include="Toolbelt.Blazor.Gamepad" />
   </ItemGroup>

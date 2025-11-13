@@ -33,13 +33,13 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: '0'
 
       # Runs a single command using the runners shell
-      - name: SonarScanner for .NET 9 with pull request decoration support
-        uses: highbyte/sonarscan-dotnet@v2.4.1
+      - name: SonarScanner for .NET 10 with pull request decoration support
+        uses: highbyte/sonarscan-dotnet@v2.5.0
         with:
           # The key of the SonarQube project
           sonarProjectKey: highbyte_dotnet-6502

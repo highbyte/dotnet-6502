@@ -43,17 +43,17 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     # Add .NET manually as github/codeql-action/autobuild below does not seem to support it.
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: 9.0.x
+        dotnet-version: 10.0.x
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
+      uses: github/codeql-action/init@v4
       with:
         languages: ${{ matrix.language }}
         # If you wish to specify custom queries, you can do so here or in a config file.
@@ -77,7 +77,7 @@ jobs:
     # Add the WASM workload manually (github/codeql-action/autobuild only seems to work with this if runs-on: windows-latest)
     - name: Install DotNet workload - WASM tools
       run: |
-        dotnet workload install wasm-tools-net8
+        dotnet workload install wasm-tools
 
     # Manually build instead of relying on Autobuild
     - name: Restore dependencies
@@ -90,4 +90,4 @@ jobs:
     #   make release
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
+      uses: github/codeql-action/analyze@v4

@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Checkout the code
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Generate auto-incrementing version number for test builds
       - name: Generate version number
@@ -42,9 +42,9 @@ jobs:
 
       # Install .NET Core SDK
       - name: Setup .NET Core
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: 10.0.x
 
       - name: Install DotNet workload - WASM tools
         run: |

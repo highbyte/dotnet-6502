@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Highbyte.DotNet6502.Systems.Instrumentation.Stats;
 using Highbyte.DotNet6502.Systems.Rendering;
@@ -141,44 +142,61 @@ public sealed class Vic2Rasterizer : IRenderProvider, IVideoFrameLayerProvider
 
     #region Helper methods for writing pixels
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetBackgroundPixels(Span<uint> source, int sourceIndex, int destIndex, int width)
     {
-        source.Slice(sourceIndex, width).CopyTo(BackBackgroundBufferU32.Slice(destIndex, width));
+        Span<uint> dest = MemoryMarshal.Cast<byte, uint>(_backBackground.AsSpan());
+        source.Slice(sourceIndex, width).CopyTo(dest.Slice(destIndex, width));
     }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ClearBackgroundPixels(int destIndex, int width)
     {
-        BackBackgroundBufferU32.Slice(destIndex, width).Clear();
+        Span<uint> dest = MemoryMarshal.Cast<byte, uint>(_backBackground.AsSpan());
+        dest.Slice(destIndex, width).Clear();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetForegroundPixels(Span<uint> source, int sourceIndex, int destIndex, int width)
     {
-        source.Slice(sourceIndex, width).CopyTo(BackForegroundBufferU32.Slice(destIndex, width));
+        Span<uint> dest = MemoryMarshal.Cast<byte, uint>(_backForeground.AsSpan());
+        source.Slice(sourceIndex, width).CopyTo(dest.Slice(destIndex, width));
     }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ClearForegroundPixels(int destIndex, int width)
     {
-        BackForegroundBufferU32.Slice(destIndex, width).Clear();
+        Span<uint> dest = MemoryMarshal.Cast<byte, uint>(_backForeground.AsSpan());
+        dest.Slice(destIndex, width).Clear();
     }
 
 
     // Efficient pixel write APIs on top of a byte[] using 32-bit stores.
-    // Prefer using a cached Span<uint> outside tight loops to avoid re-creating the span repeatedly.
-    // Recreate the Span<uint> after buffers has been swapped by FlipBuffers() (typically after EndFrame is called).
-    private Span<uint> BackBackgroundBufferU32 => MemoryMarshal.Cast<byte, uint>(_backBackground);
-    private Span<uint> BackForegroundBufferU32 => MemoryMarshal.Cast<byte, uint>(_backForeground);
+    // .NET 10 change: MemoryMarshal.Cast requires explicit AsSpan() call for arrays.
+    // AggressiveInlining ensures the JIT optimizes away method call overhead in release builds.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private Span<uint> GetBackBackgroundBufferU32() => MemoryMarshal.Cast<byte, uint>(_backBackground.AsSpan());
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private Span<uint> GetBackForegroundBufferU32() => MemoryMarshal.Cast<byte, uint>(_backForeground.AsSpan());
 
     // Assume CPU is little-endian. All mainstream desktop/laptop CPUs run little-endian: x86-64 (Intel/AMD) and ARM64 (Apple Silicon, Qualcomm, most Chromebooks).
     // BGRA order (PixelFormat.Bgra32), packed as 0xAARRGGBB in register => B,G,R,A in memory (little-endian).
     // If PixelFormat is changed to Rgba32, adjust the packer.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static uint PackBgra(byte b, byte g, byte r, byte a)
         => (uint)(b | g << 8 | r << 16 | a << 24);
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetPixelPackedBgra(int x, int y, uint packedBgra, bool foreground)
     {
         var index = y * NativeSize.Width + x;
-        if (foreground)
-            BackForegroundBufferU32[index] = packedBgra; // single 32-bit store
-        else
-            BackBackgroundBufferU32[index] = packedBgra; // single 32-bit store
+        Span<uint> buffer = foreground 
+            ? MemoryMarshal.Cast<byte, uint>(_backForeground.AsSpan())
+            : MemoryMarshal.Cast<byte, uint>(_backBackground.AsSpan());
+        buffer[index] = packedBgra; // single 32-bit store
     }
+    
     public void SetPixelBgra(int x, int y, byte b, byte g, byte r, byte a, bool foreground)
         => SetPixelPackedBgra(x, y, PackBgra(b, g, r, a), foreground);
 

@@ -221,7 +221,7 @@
                     BorderThickness="1"
                     CornerRadius="4"
                     Padding="0"
-                    Height="250"
+                    Height="230"
                     VerticalAlignment="Top"
                     HorizontalAlignment="Left"
                     Width="{Binding #EmulatorDisplayGrid.Bounds.Width}">
@@ -373,6 +373,9 @@
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
 
                                             <Grid.ColumnDefinitions>
@@ -440,6 +443,51 @@
                                                     BorderThickness="0,0,1,1"
                                                     Padding="4,2">
                                                 <SelectableTextBlock Text="https://github.com/highbyte/dotnet-6502" Classes="tiny" />
+                                            </Border>
+
+                                            <!-- Row: OS version -->
+                                            <Border Grid.Row="3" Grid.Column="0"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <TextBlock Text="OS" Classes="tiny-bold" TextWrapping="Wrap" />
+                                            </Border>
+
+                                            <Border Grid.Row="3" Grid.Column="1"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <SelectableTextBlock Text="{Binding OSVersion}" Classes="tiny" />
+                                            </Border>
+
+                                            <!-- Row: NET runtime version -->
+                                            <Border Grid.Row="4" Grid.Column="0"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <TextBlock Text=".NET" Classes="tiny-bold" TextWrapping="Wrap" />
+                                            </Border>
+
+                                            <Border Grid.Row="4" Grid.Column="1"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <SelectableTextBlock Text="{Binding DotNetVersion}" Classes="tiny" />
+                                            </Border>
+
+                                            <!-- Row: Avalonia version -->
+                                            <Border Grid.Row="5" Grid.Column="0"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <TextBlock Text="Avalonia" Classes="tiny-bold" TextWrapping="Wrap" />
+                                            </Border>
+
+                                            <Border Grid.Row="5" Grid.Column="1"
+                                                    BorderBrush="{DynamicResource BorderColor}"
+                                                    BorderThickness="0,0,1,1"
+                                                    Padding="4,2">
+                                                <SelectableTextBlock Text="{Binding AvaloniaVersion}" Classes="tiny" />
                                             </Border>
 
                                         </Grid>
