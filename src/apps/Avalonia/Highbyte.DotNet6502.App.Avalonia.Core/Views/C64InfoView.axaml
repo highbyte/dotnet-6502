@@ -48,7 +48,7 @@
                             BorderBrush="{DynamicResource BorderColor}" 
                             BorderThickness="0,0,1,1" 
                             Padding="4,2">
-                        <TextBlock Text="Command" Classes="tiny-bold" />
+                        <TextBlock Text="Command" Classes="tiny bold" />
                     </Border>
                     
                     <Border Grid.Row="0" Grid.Column="1" 
@@ -56,7 +56,7 @@
                             BorderBrush="{DynamicResource BorderColor}" 
                             BorderThickness="0,0,1,1" 
                             Padding="4,2">
-                        <TextBlock Text="C64 key" Classes="tiny-bold" />
+                        <TextBlock Text="C64 key" Classes="tiny bold" />
                     </Border>
                     
                     <Border Grid.Row="0" Grid.Column="2" 
@@ -64,7 +64,7 @@
                             BorderBrush="{DynamicResource BorderColor}" 
                             BorderThickness="0,0,0,1" 
                             Padding="4,2">
-                        <TextBlock Text="PC / Mac key" Classes="tiny-bold" />
+                        <TextBlock Text="PC / Mac key" Classes="tiny bold" />
                     </Border>
 
                     <!-- Row 1: Stop running Basic program -->
