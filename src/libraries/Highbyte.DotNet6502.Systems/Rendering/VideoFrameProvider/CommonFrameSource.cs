@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 public sealed class CommonFrameSource : IFrameSource
 {
     private readonly IVideoFrameProvider _videoFrameProvider;
-    private readonly MemoryPool<byte> _pool = MemoryPool<byte>.Shared;
+    private readonly MemoryPool<uint> _poolUint = MemoryPool<uint>.Shared;
     private RenderFrame? _latest;
 
     public CommonFrameSource(IVideoFrameProvider videoFrameProvider)
@@ -25,22 +25,31 @@ public sealed class CommonFrameSource : IFrameSource
         if (_videoFrameProvider is IVideoFrameLayerProvider layered)
         {
             var infos = layered.Layers;
-            var owners = new IMemoryOwner<byte>[infos.Count];
+            // Zero-copy: pass buffers directly from the rasterizer
+            // The rasterizer's ReaderWriterLockSlim ensures thread-safe access
+            var layerBuffers = layered.CurrentFrontLayerBuffers;
+
+            // Create memory owners that don't actually own anything (zero-copy wrappers)
+            var owners = new IMemoryOwner<uint>[infos.Count];
             for (var i = 0; i < infos.Count; i++)
             {
-                var bytes = infos[i].StrideBytes * infos[i].Size.Height;
-                var owner = _pool.Rent(bytes);
-                layered.CurrentFrontLayerBuffers[i].Span.CopyTo(owner.Memory.Span);
-                owners[i] = owner;
+                owners[i] = new NonOwningMemoryOwner<uint>(layerBuffers[i]);
             }
             frame = new RenderFrame(infos, owners);
         }
         else
         {
-            var bytes = _videoFrameProvider.StrideBytes * _videoFrameProvider.NativeSize.Height;
-            var owner = _pool.Rent(bytes);
-            _videoFrameProvider.CurrentFrontBuffer.Span.CopyTo(owner.Memory.Span);
-            frame = new RenderFrame(_videoFrameProvider.NativeSize, _videoFrameProvider.PixelFormat, owner);
+            // TODO: Shouldn't this also be changed to zero-copy like above?
+            // CurrentFrontBuffer is a ReadOnlyMemory<uint> (one pixel per uint).
+            // Rent a uint buffer and copy the pixels into it. Use the multi-layer
+            // RenderFrame ctor with a single layer so we can keep uint[] pixel ownership.
+            var frontBuffer = _videoFrameProvider.CurrentFrontBuffer;
+            var ownerUint = _poolUint.Rent(frontBuffer.Length);
+            frontBuffer.Span.CopyTo(ownerUint.Memory.Span);
+
+            var info = new LayerInfo(_videoFrameProvider.NativeSize, _videoFrameProvider.PixelFormat, _videoFrameProvider.StrideBytes, 1f, BlendMode.Normal, 0);
+            var owners = new IMemoryOwner<uint>[] { ownerUint };
+            frame = new RenderFrame(new[] { info }, owners);
         }
 
         var old = Interlocked.Exchange(ref _latest, frame);

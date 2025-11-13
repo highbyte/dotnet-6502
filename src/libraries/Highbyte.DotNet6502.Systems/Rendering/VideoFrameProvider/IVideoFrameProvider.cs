@@ -9,7 +9,7 @@ public interface IVideoFrameProvider : IRenderSource
     public event EventHandler? FrameCompleted;
 
     // Non-owning view to the *current* frame buffer (double-buffered internally)
-    public ReadOnlyMemory<byte> CurrentFrontBuffer { get; }
+    public ReadOnlyMemory<uint> CurrentFrontBuffer { get; }
     public int StrideBytes { get; }
 
     // Called by emulator to swap buffers at end-of-frame

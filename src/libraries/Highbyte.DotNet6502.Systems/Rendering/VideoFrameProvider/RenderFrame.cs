@@ -3,7 +3,8 @@ using System.Buffers;
 namespace Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 /// <summary>
 /// One complete frame worth of pixels. Owns the backing memory (via IMemoryOwner),
-/// but exposes a Memory<byte> for zero-copy handoff to renderers.
+/// but exposes a Memory<uint> for zero-copy handoff to renderers.
+/// Uses uint[] for direct 32-bit pixel access without conversion overhead.
 /// </summary>
 public sealed class RenderFrame : IAsyncDisposable
 {
@@ -16,10 +17,10 @@ public sealed class RenderFrame : IAsyncDisposable
     public IMemoryOwner<byte>? Owner { get; }
     public Memory<byte> Pixels { get; }
 
-    // Multi-layer path (advanced)
+    // Multi-layer path (advanced) - uses uint for 32-bit pixel data
     public IReadOnlyList<LayerInfo> LayerInfos { get; }
-    public IReadOnlyList<IMemoryOwner<byte>> LayerOwners { get; }
-    public IReadOnlyList<Memory<byte>> LayerPixels { get; }
+    public IReadOnlyList<IMemoryOwner<uint>> LayerOwners { get; }
+    public IReadOnlyList<Memory<uint>> LayerPixels { get; }
 
     // Single-buffer ctor
     public RenderFrame(RenderSize size, PixelFormat fmt, IMemoryOwner<byte> owner, TimeSpan timestamp = default)
@@ -29,12 +30,12 @@ public sealed class RenderFrame : IAsyncDisposable
         Owner = owner;
         Pixels = owner.Memory[..(StrideBytes * size.Height)];
         LayerInfos = Array.Empty<LayerInfo>();
-        LayerOwners = Array.Empty<IMemoryOwner<byte>>();
-        LayerPixels = Array.Empty<Memory<byte>>();
+        LayerOwners = Array.Empty<IMemoryOwner<uint>>();
+        LayerPixels = Array.Empty<Memory<uint>>();
     }
 
-    // Multi-layer ctor
-    public RenderFrame(IReadOnlyList<LayerInfo> infos, IReadOnlyList<IMemoryOwner<byte>> owners, TimeSpan timestamp = default)
+    // Multi-layer ctor - uses uint[] for pixel data
+    public RenderFrame(IReadOnlyList<LayerInfo> infos, IReadOnlyList<IMemoryOwner<uint>> owners, TimeSpan timestamp = default)
     {
         if (infos.Count != owners.Count) throw new ArgumentException("infos/owners length mismatch");
         LayerInfos = infos; LayerOwners = owners; Timestamp = timestamp;
@@ -45,9 +46,10 @@ public sealed class RenderFrame : IAsyncDisposable
         StrideBytes = infos.Count > 0 ? infos[0].StrideBytes : 0;
 
         Owner = null; Pixels = Memory<byte>.Empty;
-        var layerPixels = new Memory<byte>[owners.Count];
+        var layerPixels = new Memory<uint>[owners.Count];
+        var pixelCount = infos.Count > 0 ? infos[0].Size.Width * infos[0].Size.Height : 0;
         for (var i = 0; i < owners.Count; i++)
-            layerPixels[i] = owners[i].Memory[..(infos[i].StrideBytes * infos[i].Size.Height)];
+            layerPixels[i] = owners[i].Memory[..pixelCount];
         LayerPixels = layerPixels;
     }
 

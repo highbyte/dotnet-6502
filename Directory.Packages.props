@@ -44,6 +44,7 @@
     <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.0" />
     <!-- Microsoft Testing packages -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageVersion Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.0.36525.3" />
     <!-- MonoGame -->
     <PackageVersion Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" />
     <!-- NAudio -->

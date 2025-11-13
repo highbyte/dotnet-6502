@@ -1,7 +1,3 @@
-using System;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -52,81 +48,55 @@ public sealed class AvaloniaBitmapTwoLayerRenderTarget : IRenderFrameTarget, IAv
         // Copy pixel data to WriteableBitmap
         using var frameBuffer = _writeableBitmap.Lock();
 
-        // Get source data spans
-        var bgBytes = frame.LayerPixels[0].Span;
-        var fgBytes = frame.LayerPixels[1].Span;
+        // Get source data spans (already uint[])
+        var bgPixels = frame.LayerPixels[0].Span;
+        var fgPixels = frame.LayerPixels[1].Span;
 
         // Calculate dimensions and validate
-        var pixelCount = Math.Min(bgInfo.Size.Width * bgInfo.Size.Height, bgBytes.Length / 4);
+        var pixelCount = Math.Min(bgInfo.Size.Width * bgInfo.Size.Height, bgPixels.Length);
         var bytesPerRow = TargetSize.Width * 4;
 
         // Check if we can do a fast copy without row padding
         if (frameBuffer.RowBytes == bytesPerRow)
         {
             // Fast path: direct compositing to framebuffer without intermediate allocation
-            CompositeLayers(frameBuffer.Address, bgBytes, fgBytes, pixelCount);
+            CompositeLayers(frameBuffer.Address, bgPixels, fgPixels, pixelCount);
         }
         else
         {
             // Slow path: row-by-row compositing due to row padding
-            CompositeLayersWithPadding(frameBuffer.Address, frameBuffer.RowBytes, bgBytes, fgBytes, TargetSize.Width, TargetSize.Height);
+            CompositeLayersWithPadding(frameBuffer.Address, frameBuffer.RowBytes, bgPixels, fgPixels, TargetSize.Width, TargetSize.Height);
         }
 
         return ValueTask.CompletedTask;
     }
 
-    private void CompositeLayers(IntPtr destination, ReadOnlySpan<byte> bgBytes, ReadOnlySpan<byte> fgBytes, int pixelCount)
+    private unsafe void CompositeLayers(IntPtr destination, ReadOnlySpan<uint> bgPixels, ReadOnlySpan<uint> fgPixels, int pixelCount)
     {
-        // Use MemoryMarshal to cast spans to uint spans for more efficient processing
-        var bgPixels = MemoryMarshal.Cast<byte, uint>(bgBytes);
-        var fgPixels = MemoryMarshal.Cast<byte, uint>(fgBytes);
+        // Direct pointer access - zero-copy, no allocations
+        uint* destPtr = (uint*)destination;
 
-        // Allocate a temporary buffer for the composited result
-        Span<uint> resultPixels = stackalloc uint[Math.Min(pixelCount, 1024)]; // Use stack allocation for small chunks
-        var remainingPixels = pixelCount;
-        var processedPixels = 0;
-
-        while (remainingPixels > 0)
+        // Composite directly to destination buffer
+        for (int i = 0; i < pixelCount; i++)
         {
-            var chunkSize = Math.Min(remainingPixels, resultPixels.Length);
-            var bgChunk = bgPixels.Slice(processedPixels, chunkSize);
-            var fgChunk = fgPixels.Slice(processedPixels, chunkSize);
-            var resultChunk = resultPixels[..chunkSize];
+            var fgPixel = fgPixels[i];
 
-            // Single loop compositing - copy background and blend foreground in one pass
-            for (int i = 0; i < chunkSize; i++)
+            // Use direct uint comparison for transparency check
+            if (fgPixel != TRANSPARENT_COLOR)
             {
-                var fgPixel = fgChunk[i];
-
-                // Use direct uint comparison for transparency check
-                if (fgPixel != TRANSPARENT_COLOR)
-                {
-                    resultChunk[i] = fgPixel; // Foreground pixel (opaque, overwrite background)
-                }
-                else
-                {
-                    resultChunk[i] = bgChunk[i]; // Background pixel (foreground is transparent)
-                }
+                destPtr[i] = fgPixel; // Foreground pixel (opaque, overwrite background)
             }
-
-            // Copy the composited chunk to destination
-            var resultBytes = MemoryMarshal.AsBytes(resultChunk);
-            var destinationOffset = IntPtr.Add(destination, processedPixels * 4);
-            Marshal.Copy(resultBytes.ToArray(), 0, destinationOffset, resultBytes.Length);
-
-            processedPixels += chunkSize;
-            remainingPixels -= chunkSize;
+            else
+            {
+                destPtr[i] = bgPixels[i]; // Background pixel (foreground is transparent)
+            }
         }
     }
 
-    private void CompositeLayersWithPadding(IntPtr destination, int destRowBytes, ReadOnlySpan<byte> bgBytes, ReadOnlySpan<byte> fgBytes, int width, int height)
+    private unsafe void CompositeLayersWithPadding(IntPtr destination, int destRowBytes, ReadOnlySpan<uint> bgPixels, ReadOnlySpan<uint> fgPixels, int width, int height)
     {
-        var bgPixels = MemoryMarshal.Cast<byte, uint>(bgBytes);
-        var fgPixels = MemoryMarshal.Cast<byte, uint>(fgBytes);
         var srcRowPixels = width;
-
-        // Allocate row buffer on stack for better performance
-        Span<uint> rowBuffer = stackalloc uint[width];
+        byte* baseDestPtr = (byte*)destination;
 
         for (int y = 0; y < height; y++)
         {
@@ -134,25 +104,23 @@ public sealed class AvaloniaBitmapTwoLayerRenderTarget : IRenderFrameTarget, IAv
             var bgRow = bgPixels.Slice(srcRowOffset, width);
             var fgRow = fgPixels.Slice(srcRowOffset, width);
 
-            // Composite this row
+            // Get pointer to this row (accounting for row padding)
+            uint* destRowPtr = (uint*)(baseDestPtr + (y * destRowBytes));
+
+            // Composite directly to destination row
             for (int x = 0; x < width; x++)
             {
                 var fgPixel = fgRow[x];
 
                 if (fgPixel != TRANSPARENT_COLOR)
                 {
-                    rowBuffer[x] = fgPixel;
+                    destRowPtr[x] = fgPixel;
                 }
                 else
                 {
-                    rowBuffer[x] = bgRow[x];
+                    destRowPtr[x] = bgRow[x];
                 }
             }
-
-            // Copy row to destination
-            var rowBytes = MemoryMarshal.AsBytes(rowBuffer);
-            var destRowPtr = IntPtr.Add(destination, y * destRowBytes);
-            Marshal.Copy(rowBytes.ToArray(), 0, destRowPtr, width * 4);
         }
     }
 
