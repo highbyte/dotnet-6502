@@ -287,7 +287,7 @@ public partial class C64MenuView : UserControl
         // Create a dialog container that looks like a proper modal
         var dialogContainer = new Border
         {
-            Background = new SolidColorBrush(Color.FromRgb(42, 42, 42)), // Dark gray background
+            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),  // 1A202C, ViewDefaultBg
             BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),

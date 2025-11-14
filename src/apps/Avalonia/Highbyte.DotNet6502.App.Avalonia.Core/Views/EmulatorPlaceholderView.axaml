@@ -11,7 +11,6 @@
         <Image Source="avares://Highbyte.DotNet6502.App.Avalonia.Core/Assets/logo.png"
                Width="64"
                Height="64"
-               Margin="0,0,0,20"
                HorizontalAlignment="Center" />
         
         <TextBlock Text="DotNet 6502 emulator"
@@ -22,7 +21,7 @@
     <!--<Grid Background="Black">
         <TextBlock x:Name="MessageTextBlock"
         Text="DotNet 6502 emulator"
-        Foreground="White"
+        Foreground=""
         FontSize="24"
         HorizontalAlignment="Center"
         VerticalAlignment="Center"/>

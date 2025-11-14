@@ -11,18 +11,24 @@
             <Setter Property="BorderBrush" Value="#2D3748"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
         </Style>
         <Style Selector="Border.command-container">
             <Setter Property="Background" Value="{DynamicResource ViewDefaultBg}"/>
             <Setter Property="BorderBrush" Value="#2D3748"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
         </Style>
         <Style Selector="Border.status-container">
             <Setter Property="Background" Value="#252F3F"/>
             <Setter Property="BorderBrush" Value="#4A5568"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Margin" Value="0"/>
         </Style>
         <Style Selector="TextBlock.monitor-line[Tag=Information]">
             <Setter Property="Foreground" Value="#E2E8F0"/>
@@ -67,25 +73,21 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="*">
+    <Grid RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="*" Margin="8,0,8,8">
 
         <!-- Title Header -->
-        <Border Grid.Row="0"
-                Background="#2D3748"
-                Padding="5,5"
-                CornerRadius="8,8,0,0">
+        <Border Grid.Row="0" CornerRadius="4,4,4,4" Classes="panel-container">
             <TextBlock Text="Monitor"
-                       Classes="h1"
-                       HorizontalAlignment="Center"/>
+                        Classes="h-center h2"/>
         </Border>
 
         <!-- Output Area -->
-        <Border Grid.Row="1" Classes="monitor-container" Padding="6" Margin="0,0,0,8">
+        <Border Grid.Row="1" Classes="monitor-container">
             <ScrollViewer x:Name="OutputScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl ItemsSource="{Binding OutputLines}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Spacing="4"/>
+                            <StackPanel Classes="spacing-tight"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -99,7 +101,7 @@
 
         
         <!-- Command textbox -->
-        <Border Grid.Row="2" Classes="command-container" Padding="6" Margin="0,0,0,8">
+        <Border Grid.Row="2" Classes="command-container">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="0" VerticalAlignment="Center">
                 <TextBlock Grid.Column="0" Text=">&#160;" VerticalAlignment="Center" Foreground="#A0AEC0" Classes="monitor-font"/>
                 <TextBox Grid.Column="1"
@@ -108,7 +110,7 @@
                      KeyDown="CommandTextBox_KeyDown"
                      Watermark="Enter monitor command"
                      Classes="monitor-font command-input"/>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Classes="spacing-normal">
                     <Button Content="Send" Command="{Binding SendCommand}" Classes="primary"/>
                     <Button Content="Close" Command="{Binding CloseCommand}" Classes="cancel"/>
                 </StackPanel>
@@ -116,26 +118,26 @@
         </Border>
 
         <!-- Status information -->
-        <Border Grid.Row="3" Classes="status-container" Padding="6" Margin="0,0,0,0">
+        <Border Grid.Row="3" Classes="status-container">
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="140">
                 <ItemsControl ItemsSource="{Binding StatusLines}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Spacing="4"/>
+                            <StackPanel Classes="spacing-tight"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="monitor:StatusLineEntry">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
+                            <StackPanel Orientation="Horizontal" Classes="spacing-wide">
                                 <ItemsControl ItemsSource="{Binding Items}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" Spacing="12"/>
+                                            <StackPanel Orientation="Horizontal" Classes="spacing-wide"/>
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <StackPanel Orientation="Horizontal" Classes="spacing-tight">
                                                 <TextBlock Text="{Binding Key}" Classes="status-line monitor-font" Foreground="#A0AEC0" FontWeight="Bold"/>
                                                 <TextBlock Text=":" Classes="status-line monitor-font" Foreground="#A0AEC0"/>
                                                 <TextBlock Text="{Binding Value}" Classes="status-line monitor-font" Foreground="#E2E8F0"/>

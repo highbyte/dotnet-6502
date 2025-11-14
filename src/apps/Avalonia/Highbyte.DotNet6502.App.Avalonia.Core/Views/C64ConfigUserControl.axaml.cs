@@ -199,7 +199,7 @@ public partial class C64ConfigUserControl : UserControl
 
         var dialogContent = new Border
         {
-            Background = new SolidColorBrush(Color.FromRgb(45, 55, 72)), // Match the dark theme
+            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),  // 1A202C, ViewDefaultBg
             BorderBrush = new SolidColorBrush(Color.FromRgb(74, 85, 104)),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),

@@ -1,0 +1,52 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <!-- ========================================== -->
+    <!-- TABLE/GRID CELL BORDER STYLES              -->
+    <!-- ========================================== -->
+    
+    <!-- Table header cell (with accent background) -->
+    <Style Selector="Border.table-header-cell">
+        <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="Padding" Value="4,2"/>
+    </Style>
+
+    <!-- Table header cell - last column (no right border) -->
+    <Style Selector="Border.table-header-cell-last">
+        <Setter Property="Background" Value="{DynamicResource AccentBg}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="Padding" Value="4,2"/>
+    </Style>
+
+    <!-- Standard table cell -->
+    <Style Selector="Border.table-cell">
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="Padding" Value="4,2"/>
+    </Style>
+
+    <!-- Table cell - last column (no right border) -->
+    <Style Selector="Border.table-cell-last-column">
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <Setter Property="Padding" Value="4,2"/>
+    </Style>
+
+    <!-- Table cell - last row (no bottom border) -->
+    <Style Selector="Border.table-cell-last-row">
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        <Setter Property="BorderThickness" Value="0,0,1,0"/>
+        <Setter Property="Padding" Value="4,2"/>
+    </Style>
+
+    <!-- Table cell - last row and last column (no borders on right/bottom) -->
+    <Style Selector="Border.table-cell-last">
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,0"/>
+        <Setter Property="Padding" Value="4,2"/>
+    </Style>
+
+</Styles>

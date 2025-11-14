@@ -7,7 +7,6 @@ using System.Reactive.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Timers;
-using Avalonia.Data;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;

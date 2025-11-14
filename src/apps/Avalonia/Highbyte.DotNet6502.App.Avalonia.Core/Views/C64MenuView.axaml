@@ -13,35 +13,28 @@
     </UserControl.Styles>
 
     <!-- C64 Specific actions and settings -->
-    <StackPanel Spacing="6"
-                Margin="0,12,0,0"
->
+    <StackPanel Classes="spacing-tight">
         <TextBlock Text="Commodore 64"
-                   Classes="section-header" />
+                   Classes="" />
 
         <!-- Copy/Paste buttons -->
-        <Grid>
+        <Grid Classes="spacing-tight">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="4" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Button Grid.Column="0"
                     Content="Copy"
                     Command="{Binding CopyBasicSourceCommand}"
-                    FontSize="11"
-                    Padding="6,3"
-                    Height="24"/>
-            <Button Grid.Column="2"
+                    Classes="small"/>
+            <Button Grid.Column="1"
                     Content="Paste"
                     Command="{Binding PasteTextCommand}"
-                    FontSize="11"
-                    Padding="6,3"
-                    Height="24"/>
+                    Classes="small"/>
         </Grid>
 
         <!-- AI Basic coding assistant -->
-        <Grid>
+        <Grid Classes="spacing-tight">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -49,39 +42,24 @@
             </Grid.ColumnDefinitions>
             <CheckBox Grid.Column="0"
                       Content="AI Basic (F9)"
-                      Foreground="White"
+                      Classes=""
                       IsChecked="{Binding BasicCodingAssistantEnabled}"
-                      IsEnabled="{Binding BasicCodingAssistantAvailable}"
-                      VerticalAlignment="Center"/>
+                      IsEnabled="{Binding BasicCodingAssistantAvailable}"/>
             <Button Grid.Column="2"
                     Content="i"
                     Classes="info"
-                    Click="OpenBasicAssistantInfo_Click"
-                    Margin="4,0,0,0"/>
+                    Click="OpenBasicAssistantInfo_Click"/>
         </Grid>
 
         <!-- Disk Drive & D64 images -->
-        <StackPanel Margin="0,4,0,0">
+        <StackPanel>
             <Button Name="DiskSectionHeader"
                     Content="▼ Disk Drive &amp; .D64 images"
-                    Classes="link"
-                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                    BorderThickness="1"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    Foreground="White"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Left"
-                    Padding="6,2"
-                    FontSize="10"
-                    Height="20"
+                    Classes="section-toggle"
                     Click="ToggleDiskSection_Click"/>
 
-            <Border Name="DiskSectionContent"
-                    Background="#2D3748"
-                    BorderThickness="1,0,1,1"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    Padding="8">
-                <StackPanel Spacing="3">
+            <Border Name="DiskSectionContent" Classes="collapsible-content">
+                <StackPanel Classes="spacing-tight">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -91,20 +69,15 @@
                                 Content="{Binding DiskToggleButtonText}"
                                 Name="DiskToggleButton"
                                 Command="{Binding ToggleDiskImageCommand}"
-                                FontSize="11"
-                                Padding="6,3"
-                                Height="24"/>
+                                Classes="small"/>
                         <Button Grid.Column="1"
                                 Content="i"
                                 Classes="info"
-                                Click="OpenDiskInfo_Click"
-                                Margin="4,0,0,0"/>
+                                Click="OpenDiskInfo_Click"/>
                     </Grid>
 
                     <TextBlock Text="Download &amp; Run .D64 programs"
-                               Classes="small"
-                               FontSize="10"
-                               Margin="0,2,0,0"/>
+                               Classes="small secondary-text"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -116,97 +89,64 @@
                                   DisplayMemberBinding="{Binding Value}"
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="true"
-                                  Classes="compact"
+                                  Classes="small"
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="i"
                                 Classes="info"
-                                Click="OpenDiskInfo_Click"
-                                Margin="4,0,0,0"/>
+                                Click="OpenDiskInfo_Click"/>
                     </Grid>
 
                     <Button Content="Download &amp; Run"
-                            Classes="primary"
+                            Classes="primary small"
                             Command="{Binding LoadPreloadedDiskCommand}"
-                            IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                            FontSize="11"
-                            Padding="6,3"
-                            Height="24"/>
+                            IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
                     <TextBlock Text="Download D64 disk image and auto-run the program on it."
-                               Classes="small"
+                               Classes="small secondary-text"
                                TextWrapping="Wrap"
-                               FontSize="9"
-                               Foreground="#888888"
                                IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                 </StackPanel>
             </Border>
         </StackPanel>
 
         <!-- Load/Save -->
-        <StackPanel Margin="0,4,0,0">
+        <StackPanel>
             <Button Name="LoadSaveSectionHeader"
                     Content="▼ Load/Save"
-                    Classes="link"
-                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                    BorderThickness="1"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    Foreground="White"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Left"
-                    Padding="6,2"
-                    FontSize="10"
-                    Height="20"
+                    Classes="section-toggle"
                     Click="ToggleLoadSaveSection_Click"/>
 
-            <Border Name="LoadSaveSectionContent"
-                    Background="#2D3748"
-                    BorderThickness="1,0,1,1"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    Padding="8"
-                    IsVisible="False">
-                <StackPanel Spacing="3">
+            <Border Name="LoadSaveSectionContent" Classes="collapsible-content" IsVisible="False">
+                <StackPanel Classes="spacing-tight">
                     <TextBlock Text="Load/save .prg files"
-                               Classes="small"
-                               FontSize="10"
-                               Foreground="#888888"/>
+                               Classes="small secondary-text"/>
 
-                    <Grid>
+                    <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="4" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
                                 Content="Load Basic"
                                 IsEnabled="{Binding IsFileOperationEnabled}"
                                 Click="LoadBasicFile_Click"
-                                FontSize="10"
-                                Padding="4,2"
-                                Height="22"/>
-                        <Button Grid.Column="2"
+                                Classes="small"/>
+                        <Button Grid.Column="1"
                                 Content="Save Basic"
                                 IsEnabled="{Binding IsFileOperationEnabled}"
                                 Click="SaveBasicFile_Click"
-                                FontSize="10"
-                                Padding="4,2"
-                                Height="22"/>
+                                Classes="small"/>
                     </Grid>
 
                     <Button Content="Load &amp; start binary"
-                            Classes="primary"
+                            Classes="primary small"
                             IsEnabled="{Binding IsFileOperationEnabled}"
-                            Click="LoadBinaryFile_Click"
-                            FontSize="11"
-                            Padding="6,3"
-                            Height="24"/>
+                            Click="LoadBinaryFile_Click"/>
 
                     <TextBlock Text="Assembly example files"
-                               Classes="small"
-                               FontSize="10"
-                               Foreground="#888888"
-                               Margin="0,4,0,0"/>
-                    <Grid>
+                               Classes="small secondary-text"/>
+                    <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -217,24 +157,18 @@
                                   DisplayMemberBinding="{Binding Value}"
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="{Binding IsFileOperationEnabled}"
-                                  Classes="compact"
+                                  Classes="small"
+                                  VerticalAlignment="Stretch"
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load &amp; start"
-                                Classes="primary"
-                                Command="{Binding LoadAssemblyExampleCommand}"
-                                FontSize="10"
-                                Padding="4,2"
-                                Height="22"
-                                Margin="4,0,0,0"/>
+                                VerticalAlignment="Stretch"
+                                Classes="primary small"/>
                     </Grid>
 
                     <TextBlock Text="Basic example files"
-                               Classes="small"
-                               FontSize="10"
-                               Foreground="#888888"
-                               Margin="0,4,0,0"/>
-                    <Grid>
+                               Classes="small secondary-text"/>
+                    <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -245,91 +179,65 @@
                                   DisplayMemberBinding="{Binding Value}"
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="{Binding IsFileOperationEnabled}"
-                                  Classes="compact"
+                                  Classes="small"
+                                  VerticalAlignment="Stretch"
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load"
-                                Classes="primary"
-                                Command="{Binding LoadBasicExampleCommand}"
-                                FontSize="10"
-                                Padding="4,2"
-                                Height="22"
-                                Margin="4,0,0,0"/>
+                                VerticalAlignment="Stretch"
+                                Classes="primary small"
+                                Command="{Binding LoadBasicExampleCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>
         </StackPanel>
 
         <!-- Configuration -->
-        <StackPanel Margin="0,4,0,0">
+        <StackPanel>
             <Button Name="ConfigSectionHeader"
                     Content="▼ Configuration"
-                    Classes="link"
-                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                    BorderThickness="1"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    Foreground="White"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Left"
-                    Padding="6,2"
-                    FontSize="10"
-                    Height="20"
+                    Classes="section-toggle"
                     Click="ToggleConfigSection_Click"/>
 
-            <Border Name="ConfigSectionContent"
-                    Background="#2D3748"
-                    BorderThickness="1,0,1,1"
-                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                    Padding="8"
-                    IsVisible="False">
-                <StackPanel Spacing="3">
-                    <Grid>
+            <Border Name="ConfigSectionContent" Classes="collapsible-content" IsVisible="False">
+                <StackPanel Classes="spacing-tight">
+                    <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0"
                                    Text="Active joystick:"
-                                   Classes="small"
-                                   VerticalAlignment="Center"
-                                   FontSize="10"
-                                   Margin="0,0,6,0"/>
+                                   Classes="small secondary-text"/>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding AvailableJoysticks}"
                                   SelectedItem="{Binding CurrentJoystick}"
-                                  Classes="compact"
+                                  Classes="small"
                                   MinWidth="30"/>
                     </Grid>
 
-                    <Grid>
+                    <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <CheckBox Grid.Column="0"
-                                  Content="Joystick KB"
-                                  Foreground="White"
-                                  IsChecked="{Binding JoystickKeyboardEnabled}"
-                                  VerticalAlignment="Center"
-                                  FontSize="10"
-                                  Height="22"
-                                  Margin="0,0,6,0"/>
+                                  Content="Joystick KB:"
+                                  Classes="small"
+                                  IsChecked="{Binding JoystickKeyboardEnabled}"/>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding AvailableJoysticks}"
                                   SelectedItem="{Binding KeyboardJoystick}"
                                   IsEnabled="{Binding IsKeyboardJoystickSelectionEnabled}"
-                                  Classes="compact"
-                                  MinWidth="30"
-                                  VerticalAlignment="Center"/>
+                                  Classes="small"
+                                  MinWidth="30"/>
                     </Grid>
 
                     <Button Name ="C64Config"
                             Content="C64 Config"
                             Click="OpenC64Config_Click"
                             IsEnabled="{Binding IsC64ConfigEnabled}"
-                            FontSize="11"
-                            Padding="6,3"
-                            Height="24">
+                            Classes="small">
                         <Button.Transitions>
                             <Transitions>
                                 <BrushTransition Property="Background" Duration="0:0:0.7"/>
