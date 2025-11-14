@@ -33,7 +33,7 @@
                                                        Classes="small"/>
                                             <TextBlock Grid.Column="1"
                                                        Text="{Binding Value}"
-                                                       Classes="small"/>
+                                                       Classes="small primary-text" />
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
