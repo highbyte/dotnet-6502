@@ -8,6 +8,7 @@
     <Style Selector="TabItem">
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="MinHeight" Value="24"/>
     </Style>
 
     <Style Selector="TabItem.error-log">
@@ -22,7 +23,7 @@
         <Setter Property="ItemsPanel">
             <Setter.Value>
                 <ItemsPanelTemplate>
-                    <StackPanel Spacing="0"/>
+                    <StackPanel Spacing="2"/>
                 </ItemsPanelTemplate>
             </Setter.Value>
         </Setter>

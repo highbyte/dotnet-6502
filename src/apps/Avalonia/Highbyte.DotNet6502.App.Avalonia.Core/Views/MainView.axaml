@@ -265,11 +265,19 @@
                                     <ItemsControl ItemsSource="{Binding LogMessages}" Classes="vertical-tight">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <StackPanel Classes="spacing-none"/>
+                                                <StackPanel />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.Styles>
                                             <!-- Log level color styles -->
+                                            <Style Selector="TextBlock.log-symbol">
+                                                <Setter Property="FontSize" Value="10"/>
+                                                <Setter Property="Height" Value="12"/>
+                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                <Setter Property="Margin" Value="0"/>
+                                                <Setter Property="HorizontalAlignment" Value="Left"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                            </Style>
                                             <Style Selector="TextBlock.log-trace">
                                                 <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
                                             </Style>
@@ -288,42 +296,40 @@
                                             <Style Selector="TextBlock.log-critical">
                                                 <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
                                             </Style>
+                                            <!-- Log message styles -->
+                                            <Style Selector="TextBlock.log-message">
+                                                <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
+                                                <Setter Property="FontSize" Value="10"/>
+                                                <Setter Property="Height" Value="10"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                <Setter Property="Margin" Value="0"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                            </Style>
                                         </ItemsControl.Styles>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Grid>
+                                                <Grid Margin="0,0,0,2">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="16" />  <!-- Fixed width for symbol alignment -->
                                                         <ColumnDefinition Width="*" />   <!-- Flexible width for message -->
                                                     </Grid.ColumnDefinitions>
                                                     
                                                     <!-- Symbol container with proper alignment -->
-                                                    <Border Grid.Column="0" 
-                                                        Height="13"
-                                                        VerticalAlignment="Top">
-                                                        <TextBlock 
-                                                            Text="{Binding Symbol}"
-                                                            FontSize="12"
-                                                            TextWrapping="NoWrap"
-                                                            HorizontalAlignment="Left"
-                                                            VerticalAlignment="Center"
-                                                            Classes.log-trace="{Binding IsTrace}"
-                                                            Classes.log-debug="{Binding IsDebug}"
-                                                            Classes.log-info="{Binding IsInfo}"
-                                                            Classes.log-warning="{Binding IsWarning}"
-                                                            Classes.log-error="{Binding IsError}"
-                                                            Classes.log-critical="{Binding IsCritical}"/>
-                                                    </Border>
+                                                    <TextBlock Grid.Column="0" 
+                                                        Text="{Binding Symbol}"
+                                                        Classes="log-symbol"
+                                                        Classes.log-trace="{Binding IsTrace}"
+                                                        Classes.log-debug="{Binding IsDebug}"
+                                                        Classes.log-info="{Binding IsInfo}"
+                                                        Classes.log-warning="{Binding IsWarning}"
+                                                        Classes.log-error="{Binding IsError}"
+                                                        Classes.log-critical="{Binding IsCritical}"/>
                                                     
                                                     <!-- Message text -->
                                                     <TextBlock Grid.Column="1" 
                                                         Text="{Binding Message}"
-                                                        Classes="monospace small"
-                                                        Foreground="#A0AEC0"
-                                                        TextWrapping="NoWrap"
-                                                        FontSize="10"
-                                                        LineHeight="13"
-                                                        VerticalAlignment="Top"/>
+                                                        Classes="log-message"/>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -331,7 +337,7 @@
                                 </ScrollViewer>
                                 
                                 <!-- Clear button column -->
-                                <Border Grid.Column="1" Classes="v-top">
+                                <Border Grid.Column="1" Classes="v-top" Margin="4,0,0,0">
                                     <Button Command="{Binding ClearLogCommand}"
                                             Classes="small"
                                             Width="60"

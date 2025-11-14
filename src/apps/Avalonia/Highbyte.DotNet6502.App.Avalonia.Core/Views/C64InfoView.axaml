@@ -17,10 +17,10 @@
         <StackPanel Classes="spacing-tight">
             
             <!-- C64 Keyboard Mapping Table -->
-            <TextBlock Text="Commodore 64 keyboard mapping" Classes="h2"/>
+            <TextBlock Text="Commodore 64 keyboard mapping" Classes=""/>
             
             <Border Classes="section-container">
-                <Grid>
+                <Grid Classes="spacing-none">
                     <Grid.RowDefinitions>
                         <!-- Header row -->
                         <RowDefinition Height="Auto" />

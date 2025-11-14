@@ -158,7 +158,7 @@
     
     <Style Selector="Grid.spacing-tight">
         <Setter Property="ColumnSpacing" Value="4"/>
-        <Setter Property="RowSpacing" Value="4"/>
+        <Setter Property="RowSpacing" Value="2"/>
         <Setter Property="Margin" Value="0,0,0,0"/>
     </Style>
 
