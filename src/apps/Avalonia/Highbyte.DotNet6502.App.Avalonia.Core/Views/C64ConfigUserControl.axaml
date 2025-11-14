@@ -4,18 +4,12 @@
         x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.C64ConfigUserControl"
         x:DataType="vm:C64ConfigDialogViewModel">
   
-  <UserControl.Styles>
-    <Style Selector="StackPanel.wrap-item">
-      <Setter Property="Margin" Value="0,0,8,8"/>
-    </Style>
-  </UserControl.Styles>
-  
   <!-- Simplified layout for ContentDialog - no outer border needed -->
   <Grid RowDefinitions="Auto,*,Auto,Auto">
     <!-- Title Header -->
-    <Border Grid.Row="0" CornerRadius="8,8,0,0" Classes="panel-container">
+    <Border Grid.Row="0" CornerRadius="4,4,4,4" Classes="panel-container">
       <TextBlock Text="Commodore 64 Configuration"
-                 Classes="h1 h-center"/>
+                 Classes="h-center h2"/>
     </Border>
 
     <!-- Main content with wrapping layout - scrollable -->
@@ -27,7 +21,7 @@
         <Border Classes="content-section">
             <StackPanel Classes="spacing-normal">
             <TextBlock Text="ROM Management"
-                        Classes="h2"/>
+                        Classes=""/>
             <TextBlock Text="The emulator requires Kernal, Basic, and Character ROMs."
                         Classes="small secondary-text"/>
             <TextBlock Text="{Binding RomStatusSummary}"
@@ -118,7 +112,7 @@
         <Border Classes="content-section">
             <StackPanel Classes="spacing-normal">
             <TextBlock Text="Video &amp; Audio"
-                        Classes="h2"/>
+                        Classes=""/>
 
             <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-tight">
                 <TextBlock Grid.Row="0" Grid.Column="0" 
@@ -168,7 +162,7 @@
         <Border Classes="content-section">
             <StackPanel Classes="spacing-normal">
             <TextBlock Text="Input &amp; Joystick"
-                        Classes="h2"/>
+                        Classes=""/>
 
             <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-wide">
                 <TextBlock Grid.Row="0" Grid.Column="0" 
@@ -227,7 +221,7 @@
             <StackPanel Classes="spacing-normal">
             <StackPanel Orientation="Horizontal" Classes="spacing-normal">
                 <TextBlock Text="Basic AI Coding Assistant"
-                            Classes="h2"/>
+                            Classes=""/>
                 <Button Content="i"
                         Classes="info"
                         ToolTip.Tip="Click for more information about the AI coding assistant"

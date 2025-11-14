@@ -15,7 +15,7 @@
     <!-- C64 Specific actions and settings -->
     <StackPanel Classes="spacing-tight">
         <TextBlock Text="Commodore 64"
-                   Classes="h2" />
+                   Classes="" />
 
         <!-- Copy/Paste buttons -->
         <Grid Classes="spacing-tight">
