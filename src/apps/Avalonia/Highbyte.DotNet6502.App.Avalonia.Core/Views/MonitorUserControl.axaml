@@ -91,7 +91,7 @@
                 <ItemsControl ItemsSource="{Binding OutputLines}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Classes="spacing-small"/>
+                            <StackPanel Classes="spacing-tight"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -127,7 +127,7 @@
                 <ItemsControl ItemsSource="{Binding StatusLines}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Classes="spacing-small"/>
+                            <StackPanel Classes="spacing-tight"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -141,7 +141,7 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" Classes="spacing-small">
+                                            <StackPanel Orientation="Horizontal" Classes="spacing-tight">
                                                 <TextBlock Text="{Binding Key}" Classes="status-line monitor-font" Foreground="#A0AEC0" FontWeight="Bold"/>
                                                 <TextBlock Text=":" Classes="status-line monitor-font" Foreground="#A0AEC0"/>
                                                 <TextBlock Text="{Binding Value}" Classes="status-line monitor-font" Foreground="#E2E8F0"/>

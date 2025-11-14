@@ -13,7 +13,7 @@
     </UserControl.Styles>
 
     <!-- C64 Specific actions and settings -->
-    <StackPanel Classes="spacing-medium">
+    <StackPanel Classes="spacing-tight">
         <TextBlock Text="Commodore 64"
                    Classes="h2" />
 
@@ -26,15 +26,15 @@
             <Button Grid.Column="0"
                     Content="Copy"
                     Command="{Binding CopyBasicSourceCommand}"
-                    Classes="compact"/>
+                    Classes="small"/>
             <Button Grid.Column="1"
                     Content="Paste"
                     Command="{Binding PasteTextCommand}"
-                    Classes="compact"/>
+                    Classes="small"/>
         </Grid>
 
         <!-- AI Basic coding assistant -->
-        <Grid>
+        <Grid Classes="spacing-tight">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -59,7 +59,7 @@
                     Click="ToggleDiskSection_Click"/>
 
             <Border Name="DiskSectionContent" Classes="collapsible-content">
-                <StackPanel Classes="spacing-small">
+                <StackPanel Classes="spacing-tight">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -118,7 +118,7 @@
                     Click="ToggleLoadSaveSection_Click"/>
 
             <Border Name="LoadSaveSectionContent" Classes="collapsible-content" IsVisible="False">
-                <StackPanel Classes="spacing-small">
+                <StackPanel Classes="spacing-tight">
                     <TextBlock Text="Load/save .prg files"
                                Classes="small secondary-text"/>
 
@@ -146,7 +146,7 @@
 
                     <TextBlock Text="Assembly example files"
                                Classes="small secondary-text"/>
-                    <Grid Height="28">
+                    <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -168,7 +168,7 @@
 
                     <TextBlock Text="Basic example files"
                                Classes="small secondary-text"/>
-                    <Grid Height="28">
+                    <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -200,8 +200,8 @@
                     Click="ToggleConfigSection_Click"/>
 
             <Border Name="ConfigSectionContent" Classes="collapsible-content" IsVisible="False">
-                <StackPanel Classes="spacing-small">
-                    <Grid>
+                <StackPanel Classes="spacing-tight">
+                    <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
@@ -216,7 +216,7 @@
                                   MinWidth="30"/>
                     </Grid>
 
-                    <Grid>
+                    <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />

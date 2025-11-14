@@ -36,19 +36,11 @@
     <!-- ========================================== -->
     <!-- SIZE VARIANTS                              -->
     <!-- ========================================== -->
-
-    <Style Selector="Button.compact">
-        <Setter Property="FontSize" Value="11"/>
-        <Setter Property="FontWeight" Value="Normal"/>
+    <Style Selector="Button.small">
+        <Setter Property="FontSize" Value="10"/>
         <Setter Property="Padding" Value="6,3"/>
         <Setter Property="Margin" Value="0,3,0,0"/>
-        <Setter Property="VerticalAlignment" Value="Center"/>
-    </Style>
-
-    <Style Selector="Button.small">
-        <Setter Property="FontSize" Value="11"/>
-        <Setter Property="Padding" Value="8,4"/>
-        <Setter Property="Margin" Value="0,4,0,0"/>
+        <Setter Property="MinHeight" Value="28"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 

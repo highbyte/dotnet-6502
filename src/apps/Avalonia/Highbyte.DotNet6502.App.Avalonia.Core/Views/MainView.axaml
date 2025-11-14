@@ -31,9 +31,9 @@
 
         <!-- Menu and Controls Panel (Left) -->
         <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="3" Classes="panel-container">
-            <StackPanel Classes="spacing-medium">
+            <StackPanel Classes="spacing-tight">
                 <!-- System Selection, Variant, and Status - Unified Grid -->
-                <Grid Classes="spacing-medium">
+                <Grid Classes="spacing-tight">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" SharedSizeGroup="Labels" />
                         <ColumnDefinition Width="*" />
@@ -58,7 +58,7 @@
                         SelectedItem="{Binding SelectedSystemName}"
                         SelectionChanged="OnSystemSelectionChanged"
                         IsEnabled="{Binding IsEmulatorUninitialzied}"
-                        Classes="compact"
+                        Classes="small"
                         MinWidth="100"/>
 
                     <!-- System Variant Selection -->
@@ -72,7 +72,7 @@
                         SelectedItem="{Binding SelectedSystemVariant}"
                         SelectionChanged="OnSystemVariantSelectionChanged"
                         IsEnabled="{Binding IsEmulatorUninitialzied}"
-                        Classes="compact"
+                        Classes="small"
                         MinWidth="100"/>
 
                     <!-- Status -->
@@ -85,7 +85,7 @@
                 </Grid>
 
                 <!-- Control Buttons -->
-                <StackPanel Classes="spacing-small">
+                <StackPanel Classes="spacing-tight">
                     <!-- First row: Start and Pause -->
                     <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
@@ -139,11 +139,11 @@
                             ToolTip.Tip="Toggle with F11"/>
                     </Grid>
                 </StackPanel>
-
+    
                 <!-- Common display and audio settings -->
-                <StackPanel Classes="spacing-medium">
+                <StackPanel Classes="spacing-tight">
                     <!-- Display Settings -->
-                    <Grid>
+                    <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
@@ -156,7 +156,7 @@
                             Value="{Binding Scale}"
                             TickFrequency="0.5"
                             IsSnapToTickEnabled="True"
-                            Classes="compact"/>
+                            Classes="small"/>
                     </Grid>
 
                     <!-- Audio Settings -->
@@ -222,13 +222,13 @@
                         <TabItem Name="ConfigStatusTabItem" Header="Config status">
                             <Border Classes="tab-content">
                                 <ScrollViewer Classes="auto-scroll">
-                                    <StackPanel Classes="spacing-small">
-                                        <StackPanel Classes="spacing-normal" IsVisible="{Binding HasValidationErrors}">
+                                    <StackPanel Classes="spacing-tight">
+                                        <StackPanel Classes="spacing-tight" IsVisible="{Binding HasValidationErrors}">
                                             <Border Classes="error-container">
                                                 <ItemsControl ItemsSource="{Binding ValidationErrors}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
-                                                            <StackPanel Orientation="Horizontal" Classes="spacing-compact">
+                                                            <StackPanel Orientation="Horizontal" Classes="spacing-tight">
                                                                 <TextBlock Text="•"
                                                                     Classes="error"/>
                                                                 <TextBlock Text="{Binding}"
@@ -241,7 +241,7 @@
                                             </Border>
                                         </StackPanel>
 
-                                        <StackPanel Classes="spacing-compact" IsVisible="{Binding !HasValidationErrors}">
+                                        <StackPanel Classes="spacing-tight" IsVisible="{Binding !HasValidationErrors}">
                                             <TextBlock Text="Configuration is valid."
                                                 Classes="small secondary-text"
                                                 FontStyle="Italic"/>
@@ -333,7 +333,7 @@
                                 <!-- Clear button column -->
                                 <Border Grid.Column="1" Classes="v-top">
                                     <Button Command="{Binding ClearLogCommand}"
-                                            Classes="compact"
+                                            Classes="small"
                                             Width="60"
                                             Height="20"
                                             FontSize="10"

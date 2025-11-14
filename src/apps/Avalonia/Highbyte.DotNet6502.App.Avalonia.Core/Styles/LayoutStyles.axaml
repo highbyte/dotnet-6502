@@ -66,7 +66,7 @@
         <Setter Property="Margin" Value="0,8,0,0"/>
     </Style>
 
-    <Style Selector="Border.error-container-compact">
+    <Style Selector="Border.error-container-small">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="#E53E3E"/>
         <Setter Property="BorderThickness" Value="1"/>
@@ -112,21 +112,6 @@
         <Setter Property="Margin" Value="0,4,0,0"/>
     </Style>
 
-    <Style Selector="StackPanel.spacing-small">
-        <Setter Property="Spacing" Value="4"/>
-        <Setter Property="Margin" Value="0,4,0,0"/>
-    </Style>
-    
-    <Style Selector="StackPanel.spacing-compact">
-        <Setter Property="Spacing" Value="5"/>
-        <Setter Property="Margin" Value="0,4,0,0"/>
-    </Style>
-
-    <Style Selector="StackPanel.spacing-medium">
-        <Setter Property="Spacing" Value="6"/>
-        <Setter Property="Margin" Value="0,6,0,0"/>
-    </Style>
-
     <Style Selector="StackPanel.spacing-normal">
         <Setter Property="Spacing" Value="8"/>
         <Setter Property="Margin" Value="0,8,0,0"/>
@@ -146,17 +131,7 @@
         <Setter Property="Spacing" Value="2"/>
         <Setter Property="Margin" Value="0"/>
     </Style>
-    
-    <Style Selector="StackPanel[Orientation=Horizontal].spacing-small">
-        <Setter Property="Spacing" Value="4"/>
-        <Setter Property="Margin" Value="0"/>
-    </Style>
-    
-    <Style Selector="StackPanel[Orientation=Horizontal].spacing-compact">
-        <Setter Property="Spacing" Value="5"/>
-        <Setter Property="Margin" Value="0"/>
-    </Style>
-    
+
     <Style Selector="StackPanel[Orientation=Horizontal].spacing-normal">
         <Setter Property="Spacing" Value="8"/>
         <Setter Property="Margin" Value="0"/>
@@ -184,25 +159,7 @@
     <Style Selector="Grid.spacing-tight">
         <Setter Property="ColumnSpacing" Value="4"/>
         <Setter Property="RowSpacing" Value="4"/>
-        <Setter Property="Margin" Value="0,4,0,0"/>
-    </Style>
-
-    <Style Selector="Grid.spacing-small">
-        <Setter Property="ColumnSpacing" Value="6"/>
-        <Setter Property="RowSpacing" Value="6"/>
-        <Setter Property="Margin" Value="0,4,0,0"/>
-    </Style>
-
-    <Style Selector="Grid.spacing-normal">
-        <Setter Property="ColumnSpacing" Value="8"/>
-        <Setter Property="RowSpacing" Value="8"/>
-        <Setter Property="Margin" Value="0,8,0,0"/>
-    </Style>
-
-    <Style Selector="Grid.spacing-medium">
-        <Setter Property="ColumnSpacing" Value="8"/>
-        <Setter Property="RowSpacing" Value="8"/>
-        <Setter Property="Margin" Value="0,8,0,0"/>
+        <Setter Property="Margin" Value="0,0,0,0"/>
     </Style>
 
     <Style Selector="Grid.spacing-wide">

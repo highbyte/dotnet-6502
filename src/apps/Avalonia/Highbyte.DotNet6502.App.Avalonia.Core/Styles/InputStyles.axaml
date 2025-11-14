@@ -56,16 +56,12 @@
     </Style>
 
     <!-- ComboBox size variants - aligned with Button sizes -->
-    <Style Selector="ComboBox.compact">
-        <Setter Property="FontSize" Value="11"/>
-        <Setter Property="Padding" Value="6,3"/>
-        <Setter Property="Margin" Value="0,3,0,0"/>
-    </Style>
 
     <Style Selector="ComboBox.small">
-        <Setter Property="FontSize" Value="11"/>
-        <Setter Property="Padding" Value="8,4"/>
-        <Setter Property="Margin" Value="0,4,0,0"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="Padding" Value="6,3"/>
+        <Setter Property="Margin" Value="0,3,0,0"/>
+        <Setter Property="MinHeight" Value="28"/>
     </Style>
 
     <!-- ComboBox item text sizing -->
@@ -73,20 +69,12 @@
         <Setter Property="FontSize" Value="12"/>
     </Style>
 
-    <Style Selector="ComboBox.tiny TextBlock">
-        <Setter Property="FontSize" Value="10"/>
-    </Style>
-
     <Style Selector="ComboBox.small TextBlock">
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontSize" Value="10"/>
     </Style>
 
     <Style Selector="ComboBox.large TextBlock">
         <Setter Property="FontSize" Value="14"/>
-    </Style>
-
-    <Style Selector="ComboBox.compact TextBlock">
-        <Setter Property="FontSize" Value="11"/>
     </Style>
 
     <Style Selector="ComboBox.field-aligned TextBlock">
@@ -129,12 +117,11 @@
         <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
     </Style>
 
-    <Style Selector="CheckBox.tiny">
-        <Setter Property="FontSize" Value="10"/>
-    </Style>
-
     <Style Selector="CheckBox.small">
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="Margin" Value="0,3,0,0"/>
+        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>        
     </Style>
 
     <Style Selector="CheckBox.large">
@@ -158,9 +145,9 @@
         <Setter Property="Background" Value="#C8B886"/>
     </Style>
 
-    <Style Selector="Slider.compact /template/ Thumb">
-        <Setter Property="Width" Value="12"/>
-        <Setter Property="Height" Value="12"/>
+    <Style Selector="Slider.small /template/ Thumb">
+        <Setter Property="Width" Value="10"/>
+        <Setter Property="Height" Value="10"/>
     </Style>
 
     <!-- ========================================== -->
@@ -188,21 +175,15 @@
 
     <!-- Expander size variants -->
     <Style Selector="Expander.small">
-        <Setter Property="FontSize" Value="11"/>
-        <Setter Property="Padding" Value="4,3"/>
-        <Setter Property="MinHeight" Value="24"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="MinHeight" Value="22"/>
     </Style>
 
     <Style Selector="Expander.large">
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="Padding" Value="10,8"/>
         <Setter Property="MinHeight" Value="38"/>
-    </Style>
-
-    <Style Selector="Expander.compact">
-        <Setter Property="FontSize" Value="11"/>
-        <Setter Property="Padding" Value="4,2"/>
-        <Setter Property="MinHeight" Value="22"/>
     </Style>
 
     <Style Selector="Expander.field-aligned">
@@ -219,15 +200,11 @@
     </Style>
 
     <Style Selector="Expander.small TextBlock">
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontSize" Value="10"/>
     </Style>
 
     <Style Selector="Expander.large TextBlock">
         <Setter Property="FontSize" Value="14"/>
-    </Style>
-
-    <Style Selector="Expander.compact TextBlock">
-        <Setter Property="FontSize" Value="11"/>
     </Style>
 
     <Style Selector="Expander.field-aligned TextBlock">
