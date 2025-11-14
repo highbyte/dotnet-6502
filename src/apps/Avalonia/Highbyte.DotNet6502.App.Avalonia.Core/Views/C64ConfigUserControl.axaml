@@ -5,7 +5,7 @@
         x:DataType="vm:C64ConfigDialogViewModel">
   
   <!-- Simplified layout for ContentDialog - no outer border needed -->
-  <Grid RowDefinitions="Auto,*,Auto,Auto">
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8">
     <!-- Title Header -->
     <Border Grid.Row="0" CornerRadius="4,4,4,4" Classes="panel-container">
       <TextBlock Text="Commodore 64 Configuration"
@@ -19,7 +19,7 @@
         <!-- ROM Section -->
         <StackPanel Width="460" Classes="wrap-item">
         <Border Classes="content-section">
-            <StackPanel Classes="spacing-normal">
+            <StackPanel Classes="spacing-tight">
             <TextBlock Text="ROM Management"
                         Classes=""/>
             <TextBlock Text="The emulator requires Kernal, Basic, and Character ROMs."
@@ -58,8 +58,9 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-                <!-- ROM Directory setting (only for desktop) -->
-                <Grid ColumnDefinitions="Auto,*" Classes="spacing-tight"
+            <!-- ROM Directory setting (only for desktop) -->
+            <StackPanel Classes="spacing-tight">
+                <Grid ColumnDefinitions="90,*" Classes="spacing-tight"
                     IsVisible="{Binding !IsRunningInWebAssembly}">
                     <TextBlock Grid.Column="0"
                                 Text="ROM directory:"
@@ -69,9 +70,10 @@
                             Watermark="Directory path"
                             Classes="field-aligned"/>
                 </Grid>
+            </StackPanel>
 
 
-                <StackPanel Orientation="Horizontal" Classes="spacing-normal">
+            <StackPanel Orientation="Horizontal" Classes="spacing-tight">
                 <!-- Download button for WASM app to in-memory byte array -->
                 <Button Content="Download ROMs"
                         Command="{Binding DownloadRomsToByteArrayCommand}"
@@ -110,7 +112,7 @@
         <!-- Render and Audio Section -->
         <StackPanel Width="460" Classes="wrap-item">
         <Border Classes="content-section">
-            <StackPanel Classes="spacing-normal">
+            <StackPanel Classes="spacing-tight">
             <TextBlock Text="Video &amp; Audio"
                         Classes=""/>
 
@@ -160,7 +162,7 @@
         <!-- Input Section -->
         <StackPanel Width="460" Classes="wrap-item">
         <Border Classes="content-section">
-            <StackPanel Classes="spacing-normal">
+            <StackPanel Classes="spacing-tight">
             <TextBlock Text="Input &amp; Joystick"
                         Classes=""/>
 
@@ -218,8 +220,8 @@
         <!-- AI Coding Assistant Section -->
         <StackPanel Width="460" Classes="wrap-item">
         <Border Classes="content-section">
-            <StackPanel Classes="spacing-normal">
-            <StackPanel Orientation="Horizontal" Classes="spacing-normal">
+            <StackPanel Classes="spacing-tight">
+            <StackPanel Orientation="Horizontal" Classes="spacing-tight">
                 <TextBlock Text="Basic AI Coding Assistant"
                             Classes=""/>
                 <Button Content="i"
@@ -297,7 +299,7 @@
             </Grid>
 
             <!-- Test Button and Status -->
-            <StackPanel Classes="spacing-normal" IsVisible="{Binding ShowAITestButton}">
+            <StackPanel Classes="spacing-tight" IsVisible="{Binding ShowAITestButton}">
                 <Button Content="Test Connection"
                         Command="{Binding TestAIBackendCommand}"
                         MinWidth="130"
