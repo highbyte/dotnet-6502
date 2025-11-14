@@ -73,16 +73,12 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="*">
+    <Grid RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="*" Margin="8,0,8,8">
 
         <!-- Title Header -->
-        <Border Grid.Row="0"
-                Background="#2D3748"
-                CornerRadius="8,8,0,0"
-                Classes="panel-container">
+        <Border Grid.Row="0" CornerRadius="4,4,4,4" Classes="panel-container">
             <TextBlock Text="Monitor"
-                       Classes="h1"
-                       HorizontalAlignment="Center"/>
+                        Classes="h-center h2"/>
         </Border>
 
         <!-- Output Area -->

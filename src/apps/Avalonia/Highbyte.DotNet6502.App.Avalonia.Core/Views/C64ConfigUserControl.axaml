@@ -73,12 +73,12 @@
             </StackPanel>
 
 
-            <StackPanel Orientation="Horizontal" Classes="spacing-tight">
-                <!-- Download button for WASM app to in-memory byte array -->
-                <Button Content="Download ROMs"
-                        Command="{Binding DownloadRomsToByteArrayCommand}"
-                        MinWidth="130"
-                        Classes="primary wide"
+            <StackPanel Orientation="Horizontal" Classes="spacing-normal">
+                <!-- Clear for WASM app to clear ROM byte arrays -->
+                <Button Content="Clear"
+                        Command="{Binding ClearRomsCommand}"
+                        MinWidth="90"
+                        Classes="danger"
                         IsVisible="{Binding IsRunningInWebAssembly}"
                         IsEnabled="{Binding IsNotBusy}"/>
                 <!-- Load button for WASM app to files via file picker to in-memory byte array -->
@@ -88,11 +88,11 @@
                         IsVisible="{Binding IsRunningInWebAssembly}"
                         IsEnabled="{Binding IsNotBusy}"
                         Click="LoadRoms_Click"/>
-                <!-- Clear for WASM app to clear ROM byte arrays -->
-                <Button Content="Clear"
-                        Command="{Binding ClearRomsCommand}"
-                        MinWidth="90"
-                        Classes="cancel"
+                <!-- Download button for WASM app to in-memory byte array -->
+                <Button Content="Download ROMs"
+                        Command="{Binding DownloadRomsToByteArrayCommand}"
+                        MinWidth="130"
+                        Classes="primary wide"
                         IsVisible="{Binding IsRunningInWebAssembly}"
                         IsEnabled="{Binding IsNotBusy}"/>
 
@@ -287,11 +287,11 @@
                         Classes=""
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
 
-                <TextBlock Grid.Row="6" Grid.Column="0" 
+                <TextBlock Grid.Row="5" Grid.Column="0" 
                         Text="Endpoint API key:" 
                         Classes="secondary-text"
                         IsVisible="{Binding ShowCustomEndpointSettings}"/>
-                <TextBox Grid.Row="6" Grid.Column="1"
+                <TextBox Grid.Row="5" Grid.Column="1"
                         Text="{Binding CustomEndpointApiKey}"
                         Watermark="API key - leave blank for default"
                         Classes=""
