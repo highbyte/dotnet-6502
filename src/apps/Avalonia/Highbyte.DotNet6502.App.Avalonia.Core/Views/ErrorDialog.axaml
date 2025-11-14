@@ -39,7 +39,7 @@
                x:Name="ErrorMessageTextBox"
                Text="{Binding ErrorMessage}"
                TextWrapping="Wrap"
-               Classes="h3"
+               Classes="h2"
                Margin="0,0,0,12"
                IsReadOnly="True"
                BorderThickness="0"
@@ -56,7 +56,7 @@
                     MaxHeight="200">
         <StackPanel>
           <TextBlock Text="Exception Details:" 
-                     Classes="warning"
+                     Foreground="{DynamicResource WarningColor}"
                      Margin="0,0,0,4"/>
           <TextBox Text="{Binding ExceptionDetails}" 
                    TextWrapping="Wrap" 

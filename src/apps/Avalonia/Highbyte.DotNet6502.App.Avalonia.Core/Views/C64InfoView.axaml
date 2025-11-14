@@ -17,7 +17,7 @@
         <StackPanel Classes="spacing-tight">
             
             <!-- C64 Keyboard Mapping Table -->
-            <TextBlock Text="Commodore 64 keyboard mapping" Classes="section-header"/>
+            <TextBlock Text="Commodore 64 keyboard mapping" Classes="h2"/>
             
             <Border Classes="section-container">
                 <Grid>
@@ -41,93 +41,93 @@
 
                     <!-- Header Row -->
                     <Border Grid.Row="0" Grid.Column="0" Classes="table-header-cell">
-                        <TextBlock Text="Command" Classes="tiny bold" />
+                        <TextBlock Text="Command" Classes="small bold" />
                     </Border>
                     
                     <Border Grid.Row="0" Grid.Column="1" Classes="table-header-cell">
-                        <TextBlock Text="C64 key" Classes="tiny bold" />
+                        <TextBlock Text="C64 key" Classes="small bold" />
                     </Border>
                     
                     <Border Grid.Row="0" Grid.Column="2" Classes="table-header-cell-last">
-                        <TextBlock Text="PC / Mac key" Classes="tiny bold" />
+                        <TextBlock Text="PC / Mac key" Classes="small bold" />
                     </Border>
 
                     <!-- Row 1: Stop running Basic program -->
                     <Border Grid.Row="1" Grid.Column="0" Classes="table-cell">
-                        <TextBlock Text="Stop running Basic program" Classes="tiny" TextWrapping="Wrap" />
+                        <TextBlock Text="Stop running Basic program" Classes="small" TextWrapping="Wrap" />
                     </Border>
                     
                     <Border Grid.Row="1" Grid.Column="1" Classes="table-cell">
-                        <TextBlock Text="Run/Stop" Classes="tiny" />
+                        <TextBlock Text="Run/Stop" Classes="small" />
                     </Border>
                     
                     <Border Grid.Row="1" Grid.Column="2" Classes="table-cell-last-column">
-                        <TextBlock Text="Esc" Classes="tiny" />
+                        <TextBlock Text="Esc" Classes="small" />
                     </Border>
 
                     <!-- Row 2: Soft reset -->
                     <Border Grid.Row="2" Grid.Column="0" Classes="table-cell">
-                        <TextBlock Text="Soft reset" Classes="tiny" TextWrapping="Wrap" />
+                        <TextBlock Text="Soft reset" Classes="small" TextWrapping="Wrap" />
                     </Border>
                     
                     <Border Grid.Row="2" Grid.Column="1" Classes="table-cell">
-                        <TextBlock Text="Run/Stop + Restore" Classes="tiny" />
+                        <TextBlock Text="Run/Stop + Restore" Classes="small" />
                     </Border>
                     
                     <Border Grid.Row="2" Grid.Column="2" Classes="table-cell-last-column">
-                        <TextBlock Text="Esc + PageUp (fn + ArrowUp on Mac)" Classes="tiny" TextWrapping="Wrap" />
+                        <TextBlock Text="Esc + PageUp (fn + ArrowUp on Mac)" Classes="small" TextWrapping="Wrap" />
                     </Border>
 
                     <!-- Row 3: Change text color 1-8 -->
                     <Border Grid.Row="3" Grid.Column="0" Classes="table-cell">
-                        <TextBlock Text="Change text color 1-8" Classes="tiny" TextWrapping="Wrap" />
+                        <TextBlock Text="Change text color 1-8" Classes="small" TextWrapping="Wrap" />
                     </Border>
                     
                     <Border Grid.Row="3" Grid.Column="1" Classes="table-cell">
-                        <TextBlock Text="CTRL + numbers 1-8" Classes="tiny" TextWrapping="Wrap" />
+                        <TextBlock Text="CTRL + numbers 1-8" Classes="small" TextWrapping="Wrap" />
                     </Border>
                     
                     <Border Grid.Row="3" Grid.Column="2" Classes="table-cell-last-column">
-                        <TextBlock Text="Tab + numbers 1-8" Classes="tiny" TextWrapping="Wrap" />
+                        <TextBlock Text="Tab + numbers 1-8" Classes="small" TextWrapping="Wrap" />
                     </Border>
 
                     <!-- Row 4: Change text color 9-16 -->
                     <Border Grid.Row="4" Grid.Column="0" Classes="table-cell">
-                        <TextBlock Text="Change text color 9-16" Classes="tiny" TextWrapping="Wrap" />
+                        <TextBlock Text="Change text color 9-16" Classes="small" TextWrapping="Wrap" />
                     </Border>
                     
                     <Border Grid.Row="4" Grid.Column="1" Classes="table-cell">
-                        <TextBlock Text="C= + numbers 1-8" Classes="tiny" TextWrapping="Wrap" />
+                        <TextBlock Text="C= + numbers 1-8" Classes="small" TextWrapping="Wrap" />
                     </Border>
                     
                     <Border Grid.Row="4" Grid.Column="2" Classes="table-cell-last-column">
-                        <TextBlock Text="LeftCtrl + numbers 1-8" Classes="tiny" TextWrapping="Wrap" />
+                        <TextBlock Text="LeftCtrl + numbers 1-8" Classes="small" TextWrapping="Wrap" />
                     </Border>
 
                     <!-- Row 5: AI Basic: accept suggestion -->
                     <Border Grid.Row="5" Grid.Column="0" Classes="table-cell">
-                        <TextBlock Text="AI Basic: accept suggestion" Classes="tiny" TextWrapping="Wrap" />
+                        <TextBlock Text="AI Basic: accept suggestion" Classes="small" TextWrapping="Wrap" />
                     </Border>
                     
                     <Border Grid.Row="5" Grid.Column="1" Classes="table-cell">
-                        <TextBlock Text="CTRL" Classes="tiny" />
+                        <TextBlock Text="CTRL" Classes="small" />
                     </Border>
                     
                     <Border Grid.Row="5" Grid.Column="2" Classes="table-cell-last-column">
-                        <TextBlock Text="Tab" Classes="tiny" />
+                        <TextBlock Text="Tab" Classes="small" />
                     </Border>
 
                     <!-- Row 6: AI Basic: ignore suggestion -->
                     <Border Grid.Row="6" Grid.Column="0" Classes="table-cell-last-row">
-                        <TextBlock Text="AI Basic: ignore suggestion" Classes="tiny" TextWrapping="Wrap" />
+                        <TextBlock Text="AI Basic: ignore suggestion" Classes="small" TextWrapping="Wrap" />
                     </Border>
                     
                     <Border Grid.Row="6" Grid.Column="1" Classes="table-cell-last-row">
-                        <TextBlock Text="Any other key than CTRL" Classes="tiny" TextWrapping="Wrap" />
+                        <TextBlock Text="Any other key than CTRL" Classes="small" TextWrapping="Wrap" />
                     </Border>
                     
                     <Border Grid.Row="6" Grid.Column="2" Classes="table-cell-last">
-                        <TextBlock Text="Any other key than Tab" Classes="tiny" TextWrapping="Wrap" />
+                        <TextBlock Text="Any other key than Tab" Classes="small" TextWrapping="Wrap" />
                     </Border>
                 </Grid>
             </Border>

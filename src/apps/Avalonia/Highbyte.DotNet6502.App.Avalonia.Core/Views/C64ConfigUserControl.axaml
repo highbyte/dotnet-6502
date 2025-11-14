@@ -29,9 +29,9 @@
             <TextBlock Text="ROM Management"
                         Classes="h2"/>
             <TextBlock Text="The emulator requires Kernal, Basic, and Character ROMs."
-                        Classes="help-text"/>
+                        Classes="small secondary-text"/>
             <TextBlock Text="{Binding RomStatusSummary}"
-                        Classes="label"/>
+                        Classes="accent bold"/>
 
             <ItemsControl ItemsSource="{Binding RomStatuses}">
                 <ItemsControl.ItemTemplate>
@@ -42,7 +42,7 @@
                             IsVisible="{Binding IsRunningInWebAssembly}">
                         <TextBlock Grid.Column="0" 
                                     Text="{Binding Name}:"
-                                    Classes="field-label"/>
+                                    Classes="secondary-text"/>
                         <TextBlock Grid.Column="2" 
                                     Text="{Binding Details}"
                                     Foreground="{Binding ForegroundColor}"/>
@@ -53,7 +53,7 @@
                             IsVisible="{Binding !IsRunningInWebAssembly}">
                         <TextBlock Grid.Column="0" 
                                     Text="{Binding Name}:"
-                                    Classes="field-label"/>
+                                    Classes="secondary-text"/>
                         <TextBox Grid.Column="1" 
                                 Text="{Binding RomFile, Mode=TwoWay}"
                                 Watermark="File name"
@@ -69,7 +69,7 @@
                     IsVisible="{Binding !IsRunningInWebAssembly}">
                     <TextBlock Grid.Column="0"
                                 Text="ROM directory:"
-                                Classes="field-label"/>
+                                Classes="secondary-text"/>
                     <TextBox Grid.Column="1"
                             Text="{Binding RomDirectory}"
                             Watermark="Directory path"
@@ -123,12 +123,12 @@
             <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-normal">
                 <TextBlock Grid.Row="0" Grid.Column="0" 
                             Text="Render provider:" 
-                            Classes="field-label"/>
+                            Classes="secondary-text"/>
                 <ComboBox Grid.Row="0" Grid.Column="1"
                         ItemsSource="{Binding RenderProviders}"
                         SelectedItem="{Binding SelectedRenderProvider}"
                         ToolTip.Tip="{Binding SelectedRenderProviderHelpText}"
-                        Classes="field-aligned h-stretch"
+                        Classes="h-stretch"
                         MaxDropDownHeight="200">
                 <ComboBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:RenderProviderOption">
@@ -139,12 +139,12 @@
 
                 <TextBlock Grid.Row="1" Grid.Column="0" 
                             Text="Render target:" 
-                            Classes="field-label"/>
+                            Classes="secondary-text"/>
                 <ComboBox Grid.Row="1" Grid.Column="1"
                         ItemsSource="{Binding RenderTargets}"
                         SelectedItem="{Binding SelectedRenderTarget}"
                         ToolTip.Tip="{Binding SelectedRenderTargetHelpText}"
-                        Classes="field-aligned h-stretch"
+                        Classes="h-stretch"
                         MaxDropDownHeight="200">
                 <ComboBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:RenderTargetOption">
@@ -156,7 +156,7 @@
                 <CheckBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
                         Content="Enable SID audio (experimental)"
                         IsChecked="{Binding AudioEnabled}"
-                        Classes="field-aligned"/>
+                        Classes=""/>
             </Grid>
 
             </StackPanel>
@@ -173,12 +173,12 @@
             <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-wide">
                 <TextBlock Grid.Row="0" Grid.Column="0" 
                             Text="Active joystick port:" 
-                            Classes="field-label"
+                            Classes="secondary-text"
                             IsEnabled="false" />
                 <ComboBox Grid.Row="0" Grid.Column="1"
                         ItemsSource="{Binding AvailableJoysticks}"
                         SelectedItem="{Binding SelectedHostJoystick}"
-                        Classes="small field-aligned h-left"
+                        Classes="small"
                         MinWidth="80"
                         MaxDropDownHeight="100"
                         IsEnabled="false" />
@@ -186,22 +186,22 @@
                 <CheckBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
                         Content="Enable keyboard joystick controls"
                         IsChecked="{Binding KeyboardJoystickEnabled}"
-                        Classes="field-aligned"/>
+                        Classes=""/>
 
                 <TextBlock Grid.Row="2" Grid.Column="0" 
                             Text="Keyboard joystick port:" 
-                            Classes="field-label"/>
+                            Classes="secondary-text"/>
                 <ComboBox Grid.Row="2" Grid.Column="1"
                         ItemsSource="{Binding AvailableJoysticks}"
                         SelectedItem="{Binding SelectedKeyboardJoystick}"
-                        Classes="small field-aligned h-left"
+                        Classes="small"
                         MinWidth="80"
                         MaxDropDownHeight="100"/>
             </Grid>
 
             <!-- Collapsible Keyboard Mappings Section -->
             <Expander Header="Keyboard mappings"
-                        Classes="small field-aligned dimmed"
+                        Classes="small secondary-text"
                         IsExpanded="False">
                 <ItemsControl ItemsSource="{Binding KeyboardMappings}"
                             Classes="">
@@ -209,10 +209,9 @@
                     <DataTemplate x:DataType="vm:KeyMappingEntry">
                     <DockPanel>
                         <TextBlock Text="{Binding Action}"
-                                    Classes="field-label"
+                                    Classes="secondary-text"
                                     Width="100"/>
-                        <TextBlock Text="{Binding Key}"
-                                    Classes="body"/>
+                        <TextBlock Text="{Binding Key}"/>
                     </DockPanel>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -238,11 +237,11 @@
             <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Classes="spacing-normal">
                 <TextBlock Grid.Row="0" Grid.Column="0" 
                             Text="AI backend type:" 
-                            Classes="field-label"/>
+                            Classes="secondary-text"/>
                 <ComboBox Grid.Row="0" Grid.Column="1"
                         ItemsSource="{Binding AIBackendTypes}"
                         SelectedItem="{Binding SelectedAIBackendTypeOption}"
-                        Classes="field-aligned h-stretch">
+                        Classes="h-stretch">
                     <ComboBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:CodeSuggestionBackendTypeOption">
                             <TextBlock Text="{Binding DisplayName}"/>
@@ -253,53 +252,53 @@
                 <!-- OpenAI Settings -->
                 <TextBlock Grid.Row="1" Grid.Column="0" 
                         Text="OpenAI API key:" 
-                        Classes="field-label"
+                        Classes="secondary-text"
                         IsVisible="{Binding ShowOpenAISettings}"/>
                 <TextBox Grid.Row="1" Grid.Column="1"
                         Text="{Binding OpenAIApiKey}"
                         Watermark="Enter OpenAI API key"
-                        Classes="field-aligned"
+                        Classes=""
                         IsVisible="{Binding ShowOpenAISettings}"/>
 
                 <!-- Self-Hosted Settings -->
                 <TextBlock Grid.Row="2" Grid.Column="0" 
                         Text="Ollama endpoint:" 
-                        Classes="field-label"
+                        Classes="secondary-text"
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
                 <TextBox Grid.Row="2" Grid.Column="1"
                         Text="{Binding OpenAISelfHostedEndpoint}"
                         Watermark="http://localhost:11434/api"
-                        Classes="field-aligned"
+                        Classes=""
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
 
                 <TextBlock Grid.Row="3" Grid.Column="0" 
                         Text="Model name:" 
-                        Classes="field-label"
+                        Classes="secondary-text"
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
                 <TextBox Grid.Row="3" Grid.Column="1"
                         Text="{Binding OpenAISelfHostedModelName}"
                         Watermark="codellama:13b-code"
-                        Classes="field-aligned"
+                        Classes=""
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
 
                 <TextBlock Grid.Row="4" Grid.Column="0" 
                         Text="API key (optional):" 
-                        Classes="field-label"
+                        Classes="secondary-text"
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
                 <TextBox Grid.Row="4" Grid.Column="1"
                         Text="{Binding OpenAISelfHostedApiKey}"
                         Watermark="Optional API key"
-                        Classes="field-aligned"
+                        Classes=""
                         IsVisible="{Binding ShowSelfHostedSettings}"/>
 
                 <TextBlock Grid.Row="6" Grid.Column="0" 
                         Text="Endpoint API key:" 
-                        Classes="field-label"
+                        Classes="secondary-text"
                         IsVisible="{Binding ShowCustomEndpointSettings}"/>
                 <TextBox Grid.Row="6" Grid.Column="1"
                         Text="{Binding CustomEndpointApiKey}"
                         Watermark="API key - leave blank for default"
-                        Classes="field-aligned"
+                        Classes=""
                         IsVisible="{Binding ShowCustomEndpointSettings}"/>
             </Grid>
 
@@ -308,13 +307,19 @@
                 <Button Content="Test Connection"
                         Command="{Binding TestAIBackendCommand}"
                         MinWidth="130"
-                        Classes="primary h-left"/>
+                        Classes="primary"/>
+                <!-- Success message -->
                 <TextBlock Text="{Binding AITestStatusMessage}"
                             TextWrapping="Wrap"
-                            Classes="tiny"
-                            Classes.success-text="{Binding AITestStatusIsSuccess}"
-                            Classes.warning-text="{Binding !AITestStatusIsSuccess}"
-                            IsVisible="{Binding AITestStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            Classes="small"
+                            Foreground="{DynamicResource SuccessColor}"
+                            IsVisible="{Binding AITestStatusIsSuccess}"/>
+                <!-- Warning/Error message -->
+                <TextBlock Text="{Binding AITestStatusMessage}"
+                            TextWrapping="Wrap"
+                            Classes="small"
+                            Foreground="{DynamicResource WarningColor}"
+                            IsVisible="{Binding !AITestStatusIsSuccess}"/>
             </StackPanel>
             </StackPanel>
         </Border>
@@ -325,7 +330,7 @@
     <!-- Messages and status in separate row -->
     <StackPanel Grid.Row="2" Classes="spacing-normal">
         <TextBlock Text="{Binding StatusMessage}"
-                    Classes="success-text"
+                    Foreground="{DynamicResource SuccessColor}"
                     TextWrapping="Wrap"
                     IsVisible="{Binding HasStatusMessage}"/>
         
@@ -337,7 +342,7 @@
               <DataTemplate>
                 <StackPanel Orientation="Horizontal" Classes="spacing-compact">
                   <TextBlock Text="•" 
-                              Classes="error-bullet"/>
+                              Classes="error"/>
                   <TextBlock Text="{Binding}" 
                               Classes="small"
                               TextWrapping="Wrap"/>

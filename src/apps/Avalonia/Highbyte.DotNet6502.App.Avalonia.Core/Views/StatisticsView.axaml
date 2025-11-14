@@ -11,7 +11,7 @@
                 Grid.IsSharedSizeScope="True">
         <!-- Performance Stats -->
         <TextBlock Text="Stats"
-                   Classes="h3"/>
+                   Classes="h2"/>
 
         <Border Classes="stats-container">
             <ItemsControl ItemsSource="{Binding Sections}" Classes="h-left">
@@ -19,7 +19,7 @@
                     <DataTemplate>
                         <StackPanel>
                             <TextBlock Text="{Binding Title, StringFormat='{}{0}:'}"
-                                       Classes="label label-small"/>
+                                       Classes="accent bold small"/>
                             <ItemsControl ItemsSource="{Binding Items}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -30,10 +30,10 @@
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Text="{Binding Name}"
-                                                       Classes="tiny"/>
+                                                       Classes="small"/>
                                             <TextBlock Grid.Column="1"
                                                        Text="{Binding Value}"
-                                                       Classes="tiny"/>
+                                                       Classes="small"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>

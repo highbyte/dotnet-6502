@@ -50,7 +50,7 @@
                     <!-- System Selection -->
                     <TextBlock Grid.Row="0" Grid.Column="0"
                         Text="System:"
-                        Classes="label"
+                        Classes="accent bold"
                         VerticalAlignment="Center"/>
                     <ComboBox Grid.Row="0" Grid.Column="1"
                         Name="SystemSelectionComboBox"
@@ -64,7 +64,7 @@
                     <!-- System Variant Selection -->
                     <TextBlock Grid.Row="2" Grid.Column="0"
                         Text="Variant:"
-                        Classes="label"
+                        Classes="accent bold"
                         VerticalAlignment="Center"/>
                     <ComboBox Grid.Row="2" Grid.Column="1"
                         Name="SystemVariantSelectionComboBox"
@@ -78,11 +78,10 @@
                     <!-- Status -->
                     <TextBlock Grid.Row="4" Grid.Column="0"
                         Text="Status:"
-                        Classes="label"
+                        Classes="accent bold"
                         VerticalAlignment="Center"/>
                     <TextBlock Grid.Row="4" Grid.Column="1"
-                        Text="{Binding EmulatorState}"
-                        Classes="status"/>
+                        Text="{Binding EmulatorState}"/>
                 </Grid>
 
                 <!-- Control Buttons -->
@@ -151,7 +150,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0"
                             Text="Scale:"
-                            Classes="label"/>
+                            Classes="accent bold"/>
                         <Slider Grid.Column="1"
                             Minimum="1" Maximum="4"
                             Value="{Binding Scale}"
@@ -231,7 +230,7 @@
                                                         <DataTemplate>
                                                             <StackPanel Orientation="Horizontal" Classes="spacing-compact">
                                                                 <TextBlock Text="•"
-                                                                    Classes="error-bullet"/>
+                                                                    Classes="error"/>
                                                                 <TextBlock Text="{Binding}"
                                                                     Classes="small"
                                                                     TextWrapping="Wrap"/>
@@ -244,7 +243,7 @@
 
                                         <StackPanel Classes="spacing-compact" IsVisible="{Binding !HasValidationErrors}">
                                             <TextBlock Text="Configuration is valid."
-                                                Classes="small dimmed"
+                                                Classes="small secondary-text"
                                                 FontStyle="Italic"/>
                                         </StackPanel>
                                     </StackPanel>
@@ -269,6 +268,27 @@
                                                 <StackPanel Classes="spacing-none"/>
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
+                                        <ItemsControl.Styles>
+                                            <!-- Log level color styles -->
+                                            <Style Selector="TextBlock.log-trace">
+                                                <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+                                            </Style>
+                                            <Style Selector="TextBlock.log-debug">
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
+                                            </Style>
+                                            <Style Selector="TextBlock.log-info">
+                                                <Setter Property="Foreground" Value="{DynamicResource SuccessColor}"/>
+                                            </Style>
+                                            <Style Selector="TextBlock.log-warning">
+                                                <Setter Property="Foreground" Value="{DynamicResource WarningColor}"/>
+                                            </Style>
+                                            <Style Selector="TextBlock.log-error">
+                                                <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
+                                            </Style>
+                                            <Style Selector="TextBlock.log-critical">
+                                                <Setter Property="Foreground" Value="{DynamicResource DangerColor}"/>
+                                            </Style>
+                                        </ItemsControl.Styles>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Grid>
@@ -283,7 +303,10 @@
                                                         VerticalAlignment="Top">
                                                         <TextBlock 
                                                             Text="{Binding Symbol}"
-                                                            Classes="log-symbol"
+                                                            FontSize="12"
+                                                            TextWrapping="NoWrap"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Center"
                                                             Classes.log-trace="{Binding IsTrace}"
                                                             Classes.log-debug="{Binding IsDebug}"
                                                             Classes.log-info="{Binding IsInfo}"
@@ -295,7 +318,12 @@
                                                     <!-- Message text -->
                                                     <TextBlock Grid.Column="1" 
                                                         Text="{Binding Message}"
-                                                        Classes="log-message"/>
+                                                        Classes="monospace small"
+                                                        Foreground="#A0AEC0"
+                                                        TextWrapping="NoWrap"
+                                                        FontSize="10"
+                                                        LineHeight="13"
+                                                        VerticalAlignment="Top"/>
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -340,56 +368,56 @@
 
                                             <!-- Row 1: Version -->
                                             <Border Grid.Row="0" Grid.Column="0" Classes="table-cell">
-                                                <TextBlock Text="Version" Classes="tiny bold" TextWrapping="Wrap" />
+                                                <TextBlock Text="Version" Classes="small bold" TextWrapping="Wrap" />
                                             </Border>
 
                                             <Border Grid.Row="0" Grid.Column="1" Classes="table-cell">
-                                                <SelectableTextBlock Text="{Binding Version}" Classes="tiny" />
+                                                <SelectableTextBlock Text="{Binding Version}" Classes="small" />
                                             </Border>
 
                                             <!-- Row 2: By -->
                                             <Border Grid.Row="1" Grid.Column="0" Classes="table-cell">
-                                                <TextBlock Text="By" Classes="tiny bold" TextWrapping="Wrap" />
+                                                <TextBlock Text="By" Classes="small bold" TextWrapping="Wrap" />
                                             </Border>
 
                                             <Border Grid.Row="1" Grid.Column="1" Classes="table-cell">
-                                                <SelectableTextBlock Text="Highbyte" Classes="tiny" />
+                                                <SelectableTextBlock Text="Highbyte" Classes="small" />
                                             </Border>
 
                                             <!-- Row 3: Repo -->
                                             <Border Grid.Row="2" Grid.Column="0" Classes="table-cell">
-                                                <TextBlock Text="Repo" Classes="tiny bold" TextWrapping="Wrap" />
+                                                <TextBlock Text="Repo" Classes="small bold" TextWrapping="Wrap" />
                                             </Border>
 
                                             <Border Grid.Row="2" Grid.Column="1" Classes="table-cell">
-                                                <SelectableTextBlock Text="https://github.com/highbyte/dotnet-6502" Classes="tiny" />
+                                                <SelectableTextBlock Text="https://github.com/highbyte/dotnet-6502" Classes="small" />
                                             </Border>
 
                                             <!-- Row: OS version -->
                                             <Border Grid.Row="3" Grid.Column="0" Classes="table-cell">
-                                                <TextBlock Text="OS" Classes="tiny bold" TextWrapping="Wrap" />
+                                                <TextBlock Text="OS" Classes="small bold" TextWrapping="Wrap" />
                                             </Border>
 
                                             <Border Grid.Row="3" Grid.Column="1" Classes="table-cell">
-                                                <SelectableTextBlock Text="{Binding OSVersion}" Classes="tiny" />
+                                                <SelectableTextBlock Text="{Binding OSVersion}" Classes="small" />
                                             </Border>
 
                                             <!-- Row: NET runtime version -->
                                             <Border Grid.Row="4" Grid.Column="0" Classes="table-cell">
-                                                <TextBlock Text=".NET" Classes="tiny bold" TextWrapping="Wrap" />
+                                                <TextBlock Text=".NET" Classes="small bold" TextWrapping="Wrap" />
                                             </Border>
 
                                             <Border Grid.Row="4" Grid.Column="1" Classes="table-cell">
-                                                <SelectableTextBlock Text="{Binding DotNetVersion}" Classes="tiny" />
+                                                <SelectableTextBlock Text="{Binding DotNetVersion}" Classes="small" />
                                             </Border>
 
                                             <!-- Row: Avalonia version -->
                                             <Border Grid.Row="5" Grid.Column="0" Classes="table-cell-last-row">
-                                                <TextBlock Text="Avalonia" Classes="tiny bold" TextWrapping="Wrap" />
+                                                <TextBlock Text="Avalonia" Classes="small bold" TextWrapping="Wrap" />
                                             </Border>
 
                                             <Border Grid.Row="5" Grid.Column="1" Classes="table-cell-last-row">
-                                                <SelectableTextBlock Text="{Binding AvaloniaVersion}" Classes="tiny" />
+                                                <SelectableTextBlock Text="{Binding AvaloniaVersion}" Classes="small" />
                                             </Border>
 
                                         </Grid>

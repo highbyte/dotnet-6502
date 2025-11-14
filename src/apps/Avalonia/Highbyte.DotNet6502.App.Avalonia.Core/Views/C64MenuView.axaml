@@ -15,7 +15,7 @@
     <!-- C64 Specific actions and settings -->
     <StackPanel Classes="spacing-medium">
         <TextBlock Text="Commodore 64"
-                   Classes="section-header" />
+                   Classes="h2" />
 
         <!-- Copy/Paste buttons -->
         <Grid Classes="spacing-tight">
@@ -69,7 +69,7 @@
                                 Content="{Binding DiskToggleButtonText}"
                                 Name="DiskToggleButton"
                                 Command="{Binding ToggleDiskImageCommand}"
-                                Classes="tiny"/>
+                                Classes="small"/>
                         <Button Grid.Column="1"
                                 Content="i"
                                 Classes="info"
@@ -77,7 +77,7 @@
                     </Grid>
 
                     <TextBlock Text="Download &amp; Run .D64 programs"
-                               Classes="small muted"/>
+                               Classes="small secondary-text"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -89,7 +89,7 @@
                                   DisplayMemberBinding="{Binding Value}"
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="true"
-                                  Classes="tiny"
+                                  Classes="small"
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="i"
@@ -98,12 +98,12 @@
                     </Grid>
 
                     <Button Content="Download &amp; Run"
-                            Classes="primary tiny"
+                            Classes="primary small"
                             Command="{Binding LoadPreloadedDiskCommand}"
                             IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
                     <TextBlock Text="Download D64 disk image and auto-run the program on it."
-                               Classes="tiny muted"
+                               Classes="small secondary-text"
                                TextWrapping="Wrap"
                                IsVisible="{Binding SelectedPreloadedDisk, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                 </StackPanel>
@@ -120,7 +120,7 @@
             <Border Name="LoadSaveSectionContent" Classes="collapsible-content" IsVisible="False">
                 <StackPanel Classes="spacing-small">
                     <TextBlock Text="Load/save .prg files"
-                               Classes="small muted"/>
+                               Classes="small secondary-text"/>
 
                     <Grid Classes="spacing-tight">
                         <Grid.ColumnDefinitions>
@@ -131,21 +131,21 @@
                                 Content="Load Basic"
                                 IsEnabled="{Binding IsFileOperationEnabled}"
                                 Click="LoadBasicFile_Click"
-                                Classes="tiny"/>
+                                Classes="small"/>
                         <Button Grid.Column="1"
                                 Content="Save Basic"
                                 IsEnabled="{Binding IsFileOperationEnabled}"
                                 Click="SaveBasicFile_Click"
-                                Classes="tiny"/>
+                                Classes="small"/>
                     </Grid>
 
                     <Button Content="Load &amp; start binary"
-                            Classes="primary tiny"
+                            Classes="primary small"
                             IsEnabled="{Binding IsFileOperationEnabled}"
                             Click="LoadBinaryFile_Click"/>
 
                     <TextBlock Text="Assembly example files"
-                               Classes="small muted"/>
+                               Classes="small secondary-text"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -157,15 +157,15 @@
                                   DisplayMemberBinding="{Binding Value}"
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="{Binding IsFileOperationEnabled}"
-                                  Classes="tiny field-aligned"
+                                  Classes="small"
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load &amp; start"
-                                Classes="primary tiny field-aligned"/>
+                                Classes="primary small"/>
                     </Grid>
 
                     <TextBlock Text="Basic example files"
-                               Classes="small muted"/>
+                               Classes="small secondary-text"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -177,11 +177,11 @@
                                   DisplayMemberBinding="{Binding Value}"
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="{Binding IsFileOperationEnabled}"
-                                  Classes="tiny field-aligned"
+                                  Classes="small"
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load"
-                                Classes="primary tiny field-aligned"
+                                Classes="primary small"
                                 Command="{Binding LoadBasicExampleCommand}"/>
                     </Grid>
                 </StackPanel>
@@ -204,11 +204,11 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0"
                                    Text="Active joystick:"
-                                   Classes="tiny field-label"/>
+                                   Classes="small secondary-text"/>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding AvailableJoysticks}"
                                   SelectedItem="{Binding CurrentJoystick}"
-                                  Classes="tiny field-aligned"
+                                  Classes="small"
                                   MinWidth="30"/>
                     </Grid>
 
@@ -219,13 +219,13 @@
                         </Grid.ColumnDefinitions>
                         <CheckBox Grid.Column="0"
                                   Content="Joystick KB:"
-                                  Classes="tiny field-aligned"
+                                  Classes="small"
                                   IsChecked="{Binding JoystickKeyboardEnabled}"/>
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding AvailableJoysticks}"
                                   SelectedItem="{Binding KeyboardJoystick}"
                                   IsEnabled="{Binding IsKeyboardJoystickSelectionEnabled}"
-                                  Classes="tiny field-aligned"
+                                  Classes="small"
                                   MinWidth="30"/>
                     </Grid>
 
@@ -233,7 +233,7 @@
                             Content="C64 Config"
                             Click="OpenC64Config_Click"
                             IsEnabled="{Binding IsC64ConfigEnabled}"
-                            Classes="tiny">
+                            Classes="small">
                         <Button.Transitions>
                             <Transitions>
                                 <BrushTransition Property="Background" Duration="0:0:0.7"/>
