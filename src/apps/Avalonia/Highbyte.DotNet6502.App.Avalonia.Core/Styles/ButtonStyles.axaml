@@ -2,22 +2,23 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     
     <!-- ========================================== -->
-    <!-- BUTTON BASE STYLES                         -->
+    <!-- SIMPLIFIED BUTTON STYLES                   -->
+    <!-- Reduced from 15+ variants to essentials    -->
     <!-- ========================================== -->
 
     <!-- Default button style -->
     <Style Selector="Button">
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="Medium"/>
-        <Setter Property="Padding" Value="12,4"/>
+        <Setter Property="Padding" Value="12,6"/>
         <Setter Property="Margin" Value="0,4,0,0"/>
         <Setter Property="MinWidth" Value="60"/>
-        <Setter Property="Height" Value="32"/>
         <Setter Property="CornerRadius" Value="2"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
@@ -33,41 +34,26 @@
     </Style>
 
     <!-- ========================================== -->
-    <!-- BUTTON SIZE VARIANTS                       -->
+    <!-- SIZE VARIANTS                              -->
     <!-- ========================================== -->
-
-    <Style Selector="Button.tiny">
-        <Setter Property="FontSize" Value="10"/>
-        <Setter Property="Padding" Value="4,2"/>
-        <Setter Property="Margin" Value="0,2,0,0"/>
-        <Setter Property="Height" Value="22"/>
-    </Style>
 
     <Style Selector="Button.compact">
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="Padding" Value="6,3"/>
         <Setter Property="Margin" Value="0,3,0,0"/>
-        <Setter Property="MinHeight" Value="24"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
     <Style Selector="Button.small">
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="Padding" Value="8,4"/>
         <Setter Property="Margin" Value="0,4,0,0"/>
-        <Setter Property="MinHeight" Value="28"/>
-    </Style>
-
-    <Style Selector="Button.large">
-        <Setter Property="FontSize" Value="14"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Padding" Value="20,10"/>
-        <Setter Property="Margin" Value="0,8,0,0"/>
-        <Setter Property="MinHeight" Value="44"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
     <!-- ========================================== -->
-    <!-- BUTTON LAYOUT VARIANTS                     -->
+    <!-- LAYOUT HELPERS                             -->
     <!-- ========================================== -->
 
     <Style Selector="Button.grid">
@@ -84,7 +70,7 @@
     </Style>
 
     <!-- ========================================== -->
-    <!-- BUTTON SEMANTIC VARIANTS                   -->
+    <!-- SEMANTIC COLORS                            -->
     <!-- ========================================== -->
 
     <Style Selector="Button.primary">
@@ -146,9 +132,10 @@
     </Style>
 
     <!-- ========================================== -->
-    <!-- BUTTON TEXT-ONLY VARIANTS                  -->
+    <!-- SPECIAL PURPOSE                            -->
     <!-- ========================================== -->
 
+    <!-- Text-only button for dialogs -->
     <Style Selector="Button.text">
         <Setter Property="Padding" Value="8,4"/>
         <Setter Property="Background" Value="Transparent"/>
@@ -160,23 +147,7 @@
         <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
     </Style>
 
-    <Style Selector="Button.link">
-        <Setter Property="Padding" Value="0"/>
-        <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Foreground" Value="{DynamicResource AccentBlue}"/>
-        <Setter Property="Cursor" Value="Hand"/>
-    </Style>
-
-    <Style Selector="Button.link:pointerover">
-        <Setter Property="Foreground" Value="{DynamicResource HighlightGold}"/>
-    </Style>
-
-    <!-- ========================================== -->
-    <!-- BUTTON SPECIAL PURPOSE VARIANTS            -->
-    <!-- ========================================== -->
-
-    <!-- Information buttons (i icon buttons) -->
+    <!-- Small info icon buttons -->
     <Style Selector="Button.info">
         <Setter Property="FontSize" Value="10"/>
         <Setter Property="Padding" Value="0"/>
@@ -191,7 +162,6 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
-        <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="ToolTip.Tip" Value="Open link"/>
     </Style>
 
@@ -206,7 +176,7 @@
         <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
     </Style>
 
-    <!-- Section toggle button (collapsible headers) -->
+    <!-- Collapsible section toggle -->
     <Style Selector="Button.section-toggle">
         <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundBaseLowBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
@@ -218,11 +188,6 @@
         <Setter Property="Padding" Value="6,2"/>
         <Setter Property="FontSize" Value="10"/>
         <Setter Property="Height" Value="20"/>
-    </Style>
-
-
-    <Style Selector="Button.field-aligned">
-        <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
 </Styles>

@@ -146,7 +146,7 @@
 
                     <TextBlock Text="Assembly example files"
                                Classes="small secondary-text"/>
-                    <Grid>
+                    <Grid Height="28">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -158,15 +158,17 @@
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="{Binding IsFileOperationEnabled}"
                                   Classes="small"
+                                  VerticalAlignment="Stretch"
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load &amp; start"
+                                VerticalAlignment="Stretch"
                                 Classes="primary small"/>
                     </Grid>
 
                     <TextBlock Text="Basic example files"
                                Classes="small secondary-text"/>
-                    <Grid>
+                    <Grid Height="28">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -178,9 +180,11 @@
                                   SelectedValueBinding="{Binding Key}"
                                   IsEnabled="{Binding IsFileOperationEnabled}"
                                   Classes="small"
+                                  VerticalAlignment="Stretch"
                                   MinWidth="60"/>
                         <Button Grid.Column="1"
                                 Content="Load"
+                                VerticalAlignment="Stretch"
                                 Classes="primary small"
                                 Command="{Binding LoadBasicExampleCommand}"/>
                     </Grid>

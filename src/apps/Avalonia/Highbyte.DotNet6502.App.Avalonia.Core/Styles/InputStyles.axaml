@@ -25,16 +25,6 @@
         <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
     </Style>
 
-    <!-- Field-aligned TextBox -->
-    <Style Selector="TextBox.field-aligned">
-        <Setter Property="FontSize" Value="12"/>
-        <Setter Property="Padding" Value="6,3"/>
-        <Setter Property="MinHeight" Value="26"/>
-        <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
-        <Setter Property="VerticalContentAlignment" Value="Center"/>
-        <Setter Property="VerticalAlignment" Value="Center"/>
-    </Style>
-
     <!-- Monospace TextBox -->
     <Style Selector="TextBox.monospace">
         <Setter Property="FontFamily" Value="Consolas,Monaco,'Courier New',monospace"/>
@@ -42,14 +32,16 @@
 
     <!-- ========================================== -->
     <!-- COMBOBOX STYLES                            -->
+    <!-- Aligned with Button styles for consistency -->
     <!-- ========================================== -->
 
-    <!-- Default ComboBox style -->
+    <!-- Default ComboBox style - matches default Button (32px) -->
     <Style Selector="ComboBox">
         <Setter Property="FontSize" Value="12"/>
-        <Setter Property="Padding" Value="6,4"/>
-        <Setter Property="MinHeight" Value="28"/>
+        <Setter Property="Padding" Value="8,2"/>
         <Setter Property="CornerRadius" Value="2"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
@@ -63,34 +55,17 @@
         <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
     </Style>
 
-    <!-- ComboBox size variants -->
-    <Style Selector="ComboBox.tiny">
-        <Setter Property="FontSize" Value="10"/>
-        <Setter Property="Padding" Value="4,2"/>
-        <Setter Property="MinHeight" Value="22"/>
+    <!-- ComboBox size variants - aligned with Button sizes -->
+    <Style Selector="ComboBox.compact">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="6,3"/>
+        <Setter Property="Margin" Value="0,3,0,0"/>
     </Style>
 
     <Style Selector="ComboBox.small">
         <Setter Property="FontSize" Value="11"/>
-        <Setter Property="Padding" Value="4,3"/>
-        <Setter Property="MinHeight" Value="24"/>
-    </Style>
-
-    <Style Selector="ComboBox.large">
-        <Setter Property="FontSize" Value="14"/>
-        <Setter Property="Padding" Value="10,8"/>
-        <Setter Property="MinHeight" Value="38"/>
-    </Style>
-
-    <Style Selector="ComboBox.compact">
-        <Setter Property="FontSize" Value="11"/>
-        <Setter Property="Padding" Value="4,2"/>
-        <Setter Property="MinHeight" Value="22"/>
-    </Style>
-
-    <Style Selector="ComboBox.field-aligned">
-        <Setter Property="VerticalContentAlignment" Value="Center"/>
-        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="Margin" Value="0,4,0,0"/>
     </Style>
 
     <!-- ComboBox item text sizing -->
@@ -197,7 +172,7 @@
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Padding" Value="6,4"/>
         <Setter Property="MinHeight" Value="28"/>
-        <Setter Property="CornerRadius" Value="2"/>
+        <Setter Property="BorderThickness" Value="2"/>
         <Setter Property="Background" Value="{DynamicResource SecondaryBg}"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
