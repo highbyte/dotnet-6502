@@ -182,8 +182,20 @@ public class MainViewModel : ViewModelBase, IDisposable
     private readonly ObservableAsPropertyHelper<bool> _audioSupported;
     public bool AudioSupported => _audioSupported.Value;
 
-    private readonly ObservableAsPropertyHelper<bool> _audioEnabled;
-    public bool AudioEnabled => _audioEnabled.Value;
+    // AudioEnabled - two-way binding property
+    private bool _audioEnabled;
+    public bool AudioEnabled
+    {
+        get => _audioEnabled;
+        set
+        {
+            if (_audioEnabled != value)
+            {
+                this.RaiseAndSetIfChanged(ref _audioEnabled, value);
+                // Update the host app when the value changes from UI
+            }
+        }
+    }
 
     private readonly ObservableAsPropertyHelper<string?> _audioTooltip;
     public string? AudioTooltip => _audioTooltip.Value;
@@ -327,14 +339,22 @@ public class MainViewModel : ViewModelBase, IDisposable
             .Select(config => config?.AudioSupported ?? false)
             .ToProperty(this, x => x.AudioSupported);
 
-        _audioEnabled = _hostApp
+        // Subscribe to AudioEnabled changes from HostApp to update the UI property
+        _hostApp
             .WhenAnyValue(x => x.CurrentHostSystemConfig)
             .Select(config => config?.SystemConfig?.AudioEnabled ?? false)
-            .ToProperty(this, x => x.AudioEnabled);
+            .Subscribe(enabled => 
+            {
+                if (_audioEnabled != enabled)
+                {
+                    _audioEnabled = enabled;
+                    this.RaisePropertyChanged(nameof(AudioEnabled));
+                }
+            });
 
         _audioTooltip = _hostApp
             .WhenAnyValue(x => x.CurrentHostSystemConfig)
-            .Select(config => config?.AudioSupported == false ? "Audio currently only supported on desktop" : null)
+            .Select(config => config?.AudioSupported == false ? "Audio only supported on desktop" : null)
             .ToProperty(this, x => x.AudioTooltip);
 
         // Initialize ReactiveCommands for ComboBox selections
