@@ -30,4 +30,28 @@ internal static class PlatformDetection
             return false;
         }
     }
+
+    /// <summary>
+    /// Detects if the application is running on a desktop platform (Windows, Linux, macOS)
+    /// </summary>
+    /// <returns>True if running on desktop, false otherwise</returns>
+    internal static bool IsRunningOnDesktop()
+    {
+        // If running in WebAssembly, it's not desktop
+        if (IsRunningInWebAssembly())
+            return false;
+
+        try
+        {
+            // Check for common desktop platforms
+            return RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ||
+                   RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+                   RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+        }
+        catch
+        {
+            // If any check fails, assume we're not on desktop to be safe
+            return false;
+        }
+    }
 }

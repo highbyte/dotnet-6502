@@ -160,10 +160,23 @@
                     </Grid>
 
                     <!-- Audio Settings -->
-                    <CheckBox Grid.Column="1"
-                        Content="Audio"
-                        IsVisible="{Binding AudioSupported}"
-                        IsChecked="{Binding AudioEnabled}"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <Border Background="Transparent"
+                            ToolTip.Tip="{Binding AudioTooltip}">
+                            <CheckBox
+                                Content="Audio"
+                                IsVisible="true"
+                                IsEnabled="{Binding AudioSupported}"
+                                IsChecked="{Binding AudioEnabled}"/>
+                        </Border>
+                        <Slider Width="100" 
+                            Minimum="0" Maximum="100"
+                            Value="{Binding AudioVolumePercent}"
+                            TickFrequency="5"
+                            IsSnapToTickEnabled="False"
+                            IsVisible="{Binding AudioEnabled}"
+                            Classes="small"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- C64 Menu -->

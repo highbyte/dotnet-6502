@@ -184,6 +184,22 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     private readonly ObservableAsPropertyHelper<bool> _audioEnabled;
     public bool AudioEnabled => _audioEnabled.Value;
+
+    private readonly ObservableAsPropertyHelper<string?> _audioTooltip;
+    public string? AudioTooltip => _audioTooltip.Value;
+
+    // Audio volume property - two-way binding
+    private double _audioVolumePercent = 20.0;
+    public double AudioVolumePercent
+    {
+        get => _audioVolumePercent;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _audioVolumePercent, value);
+            _hostApp.SetVolumePercent((float)value);
+        }
+    }
+
     public void ClearMonitorViewModel()
     {
         MonitorViewModel = null;
@@ -315,6 +331,11 @@ public class MainViewModel : ViewModelBase, IDisposable
             .WhenAnyValue(x => x.CurrentHostSystemConfig)
             .Select(config => config?.SystemConfig?.AudioEnabled ?? false)
             .ToProperty(this, x => x.AudioEnabled);
+
+        _audioTooltip = _hostApp
+            .WhenAnyValue(x => x.CurrentHostSystemConfig)
+            .Select(config => config?.AudioSupported == false ? "Audio currently only supported on desktop" : null)
+            .ToProperty(this, x => x.AudioTooltip);
 
         // Initialize ReactiveCommands for ComboBox selections
         SelectSystemCommand = ReactiveCommand.CreateFromTask<string>(

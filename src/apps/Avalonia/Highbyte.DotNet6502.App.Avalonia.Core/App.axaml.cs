@@ -13,6 +13,7 @@ using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
+using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
@@ -226,7 +227,7 @@ public partial class App : Application
             // ----------
             // Get systems
             // ----------
-            var systemList = new SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext>();
+            var systemList = new SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>();
 
             var c64Setup = new C64Setup(_loggerFactory, _configuration, _saveCustomConfigString);
             systemList.AddSystem(c64Setup);

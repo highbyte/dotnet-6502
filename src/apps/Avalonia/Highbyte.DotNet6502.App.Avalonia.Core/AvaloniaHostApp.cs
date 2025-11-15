@@ -11,6 +11,8 @@ using Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Impl.Avalonia.Render;
+using Highbyte.DotNet6502.Impl.NAudio;
+using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
@@ -23,7 +25,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 /// <summary>
 /// Host app for running Highbyte.DotNet6502 emulator in an Avalonia window
 /// </summary>
-public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHandlerContext>, INotifyPropertyChanged
+public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged
 {
     private readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;
@@ -35,10 +37,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     private readonly bool _defaultAudioEnabled;
     private readonly float _defaultAudioVolumePercent;
 
-    private readonly SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> _systemList;
+    private readonly SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> _systemList;
 
     private AvaloniaInputHandlerContext _inputHandlerContext = default!;
-    private NullAudioHandlerContext _audioHandlerContext = default!;
+    private NAudioAudioHandlerContext _audioHandlerContext = default!;
 
     private PeriodicAsyncTimer? _updateTimer;
 
@@ -73,7 +75,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     internal DotNet6502InMemLogStore? LogStore => _logStore;
 
     // Public properties for external access
-    internal SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> SystemList => _systemList;
+    internal SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> SystemList => _systemList;
     internal EmulatorConfig EmulatorConfig => _emulatorConfig;
 
     /// <summary>
@@ -85,7 +87,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
     internal AvaloniaHostApp(
-        SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> systemList,
+        SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
         EmulatorConfig emulatorConfig,
         DotNet6502InMemLogStore logStore,
@@ -151,6 +153,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     public override void OnAfterSelectedSystemChanged()
     {
         OnPropertyChanged(nameof(SelectedSystemName));
+        OnPropertyChanged(nameof(CurrentHostSystemConfig));
 
         ValidateConfigAsync();
     }
@@ -163,6 +166,11 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     public override void OnAfterSelectedSystemVariantChanged()
     {
         OnPropertyChanged(nameof(SelectedSystemConfigurationVariant));
+    }
+
+    public void SetVolumePercent(float volumePercent)
+    {
+        _audioHandlerContext.SetMasterVolumePercent(masterVolumePercent: volumePercent);
     }
 
     public override bool OnBeforeStart(ISystem systemAboutToBeStarted)
@@ -522,9 +530,29 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         ValidationErrors = new ObservableCollection<string>(errors);
     }
 
-    private NullAudioHandlerContext CreateAudioHandlerContext()
+    private NAudioAudioHandlerContext CreateAudioHandlerContext()
     {
-        return new NullAudioHandlerContext();
+        // Only use NAudio for desktop platforms, return a context that will be checked at runtime
+        if (PlatformDetection.IsRunningOnDesktop())
+        {
+            // Output to OpenAL (cross platform) via NAudio
+            var wavePlayer = new SilkNetOpenALWavePlayer()
+            {
+                NumberOfBuffers = 2,
+                DesiredLatency = 40
+            };
+
+            return new NAudioAudioHandlerContext(
+                wavePlayer,
+                initialVolumePercent: _defaultAudioVolumePercent);
+        }
+        else
+        {
+            // For browser/WASM, create a minimal context (won't be used)
+            return new NAudioAudioHandlerContext(
+                wavePlayer: null!,
+                initialVolumePercent: 0);
+        }
     }
 
     /// <summary>
