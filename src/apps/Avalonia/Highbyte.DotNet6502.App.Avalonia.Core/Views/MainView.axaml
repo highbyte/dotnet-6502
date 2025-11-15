@@ -166,7 +166,7 @@
                             <CheckBox
                                 Content="Audio"
                                 IsVisible="true"
-                                IsEnabled="{Binding AudioSupported}"
+                                IsEnabled="{Binding AudioSettingsEnabled }"
                                 IsChecked="{Binding AudioEnabled}"/>
                         </Border>
                         <Slider Width="100" 
@@ -174,7 +174,7 @@
                             Value="{Binding AudioVolumePercent}"
                             TickFrequency="5"
                             IsSnapToTickEnabled="False"
-                            IsVisible="{Binding AudioEnabled}"
+                            IsEnabled="{Binding AudioEnabled }"
                             Classes="small"/>
                     </StackPanel>
                 </StackPanel>

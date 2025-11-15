@@ -181,6 +181,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     // Audio properties - track AudioSupported and AudioEnabled from HostApp
     private readonly ObservableAsPropertyHelper<bool> _audioSupported;
     public bool AudioSupported => _audioSupported.Value;
+    public bool AudioSettingsEnabled => AudioSupported && EmulatorState == EmulatorState.Uninitialized;
 
     // AudioEnabled - two-way binding property
     private bool _audioEnabled;
@@ -193,6 +194,7 @@ public class MainViewModel : ViewModelBase, IDisposable
             {
                 this.RaiseAndSetIfChanged(ref _audioEnabled, value);
                 // Update the host app when the value changes from UI
+                _hostApp.SetAudioEnabled(value).Wait();
             }
         }
     }
@@ -308,6 +310,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                   // Notify all computed properties that depend on EmulatorState
                   this.RaisePropertyChanged(nameof(IsEmulatorRunning));
                   this.RaisePropertyChanged(nameof(IsEmulatorUninitialzied));
+                  this.RaisePropertyChanged(nameof(AudioSettingsEnabled));
               });
 
         _scale = _hostApp
@@ -339,11 +342,19 @@ public class MainViewModel : ViewModelBase, IDisposable
             .Select(config => config?.AudioSupported ?? false)
             .ToProperty(this, x => x.AudioSupported);
 
+        // Subscribe to AudioSupported changes AFTER ToProperty to ensure the value is updated first
+        this.WhenAnyValue(x => x.AudioSupported)
+             .Subscribe(_ =>
+             {
+                 // Notify AudioSettingsEnabled that depends on AudioSupported
+                 this.RaisePropertyChanged(nameof(AudioSettingsEnabled));
+             });
+
         // Subscribe to AudioEnabled changes from HostApp to update the UI property
         _hostApp
             .WhenAnyValue(x => x.CurrentHostSystemConfig)
             .Select(config => config?.SystemConfig?.AudioEnabled ?? false)
-            .Subscribe(enabled => 
+            .Subscribe(async enabled =>
             {
                 if (_audioEnabled != enabled)
                 {
