@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Browser Compatibility Notice</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 40px; 
+            max-width: 600px;
+            line-height: 1.6;
+        }
+        .notice { 
+            background-color: #fff3cd; 
+            border: 1px solid #ffeaa7; 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin: 20px 0; 
+        }
+        .error { 
+            background-color: #f8d7da; 
+            border: 1px solid #f5c6cb; 
+        }
+        .success { 
+            background-color: #d4edda; 
+            border: 1px solid #c3e6cb; 
+        }
+        .browser-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .browser-item {
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+        .browser-item.recommended {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .browser-item.unsupported {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <h1>DotNet-6502 Emulator</h1>
+    
+    <div class="notice error">
+        <h3>⚠️ Safari Desktop Compatibility Issue</h3>
+        <p>You're using Safari on macOS. Unfortunately, due to current limitations in Safari Desktop's WebAssembly implementation, this app may not work correctly.</p>
+        
+        <p><strong>Technical Details:</strong> The emulator requires AOT (Ahead-of-Time) compiled .NET WebAssembly for 60fps performance. Safari Desktop's WebAssembly engine currently has compatibility issues with .NET AOT-compiled applications.</p>
+        
+        <p><strong>Note:</strong> Safari on iOS/iPhone works fine! This issue is specific to Safari on macOS.</p>
+    </div>
+
+    <div class="notice">
+        <h3>📱 Recommended Browsers (Desktop)</h3>
+        <p>For the best experience on macOS, please use one of these browsers:</p>
+        
+        <div class="browser-list">
+            <div class="browser-item recommended">
+                <strong>🌐 Chrome</strong><br>
+            </div>
+            <div class="browser-item recommended">
+                <strong>🔷 Edge</strong><br>
+            </div>
+            <div class="browser-item recommended">
+                <strong>🦊 Firefox</strong><br>
+            </div>
+            <div class="browser-item unsupported">
+                <strong>🧭 Safari (macOS only)</strong><br>
+                <small>Desktop version unsupported</small>
+            </div>
+        </div>
+        
+        <div class="notice success" style="margin-top: 20px;">
+            <p><strong>✅ iOS/iPhone Users:</strong> Safari works fine on iOS! This issue only affects Safari on macOS.</p>
+        </div>
+    </div>
+
+    <div style="margin-top: 40px;">
+        <p><a href="./" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">🔙 Try Anyway (May Not Work)</a></p>
+        <p><small>If you're using a different browser or Safari on iOS, you can ignore this notice.</small></p>
+    </div>
+
+    <script>
+        // Auto-redirect if not desktop Safari after 10 seconds
+        function isDesktopSafari() {
+            const ua = navigator.userAgent;
+            const isSafari = ua.includes('Safari') && !ua.includes('Chrome');
+            const isIOS = /iPhone|iPad|iPod/.test(ua) || 
+                          (ua.includes('Mac') && 'ontouchend' in document);
+            return isSafari && !isIOS;
+        }
+        
+        if (!isDesktopSafari()) {
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 10000);
+        }
+    </script>
+</body>
+</html>
