@@ -1,10 +1,8 @@
-using System.Buffers;
-
 namespace Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 /// <summary>
-/// One complete frame worth of pixels. Owns the backing memory (via IMemoryOwner),
-/// but exposes a Memory<uint> for zero-copy handoff to renderers.
-/// Uses uint[] for direct 32-bit pixel access without conversion overhead.
+/// One complete frame worth of pixels that provides zero-copy read-only access to the source pixel data.
+/// Uses ReadOnlyMemory<uint> for direct 32-bit pixel access without copying or ownership transfer.
+/// The actual memory is owned by the rasterizer (e.g., Vic2Rasterizer) and protected by its locking mechanism.
 /// </summary>
 public sealed class RenderFrame : IAsyncDisposable
 {
@@ -13,31 +11,14 @@ public sealed class RenderFrame : IAsyncDisposable
     public int StrideBytes { get; }
     public TimeSpan Timestamp { get; }
 
-    // Single-buffer path (legacy/simple)
-    public IMemoryOwner<byte>? Owner { get; }
-    public Memory<byte> Pixels { get; }
-
-    // Multi-layer path (advanced) - uses uint for 32-bit pixel data
+    // Multi-layer path - uses ReadOnlyMemory<uint> for 32-bit pixel data
     public IReadOnlyList<LayerInfo> LayerInfos { get; }
-    public IReadOnlyList<IMemoryOwner<uint>> LayerOwners { get; }
-    public IReadOnlyList<Memory<uint>> LayerPixels { get; }
+    public IReadOnlyList<ReadOnlyMemory<uint>> LayerPixels { get; }
 
-    // Single-buffer ctor
-    public RenderFrame(RenderSize size, PixelFormat fmt, IMemoryOwner<byte> owner, TimeSpan timestamp = default)
+    // Multi-layer ctor - uses ReadOnlyMemory<uint> for pixel data
+    public RenderFrame(IReadOnlyList<LayerInfo> infos, IReadOnlyList<ReadOnlyMemory<uint>> layerPixels, TimeSpan timestamp = default)
     {
-        Size = size; PixelFormat = fmt; Timestamp = timestamp;
-        StrideBytes = size.StrideBytes(fmt);
-        Owner = owner;
-        Pixels = owner.Memory[..(StrideBytes * size.Height)];
-        LayerInfos = Array.Empty<LayerInfo>();
-        LayerOwners = Array.Empty<IMemoryOwner<uint>>();
-        LayerPixels = Array.Empty<Memory<uint>>();
-    }
-
-    // Multi-layer ctor - uses uint[] for pixel data
-    public RenderFrame(IReadOnlyList<LayerInfo> infos, IReadOnlyList<IMemoryOwner<uint>> owners, TimeSpan timestamp = default)
-    {
-        if (infos.Count != owners.Count) throw new ArgumentException("infos/owners length mismatch");
+        if (infos.Count != layerPixels.Count) throw new ArgumentException("infos/layerPixels length mismatch");
 
         // Validate that all layers have matching dimensions to prevent out-of-bounds access
         if (infos.Count > 1)
@@ -50,25 +31,19 @@ public sealed class RenderFrame : IAsyncDisposable
             }
         }
 
-        LayerInfos = infos; LayerOwners = owners; Timestamp = timestamp;
+        LayerInfos = infos;
+        LayerPixels = layerPixels;
+        Timestamp = timestamp;
 
-        // Derive overall frame “Size/Format” from the top-most (or first) layer by convention
+        // Derive overall frame "Size/Format" from the top-most (or first) layer by convention
         Size = infos.Count > 0 ? infos[0].Size : default;
         PixelFormat = infos.Count > 0 ? infos[0].PixelFormat : default;
         StrideBytes = infos.Count > 0 ? infos[0].StrideBytes : 0;
-
-        Owner = null; Pixels = Memory<byte>.Empty;
-        var layerPixels = new Memory<uint>[owners.Count];
-        var pixelCount = infos.Count > 0 ? infos[0].Size.Width * infos[0].Size.Height : 0;
-        for (var i = 0; i < owners.Count; i++)
-            layerPixels[i] = owners[i].Memory[..pixelCount];
-        LayerPixels = layerPixels;
     }
 
     public ValueTask DisposeAsync()
     {
-        Owner?.Dispose();
-        foreach (var o in LayerOwners) o.Dispose();
+        // Nothing to dispose - we don't own the memory
         return ValueTask.CompletedTask;
     }
 
