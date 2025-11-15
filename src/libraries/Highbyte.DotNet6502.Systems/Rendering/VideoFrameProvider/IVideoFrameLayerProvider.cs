@@ -17,7 +17,6 @@ public interface IVideoFrameLayerProvider : IVideoFrameProvider
     /// One LayerInfo per layer, stable across frames (or update on mode change).
     IReadOnlyList<LayerInfo> Layers { get; }
 
-    /// Current front buffers for each layer (index matches Layers).
-    /// Uses uint[] for direct 32-bit pixel access without casting overhead.
+    // Current front buffers for each layer (index matches Layers).
     IReadOnlyList<ReadOnlyMemory<uint>> CurrentFrontLayerBuffers { get; }
 }
