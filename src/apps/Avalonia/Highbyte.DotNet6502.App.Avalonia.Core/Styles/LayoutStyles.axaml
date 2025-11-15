@@ -155,7 +155,13 @@
     <Style Selector="Grid">
         <Setter Property="Margin" Value="0"/>
     </Style>
-    
+
+    <Style Selector="Grid.spacing-none">
+        <Setter Property="ColumnSpacing" Value="0"/>
+        <Setter Property="RowSpacing" Value="0"/>
+        <Setter Property="Margin" Value="0,0,0,0"/>
+    </Style>
+
     <Style Selector="Grid.spacing-tight">
         <Setter Property="ColumnSpacing" Value="4"/>
         <Setter Property="RowSpacing" Value="2"/>

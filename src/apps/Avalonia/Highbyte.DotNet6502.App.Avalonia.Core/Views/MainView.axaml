@@ -31,9 +31,9 @@
 
         <!-- Menu and Controls Panel (Left) -->
         <Border Grid.Row="0" Grid.Column="0" Grid.RowSpan="3" Classes="panel-container">
-            <StackPanel Classes="spacing-tight">
+            <StackPanel Classes="spacing-none">
                 <!-- System Selection, Variant, and Status - Unified Grid -->
-                <Grid Classes="spacing-tight">
+                <Grid Classes="spacing-none">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" SharedSizeGroup="Labels" />
                         <ColumnDefinition Width="*" />
