@@ -19,6 +19,7 @@ using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NAudio.Wave;
 using ReactiveUI;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
@@ -33,6 +34,7 @@ public partial class App : Application
     private readonly ILogger _logger;
     private readonly Func<string, string, string?, Task>? _saveCustomConfigString;
     private readonly Func<string, IConfigurationSection, string?, Task>? _saveCustomConfigSection;
+    private readonly IWavePlayer? _wavePlayer;
 
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
@@ -45,13 +47,16 @@ public partial class App : Application
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
     /// <param name="loggerFactory"></param>
+    /// <param name="wavePlayer">Optional IWavePlayer for audio output. If null, audio will be disabled.</param>
     /// <param name="saveCustomConfigString"></param>
+    /// <param name="saveCustomConfigSection"></param>
     public App(
         IConfiguration configuration,
         EmulatorConfig emulatorConfig,
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
+        IWavePlayer? wavePlayer = null,
         Func<string, string, string?, Task>? saveCustomConfigString = null,
         Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection = null)
     {
@@ -64,6 +69,7 @@ public partial class App : Application
         _logConfig = logConfig;
         _saveCustomConfigString = saveCustomConfigString;
         _saveCustomConfigSection = saveCustomConfigSection;
+        _wavePlayer = wavePlayer;
 
         try
         {
@@ -246,6 +252,7 @@ public partial class App : Application
                 _emulatorConfig,
                 _logStore,
                 _logConfig,
+                _wavePlayer,
                 _saveCustomConfigString,
                 _saveCustomConfigSection);
 

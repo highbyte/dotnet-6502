@@ -13,6 +13,7 @@ using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Impl.Avalonia.Render;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
+using NAudio.Wave;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
@@ -86,12 +87,16 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     /// <param name="emulatorConfig"></param>
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
+    /// <param name="wavePlayer"></param>
+    /// <param name="saveCustomConfigString"></param>
+    /// <param name="saveCustomConfigSection"></param>
     internal AvaloniaHostApp(
         SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
         EmulatorConfig emulatorConfig,
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
+        IWavePlayer? wavePlayer,
         Func<string, string, string?, Task>? saveCustomConfigString,
         Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection
 
@@ -111,7 +116,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _systemList = systemList;
 
         _inputHandlerContext = new AvaloniaInputHandlerContext();
-        _audioHandlerContext = CreateAudioHandlerContext(); // For now, use a null audio implementation for Avalonia
+        _audioHandlerContext = CreateAudioHandlerContext(wavePlayer);
 
         base.SetContexts(() => _inputHandlerContext, () => _audioHandlerContext);
         base.InitInputHandlerContext();
@@ -530,25 +535,18 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         ValidationErrors = new ObservableCollection<string>(errors);
     }
 
-    private NAudioAudioHandlerContext CreateAudioHandlerContext()
+    private NAudioAudioHandlerContext CreateAudioHandlerContext(IWavePlayer? wavePlayer)
     {
-        // Only use NAudio for desktop platforms, return a context that will be checked at runtime
-        if (PlatformDetection.IsRunningOnDesktop())
+        if (wavePlayer != null)
         {
-            // Output to OpenAL (cross platform) via NAudio
-            var wavePlayer = new SilkNetOpenALWavePlayer()
-            {
-                NumberOfBuffers = 2,
-                DesiredLatency = 40
-            };
-
+            _logger.LogInformation("Using provided IWavePlayer for audio playback");
             return new NAudioAudioHandlerContext(
                 wavePlayer,
                 initialVolumePercent: _defaultAudioVolumePercent);
         }
         else
         {
-            // For browser/WASM, create a minimal context (won't be used)
+            _logger.LogWarning("No IWavePlayer provided - audio will be disabled");
             return new NAudioAudioHandlerContext(
                 wavePlayer: null!,
                 initialVolumePercent: 0);

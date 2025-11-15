@@ -365,7 +365,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 
         _audioTooltip = _hostApp
             .WhenAnyValue(x => x.CurrentHostSystemConfig)
-            .Select(config => config?.AudioSupported == false ? "Audio only supported on desktop" : null)
+            .Select(config => config?.AudioSupported == false ? "Audio only supported on desktop and browser" : null)
             .ToProperty(this, x => x.AudioTooltip);
 
         // Initialize ReactiveCommands for ComboBox selections

@@ -4,9 +4,11 @@ using Avalonia;
 using Avalonia.ReactiveUI;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
+using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using NAudio.Wave;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 
@@ -57,7 +59,14 @@ internal sealed class Program
         var emulatorConfig = new EmulatorConfig();
         configuration.GetSection(EmulatorConfig.ConfigSectionName).Bind(emulatorConfig);
 
-        BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge)
+        // Create audio wave player for desktop (using OpenAL)
+        var wavePlayer = new SilkNetOpenALWavePlayer()
+        {
+            NumberOfBuffers = 2,
+            DesiredLatency = 40
+        };
+
+        BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, wavePlayer)
             .StartWithClassicDesktopLifetime(args);
     }
 
@@ -68,13 +77,15 @@ internal sealed class Program
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
-        AvaloniaLoggerBridge avaloniaLoggerBridge)
+        AvaloniaLoggerBridge avaloniaLoggerBridge,
+        IWavePlayer wavePlayer)
         => AppBuilder.Configure(() => new Core.App(
                 configuration,
                 emulatorConfig,
                 logStore,
                 logConfig,
-                loggerFactory))
+                loggerFactory,
+                wavePlayer))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace()

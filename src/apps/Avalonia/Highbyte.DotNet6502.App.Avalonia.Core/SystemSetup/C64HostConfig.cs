@@ -23,7 +23,7 @@ public class C64HostConfig : IHostSystemConfig, ICloneable
     }
 
     [JsonIgnore]
-    public bool AudioSupported => PlatformDetection.IsRunningOnDesktop();
+    public bool AudioSupported => PlatformDetection.IsRunningOnDesktop() || PlatformDetection.IsRunningInWebAssembly();
 
     public C64AvaloniaInputConfig InputConfig { get; set; } = new C64AvaloniaInputConfig();
 

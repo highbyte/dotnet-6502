@@ -4,6 +4,8 @@
     <OutputType>Exe</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DefineConstants>$(DefineConstants);BROWSER</DefineConstants>
     
     <!-- Fix for inclusion of SkiaSharp native assets -->
     <WasmBuildNative>true</WasmBuildNative>
