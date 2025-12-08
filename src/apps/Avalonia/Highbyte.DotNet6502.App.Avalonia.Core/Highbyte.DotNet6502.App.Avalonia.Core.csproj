@@ -63,6 +63,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Views\DebugSoundUserControl.axaml.cs">
+      <DependentUpon>DebugSoundUserControl.axaml</DependentUpon>
+    </Compile>
     <Compile Update="Views\C64InfoView.axaml.cs">
       <DependentUpon>C64InfoView.axaml</DependentUpon>
     </Compile>

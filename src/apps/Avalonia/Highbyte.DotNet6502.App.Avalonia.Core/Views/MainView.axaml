@@ -446,7 +446,20 @@
                             </ScrollViewer>
 
                         </TabItem>
-                        
+
+
+                        <!-- Debug  -->
+                        <TabItem Name="DebugTabItem" Header="Debug">
+
+                            <Button Click="OpenSoundDebug_Click"
+                                    IsEnabled="{Binding IsEmulatorUninitialzied}"
+                                    Classes="small"
+                                    MinWidth="60"
+                                    Height="20"
+                                    FontSize="10">
+                                Debug sound
+                            </Button>
+                        </TabItem>
                     </TabControl>
                 </Border>
             </Grid>

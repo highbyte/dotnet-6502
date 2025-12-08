@@ -1,0 +1,93 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+        x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.DebugSoundUserControl"
+        x:DataType="vm:DebugSoundViewModel">
+  
+  <!-- Simplified layout for ContentDialog - no outer border needed -->
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8">
+    <!-- Title Header -->
+    <Border Grid.Row="0" CornerRadius="4,4,4,4" Classes="panel-container">
+      <TextBlock Text="Debug sound"
+                 Classes="h-center h2"/>
+    </Border>
+
+    <!-- Main content with wrapping layout - scrollable -->
+    <ScrollViewer Grid.Row="1" Classes="vertical-only">
+      <WrapPanel Orientation="Horizontal"> 
+      
+        <!--Audio test-->
+        <StackPanel Width="460" Classes="wrap-item">
+        <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+                <TextBlock Text="Simple synth waveform generation"
+                            Classes=""/>
+
+                <Grid ColumnDefinitions="Auto,*,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-tight">
+                    <TextBlock Grid.Row="0" Grid.Column="0" 
+                                Text="Sound test:" 
+                                Classes="secondary-text small"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1"
+                            ItemsSource="{Binding SoundTestValues}"
+                            SelectedItem="{Binding SelectedSoundTest}"
+                            Classes="h-stretch small"
+                            MaxDropDownHeight="200"/>
+                    <Button Grid.Row="0" Grid.Column="2"
+                            Click="PlayWaveform_Click"
+                            Classes="small"
+                            Width="60"
+                            Height="20"
+                            FontSize="10">
+                        Play
+                    </Button>
+
+                </Grid>
+
+            </StackPanel>
+        </Border>
+        </StackPanel>      
+          
+      </WrapPanel>
+    </ScrollViewer>
+
+    <!-- Messages and status in separate row -->
+    <StackPanel Grid.Row="2" Classes="spacing-tight">
+        <TextBlock Text="{Binding StatusMessage}"
+                    Foreground="{DynamicResource SuccessColor}"
+                    TextWrapping="Wrap"
+                    IsVisible="{Binding HasStatusMessage}"/>
+        
+        <!-- Log Messages with Border (similar to MainView) -->
+        <Border Classes="error-container-small"
+                IsVisible="{Binding HasLogMessages}">
+          <ItemsControl ItemsSource="{Binding LogMessages}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                  <TextBlock Text="•" 
+                              Classes="info"/>
+                  <TextBlock Text="{Binding}" 
+                              Classes="small"
+                              TextWrapping="Wrap"/>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+    </StackPanel>
+
+    <!-- Button Section in separate row -->
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Classes="spacing-wide">
+      <ProgressBar Grid.Column="0"
+                   IsVisible="{Binding IsBusy}"
+                   IsIndeterminate="True"/>
+      <Button Grid.Column="2"
+              Content="Close"
+              Classes="primary"
+              IsDefault="True"
+              IsEnabled="{Binding CanClose}"
+              Command="{Binding CloseCommand}"/>
+    </Grid>
+
+  </Grid>
+</UserControl>

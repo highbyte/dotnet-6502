@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Timers;
 using Highbyte.DotNet6502.Systems;
@@ -12,7 +13,6 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
-using System.Runtime.InteropServices;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 

@@ -23,6 +23,8 @@ export const WebAudioWavePlayer = (() => {
         audioQueue = [];
         isPlaying = false;
 
+        console.log(`WebAudioWavePlayer initialize enter`);
+
         // Create AudioContext if it doesn't exist
         if (!audioContext) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)({
@@ -41,6 +43,8 @@ export const WebAudioWavePlayer = (() => {
         // Use ScriptProcessorNode as fallback (AudioWorklet requires separate file and HTTPS)
         // For production, consider implementing AudioWorklet for better performance
         setupScriptProcessor();
+
+        console.log(`WebAudioWavePlayer initialize exit`);
     }
 
     /**
