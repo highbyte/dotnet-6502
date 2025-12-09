@@ -3,9 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
-using System.Runtime.InteropServices.JavaScript;
 using System.Threading.Tasks;
-using Azure.AI.OpenAI;
 using Highbyte.DotNet6502.Impl.NAudio.Synth;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -83,17 +81,28 @@ public class DebugSoundViewModel : ViewModelBase
 
         PlayAudioCommand = ReactiveCommand.CreateFromTask(
             PlayAudio,
-            this.WhenAnyValue(x => x.IsAudioInitialized),
+            this.WhenAnyValue(
+                x => x.IsAudioInitialized,
+                x => x.IsWavePlayerPaused,
+                x => x.IsWavePlayerStopped,
+                (initialized, paused, stopped) => initialized && (paused || stopped)),
             outputScheduler: RxApp.MainThreadScheduler);
 
         PauseAudioCommand = ReactiveCommand.CreateFromTask(
             PauseAudio,
-            this.WhenAnyValue(x => x.IsAudioInitialized),
+            this.WhenAnyValue(
+                x => x.IsAudioInitialized,
+                x => x.IsWavePlayerPlaying,
+                (initialized, playing) => initialized && playing),
             outputScheduler: RxApp.MainThreadScheduler);
 
         StopAudioCommand = ReactiveCommand.CreateFromTask(
             StopAudio,
-            this.WhenAnyValue(x => x.IsAudioInitialized),
+            this.WhenAnyValue(
+                x => x.IsAudioInitialized,
+                x => x.IsWavePlayerPlaying,
+                x => x.IsWavePlayerPaused,
+                (initialized, playing, paused) => initialized && (playing || paused)),
             outputScheduler: RxApp.MainThreadScheduler);
 
         PlayCommand = ReactiveCommand.CreateFromTask(
@@ -101,7 +110,10 @@ public class DebugSoundViewModel : ViewModelBase
             {
                 await PlaySound(SelectedSoundTest);
             },
-            this.WhenAnyValue(x => x.IsAudioInitialized),
+            this.WhenAnyValue(
+                x => x.IsAudioInitialized,
+                x => x.IsWavePlayerPlaying,
+                (initialized, playing) => initialized && playing),
             outputScheduler: RxApp.MainThreadScheduler);
 
         StopCommand = ReactiveCommand.CreateFromTask(
@@ -109,7 +121,10 @@ public class DebugSoundViewModel : ViewModelBase
             {
                 await StopSound(SelectedSoundTest);
             },
-            this.WhenAnyValue(x => x.IsAudioInitialized),
+            this.WhenAnyValue(
+                x => x.IsAudioInitialized,
+                x => x.IsWavePlayerPlaying,
+                (initialized, playing) => initialized && playing),
             outputScheduler: RxApp.MainThreadScheduler);
 
 
@@ -118,7 +133,10 @@ public class DebugSoundViewModel : ViewModelBase
             {
                 await PlaySynthSound();
             },
-            this.WhenAnyValue(x => x.IsAudioInitialized),
+            this.WhenAnyValue(
+                x => x.IsAudioInitialized,
+                x => x.IsWavePlayerPlaying,
+                (initialized, playing) => initialized && playing),
             outputScheduler: RxApp.MainThreadScheduler);
 
         StartSynthReleaseCommand = ReactiveCommand.CreateFromTask(
@@ -126,7 +144,10 @@ public class DebugSoundViewModel : ViewModelBase
             {
                 await StartSynthRelease();
             },
-            this.WhenAnyValue(x => x.IsAudioInitialized),
+            this.WhenAnyValue(
+                x => x.IsAudioInitialized,
+                x => x.IsWavePlayerPlaying,
+                (initialized, playing) => initialized && playing),
             outputScheduler: RxApp.MainThreadScheduler);
 
         StopSynthCommand = ReactiveCommand.CreateFromTask(
@@ -134,7 +155,10 @@ public class DebugSoundViewModel : ViewModelBase
             {
                 await StopSynthSound();
             },
-            this.WhenAnyValue(x => x.IsAudioInitialized),
+            this.WhenAnyValue(
+                x => x.IsAudioInitialized,
+                x => x.IsWavePlayerPlaying,
+                (initialized, playing) => initialized && playing),
             outputScheduler: RxApp.MainThreadScheduler);
 
     }
@@ -190,37 +214,6 @@ public class DebugSoundViewModel : ViewModelBase
         }
     }
 
-    public SoundTest[] SoundTestValues { get; } = Enum.GetValues<SoundTest>();
-
-    private async Task PlaySound(SoundTest soundTest)
-    {
-        switch (soundTest)
-        {
-            case SoundTest.TestTone:
-                await PlaySineWave();
-                break;
-            case SoundTest.WaveformSynthesis:
-                break;
-            default:
-                break;
-        }
-    }
-
-    private async Task StopSound(SoundTest soundTest)
-    {
-        switch (soundTest)
-        {
-            case SoundTest.TestTone:
-                await StopSineWave();
-                break;
-            case SoundTest.WaveformSynthesis:
-                break;
-            default:
-                break;
-        }
-    }
-
-
     // NAudio initialization
     private bool _isAudioInitialized = false;
     public bool IsAudioInitialized
@@ -236,6 +229,10 @@ public class DebugSoundViewModel : ViewModelBase
         }
     }
     public bool IsAudioNotInitialized => !IsAudioInitialized;
+
+    public bool IsWavePlayerPlaying => _wavePlayer.PlaybackState == PlaybackState.Playing;
+    public bool IsWavePlayerPaused => _wavePlayer.PlaybackState == PlaybackState.Paused;
+    public bool IsWavePlayerStopped => _wavePlayer.PlaybackState == PlaybackState.Stopped;
 
 
     private async Task InitAudio()
@@ -256,12 +253,20 @@ public class DebugSoundViewModel : ViewModelBase
     private async Task PlayAudio()
     {
         _wavePlayer.Play();
+        this.RaisePropertyChanged(nameof(IsWavePlayerPlaying));
+        this.RaisePropertyChanged(nameof(IsWavePlayerPaused));
+        this.RaisePropertyChanged(nameof(IsWavePlayerStopped));
+
         StatusMessage = "Audio playback started.";
     }
 
     private async Task PauseAudio()
     {
         _wavePlayer.Pause();
+        this.RaisePropertyChanged(nameof(IsWavePlayerPlaying));
+        this.RaisePropertyChanged(nameof(IsWavePlayerPaused));
+        this.RaisePropertyChanged(nameof(IsWavePlayerStopped));
+
         StatusMessage = "Audio playback paused.";
     }
 
@@ -269,16 +274,18 @@ public class DebugSoundViewModel : ViewModelBase
     private async Task StopAudio()
     {
         _wavePlayer.Stop();
-        for (int i = 0; i < _mixer.MixerInputs.Count(); i++)
-        {
-            var mixerInput = _mixer.MixerInputs.First();
-            _mixer.RemoveMixerInput(mixerInput);
-        }
-        _mixer = null;
 
-        _volumeSampleProvider = null;
+        if (_synthEnvelopProvider != null)
+            _mixer.RemoveMixerInput(_synthEnvelopProvider);
         _synthEnvelopProvider = null;
+
+        if (_customSineWaveProvider != null)
+            _mixer.RemoveMixerInput(_customSineWaveProvider);
         _customSineWaveProvider = null;
+
+        this.RaisePropertyChanged(nameof(IsWavePlayerPlaying));
+        this.RaisePropertyChanged(nameof(IsWavePlayerPaused));
+        this.RaisePropertyChanged(nameof(IsWavePlayerStopped));
 
         StatusMessage = "Audio playback stopped.";
     }
@@ -295,14 +302,11 @@ public class DebugSoundViewModel : ViewModelBase
             _synthEnvelopProvider = new SynthEnvelopeProvider(
                 SignalGeneratorType.Triangle,
                 sampleRate: 48000);
+        }
+        _synthEnvelopProvider.ResetADSR();
 
-            // Setup audio rendering pipeline: soundProvider -> Mixer -> Volume -> WavePlayer
-            _mixer.AddMixerInput(_synthEnvelopProvider);
-        }
-        else
-        {
-            _synthEnvelopProvider.ResetADSR();
-        }
+        _mixer.RemoveMixerInput(_synthEnvelopProvider);
+        _mixer.AddMixerInput(_synthEnvelopProvider);
 
         _synthEnvelopProvider.Frequency = 240.0f;
 
@@ -347,8 +351,8 @@ public class DebugSoundViewModel : ViewModelBase
     {
         if (_synthEnvelopProvider == null)
             return;
+        _synthEnvelopProvider.ResetADSR();
         _mixer.RemoveMixerInput(_synthEnvelopProvider);
-        _synthEnvelopProvider = null;
         StatusMessage = "Stop playing Synth";
     }
 
@@ -356,6 +360,37 @@ public class DebugSoundViewModel : ViewModelBase
     // Start of SineWaveProvider32 test
     // ------------------------------------------------------------------
     private ISampleProvider? _customSineWaveProvider = default!;
+
+
+    public SoundTest[] SoundTestValues { get; } = Enum.GetValues<SoundTest>();
+
+    private async Task PlaySound(SoundTest soundTest)
+    {
+        switch (soundTest)
+        {
+            case SoundTest.TestTone:
+                await PlaySineWave();
+                break;
+            case SoundTest.WaveformSynthesis:
+                break;
+            default:
+                break;
+        }
+    }
+
+    private async Task StopSound(SoundTest soundTest)
+    {
+        switch (soundTest)
+        {
+            case SoundTest.TestTone:
+                await StopSineWave();
+                break;
+            case SoundTest.WaveformSynthesis:
+                break;
+            default:
+                break;
+        }
+    }
 
     private async Task PlaySineWave()
     {
