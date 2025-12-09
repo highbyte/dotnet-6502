@@ -23,22 +23,54 @@
                 <TextBlock Text="Simple synth waveform generation"
                             Classes=""/>
 
-                <Grid ColumnDefinitions="Auto,*,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-tight">
-                    <TextBlock Grid.Row="0" Grid.Column="0" 
-                                Text="Sound test:" 
-                                Classes="secondary-text small"/>
-                    <ComboBox Grid.Row="0" Grid.Column="1"
+                <Grid ColumnDefinitions="Auto,Auto,*" RowDefinitions="Auto,Auto,Auto">
+
+                    <!-- Init/stop all audio --> 
+                    <Button Grid.Row="0" Grid.Column="0"
+                            Command="{Binding InitAudioCommand}"
+                            Classes="small">
+                        Init audio
+                    </Button>
+                    <Button Grid.Row="0" Grid.Column="1"
+                            Command="{Binding StopAudioCommand}"
+                            Classes="small">
+                        Stop all audio
+                    </Button>
+
+                    <!-- ADSR synth waveforms-->
+                    <Button Grid.Row="1" Grid.Column="0"
+                            Command="{Binding PlaySynthCommand}"
+                            Classes="small">
+                        Play synth
+                    </Button>
+                    <Button Grid.Row="1" Grid.Column="1"
+                            Command="{Binding StartSynthReleaseCommand}"
+                            Classes="small">
+                        Stop/release synth sound
+                    </Button>
+                    <Button Grid.Row="1" Grid.Column="2"
+                            Command="{Binding StopSynthCommand}"
+                            Classes="small">
+                        Stop/release synth sound
+                    </Button>
+
+                    <!-- Custom generated waveforms-->
+                    <ComboBox Grid.Row="2" Grid.Column="0"
                             ItemsSource="{Binding SoundTestValues}"
                             SelectedItem="{Binding SelectedSoundTest}"
-                            Classes="h-stretch small"
+                            Classes="small h-stretch"
                             MaxDropDownHeight="200"/>
-                    <Button Grid.Row="0" Grid.Column="2"
-                            Click="PlayWaveform_Click"
-                            Classes="small"
-                            Width="60"
-                            Height="20"
-                            FontSize="10">
-                        Play
+                    <Button Grid.Row="2" Grid.Column="1"
+                            Command="{Binding PlayCommand}"
+                            Classes="small">
+                            >
+                        Play sound
+                    </Button>
+                    <Button Grid.Row="2" Grid.Column="2"
+                            Command="{Binding StopCommand}"
+                            Classes="small">
+                            >
+                        Stop sound
                     </Button>
 
                 </Grid>

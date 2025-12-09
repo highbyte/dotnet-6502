@@ -193,6 +193,9 @@ public partial class App : Application
         if (_logConfig != null)
             services.AddSingleton(_logConfig);
 
+        if (_wavePlayer != null)
+            services.AddSingleton<IWavePlayer>(_wavePlayer);
+
         // Register ViewModels as transient (new instance each time)
         services.AddTransient<MainViewModel>();
         services.AddTransient<EmulatorViewModel>();

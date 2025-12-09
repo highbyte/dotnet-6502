@@ -1,6 +1,5 @@
 using System;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
@@ -66,10 +65,5 @@ public partial class DebugSoundUserControl : UserControl
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
-    }
-
-    private async void PlayWaveform_Click(object? sender, RoutedEventArgs e)
-    {
-        // TODO
     }
 }

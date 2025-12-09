@@ -14,6 +14,7 @@ using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NAudio.Wave;
 using AvaloniaAnimation = Avalonia.Animation;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
@@ -451,7 +452,11 @@ public partial class MainView : UserControl
         // Create the UserControl-based config
         var configControl = new DebugSoundUserControl
         {
-            DataContext = new DebugSoundViewModel(_subscribedViewModel!.HostApp!, serviceProvider.GetRequiredService<IConfiguration>(), loggerFactory)
+            DataContext = new DebugSoundViewModel(
+                _subscribedViewModel!.HostApp!,
+                serviceProvider.GetRequiredService<IConfiguration>(),
+                loggerFactory,
+                serviceProvider.GetRequiredService<IWavePlayer>())
         };
 
         // Create a custom overlay with better modal behavior
