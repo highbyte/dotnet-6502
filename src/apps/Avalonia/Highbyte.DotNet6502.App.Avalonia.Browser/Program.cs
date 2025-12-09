@@ -60,7 +60,7 @@ internal sealed partial class Program
         emulatorConfig.EnableLoadResourceOverHttp(GetAppUrlHttpClient);
 
         // Create audio wave player for browser (using WebAudio)
-        var wavePlayer = new WebAudioWavePlayer()
+        var wavePlayer = new WebAudioWavePlayer(WebAudioWavePlayerSettings.LowestLatency)
         {
             DesiredLatency = 100 // Higher latency for browser stability
         };

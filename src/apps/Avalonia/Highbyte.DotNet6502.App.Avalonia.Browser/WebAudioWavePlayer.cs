@@ -27,11 +27,28 @@ public partial class WebAudioWavePlayer : IWavePlayer
     public event EventHandler<StoppedEventArgs>? PlaybackStopped;
 
     /// <summary>
-    /// Gets or sets the desired latency in milliseconds
-    /// Should be set before a call to Init
+    /// Gets or sets the desired latency in milliseconds.
+    /// Should be set before a call to Init.
+    /// Consider using Settings property for more control.
     /// </summary>
-    public int DesiredLatency { get; set; } = 50;
+    public int DesiredLatency
+    {
+        get => _settings.DesiredLatencyMs;
+        set => _settings.DesiredLatencyMs = value;
+    }
 
+    /// <summary>
+    /// Gets or sets the audio player settings.
+    /// Should be set before a call to Init.
+    /// Use predefined profiles like WebAudioWavePlayerSettings.LowLatency or WebAudioWavePlayerSettings.Balanced.
+    /// </summary>
+    public WebAudioWavePlayerSettings Settings
+    {
+        get => _settings;
+        set => _settings = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
+    private WebAudioWavePlayerSettings _settings = WebAudioWavePlayerSettings.Balanced;
     private int _bufferSizeSamples;
     private IWaveProvider? _sourceProvider;
 
@@ -47,11 +64,17 @@ public partial class WebAudioWavePlayer : IWavePlayer
         PlaybackState = PlaybackState.Stopped;
     }
 
+    /// <summary>
+    /// Creates a WebAudioWavePlayer with the specified settings.
+    /// </summary>
+    /// <param name="settings">The settings to use. Use predefined profiles like WebAudioWavePlayerSettings.LowLatency.</param>
+    public WebAudioWavePlayer(WebAudioWavePlayerSettings settings) : this()
+    {
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+    }
+
     public void Init(IWaveProvider waveProvider)
     {
-        //if (_isInitialized)
-        //    return;
-
         _sourceProvider = null;
         _sourceProvider = waveProvider ?? throw new ArgumentNullException(nameof(waveProvider));
 
@@ -67,13 +90,17 @@ public partial class WebAudioWavePlayer : IWavePlayer
 
         // Calculate buffer size based on desired latency
         // Buffer size in samples = sample rate * (latency in seconds)
-        _bufferSizeSamples = (int)(_sourceProvider.WaveFormat.SampleRate * (DesiredLatency / 1000.0));
+        _bufferSizeSamples = (int)(_sourceProvider.WaveFormat.SampleRate * (_settings.DesiredLatencyMs / 1000.0));
 
-        // Initialize WebAudio context in JavaScript
+        // Initialize WebAudio context in JavaScript with all settings
         JSInterop.Initialize(
             _sourceProvider.WaveFormat.SampleRate,
             _sourceProvider.WaveFormat.Channels,
-            _bufferSizeSamples);
+            _bufferSizeSamples,
+            _settings.RingBufferCapacityMultiplier,
+            _settings.MinBufferBeforePlayMultiplier,
+            _settings.ScriptProcessorBufferSize,
+            _settings.StatsIntervalMs);
 
         _isInitialized = true;
     }
@@ -171,13 +198,14 @@ public partial class WebAudioWavePlayer : IWavePlayer
         var bufferSizeBytes = _bufferSizeSamples * _sourceProvider.WaveFormat.Channels * bytesPerSample;
         var buffer = new byte[bufferSizeBytes];
 
-        // Calculate the exact duration of one buffer in milliseconds
-        // This is how long it takes the audio hardware to play the samples we send
+        // Calculate the exact duration of one buffer in ticks for high precision
+        // Stopwatch.Frequency gives ticks per second
+        var bufferDurationTicks = (long)(_bufferSizeSamples * (double)Stopwatch.Frequency / _sourceProvider.WaveFormat.SampleRate);
         var bufferDurationMs = (_bufferSizeSamples * 1000.0) / _sourceProvider.WaveFormat.SampleRate;
 
         // Use a stopwatch to maintain accurate timing regardless of processing delays
         var stopwatch = Stopwatch.StartNew();
-        var nextSendTime = stopwatch.ElapsedMilliseconds;
+        var nextSendTicks = stopwatch.ElapsedTicks;
 
         while (PlaybackState == PlaybackState.Playing || PlaybackState == PlaybackState.Paused)
         {
@@ -187,7 +215,7 @@ public partial class WebAudioWavePlayer : IWavePlayer
             {
                 await Task.Delay(10, cancellationToken);
                 // Reset timing when paused to avoid burst sending on resume
-                nextSendTime = stopwatch.ElapsedMilliseconds;
+                nextSendTicks = stopwatch.ElapsedTicks;
                 continue;
             }
 
@@ -219,12 +247,13 @@ public partial class WebAudioWavePlayer : IWavePlayer
                 JSInterop.QueueAudioData(audioDataBytes, floatSamples.Length);
             }
 
-            // Calculate when we should send the next buffer
-            nextSendTime += (long)bufferDurationMs;
+            // Calculate when we should send the next buffer (using high-precision ticks)
+            nextSendTicks += bufferDurationTicks;
 
             // Calculate how long to wait (accounting for time already spent processing)
-            var currentTime = stopwatch.ElapsedMilliseconds;
-            var delayMs = (int)(nextSendTime - currentTime);
+            var currentTicks = stopwatch.ElapsedTicks;
+            var delayTicks = nextSendTicks - currentTicks;
+            var delayMs = (int)(delayTicks * 1000 / Stopwatch.Frequency);
 
             // Only delay if we're ahead of schedule
             if (delayMs > 0)
@@ -234,7 +263,7 @@ public partial class WebAudioWavePlayer : IWavePlayer
             else if (delayMs < -bufferDurationMs * 2)
             {
                 // We're way behind schedule, reset timing to avoid playing catch-up
-                nextSendTime = stopwatch.ElapsedMilliseconds;
+                nextSendTicks = stopwatch.ElapsedTicks;
             }
         }
     }
@@ -286,7 +315,14 @@ public partial class WebAudioWavePlayer : IWavePlayer
     private static partial class JSInterop
     {
         [JSImport("WebAudioWavePlayer.initialize", "WebAudioWavePlayer")]
-        public static partial void Initialize(int sampleRate, int channels, int bufferSize);
+        public static partial void Initialize(
+            int sampleRate,
+            int channels,
+            int bufferSize,
+            double ringBufferCapacityMultiplier,
+            double minBufferBeforePlayMultiplier,
+            int scriptProcessorBufferSize,
+            int statsIntervalMs);
 
         [JSImport("WebAudioWavePlayer.queueAudioData", "WebAudioWavePlayer")]
         public static partial void QueueAudioData(byte[] audioDataBytes, int sampleCount);
