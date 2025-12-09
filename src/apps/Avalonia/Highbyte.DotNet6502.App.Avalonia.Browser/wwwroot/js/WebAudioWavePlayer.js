@@ -15,6 +15,10 @@ export const WebAudioWavePlayer = (() => {
     let bufferedSamples = 0;
     let bufferCapacity = 0;
     
+    // Minimum samples needed before starting playback (to avoid immediate underrun)
+    let minBufferBeforePlay = 0;
+    let hasEnoughToStart = false;
+    
     let isPlaying = false;
 
     /**
@@ -28,14 +32,17 @@ export const WebAudioWavePlayer = (() => {
         channels = numChannels;
         bufferSize = bufSize;
         isPlaying = false;
+        hasEnoughToStart = false;
 
-        // Create a ring buffer that can hold ~500ms of audio (enough to handle timing variations)
-        // Buffer size in samples (per channel) = sampleRate * 0.5 seconds
-        bufferCapacity = Math.ceil(sampleRate * 0.5) * channels;
+        // Create a ring buffer that can hold ~200ms of audio (reduced from 500ms for lower latency)
+        bufferCapacity = Math.ceil(sampleRate * 0.2) * channels;
         sampleBuffer = new Float32Array(bufferCapacity);
         writePosition = 0;
         readPosition = 0;
         bufferedSamples = 0;
+        
+        // Start playback after buffering ~50ms of audio (reduced for lower latency)
+        minBufferBeforePlay = Math.ceil(sampleRate * 0.05) * channels;
 
         // Create AudioContext if it doesn't exist
         if (!audioContext) {
@@ -52,7 +59,7 @@ export const WebAudioWavePlayer = (() => {
             console.log('WebAudioWavePlayer audioContext resumed');
         }
 
-        console.log(`WebAudioWavePlayer initialized: ${sampleRate}Hz, ${channels} channel(s), buffer size: ${bufferSize}, ring buffer capacity: ${bufferCapacity} samples`);
+        console.log(`WebAudioWavePlayer initialized: ${sampleRate}Hz, ${channels} channel(s), buffer size: ${bufferSize}, ring buffer capacity: ${bufferCapacity} samples, min buffer before play: ${minBufferBeforePlay} samples`);
 
         // Use ScriptProcessorNode as fallback (AudioWorklet requires separate file and HTTPS)
         // For production, consider implementing AudioWorklet for better performance
@@ -78,11 +85,11 @@ export const WebAudioWavePlayer = (() => {
             console.log('WebAudioWavePlayer existing ScriptProcessorNode disconnected');
         }
 
-        // Create ScriptProcessorNode
-        // Note: ScriptProcessorNode is deprecated but widely supported and simpler to set up
-        // The deprecation warning can be safely ignored - it will continue to work
-        // bufferSize must be power of 2 between 256 and 16384
-        const validBufferSize = Math.pow(2, Math.ceil(Math.log2(Math.min(16384, Math.max(256, bufferSize)))));
+        // Create ScriptProcessorNode with smaller buffer for lower latency
+        // Use 2048 samples (~46ms at 44100Hz) as a good balance between latency and stability
+        // Smaller buffers = lower latency but higher CPU usage and risk of glitches
+        const targetBufferSize = 2048;
+        const validBufferSize = Math.pow(2, Math.ceil(Math.log2(Math.min(16384, Math.max(256, targetBufferSize)))));
         
         audioWorkletNode = audioContext.createScriptProcessor(
             validBufferSize,
@@ -96,6 +103,16 @@ export const WebAudioWavePlayer = (() => {
             const outputBuffer = audioProcessingEvent.outputBuffer;
             const bufferLength = outputBuffer.length;
             const samplesNeeded = bufferLength * channels;
+
+            // Wait until we have enough initial buffer before starting playback
+            if (!hasEnoughToStart) {
+                // Output silence while waiting for buffer to fill
+                for (let channel = 0; channel < channels; channel++) {
+                    const outputData = outputBuffer.getChannelData(channel);
+                    outputData.fill(0);
+                }
+                return;
+            }
 
             if (isPlaying && bufferedSamples >= samplesNeeded) {
                 // We have enough samples - read from ring buffer
@@ -117,11 +134,6 @@ export const WebAudioWavePlayer = (() => {
                 for (let channel = 0; channel < channels; channel++) {
                     const outputData = outputBuffer.getChannelData(channel);
                     outputData.fill(0);
-                }
-                
-                if (isPlaying && bufferedSamples < samplesNeeded) {
-                    // Buffer underrun - this is normal during startup or if C# side is slow
-                    // Don't log every time to avoid console spam
                 }
             }
         };
@@ -171,6 +183,12 @@ export const WebAudioWavePlayer = (() => {
             audioContext.resume();
         }
 
+        // Start playing once we have enough buffered samples
+        if (!hasEnoughToStart && bufferedSamples >= minBufferBeforePlay) {
+            hasEnoughToStart = true;
+            console.log(`WebAudioWavePlayer starting playback with ${bufferedSamples} samples buffered`);
+        }
+
         // Start playing if not already playing
         if (!isPlaying) {
             isPlaying = true;
@@ -201,6 +219,7 @@ export const WebAudioWavePlayer = (() => {
      */
     function stop() {
         isPlaying = false;
+        hasEnoughToStart = false;
         writePosition = 0;
         readPosition = 0;
         bufferedSamples = 0;

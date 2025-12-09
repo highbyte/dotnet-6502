@@ -30,7 +30,7 @@ public partial class WebAudioWavePlayer : IWavePlayer
     /// Gets or sets the desired latency in milliseconds
     /// Should be set before a call to Init
     /// </summary>
-    public int DesiredLatency { get; set; } = 100;
+    public int DesiredLatency { get; set; } = 50;
 
     private int _bufferSizeSamples;
     private IWaveProvider? _sourceProvider;
