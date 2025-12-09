@@ -23,19 +23,19 @@ export const WebAudioWavePlayer = (() => {
         audioQueue = [];
         isPlaying = false;
 
-        console.log(`WebAudioWavePlayer initialize enter`);
-
         // Create AudioContext if it doesn't exist
         if (!audioContext) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)({
                 sampleRate: sampleRate,
                 latencyHint: 'interactive' // Low latency for real-time audio
             });
+            console.log(`WebAudioWavePlayer audioContext created with sample rate: ${audioContext.sampleRate}`);
         }
 
         // Resume context if it was suspended (browser autoplay policy)
         if (audioContext.state === 'suspended') {
             audioContext.resume();
+            console.log('WebAudioWavePlayer audioContext resumed');
         }
 
         console.log(`WebAudioWavePlayer initialized: ${sampleRate}Hz, ${channels} channel(s), buffer size: ${bufferSize}`);
@@ -50,16 +50,23 @@ export const WebAudioWavePlayer = (() => {
     /**
      * Set up ScriptProcessorNode for audio processing
      * This is the fallback method that works without additional setup
+     * Note: ScriptProcessorNode is deprecated but still widely supported.
+     * The deprecation warning in the console can be safely ignored.
+     * For better performance, consider implementing AudioWorklet in the future.
      */
     function setupScriptProcessor() {
+        console.log(`WebAudioWavePlayer setupScriptProcessor start.`);
+
         // Clean up existing node
         if (audioWorkletNode) {
             audioWorkletNode.disconnect();
             audioWorkletNode = null;
+            console.log('WebAudioWavePlayer existing ScriptProcessorNode disconnected');
         }
 
         // Create ScriptProcessorNode
         // Note: ScriptProcessorNode is deprecated but widely supported and simpler to set up
+        // The deprecation warning can be safely ignored - it will continue to work
         // bufferSize must be power of 2 between 256 and 16384
         const validBufferSize = Math.pow(2, Math.ceil(Math.log2(Math.min(16384, Math.max(256, bufferSize)))));
         
@@ -68,6 +75,7 @@ export const WebAudioWavePlayer = (() => {
             0, // No input channels
             channels // Output channels
         );
+        console.log('WebAudioWavePlayer ScriptProcessorNode created');
 
         // Process audio data
         audioWorkletNode.onaudioprocess = (audioProcessingEvent) => {
@@ -98,8 +106,9 @@ export const WebAudioWavePlayer = (() => {
 
         // Connect to destination (speakers)
         audioWorkletNode.connect(audioContext.destination);
+        console.log('WebAudioWavePlayer ScriptProcessorNode connected to destination');
         
-        console.log(`ScriptProcessorNode created with buffer size: ${validBufferSize}`);
+        console.log(`WebAudioWavePlayer setupScriptProcessor exit.`);
     }
 
     /**

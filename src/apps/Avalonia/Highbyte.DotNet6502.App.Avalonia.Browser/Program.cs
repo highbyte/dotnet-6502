@@ -64,7 +64,10 @@ internal sealed partial class Program
         {
             DesiredLatency = 100 // Higher latency for browser stability
         };
+        // Load custom JS module for interacting with WebAudio API from WebAudioWavePlayer.
+        await JSHost.ImportAsync("WebAudioWavePlayer", "/js/WebAudioWavePlayer.js");
 
+        // Start Avalonia app
         try
         {
             Console.WriteLine("Starting Avalonia Browser app...");

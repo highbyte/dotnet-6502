@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Runtime.InteropServices.JavaScript;
 using System.Threading.Tasks;
 using Azure.AI.OpenAI;
 using Highbyte.DotNet6502.Impl.NAudio.Synth;
@@ -30,6 +31,8 @@ public class DebugSoundViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit> CloseCommand { get; }
 
     public ReactiveCommand<Unit, Unit> InitAudioCommand { get; }
+    public ReactiveCommand<Unit, Unit> PlayAudioCommand { get; }
+    public ReactiveCommand<Unit, Unit> PauseAudioCommand { get; }
     public ReactiveCommand<Unit, Unit> StopAudioCommand { get; }
 
     public ReactiveCommand<Unit, Unit> PlayCommand { get; }
@@ -78,11 +81,20 @@ public class DebugSoundViewModel : ViewModelBase
             this.WhenAnyValue(x => x.IsAudioNotInitialized),
             outputScheduler: RxApp.MainThreadScheduler);
 
+        PlayAudioCommand = ReactiveCommand.CreateFromTask(
+            PlayAudio,
+            this.WhenAnyValue(x => x.IsAudioInitialized),
+            outputScheduler: RxApp.MainThreadScheduler);
+
+        PauseAudioCommand = ReactiveCommand.CreateFromTask(
+            PauseAudio,
+            this.WhenAnyValue(x => x.IsAudioInitialized),
+            outputScheduler: RxApp.MainThreadScheduler);
+
         StopAudioCommand = ReactiveCommand.CreateFromTask(
             StopAudio,
             this.WhenAnyValue(x => x.IsAudioInitialized),
             outputScheduler: RxApp.MainThreadScheduler);
-
 
         PlayCommand = ReactiveCommand.CreateFromTask(
             async () =>
@@ -236,11 +248,21 @@ public class DebugSoundViewModel : ViewModelBase
 
         _wavePlayer.Init(_volumeSampleProvider);
 
-        _wavePlayer.Play();
-
         IsAudioInitialized = true;
 
         StatusMessage = "Audio initialized.";
+    }
+
+    private async Task PlayAudio()
+    {
+        _wavePlayer.Play();
+        StatusMessage = "Audio playback started.";
+    }
+
+    private async Task PauseAudio()
+    {
+        _wavePlayer.Pause();
+        StatusMessage = "Audio playback paused.";
     }
 
     // NAudio stop all output
@@ -258,10 +280,7 @@ public class DebugSoundViewModel : ViewModelBase
         _synthEnvelopProvider = null;
         _customSineWaveProvider = null;
 
-        IsAudioInitialized = false;
-
-        StatusMessage = "All Audio stopped.";
-
+        StatusMessage = "Audio playback stopped.";
     }
 
     // ------------------------------------------------------------------
