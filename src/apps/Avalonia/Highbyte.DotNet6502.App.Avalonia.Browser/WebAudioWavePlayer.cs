@@ -48,9 +48,10 @@ public partial class WebAudioWavePlayer : IWavePlayer
 
     public void Init(IWaveProvider waveProvider)
     {
-        if (_isInitialized)
-            throw new InvalidOperationException("Already initialized");
+        //if (_isInitialized)
+        //    return;
 
+        _sourceProvider = null;
         _sourceProvider = waveProvider ?? throw new ArgumentNullException(nameof(waveProvider));
 
         // Validate wave format - WebAudio typically works best with float32 mono or stereo
@@ -169,9 +170,11 @@ public partial class WebAudioWavePlayer : IWavePlayer
         var bufferSizeBytes = _bufferSizeSamples * _sourceProvider.WaveFormat.Channels * bytesPerSample;
         var buffer = new byte[bufferSizeBytes];
 
-        // Calculate delay between buffer fills to maintain smooth playback
-        // Add a small safety margin to avoid underruns
-        var bufferDurationMs = (int)((DesiredLatency * 0.8)); // 80% of latency for safety margin
+        // Calculate delay between buffer fills based on buffer duration
+        // The delay should be slightly less than the buffer duration to keep the JS ring buffer fed
+        var bufferDurationMs = (int)((_bufferSizeSamples * 1000.0) / _sourceProvider.WaveFormat.SampleRate);
+        // Use 50% of buffer duration to ensure we stay ahead of playback
+        var delayMs = Math.Max(5, bufferDurationMs / 2);
 
         while (PlaybackState == PlaybackState.Playing || PlaybackState == PlaybackState.Paused)
         {
@@ -211,8 +214,8 @@ public partial class WebAudioWavePlayer : IWavePlayer
                 JSInterop.QueueAudioData(audioDataBytes, floatSamples.Length);
             }
 
-            // Wait before sending next buffer to avoid flooding JavaScript
-            await Task.Delay(bufferDurationMs, cancellationToken);
+            // Wait before sending next buffer
+            await Task.Delay(delayMs, cancellationToken);
         }
     }
 

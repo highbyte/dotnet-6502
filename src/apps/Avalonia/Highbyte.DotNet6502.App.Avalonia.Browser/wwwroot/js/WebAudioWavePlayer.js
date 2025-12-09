@@ -7,7 +7,14 @@ export const WebAudioWavePlayer = (() => {
     let sampleRate = 44100;
     let channels = 1;
     let bufferSize = 4096;
-    let audioQueue = [];
+    
+    // Ring buffer for continuous audio samples instead of array of buffers
+    let sampleBuffer = null;
+    let writePosition = 0;
+    let readPosition = 0;
+    let bufferedSamples = 0;
+    let bufferCapacity = 0;
+    
     let isPlaying = false;
 
     /**
@@ -20,8 +27,15 @@ export const WebAudioWavePlayer = (() => {
         sampleRate = sRate;
         channels = numChannels;
         bufferSize = bufSize;
-        audioQueue = [];
         isPlaying = false;
+
+        // Create a ring buffer that can hold ~500ms of audio (enough to handle timing variations)
+        // Buffer size in samples (per channel) = sampleRate * 0.5 seconds
+        bufferCapacity = Math.ceil(sampleRate * 0.5) * channels;
+        sampleBuffer = new Float32Array(bufferCapacity);
+        writePosition = 0;
+        readPosition = 0;
+        bufferedSamples = 0;
 
         // Create AudioContext if it doesn't exist
         if (!audioContext) {
@@ -38,7 +52,7 @@ export const WebAudioWavePlayer = (() => {
             console.log('WebAudioWavePlayer audioContext resumed');
         }
 
-        console.log(`WebAudioWavePlayer initialized: ${sampleRate}Hz, ${channels} channel(s), buffer size: ${bufferSize}`);
+        console.log(`WebAudioWavePlayer initialized: ${sampleRate}Hz, ${channels} channel(s), buffer size: ${bufferSize}, ring buffer capacity: ${bufferCapacity} samples`);
 
         // Use ScriptProcessorNode as fallback (AudioWorklet requires separate file and HTTPS)
         // For production, consider implementing AudioWorklet for better performance
@@ -75,31 +89,39 @@ export const WebAudioWavePlayer = (() => {
             0, // No input channels
             channels // Output channels
         );
-        console.log('WebAudioWavePlayer ScriptProcessorNode created');
+        console.log(`WebAudioWavePlayer ScriptProcessorNode created with buffer size: ${validBufferSize}`);
 
         // Process audio data
         audioWorkletNode.onaudioprocess = (audioProcessingEvent) => {
             const outputBuffer = audioProcessingEvent.outputBuffer;
             const bufferLength = outputBuffer.length;
+            const samplesNeeded = bufferLength * channels;
 
-            // Get audio data from queue
-            if (audioQueue.length > 0 && isPlaying) {
-                const audioData = audioQueue.shift();
-                
-                // Fill output buffer
+            if (isPlaying && bufferedSamples >= samplesNeeded) {
+                // We have enough samples - read from ring buffer
                 for (let channel = 0; channel < channels; channel++) {
                     const outputData = outputBuffer.getChannelData(channel);
                     
                     for (let i = 0; i < bufferLength; i++) {
-                        const sampleIndex = channels === 1 ? i : (i * channels + channel);
-                        outputData[i] = sampleIndex < audioData.length ? audioData[sampleIndex] : 0;
+                        // For interleaved audio: sample index = frame * channels + channel
+                        const ringBufferIndex = (readPosition + i * channels + channel) % bufferCapacity;
+                        outputData[i] = sampleBuffer[ringBufferIndex];
                     }
                 }
+                
+                // Advance read position
+                readPosition = (readPosition + samplesNeeded) % bufferCapacity;
+                bufferedSamples -= samplesNeeded;
             } else {
-                // No data available or not playing - output silence
+                // Not enough data or not playing - output silence
                 for (let channel = 0; channel < channels; channel++) {
                     const outputData = outputBuffer.getChannelData(channel);
                     outputData.fill(0);
+                }
+                
+                if (isPlaying && bufferedSamples < samplesNeeded) {
+                    // Buffer underrun - this is normal during startup or if C# side is slow
+                    // Don't log every time to avoid console spam
                 }
             }
         };
@@ -117,7 +139,7 @@ export const WebAudioWavePlayer = (() => {
      * @param {number} sampleCount - Number of float samples in the array
      */
     function queueAudioData(audioDataBytes, sampleCount) {
-        if (!audioContext) {
+        if (!audioContext || !sampleBuffer) {
             console.error('WebAudioWavePlayer not initialized');
             return;
         }
@@ -126,16 +148,23 @@ export const WebAudioWavePlayer = (() => {
         // Create a view over the byte array and interpret it as float32
         const floatArray = new Float32Array(audioDataBytes.buffer, audioDataBytes.byteOffset, sampleCount);
         
-        // Convert to regular JavaScript array for easier manipulation
-        const dataArray = Array.from(floatArray);
-        audioQueue.push(dataArray);
-
-        // Limit queue size to prevent memory issues
-        const maxQueueSize = 10;
-        if (audioQueue.length > maxQueueSize) {
-            console.warn(`Audio queue overflow (${audioQueue.length} items), dropping oldest buffer`);
-            audioQueue.shift();
+        // Check if we have room in the ring buffer
+        const availableSpace = bufferCapacity - bufferedSamples;
+        
+        if (sampleCount > availableSpace) {
+            // Buffer overflow - drop oldest samples to make room
+            const samplesToDiscard = sampleCount - availableSpace;
+            readPosition = (readPosition + samplesToDiscard) % bufferCapacity;
+            bufferedSamples -= samplesToDiscard;
+            console.warn(`Audio buffer overflow, discarded ${samplesToDiscard} samples`);
         }
+
+        // Write samples to ring buffer
+        for (let i = 0; i < sampleCount; i++) {
+            sampleBuffer[(writePosition + i) % bufferCapacity] = floatArray[i];
+        }
+        writePosition = (writePosition + sampleCount) % bufferCapacity;
+        bufferedSamples += sampleCount;
 
         // Resume context if it was suspended
         if (audioContext.state === 'suspended') {
@@ -168,11 +197,16 @@ export const WebAudioWavePlayer = (() => {
     }
 
     /**
-     * Stop audio playback and clear queue
+     * Stop audio playback and clear buffer
      */
     function stop() {
         isPlaying = false;
-        audioQueue = [];
+        writePosition = 0;
+        readPosition = 0;
+        bufferedSamples = 0;
+        if (sampleBuffer) {
+            sampleBuffer.fill(0);
+        }
         console.log('WebAudioWavePlayer stopped');
     }
 
@@ -191,6 +225,8 @@ export const WebAudioWavePlayer = (() => {
             audioContext.close();
             audioContext = null;
         }
+        
+        sampleBuffer = null;
         
         console.log('WebAudioWavePlayer cleaned up');
     }
