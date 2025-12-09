@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices.JavaScript;
@@ -170,11 +171,13 @@ public partial class WebAudioWavePlayer : IWavePlayer
         var bufferSizeBytes = _bufferSizeSamples * _sourceProvider.WaveFormat.Channels * bytesPerSample;
         var buffer = new byte[bufferSizeBytes];
 
-        // Calculate delay between buffer fills based on buffer duration
-        // The delay should be slightly less than the buffer duration to keep the JS ring buffer fed
-        var bufferDurationMs = (int)((_bufferSizeSamples * 1000.0) / _sourceProvider.WaveFormat.SampleRate);
-        // Use 50% of buffer duration to ensure we stay ahead of playback
-        var delayMs = Math.Max(5, bufferDurationMs / 2);
+        // Calculate the exact duration of one buffer in milliseconds
+        // This is how long it takes the audio hardware to play the samples we send
+        var bufferDurationMs = (_bufferSizeSamples * 1000.0) / _sourceProvider.WaveFormat.SampleRate;
+
+        // Use a stopwatch to maintain accurate timing regardless of processing delays
+        var stopwatch = Stopwatch.StartNew();
+        var nextSendTime = stopwatch.ElapsedMilliseconds;
 
         while (PlaybackState == PlaybackState.Playing || PlaybackState == PlaybackState.Paused)
         {
@@ -183,6 +186,8 @@ public partial class WebAudioWavePlayer : IWavePlayer
             if (PlaybackState == PlaybackState.Paused)
             {
                 await Task.Delay(10, cancellationToken);
+                // Reset timing when paused to avoid burst sending on resume
+                nextSendTime = stopwatch.ElapsedMilliseconds;
                 continue;
             }
 
@@ -214,8 +219,23 @@ public partial class WebAudioWavePlayer : IWavePlayer
                 JSInterop.QueueAudioData(audioDataBytes, floatSamples.Length);
             }
 
-            // Wait before sending next buffer
-            await Task.Delay(delayMs, cancellationToken);
+            // Calculate when we should send the next buffer
+            nextSendTime += (long)bufferDurationMs;
+
+            // Calculate how long to wait (accounting for time already spent processing)
+            var currentTime = stopwatch.ElapsedMilliseconds;
+            var delayMs = (int)(nextSendTime - currentTime);
+
+            // Only delay if we're ahead of schedule
+            if (delayMs > 0)
+            {
+                await Task.Delay(delayMs, cancellationToken);
+            }
+            else if (delayMs < -bufferDurationMs * 2)
+            {
+                // We're way behind schedule, reset timing to avoid playing catch-up
+                nextSendTime = stopwatch.ElapsedMilliseconds;
+            }
         }
     }
 
