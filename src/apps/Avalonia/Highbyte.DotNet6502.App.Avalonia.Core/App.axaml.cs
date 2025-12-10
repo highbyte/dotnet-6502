@@ -34,7 +34,6 @@ public partial class App : Application
     private readonly ILogger _logger;
     private readonly Func<string, string, string?, Task>? _saveCustomConfigString;
     private readonly Func<string, IConfigurationSection, string?, Task>? _saveCustomConfigSection;
-    private readonly IWavePlayer? _wavePlayer;
 
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
@@ -56,7 +55,6 @@ public partial class App : Application
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
-        IWavePlayer? wavePlayer = null,
         Func<string, string, string?, Task>? saveCustomConfigString = null,
         Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection = null)
     {
@@ -69,7 +67,6 @@ public partial class App : Application
         _logConfig = logConfig;
         _saveCustomConfigString = saveCustomConfigString;
         _saveCustomConfigSection = saveCustomConfigSection;
-        _wavePlayer = wavePlayer;
 
         try
         {
@@ -193,9 +190,6 @@ public partial class App : Application
         if (_logConfig != null)
             services.AddSingleton(_logConfig);
 
-        if (_wavePlayer != null)
-            services.AddSingleton<IWavePlayer>(_wavePlayer);
-
         // Register ViewModels as transient (new instance each time)
         services.AddTransient<MainViewModel>();
         services.AddTransient<EmulatorViewModel>();
@@ -255,7 +249,6 @@ public partial class App : Application
                 _emulatorConfig,
                 _logStore,
                 _logConfig,
-                _wavePlayer,
                 _saveCustomConfigString,
                 _saveCustomConfigSection);
 

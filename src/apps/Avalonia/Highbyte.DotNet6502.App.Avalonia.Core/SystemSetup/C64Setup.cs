@@ -103,7 +103,8 @@ public class C64Setup : ISystemConfigurer<AvaloniaInputHandlerContext, NAudioAud
         // Use NAudio (cross platform synth waveforms generation) for desktop and browser platforms, NullAudioHandler for others.
         // Note: It's inside NAudioAudioHandlerContext that has dependency to specific IWavePlayer implementation for either Desktop (SilkNetOpenAL) or Browser (WebAudio) that actually playes the generated samples.
         IAudioHandler audioHandler;
-        if (PlatformDetection.IsRunningOnDesktop() || PlatformDetection.IsRunningInWebAssembly())
+        if (hostSystemConfig.SystemConfig.AudioEnabled &&
+            (PlatformDetection.IsRunningOnDesktop() || PlatformDetection.IsRunningInWebAssembly()))
         {
             audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
         }

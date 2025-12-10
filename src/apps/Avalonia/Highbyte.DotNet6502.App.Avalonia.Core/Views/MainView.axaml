@@ -160,22 +160,27 @@
                     </Grid>
 
                     <!-- Audio Settings -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                        <Border Background="Transparent"
-                            ToolTip.Tip="{Binding AudioTooltip}">
-                            <CheckBox
+                    <StackPanel Classes="spacing-tight" >
+                        <Grid Classes="spacing-tight">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0"
                                 Content="Audio"
                                 IsVisible="true"
                                 IsEnabled="{Binding AudioSettingsEnabled }"
-                                IsChecked="{Binding AudioEnabled}"/>
-                        </Border>
-                        <Slider Width="100" 
-                            Minimum="0" Maximum="100"
-                            Value="{Binding AudioVolumePercent}"
-                            TickFrequency="5"
-                            IsSnapToTickEnabled="False"
-                            IsEnabled="{Binding AudioEnabled }"
-                            Classes="small"/>
+                                IsChecked="{Binding AudioEnabled}"
+                                ToolTip.Tip="{Binding AudioTooltip}"/>
+                            <Slider Grid.Column="1"
+                                Width="100"
+                                Minimum="0" Maximum="100"
+                                Value="{Binding AudioVolumePercent}"
+                                TickFrequency="5"
+                                IsSnapToTickEnabled="False"
+                                IsEnabled="{Binding AudioEnabled }"
+                                Classes="small"/>
+                        </Grid>
                     </StackPanel>
                 </StackPanel>
 

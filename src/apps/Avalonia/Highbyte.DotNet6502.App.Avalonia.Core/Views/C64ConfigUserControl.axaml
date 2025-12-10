@@ -108,56 +108,79 @@
             </StackPanel>
         </Border>
         </StackPanel>
-
-        <!-- Render and Audio Section -->
+          
+        <!-- Render Section -->
         <StackPanel Width="460" Classes="wrap-item">
-        <Border Classes="content-section">
-            <StackPanel Classes="spacing-tight">
-            <TextBlock Text="Video &amp; Audio"
-                        Classes=""/>
+            <Border Classes="content-section">
+                <StackPanel Classes="spacing-tight">
+                <TextBlock Text="Video"
+                            Classes=""/>
 
-            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Classes="spacing-tight">
-                <TextBlock Grid.Row="0" Grid.Column="0" 
-                            Text="Render provider:" 
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+                    <TextBlock Grid.Row="0" Grid.Column="0" 
+                                Text="Render provider:" 
+                                Classes="secondary-text"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1"
+                            ItemsSource="{Binding RenderProviders}"
+                            SelectedItem="{Binding SelectedRenderProvider}"
+                            ToolTip.Tip="{Binding SelectedRenderProviderHelpText}"
+                            Classes="h-stretch"
+                            MaxDropDownHeight="200">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:RenderProviderOption">
+                            <TextBlock Text="{Binding DisplayName}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" 
+                                Text="Render target:" 
+                                Classes="secondary-text"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1"
+                            ItemsSource="{Binding RenderTargets}"
+                            SelectedItem="{Binding SelectedRenderTarget}"
+                            ToolTip.Tip="{Binding SelectedRenderTargetHelpText}"
+                            Classes="h-stretch"
+                            MaxDropDownHeight="200">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:RenderTargetOption">
+                            <TextBlock Text="{Binding DisplayName}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
+
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Audio Section -->
+        <StackPanel Width="460" Classes="wrap-item">
+            <Border Classes="content-section">
+                <StackPanel Classes="spacing-tight">
+                    <TextBlock Text="Audio"
+                                Classes=""/>
+
+                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+                        <CheckBox Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                                Content="Enable SID audio (experimental)"
+                                IsChecked="{Binding AudioEnabled}"
+                                Classes=""/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0"
+                            Text="Audio profile:"
                             Classes="secondary-text"/>
-                <ComboBox Grid.Row="0" Grid.Column="1"
-                        ItemsSource="{Binding RenderProviders}"
-                        SelectedItem="{Binding SelectedRenderProvider}"
-                        ToolTip.Tip="{Binding SelectedRenderProviderHelpText}"
-                        Classes="h-stretch"
-                        MaxDropDownHeight="200">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="vm:RenderProviderOption">
-                    <TextBlock Text="{Binding DisplayName}"/>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-                </ComboBox>
-
-                <TextBlock Grid.Row="1" Grid.Column="0" 
-                            Text="Render target:" 
-                            Classes="secondary-text"/>
-                <ComboBox Grid.Row="1" Grid.Column="1"
-                        ItemsSource="{Binding RenderTargets}"
-                        SelectedItem="{Binding SelectedRenderTarget}"
-                        ToolTip.Tip="{Binding SelectedRenderTargetHelpText}"
-                        Classes="h-stretch"
-                        MaxDropDownHeight="200">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="vm:RenderTargetOption">
-                    <TextBlock Text="{Binding DisplayName}"/>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-                </ComboBox>
-
-                <CheckBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
-                        Content="Enable SID audio (experimental)"
-                        IsChecked="{Binding AudioEnabled}"
-                        Classes=""/>
-            </Grid>
-
-            </StackPanel>
-        </Border>
-        </StackPanel>      
+                        <ComboBox Grid.Row="1" Grid.Column="1"
+                                ItemsSource="{Binding AudioWavePlayerSettingsProfiles}"
+                                SelectedItem="{Binding SelectedAudioWavePlayerSettingsProfile}"
+                                IsEnabled="{Binding AudioEnabled}"
+                                Classes="h-stretch"
+                                MaxDropDownHeight="200">
+                        </ComboBox>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
 
         <!-- Input Section -->
         <StackPanel Width="460" Classes="wrap-item">

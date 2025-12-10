@@ -12,14 +12,16 @@ using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Impl.Avalonia.Render;
 using Highbyte.DotNet6502.Impl.NAudio;
-using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
-using NAudio.Wave;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.SilkNetOpenAL;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using NAudio.Wave;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
@@ -58,7 +60,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     }
 
     private AvaloniaMonitor? _monitor;
-    public AvaloniaMonitor? Monitor => _monitor;
+    internal AvaloniaMonitor? Monitor => _monitor;
 
     internal bool IsMonitorVisible => _monitor?.IsVisible ?? false;
 
@@ -75,7 +77,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     // Expose LogStore for use in views that are not created through DI (e.g., to display logs in the UI).
     internal DotNet6502InMemLogStore? LogStore => _logStore;
 
-    // Public properties for external access
+    // Expose SystemLst and EmulatorConfig properties internal access
     internal SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> SystemList => _systemList;
     internal EmulatorConfig EmulatorConfig => _emulatorConfig;
 
@@ -96,7 +98,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         EmulatorConfig emulatorConfig,
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
-        IWavePlayer? wavePlayer,
         Func<string, string, string?, Task>? saveCustomConfigString,
         Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection
 
@@ -116,9 +117,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _systemList = systemList;
 
         _inputHandlerContext = new AvaloniaInputHandlerContext();
-        _audioHandlerContext = CreateAudioHandlerContext(wavePlayer);
 
-        base.SetContexts(() => _inputHandlerContext, () => _audioHandlerContext);
+        base.SetContexts(() => _inputHandlerContext, () => GetAudioHandlerContext());
         base.InitInputHandlerContext();
         base.InitAudioHandlerContext();
 
@@ -175,6 +175,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     public void SetVolumePercent(float volumePercent)
     {
+        // TODO: Setting volume from UI while running is not remembered to next time the emulator is started. The slider indicates correct but is not the actual volume.
         _audioHandlerContext.SetMasterVolumePercent(masterVolumePercent: volumePercent);
     }
 
@@ -239,6 +240,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     public override void OnAfterStop()
     {
+        _audioHandlerContext.StopWavePlayer();
+
         StopAndDisposeUpdateTimer();
     }
 
@@ -535,22 +538,61 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         ValidationErrors = new ObservableCollection<string>(errors);
     }
 
-    private NAudioAudioHandlerContext CreateAudioHandlerContext(IWavePlayer? wavePlayer)
+    private NAudioAudioHandlerContext GetAudioHandlerContext()
     {
-        if (wavePlayer != null)
+        // Return existing context if already created and settings have not changed
+        if (_audioHandlerContext != null
+            && _audioHandlerContext.WavePlayer != NullWavePlayer.Instance
+            && _audioHandlerContext.WavePlayer is IUsesProfile usesProfile
+            && EmulatorConfig.AudioSettingsProfile != usesProfile.ProfileType)
         {
-            _logger.LogInformation("Using provided IWavePlayer for audio playback");
-            return new NAudioAudioHandlerContext(
-                wavePlayer,
-                initialVolumePercent: _defaultAudioVolumePercent);
+            return _audioHandlerContext;
+        }
+
+        IWavePlayer? wavePlayer;
+        float audioVolumePercent = _defaultAudioVolumePercent;
+
+        if (CurrentHostSystemConfig == null || !CurrentHostSystemConfig.SystemConfig.AudioEnabled)
+        {
+            _logger.LogInformation("Using NAudio NullWavePlayer because audio is not enabled.");
+
+            wavePlayer = NullWavePlayer.Instance;
+            audioVolumePercent = 0;
+        }
+        else if (PlatformDetection.IsRunningOnDesktop())
+        {
+            _logger.LogInformation("Using NAudio SilkNetOpenALWavePlayer for desktop cross-platform");
+
+            // Create Naudio wave player for desktop (using cross-platform OpenAL WavePlayer)
+            wavePlayer = new SilkNetOpenALWavePlayer()
+            {
+                NumberOfBuffers = 2,
+                DesiredLatency = 40
+            };
+        }
+        else if (PlatformDetection.IsRunningInWebAssembly())
+        {
+            _logger.LogInformation("Using NAudio WebAudioWavePlayer for browser platform");
+
+            // Create NAudio WavePllayer for browser (using WebAudio API JavaScript interop)
+            wavePlayer = new WebAudioWavePlayer(WebAudioWavePlayerSettings.GetSettingsForProfile(EmulatorConfig.AudioSettingsProfile));
         }
         else
         {
-            _logger.LogWarning("No IWavePlayer provided - audio will be disabled");
-            return new NAudioAudioHandlerContext(
-                wavePlayer: null!,
-                initialVolumePercent: 0);
+            _logger.LogInformation("Using NAudio NullWavePlayer because current platform doesn't have IWavePlayer implementation.");
+            wavePlayer = NullWavePlayer.Instance;
         }
+
+        // Cleanup existing context
+        _audioHandlerContext?.Cleanup();
+        _audioHandlerContext = null!;
+
+        // Create a new context
+        _audioHandlerContext = new NAudioAudioHandlerContext(
+            wavePlayer,
+            initialVolumePercent: audioVolumePercent);
+
+        return _audioHandlerContext;
     }
 
     /// <summary>

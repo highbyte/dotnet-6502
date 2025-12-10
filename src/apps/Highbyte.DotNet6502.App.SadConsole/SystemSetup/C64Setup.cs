@@ -87,7 +87,15 @@ public class C64Setup : ISystemConfigurer<SadConsoleInputHandlerContext, NAudioA
         var c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, codeSuggestion, _loggerFactory);
         var inputHandler = new C64SadConsoleInputHandler(c64, inputHandlerContext, _loggerFactory, c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
 
-        var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
+        IAudioHandler audioHandler;
+        if (hostSystemConfig.SystemConfig.AudioEnabled)
+        {
+            audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
+        }
+        else
+        {
+            audioHandler = new NullAudioHandler(c64);
+        }
 
         return Task.FromResult(new SystemRunner(c64, inputHandler, audioHandler));
     }

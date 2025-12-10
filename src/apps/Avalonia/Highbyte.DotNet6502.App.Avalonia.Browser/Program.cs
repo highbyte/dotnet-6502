@@ -1,22 +1,16 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Net.Http;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Browser;
-using Highbyte.DotNet6502.App.Avalonia.Browser;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Systems.Logging.Console;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using NAudio.Wave;
 
 internal sealed partial class Program
 {
@@ -59,19 +53,15 @@ internal sealed partial class Program
 
         emulatorConfig.EnableLoadResourceOverHttp(GetAppUrlHttpClient);
 
-        // Create audio wave player for browser (using WebAudio)
-        var wavePlayer = new WebAudioWavePlayer(WebAudioWavePlayerSettings.LowestLatency)
-        {
-            DesiredLatency = 100 // Higher latency for browser stability
-        };
-        // Load custom JS module for interacting with WebAudio API from WebAudioWavePlayer.
-        await JSHost.ImportAsync("WebAudioWavePlayer", "/js/WebAudioWavePlayer.js");
+        // Load custom JS module that WebAudioWavePlayer requires for interacting with WebAudio API.
+        var jsModuleUri = WebAudioWavePlayerResources.GetJavaScriptModuleDataUri();
+        await JSHost.ImportAsync("WebAudioWavePlayer", jsModuleUri);
 
         // Start Avalonia app
         try
         {
             Console.WriteLine("Starting Avalonia Browser app...");
-            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, wavePlayer)
+            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge)
                 .WithInterFont()
                 .StartBrowserAppAsync("out");
 
@@ -271,8 +261,7 @@ internal sealed partial class Program
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
-        AvaloniaLoggerBridge avaloniaLoggerBridge,
-        IWavePlayer wavePlayer)
+        AvaloniaLoggerBridge avaloniaLoggerBridge)
     {
         return AppBuilder.Configure(() =>
         {
@@ -282,7 +271,6 @@ internal sealed partial class Program
                                 logStore,
                                 logConfig,
                                 loggerFactory,
-                                wavePlayer,
                                 saveCustomConfigString: PersistStringToLocalStorage, // Save configuration to custom provided JSON in Browser Local Storage
                                 saveCustomConfigSection: PersistConfigSectionToLocalStorage // Save configuration to custom provided IConfigurationSection in Browser Local Storage
                             );

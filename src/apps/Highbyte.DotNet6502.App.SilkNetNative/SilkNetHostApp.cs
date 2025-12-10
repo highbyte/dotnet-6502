@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Reflection;
 using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
-using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.SilkNetOpenAL;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Render;
 using Highbyte.DotNet6502.Impl.Skia;

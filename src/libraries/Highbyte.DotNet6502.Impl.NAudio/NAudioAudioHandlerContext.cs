@@ -7,6 +7,8 @@ namespace Highbyte.DotNet6502.Impl.NAudio;
 public class NAudioAudioHandlerContext : IAudioHandlerContext
 {
     private readonly IWavePlayer _wavePlayer;
+    public IWavePlayer WavePlayer => _wavePlayer;
+
     private VolumeSampleProvider _masterVolumeControl = default!;
 
     private float _initialVolumePercent;

@@ -1,7 +1,7 @@
-using Highbyte.DotNet6502.Impl.AspNet.JSInterop;
-using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
-using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
-using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.WaveTables;
+using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth.JSInterop;
+using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth.JSInterop.BlazorWebAudioSync;
+using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth.JSInterop.BlazorWebAudioSync.Options;
+using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth.JSInterop.BlazorWebAudioSync.WaveTables;
 
 namespace Highbyte.DotNet6502.App.WASM.Pages;
 

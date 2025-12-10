@@ -10,6 +10,7 @@ using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.Impl.Avalonia.Commodore64.Input;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
@@ -39,6 +40,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private string? _validationMessage;
     private readonly ObservableCollection<string> _validationErrors = new();
     private bool _audioEnabled;
+    private WavePlayerSettingsProfile _selectedAudioWavePlayerSettingsProfile;
     private bool _keyboardJoystickEnabled;
     private int _selectedKeyboardJoystick;
     private int _selectedHostJoystick;
@@ -77,10 +79,14 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _httpClient = new HttpClient();
 
         AvailableJoysticks = new ObservableCollection<int>(_workingConfig.InputConfig.AvailableJoysticks);
-        AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
         KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
         SelectedKeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;
         SelectedHostJoystick = _workingConfig.InputConfig.CurrentJoystick;
+
+        AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
+        AudioWavePlayerSettingsProfiles = new ObservableCollection<WavePlayerSettingsProfile>(Enum.GetValues<WavePlayerSettingsProfile>());
+        SelectedAudioWavePlayerSettingsProfile = _hostApp.EmulatorConfig.AudioSettingsProfile;
+
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
 
         // Initialize AI Coding Assistant properties
@@ -139,6 +145,9 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public ObservableCollection<RenderTargetOption> RenderTargets { get; } = new();
     public ObservableCollection<int> AvailableJoysticks { get; }
     public ObservableCollection<KeyMappingEntry> KeyboardMappings { get; } = new();
+
+    public ObservableCollection<WavePlayerSettingsProfile> AudioWavePlayerSettingsProfiles { get; } = new();
+
 
     public bool IsRunningInWebAssembly { get; } = PlatformDetection.IsRunningInWebAssembly();
 
@@ -207,6 +216,18 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _audioEnabled, value);
             _workingConfig.SystemConfig.AudioEnabled = value;
+        }
+    }
+
+    public WavePlayerSettingsProfile SelectedAudioWavePlayerSettingsProfile
+    {
+        get => _selectedAudioWavePlayerSettingsProfile;
+        set
+        {
+            if (_selectedAudioWavePlayerSettingsProfile == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedAudioWavePlayerSettingsProfile, value);
         }
     }
 
@@ -1044,10 +1065,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
         _originalConfig.InputConfig = (C64AvaloniaInputConfig)_workingConfig.InputConfig.Clone();
 
+        // Apply Audio profile setting (which is currently is in config for entire emulator, not a specific system (like C64)
+        _hostApp.EmulatorConfig.AudioSettingsProfile = _selectedAudioWavePlayerSettingsProfile;
+
         // Apply AI Coding Assistant settings
         _originalConfig.CodeSuggestionBackendType = _workingConfig.CodeSuggestionBackendType;
         _originalConfig.BasicAIAssistantDefaultEnabled = _workingConfig.BasicAIAssistantDefaultEnabled;
-
         WriteAIConfiguration();
     }
 

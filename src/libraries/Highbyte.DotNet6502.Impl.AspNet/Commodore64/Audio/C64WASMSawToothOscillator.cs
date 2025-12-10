@@ -1,6 +1,6 @@
-using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorDOMSync;
-using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
-using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync.Options;
+using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth;
+using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth.JSInterop.BlazorWebAudioSync;
+using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth.JSInterop.BlazorWebAudioSync.Options;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 

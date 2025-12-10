@@ -1,7 +1,7 @@
 using Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
-using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.SilkNetOpenAL;
 using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Render;
 using Highbyte.DotNet6502.Systems;

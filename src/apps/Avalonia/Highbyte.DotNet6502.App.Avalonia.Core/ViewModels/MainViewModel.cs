@@ -365,7 +365,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 
         _audioTooltip = _hostApp
             .WhenAnyValue(x => x.CurrentHostSystemConfig)
-            .Select(config => config?.AudioSupported == false ? "Audio only supported on desktop and browser" : null)
+            .Select(config => GetAudioToolTip(config))
             .ToProperty(this, x => x.AudioTooltip);
 
         // Initialize ReactiveCommands for ComboBox selections
@@ -507,6 +507,23 @@ public class MainViewModel : ViewModelBase, IDisposable
         // System-specific ViewModel initializations
         this.WhenAnyValue(x => x.SelectedSystemName)
                  .Subscribe(_ => this.RaisePropertyChanged(nameof(IsC64SystemSelected)));
+    }
+
+    private string GetAudioToolTip(IHostSystemConfig config)
+    {
+        if (config == null)
+            return string.Empty;
+
+        if (!config.AudioSupported)
+            return "Audio is not supported on current platform.";
+
+        if (PlatformDetection.IsRunningOnDesktop())
+            return "Audio is experimental. Fast assembly routines may not play audio correctly.";
+
+        if (PlatformDetection.IsRunningInWebAssembly())
+            return "Audio is experimental. Fast assembly routines may not play audio correctly. In browser there is a bigger performance cost that may affect entire emulation FPS. See config settings menu for different audio profiles to balance accuracy against latency.";
+
+        return string.Empty;
     }
 
     public async Task InitializeAsync()
