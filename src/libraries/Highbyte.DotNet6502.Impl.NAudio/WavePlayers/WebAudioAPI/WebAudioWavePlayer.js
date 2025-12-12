@@ -264,6 +264,12 @@ export const WebAudioWavePlayer = (() => {
         if (audioContext && audioContext.state === 'suspended') {
             audioContext.resume();
         }
+        
+        // Reconnect the processor node if it was disconnected during stop
+        if (audioWorkletNode && audioContext) {
+            audioWorkletNode.connect(audioContext.destination);
+        }
+        
         isPlaying = true;
         console.log('WebAudioWavePlayer resumed');
     }
@@ -290,6 +296,13 @@ export const WebAudioWavePlayer = (() => {
         if (sampleBuffer) {
             sampleBuffer.fill(0);
         }
+        
+        // Disconnect the processor node immediately to stop all audio output
+        // This prevents any buffered audio from continuing to play
+        if (audioWorkletNode) {
+            audioWorkletNode.disconnect();
+        }
+        
         console.log('WebAudioWavePlayer stopped');
     }
 

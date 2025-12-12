@@ -148,6 +148,9 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
             // Cancel playback loop
             _cancellationTokenSource?.Cancel();
 
+            // Stop playback in JavaScript
+            JSInterop.Stop();
+
             // Wait for playback task to complete
             try
             {
@@ -161,9 +164,6 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
             _playbackTask = null;
             _cancellationTokenSource?.Dispose();
             _cancellationTokenSource = null;
-
-            // Stop playback in JavaScript
-            JSInterop.Stop();
         }
     }
 
@@ -208,7 +208,9 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
 
         while (PlaybackState == PlaybackState.Playing || PlaybackState == PlaybackState.Paused)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            // Check for cancellation early and exit gracefully without processing more audio
+            if (cancellationToken.IsCancellationRequested)
+                break;
 
             if (PlaybackState == PlaybackState.Paused)
             {

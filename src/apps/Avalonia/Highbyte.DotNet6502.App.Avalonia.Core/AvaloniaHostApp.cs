@@ -240,8 +240,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     public override void OnAfterStop()
     {
-        _audioHandlerContext.StopWavePlayer();
-
         StopAndDisposeUpdateTimer();
     }
 
