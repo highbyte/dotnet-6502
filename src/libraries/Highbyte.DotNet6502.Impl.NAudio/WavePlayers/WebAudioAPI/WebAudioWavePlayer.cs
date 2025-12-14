@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NAudio.Wave;
 
 namespace Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
@@ -48,6 +50,18 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
 
     public WavePlayerSettingsProfile ProfileType => _settings.ProfileType;
 
+    private static ILogger s_logger = NullLogger.Instance;
+
+    /// <summary>
+    /// Sets the logger for JavaScript log messages.
+    /// Call this before Init() to receive logs from JavaScript.
+    /// </summary>
+    /// <param name="logger">The logger instance to use, or null to disable logging.</param>
+    public static void SetLogger(ILogger? logger)
+    {
+        s_logger = logger ?? NullLogger.Instance;
+    }
+
     private int _bufferSizeSamples;
     private IWaveProvider? _sourceProvider;
 
@@ -90,6 +104,9 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
         // Calculate buffer size based on desired latency
         // Buffer size in samples = sample rate * (latency in seconds)
         _bufferSizeSamples = (int)(_sourceProvider.WaveFormat.SampleRate * (_settings.DesiredLatencyMs / 1000.0));
+
+        // Register the log callback before initializing
+        JSInterop.RegisterLogCallback(OnLogMessage);
 
         // Initialize WebAudio context in JavaScript with all settings
         JSInterop.Initialize(
@@ -242,7 +259,7 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
                 }
 
                 // Send audio data to JavaScript
-                // Convert float array to byte array for JSImport
+                // Convert float array to byte array forJSImport
                 var audioDataBytes = new byte[floatSamples.Length * sizeof(float)];
                 Buffer.BlockCopy(floatSamples, 0, audioDataBytes, 0, audioDataBytes.Length);
                 JSInterop.QueueAudioData(audioDataBytes, floatSamples.Length);
@@ -306,7 +323,22 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
         GC.SuppressFinalize(this);
     }
 
-
+    /// <summary>
+    /// Called from JavaScript to send log messages to .NET.
+    /// </summary>
+    [JSExport]
+    internal static void OnLogMessage(int level, string message)
+    {
+        var logLevel = level switch
+        {
+            0 => LogLevel.Debug,
+            1 => LogLevel.Information,
+            2 => LogLevel.Warning,
+            3 => LogLevel.Error,
+            _ => LogLevel.Information
+        };
+        s_logger.Log(logLevel, "[JS] {Message}", message);
+    }
 
     // ================================================================================
     // JavaScript Interop Methods
@@ -315,6 +347,9 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
     [SupportedOSPlatform("browser")]
     private static partial class JSInterop
     {
+        [JSImport("WebAudioWavePlayer.registerLogCallback", "WebAudioWavePlayer")]
+        public static partial void RegisterLogCallback([JSMarshalAs<JSType.Function<JSType.Number, JSType.String>>] Action<int, string> callback);
+
         [JSImport("WebAudioWavePlayer.initialize", "WebAudioWavePlayer")]
         public static partial void Initialize(
             int sampleRate,

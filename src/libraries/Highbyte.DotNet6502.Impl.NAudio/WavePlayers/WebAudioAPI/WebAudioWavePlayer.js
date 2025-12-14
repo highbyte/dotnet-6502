@@ -31,6 +31,57 @@ export const WebAudioWavePlayer = (() => {
     
     let isPlaying = false;
 
+    // Log callback to .NET
+    let logCallback = null;
+    
+    // Log levels matching LogLevel in C#
+    const LogLevel = {
+        Debug: 0,
+        Info: 1,
+        Warning: 2,
+        Error: 3
+    };
+
+    /**
+     * Log a message to .NET and optionally to console as fallback
+     * @param {number} level - Log level from LogLevel enum
+     * @param {string} message - The message to log
+     */
+    function log(level, message) {
+        if (logCallback) {
+            try {
+                logCallback(level, message);
+            } catch (e) {
+                // Fallback to console if callback fails
+                console.log(`[WebAudioWavePlayer] ${message}`);
+            }
+        } else {
+            // Fallback to console if no callback registered
+            if (level === LogLevel.Error) {
+                console.error(`[WebAudioWavePlayer] ${message}`);
+            } else {
+                console.log(`[WebAudioWavePlayer] ${message}`);
+            }
+        }
+    }
+
+    function logDebug(message) { log(LogLevel.Debug, message); }
+    function logInfo(message) { log(LogLevel.Info, message); }
+    function logWarning(message) { log(LogLevel.Warning, message); }
+    function logError(message) { log(LogLevel.Error, message); }
+
+    /**
+     * Register the log callback from .NET
+     * This is called from C# to set up the callback for log messages
+     * @param {Function} callback - The callback function that takes (level, message)
+     */
+    function registerLogCallback(callback) {
+        logCallback = callback;
+        if (logCallback) {
+            logInfo('Log callback registered successfully');
+        }
+    }
+
     /**
      * Initialize WebAudio context and audio worklet
      * @param {number} sRate - Sample rate (e.g., 44100)
@@ -71,7 +122,7 @@ export const WebAudioWavePlayer = (() => {
             }
             audioContext.close();
             audioContext = null;
-            console.log('WebAudioWavePlayer existing audioContext closed');
+            logInfo('Existing audioContext closed');
         }
 
         // Create new AudioContext with the specified sample rate
@@ -79,42 +130,42 @@ export const WebAudioWavePlayer = (() => {
             sampleRate: sampleRate,
             latencyHint: 'interactive' // Low latency for real-time audio
         });
-        console.log(`WebAudioWavePlayer audioContext created with sample rate: ${audioContext.sampleRate}`);
+        logInfo(`AudioContext created with sample rate: ${audioContext.sampleRate}`);
 
         // Resume context if it was suspended (browser autoplay policy)
         if (audioContext.state === 'suspended') {
             audioContext.resume();
-            console.log('WebAudioWavePlayer audioContext resumed');
+            logInfo('AudioContext resumed');
         }
 
         const bufferCapacityMs = (bufferCapacity / channels / sampleRate * 1000).toFixed(1);
         const minBufferMs = (minBufferBeforePlay / channels / sampleRate * 1000).toFixed(1);
         const desiredLatencyMs = (bufSize / sampleRate * 1000).toFixed(1);
-        console.log(`WebAudioWavePlayer initialized:`);
-        console.log(`  Sample rate: ${sampleRate}Hz, Channels: ${channels}`);
-        console.log(`  C# buffer: ${bufSize} samples (~${desiredLatencyMs}ms)`);
-        console.log(`  Ring buffer: ${bufferCapacity} samples (~${bufferCapacityMs}ms) [${ringBufferCapacityMultiplier}x multiplier]`);
-        console.log(`  Start threshold: ${minBufferBeforePlay} samples (~${minBufferMs}ms) [${minBufferBeforePlayMultiplier}x multiplier]`);
-        console.log(`  ScriptProcessor buffer: ${scriptProcessorBufferSize} samples`);
-        console.log(`  Stats interval: ${statsIntervalMs}ms${statsIntervalMs === 0 ? ' (disabled)' : ''}`);
+        logInfo(`Initialized:`);
+        logInfo(`  Sample rate: ${sampleRate}Hz, Channels: ${channels}`);
+        logInfo(`  C# buffer: ${bufSize} samples (~${desiredLatencyMs}ms)`);
+        logInfo(`  Ring buffer: ${bufferCapacity} samples (~${bufferCapacityMs}ms) [${ringBufferCapacityMultiplier}x multiplier]`);
+        logInfo(`  Start threshold: ${minBufferBeforePlay} samples (~${minBufferMs}ms) [${minBufferBeforePlayMultiplier}x multiplier]`);
+        logInfo(`  ScriptProcessor buffer: ${scriptProcessorBufferSize} samples`);
+        logInfo(`  Stats interval: ${statsIntervalMs}ms${statsIntervalMs === 0 ? ' (disabled)' : ''}`);
 
         // Use ScriptProcessorNode as fallback (AudioWorklet requires separate file and HTTPS)
         setupScriptProcessor();
 
-        console.log(`WebAudioWavePlayer initialize exit`);
+        logDebug(`Initialize exit`);
     }
 
     /**
      * Set up ScriptProcessorNode for audio processing
      */
     function setupScriptProcessor() {
-        console.log(`WebAudioWavePlayer setupScriptProcessor start.`);
+        logDebug(`SetupScriptProcessor start`);
 
         // Clean up existing node
         if (audioWorkletNode) {
             audioWorkletNode.disconnect();
             audioWorkletNode = null;
-            console.log('WebAudioWavePlayer existing ScriptProcessorNode disconnected');
+            logInfo('Existing ScriptProcessorNode disconnected');
         }
 
         // Create ScriptProcessorNode - use the configured buffer size, clamped to valid range
@@ -129,7 +180,7 @@ export const WebAudioWavePlayer = (() => {
         );
         
         const processorLatencyMs = (validBufferSize / sampleRate * 1000).toFixed(1);
-        console.log(`WebAudioWavePlayer ScriptProcessorNode created with buffer size: ${validBufferSize} (~${processorLatencyMs}ms)`);
+        logInfo(`ScriptProcessorNode created with buffer size: ${validBufferSize} (~${processorLatencyMs}ms)`);
 
         // Process audio data
         audioWorkletNode.onaudioprocess = (audioProcessingEvent) => {
@@ -181,9 +232,9 @@ export const WebAudioWavePlayer = (() => {
 
         // Connect to destination (speakers)
         audioWorkletNode.connect(audioContext.destination);
-        console.log('WebAudioWavePlayer ScriptProcessorNode connected to destination');
+        logInfo('ScriptProcessorNode connected to destination');
         
-        console.log(`WebAudioWavePlayer setupScriptProcessor exit.`);
+        logDebug(`SetupScriptProcessor exit`);
     }
     
     /**
@@ -199,7 +250,7 @@ export const WebAudioWavePlayer = (() => {
         if (now - lastStatsTime >= statsIntervalMs) {
             if (underrunCount > 0 || overflowCount > 0) {
                 const bufferLevelMs = (bufferedSamples / channels / sampleRate * 1000).toFixed(1);
-                console.log(`WebAudioWavePlayer stats: underruns=${underrunCount}, overflows=${overflowCount}, current buffer=${bufferLevelMs}ms`);
+                logWarning(`Stats: underruns=${underrunCount}, overflows=${overflowCount}, current buffer=${bufferLevelMs}ms`);
             }
             underrunCount = 0;
             overflowCount = 0;
@@ -214,7 +265,7 @@ export const WebAudioWavePlayer = (() => {
      */
     function queueAudioData(audioDataBytes, sampleCount) {
         if (!audioContext || !sampleBuffer) {
-            console.error('WebAudioWavePlayer not initialized');
+            logError('Not initialized');
             return;
         }
 
@@ -248,7 +299,7 @@ export const WebAudioWavePlayer = (() => {
         if (!hasEnoughToStart && bufferedSamples >= minBufferBeforePlay) {
             hasEnoughToStart = true;
             const bufferLevelMs = (bufferedSamples / channels / sampleRate * 1000).toFixed(1);
-            console.log(`WebAudioWavePlayer starting playback with ${bufferedSamples} samples (~${bufferLevelMs}ms) buffered`);
+            logInfo(`Starting playback with ${bufferedSamples} samples (~${bufferLevelMs}ms) buffered`);
         }
 
         // Start playing if not already playing
@@ -271,7 +322,7 @@ export const WebAudioWavePlayer = (() => {
         }
         
         isPlaying = true;
-        console.log('WebAudioWavePlayer resumed');
+        logInfo('Resumed');
     }
 
     /**
@@ -279,7 +330,7 @@ export const WebAudioWavePlayer = (() => {
      */
     function pause() {
         isPlaying = false;
-        console.log('WebAudioWavePlayer paused');
+        logInfo('Paused');
     }
 
     /**
@@ -303,7 +354,7 @@ export const WebAudioWavePlayer = (() => {
             audioWorkletNode.disconnect();
         }
         
-        console.log('WebAudioWavePlayer stopped');
+        logInfo('Stopped');
     }
 
     /**
@@ -323,8 +374,9 @@ export const WebAudioWavePlayer = (() => {
         }
         
         sampleBuffer = null;
+        logCallback = null;
         
-        console.log('WebAudioWavePlayer cleaned up');
+        logInfo('Cleaned up');
     }
 
     // Public API
@@ -334,6 +386,7 @@ export const WebAudioWavePlayer = (() => {
         resume,
         pause,
         stop,
-        cleanup
+        cleanup,
+        registerLogCallback
     };
 })();

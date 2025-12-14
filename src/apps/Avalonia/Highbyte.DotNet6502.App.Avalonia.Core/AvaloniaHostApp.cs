@@ -89,7 +89,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     /// <param name="emulatorConfig"></param>
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
-    /// <param name="wavePlayer"></param>
     /// <param name="saveCustomConfigString"></param>
     /// <param name="saveCustomConfigSection"></param>
     internal AvaloniaHostApp(
@@ -597,6 +596,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
             // Create NAudio WavePlayer for browser (using WebAudio API JavaScript interop)
             wavePlayer = new WebAudioWavePlayer(WebAudioWavePlayerSettings.GetSettingsForProfile(profile));
+            // Init capture of WebAudioWavePlayer.js JS logging to the .NET side (static JSExport interop method)
+            WebAudioWavePlayer.SetLogger(_loggerFactory.CreateLogger("WebAudioWavePlayer"));
         }
         else
         {
