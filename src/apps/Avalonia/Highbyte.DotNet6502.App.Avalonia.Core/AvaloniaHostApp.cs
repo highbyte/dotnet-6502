@@ -175,7 +175,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     public void SetVolumePercent(float volumePercent)
     {
-        // TODO: Setting volume from UI while running is not remembered to next time the emulator is started. The slider indicates correct but is not the actual volume.
+        // TODO: Setting volume from UI while running is not remembered to next time the emulator is started.
+        //       The slider indicates correct but is not the actual volume.
         _audioHandlerContext.SetMasterVolumePercent(masterVolumePercent: volumePercent);
     }
 
@@ -538,28 +539,49 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     private NAudioAudioHandlerContext GetAudioHandlerContext()
     {
-        // Return existing context if already created and settings have not changed
-        if (_audioHandlerContext != null
-            && _audioHandlerContext.WavePlayer != NullWavePlayer.Instance
-            && _audioHandlerContext.WavePlayer is IUsesProfile usesProfile
-            && EmulatorConfig.AudioSettingsProfile != usesProfile.ProfileType)
+        bool useSilentAudio = (CurrentHostSystemConfig == null || !CurrentHostSystemConfig.SystemConfig.AudioEnabled)
+                             || !(PlatformDetection.IsRunningOnDesktop() || PlatformDetection.IsRunningInWebAssembly());
+
+        float masterVolumePercent = _defaultAudioVolumePercent;
+
+        // Check if already created
+        if (_audioHandlerContext != null)
         {
+            // Check if audio settings changed that requires recreating the audio handler context
+            bool hasAudioChanged =
+                (useSilentAudio && _audioHandlerContext != NAudioAudioHandlerContext.SilentAudioHandlerContext)
+                || (!useSilentAudio && _audioHandlerContext == NAudioAudioHandlerContext.SilentAudioHandlerContext)
+                || (_audioHandlerContext.WavePlayer is IUsesProfile usesProfile && EmulatorConfig.AudioSettingsProfile != usesProfile.ProfileType);
+
+            if (hasAudioChanged)
+            {
+                // Audio settings changed, cleanup existing context
+                _logger.LogInformation("Audio settings changed, cleaning up existing audio handler context");
+                // Remember existing volume setting
+                masterVolumePercent = _audioHandlerContext == NAudioAudioHandlerContext.SilentAudioHandlerContext ? _defaultAudioVolumePercent : _audioHandlerContext.MasterVolumePercent; 
+                _audioHandlerContext.Cleanup();
+                _audioHandlerContext = null;
+            }
+            else
+            {
+                // Nothing changed, return existing context
+                return _audioHandlerContext;
+            }
+        }
+
+        // Create new context
+        if (useSilentAudio)
+        {
+            _logger.LogInformation("Creating silent audio handler context");
+            _audioHandlerContext = NAudioAudioHandlerContext.SilentAudioHandlerContext;
             return _audioHandlerContext;
         }
 
+        // Create appropriate wave player based on platform
         IWavePlayer? wavePlayer;
-        float audioVolumePercent = _defaultAudioVolumePercent;
-
-        if (CurrentHostSystemConfig == null || !CurrentHostSystemConfig.SystemConfig.AudioEnabled)
+        if (PlatformDetection.IsRunningOnDesktop())
         {
-            _logger.LogInformation("Using NAudio NullWavePlayer because audio is not enabled.");
-
-            wavePlayer = NullWavePlayer.Instance;
-            audioVolumePercent = 0;
-        }
-        else if (PlatformDetection.IsRunningOnDesktop())
-        {
-            _logger.LogInformation("Using NAudio SilkNetOpenALWavePlayer for desktop cross-platform");
+            _logger.LogInformation("Creating NAudio SilkNetOpenALWavePlayer for desktop cross-platform");
 
             // Create Naudio wave player for desktop (using cross-platform OpenAL WavePlayer)
             wavePlayer = new SilkNetOpenALWavePlayer()
@@ -570,25 +592,21 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         }
         else if (PlatformDetection.IsRunningInWebAssembly())
         {
-            _logger.LogInformation("Using NAudio WebAudioWavePlayer for browser platform");
+            var profile = EmulatorConfig.AudioSettingsProfile;
+            _logger.LogInformation($"Creating NAudio WebAudioWavePlayer for browser platform with profile: {profile}");
 
-            // Create NAudio WavePllayer for browser (using WebAudio API JavaScript interop)
-            wavePlayer = new WebAudioWavePlayer(WebAudioWavePlayerSettings.GetSettingsForProfile(EmulatorConfig.AudioSettingsProfile));
+            // Create NAudio WavePlayer for browser (using WebAudio API JavaScript interop)
+            wavePlayer = new WebAudioWavePlayer(WebAudioWavePlayerSettings.GetSettingsForProfile(profile));
         }
         else
         {
-            _logger.LogInformation("Using NAudio NullWavePlayer because current platform doesn't have IWavePlayer implementation.");
-            wavePlayer = NullWavePlayer.Instance;
+            throw new NotSupportedException("No suitable audio output available for the current platform.");
         }
-
-        // Cleanup existing context
-        _audioHandlerContext?.Cleanup();
-        _audioHandlerContext = null!;
 
         // Create a new context
         _audioHandlerContext = new NAudioAudioHandlerContext(
-            wavePlayer,
-            initialVolumePercent: audioVolumePercent);
+                wavePlayer,
+                initialVolumePercent: masterVolumePercent);
 
         return _audioHandlerContext;
     }

@@ -1,3 +1,4 @@
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
 using Highbyte.DotNet6502.Systems;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -11,7 +12,8 @@ public class NAudioAudioHandlerContext : IAudioHandlerContext
 
     private VolumeSampleProvider _masterVolumeControl = default!;
 
-    private float _initialVolumePercent;
+    private float _masterVolumePercent;
+    public float MasterVolumePercent => _masterVolumePercent;
 
     public bool IsInitialized { get; private set; }
 
@@ -21,8 +23,10 @@ public class NAudioAudioHandlerContext : IAudioHandlerContext
         )
     {
         _wavePlayer = wavePlayer;
-        _initialVolumePercent = initialVolumePercent;
+        _masterVolumePercent = initialVolumePercent;
     }
+
+    public static NAudioAudioHandlerContext SilentAudioHandlerContext = new NAudioAudioHandlerContext(NullWavePlayer.Instance, 0f);
 
     public void Init()
     {
@@ -34,14 +38,14 @@ public class NAudioAudioHandlerContext : IAudioHandlerContext
         // Route all audio through a maste volume control
         _masterVolumeControl = new VolumeSampleProvider(sampleProvider)
         {
-            Volume = _initialVolumePercent / 100f
+            Volume = _masterVolumePercent / 100f
         };
         _wavePlayer.Init(_masterVolumeControl);
     }
 
     public void SetMasterVolumePercent(float masterVolumePercent)
     {
-        _initialVolumePercent = masterVolumePercent;
+        _masterVolumePercent = masterVolumePercent;
         if (_masterVolumeControl != null)
             _masterVolumeControl.Volume = masterVolumePercent / 100f;
     }
