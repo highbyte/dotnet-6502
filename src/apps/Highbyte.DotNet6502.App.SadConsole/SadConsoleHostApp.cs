@@ -578,7 +578,8 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
 
         return new NAudioAudioHandlerContext(
             wavePlayer,
-            initialVolumePercent: 20);
+            initialVolumePercent: 20, 
+            _loggerFactory);
     }
 
     public SadConsoleHostSystemConfigBase CommonHostSystemConfig => (SadConsoleHostSystemConfigBase)CurrentHostSystemConfig;

@@ -23,6 +23,9 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 public class C64MenuViewModel : ViewModelBase
 {
     private readonly AvaloniaHostApp _avaloniaHostApp;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger _logger;
+
     public AvaloniaHostApp HostApp => _avaloniaHostApp;
 
     private readonly Assembly _examplesAssembly = Assembly.GetExecutingAssembly();
@@ -57,9 +60,12 @@ public class C64MenuViewModel : ViewModelBase
     // --- End ReactiveUI Commands ---
 
     public C64MenuViewModel(
-        AvaloniaHostApp avaloniaHostApp)
+        AvaloniaHostApp avaloniaHostApp,
+        ILoggerFactory loggerFactory)
     {
         _avaloniaHostApp = avaloniaHostApp ?? throw new ArgumentNullException(nameof(avaloniaHostApp));
+        _loggerFactory = loggerFactory;
+        _logger = loggerFactory.CreateLogger(typeof(C64MenuViewModel).Name);
 
         _examplesAssembly = Assembly.GetExecutingAssembly();
         InitializeC64Data();
@@ -388,7 +394,7 @@ public class C64MenuViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            System.Console.WriteLine($"Error copying Basic source: {ex.Message}");
+            _logger.LogError($"Error copying Basic source: {ex.Message}");
         }
     }
 
@@ -409,7 +415,7 @@ public class C64MenuViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            System.Console.WriteLine($"Error pasting text: {ex.Message}");
+            _logger.LogError($"Error pasting text: {ex.Message}");
         }
     }
 
@@ -439,7 +445,7 @@ public class C64MenuViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            System.Console.WriteLine($"Error toggling disk image: {ex.Message}");
+            _logger.LogError($"Error toggling disk image: {ex.Message}");
         }
     }
 
@@ -493,7 +499,7 @@ public class C64MenuViewModel : ViewModelBase
             }
             catch (Exception ex)
             {
-                System.Console.WriteLine($"Error loading disk image: {ex.Message}");
+                _logger.LogError($"Error loading disk image: {ex.Message}");
             }
         }
     }
@@ -508,7 +514,7 @@ public class C64MenuViewModel : ViewModelBase
         _isLoadingPreloadedDisk = true;
         _latestPreloadedDiskError = "";
 
-        System.Console.WriteLine($"Starting to load preloaded disk: {diskInfo.DisplayName}");
+        _logger.LogInformation($"Starting to load preloaded disk: {diskInfo.DisplayName}");
 
         try
         {
@@ -517,14 +523,9 @@ public class C64MenuViewModel : ViewModelBase
             {
                 _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
-                var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
-                {
-                    builder.SetMinimumLevel(LogLevel.Information);
-                });
-
                 var c64HostConfig = HostApp!.CurrentHostSystemConfig as C64HostConfig;
                 _d64AutoDownloadAndRun = new D64AutoDownloadAndRun(
-                   loggerFactory,
+                   _loggerFactory,
                    _httpClient,
                    HostApp!,
                     corsProxyUrl: PlatformDetection.IsRunningInWebAssembly() ? c64HostConfig.CorsProxyURL : null);
@@ -561,7 +562,7 @@ public class C64MenuViewModel : ViewModelBase
         catch (Exception ex)
         {
             _latestPreloadedDiskError = $"Error downloading or running disk image: {ex.Message}";
-            System.Console.WriteLine($"LoadPreloadedDisk_Click error: {_latestPreloadedDiskError}");
+            _logger.LogError($"LoadPreloadedDisk_Click error: {_latestPreloadedDiskError}");
         }
         finally
         {
@@ -569,9 +570,11 @@ public class C64MenuViewModel : ViewModelBase
             RefreshAllBindings();
 
             _isLoadingPreloadedDisk = false;
-            System.Console.WriteLine($"Finished loading preloaded disk. Loading state: {_isLoadingPreloadedDisk}");
+            _logger.LogInformation($"Finished loading preloaded disk. Loading state: {_isLoadingPreloadedDisk}");
             if (!string.IsNullOrEmpty(_latestPreloadedDiskError))
-                System.Console.WriteLine($"Final error state: {_latestPreloadedDiskError}");
+            {
+                _logger.LogInformation($"Final error state: {_latestPreloadedDiskError}");
+            }
         }
     }
 
@@ -611,12 +614,12 @@ public class C64MenuViewModel : ViewModelBase
             // Set Program Counter to start of loaded file
             HostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
 
-            System.Console.WriteLine($"Assembly example loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
-            System.Console.WriteLine($"Program Counter set to {loadedAtAddress.ToHex()}");
+            _logger.LogInformation($"Assembly example loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+            _logger.LogInformation($"Program Counter set to {loadedAtAddress.ToHex()}");
         }
         catch (Exception ex)
         {
-            System.Console.WriteLine($"Error loading assembly example: {ex.Message}");
+            _logger.LogError($"Error loading assembly example: {ex.Message}");
             throw;
         }
         finally
@@ -663,7 +666,7 @@ public class C64MenuViewModel : ViewModelBase
             if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
             {
                 // Probably not a Basic program that was loaded. Don't init BASIC memory variables.
-                System.Console.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
+                _logger.LogWarning($"Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
             }
             else
             {
@@ -674,11 +677,11 @@ public class C64MenuViewModel : ViewModelBase
             // Send "list" + NewLine (Return) to the keyboard buffer to immediately list the loaded program
             c64.TextPaste.Paste("list\n");
 
-            System.Console.WriteLine($"Basic example loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+            _logger.LogInformation($"Basic example loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
         }
         catch (Exception ex)
         {
-            System.Console.WriteLine($"Error loading basic example: {ex.Message}");
+            _logger.LogError($"Error loading basic example: {ex.Message}");
         }
         finally
         {
@@ -706,7 +709,7 @@ public class C64MenuViewModel : ViewModelBase
 
             if (loadedAtAddress != C64.BASIC_LOAD_ADDRESS)
             {
-                System.Console.WriteLine($"Warning: Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
+                _logger.LogWarning($"Loaded program is not a Basic program, it's expected to load at {C64.BASIC_LOAD_ADDRESS.ToHex()} but was loaded at {loadedAtAddress.ToHex()}");
             }
             else
             {
@@ -770,8 +773,8 @@ public class C64MenuViewModel : ViewModelBase
 
             HostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
 
-            System.Console.WriteLine($"Binary program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
-            System.Console.WriteLine($"Program Counter set to {loadedAtAddress.ToHex()}");
+            _logger.LogInformation($"Binary program loaded at {loadedAtAddress.ToHex()}, length {fileLength.ToHex()}");
+            _logger.LogInformation($"Program Counter set to {loadedAtAddress.ToHex()}");
 
             await HostApp.Start();
         }

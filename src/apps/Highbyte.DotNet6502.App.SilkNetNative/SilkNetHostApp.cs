@@ -565,7 +565,8 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
 
         return new NAudioAudioHandlerContext(
             wavePlayer,
-            initialVolumePercent: 20);
+            initialVolumePercent: 20,
+            _loggerFactory);
     }
 
     private void ConfigureSilkNetInput()

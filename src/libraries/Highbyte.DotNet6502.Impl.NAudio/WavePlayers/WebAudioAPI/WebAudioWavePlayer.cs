@@ -1,4 +1,4 @@
-using System.Diagnostics;
+ using System.Diagnostics;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
@@ -18,7 +18,19 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
 
     public WaveFormat OutputWaveFormat => _sourceProvider!.WaveFormat;
 
-    public PlaybackState PlaybackState { get; private set; }
+    private PlaybackState _playbackState;
+    public PlaybackState PlaybackState
+    {
+        get => _playbackState;
+        private set
+        {
+            var originalState = _playbackState;
+            _playbackState = value;
+            _logger?.LogInformation($"PlaybackState changed from {originalState} to {_playbackState}");
+        }
+    }
+
+    private readonly ILogger _logger;
 
     /// <summary>
     /// Indicates playback has stopped automatically
@@ -50,7 +62,7 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
 
     public WavePlayerSettingsProfile ProfileType => _settings.ProfileType;
 
-    private static ILogger s_logger = NullLogger.Instance;
+    private static ILogger s_js_logger = NullLogger.Instance;
 
     /// <summary>
     /// Sets the logger for JavaScript log messages.
@@ -59,7 +71,7 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
     /// <param name="logger">The logger instance to use, or null to disable logging.</param>
     public static void SetLogger(ILogger? logger)
     {
-        s_logger = logger ?? NullLogger.Instance;
+        s_js_logger = logger ?? NullLogger.Instance;
     }
 
     private int _bufferSizeSamples;
@@ -71,23 +83,29 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
 
     private bool _isInitialized;
 
-    public WebAudioWavePlayer()
+    public WebAudioWavePlayer(
+        ILoggerFactory loggerFactory
+        )
     {
         _syncContext = SynchronizationContext.Current;
         PlaybackState = PlaybackState.Stopped;
+        _logger = loggerFactory.CreateLogger(typeof(WebAudioWavePlayer).Name);
     }
 
     /// <summary>
     /// Creates a WebAudioWavePlayer with the specified settings.
     /// </summary>
     /// <param name="settings">The settings to use. Use predefined profiles like WebAudioWavePlayerSettings.LowLatency.</param>
-    public WebAudioWavePlayer(WebAudioWavePlayerSettings settings) : this()
+    //public WebAudioWavePlayer(WebAudioWavePlayerSettings settings)
+    public WebAudioWavePlayer(WebAudioWavePlayerSettings settings, ILoggerFactory loggerFactory) : this(loggerFactory)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
     public void Init(IWaveProvider waveProvider)
     {
+        _logger?.LogInformation("Initializing WebAudioWavePlayer");
+
         _sourceProvider = null;
         _sourceProvider = waveProvider ?? throw new ArgumentNullException(nameof(waveProvider));
 
@@ -123,6 +141,8 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
 
     public void Play()
     {
+        _logger?.LogInformation("WebAudioWavePlayer Play called");
+
         if (!_isInitialized)
             throw new InvalidOperationException("Must call Init first");
 
@@ -145,8 +165,9 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
 
     public void Pause()
     {
+
         if (PlaybackState == PlaybackState.Stopped)
-            throw new InvalidOperationException("Cannot pause when stopped");
+            throw new InvalidOperationException("Cannot pause wave player, already stopped.");
 
         if (PlaybackState == PlaybackState.Playing)
         {
@@ -160,27 +181,21 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
     {
         if (PlaybackState != PlaybackState.Stopped)
         {
-            PlaybackState = PlaybackState.Stopped;
-
             // Cancel playback loop
             _cancellationTokenSource?.Cancel();
 
             // Stop playback in JavaScript
             JSInterop.Stop();
 
-            // Wait for playback task to complete
-            try
-            {
-                _playbackTask?.Wait(1000);
-            }
-            catch (AggregateException)
-            {
-                // Ignore cancellation exceptions
-            }
+            // Don't block waiting for the task (_playbackTask?.Wait(1000)) in WebAssembly - the cancellation token
+            // will cause the playback loop to exit gracefully on its own.
+            // Blocking with Wait() can cause deadlocks in single-threaded WASM.
 
-            _playbackTask = null;
             _cancellationTokenSource?.Dispose();
             _cancellationTokenSource = null;
+            _playbackTask = null;
+
+            PlaybackState = PlaybackState.Stopped;
         }
     }
 
@@ -194,14 +209,16 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
         catch (OperationCanceledException)
         {
             // Normal cancellation, not an error
+            _logger?.LogInformation("Playback loop canceled.");
         }
         catch (Exception e)
         {
+            _logger?.LogError(e, "Playback loop error.");
             exception = e;
         }
         finally
         {
-            PlaybackState = PlaybackState.Stopped;
+            _logger?.LogInformation("Playback loop ending");
             RaisePlaybackStoppedEvent(exception);
         }
     }
@@ -337,7 +354,7 @@ public partial class WebAudioWavePlayer : IWavePlayer, IUsesProfile
             3 => LogLevel.Error,
             _ => LogLevel.Information
         };
-        s_logger.Log(logLevel, "[JS] {Message}", message);
+        s_js_logger.Log(logLevel, "[JS] {Message}", message);
     }
 
     // ================================================================================

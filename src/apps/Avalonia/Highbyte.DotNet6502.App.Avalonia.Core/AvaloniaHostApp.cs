@@ -595,9 +595,15 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             _logger.LogInformation($"Creating NAudio WebAudioWavePlayer for browser platform with profile: {profile}");
 
             // Create NAudio WavePlayer for browser (using WebAudio API JavaScript interop)
-            wavePlayer = new WebAudioWavePlayer(WebAudioWavePlayerSettings.GetSettingsForProfile(profile));
+            wavePlayer = new WebAudioWavePlayer(WebAudioWavePlayerSettings.GetSettingsForProfile(profile), _loggerFactory);
+
+            _logger.LogInformation("WebAudioWavePlayer created");
+
             // Init capture of WebAudioWavePlayer.js JS logging to the .NET side (static JSExport interop method)
-            WebAudioWavePlayer.SetLogger(_loggerFactory.CreateLogger("WebAudioWavePlayer"));
+            WebAudioWavePlayer.SetLogger(_loggerFactory.CreateLogger(typeof(WebAudioWavePlayer).Name));
+
+            _logger.LogInformation("WebAudioWavePlayer logger set");
+
         }
         else
         {
@@ -607,7 +613,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         // Create a new context
         _audioHandlerContext = new NAudioAudioHandlerContext(
                 wavePlayer,
-                initialVolumePercent: masterVolumePercent);
+                initialVolumePercent: masterVolumePercent,
+                _loggerFactory);
+
+        _logger.LogInformation("Created new NAudioAudioHandlerContext with wave player: " + wavePlayer.GetType().Name);
 
         return _audioHandlerContext;
     }

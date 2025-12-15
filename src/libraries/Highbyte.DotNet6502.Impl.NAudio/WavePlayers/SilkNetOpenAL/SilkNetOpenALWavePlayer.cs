@@ -137,7 +137,7 @@ public class SilkNetOpenALWavePlayer : IWavePlayer
     public void Pause()
     {
         if (PlaybackState == PlaybackState.Stopped)
-            throw new InvalidOperationException("Stopped");
+            throw new InvalidOperationException("Cannot pause wave player, already stopped.");
 
         PlaybackState = PlaybackState.Paused;
 

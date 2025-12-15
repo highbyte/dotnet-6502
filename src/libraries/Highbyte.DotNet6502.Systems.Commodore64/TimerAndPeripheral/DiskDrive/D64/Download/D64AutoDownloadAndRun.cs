@@ -42,13 +42,13 @@ public class D64AutoDownloadAndRun
             _logger.LogInformation("Starting C64 emulator");
             await _hostApp.Start();
 
+            C64 c64 = (C64)_hostApp.CurrentRunningSystem!;
+
             // Wait for BASIC to start (check periodically)
             _logger.LogInformation("Waiting for BASIC to start...");
             var maxWaitTime = TimeSpan.FromSeconds(30);
             var startTime = DateTime.Now;
             var checkInterval = TimeSpan.FromMilliseconds(100);
-
-            C64 c64 = (C64)_hostApp.CurrentRunningSystem!;
             while (!c64.HasBasicStarted())
             {
                 if (DateTime.Now - startTime > maxWaitTime)
@@ -57,14 +57,13 @@ public class D64AutoDownloadAndRun
                 }
                 await Task.Delay(checkInterval);
             }
-
             _logger.LogInformation("BASIC has started successfully");
-
             // Add a 1-second delay to allow BASIC to settle before proceeding
             _logger.LogInformation("Waiting 1 second for BASIC to settle...");
             await Task.Delay(1000);
 
             // Pause before proceeding with disk operations
+            _logger.LogInformation($"Pausing C64 emulator before disk operations. State before pause: {_hostApp.EmulatorState}");
             _hostApp.Pause();
 
             // Download and process the disk image (supports both .d64 and .zip files)
@@ -136,15 +135,13 @@ public class D64AutoDownloadAndRun
                     }
                 }
             }
+
+            await _hostApp.Start();
         }
         catch (Exception ex)
         {
             _logger.LogError($"Load error: {ex.Message}");
             throw;
-        }
-        finally
-        {
-            await _hostApp.Start();
         }
     }
 }
