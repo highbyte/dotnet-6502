@@ -93,7 +93,8 @@
                         Width="100"
                         Height="35"
                         Classes="danger"
-                        Command="{Binding ExitCommand}"/>
+                        Command="{Binding ExitCommand}"
+                        IsVisible="{Binding !IsRunningInWebAssembly}"/>
             </StackPanel>
         </Grid>
     </Border>

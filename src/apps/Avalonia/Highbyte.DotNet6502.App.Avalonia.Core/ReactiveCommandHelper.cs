@@ -14,14 +14,136 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 /// </summary>
 public static class ReactiveCommandHelper
 {
+    // --- Synchronous (non-async) overloads ---
+
+    /// <summary>
+    /// Creates a ReactiveCommand with automatic exception handling for WebAssembly.
+    /// This overload accepts a synchronous action.
+    /// </summary>
+    public static ReactiveCommand<Unit, Unit> CreateSafeCommand(
+        Action execute,
+        IObservable<bool>? canExecute = null,
+        IScheduler? outputScheduler = null,
+        ILogger? logger = null)
+    {
+        if (!PlatformDetection.IsRunningInWebAssembly())
+        {
+            return ReactiveCommand.Create(execute, canExecute, outputScheduler);
+        }
+
+        return ReactiveCommand.Create(() =>
+        {
+            try
+            {
+                execute();
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Exception in command handler");
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => throw ex);
+            }
+        }, canExecute, outputScheduler);
+    }
+
+    /// <summary>
+    /// Creates a ReactiveCommand with parameter and automatic exception handling for WebAssembly.
+    /// This overload accepts a synchronous action.
+    /// </summary>
+    public static ReactiveCommand<TParam, Unit> CreateSafeCommand<TParam>(
+        Action<TParam> execute,
+        IObservable<bool>? canExecute = null,
+        IScheduler? outputScheduler = null,
+        ILogger? logger = null)
+    {
+        if (!PlatformDetection.IsRunningInWebAssembly())
+        {
+            return ReactiveCommand.Create(execute, canExecute, outputScheduler);
+        }
+
+        return ReactiveCommand.Create<TParam>((param) =>
+        {
+            try
+            {
+                execute(param);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Exception in command handler");
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => throw ex);
+            }
+        }, canExecute, outputScheduler);
+    }
+
+    /// <summary>
+    /// Creates a ReactiveCommand with result and automatic exception handling for WebAssembly.
+    /// This overload accepts a synchronous function.
+    /// </summary>
+    public static ReactiveCommand<Unit, TResult> CreateSafeCommandWithResult<TResult>(
+        Func<TResult> execute,
+        IObservable<bool>? canExecute = null,
+        IScheduler? outputScheduler = null,
+        ILogger? logger = null)
+    {
+        if (!PlatformDetection.IsRunningInWebAssembly())
+        {
+            return ReactiveCommand.Create(execute, canExecute, outputScheduler);
+        }
+
+        return ReactiveCommand.Create(() =>
+        {
+            try
+            {
+                return execute();
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Exception in command handler");
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => throw ex);
+                throw; // Unreachable, but needed for compiler
+            }
+        }, canExecute, outputScheduler);
+    }
+
+    /// <summary>
+    /// Creates a ReactiveCommand with parameter and result and automatic exception handling for WebAssembly.
+    /// This overload accepts a synchronous function.
+    /// </summary>
+    public static ReactiveCommand<TParam, TResult> CreateSafeCommandWithResult<TParam, TResult>(
+        Func<TParam, TResult> execute,
+        IObservable<bool>? canExecute = null,
+        IScheduler? outputScheduler = null,
+        ILogger? logger = null)
+    {
+        if (!PlatformDetection.IsRunningInWebAssembly())
+        {
+            return ReactiveCommand.Create(execute, canExecute, outputScheduler);
+        }
+
+        return ReactiveCommand.Create<TParam, TResult>((param) =>
+        {
+            try
+            {
+                return execute(param);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Exception in command handler");
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => throw ex);
+                throw; // Unreachable, but needed for compiler
+            }
+        }, canExecute, outputScheduler);
+    }
+
+    // --- Async overloads ---
+
     /// <summary>
     /// Creates a ReactiveCommand with automatic exception handling for WebAssembly.
     /// </summary>
     public static ReactiveCommand<Unit, Unit> CreateSafeCommand(
         Func<Task> execute,
-        ILogger? logger = null,
         IObservable<bool>? canExecute = null,
-        IScheduler? outputScheduler = null)
+        IScheduler? outputScheduler = null,
+        ILogger? logger = null)
     {
         if (!PlatformDetection.IsRunningInWebAssembly())
         {
@@ -47,9 +169,9 @@ public static class ReactiveCommandHelper
     /// </summary>
     public static ReactiveCommand<TParam, Unit> CreateSafeCommand<TParam>(
         Func<TParam, Task> execute,
-        ILogger? logger = null,
         IObservable<bool>? canExecute = null,
-        IScheduler? outputScheduler = null)
+        IScheduler? outputScheduler = null,
+        ILogger? logger = null)
     {
         if (!PlatformDetection.IsRunningInWebAssembly())
         {
@@ -75,9 +197,9 @@ public static class ReactiveCommandHelper
     /// </summary>
     public static ReactiveCommand<Unit, TResult> CreateSafeCommandWithResult<TResult>(
         Func<Task<TResult>> execute,
-        ILogger? logger = null,
         IObservable<bool>? canExecute = null,
-        IScheduler? outputScheduler = null)
+        IScheduler? outputScheduler = null,
+        ILogger? logger = null)
     {
         if (!PlatformDetection.IsRunningInWebAssembly())
         {
@@ -104,9 +226,9 @@ public static class ReactiveCommandHelper
     /// </summary>
     public static ReactiveCommand<TParam, TResult> CreateSafeCommandWithResult<TParam, TResult>(
         Func<TParam, Task<TResult>> execute,
-        ILogger? logger = null,
         IObservable<bool>? canExecute = null,
-        IScheduler? outputScheduler = null)
+        IScheduler? outputScheduler = null,
+        ILogger? logger = null)
     {
         if (!PlatformDetection.IsRunningInWebAssembly())
         {

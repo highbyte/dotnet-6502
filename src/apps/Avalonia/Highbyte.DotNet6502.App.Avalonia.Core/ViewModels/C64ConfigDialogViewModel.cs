@@ -103,12 +103,10 @@ public class C64ConfigDialogViewModel : ViewModelBase
         // Initialize ReactiveUI Commands with MainThreadScheduler for Browser compatibility
         DownloadRomsToByteArrayCommand = ReactiveCommandHelper.CreateSafeCommand(
             AutoDownloadRomsToByteArrayAsync,
-            _logger,
             outputScheduler: RxApp.MainThreadScheduler);
 
         DownloadRomsToFilesCommand = ReactiveCommandHelper.CreateSafeCommand(
             AutoDownloadROMsToFilesAsync,
-            _logger,
             outputScheduler: RxApp.MainThreadScheduler);
 
         ClearRomsCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -117,12 +115,10 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 UnloadRoms();
                 return Task.CompletedTask;
             },
-            _logger,
             outputScheduler: RxApp.MainThreadScheduler);
 
         TestAIBackendCommand = ReactiveCommandHelper.CreateSafeCommand(
             TestAIBackendAsync,
-            _logger,
             outputScheduler: RxApp.MainThreadScheduler);
 
         SaveCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -133,7 +129,6 @@ public class C64ConfigDialogViewModel : ViewModelBase
                     ConfigurationChanged?.Invoke(this, true);
                 }
             },
-            _logger,
             outputScheduler: RxApp.MainThreadScheduler);
 
         CancelCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -142,7 +137,6 @@ public class C64ConfigDialogViewModel : ViewModelBase
                 ConfigurationChanged?.Invoke(this, false);
                 return Task.CompletedTask;
             },
-            _logger,
             outputScheduler: RxApp.MainThreadScheduler);
     }
 

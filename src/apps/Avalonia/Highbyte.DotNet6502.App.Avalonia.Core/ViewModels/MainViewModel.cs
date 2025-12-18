@@ -377,7 +377,6 @@ public class MainViewModel : ViewModelBase, IDisposable
                     await _hostApp.SelectSystem(selectedSystem);
                 }
             },
-            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Uninitialized),
@@ -391,7 +390,6 @@ public class MainViewModel : ViewModelBase, IDisposable
                     await _hostApp.SelectSystemConfigurationVariant(selectedVariant);
                 }
             },
-            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Uninitialized),
@@ -400,7 +398,6 @@ public class MainViewModel : ViewModelBase, IDisposable
         // Initialize ReactiveCommands for buttons
         StartCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await _hostApp.Start(),
-            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 x => x.HasValidationErrors,
@@ -409,7 +406,6 @@ public class MainViewModel : ViewModelBase, IDisposable
 
         PauseCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => _hostApp.Pause(),
-            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Running),
@@ -417,7 +413,6 @@ public class MainViewModel : ViewModelBase, IDisposable
 
         StopCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => _hostApp.Stop(),
-            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
@@ -425,7 +420,6 @@ public class MainViewModel : ViewModelBase, IDisposable
 
         ResetCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await _hostApp.Reset(),
-            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
@@ -433,7 +427,6 @@ public class MainViewModel : ViewModelBase, IDisposable
 
         MonitorCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => _hostApp.ToggleMonitor(),
-            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
@@ -441,13 +434,12 @@ public class MainViewModel : ViewModelBase, IDisposable
 
         StatsCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => _hostApp.ToggleStatisticsPanel(),
-            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        ClearLogCommand = ReactiveCommand.Create(
+        ClearLogCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {
                 lock (_logUpdateLock)

@@ -19,7 +19,7 @@ public partial class ErrorUserControl : UserControl
     {
         add
         {
-            // Note: Special code to handle creating ErrorUserControl directly (used in Browser) or via ErrorUserDialog Window (used in Desktop app)
+            // Note: Special code to handle creating ErrorUserControl directly (used in Browser and Desktop)
             _closeRequestedHandlers += value;
             // If ViewModel is already available, subscribe immediately
             ViewModel?.CloseRequested += value;
@@ -42,7 +42,7 @@ public partial class ErrorUserControl : UserControl
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        // Note: Special code to handle creating ErrorUserControl directly (used in Browser) or via ErrorDialog Window (used in Desktop app)
+        // Note: Special code to handle creating ErrorUserControl directly (used in Browser and Desktop)
         // Unsubscribe from previous ViewModel
         if (_previousViewModel != null)
         {

@@ -1,6 +1,7 @@
 using System;
 using System.Reactive;
- using ReactiveUI;
+using Microsoft.Extensions.Logging;
+using ReactiveUI;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
@@ -13,6 +14,9 @@ public class ErrorViewModel : ViewModelBase
     }
 
     public ErrorDialogResult UserChoice { get; private set; } = ErrorDialogResult.Exit;
+
+    private readonly ILogger _logger;
+
     public string ErrorMessage { get; }
     public string? ExceptionDetails { get; }
     public bool HasException { get; }
@@ -23,10 +27,10 @@ public class ErrorViewModel : ViewModelBase
         get => _showDetails;
         private set
         {
-            _showDetails = value;
-            // Update UI properties
+            _logger.LogInformation("Setting ShowDetails from {OldValue} to {NewValue}", _showDetails, value);
+            this.RaiseAndSetIfChanged(ref _showDetails, value);
+            // Update UI properties after the main property change is notified
             ShowDetailsButtonText = _showDetails ? HIDE_DETAILS_BUTTON_TEXT : SHOW_DETAILS_BUTTON_TEXT;
-            this.RaisePropertyChanged(nameof(ShowDetails));
         }
     }
     public string ShowDetailsButtonText
@@ -52,9 +56,11 @@ public class ErrorViewModel : ViewModelBase
     public event EventHandler<bool>? CloseRequested;
 
     public ErrorViewModel(
+        ILoggerFactory loggerFactory,
         string errorMessage,
         Exception? exception)
     {
+        _logger = loggerFactory.CreateLogger(typeof(ErrorViewModel).Name);
         ErrorMessage = errorMessage;
 
         if (exception != null)
@@ -67,7 +73,7 @@ public class ErrorViewModel : ViewModelBase
             HasException = false;
         }
 
-        ShowExceptionDetailsCommand = ReactiveCommand.Create(
+        ShowExceptionDetailsCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {
                 ShowDetails = !ShowDetails;
@@ -75,14 +81,14 @@ public class ErrorViewModel : ViewModelBase
             outputScheduler: RxApp.MainThreadScheduler);
 
         ContinueCommand = ReactiveCommandHelper.CreateSafeCommand(
-            async () =>
+            () =>
             {
                 CloseRequested?.Invoke(this, false);
             },
             outputScheduler: RxApp.MainThreadScheduler);
 
         ExitCommand = ReactiveCommandHelper.CreateSafeCommand(
-            async () =>
+            () =>
             {
                 CloseRequested?.Invoke(this, true);
             },

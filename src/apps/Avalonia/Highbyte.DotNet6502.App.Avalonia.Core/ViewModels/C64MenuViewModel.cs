@@ -91,55 +91,46 @@ public class C64MenuViewModel : ViewModelBase
         // Initialize ReactiveCommands
         CopyBasicSourceCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await CopyBasicSourceCode(),
-            _logger,
             this.WhenAnyValue(x => x.IsCopyPasteEnabled),
             RxApp.MainThreadScheduler);
 
         PasteTextCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await PasteTextInternal(),
-            _logger,
             this.WhenAnyValue(x => x.IsCopyPasteEnabled),
             RxApp.MainThreadScheduler);
 
         ToggleDiskImageCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await ToggleDiskImageInternal(),
-            _logger,
             this.WhenAnyValue(x => x.CanToggleDisk),
             RxApp.MainThreadScheduler);
 
         LoadPreloadedDiskCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await LoadPreloadedDiskImage(),
-            _logger,
             Observable.Return(true),
             RxApp.MainThreadScheduler);
 
         LoadAssemblyExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
              async () => await LoadAssemblyExample(),
-            _logger,
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
             RxApp.MainThreadScheduler);
 
         LoadBasicExampleCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await LoadBasicExample(),
-            _logger,
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
             RxApp.MainThreadScheduler);
 
         LoadBasicFileCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
             async (fileBuffer) => await LoadBasicFile(fileBuffer),
-            _logger,
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
             RxApp.MainThreadScheduler);
 
         SaveBasicFileCommand = ReactiveCommandHelper.CreateSafeCommandWithResult<byte[]>(
             async () => await GetBasicProgramAsPrgFileBytes(),
-            _logger,
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
             RxApp.MainThreadScheduler);
 
         LoadBinaryFileCommand = ReactiveCommandHelper.CreateSafeCommand<byte[]>(
             async (fileBuffer) => await LoadBinaryFile(fileBuffer),
-            _logger,
             this.WhenAnyValue(x => x.IsFileOperationEnabled),
             RxApp.MainThreadScheduler);
     }

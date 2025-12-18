@@ -42,6 +42,9 @@ public partial class App : Application
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
+    // Guard to prevent multiple error overlays from being shown simultaneously
+    private Panel? _currentErrorOverlay;
+
     /// <summary>
     /// Avalonia App constructor.
     /// </summary>
@@ -359,6 +362,13 @@ public partial class App : Application
 
     private async Task ShowErrorOverlay(Exception exception, string title)
     {
+        // Prevent multiple overlays from being shown at the same time
+        if (_currentErrorOverlay != null)
+        {
+            _logger.LogWarning("Error overlay already showing, skipping additional error: {Message}", exception.Message);
+            return;
+        }
+
         var mainGrid = GetMainGrid();
         if (mainGrid == null)
             return;
@@ -367,19 +377,21 @@ public partial class App : Application
         var errorMessage = $"An unexpected error occurred in the application.\n\n" +
                  $"Error: {exception.Message}\n\n" +
                  $"Type: {exception.GetType().Name}";
-        var errorViewModel = new ErrorViewModel(errorMessage, exception);
+        var errorViewModel = new ErrorViewModel(_loggerFactory, errorMessage, exception);
 
         // Create the UserControl
         var errorUserControl = new ErrorUserControl(errorViewModel);
 
         // Create overlay panel
         var overlayPanel = BuildËrrorUserControlOverlayPanel(errorViewModel, errorUserControl);
+        _currentErrorOverlay = overlayPanel;
 
         // Set up event handling for responding to user exiting the error dialog
         var taskCompletionSource = new TaskCompletionSource<bool>();
         errorUserControl.CloseRequested += (s, exit) =>
         {
-            taskCompletionSource.SetResult(exit);
+            // Use TrySetResult to prevent InvalidOperationException if called multiple times
+            taskCompletionSource.TrySetResult(exit);
         };
 
         // Show the overlay
@@ -410,6 +422,7 @@ public partial class App : Application
         {
             // Clean up - remove the overlay
             mainGrid.Children.Remove(overlayPanel);
+            _currentErrorOverlay = null;
         }
     }
 
