@@ -23,14 +23,14 @@ public class MonitorViewModel : ViewModelBase
         _monitor = monitor;
 
         // Initialize ReactiveUI commands
-        SendCommand = ReactiveCommand.CreateFromTask(
+        SendCommand = ReactiveCommandHelper.CreateSafeCommand(
             ExecuteSend,
-            Observable.Return(true),
-            RxApp.MainThreadScheduler);
-        CloseCommand = ReactiveCommand.CreateFromTask(
+            canExecute: Observable.Return(true),
+            outputScheduler: RxApp.MainThreadScheduler);
+        CloseCommand = ReactiveCommandHelper.CreateSafeCommand(
             ExecuteClose,
-            Observable.Return(true),
-            RxApp.MainThreadScheduler);
+            canExecute: Observable.Return(true),
+            outputScheduler: RxApp.MainThreadScheduler);
     }
 
     public ReactiveCommand<Unit, Unit> SendCommand { get; }

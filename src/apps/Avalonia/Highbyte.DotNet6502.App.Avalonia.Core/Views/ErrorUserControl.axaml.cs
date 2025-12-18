@@ -22,19 +22,13 @@ public partial class ErrorUserControl : UserControl
             // Note: Special code to handle creating ErrorUserControl directly (used in Browser) or via ErrorUserDialog Window (used in Desktop app)
             _closeRequestedHandlers += value;
             // If ViewModel is already available, subscribe immediately
-            if (ViewModel != null)
-            {
-                ViewModel.CloseRequested += value;
-            }
+            ViewModel?.CloseRequested += value;
         }
         remove
         {
             _closeRequestedHandlers -= value;
             // Unsubscribe from ViewModel if available
-            if (ViewModel != null)
-            {
-                ViewModel.CloseRequested -= value;
-            }
+            ViewModel?.CloseRequested -= value;
         }
     }
 

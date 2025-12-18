@@ -25,18 +25,26 @@ public class ErrorViewModel : ViewModelBase
         {
             _showDetails = value;
             // Update UI properties
-            ShowDetailsButtonText = _showDetails ? "Hide Details" : "Show Details";
-            UpdateWindowSize();
+            ShowDetailsButtonText = _showDetails ? HIDE_DETAILS_BUTTON_TEXT : SHOW_DETAILS_BUTTON_TEXT;
+            this.RaisePropertyChanged(nameof(ShowDetails));
         }
     }
     public string ShowDetailsButtonText
     {
         get => _showDetailsButtonText;
-        private set => _showDetailsButtonText = value;
+        private set
+        {
+            _showDetailsButtonText = value;
+            this.RaisePropertyChanged(nameof(ShowDetailsButtonText));
+        }
     }
 
-    private string _showDetailsButtonText = "Show Details";
+    private const string HIDE_DETAILS_BUTTON_TEXT = "Hide Details";
+    private const string SHOW_DETAILS_BUTTON_TEXT = "Show Details";
 
+    private string _showDetailsButtonText = SHOW_DETAILS_BUTTON_TEXT;
+
+    public ReactiveCommand<Unit, Unit> ShowExceptionDetailsCommand { get; }
     public ReactiveCommand<Unit, Unit> ContinueCommand { get; }
     public ReactiveCommand<Unit, Unit> ExitCommand { get; }
 
@@ -59,35 +67,27 @@ public class ErrorViewModel : ViewModelBase
             HasException = false;
         }
 
-        ContinueCommand = ReactiveCommand.CreateFromTask(
+        ShowExceptionDetailsCommand = ReactiveCommand.Create(
+            () =>
+            {
+                ShowDetails = !ShowDetails;
+            },
+            outputScheduler: RxApp.MainThreadScheduler);
+
+        ContinueCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
                 CloseRequested?.Invoke(this, false);
             },
             outputScheduler: RxApp.MainThreadScheduler);
 
-        ExitCommand = ReactiveCommand.CreateFromTask(
+        ExitCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
                 CloseRequested?.Invoke(this, true);
             },
             outputScheduler: RxApp.MainThreadScheduler);
 
-        UpdateWindowSize();
-    }
-
-    private void UpdateWindowSize()
-    {
-        // TODO: How to adjust UserControl size from ViewModel?
-
-        //if (ShowDetails && HasException)
-        //{
-        //    Height = 520; // Expanded height to show details (increased from 500)
-        //}
-        //else
-        //{
-        //    Height = 280; // Compact height without details (increased from 250)
-        //}
     }
 
     public bool IsRunningInWebAssembly { get; } = PlatformDetection.IsRunningInWebAssembly();

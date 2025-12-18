@@ -72,7 +72,8 @@
                         Content="{Binding ShowDetailsButtonText}"
                         Width="120"
                         Height="30"
-                        Classes="text"/>
+                        Classes="text"
+                        Command="{Binding ShowExceptionDetailsCommand}"/>
             </StackPanel>
 
             <!-- Buttons -->

@@ -30,6 +30,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private readonly AvaloniaHostApp _hostApp;
     private readonly IConfiguration _configuration;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger _logger;
     private readonly C64HostConfig _originalConfig;
     private readonly C64HostConfig _workingConfig;
     private readonly List<(Type renderProviderType, Type renderTargetType)> _renderCombinations;
@@ -73,6 +74,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
         _configuration = configuration;
         _loggerFactory = loggerFactory;
+        _logger = loggerFactory.CreateLogger<C64ConfigDialogViewModel>();
         _originalConfig = hostApp.CurrentHostSystemConfig as C64HostConfig ?? throw new Exception("hostApp.CurrentHostSystemConfig must be type C64HostConfig");
         _renderCombinations = hostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations() ?? new List<(Type, Type)>();
         _workingConfig = (C64HostConfig)_originalConfig.Clone();
@@ -99,27 +101,31 @@ public class C64ConfigDialogViewModel : ViewModelBase
         UpdateValidationMessageFromConfig();
 
         // Initialize ReactiveUI Commands with MainThreadScheduler for Browser compatibility
-        DownloadRomsToByteArrayCommand = ReactiveCommand.CreateFromTask(
+        DownloadRomsToByteArrayCommand = ReactiveCommandHelper.CreateSafeCommand(
             AutoDownloadRomsToByteArrayAsync,
+            _logger,
             outputScheduler: RxApp.MainThreadScheduler);
 
-        DownloadRomsToFilesCommand = ReactiveCommand.CreateFromTask(
+        DownloadRomsToFilesCommand = ReactiveCommandHelper.CreateSafeCommand(
             AutoDownloadROMsToFilesAsync,
+            _logger,
             outputScheduler: RxApp.MainThreadScheduler);
 
-        ClearRomsCommand = ReactiveCommand.CreateFromTask(
+        ClearRomsCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {
                 UnloadRoms();
                 return Task.CompletedTask;
             },
+            _logger,
             outputScheduler: RxApp.MainThreadScheduler);
 
-        TestAIBackendCommand = ReactiveCommand.CreateFromTask(
+        TestAIBackendCommand = ReactiveCommandHelper.CreateSafeCommand(
             TestAIBackendAsync,
+            _logger,
             outputScheduler: RxApp.MainThreadScheduler);
 
-        SaveCommand = ReactiveCommand.CreateFromTask(
+        SaveCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
                 if (await TryApplyChanges())
@@ -127,14 +133,16 @@ public class C64ConfigDialogViewModel : ViewModelBase
                     ConfigurationChanged?.Invoke(this, true);
                 }
             },
+            _logger,
             outputScheduler: RxApp.MainThreadScheduler);
 
-        CancelCommand = ReactiveCommand.CreateFromTask(
+        CancelCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {
                 ConfigurationChanged?.Invoke(this, false);
                 return Task.CompletedTask;
             },
+            _logger,
             outputScheduler: RxApp.MainThreadScheduler);
     }
 

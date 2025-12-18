@@ -369,87 +369,79 @@ public class MainViewModel : ViewModelBase, IDisposable
             .ToProperty(this, x => x.AudioTooltip);
 
         // Initialize ReactiveCommands for ComboBox selections
-        SelectSystemCommand = ReactiveCommand.CreateFromTask<string>(
-        async (selectedSystem) =>
+        SelectSystemCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
+            async (selectedSystem) =>
             {
                 if (!string.IsNullOrEmpty(selectedSystem) && _hostApp.SelectedSystemName != selectedSystem)
                 {
                     await _hostApp.SelectSystem(selectedSystem);
                 }
             },
+            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Uninitialized),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        SelectSystemVariantCommand = ReactiveCommand.CreateFromTask<string>(
+        SelectSystemVariantCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
             async (selectedVariant) =>
-                 {
-                     if (!string.IsNullOrEmpty(selectedVariant) && _hostApp.SelectedSystemConfigurationVariant != selectedVariant)
-                     {
-                         await _hostApp.SelectSystemConfigurationVariant(selectedVariant);
-                     }
-                 },
+            {
+                if (!string.IsNullOrEmpty(selectedVariant) && _hostApp.SelectedSystemConfigurationVariant != selectedVariant)
+                {
+                    await _hostApp.SelectSystemConfigurationVariant(selectedVariant);
+                }
+            },
+            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Uninitialized),
-                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         // Initialize ReactiveCommands for buttons
-        StartCommand = ReactiveCommand.CreateFromTask(
+        StartCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await _hostApp.Start(),
+            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 x => x.HasValidationErrors,
                 (state, hasErrors) => !hasErrors && state != EmulatorState.Running),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        PauseCommand = ReactiveCommand.CreateFromTask(
-            () =>
-            {
-                _hostApp.Pause();
-                return Task.CompletedTask;
-            },
+        PauseCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => _hostApp.Pause(),
+            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Running),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        StopCommand = ReactiveCommand.CreateFromTask(
-            () =>
-            {
-                _hostApp.Stop();
-                return Task.CompletedTask;
-            },
+        StopCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => _hostApp.Stop(),
+            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        ResetCommand = ReactiveCommand.CreateFromTask(
+        ResetCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await _hostApp.Reset(),
+            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        MonitorCommand = ReactiveCommand.CreateFromTask(
-            () =>
-            {
-                _hostApp.ToggleMonitor();
-                return Task.CompletedTask;
-            },
+        MonitorCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => _hostApp.ToggleMonitor(),
+            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        StatsCommand = ReactiveCommand.CreateFromTask(
-            () =>
-            {
-                _hostApp.ToggleStatisticsPanel();
-                return Task.CompletedTask;
-            },
+        StatsCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => _hostApp.ToggleStatisticsPanel(),
+            _logger,
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
@@ -475,25 +467,13 @@ public class MainViewModel : ViewModelBase, IDisposable
                 count => count > 0),
             RxApp.MainThreadScheduler);
 
-        // Handle command exceptions
-        SelectSystemCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error selecting system"));
-        SelectSystemVariantCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error selecting system variant"));
-        StartCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error executing Start command"));
-        PauseCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error executing Pause command"));
-        StopCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error executing Stop command"));
-        ResetCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error executing Reset command"));
-        MonitorCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error executing Monitor command"));
-        StatsCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error executing Stats command"));
-
         // Initialize timer for batched log UI updates
         InitializeLogUpdateTimer();
 
         // Populate log messages initially
         RefreshLogMessages();
         // Subscribe to new log messages
-        if (_hostApp.LogStore != null)
-        {
-            _hostApp.LogStore.LogMessageAdded += (sender, logEntry) =>
+        _hostApp.LogStore?.LogMessageAdded += (sender, logEntry) =>
             {
                 // Add message to backing store on current thread (no UI dispatch!)
                 lock (_logUpdateLock)
@@ -502,7 +482,6 @@ public class MainViewModel : ViewModelBase, IDisposable
                     _hasPendingLogUpdates = true;
                 }
             };
-        }
 
         // System-specific ViewModel initializations
         this.WhenAnyValue(x => x.SelectedSystemName)
@@ -526,11 +505,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         return string.Empty;
     }
 
-    private void HandleCommandException(Exception ex, string message)
-    {
-        _logger.LogError(ex, message);
-        throw ex;
-    }
+
 
     public async Task InitializeAsync()
     {

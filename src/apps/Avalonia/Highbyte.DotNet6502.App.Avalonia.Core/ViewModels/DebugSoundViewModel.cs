@@ -67,95 +67,95 @@ public class DebugSoundViewModel : ViewModelBase
         _loggerFactory = loggerFactory;
         _wavePlayer = wavePlayer;
 
-        CloseCommand = ReactiveCommand.CreateFromTask(
+        CloseCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
                 CloseRequested?.Invoke(this, true);
             },
             outputScheduler: RxApp.MainThreadScheduler);
 
-        InitAudioCommand = ReactiveCommand.CreateFromTask(
+        InitAudioCommand = ReactiveCommandHelper.CreateSafeCommand(
             InitAudio,
-            this.WhenAnyValue(x => x.IsAudioNotInitialized),
+            canExecute: this.WhenAnyValue(x => x.IsAudioNotInitialized),
             outputScheduler: RxApp.MainThreadScheduler);
 
-        PlayAudioCommand = ReactiveCommand.CreateFromTask(
+        PlayAudioCommand = ReactiveCommandHelper.CreateSafeCommand(
             PlayAudio,
-            this.WhenAnyValue(
+            canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPaused,
                 x => x.IsWavePlayerStopped,
                 (initialized, paused, stopped) => initialized && (paused || stopped)),
             outputScheduler: RxApp.MainThreadScheduler);
 
-        PauseAudioCommand = ReactiveCommand.CreateFromTask(
+        PauseAudioCommand = ReactiveCommandHelper.CreateSafeCommand(
             PauseAudio,
-            this.WhenAnyValue(
+            canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
                 (initialized, playing) => initialized && playing),
             outputScheduler: RxApp.MainThreadScheduler);
 
-        StopAudioCommand = ReactiveCommand.CreateFromTask(
+        StopAudioCommand = ReactiveCommandHelper.CreateSafeCommand(
             StopAudio,
-            this.WhenAnyValue(
+            canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
                 x => x.IsWavePlayerPaused,
                 (initialized, playing, paused) => initialized && (playing || paused)),
             outputScheduler: RxApp.MainThreadScheduler);
 
-        PlayCommand = ReactiveCommand.CreateFromTask(
+        PlayCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
                 await PlaySound(SelectedSoundTest);
             },
-            this.WhenAnyValue(
+            canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
                 (initialized, playing) => initialized && playing),
             outputScheduler: RxApp.MainThreadScheduler);
 
-        StopCommand = ReactiveCommand.CreateFromTask(
+        StopCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
                 await StopSound(SelectedSoundTest);
             },
-            this.WhenAnyValue(
+            canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
                 (initialized, playing) => initialized && playing),
             outputScheduler: RxApp.MainThreadScheduler);
 
 
-        PlaySynthCommand = ReactiveCommand.CreateFromTask(
+        PlaySynthCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
                 await PlaySynthSound();
             },
-            this.WhenAnyValue(
+            canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
                 (initialized, playing) => initialized && playing),
             outputScheduler: RxApp.MainThreadScheduler);
 
-        StartSynthReleaseCommand = ReactiveCommand.CreateFromTask(
+        StartSynthReleaseCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
                 await StartSynthRelease();
             },
-            this.WhenAnyValue(
+            canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
                 (initialized, playing) => initialized && playing),
             outputScheduler: RxApp.MainThreadScheduler);
 
-        StopSynthCommand = ReactiveCommand.CreateFromTask(
+        StopSynthCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
                 await StopSynthSound();
             },
-            this.WhenAnyValue(
+            canExecute: this.WhenAnyValue(
                 x => x.IsAudioInitialized,
                 x => x.IsWavePlayerPlaying,
                 (initialized, playing) => initialized && playing),

@@ -279,8 +279,9 @@ public partial class App : Application
             // Set up handler for unhandled exceptions in tasks
             TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
-            // Set up ReactiveUI exception handler only if not running in WebAssembly
-            // WebAssembly/AOT has issues with Observer.Create<Exception> due to runtime limitations
+            // Set up ReactiveUI exception handler ONLY on desktop platforms
+            // In WebAssembly, ReactiveUI's exception handling uses threading which causes PlatformNotSupportedException
+            // Instead, let exceptions bubble up to Avalonia's UI thread handler which works correctly in WASM
             if (!PlatformDetection.IsRunningInWebAssembly())
             {
                 try
@@ -290,12 +291,12 @@ public partial class App : Application
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to configure ReactiveUI exception handler (this may be expected in WebAssembly environments)");
+                    _logger.LogWarning(ex, "Failed to configure ReactiveUI exception handler");
                 }
             }
             else
             {
-                _logger.LogInformation("Skipping ReactiveUI exception handler setup in WebAssembly environment");
+                _logger.LogInformation("Skipping ReactiveUI exception handler in WebAssembly - exceptions will be caught by ReactiveCommandHelper");
             }
 
             _logger.LogInformation("Global exception handlers configured successfully for error dialog mode");
@@ -345,91 +346,15 @@ public partial class App : Application
     private void HandleGlobalException(Exception exception, string title)
     {
         _logger.LogError(exception, "Unhandled exception: {Message}", exception.Message);
-        System.Console.WriteLine($"Exception: {exception.Message}");
-        System.Console.WriteLine($"Stack trace: {exception.StackTrace}");
+        Console.WriteLine($"Exception: {exception.Message}");
+        Console.WriteLine($"Stack trace: {exception.StackTrace}");
 
         // Pause emulator if it's running
         if (_hostApp?.EmulatorState == EmulatorState.Running)
         {
             _hostApp.Pause();
         }
-
-        if (PlatformDetection.IsRunningOnDesktop())
-        {
-            // Show error dialog as modal window on desktop
-            //ShowErrorDialog(exception, title);
-            ShowErrorOverlay(exception, title);
-        }
-        else if (PlatformDetection.IsRunningInWebAssembly())
-        {
-            // Show error control as overlay in WebAssembly
-            ShowErrorOverlay(exception, title);
-        }
-    }
-
-    private void ShowErrorDialog(Exception exception, string title)
-    {
-        // Ensure we're on the UI thread
-        if (!Dispatcher.UIThread.CheckAccess())
-        {
-            Dispatcher.UIThread.Post(() => ShowErrorDialog(exception, title));
-            return;
-        }
-
-        // Run on UI thread
-        Dispatcher.UIThread.InvokeAsync(async () =>
-        {
-            try
-            {
-                var errorMessage = $"An unexpected error occurred in the application.\n\n" +
-                                 $"Error: {exception.Message}\n\n" +
-                                 $"Type: {exception.GetType().Name}";
-
-                var dialog = new ErrorDialog
-                {
-                    DataContext = new ErrorViewModel(errorMessage, exception)
-                };
-
-                global::Avalonia.Controls.Window? parentWindow = null;
-                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-                {
-                    parentWindow = desktop.MainWindow;
-                }
-
-                if (parentWindow == null)
-                    return;
-
-                bool exit = await dialog.ShowDialog<bool>(parentWindow);
-
-                // If user chose to exit - close the application
-                if (exit)
-                {
-                    if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopLifetime)
-                    {
-                        desktopLifetime.Shutdown();
-                        return;
-                    }
-                    else
-                    {
-                        Environment.Exit(0);
-                        return;
-                    }
-                }
-
-                // User chose to continue - unpause emulator if it was paused
-                if (_hostApp?.EmulatorState == EmulatorState.Paused)
-                {
-                    _ = _hostApp.Start(); // Fire and forget
-                }
-
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to show error dialog");
-                // Fallback: just exit
-                Environment.Exit(1);
-            }
-        });
+        _ = ShowErrorOverlay(exception, title);
     }
 
     private async Task ShowErrorOverlay(Exception exception, string title)

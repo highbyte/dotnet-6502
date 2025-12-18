@@ -192,6 +192,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     public override void OnAfterStart(EmulatorState emulatorStateBeforeStart)
     {
+        throw new Exception("dummy");
+        
         Console.WriteLine($"Emulator started: {CurrentRunningSystem.Name} Variant: {SelectedSystemConfigurationVariant}");
 
         var screen = CurrentRunningSystem!.Screen;
