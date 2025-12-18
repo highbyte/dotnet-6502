@@ -3,12 +3,16 @@ using System.Linq;
 using System.Reactive;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Diagnostics;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using Avalonia.Threading;
+using DynamicData.Kernel;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.App.Avalonia.Core.Views;
@@ -338,7 +342,7 @@ public partial class App : Application
         HandleGlobalException(exception, "ReactiveUI Exception");
     }
 
-    private void HandleGlobalException(Exception exception, string title = "Unhandled Exception")
+    private void HandleGlobalException(Exception exception, string title)
     {
         _logger.LogError(exception, "Unhandled exception: {Message}", exception.Message);
         System.Console.WriteLine($"Exception: {exception.Message}");
@@ -350,11 +354,20 @@ public partial class App : Application
             _hostApp.Pause();
         }
 
-        // Show error dialog - ensure it runs on UI thread
-        ShowErrorDialog(exception, title);
+        if (PlatformDetection.IsRunningOnDesktop())
+        {
+            // Show error dialog as modal window on desktop
+            //ShowErrorDialog(exception, title);
+            ShowErrorOverlay(exception, title);
+        }
+        else if (PlatformDetection.IsRunningInWebAssembly())
+        {
+            // Show error control as overlay in WebAssembly
+            ShowErrorOverlay(exception, title);
+        }
     }
 
-    private void ShowErrorDialog(Exception exception, string title = "Unhandled Exception")
+    private void ShowErrorDialog(Exception exception, string title)
     {
         // Ensure we're on the UI thread
         if (!Dispatcher.UIThread.CheckAccess())
@@ -372,7 +385,10 @@ public partial class App : Application
                                  $"Error: {exception.Message}\n\n" +
                                  $"Type: {exception.GetType().Name}";
 
-                var errorDialog = new ErrorDialog(errorMessage, exception);
+                var dialog = new ErrorDialog
+                {
+                    DataContext = new ErrorViewModel(errorMessage, exception)
+                };
 
                 global::Avalonia.Controls.Window? parentWindow = null;
                 if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -380,43 +396,32 @@ public partial class App : Application
                     parentWindow = desktop.MainWindow;
                 }
 
-                ErrorDialog.ErrorDialogResult result;
-                if (parentWindow != null)
-                {
-                    result = await errorDialog.ShowDialog<ErrorDialog.ErrorDialogResult>(parentWindow);
-                }
-                else
-                {
-                    // Show as non-modal dialog and wait for it to close
-                    var tcs = new TaskCompletionSource<ErrorDialog.ErrorDialogResult>();
-                    errorDialog.Closed += (_, _) =>
-                    {
-                        tcs.SetResult(errorDialog.UserChoice);
-                    };
-                    errorDialog.Show();
-                    result = await tcs.Task;
-                }
+                if (parentWindow == null)
+                    return;
 
-                if (result == ErrorDialog.ErrorDialogResult.Exit)
+                bool exit = await dialog.ShowDialog<bool>(parentWindow);
+
+                // If user chose to exit - close the application
+                if (exit)
                 {
-                    // User chose to exit - close the application
                     if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopLifetime)
                     {
                         desktopLifetime.Shutdown();
+                        return;
                     }
                     else
                     {
                         Environment.Exit(0);
+                        return;
                     }
                 }
-                else
+
+                // User chose to continue - unpause emulator if it was paused
+                if (_hostApp?.EmulatorState == EmulatorState.Paused)
                 {
-                    // User chose to continue - unpause emulator if it was paused
-                    if (_hostApp?.EmulatorState == EmulatorState.Paused)
-                    {
-                        _ = _hostApp.Start(); // Fire and forget
-                    }
+                    _ = _hostApp.Start(); // Fire and forget
                 }
+
             }
             catch (Exception ex)
             {
@@ -425,5 +430,182 @@ public partial class App : Application
                 Environment.Exit(1);
             }
         });
+    }
+
+    private async Task ShowErrorOverlay(Exception exception, string title)
+    {
+        var mainGrid = GetMainGrid();
+        if (mainGrid == null)
+            return;
+
+        // Create the ErrorViewModel
+        var errorMessage = $"An unexpected error occurred in the application.\n\n" +
+                 $"Error: {exception.Message}\n\n" +
+                 $"Type: {exception.GetType().Name}";
+        var errorViewModel = new ErrorViewModel(errorMessage, exception);
+
+        // Create the UserControl
+        var errorUserControl = new ErrorUserControl(errorViewModel);
+
+        // Create overlay panel
+        var overlayPanel = BuildËrrorUserControlOverlayPanel(errorViewModel, errorUserControl);
+
+        // Set up event handling for responding to user exiting the error dialog
+        var taskCompletionSource = new TaskCompletionSource<bool>();
+        errorUserControl.CloseRequested += (s, exit) =>
+        {
+            taskCompletionSource.SetResult(exit);
+        };
+
+        // Show the overlay
+        Grid.SetRowSpan(overlayPanel, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
+        Grid.SetColumnSpan(overlayPanel, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
+        mainGrid.Children.Add(overlayPanel);
+
+        try
+        {
+            // Wait for the dialog to close with result
+            var exit = await taskCompletionSource.Task;
+
+            if (exit)
+            {
+                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopLifetime)
+                {
+                    desktopLifetime.Shutdown();
+                    return;
+                }
+                else
+                {
+                    Environment.Exit(0);
+                    return;
+                }
+            }
+        }
+        finally
+        {
+            // Clean up - remove the overlay
+            mainGrid.Children.Remove(overlayPanel);
+        }
+    }
+
+    private Panel BuildËrrorUserControlOverlayPanel(ErrorViewModel errorViewModel, ErrorUserControl errorUserControl)
+    {
+        // Create a custom overlay with better modal behavior
+        var overlay = new Panel
+        {
+            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)), // More opaque overlay
+            ZIndex = 1000
+        };
+
+        // Create a dialog container that looks like a proper modal
+        var dialogContainer = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),  // 1A202C, ViewDefaultBg
+            BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            BoxShadow = new BoxShadows(new BoxShadow
+            {
+                OffsetX = 0,
+                OffsetY = 8,
+                Blur = 25,
+                Color = Color.FromArgb(128, 0, 0, 0)
+            }),
+            Margin = new Thickness(20), // Add margin from screen edges
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = errorUserControl // Direct child, no ScrollViewer wrapper
+        };
+
+        overlay.Children.Add(dialogContainer);
+
+        return overlay;
+    }
+
+    private Grid? GetMainGrid()
+    {
+        // Find the main Grid.
+        // We need to find the root Window's content Grid or MainView's Grid
+        MainView? mainView = null;
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            mainView = desktop.MainWindow?.Content as MainView;
+        }
+        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
+        {
+            mainView = singleViewPlatform.MainView as MainView;
+        }
+        else
+        {
+            mainView = null;
+        }
+
+        if (mainView == null)
+            return null;
+
+
+        Grid? mainGrid = null;
+        if (mainView?.Content is Grid mainViewGrid)
+        {
+            mainGrid = mainViewGrid;
+        }
+
+        return mainGrid;
+
+        // Try to find the Window by walking up from TopLevel
+        //var topLevel = TopLevel.GetTopLevel(this);
+
+        //// Desktop scenario: C64ConfigDialog Window
+        //if (topLevel is Window window)
+        //{
+        //    // Check if this is the C64ConfigDialog window (desktop)
+        //    // The dialog's Content is the C64ConfigUserControl, which contains a Grid
+        //    if (window is C64ConfigDialog dialog)
+        //    {
+        //        // Look for the Grid inside this C64ConfigUserControl
+        //        // We can use the visual tree to find it
+        //        if (this.Content is Grid thisGrid)
+        //        {
+        //            mainGrid = thisGrid;
+        //        }
+        //        else
+        //        {
+        //            // Try to find the first Grid child in this control
+        //            mainGrid = this.FindDescendantOfType<Grid>();
+        //        }
+        //    }
+        //    // Or if it's the main window with a Grid content
+        //    else if (window.Content is Grid windowGrid)
+        //    {
+        //        mainGrid = windowGrid;
+        //    }
+        //}
+
+        //// Browser scenario: Try to find MainView in the visual tree
+        //if (mainGrid == null)
+        //{
+        //    var mainView = this.FindAncestorOfType<MainView>(true);
+        //    if (mainView?.Content is Grid mainViewGrid)
+        //    {
+        //        mainGrid = mainViewGrid;
+        //    }
+        //}
+
+        //// Last resort: try to find any Grid ancestor by walking the visual tree
+        //if (mainGrid == null)
+        //{
+        //    var current = this.Parent;
+        //    while (current != null)
+        //    {
+        //        if (current is Grid grid)
+        //        {
+        //            mainGrid = grid;
+        //            break;
+        //        }
+        //        current = (current as Control)?.Parent;
+        //    }
+        //}
+
+
     }
 }

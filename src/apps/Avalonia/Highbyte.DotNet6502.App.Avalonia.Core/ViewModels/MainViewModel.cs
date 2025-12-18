@@ -476,14 +476,14 @@ public class MainViewModel : ViewModelBase, IDisposable
             RxApp.MainThreadScheduler);
 
         // Handle command exceptions
-        SelectSystemCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error selecting system"));
-        SelectSystemVariantCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error selecting system variant"));
-        StartCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Start command"));
-        PauseCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Pause command"));
-        StopCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Stop command"));
-        ResetCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Reset command"));
-        MonitorCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Monitor command"));
-        StatsCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Stats command"));
+        SelectSystemCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error selecting system"));
+        SelectSystemVariantCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error selecting system variant"));
+        StartCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error executing Start command"));
+        PauseCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error executing Pause command"));
+        StopCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error executing Stop command"));
+        ResetCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error executing Reset command"));
+        MonitorCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error executing Monitor command"));
+        StatsCommand.ThrownExceptions.Subscribe(ex => HandleCommandException(ex, "Error executing Stats command"));
 
         // Initialize timer for batched log UI updates
         InitializeLogUpdateTimer();
@@ -524,6 +524,12 @@ public class MainViewModel : ViewModelBase, IDisposable
             return "Audio is experimental. Fast assembly routines may not play audio correctly. In browser there is a bigger performance cost that may affect entire emulation FPS. See config settings menu for different audio profiles to balance accuracy against latency.";
 
         return string.Empty;
+    }
+
+    private void HandleCommandException(Exception ex, string message)
+    {
+        _logger.LogError(ex, message);
+        throw ex;
     }
 
     public async Task InitializeAsync()

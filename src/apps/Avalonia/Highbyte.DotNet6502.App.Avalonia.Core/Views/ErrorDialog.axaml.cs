@@ -1,6 +1,8 @@
 using System;
+using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
+using Avalonia.Markup.Xaml;
+using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
@@ -10,95 +12,121 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 /// </summary>
 public partial class ErrorDialog : Window
 {
-    public enum ErrorDialogResult
-    {
-        Continue,
-        Exit
-    }
-
-    public ErrorDialogResult UserChoice { get; private set; } = ErrorDialogResult.Exit;
-    public string ErrorMessage { get; }
-    public string? ExceptionDetails { get; }
-    public bool HasException { get; }
-
-    private bool _showDetails = false;
-    public bool ShowDetails
-    {
-        get => _showDetails;
-        private set
-        {
-            _showDetails = value;
-            // Update UI properties
-            ShowDetailsButtonText = _showDetails ? "Hide Details" : "Show Details";
-            UpdateWindowSize();
-        }
-    }
-
-    private string _showDetailsButtonText = "Show Details";
-    public string ShowDetailsButtonText
-    {
-        get => _showDetailsButtonText;
-        private set => _showDetailsButtonText = value;
-    }
+    // Static fields to remember window position and size across instances
+    private static PixelPoint? s_lastPosition;
+    private static Size? s_lastSize;
+    private static WindowState? s_lastWindowState;
+    private bool _isPositionInitialized = false;
 
     public ErrorDialog()
     {
         InitializeComponent();
-        ErrorMessage = string.Empty;
+
+        // Restore previous window position and size if available
+        RestoreWindowBounds();
+
+        // Subscribe to events
+        Opened += OnOpened;
+        PositionChanged += OnPositionChanged;
+        Closed += OnClosed;
+        DataContextChanged += OnDataContextChanged;
     }
 
-    public ErrorDialog(string errorMessage, Exception? exception = null) : this()
+    private void InitializeComponent()
     {
-        ErrorMessage = errorMessage;
-
-        if (exception != null)
-        {
-            ExceptionDetails = $"{exception.GetType().Name}: {exception.Message}\n\nStack Trace:\n{exception.StackTrace}";
-            HasException = true;
-        }
-        else
-        {
-            HasException = false;
-        }
-
-        DataContext = this;
-
-        // Set focus to Continue button
-        ContinueButton.Focus();
-
-        // Initially hide details
-        UpdateWindowSize();
+        AvaloniaXamlLoader.Load(this);
     }
 
-    private void UpdateWindowSize()
+    private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        if (ShowDetails && HasException)
+        // When DataContext is set to a MonitorViewModel, create and add the MonitorUserControl
+        if (DataContext is ErrorViewModel viewModel)
         {
-            Height = 520; // Expanded height to show details (increased from 500)
-        }
-        else
-        {
-            Height = 280; // Compact height without details (increased from 250)
+            var errorUserControlControl = new ErrorUserControl(viewModel);
+            Content = errorUserControlControl;
+
+            // Subscribe to ViewModel's CloseRequested event
+            viewModel.CloseRequested += OnViewModelCloseRequested;
         }
     }
 
-    private void ShowDetailsButton_Click(object? sender, RoutedEventArgs e)
+    private void OnViewModelCloseRequested(object? sender, bool exit)
     {
-        ShowDetails = !ShowDetails;
-        // Force a UI update by updating DataContext
-        DataContext = null;
-        DataContext = this;
+        Close(exit);
     }
 
-    private void ContinueButton_Click(object? sender, RoutedEventArgs e)
+    private void RestoreWindowBounds()
     {
-        UserChoice = ErrorDialogResult.Continue;
-        Close(ErrorDialogResult.Continue);
+        // Restore size immediately
+        if (s_lastSize.HasValue)
+        {
+            Width = s_lastSize.Value.Width;
+            Height = s_lastSize.Value.Height;
+        }
+
+        // Set WindowStartupLocation to Manual if we have a saved position
+        if (s_lastPosition.HasValue)
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            // Try setting position immediately as well
+            Position = s_lastPosition.Value;
+        }
+
+        if (s_lastWindowState.HasValue && s_lastWindowState.Value != WindowState.Minimized)
+        {
+            WindowState = s_lastWindowState.Value;
+        }
     }
 
-    private void ExitButton_Click(object? sender, RoutedEventArgs e)
+    private void OnOpened(object? sender, EventArgs e)
     {
-        UserChoice = ErrorDialogResult.Exit;
-        Close(ErrorDialogResult.Exit);
+        // Restore position after window is opened (for modal dialogs)
+        if (s_lastPosition.HasValue && !_isPositionInitialized)
+        {
+            Position = s_lastPosition.Value;
+            _isPositionInitialized = true;
+        }
+    }
+
+    private void OnPositionChanged(object? sender, PixelPointEventArgs e)
+    {
+        // Save the new position whenever it changes
+        if (WindowState != WindowState.Minimized)
+        {
+            s_lastPosition = e.Point;
+        }
+
+        // Mark position as initialized once it changes (after the window is positioned)
+        if (!_isPositionInitialized)
+        {
+            _isPositionInitialized = true;
+        }
+    }
+
+    private void SaveWindowBounds()
+    {
+        // Save current size and window state for next time
+        // Note: Position is already saved in OnPositionChanged event handler
+        if (WindowState != WindowState.Minimized && _isPositionInitialized)
+        {
+            s_lastSize = new Size(Width, Height);
+            s_lastWindowState = WindowState;
+        }
+    }
+
+
+    private void OnClosed(object? sender, EventArgs e)
+    {
+        // Save window bounds before closing
+        SaveWindowBounds();
+
+        // Unsubscribe from ViewModel event if it exists
+        if (DataContext is ErrorViewModel viewModel)
+            viewModel.CloseRequested -= OnViewModelCloseRequested;
+
+        Opened -= OnOpened;
+        PositionChanged -= OnPositionChanged;
+        Closed -= OnClosed;
+        DataContextChanged -= OnDataContextChanged;
     }
 }

@@ -75,5 +75,8 @@
     <Compile Update="Views\EmulatorView.axaml.cs">
       <DependentUpon>EmulatorView.axaml</DependentUpon>
     </Compile>
+    <Compile Update="Views\ErrorUserControl.axaml.cs">
+      <DependentUpon>ErrorUserControl.axaml</DependentUpon>
+    </Compile>
   </ItemGroup>
 </Project>
