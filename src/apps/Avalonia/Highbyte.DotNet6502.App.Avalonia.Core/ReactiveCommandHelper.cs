@@ -98,8 +98,10 @@ public static class ReactiveCommandHelper
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Exception in command handler");
-                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => throw ex);
-                throw; // Unreachable, but needed for compiler
+                // Call the exception handler directly instead of re-throwing to avoid unobserved task exceptions
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+                    App.WasmExceptionHandler?.Invoke(ex));
+                return default!;
             }
         }, canExecute, outputScheduler);
     }
@@ -128,8 +130,10 @@ public static class ReactiveCommandHelper
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Exception in command handler");
-                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => throw ex);
-                throw; // Unreachable, but needed for compiler
+                // Call the exception handler directly instead of re-throwing to avoid unobserved task exceptions
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+                    App.WasmExceptionHandler?.Invoke(ex));
+                return default!;
             }
         }, canExecute, outputScheduler);
     }
@@ -159,7 +163,9 @@ public static class ReactiveCommandHelper
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Exception in command handler");
-                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => throw ex);
+                // Call the exception handler directly instead of re-throwing to avoid unobserved task exceptions
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+                    App.WasmExceptionHandler?.Invoke(ex));
             }
         }, canExecute, outputScheduler);
     }
@@ -187,7 +193,9 @@ public static class ReactiveCommandHelper
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Exception in command handler");
-                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => throw ex);
+                // Call the exception handler directly instead of re-throwing to avoid unobserved task exceptions
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+                    App.WasmExceptionHandler?.Invoke(ex));
             }
         }, canExecute, outputScheduler);
     }
@@ -215,8 +223,10 @@ public static class ReactiveCommandHelper
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Exception in command handler");
-                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => throw ex);
-                throw; // Unreachable, but needed for compiler
+                // Call the exception handler directly instead of re-throwing to avoid unobserved task exceptions
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+                    App.WasmExceptionHandler?.Invoke(ex));
+                return default!;
             }
         }, canExecute, outputScheduler);
     }
@@ -244,8 +254,10 @@ public static class ReactiveCommandHelper
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Exception in command handler");
-                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => throw ex);
-                throw; // Unreachable, but needed for compiler
+                // Call the exception handler directly instead of re-throwing to avoid unobserved task exceptions
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+                    App.WasmExceptionHandler?.Invoke(ex));
+                return default!;
             }
         }, canExecute, outputScheduler);
     }
