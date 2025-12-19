@@ -6,16 +6,16 @@
   <ItemGroup>
     <!-- Avalonia packages -->
     <!-- Important: keep version in sync! -->
-    <PackageVersion Include="Avalonia" Version="11.3.8" />
-    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.8" />
-    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.8" />
-    <PackageVersion Include="Avalonia.Diagnostics" Version="11.3.8" />
-    <PackageVersion Include="Avalonia.Desktop" Version="11.3.8" />
+    <PackageVersion Include="Avalonia" Version="11.3.10" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.10" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.10" />
+    <PackageVersion Include="Avalonia.Diagnostics" Version="11.3.10" />
+    <PackageVersion Include="Avalonia.Desktop" Version="11.3.10" />
     <PackageVersion Include="Avalonia.iOS" Version="11.3.6" />
-    <PackageVersion Include="Avalonia.Browser" Version="11.3.8" />
+    <PackageVersion Include="Avalonia.Browser" Version="11.3.10" />
     <PackageVersion Include="Avalonia.Android" Version="11.3.6" />
     <PackageVersion Include="Avalonia.ReactiveUI" Version="11.3.8" />
-    <PackageVersion Include="Avalonia.Skia" Version="11.3.8" />
+    <PackageVersion Include="Avalonia.Skia" Version="11.3.10" />
     <!-- Azure packages -->
     <PackageVersion Include="Azure.AI.OpenAI" Version="1.0.0-beta.11" />
     <!-- Benchmarking -->
