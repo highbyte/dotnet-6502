@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Timers;
 using Highbyte.DotNet6502.Systems;
@@ -12,7 +13,6 @@ using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
-using System.Runtime.InteropServices;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 
@@ -181,9 +181,39 @@ public class MainViewModel : ViewModelBase, IDisposable
     // Audio properties - track AudioSupported and AudioEnabled from HostApp
     private readonly ObservableAsPropertyHelper<bool> _audioSupported;
     public bool AudioSupported => _audioSupported.Value;
+    public bool AudioSettingsEnabled => AudioSupported && EmulatorState == EmulatorState.Uninitialized;
 
-    private readonly ObservableAsPropertyHelper<bool> _audioEnabled;
-    public bool AudioEnabled => _audioEnabled.Value;
+    // AudioEnabled - two-way binding property
+    private bool _audioEnabled;
+    public bool AudioEnabled
+    {
+        get => _audioEnabled;
+        set
+        {
+            if (_audioEnabled != value)
+            {
+                this.RaiseAndSetIfChanged(ref _audioEnabled, value);
+                // Update the host app when the value changes from UI
+                _hostApp.SetAudioEnabled(value).Wait();
+            }
+        }
+    }
+
+    private readonly ObservableAsPropertyHelper<string?> _audioTooltip;
+    public string? AudioTooltip => _audioTooltip.Value;
+
+    // Audio volume property - two-way binding
+    private double _audioVolumePercent = 20.0;
+    public double AudioVolumePercent
+    {
+        get => _audioVolumePercent;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _audioVolumePercent, value);
+            _hostApp.SetVolumePercent((float)value);
+        }
+    }
+
     public void ClearMonitorViewModel()
     {
         MonitorViewModel = null;
@@ -201,6 +231,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> ClearLogCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemVariantCommand { get; }
+
     // --- End ReactiveUI Commands ---
 
     //public string Version => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
@@ -280,6 +311,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                   // Notify all computed properties that depend on EmulatorState
                   this.RaisePropertyChanged(nameof(IsEmulatorRunning));
                   this.RaisePropertyChanged(nameof(IsEmulatorUninitialzied));
+                  this.RaisePropertyChanged(nameof(AudioSettingsEnabled));
               });
 
         _scale = _hostApp
@@ -311,14 +343,35 @@ public class MainViewModel : ViewModelBase, IDisposable
             .Select(config => config?.AudioSupported ?? false)
             .ToProperty(this, x => x.AudioSupported);
 
-        _audioEnabled = _hostApp
+        // Subscribe to AudioSupported changes AFTER ToProperty to ensure the value is updated first
+        this.WhenAnyValue(x => x.AudioSupported)
+             .Subscribe(_ =>
+             {
+                 // Notify AudioSettingsEnabled that depends on AudioSupported
+                 this.RaisePropertyChanged(nameof(AudioSettingsEnabled));
+             });
+
+        // Subscribe to AudioEnabled changes from HostApp to update the UI property
+        _hostApp
             .WhenAnyValue(x => x.CurrentHostSystemConfig)
             .Select(config => config?.SystemConfig?.AudioEnabled ?? false)
-            .ToProperty(this, x => x.AudioEnabled);
+            .Subscribe(async enabled =>
+            {
+                if (_audioEnabled != enabled)
+                {
+                    _audioEnabled = enabled;
+                    this.RaisePropertyChanged(nameof(AudioEnabled));
+                }
+            });
+
+        _audioTooltip = _hostApp
+            .WhenAnyValue(x => x.CurrentHostSystemConfig)
+            .Select(config => GetAudioToolTip(config))
+            .ToProperty(this, x => x.AudioTooltip);
 
         // Initialize ReactiveCommands for ComboBox selections
-        SelectSystemCommand = ReactiveCommand.CreateFromTask<string>(
-        async (selectedSystem) =>
+        SelectSystemCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
+            async (selectedSystem) =>
             {
                 if (!string.IsNullOrEmpty(selectedSystem) && _hostApp.SelectedSystemName != selectedSystem)
                 {
@@ -330,21 +383,21 @@ public class MainViewModel : ViewModelBase, IDisposable
                 state => state == EmulatorState.Uninitialized),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        SelectSystemVariantCommand = ReactiveCommand.CreateFromTask<string>(
+        SelectSystemVariantCommand = ReactiveCommandHelper.CreateSafeCommand<string>(
             async (selectedVariant) =>
-                 {
-                     if (!string.IsNullOrEmpty(selectedVariant) && _hostApp.SelectedSystemConfigurationVariant != selectedVariant)
-                     {
-                         await _hostApp.SelectSystemConfigurationVariant(selectedVariant);
-                     }
-                 },
+            {
+                if (!string.IsNullOrEmpty(selectedVariant) && _hostApp.SelectedSystemConfigurationVariant != selectedVariant)
+                {
+                    await _hostApp.SelectSystemConfigurationVariant(selectedVariant);
+                }
+            },
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Uninitialized),
-                RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
+            RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         // Initialize ReactiveCommands for buttons
-        StartCommand = ReactiveCommand.CreateFromTask(
+        StartCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await _hostApp.Start(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
@@ -352,60 +405,45 @@ public class MainViewModel : ViewModelBase, IDisposable
                 (state, hasErrors) => !hasErrors && state != EmulatorState.Running),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        PauseCommand = ReactiveCommand.CreateFromTask(
-            () =>
-            {
-                _hostApp.Pause();
-                return Task.CompletedTask;
-            },
+        PauseCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => _hostApp.Pause(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state == EmulatorState.Running),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        StopCommand = ReactiveCommand.CreateFromTask(
-            () =>
-            {
-                _hostApp.Stop();
-                return Task.CompletedTask;
-            },
+        StopCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => _hostApp.Stop(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        ResetCommand = ReactiveCommand.CreateFromTask(
+        ResetCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () => await _hostApp.Reset(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        MonitorCommand = ReactiveCommand.CreateFromTask(
-            () =>
-            {
-                _hostApp.ToggleMonitor();
-                return Task.CompletedTask;
-            },
+        MonitorCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => _hostApp.ToggleMonitor(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        StatsCommand = ReactiveCommand.CreateFromTask(
-            () =>
-            {
-                _hostApp.ToggleStatisticsPanel();
-                return Task.CompletedTask;
-            },
+        StatsCommand = ReactiveCommandHelper.CreateSafeCommand(
+            async () => _hostApp.ToggleStatisticsPanel(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
-        ClearLogCommand = ReactiveCommand.Create(
+        ClearLogCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {
+                _logger.LogInformation("Clearing log messages via ClearLogCommand");
                 lock (_logUpdateLock)
                 {
                     _logMessagesBackingStore.Clear();
@@ -423,25 +461,13 @@ public class MainViewModel : ViewModelBase, IDisposable
                 count => count > 0),
             RxApp.MainThreadScheduler);
 
-        // Handle command exceptions
-        SelectSystemCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error selecting system"));
-        SelectSystemVariantCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error selecting system variant"));
-        StartCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Start command"));
-        PauseCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Pause command"));
-        StopCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Stop command"));
-        ResetCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Reset command"));
-        MonitorCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Monitor command"));
-        StatsCommand.ThrownExceptions.Subscribe(ex => _logger.LogError(ex, "Error executing Stats command"));
-
         // Initialize timer for batched log UI updates
         InitializeLogUpdateTimer();
 
         // Populate log messages initially
         RefreshLogMessages();
         // Subscribe to new log messages
-        if (_hostApp.LogStore != null)
-        {
-            _hostApp.LogStore.LogMessageAdded += (sender, logEntry) =>
+        _hostApp.LogStore?.LogMessageAdded += (sender, logEntry) =>
             {
                 // Add message to backing store on current thread (no UI dispatch!)
                 lock (_logUpdateLock)
@@ -450,12 +476,30 @@ public class MainViewModel : ViewModelBase, IDisposable
                     _hasPendingLogUpdates = true;
                 }
             };
-        }
 
         // System-specific ViewModel initializations
         this.WhenAnyValue(x => x.SelectedSystemName)
                  .Subscribe(_ => this.RaisePropertyChanged(nameof(IsC64SystemSelected)));
     }
+
+    private string GetAudioToolTip(IHostSystemConfig config)
+    {
+        if (config == null)
+            return string.Empty;
+
+        if (!config.AudioSupported)
+            return "Audio is not supported on current platform.";
+
+        if (PlatformDetection.IsRunningOnDesktop())
+            return "Audio is experimental. Fast assembly routines may not play audio correctly.";
+
+        if (PlatformDetection.IsRunningInWebAssembly())
+            return "Audio is experimental. Fast assembly routines may not play audio correctly. In browser there is a bigger performance cost that may affect entire emulation FPS. See config settings menu for different audio profiles to balance accuracy against latency.";
+
+        return string.Empty;
+    }
+
+
 
     public async Task InitializeAsync()
     {

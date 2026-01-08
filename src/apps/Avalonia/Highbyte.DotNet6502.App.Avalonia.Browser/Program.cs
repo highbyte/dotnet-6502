@@ -1,16 +1,12 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Net.Http;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Browser;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Systems.Logging.Console;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
@@ -57,6 +53,11 @@ internal sealed partial class Program
 
         emulatorConfig.EnableLoadResourceOverHttp(GetAppUrlHttpClient);
 
+        // Load custom JS module that WebAudioWavePlayer requires for interacting with WebAudio API.
+        var jsModuleUri = WebAudioWavePlayerResources.GetJavaScriptModuleDataUri();
+        await JSHost.ImportAsync("WebAudioWavePlayer", jsModuleUri);
+
+        // Start Avalonia app
         try
         {
             Console.WriteLine("Starting Avalonia Browser app...");

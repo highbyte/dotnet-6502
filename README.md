@@ -94,7 +94,7 @@ Live version: [https://highbyte.se/dotnet-6502/app](https://highbyte.se/dotnet-6
 A [`Avalonia Browser`](https://avaloniaui.net) WebAssembly UI. 
   - Rendering: `Highbyte.DotNet6502.Impl.Avalonia`
   - Input: `Highbyte.DotNet6502.Impl.Avalonia` 
-  - Audio: -
+  - Audio: `Highbyte.DotNet6502.Impl.NAudio`
 
 Live version: [https://highbyte.se/dotnet-6502/app2](https://highbyte.se/dotnet-6502/app2)
 
@@ -105,7 +105,7 @@ Live version: [https://highbyte.se/dotnet-6502/app2](https://highbyte.se/dotnet-
 A [`Avalonia Desktop`](https://avaloniaui.net) UI. 
   - Rendering: `Highbyte.DotNet6502.Impl.Avalonia`
   - Input: `Highbyte.DotNet6502.Impl.Avalonia` 
-  - Audio: -
+  - Audio: `Highbyte.DotNet6502.Impl.NAudio` 
 
 <img align="top" src="doc/Screenshots/AvaloniaDesktop_C64_raster_scroll.png" width="25%" height="25%" title="Avalonia Desktop app, C64 scroll" /> <img align="top" src="doc/Screenshots/AvaloniaDesktop_C64_Monitor.png" width="25%" height="25%" title="Avalonia Desktop app, C64 monitor" /> 
 

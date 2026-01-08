@@ -40,7 +40,6 @@ public class SystemRunner
 
     public void Init()
     {
-        //_renderer.Init();
         _audioHandler.Init();
         _inputHandler.Init();
     }

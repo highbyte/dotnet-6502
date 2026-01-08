@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Impl.AspNet;
+using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth;
 using Highbyte.DotNet6502.Impl.Skia;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;

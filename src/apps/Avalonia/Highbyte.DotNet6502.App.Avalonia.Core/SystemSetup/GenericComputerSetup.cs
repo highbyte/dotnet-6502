@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Highbyte.DotNet6502.Impl.Avalonia.Generic.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
+using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
@@ -14,7 +15,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 
-public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContext, NullAudioHandlerContext>
+public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => GenericComputer.SystemName;
 
@@ -128,7 +129,7 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
         ISystem system,
         IHostSystemConfig hostSystemConfig,
         AvaloniaInputHandlerContext inputHandlerContext,
-        NullAudioHandlerContext audioHandlerContext
+        NAudioAudioHandlerContext audioHandlerContext
         )
     {
         var genericComputer = (GenericComputer)system;

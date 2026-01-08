@@ -160,10 +160,28 @@
                     </Grid>
 
                     <!-- Audio Settings -->
-                    <CheckBox Grid.Column="1"
-                        Content="Audio"
-                        IsVisible="{Binding AudioSupported}"
-                        IsChecked="{Binding AudioEnabled}"/>
+                    <StackPanel Classes="spacing-tight" >
+                        <Grid Classes="spacing-tight">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0"
+                                Content="Audio"
+                                IsVisible="true"
+                                IsEnabled="{Binding AudioSettingsEnabled }"
+                                IsChecked="{Binding AudioEnabled}"
+                                ToolTip.Tip="{Binding AudioTooltip}"/>
+                            <Slider Grid.Column="1"
+                                Width="100"
+                                Minimum="0" Maximum="100"
+                                Value="{Binding AudioVolumePercent}"
+                                TickFrequency="5"
+                                IsSnapToTickEnabled="False"
+                                IsEnabled="{Binding AudioEnabled }"
+                                Classes="small"/>
+                        </Grid>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- C64 Menu -->
@@ -433,7 +451,20 @@
                             </ScrollViewer>
 
                         </TabItem>
-                        
+
+
+                        <!-- Debug  -->
+                        <TabItem Name="DebugTabItem" Header="Debug">
+
+                            <Button Click="OpenSoundDebug_Click"
+                                    IsEnabled="{Binding IsEmulatorUninitialzied}"
+                                    Classes="small"
+                                    MinWidth="60"
+                                    Height="20"
+                                    FontSize="10">
+                                Debug sound
+                            </Button>
+                        </TabItem>
                     </TabControl>
                 </Border>
             </Grid>

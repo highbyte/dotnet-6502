@@ -29,19 +29,13 @@ public partial class C64ConfigUserControl : UserControl
             // Note: Special code to handle creating C64ConfigUserControl directly (used in Browser) or via C64ConfigDialog Window (used in Desktop app)
             _configurationChangedHandlers += value;
             // If ViewModel is already available, subscribe immediately
-            if (ViewModel != null)
-            {
-                ViewModel.ConfigurationChanged += value;
-            }
+            ViewModel?.ConfigurationChanged += value;
         }
         remove
         {
             _configurationChangedHandlers -= value;
             // Unsubscribe from ViewModel if available
-            if (ViewModel != null)
-            {
-                ViewModel.ConfigurationChanged -= value;
-            }
+            ViewModel?.ConfigurationChanged -= value;
         }
     }
 

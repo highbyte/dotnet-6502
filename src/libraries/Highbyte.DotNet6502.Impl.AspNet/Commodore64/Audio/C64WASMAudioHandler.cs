@@ -1,9 +1,10 @@
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
-using Highbyte.DotNet6502.Impl.AspNet.JSInterop.BlazorWebAudioSync;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Systems.Instrumentation;
+using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth;
+using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth.JSInterop.BlazorWebAudioSync;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Commodore64.Audio;
 

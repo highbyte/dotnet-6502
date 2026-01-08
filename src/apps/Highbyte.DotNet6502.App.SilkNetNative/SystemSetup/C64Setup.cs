@@ -69,7 +69,16 @@ public class C64Setup : ISystemConfigurer<SilkNetInputHandlerContext, NAudioAudi
         var c64 = (C64)system;
 
         var inputHandler = new C64SilkNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig);
-        var audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
+
+        IAudioHandler audioHandler;
+        if (hostSystemConfig.SystemConfig.AudioEnabled)
+        {
+            audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
+        }
+        else
+        {
+            audioHandler = new NullAudioHandler(c64);
+        }
 
         return Task.FromResult(new SystemRunner(c64, inputHandler, audioHandler));
     }

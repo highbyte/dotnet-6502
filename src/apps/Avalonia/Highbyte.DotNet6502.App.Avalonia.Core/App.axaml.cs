@@ -3,16 +3,20 @@ using System.Linq;
 using System.Reactive;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Diagnostics;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
+using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
@@ -24,6 +28,9 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
 public partial class App : Application
 {
+    // Static handler for exceptions from ReactiveCommands in WASM
+    internal static Action<Exception>? WasmExceptionHandler { get; private set; }
+
     private readonly IConfiguration _configuration;
     private readonly EmulatorConfig _emulatorConfig;
     private readonly DotNet6502InMemLogStore _logStore;
@@ -36,6 +43,9 @@ public partial class App : Application
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
+    // Guard to prevent multiple error overlays from being shown simultaneously
+    private Panel? _currentErrorOverlay;
+
     /// <summary>
     /// Avalonia App constructor.
     /// </summary>
@@ -44,7 +54,9 @@ public partial class App : Application
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
     /// <param name="loggerFactory"></param>
+    /// <param name="wavePlayer">Optional IWavePlayer for audio output. If null, audio will be disabled.</param>
     /// <param name="saveCustomConfigString"></param>
+    /// <param name="saveCustomConfigSection"></param>
     public App(
         IConfiguration configuration,
         EmulatorConfig emulatorConfig,
@@ -68,10 +80,10 @@ public partial class App : Application
         {
             _logger = loggerFactory.CreateLogger(typeof(App).Name);
 
-            _logger.LogInformation("About to initialize exception handlers.");
-
-            // Set up global exception handlers
-            SetupGlobalExceptionHandlers();
+            // Only set up exception handlers if error dialog is enabled
+            // When disabled, let exceptions flow naturally to trigger debugger
+            if (_emulatorConfig.ShowErrorDialog)
+                SetupGlobalExceptionHandlers();
 
         }
         catch (Exception ex)
@@ -95,8 +107,8 @@ public partial class App : Application
         Console.WriteLine("AppOnFrameworkInitializationCompleted called");
 
 #if DEBUG
-        // Rebind DevTools away from F12 (e.g., Ctrl+F12)
-        // Only attach DevTools when running as a desktop application
+        // Rebind Avalonia built-in DevTools away from F12 because it's used by the emulator Monitor
+        // Instead use Ctrl+F12, and only attach DevTools when running as a desktop application.
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime)
         {
             this.AttachDevTools(new DevToolsOptions
@@ -226,7 +238,7 @@ public partial class App : Application
             // ----------
             // Get systems
             // ----------
-            var systemList = new SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext>();
+            var systemList = new SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>();
 
             var c64Setup = new C64Setup(_loggerFactory, _configuration, _saveCustomConfigString);
             systemList.AddSystem(c64Setup);
@@ -258,44 +270,41 @@ public partial class App : Application
 
     private void SetupGlobalExceptionHandlers()
     {
-        // Only set up exception handlers if error dialog is enabled
-        // When disabled, let exceptions flow naturally to trigger debugger
-        if (_emulatorConfig.ShowErrorDialog)
+        _logger.LogInformation("About to initialize exception handlers.");
+
+        // Set up static handler for WASM ReactiveCommand exceptions
+        WasmExceptionHandler = (ex) => HandleGlobalException(ex, "Command Exception");
+
+        // Set up UI thread exception handler (Avalonia best practice)
+        Dispatcher.UIThread.UnhandledException += OnUIThreadUnhandledException;
+
+        // Set up global exception handler for unhandled exceptions in other threads
+        AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
+
+        // Set up handler for unhandled exceptions in tasks
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+
+        // Set up ReactiveUI exception handler ONLY on desktop platforms
+        // In WebAssembly, ReactiveUI's exception handling uses threading which causes PlatformNotSupportedException
+        // Instead, let exceptions bubble up to Avalonia's UI thread handler which works correctly in WASM
+        if (!PlatformDetection.IsRunningInWebAssembly())
         {
-            // Set up UI thread exception handler (Avalonia best practice)
-            Dispatcher.UIThread.UnhandledException += OnUIThreadUnhandledException;
-
-            // Set up global exception handler for unhandled exceptions in other threads
-            AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
-
-            // Set up handler for unhandled exceptions in tasks
-            TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
-
-            // Set up ReactiveUI exception handler only if not running in WebAssembly
-            // WebAssembly/AOT has issues with Observer.Create<Exception> due to runtime limitations
-            if (!PlatformDetection.IsRunningInWebAssembly())
+            try
             {
-                try
-                {
-                    RxApp.DefaultExceptionHandler = Observer.Create<Exception>(OnReactiveUIException);
-                    _logger.LogInformation("ReactiveUI exception handler configured successfully");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to configure ReactiveUI exception handler (this may be expected in WebAssembly environments)");
-                }
+                RxApp.DefaultExceptionHandler = Observer.Create<Exception>(OnReactiveUIException);
+                _logger.LogInformation("ReactiveUI exception handler configured successfully");
             }
-            else
+            catch (Exception ex)
             {
-                _logger.LogInformation("Skipping ReactiveUI exception handler setup in WebAssembly environment");
+                _logger.LogWarning(ex, "Failed to configure ReactiveUI exception handler");
             }
-
-            _logger.LogInformation("Global exception handlers configured successfully for error dialog mode");
         }
         else
         {
-            _logger.LogInformation("Global exception handlers disabled - exceptions will trigger debugger or cause application exit");
+            _logger.LogInformation("Skipping ReactiveUI exception handler in WebAssembly - exceptions will be caught by ReactiveCommandHelper");
         }
+
+        _logger.LogInformation("Global exception handlers configured successfully for error dialog mode");
     }
 
     private void OnUIThreadUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
@@ -334,11 +343,11 @@ public partial class App : Application
         HandleGlobalException(exception, "ReactiveUI Exception");
     }
 
-    private void HandleGlobalException(Exception exception, string title = "Unhandled Exception")
+    private void HandleGlobalException(Exception exception, string title)
     {
         _logger.LogError(exception, "Unhandled exception: {Message}", exception.Message);
-        System.Console.WriteLine($"Exception: {exception.Message}");
-        System.Console.WriteLine($"Stack trace: {exception.StackTrace}");
+        Console.WriteLine($"Exception: {exception.Message}");
+        Console.WriteLine($"Stack trace: {exception.StackTrace}");
 
         // Pause emulator if it's running
         if (_hostApp?.EmulatorState == EmulatorState.Running)
@@ -346,80 +355,156 @@ public partial class App : Application
             _hostApp.Pause();
         }
 
-        // Show error dialog - ensure it runs on UI thread
-        ShowErrorDialog(exception, title);
-    }
-
-    private void ShowErrorDialog(Exception exception, string title = "Unhandled Exception")
-    {
-        // Ensure we're on the UI thread
-        if (!Dispatcher.UIThread.CheckAccess())
-        {
-            Dispatcher.UIThread.Post(() => ShowErrorDialog(exception, title));
-            return;
-        }
-
-        // Run on UI thread
-        Dispatcher.UIThread.InvokeAsync(async () =>
+        // Show error overlay and properly handle the task to avoid unobserved task exceptions
+        _ = Task.Run(async () =>
         {
             try
             {
-                var errorMessage = $"An unexpected error occurred in the application.\n\n" +
-                                 $"Error: {exception.Message}\n\n" +
-                                 $"Type: {exception.GetType().Name}";
-
-                var errorDialog = new ErrorDialog(errorMessage, exception);
-
-                global::Avalonia.Controls.Window? parentWindow = null;
-                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    parentWindow = desktop.MainWindow;
-                }
-
-                ErrorDialog.ErrorDialogResult result;
-                if (parentWindow != null)
-                {
-                    result = await errorDialog.ShowDialog<ErrorDialog.ErrorDialogResult>(parentWindow);
-                }
-                else
-                {
-                    // Show as non-modal dialog and wait for it to close
-                    var tcs = new TaskCompletionSource<ErrorDialog.ErrorDialogResult>();
-                    errorDialog.Closed += (_, _) =>
-                    {
-                        tcs.SetResult(errorDialog.UserChoice);
-                    };
-                    errorDialog.Show();
-                    result = await tcs.Task;
-                }
-
-                if (result == ErrorDialog.ErrorDialogResult.Exit)
-                {
-                    // User chose to exit - close the application
-                    if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopLifetime)
-                    {
-                        desktopLifetime.Shutdown();
-                    }
-                    else
-                    {
-                        Environment.Exit(0);
-                    }
-                }
-                else
-                {
-                    // User chose to continue - unpause emulator if it was paused
-                    if (_hostApp?.EmulatorState == EmulatorState.Paused)
-                    {
-                        _ = _hostApp.Start(); // Fire and forget
-                    }
-                }
+                    await ShowErrorOverlay(exception, title);
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to show error dialog");
-                // Fallback: just exit
-                Environment.Exit(1);
+                _logger.LogError(ex, "Error showing error overlay");
             }
         });
+    }
+
+    private async Task ShowErrorOverlay(Exception exception, string title)
+    {
+        // Prevent multiple overlays from being shown at the same time
+        if (_currentErrorOverlay != null)
+        {
+            _logger.LogWarning("Error overlay already showing, skipping additional error: {Message}", exception.Message);
+            return;
+        }
+
+        var mainGrid = GetMainGrid();
+        if (mainGrid == null)
+            return;
+
+        // Create the ErrorViewModel
+        var errorMessage = $"An unexpected error occurred in the application.\n\n" +
+                 $"Error: {exception.Message}\n\n" +
+                 $"Type: {exception.GetType().Name}";
+        var errorViewModel = new ErrorViewModel(_loggerFactory, errorMessage, exception);
+
+        // Create the UserControl
+        var errorUserControl = new ErrorUserControl(errorViewModel, _loggerFactory);
+
+        // Create overlay panel
+        var overlayPanel = BuildErrorUserControlOverlayPanel(errorViewModel, errorUserControl);
+
+        // Set current overlay to prevent multiple overlays
+        _currentErrorOverlay = overlayPanel;
+
+        // Set up event handling for responding to user exiting the error dialog
+        var taskCompletionSource = new TaskCompletionSource<bool>();
+        errorUserControl.CloseRequested += (s, exit) =>
+        {
+            // Use TrySetResult to prevent InvalidOperationException if called multiple times
+            taskCompletionSource.TrySetResult(exit);
+        };
+
+        // Show the overlay
+        Grid.SetRowSpan(overlayPanel, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
+        Grid.SetColumnSpan(overlayPanel, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
+        mainGrid.Children.Add(overlayPanel);
+
+        try
+        {
+            // Wait for the dialog to close with result
+            var exit = await taskCompletionSource.Task;
+
+            if (exit && !PlatformDetection.IsRunningInWebAssembly())
+            {
+                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopLifetime)
+                {
+                    desktopLifetime.Shutdown();
+                    return;
+                }
+                else
+                {
+                    Environment.Exit(0);
+                    return;
+                }
+            }
+        }
+        finally
+        {
+            // Clean up - remove the overlay
+            bool removed = mainGrid.Children.Remove(overlayPanel);
+            _logger.LogInformation("Error overlay removed: {Removed}", removed);
+
+            // Reset the current overlay reference
+            _currentErrorOverlay = null;
+        }
+    }
+
+    private Panel BuildErrorUserControlOverlayPanel(ErrorViewModel errorViewModel, ErrorUserControl errorUserControl)
+    {
+        // Create a custom overlay with better modal behavior
+        var overlay = new Panel
+        {
+            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)), // More opaque overlay
+            ZIndex = 1000
+        };
+
+        // Create a dialog container that looks like a proper modal
+        var dialogContainer = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),  // 1A202C, ViewDefaultBg
+            BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            BoxShadow = new BoxShadows(new BoxShadow
+            {
+                OffsetX = 0,
+                OffsetY = 8,
+                Blur = 25,
+                Color = Color.FromArgb(128, 0, 0, 0)
+            }),
+            Margin = new Thickness(20), // Add margin from screen edges
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = errorUserControl // Direct child, no ScrollViewer wrapper
+        };
+
+        overlay.Children.Add(dialogContainer);
+
+        return overlay;
+    }
+
+    private Grid? GetMainGrid()
+    {
+        // Find the main Grid.
+        // We need to find the root Window's content Grid or MainView's Grid
+        MainView? mainView = null;
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            mainView = desktop.MainWindow?.Content as MainView;
+        }
+        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
+        {
+            mainView = singleViewPlatform.MainView as MainView;
+        }
+        else
+        {
+            mainView = null;
+        }
+
+        if (mainView == null)
+            return null;
+
+
+        Grid? mainGrid = null;
+        if (mainView?.Content is Grid mainViewGrid)
+        {
+            mainGrid = mainViewGrid;
+        }
+
+        return mainGrid;
     }
 }

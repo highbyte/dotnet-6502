@@ -70,7 +70,6 @@ public class C64NAudioAudioHandler : IAudioHandler
         }
     }
 
-
     public void AfterFrame()
     {
     }
@@ -93,16 +92,20 @@ public class C64NAudioAudioHandler : IAudioHandler
 
     public void StartPlaying()
     {
+        _logger.LogInformation("StartPlaying called.");
         _audioHandlerContext!.StartWavePlayer();
     }
 
     public void PausePlaying()
     {
+        _logger.LogInformation("PausePlaying called.");
         _audioHandlerContext!.PauseWavePlayer();
     }
 
     public void StopPlaying()
     {
+        _logger.LogInformation("StopPlaying called.");
+
         foreach (var voiceContext in VoiceContexts.Values)
         {
             voiceContext.StopAllOscillatorsNow();

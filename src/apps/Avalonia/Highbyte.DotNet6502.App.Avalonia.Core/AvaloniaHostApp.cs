@@ -11,19 +11,24 @@ using Highbyte.DotNet6502.App.Avalonia.Core.Controls;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Impl.Avalonia.Render;
+using Highbyte.DotNet6502.Impl.NAudio;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.SilkNetOpenAL;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using NAudio.Wave;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
 /// <summary>
 /// Host app for running Highbyte.DotNet6502 emulator in an Avalonia window
 /// </summary>
-public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHandlerContext>, INotifyPropertyChanged
+public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>, INotifyPropertyChanged
 {
     private readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;
@@ -35,10 +40,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     private readonly bool _defaultAudioEnabled;
     private readonly float _defaultAudioVolumePercent;
 
-    private readonly SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> _systemList;
+    private readonly SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> _systemList;
 
     private AvaloniaInputHandlerContext _inputHandlerContext = default!;
-    private NullAudioHandlerContext _audioHandlerContext = default!;
+    private NAudioAudioHandlerContext _audioHandlerContext = default!;
 
     private PeriodicAsyncTimer? _updateTimer;
 
@@ -55,7 +60,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     }
 
     private AvaloniaMonitor? _monitor;
-    public AvaloniaMonitor? Monitor => _monitor;
+    internal AvaloniaMonitor? Monitor => _monitor;
 
     internal bool IsMonitorVisible => _monitor?.IsVisible ?? false;
 
@@ -72,8 +77,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     // Expose LogStore for use in views that are not created through DI (e.g., to display logs in the UI).
     internal DotNet6502InMemLogStore? LogStore => _logStore;
 
-    // Public properties for external access
-    internal SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> SystemList => _systemList;
+    // Expose SystemLst and EmulatorConfig properties internal access
+    internal SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> SystemList => _systemList;
     internal EmulatorConfig EmulatorConfig => _emulatorConfig;
 
     /// <summary>
@@ -84,8 +89,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     /// <param name="emulatorConfig"></param>
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
+    /// <param name="saveCustomConfigString"></param>
+    /// <param name="saveCustomConfigSection"></param>
     internal AvaloniaHostApp(
-        SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> systemList,
+        SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
         EmulatorConfig emulatorConfig,
         DotNet6502InMemLogStore logStore,
@@ -109,9 +116,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         _systemList = systemList;
 
         _inputHandlerContext = new AvaloniaInputHandlerContext();
-        _audioHandlerContext = CreateAudioHandlerContext(); // For now, use a null audio implementation for Avalonia
 
-        base.SetContexts(() => _inputHandlerContext, () => _audioHandlerContext);
+        base.SetContexts(() => _inputHandlerContext, () => GetAudioHandlerContext());
         base.InitInputHandlerContext();
         base.InitAudioHandlerContext();
 
@@ -151,6 +157,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     public override void OnAfterSelectedSystemChanged()
     {
         OnPropertyChanged(nameof(SelectedSystemName));
+        OnPropertyChanged(nameof(CurrentHostSystemConfig));
 
         ValidateConfigAsync();
     }
@@ -163,6 +170,13 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
     public override void OnAfterSelectedSystemVariantChanged()
     {
         OnPropertyChanged(nameof(SelectedSystemConfigurationVariant));
+    }
+
+    public void SetVolumePercent(float volumePercent)
+    {
+        // TODO: Setting volume from UI while running is not remembered to next time the emulator is started.
+        //       The slider indicates correct but is not the actual volume.
+        _audioHandlerContext.SetMasterVolumePercent(masterVolumePercent: volumePercent);
     }
 
     public override bool OnBeforeStart(ISystem systemAboutToBeStarted)
@@ -178,8 +192,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
 
     public override void OnAfterStart(EmulatorState emulatorStateBeforeStart)
     {
-        Console.WriteLine($"Emulator started: {CurrentRunningSystem.Name} Variant: {SelectedSystemConfigurationVariant}");
-
         var screen = CurrentRunningSystem!.Screen;
 
         // Automatically adjust scale if emulator dimensions are too wide/tall.
@@ -522,9 +534,89 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NullAudioHan
         ValidationErrors = new ObservableCollection<string>(errors);
     }
 
-    private NullAudioHandlerContext CreateAudioHandlerContext()
+    private NAudioAudioHandlerContext GetAudioHandlerContext()
     {
-        return new NullAudioHandlerContext();
+        bool useSilentAudio = (CurrentHostSystemConfig == null || !CurrentHostSystemConfig.SystemConfig.AudioEnabled)
+                             || !(PlatformDetection.IsRunningOnDesktop() || PlatformDetection.IsRunningInWebAssembly());
+
+        float masterVolumePercent = _defaultAudioVolumePercent;
+
+        // Check if already created
+        if (_audioHandlerContext != null)
+        {
+            // Check if audio settings changed that requires recreating the audio handler context
+            bool hasAudioChanged =
+                (useSilentAudio && _audioHandlerContext != NAudioAudioHandlerContext.SilentAudioHandlerContext)
+                || (!useSilentAudio && _audioHandlerContext == NAudioAudioHandlerContext.SilentAudioHandlerContext)
+                || (_audioHandlerContext.WavePlayer is IUsesProfile usesProfile && EmulatorConfig.AudioSettingsProfile != usesProfile.ProfileType);
+
+            if (hasAudioChanged)
+            {
+                // Audio settings changed, cleanup existing context
+                _logger.LogInformation("Audio settings changed, cleaning up existing audio handler context");
+                // Remember existing volume setting
+                masterVolumePercent = _audioHandlerContext == NAudioAudioHandlerContext.SilentAudioHandlerContext ? _defaultAudioVolumePercent : _audioHandlerContext.MasterVolumePercent; 
+                _audioHandlerContext.Cleanup();
+                _audioHandlerContext = null;
+            }
+            else
+            {
+                // Nothing changed, return existing context
+                return _audioHandlerContext;
+            }
+        }
+
+        // Create new context
+        if (useSilentAudio)
+        {
+            _logger.LogInformation("Creating silent audio handler context");
+            _audioHandlerContext = NAudioAudioHandlerContext.SilentAudioHandlerContext;
+            return _audioHandlerContext;
+        }
+
+        // Create appropriate wave player based on platform
+        IWavePlayer? wavePlayer;
+        if (PlatformDetection.IsRunningOnDesktop())
+        {
+            _logger.LogInformation("Creating NAudio SilkNetOpenALWavePlayer for desktop cross-platform");
+
+            // Create Naudio wave player for desktop (using cross-platform OpenAL WavePlayer)
+            wavePlayer = new SilkNetOpenALWavePlayer()
+            {
+                NumberOfBuffers = 2,
+                DesiredLatency = 40
+            };
+        }
+        else if (PlatformDetection.IsRunningInWebAssembly())
+        {
+            var profile = EmulatorConfig.AudioSettingsProfile;
+            _logger.LogInformation($"Creating NAudio WebAudioWavePlayer for browser platform with profile: {profile}");
+
+            // Create NAudio WavePlayer for browser (using WebAudio API JavaScript interop)
+            wavePlayer = new WebAudioWavePlayer(WebAudioWavePlayerSettings.GetSettingsForProfile(profile), _loggerFactory);
+
+            _logger.LogInformation("WebAudioWavePlayer created");
+
+            // Init capture of WebAudioWavePlayer.js JS logging to the .NET side (static JSExport interop method)
+            WebAudioWavePlayer.SetLogger(_loggerFactory.CreateLogger(typeof(WebAudioWavePlayer).Name));
+
+            _logger.LogInformation("WebAudioWavePlayer logger set");
+
+        }
+        else
+        {
+            throw new NotSupportedException("No suitable audio output available for the current platform.");
+        }
+
+        // Create a new context
+        _audioHandlerContext = new NAudioAudioHandlerContext(
+                wavePlayer,
+                initialVolumePercent: masterVolumePercent,
+                _loggerFactory);
+
+        _logger.LogInformation("Created new NAudioAudioHandlerContext with wave player: " + wavePlayer.GetType().Name);
+
+        return _audioHandlerContext;
     }
 
     /// <summary>

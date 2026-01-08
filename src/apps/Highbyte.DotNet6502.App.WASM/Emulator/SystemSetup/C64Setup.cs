@@ -12,6 +12,7 @@ using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
 using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggestion;
 using System.Text.Json;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
+using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 
@@ -121,7 +122,15 @@ public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHa
         var c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, codeSuggestion, _loggerFactory);
         var inputHandler = new C64AspNetInputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig, c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
 
-        var audioHandler = new C64WASMAudioHandler(c64, audioHandlerContext, _loggerFactory);
+        IAudioHandler audioHandler;
+        if (hostSystemConfig.SystemConfig.AudioEnabled)
+        {
+            audioHandler = new C64WASMAudioHandler(c64, audioHandlerContext, _loggerFactory);
+        }
+        else
+        {
+            audioHandler = new NullAudioHandler(c64);
+        }
 
         return new SystemRunner(c64, inputHandler, audioHandler);
     }

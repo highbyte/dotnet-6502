@@ -10,6 +10,7 @@ using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.AI.CodingAssistant.Inference.OpenAI;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.Impl.Avalonia.Commodore64.Input;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
@@ -29,6 +30,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private readonly AvaloniaHostApp _hostApp;
     private readonly IConfiguration _configuration;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger _logger;
     private readonly C64HostConfig _originalConfig;
     private readonly C64HostConfig _workingConfig;
     private readonly List<(Type renderProviderType, Type renderTargetType)> _renderCombinations;
@@ -39,6 +41,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
     private string? _validationMessage;
     private readonly ObservableCollection<string> _validationErrors = new();
     private bool _audioEnabled;
+    private WavePlayerSettingsProfile _selectedAudioWavePlayerSettingsProfile;
     private bool _keyboardJoystickEnabled;
     private int _selectedKeyboardJoystick;
     private int _selectedHostJoystick;
@@ -71,16 +74,21 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
         _configuration = configuration;
         _loggerFactory = loggerFactory;
+        _logger = loggerFactory.CreateLogger<C64ConfigDialogViewModel>();
         _originalConfig = hostApp.CurrentHostSystemConfig as C64HostConfig ?? throw new Exception("hostApp.CurrentHostSystemConfig must be type C64HostConfig");
         _renderCombinations = hostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations() ?? new List<(Type, Type)>();
         _workingConfig = (C64HostConfig)_originalConfig.Clone();
         _httpClient = new HttpClient();
 
         AvailableJoysticks = new ObservableCollection<int>(_workingConfig.InputConfig.AvailableJoysticks);
-        AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
         KeyboardJoystickEnabled = _workingConfig.SystemConfig.KeyboardJoystickEnabled;
         SelectedKeyboardJoystick = _workingConfig.SystemConfig.KeyboardJoystick;
         SelectedHostJoystick = _workingConfig.InputConfig.CurrentJoystick;
+
+        AudioEnabled = _workingConfig.SystemConfig.AudioEnabled;
+        AudioWavePlayerSettingsProfiles = new ObservableCollection<WavePlayerSettingsProfile>(Enum.GetValues<WavePlayerSettingsProfile>());
+        SelectedAudioWavePlayerSettingsProfile = _hostApp.EmulatorConfig.AudioSettingsProfile;
+
         RomDirectory = _workingConfig.SystemConfig.ROMDirectory;
 
         // Initialize AI Coding Assistant properties
@@ -93,15 +101,15 @@ public class C64ConfigDialogViewModel : ViewModelBase
         UpdateValidationMessageFromConfig();
 
         // Initialize ReactiveUI Commands with MainThreadScheduler for Browser compatibility
-        DownloadRomsToByteArrayCommand = ReactiveCommand.CreateFromTask(
+        DownloadRomsToByteArrayCommand = ReactiveCommandHelper.CreateSafeCommand(
             AutoDownloadRomsToByteArrayAsync,
             outputScheduler: RxApp.MainThreadScheduler);
 
-        DownloadRomsToFilesCommand = ReactiveCommand.CreateFromTask(
+        DownloadRomsToFilesCommand = ReactiveCommandHelper.CreateSafeCommand(
             AutoDownloadROMsToFilesAsync,
             outputScheduler: RxApp.MainThreadScheduler);
 
-        ClearRomsCommand = ReactiveCommand.CreateFromTask(
+        ClearRomsCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {
                 UnloadRoms();
@@ -109,11 +117,11 @@ public class C64ConfigDialogViewModel : ViewModelBase
             },
             outputScheduler: RxApp.MainThreadScheduler);
 
-        TestAIBackendCommand = ReactiveCommand.CreateFromTask(
+        TestAIBackendCommand = ReactiveCommandHelper.CreateSafeCommand(
             TestAIBackendAsync,
             outputScheduler: RxApp.MainThreadScheduler);
 
-        SaveCommand = ReactiveCommand.CreateFromTask(
+        SaveCommand = ReactiveCommandHelper.CreateSafeCommand(
             async () =>
             {
                 if (await TryApplyChanges())
@@ -123,7 +131,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
             },
             outputScheduler: RxApp.MainThreadScheduler);
 
-        CancelCommand = ReactiveCommand.CreateFromTask(
+        CancelCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {
                 ConfigurationChanged?.Invoke(this, false);
@@ -139,6 +147,9 @@ public class C64ConfigDialogViewModel : ViewModelBase
     public ObservableCollection<RenderTargetOption> RenderTargets { get; } = new();
     public ObservableCollection<int> AvailableJoysticks { get; }
     public ObservableCollection<KeyMappingEntry> KeyboardMappings { get; } = new();
+
+    public ObservableCollection<WavePlayerSettingsProfile> AudioWavePlayerSettingsProfiles { get; } = new();
+
 
     public bool IsRunningInWebAssembly { get; } = PlatformDetection.IsRunningInWebAssembly();
 
@@ -207,6 +218,18 @@ public class C64ConfigDialogViewModel : ViewModelBase
 
             this.RaiseAndSetIfChanged(ref _audioEnabled, value);
             _workingConfig.SystemConfig.AudioEnabled = value;
+        }
+    }
+
+    public WavePlayerSettingsProfile SelectedAudioWavePlayerSettingsProfile
+    {
+        get => _selectedAudioWavePlayerSettingsProfile;
+        set
+        {
+            if (_selectedAudioWavePlayerSettingsProfile == value)
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedAudioWavePlayerSettingsProfile, value);
         }
     }
 
@@ -1044,10 +1067,12 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _originalConfig.SystemConfig.ROMs = ROM.Clone(_workingConfig.SystemConfig.ROMs);
         _originalConfig.InputConfig = (C64AvaloniaInputConfig)_workingConfig.InputConfig.Clone();
 
+        // Apply Audio profile setting (which is currently is in config for entire emulator, not a specific system (like C64)
+        _hostApp.EmulatorConfig.AudioSettingsProfile = _selectedAudioWavePlayerSettingsProfile;
+
         // Apply AI Coding Assistant settings
         _originalConfig.CodeSuggestionBackendType = _workingConfig.CodeSuggestionBackendType;
         _originalConfig.BasicAIAssistantDefaultEnabled = _workingConfig.BasicAIAssistantDefaultEnabled;
-
         WriteAIConfiguration();
     }
 

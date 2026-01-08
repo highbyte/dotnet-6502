@@ -1,0 +1,135 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+        x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.DebugSoundUserControl"
+        x:DataType="vm:DebugSoundViewModel">
+  
+  <!-- Simplified layout for ContentDialog - no outer border needed -->
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8">
+    <!-- Title Header -->
+    <Border Grid.Row="0" CornerRadius="4,4,4,4" Classes="panel-container">
+      <TextBlock Text="Debug sound"
+                 Classes="h-center h2"/>
+    </Border>
+
+    <!-- Main content with wrapping layout - scrollable -->
+    <ScrollViewer Grid.Row="1" Classes="vertical-only">
+      <WrapPanel Orientation="Horizontal"> 
+      
+        <!--Audio test-->
+        <StackPanel Width="460" Classes="wrap-item">
+        <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+                <TextBlock Text="Simple synth waveform generation"
+                            Classes=""/>
+
+                <Grid ColumnDefinitions="Auto,Auto,Auto,*" RowDefinitions="Auto,Auto,Auto">
+
+                    <!-- Basic audio init and play --> 
+                    <Button Grid.Row="0" Grid.Column="0"
+                            Command="{Binding InitAudioCommand}"
+                            Classes="small">
+                        Init audio
+                    </Button>
+                    <Button Grid.Row="0" Grid.Column="1"
+                            Command="{Binding PlayAudioCommand}"
+                            Classes="small">
+                        Play audio
+                    </Button>
+                    <Button Grid.Row="0" Grid.Column="2"
+                            Command="{Binding PauseAudioCommand}"
+                            Classes="small">
+                        Pause audio
+                    </Button>
+                    <Button Grid.Row="0" Grid.Column="3"
+                            Command="{Binding StopAudioCommand}"
+                            Classes="small">
+                        Stop all audio
+                    </Button>
+
+                    <!-- ADSR synth waveforms-->
+                    <Button Grid.Row="1" Grid.Column="0"
+                            Command="{Binding PlaySynthCommand}"
+                            Classes="small">
+                        Play synth
+                    </Button>
+                    <Button Grid.Row="1" Grid.Column="1"
+                            Command="{Binding StartSynthReleaseCommand}"
+                            Classes="small">
+                        Initiate synth release phase
+                    </Button>
+                    <Button Grid.Row="1" Grid.Column="2"
+                            Command="{Binding StopSynthCommand}"
+                            Classes="small">
+                        Stop synth sound
+                    </Button>
+
+                    <!-- Custom generated waveforms-->
+                    <ComboBox Grid.Row="2" Grid.Column="0"
+                            ItemsSource="{Binding SoundTestValues}"
+                            SelectedItem="{Binding SelectedSoundTest}"
+                            Classes="small h-stretch"
+                            MaxDropDownHeight="200"/>
+                    <Button Grid.Row="2" Grid.Column="1"
+                            Command="{Binding PlayCommand}"
+                            Classes="small">
+                            >
+                        Play sound
+                    </Button>
+                    <Button Grid.Row="2" Grid.Column="2"
+                            Command="{Binding StopCommand}"
+                            Classes="small">
+                            >
+                        Stop sound
+                    </Button>
+
+                </Grid>
+
+            </StackPanel>
+        </Border>
+        </StackPanel>      
+          
+      </WrapPanel>
+    </ScrollViewer>
+
+    <!-- Messages and status in separate row -->
+    <StackPanel Grid.Row="2" Classes="spacing-tight">
+        <TextBlock Text="{Binding StatusMessage}"
+                    Foreground="{DynamicResource SuccessColor}"
+                    TextWrapping="Wrap"
+                    IsVisible="{Binding HasStatusMessage}"/>
+        
+        <!-- Log Messages with Border (similar to MainView) -->
+        <Border Classes="error-container-small"
+                IsVisible="{Binding HasLogMessages}">
+          <ItemsControl ItemsSource="{Binding LogMessages}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                  <TextBlock Text="•" 
+                              Classes="info"/>
+                  <TextBlock Text="{Binding}" 
+                              Classes="small"
+                              TextWrapping="Wrap"/>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+    </StackPanel>
+
+    <!-- Button Section in separate row -->
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Classes="spacing-wide">
+      <ProgressBar Grid.Column="0"
+                   IsVisible="{Binding IsBusy}"
+                   IsIndeterminate="True"/>
+      <Button Grid.Column="2"
+              Content="Close"
+              Classes="primary"
+              IsDefault="True"
+              IsEnabled="{Binding CanClose}"
+              Command="{Binding CloseCommand}"/>
+    </Grid>
+
+  </Grid>
+</UserControl>

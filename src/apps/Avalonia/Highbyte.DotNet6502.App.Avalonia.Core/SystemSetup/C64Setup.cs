@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using Highbyte.DotNet6502.AI.CodingAssistant;
 using Highbyte.DotNet6502.Impl.Avalonia.Commodore64.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
+using Highbyte.DotNet6502.Impl.NAudio;
+using Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
@@ -16,7 +18,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 
-public class C64Setup : ISystemConfigurer<AvaloniaInputHandlerContext, NullAudioHandlerContext>
+public class C64Setup : ISystemConfigurer<AvaloniaInputHandlerContext, NAudioAudioHandlerContext>
 {
     public string SystemName => C64.SystemName;
 
@@ -85,7 +87,7 @@ public class C64Setup : ISystemConfigurer<AvaloniaInputHandlerContext, NullAudio
         ISystem system,
         IHostSystemConfig hostSystemConfig,
         AvaloniaInputHandlerContext inputHandlerContext,
-        NullAudioHandlerContext audioHandlerContext
+        NAudioAudioHandlerContext audioHandlerContext
         )
     {
         var c64HostConfig = (C64HostConfig)hostSystemConfig;
@@ -97,7 +99,19 @@ public class C64Setup : ISystemConfigurer<AvaloniaInputHandlerContext, NullAudio
         c64BasicCodingAssistant = new C64BasicCodingAssistant(c64, codeSuggestion, _loggerFactory);
 
         var inputHandler = new AvaloniaC64InputHandler(c64, inputHandlerContext, _loggerFactory, c64HostConfig.InputConfig, c64BasicCodingAssistant, c64HostConfig.BasicAIAssistantDefaultEnabled);
-        var audioHandler = new NullAudioHandler(c64);
+
+        // Use NAudio (cross platform synth waveforms generation) for desktop and browser platforms, NullAudioHandler for others.
+        // Note: It's inside NAudioAudioHandlerContext that has dependency to specific IWavePlayer implementation for either Desktop (SilkNetOpenAL) or Browser (WebAudio) that actually playes the generated samples.
+        IAudioHandler audioHandler;
+        if (hostSystemConfig.SystemConfig.AudioEnabled &&
+            (PlatformDetection.IsRunningOnDesktop() || PlatformDetection.IsRunningInWebAssembly()))
+        {
+            audioHandler = new C64NAudioAudioHandler(c64, audioHandlerContext, _loggerFactory);
+        }
+        else
+        {
+            audioHandler = new NullAudioHandler(c64);
+        }
 
         return new SystemRunner(c64, inputHandler, audioHandler);
     }

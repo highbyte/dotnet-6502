@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Reflection;
 using Highbyte.DotNet6502.App.SilkNetNative.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
-using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.SilkNetOpenAL;
 using Highbyte.DotNet6502.Impl.SilkNet;
 using Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Render;
 using Highbyte.DotNet6502.Impl.Skia;
@@ -331,7 +331,7 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
     /// </summary>
     private async Task RenderErrorDialog()
     {
-        if (!_showErrorDialog || _exceptionExit)
+        if (!_showErrorDialog || _exceptionExit)
             return;
 
         // Open the popup first (must happen before BeginPopupModal)
@@ -565,7 +565,8 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
 
         return new NAudioAudioHandlerContext(
             wavePlayer,
-            initialVolumePercent: 20);
+            initialVolumePercent: 20,
+            _loggerFactory);
     }
 
     private void ConfigureSilkNetInput()

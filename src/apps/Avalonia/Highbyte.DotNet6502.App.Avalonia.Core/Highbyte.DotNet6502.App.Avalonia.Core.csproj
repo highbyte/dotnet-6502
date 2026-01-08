@@ -59,9 +59,13 @@
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Skia\Highbyte.DotNet6502.Impl.Skia.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
     <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Systems.Commodore64\Highbyte.DotNet6502.Systems.Commodore64.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.NAudio\Highbyte.DotNet6502.Impl.NAudio.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Views\DebugSoundUserControl.axaml.cs">
+      <DependentUpon>DebugSoundUserControl.axaml</DependentUpon>
+    </Compile>
     <Compile Update="Views\C64InfoView.axaml.cs">
       <DependentUpon>C64InfoView.axaml</DependentUpon>
     </Compile>
@@ -70,6 +74,9 @@
     </Compile>
     <Compile Update="Views\EmulatorView.axaml.cs">
       <DependentUpon>EmulatorView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\ErrorUserControl.axaml.cs">
+      <DependentUpon>ErrorUserControl.axaml</DependentUpon>
     </Compile>
   </ItemGroup>
 </Project>

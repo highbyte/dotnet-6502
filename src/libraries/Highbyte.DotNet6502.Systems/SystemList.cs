@@ -175,6 +175,8 @@ public class SystemList<TInputHandlerContext, TAudioHandlerContext>
     {
         var hostSystemConfig = await GetHostSystemConfig(systemName);
         hostSystemConfig.SystemConfig.AudioEnabled = enabled;
+        if (!_hostSystemConfigsDirty.Contains(systemName))
+            _hostSystemConfigsDirty.Add(systemName);
     }
 
     public async Task<IHostSystemConfig> GetHostSystemConfig(string systemName)

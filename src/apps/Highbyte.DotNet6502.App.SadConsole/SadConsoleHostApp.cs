@@ -1,7 +1,7 @@
 using Highbyte.DotNet6502.App.SadConsole.ConfigUI;
 using Highbyte.DotNet6502.App.SadConsole.SystemSetup;
 using Highbyte.DotNet6502.Impl.NAudio;
-using Highbyte.DotNet6502.Impl.NAudio.NAudioOpenALProvider;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.SilkNetOpenAL;
 using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Render;
 using Highbyte.DotNet6502.Systems;
@@ -578,7 +578,8 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
 
         return new NAudioAudioHandlerContext(
             wavePlayer,
-            initialVolumePercent: 20);
+            initialVolumePercent: 20, 
+            _loggerFactory);
     }
 
     public SadConsoleHostSystemConfigBase CommonHostSystemConfig => (SadConsoleHostSystemConfigBase)CurrentHostSystemConfig;

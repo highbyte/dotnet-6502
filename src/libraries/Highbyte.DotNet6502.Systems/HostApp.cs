@@ -291,7 +291,6 @@ public class HostApp<TInputHandlerContext, TAudioHandlerContext> : IHostApp, IMa
 
     public async Task Start()
     {
-
         if (EmulatorState == EmulatorState.Running)
             throw new DotNet6502Exception("Cannot start emulator if emulator is running.");
 

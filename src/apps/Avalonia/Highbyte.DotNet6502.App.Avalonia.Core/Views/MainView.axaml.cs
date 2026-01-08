@@ -1,13 +1,20 @@
 using System;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media;
-using Avalonia.Threading;
 using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Styling;
-using System.Threading.Tasks;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
+using Highbyte.DotNet6502.Systems;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NAudio.Wave;
 using AvaloniaAnimation = Avalonia.Animation;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
@@ -35,7 +42,9 @@ public partial class MainView : UserControl
         // and get their DataContext through XAML bindings
 
         this.Loaded += OnViewLoaded;
-    }
+
+        KeyDown += OnKeyDown;
+   }
 
     private async void OnViewLoaded(object? sender, RoutedEventArgs e)
     {
@@ -50,6 +59,11 @@ public partial class MainView : UserControl
         {
             await viewModel.InitializeAsync();
         }
+
+        // TODO: When not having the emulator started, need to set focus to the EmulatorView to capture keyboard input.
+        //       When the emulator is running, Focusable should be set back to false.
+        //Focus();
+        //Focusable = true;
     }
 
     private async Task FadeIn()
@@ -388,5 +402,119 @@ public partial class MainView : UserControl
     public EmulatorView? GetEmulatorView()
     {
         return this.FindControl<EmulatorView>("EmulatorView");
+    }
+
+    /// <summary>
+    /// Handle key down events and forward them to the host app
+    /// </summary>
+    private void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        // Prevent keys from being processed by Avalonia's focus system
+        //e.Handled = true;
+        //HostApp?.OnKeyDown(e.Key, e.KeyModifiers);
+
+        // Check for Ctrl+Shift+D to open the sound debug overlay
+        if (e.Key == Key.D && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift))
+        {
+            ShowSoundDebug();
+        }
+    }
+
+    private async void OpenSoundDebug_Click(object? sender, RoutedEventArgs e)
+    {
+        await ShowSoundDebug();
+    }
+
+    private async Task ShowSoundDebug()
+    {
+        // Only allow opening the sound debug overlay when the emulator is uninitialized
+        if (_subscribedViewModel.HostApp.EmulatorState != EmulatorState.Uninitialized)
+            return;
+
+        await SoundDebugUserControlOverlay();
+    }
+
+    private async Task SoundDebugUserControlOverlay()
+    {
+        // Get C64ConfigDialogViewModel from DI
+        var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+        if (serviceProvider == null)
+        {
+            System.Console.WriteLine("Error: Could not get service provider");
+            return;
+        }
+
+        var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
+        {
+            builder.SetMinimumLevel(LogLevel.Information);
+        });
+
+        // Create the UserControl-based config
+        var configControl = new DebugSoundUserControl
+        {
+            DataContext = new DebugSoundViewModel(
+                _subscribedViewModel!.HostApp!,
+                serviceProvider.GetRequiredService<IConfiguration>(),
+                loggerFactory,
+                serviceProvider.GetRequiredService<IWavePlayer>())
+        };
+
+        // Create a custom overlay with better modal behavior
+        var overlay = new Panel
+        {
+            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)), // More opaque overlay
+            ZIndex = 1000
+        };
+
+        // Create a dialog container that looks like a proper modal
+        var dialogContainer = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),  // 1A202C, ViewDefaultBg
+            BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            BoxShadow = new BoxShadows(new BoxShadow
+            {
+                OffsetX = 0,
+                OffsetY = 8,
+                Blur = 25,
+                Color = Color.FromArgb(128, 0, 0, 0)
+            }),
+            Margin = new Thickness(20), // Add margin from screen edges
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = configControl // Direct child, no ScrollViewer wrapper
+        };
+
+        // Set up event handling for configuration completion
+        var taskCompletionSource = new TaskCompletionSource<bool>();
+        configControl.CloseRequested += (s, closed) =>
+        {
+            taskCompletionSource.SetResult(closed);
+        };
+
+        overlay.Children.Add(dialogContainer);
+
+        if (Content is Grid mainGrid)
+        {
+            Grid.SetRowSpan(overlay, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
+            Grid.SetColumnSpan(overlay, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
+            mainGrid.Children.Add(overlay);
+
+            try
+            {
+                // Wait for the configuration to complete
+                var result = await taskCompletionSource.Task;
+
+                if (result)
+                {
+                }
+            }
+            finally
+            {
+                // Clean up - remove the overlay
+                mainGrid.Children.Remove(overlay);
+            }
+        }
     }
 }

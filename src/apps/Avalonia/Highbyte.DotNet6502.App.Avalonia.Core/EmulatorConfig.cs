@@ -1,6 +1,8 @@
 using System;
 using System.Net.Http;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
+using Highbyte.DotNet6502.Impl.NAudio;
+using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
 
@@ -15,6 +17,8 @@ public class EmulatorConfig
     public float CurrentDrawScale { get; set; } = 2.0f;
     public bool ShowErrorDialog { get; set; } = true;
     public bool LoadResourcesOverHttp { get; set; } = false;
+
+    public WavePlayerSettingsProfile AudioSettingsProfile { get; set; } = WavePlayerSettingsProfile.Balanced;
     public MonitorConfig Monitor { get; set; } = new();
 
     private Func<HttpClient>? _getAppUrlHttpClient = null;
@@ -41,7 +45,7 @@ public class EmulatorConfig
         return _getAppUrlHttpClient();
     }
 
-    public void Validate(SystemList<AvaloniaInputHandlerContext, NullAudioHandlerContext> systemList)
+    public void Validate(SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> systemList)
     {
         if (!systemList.Systems.Contains(DefaultEmulator))
             throw new DotNet6502Exception($"Setting {nameof(DefaultEmulator)} value {DefaultEmulator} is not supported. Valid values are: {string.Join(',', systemList.Systems)}");
