@@ -30,6 +30,9 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
 public partial class App : Application
 {
+    // Static handler for exceptions from ReactiveCommands in WASM
+    internal static Action<Exception>? WasmExceptionHandler { get; private set; }
+    
     private readonly IConfiguration _configuration;
     private readonly EmulatorConfig _emulatorConfig;
     private readonly DotNet6502InMemLogStore _logStore;
@@ -273,6 +276,9 @@ public partial class App : Application
         // When disabled, let exceptions flow naturally to trigger debugger
         if (_emulatorConfig.ShowErrorDialog)
         {
+            // Set up static handler for WASM ReactiveCommand exceptions
+            WasmExceptionHandler = (ex) => HandleGlobalException(ex, "Command Exception");
+            
             // Set up UI thread exception handler (Avalonia best practice)
             Dispatcher.UIThread.UnhandledException += OnUIThreadUnhandledException;
 
@@ -357,7 +363,22 @@ public partial class App : Application
         {
             _hostApp.Pause();
         }
-        _ = ShowErrorOverlay(exception, title);
+        
+        // Show error overlay and properly handle the task to avoid unobserved task exceptions
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    await ShowErrorOverlay(exception, title);
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error showing error overlay");
+            }
+        });
     }
 
     private async Task ShowErrorOverlay(Exception exception, string title)
@@ -384,6 +405,8 @@ public partial class App : Application
 
         // Create overlay panel
         var overlayPanel = BuildËrrorUserControlOverlayPanel(errorViewModel, errorUserControl);
+        
+        // Set current overlay to prevent multiple overlays
         _currentErrorOverlay = overlayPanel;
 
         // Set up event handling for responding to user exiting the error dialog
@@ -404,7 +427,7 @@ public partial class App : Application
             // Wait for the dialog to close with result
             var exit = await taskCompletionSource.Task;
 
-            if (exit)
+            if (exit && !PlatformDetection.IsRunningInWebAssembly())
             {
                 if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktopLifetime)
                 {
@@ -421,7 +444,10 @@ public partial class App : Application
         finally
         {
             // Clean up - remove the overlay
-            mainGrid.Children.Remove(overlayPanel);
+            bool removed = mainGrid.Children.Remove(overlayPanel);
+            _logger.LogInformation("Error overlay removed: {Removed}", removed);
+            
+            // Reset the current overlay reference
             _currentErrorOverlay = null;
         }
     }
