@@ -31,7 +31,8 @@ public static class ReactiveCommandHelper
             return ReactiveCommand.Create(execute, canExecute, outputScheduler);
         }
 
-        return ReactiveCommand.Create(() =>
+        // Use CreateFromTask in WASM to ensure proper execution on first click
+        return ReactiveCommand.CreateFromTask(() =>
         {
             try
             {
@@ -42,6 +43,7 @@ public static class ReactiveCommandHelper
                 logger?.LogError(ex, "Exception in command handler");
                 global::Avalonia.Threading.Dispatcher.UIThread.Post(() => throw ex);
             }
+            return Task.CompletedTask;
         }, canExecute, outputScheduler);
     }
 
@@ -60,7 +62,8 @@ public static class ReactiveCommandHelper
             return ReactiveCommand.Create(execute, canExecute, outputScheduler);
         }
 
-        return ReactiveCommand.Create<TParam>((param) =>
+        // Use CreateFromTask in WASM to ensure proper execution on first click
+        return ReactiveCommand.CreateFromTask<TParam>((param) =>
         {
             try
             {
@@ -71,6 +74,7 @@ public static class ReactiveCommandHelper
                 logger?.LogError(ex, "Exception in command handler");
                 global::Avalonia.Threading.Dispatcher.UIThread.Post(() => throw ex);
             }
+            return Task.CompletedTask;
         }, canExecute, outputScheduler);
     }
 
