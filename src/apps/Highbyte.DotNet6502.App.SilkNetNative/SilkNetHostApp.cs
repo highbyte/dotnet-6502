@@ -331,7 +331,7 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
     /// </summary>
     private async Task RenderErrorDialog()
     {
-        if (!_showErrorDialog || _exceptionExit)
+        if (!_showErrorDialog || _exceptionExit)
             return;
 
         // Open the popup first (must happen before BeginPopupModal)

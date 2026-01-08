@@ -12,7 +12,6 @@ using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Threading;
-using DynamicData.Kernel;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.App.Avalonia.Core.Views;
@@ -23,7 +22,6 @@ using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NAudio.Wave;
 using ReactiveUI;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
@@ -32,7 +30,7 @@ public partial class App : Application
 {
     // Static handler for exceptions from ReactiveCommands in WASM
     internal static Action<Exception>? WasmExceptionHandler { get; private set; }
-    
+
     private readonly IConfiguration _configuration;
     private readonly EmulatorConfig _emulatorConfig;
     private readonly DotNet6502InMemLogStore _logStore;
@@ -82,10 +80,10 @@ public partial class App : Application
         {
             _logger = loggerFactory.CreateLogger(typeof(App).Name);
 
-            _logger.LogInformation("About to initialize exception handlers.");
-
-            // Set up global exception handlers
-            SetupGlobalExceptionHandlers();
+            // Only set up exception handlers if error dialog is enabled
+            // When disabled, let exceptions flow naturally to trigger debugger
+            if (_emulatorConfig.ShowErrorDialog)
+                SetupGlobalExceptionHandlers();
 
         }
         catch (Exception ex)
@@ -109,8 +107,8 @@ public partial class App : Application
         Console.WriteLine("AppOnFrameworkInitializationCompleted called");
 
 #if DEBUG
-        // Rebind DevTools away from F12 (e.g., Ctrl+F12)
-        // Only attach DevTools when running as a desktop application
+        // Rebind Avalonia built-in DevTools away from F12 because it's used by the emulator Monitor
+        // Instead use Ctrl+F12, and only attach DevTools when running as a desktop application.
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime)
         {
             this.AttachDevTools(new DevToolsOptions
@@ -272,48 +270,41 @@ public partial class App : Application
 
     private void SetupGlobalExceptionHandlers()
     {
-        // Only set up exception handlers if error dialog is enabled
-        // When disabled, let exceptions flow naturally to trigger debugger
-        if (_emulatorConfig.ShowErrorDialog)
+        _logger.LogInformation("About to initialize exception handlers.");
+
+        // Set up static handler for WASM ReactiveCommand exceptions
+        WasmExceptionHandler = (ex) => HandleGlobalException(ex, "Command Exception");
+
+        // Set up UI thread exception handler (Avalonia best practice)
+        Dispatcher.UIThread.UnhandledException += OnUIThreadUnhandledException;
+
+        // Set up global exception handler for unhandled exceptions in other threads
+        AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
+
+        // Set up handler for unhandled exceptions in tasks
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+
+        // Set up ReactiveUI exception handler ONLY on desktop platforms
+        // In WebAssembly, ReactiveUI's exception handling uses threading which causes PlatformNotSupportedException
+        // Instead, let exceptions bubble up to Avalonia's UI thread handler which works correctly in WASM
+        if (!PlatformDetection.IsRunningInWebAssembly())
         {
-            // Set up static handler for WASM ReactiveCommand exceptions
-            WasmExceptionHandler = (ex) => HandleGlobalException(ex, "Command Exception");
-            
-            // Set up UI thread exception handler (Avalonia best practice)
-            Dispatcher.UIThread.UnhandledException += OnUIThreadUnhandledException;
-
-            // Set up global exception handler for unhandled exceptions in other threads
-            AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
-
-            // Set up handler for unhandled exceptions in tasks
-            TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
-
-            // Set up ReactiveUI exception handler ONLY on desktop platforms
-            // In WebAssembly, ReactiveUI's exception handling uses threading which causes PlatformNotSupportedException
-            // Instead, let exceptions bubble up to Avalonia's UI thread handler which works correctly in WASM
-            if (!PlatformDetection.IsRunningInWebAssembly())
+            try
             {
-                try
-                {
-                    RxApp.DefaultExceptionHandler = Observer.Create<Exception>(OnReactiveUIException);
-                    _logger.LogInformation("ReactiveUI exception handler configured successfully");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to configure ReactiveUI exception handler");
-                }
+                RxApp.DefaultExceptionHandler = Observer.Create<Exception>(OnReactiveUIException);
+                _logger.LogInformation("ReactiveUI exception handler configured successfully");
             }
-            else
+            catch (Exception ex)
             {
-                _logger.LogInformation("Skipping ReactiveUI exception handler in WebAssembly - exceptions will be caught by ReactiveCommandHelper");
+                _logger.LogWarning(ex, "Failed to configure ReactiveUI exception handler");
             }
-
-            _logger.LogInformation("Global exception handlers configured successfully for error dialog mode");
         }
         else
         {
-            _logger.LogInformation("Global exception handlers disabled - exceptions will trigger debugger or cause application exit");
+            _logger.LogInformation("Skipping ReactiveUI exception handler in WebAssembly - exceptions will be caught by ReactiveCommandHelper");
         }
+
+        _logger.LogInformation("Global exception handlers configured successfully for error dialog mode");
     }
 
     private void OnUIThreadUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
@@ -363,7 +354,7 @@ public partial class App : Application
         {
             _hostApp.Pause();
         }
-        
+
         // Show error overlay and properly handle the task to avoid unobserved task exceptions
         _ = Task.Run(async () =>
         {
@@ -404,8 +395,8 @@ public partial class App : Application
         var errorUserControl = new ErrorUserControl(errorViewModel, _loggerFactory);
 
         // Create overlay panel
-        var overlayPanel = BuildËrrorUserControlOverlayPanel(errorViewModel, errorUserControl);
-        
+        var overlayPanel = BuildErrorUserControlOverlayPanel(errorViewModel, errorUserControl);
+
         // Set current overlay to prevent multiple overlays
         _currentErrorOverlay = overlayPanel;
 
@@ -446,13 +437,13 @@ public partial class App : Application
             // Clean up - remove the overlay
             bool removed = mainGrid.Children.Remove(overlayPanel);
             _logger.LogInformation("Error overlay removed: {Removed}", removed);
-            
+
             // Reset the current overlay reference
             _currentErrorOverlay = null;
         }
     }
 
-    private Panel BuildËrrorUserControlOverlayPanel(ErrorViewModel errorViewModel, ErrorUserControl errorUserControl)
+    private Panel BuildErrorUserControlOverlayPanel(ErrorViewModel errorViewModel, ErrorUserControl errorUserControl)
     {
         // Create a custom overlay with better modal behavior
         var overlay = new Panel
@@ -515,61 +506,5 @@ public partial class App : Application
         }
 
         return mainGrid;
-
-        // Try to find the Window by walking up from TopLevel
-        //var topLevel = TopLevel.GetTopLevel(this);
-
-        //// Desktop scenario: C64ConfigDialog Window
-        //if (topLevel is Window window)
-        //{
-        //    // Check if this is the C64ConfigDialog window (desktop)
-        //    // The dialog's Content is the C64ConfigUserControl, which contains a Grid
-        //    if (window is C64ConfigDialog dialog)
-        //    {
-        //        // Look for the Grid inside this C64ConfigUserControl
-        //        // We can use the visual tree to find it
-        //        if (this.Content is Grid thisGrid)
-        //        {
-        //            mainGrid = thisGrid;
-        //        }
-        //        else
-        //        {
-        //            // Try to find the first Grid child in this control
-        //            mainGrid = this.FindDescendantOfType<Grid>();
-        //        }
-        //    }
-        //    // Or if it's the main window with a Grid content
-        //    else if (window.Content is Grid windowGrid)
-        //    {
-        //        mainGrid = windowGrid;
-        //    }
-        //}
-
-        //// Browser scenario: Try to find MainView in the visual tree
-        //if (mainGrid == null)
-        //{
-        //    var mainView = this.FindAncestorOfType<MainView>(true);
-        //    if (mainView?.Content is Grid mainViewGrid)
-        //    {
-        //        mainGrid = mainViewGrid;
-        //    }
-        //}
-
-        //// Last resort: try to find any Grid ancestor by walking the visual tree
-        //if (mainGrid == null)
-        //{
-        //    var current = this.Parent;
-        //    while (current != null)
-        //    {
-        //        if (current is Grid grid)
-        //        {
-        //            mainGrid = grid;
-        //            break;
-        //        }
-        //        current = (current as Control)?.Parent;
-        //    }
-        //}
-
-
     }
 }
