@@ -231,6 +231,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> ClearLogCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemVariantCommand { get; }
+
     // --- End ReactiveUI Commands ---
 
     //public string Version => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
@@ -442,6 +443,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         ClearLogCommand = ReactiveCommandHelper.CreateSafeCommand(
             () =>
             {
+                _logger.LogInformation("Clearing log messages via ClearLogCommand");
                 lock (_logUpdateLock)
                 {
                     _logMessagesBackingStore.Clear();
