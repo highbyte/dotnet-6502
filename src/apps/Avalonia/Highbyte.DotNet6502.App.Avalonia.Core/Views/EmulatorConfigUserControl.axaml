@@ -1,0 +1,149 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+        x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.EmulatorConfigUserControl"
+        x:DataType="vm:EmulatorConfigDialogViewModel">
+  
+  <!-- Simplified layout for overlay dialog -->
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8">
+    <!-- Title Header -->
+    <Border Grid.Row="0" CornerRadius="4,4,4,4" Classes="panel-container">
+      <TextBlock Text="General Emulator Options"
+                 Classes="h-center h2"/>
+    </Border>
+
+    <!-- Main content - scrollable -->
+    <ScrollViewer Grid.Row="1" Classes="vertical-only">
+      <WrapPanel Orientation="Horizontal"> 
+      
+        <!-- Display Settings Section -->
+        <StackPanel Width="400" Classes="wrap-item">
+          <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+              <TextBlock Text="Display Settings"
+                         Classes=""/>
+              
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+                <TextBlock Grid.Row="0" Grid.Column="0" 
+                           Text="Default scale:" 
+                           Classes="secondary-text"
+                           VerticalAlignment="Center"/>
+                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Classes="spacing-tight">
+                  <Slider Minimum="1" Maximum="4"
+                          Value="{Binding DefaultDrawScale}"
+                          TickFrequency="0.5"
+                          IsSnapToTickEnabled="True"
+                          Width="150"
+                          Classes="small"/>
+                  <TextBlock Text="{Binding DefaultDrawScale, StringFormat={}{0:F1}x}"
+                             Classes="secondary-text"
+                             VerticalAlignment="Center"
+                             Width="35"/>
+                </StackPanel>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                           Text="The default zoom level when the emulator starts."
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- Error Handling Section -->
+        <StackPanel Width="400" Classes="wrap-item">
+          <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+              <TextBlock Text="Error Handling"
+                         Classes=""/>
+
+              <CheckBox Content="Show error dialogs"
+                        IsChecked="{Binding ShowErrorDialog}"
+                        IsVisible="{Binding !IsRunningInWebAssembly}"
+                        Classes=""/>
+              
+              <TextBlock Text="When enabled, errors will be shown in dialog boxes. When disabled, errors are only logged."
+                         Classes="small secondary-text"
+                         TextWrapping="Wrap"
+                         IsVisible="{Binding !IsRunningInWebAssembly}"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- Monitor/Debugger Settings Section -->
+        <StackPanel Width="400" Classes="wrap-item">
+          <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+              <TextBlock Text="Monitor/Debugger"
+                         Classes=""/>
+
+              <CheckBox Content="Stop on BRK instruction"
+                        IsChecked="{Binding StopAfterBRKInstruction}"
+                        Classes=""/>
+              
+              <TextBlock Text="Automatically pause execution when a BRK instruction is encountered."
+                         Classes="small secondary-text"
+                         TextWrapping="Wrap"
+                         Margin="20,0,0,8"/>
+
+              <CheckBox Content="Stop on unknown instruction"
+                        IsChecked="{Binding StopAfterUnknownInstruction}"
+                        Classes=""/>
+              
+              <TextBlock Text="Automatically pause execution when an unknown/illegal opcode is encountered."
+                         Classes="small secondary-text"
+                         TextWrapping="Wrap"
+                         Margin="20,0,0,0"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+      </WrapPanel>
+    </ScrollViewer>
+
+    <!-- Messages and status in separate row -->
+    <StackPanel Grid.Row="2" Classes="spacing-tight">
+      <TextBlock Text="{Binding StatusMessage}"
+                 Foreground="{DynamicResource SuccessColor}"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding HasStatusMessage}"/>
+      
+      <!-- Validation Error Messages with Border -->
+      <Border Classes="error-container-small"
+              IsVisible="{Binding HasValidationErrors}">
+        <ItemsControl ItemsSource="{Binding ValidationErrors}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                <TextBlock Text="•" 
+                           Classes="error"/>
+                <TextBlock Text="{Binding}" 
+                           Classes="small"
+                           TextWrapping="Wrap"/>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Border>
+    </StackPanel>
+
+    <!-- Button Section in separate row -->
+    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Classes="spacing-wide">
+      <ProgressBar Grid.Column="0"
+                   IsVisible="{Binding IsBusy}"
+                   IsIndeterminate="True"/>
+      <Button Grid.Column="1"
+              Content="Cancel"
+              Classes="cancel"
+              Command="{Binding CancelCommand}"/>
+      <Button Grid.Column="2"
+              Content="{Binding OkButtonText}"
+              Classes="primary"
+              IsDefault="True"
+              IsEnabled="{Binding CanSave}"
+              Command="{Binding SaveCommand}"/>
+    </Grid>
+
+  </Grid>
+</UserControl>

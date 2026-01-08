@@ -232,6 +232,11 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<string, Unit> SelectSystemCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemVariantCommand { get; }
 
+    // Event for requesting the emulator options overlay (UI operation handled in View)
+    public event EventHandler? EmulatorOptionsRequested;
+
+    public ReactiveCommand<Unit, Unit> EmulatorOptionsCommand { get; }
+
     // --- End ReactiveUI Commands ---
 
     //public string Version => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
@@ -459,6 +464,17 @@ public class MainViewModel : ViewModelBase, IDisposable
             this.WhenAnyValue(
                 x => x.LogMessages.Count,
                 count => count > 0),
+            RxApp.MainThreadScheduler);
+
+        // Emulator Options command - only enabled when emulator is uninitialized
+        EmulatorOptionsCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () =>
+            {
+                EmulatorOptionsRequested?.Invoke(this, EventArgs.Empty);
+            },
+            this.WhenAnyValue(
+                x => x.EmulatorState,
+                state => state == EmulatorState.Uninitialized),
             RxApp.MainThreadScheduler);
 
         // Initialize timer for batched log UI updates

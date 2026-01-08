@@ -182,6 +182,26 @@
                                 Classes="small"/>
                         </Grid>
                     </StackPanel>
+
+                    <!-- Other general functions -->
+                    <StackPanel Classes="spacing-tight" >
+                        <Grid Classes="spacing-tight">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- General Emulator Options Button -->
+                            <Button Grid.Column="0"
+                                    Content="Options"
+                                    Command="{Binding EmulatorOptionsCommand}"
+                                    Classes="grid small"
+                                    ToolTip.Tip="Configure general emulator settings"/>
+
+                       </Grid>
+                    </StackPanel>
+
                 </StackPanel>
 
                 <!-- C64 Menu -->
