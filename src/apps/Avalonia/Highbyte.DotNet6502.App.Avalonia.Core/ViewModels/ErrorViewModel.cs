@@ -43,8 +43,8 @@ public class ErrorViewModel : ViewModelBase
         }
     }
 
-    private const string HIDE_DETAILS_BUTTON_TEXT = "Hide Details";
-    private const string SHOW_DETAILS_BUTTON_TEXT = "Show Details";
+    private const string HIDE_DETAILS_BUTTON_TEXT = "Hide details";
+    private const string SHOW_DETAILS_BUTTON_TEXT = "Show details";
 
     private string _showDetailsButtonText = SHOW_DETAILS_BUTTON_TEXT;
 

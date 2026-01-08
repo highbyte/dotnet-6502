@@ -380,7 +380,7 @@ public partial class App : Application
         var errorViewModel = new ErrorViewModel(_loggerFactory, errorMessage, exception);
 
         // Create the UserControl
-        var errorUserControl = new ErrorUserControl(errorViewModel);
+        var errorUserControl = new ErrorUserControl(errorViewModel, _loggerFactory);
 
         // Create overlay panel
         var overlayPanel = BuildËrrorUserControlOverlayPanel(errorViewModel, errorUserControl);

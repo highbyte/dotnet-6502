@@ -88,6 +88,13 @@
                         Classes="primary"
                         IsDefault="True"
                         Command="{Binding ContinueCommand}"/>
+                <!--<Button x:Name="ContinueButton"
+                        Content="Continue"
+                        Width="100"
+                        Height="35"
+                        Classes="primary"
+                        IsDefault="True"
+                        Click="ContinueButton_Click"/>-->
                 <Button x:Name="ExitButton"
                         Content="Exit"
                         Width="100"
