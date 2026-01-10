@@ -533,10 +533,17 @@ public partial class MainView : UserControl
         if (_subscribedViewModel?.HostApp == null)
             return;
 
+        // Get IConfiguration from DI
+        var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+        if (serviceProvider == null)
+            return;
+
+        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+
         // Create the UserControl-based config
         var configControl = new EmulatorConfigUserControl
         {
-            DataContext = new EmulatorConfigViewModel(_subscribedViewModel.HostApp)
+            DataContext = new EmulatorConfigViewModel(_subscribedViewModel.HostApp, configuration)
         };
 
         // Create a custom overlay with better modal behavior

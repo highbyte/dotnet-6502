@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
         x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.EmulatorConfigUserControl"
-        x:DataType="vm:EmulatorConfigDialogViewModel">
+        x:DataType="vm:EmulatorConfigViewModel">
   
   <!-- Simplified layout for overlay dialog -->
   <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="8,0,8,8">
@@ -15,6 +15,34 @@
     <!-- Main content - scrollable -->
     <ScrollViewer Grid.Row="1" Classes="vertical-only">
       <WrapPanel Orientation="Horizontal"> 
+
+        <!-- General Settings Section -->
+        <StackPanel Width="400" Classes="wrap-item">
+          <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+              <TextBlock Text="General Settings"
+                         Classes=""/>
+              
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+                <TextBlock Grid.Row="0" Grid.Column="0" 
+                           Text="Default emulator:" 
+                           Classes="secondary-text"
+                           VerticalAlignment="Center"/>
+                <ComboBox Grid.Row="0" Grid.Column="1"
+                          ItemsSource="{Binding AvailableEmulators}"
+                          SelectedItem="{Binding SelectedDefaultEmulator}"
+                          Width="150"
+                          HorizontalAlignment="Left"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                           Text="The default system to load when the emulator starts."
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+        </StackPanel>
       
         <!-- Display Settings Section -->
         <StackPanel Width="400" Classes="wrap-item">
@@ -60,13 +88,39 @@
 
               <CheckBox Content="Show error dialogs"
                         IsChecked="{Binding ShowErrorDialog}"
-                        IsVisible="{Binding !IsRunningInWebAssembly}"
                         Classes=""/>
               
-              <TextBlock Text="When enabled, errors will be shown in dialog boxes. When disabled, errors are only logged."
+              <TextBlock Text="When enabled, errors will be shown in dialog boxes. When disabled, errors are only logged. THE APP NEEDS TO BE RESTARTED FOR IT TO TAKE EFFECT"
                          Classes="small secondary-text"
-                         TextWrapping="Wrap"
-                         IsVisible="{Binding !IsRunningInWebAssembly}"/>
+                         TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- Audio Settings Section -->
+        <StackPanel Width="400" Classes="wrap-item">
+          <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+              <TextBlock Text="Audio Settings"
+                         Classes=""/>
+              
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Classes="spacing-tight">
+                <TextBlock Grid.Row="0" Grid.Column="0" 
+                           Text="Audio profile:" 
+                           Classes="secondary-text"
+                           VerticalAlignment="Center"/>
+                <ComboBox Grid.Row="0" Grid.Column="1"
+                          ItemsSource="{Binding AudioSettingsProfiles}"
+                          SelectedItem="{Binding SelectedAudioSettingsProfile}"
+                          Width="150"
+                          HorizontalAlignment="Left"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                           Text="Controls the audio latency vs stability tradeoff. Lower latency may cause audio glitches."
+                           Classes="small secondary-text"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0"/>
+              </Grid>
             </StackPanel>
           </Border>
         </StackPanel>
@@ -116,7 +170,7 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate>
               <StackPanel Orientation="Horizontal" Classes="spacing-tight">
-                <TextBlock Text="•" 
+                <TextBlock Text="ï¿½" 
                            Classes="error"/>
                 <TextBlock Text="{Binding}" 
                            Classes="small"

@@ -721,6 +721,24 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         KeyUpEvent?.Invoke(this, new HostKeyEventArgs { Key = key, KeyModifiers = modifiers });
     }
 
+    internal async Task PersistEmulatorConfig()
+    {
+        if (_saveCustomConfigString == null)
+            return;
+        var configSectionName = EmulatorConfig.ConfigSectionName;
+        var json = _emulatorConfig.GetConfigAsJson();
+        await _saveCustomConfigString(configSectionName, json, null);
+    }
+
+    internal async Task PersistConfigString(string configSectionName, string json)
+    {
+        if (_saveCustomConfigString == null)
+            return;
+        if (json == null)
+            return;
+        await _saveCustomConfigString(configSectionName, json, null);
+    }
+
     internal async Task PersistConfigSection(string configSectionName, IConfigurationSection configSection)
     {
         if (_saveCustomConfigSection == null)
