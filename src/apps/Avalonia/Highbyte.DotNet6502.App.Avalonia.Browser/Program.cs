@@ -6,6 +6,7 @@ using Avalonia;
 using Avalonia.Browser;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
+using Highbyte.DotNet6502.Impl.Browser.Input;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Systems.Logging.Console;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
@@ -57,11 +58,18 @@ internal sealed partial class Program
         var jsModuleUri = WebAudioWavePlayerResources.GetJavaScriptModuleDataUri();
         await JSHost.ImportAsync("WebAudioWavePlayer", jsModuleUri);
 
+        // Load custom JS module for gamepad input
+        await BrowserGamepad.LoadJsModuleAsync();
+        Console.WriteLine("Browser Gamepad JS module loaded.");
+
+        // Create browser gamepad instance
+        var browserGamepad = new BrowserGamepad(loggerFactory);
+
         // Start Avalonia app
         try
         {
             Console.WriteLine("Starting Avalonia Browser app...");
-            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge)
+            await BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, browserGamepad)
                 .WithInterFont()
                 .StartBrowserAppAsync("out");
 
@@ -261,7 +269,8 @@ internal sealed partial class Program
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
-        AvaloniaLoggerBridge avaloniaLoggerBridge)
+        AvaloniaLoggerBridge avaloniaLoggerBridge,
+        BrowserGamepad? browserGamepad = null)
     {
         return AppBuilder.Configure(() =>
         {
@@ -271,8 +280,9 @@ internal sealed partial class Program
                                 logStore,
                                 logConfig,
                                 loggerFactory,
-                                saveCustomConfigString: PersistStringToLocalStorage, // Save configuration to custom provided JSON in Browser Local Storage
-                                saveCustomConfigSection: PersistConfigSectionToLocalStorage // Save configuration to custom provided IConfigurationSection in Browser Local Storage
+                                saveCustomConfigString: PersistStringToLocalStorage,
+                                saveCustomConfigSection: PersistConfigSectionToLocalStorage,
+                                gamepad: browserGamepad
                             );
         })
         .AfterSetup(_ =>

@@ -48,7 +48,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Highbyte.DotNet6502.App.Avalonia.Core\Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.Browser\Highbyte.DotNet6502.Impl.Browser.csproj" />
   </ItemGroup>
+
+  <!-- Embedded JavaScript resources for browser interop -->
 
   <Target Name="CopySharedAssets" AfterTargets="AfterBuild">
     <!-- Copy logo image from Core project's Assets folder -->
