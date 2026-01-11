@@ -14,6 +14,7 @@ using Highbyte.DotNet6502.Impl.Avalonia.Render;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
@@ -78,6 +79,9 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     internal SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> SystemList => _systemList;
     internal EmulatorConfig EmulatorConfig => _emulatorConfig;
 
+    // Expose InputHandlerContext for debug views
+    internal AvaloniaInputHandlerContext InputHandlerContext => _inputHandlerContext;
+
     /// <summary>
     /// Constructor for AvaloniaHostApp.
     /// </summary>
@@ -88,6 +92,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     /// <param name="logConfig"></param>
     /// <param name="saveCustomConfigString"></param>
     /// <param name="saveCustomConfigSection"></param>
+    /// <param name="gamepad">Optional gamepad provider. Pass null to use a NullAvaloniaGamepad.</param>
     internal AvaloniaHostApp(
         SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
@@ -95,7 +100,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
         Func<string, string, string?, Task>? saveCustomConfigString,
-        Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection
+        Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection,
+        IGamepad? gamepad = null
 
         ) : base("Avalonia", systemList, loggerFactory, useStatsNamePrefix: false)
     {
@@ -113,7 +119,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _systemList = systemList;
         _wavePlayerFactory = new WavePlayerFactory(_loggerFactory, _emulatorConfig);
 
-        _inputHandlerContext = new AvaloniaInputHandlerContext();
+        _inputHandlerContext = new AvaloniaInputHandlerContext(gamepad);
 
         base.SetContexts(() => _inputHandlerContext, () => GetAudioHandlerContext());
         base.InitInputHandlerContext();

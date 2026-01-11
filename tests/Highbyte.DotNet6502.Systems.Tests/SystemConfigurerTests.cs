@@ -1,4 +1,6 @@
+using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Rendering;
 
 namespace Highbyte.DotNet6502.Systems.Tests;

@@ -18,6 +18,7 @@ using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,6 +40,7 @@ public partial class App : Application
     private readonly ILogger _logger;
     private readonly Func<string, string, string?, Task>? _saveCustomConfigString;
     private readonly Func<string, IConfigurationSection, string?, Task>? _saveCustomConfigSection;
+    private readonly IGamepad? _gamepad;
 
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
@@ -54,9 +56,9 @@ public partial class App : Application
     /// <param name="logStore"></param>
     /// <param name="logConfig"></param>
     /// <param name="loggerFactory"></param>
-    /// <param name="wavePlayer">Optional IWavePlayer for audio output. If null, audio will be disabled.</param>
     /// <param name="saveCustomConfigString"></param>
     /// <param name="saveCustomConfigSection"></param>
+    /// <param name="gamepad">Optional gamepad provider. Pass null to use a NullAvaloniaGamepad.</param>
     public App(
         IConfiguration configuration,
         EmulatorConfig emulatorConfig,
@@ -64,7 +66,8 @@ public partial class App : Application
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
         Func<string, string, string?, Task>? saveCustomConfigString = null,
-        Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection = null)
+        Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection = null,
+        IGamepad? gamepad = null)
     {
         Console.WriteLine("App constructor called");
 
@@ -75,6 +78,7 @@ public partial class App : Application
         _logConfig = logConfig;
         _saveCustomConfigString = saveCustomConfigString;
         _saveCustomConfigSection = saveCustomConfigSection;
+        _gamepad = gamepad;
 
         try
         {
@@ -258,7 +262,8 @@ public partial class App : Application
                 _logStore,
                 _logConfig,
                 _saveCustomConfigString,
-                _saveCustomConfigSection);
+                _saveCustomConfigSection,
+                _gamepad);
 
         }
         catch (Exception ex)

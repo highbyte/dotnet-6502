@@ -2,6 +2,7 @@ using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Impl.SadConsole.Generic.Input;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 using Microsoft.Extensions.Configuration;

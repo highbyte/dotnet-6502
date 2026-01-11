@@ -544,6 +544,9 @@ public class C64MenuViewModel : ViewModelBase
                     c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
                     c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
 
+                    // Apply keyboard settings to config object while emulator is stopped (assume joystick should use same as keyboard joystick number)
+                    c64HostConfig.InputConfig.CurrentJoystick = diskInfo.KeyboardJoystickNumber;
+
                     // Apply renderer setting to config object while emulator is stopped
                     // TODO: If/when a optimized RenderType for use without bitmap graphics is available, set rendererProviderType appropriately here.
                     //Type rendererProviderType = diskInfo.RequiresBitmap ? typeof(Vic2Rasterizer) : typeof(C64VideoCommandStream);

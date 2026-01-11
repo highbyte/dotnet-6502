@@ -3,12 +3,14 @@ using System.IO;
 using Avalonia;
 using Avalonia.ReactiveUI;
 using Highbyte.DotNet6502.App.Avalonia.Core;
+using Highbyte.DotNet6502.Impl.SilkNet.SDL.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.SilkNetOpenAL;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NAudio.Wave;
+using Highbyte.DotNet6502.Systems.Input;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 
@@ -59,7 +61,12 @@ internal sealed class Program
         var emulatorConfig = new EmulatorConfig();
         configuration.GetSection(EmulatorConfig.ConfigSectionName).Bind(emulatorConfig);
 
-        BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge)
+        // ----------
+        // Create SDL2 gamepad for controller input
+        // ----------
+        var gamepad = new Sdl2Gamepad(loggerFactory);
+
+        BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad)
             .StartWithClassicDesktopLifetime(args);
     }
 
@@ -70,13 +77,17 @@ internal sealed class Program
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
-        AvaloniaLoggerBridge avaloniaLoggerBridge)
+        AvaloniaLoggerBridge avaloniaLoggerBridge,
+        IGamepad? gamepad = null)
         => AppBuilder.Configure(() => new Core.App(
                 configuration,
                 emulatorConfig,
                 logStore,
                 logConfig,
-                loggerFactory))
+                loggerFactory,
+                saveCustomConfigString: null,
+                saveCustomConfigSection: null,
+                gamepad: gamepad))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace()

@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using Avalonia.Input;
 using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
@@ -8,6 +5,7 @@ using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 using Highbyte.DotNet6502.Systems.Commodore64.Utils.BasicAssistant;
+using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Instrumentation;
 using Microsoft.Extensions.Logging;
 
@@ -77,7 +75,10 @@ public class AvaloniaC64InputHandler : IInputHandler
     {
         _c64.Cia1.Joystick.ClearJoystickActions();
         CaptureKeyboard(_c64);
-        CaptureJoystick(_c64);
+
+        // Update gamepad state before processing input
+        _inputHandlerContext.UpdateGamepad();
+        CaptureGamepad(_c64);
     }
 
     public void Cleanup()
@@ -141,28 +142,52 @@ public class AvaloniaC64InputHandler : IInputHandler
         return c64KeysDown;
     }
 
-    private void CaptureJoystick(C64 c64)
+    private void CaptureGamepad(C64 c64)
     {
-        var c64JoystickActions = GetC64JoystickActionsFromAvaloniaKeys(_inputHandlerContext.KeysDown);
-        // Note: Assume Keyboard input has been processed before this, so that Joystick actions based on keypresses has resulted 
-        //       in the current joystick actions being initialized this frame (and may contain actions from keyboard).
-        //       Thus "overwrite" is set to false so that keyboard actions are not overwritten.
+        var c64JoystickActions = GetC64JoystickActionsFromGamepad(_inputHandlerContext.GamepadButtonsDown);
+        // Note: Joystick actions from keyboard have already been set, so use overwrite: false
+        //       to combine with any gamepad actions.
         c64.Cia1.Joystick.SetJoystickActions(_inputConfig.CurrentJoystick, c64JoystickActions, overwrite: false);
     }
 
-    private HashSet<C64JoystickAction> GetC64JoystickActionsFromAvaloniaKeys(HashSet<Key> keysDown)
+    private HashSet<C64JoystickAction> GetC64JoystickActionsFromGamepad(HashSet<GamepadButton> gamepadButtonsDown)
     {
         var c64JoystickActions = new HashSet<C64JoystickAction>();
-        var map = _inputConfig.KeyToC64JoystickMap[_inputConfig.CurrentJoystick];
+        var foundMappings = new List<GamepadButton[]>();
+        var map = _inputConfig.GamepadToC64JoystickMap[_inputConfig.CurrentJoystick];
 
-        foreach (var keyDown in keysDown)
+        foreach (var mapKeys in map.Keys)
         {
-            if (map.TryGetValue(keyDown, out var joystickAction))
+            int matchCount = 0;
+            foreach (var mapKeysKey in mapKeys)
             {
-                c64JoystickActions.Add(joystickAction);
+                if (gamepadButtonsDown.Contains(mapKeysKey))
+                    matchCount++;
+            }
+            if (matchCount == mapKeys.Length)
+            {
+                // Remove any other mappings found that contains any of the gamepad buttons in this mapping.
+                for (int i = foundMappings.Count - 1; i >= 0; i--)
+                {
+                    var currentlyFoundMapKeys = foundMappings[i];
+                    if (currentlyFoundMapKeys.Any(x => mapKeys.Contains(x)))
+                    {
+                        foundMappings.RemoveAt(i);
+                    }
+                }
+                foundMappings.Add(mapKeys);
             }
         }
 
+        foreach (var mapKeys in foundMappings)
+        {
+            var c64Actions = map[mapKeys];
+            foreach (var c64Action in c64Actions)
+            {
+                if (!c64JoystickActions.Contains(c64Action))
+                    c64JoystickActions.Add(c64Action);
+            }
+        }
         return c64JoystickActions;
     }
 }

@@ -3,6 +3,7 @@ using Highbyte.DotNet6502.Impl.AspNet;
 using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth;
 using Highbyte.DotNet6502.Impl.AspNet.Generic.Input;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Generic;
 using Highbyte.DotNet6502.Systems.Generic.Config;
 

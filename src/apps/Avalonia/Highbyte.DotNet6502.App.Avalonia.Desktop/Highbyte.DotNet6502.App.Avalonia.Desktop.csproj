@@ -5,6 +5,7 @@
     One for Windows with net10.0-windows TFM, one for MacOS with net10.0-macos and one with net10.0 TFM for Linux.-->
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <UserSecretsId>111df26c-165e-489c-9fbf-0d96435b1972</UserSecretsId>
   </PropertyGroup>
@@ -31,6 +32,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Highbyte.DotNet6502.App.Avalonia.Core\Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.SilkNet.SDL\Highbyte.DotNet6502.Impl.SilkNet.SDL.csproj" />
   </ItemGroup>
 
   <ItemGroup>

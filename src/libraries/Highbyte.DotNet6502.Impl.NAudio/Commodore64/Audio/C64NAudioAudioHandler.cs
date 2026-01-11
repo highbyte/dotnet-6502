@@ -1,4 +1,5 @@
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Audio;
 using Highbyte.DotNet6502.Systems.Instrumentation;

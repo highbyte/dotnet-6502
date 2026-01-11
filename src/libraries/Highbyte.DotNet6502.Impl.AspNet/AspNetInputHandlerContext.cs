@@ -1,4 +1,4 @@
-using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Input;
 using Microsoft.Extensions.Logging;
 using Toolbelt.Blazor.Gamepad;
 

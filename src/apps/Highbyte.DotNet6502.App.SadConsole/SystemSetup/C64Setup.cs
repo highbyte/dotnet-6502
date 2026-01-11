@@ -4,6 +4,7 @@ using Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio;
 using Highbyte.DotNet6502.Impl.SadConsole;
 using Highbyte.DotNet6502.Impl.SadConsole.Commodore64.Input;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Audio;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Highbyte.DotNet6502.Systems.Commodore64.Models;

@@ -1,5 +1,5 @@
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
-using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Audio;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NAudio.Wave;

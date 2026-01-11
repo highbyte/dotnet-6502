@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Input;
 using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.SadConsole;

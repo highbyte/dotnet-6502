@@ -1,0 +1,225 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Highbyte.DotNet6502.App.Avalonia.Core.ViewModels"
+        x:Class="Highbyte.DotNet6502.App.Avalonia.Core.Views.DebugGamepadUserControl"
+        x:DataType="vm:DebugGamepadViewModel"
+        Width="450"
+        Height="500">
+  
+  <!-- Fixed size layout to prevent resizing -->
+  <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="8,0,8,8">
+    <!-- Title Header -->
+    <Border Grid.Row="0" CornerRadius="4,4,4,4" Classes="panel-container">
+      <TextBlock Text="Debug Gamepad"
+                 Classes="h-center h2"/>
+    </Border>
+
+    <!-- Connection Status -->
+    <Border Grid.Row="1" Classes="content-section" Margin="8,8,8,0">
+      <StackPanel Classes="spacing-tight">
+        <TextBlock Text="Connection Status" Classes="bold"/>
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Connected:" Classes="small" Margin="0,0,8,0"/>
+          <TextBlock Grid.Row="0" Grid.Column="1" 
+                     Text="{Binding IsGamepadConnected}"
+                     Classes="small"
+                     Classes.connected="{Binding IsGamepadConnected}"
+                     Classes.disconnected="{Binding !IsGamepadConnected}"/>
+          
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Name:" Classes="small" Margin="0,0,8,0"/>
+          <TextBlock Grid.Row="1" Grid.Column="1" 
+                     Text="{Binding GamepadName}"
+                     Classes="small"/>
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <!-- Visual Button Display -->
+    <Border Grid.Row="2" Classes="content-section" Margin="8,8,8,0">
+      <StackPanel Classes="spacing-tight">
+        <TextBlock Text="Button States" Classes="bold"/>
+        
+        <!-- Controller layout representation -->
+        <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="8">
+          
+          <!-- Top row: Bumpers and Triggers -->
+          <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center">
+            <Border Classes="gamepad-button" Classes.pressed="{Binding IsLeftBumperPressed}">
+              <TextBlock Text="LB" Classes="small btn-text"/>
+            </Border>
+            <Border Classes="gamepad-button" Classes.pressed="{Binding IsLeftTriggerPressed}" Margin="4,0,0,0">
+              <TextBlock Text="LT" Classes="small btn-text"/>
+            </Border>
+          </StackPanel>
+          
+          <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+            <Border Classes="gamepad-button" Classes.pressed="{Binding IsBackPressed}">
+              <TextBlock Text="Back" Classes="small btn-text"/>
+            </Border>
+            <Border Classes="gamepad-button" Classes.pressed="{Binding IsGuidePressed}" Margin="4,0">
+              <TextBlock Text="Guide" Classes="small btn-text"/>
+            </Border>
+            <Border Classes="gamepad-button" Classes.pressed="{Binding IsStartPressed}">
+              <TextBlock Text="Start" Classes="small btn-text"/>
+            </Border>
+          </StackPanel>
+          
+          <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Center">
+            <Border Classes="gamepad-button" Classes.pressed="{Binding IsRightTriggerPressed}">
+              <TextBlock Text="RT" Classes="small btn-text"/>
+            </Border>
+            <Border Classes="gamepad-button" Classes.pressed="{Binding IsRightBumperPressed}" Margin="4,0,0,0">
+              <TextBlock Text="RB" Classes="small btn-text"/>
+            </Border>
+          </StackPanel>
+          
+          <!-- Middle row: D-Pad and Face buttons -->
+          <!-- D-Pad -->
+          <Grid Grid.Row="2" Grid.Column="0" ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto,Auto,Auto" HorizontalAlignment="Center" Margin="0,8">
+            <Border Grid.Row="0" Grid.Column="1" Classes="gamepad-button" Classes.pressed="{Binding IsDPadUpPressed}">
+              <TextBlock Text="Up" Classes="small btn-text"/>
+            </Border>
+            <Border Grid.Row="1" Grid.Column="0" Classes="gamepad-button" Classes.pressed="{Binding IsDPadLeftPressed}">
+              <TextBlock Text="Left" Classes="small btn-text"/>
+            </Border>
+            <Border Grid.Row="1" Grid.Column="2" Classes="gamepad-button" Classes.pressed="{Binding IsDPadRightPressed}">
+              <TextBlock Text="Right" Classes="small btn-text"/>
+            </Border>
+            <Border Grid.Row="2" Grid.Column="1" Classes="gamepad-button" Classes.pressed="{Binding IsDPadDownPressed}">
+              <TextBlock Text="Down" Classes="small btn-text"/>
+            </Border>
+          </Grid>
+          
+          <!-- Stick buttons in center -->
+          <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Classes="gamepad-button" Classes.pressed="{Binding IsLeftStickPressed}">
+              <TextBlock Text="LS" Classes="small btn-text"/>
+            </Border>
+            <Border Classes="gamepad-button" Classes.pressed="{Binding IsRightStickPressed}" Margin="8,0,0,0">
+              <TextBlock Text="RS" Classes="small btn-text"/>
+            </Border>
+          </StackPanel>
+          
+          <!-- Face buttons (A, B, X, Y) -->
+          <Grid Grid.Row="2" Grid.Column="2" ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto,Auto,Auto" HorizontalAlignment="Center" Margin="0,8">
+            <Border Grid.Row="0" Grid.Column="1" Classes="gamepad-button btn-y" Classes.pressed="{Binding IsYPressed}">
+              <TextBlock Text="Y" Classes="small btn-text"/>
+            </Border>
+            <Border Grid.Row="1" Grid.Column="0" Classes="gamepad-button btn-x" Classes.pressed="{Binding IsXPressed}">
+              <TextBlock Text="X" Classes="small btn-text"/>
+            </Border>
+            <Border Grid.Row="1" Grid.Column="2" Classes="gamepad-button btn-b" Classes.pressed="{Binding IsBPressed}">
+              <TextBlock Text="B" Classes="small btn-text"/>
+            </Border>
+            <Border Grid.Row="2" Grid.Column="1" Classes="gamepad-button btn-a" Classes.pressed="{Binding IsAPressed}">
+              <TextBlock Text="A" Classes="small btn-text"/>
+            </Border>
+          </Grid>
+          
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <!-- Pressed Buttons List - fixed height with scrollable content -->
+    <Border Grid.Row="3" Classes="content-section" Height="80" Margin="8,8,8,0">
+      <Grid RowDefinitions="Auto,*">
+        <TextBlock Grid.Row="0" Text="Currently Pressed" Classes="bold" Margin="0,0,0,4"/>
+        <ScrollViewer Grid.Row="1">
+          <ItemsControl ItemsSource="{Binding PressedButtons}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel Orientation="Horizontal"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Background="#4CAF50" CornerRadius="4" Padding="6,2" Margin="2">
+                  <TextBlock Text="{Binding}" Classes="small" Foreground="White"/>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Grid>
+    </Border>
+
+    <!-- Status message and Close button -->
+    <Grid Grid.Row="4" RowDefinitions="Auto,Auto" Margin="8,8,8,0">
+      <TextBlock Grid.Row="0"
+                 Text="{Binding StatusMessage}"
+                 Foreground="{DynamicResource SuccessColor}"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding HasStatusMessage}"
+                 Margin="0,0,0,8"/>
+      
+      <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+        <ProgressBar Grid.Column="0"
+                     IsVisible="{Binding IsBusy}"
+                     IsIndeterminate="True"/>
+        <Button Grid.Column="1"
+                Content="Close"
+                Classes="primary"
+                IsDefault="True"
+                IsEnabled="{Binding CanClose}"
+                Command="{Binding CloseCommand}"/>
+      </Grid>
+    </Grid>
+
+  </Grid>
+  
+  <UserControl.Styles>
+    <!-- Connection status colors -->
+    <Style Selector="TextBlock.connected">
+      <Setter Property="Foreground" Value="#4CAF50"/>
+    </Style>
+    <Style Selector="TextBlock.disconnected">
+      <Setter Property="Foreground" Value="#F44336"/>
+    </Style>
+    
+    <!-- Gamepad button base style -->
+    <Style Selector="Border.gamepad-button">
+      <Setter Property="CornerRadius" Value="4"/>
+      <Setter Property="Padding" Value="8,4"/>
+      <Setter Property="Margin" Value="2"/>
+      <Setter Property="MinWidth" Value="32"/>
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Background" Value="#424242"/>
+    </Style>
+    
+    <!-- Pressed state -->
+    <Style Selector="Border.gamepad-button.pressed">
+      <Setter Property="Background" Value="#4CAF50"/>
+    </Style>
+    
+    <!-- Special button colors when pressed -->
+    <Style Selector="Border.btn-y.pressed">
+      <Setter Property="Background" Value="#FFEB3B"/>
+    </Style>
+    <Style Selector="Border.btn-x.pressed">
+      <Setter Property="Background" Value="#2196F3"/>
+    </Style>
+    <Style Selector="Border.btn-b.pressed">
+      <Setter Property="Background" Value="#F44336"/>
+    </Style>
+    <Style Selector="Border.btn-a.pressed">
+      <Setter Property="Background" Value="#4CAF50"/>
+    </Style>
+    
+    <!-- Button text styles -->
+    <Style Selector="TextBlock.btn-text">
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="TextBlock.btn-text-dark">
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="Black"/>
+    </Style>
+  </UserControl.Styles>
+  
+</UserControl>

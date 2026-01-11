@@ -1,14 +1,11 @@
 using Highbyte.DotNet6502.Systems.Instrumentation;
 
-namespace Highbyte.DotNet6502.Systems;
+namespace Highbyte.DotNet6502.Systems.Input;
 
-public interface IAudioHandler
+public interface IInputHandler
 {
     void Init();
-    void AfterFrame();
-    void StartPlaying();
-    void StopPlaying();
-    void PausePlaying();
+    void BeforeFrame();
     void Cleanup();
 
     List<string> GetDebugInfo();
@@ -16,28 +13,19 @@ public interface IAudioHandler
     ISystem System { get; }
 }
 
-public class NullAudioHandler : IAudioHandler
+public class NullInputHandler : IInputHandler
 {
     private readonly ISystem _system;
     public ISystem System => _system;
 
-    public NullAudioHandler(ISystem system)
+    public NullInputHandler(ISystem system)
     {
         _system = system;
     }
     public void Init()
     {
     }
-    public void AfterFrame()
-    {
-    }
-    public void StartPlaying()
-    {
-    }
-    public void PausePlaying()
-    {
-    }
-    public void StopPlaying()
+    public void BeforeFrame()
     {
     }
     public void Cleanup()

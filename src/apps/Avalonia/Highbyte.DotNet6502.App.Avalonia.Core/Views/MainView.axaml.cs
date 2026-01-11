@@ -523,6 +523,86 @@ public partial class MainView : UserControl
         }
     }
 
+    private async void OpenGamepadDebug_Click(object? sender, RoutedEventArgs e)
+    {
+        await ShowGamepadDebug();
+    }
+
+    private async Task ShowGamepadDebug()
+    {
+        // Only allow opening the gamepad debug overlay when the emulator is uninitialized
+        if (_subscribedViewModel?.HostApp.EmulatorState != EmulatorState.Uninitialized)
+            return;
+
+        await GamepadDebugUserControlOverlay();
+    }
+
+    private async Task GamepadDebugUserControlOverlay()
+    {
+        if (_subscribedViewModel?.HostApp == null)
+            return;
+
+        // Create the UserControl-based config
+        var configControl = new DebugGamepadUserControl
+        {
+            DataContext = new DebugGamepadViewModel(_subscribedViewModel.HostApp)
+        };
+
+        // Create a custom overlay with better modal behavior
+        var overlay = new Panel
+        {
+            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)), // More opaque overlay
+            ZIndex = 1000
+        };
+
+        // Create a dialog container that looks like a proper modal
+        var dialogContainer = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),  // 1A202C, ViewDefaultBg
+            BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            BoxShadow = new BoxShadows(new BoxShadow
+            {
+                OffsetX = 0,
+                OffsetY = 8,
+                Blur = 25,
+                Color = Color.FromArgb(128, 0, 0, 0)
+            }),
+            Margin = new Thickness(20), // Add margin from screen edges
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = configControl // Direct child, no ScrollViewer wrapper
+        };
+
+        // Set up event handling for configuration completion
+        var taskCompletionSource = new TaskCompletionSource<bool>();
+        configControl.CloseRequested += (s, closed) =>
+        {
+            taskCompletionSource.SetResult(closed);
+        };
+
+        overlay.Children.Add(dialogContainer);
+
+        if (Content is Grid mainGrid)
+        {
+            Grid.SetRowSpan(overlay, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
+            Grid.SetColumnSpan(overlay, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
+            mainGrid.Children.Add(overlay);
+
+            try
+            {
+                // Wait for the configuration to complete
+                await taskCompletionSource.Task;
+            }
+            finally
+            {
+                // Clean up - remove the overlay
+                mainGrid.Children.Remove(overlay);
+            }
+        }
+    }
+
     private async void OnEmulatorOptionsRequested(object? sender, EventArgs e)
     {
         await EmulatorOptionsUserControlOverlay();
