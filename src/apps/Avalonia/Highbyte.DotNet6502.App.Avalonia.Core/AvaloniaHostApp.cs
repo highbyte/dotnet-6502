@@ -13,15 +13,12 @@ using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Impl.Avalonia.Render;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
-using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.SilkNetOpenAL;
-using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.WebAudioAPI;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using NAudio.Wave;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
@@ -41,7 +38,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private readonly float _defaultAudioVolumePercent;
 
     private readonly SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> _systemList;
-
+    private readonly WavePlayerFactory _wavePlayerFactory;
     private AvaloniaInputHandlerContext _inputHandlerContext = default!;
     private NAudioAudioHandlerContext _audioHandlerContext = default!;
 
@@ -114,6 +111,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _defaultAudioEnabled = true;
         _defaultAudioVolumePercent = 20.0f;
         _systemList = systemList;
+        _wavePlayerFactory = new WavePlayerFactory(_loggerFactory, _emulatorConfig);
 
         _inputHandlerContext = new AvaloniaInputHandlerContext();
 
@@ -575,38 +573,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         }
 
         // Create appropriate wave player based on platform
-        IWavePlayer? wavePlayer;
-        if (PlatformDetection.IsRunningOnDesktop())
-        {
-            _logger.LogInformation("Creating NAudio SilkNetOpenALWavePlayer for desktop cross-platform");
-
-            // Create Naudio wave player for desktop (using cross-platform OpenAL WavePlayer)
-            wavePlayer = new SilkNetOpenALWavePlayer()
-            {
-                NumberOfBuffers = 2,
-                DesiredLatency = 40
-            };
-        }
-        else if (PlatformDetection.IsRunningInWebAssembly())
-        {
-            var profile = EmulatorConfig.AudioSettingsProfile;
-            _logger.LogInformation($"Creating NAudio WebAudioWavePlayer for browser platform with profile: {profile}");
-
-            // Create NAudio WavePlayer for browser (using WebAudio API JavaScript interop)
-            wavePlayer = new WebAudioWavePlayer(WebAudioWavePlayerSettings.GetSettingsForProfile(profile), _loggerFactory);
-
-            _logger.LogInformation("WebAudioWavePlayer created");
-
-            // Init capture of WebAudioWavePlayer.js JS logging to the .NET side (static JSExport interop method)
-            WebAudioWavePlayer.SetLogger(_loggerFactory.CreateLogger(typeof(WebAudioWavePlayer).Name));
-
-            _logger.LogInformation("WebAudioWavePlayer logger set");
-
-        }
-        else
-        {
-            throw new NotSupportedException("No suitable audio output available for the current platform.");
-        }
+        var wavePlayer = _wavePlayerFactory.CreateWavePlayer();
 
         // Create a new context
         _audioHandlerContext = new NAudioAudioHandlerContext(

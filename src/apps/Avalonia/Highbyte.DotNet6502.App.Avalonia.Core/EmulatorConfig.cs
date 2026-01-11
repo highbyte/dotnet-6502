@@ -18,6 +18,7 @@ public class EmulatorConfig
     public float DefaultDrawScale { get; set; } = 2.0f;
     public float CurrentDrawScale { get; set; } = 2.0f;
     public bool ShowErrorDialog { get; set; } = true;
+    public bool ShowDebugTab { get; set; } = false;
     public bool LoadResourcesOverHttp { get; set; } = false;
 
     public WavePlayerSettingsProfile AudioSettingsProfile { get; set; } = WavePlayerSettingsProfile.Balanced;
@@ -65,6 +66,7 @@ public class EmulatorConfig
         configSection["DefaultEmulator"] = DefaultEmulator;
         configSection["DefaultDrawScale"] = DefaultDrawScale.ToString();
         configSection["ShowErrorDialog"] = ShowErrorDialog.ToString();
+        configSection["ShowDebugTab"] = ShowDebugTab.ToString();
         configSection["AudioSettingsProfile"] = AudioSettingsProfile.ToString();
 
         var monitorSection = configSection.GetSection("Monitor");

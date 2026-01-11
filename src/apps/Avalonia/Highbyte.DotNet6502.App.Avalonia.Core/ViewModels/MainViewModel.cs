@@ -69,6 +69,9 @@ public class MainViewModel : ViewModelBase, IDisposable
     public bool IsEmulatorRunning => EmulatorState == EmulatorState.Running;
     public bool IsEmulatorUninitialzied => EmulatorState == EmulatorState.Uninitialized;
 
+    // Debug tab visibility from config
+    public bool IsDebugTabVisible => _emulatorConfig.ShowDebugTab;
+
     // Private field to cache validation errors
     private readonly ObservableAsPropertyHelper<ObservableCollection<string>> _validationErrors;
     public ObservableCollection<string> ValidationErrors => _validationErrors.Value;
@@ -217,6 +220,15 @@ public class MainViewModel : ViewModelBase, IDisposable
     public void ClearMonitorViewModel()
     {
         MonitorViewModel = null;
+    }
+
+    /// <summary>
+    /// Refreshes config-dependent properties after configuration changes.
+    /// Call this after saving emulator configuration.
+    /// </summary>
+    public void RefreshConfigProperties()
+    {
+        this.RaisePropertyChanged(nameof(IsDebugTabVisible));
     }
 
     // --- End Binding Properties ---

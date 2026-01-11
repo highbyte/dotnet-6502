@@ -347,10 +347,7 @@ public partial class MainView : UserControl
     {
         // Directly find the LogScrollViewer by name
         _logScrollViewer = this.FindControl<ScrollViewer>("LogScrollViewer");
-        if (_logScrollViewer != null)
-        {
-            _logScrollViewer.ScrollChanged += LogScrollViewer_ScrollChanged;
-        }
+        _logScrollViewer?.ScrollChanged += LogScrollViewer_ScrollChanged;
     }
 
     private void LogScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e)
@@ -454,6 +451,9 @@ public partial class MainView : UserControl
             builder.SetMinimumLevel(LogLevel.Information);
         });
 
+        var wavePlayerFactory = new WavePlayerFactory(loggerFactory, _subscribedViewModel!.HostApp.EmulatorConfig);
+        var wavePlayer = wavePlayerFactory.CreateWavePlayer();
+
         // Create the UserControl-based config
         var configControl = new DebugSoundUserControl
         {
@@ -461,7 +461,7 @@ public partial class MainView : UserControl
                 _subscribedViewModel!.HostApp!,
                 serviceProvider.GetRequiredService<IConfiguration>(),
                 loggerFactory,
-                serviceProvider.GetRequiredService<IWavePlayer>())
+                wavePlayer)
         };
 
         // Create a custom overlay with better modal behavior
@@ -577,6 +577,11 @@ public partial class MainView : UserControl
         var taskCompletionSource = new TaskCompletionSource<bool>();
         configControl.ConfigurationChanged += (s, saved) =>
         {
+            if (saved)
+            {
+                // Refresh config-dependent properties in MainViewModel
+                _subscribedViewModel?.RefreshConfigProperties();
+            }
             taskCompletionSource.SetResult(saved);
         };
 

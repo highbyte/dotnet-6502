@@ -97,6 +97,24 @@
           </Border>
         </StackPanel>
 
+        <!-- Developer Options Section -->
+        <StackPanel Width="400" Classes="wrap-item">
+          <Border Classes="content-section">
+            <StackPanel Classes="spacing-tight">
+              <TextBlock Text="Developer Options"
+                         Classes=""/>
+
+              <CheckBox Content="Show Debug tab"
+                        IsChecked="{Binding ShowDebugTab}"
+                        Classes=""/>
+              
+              <TextBlock Text="When enabled, shows the Debug tab in the main view. Useful for development and debugging purposes."
+                         Classes="small secondary-text"
+                         TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
         <!-- Audio Settings Section -->
         <StackPanel Width="400" Classes="wrap-item">
           <Border Classes="content-section">

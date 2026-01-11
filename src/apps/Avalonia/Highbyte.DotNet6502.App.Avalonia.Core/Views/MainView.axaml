@@ -477,7 +477,7 @@
 
 
                         <!-- Debug  -->
-                        <TabItem Name="DebugTabItem" Header="Debug">
+                        <TabItem Name="DebugTabItem" Header="Debug" IsVisible="{Binding IsDebugTabVisible}">
 
                             <Button Click="OpenSoundDebug_Click"
                                     IsEnabled="{Binding IsEmulatorUninitialzied}"
