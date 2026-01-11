@@ -735,6 +735,8 @@
                 _c64SystemConfig.KeyboardJoystickEnabled = diskInfo.KeyboardJoystickEnabled;
                 _logger.LogInformation($"Setting keyboard joystick number in config to: {diskInfo.KeyboardJoystickNumber}");
                 _c64SystemConfig.KeyboardJoystick = diskInfo.KeyboardJoystickNumber;
+                _logger.LogInformation($"Setting joystick number in config to: {diskInfo.KeyboardJoystickNumber}");
+                _c64HostConfig.InputConfig.CurrentJoystick = diskInfo.KeyboardJoystickNumber;
 
                 // Apply renderer setting to config object while emulator is stopped
                 Type rendererProviderType = diskInfo.RequiresBitmap ? typeof(Vic2Rasterizer) : typeof(C64CustomRenderProvider);
