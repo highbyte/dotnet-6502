@@ -27,11 +27,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Highbyte.DotNet6502.Impl.Avalonia\Highbyte.DotNet6502.Impl.Avalonia.csproj" />
+    <PackageReference Include="Silk.NET.SDL" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Silk.NET.SDL" />
+    <ProjectReference Include="..\Highbyte.DotNet6502.Systems\Highbyte.DotNet6502.Systems.csproj" />
   </ItemGroup>
 
 </Project>

@@ -4,13 +4,13 @@ using Avalonia;
 using Avalonia.ReactiveUI;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.Impl.SilkNet.SDL.Input;
-using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.SilkNetOpenAL;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NAudio.Wave;
+using Highbyte.DotNet6502.Systems.Input;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 
@@ -78,7 +78,7 @@ internal sealed class Program
         DotNet6502InMemLoggerConfiguration logConfig,
         ILoggerFactory loggerFactory,
         AvaloniaLoggerBridge avaloniaLoggerBridge,
-        IAvaloniaGamepad? gamepad = null)
+        IGamepad? gamepad = null)
         => AppBuilder.Configure(() => new Core.App(
                 configuration,
                 emulatorConfig,

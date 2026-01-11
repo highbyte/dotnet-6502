@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Input;
 using Microsoft.Extensions.Logging;
 //using Silk.NET.SDL;
 
@@ -20,8 +20,8 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
     private bool _capsLockOn;
 
     // Gamepad
-    private IGamepad? _currentGamePad;
-    public IGamepad? CurrentGamePad => _currentGamePad;
+    private Silk.NET.Input.IGamepad? _currentGamePad;
+    public Silk.NET.Input.IGamepad? CurrentGamePad => _currentGamePad;
     public HashSet<ButtonName> GamepadButtonsDown = new();
 
     public bool Quit { get; private set; }
@@ -71,7 +71,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
     private void ConnectionChanged(IInputDevice device, bool isConnected)
     {
         _logger.LogInformation($"Input Connection Changed: {device.Name} {device.Index} isConnected: {isConnected}");
-        if (device is IGamepad gamepad)
+        if (device is Silk.NET.Input.IGamepad gamepad)
         {
             if (isConnected)
             {
@@ -132,7 +132,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
     //    _logger.LogDebug($"GamepadThumbstickMoved: {thumbstick.Index} {thumbstick.X},{thumbstick.Y}");
     //}
 
-    private void GamepadButtonUp(IGamepad gamepad, Button button)
+    private void GamepadButtonUp(Silk.NET.Input.IGamepad gamepad, Button button)
     {
         var buttonId = button.Name;
         if (GamepadButtonsDown.Contains(buttonId))
@@ -142,7 +142,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
         }
     }
 
-    private void GamepadButtonDown(IGamepad gamepad, Button button)
+    private void GamepadButtonDown(Silk.NET.Input.IGamepad gamepad, Button button)
     {
         var buttonId = button.Name;
         if (!GamepadButtonsDown.Contains(buttonId))

@@ -2,7 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Reactive;
 using Avalonia.Threading;
-using Highbyte.DotNet6502.Impl.Avalonia.Input;
+using Highbyte.DotNet6502.Systems.Input;
 using ReactiveUI;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;

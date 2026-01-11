@@ -1,5 +1,5 @@
 using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth.JSInterop.BlazorWebAudioSync;
-using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Audio;
 using Microsoft.JSInterop;
 
 namespace Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth;

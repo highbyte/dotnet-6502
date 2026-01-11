@@ -13,6 +13,7 @@ using static Highbyte.DotNet6502.AI.CodingAssistant.CustomAIEndpointCodeSuggesti
 using System.Text.Json;
 using Highbyte.DotNet6502.Systems.Commodore64.Render.CustomPayload;
 using Highbyte.DotNet6502.Impl.AspNet.Audio.WebAudioAPISynth;
+using Highbyte.DotNet6502.Systems.Audio;
 
 namespace Highbyte.DotNet6502.App.WASM.Emulator.SystemSetup;
 

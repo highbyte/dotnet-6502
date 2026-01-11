@@ -14,6 +14,7 @@ using Highbyte.DotNet6502.Impl.Avalonia.Render;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Highbyte.DotNet6502.Systems.Rendering;
 using Highbyte.DotNet6502.Systems.Rendering.VideoFrameProvider;
@@ -100,7 +101,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         DotNet6502InMemLoggerConfiguration logConfig,
         Func<string, string, string?, Task>? saveCustomConfigString,
         Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection,
-        IAvaloniaGamepad? gamepad = null
+        IGamepad? gamepad = null
 
         ) : base("Avalonia", systemList, loggerFactory, useStatsNamePrefix: false)
     {

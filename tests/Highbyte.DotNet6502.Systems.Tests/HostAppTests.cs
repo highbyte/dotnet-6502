@@ -1,3 +1,5 @@
+using Highbyte.DotNet6502.Systems.Audio;
+using Highbyte.DotNet6502.Systems.Input;
 using Microsoft.Extensions.Logging.Abstractions;
 using static Highbyte.DotNet6502.Systems.Tests.SystemConfigurerTests;
 

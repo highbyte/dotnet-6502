@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.Systems;
+namespace Highbyte.DotNet6502.Systems.Audio;
 
 public interface IAudioHandlerContext
 {

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Avalonia.Input;
-using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Input;
 
 namespace Highbyte.DotNet6502.Impl.Avalonia.Input;
 
@@ -13,12 +13,12 @@ public class AvaloniaInputHandlerContext : IInputHandlerContext
     private bool _capsLockOn;
 
     // Gamepad state tracking
-    private readonly IAvaloniaGamepad _gamepad;
+    private readonly IGamepad _gamepad;
 
     /// <summary>
     /// Gets the gamepad provider.
     /// </summary>
-    public IAvaloniaGamepad Gamepad => _gamepad;
+    public IGamepad Gamepad => _gamepad;
 
     /// <summary>
     /// Gets the set of currently pressed gamepad buttons.
@@ -29,7 +29,7 @@ public class AvaloniaInputHandlerContext : IInputHandlerContext
     /// <summary>
     /// Creates a new AvaloniaInputHandlerContext with a null gamepad (no gamepad support).
     /// </summary>
-    public AvaloniaInputHandlerContext() : this(new NullAvaloniaGamepad())
+    public AvaloniaInputHandlerContext() : this(new NullGamepad())
     {
     }
 
@@ -37,9 +37,9 @@ public class AvaloniaInputHandlerContext : IInputHandlerContext
     /// Creates a new AvaloniaInputHandlerContext with the specified gamepad provider.
     /// </summary>
     /// <param name="gamepad">The gamepad provider to use. Pass null to use a NullAvaloniaGamepad.</param>
-    public AvaloniaInputHandlerContext(IAvaloniaGamepad? gamepad)
+    public AvaloniaInputHandlerContext(IGamepad? gamepad)
     {
-        _gamepad = gamepad ?? new NullAvaloniaGamepad();
+        _gamepad = gamepad ?? new NullGamepad();
     }
 
     public bool GetCapsLockState() => _capsLockOn;

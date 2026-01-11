@@ -1,10 +1,10 @@
-namespace Highbyte.DotNet6502.Impl.Avalonia.Input;
+namespace Highbyte.DotNet6502.Systems.Input;
 
 /// <summary>
 /// A null implementation of IAvaloniaGamepad that does nothing.
 /// Used when no gamepad implementation is available or for systems that don't need gamepad input.
 /// </summary>
-public class NullAvaloniaGamepad : IAvaloniaGamepad
+public class NullGamepad : IGamepad
 {
     public bool IsInitialized { get; private set; }
     public bool IsConnected => false;

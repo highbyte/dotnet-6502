@@ -1,4 +1,4 @@
-using Highbyte.DotNet6502.Impl.Avalonia.Input;
+using Highbyte.DotNet6502.Systems.Input;
 using Microsoft.Extensions.Logging;
 using Silk.NET.SDL;
 
@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet.SDL.Input;
 /// SDL2 implementation of IAvaloniaGamepad for desktop platforms.
 /// Uses Silk.NET.SDL Game Controller API for gamepad input.
 /// </summary>
-public unsafe class Sdl2Gamepad : IAvaloniaGamepad
+public unsafe class Sdl2Gamepad : IGamepad
 {
     private readonly ILogger _logger;
     private Sdl? _sdl;

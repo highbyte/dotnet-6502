@@ -1,6 +1,6 @@
 using Avalonia.Input;
-using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
+using Highbyte.DotNet6502.Systems.Input;
 
 namespace Highbyte.DotNet6502.Impl.Avalonia.Commodore64.Input;
 

@@ -1,4 +1,4 @@
-namespace Highbyte.DotNet6502.Impl.Avalonia.Input;
+namespace Highbyte.DotNet6502.Systems.Input;
 
 /// <summary>
 /// Represents standard gamepad buttons.

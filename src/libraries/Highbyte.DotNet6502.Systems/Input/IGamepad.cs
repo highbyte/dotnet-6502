@@ -1,11 +1,11 @@
-namespace Highbyte.DotNet6502.Impl.Avalonia.Input;
+namespace Highbyte.DotNet6502.Systems.Input;
 
 /// <summary>
-/// Abstraction for gamepad input in Avalonia.
+/// Abstraction for gamepad input.
 /// This interface allows different implementations for browser (JavaScript interop) 
-/// and desktop (SDL2) environments.
+/// and desktop (SDL2, Silk.NET, etc.) platforms.
 /// </summary>
-public interface IAvaloniaGamepad : IDisposable
+public interface IGamepad : IDisposable
 {
     /// <summary>
     /// Gets whether the gamepad provider has been initialized.

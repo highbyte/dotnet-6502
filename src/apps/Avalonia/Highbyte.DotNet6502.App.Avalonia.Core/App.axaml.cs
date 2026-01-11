@@ -18,6 +18,7 @@ using Highbyte.DotNet6502.App.Avalonia.Core.Views;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Systems;
+using Highbyte.DotNet6502.Systems.Input;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,7 +40,7 @@ public partial class App : Application
     private readonly ILogger _logger;
     private readonly Func<string, string, string?, Task>? _saveCustomConfigString;
     private readonly Func<string, IConfigurationSection, string?, Task>? _saveCustomConfigSection;
-    private readonly IAvaloniaGamepad? _gamepad;
+    private readonly IGamepad? _gamepad;
 
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
@@ -66,7 +67,7 @@ public partial class App : Application
         ILoggerFactory loggerFactory,
         Func<string, string, string?, Task>? saveCustomConfigString = null,
         Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection = null,
-        IAvaloniaGamepad? gamepad = null)
+        IGamepad? gamepad = null)
     {
         Console.WriteLine("App constructor called");
 
