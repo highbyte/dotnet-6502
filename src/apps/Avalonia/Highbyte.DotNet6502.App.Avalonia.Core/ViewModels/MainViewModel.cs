@@ -69,6 +69,9 @@ public class MainViewModel : ViewModelBase, IDisposable
     public bool IsEmulatorRunning => EmulatorState == EmulatorState.Running;
     public bool IsEmulatorUninitialzied => EmulatorState == EmulatorState.Uninitialized;
 
+    // Debug tab visibility from config
+    public bool IsDebugTabVisible => _emulatorConfig.ShowDebugTab;
+
     // Private field to cache validation errors
     private readonly ObservableAsPropertyHelper<ObservableCollection<string>> _validationErrors;
     public ObservableCollection<string> ValidationErrors => _validationErrors.Value;
@@ -219,6 +222,15 @@ public class MainViewModel : ViewModelBase, IDisposable
         MonitorViewModel = null;
     }
 
+    /// <summary>
+    /// Refreshes config-dependent properties after configuration changes.
+    /// Call this after saving emulator configuration.
+    /// </summary>
+    public void RefreshConfigProperties()
+    {
+        this.RaisePropertyChanged(nameof(IsDebugTabVisible));
+    }
+
     // --- End Binding Properties ---
 
     // --- ReactiveUI Commands ---
@@ -231,6 +243,11 @@ public class MainViewModel : ViewModelBase, IDisposable
     public ReactiveCommand<Unit, Unit> ClearLogCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemCommand { get; }
     public ReactiveCommand<string, Unit> SelectSystemVariantCommand { get; }
+
+    // Event for requesting the emulator options overlay (UI operation handled in View)
+    public event EventHandler? EmulatorOptionsRequested;
+
+    public ReactiveCommand<Unit, Unit> EmulatorOptionsCommand { get; }
 
     // --- End ReactiveUI Commands ---
 
@@ -459,6 +476,17 @@ public class MainViewModel : ViewModelBase, IDisposable
             this.WhenAnyValue(
                 x => x.LogMessages.Count,
                 count => count > 0),
+            RxApp.MainThreadScheduler);
+
+        // Emulator Options command - only enabled when emulator is uninitialized
+        EmulatorOptionsCommand = ReactiveCommandHelper.CreateSafeCommand(
+            () =>
+            {
+                EmulatorOptionsRequested?.Invoke(this, EventArgs.Empty);
+            },
+            this.WhenAnyValue(
+                x => x.EmulatorState,
+                state => state == EmulatorState.Uninitialized),
             RxApp.MainThreadScheduler);
 
         // Initialize timer for batched log UI updates

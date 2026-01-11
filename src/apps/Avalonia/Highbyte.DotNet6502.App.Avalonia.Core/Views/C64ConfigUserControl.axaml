@@ -166,17 +166,6 @@
                                 Content="Enable SID audio (experimental)"
                                 IsChecked="{Binding AudioEnabled}"
                                 Classes=""/>
-
-                        <TextBlock Grid.Row="1" Grid.Column="0"
-                            Text="Audio profile:"
-                            Classes="secondary-text"/>
-                        <ComboBox Grid.Row="1" Grid.Column="1"
-                                ItemsSource="{Binding AudioWavePlayerSettingsProfiles}"
-                                SelectedItem="{Binding SelectedAudioWavePlayerSettingsProfile}"
-                                IsEnabled="{Binding AudioEnabled}"
-                                Classes="h-stretch"
-                                MaxDropDownHeight="200">
-                        </ComboBox>
                     </Grid>
                 </StackPanel>
             </Border>

@@ -94,13 +94,17 @@ public partial class MainView : UserControl
     {
         // Unsubscribe from previous ViewModel's property changes
         if (_subscribedViewModel != null)
+        {
             _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _subscribedViewModel.EmulatorOptionsRequested -= OnEmulatorOptionsRequested;
+        }
 
         // Subscribe to new ViewModel's property changes
         _subscribedViewModel = DataContext as MainViewModel;
         if (_subscribedViewModel != null)
         {
             _subscribedViewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _subscribedViewModel.EmulatorOptionsRequested += OnEmulatorOptionsRequested;
             // Check immediately in case validation errors are already set
             CheckAndSelectValidationErrorsTab();
             // Listen for log changes
@@ -334,6 +338,7 @@ public partial class MainView : UserControl
         if (_subscribedViewModel != null)
         {
             _subscribedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _subscribedViewModel.EmulatorOptionsRequested -= OnEmulatorOptionsRequested;
             _subscribedViewModel.LogMessages.CollectionChanged -= LogMessages_CollectionChanged;
             _subscribedViewModel = null;
         }
@@ -342,10 +347,7 @@ public partial class MainView : UserControl
     {
         // Directly find the LogScrollViewer by name
         _logScrollViewer = this.FindControl<ScrollViewer>("LogScrollViewer");
-        if (_logScrollViewer != null)
-        {
-            _logScrollViewer.ScrollChanged += LogScrollViewer_ScrollChanged;
-        }
+        _logScrollViewer?.ScrollChanged += LogScrollViewer_ScrollChanged;
     }
 
     private void LogScrollViewer_ScrollChanged(object? sender, ScrollChangedEventArgs e)
@@ -449,6 +451,9 @@ public partial class MainView : UserControl
             builder.SetMinimumLevel(LogLevel.Information);
         });
 
+        var wavePlayerFactory = new WavePlayerFactory(loggerFactory, _subscribedViewModel!.HostApp.EmulatorConfig);
+        var wavePlayer = wavePlayerFactory.CreateWavePlayer();
+
         // Create the UserControl-based config
         var configControl = new DebugSoundUserControl
         {
@@ -456,7 +461,7 @@ public partial class MainView : UserControl
                 _subscribedViewModel!.HostApp!,
                 serviceProvider.GetRequiredService<IConfiguration>(),
                 loggerFactory,
-                serviceProvider.GetRequiredService<IWavePlayer>())
+                wavePlayer)
         };
 
         // Create a custom overlay with better modal behavior
@@ -509,6 +514,89 @@ public partial class MainView : UserControl
                 if (result)
                 {
                 }
+            }
+            finally
+            {
+                // Clean up - remove the overlay
+                mainGrid.Children.Remove(overlay);
+            }
+        }
+    }
+
+    private async void OnEmulatorOptionsRequested(object? sender, EventArgs e)
+    {
+        await EmulatorOptionsUserControlOverlay();
+    }
+
+    private async Task EmulatorOptionsUserControlOverlay()
+    {
+        if (_subscribedViewModel?.HostApp == null)
+            return;
+
+        // Get IConfiguration from DI
+        var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+        if (serviceProvider == null)
+            return;
+
+        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+
+        // Create the UserControl-based config
+        var configControl = new EmulatorConfigUserControl
+        {
+            DataContext = new EmulatorConfigViewModel(_subscribedViewModel.HostApp, configuration)
+        };
+
+        // Create a custom overlay with better modal behavior
+        var overlay = new Panel
+        {
+            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)), // More opaque overlay
+            ZIndex = 1000
+        };
+
+        // Create a dialog container that looks like a proper modal
+        var dialogContainer = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),  // 1A202C, ViewDefaultBg
+            BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            BoxShadow = new BoxShadows(new BoxShadow
+            {
+                OffsetX = 0,
+                OffsetY = 8,
+                Blur = 25,
+                Color = Color.FromArgb(128, 0, 0, 0)
+            }),
+            Margin = new Thickness(20), // Add margin from screen edges
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = configControl // Direct child, no ScrollViewer wrapper
+        };
+
+        // Set up event handling for configuration completion
+        var taskCompletionSource = new TaskCompletionSource<bool>();
+        configControl.ConfigurationChanged += (s, saved) =>
+        {
+            if (saved)
+            {
+                // Refresh config-dependent properties in MainViewModel
+                _subscribedViewModel?.RefreshConfigProperties();
+            }
+            taskCompletionSource.SetResult(saved);
+        };
+
+        overlay.Children.Add(dialogContainer);
+
+        if (Content is Grid mainGrid)
+        {
+            Grid.SetRowSpan(overlay, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
+            Grid.SetColumnSpan(overlay, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
+            mainGrid.Children.Add(overlay);
+
+            try
+            {
+                // Wait for the configuration to complete
+                await taskCompletionSource.Task;
             }
             finally
             {

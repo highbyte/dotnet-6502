@@ -182,7 +182,30 @@
                                 Classes="small"/>
                         </Grid>
                     </StackPanel>
+
+                    <!-- Other general functions -->
+                    <StackPanel Classes="spacing-tight" >
+                        <Grid Classes="spacing-tight">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- General Emulator Options Button -->
+                            <Button Grid.Column="0"
+                                    Content="Options"
+                                    Command="{Binding EmulatorOptionsCommand}"
+                                    Classes="grid small"
+                                    ToolTip.Tip="Configure general emulator settings"/>
+
+                       </Grid>
+                    </StackPanel>
+
                 </StackPanel>
+
+                <!-- Separator -->
+                <Border Height="1" Background="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,8,0,8" />
 
                 <!-- C64 Menu -->
                 <views:C64MenuView DataContext="{Binding C64MenuViewModel}" IsVisible="{Binding $parent[UserControl].DataContext.IsC64SystemSelected}" />
@@ -454,7 +477,7 @@
 
 
                         <!-- Debug  -->
-                        <TabItem Name="DebugTabItem" Header="Debug">
+                        <TabItem Name="DebugTabItem" Header="Debug" IsVisible="{Binding IsDebugTabVisible}">
 
                             <Button Click="OpenSoundDebug_Click"
                                     IsEnabled="{Binding IsEmulatorUninitialzied}"

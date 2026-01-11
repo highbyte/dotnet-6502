@@ -1,10 +1,12 @@
 using System;
 using System.Net.Http;
+using System.Text.Json;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.NAudio;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers;
 using Highbyte.DotNet6502.Monitor;
 using Highbyte.DotNet6502.Systems;
+using Microsoft.Extensions.Configuration;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
@@ -16,6 +18,7 @@ public class EmulatorConfig
     public float DefaultDrawScale { get; set; } = 2.0f;
     public float CurrentDrawScale { get; set; } = 2.0f;
     public bool ShowErrorDialog { get; set; } = true;
+    public bool ShowDebugTab { get; set; } = false;
     public bool LoadResourcesOverHttp { get; set; } = false;
 
     public WavePlayerSettingsProfile AudioSettingsProfile { get; set; } = WavePlayerSettingsProfile.Balanced;
@@ -50,5 +53,30 @@ public class EmulatorConfig
         if (!systemList.Systems.Contains(DefaultEmulator))
             throw new DotNet6502Exception($"Setting {nameof(DefaultEmulator)} value {DefaultEmulator} is not supported. Valid values are: {string.Join(',', systemList.Systems)}");
         Monitor.Validate();
+    }
+
+    public IConfigurationSection GetConfigurationSection(IConfiguration config)
+    {
+        return config.GetSection(ConfigSectionName);
+    }
+
+    public void WriteToConfiguration(IConfiguration config)
+    {
+        var configSection = GetConfigurationSection(config);
+        configSection["DefaultEmulator"] = DefaultEmulator;
+        configSection["DefaultDrawScale"] = DefaultDrawScale.ToString();
+        configSection["ShowErrorDialog"] = ShowErrorDialog.ToString();
+        configSection["ShowDebugTab"] = ShowDebugTab.ToString();
+        configSection["AudioSettingsProfile"] = AudioSettingsProfile.ToString();
+
+        var monitorSection = configSection.GetSection("Monitor");
+        monitorSection["StopAfterBRKInstruction"] = Monitor.StopAfterBRKInstruction.ToString();
+        monitorSection["StopAfterUnknownInstruction"] = Monitor.StopAfterUnknownInstruction.ToString();
+    }
+
+    public string GetConfigAsJson()
+    {
+        var json = JsonSerializer.Serialize(this, EmulatorConfigJsonContext.Default.EmulatorConfig);
+        return json;
     }
 }
