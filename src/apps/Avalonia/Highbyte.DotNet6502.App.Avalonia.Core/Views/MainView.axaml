@@ -204,6 +204,9 @@
 
                 </StackPanel>
 
+                <!-- Separator -->
+                <Border Height="1" Background="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,8,0,8" />
+
                 <!-- C64 Menu -->
                 <views:C64MenuView DataContext="{Binding C64MenuViewModel}" IsVisible="{Binding $parent[UserControl].DataContext.IsC64SystemSelected}" />
 
