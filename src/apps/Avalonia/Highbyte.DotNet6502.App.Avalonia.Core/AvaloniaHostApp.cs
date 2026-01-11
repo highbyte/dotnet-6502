@@ -88,6 +88,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     /// <param name="logConfig"></param>
     /// <param name="saveCustomConfigString"></param>
     /// <param name="saveCustomConfigSection"></param>
+    /// <param name="gamepad">Optional gamepad provider. Pass null to use a NullAvaloniaGamepad.</param>
     internal AvaloniaHostApp(
         SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> systemList,
         ILoggerFactory loggerFactory,
@@ -95,7 +96,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         DotNet6502InMemLogStore logStore,
         DotNet6502InMemLoggerConfiguration logConfig,
         Func<string, string, string?, Task>? saveCustomConfigString,
-        Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection
+        Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection,
+        IAvaloniaGamepad? gamepad = null
 
         ) : base("Avalonia", systemList, loggerFactory, useStatsNamePrefix: false)
     {
@@ -113,7 +115,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _systemList = systemList;
         _wavePlayerFactory = new WavePlayerFactory(_loggerFactory, _emulatorConfig);
 
-        _inputHandlerContext = new AvaloniaInputHandlerContext();
+        _inputHandlerContext = new AvaloniaInputHandlerContext(gamepad);
 
         base.SetContexts(() => _inputHandlerContext, () => GetAudioHandlerContext());
         base.InitInputHandlerContext();
