@@ -479,14 +479,24 @@
                         <!-- Debug  -->
                         <TabItem Name="DebugTabItem" Header="Debug" IsVisible="{Binding IsDebugTabVisible}">
 
-                            <Button Click="OpenSoundDebug_Click"
-                                    IsEnabled="{Binding IsEmulatorUninitialzied}"
-                                    Classes="small"
-                                    MinWidth="60"
-                                    Height="20"
-                                    FontSize="10">
-                                Debug sound
-                            </Button>
+                            <StackPanel Orientation="Horizontal" Classes="spacing-tight">
+                                <Button Click="OpenSoundDebug_Click"
+                                        IsEnabled="{Binding IsEmulatorUninitialzied}"
+                                        Classes="small"
+                                        MinWidth="60"
+                                        Height="20"
+                                        FontSize="10">
+                                    Debug sound
+                                </Button>
+                                <Button Click="OpenGamepadDebug_Click"
+                                        IsEnabled="{Binding IsEmulatorUninitialzied}"
+                                        Classes="small"
+                                        MinWidth="60"
+                                        Height="20"
+                                        FontSize="10">
+                                    Debug gamepad
+                                </Button>
+                            </StackPanel>
                         </TabItem>
                     </TabControl>
                 </Border>

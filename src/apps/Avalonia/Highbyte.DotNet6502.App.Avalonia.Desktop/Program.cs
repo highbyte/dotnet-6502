@@ -3,7 +3,7 @@ using System.IO;
 using Avalonia;
 using Avalonia.ReactiveUI;
 using Highbyte.DotNet6502.App.Avalonia.Core;
-using Highbyte.DotNet6502.App.Avalonia.Desktop.Input;
+using Highbyte.DotNet6502.Impl.SilkNet.SDL.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
 using Highbyte.DotNet6502.Impl.NAudio.WavePlayers.SilkNetOpenAL;

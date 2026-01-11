@@ -26,13 +26,13 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
     <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
-    <PackageReference Include="Silk.NET.SDL" />
     <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" />
     
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Highbyte.DotNet6502.App.Avalonia.Core\Highbyte.DotNet6502.App.Avalonia.Core.csproj" />
+    <ProjectReference Include="..\..\..\libraries\Highbyte.DotNet6502.Impl.SilkNet.SDL\Highbyte.DotNet6502.Impl.SilkNet.SDL.csproj" />
   </ItemGroup>
 
   <ItemGroup>

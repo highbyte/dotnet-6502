@@ -78,6 +78,9 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     internal SystemList<AvaloniaInputHandlerContext, NAudioAudioHandlerContext> SystemList => _systemList;
     internal EmulatorConfig EmulatorConfig => _emulatorConfig;
 
+    // Expose InputHandlerContext for debug views
+    internal AvaloniaInputHandlerContext InputHandlerContext => _inputHandlerContext;
+
     /// <summary>
     /// Constructor for AvaloniaHostApp.
     /// </summary>

@@ -1,10 +1,8 @@
-using System;
-using System.Collections.Generic;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Microsoft.Extensions.Logging;
 using Silk.NET.SDL;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Desktop.Input;
+namespace Highbyte.DotNet6502.Impl.SilkNet.SDL.Input;
 
 /// <summary>
 /// SDL2 implementation of IAvaloniaGamepad for desktop platforms.
@@ -12,7 +10,7 @@ namespace Highbyte.DotNet6502.App.Avalonia.Desktop.Input;
 /// </summary>
 public unsafe class Sdl2Gamepad : IAvaloniaGamepad
 {
-    private readonly ILogger<Sdl2Gamepad> _logger;
+    private readonly ILogger _logger;
     private Sdl? _sdl;
     private GameController* _gameController;
     private bool _sdlInitialized = false;
@@ -24,7 +22,7 @@ public unsafe class Sdl2Gamepad : IAvaloniaGamepad
 
     public Sdl2Gamepad(ILoggerFactory loggerFactory)
     {
-        _logger = loggerFactory.CreateLogger<Sdl2Gamepad>();
+        _logger = loggerFactory.CreateLogger(nameof(Sdl2Gamepad));
     }
 
     public void Init()
