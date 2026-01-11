@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.1.11312.151 d18.0
+VisualStudioVersion = 18.1.11312.151
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Highbyte.DotNet6502.App.Avalonia.Core", "Highbyte.DotNet6502.App.Avalonia.Core\Highbyte.DotNet6502.App.Avalonia.Core.csproj", "{EBFA8512-1EA5-4D8C-B4AC-AB5B48A6D568}"
 EndProject
@@ -34,6 +34,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Apps", "Apps", "{74559338-0E9F-4D40-9D21-24A611182793}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.Impl.SilkNet.SDL", "..\..\libraries\Highbyte.DotNet6502.Impl.SilkNet.SDL\Highbyte.DotNet6502.Impl.SilkNet.SDL.csproj", "{DCA4FA1F-AF57-CC8A-23E8-2947F608289C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Highbyte.DotNet6502.Impl.Browser", "..\..\libraries\Highbyte.DotNet6502.Impl.Browser\Highbyte.DotNet6502.Impl.Browser.csproj", "{46D87CF0-B820-D30B-3633-2E85F3BDF179}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -85,6 +87,10 @@ Global
 		{DCA4FA1F-AF57-CC8A-23E8-2947F608289C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DCA4FA1F-AF57-CC8A-23E8-2947F608289C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DCA4FA1F-AF57-CC8A-23E8-2947F608289C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{46D87CF0-B820-D30B-3633-2E85F3BDF179}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{46D87CF0-B820-D30B-3633-2E85F3BDF179}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{46D87CF0-B820-D30B-3633-2E85F3BDF179}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{46D87CF0-B820-D30B-3633-2E85F3BDF179}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -101,6 +107,7 @@ Global
 		{53FDB98B-51A2-3D5D-E129-7C86DD771349} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{E3690045-0611-DE47-A56F-FC3874507BED} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{DCA4FA1F-AF57-CC8A-23E8-2947F608289C} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{46D87CF0-B820-D30B-3633-2E85F3BDF179} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {83CB65B8-011F-4ED7-BCD3-A6CFA935EF7E}
