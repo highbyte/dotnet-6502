@@ -17,7 +17,8 @@ public class EmulatorConfig
     public string DefaultEmulator { get; set; } = "C64";
     public float DefaultDrawScale { get; set; } = 2.0f;
     public float CurrentDrawScale { get; set; } = 2.0f;
-    public bool ShowErrorDialog { get; set; } = true;
+    public bool UseGlobalExceptionHandler { get; set; } = true; // If set to false, the app will crash on unhandled exceptions. Can be useful for debugging to trigger the debugger where the exception occurs.
+    public bool ShowErrorDialog { get; set; } = true; // If UseGlobalExceptionHandler is true, setting ShowErrorDialog to true shows a dialog on unhandled exceptions. Otherwise, exceptions are just logged.
     public bool ShowDebugTab { get; set; } = false;
     public bool LoadResourcesOverHttp { get; set; } = false;
 

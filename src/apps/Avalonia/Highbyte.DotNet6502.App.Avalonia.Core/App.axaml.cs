@@ -8,9 +8,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Diagnostics;
 using Avalonia.Input;
-using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
-using Avalonia.Media;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
@@ -41,7 +39,6 @@ public partial class App : Application
     private readonly Func<string, string, string?, Task>? _saveCustomConfigString;
     private readonly Func<string, IConfigurationSection, string?, Task>? _saveCustomConfigSection;
     private readonly IGamepad? _gamepad;
-    private readonly OverlayDialogHelper _overlayDialogHelper;
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
@@ -80,16 +77,22 @@ public partial class App : Application
         _saveCustomConfigSection = saveCustomConfigSection;
         _gamepad = gamepad;
 
-        _overlayDialogHelper = new OverlayDialogHelper(ApplicationLifetime);
-
         try
         {
             _logger = loggerFactory.CreateLogger(typeof(App).Name);
 
             // Only set up exception handlers if error dialog is enabled
             // When disabled, let exceptions flow naturally to trigger debugger
-            if (_emulatorConfig.ShowErrorDialog)
+            if (_emulatorConfig.UseGlobalExceptionHandler)
+            {
+                Console.WriteLine("ShowErrorDialog is enabled");
                 SetupGlobalExceptionHandlers();
+            }
+            else
+            {
+                Console.WriteLine("ShowErrorDialog is disabled");
+                _logger.LogInformation("Error dialog is disabled - global exception handlers not configured");
+            }
 
         }
         catch (Exception ex)
@@ -283,7 +286,7 @@ public partial class App : Application
         _logger.LogInformation("About to initialize exception handlers.");
 
         // Set up static handler for WASM ReactiveCommand exceptions
-        WasmExceptionHandler = (ex) => HandleGlobalException(ex, "Command Exception");
+        WasmExceptionHandler = (ex) => HandleGlobalException(ex);
 
         // Set up UI thread exception handler (Avalonia best practice)
         Dispatcher.UIThread.UnhandledException += OnUIThreadUnhandledException;
@@ -325,7 +328,7 @@ public partial class App : Application
         e.Handled = true;
 
         // Handle the exception with error dialog
-        HandleGlobalException(e.Exception, "UI Thread Exception");
+        HandleErrorDialog(e.Exception, "UI Thread Exception");
     }
 
     private void OnAppDomainUnhandledException(object? sender, UnhandledExceptionEventArgs e)
@@ -333,7 +336,7 @@ public partial class App : Application
         if (e.ExceptionObject is Exception exception)
         {
             _logger.LogError(exception, "Unhandled exception in AppDomain");
-            HandleGlobalException(exception, "Application Domain Exception");
+            HandleErrorDialog(exception, "Application Domain Exception");
         }
     }
 
@@ -344,20 +347,30 @@ public partial class App : Application
         // Mark as observed to prevent process termination
         e.SetObserved();
 
-        HandleGlobalException(e.Exception, "Task Exception");
+        HandleErrorDialog(e.Exception, "Task Exception");
     }
 
     private void OnReactiveUIException(Exception exception)
     {
         _logger.LogError(exception, "ReactiveUI unhandled exception");
-        HandleGlobalException(exception, "ReactiveUI Exception");
+        HandleErrorDialog(exception, "ReactiveUI Exception");
     }
 
-    private void HandleGlobalException(Exception exception, string title)
+    private void HandleGlobalException(Exception exception)
     {
         _logger.LogError(exception, "Unhandled exception: {Message}", exception.Message);
-        Console.WriteLine($"Exception: {exception.Message}");
-        Console.WriteLine($"Stack trace: {exception.StackTrace}");
+        //Console.WriteLine($"Exception: {exception.Message}");
+        //Console.WriteLine($"Stack trace: {exception.StackTrace}");
+        HandleErrorDialog(exception, "Unhandled Exception");
+    }
+
+    private void HandleErrorDialog(Exception exception, string title)
+    {
+        if (_emulatorConfig.ShowErrorDialog == false)
+        {
+            //ShowErrorDialog is disabled - not showing error overlay
+            return;
+        }
 
         // Pause emulator if it's running
         if (_hostApp?.EmulatorState == EmulatorState.Running)

@@ -74,11 +74,12 @@ public partial class C64ConfigUserControl : UserControl
         AvaloniaXamlLoader.Load(this);
     }
 
-    private async void OnRomLicenseAcknowledgementRequested(object? sender, RomLicenseAcknowledgementEventArgs e)
-    {
-        var result = await ShowRomLicenseOverlay();
-        e.SetResult(result);
-    }
+    private void OnRomLicenseAcknowledgementRequested(object? sender, RomLicenseAcknowledgementEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            var result = await ShowRomLicenseOverlay();
+            e.SetResult(result);
+        });
 
     private async Task<bool> ShowRomLicenseOverlay()
     {

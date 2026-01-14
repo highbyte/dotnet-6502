@@ -44,25 +44,26 @@ public partial class MainView : UserControl
         KeyDown += OnKeyDown;
     }
 
-    private async void OnViewLoaded(object? sender, RoutedEventArgs e)
-    {
-        if (_isInitialized)
-            return;
-        _isInitialized = true;
-
-        // Start fade-in animation
-        await FadeIn();
-
-        if (DataContext is MainViewModel viewModel)
+    private void OnViewLoaded(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
         {
-            await viewModel.InitializeAsync();
-        }
+            if (_isInitialized)
+                return;
+            _isInitialized = true;
 
-        // TODO: When not having the emulator started, need to set focus to the EmulatorView to capture keyboard input.
-        //       When the emulator is running, Focusable should be set back to false.
-        //Focus();
-        //Focusable = true;
-    }
+            // Start fade-in animation
+            await FadeIn();
+
+            if (DataContext is MainViewModel viewModel)
+            {
+                await viewModel.InitializeAsync();
+            }
+
+            // TODO: When not having the emulator started, need to set focus to the EmulatorView to capture keyboard input.
+            //       When the emulator is running, Focusable should be set back to false.
+            //Focus();
+            //Focusable = true;
+        });
 
     private async Task FadeIn()
     {
@@ -420,10 +421,8 @@ public partial class MainView : UserControl
         }
     }
 
-    private async void OpenSoundDebug_Click(object? sender, RoutedEventArgs e)
-    {
-        await ShowSoundDebug();
-    }
+    private void OpenSoundDebug_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(ShowSoundDebug);
 
     private async Task ShowSoundDebug()
     {
@@ -485,10 +484,8 @@ public partial class MainView : UserControl
         }
     }
 
-    private async void OpenGamepadDebug_Click(object? sender, RoutedEventArgs e)
-    {
-        await ShowGamepadDebug();
-    }
+    private void OpenGamepadDebug_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(ShowGamepadDebug);
 
     private async Task ShowGamepadDebug()
     {
@@ -542,10 +539,8 @@ public partial class MainView : UserControl
         }
     }
 
-    private async void OnEmulatorOptionsRequested(object? sender, EventArgs e)
-    {
-        await EmulatorOptionsUserControlOverlay();
-    }
+    private void OnEmulatorOptionsRequested(object? sender, EventArgs e)
+        => SafeAsyncHelper.Execute(EmulatorOptionsUserControlOverlay);
 
     private async Task EmulatorOptionsUserControlOverlay()
     {
@@ -579,6 +574,7 @@ public partial class MainView : UserControl
         // Show user control in overlay dialog
         var overlayDialogHelper = serviceProvider.GetRequiredService<OverlayDialogHelper>();
         var overlayPanel = overlayDialogHelper.BuildOverlayDialogPanel(configControl);
+
         var mainGrid = overlayDialogHelper.ShowOverlayDialog(overlayPanel, this);
 
         // Wait for the dialog to complete
@@ -590,6 +586,22 @@ public partial class MainView : UserControl
         {
             // Clean up - remove the overlay
             mainGrid.Children.Remove(overlayPanel);
+        }
+    }
+
+    /// <summary>
+    /// Safely executes an async operation with global exception handling for WASM compatibility.
+    /// Use this in async void event handlers instead of direct await.
+    /// </summary>
+    private async void SafeExecuteAsync(Func<Task> asyncAction)
+    {
+        try
+        {
+            await asyncAction();
+        }
+        catch (Exception ex)
+        {
+            App.WasmExceptionHandler?.Invoke(ex);
         }
     }
 }
