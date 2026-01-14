@@ -41,7 +41,7 @@ public partial class App : Application
     private readonly Func<string, string, string?, Task>? _saveCustomConfigString;
     private readonly Func<string, IConfigurationSection, string?, Task>? _saveCustomConfigSection;
     private readonly IGamepad? _gamepad;
-
+    private readonly OverlayDialogHelper _overlayDialogHelper;
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
@@ -79,6 +79,8 @@ public partial class App : Application
         _saveCustomConfigString = saveCustomConfigString;
         _saveCustomConfigSection = saveCustomConfigSection;
         _gamepad = gamepad;
+
+        _overlayDialogHelper = new OverlayDialogHelper(ApplicationLifetime);
 
         try
         {
@@ -201,6 +203,9 @@ public partial class App : Application
             services.AddSingleton(_logStore);
         if (_logConfig != null)
             services.AddSingleton(_logConfig);
+
+        // Register helpers
+        services.AddTransient<OverlayDialogHelper>((sp) => new OverlayDialogHelper(this.ApplicationLifetime));
 
         // Register ViewModels as transient (new instance each time)
         services.AddTransient<MainViewModel>();
@@ -386,10 +391,6 @@ public partial class App : Application
             return;
         }
 
-        var mainGrid = GetMainGrid();
-        if (mainGrid == null)
-            return;
-
         // Create the ErrorViewModel
         var errorMessage = $"An unexpected error occurred in the application.\n\n" +
                  $"Error: {exception.Message}\n\n" +
@@ -399,12 +400,6 @@ public partial class App : Application
         // Create the UserControl
         var errorUserControl = new ErrorUserControl(errorViewModel, _loggerFactory);
 
-        // Create overlay panel
-        var overlayPanel = BuildErrorUserControlOverlayPanel(errorViewModel, errorUserControl);
-
-        // Set current overlay to prevent multiple overlays
-        _currentErrorOverlay = overlayPanel;
-
         // Set up event handling for responding to user exiting the error dialog
         var taskCompletionSource = new TaskCompletionSource<bool>();
         errorUserControl.CloseRequested += (s, exit) =>
@@ -413,14 +408,18 @@ public partial class App : Application
             taskCompletionSource.TrySetResult(exit);
         };
 
-        // Show the overlay
-        Grid.SetRowSpan(overlayPanel, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
-        Grid.SetColumnSpan(overlayPanel, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
-        mainGrid.Children.Add(overlayPanel);
+        // Create overlay panel
+        var overlayDialogHelper = _serviceProvider.GetRequiredService<OverlayDialogHelper>();
+        var overlayPanel = overlayDialogHelper.BuildOverlayDialogPanel(errorUserControl);
+        // Set current overlay to prevent multiple overlays
+        _currentErrorOverlay = overlayPanel;
 
+        // Show the overlay
+        var mainGrid = overlayDialogHelper.ShowOverlayDialogOnMainView(overlayPanel);
+
+        // Wait for the dialog to close
         try
         {
-            // Wait for the dialog to close with result
             var exit = await taskCompletionSource.Task;
 
             if (exit && !PlatformDetection.IsRunningInWebAssembly())
@@ -446,70 +445,5 @@ public partial class App : Application
             // Reset the current overlay reference
             _currentErrorOverlay = null;
         }
-    }
-
-    private Panel BuildErrorUserControlOverlayPanel(ErrorViewModel errorViewModel, ErrorUserControl errorUserControl)
-    {
-        // Create a custom overlay with better modal behavior
-        var overlay = new Panel
-        {
-            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)), // More opaque overlay
-            ZIndex = 1000
-        };
-
-        // Create a dialog container that looks like a proper modal
-        var dialogContainer = new Border
-        {
-            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),  // 1A202C, ViewDefaultBg
-            BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            BoxShadow = new BoxShadows(new BoxShadow
-            {
-                OffsetX = 0,
-                OffsetY = 8,
-                Blur = 25,
-                Color = Color.FromArgb(128, 0, 0, 0)
-            }),
-            Margin = new Thickness(20), // Add margin from screen edges
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = errorUserControl // Direct child, no ScrollViewer wrapper
-        };
-
-        overlay.Children.Add(dialogContainer);
-
-        return overlay;
-    }
-
-    private Grid? GetMainGrid()
-    {
-        // Find the main Grid.
-        // We need to find the root Window's content Grid or MainView's Grid
-        MainView? mainView = null;
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            mainView = desktop.MainWindow?.Content as MainView;
-        }
-        else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
-        {
-            mainView = singleViewPlatform.MainView as MainView;
-        }
-        else
-        {
-            mainView = null;
-        }
-
-        if (mainView == null)
-            return null;
-
-
-        Grid? mainGrid = null;
-        if (mainView?.Content is Grid mainViewGrid)
-        {
-            mainGrid = mainViewGrid;
-        }
-
-        return mainGrid;
     }
 }

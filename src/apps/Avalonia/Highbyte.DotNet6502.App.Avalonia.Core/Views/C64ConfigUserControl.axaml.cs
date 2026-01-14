@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -11,6 +12,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
@@ -78,73 +80,9 @@ public partial class C64ConfigUserControl : UserControl
         e.SetResult(result);
     }
 
-    private async System.Threading.Tasks.Task<bool> ShowRomLicenseOverlay()
+    private async Task<bool> ShowRomLicenseOverlay()
     {
-        var tcs = new System.Threading.Tasks.TaskCompletionSource<bool>();
-
-        // Find the main Grid - the C64ConfigUserControl itself is already in an overlay,
-        // so we need to find the root Window's content Grid or MainView's Grid
-        Grid? mainGrid = null;
-
-        // Try to find the Window by walking up from TopLevel
-        var topLevel = TopLevel.GetTopLevel(this);
-        
-        // Desktop scenario: C64ConfigDialog Window
-        if (topLevel is Window window)
-        {
-            // Check if this is the C64ConfigDialog window (desktop)
-            // The dialog's Content is the C64ConfigUserControl, which contains a Grid
-            if (window is C64ConfigDialog dialog)
-            {
-                // Look for the Grid inside this C64ConfigUserControl
-                // We can use the visual tree to find it
-                if (this.Content is Grid thisGrid)
-                {
-                    mainGrid = thisGrid;
-                }
-                else
-                {
-                    // Try to find the first Grid child in this control
-                    mainGrid = this.FindDescendantOfType<Grid>();
-                }
-            }
-            // Or if it's the main window with a Grid content
-            else if (window.Content is Grid windowGrid)
-            {
-                mainGrid = windowGrid;
-            }
-        }
-
-        // Browser scenario: Try to find MainView in the visual tree
-        if (mainGrid == null)
-        {
-            var mainView = this.FindAncestorOfType<MainView>(true);
-            if (mainView?.Content is Grid mainViewGrid)
-            {
-                mainGrid = mainViewGrid;
-            }
-        }
-
-        // Last resort: try to find any Grid ancestor by walking the visual tree
-        if (mainGrid == null)
-        {
-            var current = this.Parent;
-            while (current != null)
-            {
-                if (current is Grid grid)
-                {
-                    mainGrid = grid;
-                    break;
-                }
-                current = (current as Control)?.Parent;
-            }
-        }
-
-        if (mainGrid == null)
-        {
-            // Fallback: if we can't find any grid, default to Yes
-            return true;
-        }
+        var tcs = new TaskCompletionSource<bool>();
 
         var yesButton = new Button
         {
@@ -280,23 +218,26 @@ public partial class C64ConfigUserControl : UserControl
         };
 
         // Create overlay panel (like in C64MenuView)
-        var overlay = new Panel
+        var overlayPanel = new Panel
         {
             Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
             ZIndex = 1000,
             Children = { dialogContent }
         };
 
-        // Span all rows and columns in the main grid
-        Grid.SetRowSpan(overlay, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
-        Grid.SetColumnSpan(overlay, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
+        // Show user control in overlay dialog
+        var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+        if (serviceProvider == null)
+        {
+            System.Console.WriteLine("Error: Could not get service provider");
+            return false;
+        }
+        var overlayDialogHelper = serviceProvider.GetRequiredService<OverlayDialogHelper>();
+        var mainGrid = overlayDialogHelper.ShowOverlayDialog(overlayPanel, this);
 
-        // Add overlay to main grid
-        mainGrid.Children.Add(overlay);
-        
         // Store reference for cleanup
         _overlayHost = mainGrid;
-        _currentOverlay = overlay;
+        _currentOverlay = overlayPanel;
 
         return await tcs.Task;
     }

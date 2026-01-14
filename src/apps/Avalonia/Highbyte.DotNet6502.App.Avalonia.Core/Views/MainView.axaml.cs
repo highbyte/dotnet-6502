@@ -8,13 +8,11 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Systems;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NAudio.Wave;
 using AvaloniaAnimation = Avalonia.Animation;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
@@ -44,7 +42,7 @@ public partial class MainView : UserControl
         this.Loaded += OnViewLoaded;
 
         KeyDown += OnKeyDown;
-   }
+    }
 
     private async void OnViewLoaded(object? sender, RoutedEventArgs e)
     {
@@ -438,7 +436,6 @@ public partial class MainView : UserControl
 
     private async Task SoundDebugUserControlOverlay()
     {
-        // Get C64ConfigDialogViewModel from DI
         var serviceProvider = (Application.Current as App)?.GetServiceProvider();
         if (serviceProvider == null)
         {
@@ -464,33 +461,6 @@ public partial class MainView : UserControl
                 wavePlayer)
         };
 
-        // Create a custom overlay with better modal behavior
-        var overlay = new Panel
-        {
-            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)), // More opaque overlay
-            ZIndex = 1000
-        };
-
-        // Create a dialog container that looks like a proper modal
-        var dialogContainer = new Border
-        {
-            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),  // 1A202C, ViewDefaultBg
-            BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            BoxShadow = new BoxShadows(new BoxShadow
-            {
-                OffsetX = 0,
-                OffsetY = 8,
-                Blur = 25,
-                Color = Color.FromArgb(128, 0, 0, 0)
-            }),
-            Margin = new Thickness(20), // Add margin from screen edges
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = configControl // Direct child, no ScrollViewer wrapper
-        };
-
         // Set up event handling for configuration completion
         var taskCompletionSource = new TaskCompletionSource<bool>();
         configControl.CloseRequested += (s, closed) =>
@@ -498,28 +468,20 @@ public partial class MainView : UserControl
             taskCompletionSource.SetResult(closed);
         };
 
-        overlay.Children.Add(dialogContainer);
+        // Show user control in overlay dialog
+        var overlayDialogHelper = serviceProvider.GetRequiredService<OverlayDialogHelper>();
+        var overlayPanel = overlayDialogHelper.BuildOverlayDialogPanel(configControl);
+        var mainGrid = overlayDialogHelper.ShowOverlayDialog(overlayPanel, this);
 
-        if (Content is Grid mainGrid)
+        // Wait for the dialog to complete
+        try
         {
-            Grid.SetRowSpan(overlay, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
-            Grid.SetColumnSpan(overlay, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
-            mainGrid.Children.Add(overlay);
-
-            try
-            {
-                // Wait for the configuration to complete
-                var result = await taskCompletionSource.Task;
-
-                if (result)
-                {
-                }
-            }
-            finally
-            {
-                // Clean up - remove the overlay
-                mainGrid.Children.Remove(overlay);
-            }
+            await taskCompletionSource.Task;
+        }
+        finally
+        {
+            // Clean up - remove the overlay
+            mainGrid.Children.Remove(overlayPanel);
         }
     }
 
@@ -539,6 +501,13 @@ public partial class MainView : UserControl
 
     private async Task GamepadDebugUserControlOverlay()
     {
+        var serviceProvider = (Application.Current as App)?.GetServiceProvider();
+        if (serviceProvider == null)
+        {
+            System.Console.WriteLine("Error: Could not get service provider");
+            return;
+        }
+
         if (_subscribedViewModel?.HostApp == null)
             return;
 
@@ -548,33 +517,6 @@ public partial class MainView : UserControl
             DataContext = new DebugGamepadViewModel(_subscribedViewModel.HostApp)
         };
 
-        // Create a custom overlay with better modal behavior
-        var overlay = new Panel
-        {
-            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)), // More opaque overlay
-            ZIndex = 1000
-        };
-
-        // Create a dialog container that looks like a proper modal
-        var dialogContainer = new Border
-        {
-            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),  // 1A202C, ViewDefaultBg
-            BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            BoxShadow = new BoxShadows(new BoxShadow
-            {
-                OffsetX = 0,
-                OffsetY = 8,
-                Blur = 25,
-                Color = Color.FromArgb(128, 0, 0, 0)
-            }),
-            Margin = new Thickness(20), // Add margin from screen edges
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = configControl // Direct child, no ScrollViewer wrapper
-        };
-
         // Set up event handling for configuration completion
         var taskCompletionSource = new TaskCompletionSource<bool>();
         configControl.CloseRequested += (s, closed) =>
@@ -582,24 +524,21 @@ public partial class MainView : UserControl
             taskCompletionSource.SetResult(closed);
         };
 
-        overlay.Children.Add(dialogContainer);
 
-        if (Content is Grid mainGrid)
+        // Show user control in overlay dialog
+        var overlayDialogHelper = serviceProvider.GetRequiredService<OverlayDialogHelper>();
+        var overlayPanel = overlayDialogHelper.BuildOverlayDialogPanel(configControl);
+        var mainGrid = overlayDialogHelper.ShowOverlayDialog(overlayPanel, this);
+
+        // Wait for the dialog to complete
+        try
         {
-            Grid.SetRowSpan(overlay, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
-            Grid.SetColumnSpan(overlay, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
-            mainGrid.Children.Add(overlay);
-
-            try
-            {
-                // Wait for the configuration to complete
-                await taskCompletionSource.Task;
-            }
-            finally
-            {
-                // Clean up - remove the overlay
-                mainGrid.Children.Remove(overlay);
-            }
+            await taskCompletionSource.Task;
+        }
+        finally
+        {
+            // Clean up - remove the overlay
+            mainGrid.Children.Remove(overlayPanel);
         }
     }
 
@@ -625,34 +564,6 @@ public partial class MainView : UserControl
         {
             DataContext = new EmulatorConfigViewModel(_subscribedViewModel.HostApp, configuration)
         };
-
-        // Create a custom overlay with better modal behavior
-        var overlay = new Panel
-        {
-            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)), // More opaque overlay
-            ZIndex = 1000
-        };
-
-        // Create a dialog container that looks like a proper modal
-        var dialogContainer = new Border
-        {
-            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),  // 1A202C, ViewDefaultBg
-            BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            BoxShadow = new BoxShadows(new BoxShadow
-            {
-                OffsetX = 0,
-                OffsetY = 8,
-                Blur = 25,
-                Color = Color.FromArgb(128, 0, 0, 0)
-            }),
-            Margin = new Thickness(20), // Add margin from screen edges
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = configControl // Direct child, no ScrollViewer wrapper
-        };
-
         // Set up event handling for configuration completion
         var taskCompletionSource = new TaskCompletionSource<bool>();
         configControl.ConfigurationChanged += (s, saved) =>
@@ -665,24 +576,20 @@ public partial class MainView : UserControl
             taskCompletionSource.SetResult(saved);
         };
 
-        overlay.Children.Add(dialogContainer);
+        // Show user control in overlay dialog
+        var overlayDialogHelper = serviceProvider.GetRequiredService<OverlayDialogHelper>();
+        var overlayPanel = overlayDialogHelper.BuildOverlayDialogPanel(configControl);
+        var mainGrid = overlayDialogHelper.ShowOverlayDialog(overlayPanel, this);
 
-        if (Content is Grid mainGrid)
+        // Wait for the dialog to complete
+        try
         {
-            Grid.SetRowSpan(overlay, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
-            Grid.SetColumnSpan(overlay, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
-            mainGrid.Children.Add(overlay);
-
-            try
-            {
-                // Wait for the configuration to complete
-                await taskCompletionSource.Task;
-            }
-            finally
-            {
-                // Clean up - remove the overlay
-                mainGrid.Children.Remove(overlay);
-            }
+            await taskCompletionSource.Task;
+        }
+        finally
+        {
+            // Clean up - remove the overlay
+            mainGrid.Children.Remove(overlayPanel);
         }
     }
 }
