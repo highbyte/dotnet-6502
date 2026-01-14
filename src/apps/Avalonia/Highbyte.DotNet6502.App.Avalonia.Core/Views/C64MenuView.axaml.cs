@@ -209,8 +209,8 @@ public partial class C64MenuView : UserControl
         else
         {
             // For desktop platforms, use the Window dialog
-            //await ShowC64ConfigDialog();
-            await C64ConfigUserControlOverlay();
+            await ShowC64ConfigDialog();
+            //await C64ConfigUserControlOverlay();
         }
     }
 
