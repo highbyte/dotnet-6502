@@ -163,7 +163,8 @@
                         <Button Grid.Column="1"
                                 Content="Load &amp; start"
                                 VerticalAlignment="Stretch"
-                                Classes="primary small"/>
+                                Classes="primary small"
+                                Command="{Binding LoadAssemblyExampleCommand}"/>
                     </Grid>
 
                     <TextBlock Text="Basic example files"
