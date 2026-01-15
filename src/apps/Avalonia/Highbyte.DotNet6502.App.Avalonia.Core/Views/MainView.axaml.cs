@@ -126,7 +126,10 @@ public partial class MainView : UserControl
         {
             if (viewModel.IsMonitorVisible)
             {
-                ShowMonitorUI();
+                // Dispatch to UI thread to ensure all ReactiveUI property updates are complete
+                // before showing the monitor UI. This is needed when EnableMonitor is called
+                // from non-UI contexts like OnAfterRunEmulatorOneFrame (breakpoint triggers).
+                Dispatcher.UIThread.Post(() => ShowMonitorUI(), DispatcherPriority.Loaded);
             }
             else
             {
