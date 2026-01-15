@@ -1,8 +1,10 @@
 using System;
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
+using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
@@ -13,6 +15,7 @@ public partial class MonitorDialog : Window
     private static Size? s_lastSize;
     private static WindowState? s_lastWindowState;
     private bool _isPositionInitialized = false;
+    private AvaloniaMonitor? _monitor;
 
     public MonitorDialog()
     {
@@ -41,8 +44,18 @@ public partial class MonitorDialog : Window
             var monitorControl = new MonitorUserControl(viewModel);
             Content = monitorControl;
 
-            // Subscribe to ViewModel's CloseRequested event
-            viewModel.CloseRequested += OnViewModelCloseRequested;
+            // Subscribe to Monitor's PropertyChanged event to close when IsVisible becomes false
+            _monitor = viewModel.Monitor;
+            if (_monitor != null)
+                _monitor.PropertyChanged += OnMonitorPropertyChanged;
+        }
+    }
+
+    private void OnMonitorPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AvaloniaMonitor.IsVisible) && _monitor?.IsVisible == false)
+        {
+            Close();
         }
     }
 
@@ -105,20 +118,17 @@ public partial class MonitorDialog : Window
         }
     }
 
-    private void OnViewModelCloseRequested(object? sender, EventArgs e)
-    {
-        // Close the dialog when ViewModel requests it
-        Close();
-    }
-
     private void OnClosed(object? sender, EventArgs e)
     {
         // Save window bounds before closing
         SaveWindowBounds();
 
-        // Unsubscribe from ViewModel event if it exists
-        if (DataContext is MonitorViewModel viewModel)
-            viewModel.CloseRequested -= OnViewModelCloseRequested;
+        // Unsubscribe from Monitor event if it exists
+        if (_monitor != null)
+        {
+            _monitor.PropertyChanged -= OnMonitorPropertyChanged;
+            _monitor = null;
+        }
 
         Opened -= OnOpened;
         PositionChanged -= OnPositionChanged;

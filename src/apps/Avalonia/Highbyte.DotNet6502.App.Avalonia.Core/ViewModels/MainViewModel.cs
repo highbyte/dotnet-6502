@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
@@ -8,6 +9,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Timers;
+using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Systems.Commodore64;
 using Highbyte.DotNet6502.Systems.Logging.InMem;
@@ -161,9 +163,14 @@ public class MainViewModel : ViewModelBase, IDisposable
     // Statistics panel column width - bind this to the grid column width
     public string StatisticsPanelColumnWidth => "250";
 
-    // Monitor visibility
-    private readonly ObservableAsPropertyHelper<bool> _isMonitorVisible;
-    public bool IsMonitorVisible => _isMonitorVisible.Value;
+    // Monitor visibility - watches Monitor.IsVisible directly
+    private bool _isMonitorVisible;
+    private AvaloniaMonitor? _currentMonitor; // Track current monitor for proper event unsubscription
+    public bool IsMonitorVisible
+    {
+        get => _isMonitorVisible;
+        private set => this.RaiseAndSetIfChanged(ref _isMonitorVisible, value);
+    }
 
     // Monitor ViewModel - created when monitor is enabled
     private MonitorViewModel? _monitorViewModel;
@@ -350,9 +357,29 @@ public class MainViewModel : ViewModelBase, IDisposable
             .WhenAnyValue(x => x.IsStatsPanelVisible)
             .ToProperty(this, x => x.IsStatisticsPanelVisible);
 
-        _isMonitorVisible = _hostApp
-            .WhenAnyValue(x => x.IsMonitorVisible)
-            .ToProperty(this, x => x.IsMonitorVisible);
+        // Subscribe to Monitor.IsVisible changes via HostApp.Monitor
+        // When Monitor changes (new system started), resubscribe to the new Monitor's PropertyChanged
+        _hostApp
+            .WhenAnyValue(x => x.Monitor)
+            .Subscribe(monitor =>
+            {
+                // Unsubscribe from previous monitor if exists
+                if (_currentMonitor != null)
+                {
+                    _currentMonitor.PropertyChanged -= OnMonitorPropertyChanged;
+                }
+
+                _currentMonitor = monitor;
+
+                // Update visibility when monitor changes (e.g., on Stop, Monitor becomes null)
+                IsMonitorVisible = monitor?.IsVisible ?? false;
+
+                // Subscribe to new monitor's PropertyChanged
+                if (monitor != null)
+                {
+                    monitor.PropertyChanged += OnMonitorPropertyChanged;
+                }
+            });
 
         // Initialize Audio properties - track changes to CurrentHostSystemConfig
         _audioSupported = _hostApp
@@ -444,7 +471,7 @@ public class MainViewModel : ViewModelBase, IDisposable
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         MonitorCommand = ReactiveCommandHelper.CreateSafeCommand(
-            async () => _hostApp.ToggleMonitor(),
+            async () => _hostApp.Monitor?.Toggle(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
                 state => state != EmulatorState.Uninitialized),
@@ -650,12 +677,19 @@ public class MainViewModel : ViewModelBase, IDisposable
         if (_hostApp.Monitor == null)
             return null;
 
-        var viewModel = new MonitorViewModel(_hostApp.Monitor);
+        return new MonitorViewModel(_hostApp.Monitor);
+    }
 
-        // Subscribe to the ViewModel's CloseRequested event to disable monitor when requested
-        viewModel.CloseRequested += (sender, e) => _hostApp.DisableMonitor();
-
-        return viewModel;
+    /// <summary>
+    /// Handles PropertyChanged events from the AvaloniaMonitor.
+    /// Updates IsMonitorVisible which will trigger MainView to show/hide the monitor UI.
+    /// </summary>
+    private void OnMonitorPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AvaloniaMonitor.IsVisible) && _currentMonitor != null)
+        {
+            IsMonitorVisible = _currentMonitor.IsVisible;
+        }
     }
 
     /// <summary>
@@ -663,6 +697,13 @@ public class MainViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void Dispose()
     {
+        // Unsubscribe from monitor events
+        if (_currentMonitor != null)
+        {
+            _currentMonitor.PropertyChanged -= OnMonitorPropertyChanged;
+            _currentMonitor = null;
+        }
+
         if (_logUpdateTimer != null)
         {
             _logUpdateTimer.Stop();

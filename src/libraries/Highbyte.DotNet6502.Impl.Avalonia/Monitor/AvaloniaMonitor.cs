@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using Avalonia.Threading;
 using Highbyte.DotNet6502;
 using Highbyte.DotNet6502.Monitor;
@@ -7,7 +8,11 @@ using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 
-public class AvaloniaMonitor : MonitorBase
+/// <summary>
+/// Avalonia-specific monitor implementation that owns its visibility state
+/// and notifies subscribers via INotifyPropertyChanged.
+/// </summary>
+public class AvaloniaMonitor : MonitorBase, INotifyPropertyChanged
 {
     private readonly MonitorConfig _monitorConfig;
     private const int MaxOutputLines = 500;
@@ -18,6 +23,14 @@ public class AvaloniaMonitor : MonitorBase
     private readonly List<string> _history = new();
     private int _historyIndex;
     private bool _hasBeenInitialized;
+    private bool _isVisible;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 
     public AvaloniaMonitor(SystemRunner systemRunner, MonitorConfig monitorConfig)
         : base(systemRunner, monitorConfig)
@@ -29,7 +42,18 @@ public class AvaloniaMonitor : MonitorBase
 
     public ObservableCollection<StatusLineEntry> StatusLines => _statusLines;
 
-    public bool IsVisible { get; private set; }
+    public bool IsVisible
+    {
+        get => _isVisible;
+        private set
+        {
+            if (_isVisible != value)
+            {
+                _isVisible = value;
+                OnPropertyChanged(nameof(IsVisible));
+            }
+        }
+    }
 
     public void Enable(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
     {
@@ -55,6 +79,17 @@ public class AvaloniaMonitor : MonitorBase
     {
         IsVisible = false;
         ResetHistoryNavigation();
+    }
+
+    /// <summary>
+    /// Toggle the monitor visibility. If visible, disable it; otherwise enable it.
+    /// </summary>
+    public void Toggle(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
+    {
+        if (IsVisible)
+            Disable();
+        else
+            Enable(execEvaluatorTriggerResult);
     }
 
     public CommandResult ProcessCommand(string command)

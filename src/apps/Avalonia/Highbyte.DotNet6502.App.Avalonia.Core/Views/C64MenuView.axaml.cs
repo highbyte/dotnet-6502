@@ -4,10 +4,8 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
-using Avalonia.VisualTree;
 using Highbyte.DotNet6502.App.Avalonia.Core.SystemSetup;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Microsoft.Extensions.Configuration;
@@ -53,59 +51,62 @@ public partial class C64MenuView : UserControl
     }
 
     // Event handlers for ViewModel requests (pure UI operations)
-    private async void OnClipboardCopyRequested(object? sender, string text)
-    {
-        if (TopLevel.GetTopLevel(this) is { } topLevel)
+    private void OnClipboardCopyRequested(object? sender, string text)
+        => SafeAsyncHelper.Execute(async () =>
         {
-            await topLevel.Clipboard?.SetTextAsync(text)!;
-        }
-    }
-
-    private async void OnClipboardPasteRequested(object? sender, EventArgs e)
-    {
-        if (ViewModel != null && TopLevel.GetTopLevel(this) is { } topLevel)
-        {
-            var text = await topLevel.Clipboard?.GetTextAsync()!;
-            ViewModel.ClipboardPasteResult = text;
-        }
-    }
-
-    private async void OnAttachDiskImageRequested(object? sender, EventArgs e)
-    {
-        if (ViewModel == null || TopLevel.GetTopLevel(this) is not { } topLevel)
-            return;
-
-        var storageProvider = topLevel.StorageProvider;
-        if (storageProvider.CanOpen)
-        {
-            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            if (TopLevel.GetTopLevel(this) is { } topLevel)
             {
-                Title = "Select D64 Disk Image",
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("D64 Disk Images") { Patterns = new[] { "*.d64" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-               }
-            });
+                await topLevel.Clipboard?.SetTextAsync(text)!;
+            }
+        });
 
-            if (files.Count > 0)
+    private void OnClipboardPasteRequested(object? sender, EventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (ViewModel != null && TopLevel.GetTopLevel(this) is { } topLevel)
             {
-                try
-                {
-                    await using var stream = await files[0].OpenReadAsync();
-                    var fileBuffer = new byte[stream.Length];
-                    await stream.ReadExactlyAsync(fileBuffer);
+                var text = await topLevel.Clipboard?.GetTextAsync()!;
+                ViewModel.ClipboardPasteResult = text;
+            }
+        });
 
-                    ViewModel.DiskImageFileResult = fileBuffer;
-                }
-                catch (Exception ex)
+    private void OnAttachDiskImageRequested(object? sender, EventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (ViewModel == null || TopLevel.GetTopLevel(this) is not { } topLevel)
+                return;
+
+            var storageProvider = topLevel.StorageProvider;
+            if (storageProvider.CanOpen)
+            {
+                var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
-                    System.Console.WriteLine($"Error reading disk image file: {ex.Message}");
+                    Title = "Select D64 Disk Image",
+                    AllowMultiple = false,
+                    FileTypeFilter = new[]
+                    {
+                        new FilePickerFileType("D64 Disk Images") { Patterns = new[] { "*.d64" } },
+                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                   }
+                });
+
+                if (files.Count > 0)
+                {
+                    try
+                    {
+                        await using var stream = await files[0].OpenReadAsync();
+                        var fileBuffer = new byte[stream.Length];
+                        await stream.ReadExactlyAsync(fileBuffer);
+
+                        ViewModel.DiskImageFileResult = fileBuffer;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Console.WriteLine($"Error reading disk image file: {ex.Message}");
+                    }
                 }
             }
-        }
-    }
+        });
 
     private void UpdateSectionStatesIfNeeded()
     {
@@ -151,70 +152,72 @@ public partial class C64MenuView : UserControl
         }
     }
 
-    private async void StartButtonFlash(Button button, Color flashColor, bool stopAfterClick)
-    {
-        _buttonFlashCancellation = new CancellationTokenSource();
-        var originalBrush = button.Background;
-        var flashBrush = new SolidColorBrush(flashColor);
+    private void StartButtonFlash(Button button, Color flashColor, bool stopAfterClick)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            _buttonFlashCancellation = new CancellationTokenSource();
+            var originalBrush = button.Background;
+            var flashBrush = new SolidColorBrush(flashColor);
 
-        EventHandler<RoutedEventArgs>? tempHandler = null;
-        tempHandler = (s, e) =>
-        {
-            _buttonFlashCancellation?.Cancel();
-            button.Click -= tempHandler;
-        };
-        if (stopAfterClick)
-        {
-            // Add the temporary handler
-            button.Click += tempHandler;
-        }
-
-        try
-        {
-            while (!_buttonFlashCancellation.Token.IsCancellationRequested)
+            EventHandler<RoutedEventArgs>? tempHandler = null;
+            tempHandler = (s, e) =>
             {
-                button.Background = flashBrush;
-                await Task.Delay(700, _buttonFlashCancellation.Token); // Match delay with flash duration to be at least as long as BrushTransition Duration (otherwise abrupt change may occur)
-
-                button.Background = originalBrush;
-                await Task.Delay(2000, _buttonFlashCancellation.Token);
+                _buttonFlashCancellation?.Cancel();
+                button.Click -= tempHandler;
+            };
+            if (stopAfterClick)
+            {
+                // Add the temporary handler
+                button.Click += tempHandler;
             }
-        }
-        catch (OperationCanceledException)
-        {
-            // Animation was cancelled, restore original background
-            button.Background = originalBrush;
-        }
-        finally
-        {
-            // Clean up the handler in case animation completed naturally
-            button.Click -= tempHandler;
-        }
-    }
 
-    private async void OpenC64Config_Click(object? sender, RoutedEventArgs e)
-    {
-        if (ViewModel?.HostApp == null)
-            return;
+            try
+            {
+                while (!_buttonFlashCancellation.Token.IsCancellationRequested)
+                {
+                    button.Background = flashBrush;
+                    await Task.Delay(700, _buttonFlashCancellation.Token); // Match delay with flash duration to be at least as long as BrushTransition Duration (otherwise abrupt change may occur)
 
-        if (ViewModel.HostApp.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
-            return;
+                    button.Background = originalBrush;
+                    await Task.Delay(2000, _buttonFlashCancellation.Token);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Animation was cancelled, restore original background
+                button.Background = originalBrush;
+            }
+            finally
+            {
+                // Clean up the handler in case animation completed naturally
+                button.Click -= tempHandler;
+            }
+        });
 
-        var renderProviderOptions = ViewModel.HostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations();
-
-        // Check if running on WASM/Browser platform
-        if (PlatformDetection.IsRunningInWebAssembly())
+    private void OpenC64Config_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
         {
-            // For WASM, show usercontrol overlay instead of Window
-            await C64ConfigUserControlOverlay();
-        }
-        else
-        {
-            // For desktop platforms, use the Window dialog
-            await ShowC64ConfigDialog();
-            //await C64ConfigUserControlOverlay();
-        }
-    }
+            if (ViewModel?.HostApp == null)
+                return;
+
+            if (ViewModel.HostApp.CurrentHostSystemConfig is not C64HostConfig c64HostConfig)
+                return;
+
+            var renderProviderOptions = ViewModel.HostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations();
+
+            // Check if running on WASM/Browser platform
+            if (PlatformDetection.IsRunningInWebAssembly())
+            {
+                // For WASM, show usercontrol overlay instead of Window
+                await C64ConfigUserControlOverlay();
+            }
+            else
+            {
+                // For desktop platforms, use the Window dialog
+                await ShowC64ConfigDialog();
+                //await C64ConfigUserControlOverlay();
+            }
+        });
 
     private async Task ShowC64ConfigDialog()
     {
@@ -277,33 +280,6 @@ public partial class C64MenuView : UserControl
             DataContext = new C64ConfigDialogViewModel(ViewModel!.HostApp!, serviceProvider.GetRequiredService<IConfiguration>(), loggerFactory)
         };
 
-        // Create a custom overlay with better modal behavior
-        var overlay = new Panel
-        {
-            Background = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)), // More opaque overlay
-            ZIndex = 1000
-        };
-
-        // Create a dialog container that looks like a proper modal
-        var dialogContainer = new Border
-        {
-            Background = new SolidColorBrush(Color.FromRgb(26, 32, 44)),  // 1A202C, ViewDefaultBg
-            BorderBrush = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            BoxShadow = new BoxShadows(new BoxShadow
-            {
-                OffsetX = 0,
-                OffsetY = 8,
-                Blur = 25,
-                Color = Color.FromArgb(128, 0, 0, 0)
-            }),
-            Margin = new Thickness(20), // Add margin from screen edges
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = configControl // Direct child, no ScrollViewer wrapper
-        };
-
         // Set up event handling for configuration completion
         var taskCompletionSource = new TaskCompletionSource<bool>();
         configControl.ConfigurationChanged += (s, saved) =>
@@ -311,48 +287,29 @@ public partial class C64MenuView : UserControl
             taskCompletionSource.SetResult(saved);
         };
 
-        overlay.Children.Add(dialogContainer);
+        // Show user control in overlay dialog
+        var overlayDialogHelper = serviceProvider.GetRequiredService<OverlayDialogHelper>();
+        var overlayPanel = overlayDialogHelper.BuildOverlayDialogPanel(configControl);
+        var mainGrid = overlayDialogHelper.ShowOverlayDialog(overlayPanel, this);
 
-        // Get the parent main Grid and add overlay
-        // Find the root MainView's Grid by walking up the visual tree
-        var root = this.GetVisualRoot();
-        Grid? mainGrid = null;
-
-        if (root is Window window && window.Content is Grid contentGrid)
+        // Wait for the configuration to complete
+        try
         {
-            mainGrid = contentGrid;
-        }
+            var result = await taskCompletionSource.Task;
 
-        if (mainGrid == null)
-        {
-            mainGrid = this.FindAncestorOfType<MainView>(true)?.Content as Grid;
-        }
-
-        if (mainGrid != null)
-        {
-            Grid.SetRowSpan(overlay, mainGrid.RowDefinitions.Count > 0 ? mainGrid.RowDefinitions.Count : 1);
-            Grid.SetColumnSpan(overlay, mainGrid.ColumnDefinitions.Count > 0 ? mainGrid.ColumnDefinitions.Count : 1);
-            mainGrid.Children.Add(overlay);
-
-            try
+            if (result)
             {
-                // Wait for the configuration to complete
-                var result = await taskCompletionSource.Task;
+                // Re-validate config in HostApp to update ValidationErrors
+                await ViewModel!.HostApp!.ValidateConfigAsync();
 
-                if (result)
-                {
-                    // Re-validate config in HostApp to update ValidationErrors
-                    await ViewModel!.HostApp!.ValidateConfigAsync();
-
-                    // Notify C64MenuViewModel of state changes
-                    ViewModel?.RefreshAllBindings();
-                }
+                // Notify C64MenuViewModel of state changes
+                ViewModel?.RefreshAllBindings();
             }
-            finally
-            {
-                // Clean up - remove the overlay
-                mainGrid.Children.Remove(overlay);
-            }
+        }
+        finally
+        {
+            // Clean up - remove the overlay
+            mainGrid.Children.Remove(overlayPanel);
         }
     }
 
@@ -375,116 +332,119 @@ public partial class C64MenuView : UserControl
     }
 
     // File operation event handlers - now delegate to ViewModel commands
-    private async void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
-    {
-        if (TopLevel.GetTopLevel(this) is not { } topLevel)
-            return;
-        var storageProvider = topLevel.StorageProvider;
-        if (!storageProvider.CanOpen)
-            return;
-
-        var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+    private void LoadBasicFile_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
         {
-            Title = "Load Basic PRG File",
-            AllowMultiple = false,
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
-            }
-        });
+            if (TopLevel.GetTopLevel(this) is not { } topLevel)
+                return;
+            var storageProvider = topLevel.StorageProvider;
+            if (!storageProvider.CanOpen)
+                return;
 
-        if (files.Count > 0)
-        {
-            try
+            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                await using var stream = await files[0].OpenReadAsync();
-                var fileBuffer = new byte[stream.Length];
-                await stream.ReadExactlyAsync(fileBuffer);
-
-                // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
-                _ = ViewModel!.LoadBasicFileCommand.Execute(fileBuffer);
-            }
-            catch (Exception ex)
-            {
-                System.Console.WriteLine($"Error loading Basic .prg: {ex.Message}");
-            }
-        }
-    }
-
-    private async void SaveBasicFile_Click(object? sender, RoutedEventArgs e)
-    {
-        if (TopLevel.GetTopLevel(this) is not { } topLevel)
-            return;
-        var storageProvider = topLevel.StorageProvider;
-        if (!storageProvider.CanSave)
-            return;
-
-        try
-        {
-            var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-            {
-                Title = "Save Basic PRG File",
-                SuggestedFileName = "program",
-                FileTypeChoices = new[]
+                Title = "Load Basic PRG File",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
                 {
                     new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
                     new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
                 }
             });
 
-            if (file != null)
+            if (files.Count > 0)
             {
-                // Call ViewModel method directly to get the byte array
-                var saveData = await ViewModel!.GetBasicProgramAsPrgFileBytes();
+                try
+                {
+                    await using var stream = await files[0].OpenReadAsync();
+                    var fileBuffer = new byte[stream.Length];
+                    await stream.ReadExactlyAsync(fileBuffer);
 
-                await using var stream = await file.OpenWriteAsync();
-                await stream.WriteAsync(saveData);
-                System.Console.WriteLine($"Basic program saved to {file.Name}");
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Console.WriteLine($"Error saving Basic .prg: {ex.Message}");
-        }
-    }
-
-    private async void LoadBinaryFile_Click(object? sender, RoutedEventArgs e)
-    {
-        if (TopLevel.GetTopLevel(this) is not { } topLevel)
-            return;
-        var storageProvider = topLevel.StorageProvider;
-        if (!storageProvider.CanOpen)
-            return;
-
-        var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "Load & Start Binary PRG File",
-            AllowMultiple = false,
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
-                new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                    // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
+                    _ = ViewModel!.LoadBasicFileCommand.Execute(fileBuffer);
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Error loading Basic .prg: {ex.Message}");
+                }
             }
         });
 
-        if (files.Count > 0)
+    private void SaveBasicFile_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
         {
+            if (TopLevel.GetTopLevel(this) is not { } topLevel)
+                return;
+            var storageProvider = topLevel.StorageProvider;
+            if (!storageProvider.CanSave)
+                return;
+
             try
             {
-                await using var stream = await files[0].OpenReadAsync();
-                var fileBuffer = new byte[stream.Length];
-                await stream.ReadExactlyAsync(fileBuffer);
+                var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Save Basic PRG File",
+                    SuggestedFileName = "program",
+                    FileTypeChoices = new[]
+                    {
+                        new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
+                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                    }
+                });
 
-                // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
-                _ = ViewModel!.LoadBinaryFileCommand.Execute(fileBuffer);
+                if (file != null)
+                {
+                    // Call ViewModel method directly to get the byte array
+                    var saveData = await ViewModel!.GetBasicProgramAsPrgFileBytes();
+
+                    await using var stream = await file.OpenWriteAsync();
+                    await stream.WriteAsync(saveData);
+                    System.Console.WriteLine($"Basic program saved to {file.Name}");
+                }
             }
             catch (Exception ex)
             {
-                System.Console.WriteLine($"Error loading binary .prg: {ex.Message}");
+                System.Console.WriteLine($"Error saving Basic .prg: {ex.Message}");
             }
-        }
-    }
+        });
+
+    private void LoadBinaryFile_Click(object? sender, RoutedEventArgs e)
+        => SafeAsyncHelper.Execute(async () =>
+        {
+            if (TopLevel.GetTopLevel(this) is not { } topLevel)
+                return;
+            var storageProvider = topLevel.StorageProvider;
+            if (!storageProvider.CanOpen)
+                return;
+
+            var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Load & Start Binary PRG File",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("PRG Files") { Patterns = new[] { "*.prg" } },
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                }
+            });
+
+            if (files.Count > 0)
+            {
+                try
+                {
+                    await using var stream = await files[0].OpenReadAsync();
+                    var fileBuffer = new byte[stream.Length];
+                    await stream.ReadExactlyAsync(fileBuffer);
+
+                    // Fire and forget - let the ReactiveCommand handle scheduling and execution. This works in WebAssembly because we're not subscribing to the observable
+                    _ = ViewModel!.LoadBinaryFileCommand.Execute(fileBuffer);
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Error loading binary .prg: {ex.Message}");
+                }
+            }
+        });
 
     // Section toggle handlers (pure UI functionality)
     private void ToggleDiskSection_Click(object? sender, RoutedEventArgs e)
