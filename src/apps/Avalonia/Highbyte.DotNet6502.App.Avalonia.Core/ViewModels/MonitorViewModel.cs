@@ -15,8 +15,10 @@ public class MonitorViewModel : ViewModelBase
 
     private string _inputText = string.Empty;
 
-    // Event to notify when monitor should be closed (for Continue or Quit commands)
-    public event EventHandler? CloseRequested;
+    /// <summary>
+    /// Exposes the underlying AvaloniaMonitor for views that need to subscribe to its events.
+    /// </summary>
+    public AvaloniaMonitor Monitor => _monitor;
 
     public MonitorViewModel(AvaloniaMonitor monitor)
     {
@@ -55,31 +57,17 @@ public class MonitorViewModel : ViewModelBase
 
     private async Task ExecuteClose()
     {
-        RequestClose();
+        // Disable the monitor directly - AvaloniaMonitor will raise PropertyChanged
+        _monitor.Disable();
     }
 
     public CommandResult Submit()
     {
         var command = InputText?.TrimEnd() ?? string.Empty;
         InputText = string.Empty;
-        var result = _monitor.ProcessCommand(command);
 
-        // Raise event if monitor should be closed
-        if (result == CommandResult.Continue || result == CommandResult.Quit)
-        {
-            RequestClose();
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Request the monitor to be closed. This will trigger the CloseRequested event.
-    /// </summary>
-    public void RequestClose()
-    {
-        Console.WriteLine("MonitorViewModel: RequestClose called.");
-        CloseRequested?.Invoke(this, EventArgs.Empty);
+        // ProcessCommand will call Disable() internally for Continue/Quit commands
+        return _monitor.ProcessCommand(command);
     }
 
     public void NavigateHistoryPrevious()

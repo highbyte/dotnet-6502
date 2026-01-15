@@ -60,8 +60,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private AvaloniaMonitor? _monitor;
     internal AvaloniaMonitor? Monitor => _monitor;
 
-    internal bool IsMonitorVisible => _monitor?.IsVisible ?? false;
-
     public event PropertyChangedEventHandler? PropertyChanged;
 
     protected void OnPropertyChanged(string propertyName)
@@ -211,8 +209,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
         if (emulatorStateBeforeStart == EmulatorState.Uninitialized)
         {
-            DisableMonitor();
+            _monitor?.Disable();
             _monitor = new AvaloniaMonitor(CurrentSystemRunner!, _emulatorConfig.Monitor);
+            // Notify subscribers that a new Monitor instance is available
+            OnPropertyChanged(nameof(Monitor));
         }
 
         // _logger.LogTrace("Test trace");
@@ -234,9 +234,10 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
         if (_monitor != null)
         {
-            if (IsMonitorVisible)
-                DisableMonitor();
+            _monitor.Disable();
             _monitor = null;
+            // Notify subscribers that Monitor is no longer available
+            OnPropertyChanged(nameof(Monitor));
         }
     }
 
@@ -260,10 +261,12 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             _updateTimer = null;
         }
 
-        if (IsMonitorVisible)
+        if (_monitor != null)
         {
-            DisableMonitor();
+            _monitor.Disable();
             _monitor = null;
+            // Notify subscribers that Monitor is no longer available
+            OnPropertyChanged(nameof(Monitor));
         }
     }
 
@@ -494,7 +497,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             return;
         }
 
-        if (IsMonitorVisible)
+        if (_monitor?.IsVisible == true)
         {
             shouldRun = false;
             shouldReceiveInput = false;
@@ -505,7 +508,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     {
         // Show monitor if we encounter breakpoint or other break
         if (execEvaluatorTriggerResult.Triggered)
-            EnableMonitor(execEvaluatorTriggerResult);
+            _monitor?.Enable(execEvaluatorTriggerResult);
     }
 
     internal float Scale
@@ -619,32 +622,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         OnPropertyChanged(nameof(IsStatsPanelVisible));
     }
 
-    internal void ToggleMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
-    {
-        if (_monitor == null)
-            return;
-
-        if (EmulatorState == EmulatorState.Uninitialized)
-            return;
-
-        if (IsMonitorVisible)
-            DisableMonitor();
-        else
-            EnableMonitor(execEvaluatorTriggerResult);
-    }
-
-    internal void EnableMonitor(ExecEvaluatorTriggerResult? execEvaluatorTriggerResult = null)
-    {
-        _monitor?.Enable(execEvaluatorTriggerResult);
-        OnPropertyChanged(nameof(IsMonitorVisible));
-    }
-
-    internal void DisableMonitor()
-    {
-        _monitor?.Disable();
-        OnPropertyChanged(nameof(IsMonitorVisible));
-    }
-
     // Events for publishing key events
     internal event EventHandler<HostKeyEventArgs>? KeyDownEvent;
     internal event EventHandler<HostKeyEventArgs>? KeyUpEvent;
@@ -676,7 +653,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
                  && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
         {
             _logger.LogInformation("F12 pressed - toggling monitor");
-            ToggleMonitor();
+            _monitor?.Toggle();
         }
     }
 

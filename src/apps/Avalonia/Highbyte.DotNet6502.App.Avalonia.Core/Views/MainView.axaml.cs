@@ -591,20 +591,4 @@ public partial class MainView : UserControl
             mainGrid.Children.Remove(overlayPanel);
         }
     }
-
-    /// <summary>
-    /// Safely executes an async operation with global exception handling for WASM compatibility.
-    /// Use this in async void event handlers instead of direct await.
-    /// </summary>
-    private async void SafeExecuteAsync(Func<Task> asyncAction)
-    {
-        try
-        {
-            await asyncAction();
-        }
-        catch (Exception ex)
-        {
-            App.WasmExceptionHandler?.Invoke(ex);
-        }
-    }
 }
