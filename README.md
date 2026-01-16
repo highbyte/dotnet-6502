@@ -30,17 +30,27 @@
 > [!IMPORTANT]
 > This is mainly a programming exercise, that may or may not turn into something more. See [Limitations](#limitations) below.
 
-| Blazor WebAssembly app              | Avalonia WebAssembly app            |
+## Web apps
+
+| Avalonia WebAssembly app            | Blazor WebAssembly app              |
 | ----------------------------------- | ----------------------------------- |
-| [<img src="doc/Screenshots/BlazorWASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/>](https://highbyte.se/dotnet-6502/app) | [<img src="doc/Screenshots/AvaloniaWASM_C64_Montezuma.png" title="Avalonia WebAssembly app, C64 Montezuma´s Revenge"/>](https://highbyte.se/dotnet-6502/app2) | 
+| [<img src="doc/Screenshots/AvaloniaWASM_C64_Montezuma.png" title="Avalonia WebAssembly app, C64 Montezuma´s Revenge"/>](https://highbyte.se/dotnet-6502/app2) | [<img src="doc/Screenshots/BlazorWASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/>](https://highbyte.se/dotnet-6502/app) | 
 
-| SilkNet desktop app                 | SadConsole desktop app              | Avalonia desktop app                |
-| ----------------------------------- | ----------------------------------- | ----------------------------------- |
-|  [<img src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" title="SilkNet native app, C64 Bubble Bobble" />](#highbytedotnet6502appsilknetnative) | [<img src="doc/Screenshots/SadConsole_C64_Basic.png" title="SadConsole native app, C64 Basic" />](#highbytedotnet6502appsadconsole) | [<img src="doc/Screenshots/AvaloniaDesktop_C64_Basic.png" title="Avalonia Desktop app, C64 Basic" />](#highbytedotnet6502appavaloniadesktop) |
+Live versions of Avalonia WebAssembly App [here](https://highbyte.se/dotnet-6502/app2) and Blazor WebAssembly app [here](https://highbyte.se/dotnet-6502/app).
 
-| C64 Basic AI code completion | Run 6502 machine code in your own .NET apps | Machine code monitor              | 
+## Desktop apps
+
+| Avalonia desktop app                | SadConsole desktop app              | SilkNet desktop app                |
 | ----------------------------------- | ----------------------------------- | ----------------------------------- |
-| ![C64 Basic AI code completion](doc/Screenshots/BlazorWASM_C64_Basic_AI.png 'C64 Basic AI code completion') | ![Code integration](doc/Screenshots/Code_integration.png 'Code integration') | ![SilkNet native app, C64 monitor](doc/Screenshots/SilkNetNative_Monitor.png 'SilkNet native app, C64 monitor') |
+| [<img src="doc/Screenshots/AvaloniaDesktop_C64_Basic.png" title="Avalonia Desktop app, C64 Basic" />](#highbytedotnet6502appavaloniadesktop) | [<img src="doc/Screenshots/SadConsole_C64_Basic.png" title="SadConsole native app, C64 Basic" />](#highbytedotnet6502appsadconsole) | [<img src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" title="SilkNet native app, C64 Bubble Bobble" />](#highbytedotnet6502appsilknetnative) |
+
+See [Desktop Apps](doc/DESKTOP_APPS.md) for download links for pre-built executables and instructions for Windows, Linux, and macOS.
+
+## Other features
+
+| Run 6502 machine code in your own .NET apps  | Machine code monitor   | C64 Basic AI code completion     | 
+| -------------------------------------------- | ---------------------- | -------------------------------- |
+| ![Code integration](doc/Screenshots/Code_integration.png 'Code integration') | ![SilkNet native app, C64 monitor](doc/Screenshots/SilkNetNative_Monitor.png 'SilkNet native app, C64 monitor') | ![C64 Basic AI code completion](doc/Screenshots/BlazorWASM_C64_Basic_AI.png 'C64 Basic AI code completion') |
 
 ## Common libraries
 - [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) 
