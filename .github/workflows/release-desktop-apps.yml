@@ -70,7 +70,7 @@ jobs:
         if: github.event_name != 'release'
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-apps-${{ matrix.runtime }}
+          name: DotNet6502-desktop-apps-${{ matrix.runtime }}
           path: |
             DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip
             DotNet6502-Avalonia-${{ matrix.runtime }}.zip
