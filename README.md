@@ -34,9 +34,9 @@
 
 | Avalonia WebAssembly app            | Blazor WebAssembly app              |
 | ----------------------------------- | ----------------------------------- |
-| [<img src="doc/Screenshots/AvaloniaWASM_C64_Montezuma.png" title="Avalonia WebAssembly app, C64 Montezuma´s Revenge"/>](https://highbyte.se/dotnet-6502/app2) | [<img src="doc/Screenshots/BlazorWASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/>](https://highbyte.se/dotnet-6502/app) | 
+| <a href="https://highbyte.se/dotnet-6502/app2" target="_blank"><img src="doc/Screenshots/AvaloniaWASM_C64_Montezuma.png" title="Avalonia WebAssembly app, C64 Montezuma´s Revenge"/></a> | <a href="https://highbyte.se/dotnet-6502/app" target="_blank"><img src="doc/Screenshots/BlazorWASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/></a> | 
 
-Live versions of Avalonia WebAssembly App [here](https://highbyte.se/dotnet-6502/app2) and Blazor WebAssembly app [here](https://highbyte.se/dotnet-6502/app).
+Live versions of Avalonia WebAssembly App <a href="https://highbyte.se/dotnet-6502/app2" target="_blank">here</a> and Blazor WebAssembly app <a href="https://highbyte.se/dotnet-6502/app" target="_blank">here</a>.
 
 ## Desktop apps
 
@@ -96,9 +96,9 @@ A [`ASP.NET Blazor`](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/bla
   - Input: `Highbyte.DotNet6502.Impl.AspNet` 
   - Audio: `Highbyte.DotNet6502.Impl.AspNet`
 
-Live version: [https://highbyte.se/dotnet-6502/app](https://highbyte.se/dotnet-6502/app)
+Live version: <a href="https://highbyte.se/dotnet-6502/app" target="_blank">https://highbyte.se/dotnet-6502/app</a>
 
-[<img align="top" src="doc/Screenshots/BlazorWASM_C64_Basic.png" width="25%" height="25%" title="Blazor WebAssembly app, C64 Basic" />](https://highbyte.se/dotnet-6502/app) [<img align="top" src="doc/Screenshots/BlazorWASM_C64_Monitor.png" width="38%" height="38%" title="Blazor WebAssembly app, C64 monitor" />](https://highbyte.se/dotnet-6502/app)
+<a href="https://highbyte.se/dotnet-6502/app" target="_blank"><img align="top" src="doc/Screenshots/BlazorWASM_C64_Basic.png" width="25%" height="25%" title="Blazor WebAssembly app, C64 Basic" /></a> <a href="https://highbyte.se/dotnet-6502/app" target="_blank"><img align="top" src="doc/Screenshots/BlazorWASM_C64_Monitor.png" width="38%" height="38%" title="Blazor WebAssembly app, C64 monitor" /></a>
 
 ### [`Highbyte.DotNet6502.App.Avalonia.Browser`](doc/APPS_AVALONIA.md)
 A [`Avalonia Browser`](https://avaloniaui.net) WebAssembly UI. 
@@ -106,9 +106,9 @@ A [`Avalonia Browser`](https://avaloniaui.net) WebAssembly UI.
   - Input: `Highbyte.DotNet6502.Impl.Avalonia` 
   - Audio: `Highbyte.DotNet6502.Impl.NAudio`
 
-Live version: [https://highbyte.se/dotnet-6502/app2](https://highbyte.se/dotnet-6502/app2)
+Live version: <a href="https://highbyte.se/dotnet-6502/app2" target="_blank">https://highbyte.se/dotnet-6502/app2</a>
 
-[<img align="top" src="doc/Screenshots/AvaloniaWASM_C64_Basic.png" width="25%" height="25%" title="Avalonia WebAssembly app, C64 Basic" />](https://highbyte.se/dotnet-6502/app2) [<img align="top" src="doc/Screenshots/AvaloniaWASM_C64_Monitor.png" width="38%" height="38%" title="Avalonia WebAssembly app, C64 monitor" />](https://highbyte.se/dotnet-6502/app2)
+<a href="https://highbyte.se/dotnet-6502/app2" target="_blank"><img align="top" src="doc/Screenshots/AvaloniaWASM_C64_Basic.png" width="25%" height="25%" title="Avalonia WebAssembly app, C64 Basic" /></a> <a href="https://highbyte.se/dotnet-6502/app2" target="_blank"><img align="top" src="doc/Screenshots/AvaloniaWASM_C64_Monitor.png" width="38%" height="38%" title="Avalonia WebAssembly app, C64 monitor" /></a>
 
 
 ### [`Highbyte.DotNet6502.App.Avalonia.Desktop`](doc/APPS_AVALONIA.md)
