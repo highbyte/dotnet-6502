@@ -3,8 +3,8 @@ name: Release Desktop Apps
 
 on:
   # Trigger on when a new release is published  
-  release:
-    types: [published]
+  # release:
+  #   types: [published]
 
   # Allow manual triggering of the workflow for testing (artifacts will be uploaded to the workflow run, not a release))
   workflow_dispatch:
