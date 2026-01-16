@@ -54,11 +54,9 @@ PUBLISH_ARGS=(
     --output "$OUTPUT_DIR/$RUNTIME"
 )
 
-# On Windows, bundle native libraries into single file (works reliably there)
-# On macOS/Linux, keep native libraries external due to native library loading issues
-if [[ "$RUNTIME" == win-* ]]; then
-    PUBLISH_ARGS+=(-p:IncludeNativeLibrariesForSelfExtract=true)
-fi
+# Bundle native libraries into single file.
+# Note: Doesn't seem to be working, the app crashes on startup if enabled
+#PUBLISH_ARGS+=(-p:IncludeNativeLibrariesForSelfExtract=true)
 
 # Exclude PDB files unless --include-pdb is specified
 if [[ "$INCLUDE_PDB" == false ]]; then

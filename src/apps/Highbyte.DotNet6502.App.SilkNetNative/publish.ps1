@@ -56,11 +56,9 @@ $publishArgs = @(
     "--output", $OutputPath
 )
 
-# On Windows, bundle native libraries into single file (works reliably there)
-# On macOS/Linux, keep native libraries external due to native library loading issues
-if ($Runtime -like "win-*") {
-    $publishArgs += "-p:IncludeNativeLibrariesForSelfExtract=true"
-}
+# Bundle native libraries into single file.
+# Note: Doesn't seem to be working, the app crashes on startup if enabled
+#$publishArgs += "-p:IncludeNativeLibrariesForSelfExtract=true"
 
 # Exclude PDB files unless -IncludePdb is specified
 if (-not $IncludePdb) {
