@@ -1,0 +1,62 @@
+# This GitHub Actions workflow is triggered when a GitHub Release is created, builds and uploads desktop applications as .zip files as release assets.
+name: Release Desktop Apps
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [win-x64, win-arm64, linux-x64, linux-arm64, osx-arm64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish SilkNetNative App
+        run: |
+          chmod +x src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish.sh
+          src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish.sh ${{ matrix.runtime }}
+
+      - name: Publish Avalonia Desktop App
+        run: |
+          chmod +x src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/publish.sh
+          src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/publish.sh ${{ matrix.runtime }}
+
+      - name: Publish SadConsole App
+        run: |
+          chmod +x src/apps/Highbyte.DotNet6502.App.SadConsole/publish.sh
+          src/apps/Highbyte.DotNet6502.App.SadConsole/publish.sh ${{ matrix.runtime }}
+
+      - name: Zip Apps
+        run: |
+          cd src/apps/Highbyte.DotNet6502.App.SilkNetNative/publish/${{ matrix.runtime }}
+          zip -r $GITHUB_WORKSPACE/DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip .
+          
+          cd $GITHUB_WORKSPACE/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/publish/${{ matrix.runtime }}
+          zip -r $GITHUB_WORKSPACE/DotNet6502-Avalonia-${{ matrix.runtime }}.zip .
+          
+          cd $GITHUB_WORKSPACE/src/apps/Highbyte.DotNet6502.App.SadConsole/publish/${{ matrix.runtime }}
+          zip -r $GITHUB_WORKSPACE/DotNet6502-SadConsole-${{ matrix.runtime }}.zip .
+
+      - name: Upload Release Assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} \
+            DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip \
+            DotNet6502-Avalonia-${{ matrix.runtime }}.zip \
+            DotNet6502-SadConsole-${{ matrix.runtime }}.zip
