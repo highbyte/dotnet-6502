@@ -26,10 +26,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="WavePlayers\WebAudioAPI\WebAudioWavePlayer.js">
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </EmbeddedResource>
+    <EmbeddedResource Include="WavePlayers\WebAudioAPI\WebAudioWavePlayer.js" />
   </ItemGroup>
 
   <ItemGroup>
