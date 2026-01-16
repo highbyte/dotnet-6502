@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>DotNet 6502 Emulator</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="app-version" content="0.25.14-alpha">
+    <link rel="icon" type="image/x-icon" href="./favicon.ico">
+    <link rel="stylesheet" href="./app.css?v=0.25.14-alpha" />
+</head>
+
+<body style="margin: 0; overflow: hidden">
+<div id="out">
+    <div class="avalonia-splash">
+        <img src="./images/logo.png" alt="DotNet 6502 Emulator" style="max-width: 64px; width: 100%; height: auto;" />
+        <h4>Loading...</h4>
+    </div>
+</div>
+<script>
+// Version check and cache management
+window.APP_VERSION = '0.25.14-alpha';
+
+// Check for app updates
+function checkForUpdates() {
+    const currentVersion = document.querySelector('meta[name="app-version"]')?.content;
+    const storedVersion = localStorage.getItem('app-version');
+    
+    if (storedVersion && storedVersion !== currentVersion) {
+        showUpdateNotification();
+    } else {
+        localStorage.setItem('app-version', currentVersion);
+    }
+}
+
+// Show update notification
+function showUpdateNotification() {
+    const notification = document.createElement('div');
+    notification.id = 'update-notification';
+    notification.innerHTML = `
+        <div style="position: fixed; top: 0; left: 0; right: 0; background: #4CAF50; color: white; padding: 12px; text-align: center; z-index: 10000; font-family: Arial, sans-serif;">
+            <span>🔄 A new version is available! </span>
+            <button onclick="forceRefresh()" style="margin-left: 10px; padding: 4px 12px; background: white; color: #4CAF50; border: none; border-radius: 4px; cursor: pointer;">
+                Update Now
+            </button>
+            <button onclick="dismissUpdate()" style="margin-left: 8px; padding: 4px 8px; background: transparent; color: white; border: 1px solid white; border-radius: 4px; cursor: pointer;">
+                ✕
+            </button>
+        </div>
+    `;
+    document.body.appendChild(notification);
+}
+
+// Force refresh with cache clearing
+function forceRefresh() {
+    // Clear localStorage version
+    localStorage.removeItem('app-version');
+    
+    // Force reload bypassing all caches
+    window.location.reload(true);
+}
+
+// Dismiss update notification
+function dismissUpdate() {
+    const notification = document.getElementById('update-notification');
+    if (notification) {
+        notification.remove();
+    }
+    // Update stored version to current to avoid showing again
+    const currentVersion = document.querySelector('meta[name="app-version"]')?.content;
+    localStorage.setItem('app-version', currentVersion);
+}
+
+// Check for updates when page loads
+document.addEventListener('DOMContentLoaded', checkForUpdates);
+
+// Safari compatibility check - only for desktop Safari, not iOS/iPhone
+function isDesktopSafari() {
+    const ua = navigator.userAgent;
+    const isSafari = ua.includes('Safari') && !ua.includes('Chrome');
+    const isIOS = /iPhone|iPad|iPod/.test(ua) || 
+                  (ua.includes('Mac') && 'ontouchend' in document); // iPad on iOS 13+ reports as Mac
+    return isSafari && !isIOS;
+}
+
+if (isDesktopSafari()) {
+    // Show a warning but allow user to continue
+    if (confirm('⚠️ Safari Desktop Compatibility Notice\n\nThis emulator may not work correctly in Safari on macOS due to WebAssembly AOT limitations. Please use Chrome/Edge (or other Chromium-based browsers), or Firefox.\n\nNote: Safari on iOS/iPhone works fine.\n\nContinue anyway?')) {
+        // User chose to continue - load the app
+    } else {
+        // User chose not to continue - redirect to notice page
+        window.location.href = './safari-notice.html';
+    }
+}
+</script>
+<script type='module' src="./WebAudioWavePlayer.js?v=0.25.14-alpha"></script>
+<script type='module' src="./main.js?v=0.25.14-alpha"></script>
+</body>
+
+</html>
