@@ -66,7 +66,7 @@ public partial class App : Application
         Func<string, IConfigurationSection, string?, Task>? saveCustomConfigSection = null,
         IGamepad? gamepad = null)
     {
-        Console.WriteLine("App constructor called");
+        AppLogger.WriteBootstrapLog("App constructor called");
 
         _configuration = configuration;
         _emulatorConfig = emulatorConfig;
@@ -88,35 +88,35 @@ public partial class App : Application
             // When disabled, let exceptions flow naturally to trigger debugger
             if (_emulatorConfig.UseGlobalExceptionHandler)
             {
-                Console.WriteLine("ShowErrorDialog is enabled");
+                AppLogger.WriteBootstrapLog("ShowErrorDialog is enabled");
                 SetupGlobalExceptionHandlers();
             }
             else
             {
-                Console.WriteLine("ShowErrorDialog is disabled");
+                AppLogger.WriteBootstrapLog("ShowErrorDialog is disabled");
                 _logger.LogInformation("Error dialog is disabled - global exception handlers not configured");
             }
 
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to initialize App. Constructor threw exception: {ex}");
+            AppLogger.WriteBootstrapLog($"Failed to initialize App. Constructor threw exception: {ex}", LogLevel.Error);
             throw;
         }
     }
 
     public override void Initialize()
     {
-        Console.WriteLine("App Initialize called");
+        AppLogger.WriteBootstrapLog("App Initialize called");
 
         AvaloniaXamlLoader.Load(this);
 
-        Console.WriteLine("App Initialize end");
+        AppLogger.WriteBootstrapLog("App Initialize end");
     }
 
     public override void OnFrameworkInitializationCompleted()
     {
-        Console.WriteLine("AppOnFrameworkInitializationCompleted called");
+        AppLogger.WriteBootstrapLog("AppOnFrameworkInitializationCompleted called");
 
 #if DEBUG
         // Rebind Avalonia built-in DevTools away from F12 because it's used by the emulator Monitor
@@ -131,16 +131,16 @@ public partial class App : Application
 #endif
 
         // Initialize the emulator host app
-        Console.WriteLine("Calling InitializeHostApp");
+        AppLogger.WriteBootstrapLog("Calling InitializeHostApp");
         InitializeHostApp();
 
         // Setup DI container
-        Console.WriteLine("Calling SetupDependencyInjection");
+        AppLogger.WriteBootstrapLog("Calling SetupDependencyInjection");
         SetupDependencyInjection();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            Console.WriteLine("ApplicationLifetime is IClassicDesktopStyleApplicationLifetime");
+            AppLogger.WriteBootstrapLog("ApplicationLifetime is IClassicDesktopStyleApplicationLifetime");
 
             DisableAvaloniaDataAnnotationValidation();
 
@@ -148,40 +148,40 @@ public partial class App : Application
 
             // Get MainViewModel from DI and set as DataContext
             // MainWindow.Content (MainView) is created by XAML and inherits DataContext
-            Console.WriteLine("Getting mainViewModel");
+            AppLogger.WriteBootstrapLog("Getting mainViewModel");
             var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
 
-            Console.WriteLine("Setting mainWindow.DataContext = mainViewModel");
+            AppLogger.WriteBootstrapLog("Setting mainWindow.DataContext = mainViewModel");
             mainWindow.DataContext = mainViewModel;
 
-            Console.WriteLine("Setting desktop.MainWindow = mainWindow");
+            AppLogger.WriteBootstrapLog("Setting desktop.MainWindow = mainWindow");
             desktop.MainWindow = mainWindow;
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
         {
-            Console.WriteLine("ApplicationLifetime is ISingleViewApplicationLifetime");
+            AppLogger.WriteBootstrapLog("ApplicationLifetime is ISingleViewApplicationLifetime");
             // MainView is created by XAML
             var mainView = new MainView();
 
             // Get MainViewModel from DI and set as DataContext
-            Console.WriteLine("Getting mainViewModel");
+            AppLogger.WriteBootstrapLog("Getting mainViewModel");
             try
             {
                 var mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
 
-                Console.WriteLine("Setting mainView.DataContext = mainViewModel");
+                AppLogger.WriteBootstrapLog("Setting mainView.DataContext = mainViewModel");
                 mainView.DataContext = mainViewModel;
 
-                Console.WriteLine("Setting singleViewPlatform.MainView = mainView");
+                AppLogger.WriteBootstrapLog("Setting singleViewPlatform.MainView = mainView");
                 singleViewPlatform.MainView = mainView;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Fatal error setting DataContext: {ex.GetType().Name}: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                AppLogger.WriteBootstrapLog($"Fatal error setting DataContext: {ex.GetType().Name}: {ex.Message}", LogLevel.Error);
+                AppLogger.WriteBootstrapLog($"Stack trace: {ex.StackTrace}", LogLevel.Error);
                 if (ex.InnerException != null)
                 {
-                    Console.WriteLine($"Inner exception: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+                    AppLogger.WriteBootstrapLog($"Inner exception: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}", LogLevel.Error);
                 }
                 throw;
             }
@@ -190,10 +190,10 @@ public partial class App : Application
         // Note: RenderControl registration is now handled by EmulatorView.OnDataContextChanged()
         // when the DataContext is set, following the dependency inversion pattern.
 
-        Console.WriteLine("Calling OnFrameworkInitializationCompleted");
+        AppLogger.WriteBootstrapLog("Calling OnFrameworkInitializationCompleted");
         base.OnFrameworkInitializationCompleted();
 
-        Console.WriteLine("AppOnFrameworkInitializationCompleted end");
+        AppLogger.WriteBootstrapLog("AppOnFrameworkInitializationCompleted end");
     }
 
     private void SetupDependencyInjection()
@@ -279,7 +279,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to initialize HostApp: {ex}");
+            AppLogger.WriteBootstrapLog($"Failed to initialize HostApp: {ex}", LogLevel.Error);
             throw;
         }
     }

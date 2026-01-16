@@ -67,6 +67,9 @@ internal sealed partial class Program
         bool enableConsoleLogging = args.Contains("--console-log") || args.Contains("-c");
         LogLevel consoleLogLevel = ParseLogLevel(args, defaultLevel: LogLevel.Information);
 
+        // Set bootstrap console logging flag (for Console.WriteLine before ILogger is available)
+        AppLogger.ConsoleLoggingEnabled = enableConsoleLogging;
+
         // On Windows, WinExe applications don't have a console attached.
         // Create a new console window for logging if enabled.
         // Note: This creates a separate console window rather than attaching to the parent terminal,
