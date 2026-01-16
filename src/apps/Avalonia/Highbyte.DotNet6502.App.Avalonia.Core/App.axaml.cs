@@ -77,6 +77,9 @@ public partial class App : Application
         _saveCustomConfigSection = saveCustomConfigSection;
         _gamepad = gamepad;
 
+        // Initialize static logger factory for use in Views and other classes where DI is not available
+        AppLogger.Factory = loggerFactory;
+
         try
         {
             _logger = loggerFactory.CreateLogger(typeof(App).Name);

@@ -72,7 +72,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
         _configuration = configuration;
         _loggerFactory = loggerFactory;
-        _logger = loggerFactory.CreateLogger<C64ConfigDialogViewModel>();
+        _logger = loggerFactory.CreateLogger(nameof(C64ConfigDialogViewModel));
         _originalConfig = hostApp.CurrentHostSystemConfig as C64HostConfig ?? throw new Exception("hostApp.CurrentHostSystemConfig must be type C64HostConfig");
         _renderCombinations = hostApp.GetAvailableSystemRenderProviderTypesAndRenderTargetTypeCombinations() ?? new List<(Type, Type)>();
         _workingConfig = (C64HostConfig)_originalConfig.Clone();
@@ -392,7 +392,7 @@ public class C64ConfigDialogViewModel : ViewModelBase
                         throw new Exception($"Failed to get '{romUrl}' ({(int)response.StatusCode})");
                     await using var fs = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None);
                     await response.Content.CopyToAsync(fs);
-                    System.Console.WriteLine($"Downloaded {filename} to {dest}");
+                    _logger.LogInformation("Downloaded {Filename} to {Destination}", filename, dest);
 
                     // Update the C64SystemConfig with the downloaded ROM file
                     _workingConfig.SystemConfig.SetROM(romName, filename);

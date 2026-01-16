@@ -16,6 +16,10 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 public partial class C64MenuView : UserControl
 {
+    // Lazy-initialized logger
+    private ILogger? _logger;
+    private ILogger Logger => _logger ??= AppLogger.CreateLogger(nameof(C64MenuView));
+
     // Access ViewModel through DataContext
     private C64MenuViewModel? ViewModel => DataContext as C64MenuViewModel;
 
@@ -102,7 +106,7 @@ public partial class C64MenuView : UserControl
                     }
                     catch (Exception ex)
                     {
-                        System.Console.WriteLine($"Error reading disk image file: {ex.Message}");
+                        Logger.LogError(ex, "Error reading disk image file");
                     }
                 }
             }
@@ -225,7 +229,7 @@ public partial class C64MenuView : UserControl
         var serviceProvider = (Application.Current as App)?.GetServiceProvider();
         if (serviceProvider == null)
         {
-            System.Console.WriteLine("Error: Could not get service provider");
+            Logger.LogError("Could not get service provider");
             return;
         }
 
@@ -265,7 +269,7 @@ public partial class C64MenuView : UserControl
         var serviceProvider = (Application.Current as App)?.GetServiceProvider();
         if (serviceProvider == null)
         {
-            System.Console.WriteLine("Error: Could not get service provider");
+            Logger.LogError("Could not get service provider");
             return;
         }
 
@@ -365,7 +369,7 @@ public partial class C64MenuView : UserControl
                 }
                 catch (Exception ex)
                 {
-                    System.Console.WriteLine($"Error loading Basic .prg: {ex.Message}");
+                    Logger.LogError(ex, "Error loading Basic .prg");
                 }
             }
         });
@@ -399,12 +403,12 @@ public partial class C64MenuView : UserControl
 
                     await using var stream = await file.OpenWriteAsync();
                     await stream.WriteAsync(saveData);
-                    System.Console.WriteLine($"Basic program saved to {file.Name}");
+                    Logger.LogInformation("Basic program saved to {FileName}", file.Name);
                 }
             }
             catch (Exception ex)
             {
-                System.Console.WriteLine($"Error saving Basic .prg: {ex.Message}");
+                Logger.LogError(ex, "Error saving Basic .prg");
             }
         });
 
@@ -441,7 +445,7 @@ public partial class C64MenuView : UserControl
                 }
                 catch (Exception ex)
                 {
-                    System.Console.WriteLine($"Error loading binary .prg: {ex.Message}");
+                    Logger.LogError(ex, "Error loading binary .prg");
                 }
             }
         });
