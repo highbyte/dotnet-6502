@@ -516,7 +516,20 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
     {
         try
         {
-            // Make sure ImGui is up-to-date
+            // Update ImGuiController's internal window dimensions using reflection
+            // This is necessary because programmatic window size changes don't trigger the Resize event in WSLg
+            // and ImGuiController's internal state becomes stale
+            var controllerType = _imGuiController.GetType();
+            var windowWidthField = controllerType.GetField("_windowWidth", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var windowHeightField = controllerType.GetField("_windowHeight", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            
+            if (windowWidthField != null && windowHeightField != null)
+            {
+                windowWidthField.SetValue(_imGuiController, _window.Size.X);
+                windowHeightField.SetValue(_imGuiController, _window.Size.Y);
+            }
+            
+            // Now Update() will use the correct dimensions
             _imGuiController.Update((float)deltaTime);
 
             var emulatorWillBeRendered = EmulatorState == EmulatorState.Running;
