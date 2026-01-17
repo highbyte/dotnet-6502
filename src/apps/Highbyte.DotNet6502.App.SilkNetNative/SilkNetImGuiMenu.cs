@@ -48,6 +48,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     private SilkNetImGuiGenericComputerConfig? _genericComputerConfigUI;
 
     private string _lastFileError = "";
+    private bool _deferredCollapseWindow = false;
 
     public SilkNetImGuiMenu(SilkNetHostApp silkNetHostApp, string defaultSystemName, bool defaultAudioEnabled, float defaultAudioVolumePercent, ILoggerFactory loggerFactory)
     {
@@ -79,6 +80,14 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         //ImGui.Begin($"DotNet 6502 Emulator", ImGuiWindowFlags.NoResize);
         ImGui.Begin($"DotNet 6502 Emulator");
 
+        // Handle deferred window state changes from previous frame
+        if (_deferredCollapseWindow)
+        {
+            ImGui.SetWindowFocus(null);
+            ImGui.SetWindowCollapsed(true);
+            _deferredCollapseWindow = false;
+        }
+
         ImGui.PushStyleColor(ImGuiCol.Text, s_informationColor);
         ImGui.Text("System: ");
         ImGui.SameLine();
@@ -92,7 +101,8 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
             {
                 InitC64ImGuiWorkingVariables();
             }
-        };
+        }
+        ;
         ImGui.PopItemWidth();
         ImGui.EndDisabled();
 
@@ -108,7 +118,8 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
             {
                 InitC64ImGuiWorkingVariables();
             }
-        };
+        }
+        ;
         ImGui.PopItemWidth();
         ImGui.EndDisabled();
         ImGui.PopStyleColor();
@@ -124,8 +135,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         if (ImGui.Button("Start"))
         {
             _silkNetHostApp.Start();
-            ImGui.SetWindowFocus(null);
-            ImGui.SetWindowCollapsed(true);
+            _deferredCollapseWindow = true;
             return;
         }
         ImGui.EndDisabled();
@@ -254,8 +264,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                         _silkNetHostApp.CurrentRunningSystem.CPU.PC = loadedAtAddress;
 
                         _silkNetHostApp.Start();
-                        ImGui.SetWindowFocus(null);
-                        ImGui.SetWindowCollapsed(true);
+                        _deferredCollapseWindow = true;
                     }
                     catch (Exception ex)
                     {
@@ -400,8 +409,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                         // Init C64 BASIC memory variables
                         ((C64)_silkNetHostApp.CurrentRunningSystem).InitBasicMemoryVariables(loadedAtAddress, fileLength);
                     }
-                    ImGui.SetWindowFocus(null);
-                    ImGui.SetWindowCollapsed(true);
+                    _deferredCollapseWindow = true;
                 }
                 catch (Exception ex)
                 {
@@ -439,8 +447,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                         startAddressValue,
                         endAddressValue,
                         addFileHeaderWithLoadAddress: true);
-                    ImGui.SetWindowFocus(null);
-                    ImGui.SetWindowCollapsed(true);
+                    _deferredCollapseWindow = true;
                 }
                 catch (Exception ex)
                 {
@@ -509,9 +516,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
                             if (c64.IECBus.GetDeviceByNumber(8) is Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541 diskDrive)
                             {
                                 diskDrive.SetD64DiskImage(d64Image);
-                                // Minimize window after attaching
-                                ImGui.SetWindowFocus(null);
-                                ImGui.SetWindowCollapsed(true);
+                                _deferredCollapseWindow = true;
                             }
                             else
                             {
@@ -622,7 +627,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
     {
         if (EmulatorState == EmulatorState.Uninitialized)
             return false;
-        
+
         if (_silkNetHostApp.CurrentRunningSystem is C64 c64)
         {
             if (c64.IECBus.GetDeviceByNumber(8) is Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral.DiskDrive.DiskDrive1541 diskDrive)
