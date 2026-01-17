@@ -11,6 +11,20 @@ using Microsoft.Extensions.Logging;
 var currentAppDir = AppDomain.CurrentDomain.BaseDirectory;
 Environment.CurrentDirectory = currentAppDir;
 
+// Add unhandled exception handler to catch native crashes
+AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+{
+    var exception = args.ExceptionObject as Exception;
+    Console.WriteLine($"Unhandled exception caught: {exception?.Message ?? "Unknown error"}");
+    Console.WriteLine($"Stack trace: {exception?.StackTrace ?? "No stack trace available"}");
+    Console.WriteLine($"IsTerminating: {args.IsTerminating}");
+    if (exception?.InnerException != null)
+    {
+        Console.WriteLine($"Inner exception: {exception.InnerException.Message}");
+        Console.WriteLine($"Inner stack trace: {exception.InnerException.StackTrace}");
+    }
+};
+
 // ----------
 // Get config file
 // ----------
@@ -72,13 +86,28 @@ windowOptions.ShouldSwapAutomatically = true;
 //windowOptions.TransparentFramebuffer = false;
 //windowOptions.PreferredDepthBufferBits = 24;    // Depth buffer bits must be set explicitly on MacOS (tested on M1), otherwise there will be be no depth buffer (for OpenGL 3d).
 
-var window = Window.Create(windowOptions);
+IWindow window;
+
+try
+{
+    Console.WriteLine("Creating Silk.NET window...");
+    window = Window.Create(windowOptions);
+    Console.WriteLine("Silk.NET window created.");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Failed to create Silk.NET window: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    return;
+}
 
 var silkNetHostApp = new SilkNetHostApp(systemList, loggerFactory, emulatorConfig, window, logStore, logConfig);
 
 try
 {
+    Console.WriteLine("Running Silk.NET host app...");
     silkNetHostApp.Run();
+    Console.WriteLine("Silk.NET host app exited normally.");
 }
 catch (Exception ex)
 {

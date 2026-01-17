@@ -17,12 +17,13 @@ public class SkiaGlCanvasProvider : IDisposable
         // Create the SkiaSharp context
         //var glInterface = GRGlInterface.Create();
 
-        _glInterface = GRGlInterface.Create(name => getProcAddress(name));
+        Console.WriteLine("Creating GRGlInterface...");
+        _glInterface = GRGlInterface.Create(name => getProcAddress(name)) ?? throw new DotNet6502Exception("Cannot create OpenGL interface.");
+        Console.WriteLine("GRGlInterface created.");
+
         _glInterface.Validate();
         var grContextOptions = new GRContextOptions { };
-        _grContext = GRContext.CreateGl(_glInterface, grContextOptions);
-        if (_grContext == null)
-            throw new DotNet6502Exception("Cannot create OpenGL context.");
+        _grContext = GRContext.CreateGl(_glInterface, grContextOptions) ?? throw new DotNet6502Exception("Cannot create OpenGL context.");
 
         // Create main Skia surface from OpenGL context
         GRGlFramebufferInfo glFramebufferInfo = new(0, SKColorType.Rgba8888.ToGlSizedFormat());
@@ -35,10 +36,7 @@ public class SkiaGlCanvasProvider : IDisposable
             glFramebufferInfo);
 
         // Create the SkiaSharp render target surface
-        _renderSurface = SKSurface.Create(_grContext, _renderTarget, GRSurfaceOrigin.BottomLeft, SKColorType.Rgba8888);
-        if (_renderSurface == null)
-            throw new DotNet6502Exception("Cannot create SkiaSharp SKSurface.");
-
+        _renderSurface = SKSurface.Create(_grContext, _renderTarget, GRSurfaceOrigin.BottomLeft, SKColorType.Rgba8888) ?? throw new DotNet6502Exception("Cannot create SkiaSharp SKSurface.");
         _renderSurface.Canvas.Scale(scale);
 
         _canvas = _renderSurface.Canvas;

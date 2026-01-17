@@ -125,102 +125,179 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
 
     public void Run()
     {
-        _window.Load += OnLoad;
-        _window.Closing += OnClosing;
-        _window.Update += OnUpdate;
-        _window.Resize += OnResize;
+        try
+        {
+            _window.Load += OnLoad;
+            _window.Closing += OnClosing;
+            _window.Update += OnUpdate;
+            _window.Resize += OnResize;
 
-        _window.Run();
-        // Cleanup SilNet window resources
-        _window?.Dispose();
+            Console.WriteLine("Starting Silk.NET window event loop...");
+            _logger.LogInformation("Starting Silk.NET window event loop...");
+
+            _window.Run();
+
+            Console.WriteLine("Silk.NET window event loop exited normally.");
+            _logger.LogInformation("Silk.NET window event loop exited normally.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exception in SilkNetHostApp.Run(): {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                Console.WriteLine($"Inner stack trace: {ex.InnerException.StackTrace}");
+            }
+            _logger.LogError(ex, "Exception in Run() method");
+            throw;
+        }
+        finally
+        {
+            // Cleanup SilNet window resources
+            Console.WriteLine("Disposing Silk.NET window...");
+            _logger.LogInformation("Disposing Silk.NET window...");
+            _window?.Dispose();
+        }
     }
 
     protected void OnLoad()
     {
-        SetUninitializedWindow();
+        try
+        {
+            Console.WriteLine("OnLoad: Starting window initialization...");
+            _logger.LogInformation("OnLoad: Starting window initialization...");
 
-        InitOpenGL();
+            SetUninitializedWindow();
+            Console.WriteLine("OnLoad: Window settings configured.");
+            _logger.LogInformation("OnLoad: Window settings configured.");
 
-        SetIcon();
-        InitLogo();
+            InitOpenGL();
+            Console.WriteLine("OnLoad: OpenGL initialized.");
+            _logger.LogInformation("OnLoad: OpenGL initialized.");
 
-        InitSkiaGlCanvasProvider();
+            SetIcon();
+            Console.WriteLine("OnLoad: Icon set.");
+            _logger.LogInformation("OnLoad: Icon set.");
 
-        _inputHandlerContext = CreateInputHandlerContext();
-        _audioHandlerContext = CreateAudioHandlerContext();
+            InitLogo();
+            Console.WriteLine("OnLoad: Logo initialized.");
+            _logger.LogInformation("OnLoad: Logo initialized.");
 
-        base.SetContexts(() => _inputHandlerContext, () => _audioHandlerContext);
-        base.InitInputHandlerContext();
-        base.InitAudioHandlerContext();
+            InitSkiaGlCanvasProvider();
+            Console.WriteLine("OnLoad: Skia GL canvas provider initialized.");
+            _logger.LogInformation("OnLoad: Skia GL canvas provider initialized.");
 
-        // New rendering pipeline configuration
-        base.SetRenderConfig(
-            (RenderTargetProvider rtp) =>
+            _inputHandlerContext = CreateInputHandlerContext();
+            Console.WriteLine("OnLoad: Input handler context created.");
+            _logger.LogInformation("OnLoad: Input handler context created.");
+
+            _audioHandlerContext = CreateAudioHandlerContext();
+            Console.WriteLine("OnLoad: Audio handler context created.");
+            _logger.LogInformation("OnLoad: Audio handler context created.");
+
+            base.SetContexts(() => _inputHandlerContext, () => _audioHandlerContext);
+            base.InitInputHandlerContext();
+            Console.WriteLine("OnLoad: Input handler context initialized.");
+            _logger.LogInformation("OnLoad: Input handler context initialized.");
+
+            base.InitAudioHandlerContext();
+            Console.WriteLine("OnLoad: Audio handler context initialized.");
+            _logger.LogInformation("OnLoad: Audio handler context initialized.");
+
+            // New rendering pipeline configuration
+            base.SetRenderConfig(
+                (RenderTargetProvider rtp) =>
+                {
+                    // Common source and render targets, independent of emulated system and the host renderer
+                    rtp.AddRenderTargetType<SkiaCanvasTwoLayerRenderTarget>(() => new SkiaCanvasTwoLayerRenderTarget(
+                        new RenderSize(CurrentRunningSystem!.Screen.VisibleWidth, CurrentRunningSystem!.Screen.VisibleHeight),
+                        () => _skiaGlCanvasProvider.Canvas,
+                        flush: true));
+
+                    // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
+                    rtp.AddRenderTargetType<C64LegacyRenderTarget>(() => new C64LegacyRenderTarget(
+                        (C64)CurrentRunningSystem,
+                        () => _skiaGlCanvasProvider.Canvas,
+                        flush: true));
+                    // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
+                    rtp.AddRenderTargetType<C64LegacyRenderTarget2>(() => new C64LegacyRenderTarget2(
+                        (C64)CurrentRunningSystem,
+                        () => _skiaGlCanvasProvider.Canvas,
+                        flush: true));
+
+                    // GPU based custom source + render targets, specific to emulated system and the host renderer
+                    rtp.AddRenderTargetType<C64SilkNetOpenGlRendererTarget>(() => new C64SilkNetOpenGlRendererTarget(
+                        (C64)CurrentRunningSystem,
+                        ((C64HostConfig)CurrentHostSystemConfig).SilkNetOpenGlRendererConfig,
+                        _gl,
+                        _window
+                        ));
+
+                    // Experimental Skia C64 command based target. WIP.
+                    rtp.AddRenderTargetType<SkiaCommandTarget>(() => new SkiaCommandTarget(
+                        () => _skiaGlCanvasProvider.Canvas,
+                        useCellCoordinates: true,
+                        flush: true));
+
+                },
+                () =>
+                {
+                    var renderloop = new SilkOnRenderLoop(
+                        _window,
+                        OnBeforeRender,
+                        OnAfterRender,
+                        shouldEmitEmulationFrame: () => EmulatorState != EmulatorState.Uninitialized);
+                    return renderloop;
+                });
+            Console.WriteLine("OnLoad: Render configuration set.");
+            _logger.LogInformation("OnLoad: Render configuration set.");
+
+            ConfigureSilkNetInput();
+            Console.WriteLine("OnLoad: Silk.NET input configured.");
+            _logger.LogInformation("OnLoad: Silk.NET input configured.");
+
+            InitImGui();
+            Console.WriteLine("OnLoad: ImGui initialized.");
+            _logger.LogInformation("OnLoad: ImGui initialized.");
+
+            // Init main menu UI
+            _menu = new SilkNetImGuiMenu(this, _emulatorConfig.DefaultEmulator, _defaultAudioEnabled, _defaultAudioVolumePercent, _loggerFactory);
+            Console.WriteLine("OnLoad: Main menu created.");
+            _logger.LogInformation("OnLoad: Main menu created.");
+
+            // Create other UI windows
+            _statsPanel = CreateStatsUI();
+            _debugInfoPanel = CreateDebugUI();
+            _monitor = CreateMonitorUI(_statsPanel, _debugInfoPanel, _emulatorConfig.Monitor);
+            _logsPanel = CreateLogsUI(_logStore, _logConfig);
+            Console.WriteLine("OnLoad: UI panels created.");
+            _logger.LogInformation("OnLoad: UI panels created.");
+
+            // Add all ImGui windows to a list
+            _imGuiWindows.Add(_menu);
+            _imGuiWindows.Add(_statsPanel);
+            _imGuiWindows.Add(_debugInfoPanel);
+            _imGuiWindows.Add(_monitor);
+            _imGuiWindows.Add(_logsPanel);
+
+            // Default system selected
+            SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
+            Console.WriteLine("OnLoad: Default system selected.");
+            _logger.LogInformation("OnLoad: Initialization complete.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exception in SilkNetHostApp.OnLoad(): {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            if (ex.InnerException != null)
             {
-                // Common source and render targets, independent of emulated system and the host renderer
-                rtp.AddRenderTargetType<SkiaCanvasTwoLayerRenderTarget>(() => new SkiaCanvasTwoLayerRenderTarget(
-                    new RenderSize(CurrentRunningSystem!.Screen.VisibleWidth, CurrentRunningSystem!.Screen.VisibleHeight),
-                    () => _skiaGlCanvasProvider.Canvas,
-                    flush: true));
-
-                // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
-                rtp.AddRenderTargetType<C64LegacyRenderTarget>(() => new C64LegacyRenderTarget(
-                    (C64)CurrentRunningSystem,
-                    () => _skiaGlCanvasProvider.Canvas,
-                    flush: true));
-                // Legacy: Simplified custom drawing with Skia commands. Supports characters and sprites. No bitmaps.
-                rtp.AddRenderTargetType<C64LegacyRenderTarget2>(() => new C64LegacyRenderTarget2(
-                    (C64)CurrentRunningSystem,
-                    () => _skiaGlCanvasProvider.Canvas,
-                    flush: true));
-
-                // GPU based custom source + render targets, specific to emulated system and the host renderer
-                rtp.AddRenderTargetType<C64SilkNetOpenGlRendererTarget>(() => new C64SilkNetOpenGlRendererTarget(
-                    (C64)CurrentRunningSystem,
-                    ((C64HostConfig)CurrentHostSystemConfig).SilkNetOpenGlRendererConfig,
-                    _gl,
-                    _window
-                    ));
-
-                // Experimental Skia C64 command based target. WIP.
-                rtp.AddRenderTargetType<SkiaCommandTarget>(() => new SkiaCommandTarget(
-                    () => _skiaGlCanvasProvider.Canvas,
-                    useCellCoordinates: true,
-                    flush: true));
-
-            },
-            () =>
-            {
-                var renderloop = new SilkOnRenderLoop(
-                    _window,
-                    OnBeforeRender,
-                    OnAfterRender,
-                    shouldEmitEmulationFrame: () => EmulatorState != EmulatorState.Uninitialized);
-                return renderloop;
-            });
-
-        ConfigureSilkNetInput();
-
-        InitImGui();
-
-        // Init main menu UI
-        _menu = new SilkNetImGuiMenu(this, _emulatorConfig.DefaultEmulator, _defaultAudioEnabled, _defaultAudioVolumePercent, _loggerFactory);
-
-        // Create other UI windows
-        _statsPanel = CreateStatsUI();
-        _debugInfoPanel = CreateDebugUI();
-        _monitor = CreateMonitorUI(_statsPanel, _debugInfoPanel, _emulatorConfig.Monitor);
-        _logsPanel = CreateLogsUI(_logStore, _logConfig);
-
-        // Add all ImGui windows to a list
-        _imGuiWindows.Add(_menu);
-        _imGuiWindows.Add(_statsPanel);
-        _imGuiWindows.Add(_debugInfoPanel);
-        _imGuiWindows.Add(_monitor);
-        _imGuiWindows.Add(_logsPanel);
-
-        // Default system selected
-        SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
+                Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                Console.WriteLine($"Inner stack trace: {ex.InnerException.StackTrace}");
+            }
+            _logger.LogError(ex, "Exception in OnLoad");
+            throw;
+        }
     }
 
     private void InitSkiaGlCanvasProvider()
@@ -528,7 +605,9 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
     {
         GRGlGetProcedureAddressDelegate getProcAddress = (name) =>
         {
+            Console.WriteLine($"Getting OpenGL proc address for: {name}");
             var addrFound = _window.GLContext!.TryGetProcAddress(name, out var addr);
+            Console.WriteLine($"Address found: {addrFound}, Address: {addr}");
             return addrFound ? addr : 0;
         };
 
@@ -595,7 +674,42 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
 
     private void InitOpenGL()
     {
-        _gl = GL.GetApi(_window);
+        try
+        {
+            _logger.LogInformation("Getting OpenGL API...");
+            _gl = GL.GetApi(_window) ?? throw new DotNet6502Exception("Failed to get OpenGL API from window");
+
+            // Log OpenGL info for diagnostics
+            try
+            {
+                var version = _gl.GetStringS(GLEnum.Version);
+                var vendor = _gl.GetStringS(GLEnum.Vendor);
+                var renderer = _gl.GetStringS(GLEnum.Renderer);
+
+                _logger.LogInformation($"OpenGL Version: {version}");
+                _logger.LogInformation($"OpenGL Vendor: {vendor}");
+                _logger.LogInformation($"OpenGL Renderer: {renderer}");
+
+                Console.WriteLine($"OpenGL Version: {version}");
+                Console.WriteLine($"OpenGL Vendor: {vendor}");
+                Console.WriteLine($"OpenGL Renderer: {renderer}");
+            }
+            catch (Exception glInfoEx)
+            {
+                _logger.LogWarning(glInfoEx, "Could not retrieve OpenGL information");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize OpenGL");
+            Console.WriteLine($"OpenGL initialization failed: {ex.Message}");
+            Console.WriteLine($"This may indicate missing graphics drivers or OpenGL support.");
+            Console.WriteLine($"On Linux, ensure you have proper graphics drivers installed:");
+            Console.WriteLine($"  - For Intel: sudo apt install mesa-utils libgl1-mesa-glx");
+            Console.WriteLine($"  - For NVIDIA: Install proprietary NVIDIA drivers");
+            Console.WriteLine($"  - For AMD: Install Mesa drivers");
+            throw;
+        }
     }
 
     private void InitImGui()
