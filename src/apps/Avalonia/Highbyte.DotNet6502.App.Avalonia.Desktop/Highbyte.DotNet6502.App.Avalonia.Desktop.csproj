@@ -27,8 +27,8 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
-    <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" />
-    
+    <!-- Linux native assets must be explicitly included (Win32/macOS are transitive dependencies of SkiaSharp) -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
   </ItemGroup>
 
   <ItemGroup>
