@@ -3,7 +3,12 @@
 # Overview
 Emulator applications with user interfaces for running different [systems](SYSTEMS.md), using different [rendering input handling, and audio](RENDER_INPUT_AUDIO.md) techniques.
 
-- [Blazor Web Assembly (WASM)](APPS_BLAZOR_WASM.md)
-- [Native cross-platform window via Silk.NET](APPS_SILKNET_NATIVE.md)
-- [Native cross-platform window via SadConsole](APPS_SADCONSOLE.md)
-- [Native cross-platform console monitor app](APPS_CONSOLE_MONITOR.md)
+Web
+- [AvaloniaUI Web (WASM) app](APPS_AVALONIA.md)
+- [Blazor (WASM) app](APPS_BLAZOR_WASM.md)
+
+Desktop
+- [AvaloniaUI cross-platform desktop app](APPS_AVALONIA.md)
+- [Silk.NET cross-platform desktop app](APPS_SILKNET_NATIVE.md)
+- [SadConsole cross-platform desktop-app](APPS_SADCONSOLE.md)
+- [Console cross-platform monitor app](APPS_CONSOLE_MONITOR.md)

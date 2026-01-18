@@ -8,6 +8,9 @@ A deployed version can be found here [https://highbyte.se/dotnet-6502/app2](http
 # Features
 A cross platform app (desktop and web) written with Avalonia UI, using built-in Avalonia controls for both UI and emulator screen.
 
+### Prerequisites, compatibility, and troubleshooting
+See [here](APPS_AVALONIA_TROUBLESHOOT.md)
+
 # System: C64 
 - Via C64 config UI you have to upload binaries for the ROMs that a C64 uses (Kernal, Basic, Chargen). Or use a convenient auto-download functionality (with a license notice).
 

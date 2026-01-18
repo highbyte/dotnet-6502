@@ -8,21 +8,8 @@ Native cross-platform app written in .NET using a [Silk.NET](https://github.com/
 
 Uses Silk.NET [ImGui extensions](https://www.nuget.org/packages/Silk.NET.OpenGL.Extensions.ImGui/) to render UI for interactive menu, monitor, and stats window.
 
-## Prerequisites - Linux
-
-Using the Silk.NET + SkiaSharp + ImGui NuGet packages (that this app does) requires a GPU with OpenGL drivers installed.
-
-### WSLg (Ubuntu) under Windows
-
-Tested on Windows 11 in WSLg using Ubuntu 22.04.5 LTS.
-
-```bash
-sudo apt install mesa-utils
-sudo apt install libwayland-client0 libwayland-cursor0 libwayland-egl1 libxkbcommon0
-```
-
-### Running in Linux VM
-Not been able to test it. Requires a HyperVisor that supports GPU passthrough. Then it should probably be possible.
+### Prerequisites, compatibility, and troubleshooting
+See [here](APPS_SILKNET_NATIVE_TROUBLESHOOT.md)
 
 # System: C64 
 - A directory containing the C64 ROM files (Kernal, Basic, Chargen) is supplied by the user. Defaults are set in the appsettings.json file, and possible to change in the UI.
