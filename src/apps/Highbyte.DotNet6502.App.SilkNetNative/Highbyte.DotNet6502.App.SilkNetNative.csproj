@@ -34,12 +34,15 @@
     <PackageReference Include="Silk.NET.OpenGL" />
     <PackageReference Include="Silk.NET.Windowing" />
     <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" />
+    <!-- Linux native assets must be explicitly included (Win32/macOS are transitive dependencies of SkiaSharp) -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
     <PackageReference Include="TextCopy" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="appsettings.Development.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </None>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

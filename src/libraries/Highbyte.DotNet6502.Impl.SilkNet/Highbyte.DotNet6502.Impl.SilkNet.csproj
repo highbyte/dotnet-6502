@@ -40,12 +40,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Commodore64\Render\C64shader.frag">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Commodore64\Render\C64shader.vert">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <EmbeddedResource Include="Commodore64\Render\C64shader.frag" />
+    <EmbeddedResource Include="Commodore64\Render\C64shader.vert" />
   </ItemGroup>
 
 </Project>

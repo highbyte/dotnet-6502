@@ -8,6 +8,9 @@ Native cross-platform app written in .NET using a [Silk.NET](https://github.com/
 
 Uses Silk.NET [ImGui extensions](https://www.nuget.org/packages/Silk.NET.OpenGL.Extensions.ImGui/) to render UI for interactive menu, monitor, and stats window.
 
+### Prerequisites, compatibility, and troubleshooting
+See [here](APPS_SILKNET_NATIVE_TROUBLESHOOT.md)
+
 # System: C64 
 - A directory containing the C64 ROM files (Kernal, Basic, Chargen) is supplied by the user. Defaults are set in the appsettings.json file, and possible to change in the UI.
 

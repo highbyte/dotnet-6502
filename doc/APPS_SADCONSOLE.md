@@ -6,6 +6,9 @@
 # Features
 Native cross-platform app based on the [`SadConsole`](https://github.com/Thraka/SadConsole) terminal/ascii/console/game engine.
 
+### Prerequisites, compatibility, and troubleshooting
+See [here](APPS_SADCONSOLE_TROUBLESHOOT.md)
+
 # System: C64 
 - A directory containing the C64 ROM files (Kernal, Basic, Chargen) is supplied by the user. Defaults are set in the appsettings.json file, and possible to change in the UI. Also a auto-download option exists (license required).
 

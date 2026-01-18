@@ -41,6 +41,7 @@
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Configuration" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.0" />
     <!-- Microsoft Testing packages -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
@@ -67,6 +68,9 @@
     <PackageVersion Include="Silk.NET.Windowing" Version="2.22.0" />
     <!-- SkiaSharp -->
     <PackageVersion Include="SkiaSharp" Version="3.119.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="3.119.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.macOS" Version="3.119.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Win32" Version="3.119.1" />
     <PackageVersion Include="SkiaSharp.NativeAssets.WebAssembly" Version="3.119.1" />
     <PackageVersion Include="SkiaSharp.Views.Blazor" Version="3.119.1" />
     <!-- SourceLink -->

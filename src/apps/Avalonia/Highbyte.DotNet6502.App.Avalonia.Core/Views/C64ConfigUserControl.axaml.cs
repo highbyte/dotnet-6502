@@ -13,11 +13,16 @@ using Avalonia.VisualTree;
 using Highbyte.DotNet6502.App.Avalonia.Core.ViewModels;
 using Highbyte.DotNet6502.Systems.Commodore64.Config;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 public partial class C64ConfigUserControl : UserControl
 {
+    // Lazy-initialized logger
+    private ILogger? _logger;
+    private ILogger Logger => _logger ??= AppLogger.CreateLogger(nameof(C64ConfigUserControl));
+
     private C64ConfigDialogViewModel? _previousViewModel;
     private C64ConfigDialogViewModel? ViewModel => DataContext as C64ConfigDialogViewModel;
     private EventHandler<bool>? _configurationChangedHandlers;
@@ -230,7 +235,7 @@ public partial class C64ConfigUserControl : UserControl
         var serviceProvider = (Application.Current as App)?.GetServiceProvider();
         if (serviceProvider == null)
         {
-            System.Console.WriteLine("Error: Could not get service provider");
+            Logger.LogError("Could not get service provider");
             return false;
         }
         var overlayDialogHelper = serviceProvider.GetRequiredService<OverlayDialogHelper>();
