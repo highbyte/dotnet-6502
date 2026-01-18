@@ -20,8 +20,9 @@ Tested on Windows 11 (x64). No extra configuration.
 ### Windows arm64
 Tested on Windows 11 (arm64) running in VM on a M1 Mac. Not working.
 
-Exception below. Not investigated, but maybe the Glfw library that Silk.NET uses is missing Windows arm64 native libraries?
+The app starts but the menu overlay (ImGui) is not rendered correctly. Buttons and Combo boxes are blank with no text. Cannot start a emulator. Not investigated further.
 
+Also exception below occurred at leasts once at start.
 ```
 Failed to create Silk.NET window: Couldn't find a suitable window platform. (GlfwPlatform - not applicable) https://dotnet.github.io/Silk.NET/docs/hlu/troubleshooting.html
 Stack trace:    at Silk.NET.Windowing.Window.Create(WindowOptions options)
