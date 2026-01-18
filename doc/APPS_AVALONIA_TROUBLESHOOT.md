@@ -7,18 +7,38 @@
 
 | OS / Architecture | x64 | arm64 |
 |-------------------|-----|-------|
-| **Windows**       | ✅ Works | 🟡 Not tested |
+| **Windows**       | ✅ Works | ⚠️ Works**  |
 | **macOS**         | ➖ N/A | ✅ Works |
 | **Linux**         | ⚠️ Works* | ⚠️ Works* |
 
 *May require additional packages (see below)
+
+**Some functionality not working (see below)
 
 ## Notes
 ### Windows x64
 Tested on Windows 11 (x64). No extra configuration.
 
 ### Windows arm64
-Not tested.
+Tested on Windows 11 (arm64) running in VM on a M1 Mac. If Audio is enabled, an exception occur. If Audio is disabled it works.
+
+Exception below. Seems like the OpenAL audio library doesn't support win-arm64? 
+
+```
+FileNotFoundException: Could not load from any of the possible library names! Please make sure that the library is installed and in the right place!
+
+Stack Trace:
+   at Silk.NET.OpenAL.ALContext.CreateDefaultContext(String[] n)
+   at Silk.NET.OpenAL.ALContext.GetApi(Boolean soft)
+   at Highbyte.DotNet6502.Impl.NAudio.WavePlayers.SilkNetOpenAL.SilkNetOpenALWavePlayer.Init(IWaveProvider waveProvider)
+   at NAudio.Wave.WaveExtensionMethods.Init(IWavePlayer wavePlayer, ISampleProvider sampleProvider, Boolean convertTo16Bit)
+   at Highbyte.DotNet6502.Impl.NAudio.NAudioAudioHandlerContext.ConfigureWavePlayer(ISampleProvider sampleProvider)
+   at Highbyte.DotNet6502.Impl.NAudio.Commodore64.Audio.C64NAudioAudioHandler.Init()
+   at Highbyte.DotNet6502.Systems.SystemRunner.Init()
+   at Highbyte.DotNet6502.Systems.SystemList`2.BuildSystemRunner(ISystem system)
+   at Highbyte.DotNet6502.Systems.HostApp`2.Start()
+   at Highbyte.DotNet6502.App.Avalonia.Core.ViewModels.MainViewModel.<.ctor>b__147_44()
+```
 
 ### Mac arm64
 Tested on MacBook Air M1, MacOS 26. No extra configuration.

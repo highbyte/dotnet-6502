@@ -7,7 +7,7 @@ Requires a GPU with OpenGL drivers.
 
 | OS / Architecture | x64 | arm64 |
 |-------------------|-----|-------|
-| **Windows**       | ✅ Works | 🟡 Not tested |
+| **Windows**       | ✅ Works | ❌ Not working  |
 | **macOS**         | ➖ N/A | ✅ Works |
 | **Linux**         | ⚠️ Works* | ❌ Not working |
 
@@ -18,7 +18,15 @@ Requires a GPU with OpenGL drivers.
 Tested on Windows 11 (x64). No extra configuration.
 
 ### Windows arm64
-Not tested.
+Tested on Windows 11 (arm64) running in VM on a M1 Mac. Not working.
+
+Exception below. Not investigated, but maybe the Glfw library that Silk.NET uses is missing Windows arm64 native libraries?
+
+```
+Failed to create Silk.NET window: Couldn't find a suitable window platform. (GlfwPlatform - not applicable) https://dotnet.github.io/Silk.NET/docs/hlu/troubleshooting.html
+Stack trace:    at Silk.NET.Windowing.Window.Create(WindowOptions options)
+   at Program.<Main>$(String[] args) in C:\Users\highbyte\source\repos\dotnet-6502\src\apps\Highbyte.DotNet6502.App.SilkNetNative\Program.cs:line 94
+```
 
 ### Mac arm64
 Tested on MacBook Air M1, MacOS 26. No extra configuration.
