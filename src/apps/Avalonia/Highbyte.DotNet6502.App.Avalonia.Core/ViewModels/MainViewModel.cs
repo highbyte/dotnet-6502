@@ -22,7 +22,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 {
     private readonly AvaloniaHostApp _hostApp;
     private readonly EmulatorConfig _emulatorConfig;
-    private readonly ILogger<MainViewModel> _logger;
+    private readonly ILogger _logger;
 
     // Expose HostApp for EmulatorView that currently needs it (TODO: Consider removing this dependency via MainViewModel. Better that EmulatorViewModel provides it.)
     public AvaloniaHostApp HostApp => _hostApp;
@@ -296,7 +296,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     {
         _hostApp = hostApp ?? throw new ArgumentNullException(nameof(hostApp));
         _emulatorConfig = emulatorConfig;
-        _logger = loggerFactory?.CreateLogger<MainViewModel>() ?? throw new ArgumentNullException(nameof(loggerFactory));
+        _logger = loggerFactory?.CreateLogger(nameof(MainViewModel)) ?? throw new ArgumentNullException(nameof(loggerFactory));
 
         // Store injected child ViewModels
         C64MenuViewModel = c64MenuViewModel ?? throw new ArgumentNullException(nameof(c64MenuViewModel));

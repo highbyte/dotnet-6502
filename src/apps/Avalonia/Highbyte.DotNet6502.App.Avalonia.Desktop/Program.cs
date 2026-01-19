@@ -76,13 +76,17 @@ internal sealed partial class Program
         // which avoids cursor/prompt synchronization issues with PowerShell/cmd.
         if (enableConsoleLogging && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
+            WriteBootstrapLog($"Creating Windows console for log output");
             AllocConsole();
             Console.Title = "DotNet6502 Emulator - Log Output";
         }
 
+        WriteBootstrapLog($"Avalonia program starting.");
+
         // ----------
         // Get config file
         // ----------
+        WriteBootstrapLog($"Creating configuration object.");
         var builder = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json")
@@ -100,6 +104,8 @@ internal sealed partial class Program
         // ----------
         // Create logging
         // ----------
+        WriteBootstrapLog($"Initializing logging.");
+
         DotNet6502InMemLogStore logStore = new(insertAtStart: false) { WriteDebugMessage = true };
         var logConfig = new DotNet6502InMemLoggerConfiguration(logStore);
         var loggerFactory = LoggerFactory.Create(builder =>
@@ -117,7 +123,8 @@ internal sealed partial class Program
                     options.TimestampFormat = "HH:mm:ss ";
                 });
                 builder.AddFilter(null, consoleLogLevel);  // Apply log level filter
-                Console.WriteLine($"Console logging enabled (level: {consoleLogLevel})");
+
+                WriteBootstrapLog($"Console logging enabled (level: {consoleLogLevel})");
             }
         });
 
@@ -128,22 +135,37 @@ internal sealed partial class Program
         // ----------
         // Get emulator host config
         // ----------
+        WriteBootstrapLog($"Reading emulator config.");
         var emulatorConfig = new EmulatorConfig();
         configuration.GetSection(EmulatorConfig.ConfigSectionName).Bind(emulatorConfig);
 
         // ----------
         // Create SDL2 gamepad for controller input
         // ----------
+        WriteBootstrapLog($"Creating Gamepad implementation (SDL2).");
         var gamepad = new Sdl2Gamepad(loggerFactory);
 
+        // ----------
+        // Start Avalonia app
+        // ----------
+        WriteBootstrapLog($"Starting Avalonia app.");
         BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad)
             .StartWithClassicDesktopLifetime(args);
 
+        // ----------
+        // App exited
+        // ----------
+        WriteBootstrapLog($"Avalonia app exited.");
         // Detach from parent console on Windows to restore the command prompt
         if (enableConsoleLogging && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             FreeConsole();
         }
+    }
+
+    private static void WriteBootstrapLog(string message, LogLevel logLevel = LogLevel.Information)
+    {
+        AppLogger.WriteBootstrapLog(message, logLevel, nameof(Program));
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.

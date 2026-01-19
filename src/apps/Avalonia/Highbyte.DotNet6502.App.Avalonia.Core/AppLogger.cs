@@ -33,6 +33,8 @@ public static class AppLogger
     /// <summary>
     /// Writes a message to the console if console logging is enabled.
     /// Use this for bootstrap logging before ILogger is available.
+    /// Format matches the default ILogger console output: "{Timestamp} {level}: {Category}[0] {Message}"
+    /// with colored log level matching the default console logger colors.
     /// </summary>
     /// <param name="message">The message to write.</param>
     /// <param name="logLevel">
@@ -40,13 +42,32 @@ public static class AppLogger
     /// Messages with <see cref="LogLevel.Error"/> or <see cref="LogLevel.Critical"/> 
     /// are always written to console, even if console logging is disabled.
     /// </param>
-    public static void WriteBootstrapLog(string message, LogLevel logLevel = LogLevel.Information)
+    /// <param name="category">
+    /// The category name for the log message. Default is "App".
+    /// </param>
+    public static void WriteBootstrapLog(string message, LogLevel logLevel = LogLevel.Information, string category = "App")
     {
         // Always write Error and Critical messages to console
         if (ConsoleLoggingEnabled || logLevel >= LogLevel.Error)
         {
-            var prefix = logLevel >= LogLevel.Error ? $"[{logLevel}] " : "";
-            Console.WriteLine($"{prefix}{message}");
+            var timestamp = DateTime.Now.ToString("HH:mm:ss");
+            var (levelString, levelColor) = logLevel switch
+            {
+                LogLevel.Trace => ("trce", ConsoleColor.Gray),
+                LogLevel.Debug => ("dbug", ConsoleColor.Gray),
+                LogLevel.Information => ("info", ConsoleColor.Green),
+                LogLevel.Warning => ("warn", ConsoleColor.Yellow),
+                LogLevel.Error => ("fail", ConsoleColor.Red),
+                LogLevel.Critical => ("crit", ConsoleColor.Red),
+                _ => ("info", ConsoleColor.Green)
+            };
+
+            Console.Write($"{timestamp} ");
+            var originalColor = Console.ForegroundColor;
+            Console.ForegroundColor = levelColor;
+            Console.Write(levelString);
+            Console.ForegroundColor = originalColor;
+            Console.WriteLine($": {category}[0] {message}");
         }
     }
 }

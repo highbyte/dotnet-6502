@@ -60,7 +60,7 @@ public class ErrorViewModel : ViewModelBase
         string errorMessage,
         Exception? exception)
     {
-        _logger = loggerFactory.CreateLogger(typeof(ErrorViewModel).Name);
+        _logger = loggerFactory.CreateLogger(nameof(ErrorViewModel));
         ErrorMessage = errorMessage;
 
         if (exception != null)
