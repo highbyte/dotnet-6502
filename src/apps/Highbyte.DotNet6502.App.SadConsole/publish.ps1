@@ -20,20 +20,20 @@ $OutputDir = Join-Path $ScriptDir "publish"
 
 # Default runtime based on current OS and architecture
 if (-not $Runtime) {
-    if ($IsWindows -or $env:OS -eq "Windows_NT") {
-        if ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64) {
-            $Runtime = "win-arm64"
-        } else {
-            $Runtime = "win-x64"
-        }
-    } elseif ($IsMacOS) {
-        if ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64) {
-            $Runtime = "osx-arm64"
-        } else {
-            $Runtime = "osx-x64"
-        }
+    # Detect OS with fallbacks for different PowerShell versions
+    $isWin = $IsWindows -eq $true -or $env:OS -eq "Windows_NT"
+    $isArm64 = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64
+
+    if ($isWin) {
+        $Runtime = if ($isArm64) { "win-arm64" } else { "win-x64" }
     } else {
-        $Runtime = "linux-x64"
+        # Only check for macOS on non-Windows systems
+        $isMac = $IsMacOS -eq $true -or ((Get-Command uname -ErrorAction SilentlyContinue) -and (uname) -eq "Darwin")
+        if ($isMac) {
+            $Runtime = if ($isArm64) { "osx-arm64" } else { "osx-x64" }
+        } else {
+            $Runtime = if ($isArm64) { "linux-arm64" } else { "linux-x64" }
+        }
     }
 }
 
