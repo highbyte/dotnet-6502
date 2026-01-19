@@ -14,7 +14,7 @@ public class C64AspNetInputHandler : IInputHandler
     private readonly C64 _c64;
     public ISystem System => _c64;
     private readonly AspNetInputHandlerContext _inputHandlerContext;
-    private readonly ILogger<C64AspNetInputHandler> _logger;
+    private readonly ILogger _logger;
     private C64AspNetKeyboard _c64AspNetKeyboard = default!;
     private readonly C64AspNetInputConfig _c64AspNetConfig;
     private readonly C64BasicCodingAssistant _c64BasicCodingAssistant;
@@ -49,7 +49,7 @@ public class C64AspNetInputHandler : IInputHandler
     {
         _c64 = c64;
         _inputHandlerContext = inputHandlerContext;
-        _logger = loggerFactory.CreateLogger<C64AspNetInputHandler>();
+        _logger = loggerFactory.CreateLogger(nameof(C64AspNetInputHandler));
         _c64AspNetConfig = c64AspNetConfig;
         _c64BasicCodingAssistant = c64BasicCodingAssistant;
         _codingAssistantEnabled = c64BasicCodingAssistantDefaultEnabled;

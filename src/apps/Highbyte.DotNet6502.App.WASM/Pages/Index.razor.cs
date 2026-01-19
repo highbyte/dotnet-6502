@@ -127,11 +127,11 @@ public partial class Index
     [Inject]
     public GamepadList GamepadList { get; set; } = default!;
 
-    private ILogger<Index> _logger = default!;
+    private ILogger _logger = default!;
 
     protected override async Task OnInitializedAsync()
     {
-        _logger = LoggerFactory.CreateLogger<Index>();
+        _logger = LoggerFactory.CreateLogger(nameof(Index));
         _logger.LogDebug("OnInitializedAsync() was called");
 
         var browserContext = new BrowserContext()

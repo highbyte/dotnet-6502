@@ -13,11 +13,11 @@ public class C64Keyboard
     private readonly C64 _c64;
     private readonly List<int> _selectedMatrixRowBitPositions = new();
     private bool _capsLockOn;
-    private readonly ILogger<C64Keyboard> _logger;
+    private readonly ILogger _logger;
 
     public C64Keyboard(C64 c64, ILoggerFactory loggerFactory)
     {
-        _logger = loggerFactory.CreateLogger<C64Keyboard>();
+        _logger = loggerFactory.CreateLogger(nameof(C64Keyboard));
 
         _matrix = new C64Key[,]
         {

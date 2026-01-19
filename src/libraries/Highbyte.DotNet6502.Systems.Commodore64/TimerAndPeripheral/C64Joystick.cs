@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.TimerAndPeripheral;
 
 public class C64Joystick
 {
-    private readonly ILogger<C64Joystick> _logger;
+    private readonly ILogger _logger;
     public Dictionary<int, HashSet<C64JoystickAction>> CurrentJoystickActions { get; private set; } = new()
     {
         {1, new() },
@@ -18,7 +18,7 @@ public class C64Joystick
 
     public C64Joystick(C64Config c64Config, ILoggerFactory loggerFactory)
     {
-        _logger = loggerFactory.CreateLogger<C64Joystick>();
+        _logger = loggerFactory.CreateLogger(nameof(C64Joystick));
         KeyboardJoystickEnabled = c64Config.KeyboardJoystickEnabled;
         KeyboardJoystick = c64Config.KeyboardJoystick;
         KeyboardJoystickMap = c64Config.KeyboardJoystickMap;

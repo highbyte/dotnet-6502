@@ -8,7 +8,7 @@ public class SadConsoleInputHandlerContext : IInputHandlerContext
 {
     //private Keyboard _sadConsoleKeyboard;
     private Keyboard _sadConsoleKeyboard => GameHost.Instance.Keyboard;
-    private readonly ILogger<SadConsoleInputHandlerContext> _logger;
+    private readonly ILogger _logger;
 
     public bool IsInitialized { get; private set; }
 
@@ -28,7 +28,7 @@ public class SadConsoleInputHandlerContext : IInputHandlerContext
 
     public SadConsoleInputHandlerContext(ILoggerFactory loggerFactory)
     {
-        _logger = loggerFactory.CreateLogger<SadConsoleInputHandlerContext>();
+        _logger = loggerFactory.CreateLogger(nameof(SadConsoleInputHandlerContext));
     }
 
     //public void Init(Keyboard keyboard)

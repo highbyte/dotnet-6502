@@ -9,7 +9,7 @@ public class GenericComputerBuilder
 {
     private readonly GenericComputer _genericComputer;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger<GenericComputerBuilder> _logger;
+    private readonly ILogger _logger;
 
     public GenericComputerBuilder() : this(new GenericComputerConfig(), NullLoggerFactory.Instance) { }
 
@@ -18,7 +18,7 @@ public class GenericComputerBuilder
     public GenericComputerBuilder(GenericComputerConfig genericComputerConfig, ILoggerFactory loggerFactory)
     {
         _loggerFactory = loggerFactory;
-        _logger = loggerFactory.CreateLogger<GenericComputerBuilder>();
+        _logger = loggerFactory.CreateLogger(nameof(GenericComputerBuilder));
         _genericComputer = new GenericComputer(genericComputerConfig, loggerFactory);
     }
 
@@ -89,7 +89,7 @@ public class GenericComputerBuilder
 
     public static GenericComputer SetupGenericComputerFromConfig(GenericComputerConfig emulatorConfig, ILoggerFactory loggerFactory)
     {
-        var logger = loggerFactory.CreateLogger<GenericComputerBuilder>();
+        var logger = loggerFactory.CreateLogger(nameof(GenericComputerBuilder));
         var mem = new Memory();
         ushort loadedAtAddress;
         ushort fileLength;

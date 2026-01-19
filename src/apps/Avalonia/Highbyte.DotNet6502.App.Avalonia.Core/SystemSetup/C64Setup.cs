@@ -30,7 +30,7 @@ public class C64Setup : ISystemConfigurer<AvaloniaInputHandlerContext, NAudioAud
     private static readonly List<string> s_systemVariants = C64ModelInventory.C64Models.Keys.ToList();
 
     private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger<C64Setup> _logger;
+    private readonly ILogger _logger;
     private readonly IConfiguration _configuration;
 
     public C64Setup(
@@ -39,7 +39,7 @@ public class C64Setup : ISystemConfigurer<AvaloniaInputHandlerContext, NAudioAud
         Func<string, string, string?, Task>? saveCustomConfigString = null)
     {
         _loggerFactory = loggerFactory;
-        _logger = _loggerFactory.CreateLogger<C64Setup>();
+        _logger = _loggerFactory.CreateLogger(nameof(C64Setup));
         _configuration = configuration;
         _saveCustomConfigString = saveCustomConfigString;
     }
