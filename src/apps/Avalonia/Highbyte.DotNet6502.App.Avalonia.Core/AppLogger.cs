@@ -62,12 +62,20 @@ public static class AppLogger
                 _ => ("info", ConsoleColor.Green)
             };
 
-            Console.Write($"{timestamp} ");
-            var originalColor = Console.ForegroundColor;
-            Console.ForegroundColor = levelColor;
-            Console.Write(levelString);
-            Console.ForegroundColor = originalColor;
-            Console.WriteLine($": {category}[0] {message}");
+            // Only use console colors on Desktop platforms - Browser throws PlatformNotSupportedException
+            if (PlatformDetection.IsRunningOnDesktop())
+            {
+                Console.Write($"{timestamp} ");
+                var originalColor = Console.ForegroundColor;
+                Console.ForegroundColor = levelColor;
+                Console.Write(levelString);
+                Console.ForegroundColor = originalColor;
+                Console.WriteLine($": {category}[0] {message}");
+            }
+            else
+            {
+                Console.WriteLine($"{timestamp} {levelString}: {category}[0] {message}");
+            }
         }
     }
 }
