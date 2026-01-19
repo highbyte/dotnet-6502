@@ -80,6 +80,7 @@ internal sealed partial class Program
             Console.Title = "DotNet6502 Emulator - Log Output";
         }
 
+        // Note: Don't call WriteBootstrapLog before AllocConsole() is called (Windows). Otherwise no logs will show in console.
         WriteBootstrapLog($"Avalonia program starting.");
 
         // ----------
