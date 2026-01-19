@@ -5,7 +5,7 @@
 
 ## Compatibility Matrix
 
-| OS / Architecture | x64 | arm64 |
+| OS / Architecture | x64 | ARM64 |
 |-------------------|-----|-------|
 | **Windows**       | ✅ Works | ✅ Works |
 | **macOS**         | ➖ N/A | ✅ Works |
@@ -18,7 +18,7 @@
 Tested on Windows 11 (x64). No extra configuration.
 
 ### Windows arm64
-Tested on Windows 11 (arm64) running in VM on a M1 Mac. No extra configuration.
+Tested on Windows 11 (ARM64) running in VM on a M1 Mac. No extra configuration.
 
 If exception below occurs (problem with the OpenAL audio library), try reboot.
 
@@ -26,7 +26,7 @@ If exception below occurs (problem with the OpenAL audio library), try reboot.
 FileNotFoundException: Could not load from any of the possible library names! Please make sure that the library is installed and in the right place!
 ```
 
-### Mac arm64
+### Mac ARM64
 Tested on MacBook Air M1, MacOS 26. No extra configuration.
 
 ### Linux x64
@@ -39,7 +39,7 @@ Tested on Ubuntu 22.04.5 (x64). No extra configuration.
 Tested on Ubuntu 25.10. Working after workaround for fonts, see below.
 
 #### SkiaSharp fonts issue
-With current SkiaSharp 3.119.1 (that Avalonia uses) there is seemingly a font issue on Linux arm64 related to the freetype native library linking.
+With current SkiaSharp 3.119.1 (that Avalonia uses) there is seemingly a font issue on Linux ARM64 related to the freetype native library linking.
 
 The error when starting is this:
 ```
