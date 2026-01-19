@@ -8,7 +8,7 @@ namespace Highbyte.DotNet6502.Impl.SilkNet;
 public class SilkNetInputHandlerContext : IInputHandlerContext
 {
     private readonly IWindow _silkNetWindow;
-    private readonly ILogger<SilkNetInputHandlerContext> _logger;
+    private readonly ILogger _logger;
     private static IInputContext s_inputcontext = default!;
     public IInputContext InputContext => s_inputcontext;
 
@@ -33,7 +33,7 @@ public class SilkNetInputHandlerContext : IInputHandlerContext
     public SilkNetInputHandlerContext(IWindow silkNetWindow, ILoggerFactory loggerFactory)
     {
         _silkNetWindow = silkNetWindow;
-        _logger = loggerFactory.CreateLogger<SilkNetInputHandlerContext>();
+        _logger = loggerFactory.CreateLogger(nameof(SilkNetInputHandlerContext));
     }
 
     public void Init()

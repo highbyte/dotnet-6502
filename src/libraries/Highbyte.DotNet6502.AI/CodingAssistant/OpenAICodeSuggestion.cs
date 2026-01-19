@@ -11,7 +11,7 @@ public class OpenAICodeSuggestion : ICodeSuggestion
     private readonly OpenAIInferenceBackend _inferenceBackend;
     private readonly CodeCompletionConfig _codeCompletionConfig;
     private readonly CodeCompletionInference _codeCompletionInference;
-    private readonly ILogger<OpenAICodeSuggestion> _logger;
+    private readonly ILogger _logger;
 
     // OpenAI
     public static OpenAICodeSuggestion CreateOpenAICodeSuggestion(IConfiguration configuration, ILoggerFactory loggerFactory, string programmingLanguage, string additionalSystemInstruction = "")
@@ -39,7 +39,7 @@ public class OpenAICodeSuggestion : ICodeSuggestion
         _codeCompletionConfig = codeCompletionConfig;
         _codeCompletionInference = new CodeCompletionInference();
 
-        _logger = loggerFactory.CreateLogger<OpenAICodeSuggestion>();
+        _logger = loggerFactory.CreateLogger(nameof(OpenAICodeSuggestion));
     }
 
     public bool IsAvailable => _isAvailable;

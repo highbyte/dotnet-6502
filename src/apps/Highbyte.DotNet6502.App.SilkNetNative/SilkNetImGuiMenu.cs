@@ -34,7 +34,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
 
     private bool _audioEnabled;
     private float _audioVolumePercent;
-    private readonly ILogger<SilkNetImGuiMenu> _logger;
+    private readonly ILogger _logger;
 
     private bool _c64KeyboardJoystickEnabled;
     private int _c64KeyboardJoystickIndex;
@@ -63,7 +63,7 @@ public class SilkNetImGuiMenu : ISilkNetImGuiWindow
         _audioEnabled = defaultAudioEnabled;
         _audioVolumePercent = defaultAudioVolumePercent;
 
-        _logger = loggerFactory.CreateLogger<SilkNetImGuiMenu>();
+        _logger = loggerFactory.CreateLogger(nameof(SilkNetImGuiMenu));
 
         if (_silkNetHostApp.CurrentHostSystemConfig is C64HostConfig)
         {

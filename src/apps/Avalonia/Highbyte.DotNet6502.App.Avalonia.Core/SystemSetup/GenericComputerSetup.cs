@@ -34,7 +34,7 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
     }
 
     private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger<GenericComputerSetup> _logger;
+    private readonly ILogger _logger;
     private readonly IConfiguration _configuration;
 
     public GenericComputerSetup(
@@ -44,7 +44,7 @@ public class GenericComputerSetup : ISystemConfigurer<AvaloniaInputHandlerContex
         Func<string, string, string?, Task>? saveCustomConfigJson = null)
     {
         _loggerFactory = loggerFactory;
-        _logger = _loggerFactory.CreateLogger<GenericComputerSetup>();
+        _logger = _loggerFactory.CreateLogger(nameof(GenericComputerSetup));
         _configuration = configuration;
         _saveCustomConfigJson = saveCustomConfigJson;
     }

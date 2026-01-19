@@ -28,7 +28,7 @@ public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHa
 
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger<C64Setup> _logger;
+    private readonly ILogger _logger;
     private const string DEFAULT_CUSTOMENDPOINT = "https://highbyte-dotnet6502-codecompletion.azurewebsites.net/";
     // Note: For now, use a public visible key as default just to prevent at least some random users to access the endpoint...
     private const string DEFAULT_CUSTOMENDPOINT_APIKEY = "9fe8f8161c1d43251a46bb576336a1a25d7ab607cb5a1b4b960c0949d87bced7";
@@ -38,7 +38,7 @@ public class C64Setup : ISystemConfigurer<AspNetInputHandlerContext, WASMAudioHa
         _browserContext = browserContext;
         _loggerFactory = loggerFactory;
 
-        _logger = loggerFactory.CreateLogger<C64Setup>();
+        _logger = loggerFactory.CreateLogger(nameof(C64Setup));
     }
 
     public async Task<IHostSystemConfig> GetNewHostSystemConfig()
