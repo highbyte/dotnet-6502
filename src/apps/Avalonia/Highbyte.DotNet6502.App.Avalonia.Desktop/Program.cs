@@ -76,7 +76,6 @@ internal sealed partial class Program
         // which avoids cursor/prompt synchronization issues with PowerShell/cmd.
         if (enableConsoleLogging && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            WriteBootstrapLog($"Creating Windows console for log output");
             AllocConsole();
             Console.Title = "DotNet6502 Emulator - Log Output";
         }
