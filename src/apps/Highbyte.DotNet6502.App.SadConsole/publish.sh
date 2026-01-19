@@ -20,7 +20,12 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
         DEFAULT_RUNTIME="osx-x64"
     fi
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    DEFAULT_RUNTIME="linux-x64"
+    # Check if running on ARM64 or x64
+    if [[ $(uname -m) == "aarch64" ]]; then
+        DEFAULT_RUNTIME="linux-arm64"
+    else
+        DEFAULT_RUNTIME="linux-x64"
+    fi
 else
     DEFAULT_RUNTIME="win-x64"
 fi
