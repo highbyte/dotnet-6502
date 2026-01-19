@@ -37,7 +37,7 @@ Stack trace:    at Microsoft.Xna.Framework.Input.Keyboard.PlatformGetState()
 
 Note: The x64 version works on Windows ARM64 through the automatic arm->intel instruction translation that Windows 11 have. Though audio must be disabled.
 
-### Mac arm64
+### Mac ARM64
 Tested on MacBook Air M1, MacOS 26. No extra configuration.
 
 ### Linux x64

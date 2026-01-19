@@ -17,7 +17,7 @@
 ### Windows x64
 Tested on Windows 11 (x64). No extra configuration.
 
-### Windows arm64
+### Windows ARM64
 Tested on Windows 11 (ARM64) running in VM on a M1 Mac. No extra configuration.
 
 If exception below occurs (problem with the OpenAL audio library), try reboot.
@@ -35,7 +35,7 @@ Should work.
 #### Linux via WSLg under Windows
 Tested on Ubuntu 22.04.5 (x64). No extra configuration.
 
-### Linux arm64
+### Linux ARM64
 Tested on Ubuntu 25.10. Working after workaround for fonts, see below.
 
 #### SkiaSharp fonts issue
