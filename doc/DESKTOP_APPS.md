@@ -12,7 +12,7 @@ Pre-built desktop applications are available for Windows, Linux, and macOS.
 
 ## Download
 
-Download the latest release for your platform from the [Releases](https://github.com/highbyte/dotnet-6502/releases) page.
+Download the latest release for your platform from the [Releases](https://github.com/highbyte/dotnet-6502/releases) page under Assets.
 
 | Platform | Download |
 |----------|----------|
