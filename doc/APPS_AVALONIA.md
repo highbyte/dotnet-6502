@@ -50,7 +50,7 @@ See [here](APPS_AVALONIA_TROUBLESHOOT.md)
 
 See [here](DESKTOP_APPS.md).
 
-## Visual Studio 2025 or 2022 (Windows)
+## Visual Studio 2026 or 2022 (Windows)
 
 For development system requirements, see details [here](DEVELOP.md#Requirements)
 
