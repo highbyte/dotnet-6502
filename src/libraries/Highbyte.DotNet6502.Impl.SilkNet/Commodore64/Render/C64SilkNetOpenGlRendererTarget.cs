@@ -166,7 +166,13 @@ public class C64SilkNetOpenGlRendererTarget : ICustomRenderTarget<C64GpuPacket>,
         // Init shader with:
         // - Vertex shader to draw triangles covering the entire screen.
         // - Fragment shader does the actual drawing of 2D pixels.
-        _shader = new OpenGLHelpers.Shader(_gl, vertexShaderPath: "Commodore64/Render/C64shader.vert", fragmentShaderPath: "Commodore64/Render/C64shader.frag");
+        var vertexShaderSource = OpenGLHelpers.Shader.LoadEmbeddedShaderSource(
+            "Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Render.C64shader.vert",
+            typeof(C64SilkNetOpenGlRendererTarget).Assembly);
+        var fragmentShaderSource = OpenGLHelpers.Shader.LoadEmbeddedShaderSource(
+            "Highbyte.DotNet6502.Impl.SilkNet.Commodore64.Render.C64shader.frag",
+            typeof(C64SilkNetOpenGlRendererTarget).Assembly);
+        _shader = new OpenGLHelpers.Shader(_gl, vertexShaderSource: vertexShaderSource, fragmentShaderSource: fragmentShaderSource);
 
         // Bind UBOs (used in fragment shader)
         _shader.BindUBO("ubTextData", _uboTextData, binding_point_index: 0);

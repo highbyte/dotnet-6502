@@ -6,7 +6,7 @@ namespace Highbyte.DotNet6502.Impl.AspNet;
 
 public class AspNetInputHandlerContext : IInputHandlerContext
 {
-    private readonly ILogger<AspNetInputHandlerContext> _logger;
+    private readonly ILogger _logger;
 
     // Keyboard
     public HashSet<string> KeysDown = new();
@@ -23,7 +23,7 @@ public class AspNetInputHandlerContext : IInputHandlerContext
 
     public AspNetInputHandlerContext(ILoggerFactory loggerFactory, GamepadList gamepadList)
     {
-        _logger = loggerFactory.CreateLogger<AspNetInputHandlerContext>();
+        _logger = loggerFactory.CreateLogger(nameof(AspNetInputHandlerContext));
         _gamepadList = gamepadList;
     }
 

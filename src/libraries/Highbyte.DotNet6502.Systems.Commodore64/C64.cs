@@ -226,7 +226,7 @@ public class C64 : ISystem, ISystemMonitor
 
         var vic2Model = c64Model.Vic2Models.Single(x => x.Name == c64Config.Vic2Model);
 
-        var logger = loggerFactory.CreateLogger<C64>();
+        var logger = loggerFactory.CreateLogger(nameof(C64));
         var c64 = new C64(logger, loggerFactory)
         {
             Model = c64Model,

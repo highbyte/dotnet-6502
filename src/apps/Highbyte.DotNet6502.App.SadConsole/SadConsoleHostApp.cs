@@ -107,6 +107,39 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         _logger = loggerFactory.CreateLogger(typeof(SadConsoleHostApp).Name);
     }
 
+    private void ConfigureFontsFromEmbeddedResources(FontConfig config, GameHost host)
+    {
+        // Use the default SadConsole built-in font if no UI font specified
+        var uiFont = _emulatorConfig.UIFont;
+        if (string.IsNullOrEmpty(uiFont))
+        {
+            config.UseBuiltinFont();
+        }
+        else
+        {
+            // Load custom UI font from embedded resources
+            var font = EmbeddedResourceHelper.LoadFontFromEmbeddedResource(uiFont);
+            var fontKey = Path.GetFileNameWithoutExtension(uiFont);
+            host.Fonts[fontKey] = font;
+            host.DefaultFont = font;
+        }
+
+        // Load emulator fonts from embedded resources
+        var emulatorFonts = GetHostSystemConfigs()
+            .OfType<SadConsoleHostSystemConfigBase>()
+            .Where(x => !string.IsNullOrEmpty(x.Font))
+            .Select(x => x.Font!)
+            .Distinct()
+            .ToArray();
+
+        foreach (var fontPath in emulatorFonts)
+        {
+            var font = EmbeddedResourceHelper.LoadFontFromEmbeddedResource(fontPath);
+            var fontKey = Path.GetFileNameWithoutExtension(fontPath);
+            host.Fonts[fontKey] = font;
+        }
+    }
+
     public void Run()
     {
         _inputHandlerContext = CreateInputHandlerContext();
@@ -119,21 +152,18 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         // Main SadConsole screen
         // ----------
 
-        var uiFont = _emulatorConfig.UIFont ?? string.Empty;
-        var emulatorFonts = GetHostSystemConfigs().OfType<SadConsoleHostSystemConfigBase>().Where(x => !string.IsNullOrEmpty(x.Font)).Select(x => x.Font!).ToArray();
-
         var builder = new Builder()
             .SetScreenSize(StartupScreenWidth, StartupScreenHeight)
-            .ConfigureFonts(customDefaultFont: uiFont, extraFonts: emulatorFonts)
+            .ConfigureFonts(ConfigureFontsFromEmbeddedResources)
             .SetStartingScreen(CreateMainSadConsoleScreen)
             .IsStartingScreenFocused(false) // Let the object focused in the create method remain.
             .AddFrameUpdateEvent(UpdateSadConsole);
 
-        Settings.WindowTitle = "Highbyte.DotNet6502 emulator + SadConsole (with NAudio)";
-        Settings.ResizeMode = Settings.WindowResizeOptions.None;
-
         // Start SadConsole window
         Game.Create(builder);
+
+        Settings.WindowTitle = "Highbyte.DotNet6502 emulator + SadConsole (with NAudio)";
+        Settings.ResizeMode = Settings.WindowResizeOptions.None;
 
         try
         {
@@ -332,8 +362,8 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
         // Trigger SelectSystem call again to update system-specific UI stuff.
         SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
 
-        // Logo
-        _logoDrawImage = new DrawImage("Resources/Images/logo.png");
+        // Logo - load from embedded resources
+        _logoDrawImage = EmbeddedResourceHelper.CreateDrawImageFromEmbeddedResource("Resources/Images/logo.png");
         _logoDrawImage.PositionMode = DrawImage.PositionModes.Pixels;
         //int logoWidthAndHeight = 256; // Pixels
         //var logoX = (MenuConsole.CONSOLE_WIDTH * _menuConsole.Font.GlyphWidth) + ((StartupScreenWidth - MenuConsole.CONSOLE_WIDTH) * _menuConsole.Font.GlyphWidth - logoWidthAndHeight) / 2;
@@ -419,8 +449,17 @@ public class SadConsoleHostApp : HostApp<SadConsoleInputHandlerContext, NAudioAu
             IFont font;
             if (!string.IsNullOrEmpty(CommonHostSystemConfig.Font))
             {
-                var fontFileNameWithoutExtension = Path.GetFileNameWithoutExtension(CommonHostSystemConfig.Font);
-                font = Game.Instance.Fonts[fontFileNameWithoutExtension];
+                var fontKey = Path.GetFileNameWithoutExtension(CommonHostSystemConfig.Font);
+                if (Game.Instance.Fonts.ContainsKey(fontKey))
+                {
+                    font = Game.Instance.Fonts[fontKey];
+                }
+                else
+                {
+                    // If font not found in registry, load it from embedded resources
+                    font = EmbeddedResourceHelper.LoadFontFromEmbeddedResource(CommonHostSystemConfig.Font);
+                    Game.Instance.Fonts[fontKey] = font;
+                }
             }
             else
             {

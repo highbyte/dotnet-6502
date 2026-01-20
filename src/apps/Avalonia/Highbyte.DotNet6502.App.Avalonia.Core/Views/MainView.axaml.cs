@@ -19,6 +19,10 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core.Views;
 
 public partial class MainView : UserControl
 {
+    // Lazy-initialized logger
+    private ILogger? _logger;
+    private ILogger Logger => _logger ??= AppLogger.CreateLogger(nameof(MainView));
+
     private bool _isInitialized;
 
     private MainViewModel? _subscribedViewModel;
@@ -310,11 +314,11 @@ public partial class MainView : UserControl
 
     private void CloseMonitorOverlay()
     {
-        Console.WriteLine("MainView: CloseMonitorOverlay called.");
+        Logger.LogDebug("CloseMonitorOverlay called");
         if (_monitorOverlay == null)
             return;
 
-        Console.WriteLine("MainView: Removing monitor overlay from visual tree.");
+        Logger.LogDebug("Removing monitor overlay from visual tree");
         if (Content is Grid mainGrid && mainGrid.Children.Contains(_monitorOverlay))
             mainGrid.Children.Remove(_monitorOverlay);
 
@@ -322,15 +326,15 @@ public partial class MainView : UserControl
 
         if (DataContext is MainViewModel viewModel)
         {
-            Console.WriteLine("MainView: Clearing MonitorViewModel.");
+            Logger.LogDebug("Clearing MonitorViewModel");
             viewModel.ClearMonitorViewModel();
         }
 
         // Restore focus to EmulatorView
-        Console.WriteLine("MainView: Setting focus to EmulatorView.");
+        Logger.LogDebug("Setting focus to EmulatorView");
         var emulatorView = this.FindControl<EmulatorView>("EmulatorView");
         emulatorView?.Focus();
-        Console.WriteLine("MainView: Focus set to EmulatorView.");
+        Logger.LogDebug("Focus set to EmulatorView");
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -441,7 +445,7 @@ public partial class MainView : UserControl
         var serviceProvider = (Application.Current as App)?.GetServiceProvider();
         if (serviceProvider == null)
         {
-            System.Console.WriteLine("Error: Could not get service provider");
+            Logger.LogError("Could not get service provider");
             return;
         }
 
@@ -504,7 +508,7 @@ public partial class MainView : UserControl
         var serviceProvider = (Application.Current as App)?.GetServiceProvider();
         if (serviceProvider == null)
         {
-            System.Console.WriteLine("Error: Could not get service provider");
+            Logger.LogError("Could not get service provider");
             return;
         }
 

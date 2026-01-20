@@ -8,13 +8,13 @@ namespace Highbyte.DotNet6502.App.Avalonia.Core;
 
 public class WavePlayerFactory
 {
-    private readonly ILogger<WavePlayerFactory> _logger;
+    private readonly ILogger _logger;
     private readonly EmulatorConfig _emulatorConfig;
     private readonly ILoggerFactory _loggerFactory;
     public WavePlayerFactory(ILoggerFactory loggerFactory, EmulatorConfig emulatorConfig)
     {
         _loggerFactory = loggerFactory;
-        _logger = loggerFactory.CreateLogger<WavePlayerFactory>();
+        _logger = loggerFactory.CreateLogger(nameof(WavePlayerFactory));
         _emulatorConfig = emulatorConfig;
     }
     public IWavePlayer CreateWavePlayer()

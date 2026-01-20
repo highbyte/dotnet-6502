@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Reflection;
 using Silk.NET.OpenGL;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet.OpenGLHelpers;
@@ -9,29 +10,29 @@ public class Shader : IDisposable
     public uint Handle => _programHandle;
     private GL _gl;
 
-    public Shader(GL gl, string? vertexShaderPath = null, string? geometryShaderPath = null, string? fragmentShaderPath = null)
+    public Shader(GL gl, string? vertexShaderSource = null, string? geometryShaderSource = null, string? fragmentShaderSource = null)
     {
         _gl = gl;
         _programHandle = _gl.CreateProgram();
 
         uint? vertexShaderHandle = null;
-        if (!string.IsNullOrEmpty(vertexShaderPath))
+        if (!string.IsNullOrEmpty(vertexShaderSource))
         {
-            vertexShaderHandle = LoadShader(ShaderType.VertexShader, vertexShaderPath);
+            vertexShaderHandle = CompileShader(ShaderType.VertexShader, vertexShaderSource);
             _gl.AttachShader(_programHandle, vertexShaderHandle.Value);
         }
 
         uint? geometryShaderHandle = null;
-        if (!string.IsNullOrEmpty(geometryShaderPath))
+        if (!string.IsNullOrEmpty(geometryShaderSource))
         {
-            geometryShaderHandle = LoadShader(ShaderType.GeometryShader, geometryShaderPath);
+            geometryShaderHandle = CompileShader(ShaderType.GeometryShader, geometryShaderSource);
             _gl.AttachShader(_programHandle, geometryShaderHandle.Value);
         }
 
         uint? fragmentShaderHandle = null;
-        if (!string.IsNullOrEmpty(fragmentShaderPath))
+        if (!string.IsNullOrEmpty(fragmentShaderSource))
         {
-            fragmentShaderHandle = LoadShader(ShaderType.FragmentShader, fragmentShaderPath);
+            fragmentShaderHandle = CompileShader(ShaderType.FragmentShader, fragmentShaderSource);
             _gl.AttachShader(_programHandle, fragmentShaderHandle.Value);
         }
 
@@ -160,16 +161,30 @@ public class Shader : IDisposable
         _gl.DeleteProgram(_programHandle);
     }
 
-    private uint LoadShader(ShaderType type, string path)
+    private uint CompileShader(ShaderType type, string source)
     {
-        var src = File.ReadAllText(path);
         var handle = _gl.CreateShader(type);
-        _gl.ShaderSource(handle, src);
+        _gl.ShaderSource(handle, source);
         _gl.CompileShader(handle);
         var infoLog = _gl.GetShaderInfoLog(handle);
         if (!string.IsNullOrWhiteSpace(infoLog))
             throw new DotNet6502Exception($"Error compiling shader of type {type}, failed with error {infoLog}");
 
         return handle;
+    }
+
+    /// <summary>
+    /// Loads shader source from an embedded resource.
+    /// </summary>
+    /// <param name="resourceName">The embedded resource name (e.g., "Namespace.Folder.FileName.ext")</param>
+    /// <param name="assembly">The assembly containing the embedded resource. If null, uses the calling assembly.</param>
+    /// <returns>The shader source code as a string.</returns>
+    public static string LoadEmbeddedShaderSource(string resourceName, Assembly? assembly = null)
+    {
+        assembly ??= Assembly.GetCallingAssembly();
+        using var stream = assembly.GetManifestResourceStream(resourceName)
+            ?? throw new DotNet6502Exception($"Embedded resource '{resourceName}' not found in assembly '{assembly.FullName}'.");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
     }
 }

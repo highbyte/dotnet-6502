@@ -5,7 +5,7 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Utils;
 public class C64TextPaste
 {
     private readonly Queue<char> _charQueue = new();
-    private readonly ILogger<C64TextPaste> _logger;
+    private readonly ILogger _logger;
     private readonly C64 _c64;
 
     internal bool HasCharactersPending => _charQueue.Count > 0;
@@ -13,7 +13,7 @@ public class C64TextPaste
 
     public C64TextPaste(C64 c64, ILoggerFactory loggerFactory)
     {
-        _logger = loggerFactory.CreateLogger<C64TextPaste>();
+        _logger = loggerFactory.CreateLogger(nameof(C64TextPaste));
         _c64 = c64;
     }
 

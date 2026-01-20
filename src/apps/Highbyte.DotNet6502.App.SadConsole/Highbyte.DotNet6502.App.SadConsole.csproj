@@ -14,9 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\..\resources\images\logo-128.png" Link="Resources\Images\logo.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <EmbeddedResource Include="../../../resources/images/logo-128.png" Link="Resources\Images\logo.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -44,6 +42,7 @@
 
     <None Update="appsettings.Development.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </None>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -53,9 +52,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-	<None Update="Fonts\*.*">
-	  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	</None>
+	<EmbeddedResource Include="Fonts\*.*" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Resources\Images\" />

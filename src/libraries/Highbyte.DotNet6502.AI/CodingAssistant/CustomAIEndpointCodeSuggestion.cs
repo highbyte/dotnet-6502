@@ -16,7 +16,7 @@ public partial class CustomAIEndpointCodeSuggestion : ICodeSuggestion
     private readonly CustomAIEndpointConfig _apiWrapperConfig;
     private readonly string _programmingLanguage;
     private readonly HttpClient _httpClient;
-    private readonly ILogger<CustomAIEndpointCodeSuggestion> _logger;
+    private readonly ILogger _logger;
 
     public CustomAIEndpointCodeSuggestion(IConfiguration configuration, ILoggerFactory loggerFactory, string programmingLanguage)
         : this(new CustomAIEndpointConfig(configuration), loggerFactory, programmingLanguage)
@@ -37,7 +37,7 @@ public partial class CustomAIEndpointCodeSuggestion : ICodeSuggestion
             BaseAddress = endpoint
         };
 
-        _logger = loggerFactory.CreateLogger<CustomAIEndpointCodeSuggestion>();
+        _logger = loggerFactory.CreateLogger(nameof(CustomAIEndpointCodeSuggestion));
     }
 
     /// <summary>

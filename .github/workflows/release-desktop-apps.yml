@@ -3,8 +3,8 @@ name: Release Desktop Apps
 
 on:
   # Trigger on when a new release is published  
-  # release:
-  #   types: [published]
+  release:
+    types: [published]
 
   # Allow manual triggering of the workflow for testing (artifacts will be uploaded to the workflow run, not a release))
   workflow_dispatch:
@@ -56,6 +56,13 @@ jobs:
           cd $GITHUB_WORKSPACE/src/apps/Highbyte.DotNet6502.App.SadConsole/publish/${{ matrix.runtime }}
           zip -r $GITHUB_WORKSPACE/DotNet6502-SadConsole-${{ matrix.runtime }}.zip .
 
+      - name: Generate SHA256 checksums
+        run: |
+          cd $GITHUB_WORKSPACE
+          sha256sum DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip >> checksums-${{ matrix.runtime }}.sha256
+          sha256sum DotNet6502-Avalonia-${{ matrix.runtime }}.zip >> checksums-${{ matrix.runtime }}.sha256
+          sha256sum DotNet6502-SadConsole-${{ matrix.runtime }}.zip >> checksums-${{ matrix.runtime }}.sha256
+
       - name: Upload Release Assets
         if: github.event_name == 'release'
         env:
@@ -64,14 +71,16 @@ jobs:
           gh release upload ${{ github.event.release.tag_name }} \
             DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip \
             DotNet6502-Avalonia-${{ matrix.runtime }}.zip \
-            DotNet6502-SadConsole-${{ matrix.runtime }}.zip
+            DotNet6502-SadConsole-${{ matrix.runtime }}.zip \
+            checksums-${{ matrix.runtime }}.sha256
 
       - name: Upload Workflow Artifacts (non-release)
         if: github.event_name != 'release'
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-apps-${{ matrix.runtime }}
+          name: DotNet6502-desktop-apps-${{ matrix.runtime }}
           path: |
             DotNet6502-SilkNetNative-${{ matrix.runtime }}.zip
             DotNet6502-Avalonia-${{ matrix.runtime }}.zip
             DotNet6502-SadConsole-${{ matrix.runtime }}.zip
+            checksums-${{ matrix.runtime }}.sha256

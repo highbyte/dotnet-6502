@@ -5,7 +5,7 @@
   A <a href="https://en.wikipedia.org/wiki/MOS_Technology_6502">6502 CPU</a> emulator for .NET
 </h2>
 
-[![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](doc/DEVELOP.md)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](doc/DEVELOP.md)
 [![language](https://img.shields.io/badge/language-C%23-239120)](doc/DEVELOP.md)
 [![OS](https://img.shields.io/badge/OS-windows%2C%20macOS%2C%20linux-0078D4)](doc/DEVELOP.md)
 [![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?logo=webassembly&logoColor=fff)](#)
@@ -30,17 +30,26 @@
 > [!IMPORTANT]
 > This is mainly a programming exercise, that may or may not turn into something more. See [Limitations](#limitations) below.
 
-| Blazor WebAssembly app              | Avalonia WebAssembly app            |
-| ----------------------------------- | ----------------------------------- |
-| [<img src="doc/Screenshots/BlazorWASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/>](https://highbyte.se/dotnet-6502/app) | [<img src="doc/Screenshots/AvaloniaWASM_C64_Montezuma.png" title="Avalonia WebAssembly app, C64 Montezuma´s Revenge"/>](https://highbyte.se/dotnet-6502/app2) | 
+## Web apps
 
-| SilkNet desktop app                 | SadConsole desktop app              | Avalonia desktop app                |
-| ----------------------------------- | ----------------------------------- | ----------------------------------- |
-|  [<img src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" title="SilkNet native app, C64 Bubble Bobble" />](#highbytedotnet6502appsilknetnative) | [<img src="doc/Screenshots/SadConsole_C64_Basic.png" title="SadConsole native app, C64 Basic" />](#highbytedotnet6502appsadconsole) | [<img src="doc/Screenshots/AvaloniaDesktop_C64_Basic.png" title="Avalonia Desktop app, C64 Basic" />](#highbytedotnet6502appavaloniadesktop) |
+| [Avalonia WebAssembly app](doc/APPS_AVALONIA.md)| [Blazor WebAssembly app](doc/APPS_BLAZOR_WASM.md) |
+| ----------------------------------------------- | ------------------------------------------------- |
+| <img src="doc/Screenshots/AvaloniaBrowser_C64_Montezuma.png" title="Avalonia WebAssembly app, C64 Montezuma´s Revenge"/> | <a href="https://highbyte.se/dotnet-6502/app" target="_blank"><img src="doc/Screenshots/BlazorWASM_C64_LastNinja.png" title="Blazor WebAssembly app, C64 Last Ninja"/></a> | 
 
-| C64 Basic AI code completion | Run 6502 machine code in your own .NET apps | Machine code monitor              | 
-| ----------------------------------- | ----------------------------------- | ----------------------------------- |
-| ![C64 Basic AI code completion](doc/Screenshots/BlazorWASM_C64_Basic_AI.png 'C64 Basic AI code completion') | ![Code integration](doc/Screenshots/Code_integration.png 'Code integration') | ![SilkNet native app, C64 monitor](doc/Screenshots/SilkNetNative_Monitor.png 'SilkNet native app, C64 monitor') |
+
+## Desktop apps
+
+|[Avalonia desktop app](doc/APPS_AVALONIA.md) | [SadConsole desktop app](doc/APPS_SADCONSOLE.md) | [SilkNet desktop app](doc/APPS_SILKNET_NATIVE.md) |
+| ------------------------------------------- | ------------------------------------------------ | ------------------------------------------------- |
+| <img src="doc/Screenshots/AvaloniaDesktop_C64_Basic.png" title="Avalonia Desktop app, C64 Basic" /> | <img src="doc/Screenshots/SadConsole_C64_Basic.png" title="SadConsole native app, C64 Basic" /> | <img src="doc/Screenshots/SilkNetNative_C64_BubbleBobble.png" title="SilkNet native app, C64 Bubble Bobble" /> |
+
+See [Desktop Apps](doc/DESKTOP_APPS.md) for download links for pre-built executables and instructions for Windows, Linux, and macOS.
+
+## Other features
+
+| [Run 6502 machine code in your own .NET apps](doc/CPU_LIBRARY.md)  | [Machine code monitor](doc/MONITOR.md) | [C64 Basic AI code completion](doc/SYSTEMS_C64_AI_CODE_COMPLETION.md) | 
+| -------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------- |
+| ![Code integration](doc/Screenshots/Code_integration.png 'Code integration') | ![SilkNet native app, C64 monitor](doc/Screenshots/SilkNetNative_Monitor.png 'SilkNet native app, C64 monitor') | ![C64 Basic AI code completion](doc/Screenshots/BlazorWASM_C64_Basic_AI.png 'C64 Basic AI code completion') |
 
 ## Common libraries
 - [`Highbyte.DotNet6502`](doc/CPU_LIBRARY.md) 
@@ -64,77 +73,24 @@ Implements abstractions in `Highbyte.DotNet6502.Systems`.
 ## System-specific libraries for I/O
 Implements rendering, input handling, and audio using different technologies per emulated system/computer. Implements abstractions in `Highbyte.DotNet6502.Systems`. These libraries are used from relevant UI host apps (see below).
 - [`Highbyte.DotNet6502.Impl.AspNet`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implaspnet)
-  - System-specific input and audio code for AspNet Blazor `WASM` app.
+  - General system-specific input and audio code for AspNet Blazor `WASM` app.
 - [`Highbyte.DotNet6502.Impl.Avalonia`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implavalonia)
-  - System-specific render and input code for `Avalonia` app (used for both Browser and Desktop app)
+  - General and system-specific render and input code for `Avalonia` (browser and desktop) apps .
+- [`Highbyte.DotNet6502.Impl.Browser`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implbrowser)
+  - General JavaScript input code for `Avalonia` browser app.
 - [`Highbyte.DotNet6502.Impl.NAudio`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implnaudio) 
-  - System-specific audio code for NAudio for `SilkNetNative` and `SadConsole` apps.
+  - General and system-specific audio code for `Avalonia` (browser and desktop), `SilkNetNative` and `SadConsole` apps.
 - [`Highbyte.DotNet6502.Impl.SadConsole`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implsadconsole) 
-  - System-specific rendering and input code for `SadConsole` app.
+  - General and system-specific rendering and input code for `SadConsole` app.
 - [`Highbyte.DotNet6502.Impl.SilkNet`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implsilknet) 
-  - System-specific rendering (OpenGL shaders) and input code for `SilkNetNative` app.
+  - General and system-specific rendering (OpenGL shaders) and input code for `SilkNetNative` app.
+- [`Highbyte.DotNet6502.Impl.SilkNet.SDL`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implsilknetsdl) 
+  - General and system-specific input code for `Avalonia` desktop app.
 - [`Highbyte.DotNet6502.Impl.Skia`](doc/RENDER_INPUT_AUDIO.md#library-highbytedotnet6502implskia)
-  - System-specific rendering with SkiaSharp for `SilkNetNative`, and Blazor `WASM` apps.
+  - General and system-specific rendering with SkiaSharp for `SilkNetNative`, and Blazor `WASM` apps.
 
-## UI host apps that runs emulators
-UI host apps for emulating the systems/computers above, using different I/O techniques (rendering, input, audio).
-
-### [`Highbyte.DotNet6502.App.WASM`](doc/APPS_BLAZOR_WASM.md)
-
-A [`ASP.NET Blazor`](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor) WebAssembly UI. 
-  - Rendering: `Highbyte.DotNet6502.Impl.Skia`
-  - Input: `Highbyte.DotNet6502.Impl.AspNet` 
-  - Audio: `Highbyte.DotNet6502.Impl.AspNet`
-
-Live version: [https://highbyte.se/dotnet-6502/app](https://highbyte.se/dotnet-6502/app)
-
-[<img align="top" src="doc/Screenshots/BlazorWASM_C64_Basic.png" width="25%" height="25%" title="Blazor WebAssembly app, C64 Basic" />](https://highbyte.se/dotnet-6502/app) [<img align="top" src="doc/Screenshots/BlazorWASM_C64_Monitor.png" width="38%" height="38%" title="Blazor WebAssembly app, C64 monitor" />](https://highbyte.se/dotnet-6502/app)
-
-### [`Highbyte.DotNet6502.App.Avalonia.Browser`](doc/APPS_AVALONIA.md)
-A [`Avalonia Browser`](https://avaloniaui.net) WebAssembly UI. 
-  - Rendering: `Highbyte.DotNet6502.Impl.Avalonia`
-  - Input: `Highbyte.DotNet6502.Impl.Avalonia` 
-  - Audio: `Highbyte.DotNet6502.Impl.NAudio`
-
-Live version: [https://highbyte.se/dotnet-6502/app2](https://highbyte.se/dotnet-6502/app2)
-
-[<img align="top" src="doc/Screenshots/AvaloniaWASM_C64_Basic.png" width="25%" height="25%" title="Avalonia WebAssembly app, C64 Basic" />](https://highbyte.se/dotnet-6502/app2) [<img align="top" src="doc/Screenshots/AvaloniaWASM_C64_Monitor.png" width="38%" height="38%" title="Avalonia WebAssembly app, C64 monitor" />](https://highbyte.se/dotnet-6502/app2)
-
-
-### [`Highbyte.DotNet6502.App.Avalonia.Desktop`](doc/APPS_AVALONIA.md)
-A [`Avalonia Desktop`](https://avaloniaui.net) UI. 
-  - Rendering: `Highbyte.DotNet6502.Impl.Avalonia`
-  - Input: `Highbyte.DotNet6502.Impl.Avalonia` 
-  - Audio: `Highbyte.DotNet6502.Impl.NAudio` 
-
-<img align="top" src="doc/Screenshots/AvaloniaDesktop_C64_raster_scroll.png" width="25%" height="25%" title="Avalonia Desktop app, C64 scroll" /> <img align="top" src="doc/Screenshots/AvaloniaDesktop_C64_Monitor.png" width="25%" height="25%" title="Avalonia Desktop app, C64 monitor" /> 
-
-### [`Highbyte.DotNet6502.App.SilkNetNative`](doc/APPS_SILKNET_NATIVE.md)
-A [`Silk.NET`](https://github.com/dotnet/Silk.NET) native UI.
-  - Rendering: `Highbyte.DotNet6502.Impl.Skia` or `Highbyte.DotNet6502.Impl.SilkNet`
-  - Input: `Highbyte.DotNet6502.Impl.SilkNet` 
-  - Audio: `Highbyte.DotNet6502.Impl.NAudio` 
-
-<img align="top" src="doc/Screenshots/SilkNetNative_C64_raster_scroll.png" width="25%" height="25%" title="SilkNet native app, C64 scroll" /> <img align="top" src="doc/Screenshots/SilkNetNative_Monitor.png" width="25%" height="25%" title="SilkNet native app, C64 monitor" /> 
-
-### [`Highbyte.DotNet6502.App.SadConsole`](doc/APPS_SADCONSOLE.md)
-A [`SadConsole`](https://github.com/Thraka/SadConsole) (a ascii/console/game engine) native UI.
-  - Rendering: `Highbyte.DotNet6502.Impl.SadConsole`
-  - Input: `Highbyte.DotNet6502.Impl.SadConsole` 
-  - Audio: `Highbyte.DotNet6502.Impl.NAudio` 
-
-<img align="top" src="doc/Screenshots/SadConsole_C64_Basic.png" width="25%" height="25%" title="SadConsole native app, C64 Basic" /> <img align="top" src="doc/Screenshots/SadConsole_C64_Monitor.png" width="25%" height="25%" title="SadConsole native app, C64 monitor" />  
-
-### [`Highbyte.DotNet6502.App.Avalonia.Desktop`](doc/APPS_AVALONIA.md)
-TODO
-
+## Other apps
 ### [`Highbyte.DotNet6502.App.ConsoleMonitor`](doc/APPS_CONSOLE_MONITOR.md)
-A console application with a only UI being a machine code monitor.
-  - Rendering: standard .NET console
-  - Input: standard .NET console
-  - Audio: none
-
-<img align="top" src="doc/Screenshots/ConsoleMonitor.png" width="25%" height="25%" title="Console monitor app" /> 
 
 ## C64 Basic AI code completion
 See [here](doc/SYSTEMS_C64_AI_CODE_COMPLETION.md)

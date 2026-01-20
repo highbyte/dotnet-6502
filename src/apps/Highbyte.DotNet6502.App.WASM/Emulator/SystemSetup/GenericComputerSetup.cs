@@ -21,13 +21,13 @@ public class GenericComputerSetup : ISystemConfigurer<AspNetInputHandlerContext,
 
     private readonly BrowserContext _browserContext;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger<GenericComputerSetup> _logger;
+    private readonly ILogger _logger;
 
     public GenericComputerSetup(BrowserContext browserContext, ILoggerFactory loggerFactory)
     {
         _browserContext = browserContext;
         _loggerFactory = loggerFactory;
-        _logger = loggerFactory.CreateLogger<GenericComputerSetup>();
+        _logger = loggerFactory.CreateLogger(nameof(GenericComputerSetup));
     }
 
     public async Task<IHostSystemConfig> GetNewHostSystemConfig()

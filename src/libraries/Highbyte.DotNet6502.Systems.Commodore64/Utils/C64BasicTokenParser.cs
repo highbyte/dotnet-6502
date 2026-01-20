@@ -11,12 +11,12 @@ namespace Highbyte.DotNet6502.Systems.Commodore64.Utils;
 /// </summary>
 public class C64BasicTokenParser
 {
-    private readonly ILogger<C64BasicTokenParser> _logger;
+    private readonly ILogger _logger;
     private readonly C64 _c64;
 
     public C64BasicTokenParser(C64 c64, ILoggerFactory loggerFactory)
     {
-        _logger = loggerFactory.CreateLogger<C64BasicTokenParser>();
+        _logger = loggerFactory.CreateLogger(nameof(C64BasicTokenParser));
         _c64 = c64;
     }
 

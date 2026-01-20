@@ -13,7 +13,7 @@ public class C64SilkNetInputHandler : IInputHandler
     public ISystem System => _c64;
 
     private readonly SilkNetInputHandlerContext _inputHandlerContext;
-    private readonly ILogger<C64SilkNetInputHandler> _logger;
+    private readonly ILogger _logger;
     private readonly C64SilkNetInputConfig _c64SilkNetConfig;
 
     private C64SilkNetKeyboard _c64SilkNetKeyboard;
@@ -29,7 +29,7 @@ public class C64SilkNetInputHandler : IInputHandler
     {
         _c64 = c64;
         _inputHandlerContext = inputHandlerContext;
-        _logger = loggerFactory.CreateLogger<C64SilkNetInputHandler>();
+        _logger = loggerFactory.CreateLogger(nameof(C64SilkNetInputHandler));
         _c64SilkNetConfig = c64SilkNetConfig;
     }
 
