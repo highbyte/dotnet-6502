@@ -1,14 +1,21 @@
 <h1 align="center">Highbyte.DotNet6502.App.WASM</h1>
 
 # Overview
-<img align="top" src="Screenshots/BlazorWASM_C64_Basic.png" width="25%" height="25%" title="Blazor WebAssembly app, C64 Basic" /><img align="top" src="Screenshots/BlazorWASM_C64_LastNinja.png" width="25%" height="25%" title="Blazor WebAssembly app, C64 Last Ninja" /> <img align="top" src="Screenshots/BlazorWASM_C64_Monitor.png" width="38%" height="38%" title="Blazor WebAssembly app, C64 monitor" />
+Web app written with [Blazor Web Assembly](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor).
 
-A deployed version can be found here [https://highbyte.se/dotnet-6502/app](https://highbyte.se/dotnet-6502/app)
+<img align="top" src="Screenshots/BlazorWASM_C64_Basic.png" width="25%" height="25%" title="Blazor WebAssembly app, C64 Basic" /><img align="top" src="Screenshots/BlazorWASM_C64_LastNinja.png" width="25%" height="25%" title="Blazor WebAssembly app, C64 Last Ninja" /> <img align="top" src="Screenshots/BlazorWASM_C64_Monitor.png" width="36%" height="25%" title="Blazor WebAssembly app, C64 monitor" />
+
+Technologies
+  - UI: `Blazor` UI controls.
+  - Rendering: `Highbyte.DotNet6502.Impl.Skia`. Using [`SkiaSharp.Views.Blazor`](https://www.nuget.org/packages/SkiaSharp.Views.Blazor) library to provide a Canvas for drawing on with [`SkiaSharp`](https://www.nuget.org/packages/SkiaSharp) library.
+  - Input: `Highbyte.DotNet6502.Impl.AspNet`.
+  - Audio: `Highbyte.DotNet6502.Impl.AspNet`. Custom `WebAudio JS interop` for synthesizer and playback.
+
+Live version: <a href="https://highbyte.se/dotnet-6502/app" target="_blank">https://highbyte.se/dotnet-6502/app</a>
 
 # Features
-A web app written in Blazor WASM (Web Assembly), using [`SkiaSharp.Views.Blazor`](https://www.nuget.org/packages/SkiaSharp.Views.Blazor) library to provide a Canvas for drawing on with main [`SkiaSharp`](https://www.nuget.org/packages/SkiaSharp) library.
 
-# System: C64 
+## System: C64 
 - Via C64 config UI you have to upload binaries for the ROMs that a C64 uses (Kernal, Basic, Chargen). Or use a convenient auto-download functionality (with a license notice).
 
 - Renderer provider `Rasterizer` -> target `Skia 2-layer canvas`
@@ -34,31 +41,28 @@ A web app written in Blazor WASM (Web Assembly), using [`SkiaSharp.Views.Blazor`
 
 - Input using `AspNet`
 
-- Audio via `AspNet`
-  - Using .NET interop to WebAudio API
+- Audio via `WebAudio` synthesizer using .NET -> JavaScript interop.
 
-# System: Generic computer 
+## System: Generic computer 
 The example 6502 machine code that is loaded and run by default for the _Generic_ computer is this a assembled version of [this 6502 assembly code](../samples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.asm)
 
+## UI
 
-# UI
-
-## Menu
+### Menu
 Start and stop of selected system.
 
 Configuration options of selected system.
 
-## Monitor
+### Monitor
 A Blazor WASM implementation of the [machine code monitor](MONITOR.md) is available by pressing F12.
 
-## Stats
+### Stats
 A toggleable stats window by pressing F11.
 
-# How to run locally
+# How to run locally for development
+For development system requirements, see details [here](DEVELOP.md#Requirements)
 
-For system requirements, see details [here](DEVELOP.md#Requirements)
-
-## Visual Studio 2022 (Windows)
+## Visual Studio 2026/2022 (Windows)
 
 Open solution `dotnet-6502.sln`.
 Set project `Highbyte.DotNet6502.App.WASM` as startup, and start with F5.
@@ -75,14 +79,13 @@ dotnet run
 Open browser at http://localhost:5000.
 
 ### Run optimized Publish build
-Requires 
-- DotNet workload "wasm-tools" , install with `dotnet workload install wasm-tools`
-- DotNet global tool "serve", install with `dotnet tool install --global dotnet-serve`
+
+To serve the published build the below example uses the DotNet global tool "serve", install with `dotnet tool install --global dotnet-serve`.
 
 ```powershell 
 cd ./src/apps/Highbyte.DotNet6502.App.WASM
-if(Test-Path $publishDir) { del ./bin/Publish/ -r -force }
+if(Test-Path ./bin/Publish/) { del ./bin/Publish/ -r -force }
 dotnet publish -c Release -o ./bin/Publish/
-dotnet serve -o:$path --directory ./bin/Publish/wwwroot/
+dotnet serve -o:/ --directory ./bin/Publish/wwwroot/
 ```
 A browser is automatically opened.

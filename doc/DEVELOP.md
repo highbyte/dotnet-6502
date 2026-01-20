@@ -1,15 +1,20 @@
 <h1 align="center">Requirements and local development setup</h1>
 
 # Requirements
+
 - Windows, Linux, or Mac.
+
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) installed.
+
+- _Browser project specifics_: To enable build of the browser projects in the solution (Blazor WASM and Avalonia Browser), install the WebAssembly build tools:
+  - In the command prompt, change current directory to where the repo is checked out, and run `dotnet workload restore`.
+  - Or if you prefer in Visual Studio Installer, add the component ".NET 10.0 WebAssembly Build Tools" in Visual Studio Installer.
+  -For more info about the WebAssembly build tools, see [here](https://learn.microsoft.com/en-us/aspnet/core/blazor/tooling?view=aspnetcore-10.0&pivots=windows#net-webassembly-build-tools).
+
 - Develop in 
   - VSCode (Windows, Linux, Mac)
   - Visual Studio 2026/2022 (Windows)
   - Or other preferred editor.
-- Specifics for the Browser projects (Blazor WASM and Avalonia Browser):
-  - Visual Studio 2026/2022: For building the Browser projects, add the component ".NET WebAssembly Build Tools" in Visual Studio Installer.
-  - VSCode / command line: For building the Browser projects, install the dotnet workload "wasm-tool", see instruction [here](https://learn.microsoft.com/en-us/aspnet/core/blazor/tooling?view=aspnetcore-10.0&pivots=windows#net-webassembly-build-tools).
 
 # Class diagram overview
 See [here](SYSYEM_DIAGRAM.md)
