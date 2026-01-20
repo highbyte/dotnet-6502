@@ -8,9 +8,6 @@ Native cross-platform app written in .NET using a [Silk.NET](https://github.com/
 
 Uses Silk.NET [ImGui extensions](https://www.nuget.org/packages/Silk.NET.OpenGL.Extensions.ImGui/) to render UI for interactive menu, monitor, and stats window.
 
-### Prerequisites, compatibility, and troubleshooting
-See [here](APPS_SILKNET_NATIVE_TROUBLESHOOT.md)
-
 # System: C64 
 - A directory containing the C64 ROM files (Kernal, Basic, Chargen) is supplied by the user. Defaults are set in the appsettings.json file, and possible to change in the UI.
 
@@ -70,3 +67,23 @@ A toggleable machine code monitor window by pressing F12.
 
 ## Stats
 A toggleable stats window by pressing F11.
+
+# How to run locally
+
+## Prerequisites, compatibility, and troubleshooting
+See [here](APPS_SILKNET_NATIVE_TROUBLESHOOT.md)
+
+## Prepackaged desktop executables
+
+See [here](DESKTOP_APPS.md).
+
+## Visual Studio 2025 or 2022 (Windows)
+
+For development system requirements, see details [here](DEVELOP.md#Requirements)
+
+Open solution `dotnet-6502.sln`.
+Set project `Highbyte.DotNet6502.App.SilkNetNative`as startup, and start with F5.
+
+## VSCode
+
+TODO

@@ -8,9 +8,6 @@ A deployed version can be found here [https://highbyte.se/dotnet-6502/app2](http
 # Features
 A cross platform app (desktop and web) written with Avalonia UI, using built-in Avalonia controls for both UI and emulator screen.
 
-### Prerequisites, compatibility, and troubleshooting
-See [here](APPS_AVALONIA_TROUBLESHOOT.md)
-
 # System: C64 
 - Via C64 config UI you have to upload binaries for the ROMs that a C64 uses (Kernal, Basic, Chargen). Or use a convenient auto-download functionality (with a license notice).
 
@@ -25,7 +22,7 @@ See [here](APPS_AVALONIA_TROUBLESHOOT.md)
 
 - Input using `Avalonia`
 
-- Audio not yet supported.
+- Audio via `NAudio` synthesizer. Playback via `OpenAL` (desktop) and `WebAudio JS interop` (browser).
 
 # System: Generic computer 
 The example 6502 machine code that is loaded and run by default for the _Generic_ computer is this a assembled version of [this 6502 assembly code](../samples/Assembler/Generic/hostinteraction_scroll_text_and_cycle_colors.asm)
@@ -46,9 +43,16 @@ A toggleable stats window by pressing F11.
 
 # How to run locally
 
-For system requirements, see details [here](DEVELOP.md#Requirements)
+## Prerequisites, compatibility, and troubleshooting
+See [here](APPS_AVALONIA_TROUBLESHOOT.md)
 
-## Visual Studio 2022 or 2025 (Windows)
+## Prepackaged desktop executables
+
+See [here](DESKTOP_APPS.md).
+
+## Visual Studio 2025 or 2022 (Windows)
+
+For development system requirements, see details [here](DEVELOP.md#Requirements)
 
 Open solution `dotnet-6502.sln`.
 Set project `Highbyte.DotNet6502.App.Avalonia.Desktop` or `Highbyte.DotNet6502.App.Avalonia.Browser` as startup, and start with F5.
@@ -56,7 +60,11 @@ Set project `Highbyte.DotNet6502.App.Avalonia.Desktop` or `Highbyte.DotNet6502.A
 > [!IMPORTANT]  
 > Running a Debug build of the Avalonia `Browser` app is very slow. To get acceptable performance a published release build with AOT is required. The `Desktop` app has ok performance in Debug mode, so using the Desktop app when developing and testing locally is recommended.
 
-## Browser app from command line (Windows, Linux, Mac)
+## VSCode
+
+TODO
+
+## Run browser app from command line (Windows, Linux, Mac)
 ### Run Debug build (very slow)
 ```shell
 cd ./src/apps/Avalonia/Highbyte.DotNet6502.App.Browser
@@ -71,8 +79,10 @@ Requires
 
 ```powershell 
 cd ./src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Browser
-if(Test-Path $publishDir) { del ./bin/Publish/ -r -force }
+if(Test-Path ./bin/Publish/ ) { del ./bin/Publish/ -r -force }
 dotnet publish -c Release -o ./bin/Publish/
+
 dotnet serve -o:$path --directory ./bin/Publish/wwwroot/
 ```
+
 A browser is automatically opened.

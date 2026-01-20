@@ -1,14 +1,16 @@
-# Desktop Applications
+# Desktop applications
 
 Pre-built desktop applications are available for Windows, Linux, and macOS.
 
-## Available Applications
+## Available applications
 
-| Application | Description |
-|-------------|-------------|
-| **Avalonia** | Cross-platform app using Avalonia UI for rendering |
-| **SadConsole** | Cross-platform desktop console-style app using SadConsole library |
-| **SilkNetNative** | Cross-platform desktop app using Silk.NET + SkiaSharp + shaders for rendering |
+The emulator has front-ends written with different technologies, and have somewhat similar functionality (but not exact).
+
+| Frontend Application | Description |
+|----------------------|-------------|
+| **Avalonia** | Cross-platform app using Avalonia UI for rendering. See details [here](APPS_AVALONIA.md). |
+| **SadConsole** | Cross-platform desktop console-style app using SadConsole library. See details [here](APPS_SADCONSOLE.md). |
+| **SilkNetNative** | Cross-platform desktop app using Silk.NET + SkiaSharp + shaders for rendering. See details [here](APPS_SILKNET_NATIVE.md). |
 
 ## Download
 
