@@ -22,11 +22,20 @@ This extension provides debugging support for 6502 machine code programs using t
 
 ## Testing
 
-1. Open this folder in VSCode
-2. Press F5 to launch the Extension Development Host
-3. In the new window, open a folder with a .prg file
-4. Create a launch.json configuration for "6502"
-5. Set breakpoints and start debugging
+1. **Open the vscode-extension folder in VSCode:**
+   ```bash
+   cd vscode-extension
+   code .
+   ```
+
+2. **Press F5** to launch the Extension Development Host
+   - This opens a new VSCode window with your extension loaded
+   - The `.vscode/launch.json` in the extension folder configures this
+
+3. **In the Extension Development Host window:**
+   - Open a folder that contains a .prg file
+   - Create a .vscode/launch.json configuration for "6502"
+   - Set breakpoints and start debugging
 
 ## Architecture
 

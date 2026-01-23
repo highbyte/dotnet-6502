@@ -51,7 +51,7 @@ I've successfully implemented a minimal viable VSCode debugger for 6502 machine 
 
 ### Quick Start
 ```bash
-# 1. Build the debug adapter
+# 1. Build the debug adapter (from repo root)
 dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
 
 # 2. Install extension dependencies
@@ -59,10 +59,15 @@ cd vscode-extension
 npm install
 npm run compile
 
-# 3. Open in VSCode Extension Development Host
-# Press F5 in VSCode (from repo root)
+# 3. Open the extension folder in VSCode
+code .
 
-# 4. In the new window, create launch.json:
+# 4. Press F5 to launch Extension Development Host
+# (This opens a new VSCode window with the extension loaded)
+
+# 5. In the Extension Development Host window, open a folder with a .prg file
+
+# 6. Create a .vscode/launch.json in that folder:
 {
   "type": "6502",
   "request": "launch",
@@ -71,7 +76,7 @@ npm run compile
   "stopOnEntry": true
 }
 
-# 5. Start debugging with F5!
+# 7. Start debugging your .prg file with F5!
 ```
 
 ### Setting Breakpoints

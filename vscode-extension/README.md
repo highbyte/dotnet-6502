@@ -16,12 +16,35 @@ A Visual Studio Code extension for debugging 6502 machine code programs using th
 
 ## Usage
 
-1. Open the dotnet-6502 workspace in VSCode
-2. Build the debug adapter:
+1. **Open the vscode-extension folder in VSCode**:
    ```bash
+   cd vscode-extension
+   code .
+   ```
+
+2. **Install dependencies** (first time only):
+   ```bash
+   npm install
+   ```
+
+3. **Compile the extension**:
+   ```bash
+   npm run compile
+   ```
+
+4. **Build the debug adapter** (from repo root):
+   ```bash
+   cd ..
    dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
    ```
-3. Create a launch configuration (or use F5 to auto-generate):
+
+5. **Launch Extension Development Host**:
+   - In VSCode (with vscode-extension folder open), press **F5**
+   - A new "Extension Development Host" window opens with your extension loaded
+
+6. **In the Extension Development Host window**:
+   - Open a folder that contains a .prg file
+   - Create a .vscode/launch.json:
    ```json
    {
      "type": "6502",
@@ -31,8 +54,8 @@ A Visual Studio Code extension for debugging 6502 machine code programs using th
      "stopOnEntry": true
    }
    ```
-4. Set breakpoints by using line numbers that correspond to memory addresses
-5. Start debugging with F5
+
+7. **Start debugging**:
 
 ## Configuration
 

@@ -16,8 +16,9 @@
    ```
 
 3. **Open the extension in development mode:**
-   - Press F5 in VSCode (opens Extension Development Host)
-   - Or run: `code --extensionDevelopmentPath=.`
+   - Open the `vscode-extension/` folder in VSCode (File > Open Folder)
+   - Press F5 (this will launch the Extension Development Host)
+   - Or from command line: `code vscode-extension --extensionDevelopmentPath=.`
 
 4. **In the Extension Development Host window:**
    - Open a folder with a .prg file
