@@ -13,11 +13,13 @@ This assembles `test-program.asm` → `test-program.prg` using ACME.
 
 Since you already have the Extension Development Host window open:
 
-1. **In the Extension Development Host window**, open this folder:
-   - File → Open Folder → select `vscode-extension/`
+1. **In the Extension Development Host window**, open **the test folder**:
+   - File → Open Folder → select `vscode-extension-test/`
+   - **Important**: Don't open `vscode-extension/` - that's for extension development!
+   - The test folder has its own `.vscode/launch.json` for debugging 6502 programs
 
-2. **Copy the example launch.json**:
-   - Copy `launch.json.example` to `.vscode/launch.json`
+2. **The launch.json should already be there**:
+   - `vscode-extension-test/.vscode/launch.json` is pre-configured
    - Or create `.vscode/launch.json` manually with:
    ```json
    {
