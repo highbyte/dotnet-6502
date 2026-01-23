@@ -166,12 +166,14 @@ public class DebugAdapter6502
         // Create disassembly for current instruction
         var disassembly = OutputGen.GetNextInstructionDisassembly(_cpu, _memory);
         
+        // Use a consistent frame ID - frame 0 is typically the top frame
         frames.Add(new StackFrame(
-            id: 1,
-            name: disassembly,
+            id: 0,
+            name: $"${_cpu.PC:X4}: {disassembly}",
             source: null,
             line: _cpu.PC, // Use PC as line number
-            column: 0
+            column: 0,
+            presentationHint: "normal"
         ));
 
         return new StackTraceResponse(frames.ToArray(), frames.Count);
@@ -180,10 +182,16 @@ public class DebugAdapter6502
     [JsonRpcMethod("scopes")]
     public ScopesResponse Scopes(ScopesArguments args)
     {
+        // Frame ID should be 0 (matching stackTrace)
+        if (args.frameId != 0)
+        {
+            return new ScopesResponse(Array.Empty<Scope>());
+        }
+
         return new ScopesResponse(new[]
         {
-            new Scope("Registers", variablesReference: 1),
-            new Scope("Flags", variablesReference: 2)
+            new Scope("Registers", variablesReference: 1, presentationHint: "registers"),
+            new Scope("Flags", variablesReference: 2, presentationHint: "registers")
         });
     }
 

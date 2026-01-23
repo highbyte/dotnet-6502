@@ -99,7 +99,8 @@ public record StackFrame(
     Source? source,
     int line,
     int column,
-    string? presentationHint = null
+    string? presentationHint = null,
+    bool canRestart = false
 );
 
 public record ScopesArguments(
@@ -174,7 +175,8 @@ public record StoppedEvent(
     string reason,
     int? threadId = null,
     string? text = null,
-    bool allThreadsStopped = true
+    bool allThreadsStopped = true,
+    bool preserveFocusHint = false
 );
 
 public record TerminatedEvent();
