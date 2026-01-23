@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.Skia;
 
@@ -11,15 +12,18 @@ public class SkiaGlCanvasProvider : IDisposable
     private readonly GRContext _grContext;
     private readonly SKSurface _renderSurface;
     private readonly SKCanvas _canvas;
+    private readonly ILogger _logger;
 
-    public SkiaGlCanvasProvider(GRGlGetProcedureAddressDelegate getProcAddress, int sizeX, int sizeY, float scale = 1.0f)
+    public SkiaGlCanvasProvider(GRGlGetProcedureAddressDelegate getProcAddress, int sizeX, int sizeY, ILogger logger, float scale = 1.0f)
     {
+        _logger = logger;
+
         // Create the SkiaSharp context
         //var glInterface = GRGlInterface.Create();
 
-        Console.WriteLine("Creating GRGlInterface...");
+        _logger.LogDebug("Creating GRGlInterface...");
         _glInterface = GRGlInterface.Create(name => getProcAddress(name)) ?? throw new DotNet6502Exception("Cannot create OpenGL interface.");
-        Console.WriteLine("GRGlInterface created.");
+        _logger.LogDebug("GRGlInterface created.");
 
         _glInterface.Validate();
         var grContextOptions = new GRContextOptions { };

@@ -132,30 +132,20 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
             _window.Update += OnUpdate;
             _window.Resize += OnResize;
 
-            Console.WriteLine("Starting Silk.NET window event loop...");
             _logger.LogInformation("Starting Silk.NET window event loop...");
 
             _window.Run();
 
-            Console.WriteLine("Silk.NET window event loop exited normally.");
             _logger.LogInformation("Silk.NET window event loop exited normally.");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Exception in SilkNetHostApp.Run(): {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
-            if (ex.InnerException != null)
-            {
-                Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-                Console.WriteLine($"Inner stack trace: {ex.InnerException.StackTrace}");
-            }
             _logger.LogError(ex, "Exception in Run() method");
             throw;
         }
         finally
         {
             // Cleanup SilNet window resources
-            Console.WriteLine("Disposing Silk.NET window...");
             _logger.LogInformation("Disposing Silk.NET window...");
             _window?.Dispose();
         }
@@ -165,44 +155,34 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
     {
         try
         {
-            Console.WriteLine("OnLoad: Starting window initialization...");
             _logger.LogInformation("OnLoad: Starting window initialization...");
 
             SetUninitializedWindow();
-            Console.WriteLine("OnLoad: Window settings configured.");
             _logger.LogInformation("OnLoad: Window settings configured.");
 
             InitOpenGL();
-            Console.WriteLine("OnLoad: OpenGL initialized.");
             _logger.LogInformation("OnLoad: OpenGL initialized.");
 
             SetIcon();
-            Console.WriteLine("OnLoad: Icon set.");
             _logger.LogInformation("OnLoad: Icon set.");
 
             InitLogo();
-            Console.WriteLine("OnLoad: Logo initialized.");
             _logger.LogInformation("OnLoad: Logo initialized.");
 
             InitSkiaGlCanvasProvider();
-            Console.WriteLine("OnLoad: Skia GL canvas provider initialized.");
             _logger.LogInformation("OnLoad: Skia GL canvas provider initialized.");
 
             _inputHandlerContext = CreateInputHandlerContext();
-            Console.WriteLine("OnLoad: Input handler context created.");
             _logger.LogInformation("OnLoad: Input handler context created.");
 
             _audioHandlerContext = CreateAudioHandlerContext();
-            Console.WriteLine("OnLoad: Audio handler context created.");
             _logger.LogInformation("OnLoad: Audio handler context created.");
 
             base.SetContexts(() => _inputHandlerContext, () => _audioHandlerContext);
             base.InitInputHandlerContext();
-            Console.WriteLine("OnLoad: Input handler context initialized.");
             _logger.LogInformation("OnLoad: Input handler context initialized.");
 
             base.InitAudioHandlerContext();
-            Console.WriteLine("OnLoad: Audio handler context initialized.");
             _logger.LogInformation("OnLoad: Audio handler context initialized.");
 
             // New rendering pipeline configuration
@@ -245,25 +225,22 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
                 {
                     var renderloop = new SilkOnRenderLoop(
                         _window,
+                        _loggerFactory.CreateLogger(nameof(SilkOnRenderLoop)),
                         OnBeforeRender,
                         OnAfterRender,
                         shouldEmitEmulationFrame: () => EmulatorState != EmulatorState.Uninitialized);
                     return renderloop;
                 });
-            Console.WriteLine("OnLoad: Render configuration set.");
             _logger.LogInformation("OnLoad: Render configuration set.");
 
             ConfigureSilkNetInput();
-            Console.WriteLine("OnLoad: Silk.NET input configured.");
             _logger.LogInformation("OnLoad: Silk.NET input configured.");
 
             InitImGui();
-            Console.WriteLine("OnLoad: ImGui initialized.");
             _logger.LogInformation("OnLoad: ImGui initialized.");
 
             // Init main menu UI
             _menu = new SilkNetImGuiMenu(this, _emulatorConfig.DefaultEmulator, _defaultAudioEnabled, _defaultAudioVolumePercent, _loggerFactory);
-            Console.WriteLine("OnLoad: Main menu created.");
             _logger.LogInformation("OnLoad: Main menu created.");
 
             // Create other UI windows
@@ -271,7 +248,6 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
             _debugInfoPanel = CreateDebugUI();
             _monitor = CreateMonitorUI(_statsPanel, _debugInfoPanel, _emulatorConfig.Monitor);
             _logsPanel = CreateLogsUI(_logStore, _logConfig);
-            Console.WriteLine("OnLoad: UI panels created.");
             _logger.LogInformation("OnLoad: UI panels created.");
 
             // Add all ImGui windows to a list
@@ -283,18 +259,10 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
 
             // Default system selected
             SelectSystem(_emulatorConfig.DefaultEmulator).Wait();
-            Console.WriteLine("OnLoad: Default system selected.");
             _logger.LogInformation("OnLoad: Initialization complete.");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Exception in SilkNetHostApp.OnLoad(): {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
-            if (ex.InnerException != null)
-            {
-                Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-                Console.WriteLine($"Inner stack trace: {ex.InnerException.StackTrace}");
-            }
             _logger.LogError(ex, "Exception in OnLoad");
             throw;
         }
@@ -382,8 +350,6 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
     private void HandleEventHandlerException(Exception exception, string methodName)
     {
         _logger.LogError(exception, "Unhandled exception in {MethodName}: {Message}", methodName, exception.Message);
-        Console.WriteLine($"Exception in {methodName}: {exception.Message}");
-        Console.WriteLine($"Stack trace: {exception.StackTrace}");
 
         // Determine if this is a critical exception
         _errorDialogIsCritical = exception is OutOfMemoryException || exception is StackOverflowException;
@@ -618,9 +584,9 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
     {
         GRGlGetProcedureAddressDelegate getProcAddress = (name) =>
         {
-            Console.WriteLine($"Getting OpenGL proc address for: {name}");
+            _logger.LogDebug($"Getting OpenGL proc address for: {name}");
             var addrFound = _window.GLContext!.TryGetProcAddress(name, out var addr);
-            Console.WriteLine($"Address found: {addrFound}, Address: {addr}");
+            _logger.LogDebug($"Address found: {addrFound}, Address: {addr}");
             return addrFound ? addr : 0;
         };
 
@@ -628,6 +594,7 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
             getProcAddress,
             _window.FramebufferSize.X,
             _window.FramebufferSize.Y,
+            _loggerFactory.CreateLogger(nameof(SkiaGlCanvasProvider)),
             _emulatorConfig.CurrentDrawScale * (_window.FramebufferSize.X / _window.Size.X));
 
         return skiaGlCanvasProvider;
@@ -702,10 +669,6 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
                 _logger.LogInformation($"OpenGL Version: {version}");
                 _logger.LogInformation($"OpenGL Vendor: {vendor}");
                 _logger.LogInformation($"OpenGL Renderer: {renderer}");
-
-                Console.WriteLine($"OpenGL Version: {version}");
-                Console.WriteLine($"OpenGL Vendor: {vendor}");
-                Console.WriteLine($"OpenGL Renderer: {renderer}");
             }
             catch (Exception glInfoEx)
             {
@@ -715,12 +678,11 @@ public class SilkNetHostApp : HostApp<SilkNetInputHandlerContext, NAudioAudioHan
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to initialize OpenGL");
-            Console.WriteLine($"OpenGL initialization failed: {ex.Message}");
-            Console.WriteLine($"This may indicate missing graphics drivers or OpenGL support.");
-            Console.WriteLine($"On Linux, ensure you have proper graphics drivers installed:");
-            Console.WriteLine($"  - For Intel: sudo apt install mesa-utils libgl1-mesa-glx");
-            Console.WriteLine($"  - For NVIDIA: Install proprietary NVIDIA drivers");
-            Console.WriteLine($"  - For AMD: Install Mesa drivers");
+            _logger.LogError("This may indicate missing graphics drivers or OpenGL support.");
+            _logger.LogError("On Linux, ensure you have proper graphics drivers installed:");
+            _logger.LogError("  - For Intel: sudo apt install mesa-utils libgl1-mesa-glx");
+            _logger.LogError("  - For NVIDIA: Install proprietary NVIDIA drivers");
+            _logger.LogError("  - For AMD: Install Mesa drivers");
             throw;
         }
     }
