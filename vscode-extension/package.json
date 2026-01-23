@@ -1,0 +1,100 @@
+{
+  "name": "dotnet-6502-debugger",
+  "displayName": "6502 Debugger for dotnet-6502",
+  "version": "0.1.0",
+  "publisher": "highbyte",
+  "description": "Debug 6502 machine code programs using the dotnet-6502 emulator",
+  "author": {
+    "name": "highbyte"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Debuggers"
+  ],
+  "activationEvents": [
+    "onDebugResolve:6502",
+    "onDebugDynamicConfigurations:6502"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "breakpoints": [
+      {
+        "language": "6502asm"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "6502",
+        "label": "6502 Debugger",
+        "program": "./out/debugAdapter.js",
+        "runtime": "node",
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Path to the .prg file to debug",
+                "default": "${workspaceFolder}/program.prg"
+              },
+              "loadAddress": {
+                "type": "number",
+                "description": "Override load address (optional, normally read from .prg file)",
+                "default": null
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Automatically stop after launch",
+                "default": true
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "6502",
+            "request": "launch",
+            "name": "Debug 6502 Program",
+            "program": "${workspaceFolder}/program.prg",
+            "stopOnEntry": true
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "6502: Launch",
+            "description": "A new configuration for debugging a 6502 program",
+            "body": {
+              "type": "6502",
+              "request": "launch",
+              "name": "Debug 6502 Program",
+              "program": "^\"\\${workspaceFolder}/program.prg\"",
+              "stopOnEntry": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.0.0",
+    "@vscode/vsce": "^2.0.0"
+  },
+  "dependencies": {
+    "@vscode/debugadapter": "^1.65.0",
+    "@vscode/debugprotocol": "^1.65.0"
+  }
+}
