@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Highbyte.DotNet6502.Systems.Rendering;
+using Microsoft.Extensions.Logging;
 
 namespace Highbyte.DotNet6502.Impl.SilkNet;
 /// Wraps Silk.NET IWindow.Render (deltaSeconds) and raises FrameTick each frame.
@@ -10,15 +11,18 @@ public sealed class SilkOnRenderLoop : IRenderLoop
     private readonly Action<double>? _onAfterRender;
     private readonly Func<bool> _shouldEmitEmulationFrame;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
+    private readonly ILogger _logger;
     private bool _subscribed;
 
     public SilkOnRenderLoop(
         IWindow window,
+        ILogger logger,
         Action<double>? onBeforeRender = null,
         Action<double>? onAfterRender = null,
         Func<bool>? shouldEmitEmulationFrame = null)
     {
         _window = window ?? throw new ArgumentNullException(nameof(window));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _window.Render += OnRender;
         _subscribed = true;
         _onBeforeRender = onBeforeRender;
@@ -43,9 +47,7 @@ public sealed class SilkOnRenderLoop : IRenderLoop
         }
         catch (Exception ex)
         {
-            // Log to console since this is at the library level
-            Console.WriteLine($"Exception in OnBeforeRender: {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            _logger.LogError(ex, "Exception in OnBeforeRender");
 
             // For critical exceptions, we might want to rethrow to terminate the application
             if (ex is OutOfMemoryException || ex is StackOverflowException)
@@ -63,8 +65,7 @@ public sealed class SilkOnRenderLoop : IRenderLoop
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Exception in FrameTick event: {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            _logger.LogError(ex, "Exception in FrameTick event");
 
             if (ex is OutOfMemoryException || ex is StackOverflowException)
                 throw;
@@ -76,8 +77,7 @@ public sealed class SilkOnRenderLoop : IRenderLoop
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Exception in OnAfterRender: {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            _logger.LogError(ex, "Exception in OnAfterRender");
 
             if (ex is OutOfMemoryException || ex is StackOverflowException)
                 throw;
