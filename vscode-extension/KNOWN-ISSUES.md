@@ -2,6 +2,16 @@
 
 ## UI Behavior
 
+### Disassembly View Scroll Position After Large PC Jumps
+
+**Symptom**: When the Program Counter (PC) jumps significantly (e.g., from 0x060e to 0x0000), the disassembly view correctly highlights the new PC address, but may not auto-scroll to show it. The highlighted instruction may be off-screen.
+
+**Cause**: This is a VS Code disassembly view limitation. When the debug adapter returns synthetic "padding" addresses to satisfy DAP protocol requirements for instructions before address 0x0000, VS Code's scroll positioning can become confused.
+
+**Workaround**: Manually scroll the disassembly view to see the highlighted instruction after a large PC jump.
+
+**Technical details**: The 6502 address space starts at 0x0000. When VS Code requests "50 instructions before address 0x0000", we must return synthetic placeholder instructions since there's nothing before address 0. These placeholders use high addresses (0xffce, etc.) which can affect VS Code's scroll calculations.
+
 ### Variables Panel Clears After Stepping
 
 **Symptom**: After pressing F10 (step), the VARIABLES panel becomes empty until you click on "current" in the CALL STACK panel again.

@@ -623,21 +623,21 @@ public class DebugAdapterLogic
                 }
                 
                 // If startIndex is negative, we need to pad with synthetic instructions
-                // so VS Code gets exactly the number of "before" instructions it expects
-                int paddingCount = 0;
+                // so VS Code gets exactly the number of "before" instructions it expects.
+                // This is necessary for correct highlighting of the target instruction.
+                int paddingNeededBefore = 0;
                 if (rawStartIndex < 0)
                 {
-                    paddingCount = -rawStartIndex;
-                    _log.WriteLine($"[HandleDisassemble] Adding {paddingCount} padding instructions for negative offset");
+                    paddingNeededBefore = -rawStartIndex;
+                    _log.WriteLine($"[HandleDisassemble] Need {paddingNeededBefore} padding for negative offset");
                     
-                    // Add synthetic instructions for addresses "before" 0x0000
-                    // Use negative hex addresses like -0x0032 that VS Code can track
-                    // These must sort BEFORE 0x0000 so VS Code scrolls correctly
+                    // Add synthetic instructions for addresses "before" 0x0000 at the START of array
+                    // Use wrapped addresses that VS Code can track for position counting
                     for (int p = rawStartIndex; p < 0 && instructions.Count < adjustedRequestedCount; p++)
                     {
                         instructions.Add(new JsonObject
                         {
-                            ["address"] = $"-0x{(-p):x4}", // e.g., -0x0032 for position -50
+                            ["address"] = $"0x{(0x10000 + p):x4}", // e.g., 0xffce for position -50
                             ["instructionBytes"] = "--",
                             ["instruction"] = "; (before memory)",
                             ["presentationHint"] = "invalid"
@@ -648,6 +648,8 @@ public class DebugAdapterLogic
                 // Start from index 0 (or wherever is valid)
                 int startIndex = Math.Max(0, rawStartIndex);
                 if (startIndex >= instrList.Count) startIndex = instrList.Count - 1;
+                
+                _log.WriteLine($"[HandleDisassemble] startIndex={startIndex}, paddingNeededBefore={paddingNeededBefore}");
                 
                 // Generate real instructions - use adjustedRequestedCount to fill gaps
                 for (int i = startIndex; i < instrList.Count && instructions.Count < adjustedRequestedCount; i++)
