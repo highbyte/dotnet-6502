@@ -5,22 +5,26 @@ using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.DebugAdapter;
 
+/// <summary>
+/// Debug Adapter Protocol implementation for the 6502 CPU emulator.
+/// 
+/// Key design decisions (based on DAP spec and mock-debug reference):
+/// 1. Instructions are addressed by their memory location (0x0000 - 0xFFFF)
+/// 2. The disassemble request uses instructionOffset (in INSTRUCTIONS, not bytes)
+/// 3. Must return EXACTLY instructionCount instructions, padding with invalid if needed
+/// 4. Address format uses "0x" prefix for hex (required by VS Code BigInt parsing)
+/// </summary>
 public class DebugAdapterLogic
 {
     private readonly DapProtocol _protocol;
     private readonly StreamWriter _log;
     private CPU? _cpu;
     private Memory? _memory;
-    private readonly Dictionary<int, ushort> _breakpoints = new();
-    private int _nextBreakpointId = 1;
+    private readonly HashSet<ushort> _breakpoints = new();
     private const int THREAD_ID = 1;
     private const int FRAME_ID = 0;
     private CancellationTokenSource? _continueTokenSource;
     private bool _stopOnBRK = true;
-    
-    // Cached instruction address list - built once from 0x0000 forward
-    private List<ushort>? _instructionAddresses;
-    private Dictionary<ushort, int>? _addressToIndex;
 
     public event Action? OnExit;
 
@@ -99,6 +103,7 @@ public class DebugAdapterLogic
                         break;
                     default:
                         _log.WriteLine($"[Handler] Unknown command: {command}");
+                        await _protocol.SendResponseAsync(seq, command ?? "unknown");
                         break;
                 }
                 _log.WriteLine($"[Handler] Completed: {command}");
@@ -119,7 +124,8 @@ public class DebugAdapterLogic
             ["supportTerminateDebuggee"] = true,
             ["supportsTerminateRequest"] = true,
             ["supportsInstructionBreakpoints"] = true,
-            ["supportsDisassembleRequest"] = true
+            ["supportsDisassembleRequest"] = true,
+            ["supportsSteppingGranularity"] = true
         };
 
         await _protocol.SendResponseAsync(seq, "initialize", body);
@@ -179,6 +185,7 @@ public class DebugAdapterLogic
 
     private async Task HandleSetBreakpointsAsync(int seq, JsonObject? args)
     {
+        // Note: This handles source-level breakpoints (line number = address for our case)
         _breakpoints.Clear();
         var breakpoints = new JsonArray();
 
@@ -189,12 +196,10 @@ public class DebugAdapterLogic
             {
                 var line = bp?["line"]?.GetValue<int>() ?? 0;
                 var address = (ushort)line;
-                var id = _nextBreakpointId++;
-                _breakpoints[id] = address;
+                _breakpoints.Add(address);
 
                 breakpoints.Add(new JsonObject
                 {
-                    ["id"] = id,
                     ["verified"] = true,
                     ["line"] = line
                 });
@@ -212,68 +217,35 @@ public class DebugAdapterLogic
     private async Task HandleSetInstructionBreakpointsAsync(int seq, JsonObject? args)
     {
         _log.WriteLine("[SetInstructionBreakpoints] Called");
-        _log.WriteLine($"[SetInstructionBreakpoints] Full args: {args?.ToJsonString()}");
         
-        // Clear existing breakpoints when setting instruction breakpoints
         _breakpoints.Clear();
         var breakpoints = new JsonArray();
 
         var requestedBps = args?["breakpoints"] as JsonArray;
-        _log.WriteLine($"[SetInstructionBreakpoints] Requested breakpoints count: {requestedBps?.Count ?? 0}");
         
-        if (requestedBps != null && _memory != null)
+        if (requestedBps != null)
         {
             foreach (var bp in requestedBps)
             {
-                _log.WriteLine($"[SetInstructionBreakpoints] Processing breakpoint: {bp?.ToJsonString()}");
                 var instructionReference = bp?["instructionReference"]?.ToString();
-                var offset = bp?["offset"]?.GetValue<int>() ?? 0;
+                var offset = bp?["offset"]?.GetValue<int>() ?? 0;  // offset is in bytes
                 
                 if (instructionReference != null)
                 {
-                    try
-                    {
-                        // Parse hex address (strip 0x or $ prefix if present)
-                        var addressStr = instructionReference;
-                        if (addressStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                            addressStr = addressStr.Substring(2);
-                        else if (addressStr.StartsWith("$"))
-                            addressStr = addressStr.Substring(1);
-                        var baseAddress = Convert.ToUInt16(addressStr, 16);
-                        
-                        // offset is in bytes
-                        var actualAddress = (ushort)(baseAddress + offset);
-                        
-                        var id = _nextBreakpointId++;
-                        _breakpoints[id] = actualAddress;
+                    var baseAddress = ParseAddress(instructionReference);
+                    var actualAddress = (ushort)(baseAddress + offset);
+                    
+                    _breakpoints.Add(actualAddress);
+                    _log.WriteLine($"[SetInstructionBreakpoints] Added breakpoint at ${actualAddress:X4}");
 
-                        _log.WriteLine($"[SetInstructionBreakpoints] Added breakpoint at ${actualAddress:X4} (base=${baseAddress:X4}, offset={offset})");
-
-                        breakpoints.Add(new JsonObject
-                        {
-                            ["id"] = id,
-                            ["verified"] = true,
-                            ["instructionReference"] = $"0x{actualAddress:X4}",  // Must use 0x prefix for BigInt parsing
-                            ["offset"] = 0
-                        });
-                    }
-                    catch (Exception ex)
+                    breakpoints.Add(new JsonObject
                     {
-                        _log.WriteLine($"[SetInstructionBreakpoints] Error parsing address '{instructionReference}': {ex.Message}");
-                        breakpoints.Add(new JsonObject
-                        {
-                            ["verified"] = false,
-                            ["message"] = $"Invalid hex address: {instructionReference}"
-                        });
-                    }
+                        ["verified"] = true,
+                        ["instructionReference"] = FormatAddress(actualAddress),
+                        ["offset"] = 0
+                    });
                 }
             }
-        }
-
-        _log.WriteLine($"[SetInstructionBreakpoints] Total breakpoints set: {_breakpoints.Count}");
-        foreach (var bp in _breakpoints)
-        {
-            _log.WriteLine($"[SetInstructionBreakpoints]   ID {bp.Key} -> ${bp.Value:X4}");
         }
 
         var body = new JsonObject
@@ -309,7 +281,6 @@ public class DebugAdapterLogic
         
         if (_cpu == null || _memory == null)
         {
-            _log.WriteLine("[HandleStackTrace] CPU or Memory is null, returning empty stack");
             var body = new JsonObject
             {
                 ["stackFrames"] = new JsonArray(),
@@ -322,7 +293,7 @@ public class DebugAdapterLogic
         var pc = _cpu.PC;
         var disasm = OutputGen.GetInstructionDisassembly(_cpu, _memory, pc);
         
-        _log.WriteLine($"[HandleStackTrace] PC=${pc:X4}, instructionPointerReference=0x{pc:X4}");
+        _log.WriteLine($"[HandleStackTrace] PC=${pc:X4}, instructionPointerReference={FormatAddress(pc)}");
 
         var frame = new JsonObject
         {
@@ -330,7 +301,7 @@ public class DebugAdapterLogic
             ["name"] = $"${pc:X4}: {disasm}",
             ["line"] = 0,
             ["column"] = 0,
-            ["instructionPointerReference"] = $"0x{pc:X4}"  // Must use 0x prefix for BigInt parsing
+            ["instructionPointerReference"] = FormatAddress(pc)
         };
 
         var stackFrames = new JsonArray { frame };
@@ -409,7 +380,6 @@ public class DebugAdapterLogic
     {
         if (_cpu != null && _memory != null)
         {
-            // Cancel any existing continue operation
             _continueTokenSource?.Cancel();
             _continueTokenSource = new CancellationTokenSource();
             var token = _continueTokenSource.Token;
@@ -421,21 +391,16 @@ public class DebugAdapterLogic
                     _log.WriteLine("[Continue] Starting execution loop...");
                     while (!token.IsCancellationRequested)
                     {
-                        // Check for breakpoint BEFORE executing
-                        if (_breakpoints.Values.Contains(_cpu.PC))
+                        if (_breakpoints.Contains(_cpu.PC))
                         {
                             _log.WriteLine($"[Continue] Hit breakpoint at ${_cpu.PC:X4}");
                             await SendStoppedEventAsync("breakpoint");
                             return;
                         }
 
-                        // Check for BRK BEFORE executing (only if stopOnBRK is enabled)
                         if (_stopOnBRK && _memory[_cpu.PC] == 0x00)
                         {
                             _log.WriteLine($"[Continue] Hit BRK at ${_cpu.PC:X4}");
-                            // Invalidate instruction cache since we're stopping
-                            InvalidateInstructionCache();
-                            // Tell VS Code to re-fetch disassembly
                             await SendStoppedEventAsync("pause", "BRK instruction");
                             return;
                         }
@@ -443,11 +408,6 @@ public class DebugAdapterLogic
                         _cpu.ExecuteOneInstruction(_memory);
                     }
 
-                    // Invalidate instruction cache since memory may have changed during execution
-                    InvalidateInstructionCache();
-                    // Tell VS Code to re-fetch disassembly
-                    
-                    // If we got here, we were cancelled by Pause
                     _log.WriteLine("[Continue] Execution paused by user");
                     await SendStoppedEventAsync("pause", "Paused by user");
                 }
@@ -478,20 +438,10 @@ public class DebugAdapterLogic
                 _cpu.ExecuteOneInstruction(_memory);
                 _log.WriteLine($"[HandleNext] New PC: ${_cpu.PC:X4}");
                 
-                // Invalidate instruction cache since memory may have changed
-                InvalidateInstructionCache();
-                
-                // Tell VS Code to re-fetch disassembly (it caches the old data)
-                
                 await SendStoppedEventAsync("step");
-            }
-            else
-            {
-                _log.WriteLine("[HandleNext] CPU or Memory is null!");
             }
 
             await _protocol.SendResponseAsync(seq, "next");
-            _log.WriteLine("[HandleNext] Response sent");
         }
         catch (Exception ex)
         {
@@ -506,12 +456,6 @@ public class DebugAdapterLogic
         if (_cpu != null && _memory != null)
         {
             _cpu.ExecuteOneInstruction(_memory);
-            
-            // Invalidate instruction cache since memory may have changed
-            InvalidateInstructionCache();
-            
-            // Tell VS Code to re-fetch disassembly (it caches the old data)
-            
             await SendStoppedEventAsync("step");
         }
 
@@ -523,12 +467,6 @@ public class DebugAdapterLogic
         if (_cpu != null && _memory != null)
         {
             _cpu.ExecuteOneInstruction(_memory);
-            
-            // Invalidate instruction cache since memory may have changed
-            InvalidateInstructionCache();
-            
-            // Tell VS Code to re-fetch disassembly (it caches the old data)
-            
             await SendStoppedEventAsync("step");
         }
 
@@ -539,7 +477,6 @@ public class DebugAdapterLogic
     {
         _log.WriteLine("[HandlePause] Pause requested");
         
-        // Cancel the continue operation if it's running
         if (_continueTokenSource != null && !_continueTokenSource.IsCancellationRequested)
         {
             _log.WriteLine("[HandlePause] Cancelling continue operation");
@@ -547,7 +484,6 @@ public class DebugAdapterLogic
         }
         else
         {
-            // If not running, just send a stopped event
             _log.WriteLine("[HandlePause] Not currently running, sending stopped event");
             await SendStoppedEventAsync("pause");
         }
@@ -557,27 +493,15 @@ public class DebugAdapterLogic
 
     private async Task HandleTerminateAsync(int seq, JsonObject? args)
     {
-        _log.WriteLine("[HandleTerminate] Sending response...");
         await _protocol.SendResponseAsync(seq, "terminate");
-        _log.WriteLine("[HandleTerminate] Response sent, waiting for flush...");
-        
-        // Give a moment for the response to be sent before exiting
         await Task.Delay(100);
-        
-        _log.WriteLine("[HandleTerminate] Triggering exit");
         OnExit?.Invoke();
     }
 
     private async Task HandleDisconnectAsync(int seq, JsonObject? args)
     {
-        _log.WriteLine("[HandleDisconnect] Sending response...");
         await _protocol.SendResponseAsync(seq, "disconnect");
-        _log.WriteLine("[HandleDisconnect] Response sent, waiting for flush...");
-        
-        // Give a moment for the response to be sent before exiting
         await Task.Delay(100);
-        
-        _log.WriteLine("[HandleDisconnect] Triggering exit");
         OnExit?.Invoke();
     }
 
@@ -609,50 +533,16 @@ public class DebugAdapterLogic
     }
 
     /// <summary>
-    /// Build/rebuild the instruction address cache by disassembling from 0x0000 forward.
-    /// This ensures consistent instruction boundaries across all requests.
+    /// Handles the disassemble request according to DAP specification.
+    /// 
+    /// For 6502 with variable-length instructions, we MUST always disassemble from a fixed
+    /// starting point (0x0000) to ensure consistent instruction boundaries. VS Code caches
+    /// disassembly by address, so the same address must always map to the same instruction.
+    /// 
+    /// To avoid gaps in VS Code's cached disassembly when PC jumps around, we always return
+    /// a contiguous range starting from 0x0000 when the start index would be low anyway.
+    /// This ensures VS Code always has complete coverage.
     /// </summary>
-    private void EnsureInstructionCache()
-    {
-        if (_instructionAddresses != null && _addressToIndex != null)
-            return; // Already built
-            
-        if (_memory == null || _cpu == null)
-            return;
-            
-        _instructionAddresses = new List<ushort>();
-        _addressToIndex = new Dictionary<ushort, int>();
-        
-        ushort addr = 0;
-        int index = 0;
-        
-        while (addr <= 0xFFFF)
-        {
-            _instructionAddresses.Add(addr);
-            _addressToIndex[addr] = index;
-            
-            var len = GetInstructionLength(_memory[addr]);
-            int nextAddr = addr + len;
-            
-            if (nextAddr > 0xFFFF)
-                break;
-                
-            addr = (ushort)nextAddr;
-            index++;
-        }
-        
-        _log.WriteLine($"[EnsureInstructionCache] Built cache with {_instructionAddresses.Count} instructions");
-    }
-    
-    /// <summary>
-    /// Invalidate the instruction cache (call when memory changes significantly)
-    /// </summary>
-    private void InvalidateInstructionCache()
-    {
-        _instructionAddresses = null;
-        _addressToIndex = null;
-    }
-
     private async Task HandleDisassembleAsync(int seq, JsonObject? args)
     {
         _log.WriteLine("[HandleDisassemble] Called");
@@ -660,9 +550,9 @@ public class DebugAdapterLogic
         var memoryReference = args?["memoryReference"]?.ToString();
         var offset = args?["offset"]?.GetValue<int>() ?? 0;
         var instructionOffset = args?["instructionOffset"]?.GetValue<int>() ?? 0;
-        var instructionCount = args?["instructionCount"]?.GetValue<int>() ?? 100;
+        var requestedCount = args?["instructionCount"]?.GetValue<int>() ?? 100;
         
-        _log.WriteLine($"[HandleDisassemble] memoryReference={memoryReference}, offset={offset}, instructionOffset={instructionOffset}, instructionCount={instructionCount}");
+        _log.WriteLine($"[HandleDisassemble] memoryReference={memoryReference}, offset={offset}, instructionOffset={instructionOffset}, requestedCount={requestedCount}");
         
         var instructions = new JsonArray();
         
@@ -670,154 +560,120 @@ public class DebugAdapterLogic
         {
             try
             {
-                // Ensure we have a consistent instruction cache built from 0x0000
-                EnsureInstructionCache();
+                // Parse base address and apply byte offset
+                var baseAddress = ParseAddress(memoryReference);
+                int targetAddr = baseAddress + offset;
                 
-                if (_instructionAddresses == null || _addressToIndex == null)
+                // Clamp to valid address range
+                if (targetAddr < 0) targetAddr = 0;
+                if (targetAddr > 0xFFFF) targetAddr = 0xFFFF;
+                
+                _log.WriteLine($"[HandleDisassemble] baseAddress=${baseAddress:X4}, targetAddr=${targetAddr:X4}");
+                
+                // Build complete instruction list from 0x0000 - this ensures consistent boundaries
+                var instrList = new List<(ushort addr, int len)>();
+                int addr = 0;
+                while (addr <= 0xFFFF)
                 {
-                    _log.WriteLine("[HandleDisassemble] Failed to build instruction cache");
-                    await _protocol.SendResponseAsync(seq, "disassemble", new JsonObject { ["instructions"] = instructions });
-                    return;
+                    var opcode = _memory[(ushort)addr];
+                    var len = GetInstructionLength(opcode);
+                    instrList.Add(((ushort)addr, len));
+                    addr += len;
+                    if (addr > 0xFFFF) break;
                 }
                 
-                // Parse the memory reference as hex address
-                var startAddressStr = memoryReference;
-                if (startAddressStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                    startAddressStr = startAddressStr.Substring(2);
-                else if (startAddressStr.StartsWith("$"))
-                    startAddressStr = startAddressStr.Substring(1);
-                var baseAddress = Convert.ToUInt16(startAddressStr, 16);
-                
-                // Apply byte offset to get reference address
-                int refAddr = baseAddress + offset;
-                if (refAddr < 0) refAddr = 0;
-                if (refAddr > 0xFFFF) refAddr = 0xFFFF;
-                ushort referenceAddress = (ushort)refAddr;
-                
-                // Find the index of the reference address in our cache
-                // If exact match not found, find the instruction that contains this address
-                int refIndex;
-                if (_addressToIndex.TryGetValue(referenceAddress, out refIndex))
+                // Find the index of the target address (or nearest instruction containing it)
+                int targetIndex = 0;
+                for (int i = 0; i < instrList.Count; i++)
                 {
-                    // Exact match
-                }
-                else
-                {
-                    // Find the instruction that starts at or before this address
-                    refIndex = 0;
-                    for (int i = 0; i < _instructionAddresses.Count; i++)
+                    var (iAddr, iLen) = instrList[i];
+                    if (iAddr == targetAddr)
                     {
-                        if (_instructionAddresses[i] <= referenceAddress)
-                            refIndex = i;
-                        else
-                            break;
+                        targetIndex = i;
+                        break;
                     }
+                    if (iAddr + iLen > targetAddr)
+                    {
+                        // Target is within this instruction
+                        targetIndex = i;
+                        break;
+                    }
+                    if (iAddr > targetAddr)
+                    {
+                        // Passed it, use previous
+                        targetIndex = Math.Max(0, i - 1);
+                        break;
+                    }
+                    targetIndex = i;
                 }
                 
-                _log.WriteLine($"[HandleDisassemble] Reference ${referenceAddress:X4} -> index {refIndex} (address ${_instructionAddresses[refIndex]:X4})");
+                // Calculate start index with instruction offset
+                int rawStartIndex = targetIndex + instructionOffset;
                 
-                // Calculate the requested start index (may be negative)
-                int requestedStartIndex = refIndex + instructionOffset;
+                _log.WriteLine($"[HandleDisassemble] targetIndex={targetIndex}, rawStartIndex={rawStartIndex}, totalInstr={instrList.Count}");
                 
-                // How many "padding" instructions do we need before the real data?
+                // Determine how many instructions to return
+                // If the request would start near 0, return a large range to fill VS Code's cache gaps
+                int adjustedRequestedCount = requestedCount;
+                if (rawStartIndex < 1000)
+                {
+                    // Return at least 2000 instructions to fill any gaps from previous requests
+                    adjustedRequestedCount = Math.Max(requestedCount, Math.Max(2000, targetIndex + 500));
+                    _log.WriteLine($"[HandleDisassemble] Adjusted count to {adjustedRequestedCount} to fill cache gaps");
+                }
+                
+                // If startIndex is negative, we need to pad with synthetic instructions
+                // so VS Code gets exactly the number of "before" instructions it expects
                 int paddingCount = 0;
-                if (requestedStartIndex < 0)
+                if (rawStartIndex < 0)
                 {
-                    paddingCount = -requestedStartIndex;
-                    requestedStartIndex = 0;
-                }
-                
-                // Clamp to valid range
-                int startIndex = requestedStartIndex;
-                if (startIndex >= _instructionAddresses.Count) startIndex = _instructionAddresses.Count - 1;
-                
-                // Calculate how many real instructions we can provide
-                int realInstructionsNeeded = instructionCount - paddingCount;
-                int endIndex = startIndex + realInstructionsNeeded;
-                if (endIndex > _instructionAddresses.Count) endIndex = _instructionAddresses.Count;
-                
-                _log.WriteLine($"[HandleDisassemble] paddingCount={paddingCount}, startIndex={startIndex}, endIndex={endIndex}");
-                
-                // First, add padding instructions with "before memory" addresses
-                // Use negative addresses formatted to look like they're before 0x0000
-                for (int i = 0; i < paddingCount; i++)
-                {
-                    // Create synthetic addresses counting down from where we'd start
-                    // Use 0xFFFF, 0xFFFE, etc. but mark as invalid
-                    // Actually, better to use addresses that won't confuse VS Code
-                    // We'll use the same address format but mark instruction as invalid
-                    int syntheticIndex = paddingCount - 1 - i;
-                    ushort syntheticAddress = (ushort)(0x10000 - paddingCount + i); // wraps around to 0xFFxx
+                    paddingCount = -rawStartIndex;
+                    _log.WriteLine($"[HandleDisassemble] Adding {paddingCount} padding instructions for negative offset");
                     
-                    instructions.Add(new JsonObject
+                    // Add synthetic instructions for addresses "before" 0x0000
+                    // Use negative hex addresses like -0x0032 that VS Code can track
+                    // These must sort BEFORE 0x0000 so VS Code scrolls correctly
+                    for (int p = rawStartIndex; p < 0 && instructions.Count < adjustedRequestedCount; p++)
                     {
-                        ["address"] = $"0x{syntheticAddress:X4}",
-                        ["instructionBytes"] = "??",
-                        ["instruction"] = "(before memory)",
-                        ["presentationHint"] = "invalid"
-                    });
-                }
-                
-                // Generate instruction objects for the requested range
-                for (int idx = startIndex; idx < endIndex; idx++)
-                {
-                    ushort currentAddress = _instructionAddresses[idx];
-                    
-                    var opCodeByte = _memory[currentAddress];
-                    var instructionLength = GetInstructionLength(opCodeByte);
-                    
-                    // Build instruction bytes
-                    var bytes = new List<byte>();
-                    for (int j = 0; j < instructionLength && currentAddress + j <= 0xFFFF; j++)
-                    {
-                        bytes.Add(_memory[(ushort)(currentAddress + j)]);
-                    }
-                    
-                    // Get disassembly
-                    var tempPC = _cpu.PC;
-                    _cpu.PC = currentAddress;
-                    var disasm = OutputGen.GetInstructionDisassembly(_cpu, _memory, currentAddress);
-                    _cpu.PC = tempPC;
-                    
-                    // Strip address prefix from disassembly
-                    var instructionOnly = disasm;
-                    if (disasm.Length >= 6 && disasm.Substring(4, 2) == "  ")
-                    {
-                        instructionOnly = disasm.Substring(6);
-                    }
-                    
-                    instructions.Add(new JsonObject
-                    {
-                        ["address"] = $"0x{currentAddress:X4}",
-                        ["instructionBytes"] = bytes.Count > 0 ? BitConverter.ToString(bytes.ToArray()).Replace("-", " ") : "00",
-                        ["instruction"] = instructionOnly,
-                        ["location"] = new JsonObject
+                        instructions.Add(new JsonObject
                         {
-                            ["path"] = "",
-                            ["name"] = $"0x{currentAddress:X4}"
-                        }
-                    });
+                            ["address"] = $"-0x{(-p):x4}", // e.g., -0x0032 for position -50
+                            ["instructionBytes"] = "--",
+                            ["instruction"] = "; (before memory)",
+                            ["presentationHint"] = "invalid"
+                        });
+                    }
                 }
                 
-                // Pad at the end if we still need more instructions
-                while (instructions.Count < instructionCount)
+                // Start from index 0 (or wherever is valid)
+                int startIndex = Math.Max(0, rawStartIndex);
+                if (startIndex >= instrList.Count) startIndex = instrList.Count - 1;
+                
+                // Generate real instructions - use adjustedRequestedCount to fill gaps
+                for (int i = startIndex; i < instrList.Count && instructions.Count < adjustedRequestedCount; i++)
                 {
-                    // Get the last address and add 1 (or use a placeholder beyond memory)
-                    ushort lastAddr = instructions.Count > 0 && _instructionAddresses.Count > 0 
-                        ? (ushort)(_instructionAddresses[_instructionAddresses.Count - 1] + 1)
-                        : (ushort)0xFFFF;
-                    ushort syntheticAddress = (ushort)(lastAddr + (instructions.Count - paddingCount - (endIndex - startIndex)));
+                    var (instrAddr, instrLen) = instrList[i];
+                    
+                    // Get instruction bytes
+                    var bytes = new List<byte>();
+                    for (int j = 0; j < instrLen && (instrAddr + j) <= 0xFFFF; j++)
+                    {
+                        bytes.Add(_memory[(ushort)(instrAddr + j)]);
+                    }
+                    
+                    // Get disassembly text
+                    var disasm = OutputGen.GetInstructionDisassembly(_cpu, _memory, instrAddr);
+                    var instructionText = StripAddressPrefix(disasm);
                     
                     instructions.Add(new JsonObject
                     {
-                        ["address"] = $"0x{syntheticAddress:X4}",
-                        ["instructionBytes"] = "??",
-                        ["instruction"] = "(beyond memory)",
-                        ["presentationHint"] = "invalid"
+                        ["address"] = FormatAddress(instrAddr),
+                        ["instructionBytes"] = BitConverter.ToString(bytes.ToArray()).Replace("-", " "),
+                        ["instruction"] = instructionText
                     });
                 }
                 
-                _log.WriteLine($"[HandleDisassemble] Generated {instructions.Count} instructions (padded to match instructionCount={instructionCount})");
+                _log.WriteLine($"[HandleDisassemble] Generated {instructions.Count} instructions");
                 if (instructions.Count > 0)
                 {
                     _log.WriteLine($"[HandleDisassemble] First: {instructions[0]?["address"]}, Last: {instructions[instructions.Count-1]?["address"]}");
@@ -837,14 +693,69 @@ public class DebugAdapterLogic
         await _protocol.SendResponseAsync(seq, "disassemble", body);
     }
     
+    /// <summary>
+    /// Create an invalid/placeholder instruction for addresses outside valid range
+    /// </summary>
+    private JsonObject CreateInvalidInstruction(int address)
+    {
+        // Keep address in valid range for display, mark as invalid
+        var displayAddr = address < 0 ? 0 : (address > 0xFFFF ? 0xFFFF : address);
+        
+        return new JsonObject
+        {
+            ["address"] = FormatAddress((ushort)displayAddr),
+            ["instructionBytes"] = "??",
+            ["instruction"] = "???",
+            ["presentationHint"] = "invalid"
+        };
+    }
+    
+    /// <summary>
+    /// Get the length of a 6502 instruction based on its opcode
+    /// </summary>
     private int GetInstructionLength(byte opCode)
     {
-        // Use the CPU's instruction list to get accurate size
         if (_cpu != null && _cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
         {
             return _cpu.InstructionList.GetOpCode(opCode).Size;
         }
-        // Default to 1 byte for unknown opcodes
-        return 1;
+        return 1; // Unknown opcodes are treated as 1 byte
+    }
+    
+    /// <summary>
+    /// Strip the address prefix from disassembly output.
+    /// OutputGen returns something like "0600  LDA #$00" and we want just "LDA #$00"
+    /// </summary>
+    private string StripAddressPrefix(string disasm)
+    {
+        // OutputGen format is typically "XXXX  instruction"
+        if (disasm.Length >= 6 && disasm.Substring(4, 2) == "  ")
+        {
+            return disasm.Substring(6);
+        }
+        return disasm;
+    }
+    
+    /// <summary>
+    /// Format an address for DAP protocol (must use "0x" prefix for BigInt parsing)
+    /// Use lowercase hex like other DAP implementations (e.g., RetroC64)
+    /// </summary>
+    private static string FormatAddress(ushort address)
+    {
+        return $"0x{address:x4}";
+    }
+    
+    /// <summary>
+    /// Parse an address from DAP protocol format
+    /// Handles both "0x1234" and "$1234" formats
+    /// </summary>
+    private static ushort ParseAddress(string addressStr)
+    {
+        if (addressStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            addressStr = addressStr.Substring(2);
+        else if (addressStr.StartsWith("$"))
+            addressStr = addressStr.Substring(1);
+            
+        return Convert.ToUInt16(addressStr, 16);
     }
 }
