@@ -12,6 +12,18 @@
 
 **Technical details**: The 6502 address space starts at 0x0000. When VS Code requests "50 instructions before address 0x0000", we must return synthetic placeholder instructions since there's nothing before address 0. These placeholders use high addresses (0xffce, etc.) which can affect VS Code's scroll calculations.
 
+### Disassembly View Does Not Auto-Scroll to First Row
+
+**Symptom**: When stepping to address 0x0000 and that address is the first row in the disassembly listing, VS Code may not auto-scroll to show it if you've scrolled elsewhere. Stepping to other addresses (like 0x0002) correctly auto-scrolls.
+
+**Cause**: This is a VS Code bug in the `WorkbenchTable.reveal(0)` implementation. When the target instruction is at index 0 (the very first row), VS Code's reveal logic doesn't scroll correctly - possibly because it considers "index 0 is already visible" or has an off-by-one issue.
+
+**Workaround**: 
+- Click on the stack frame in the Call Stack view to force re-focus
+- Press Page Up to scroll to the top
+
+**Technical details**: VS Code's disassembly view uses a `WorkbenchTable` widget with `headerRowHeight: 0` (no header). When calling `reveal(index)` with index 0, the widget fails to scroll correctly. This cannot be fixed from the debug adapter side.
+
 ### Variables Panel Clears After Stepping
 
 **Symptom**: After pressing F10 (step), the VARIABLES panel becomes empty until you click on "current" in the CALL STACK panel again.
