@@ -6,7 +6,9 @@
       "type": "extensionHost",
       "request": "launch",
       "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}"
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "--disable-extensions",
+        "--enable-proposed-api"
       ],
       "outFiles": [
         "${workspaceFolder}/out/**/*.js"

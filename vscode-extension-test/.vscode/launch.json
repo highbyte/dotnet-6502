@@ -2,11 +2,12 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "6502",
+      "type": "dotnet6502",
       "request": "launch",
-      "name": "Debug test-program.prg",
+      "name": "Debug test-program.prg (dotnet-6502)",
       "program": "${workspaceFolder}/test-program.prg",
-      "stopOnEntry": true
+      "stopOnEntry": true,
+      "stopOnBRK": true
     }
   ]
 }

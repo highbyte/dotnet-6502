@@ -15,8 +15,8 @@
     "Debuggers"
   ],
   "activationEvents": [
-    "onDebugResolve:6502",
-    "onDebugDynamicConfigurations:6502"
+    "onDebugResolve:dotnet6502",
+    "onDebugDynamicConfigurations:dotnet6502"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -27,10 +27,8 @@
     ],
     "debuggers": [
       {
-        "type": "6502",
-        "label": "6502 Debugger",
-        "program": "./out/debugAdapter.js",
-        "runtime": "node",
+        "type": "dotnet6502",
+        "label": "dotnet-6502 Debugger",
         "configurationAttributes": {
           "launch": {
             "required": [
@@ -51,27 +49,32 @@
                 "type": "boolean",
                 "description": "Automatically stop after launch",
                 "default": true
+              },
+              "stopOnBRK": {
+                "type": "boolean",
+                "description": "Automatically stop when BRK instruction is encountered",
+                "default": true
               }
             }
           }
         },
         "initialConfigurations": [
           {
-            "type": "6502",
+            "type": "dotnet6502",
             "request": "launch",
-            "name": "Debug 6502 Program",
+            "name": "Debug 6502 Program (dotnet-6502)",
             "program": "${workspaceFolder}/program.prg",
             "stopOnEntry": true
           }
         ],
         "configurationSnippets": [
           {
-            "label": "6502: Launch",
-            "description": "A new configuration for debugging a 6502 program",
+            "label": "dotnet-6502: Launch",
+            "description": "A new configuration for debugging a 6502 program with dotnet-6502",
             "body": {
-              "type": "6502",
+              "type": "dotnet6502",
               "request": "launch",
-              "name": "Debug 6502 Program",
+              "name": "Debug 6502 Program (dotnet-6502)",
               "program": "^\"\\${workspaceFolder}/program.prg\"",
               "stopOnEntry": true
             }

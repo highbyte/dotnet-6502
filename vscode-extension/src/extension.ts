@@ -3,12 +3,16 @@ import * as path from 'path';
 import { DebugAdapterExecutable } from 'vscode';
 
 export function activate(context: vscode.ExtensionContext) {
+    console.log('[6502 Debug] Extension activating...');
     context.subscriptions.push(
-        vscode.debug.registerDebugAdapterDescriptorFactory('6502', new DebugAdapterExecutableFactory())
+        vscode.debug.registerDebugAdapterDescriptorFactory('dotnet6502', new DebugAdapterExecutableFactory())
     );
+    console.log('[6502 Debug] Extension activated successfully');
 }
 
-export function deactivate() {}
+export function deactivate() {
+    console.log('[6502 Debug] Extension deactivating...');
+}
 
 class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFactory {
     createDebugAdapterDescriptor(
@@ -16,34 +20,55 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         executable: vscode.DebugAdapterExecutable | undefined
     ): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
         
-        // Find the debug adapter executable
-        // Look for it in the workspace or in a known location
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        console.log('[6502 Debug] createDebugAdapterDescriptor called for session:', session.name);
+        console.log('[6502 Debug] Session configuration:', JSON.stringify(session.configuration, null, 2));
         
-        // Try to find the compiled debug adapter
-        // First check if it's in the workspace (development mode)
-        let adapterPath: string;
-        
-        if (workspaceFolder) {
-            // Development: look in the project structure
-            const projectPath = path.join(workspaceFolder.uri.fsPath, 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Debug', 'net10.0', 'Highbyte.DotNet6502.DebugAdapter.exe');
-            if (require('fs').existsSync(projectPath)) {
-                adapterPath = projectPath;
-            } else {
-                // Try release build
-                const releasePath = path.join(workspaceFolder.uri.fsPath, 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Release', 'net10.0', 'Highbyte.DotNet6502.DebugAdapter.exe');
-                if (require('fs').existsSync(releasePath)) {
-                    adapterPath = releasePath;
-                } else {
-                    vscode.window.showErrorMessage('Could not find the 6502 debug adapter executable. Please build the project first.');
-                    return undefined;
+        try {
+            // Find the debug adapter executable
+            // Look for the debug adapter executable
+            // It's built in the main repo, not in the workspace folder
+            let adapterPath: string | undefined;
+            
+            // Try multiple possible locations
+            const possiblePaths = [
+                // Development: relative to workspace (when vscode-extension-test is open)
+                path.join(__dirname, '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Debug', 'net10.0', 'Highbyte.DotNet6502.DebugAdapter.exe'),
+                // If workspace is vscode-extension folder
+                path.join(__dirname, '..', '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Debug', 'net10.0', 'Highbyte.DotNet6502.DebugAdapter.exe'),
+                // Release build
+                path.join(__dirname, '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Release', 'net10.0', 'Highbyte.DotNet6502.DebugAdapter.exe'),
+                path.join(__dirname, '..', '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Release', 'net10.0', 'Highbyte.DotNet6502.DebugAdapter.exe'),
+            ];
+            
+            console.log('[6502 Debug] Extension __dirname:', __dirname);
+            console.log('[6502 Debug] Testing paths for debug adapter:');
+            for (const testPath of possiblePaths) {
+                const exists = require('fs').existsSync(testPath);
+                console.log(`  ${exists ? '✓' : '✗'} ${testPath}`);
+                if (exists) {
+                    adapterPath = testPath;
+                    break;
                 }
             }
-        } else {
-            vscode.window.showErrorMessage('No workspace folder found. Please open the dotnet-6502 project.');
+            
+            if (!adapterPath) {
+                const msg = 'Could not find the 6502 debug adapter executable. Please build: dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter';
+                console.error('[6502 Debug]', msg);
+                vscode.window.showErrorMessage(msg);
+                return undefined;
+            }
+
+            console.log('[6502 Debug] ✓ Using debug adapter:', adapterPath);
+            
+            const debugAdapterExecutable = new DebugAdapterExecutable(adapterPath, []);
+            console.log('[6502 Debug] ✓ Created DebugAdapterExecutable, returning to VSCode');
+            
+            return debugAdapterExecutable;
+        } catch (error) {
+            const errorMsg = `[6502 Debug] Error in createDebugAdapterDescriptor: ${error}`;
+            console.error(errorMsg);
+            vscode.window.showErrorMessage(errorMsg);
             return undefined;
         }
-
-        return new DebugAdapterExecutable(adapterPath, []);
     }
 }
