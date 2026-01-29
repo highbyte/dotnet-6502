@@ -1,9 +1,8 @@
 ; Simple 6502 test program
 ; This is a minimal program for testing the debugger
-; Syntax compatible with ca65 assembler.
+; Syntax compatible with ACME assembler.
 
-    .setcpu "6502"
-    .segment "CODE"
+*=$0600       ; Start at address $0600
 
 start:
     LDA #$01  ; Load 1 into accumulator
