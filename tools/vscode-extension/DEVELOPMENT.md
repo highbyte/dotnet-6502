@@ -24,7 +24,7 @@ This extension provides debugging support for 6502 machine code programs using t
 
 1. **Open the vscode-extension folder in VSCode:**
    ```bash
-   cd vscode-extension
+   cd tools/vscode-extension
    code .
    ```
 

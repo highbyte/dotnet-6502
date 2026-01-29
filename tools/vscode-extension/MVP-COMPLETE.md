@@ -16,7 +16,7 @@ I've successfully implemented a minimal viable VSCode debugger for 6502 machine 
      - `Protocol/DapTypes.cs` - DAP message types
 
 2. **VSCode Extension (TypeScript)**
-   - Location: `vscode-extension/`
+   - Location: `tools/vscode-extension/`
    - Minimal extension that launches the debug adapter
    - Files:
      - `src/extension.ts` - Extension activation and adapter locator
@@ -25,10 +25,10 @@ I've successfully implemented a minimal viable VSCode debugger for 6502 machine 
      - `tsconfig.json` - TypeScript configuration
 
 3. **Documentation**
-   - `vscode-extension/README.md` - User guide
-   - `vscode-extension/TESTING.md` - Testing instructions
-   - `vscode-extension/DEVELOPMENT.md` - Developer setup
-   - `vscode-extension/IMPLEMENTATION.md` - Technical documentation
+   - `tools/vscode-extension/README.md` - User guide
+   - `tools/vscode-extension/TESTING.md` - Testing instructions
+   - `tools/vscode-extension/DEVELOPMENT.md` - Developer setup
+   - `tools/vscode-extension/IMPLEMENTATION.md` - Technical documentation
 
 ## Features Implemented ✅
 
@@ -55,7 +55,7 @@ I've successfully implemented a minimal viable VSCode debugger for 6502 machine 
 dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
 
 # 2. Install extension dependencies
-cd vscode-extension
+cd tools/vscode-extension
 npm install
 npm run compile
 
@@ -151,7 +151,7 @@ code .
 
 ### Test with Sample Programs
 You can test with:
-1. `vscode-extension/test-program.asm` (needs assembling)
+1. `tools/vscode-extension/test-program.asm` (needs assembling)
 2. Sample .prg files from `samples/` directory in repo
 3. Any Commodore 64 .prg file
 
@@ -168,12 +168,12 @@ You can test with:
    - `src/apps/Highbyte.DotNet6502.DebugAdapter/DebugAdapter6502.cs`
 
 2. **VSCode Integration**:
-   - `vscode-extension/src/extension.ts`
-   - `vscode-extension/package.json`
+   - `tools/vscode-extension/src/extension.ts`
+   - `tools/vscode-extension/package.json`
 
 3. **Documentation**:
-   - `vscode-extension/TESTING.md` - Start here for testing
-   - `vscode-extension/IMPLEMENTATION.md` - Technical deep dive
+   - `tools/vscode-extension/TESTING.md` - Start here for testing
+   - `tools/vscode-extension/IMPLEMENTATION.md` - Technical deep dive
 
 ## Success Criteria ✅
 

@@ -29,15 +29,20 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
             // It's built in the main repo, not in the workspace folder
             let adapterPath: string | undefined;
             
+            // Determine the correct executable name based on the OS
+            const executableName = process.platform === 'win32' 
+                ? 'Highbyte.DotNet6502.DebugAdapter.exe' 
+                : 'Highbyte.DotNet6502.DebugAdapter';
+
             // Try multiple possible locations
             const possiblePaths = [
                 // Development: relative to workspace (when vscode-extension-test is open)
-                path.join(__dirname, '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Debug', 'net10.0', 'Highbyte.DotNet6502.DebugAdapter.exe'),
+                path.join(__dirname, '..', '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Debug', 'net10.0', executableName),
                 // If workspace is vscode-extension folder
-                path.join(__dirname, '..', '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Debug', 'net10.0', 'Highbyte.DotNet6502.DebugAdapter.exe'),
+                path.join(__dirname, '..', '..', '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Debug', 'net10.0', executableName),
                 // Release build
-                path.join(__dirname, '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Release', 'net10.0', 'Highbyte.DotNet6502.DebugAdapter.exe'),
-                path.join(__dirname, '..', '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Release', 'net10.0', 'Highbyte.DotNet6502.DebugAdapter.exe'),
+                path.join(__dirname, '..', '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Release', 'net10.0', executableName),
+                path.join(__dirname, '..', '..', '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Release', 'net10.0', executableName),
             ];
             
             console.log('[6502 Debug] Extension __dirname:', __dirname);

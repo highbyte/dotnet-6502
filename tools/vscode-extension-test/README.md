@@ -2,7 +2,7 @@
 
 This repo has two separate folders for the debugger:
 
-## 1. `vscode-extension/` - Extension Source Code
+## 1. `tools/vscode-extension/` - Extension Source Code
 
 **Purpose**: Developing the VSCode extension itself
 
@@ -17,7 +17,7 @@ This repo has two separate folders for the debugger:
 2. Press F5 → Extension Development Host window opens
 3. This is the "extension development" window
 
-## 2. `vscode-extension-test/` - Test Workspace
+## 2. `tools/vscode-extension-test/` - Test Workspace
 
 **Purpose**: Testing/using the 6502 debugger
 
@@ -61,5 +61,5 @@ This repo has two separate folders for the debugger:
 ## For End Users
 
 When the extension is published, users only need:
-- The `vscode-extension-test/` pattern (any folder with .prg files)
-- They don't see `vscode-extension/` - that's just for development
+- The `tools/vscode-extension-test/` pattern (any folder with .prg files)
+- They don't see `tools/vscode-extension/` - that's just for development

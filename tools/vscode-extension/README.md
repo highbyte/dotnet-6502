@@ -34,7 +34,7 @@ A Visual Studio Code extension for debugging 6502 machine code programs using th
 
 4. **Build the debug adapter** (from repo root):
    ```bash
-   cd ..
+   cd ../../
    dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
    ```
 

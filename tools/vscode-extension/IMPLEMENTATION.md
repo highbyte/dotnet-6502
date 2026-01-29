@@ -18,7 +18,7 @@ This is a minimal viable product (MVP) implementation of a VSCode debugger for 6
   - Disassembly at current PC
 
 ### VSCode Extension (TypeScript)
-- **Location**: `vscode-extension/`
+- **Location**: `tools/vscode-extension/`
 - **Features**:
   - Debug configuration provider
   - Launches debug adapter executable
@@ -57,7 +57,7 @@ dotnet-6502/
 │   ├── Protocol/DapTypes.cs          # DAP message types
 │   └── Highbyte.DotNet6502.DebugAdapter.csproj
 │
-└── vscode-extension/
+└── tools/vscode-extension/
     ├── src/
     │   ├── extension.ts              # Extension activation
     │   └── debugAdapter.ts           # Debug session (minimal)
@@ -207,4 +207,3 @@ dotnet-6502/
 
 - **Debug Adapter Protocol**: [Microsoft DAP Specification](https://microsoft.github.io/debug-adapter-protocol/)
 - **StreamJsonRpc**: [Microsoft StreamJsonRpc](https://github.com/microsoft/vs-streamjsonrpc)
-- **dotnet-6502**: [Highbyte dotnet-6502](https://github.com/highbyte/dotnet-6502)

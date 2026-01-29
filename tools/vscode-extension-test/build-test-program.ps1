@@ -42,7 +42,7 @@ if ($LASTEXITCODE -eq 0 -and (Test-Path $outputFile)) {
     Write-Host ""
     Write-Host "You can now debug this file in VSCode:" -ForegroundColor Cyan
     Write-Host "  1. Open this folder in the Extension Development Host"
-    Write-Host "  2. Create/use launch.json with 'program': '${workspaceFolder}/$outputFile'"
+    Write-Host "  2. Create/use launch.json with `"program`": `"`${workspaceFolder}/$outputFile`""
     Write-Host "  3. Press F5 to start debugging"
 } else {
     Write-Host ""

@@ -10,7 +10,7 @@
 
 2. **Install extension dependencies:**
    ```bash
-   cd vscode-extension
+   cd tools/vscode-extension
    npm install
    npm run compile
    ```
@@ -92,7 +92,10 @@ If you need a .prg file to test with, you can:
   dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
   ```
 - Check that the executable exists at:
+  - Windows:
   `src/apps/Highbyte.DotNet6502.DebugAdapter/bin/Debug/net10.0/Highbyte.DotNet6502.DebugAdapter.exe`
+  - macOS/Linux:
+  `src/apps/Highbyte.DotNet6502.DebugAdapter/bin/Debug/net10.0/Highbyte.DotNet6502.DebugAdapter`
 
 ### Extension not activating
 - Check Output panel > Extension Host
