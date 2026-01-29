@@ -55,7 +55,13 @@ A Visual Studio Code extension for debugging 6502 machine code programs using th
    }
    ```
 
-7. **Start debugging**:
+7. **Start debugging**: Press F5 to start the debugger
+
+8. **Set breakpoints**:
+   - Click in the gutter (left margin) of the **Disassembly view** to toggle breakpoints at specific addresses
+   - Breakpoints will appear in the BREAKPOINTS panel showing the hex address (e.g., "0x0609")
+   
+   **Note**: The "+" button in the Breakpoints panel is for function name breakpoints (not applicable for pure assembly debugging). Use the Disassembly view to set instruction breakpoints.
 
 ## Configuration
 

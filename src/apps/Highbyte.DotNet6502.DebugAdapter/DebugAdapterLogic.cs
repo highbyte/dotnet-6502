@@ -186,6 +186,9 @@ public class DebugAdapterLogic
     private async Task HandleSetBreakpointsAsync(int seq, JsonObject? args)
     {
         // Note: This handles source-level breakpoints (line number = address for our case)
+        _log.WriteLine("[SetBreakpoints] Called");
+        _log.WriteLine($"[SetBreakpoints] args: {args?.ToJsonString()}");
+        
         _breakpoints.Clear();
         var breakpoints = new JsonArray();
 
@@ -194,9 +197,13 @@ public class DebugAdapterLogic
         {
             foreach (var bp in requestedBps)
             {
+                _log.WriteLine($"[SetBreakpoints] Processing breakpoint: {bp?.ToJsonString()}");
+                
                 var line = bp?["line"]?.GetValue<int>() ?? 0;
                 var address = (ushort)line;
                 _breakpoints.Add(address);
+
+                _log.WriteLine($"[SetBreakpoints] Added breakpoint at ${address:X4} (line={line})");
 
                 breakpoints.Add(new JsonObject
                 {
@@ -217,6 +224,7 @@ public class DebugAdapterLogic
     private async Task HandleSetInstructionBreakpointsAsync(int seq, JsonObject? args)
     {
         _log.WriteLine("[SetInstructionBreakpoints] Called");
+        _log.WriteLine($"[SetInstructionBreakpoints] args: {args?.ToJsonString()}");
         
         _breakpoints.Clear();
         var breakpoints = new JsonArray();
@@ -227,6 +235,8 @@ public class DebugAdapterLogic
         {
             foreach (var bp in requestedBps)
             {
+                _log.WriteLine($"[SetInstructionBreakpoints] Processing breakpoint: {bp?.ToJsonString()}");
+                
                 var instructionReference = bp?["instructionReference"]?.ToString();
                 var offset = bp?["offset"]?.GetValue<int>() ?? 0;  // offset is in bytes
                 

@@ -56,6 +56,25 @@
 - No data breakpoints (memory watchpoints)
 - No breakpoint conditions or hit counts
 
+### Manual Breakpoint Entry Limitation
+**Symptom**: Clicking the "+" button in the Breakpoints panel and entering an address like "0x0609" doesn't work - the breakpoint never triggers.
+
+**Cause**: The "+" button in the Breakpoints panel is for adding **function breakpoints** (breakpoints on function names like "main" or "myFunction"), not instruction/address breakpoints. When you enter "0x0609", VS Code looks for a function named "0x0609", which doesn't exist.
+
+**Workaround**: Use the **Disassembly view** method (this is the standard approach for assembly-level debugging):
+1. Start debugging (F5)
+2. The Disassembly view should open automatically showing the disassembled code
+3. Click in the gutter (left margin) next to any instruction to toggle a breakpoint
+4. The breakpoint will appear in the BREAKPOINTS panel with the hex address (e.g., "0x0609")
+5. These breakpoints work correctly when running the debugger
+
+**Technical details**: VS Code has three types of breakpoints:
+- **Source breakpoints**: File + line number (for source code debugging)
+- **Function breakpoints**: Function name (the "+" button - not applicable for pure assembly debugging)
+- **Instruction breakpoints**: Memory address (set via Disassembly view)
+
+The debug adapter correctly supports instruction breakpoints via the `setInstructionBreakpoints` DAP command. VS Code sends these when you toggle breakpoints in the Disassembly view, and they work perfectly. There is no manual text entry UI for instruction breakpoints in VS Code's standard Breakpoints panel.
+
 ### Simple Step Semantics
 - Step In/Out/Over all do the same thing (single instruction step)
 - No "step over JSR" (subroutine calls)
