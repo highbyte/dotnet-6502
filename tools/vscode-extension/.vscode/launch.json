@@ -7,7 +7,7 @@
       "request": "launch",
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}",
-        "--disable-extensions",
+        // "--disable-extensions",
         "--enable-proposed-api"
       ],
       "outFiles": [

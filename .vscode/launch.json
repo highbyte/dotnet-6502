@@ -72,6 +72,12 @@
             "launchConfigurationId": "TargetFramework=;Avalonia.Browser"
         },
         {
+            "name": "Attach to DotNet6502 VSCode Debug Adapter",
+            "type": "coreclr",
+            "request": "attach",
+            "processName": "Highbyte.DotNet6502.DebugAdapter"
+        },
+        {
             "name": ".NET Core Attach",
             "type": "coreclr",
             "request": "attach",

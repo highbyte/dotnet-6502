@@ -26,6 +26,11 @@ Tests are currently focused on the core `Highbyte.DotNet6502` library. Most of i
 
 Tests may expand to parts of system-specific logic code such as `Highbyte.DotNet6502.Systems.CommodoreC64`.
 
+# Debugging
+
+## Debugging the emulator via VS Code extension
+You can debug the C# emulator code while debugging a 6502 program using the VS Code extension. See the [debugging documentation in the VS Code extension README](../tools/vscode-extension/README.md#debugging-the-debug-adapter-and-emulator-c-code).
+
 ## Unit tests
 To run only unit tests (for the `Highbyte.DotNet6502` library)
 
