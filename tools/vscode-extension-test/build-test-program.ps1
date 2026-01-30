@@ -3,10 +3,14 @@
 
 $ErrorActionPreference = "Stop"
 
-$cc65Path = "$env:USERPROFILE/Documents/C64/cc65/bin"
-$ca65Exe = "$cc65Path/ca65.exe"
-$ld65Exe = "$cc65Path/ld65.exe"
-$cl65Exe = "$cc65Path/cl65.exe"
+# Detect platform and set executable extension
+$exeExt = if ($IsWindows -or $env:OS -match "Windows") { ".exe" } else { "" }
+
+#$cc65Path = if ($IsWindows -or $env:OS -match "Windows") { "$env:USERPROFILE/Documents/C64/cc65/bin/" } else { "$env:HOME/Documents/C64/cc65/bin/" }
+$cc65Path = "" # Assume cc65 tools are in the system PATH
+$ca65Exe = "${cc65Path}ca65${exeExt}"
+$ld65Exe = "${cc65Path}ld65${exeExt}"
+$cl65Exe = "${cc65Path}cl65${exeExt}"
 $asmFile = "test-program.asm"
 $outputFile = $asmFile -replace "\.asm$", ".o"
 #$binaryFile = $asmFile -replace "\.asm$", ".bin"  # Only used if generating binaries without the .prg 2 byte load address header
@@ -19,9 +23,9 @@ $startAddress = "0x0600"
 Write-Host "Building $asmFile with cc65..." -ForegroundColor Cyan
 
 # Check if Assembler exists
-if (-not (Test-Path $ca65Exe)) {
-    Write-Host "ERROR: Assembler not found at: $ca65Exe" -ForegroundColor Red
-    Write-Host "Please update the path in this script." -ForegroundColor Yellow
+if (-not (Get-Command $cl65Exe -ErrorAction SilentlyContinue)) {
+    Write-Host "ERROR: Assembler not found: $cl65Exe" -ForegroundColor Red
+    Write-Host "Please update the path in this script or ensure cc65 is in your PATH." -ForegroundColor Yellow
     exit 1
 }
 
@@ -47,8 +51,6 @@ Write-Host "Running: $cl65Exe -g $asmFile -o $prgFile -C c64-asm.cfg --start-add
 # Link ld65 (requires external __LOADADDR__ symbol in the source)
 #Write-Host "Running: $ld65Exe ""$outputFile"" -o ""$prgFile"" -C c64-asm.cfg --start-addr $startAddress --dbgfile ""$debugFile"" -Ln ""$labelFile"" -m ""$mapFile"""
 #& $ld65Exe "$outputFile" -o "$prgFile" -C c64-asm.cfg --start-addr $startAddress --dbgfile "$debugFile" -Ln "$labelFile" -m "$mapFile"
-
-return
 
 # Check if assembly succeeded
 if ($LASTEXITCODE -eq 0 -and (Test-Path $prgFile)) {

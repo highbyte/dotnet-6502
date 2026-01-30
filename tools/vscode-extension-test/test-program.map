@@ -1,8 +1,8 @@
 Modules list:
 -------------
-test-program.asm.34864.0.o:
+test-program.o:
     CODE              Offs=000000  Size=00000F  Align=00001  Fill=0000
-C:\Users\highb\Documents\C64\cc65\lib/c64.lib(loadaddr.o):
+/opt/homebrew/Cellar/cc65/2.19/share/cc65/lib/c64.lib(loadaddr.o):
     LOADADDR          Offs=000000  Size=000002  Align=00001  Fill=0000
 
 
@@ -27,5 +27,5 @@ __LOADADDR__              000001 REA
 Imports list:
 -------------
 __LOADADDR__ (loadaddr.o):
-    [linker generated]        C:\Users\highb\Documents\C64\cc65\cfg/c64-asm.cfg:5
+    [linker generated]        /opt/homebrew/Cellar/cc65/2.19/share/cc65/cfg/c64-asm.cfg(5)
 

@@ -3,8 +3,12 @@
 
 $ErrorActionPreference = "Stop"
 
-$acmePath = "$env:USERPROFILE/Documents/C64/ACME"
-$acmeExe = "$acmePath/acme.exe"
+# Detect platform and set executable extension
+$exeExt = if ($IsWindows -or $env:OS -match "Windows") { ".exe" } else { "" }
+
+$acmePath = if ($IsWindows -or $env:OS -match "Windows") { "$env:USERPROFILE/Documents/C64/ACME" } else { "$env:HOME/Documents/C64/ACME" }
+#$acmePath = "" # Assume ACME is in the system PATH
+$acmeExe = "$acmePath/acme${exeExt}"
 $asmFile = "test-program2.asm"
 $binaryFile = $asmFile -replace "\.asm$", ".prg"
 
@@ -12,9 +16,9 @@ $binaryFile = $asmFile -replace "\.asm$", ".prg"
 Write-Host "Building $asmFile with ACME..." -ForegroundColor Cyan
 
 # Check if ACME exists
-if (-not (Test-Path $acmeExe)) {
-    Write-Host "ERROR: ACME not found at: $acmeExe" -ForegroundColor Red
-    Write-Host "Please update the path in this script." -ForegroundColor Yellow
+if (-not (Get-Command $acmeExe -ErrorAction SilentlyContinue)) {
+    Write-Host "ERROR: ACME not found: $acmeExe" -ForegroundColor Red
+    Write-Host "Please update the path in this script or ensure ACME is in your PATH." -ForegroundColor Yellow
     exit 1
 }
 
