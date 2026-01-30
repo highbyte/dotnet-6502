@@ -7,7 +7,8 @@
       "name": "Debug test-program.prg (dotnet-6502)",
       "program": "${workspaceFolder}/test-program.prg",
       "stopOnEntry": true,
-      "stopOnBRK": true
+      "stopOnBRK": true,
+      "preLaunchTask": "Build test-program"
     },
     {
       "type": "dotnet6502",
@@ -16,7 +17,8 @@
       "program": "${workspaceFolder}/test-program.prg",
       "dbgFile": "${workspaceFolder}/test-program.dbg",
       "stopOnEntry": true,
-      "stopOnBRK": true
+      "stopOnBRK": true,
+      "preLaunchTask": "Build test-program"
     },
     {
       "type": "dotnet6502",
@@ -25,7 +27,8 @@
       "program": "${workspaceFolder}/test-program.bin",
       "dbgFile": "${workspaceFolder}/test-program.dbg",
       "stopOnEntry": true,
-      "stopOnBRK": true
+      "stopOnBRK": true,
+      "preLaunchTask": "Build test-program"
     }
   ]
 }
