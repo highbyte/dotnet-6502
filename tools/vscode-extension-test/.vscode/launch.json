@@ -8,6 +8,15 @@
       "program": "${workspaceFolder}/test-program.prg",
       "stopOnEntry": true,
       "stopOnBRK": true
+    },
+    {
+      "type": "dotnet6502",
+      "request": "launch",
+      "name": "Debug with source-level (test-program.dbg)",
+      "program": "${workspaceFolder}/test-program.prg",
+      "dbgFile": "${workspaceFolder}/test-program.dbg",
+      "stopOnEntry": true,
+      "stopOnBRK": true
     }
   ]
 }

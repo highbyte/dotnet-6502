@@ -25,6 +25,8 @@ public class DebugAdapterLogic
     private const int FRAME_ID = 0;
     private CancellationTokenSource? _continueTokenSource;
     private bool _stopOnBRK = true;
+    private Ca65DbgParser? _dbgParser;
+    private string? _programPath;
 
     public event Action? OnExit;
 
@@ -136,15 +138,42 @@ public class DebugAdapterLogic
         var program = args?["program"]?.ToString();
         var stopOnEntry = args?["stopOnEntry"]?.GetValue<bool>() ?? true;
         var loadAddress = args?["loadAddress"]?.GetValue<int?>();
+        var dbgFile = args?["dbgFile"]?.ToString();
         _stopOnBRK = args?["stopOnBRK"]?.GetValue<bool>() ?? true;
 
-        _log.WriteLine($"[Launch] program={program}, stopOnEntry={stopOnEntry}, stopOnBRK={_stopOnBRK}");
+        _log.WriteLine($"[Launch] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_stopOnBRK}");
 
         if (string.IsNullOrEmpty(program) || !File.Exists(program))
         {
             await SendOutputAsync($"Error: Program file not found: {program}\n");
             await _protocol.SendResponseAsync(seq, "launch");
             return;
+        }
+
+        _programPath = program;
+
+        // Load debug symbols if provided
+        if (!string.IsNullOrEmpty(dbgFile))
+        {
+            if (File.Exists(dbgFile))
+            {
+                try
+                {
+                    _dbgParser = new Ca65DbgParser();
+                    _dbgParser.ParseFile(dbgFile);
+                    await SendOutputAsync($"Loaded debug symbols from {dbgFile}\n");
+                    await SendOutputAsync($"  Files: {_dbgParser.SourceLineToAddress.Count}\n");
+                }
+                catch (Exception ex)
+                {
+                    await SendOutputAsync($"Warning: Failed to load debug symbols: {ex.Message}\n");
+                    _dbgParser = null;
+                }
+            }
+            else
+            {
+                await SendOutputAsync($"Warning: Debug file not found: {dbgFile}\n");
+            }
         }
 
         // Load binary
@@ -185,14 +214,19 @@ public class DebugAdapterLogic
 
     private async Task HandleSetBreakpointsAsync(int seq, JsonObject? args)
     {
-        // Note: This handles source-level breakpoints (line number = address for our case)
+        // This handles source-level breakpoints
         _log.WriteLine("[SetBreakpoints] Called");
         _log.WriteLine($"[SetBreakpoints] args: {args?.ToJsonString()}");
         
         _breakpoints.Clear();
         var breakpoints = new JsonArray();
 
+        var source = args?["source"] as JsonObject;
+        var sourcePath = source?["path"]?.ToString();
         var requestedBps = args?["breakpoints"] as JsonArray;
+        
+        _log.WriteLine($"[SetBreakpoints] sourcePath={sourcePath}");
+
         if (requestedBps != null)
         {
             foreach (var bp in requestedBps)
@@ -200,15 +234,45 @@ public class DebugAdapterLogic
                 _log.WriteLine($"[SetBreakpoints] Processing breakpoint: {bp?.ToJsonString()}");
                 
                 var line = bp?["line"]?.GetValue<int>() ?? 0;
-                var address = (ushort)line;
-                _breakpoints.Add(address);
+                ushort address;
+                bool verified = false;
 
-                _log.WriteLine($"[SetBreakpoints] Added breakpoint at ${address:X4} (line={line})");
+                // Try to resolve line to address using debug symbols
+                if (_dbgParser != null && !string.IsNullOrEmpty(sourcePath))
+                {
+                    var fileName = Path.GetFileName(sourcePath);
+                    if (_dbgParser.SourceLineToAddress.TryGetValue(fileName, out var lineMap) &&
+                        lineMap.TryGetValue(line, out address))
+                    {
+                        verified = true;
+                        _log.WriteLine($"[SetBreakpoints] Resolved {fileName}:{line} to address ${address:X4}");
+                    }
+                    else
+                    {
+                        // Can't resolve - set unverified breakpoint
+                        address = 0;
+                        _log.WriteLine($"[SetBreakpoints] Could not resolve {fileName}:{line} to address");
+                    }
+                }
+                else
+                {
+                    // No debug symbols - treat line as address (legacy mode)
+                    address = (ushort)line;
+                    verified = true;
+                    _log.WriteLine($"[SetBreakpoints] No debug symbols, treating line {line} as address ${address:X4}");
+                }
+
+                if (verified && address > 0)
+                {
+                    _breakpoints.Add(address);
+                    _log.WriteLine($"[SetBreakpoints] Added breakpoint at ${address:X4}");
+                }
 
                 breakpoints.Add(new JsonObject
                 {
-                    ["verified"] = true,
-                    ["line"] = line
+                    ["verified"] = verified,
+                    ["line"] = line,
+                    ["source"] = source
                 });
             }
         }
@@ -313,6 +377,30 @@ public class DebugAdapterLogic
             ["column"] = 0,
             ["instructionPointerReference"] = FormatAddress(pc)
         };
+
+        // Add source information if debug symbols are available
+        if (_dbgParser != null)
+        {
+            foreach (var fileEntry in _dbgParser.SourceLineToAddress)
+            {
+                foreach (var lineEntry in fileEntry.Value)
+                {
+                    if (lineEntry.Value == pc)
+                    {
+                        // Found source mapping for this address
+                        var sourcePath = Path.Combine(Path.GetDirectoryName(_programPath) ?? "", fileEntry.Key);
+                        frame["source"] = new JsonObject
+                        {
+                            ["name"] = fileEntry.Key,
+                            ["path"] = sourcePath
+                        };
+                        frame["line"] = lineEntry.Key;
+                        _log.WriteLine($"[HandleStackTrace] Resolved PC to {fileEntry.Key}:{lineEntry.Key}");
+                        break;
+                    }
+                }
+            }
+        }
 
         var stackFrames = new JsonArray { frame };
 

@@ -20,15 +20,36 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "languages": [
+      {
+        "id": "asm",
+        "aliases": ["Assembly", "asm"],
+        "extensions": [".asm"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
     "breakpoints": [
       {
-        "language": "6502asm"
+        "language": "asm"
+      },
+      {
+        "language": "kickass"
+      },
+      {
+        "language": "acme"
+      },
+      {
+        "language": "ca65"
+      },
+      {
+        "language": "dasm"
       }
     ],
     "debuggers": [
       {
         "type": "dotnet6502",
         "label": "dotnet-6502 Debugger",
+        "languages": ["asm", "kickass", "acme", "ca65", "dasm"],
         "configurationAttributes": {
           "launch": {
             "required": [
@@ -39,6 +60,11 @@
                 "type": "string",
                 "description": "Path to the .prg file to debug",
                 "default": "${workspaceFolder}/program.prg"
+              },
+              "dbgFile": {
+                "type": "string",
+                "description": "Path to ca65 .dbg file for source-level debugging (optional)",
+                "default": null
               },
               "loadAddress": {
                 "type": "number",
