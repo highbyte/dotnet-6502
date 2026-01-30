@@ -14,6 +14,24 @@ public class Ca65DbgParser
     private readonly List<LineInfo> _lines = new();
 
     public Dictionary<string, Dictionary<int, ushort>> SourceLineToAddress { get; } = new();
+    
+    /// <summary>
+    /// Gets the load address from the first CODE segment, or 0 if not found.
+    /// </summary>
+    public ushort GetLoadAddress()
+    {
+        // Find the first CODE segment
+        foreach (var segment in _segments.Values)
+        {
+            if (segment.Name?.Equals("CODE", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return segment.Start;
+            }
+        }
+        
+        // If no CODE segment, return the first segment's start address
+        return _segments.Values.FirstOrDefault()?.Start ?? 0;
+    }
 
     public void ParseFile(string dbgFilePath)
     {
@@ -59,9 +77,11 @@ public class Ca65DbgParser
         var values = ParseKeyValuePairs(record);
         if (values.TryGetValue("id", out var id) && values.TryGetValue("start", out var start))
         {
+            var name = values.TryGetValue("name", out var n) ? n.Trim('"') : null;
             _segments[int.Parse(id)] = new SegmentInfo
             {
                 Id = int.Parse(id),
+                Name = name,
                 Start = ParseHexValue(start)
             };
         }
@@ -161,6 +181,7 @@ public class Ca65DbgParser
     private class SegmentInfo
     {
         public int Id { get; set; }
+        public string? Name { get; set; }
         public ushort Start { get; set; }
     }
 

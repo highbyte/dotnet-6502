@@ -17,6 +17,15 @@
       "dbgFile": "${workspaceFolder}/test-program.dbg",
       "stopOnEntry": true,
       "stopOnBRK": true
+    },
+    {
+      "type": "dotnet6502",
+      "request": "launch",
+      "name": "Debug test-program.bin with .dbg load address",
+      "program": "${workspaceFolder}/test-program.bin",
+      "dbgFile": "${workspaceFolder}/test-program.dbg",
+      "stopOnEntry": true,
+      "stopOnBRK": true
     }
   ]
 }

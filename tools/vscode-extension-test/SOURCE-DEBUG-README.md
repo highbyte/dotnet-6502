@@ -89,6 +89,57 @@ The debugger still works without debug symbols:
 - **Without `.dbg`**: Use disassembly view and instruction breakpoints (original MVP behavior)
 - **With `.dbg`**: Full source-level debugging
 
+## Binary File Formats
+
+The debugger supports two binary formats:
+
+### .prg Files (Commodore Format)
+Standard Commodore 64 format with a 2-byte load address header (little-endian):
+```
+[Load Address Low] [Load Address High] [Program Data...]
+```
+
+Example:
+```bash
+ca65 test-program.asm -o test-program.o --debug-info
+ld65 -C example.cfg -o test-program.prg test-program.o
+```
+
+### .bin Files (Raw Binary)
+Raw binary data without a load address header. The load address is obtained from:
+1. The `loadAddress` parameter in launch.json (if specified)
+2. The CODE segment start address in the `.dbg` file (if provided)
+
+Example launch.json for .bin files:
+```json
+{
+  "type": "dotnet6502",
+  "request": "launch",
+  "name": "Debug .bin with .dbg",
+  "program": "${workspaceFolder}/test-program.bin",
+  "dbgFile": "${workspaceFolder}/test-program.dbg",
+  "stopOnEntry": true
+}
+```
+
+Or with explicit load address:
+```json
+{
+  "type": "dotnet6502",
+  "request": "launch",
+  "name": "Debug .bin with explicit address",
+  "program": "${workspaceFolder}/test-program.bin",
+  "loadAddress": 1536,  // $0600
+  "stopOnEntry": true
+}
+```
+
+To create a .bin file from a .prg file:
+```bash
+# Remove the 2-byte load address header
+tail -c +3 test-program.prg > test-program.bin
+```
+
 ## Limitations
 
 1. **Single-file support**: Currently optimized for single `.asm` files

@@ -27,14 +27,16 @@ public static class BinaryLoader
     /// <param name="loadedAtAddress">Is set to the address the binary file was loaded at.</param>
     /// <param name="fileLength">Is set to file size in bytes.</param>
     /// <param name="forceLoadAddress">Optional. If not specified, the two first bytes in file is assumed to be the load address.</param>
+    /// <param name="fileContainsLoadAddress">Optional. Defaults to true. If true, the file is assumed to contain a 2-byte load address header. If false, the file is raw binary data and forceLoadAddress must be provided.</param>
     public static Memory Load(
         string binaryFilePath,
         out ushort loadedAtAddress,
         out ushort fileLength,
-        ushort? forceLoadAddress = null)
+        ushort? forceLoadAddress = null,
+        bool? fileContainsLoadAddress = null)
     {
         Memory mem = new(mapToDefaultRAM: true);
-        mem.Load(binaryFilePath, out loadedAtAddress, out fileLength, forceLoadAddress);
+        mem.Load(binaryFilePath, out loadedAtAddress, out fileLength, forceLoadAddress, fileContainsLoadAddress);
         return mem;
     }
 
@@ -63,23 +65,34 @@ public static class BinaryLoader
     /// <param name="loadedAtAddress">Is set to the address the binary file was loaded at.</param>
     /// <param name="fileLength">Is set to file size in bytes.</param>
     /// <param name="forceLoadAddress">Optional. If not specified, the two first bytes in file is assumed to be the load address.</param>
+    /// <param name="fileContainsLoadAddress">Optional. If not specified, the behavior depends on forceLoadAddress: if forceLoadAddress is provided, assumes no header (false); otherwise assumes header exists (true). Explicitly set to false for raw binary files without a header.</param>
     public static void Load(
         this Memory mem,
         string binaryFilePath,
         out ushort loadedAtAddress,
         out ushort fileLength,
-        ushort? forceLoadAddress = null)
+        ushort? forceLoadAddress = null,
+        bool? fileContainsLoadAddress = null)
     {
+        // Determine if file contains load address based on parameters
+        // Priority:
+        // 1. If fileContainsLoadAddress is explicitly set, use that value
+        // 2. If forceLoadAddress is provided, assume NO header (backward compatible behavior)
+        // 3. Otherwise, assume header exists (default .prg behavior)
+        bool hasHeader = fileContainsLoadAddress ?? !forceLoadAddress.HasValue;
+
         var fileData = ReadFile(
             binaryFilePath,
-            fileHeaderContainsLoadAddress: !forceLoadAddress.HasValue,
+            fileHeaderContainsLoadAddress: hasHeader,
             out var fileHeaderLoadAddress,
             out fileLength
         );
         if (fileHeaderLoadAddress.HasValue)
             loadedAtAddress = fileHeaderLoadAddress.Value;
+        else if (forceLoadAddress.HasValue)
+            loadedAtAddress = forceLoadAddress.Value;
         else
-            loadedAtAddress = forceLoadAddress ?? throw new ArgumentNullException(nameof(forceLoadAddress), "No load address specified and file does not contain a load address in the header.");
+            throw new ArgumentNullException(nameof(forceLoadAddress), "No load address specified and file does not contain a load address in the header.");
 
         mem.StoreData(loadedAtAddress, fileData);
     }

@@ -184,4 +184,47 @@ public class BinaryLoaderTest
 
         Assert.Equivalent(data, loadedBytes);
     }
+
+    [Fact]
+    public void Load_Can_Load_Raw_Binary_Without_Header()
+    {
+        // Arrange
+        byte[] data = { 0xA9, 0x01, 0x85, 0x00, 0xA2, 0x05 }; // LDA #$01, STA $00, LDX #$05
+        var filePath = "test_raw.bin";
+        File.WriteAllBytes(filePath, data);
+        ushort loadAddress = 0x0600;
+
+        var bytesString = string.Join(" ", data.Select(b => $"{b:X2}"));
+        _output.WriteLine("Bytes saved:");
+        _output.WriteLine(bytesString);
+
+        var mem = new Memory();
+
+        // Act
+        BinaryLoader.Load(mem, filePath, out var loadedAtAddress, out var fileLength, forceLoadAddress: loadAddress, fileContainsLoadAddress: false);
+
+        // Assert
+        Assert.Equal(loadAddress, loadedAtAddress);
+        Assert.Equal(data.Length, fileLength);
+
+        var memBytes = mem.ReadData(loadedAtAddress, (ushort)data.Length);
+        Assert.Equivalent(data, memBytes);
+    }
+
+    [Fact]
+    public void Load_Throws_If_Raw_Binary_Without_Header_And_No_LoadAddress()
+    {
+        // Arrange
+        byte[] data = { 0xA9, 0x01, 0x85, 0x00 };
+        var filePath = "test_raw_no_addr.bin";
+        File.WriteAllBytes(filePath, data);
+
+        var mem = new Memory();
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+        {
+            BinaryLoader.Load(mem, filePath, out var _, out var _, forceLoadAddress: null, fileContainsLoadAddress: false);
+        });
+    }
 }

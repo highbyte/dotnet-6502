@@ -151,8 +151,10 @@ public class DebugAdapterLogic
         }
 
         _programPath = program;
+        var isBinFile = program.EndsWith(".bin", StringComparison.OrdinalIgnoreCase);
 
         // Load debug symbols if provided
+        ushort? dbgLoadAddress = null;
         if (!string.IsNullOrEmpty(dbgFile))
         {
             if (File.Exists(dbgFile))
@@ -161,8 +163,10 @@ public class DebugAdapterLogic
                 {
                     _dbgParser = new Ca65DbgParser();
                     _dbgParser.ParseFile(dbgFile);
+                    dbgLoadAddress = _dbgParser.GetLoadAddress();
                     await SendOutputAsync($"Loaded debug symbols from {dbgFile}\n");
                     await SendOutputAsync($"  Files: {_dbgParser.SourceLineToAddress.Count}\n");
+                    await SendOutputAsync($"  Load address from .dbg: ${dbgLoadAddress:X4}\n");
                 }
                 catch (Exception ex)
                 {
@@ -176,12 +180,39 @@ public class DebugAdapterLogic
             }
         }
 
+        // Determine load address for .bin files
+        ushort? effectiveLoadAddress = null;
+        if (isBinFile)
+        {
+            if (loadAddress.HasValue)
+            {
+                effectiveLoadAddress = (ushort)loadAddress.Value;
+                await SendOutputAsync($".bin file: Using load address from config: ${effectiveLoadAddress:X4}\n");
+            }
+            else if (dbgLoadAddress.HasValue)
+            {
+                effectiveLoadAddress = dbgLoadAddress.Value;
+                await SendOutputAsync($".bin file: Using load address from .dbg: ${effectiveLoadAddress:X4}\n");
+            }
+            else
+            {
+                await SendOutputAsync($"Error: .bin file requires either 'loadAddress' in config or a .dbg file\n");
+                await _protocol.SendResponseAsync(seq, "launch");
+                return;
+            }
+        }
+        else if (loadAddress.HasValue)
+        {
+            effectiveLoadAddress = (ushort)loadAddress.Value;
+        }
+
         // Load binary
         _memory = BinaryLoader.Load(
             program,
             out ushort loadAddr,
             out ushort fileLength,
-            forceLoadAddress: loadAddress.HasValue ? (ushort)loadAddress.Value : null
+            forceLoadAddress: effectiveLoadAddress,
+            fileContainsLoadAddress: !isBinFile  // .prg has load address, .bin doesn't
         );
 
         // Create CPU
