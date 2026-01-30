@@ -82,6 +82,12 @@ public class DebugAdapterLogic
                     case "variables":
                         await HandleVariablesAsync(seq, arguments);
                         break;
+                    case "readMemory":
+                        await HandleReadMemoryAsync(seq, arguments);
+                        break;
+                    case "evaluate":
+                        await HandleEvaluateAsync(seq, arguments);
+                        break;
                     case "continue":
                         await HandleContinueAsync(seq, arguments);
                         break;
@@ -127,7 +133,9 @@ public class DebugAdapterLogic
             ["supportsTerminateRequest"] = true,
             ["supportsInstructionBreakpoints"] = true,
             ["supportsDisassembleRequest"] = true,
-            ["supportsSteppingGranularity"] = true
+            ["supportsSteppingGranularity"] = true,
+            ["supportsReadMemoryRequest"] = true,
+            ["supportsEvaluateForHovers"] = true
         };
 
         await _protocol.SendResponseAsync(seq, "initialize", body);
@@ -503,6 +511,167 @@ public class DebugAdapterLogic
         };
 
         await _protocol.SendResponseAsync(seq, "variables", body);
+    }
+
+    private async Task HandleEvaluateAsync(int seq, JsonObject? args)
+    {
+        var expression = args?["expression"]?.ToString() ?? "";
+        var context = args?["context"]?.ToString();
+
+        try
+        {
+            if (_cpu == null || _memory == null)
+            {
+                await _protocol.SendResponseAsync(seq, "evaluate");
+                return;
+            }
+
+            // Parse different expression formats
+            string result;
+            string? memoryReference = null;
+
+            // Check for memory address expressions: $0600, 0x0600, or decimal
+            if (expression.StartsWith("$") || expression.StartsWith("0x", StringComparison.OrdinalIgnoreCase) || int.TryParse(expression, out _))
+            {
+                ushort address;
+                if (expression.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                {
+                    address = Convert.ToUInt16(expression.Substring(2), 16);
+                }
+                else if (expression.StartsWith("$"))
+                {
+                    address = Convert.ToUInt16(expression.Substring(1), 16);
+                }
+                else
+                {
+                    address = Convert.ToUInt16(expression);
+                }
+
+                var value = _memory[address];
+                result = $"${value:X2} ({value})";
+                memoryReference = $"0x{address:X4}";
+            }
+            // Check for register expressions
+            else if (expression.Equals("PC", StringComparison.OrdinalIgnoreCase))
+            {
+                result = $"${_cpu.PC:X4}";
+                memoryReference = $"0x{_cpu.PC:X4}";
+            }
+            else if (expression.Equals("A", StringComparison.OrdinalIgnoreCase))
+            {
+                result = $"${_cpu.A:X2}";
+            }
+            else if (expression.Equals("X", StringComparison.OrdinalIgnoreCase))
+            {
+                result = $"${_cpu.X:X2}";
+            }
+            else if (expression.Equals("Y", StringComparison.OrdinalIgnoreCase))
+            {
+                result = $"${_cpu.Y:X2}";
+            }
+            else if (expression.Equals("SP", StringComparison.OrdinalIgnoreCase))
+            {
+                result = $"${_cpu.SP:X2}";
+            }
+            else
+            {
+                result = "not available";
+            }
+
+            var body = new JsonObject
+            {
+                ["result"] = result,
+                ["variablesReference"] = 0
+            };
+
+            // Add memory reference if we have an address
+            if (memoryReference != null)
+            {
+                body["memoryReference"] = memoryReference;
+            }
+
+            await _protocol.SendResponseAsync(seq, "evaluate", body);
+        }
+        catch (Exception ex)
+        {
+            var body = new JsonObject
+            {
+                ["result"] = $"Error: {ex.Message}",
+                ["variablesReference"] = 0
+            };
+            await _protocol.SendResponseAsync(seq, "evaluate", body);
+        }
+    }
+
+    private async Task HandleReadMemoryAsync(int seq, JsonObject? args)
+    {
+        try
+        {
+            var memoryReference = args?["memoryReference"]?.ToString();
+            var count = args?["count"]?.GetValue<int>() ?? 256;
+            var offset = args?["offset"]?.GetValue<int>() ?? 0;
+
+            if (string.IsNullOrEmpty(memoryReference))
+            {
+                await _protocol.SendResponseAsync(seq, "readMemory");
+                return;
+            }
+
+            // Parse memory reference - could be hex (0x0600, $0600) or decimal
+            ushort address;
+            if (memoryReference.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                address = Convert.ToUInt16(memoryReference.Substring(2), 16);
+            }
+            else if (memoryReference.StartsWith("$"))
+            {
+                address = Convert.ToUInt16(memoryReference.Substring(1), 16);
+            }
+            else
+            {
+                address = Convert.ToUInt16(memoryReference);
+            }
+
+            // Apply offset
+            address = (ushort)((address + offset) & 0xFFFF);
+
+            // Read memory
+            if (_memory == null)
+            {
+                await _protocol.SendResponseAsync(seq, "readMemory");
+                return;
+            }
+
+            // Limit count to not exceed 64KB address space
+            int maxCount = 0x10000 - address;
+            if (count > maxCount)
+            {
+                count = maxCount;
+            }
+
+            var data = new byte[count];
+            for (int i = 0; i < count; i++)
+            {
+                data[i] = _memory[(ushort)((address + i) & 0xFFFF)];
+            }
+
+            // Encode as base64
+            var base64Data = Convert.ToBase64String(data);
+
+            var body = new JsonObject
+            {
+                ["address"] = $"0x{address:X4}",
+                ["data"] = base64Data,
+                ["unreadableBytes"] = 0
+            };
+
+            await _protocol.SendResponseAsync(seq, "readMemory", body);
+        }
+        catch (Exception ex)
+        {
+            _log.WriteLine($"[ReadMemory] Error: {ex.Message}");
+            await _protocol.SendResponseAsync(seq, "readMemory");
+        }
     }
 
     private async Task HandleContinueAsync(int seq, JsonObject? args)
