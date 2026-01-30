@@ -27,6 +27,8 @@ public class DebugAdapterLogic
     private bool _stopOnBRK = true;
     private Ca65DbgParser? _dbgParser;
     private string? _programPath;
+    private ushort _programStartAddress;
+    private ushort _programEndAddress;
 
     public event Action? OnExit;
 
@@ -226,6 +228,10 @@ public class DebugAdapterLogic
         // Create CPU
         _cpu = new CPU();
         _cpu.PC = loadAddr;
+
+        // Track program bounds for out-of-bounds detection
+        _programStartAddress = loadAddr;
+        _programEndAddress = (ushort)(loadAddr + fileLength - 1);
 
         await SendOutputAsync($"Loaded {program} at ${loadAddr:X4}, length: {fileLength} bytes\n");
         await SendOutputAsync($"PC set to ${_cpu.PC:X4}\n");
@@ -513,6 +519,32 @@ public class DebugAdapterLogic
         await _protocol.SendResponseAsync(seq, "variables", body);
     }
 
+    private bool IsOutOfBounds(ushort address)
+    {
+        // Check if address is outside loaded program range
+        if (address < _programStartAddress || address > _programEndAddress)
+        {
+            return true;
+        }
+
+        // If debug symbols loaded, also check if address has source mapping
+        if (_dbgParser != null && _dbgParser.SourceLineToAddress.Count > 0)
+        {
+            // Check if any source file has a mapping to this address
+            foreach (var fileDict in _dbgParser.SourceLineToAddress.Values)
+            {
+                if (fileDict.Values.Contains(address))
+                {
+                    return false; // Found a mapping, address is valid
+                }
+            }
+            // No source mapping found for this address
+            return true;
+        }
+
+        return false;
+    }
+
     private async Task HandleEvaluateAsync(int seq, JsonObject? args)
     {
         var expression = args?["expression"]?.ToString() ?? "";
@@ -703,6 +735,16 @@ public class DebugAdapterLogic
                             return;
                         }
 
+                        // Check if PC is out of bounds before execution
+                        if (IsOutOfBounds(_cpu.PC))
+                        {
+                            _log.WriteLine($"[Continue] Execution outside program bounds at ${_cpu.PC:X4}");
+                            await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${_cpu.PC:X4}\n");
+                            await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
+                            await SendStoppedEventAsync("pause", "Execution outside program bounds");
+                            return;
+                        }
+
                         _cpu.ExecuteOneInstruction(_memory);
                     }
 
@@ -736,7 +778,18 @@ public class DebugAdapterLogic
                 _cpu.ExecuteOneInstruction(_memory);
                 _log.WriteLine($"[HandleNext] New PC: ${_cpu.PC:X4}");
                 
-                await SendStoppedEventAsync("step");
+                // Check if PC moved out of bounds after execution
+                if (IsOutOfBounds(_cpu.PC))
+                {
+                    _log.WriteLine($"[HandleNext] Stepped outside program bounds to ${_cpu.PC:X4}");
+                    await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${_cpu.PC:X4}\n");
+                    await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
+                    await SendStoppedEventAsync("pause", "Execution outside program bounds");
+                }
+                else
+                {
+                    await SendStoppedEventAsync("step");
+                }
             }
 
             await _protocol.SendResponseAsync(seq, "next");
@@ -754,7 +807,18 @@ public class DebugAdapterLogic
         if (_cpu != null && _memory != null)
         {
             _cpu.ExecuteOneInstruction(_memory);
-            await SendStoppedEventAsync("step");
+            
+            // Check if PC moved out of bounds after execution
+            if (IsOutOfBounds(_cpu.PC))
+            {
+                await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${_cpu.PC:X4}\n");
+                await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
+                await SendStoppedEventAsync("pause", "Execution outside program bounds");
+            }
+            else
+            {
+                await SendStoppedEventAsync("step");
+            }
         }
 
         await _protocol.SendResponseAsync(seq, "stepIn");
