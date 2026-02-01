@@ -2,9 +2,6 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { DebugAdapterExecutable } from 'vscode';
-import { Ca65TaskProvider } from './ca65TaskProvider';
-
-let taskProvider: vscode.Disposable | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('[6502 Debug] Extension activating...');
@@ -18,11 +15,6 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.debug.registerDebugAdapterDescriptorFactory('dotnet6502', new DebugAdapterExecutableFactory())
     );
-    
-    // Register task provider
-    const ca65TaskProvider = new Ca65TaskProvider();
-    taskProvider = vscode.tasks.registerTaskProvider(Ca65TaskProvider.Type, ca65TaskProvider);
-    context.subscriptions.push(taskProvider);
     
     // Register command to generate build task
     context.subscriptions.push(
@@ -38,16 +30,11 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
     
-    // No file watcher needed - single "build current file" task doesn't change
-    
     console.log('[6502 Debug] Extension activated successfully');
 }
 
 export function deactivate() {
     console.log('[6502 Debug] Extension deactivating...');
-    if (taskProvider) {
-        taskProvider.dispose();
-    }
 }
 
 class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {

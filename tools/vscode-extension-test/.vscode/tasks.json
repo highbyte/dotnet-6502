@@ -2,67 +2,6 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Build with cl65 (manual)",
-      "type": "shell",
-      "command": "cl65",
-      "args": [
-        "-g",
-        "test-program.asm",
-        "-o",
-        "test-program.prg",
-        "-C",
-        "c64-asm.cfg",
-        "--start-addr",
-        "0xc000",
-        "-Wl",
-        "-Ln,test-program.lbl",
-        "-Wl",
-        "--dbgfile,test-program.dbg",
-        "-Wl",
-        "-m,test-program.map"
-      ],
-      "problemMatcher": "$ca65",
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      }
-    },
-    {
-      "label": "Build with Makefile (example)",
-      "type": "shell",
-      "command": "make",
-      "args": [
-        "all"
-      ],
-      "problemMatcher": "$ca65",
-      "group": "build",
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared"
-      }
-    },
-    {
-      "label": "Clean build outputs",
-      "type": "shell",
-      "command": "rm",
-      "args": [
-        "-f",
-        "*.prg",
-        "*.lbl",
-        "*.dbg",
-        "*.map"
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "silent",
-        "panel": "shared"
-      }
-    },
-    {
       "label": "Build test-program.asm (C64)",
       "type": "shell",
       "command": "cl65",
@@ -89,6 +28,23 @@
       "group": {
         "kind": "build",
         "isDefault": false
+      }
+    },
+    {
+      "label": "Clean build outputs",
+      "type": "shell",
+      "command": "rm",
+      "args": [
+        "-f",
+        "*.prg",
+        "*.lbl",
+        "*.dbg",
+        "*.map"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
       }
     }
   ]

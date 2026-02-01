@@ -16,8 +16,7 @@
   ],
   "activationEvents": [
     "onDebugResolve:dotnet6502",
-    "onDebugDynamicConfigurations:dotnet6502",
-    "workspaceContains:**/*.asm"
+    "onDebugDynamicConfigurations:dotnet6502"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -28,7 +27,7 @@
       },
       {
         "command": "dotnet6502.generateLaunchConfig",
-        "title": "Generate Debug Launch Config"
+        "title": "Generate Launch Config (DotNet6502)"
       }
     ],
     "menus": {
@@ -132,18 +131,6 @@
       }
     ],
     "taskDefinitions": [
-      {
-        "type": "ca65",
-        "required": [],
-        "properties": {
-          "task": {
-            "type": "string",
-            "description": "The build task type (e.g., build-current-file)"
-          }
-        }
-      }
-    ],
-    "problemMatchers": [
       {
         "name": "ca65",
         "owner": "ca65",

@@ -2,23 +2,82 @@
 
 A Visual Studio Code extension for debugging 6502 machine code programs using the dotnet-6502 emulator.
 
+## Quick Start
+
+### For Source-Level Debugging with ca65
+
+1. **Right-click your .asm file** in Explorer
+2. Select **"Generate C64 Build Task (ca65)"**
+3. Enter the start address (e.g., `0xc000`)
+4. Click **"Create Launch Config"** when prompted
+5. Press **F5** to build and debug!
+
+That's it! The extension creates both the build task and launch configuration for you.
+
+### Alternative: Generate Separately
+
+You can also generate the build task and launch configuration separately:
+
+1. Right-click .asm file → **"Generate C64 Build Task (ca65)"** → Enter start address
+2. Right-click .asm file → **"Generate Launch Config (DotNet6502)"** → Select the task
+
+### Example Configuration
+
+The generated files look like this:
+
+**`.vscode/tasks.json`**:
+```json
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build test-program.asm (C64)",
+      "type": "shell",
+      "command": "cl65",
+      "args": ["-g", "test-program.asm", "-o", "test-program.prg", 
+               "-C", "c64-asm.cfg", "--start-addr", "0xc000",
+               "-Wl", "-Ln,test-program.lbl", 
+               "-Wl", "--dbgfile,test-program.dbg"]
+    }
+  ]
+}
+```
+
+**`.vscode/launch.json`**:
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "dotnet6502",
+      "request": "launch",
+      "name": "Debug test-program.asm",
+      "preLaunchTask": "Build test-program.asm (C64)",
+      "stopOnEntry": true
+    }
+  ]
+}
+```
+
+**Note**: No need to specify `program` or `dbgFile` - they auto-detect from the task output!
+
 ## Features
 
+- **Easy setup**: Generate build tasks and launch configs with right-click commands
 - **Source-level debugging**: Debug .asm files with ca65 .dbg format support
-- **Generate build tasks**: Right-click .asm files to create customized build tasks with specific load addresses
-- **Automatic build task**: Task Provider provides generic "ca65: build current file (C64)" task
+- **Per-file configuration**: Each .asm file can have its own build task with custom load address
 - **Address-based breakpoints**: Set breakpoints at specific memory addresses
 - **Source breakpoints**: Set breakpoints in .asm source files (with .dbg file)
 - **Step through instructions**: Step, step in, step out, and continue execution
 - **Register inspection**: View CPU registers (PC, SP, A, X, Y) and flags
 - **Memory viewing**: Inspect memory via Watch panel and Debug Console (e.g., `$c000`, `PC`, `A`)
 - **Disassembly view**: See the disassembled instruction at the current PC
-- **Out-of-bounds detection**: Warns when execution moves outside source-mapped regions
 - **Problem matcher**: Compiler errors appear in Problems panel with inline squiggles
 
 ## Requirements
 
 - .NET 10.0 or later
+- cc65 toolchain (for building .asm files)
 - The dotnet-6502 project built on your machine
 
 ## Usage
@@ -49,48 +108,32 @@ A Visual Studio Code extension for debugging 6502 machine code programs using th
    - In VSCode (with vscode-extension folder open), press **F5**
    - A new "Extension Development Host" window opens with your extension loaded
 
-6. **In the Extension Development Host window**:
-   - Open a folder that contains a .prg file (or .asm source file)
-   - Create a .vscode/launch.json:
-   ```json
-   {
-     "type": "dotnet6502",
-     "request": "launch",
-     "name": "Debug 6502 Program",
-     "program": "${workspaceFolder}/program.prg",
-     "stopOnEntry": true
-   }
-   ```
-   
-   **For source-level debugging with ca65**:
-   ```json
-   {
-     "type": "dotnet6502",
-     "request": "launch",
-     "name": "Debug with Source",
-     "preLaunchTask": "ca65: build current file (C64)",
-     "stopOnEntry": true
-   }
-   ```
-   
-   The `preLaunchTask` will automatically build your currently open .asm file before debugging. The extension auto-detects the built .prg and .dbg files - **no need to specify program and dbgFile**!
-   
-   **Important**: Specify the load address using a magic comment:
-   ```asm
-   ; @cc65-start-addr: 0xc000
-   
-   start:
-       lda #$01
-       ; your code...
-   ```
+6. **In the Extension Development Host, open a test folder** with .asm files
 
-7. **Start debugging**: Press F5 to start the debugger
+7. **Generate build task and launch config**:
+   - Right-click an .asm file → **"Generate C64 Build Task (ca65)"**
+   - Enter start address (e.g., `0xc000`)
+   - Click **"Create Launch Config"** when prompted
 
-8. **Set breakpoints**:
-   - Click in the gutter (left margin) of the **Disassembly view** to toggle breakpoints at specific addresses
-   - Breakpoints will appear in the BREAKPOINTS panel showing the hex address (e.g., "0x0609")
-   
-   **Note**: The "+" button in the Breakpoints panel is for function name breakpoints (not applicable for pure assembly debugging). Use the Disassembly view to set instruction breakpoints.
+8. **Start debugging**: Press **F5** to build and debug
+
+9. **Set breakpoints**:
+   - Click in the gutter of your .asm source file (with .dbg support)
+   - Or click in the **Disassembly view** to set address breakpoints
+
+## Manual Launch Configuration
+
+For debugging pre-built .prg files without source:
+
+```json
+{
+  "type": "dotnet6502",
+  "request": "launch",
+  "name": "Debug 6502 Program",
+  "program": "${workspaceFolder}/program.prg",
+  "stopOnEntry": true
+}
+```
 
 ## Configuration
 
@@ -101,108 +144,35 @@ A Visual Studio Code extension for debugging 6502 machine code programs using th
 - `loadAddress`: Override the load address (optional, normally read from .prg file or .dbg file)
 - `stopOnEntry`: Automatically stop after launch (default: true)
 - `stopOnBRK`: Automatically stop when BRK instruction is encountered (default: true)
-- `preLaunchTask`: Task to run before launching (e.g., `"ca65: build current file (C64)"`)
+- `preLaunchTask`: Task to run before launching (e.g., `"Build test-program.asm (C64)"`)
 
 ### Building Your Code
 
-Use the provided `"ca65: build current file (C64)"` task:
+Generate a build task for your .asm file:
+
+1. Right-click the .asm file in Explorer
+2. Select **"Generate C64 Build Task (ca65)"**
+3. Enter the start/load address (e.g., `0xc000`)
+4. Optionally create a launch configuration
+
+Example launch configuration:
 
 ```json
 {
   "type": "dotnet6502",
   "request": "launch",
-  "name": "Debug with Source",
-  "preLaunchTask": "ca65: build current file (C64)",
+  "name": "Debug test-program.asm",
+  "preLaunchTask": "Build test-program.asm (C64)",
   "stopOnEntry": true
 }
 ```
 
-Make sure your .asm file specifies the load address:
-```asm
-; @cc65-start-addr: 0xc000
-
-start:
-    lda #$01
-    ; your code...
-```
-
-The default task reads `@cc65-start-addr` and `@cc65-config` magic comments from your source file. For custom configurations (different build parameters, optimization, etc.), create a task in `.vscode/tasks.json`:
-
-```json
-{
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "build with custom config",
-      "type": "shell",
-      "command": "cl65",
-      "args": [
-        "-g", "${file}",
-        "-o", "${fileBasenameNoExtension}.prg",
-        "-C", "custom.cfg",
-        "-Wl", "-Ln,${fileBasenameNoExtension}.lbl",
-        "-Wl", "--dbgfile,${fileBasenameNoExtension}.dbg",
-        "-Wl", "-m,${fileBasenameNoExtension}.map"
-      ],
-      "problemMatcher": "$ca65"
-    }
-  ]
-}
-```
-
-Then use it:
-```json
-{
-  "preLaunchTask": "build with custom config",
-  "program": "${workspaceFolder}/program.prg",
-  "dbgFile": "${workspaceFolder}/program.dbg",
-  "stopOnEntry": true
-}
-```
-  "name": "Debug with preLaunchTask",
-  "preLaunchTask": "ca65: build program.asm",
-  "program": "${workspaceFolder}/program.prg",
-  "dbgFile": "${workspaceFolder}/program.dbg",
-  "stopOnEntry": true
-}
-```
-
-**Default build command**:
-```bash
-cl65 -g input.asm -o output.prg -C c64-asm.cfg --start-addr 0xc000 \
-  -Wl "-Ln,output.lbl" \
-  -Wl "--dbgfile,output.dbg" \
-  -Wl "-m,output.map"
-```
-
-**Benefits**:
-- Zero configuration needed
-- Quick and simple for standard C64 builds
-- Tasks visible in Terminal → Run Task menu
-
-#### Option 3: Custom tasks.json (Maximum control)
-
-For complete control, create your own tasks in `.vscode/tasks.json`. Custom tasks take precedence over auto-generated tasks.
-
-See [TASK_PROVIDER.md](TASK_PROVIDER.md) for more details.
+For more details, see [GENERATE_BUILD_TASK.md](GENERATE_BUILD_TASK.md).
 
 ## Limitations
 
 - Conditional breakpoints not yet supported
 - Variable inspection limited to registers and memory addresses
-- Memory Inspector UI availability varies by VS Code version (use Watch panel as alternative)
-
-## Development
-
-This extension is part of the dotnet-6502 project. To contribute or modify:
-
-1. Open the dotnet-6502 workspace
-2. Make changes to the extension or debug adapter
-3. Build the debug adapter: `dotnet build`
-4. Press F5 in VSCode to launch the extension development host
-
-### Debugging the Debug Adapter and Emulator C# Code
-
 You can debug the C# code (debug adapter and emulator) while debugging a 6502 program using a two-window workflow:
 
 **Window 1 - Extension Test (6502 Debugging)**:

@@ -190,28 +190,19 @@ If you run "Generate C64 Build Task" on a file that already has a task:
 - Choose "Yes" to update with new settings
 - Choose "No" to keep the existing task
 
-## Comparison with TaskProvider
+## Why Generate Tasks?
 
-The extension also provides a generic TaskProvider task:
-- **Name**: "ca65: build current file (C64)"
-- **Purpose**: Quick builds without configuration
-- **Limitation**: No `--start-addr` parameter (uses c64-asm.cfg default of 0x0801)
-
-Use the **TaskProvider task** for:
-- Quick testing
-- Files that work with default 0x0801 load address
-- Temporary builds
-
-Use **Generate Build Task** for:
-- Production code
-- Custom load addresses (most C64 programs use 0xc000 or higher)
-- Per-file build customization
-- Reliable debugging with correct addresses
+Generated tasks provide:
+- **Custom load addresses** - Essential for C64 programs (most use 0xc000 or higher)
+- **Per-file configuration** - Each .asm file can have different settings
+- **Full customization** - Edit tasks.json to add compiler flags, optimization, etc.
+- **Standard VSCode format** - No proprietary configuration or magic
+- **Reliable debugging** - Correct .prg headers and .dbg files with proper addresses
 
 ## Troubleshooting
 
 **Q: The .prg file has wrong load address (0x0801 instead of 0xc000)**  
-A: Make sure you're using the generated task, not the generic TaskProvider task. Check your `preLaunchTask` name in launch.json matches the task label in tasks.json.
+A: Make sure you specified the correct `--start-addr` when generating the task. You can edit the value in `.vscode/tasks.json` directly.
 
 **Q: Can I change the start address after generating the task?**  
 A: Yes! Just edit the `--start-addr` value in `.vscode/tasks.json` directly.

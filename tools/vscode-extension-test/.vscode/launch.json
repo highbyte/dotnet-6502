@@ -4,8 +4,8 @@
     {
       "type": "dotnet6502",
       "request": "launch",
-      "name": "Debug test-program.asm (with preLaunchTask)",
-      "preLaunchTask": "ca65: build current file (C64)",
+      "name": "Debug test-program.asm",
+      "preLaunchTask": "Build test-program.asm (C64)",
       "stopOnEntry": true,
       "stopOnBRK": true
     },
@@ -24,14 +24,6 @@
       "name": "Debug test-program.prg (C64) with built-in load address",
       "program": "${workspaceFolder}/test-program.prg",
       "dbgFile": "${workspaceFolder}/test-program.dbg",
-      "stopOnEntry": true,
-      "stopOnBRK": true
-    },
-    {
-      "type": "dotnet6502",
-      "request": "launch",
-      "name": "Debug test-program.asm",
-      "preLaunchTask": "Build test-program.asm (C64)",
       "stopOnEntry": true,
       "stopOnBRK": true
     }
