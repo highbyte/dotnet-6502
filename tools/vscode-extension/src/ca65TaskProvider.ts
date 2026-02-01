@@ -55,7 +55,10 @@ export class Ca65TaskProvider implements vscode.TaskProvider {
         // 
         // Uses c64-asm.cfg as it's a reasonable default for assembly programs.
         // Without a config, cl65 uses c64.cfg which expects C runtime segments.
-        // For custom configs, users should create their own task in tasks.json
+        // 
+        // NOTE: This generic task does NOT include --start-addr.
+        // For per-file builds with specific addresses, right-click the .asm file
+        // and select "Generate C64 Build Task (ca65)" to create a custom task.
         
         // Build command with echo to produce output (helps VS Code detect completion)
         const command = `cl65 -g \${fileBasename} -o \${fileBasenameNoExtension}.prg -C c64-asm.cfg -Wl -Ln,\${fileBasenameNoExtension}.lbl -Wl --dbgfile,\${fileBasenameNoExtension}.dbg -Wl -m,\${fileBasenameNoExtension}.map && echo "Build complete"`;

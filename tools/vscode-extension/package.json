@@ -21,6 +21,30 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "dotnet6502.generateBuildTask",
+        "title": "Generate C64 Build Task (ca65)"
+      },
+      {
+        "command": "dotnet6502.generateLaunchConfig",
+        "title": "Generate Debug Launch Config"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "when": "resourceExtname == .asm",
+          "command": "dotnet6502.generateBuildTask",
+          "group": "2_workspace@1"
+        },
+        {
+          "when": "resourceExtname == .asm",
+          "command": "dotnet6502.generateLaunchConfig",
+          "group": "2_workspace@2"
+        }
+      ]
+    },
     "languages": [
       {
         "id": "asm",

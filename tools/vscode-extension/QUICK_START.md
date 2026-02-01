@@ -108,7 +108,7 @@ cl65 -g ${fileBasename} -o ${fileBasenameNoExtension}.prg -C c64-asm.cfg \
 
 **Notes**: 
 - Uses `-C c64-asm.cfg` for C64-compatible assembly
-- No `--start-addr` - you must specify load address with `.org` in your source
+- Automatically includes `--start-addr` if `@cc65-start-addr:` magic comment is found
   -Wl "-Ln,<name>.lbl" \
   -Wl "--dbgfile,<name>.dbg" \
   -Wl "-m,<name>.map"
@@ -138,7 +138,7 @@ cl65 -g ${fileBasename} -o ${fileBasenameNoExtension}.prg -C c64-asm.cfg \
 - Verify task name exactly matches: `"ca65: build current file (C64)"`
 - Ensure an .asm file is open in the editor when debugging
 - Check cl65 is in PATH
-- Verify your .asm file has `.org` directive to set load address
+- Verify your .asm file has `; @cc65-start-addr: 0xc000` magic comment to set load address
 - Try running task manually: **Terminal → Run Task**
 
 ## Requirements

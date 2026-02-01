@@ -4,8 +4,6 @@
 
     .setcpu "6502"
     
-    ;.org $c000    ; Set load address, doesn't affect .dbg file? Instead use --start-addr when invoking the assembler/linker?
-    
 start:
     LDA #$01  ; Load 1 into accumulator
     STA $00   ; Store at zero page address $00

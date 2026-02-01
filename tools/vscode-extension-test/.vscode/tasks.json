@@ -14,9 +14,12 @@
         "c64-asm.cfg",
         "--start-addr",
         "0xc000",
-        "-Wl", "-Ln,test-program.lbl",
-        "-Wl", "--dbgfile,test-program.dbg",
-        "-Wl", "-m,test-program.map"
+        "-Wl",
+        "-Ln,test-program.lbl",
+        "-Wl",
+        "--dbgfile,test-program.dbg",
+        "-Wl",
+        "-m,test-program.map"
       ],
       "problemMatcher": "$ca65",
       "group": {
@@ -32,7 +35,9 @@
       "label": "Build with Makefile (example)",
       "type": "shell",
       "command": "make",
-      "args": ["all"],
+      "args": [
+        "all"
+      ],
       "problemMatcher": "$ca65",
       "group": "build",
       "presentation": {
@@ -44,11 +49,46 @@
       "label": "Clean build outputs",
       "type": "shell",
       "command": "rm",
-      "args": ["-f", "*.prg", "*.lbl", "*.dbg", "*.map"],
+      "args": [
+        "-f",
+        "*.prg",
+        "*.lbl",
+        "*.dbg",
+        "*.map"
+      ],
       "problemMatcher": [],
       "presentation": {
         "reveal": "silent",
         "panel": "shared"
+      }
+    },
+    {
+      "label": "Build test-program.asm (C64)",
+      "type": "shell",
+      "command": "cl65",
+      "args": [
+        "-g",
+        "test-program.asm",
+        "-o",
+        "test-program.prg",
+        "-C",
+        "c64-asm.cfg",
+        "--start-addr",
+        "0xc000",
+        "-Wl",
+        "-Ln,test-program.lbl",
+        "-Wl",
+        "--dbgfile,test-program.dbg",
+        "-Wl",
+        "-m,test-program.map"
+      ],
+      "options": {
+        "cwd": "/Users/highbyte/source/repos/dotnet-6502/tools/vscode-extension-test"
+      },
+      "problemMatcher": "$ca65",
+      "group": {
+        "kind": "build",
+        "isDefault": false
       }
     }
   ]

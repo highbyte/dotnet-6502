@@ -20,27 +20,36 @@ The "(C64)" suffix indicates it uses C64-specific configuration (`-C c64-asm.cfg
 
 ## Load Address
 
-**Important**: You must specify the load address in your .asm file:
+**Important**: You must specify the load address using a magic comment in your .asm file:
 
 ```asm
-.org $c000    ; Set load address to $c000
+; @cc65-start-addr: 0xc000
+; @cc65-config: c64-asm.cfg
 
+    .setcpu "6502"
+    
 start:
     lda #$01
     sta $d020   ; Border color
     rts
 ```
 
-Without `.org`, the cl65 default will be used, which may not be appropriate for your program.
+The task provider reads these magic comments and passes them to cl65:
+- **`@cc65-start-addr`**: Load address (supports `0xc000`, `$c000`, or `49152` formats)
+- **`@cc65-config`**: Config file (defaults to `c64-asm.cfg` if not specified)
+
+These must appear in the first 50 lines of your .asm file.
 
 ### How to Use the Task
 
 **Method 1: As preLaunchTask** (Recommended)
 
-First, add `.org` directive to your .asm file:
+First, add magic comments to your .asm file:
 ```asm
-.org $c000
+; @cc65-start-addr: 0xc000
 
+    .setcpu "6502"
+    
 start:
     lda #$01
     ; your code...
@@ -81,7 +90,7 @@ Where:
 - `${fileDirname}` = Directory of the file (used as working directory)
 - `-C c64-asm.cfg` = Use C64 assembly configuration (not full C runtime)
 
-**Note**: No `--start-addr` parameter. The load address must be specified in your source with `.org`.
+**Note**: The `--start-addr` parameter is automatically added if `@cc65-start-addr` is found in the source file.
 
 This generates:
 - `.prg` - Program file (with 2-byte load address header)

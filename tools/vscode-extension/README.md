@@ -5,7 +5,8 @@ A Visual Studio Code extension for debugging 6502 machine code programs using th
 ## Features
 
 - **Source-level debugging**: Debug .asm files with ca65 .dbg format support
-- **Automatic build task**: Task Provider provides "ca65: build current file (C64)" task (no tasks.json required)
+- **Generate build tasks**: Right-click .asm files to create customized build tasks with specific load addresses
+- **Automatic build task**: Task Provider provides generic "ca65: build current file (C64)" task
 - **Address-based breakpoints**: Set breakpoints at specific memory addresses
 - **Source breakpoints**: Set breakpoints in .asm source files (with .dbg file)
 - **Step through instructions**: Step, step in, step out, and continue execution
@@ -74,9 +75,9 @@ A Visual Studio Code extension for debugging 6502 machine code programs using th
    
    The `preLaunchTask` will automatically build your currently open .asm file before debugging. The extension auto-detects the built .prg and .dbg files - **no need to specify program and dbgFile**!
    
-   **Important**: Specify the load address in your .asm file:
+   **Important**: Specify the load address using a magic comment:
    ```asm
-   .org $c000    ; Set load address
+   ; @cc65-start-addr: 0xc000
    
    start:
        lda #$01
@@ -118,14 +119,14 @@ Use the provided `"ca65: build current file (C64)"` task:
 
 Make sure your .asm file specifies the load address:
 ```asm
-.org $c000    ; Required: Set load address
+; @cc65-start-addr: 0xc000
 
 start:
     lda #$01
     ; your code...
 ```
 
-The default task uses `-C c64-asm.cfg` without `--start-addr`. For custom configurations (different config files, optimization, etc.), create a task in `.vscode/tasks.json`:
+The default task reads `@cc65-start-addr` and `@cc65-config` magic comments from your source file. For custom configurations (different build parameters, optimization, etc.), create a task in `.vscode/tasks.json`:
 
 ```json
 {
