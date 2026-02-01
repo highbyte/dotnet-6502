@@ -39,15 +39,15 @@ Since you already have the Extension Development Host window open:
 3. **Set breakpoints**:
    - Open `test-program.asm` 
    - Remember: Line number = memory address
-   - The program loads at `$0600` (address 1536)
-   - So set a breakpoint at line 1536 to break at start
+   - The program loads at `$c000` (address 49152)
+   - So set a breakpoint at line 49152 to break at start
 
 4. **Press F5** to start debugging
 
 5. **Expected results**:
-   - Debug Console shows "Loaded test-program.prg at $0600"
+   - Debug Console shows "Loaded test-program.prg at $c000"
    - Variables panel shows:
-     - Registers: PC=$0600, SP=$FF, A=$00, X=$00, Y=$00
+     - Registers: PC=$c000, SP=$FF, A=$00, X=$00, Y=$00
      - Flags: N=0, V=0, B=0, D=0, I=0, Z=0, C=0
    - Call Stack shows disassembled instruction
    - Can step through with F10
@@ -55,7 +55,7 @@ Since you already have the Extension Development Host window open:
 ## What the Test Program Does
 
 ```
-$0600: LDA #$01   ; Load 1 into A
+$c000: LDA #$01   ; Load 1 into A
 $0602: STA $00    ; Store to zero page
 $0604: LDX #$05   ; Load 5 into X
 $0606: DEX        ; Decrement X (loop)
@@ -77,8 +77,8 @@ dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter
 
 ### Breakpoints not working
 - Line number must equal memory address in hex
-- Line 1536 = $0600
-- Try setting breakpoint at line 1536, 1538, 1540, etc.
+- Line 49152 = $c000
+- Try setting breakpoint at line 49152, 1538, 1540, etc.
 
 ### Variables not showing
 - Make sure you've hit "stopOnEntry" or a breakpoint first

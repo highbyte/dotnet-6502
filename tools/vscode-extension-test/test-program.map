@@ -1,7 +1,7 @@
 Modules list:
 -------------
 test-program.o:
-    CODE              Offs=000000  Size=00000F  Align=00001  Fill=0000
+    CODE              Offs=000000  Size=00001C  Align=00001  Fill=0000
 /opt/homebrew/Cellar/cc65/2.19/share/cc65/lib/c64.lib(loadaddr.o):
     LOADADDR          Offs=000000  Size=000002  Align=00001  Fill=0000
 
@@ -11,7 +11,7 @@ Segment list:
 Name                   Start     End    Size  Align
 ----------------------------------------------------
 LOADADDR              0007FF  000800  000002  00001
-CODE                  000801  00080F  00000F  00001
+CODE                  000801  00081C  00001C  00001
 
 
 Exports list by name:

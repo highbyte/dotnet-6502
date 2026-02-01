@@ -73,7 +73,7 @@ dotnet-6502/
 ### 1. Address-Only Breakpoints
 - **Why**: MVP simplicity, no source file parsing needed
 - **How**: Line number in VSCode = memory address
-- **Example**: Line 1536 = address 0x0600
+- **Example**: Line 49152 = address 0xc000
 - **Future**: Add .asm/.lst file support for source-level debugging
 
 ### 2. StreamJsonRpc for DAP

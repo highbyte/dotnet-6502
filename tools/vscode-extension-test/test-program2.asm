@@ -2,7 +2,7 @@
 ; This is a minimal program for testing the debugger
 ; Syntax compatible with ACME assembler.
 
-*=$0600       ; Start at address $0600
+*=$c000       ; Start at address $c000
 
 start:
     LDA #$01  ; Load 1 into accumulator

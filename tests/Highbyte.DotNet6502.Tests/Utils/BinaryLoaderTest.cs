@@ -192,7 +192,7 @@ public class BinaryLoaderTest
         byte[] data = { 0xA9, 0x01, 0x85, 0x00, 0xA2, 0x05 }; // LDA #$01, STA $00, LDX #$05
         var filePath = "test_raw.bin";
         File.WriteAllBytes(filePath, data);
-        ushort loadAddress = 0x0600;
+        ushort loadAddress = 0xc000;
 
         var bytesString = string.Join(" ", data.Select(b => $"{b:X2}"));
         _output.WriteLine("Bytes saved:");

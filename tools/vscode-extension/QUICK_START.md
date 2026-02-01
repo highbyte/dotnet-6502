@@ -6,7 +6,7 @@
 Create a file `program.asm` in your workspace:
 ```assembly
 ; Simple 6502 program
-.org $0600
+.org $c000
 
 start:
     LDA #$01    ; Load 1 into A

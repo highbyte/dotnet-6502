@@ -54,7 +54,7 @@ A VS Code Task Provider that automatically detects `.asm` files in the workspace
 
 ### Generated Build Command
 ```bash
-cl65 -g <file>.asm -o <base>.prg -C c64-asm.cfg --start-addr 0x0600 \
+cl65 -g <file>.asm -o <base>.prg -C c64-asm.cfg --start-addr 0xc000 \
   -Wl "-Ln,<base>.lbl" \
   -Wl "--dbgfile,<base>.dbg" \
   -Wl "-m,<base>.map"

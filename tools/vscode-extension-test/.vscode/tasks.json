@@ -13,7 +13,7 @@
         "-C",
         "c64-asm.cfg",
         "--start-addr",
-        "0x0600",
+        "0xc000",
         "-Wl", "-Ln,test-program.lbl",
         "-Wl", "--dbgfile,test-program.dbg",
         "-Wl", "-m,test-program.map"

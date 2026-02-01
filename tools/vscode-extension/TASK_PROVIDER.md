@@ -23,7 +23,7 @@ The "(C64)" suffix indicates it uses C64-specific configuration (`-C c64-asm.cfg
 **Important**: You must specify the load address in your .asm file:
 
 ```asm
-.org $0600    ; Set load address to $0600
+.org $c000    ; Set load address to $c000
 
 start:
     lda #$01
@@ -39,7 +39,7 @@ Without `.org`, the cl65 default will be used, which may not be appropriate for 
 
 First, add `.org` directive to your .asm file:
 ```asm
-.org $0600
+.org $c000
 
 start:
     lda #$01

@@ -39,7 +39,7 @@
    ```
 
 5. **Start debugging:**
-   - Set breakpoints (line numbers = hex addresses, e.g., line 1536 = 0x0600)
+   - Set breakpoints (line numbers = hex addresses, e.g., line 49152 = 0xc000)
    - Press F5 or use Debug > Start Debugging
    - Use the debug controls to step through code
    - Inspect registers in the Variables panel
@@ -60,7 +60,7 @@ If you need a .prg file to test with, you can:
 ### Breakpoints
 - Set by clicking in the gutter at a line number
 - Line number represents the memory address
-- Example: Line 1536 = address 0x0600
+- Example: Line 49152 = address 0xc000
 
 ### Stepping
 - **Step Over (F10)**: Execute one instruction
@@ -79,7 +79,7 @@ If you need a .prg file to test with, you can:
 ## Known Issues (MVP Limitations)
 
 1. **No source mapping**: Breakpoints are by address only
-2. **Line numbers = addresses**: Line 1536 = 0x0600
+2. **Line numbers = addresses**: Line 49152 = 0xc000
 3. **No memory view**: Only registers visible
 4. **Single thread**: Always "6502 CPU" thread
 5. **No watch expressions**: Can only view predefined variables

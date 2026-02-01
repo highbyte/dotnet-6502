@@ -599,7 +599,7 @@ public class DebugAdapterLogic
             string result;
             string? memoryReference = null;
 
-            // Check for memory address expressions: $0600, 0x0600, or decimal
+            // Check for memory address expressions: $c000, 0xc000, or decimal
             if (expression.StartsWith("$") || expression.StartsWith("0x", StringComparison.OrdinalIgnoreCase) || int.TryParse(expression, out _))
             {
                 ushort address;
@@ -686,7 +686,7 @@ public class DebugAdapterLogic
                 return;
             }
 
-            // Parse memory reference - could be hex (0x0600, $0600) or decimal
+            // Parse memory reference - could be hex (0xc000, $c000) or decimal
             ushort address;
             if (memoryReference.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             {
@@ -1125,7 +1125,7 @@ public class DebugAdapterLogic
     
     /// <summary>
     /// Strip the address prefix from disassembly output.
-    /// OutputGen returns something like "0600  LDA #$00" and we want just "LDA #$00"
+    /// OutputGen returns something like "c000  LDA #$00" and we want just "LDA #$00"
     /// </summary>
     private string StripAddressPrefix(string disasm)
     {

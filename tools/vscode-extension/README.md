@@ -10,7 +10,7 @@ A Visual Studio Code extension for debugging 6502 machine code programs using th
 - **Source breakpoints**: Set breakpoints in .asm source files (with .dbg file)
 - **Step through instructions**: Step, step in, step out, and continue execution
 - **Register inspection**: View CPU registers (PC, SP, A, X, Y) and flags
-- **Memory viewing**: Inspect memory via Watch panel and Debug Console (e.g., `$0600`, `PC`, `A`)
+- **Memory viewing**: Inspect memory via Watch panel and Debug Console (e.g., `$c000`, `PC`, `A`)
 - **Disassembly view**: See the disassembled instruction at the current PC
 - **Out-of-bounds detection**: Warns when execution moves outside source-mapped regions
 - **Problem matcher**: Compiler errors appear in Problems panel with inline squiggles
@@ -76,7 +76,7 @@ A Visual Studio Code extension for debugging 6502 machine code programs using th
    
    **Important**: Specify the load address in your .asm file:
    ```asm
-   .org $0600    ; Set load address
+   .org $c000    ; Set load address
    
    start:
        lda #$01
@@ -118,7 +118,7 @@ Use the provided `"ca65: build current file (C64)"` task:
 
 Make sure your .asm file specifies the load address:
 ```asm
-.org $0600    ; Required: Set load address
+.org $c000    ; Required: Set load address
 
 start:
     lda #$01
@@ -168,7 +168,7 @@ Then use it:
 
 **Default build command**:
 ```bash
-cl65 -g input.asm -o output.prg -C c64-asm.cfg --start-addr 0x0600 \
+cl65 -g input.asm -o output.prg -C c64-asm.cfg --start-addr 0xc000 \
   -Wl "-Ln,output.lbl" \
   -Wl "--dbgfile,output.dbg" \
   -Wl "-m,output.map"

@@ -129,7 +129,7 @@ Or with explicit load address:
   "request": "launch",
   "name": "Debug .bin with explicit address",
   "program": "${workspaceFolder}/test-program.bin",
-  "loadAddress": 1536,  // $0600
+  "loadAddress": 49152,  // $c000
   "stopOnEntry": true
 }
 ```
@@ -174,10 +174,10 @@ Example:
 ```
 version major=2,minor=0
 file    id=0,name="test-program.asm",size=498,mtime=0x697C9BBD,mod=0
-seg     id=0,name="CODE",start=0x000600,size=0x00000F,addrsize=absolute,type=rw
+seg     id=0,name="CODE",start=0x00c000,size=0x00000F,addrsize=absolute,type=rw
 span    id=0,seg=0,start=0,size=2,type=1
 line    id=0,file=0,line=9,span=0
-sym     id=0,name="start",addrsize=absolute,size=1,val=0x0600,seg=0,type=lab
+sym     id=0,name="start",addrsize=absolute,size=1,val=0xc000,seg=0,type=lab
 ```
 
 ## Next Steps

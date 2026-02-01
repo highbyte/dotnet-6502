@@ -82,7 +82,7 @@ code .
 ### Setting Breakpoints
 - Click in the gutter at a line number
 - **Important**: Line number = memory address
-- Example: Line 1536 = address 0x0600 ($0600)
+- Example: Line 49152 = address 0xc000 ($c000)
 
 ### Viewing State
 - **Variables Panel**: Shows Registers (PC, SP, A, X, Y) and Flags (N, V, B, D, I, Z, C)
@@ -113,7 +113,7 @@ code .
 ## Known Limitations (By Design for MVP)
 
 1. **No source-level debugging** - Must use memory addresses, not .asm files
-2. **Line number = address** - Line 1536 means address 0x0600
+2. **Line number = address** - Line 49152 means address 0xc000
 3. **No memory inspection** - Only registers visible (no memory view)
 4. **Address-only breakpoints** - No conditional breakpoints
 5. **Single-step semantics** - No "step over JSR" logic yet

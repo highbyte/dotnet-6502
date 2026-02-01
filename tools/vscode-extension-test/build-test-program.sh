@@ -17,7 +17,7 @@ prgFile="${asmFile%.asm}.prg" # Commodore .prg file with 2 byte load address hea
 labelFile="${asmFile%.asm}.lbl"
 debugFile="${asmFile%.asm}.dbg"
 mapFile="${asmFile%.asm}.map"
-startAddress="0x0600"
+startAddress="0xc000" # Set load address in .asm file using .export __LOADADDR__ (and related .segment and .word)
 
 echo -e "\033[36mBuilding $asmFile with cc65...\033[0m"
 

@@ -73,7 +73,7 @@ public class Ca65DbgParser
 
     private void ParseSegmentRecord(string record)
     {
-        // seg id=0,name="CODE",start=0x000600,size=0x000F,addrsize=absolute,type=rw
+        // seg id=0,name="CODE",start=0x00c000,size=0x000F,addrsize=absolute,type=rw
         var values = ParseKeyValuePairs(record);
         if (values.TryGetValue("id", out var id) && values.TryGetValue("start", out var start))
         {

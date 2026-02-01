@@ -45,7 +45,7 @@
 ### No Source-Level Debugging
 - Must use memory addresses instead of source line numbers
 - Line number in breakpoints = hex memory address
-- Example: Line 1536 = address 0x0600
+- Example: Line 49152 = address 0xc000
 
 ### No Memory Inspection
 - Can only view registers and flags

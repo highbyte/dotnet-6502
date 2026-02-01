@@ -18,7 +18,7 @@ $prgFile = $asmFile -replace "\.asm$", ".prg" # Commodore .prg file with 2 byte 
 $labelFile = $asmFile -replace "\.asm$", ".lbl"
 $debugFile = $asmFile -replace "\.asm$", ".dbg"
 $mapFile = $asmFile -replace "\.asm$", ".map"
-$startAddress = "0x0600"
+$startAddress = "0xc000"
 
 Write-Host "Building $asmFile with cc65..." -ForegroundColor Cyan
 
