@@ -3,8 +3,9 @@
 ; Syntax compatible with ca65 assembler.
 
     .setcpu "6502"
-    .segment "CODE"
-
+    
+    .org $0600    ; Required: Set load address
+    
 start:
     LDA #$01  ; Load 1 into accumulator
     STA $00   ; Store at zero page address $00

@@ -145,11 +145,48 @@ public class DebugAdapterLogic
 
     private async Task HandleLaunchAsync(int seq, JsonObject? args)
     {
-        var program = args?["program"]?.ToString();
         var stopOnEntry = args?["stopOnEntry"]?.GetValue<bool>() ?? true;
         var loadAddress = args?["loadAddress"]?.GetValue<int?>();
-        var dbgFile = args?["dbgFile"]?.ToString();
         _stopOnBRK = args?["stopOnBRK"]?.GetValue<bool>() ?? true;
+        
+        // Get program and dbgFile from config, or auto-derive if preLaunchTask was used
+        string? program = args?["program"]?.ToString();
+        string? dbgFile = args?["dbgFile"]?.ToString();
+        var preLaunchTask = args?["preLaunchTask"]?.ToString();
+        
+        // If program not specified but preLaunchTask was used, look for recently built .prg files
+        if (string.IsNullOrEmpty(program) && !string.IsNullOrEmpty(preLaunchTask))
+        {
+            var workingDir = args?["__workspaceFolder"]?.ToString() ?? Directory.GetCurrentDirectory();
+            _log.WriteLine($"[Launch] program not specified with preLaunchTask, searching in: {workingDir}");
+            
+            // Find the most recently modified .prg file (likely just built by the task)
+            var prgFiles = Directory.GetFiles(workingDir, "*.prg", SearchOption.AllDirectories)
+                .Select(f => new FileInfo(f))
+                .OrderByDescending(f => f.LastWriteTime)
+                .ToList();
+            
+            if (prgFiles.Any())
+            {
+                var recentPrg = prgFiles.First();
+                program = recentPrg.FullName;
+                _log.WriteLine($"[Launch] Auto-detected recently built program: {program} (modified: {recentPrg.LastWriteTime})");
+                await SendOutputAsync($"Auto-detected program: {Path.GetFileName(program)}\n");
+                
+                // Also look for corresponding .dbg file
+                var dbgPath = Path.ChangeExtension(program, ".dbg");
+                if (File.Exists(dbgPath))
+                {
+                    dbgFile = dbgPath;
+                    _log.WriteLine($"[Launch] Auto-detected debug file: {dbgFile}");
+                    await SendOutputAsync($"Auto-detected debug file: {Path.GetFileName(dbgFile)}\n");
+                }
+            }
+            else
+            {
+                _log.WriteLine($"[Launch] No .prg files found in workspace");
+            }
+        }
 
         _log.WriteLine($"[Launch] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_stopOnBRK}");
 

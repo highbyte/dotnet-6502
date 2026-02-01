@@ -1,17 +1,52 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { DebugAdapterExecutable } from 'vscode';
+import { Ca65TaskProvider } from './ca65TaskProvider';
+
+let taskProvider: vscode.Disposable | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('[6502 Debug] Extension activating...');
+    
+    // Register debug configuration provider
+    context.subscriptions.push(
+        vscode.debug.registerDebugConfigurationProvider('dotnet6502', new DebugConfigurationProvider())
+    );
+    
+    // Register debug adapter
     context.subscriptions.push(
         vscode.debug.registerDebugAdapterDescriptorFactory('dotnet6502', new DebugAdapterExecutableFactory())
     );
+    
+    // Register task provider
+    const ca65TaskProvider = new Ca65TaskProvider();
+    taskProvider = vscode.tasks.registerTaskProvider(Ca65TaskProvider.Type, ca65TaskProvider);
+    context.subscriptions.push(taskProvider);
+    
+    // No file watcher needed - single "build current file" task doesn't change
+    
     console.log('[6502 Debug] Extension activated successfully');
 }
 
 export function deactivate() {
     console.log('[6502 Debug] Extension deactivating...');
+    if (taskProvider) {
+        taskProvider.dispose();
+    }
+}
+
+class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
+    resolveDebugConfiguration(
+        folder: vscode.WorkspaceFolder | undefined,
+        config: vscode.DebugConfiguration,
+        token?: vscode.CancellationToken
+    ): vscode.ProviderResult<vscode.DebugConfiguration> {
+        // Add workspace folder to config for auto-detection
+        if (folder) {
+            config.__workspaceFolder = folder.uri.fsPath;
+        }
+        return config;
+    }
 }
 
 class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFactory {

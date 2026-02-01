@@ -16,7 +16,8 @@
   ],
   "activationEvents": [
     "onDebugResolve:dotnet6502",
-    "onDebugDynamicConfigurations:dotnet6502"
+    "onDebugDynamicConfigurations:dotnet6502",
+    "workspaceContains:**/*.asm"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -52,18 +53,16 @@
         "languages": ["asm", "kickass", "acme", "ca65", "dasm"],
         "configurationAttributes": {
           "launch": {
-            "required": [
-              "program"
-            ],
+            "required": [],
             "properties": {
               "program": {
                 "type": "string",
-                "description": "Path to the .prg file to debug",
+                "description": "Path to the .prg file to debug (optional if buildSourceFile is specified, will use <basename>.prg)",
                 "default": "${workspaceFolder}/program.prg"
               },
               "dbgFile": {
                 "type": "string",
-                "description": "Path to ca65 .dbg file for source-level debugging (optional)",
+                "description": "Path to ca65 .dbg file for source-level debugging (optional, will use <basename>.dbg if buildEnabled)",
                 "default": null
               },
               "loadAddress": {
@@ -106,6 +105,32 @@
             }
           }
         ]
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "ca65",
+        "required": [],
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "The build task type (e.g., build-current-file)"
+          }
+        }
+      }
+    ],
+    "problemMatchers": [
+      {
+        "name": "ca65",
+        "owner": "ca65",
+        "fileLocation": "relative",
+        "pattern": {
+          "regexp": "^(.*)\\((\\d+)\\):\\s+(Error|Warning):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "severity": 3,
+          "message": 4
+        }
       }
     ]
   },

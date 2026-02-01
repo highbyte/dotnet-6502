@@ -10,8 +10,8 @@ Segment list:
 -------------
 Name                   Start     End    Size  Align
 ----------------------------------------------------
-LOADADDR              0005FE  0005FF  000002  00001
-CODE                  000600  00060E  00000F  00001
+LOADADDR              0007FF  000800  000002  00001
+CODE                  000801  00080F  00000F  00001
 
 
 Exports list by name:
