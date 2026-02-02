@@ -8,6 +8,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Platform;
 using Highbyte.DotNet6502.App.Avalonia.Core.Controls;
+using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Impl.Avalonia.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Monitor;
 using Highbyte.DotNet6502.Impl.Avalonia.Render;
@@ -59,6 +60,22 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
     private AvaloniaMonitor? _monitor;
     internal AvaloniaMonitor? Monitor => _monitor;
+
+    /// <summary>
+    /// Flag to indicate if an external debugger (e.g., VSCode) is attached.
+    /// When true, the built-in monitor should not activate on breakpoints.
+    /// </summary>
+    public bool IsExternalDebuggerAttached { get; set; }
+
+    private DebugAdapter.DebugAdapterLogic? _debugAdapter;
+
+    /// <summary>
+    /// Set the debug adapter instance. Called when VSCode attaches.
+    /// </summary>
+    public void SetDebugAdapter(DebugAdapter.DebugAdapterLogic debugAdapter)
+    {
+        _debugAdapter = debugAdapter;
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -502,13 +519,25 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             shouldRun = false;
             shouldReceiveInput = false;
         }
+
+        // Pause emulator when VSCode debugger is stopped (at breakpoint or stepping)
+        // This prevents IRQs from firing and jumping to ROM interrupt handlers
+        if (IsExternalDebuggerAttached && _debugAdapter?.IsStopped == true)
+        {
+            shouldRun = false;
+            shouldReceiveInput = false;
+        }
     }
 
     public override void OnAfterRunEmulatorOneFrame(ExecEvaluatorTriggerResult execEvaluatorTriggerResult)
     {
         // Show monitor if we encounter breakpoint or other break
-        if (execEvaluatorTriggerResult.Triggered)
+        // BUT: Skip if an external debugger (e.g., VSCode) is attached
+        // The external debugger handles breakpoints, not the built-in monitor
+        if (execEvaluatorTriggerResult.Triggered && !IsExternalDebuggerAttached)
+        {
             _monitor?.Enable(execEvaluatorTriggerResult);
+        }
     }
 
     internal float Scale

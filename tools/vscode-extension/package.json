@@ -114,6 +114,35 @@
                 "type": "boolean",
                 "description": "Automatically stop when BRK instruction is encountered",
                 "default": true
+              },
+              "debugServer": {
+                "type": "number",
+                "description": "TCP port number to connect to an existing debug adapter server (e.g., running Avalonia Desktop app with --debug-port)",
+                "default": null
+              }
+            }
+          },
+          "attach": {
+            "required": ["debugServer"],
+            "properties": {
+              "debugServer": {
+                "type": "number",
+                "description": "TCP port number to connect to the debug adapter server"
+              },
+              "program": {
+                "type": "string",
+                "description": "Path to the .prg file being debugged",
+                "default": "${workspaceFolder}/program.prg"
+              },
+              "dbgFile": {
+                "type": "string",
+                "description": "Path to ca65 .dbg file for source-level debugging",
+                "default": null
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Automatically stop after attaching",
+                "default": true
               }
             }
           }
@@ -123,6 +152,14 @@
             "type": "dotnet6502",
             "request": "launch",
             "name": "Debug 6502 Program (dotnet-6502)",
+            "program": "${workspaceFolder}/program.prg",
+            "stopOnEntry": true
+          },
+          {
+            "type": "dotnet6502",
+            "request": "attach",
+            "name": "Attach to Avalonia Desktop (dotnet-6502)",
+            "debugServer": 4711,
             "program": "${workspaceFolder}/program.prg",
             "stopOnEntry": true
           }
@@ -135,6 +172,18 @@
               "type": "dotnet6502",
               "request": "launch",
               "name": "Debug 6502 Program (dotnet-6502)",
+              "program": "^\"\\${workspaceFolder}/program.prg\"",
+              "stopOnEntry": true
+            }
+          },
+          {
+            "label": "dotnet-6502: Attach",
+            "description": "Attach to a running Avalonia Desktop app with debug adapter enabled",
+            "body": {
+              "type": "dotnet6502",
+              "request": "attach",
+              "name": "Attach to Avalonia Desktop (dotnet-6502)",
+              "debugServer": 4711,
               "program": "^\"\\${workspaceFolder}/program.prg\"",
               "stopOnEntry": true
             }

@@ -65,6 +65,17 @@
             "stopAtEntry": false
         },
         {
+            "name": "Avalonia desktop app with TCP debug server",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build avalonia desktop app",
+            "program": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.dll",
+            "args": ["--debug-port", "4711", "--debug-wait", "--console-log", "-l", "Debug"],
+            "cwd": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
             "name": "C#: Highbyte.DotNet6502.App.Avalonia.Browser",
             "type": "dotnet",
             "request": "launch",

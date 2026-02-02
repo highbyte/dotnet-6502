@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.ReactiveUI;
 using Highbyte.DotNet6502.App.Avalonia.Core;
@@ -11,6 +12,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Highbyte.DotNet6502.Systems.Input;
 using System.Runtime.InteropServices;
+using Highbyte.DotNet6502.DebugAdapter;
+using System.Threading;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 
@@ -42,6 +45,20 @@ internal sealed partial class Program
     ///       Valid values: <c>Trace</c>, <c>Debug</c>, <c>Information</c>, <c>Warning</c>, <c>Error</c>, <c>Critical</c>.
     ///     </description>
     ///   </item>
+    ///   <item>
+    ///     <term><c>--debug-port &lt;port&gt;</c></term>
+    ///     <description>
+    ///       Enable TCP debug adapter server on the specified port for VSCode debugging.
+    ///       Port must be between 1 and 65535.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>--debug-wait</c></term>
+    ///     <description>
+    ///       Wait for debug client to connect before starting the application.
+    ///       Only effective when used with <c>--debug-port</c>. Times out after 30 seconds.
+    ///     </description>
+    ///   </item>
     /// </list>
     /// <para>
     /// <b>Examples:</b>
@@ -66,6 +83,10 @@ internal sealed partial class Program
         // ----------
         bool enableConsoleLogging = args.Contains("--console-log") || args.Contains("-c");
         LogLevel consoleLogLevel = ParseLogLevel(args, defaultLevel: LogLevel.Information);
+        
+        // Parse debug adapter arguments
+        int debugPort = ParseDebugPort(args);
+        bool debugWait = args.Contains("--debug-wait");
 
         // Set bootstrap console logging flag (for Console.WriteLine before ILogger is available)
         AppLogger.ConsoleLoggingEnabled = enableConsoleLogging;
@@ -144,6 +165,128 @@ internal sealed partial class Program
         // ----------
         WriteBootstrapLog($"Creating Gamepad implementation (SDL2).");
         var gamepad = new Sdl2Gamepad(loggerFactory);
+
+        // ----------
+        // Start debug adapter server if requested
+        // ----------
+        TcpDebugAdapterServer? debugServer = null;
+        bool debugClientConnected = false;
+        if (debugPort > 0)
+        {
+            WriteBootstrapLog($"Starting TCP debug adapter server on port {debugPort}.");
+            
+            // Create debug log file
+            var debugLogFilePath = Path.Combine(Path.GetTempPath(), $"dotnet6502-debugadapter-avalonia-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+            var debugLogWriter = new StreamWriter(debugLogFilePath, append: true) { AutoFlush = true };
+            debugLogWriter.WriteLine($"Debug adapter server started at {DateTime.Now}");
+            
+            debugServer = new TcpDebugAdapterServer(debugLogWriter);
+            debugServer.ClientConnected += (sender, e) =>
+            {
+                debugClientConnected = true;
+                WriteBootstrapLog("Debug client connected.");
+                debugLogWriter.WriteLine($"Debug client connected at {DateTime.Now}");
+                
+                var protocol = new DapProtocol(e.Transport, debugLogWriter);
+                var adapter = new DebugAdapterLogic(protocol, debugLogWriter);
+                
+                // Attach to emulator when it's running
+                // Note: This uses a polling approach because the system may not be started yet
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        // Wait for app instance and emulator to be in a running state
+                        debugLogWriter.WriteLine("Waiting for emulator to be in running state...");
+                        while (Core.App.Current?.HostApp?.CurrentRunningSystem == null)
+                        {
+                            await Task.Delay(100);
+                        }
+                        
+                        debugLogWriter.WriteLine("Emulator is running, attaching debug adapter...");
+                        var system = Core.App.Current.HostApp.CurrentRunningSystem;
+                        adapter.AttachToEmulator(system.CPU, system.Mem);
+                        
+                        // Install breakpoint evaluator
+                        var breakpointEvaluator = adapter.GetBreakpointEvaluator();
+                        Core.App.Current.HostApp.CurrentSystemRunner!.SetCustomExecEvaluator(breakpointEvaluator);
+                        
+                        // Set debug adapter reference so AvaloniaHostApp can check IsStopped property
+                        Core.App.Current.HostApp.SetDebugAdapter(adapter);
+                        
+                        // Set flag to disable built-in monitor when external debugger is attached
+                        Core.App.Current.HostApp.IsExternalDebuggerAttached = true;
+                        
+                        debugLogWriter.WriteLine("Breakpoint evaluator installed and external debugger flag set");
+                    }
+                    catch (Exception ex)
+                    {
+                        debugLogWriter.WriteLine($"Failed to attach to emulator: {ex}");
+                    }
+                });
+                
+                // Start message loop for this client
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        while (true)
+                        {
+                            var message = await protocol.ReadMessageAsync();
+                            if (message == null)
+                            {
+                                debugLogWriter.WriteLine("Received null message, debug client disconnected");
+                                break;
+                            }
+                            await adapter.HandleMessageAsync(message);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        debugLogWriter.WriteLine($"Debug adapter error: {ex}");
+                    }
+                    finally
+                    {
+                        debugLogWriter.WriteLine($"Debug adapter stopped at {DateTime.Now}");
+                        
+                        // Reset debugger state to unfreeze emulator
+                        adapter.Reset();
+                        if (Core.App.Current?.HostApp != null)
+                        {
+                            // Remove breakpoint evaluator to prevent exceptions when program runs again
+                            Core.App.Current.HostApp.CurrentSystemRunner?.SetCustomExecEvaluator(null);
+                            Core.App.Current.HostApp.IsExternalDebuggerAttached = false;
+                            Core.App.Current.HostApp.SetDebugAdapter(null!);
+                            debugLogWriter.WriteLine("Emulator state reset, breakpoint evaluator removed, resuming normal execution");
+                        }
+                        
+                        debugLogWriter.Close();
+                    }
+                });
+            };
+            
+            // Start listening for connections
+            _ = Task.Run(async () => await debugServer.StartAsync(debugPort));
+            
+            if (debugWait)
+            {
+                WriteBootstrapLog("Waiting for debug client to connect (--debug-wait specified)...");
+                // Wait for client to connect before starting app
+                var waitStart = DateTime.Now;
+                while (!debugClientConnected && (DateTime.Now - waitStart).TotalSeconds < 30)
+                {
+                    Thread.Sleep(100);
+                }
+                if (debugClientConnected)
+                {
+                    WriteBootstrapLog("Debug client connected, continuing startup.");
+                }
+                else
+                {
+                    WriteBootstrapLog("Debug client connection timeout, continuing startup anyway.");
+                }
+            }
+        }
 
         // ----------
         // Start Avalonia app
@@ -227,5 +370,25 @@ internal sealed partial class Program
             }
         }
         return defaultLevel;
+    }
+
+    /// <summary>
+    /// Parses the debug port from command line arguments.
+    /// Usage: --debug-port 4711
+    /// Returns 0 if not specified or invalid.
+    /// </summary>
+    private static int ParseDebugPort(string[] args)
+    {
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == "--debug-port")
+            {
+                if (int.TryParse(args[i + 1], out var port) && port > 0 && port <= 65535)
+                {
+                    return port;
+                }
+            }
+        }
+        return 0;
     }
 }

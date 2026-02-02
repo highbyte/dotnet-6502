@@ -42,6 +42,16 @@ public partial class App : Application
     private AvaloniaHostApp _hostApp = default!;
     private IServiceProvider _serviceProvider = default!;
 
+    /// <summary>
+    /// Exposes the AvaloniaHostApp instance for external access (e.g., debug adapter integration).
+    /// </summary>
+    public AvaloniaHostApp HostApp => _hostApp;
+
+    /// <summary>
+    /// Static reference to the current App instance (for debug adapter integration).
+    /// </summary>
+    public static App? Current { get; private set; }
+
     // Guard to prevent multiple error overlays from being shown simultaneously
     private Panel? _currentErrorOverlay;
 
@@ -76,6 +86,9 @@ public partial class App : Application
         _saveCustomConfigString = saveCustomConfigString;
         _saveCustomConfigSection = saveCustomConfigSection;
         _gamepad = gamepad;
+
+        // Set static reference for external access (e.g., debug adapter)
+        Current = this;
 
         // Initialize static logger factory for use in Views and other classes where DI is not available
         AppLogger.Factory = loggerFactory;

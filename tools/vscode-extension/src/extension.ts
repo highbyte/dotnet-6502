@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { DebugAdapterExecutable } from 'vscode';
+import * as net from 'net';
+import { DebugAdapterExecutable, DebugAdapterServer } from 'vscode';
 import { MemoryContentProvider, openMemoryViewer } from './memoryViewer';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -74,6 +75,32 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         console.log('[6502 Debug] createDebugAdapterDescriptor called for session:', session.name);
         console.log('[6502 Debug] Session configuration:', JSON.stringify(session.configuration, null, 2));
         
+        // Check if this is a TCP connection (attach mode or launch with debugServer)
+        const debugServerPort = session.configuration.debugServer;
+        if (debugServerPort) {
+            console.log(`[6502 Debug] Using TCP connection to port ${debugServerPort}`);
+            return this.createTcpDebugAdapter(debugServerPort);
+        }
+        
+        // Otherwise, launch the debug adapter as a child process
+        return this.createExecutableDebugAdapter();
+    }
+    
+    private createTcpDebugAdapter(port: number): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+        try {
+            // Return a DebugAdapterServer that connects to the specified port
+            const server = new DebugAdapterServer(port, '127.0.0.1');
+            console.log(`[6502 Debug] ✓ Created DebugAdapterServer for port ${port}`);
+            return server;
+        } catch (error) {
+            const errorMsg = `[6502 Debug] Error creating TCP debug adapter: ${error}`;
+            console.error(errorMsg);
+            vscode.window.showErrorMessage(errorMsg);
+            return undefined;
+        }
+    }
+    
+    private createExecutableDebugAdapter(): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
         try {
             // Find the debug adapter executable
             // Look for the debug adapter executable

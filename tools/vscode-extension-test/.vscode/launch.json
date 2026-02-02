@@ -26,6 +26,15 @@
       "dbgFile": "${workspaceFolder}/test-program.dbg",
       "stopOnEntry": true,
       "stopOnBRK": true
+    },
+    {
+      "type": "dotnet6502",
+      "request": "attach",
+      "name": "Attach to Avalonia Desktop (TCP debug adapter)", 
+      "debugServer": 4711,
+      "program": "${workspaceFolder}/test-program.prg",
+      "dbgFile": "${workspaceFolder}/test-program.dbg",
+      "stopOnEntry": true
     }
   ]
 }
