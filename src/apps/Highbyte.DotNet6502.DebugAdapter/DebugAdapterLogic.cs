@@ -111,6 +111,9 @@ public class DebugAdapterLogic
                     case "disconnect":
                         await HandleDisconnectAsync(seq, arguments);
                         break;
+                    case "getMemoryDump":
+                        await HandleGetMemoryDumpAsync(seq, arguments);
+                        break;
                     default:
                         _log.WriteLine($"[Handler] Unknown command: {command}");
                         await _protocol.SendResponseAsync(seq, command ?? "unknown");
@@ -659,26 +662,12 @@ public class DebugAdapterLogic
                 length = maxLength;
             }
 
-            // Limit to reasonable size (16KB max to avoid console overflow)
-            bool truncated = false;
-            if (length > 16384)
-            {
-                truncated = true;
-                length = 16384;
-            }
             if (length < 1)
             {
                 return "Error: Invalid length";
             }
 
-            var result = FormatMemoryDump(startAddress, length);
-            
-            if (truncated)
-            {
-                result += $"\n[WARNING: Output truncated from {requestedLength} to {length} bytes (16KB max)]";
-            }
-            
-            return result;
+            return FormatMemoryDump(startAddress, length);
         }
         catch (Exception ex)
         {
@@ -745,7 +734,75 @@ public class DebugAdapterLogic
             sb.AppendLine();
         }
 
+        // Remove trailing newline to avoid empty row at end
+        if (sb.Length > 0 && sb[sb.Length - 1] == '\n')
+        {
+            sb.Length--;
+            if (sb.Length > 0 && sb[sb.Length - 1] == '\r')
+            {
+                sb.Length--;
+            }
+        }
+
         return sb.ToString();
+    }
+
+    private async Task HandleGetMemoryDumpAsync(int seq, JsonObject? args)
+    {
+        try
+        {
+            if (_cpu == null || _memory == null)
+            {
+                await _protocol.SendResponseAsync(seq, "getMemoryDump", new JsonObject
+                {
+                    ["success"] = false,
+                    ["message"] = "Not debugging"
+                });
+                return;
+            }
+
+            // Parse arguments
+            var address = args?["address"]?.GetValue<int>() ?? _cpu.PC;
+            var length = args?["length"]?.GetValue<int>() ?? 256;
+
+            // Validate address
+            if (address < 0 || address > 0xFFFF)
+            {
+                await _protocol.SendResponseAsync(seq, "getMemoryDump", new JsonObject
+                {
+                    ["success"] = false,
+                    ["message"] = $"Invalid address: 0x{address:X}"
+                });
+                return;
+            }
+
+            // Limit to address space boundary
+            int maxLength = 0x10000 - address;
+            if (length > maxLength)
+            {
+                length = maxLength;
+            }
+
+            // Generate memory dump
+            var content = FormatMemoryDump((ushort)address, length);
+
+            await _protocol.SendResponseAsync(seq, "getMemoryDump", new JsonObject
+            {
+                ["success"] = true,
+                ["address"] = address,
+                ["length"] = length,
+                ["content"] = content
+            });
+        }
+        catch (Exception ex)
+        {
+            _log.WriteLine($"[GetMemoryDump] Error: {ex.Message}");
+            await _protocol.SendResponseAsync(seq, "getMemoryDump", new JsonObject
+            {
+                ["success"] = false,
+                ["message"] = ex.Message
+            });
+        }
     }
 
     private async Task HandleEvaluateAsync(int seq, JsonObject? args)

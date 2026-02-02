@@ -28,9 +28,21 @@
       {
         "command": "dotnet6502.generateLaunchConfig",
         "title": "Generate Launch Config (DotNet6502)"
+      },
+      {
+        "command": "dotnet6502.viewMemory",
+        "title": "View Memory",
+        "icon": "$(symbol-array)"
       }
     ],
     "menus": {
+      "debug/toolBar": [
+        {
+          "command": "dotnet6502.viewMemory",
+          "when": "debugType == 'dotnet6502'",
+          "group": "navigation"
+        }
+      ],
       "explorer/context": [
         {
           "when": "resourceExtname == .asm",

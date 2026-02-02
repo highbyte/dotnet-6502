@@ -2,9 +2,16 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { DebugAdapterExecutable } from 'vscode';
+import { MemoryContentProvider, openMemoryViewer } from './memoryViewer';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('[6502 Debug] Extension activating...');
+    
+    // Register memory content provider
+    const memoryProvider = new MemoryContentProvider(context);
+    context.subscriptions.push(
+        vscode.workspace.registerTextDocumentContentProvider('memory', memoryProvider)
+    );
     
     // Register debug configuration provider
     context.subscriptions.push(
@@ -27,6 +34,13 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('dotnet6502.generateLaunchConfig', async (uri: vscode.Uri) => {
             await generateLaunchConfigCommand(uri);
+        })
+    );
+    
+    // Register command to view memory
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dotnet6502.viewMemory', async () => {
+            await openMemoryViewer(context, memoryProvider);
         })
     );
     
