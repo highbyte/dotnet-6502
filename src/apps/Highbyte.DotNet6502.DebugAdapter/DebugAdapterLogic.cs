@@ -610,6 +610,144 @@ public class DebugAdapterLogic
         return false;
     }
 
+    private string HandleMemoryDumpCommand(string command)
+    {
+        // Parse command: "dump <start> [<length>]" or "dump <start> [<end>]"
+        // Supports formats: dump 0xc000, dump 0xc000 256, dump $c000 $c0ff, md c000 100
+        var parts = command.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        
+        if (parts.Length < 2)
+        {
+            return "Usage: dump <start_address> [length_or_end_address]\nExamples:\n  dump 0xc000\n  dump 0xc000 256\n  dump $c000 $c0ff\n  md c000 100";
+        }
+
+        try
+        {
+            ushort startAddress = ParseAddress(parts[1]);
+            int length = 256; // Default to 256 bytes
+            int requestedLength = length;
+            
+            // If second parameter provided, parse it
+            if (parts.Length >= 3)
+            {
+                string secondParam = parts[2];
+                ushort lengthOrEnd = ParseAddress(secondParam);
+                
+                // Determine if second parameter is length or end address based on format:
+                // - Hex format (0x or $) = end address
+                // - Decimal format = length
+                bool isHexFormat = secondParam.StartsWith("0x", StringComparison.OrdinalIgnoreCase) || 
+                                   secondParam.StartsWith("$");
+                
+                if (isHexFormat && lengthOrEnd > startAddress)
+                {
+                    // Treat as end address
+                    length = lengthOrEnd - startAddress + 1;
+                }
+                else
+                {
+                    // Treat as length
+                    length = lengthOrEnd;
+                }
+                requestedLength = length;
+            }
+
+            // Limit to 64KB address space (don't wrap around past 0xFFFF)
+            int maxLength = 0x10000 - startAddress;
+            if (length > maxLength)
+            {
+                length = maxLength;
+            }
+
+            // Limit to reasonable size (16KB max to avoid console overflow)
+            bool truncated = false;
+            if (length > 16384)
+            {
+                truncated = true;
+                length = 16384;
+            }
+            if (length < 1)
+            {
+                return "Error: Invalid length";
+            }
+
+            var result = FormatMemoryDump(startAddress, length);
+            
+            if (truncated)
+            {
+                result += $"\n[WARNING: Output truncated from {requestedLength} to {length} bytes (16KB max)]";
+            }
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            return $"Error parsing command: {ex.Message}";
+        }
+    }
+
+    private string FormatMemoryDump(ushort startAddress, int length)
+    {
+        if (_memory == null)
+        {
+            return "Memory not available";
+        }
+
+        var sb = new System.Text.StringBuilder();
+        int bytesPerRow = 16;
+        
+        for (int offset = 0; offset < length; offset += bytesPerRow)
+        {
+            ushort address = (ushort)((startAddress + offset) & 0xFFFF);
+            sb.Append($"0x{address:X4}: ");
+
+            // Hex bytes
+            int rowBytes = Math.Min(bytesPerRow, length - offset);
+            for (int i = 0; i < bytesPerRow; i++)
+            {
+                if (i < rowBytes)
+                {
+                    byte value = _memory[(ushort)((address + i) & 0xFFFF)];
+                    sb.Append($"{value:X2} ");
+                }
+                else
+                {
+                    sb.Append("   "); // Padding for incomplete rows
+                }
+            }
+
+            sb.Append(" ");
+
+            // ASCII/PETSCII representation
+            for (int i = 0; i < rowBytes; i++)
+            {
+                byte value = _memory[(ushort)((address + i) & 0xFFFF)];
+                char c;
+                
+                // Convert PETSCII to displayable character
+                if (value >= 0x20 && value <= 0x7E)
+                {
+                    c = (char)value; // Standard ASCII printable
+                }
+                else if (value >= 0xA0 && value <= 0xFE)
+                {
+                    // PETSCII graphics characters - map to similar ASCII
+                    c = (char)(value - 0x80);
+                }
+                else
+                {
+                    c = '.'; // Non-printable
+                }
+                
+                sb.Append(c);
+            }
+
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+
     private async Task HandleEvaluateAsync(int seq, JsonObject? args)
     {
         var expression = args?["expression"]?.ToString() ?? "";
@@ -625,10 +763,16 @@ public class DebugAdapterLogic
 
             // Parse different expression formats
             string result;
-            string? memoryReference = null;
 
+            // Check for REPL commands (Debug Console commands)
+            if (context == "repl" && (expression.StartsWith("dump ", StringComparison.OrdinalIgnoreCase) || 
+                expression.StartsWith("md ", StringComparison.OrdinalIgnoreCase) ||
+                expression.StartsWith("memdump ", StringComparison.OrdinalIgnoreCase)))
+            {
+                result = HandleMemoryDumpCommand(expression);
+            }
             // Check for memory address expressions: $c000, 0xc000, or decimal
-            if (expression.StartsWith("$") || expression.StartsWith("0x", StringComparison.OrdinalIgnoreCase) || int.TryParse(expression, out _))
+            else if (expression.StartsWith("$") || expression.StartsWith("0x", StringComparison.OrdinalIgnoreCase) || int.TryParse(expression, out _))
             {
                 ushort address;
                 if (expression.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
@@ -646,13 +790,11 @@ public class DebugAdapterLogic
 
                 var value = _memory[address];
                 result = $"${value:X2} ({value})";
-                memoryReference = $"0x{address:X4}";
             }
             // Check for register expressions
             else if (expression.Equals("PC", StringComparison.OrdinalIgnoreCase))
             {
                 result = $"${_cpu.PC:X4}";
-                memoryReference = $"0x{_cpu.PC:X4}";
             }
             else if (expression.Equals("A", StringComparison.OrdinalIgnoreCase))
             {
@@ -681,12 +823,6 @@ public class DebugAdapterLogic
                 ["variablesReference"] = 0
             };
 
-            // Add memory reference if we have an address
-            if (memoryReference != null)
-            {
-                body["memoryReference"] = memoryReference;
-            }
-
             await _protocol.SendResponseAsync(seq, "evaluate", body);
         }
         catch (Exception ex)
@@ -702,14 +838,20 @@ public class DebugAdapterLogic
 
     private async Task HandleReadMemoryAsync(int seq, JsonObject? args)
     {
+        _log.WriteLine("[HandleReadMemory] Called");
+        _log.WriteLine($"[HandleReadMemory] args: {args?.ToJsonString()}");
         try
         {
             var memoryReference = args?["memoryReference"]?.ToString();
             var count = args?["count"]?.GetValue<int>() ?? 256;
             var offset = args?["offset"]?.GetValue<int>() ?? 0;
 
+            _log.WriteLine($"[HandleReadMemory] memoryReference={memoryReference}, count={count}, offset={offset}");
+            _log.Flush();
+
             if (string.IsNullOrEmpty(memoryReference))
             {
+                _log.WriteLine("[HandleReadMemory] memoryReference is empty!");
                 await _protocol.SendResponseAsync(seq, "readMemory");
                 return;
             }
@@ -755,12 +897,17 @@ public class DebugAdapterLogic
             // Encode as base64
             var base64Data = Convert.ToBase64String(data);
 
+            // According to DAP spec and vscode-mock-debug example, the address field should be the offset, not the calculated address
+            // VS Code uses this offset value for address display in the memory viewer
             var body = new JsonObject
             {
-                ["address"] = $"0x{address:X4}",
+                ["address"] = offset.ToString(),  // Return offset as address (per DAP spec/examples)
                 ["data"] = base64Data,
                 ["unreadableBytes"] = 0
             };
+
+            _log.WriteLine($"[HandleReadMemory] Returning address={offset} (offset), actualMemoryAddress=0x{address:X4}");
+            _log.Flush();
 
             await _protocol.SendResponseAsync(seq, "readMemory", body);
         }
@@ -1180,15 +1327,28 @@ public class DebugAdapterLogic
     
     /// <summary>
     /// Parse an address from DAP protocol format
-    /// Handles both "0x1234" and "$1234" formats
+    /// Handles "0x1234", "$1234", and decimal formats
     /// </summary>
     private static ushort ParseAddress(string addressStr)
     {
         if (addressStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
             addressStr = addressStr.Substring(2);
+            return Convert.ToUInt16(addressStr, 16);
+        }
         else if (addressStr.StartsWith("$"))
+        {
             addressStr = addressStr.Substring(1);
-            
-        return Convert.ToUInt16(addressStr, 16);
+            return Convert.ToUInt16(addressStr, 16);
+        }
+        else
+        {
+            // Try hex first if it looks like hex, otherwise decimal
+            if (addressStr.All(c => "0123456789ABCDEFabcdef".Contains(c)) && addressStr.Length == 4)
+            {
+                return Convert.ToUInt16(addressStr, 16);
+            }
+            return Convert.ToUInt16(addressStr);
+        }
     }
 }
