@@ -221,13 +221,13 @@ Once the Disassembly view is open, you can continue stepping with **F10** (Step 
 
 When execution returns to your source-mapped address range (e.g., after an `RTS` instruction), the editor automatically switches back to showing your .asm source file with the highlighted line.
 
-**Note:** The Debug Adapter Protocol does not provide a way for debug adapters to automatically open the Disassembly view. This is a VS Code UI design decision - users must manually open it the first time they need it.
+**Note:** The Debug Adapter Protocol does not (seemingly) provide a way for debug adapters to automatically open the Disassembly view. This is a VS Code UI design decision - users must manually open it the first time they need it. However, once opened, the disassembly view remains visible across debug sessions.
 
 ## Limitations
 
 - Conditional breakpoints not yet supported
 - Variable inspection limited to registers and memory addresses
-- Disassembly view does not open automatically (must be opened manually via right-click or command palette)
+- Disassembly view does not open automatically (must be opened manually via right-click on Call Stack)
 You can debug the C# code (debug adapter and emulator) while debugging a 6502 program using a two-window workflow:
 
 **Window 1 - Extension Test (6502 Debugging)**:

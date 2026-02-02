@@ -132,16 +132,9 @@
     ],
     "taskDefinitions": [
       {
-        "name": "ca65",
-        "owner": "ca65",
-        "fileLocation": "relative",
-        "pattern": {
-          "regexp": "^(.*)\\((\\d+)\\):\\s+(Error|Warning):\\s+(.*)$",
-          "file": 1,
-          "line": 2,
-          "severity": 3,
-          "message": 4
-        }
+        "type": "ca65",
+        "required": [],
+        "properties": {}
       }
     ]
   },
