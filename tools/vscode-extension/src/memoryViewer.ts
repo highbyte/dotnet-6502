@@ -81,8 +81,8 @@ export async function openMemoryViewer(context: vscode.ExtensionContext, provide
     if (!address) {
         address = await vscode.window.showInputBox({
             prompt: 'Enter memory address',
-            placeHolder: '0xc000 or $c000 or 49152',
-            value: '0xc000'
+            placeHolder: '0x0000 or $0000 or 0',
+            value: '0x0000'
         });
         
         if (!address) {
@@ -90,18 +90,7 @@ export async function openMemoryViewer(context: vscode.ExtensionContext, provide
         }
     }
 
-    // Prompt for length
-    const lengthStr = await vscode.window.showInputBox({
-        prompt: 'Enter number of bytes to view',
-        placeHolder: '256',
-        value: '256'
-    });
-
-    if (!lengthStr) {
-        return; // User cancelled
-    }
-
-    // Parse address for range calculation
+    // Parse start address
     let startAddr: number;
     if (address.startsWith('0x')) {
         startAddr = parseInt(address.substring(2), 16);
@@ -111,8 +100,38 @@ export async function openMemoryViewer(context: vscode.ExtensionContext, provide
         startAddr = parseInt(address);
     }
     
-    const length = parseInt(lengthStr);
-    const endAddr = startAddr + length - 1;
+    // Calculate default end address (256 bytes from start)
+    const defaultEndAddr = Math.min(startAddr + 0xFF, 0xFFFF);
+    const defaultEndStr = `0x${defaultEndAddr.toString(16).toUpperCase().padStart(4, '0')}`;
+    
+    // Prompt for end address
+    const endAddressStr = await vscode.window.showInputBox({
+        prompt: 'Enter end address',
+        placeHolder: defaultEndStr,
+        value: defaultEndStr
+    });
+
+    if (!endAddressStr) {
+        return; // User cancelled
+    }
+
+    // Parse end address
+    let endAddr: number;
+    if (endAddressStr.startsWith('0x')) {
+        endAddr = parseInt(endAddressStr.substring(2), 16);
+    } else if (endAddressStr.startsWith('$')) {
+        endAddr = parseInt(endAddressStr.substring(1), 16);
+    } else {
+        endAddr = parseInt(endAddressStr);
+    }
+    
+    // Validate range
+    if (endAddr < startAddr) {
+        vscode.window.showErrorMessage('End address must be >= start address');
+        return;
+    }
+    
+    const length = endAddr - startAddr + 1;
     const rangeTitle = `0x${startAddr.toString(16).toUpperCase().padStart(4, '0')}-0x${endAddr.toString(16).toUpperCase().padStart(4, '0')}`;
     
     // Open memory document with range as path for proper title display

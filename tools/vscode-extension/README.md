@@ -71,7 +71,7 @@ The generated files look like this:
 - **Step through instructions**: Step, step in, step out, and continue execution
 - **Register inspection**: View CPU registers (PC, SP, A, X, Y) and flags
 - **Memory viewing**: Inspect memory via Watch panel and Debug Console (e.g., `$c000`, `PC`, `A`)
-- **Memory dump command**: Dump memory ranges in hex format via Debug Console (e.g., `dump 0xc000 256`)
+- **Memory viewer**: View memory ranges in hex dump format with toolbar button or command palette
 - **Disassembly view**: See the disassembled instruction at the current PC
 - **Problem matcher**: Compiler errors appear in Problems panel with inline squiggles
 
@@ -224,29 +224,30 @@ When execution returns to your source-mapped address range (e.g., after an `RTS`
 
 **Note:** The Debug Adapter Protocol does not (seemingly) provide a way for debug adapters to automatically open the Disassembly view. This is a VS Code UI design decision - users must manually open it the first time they need it. However, once opened, the disassembly view remains visible across debug sessions.
 
-### Memory Inspection with the dump Command
+### Memory Inspection
 
-The Debug Console supports a `dump` command for viewing memory contents in a traditional hex dump format:
+#### Memory Viewer (Primary Method)
 
-**Basic Usage:**
-```
-dump 0xc000        # Dump 256 bytes starting at $C000 (default)
-dump 0xc000 512    # Dump 512 bytes starting at $C000
-dump $c000 $c0ff   # Dump from $C000 to $C0FF (end address in hex)
-dump 0x0000 0xffff # Dump entire 64KB address space
-```
+The memory viewer opens memory contents in an editor tab with a traditional hex dump format. This is the recommended way to inspect memory ranges:
 
-**Command Aliases:**
-- `dump` - Full command name
-- `md` - Short alias (memory dump)
-- `memdump` - Long alias
+**How to Open:**
+1. **Toolbar button**: Click the array icon ($(symbol-array)) in the debug toolbar during a debug session
+2. **Command palette**: Run "View Memory" command
+
+**Usage:**
+1. Enter start address (e.g., `0x0000`, `$C000`, `49152`)
+   - Default: `0x0000` (start of address space)
+   - Supports hex (0x or $) and decimal formats
+2. Enter end address (e.g., `0x00FF`, `$C0FF`, `255`)
+   - Default: 256 bytes from start address (e.g., `0x00FF` if starting at `0x0000`)
+   - Supports hex (0x or $) and decimal formats
 
 **Output Format:**
 
-The command displays memory in a traditional hex dump format with 16 bytes per row:
+Memory is displayed in a read-only editor tab titled with the address range (e.g., "0x0000-0x00FF"):
 ```
-0xC000: A9 01 85 00 A9 0A 85 01 A9 00 85 02 A5 00 18 65  ................
-0xC010: 01 85 02 E6 03 A5 00 C9 FF D0 F0 A5 02 C9 FF D0  ................
+0x0000: A9 01 85 00 A9 0A 85 01 A9 00 85 02 A5 00 18 65  ................
+0x0010: 01 85 02 E6 03 A5 00 C9 FF D0 F0 A5 02 C9 FF D0  ................
 ```
 
 Each row shows:
@@ -254,23 +255,46 @@ Each row shows:
 - 16 bytes in hexadecimal
 - ASCII/PETSCII representation (non-printable shown as dots)
 
+**Examples:**
+- `0x0000` to `0x00FF` - Zero page (256 bytes)
+- `0x0100` to `0x01FF` - Stack area (256 bytes)
+- `0xC000` to `0xFFFF` - View entire ROM area on C64 (16KB)
+- `0xD000` to `0xD3FF` - VIC-II registers on C64 (1KB)
+- `0x0000` to `0xFFFF` - Entire 64KB address space
+
+**Features:**
+- No size limits - can view entire 64KB address space
+- Results displayed in searchable editor tab
+- Tab title shows address range for easy reference
+- Addresses respect 64KB boundary (stops at 0xFFFF)
+
+#### Debug Console dump Command (Alternative Method)
+
+For quick memory inspection without opening a new tab, the Debug Console supports a `dump` command:
+
+**Basic Usage:**
+```
+dump 0xc000 0xc0ff # Dump from $C000 to $C0FF (end address)
+dump 0xc000 256    # Dump 256 bytes starting at $C000 (length)
+dump 0xc000        # Dump 256 bytes (default length)
+```
+
+**Command Aliases:**
+- `dump` - Full command name
+- `md` - Short alias (memory dump)
+- `memdump` - Long alias
+
 **Parameter Formats:**
 
 Second parameter interpretation:
 - **Decimal number** → treated as byte length (e.g., `dump 0xc000 256`)
 - **Hex format** (0x or $) → treated as end address (e.g., `dump $c000 $c0ff`)
 
-**Limits:**
-- Maximum output: 16KB (16384 bytes) per command
-- Addresses respect 64KB address space boundary (stops at 0xFFFF, no wrap-around)
-- Truncation warning displayed if output exceeds limits
-
 **Examples:**
 ```
 dump 0x0000 256         # Dump zero page and stack area
-dump 0xc000             # Default 256 bytes from program start
-dump $d000 $d3ff        # VIC-II registers on C64
 md fffe 2               # Interrupt vectors
+dump $d000 $d3ff        # VIC-II registers on C64
 ```
 
 ## Limitations
