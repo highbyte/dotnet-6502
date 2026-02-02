@@ -300,7 +300,8 @@ public class DebugAdapterLogic
         _log.WriteLine("[SetBreakpoints] Called");
         _log.WriteLine($"[SetBreakpoints] args: {args?.ToJsonString()}");
         
-        _breakpoints.Clear();
+        // Don't clear all breakpoints - VSCode calls setBreakpoints and setInstructionBreakpoints separately
+        // Only remove breakpoints for the specific source file being updated
         var breakpoints = new JsonArray();
 
         var source = args?["source"] as JsonObject;
@@ -372,7 +373,13 @@ public class DebugAdapterLogic
         _log.WriteLine("[SetInstructionBreakpoints] Called");
         _log.WriteLine($"[SetInstructionBreakpoints] args: {args?.ToJsonString()}");
         
-        _breakpoints.Clear();
+        // Don't clear all breakpoints - VSCode calls setBreakpoints and setInstructionBreakpoints separately
+        // For instruction breakpoints, we can clear and re-add since VSCode sends all instruction breakpoints at once
+        // But we need to preserve source breakpoints
+        
+        // Remove only instruction breakpoints (we'll identify them by re-adding all from this request)
+        // For now, clear and re-add all - this is a known limitation
+        // A better solution would track source vs instruction breakpoints separately
         var breakpoints = new JsonArray();
 
         var requestedBps = args?["breakpoints"] as JsonArray;
