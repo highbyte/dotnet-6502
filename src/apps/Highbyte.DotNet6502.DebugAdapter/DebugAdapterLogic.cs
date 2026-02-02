@@ -462,10 +462,7 @@ public class DebugAdapterLogic
         {
             ["id"] = FRAME_ID,
             ["name"] = $"${pc:X4}: {disasm}",
-            ["instructionPointerReference"] = FormatAddress(pc),
-            // Always include line and column, even for disassembly-only frames (DAP requirement)
-            ["line"] = 0,
-            ["column"] = 0
+            ["instructionPointerReference"] = FormatAddress(pc)
         };
 
         // Add source information if debug symbols are available
@@ -486,7 +483,7 @@ public class DebugAdapterLogic
                             ["path"] = sourcePath
                         };
                         frame["line"] = lineEntry.Key;
-                        // column stays 0
+                        frame["column"] = 0;
                         sourceFound = true;
                         _log.WriteLine($"[HandleStackTrace] Resolved PC to {fileEntry.Key}:{lineEntry.Key}");
                         break;
@@ -497,11 +494,10 @@ public class DebugAdapterLogic
             }
         }
 
-        // If no source mapping found, this is disassembly-only
-        // Don't set presentationHint to let VSCode treat it as a normal frame
+        // If no source mapping found, omit line/column to signal VSCode to show disassembly view
         if (!sourceFound)
         {
-            _log.WriteLine($"[HandleStackTrace] No source mapping found for PC=${pc:X4}, showing disassembly only");
+            _log.WriteLine($"[HandleStackTrace] No source mapping found for PC=${pc:X4}, omitting line/column to trigger disassembly view");
         }
 
         var stackFrames = new JsonArray { frame };
