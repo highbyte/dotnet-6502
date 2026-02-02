@@ -5,16 +5,18 @@ using System.Text.Json.Nodes;
 namespace Highbyte.DotNet6502.DebugAdapter;
 
 /// <summary>
-/// Handles Debug Adapter Protocol message reading/writing over stdin/stdout
+/// STDIO-based transport for Debug Adapter Protocol.
+/// Reads from stdin and writes to stdout using the DAP message format.
 /// </summary>
-public class DapProtocol
+public class StdioTransport : IDebugAdapterTransport
 {
     private readonly Stream _input;
     private readonly Stream _output;
     private readonly StreamWriter _log;
-    private int _sequenceNumber = 1;
 
-    public DapProtocol(Stream input, Stream output, StreamWriter log)
+    public event EventHandler? Disconnected;
+
+    public StdioTransport(Stream input, Stream output, StreamWriter log)
     {
         _input = input;
         _output = output;
@@ -41,7 +43,10 @@ public class DapProtocol
             }
 
             if (!headers.ContainsKey("Content-Length"))
+            {
+                Disconnected?.Invoke(this, EventArgs.Empty);
                 return null;
+            }
 
             var contentLength = int.Parse(headers["Content-Length"]);
             
@@ -52,20 +57,24 @@ public class DapProtocol
             {
                 var n = await _input.ReadAsync(buffer, bytesRead, contentLength - bytesRead);
                 if (n == 0)
+                {
+                    Disconnected?.Invoke(this, EventArgs.Empty);
                     return null;
+                }
                 bytesRead += n;
             }
 
             var json = Encoding.UTF8.GetString(buffer);
-            _log.WriteLine($"[DAP] Received: {json}");
+            _log.WriteLine($"[STDIO Transport] Received: {json}");
             _log.Flush();
 
             return JsonSerializer.Deserialize<JsonObject>(json);
         }
         catch (Exception ex)
         {
-            _log.WriteLine($"[DAP] Error reading message: {ex}");
+            _log.WriteLine($"[STDIO Transport] Error reading message: {ex}");
             _log.Flush();
+            Disconnected?.Invoke(this, EventArgs.Empty);
             return null;
         }
     }
@@ -74,8 +83,6 @@ public class DapProtocol
     {
         try
         {
-            message["seq"] = _sequenceNumber++;
-            
             var json = message.ToJsonString();
             var bytes = Encoding.UTF8.GetBytes(json);
             
@@ -86,48 +93,15 @@ public class DapProtocol
             await _output.WriteAsync(bytes, 0, bytes.Length);
             await _output.FlushAsync();
 
-            _log.WriteLine($"[DAP] Sent: {json}");
+            _log.WriteLine($"[STDIO Transport] Sent: {json}");
             _log.Flush();
         }
         catch (Exception ex)
         {
-            _log.WriteLine($"[DAP] Error sending message: {ex}");
+            _log.WriteLine($"[STDIO Transport] Error sending message: {ex}");
             _log.Flush();
+            Disconnected?.Invoke(this, EventArgs.Empty);
         }
-    }
-
-    public async Task SendResponseAsync(int requestSeq, string command, JsonObject? body = null)
-    {
-        var response = new JsonObject
-        {
-            ["type"] = "response",
-            ["request_seq"] = requestSeq,
-            ["success"] = true,
-            ["command"] = command
-        };
-
-        if (body != null)
-        {
-            response["body"] = body;
-        }
-
-        await SendMessageAsync(response);
-    }
-
-    public async Task SendEventAsync(string eventName, JsonObject? body = null)
-    {
-        var evt = new JsonObject
-        {
-            ["type"] = "event",
-            ["event"] = eventName
-        };
-
-        if (body != null)
-        {
-            evt["body"] = body;
-        }
-
-        await SendMessageAsync(evt);
     }
 
     private async Task<string> ReadLineAsync(Stream stream)
@@ -145,5 +119,10 @@ public class DapProtocol
             
             sb.Append(c);
         }
+    }
+
+    public void Dispose()
+    {
+        // Streams are owned by caller, don't dispose them
     }
 }

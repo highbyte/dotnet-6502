@@ -1,6 +1,6 @@
-using System.Text.Json.Nodes;
+using Highbyte.DotNet6502.DebugAdapter;
 
-namespace Highbyte.DotNet6502.DebugAdapter;
+namespace Highbyte.DotNet6502.DebugAdapter.ConsoleApp;
 
 class Program
 {
@@ -16,7 +16,11 @@ class Program
 
         try
         {
-            var protocol = new DapProtocol(Console.OpenStandardInput(), Console.OpenStandardOutput(), log);
+            // Create STDIO transport
+            var transport = new StdioTransport(Console.OpenStandardInput(), Console.OpenStandardOutput(), log);
+            transport.Disconnected += (sender, e) => _shouldExit = true;
+            
+            var protocol = new DapProtocol(transport, log);
             var adapter = new DebugAdapterLogic(protocol, log);
             adapter.OnExit += () => _shouldExit = true;
 

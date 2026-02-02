@@ -354,12 +354,26 @@ public class DebugAdapterLogic
                     _log.WriteLine($"[SetBreakpoints] Added breakpoint at ${address:X4}");
                 }
 
-                breakpoints.Add(new JsonObject
+                // Create a new source object instead of reusing the one from the request
+                // to avoid "node already has a parent" error
+                var bpSource = source != null ? new JsonObject
+                {
+                    ["name"] = source["name"]?.DeepClone(),
+                    ["path"] = source["path"]?.DeepClone()
+                } : null;
+
+                var bpObject = new JsonObject
                 {
                     ["verified"] = verified,
-                    ["line"] = line,
-                    ["source"] = source
-                });
+                    ["line"] = line
+                };
+                
+                if (bpSource != null)
+                {
+                    bpObject["source"] = bpSource;
+                }
+
+                breakpoints.Add(bpObject);
             }
         }
 
