@@ -462,12 +462,14 @@ public class DebugAdapterLogic
         {
             ["id"] = FRAME_ID,
             ["name"] = $"${pc:X4}: {disasm}",
+            ["instructionPointerReference"] = FormatAddress(pc),
+            // Always include line and column, even for disassembly-only frames (DAP requirement)
             ["line"] = 0,
-            ["column"] = 0,
-            ["instructionPointerReference"] = FormatAddress(pc)
+            ["column"] = 0
         };
 
         // Add source information if debug symbols are available
+        bool sourceFound = false;
         if (_dbgParser != null)
         {
             foreach (var fileEntry in _dbgParser.SourceLineToAddress)
@@ -484,11 +486,22 @@ public class DebugAdapterLogic
                             ["path"] = sourcePath
                         };
                         frame["line"] = lineEntry.Key;
+                        // column stays 0
+                        sourceFound = true;
                         _log.WriteLine($"[HandleStackTrace] Resolved PC to {fileEntry.Key}:{lineEntry.Key}");
                         break;
                     }
                 }
+                if (sourceFound)
+                    break;
             }
+        }
+
+        // If no source mapping found, this is disassembly-only
+        // Don't set presentationHint to let VSCode treat it as a normal frame
+        if (!sourceFound)
+        {
+            _log.WriteLine($"[HandleStackTrace] No source mapping found for PC=${pc:X4}, showing disassembly only");
         }
 
         var stackFrames = new JsonArray { frame };
@@ -498,6 +511,10 @@ public class DebugAdapterLogic
             ["stackFrames"] = stackFrames,
             ["totalFrames"] = 1
         };
+
+        // Log the complete stack frame for debugging
+        _log.WriteLine($"[HandleStackTrace] Sending stackFrame: {frame.ToJsonString()}");
+        _log.WriteLine($"[HandleStackTrace] sourceFound={sourceFound}, line={frame["line"]}, hasSource={frame.ContainsKey("source")}");
 
         await _protocol.SendResponseAsync(seq, "stackTrace", responseBody);
     }
@@ -533,6 +550,8 @@ public class DebugAdapterLogic
         var variablesReference = args?["variablesReference"]?.GetValue<int>() ?? 0;
         var variables = new JsonArray();
 
+        _log.WriteLine($"[HandleVariables] Called with variablesReference={variablesReference}, PC=${_cpu?.PC:X4}");
+
         if (_cpu != null)
         {
             if (variablesReference == 1) // Registers
@@ -542,6 +561,7 @@ public class DebugAdapterLogic
                 variables.Add(new JsonObject { ["name"] = "X", ["value"] = $"${_cpu.X:X2}", ["type"] = "byte", ["variablesReference"] = 0 });
                 variables.Add(new JsonObject { ["name"] = "Y", ["value"] = $"${_cpu.Y:X2}", ["type"] = "byte", ["variablesReference"] = 0 });
                 variables.Add(new JsonObject { ["name"] = "SP", ["value"] = $"${_cpu.SP:X2}", ["type"] = "byte", ["variablesReference"] = 0 });
+                _log.WriteLine($"[HandleVariables] Returning {variables.Count} register variables");
             }
             else if (variablesReference == 2) // Flags
             {
@@ -552,7 +572,12 @@ public class DebugAdapterLogic
                 variables.Add(new JsonObject { ["name"] = "D (Decimal)", ["value"] = ps.Decimal ? "1" : "0", ["variablesReference"] = 0 });
                 variables.Add(new JsonObject { ["name"] = "V (Overflow)", ["value"] = ps.Overflow ? "1" : "0", ["variablesReference"] = 0 });
                 variables.Add(new JsonObject { ["name"] = "N (Negative)", ["value"] = ps.Negative ? "1" : "0", ["variablesReference"] = 0 });
+                _log.WriteLine($"[HandleVariables] Returning {variables.Count} flag variables");
             }
+        }
+        else
+        {
+            _log.WriteLine($"[HandleVariables] WARNING: _cpu is null!");
         }
 
         var body = new JsonObject
@@ -785,7 +810,8 @@ public class DebugAdapterLogic
                             _log.WriteLine($"[Continue] Execution outside program bounds at ${_cpu.PC:X4}");
                             await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${_cpu.PC:X4}\n");
                             await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
-                            await SendStoppedEventAsync("pause", "Execution outside program bounds");
+                            // preserveFocusHint=false to force disassembly view to show
+                            await SendStoppedEventAsync("pause", "Execution outside program bounds", preserveFocusHint: false);
                             return;
                         }
 
@@ -828,12 +854,9 @@ public class DebugAdapterLogic
                     _log.WriteLine($"[HandleNext] Stepped outside program bounds to ${_cpu.PC:X4}");
                     await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${_cpu.PC:X4}\n");
                     await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
-                    await SendStoppedEventAsync("pause", "Execution outside program bounds");
                 }
-                else
-                {
-                    await SendStoppedEventAsync("step");
-                }
+                // Always use "step" reason to prevent VSCode from clearing variables view
+                await SendStoppedEventAsync("step");
             }
 
             await _protocol.SendResponseAsync(seq, "next");
@@ -857,12 +880,9 @@ public class DebugAdapterLogic
             {
                 await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${_cpu.PC:X4}\n");
                 await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
-                await SendStoppedEventAsync("pause", "Execution outside program bounds");
             }
-            else
-            {
-                await SendStoppedEventAsync("step");
-            }
+            // Always use "step" reason to prevent VSCode from clearing variables view
+            await SendStoppedEventAsync("step");
         }
 
         await _protocol.SendResponseAsync(seq, "stepIn");
@@ -922,18 +942,27 @@ public class DebugAdapterLogic
         await _protocol.SendEventAsync("output", body);
     }
 
-    private async Task SendStoppedEventAsync(string reason, string? text = null)
+    private async Task SendStoppedEventAsync(string reason, string? text = null, bool preserveFocusHint = false)
     {
         var body = new JsonObject
         {
             ["reason"] = reason,
-            ["threadId"] = THREAD_ID
+            ["threadId"] = THREAD_ID,
+            ["allThreadsStopped"] = true
         };
 
         if (text != null)
         {
             body["text"] = text;
         }
+
+        if (preserveFocusHint)
+        {
+            body["preserveFocusHint"] = true;
+        }
+
+        _log.WriteLine($"[SendStoppedEvent] reason={reason}, text={text}, preserveFocusHint={preserveFocusHint}, PC=${_cpu?.PC:X4}");
+        _log.WriteLine($"[SendStoppedEvent] Event body: {body.ToJsonString()}");
 
         await _protocol.SendEventAsync("stopped", body);
     }
