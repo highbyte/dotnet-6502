@@ -85,7 +85,8 @@ internal sealed partial class Program
         LogLevel consoleLogLevel = ParseLogLevel(args, defaultLevel: LogLevel.Information);
         
         // Parse debug adapter arguments
-        int debugPort = ParseDebugPort(args);
+        bool enableExternalDebug = args.Contains("--enableExternalDebug");
+        int debugPort = ParseDebugPort(args, defaultPort: 4711);
         bool debugWait = args.Contains("--debug-wait");
 
         // Set bootstrap console logging flag (for Console.WriteLine before ILogger is available)
@@ -171,7 +172,7 @@ internal sealed partial class Program
         // ----------
         TcpDebugAdapterServer? debugServer = null;
         bool debugClientConnected = false;
-        if (debugPort > 0)
+        if (enableExternalDebug)
         {
             WriteBootstrapLog($"Starting TCP debug adapter server on port {debugPort}.");
             
@@ -375,9 +376,9 @@ internal sealed partial class Program
     /// <summary>
     /// Parses the debug port from command line arguments.
     /// Usage: --debug-port 4711
-    /// Returns 0 if not specified or invalid.
+    /// Returns defaultPort if not specified or invalid.
     /// </summary>
-    private static int ParseDebugPort(string[] args)
+    private static int ParseDebugPort(string[] args, int defaultPort)
     {
         for (int i = 0; i < args.Length - 1; i++)
         {
@@ -389,6 +390,6 @@ internal sealed partial class Program
                 }
             }
         }
-        return 0;
+        return defaultPort;
     }
 }
