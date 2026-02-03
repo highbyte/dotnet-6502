@@ -170,8 +170,7 @@ internal sealed partial class Program
         // ----------
         // Start debug adapter server if requested
         // ----------
-        TcpDebugAdapterServer? debugServer = null;
-        bool debugClientConnected = false;
+        TcpDebugServerManager? debugServerManager = null;
         if (enableExternalDebug)
         {
             WriteBootstrapLog($"Starting TCP debug adapter server on port {debugPort}.");
@@ -181,104 +180,16 @@ internal sealed partial class Program
             var debugLogWriter = new StreamWriter(debugLogFilePath, append: true) { AutoFlush = true };
             debugLogWriter.WriteLine($"Debug adapter server started at {DateTime.Now}");
 
-            debugServer = new TcpDebugAdapterServer(debugLogWriter);
-            debugServer.ClientConnected += (sender, e) =>
-            {
-                debugClientConnected = true;
-                WriteBootstrapLog("Debug client connected.");
-                debugLogWriter.WriteLine($"Debug client connected at {DateTime.Now}");
-
-                var protocol = new DapProtocol(e.Transport, debugLogWriter);
-                var adapter = new DebugAdapterLogic(protocol, debugLogWriter);
-
-                // Attach to emulator when it's running
-                // Note: This uses a polling approach because the system may not be started yet
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        // Wait for app instance and emulator to be in a running state
-                        debugLogWriter.WriteLine("Waiting for emulator to be in running state...");
-                        while (Core.App.Current?.HostApp?.CurrentRunningSystem == null)
-                        {
-                            await Task.Delay(100);
-                        }
-
-                        debugLogWriter.WriteLine("Emulator is running, attaching debug adapter...");
-                        var system = Core.App.Current.HostApp.CurrentRunningSystem;
-                        adapter.AttachToEmulator(system.CPU, system.Mem);
-
-                        // Install breakpoint evaluator
-                        var breakpointEvaluator = adapter.GetBreakpointEvaluator();
-                        Core.App.Current.HostApp.CurrentSystemRunner!.SetCustomExecEvaluator(breakpointEvaluator);
-
-                        // Set debug adapter reference so AvaloniaHostApp can check IsStopped property
-                        Core.App.Current.HostApp.SetDebugAdapter(adapter);
-
-                        // Set flag to disable built-in monitor when external debugger is attached
-                        Core.App.Current.HostApp.IsExternalDebuggerAttached = true;
-
-                        debugLogWriter.WriteLine("Breakpoint evaluator installed and external debugger flag set");
-                    }
-                    catch (Exception ex)
-                    {
-                        debugLogWriter.WriteLine($"Failed to attach to emulator: {ex}");
-                    }
-                });
-
-                // Start message loop for this client
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        while (true)
-                        {
-                            var message = await protocol.ReadMessageAsync();
-                            if (message == null)
-                            {
-                                debugLogWriter.WriteLine("Received null message, debug client disconnected");
-                                break;
-                            }
-                            await adapter.HandleMessageAsync(message);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        debugLogWriter.WriteLine($"Debug adapter error: {ex}");
-                    }
-                    finally
-                    {
-                        debugLogWriter.WriteLine($"Debug adapter stopped at {DateTime.Now}");
-
-                        // Reset debugger state to unfreeze emulator
-                        adapter.Reset();
-                        if (Core.App.Current?.HostApp != null)
-                        {
-                            // Remove breakpoint evaluator to prevent exceptions when program runs again
-                            Core.App.Current.HostApp.CurrentSystemRunner?.SetCustomExecEvaluator(null);
-                            Core.App.Current.HostApp.IsExternalDebuggerAttached = false;
-                            Core.App.Current.HostApp.SetDebugAdapter(null!);
-                            debugLogWriter.WriteLine("Emulator state reset, breakpoint evaluator removed, resuming normal execution");
-                        }
-
-                        debugLogWriter.Close();
-                    }
-                });
-            };
+            debugServerManager = new TcpDebugServerManager(debugLogWriter);
 
             // Start listening for connections
-            _ = Task.Run(async () => await debugServer.StartAsync(debugPort));
+            _ = Task.Run(async () => await debugServerManager.StartAsync(debugPort));
 
             if (debugWait)
             {
                 WriteBootstrapLog("Waiting for debug client to connect (--debug-wait specified)...");
-                // Wait for client to connect before starting app
-                var waitStart = DateTime.Now;
-                while (!debugClientConnected && (DateTime.Now - waitStart).TotalSeconds < 30)
-                {
-                    Thread.Sleep(100);
-                }
-                if (debugClientConnected)
+
+                if (debugServerManager.WaitForClientConnection(timeoutSeconds: 30))
                 {
                     WriteBootstrapLog("Debug client connected, continuing startup.");
                 }
