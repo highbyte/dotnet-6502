@@ -22,6 +22,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="200" />
@@ -509,6 +510,35 @@
             <ScrollViewer Classes="h-stretch">
                 <views:StatisticsView DataContext="{Binding StatisticsViewModel}" />
             </ScrollViewer>
+        </Border>
+
+        <!-- External Debugger Banner (Bottom) -->
+        <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3"
+                IsVisible="{Binding IsExternalDebuggerAttached}"
+                Background="#40FF8C00"
+                BorderBrush="#FFFF8C00"
+                BorderThickness="0,1,0,0"
+                Height="24">
+            <Border.Styles>
+                <Style Selector="Border">
+                    <Style.Animations>
+                        <Animation Duration="0:0:1.5" IterationCount="Infinite" PlaybackDirection="Alternate">
+                            <KeyFrame Cue="0%">
+                                <Setter Property="Opacity" Value="0.6"/>
+                            </KeyFrame>
+                            <KeyFrame Cue="100%">
+                                <Setter Property="Opacity" Value="1.0"/>
+                            </KeyFrame>
+                        </Animation>
+                    </Style.Animations>
+                </Style>
+            </Border.Styles>
+            <TextBlock Text="⚠ External Debugger Attached"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="#FFFF8C00"
+                       FontWeight="Bold"
+                       FontSize="11"/>
         </Border>
     </Grid>
 </UserControl>

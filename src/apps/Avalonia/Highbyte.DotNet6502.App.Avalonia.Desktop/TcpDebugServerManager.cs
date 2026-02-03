@@ -60,6 +60,17 @@ internal sealed class TcpDebugServerManager : IDisposable
         _debugClientConnected = true;
         _debugLogWriter.WriteLine($"Debug client connected at {DateTime.Now}");
 
+        // Set flag to disable built-in monitor when external debugger connects
+        // Must be dispatched to UI thread for ReactiveUI to pick up the change
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (Core.App.Current?.HostApp != null)
+            {
+                Core.App.Current.HostApp.IsExternalDebuggerAttached = true;
+                _debugLogWriter.WriteLine("IsExternalDebuggerAttached set to true on UI thread");
+            }
+        });
+
         var protocol = new DapProtocol(e.Transport, _debugLogWriter);
         var adapter = new DebugAdapterLogic(protocol, _debugLogWriter);
 
@@ -93,14 +104,7 @@ internal sealed class TcpDebugServerManager : IDisposable
             // Set debug adapter reference so AvaloniaHostApp can check IsStopped property
             Core.App.Current.HostApp.SetDebugAdapter(adapter);
 
-            // Set flag to disable built-in monitor when external debugger is attached
-            // Must be dispatched to UI thread for ReactiveUI to pick up the change
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                Core.App.Current.HostApp.IsExternalDebuggerAttached = true;
-            });
-
-            _debugLogWriter.WriteLine("Breakpoint evaluator installed and external debugger flag set");
+            _debugLogWriter.WriteLine("Breakpoint evaluator installed and debug adapter set");
         }
         catch (Exception ex)
         {
@@ -149,6 +153,7 @@ internal sealed class TcpDebugServerManager : IDisposable
             Dispatcher.UIThread.Post(() =>
             {
                 Core.App.Current.HostApp.IsExternalDebuggerAttached = false;
+                _debugLogWriter.WriteLine("IsExternalDebuggerAttached set to false on UI thread");
             });
             
             _debugLogWriter.WriteLine("Emulator state reset, breakpoint evaluator removed, resuming normal execution");
