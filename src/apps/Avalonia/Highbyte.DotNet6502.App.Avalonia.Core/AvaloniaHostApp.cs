@@ -61,11 +61,24 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private AvaloniaMonitor? _monitor;
     internal AvaloniaMonitor? Monitor => _monitor;
 
+    private bool _isExternalDebuggerAttached;
+
     /// <summary>
     /// Flag to indicate if an external debugger (e.g., VSCode) is attached.
     /// When true, the built-in monitor should not activate on breakpoints.
     /// </summary>
-    public bool IsExternalDebuggerAttached { get; set; }
+    public bool IsExternalDebuggerAttached
+    {
+        get => _isExternalDebuggerAttached;
+        set
+        {
+            if (_isExternalDebuggerAttached != value)
+            {
+                _isExternalDebuggerAttached = value;
+                OnPropertyChanged(nameof(IsExternalDebuggerAttached));
+            }
+        }
+    }
 
     private DebugAdapter.DebugAdapterLogic? _debugAdapter;
 

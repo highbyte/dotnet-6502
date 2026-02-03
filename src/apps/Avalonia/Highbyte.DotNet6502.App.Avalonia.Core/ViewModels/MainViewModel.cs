@@ -54,6 +54,8 @@ public class MainViewModel : ViewModelBase, IDisposable
     private readonly ObservableAsPropertyHelper<EmulatorState> _emulatorState;
     public EmulatorState EmulatorState => _emulatorState.Value;
 
+    private readonly ObservableAsPropertyHelper<bool> _isExternalDebuggerAttached;
+    public bool IsExternalDebuggerAttached => _isExternalDebuggerAttached.Value;
 
     private readonly ObservableAsPropertyHelper<double> _scale;
     public double Scale
@@ -328,6 +330,10 @@ public class MainViewModel : ViewModelBase, IDisposable
             .WhenAnyValue(x => x.EmulatorState)
             .ToProperty(this, x => x.EmulatorState);
 
+        _isExternalDebuggerAttached = _hostApp
+            .WhenAnyValue(x => x.IsExternalDebuggerAttached)
+            .ToProperty(this, x => x.IsExternalDebuggerAttached);
+
         // Subscribe to EmulatorState changes AFTER ToProperty to ensure the value is updated first
         this.WhenAnyValue(x => x.EmulatorState)
              .Subscribe(_ =>
@@ -474,7 +480,8 @@ public class MainViewModel : ViewModelBase, IDisposable
             async () => _hostApp.Monitor?.Toggle(),
             this.WhenAnyValue(
                 x => x.EmulatorState,
-                state => state != EmulatorState.Uninitialized),
+                x => x.IsExternalDebuggerAttached,
+                (state, isExternalDebuggerAttached) => state != EmulatorState.Uninitialized && !isExternalDebuggerAttached),
             RxApp.MainThreadScheduler); // RxApp.MainThreadScheduler required for it working in Browser app
 
         StatsCommand = ReactiveCommandHelper.CreateSafeCommand(
@@ -677,7 +684,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         if (_hostApp.Monitor == null)
             return null;
 
-        return new MonitorViewModel(_hostApp.Monitor);
+        return new MonitorViewModel(_hostApp.Monitor, _hostApp);
     }
 
     /// <summary>

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using Highbyte.DotNet6502.DebugAdapter;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
@@ -93,7 +94,11 @@ internal sealed class TcpDebugServerManager : IDisposable
             Core.App.Current.HostApp.SetDebugAdapter(adapter);
 
             // Set flag to disable built-in monitor when external debugger is attached
-            Core.App.Current.HostApp.IsExternalDebuggerAttached = true;
+            // Must be dispatched to UI thread for ReactiveUI to pick up the change
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                Core.App.Current.HostApp.IsExternalDebuggerAttached = true;
+            });
 
             _debugLogWriter.WriteLine("Breakpoint evaluator installed and external debugger flag set");
         }
@@ -138,8 +143,14 @@ internal sealed class TcpDebugServerManager : IDisposable
         {
             // Remove breakpoint evaluator to prevent exceptions when program runs again
             Core.App.Current.HostApp.CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
-            Core.App.Current.HostApp.IsExternalDebuggerAttached = false;
             Core.App.Current.HostApp.SetDebugAdapter(null!);
+            
+            // Must be dispatched to UI thread for ReactiveUI to pick up the change
+            Dispatcher.UIThread.Post(() =>
+            {
+                Core.App.Current.HostApp.IsExternalDebuggerAttached = false;
+            });
+            
             _debugLogWriter.WriteLine("Emulator state reset, breakpoint evaluator removed, resuming normal execution");
         }
 
