@@ -1237,7 +1237,12 @@ public class DebugAdapterLogic
             {
                 try
                 {
-                    LogSafe("[Continue] Starting execution loop...");
+                    LogSafe($"[Continue] Starting execution loop, PC=${_cpu.PC:X4}");
+                    
+                    // Execute one instruction first to move past current breakpoint
+                    _cpu.ExecuteOneInstruction(_memory);
+                    LogSafe($"[Continue] After first instruction, PC=${_cpu.PC:X4}");
+                    
                     while (!token.IsCancellationRequested)
                     {
                         if (_breakpoints.Contains(_cpu.PC))
