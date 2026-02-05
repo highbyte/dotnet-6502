@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.ReactiveUI;
+using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core;
 using Highbyte.DotNet6502.Impl.SilkNet.SDL.Input;
 using Highbyte.DotNet6502.Impl.Avalonia.Logging;
@@ -14,6 +15,7 @@ using Highbyte.DotNet6502.Systems.Input;
 using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.DebugAdapter;
 using System.Threading;
+using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 
@@ -76,7 +78,7 @@ internal sealed partial class Program
     /// </remarks>
     /// <param name="args">Command line arguments.</param>
     [STAThread]
-    public static void Main(string[] args)
+    public static int Main(string[] args)
     {
         // ----------
         // Parse command line arguments
@@ -88,6 +90,20 @@ internal sealed partial class Program
         bool enableExternalDebug = args.Contains("--enableExternalDebug");
         int debugPort = ParseDebugPort(args, defaultPort: 4711);
         bool debugWait = args.Contains("--debug-wait");
+
+        // Parse automated startup arguments
+        string? systemName = AutomatedStartupHandler.ParseStringArgument(args, "--system");
+        string? systemVariant = AutomatedStartupHandler.ParseStringArgument(args, "--systemVariant");
+        bool autoStart = args.Contains("--start");
+        bool waitForSystemReady = args.Contains("--waitForSystemReady");
+        string? loadPrgPath = AutomatedStartupHandler.ParseStringArgument(args, "--loadPrg");
+        bool runLoadedProgram = args.Contains("--runLoadedProgram");
+
+        // Validate automated startup arguments
+        if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, loadPrgPath, runLoadedProgram))
+        {
+            return 1; // Exit with error code
+        }
 
         // Set bootstrap console logging flag (for Console.WriteLine before ILogger is available)
         AppLogger.ConsoleLoggingEnabled = enableConsoleLogging;
@@ -182,6 +198,23 @@ internal sealed partial class Program
 
             debugServerManager = new TcpDebugServerManager(debugLogWriter);
 
+            // If loading a PRG for debugging (not running it), set the pending PC before debugger connects
+            if (loadPrgPath != null && !runLoadedProgram)
+            {
+                var expandedPrgPath = PathHelper.ExpandOSEnvironmentVariables(loadPrgPath);
+                if (File.Exists(expandedPrgPath))
+                {
+                    var prgBytes = File.ReadAllBytes(expandedPrgPath);
+                    if (prgBytes.Length >= 2)
+                    {
+                        // Read load address (first two bytes, little-endian)
+                        ushort loadAddress = (ushort)(prgBytes[0] | (prgBytes[1] << 8));
+                        debugLogWriter.WriteLine($"Setting pending PC to 0x{loadAddress:X4} from PRG file (before debugger connects)");
+                        debugServerManager.SetPendingProgramCounter(loadAddress);
+                    }
+                }
+            }
+
             // Start listening for connections
             _ = Task.Run(async () => await debugServerManager.StartAsync(debugPort));
 
@@ -204,8 +237,23 @@ internal sealed partial class Program
         // Start Avalonia app
         // ----------
         WriteBootstrapLog($"Starting Avalonia app.");
-        BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad)
-            .StartWithClassicDesktopLifetime(args);
+        var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad);
+        
+        // If automated startup is requested, handle it after the app starts
+        if (systemName != null)
+        {
+            _ = Task.Run(async () => await AutomatedStartupHandler.ExecuteAsync(
+                systemName, 
+                systemVariant, 
+                autoStart, 
+                waitForSystemReady, 
+                loadPrgPath, 
+                runLoadedProgram,
+                debugServerManager,
+                loggerFactory));
+        }
+        
+        app.StartWithClassicDesktopLifetime(args);
 
         // ----------
         // App exited
@@ -216,6 +264,8 @@ internal sealed partial class Program
         {
             FreeConsole();
         }
+
+        return 0; // Success
     }
 
     private static void WriteBootstrapLog(string message, LogLevel logLevel = LogLevel.Information)
@@ -304,3 +354,4 @@ internal sealed partial class Program
         return defaultPort;
     }
 }
+

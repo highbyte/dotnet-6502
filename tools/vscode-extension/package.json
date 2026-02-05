@@ -119,6 +119,46 @@
                 "type": "number",
                 "description": "TCP port number to connect to an existing debug adapter server (e.g., running Avalonia Desktop app with --debug-port)",
                 "default": null
+              },
+              "launchAvalonia": {
+                "type": "boolean",
+                "description": "Launch Avalonia Desktop app automatically before debugging",
+                "default": false
+              },
+              "avaloniaExecutable": {
+                "type": "string",
+                "description": "Path to Avalonia Desktop executable (required when launchAvalonia is true)",
+                "default": null
+              },
+              "avaloniaSystem": {
+                "type": "string",
+                "description": "System to start in Avalonia (e.g., 'C64')",
+                "default": "C64"
+              },
+              "avaloniaSystemVariant": {
+                "type": "string",
+                "description": "System variant to use (optional, uses first variant if not specified)",
+                "default": null
+              },
+              "avaloniaDebugPort": {
+                "type": "number",
+                "description": "TCP port for debug adapter server (used when launchAvalonia is true)",
+                "default": 4711
+              },
+              "avaloniaWaitForReady": {
+                "type": "boolean",
+                "description": "Wait for system to be ready before connecting debugger",
+                "default": true
+              },
+              "avaloniaLoadPrg": {
+                "type": "boolean",
+                "description": "Automatically load the program file into memory",
+                "default": true
+              },
+              "avaloniaRunProgram": {
+                "type": "boolean",
+                "description": "Automatically run the loaded program (sets PC to load address)",
+                "default": false
               }
             }
           },
@@ -186,6 +226,24 @@
               "debugServer": 4711,
               "program": "^\"\\${workspaceFolder}/program.prg\"",
               "stopOnEntry": true
+            }
+          },
+          {
+            "label": "dotnet-6502: Launch Avalonia",
+            "description": "Launch Avalonia Desktop app and attach debugger",
+            "body": {
+              "type": "dotnet6502",
+              "request": "launch",
+              "name": "Launch Avalonia Desktop (dotnet-6502)",
+              "program": "^\"\\${workspaceFolder}/program.prg\"",
+              "stopOnEntry": true,
+              "launchAvalonia": true,
+              "avaloniaExecutable": "^\"\\${workspaceFolder}/../bin/Publish/Highbyte.DotNet6502.App.Avalonia.Desktop\"",
+              "avaloniaSystem": "C64",
+              "avaloniaDebugPort": 4711,
+              "avaloniaWaitForReady": true,
+              "avaloniaLoadPrg": true,
+              "avaloniaRunProgram": false
             }
           }
         ]

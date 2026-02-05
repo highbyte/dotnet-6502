@@ -302,7 +302,50 @@ dump $d000 $d3ff        # VIC-II registers on C64
 - Conditional breakpoints not yet supported
 - Variable inspection limited to registers and memory addresses
 - Disassembly view does not open automatically (must be opened manually via right-click on Call Stack)
-You can debug the C# code (debug adapter and emulator) while debugging a 6502 program using a two-window workflow:
+
+## Advanced: Launch Avalonia Desktop App Automatically
+
+The VSCode extension can launch the Avalonia Desktop app automatically with a system already started and your program loaded:
+
+**Configuration Example:**
+```json
+{
+  "type": "dotnet6502",
+  "request": "launch",
+  "name": "Launch Avalonia Desktop (dotnet-6502)",
+  "program": "${workspaceFolder}/program.prg",
+  "stopOnEntry": true,
+  "launchAvalonia": true,
+  "avaloniaExecutable": "${workspaceFolder}/../bin/Publish/Highbyte.DotNet6502.App.Avalonia.Desktop",
+  "avaloniaSystem": "C64",
+  "avaloniaDebugPort": 4711,
+  "avaloniaWaitForReady": true,
+  "avaloniaLoadPrg": true,
+  "avaloniaRunProgram": false
+}
+```
+
+**Configuration Properties:**
+- `launchAvalonia` (boolean): Set to `true` to launch Avalonia Desktop automatically
+- `avaloniaExecutable` (string): Path to the Avalonia Desktop executable
+- `avaloniaSystem` (string): System to start (e.g., "C64", "Generic")
+- `avaloniaSystemVariant` (string, optional): System variant to use (uses first variant if not specified)
+- `avaloniaDebugPort` (number): TCP port for debug adapter (default: 4711)
+- `avaloniaWaitForReady` (boolean): Wait for system to be ready before connecting (default: true, ~3 seconds for C64)
+- `avaloniaLoadPrg` (boolean): Automatically load the program file into memory (default: true)
+- `avaloniaRunProgram` (boolean): Automatically run the loaded program by setting PC (default: false)
+
+**How it works:**
+1. VSCode launches Avalonia with: `--enableExternalDebug --debug-port 4711 --debug-wait --system C64 --start --waitForSystemReady --loadPrg <path>`
+2. Avalonia starts the specified system (e.g., C64)
+3. Waits for the system to be ready (Basic prompt appears)
+4. Loads the PRG file into memory at the address specified in the file
+5. Optionally runs the program by setting the CPU PC to the load address
+6. VSCode connects the debugger to the TCP port
+
+**Note:** Set `avaloniaRunProgram: true` if you want the program to start automatically. Otherwise, the program is loaded but you'll need to manually start it (e.g., `SYS 49152` in C64 Basic, or step through with the debugger).
+
+## Advanced: Debugging the C# Code
 
 **Window 1 - Extension Test (6502 Debugging)**:
 1. Open `/tools/vscode-extension-test/` folder in VS Code

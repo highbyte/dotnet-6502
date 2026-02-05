@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as net from 'net';
+import * as child_process from 'child_process';
 import { DebugAdapterExecutable, DebugAdapterServer } from 'vscode';
 import { MemoryContentProvider, openMemoryViewer } from './memoryViewer';
 
@@ -53,6 +54,8 @@ export function deactivate() {
 }
 
 class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
+    private avaloniaProcess: child_process.ChildProcess | undefined;
+
     resolveDebugConfiguration(
         folder: vscode.WorkspaceFolder | undefined,
         config: vscode.DebugConfiguration,
@@ -64,16 +67,194 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
         }
         return config;
     }
+
+    async resolveDebugConfigurationWithSubstitutedVariables(
+        folder: vscode.WorkspaceFolder | undefined,
+        config: vscode.DebugConfiguration,
+        token?: vscode.CancellationToken
+    ): Promise<vscode.DebugConfiguration | undefined> {
+        // If launchAvalonia is true, start the Avalonia Desktop app
+        if (config.launchAvalonia) {
+            console.log('[6502 Debug] launchAvalonia is true, starting Avalonia Desktop app');
+            
+            const executablePath = config.avaloniaExecutable;
+            if (!executablePath || !fs.existsSync(executablePath)) {
+                vscode.window.showErrorMessage(
+                    `Avalonia executable not found: ${executablePath}. Please set 'avaloniaExecutable' in your launch configuration.`
+                );
+                return undefined;
+            }
+
+            const debugPort = config.avaloniaDebugPort || 4711;
+            const system = config.avaloniaSystem || 'C64';
+            const systemVariant = config.avaloniaSystemVariant;
+            const waitForReady = config.avaloniaWaitForReady !== false; // Default true
+            const loadPrg = config.avaloniaLoadPrg !== false; // Default true
+            const runProgram = config.avaloniaRunProgram === true; // Default false
+            let programPath = config.program;
+
+            console.log(`[6502 Debug] Initial programPath: ${programPath}`);
+            console.log(`[6502 Debug] preLaunchTask: ${config.preLaunchTask}`);
+
+            // If program path not specified, try to extract from preLaunchTask
+            if (!programPath && config.preLaunchTask && folder) {
+                const tasks = await vscode.tasks.fetchTasks();
+                const task = tasks.find(t => t.name === config.preLaunchTask);
+                console.log(`[6502 Debug] Found task: ${task?.name}, definition: ${JSON.stringify(task?.definition)}`);
+                if (task) {
+                    // For shell tasks, args might be in definition.args or in task execution
+                    let args = task.definition.args;
+                    
+                    // If not in definition, might be a ShellExecution
+                    if (!args && task.execution && 'args' in task.execution) {
+                        args = (task.execution as any).args;
+                    }
+                    
+                    console.log(`[6502 Debug] Task args: ${JSON.stringify(args)}`);
+                    
+                    if (args && Array.isArray(args)) {
+                        // Look for -o argument in cl65 task
+                        const oIndex = args.indexOf('-o');
+                        if (oIndex >= 0 && oIndex + 1 < args.length) {
+                            const outputFile = args[oIndex + 1];
+                            programPath = path.join(folder.uri.fsPath, outputFile);
+                            console.log(`[6502 Debug] Extracted program path from task: ${programPath}`);
+                        } else {
+                            console.log(`[6502 Debug] Could not find -o argument in task args`);
+                        }
+                    } else {
+                        console.log(`[6502 Debug] Task has no args array`);
+                    }
+                } else {
+                    console.log(`[6502 Debug] Task not found`);
+                }
+            }
+
+            console.log(`[6502 Debug] Final programPath: ${programPath}, loadPrg: ${loadPrg}, runProgram: ${runProgram}`);
+
+            // For automated Avalonia startup, set program to empty string to prevent auto-detection
+            // The debug adapter should attach to the already-running emulator, not launch a new one
+            // Avalonia handles loading the program, so the debug adapter shouldn't load it
+            config.program = "";  // Empty string prevents auto-detection in debug adapter
+
+            // Build command line arguments
+            const args = [
+                '--enableExternalDebug',
+                '--debug-port', debugPort.toString(),
+                '--console-log',  // Enable console logging to see errors
+                '--system', system,
+                '--start'
+            ];
+
+            if (systemVariant) {
+                args.push('--systemVariant', systemVariant);
+            }
+
+            if (waitForReady) {
+                args.push('--waitForSystemReady');
+            }
+
+            if (loadPrg && programPath) {
+                args.push('--loadPrg', programPath);
+            }
+
+            if (runProgram) {
+                args.push('--runLoadedProgram');
+            }
+
+            console.log(`[6502 Debug] Launching Avalonia: ${executablePath} ${args.join(' ')}`);
+            
+            try {
+                // Kill any existing Avalonia process
+                if (this.avaloniaProcess) {
+                    console.log('[6502 Debug] Killing existing Avalonia process');
+                    this.avaloniaProcess.kill();
+                    this.avaloniaProcess = undefined;
+                }
+
+                // Launch the Avalonia Desktop app
+                const path = require('path');
+                const executableDir = path.dirname(executablePath);
+                
+                const spawnOptions: any = {
+                    detached: false,
+                    stdio: ['ignore', 'pipe', 'pipe'],  // stdin=ignore, stdout=pipe, stderr=pipe
+                    cwd: executableDir
+                };
+                
+                console.log(`[6502 Debug] Spawning: ${executablePath} ${args.join(' ')}`);
+                this.avaloniaProcess = child_process.spawn(executablePath, args, spawnOptions);
+
+                this.avaloniaProcess.stdout?.on('data', (data) => {
+                    console.log(`[Avalonia] ${data.toString()}`);
+                });
+
+                this.avaloniaProcess.stderr?.on('data', (data) => {
+                    console.error(`[Avalonia Error] ${data.toString()}`);
+                });
+
+                this.avaloniaProcess.on('exit', (code) => {
+                    console.log(`[6502 Debug] Avalonia process exited with code ${code}`);
+                    if (code !== 0 && code !== null) {
+                        vscode.window.showErrorMessage(`Avalonia Desktop app exited with error code ${code}. Check console output for details.`);
+                    }
+                    this.avaloniaProcess = undefined;
+                });
+
+                // Avalonia will start the system, load PRG, and then start TCP server
+                // We need to wait for the TCP server to be ready before connecting
+                console.log(`[6502 Debug] Avalonia launched, will wait for TCP server on port ${debugPort}`);
+
+                // Don't set debugServer yet - we'll set it after verifying the server is ready
+                // Store the port for later use
+                config.__avaloniaDebugPort = debugPort;
+                config.__waitingForAvalonia = true;
+
+            } catch (error) {
+                const errorMsg = `Failed to launch Avalonia Desktop app: ${error}`;
+                console.error('[6502 Debug]', errorMsg);
+                vscode.window.showErrorMessage(errorMsg);
+                return undefined;
+            }
+        }
+
+        return config;
+    }
+
+    dispose() {
+        if (this.avaloniaProcess) {
+            console.log('[6502 Debug] Disposing: killing Avalonia process');
+            this.avaloniaProcess.kill();
+            this.avaloniaProcess = undefined;
+        }
+    }
 }
 
 class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFactory {
-    createDebugAdapterDescriptor(
+    async createDebugAdapterDescriptor(
         session: vscode.DebugSession,
         executable: vscode.DebugAdapterExecutable | undefined
-    ): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+    ): Promise<vscode.DebugAdapterDescriptor | undefined> {
         
         console.log('[6502 Debug] createDebugAdapterDescriptor called for session:', session.name);
         console.log('[6502 Debug] Session configuration:', JSON.stringify(session.configuration, null, 2));
+        console.log('[6502 Debug] __waitingForAvalonia:', session.configuration.__waitingForAvalonia);
+        console.log('[6502 Debug] debugServer:', session.configuration.debugServer);
+        
+        // If waiting for Avalonia to start, wait for TCP server to be listening
+        if (session.configuration.__waitingForAvalonia) {
+            const port = session.configuration.__avaloniaDebugPort;
+            console.log(`[6502 Debug] Waiting for Avalonia TCP server on port ${port}...`);
+            
+            const isReady = await this.waitForTcpServerListening(port, 30000);
+            if (!isReady) {
+                vscode.window.showErrorMessage(`Avalonia TCP debug server did not start within 30 seconds on port ${port}`);
+                return undefined;
+            }
+            
+            console.log(`[6502 Debug] Avalonia TCP server is ready on port ${port}`);
+            return this.createTcpDebugAdapter(port);
+        }
         
         // Check if this is a TCP connection (attach mode or launch with debugServer)
         const debugServerPort = session.configuration.debugServer;
@@ -83,10 +264,54 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         }
         
         // Otherwise, launch the debug adapter as a child process
+        console.log('[6502 Debug] No TCP connection detected, launching debug adapter executable');
         return this.createExecutableDebugAdapter();
     }
+
+    private async waitForTcpServerListening(port: number, timeoutMs: number): Promise<boolean> {
+        // Wait for the TCP server to start accepting connections
+        // Note: This will create one connection that the server accepts but we immediately close
+        // The server will handle this gracefully (it expects a DAP initialize message)
+        const startTime = Date.now();
+        const net = require('net');
+        
+        while (Date.now() - startTime < timeoutMs) {
+            try {
+                await new Promise<void>((resolve, reject) => {
+                    const socket = new net.Socket();
+                    socket.setTimeout(500);
+                    
+                    socket.on('connect', () => {
+                        socket.destroy();
+                        resolve();
+                    });
+                    
+                    socket.on('timeout', () => {
+                        socket.destroy();
+                        reject(new Error('timeout'));
+                    });
+                    
+                    socket.on('error', () => {
+                        socket.destroy();
+                        reject(new Error('connection refused'));
+                    });
+                    
+                    socket.connect(port, '127.0.0.1');
+                });
+                
+                // Port is listening - wait a moment for the server to reject the empty connection
+                await new Promise(resolve => setTimeout(resolve, 200));
+                return true;
+            } catch (error) {
+                // Port not ready yet, wait and retry
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+        
+        return false;
+    }
     
-    private createTcpDebugAdapter(port: number): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+    private createTcpDebugAdapter(port: number): vscode.DebugAdapterDescriptor | undefined {
         try {
             // Return a DebugAdapterServer that connects to the specified port
             const server = new DebugAdapterServer(port, '127.0.0.1');
@@ -100,7 +325,7 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         }
     }
     
-    private createExecutableDebugAdapter(): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+    private createExecutableDebugAdapter(): vscode.DebugAdapterDescriptor | undefined {
         try {
             // Find the debug adapter executable
             // Look for the debug adapter executable

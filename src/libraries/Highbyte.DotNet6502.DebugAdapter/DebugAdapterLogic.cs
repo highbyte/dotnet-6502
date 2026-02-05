@@ -411,8 +411,8 @@ public class DebugAdapterLogic
         // Send initialized event
         await _protocol.SendEventAsync("initialized");
 
-        // If stopOnEntry, send stopped event
-        if (stopOnEntry)
+        // If stopOnEntry, send stopped event (unless no program loaded - external app will send it)
+        if (stopOnEntry && !string.IsNullOrEmpty(program))
         {
             await SendStoppedEventAsync("entry");
         }
@@ -1405,7 +1405,11 @@ public class DebugAdapterLogic
         await _protocol.SendEventAsync("output", body);
     }
 
-    private async Task SendStoppedEventAsync(string reason, string? text = null, bool preserveFocusHint = false)
+    /// <summary>
+    /// Sends a stopped event to the debug client.
+    /// Used internally and can be called externally when attaching to an already-running emulator.
+    /// </summary>
+    public async Task SendStoppedEventAsync(string reason, string? text = null, bool preserveFocusHint = false)
     {
         var body = new JsonObject
         {

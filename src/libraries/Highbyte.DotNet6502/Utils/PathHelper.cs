@@ -32,7 +32,10 @@ public static class PathHelper
     private static string ReplaceOSSpecificVariablesForLinuxAndMac(string path)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
             path = path.Replace("%USERPROFILE%", "%HOME%", s_stringComparison);
+            path = path.Replace("~", "%HOME%", s_stringComparison);
+        }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             path = path.Replace("%HOME%", "%USERPROFILE%", s_stringComparison);

@@ -573,6 +573,13 @@ public class MainViewModel : ViewModelBase, IDisposable
         if (HostApp == null)
             return;
 
+        // Skip default system selection if automated startup is handling it
+        if (HostApp.SkipDefaultSystemSelection)
+        {
+            _logger.LogInformation("Skipping default system selection - automated startup is active");
+            return;
+        }
+
         _logger.LogInformation($"Setting default system '{_emulatorConfig.DefaultEmulator}' during MainViewModel initialization");
         await HostApp.SelectSystem(_emulatorConfig.DefaultEmulator);
     }

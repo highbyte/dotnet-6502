@@ -80,6 +80,25 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         }
     }
 
+    private bool _skipDefaultSystemSelection;
+
+    /// <summary>
+    /// Flag to indicate if default system selection should be skipped.
+    /// Used when automated startup from command-line is handling system selection.
+    /// </summary>
+    public bool SkipDefaultSystemSelection
+    {
+        get => _skipDefaultSystemSelection;
+        set
+        {
+            if (_skipDefaultSystemSelection != value)
+            {
+                _skipDefaultSystemSelection = value;
+                OnPropertyChanged(nameof(SkipDefaultSystemSelection));
+            }
+        }
+    }
+
     private DebugAdapter.DebugAdapterLogic? _debugAdapter;
 
     /// <summary>
