@@ -41,15 +41,20 @@
       "request": "launch",
       "name": "Launch Avalonia Desktop C64 with test-program.asm",
       "preLaunchTask": "Build test-program.asm (C64)",
+      "env": {
+        "DOTNET6502_WAIT_FOR_DEBUGGER": "true"
+      },
+
       "launchAvalonia": true,
       "avaloniaExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop",
       "avaloniaDebugPort": 4711,
+      "avaloniaStartupTimeout": 300,
       "avaloniaSystem": "C64",
       "avaloniaWaitForReady": true,
       "avaloniaLoadPrg": true,
       "avaloniaRunProgram": false,
       "stopOnEntry": true,
-      "stopOnBRK": true
+      "stopOnBRK": true,
     }
   ]
 }

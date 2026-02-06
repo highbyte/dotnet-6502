@@ -5,7 +5,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>Highbyte.DotNet6502.DebugAdapter</AssemblyName>
+    <AssemblyName>Highbyte.DotNet6502.DebugAdapter.ConsoleApp</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

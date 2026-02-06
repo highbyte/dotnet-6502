@@ -176,13 +176,21 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
                 const path = require('path');
                 const executableDir = path.dirname(executablePath);
                 
+                // Merge current environment with any custom environment variables from config
+                const env = {
+                    ...process.env,
+                    ...(config.env || {})
+                };
+                
                 const spawnOptions: any = {
                     detached: false,
                     stdio: ['ignore', 'pipe', 'pipe'],  // stdin=ignore, stdout=pipe, stderr=pipe
-                    cwd: executableDir
+                    cwd: executableDir,
+                    env: env
                 };
                 
                 console.log(`[6502 Debug] Spawning: ${executablePath} ${args.join(' ')}`);
+                console.log(`[6502 Debug] Environment variables:`, config.env);
                 this.avaloniaProcess = child_process.spawn(executablePath, args, spawnOptions);
 
                 this.avaloniaProcess.stdout?.on('data', (data) => {
@@ -244,11 +252,13 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         // If waiting for Avalonia to start, wait for TCP server to be listening
         if (session.configuration.__waitingForAvalonia) {
             const port = session.configuration.__avaloniaDebugPort;
-            console.log(`[6502 Debug] Waiting for Avalonia TCP server on port ${port}...`);
+            const timeoutSeconds = session.configuration.avaloniaStartupTimeout || 120;
+            const timeoutMs = timeoutSeconds * 1000;
+            console.log(`[6502 Debug] Waiting for Avalonia TCP server on port ${port} (timeout: ${timeoutSeconds}s)...`);
             
-            const isReady = await this.waitForTcpServerListening(port, 30000);
+            const isReady = await this.waitForTcpServerListening(port, timeoutMs);
             if (!isReady) {
-                vscode.window.showErrorMessage(`Avalonia TCP debug server did not start within 30 seconds on port ${port}`);
+                vscode.window.showErrorMessage(`Avalonia TCP debug server did not start within ${timeoutSeconds} seconds on port ${port}`);
                 return undefined;
             }
             

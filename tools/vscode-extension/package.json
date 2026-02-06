@@ -145,6 +145,11 @@
                 "description": "TCP port for debug adapter server (used when launchAvalonia is true)",
                 "default": 4711
               },
+              "avaloniaStartupTimeout": {
+                "type": "number",
+                "description": "Timeout in seconds to wait for Avalonia TCP server to start (default 120, increase if using DOTNET6502_WAIT_FOR_DEBUGGER)",
+                "default": 120
+              },
               "avaloniaWaitForReady": {
                 "type": "boolean",
                 "description": "Wait for system to be ready before connecting debugger",

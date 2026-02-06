@@ -16,6 +16,7 @@ using System.Runtime.InteropServices;
 using Highbyte.DotNet6502.DebugAdapter;
 using System.Threading;
 using Highbyte.DotNet6502.Utils;
+using System.Diagnostics;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 
@@ -83,8 +84,38 @@ internal sealed partial class Program
         // ----------
         // Parse command line arguments
         // ----------
+        // Setup logging
         bool enableConsoleLogging = args.Contains("--console-log") || args.Contains("-c");
         LogLevel consoleLogLevel = ParseLogLevel(args, defaultLevel: LogLevel.Information);
+        // Set bootstrap console logging flag (for Console.WriteLine before ILogger is available)
+        AppLogger.ConsoleLoggingEnabled = enableConsoleLogging;
+        // On Windows, WinExe applications don't have a console attached.
+        // Create a new console window for logging if enabled.
+        // Note: This creates a separate console window rather than attaching to the parent terminal,
+        // which avoids cursor/prompt synchronization issues with PowerShell/cmd.
+        if (enableConsoleLogging && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            AllocConsole();
+            Console.Title = "DotNet6502 Emulator - Log Output";
+        }
+
+        WriteBootstrapLog("Starting.");
+
+        // Check if we should wait for a debugger to attach based on environment variable
+        var waitForDebuggerEnv = Environment.GetEnvironmentVariable("DOTNET6502_WAIT_FOR_DEBUGGER");
+        WriteBootstrapLog($"DOTNET6502_WAIT_FOR_DEBUGGER={waitForDebuggerEnv}");
+        if (!string.IsNullOrEmpty(waitForDebuggerEnv) && waitForDebuggerEnv.ToLower() == "true")
+        {
+            WriteBootstrapLog($"Waiting for debugger to attach... (set DOTNET6502_WAIT_FOR_DEBUGGER=false to disable)");
+
+            while (!System.Diagnostics.Debugger.IsAttached)
+            {
+                Thread.Sleep(100);
+            }
+
+            WriteBootstrapLog("Debugger attached, break into debugger immediately.");
+            Debugger.Break();
+        }
 
         // Parse debug adapter arguments
         bool enableExternalDebug = args.Contains("--enableExternalDebug");
@@ -103,19 +134,6 @@ internal sealed partial class Program
         if (!AutomatedStartupHandler.ValidateArguments(systemName, systemVariant, autoStart, waitForSystemReady, loadPrgPath, runLoadedProgram))
         {
             return 1; // Exit with error code
-        }
-
-        // Set bootstrap console logging flag (for Console.WriteLine before ILogger is available)
-        AppLogger.ConsoleLoggingEnabled = enableConsoleLogging;
-
-        // On Windows, WinExe applications don't have a console attached.
-        // Create a new console window for logging if enabled.
-        // Note: This creates a separate console window rather than attaching to the parent terminal,
-        // which avoids cursor/prompt synchronization issues with PowerShell/cmd.
-        if (enableConsoleLogging && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            AllocConsole();
-            Console.Title = "DotNet6502 Emulator - Log Output";
         }
 
         // Note: Don't call WriteBootstrapLog before AllocConsole() is called (Windows). Otherwise no logs will show in console.
@@ -238,21 +256,21 @@ internal sealed partial class Program
         // ----------
         WriteBootstrapLog($"Starting Avalonia app.");
         var app = BuildAvaloniaApp(configuration, emulatorConfig, logStore, logConfig, loggerFactory, avaloniaLoggerBridge, gamepad);
-        
+
         // If automated startup is requested, handle it after the app starts
         if (systemName != null)
         {
             _ = Task.Run(async () => await AutomatedStartupHandler.ExecuteAsync(
-                systemName, 
-                systemVariant, 
-                autoStart, 
-                waitForSystemReady, 
-                loadPrgPath, 
+                systemName,
+                systemVariant,
+                autoStart,
+                waitForSystemReady,
+                loadPrgPath,
                 runLoadedProgram,
                 debugServerManager,
                 loggerFactory));
         }
-        
+
         app.StartWithClassicDesktopLifetime(args);
 
         // ----------
