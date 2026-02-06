@@ -23,6 +23,7 @@ internal sealed class TcpDebugServerManager : IDisposable
     private bool _automatedStartupComplete = false;
     private bool _stoppedEventSent = false; // Track if we've already sent the stopped event
     private readonly object _startupLock = new object();
+    private TaskCompletionSource<bool>? _startupCompletionSource;
 
     public TcpDebugServerManager(StreamWriter debugLogWriter)
     {
@@ -55,15 +56,39 @@ internal sealed class TcpDebugServerManager : IDisposable
         {
             _automatedStartupComplete = true;
             _debugLogWriter.WriteLine("Automated startup complete signal received");
+
+            // Signal that the server can now start listening for connections
+            _startupCompletionSource?.TrySetResult(true);
         }
     }
 
     /// <summary>
     /// Starts the TCP debug adapter server on the specified port.
+    /// If automated startup is in progress, waits for it to complete before listening for connections.
     /// </summary>
     /// <param name="port">The port number to listen on.</param>
-    public async Task StartAsync(int port)
+    /// <param name="waitForAutomatedStartup">If true, waits for automated startup to complete before listening.</param>
+    public async Task StartAsync(int port, bool waitForAutomatedStartup = false)
     {
+        if (waitForAutomatedStartup)
+        {
+            _debugLogWriter.WriteLine("TCP server will wait for automated startup to complete before listening...");
+            _startupCompletionSource = new TaskCompletionSource<bool>();
+
+            // Wait for automated startup to complete (with timeout)
+            var timeoutTask = Task.Delay(60000); // 60 second timeout
+            var completedTask = await Task.WhenAny(_startupCompletionSource.Task, timeoutTask);
+
+            if (completedTask == timeoutTask)
+            {
+                _debugLogWriter.WriteLine("WARNING: Timeout waiting for automated startup - starting server anyway");
+            }
+            else
+            {
+                _debugLogWriter.WriteLine("Automated startup complete, now starting TCP server...");
+            }
+        }
+
         await _debugServer.StartAsync(port);
     }
 
@@ -85,7 +110,7 @@ internal sealed class TcpDebugServerManager : IDisposable
     private void OnClientConnected(object? sender, ClientConnectedEventArgs e)
     {
         _debugClientConnected = true;
-        
+
         lock (_connectionLock)
         {
             _activeConnectionCount++;
@@ -135,7 +160,7 @@ internal sealed class TcpDebugServerManager : IDisposable
             {
                 var pendingPcValue = _pendingProgramCounter.Value; // Store value before clearing
                 _debugLogWriter.WriteLine($"Pending PC 0x{pendingPcValue:X4} - waiting for automated startup to complete...");
-                
+
                 // Wait for automated startup to complete (with timeout)
                 int waitCount = 0;
                 while (waitCount < 100) // 10 second timeout
@@ -148,9 +173,9 @@ internal sealed class TcpDebugServerManager : IDisposable
                     await Task.Delay(100);
                     waitCount++;
                 }
-                
+
                 _pendingProgramCounter = null; // Clear it now
-                
+
                 bool shouldSendStoppedEvent = false;
                 lock (_startupLock)
                 {
@@ -161,19 +186,19 @@ internal sealed class TcpDebugServerManager : IDisposable
                         shouldSendStoppedEvent = true;
                     }
                 }
-                
+
                 if (_automatedStartupComplete && shouldSendStoppedEvent)
                 {
                     _debugLogWriter.WriteLine($"Setting PC to pending address 0x{pendingPcValue:X4}");
-                    
+
                     // Pause the emulator before setting PC to prevent it from continuing to run
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         Core.App.Current?.HostApp?.Pause();
                     });
-                    
+
                     system.CPU.PC = pendingPcValue;
-                    
+
                     // Send stopped event so VSCode debugger UI updates and breaks at entry point
                     // Delay slightly to ensure everything is settled before sending the event
                     _debugLogWriter.WriteLine("Sending stopped event to debugger");
@@ -190,15 +215,15 @@ internal sealed class TcpDebugServerManager : IDisposable
                 else if (!_automatedStartupComplete && shouldSendStoppedEvent)
                 {
                     _debugLogWriter.WriteLine("Timeout waiting for automated startup - setting PC anyway");
-                    
+
                     // Pause the emulator before setting PC
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         Core.App.Current?.HostApp?.Pause();
                     });
-                    
+
                     system.CPU.PC = pendingPcValue;
-                    
+
                     // Send stopped event so VSCode debugger UI updates and breaks at entry point
                     try
                     {
@@ -223,7 +248,7 @@ internal sealed class TcpDebugServerManager : IDisposable
                 {
                     _originalBreakpointEvaluator = Core.App.Current.HostApp.CurrentSystemRunner!.CustomExecEvaluator;
                     Core.App.Current.HostApp.CurrentSystemRunner!.SetCustomExecEvaluator(breakpointEvaluator);
-                    
+
                     // Set debug adapter reference so AvaloniaHostApp can check IsStopped property
                     Core.App.Current.HostApp.SetDebugAdapter(adapter);
                 }
@@ -265,12 +290,12 @@ internal sealed class TcpDebugServerManager : IDisposable
     private void CleanupDebugSession(DebugAdapterLogic adapter)
     {
         bool shouldSetFlagToFalse = false;
-        
+
         lock (_connectionLock)
         {
             _activeConnectionCount--;
             _debugLogWriter.WriteLine($"Debug adapter stopped at {DateTime.Now} (remaining active connections: {_activeConnectionCount})");
-            
+
             // Only set flag to false if this is the last connection
             if (_activeConnectionCount <= 0)
             {
@@ -281,7 +306,7 @@ internal sealed class TcpDebugServerManager : IDisposable
 
         // Reset debugger state to unfreeze emulator
         adapter.Reset();
-        
+
         // All HostApp interactions must be done on UI thread
         _ = Dispatcher.UIThread.InvokeAsync(async () =>
         {
@@ -290,20 +315,20 @@ internal sealed class TcpDebugServerManager : IDisposable
                 // Remove breakpoint evaluator to prevent exceptions when program runs again
                 Core.App.Current.HostApp.CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
                 Core.App.Current.HostApp.SetDebugAdapter(null!);
-                
+
                 // Only set flag to false if all connections are closed
                 if (shouldSetFlagToFalse)
                 {
                     Core.App.Current.HostApp.IsExternalDebuggerAttached = false;
                     _debugLogWriter.WriteLine("IsExternalDebuggerAttached set to false on UI thread (all connections closed)");
-                    
+
                     if (Core.App.Current.HostApp.EmulatorState == EmulatorState.Paused)
                     {
                         _debugLogWriter.WriteLine("Resuming emulator after debugger disconnect");
                         await Core.App.Current.HostApp.Start();
                     }
                 }
-                
+
                 _debugLogWriter.WriteLine("Emulator state reset, breakpoint evaluator removed, resuming normal execution");
             }
         });

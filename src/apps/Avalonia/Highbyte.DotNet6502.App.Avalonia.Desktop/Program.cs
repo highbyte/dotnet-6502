@@ -232,7 +232,10 @@ internal sealed partial class Program
             }
 
             // Start listening for connections
-            _ = Task.Run(async () => await debugServerManager.StartAsync(debugPort));
+            // If automated startup is requested (systemName != null), delay server startup until after
+            // system has started and PRG is loaded to prevent premature debugger connection
+            bool waitForAutomatedStartup = systemName != null;
+            _ = Task.Run(async () => await debugServerManager.StartAsync(debugPort, waitForAutomatedStartup));
 
             if (debugWait)
             {

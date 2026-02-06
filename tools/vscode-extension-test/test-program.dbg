@@ -1,6 +1,6 @@
 version	major=2,minor=0
 info	csym=0,file=696,lib=1,line=21,mod=2,scope=1,seg=7,span=15,sym=4,type=0
-file	id=0,name="test-program.asm",size=800,mtime=0x697FC4E8,mod=0
+file	id=0,name="test-program.asm",size=800,mtime=0x69866D0D,mod=0
 file	id=1,name="cbm/loadaddr.s",size=399,mtime=0x5ED2ADF3,mod=1
 lib	id=0,name="/opt/homebrew/Cellar/cc65/2.19/share/cc65/lib/c64.lib"
 line	id=0,file=0,line=30,span=14
