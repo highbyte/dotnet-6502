@@ -119,13 +119,15 @@ internal sealed class TcpDebugServerManager : IDisposable
         {
             // Wait for app instance and emulator to be in a running state
             _debugLogWriter.WriteLine("Waiting for emulator to be in running state...");
-            while (Core.App.Current?.HostApp?.CurrentRunningSystem == null)
+            ISystem? system = null;
+            while (system == null)
             {
-                await Task.Delay(100);
+                system = await Dispatcher.UIThread.InvokeAsync(() => Core.App.Current?.HostApp?.CurrentRunningSystem);
+                if (system == null)
+                    await Task.Delay(100);
             }
 
             _debugLogWriter.WriteLine("Emulator is running, attaching debug adapter...");
-            var system = Core.App.Current.HostApp.CurrentRunningSystem;
             adapter.AttachToEmulator(system.CPU, system.Mem);
 
             // If there's a pending PC address, wait for automated startup to complete before setting it
@@ -213,13 +215,19 @@ internal sealed class TcpDebugServerManager : IDisposable
                 }
             }
 
-            // Install breakpoint evaluator
+            // Install breakpoint evaluator - must be done on UI thread
             var breakpointEvaluator = adapter.GetBreakpointEvaluator();
-            _originalBreakpointEvaluator = Core.App.Current.HostApp.CurrentSystemRunner!.CustomExecEvaluator;
-            Core.App.Current.HostApp.CurrentSystemRunner!.SetCustomExecEvaluator(breakpointEvaluator);
-
-            // Set debug adapter reference so AvaloniaHostApp can check IsStopped property
-            Core.App.Current.HostApp.SetDebugAdapter(adapter);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (Core.App.Current?.HostApp != null)
+                {
+                    _originalBreakpointEvaluator = Core.App.Current.HostApp.CurrentSystemRunner!.CustomExecEvaluator;
+                    Core.App.Current.HostApp.CurrentSystemRunner!.SetCustomExecEvaluator(breakpointEvaluator);
+                    
+                    // Set debug adapter reference so AvaloniaHostApp can check IsStopped property
+                    Core.App.Current.HostApp.SetDebugAdapter(adapter);
+                }
+            });
 
             _debugLogWriter.WriteLine("Breakpoint evaluator installed and debug adapter set");
         }
@@ -273,17 +281,18 @@ internal sealed class TcpDebugServerManager : IDisposable
 
         // Reset debugger state to unfreeze emulator
         adapter.Reset();
-        if (Core.App.Current?.HostApp != null)
+        
+        // All HostApp interactions must be done on UI thread
+        _ = Dispatcher.UIThread.InvokeAsync(async () =>
         {
-            // Remove breakpoint evaluator to prevent exceptions when program runs again
-            Core.App.Current.HostApp.CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
-            Core.App.Current.HostApp.SetDebugAdapter(null!);
-            
-            // Only set flag to false if all connections are closed
-            if (shouldSetFlagToFalse)
+            if (Core.App.Current?.HostApp != null)
             {
-                // Resume emulator if it was paused by the debugger - must be on UI thread
-                _ = Dispatcher.UIThread.InvokeAsync(async () =>
+                // Remove breakpoint evaluator to prevent exceptions when program runs again
+                Core.App.Current.HostApp.CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
+                Core.App.Current.HostApp.SetDebugAdapter(null!);
+                
+                // Only set flag to false if all connections are closed
+                if (shouldSetFlagToFalse)
                 {
                     Core.App.Current.HostApp.IsExternalDebuggerAttached = false;
                     _debugLogWriter.WriteLine("IsExternalDebuggerAttached set to false on UI thread (all connections closed)");
@@ -293,11 +302,11 @@ internal sealed class TcpDebugServerManager : IDisposable
                         _debugLogWriter.WriteLine("Resuming emulator after debugger disconnect");
                         await Core.App.Current.HostApp.Start();
                     }
-                });
+                }
+                
+                _debugLogWriter.WriteLine("Emulator state reset, breakpoint evaluator removed, resuming normal execution");
             }
-            
-            _debugLogWriter.WriteLine("Emulator state reset, breakpoint evaluator removed, resuming normal execution");
-        }
+        });
 
         if (shouldSetFlagToFalse)
         {
