@@ -41,7 +41,7 @@ public class TcpDebugAdapterServer : IDisposable
 
         // Get the actual port (useful when port=0)
         Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
-        
+
         _log.WriteLine($"[TCP Server] Started listening on port {Port}");
         _log.Flush();
 
@@ -59,7 +59,7 @@ public class TcpDebugAdapterServer : IDisposable
                 _log.Flush();
 
                 var client = await _listener!.AcceptTcpClientAsync(cancellationToken);
-                
+
                 _log.WriteLine($"[TCP Server] Client connected from {client.Client.RemoteEndPoint}");
                 _log.Flush();
 
@@ -90,7 +90,7 @@ public class TcpDebugAdapterServer : IDisposable
 
         _cts?.Cancel();
         _listener?.Stop();
-        
+
         if (_listenTask != null)
         {
             try

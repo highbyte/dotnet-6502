@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 using Highbyte.DotNet6502;
-using Highbyte.DotNet6502.Monitor;
+using Highbyte.DotNet6502.Systems;
 using Highbyte.DotNet6502.Utils;
 
 namespace Highbyte.DotNet6502.DebugAdapter;
@@ -18,8 +18,7 @@ public class DebugAdapterLogic
 {
     private readonly DapProtocol _protocol;
     private readonly StreamWriter _log;
-    private CPU? _cpu;
-    private Memory? _memory;
+    private readonly ISystem _system;
     private readonly HashSet<ushort> _breakpoints = new();
     private const int THREAD_ID = 1;
     private const int FRAME_ID = 0;
@@ -30,7 +29,6 @@ public class DebugAdapterLogic
     private string? _programPath;
     private ushort _programStartAddress;
     private ushort _programEndAddress;
-    private bool _isAttachMode; // Track if we're in attach mode (program already running)
 
     /// <summary>
     /// Indicates whether the debugger is stopped (at a breakpoint or after a step).
@@ -40,10 +38,11 @@ public class DebugAdapterLogic
 
     public event Action? OnExit;
 
-    public DebugAdapterLogic(DapProtocol protocol, StreamWriter log)
+    public DebugAdapterLogic(DapProtocol protocol, StreamWriter log, ISystem system)
     {
         _protocol = protocol;
         _log = log;
+        _system = system;
     }
 
     /// <summary>
@@ -63,19 +62,6 @@ public class DebugAdapterLogic
         {
             // Writer is disposed, silently ignore
         }
-    }
-
-    /// <summary>
-    /// Attach to an already-running emulator (for TCP attach mode).
-    /// This allows the debug adapter to access the CPU and Memory of a running emulator.
-    /// </summary>
-    /// <param name="cpu">The CPU instance from the running emulator</param>
-    /// <param name="memory">The Memory instance from the running emulator</param>
-    public void AttachToEmulator(CPU cpu, Memory memory)
-    {
-        _cpu = cpu;
-        _memory = memory;
-        LogSafe($"[AttachToEmulator] Attached to CPU (PC=${cpu.PC:X4}) and Memory");
     }
 
     /// <summary>
@@ -101,13 +87,15 @@ public class DebugAdapterLogic
     /// <summary>
     /// Check if execution should stop at the current PC (called by BreakpointEvaluator)
     /// </summary>
-    private async Task<bool> ShouldBreakAtCurrentPCAsync()
+    internal async Task<bool> ShouldBreakAtCurrentPCAsync()
     {
-        if (_cpu == null)
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
+        if (cpu == null || memory == null)
             return false;
 
-        var pc = _cpu.PC;
-        
+        var pc = cpu.PC;
+
         // Check if we hit a breakpoint
         if (_breakpoints.Contains(pc))
         {
@@ -117,54 +105,21 @@ public class DebugAdapterLogic
             return true;
         }
 
+        if (_stopOnBRK && memory[pc] == 0x00) // BRK opcode
+        {
+            LogSafe($"[BreakpointHit] BRK instruction hit at ${pc:X4}");
+            IsStopped = true; // Pause emulator
+            await SendStoppedEventAsync("breakpoint");
+            return true;
+        }
+
         return false;
-    }
-
-    /// <summary>
-    /// Internal IExecEvaluator implementation for checking breakpoints
-    /// </summary>
-    private class BreakpointEvaluator : IExecEvaluator
-    {
-        private readonly DebugAdapterLogic _logic;
-
-        public BreakpointEvaluator(DebugAdapterLogic logic)
-        {
-            _logic = logic;
-        }
-
-        public ExecEvaluatorTriggerResult Check(ExecState execState, CPU cpu, Memory mem)
-        {
-            // Check if we should break at current PC
-            // Note: This is called synchronously, so we use GetAwaiter().GetResult()
-            var shouldBreak = _logic.ShouldBreakAtCurrentPCAsync().GetAwaiter().GetResult();
-            
-            if (shouldBreak)
-            {
-                return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.DebugBreakPoint, $"Breakpoint hit at ${cpu.PC:X4}");
-            }
-
-            return ExecEvaluatorTriggerResult.NotTriggered;
-        }
-
-        public ExecEvaluatorTriggerResult Check(InstructionExecResult lastInstructionExecResult, CPU cpu, Memory mem)
-        {
-            // This overload is called per-instruction in some systems (like C64)
-            // Check if we should break at current PC
-            var shouldBreak = _logic.ShouldBreakAtCurrentPCAsync().GetAwaiter().GetResult();
-            
-            if (shouldBreak)
-            {
-                return ExecEvaluatorTriggerResult.CreateTrigger(ExecEvaluatorTriggerReasonType.DebugBreakPoint, $"Breakpoint hit at ${cpu.PC:X4}");
-            }
-
-            return ExecEvaluatorTriggerResult.NotTriggered;
-        }
     }
 
     public async Task HandleMessageAsync(JsonObject message)
     {
         var type = message["type"]?.ToString();
-        
+
         if (type == "request")
         {
             var command = message["command"]?.ToString();
@@ -277,31 +232,31 @@ public class DebugAdapterLogic
         var stopOnEntry = args?["stopOnEntry"]?.GetValue<bool>() ?? true;
         var loadAddress = args?["loadAddress"]?.GetValue<int?>();
         _stopOnBRK = args?["stopOnBRK"]?.GetValue<bool>() ?? true;
-        
+
         // Get program and dbgFile from config, or auto-derive if preLaunchTask was used
         string? program = args?["program"]?.ToString();
         string? dbgFile = args?["dbgFile"]?.ToString();
         var preLaunchTask = args?["preLaunchTask"]?.ToString();
-        
+
         // If program not specified but preLaunchTask was used, look for recently built .prg files
         if (string.IsNullOrEmpty(program) && !string.IsNullOrEmpty(preLaunchTask))
         {
             var workingDir = args?["__workspaceFolder"]?.ToString() ?? Directory.GetCurrentDirectory();
             LogSafe($"[Launch] program not specified with preLaunchTask, searching in: {workingDir}");
-            
+
             // Find the most recently modified .prg file (likely just built by the task)
             var prgFiles = Directory.GetFiles(workingDir, "*.prg", SearchOption.AllDirectories)
                 .Select(f => new FileInfo(f))
                 .OrderByDescending(f => f.LastWriteTime)
                 .ToList();
-            
+
             if (prgFiles.Any())
             {
                 var recentPrg = prgFiles.First();
                 program = recentPrg.FullName;
                 LogSafe($"[Launch] Auto-detected recently built program: {program} (modified: {recentPrg.LastWriteTime})");
                 await SendOutputAsync($"Auto-detected program: {Path.GetFileName(program)}\n");
-                
+
                 // Also look for corresponding .dbg file
                 var dbgPath = Path.ChangeExtension(program, ".dbg");
                 if (File.Exists(dbgPath))
@@ -383,24 +338,17 @@ public class DebugAdapterLogic
         }
 
         // Load binary
-        _memory = BinaryLoader.Load(
-            program,
-            out ushort loadAddr,
-            out ushort fileLength,
-            forceLoadAddress: effectiveLoadAddress,
-            fileContainsLoadAddress: !isBinFile  // .prg has load address, .bin doesn't
-        );
+        var memory = _system.Mem;
+        var cpu = _system.CPU;
 
-        // Create CPU
-        _cpu = new CPU();
-        _cpu.PC = loadAddr;
+        memory.Load(program, out ushort loadAddr, out ushort fileLength, forceLoadAddress: effectiveLoadAddress, fileContainsLoadAddress: !isBinFile);
 
         // Track program bounds for out-of-bounds detection
         _programStartAddress = loadAddr;
         _programEndAddress = (ushort)(loadAddr + fileLength - 1);
 
         await SendOutputAsync($"Loaded {program} at ${loadAddr:X4}, length: {fileLength} bytes\n");
-        await SendOutputAsync($"PC set to ${_cpu.PC:X4}\n");
+        await SendOutputAsync($"PC set to ${cpu.PC:X4}\n");
         if (!_stopOnBRK)
         {
             await SendOutputAsync("Note: stopOnBRK is disabled - use Pause button to stop execution\n");
@@ -414,6 +362,7 @@ public class DebugAdapterLogic
         // If stopOnEntry, send stopped event (unless no program loaded - external app will send it)
         if (stopOnEntry && !string.IsNullOrEmpty(program))
         {
+            IsStopped = true;
             await SendStoppedEventAsync("entry");
         }
     }
@@ -421,21 +370,19 @@ public class DebugAdapterLogic
     private async Task HandleAttachAsync(int seq, JsonObject? args)
     {
         LogSafe("[Attach] Starting attach sequence");
-        
-        _isAttachMode = true; // Mark that we're in attach mode
-        
+
         var stopOnEntry = args?["stopOnEntry"]?.GetValue<bool>() ?? false;
         _stopOnBRK = args?["stopOnBRK"]?.GetValue<bool>() ?? true;
-        
+
         // Get program and dbgFile from config
         string? program = args?["program"]?.ToString();
         string? dbgFile = args?["dbgFile"]?.ToString();
-        
+
         LogSafe($"[Attach] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_stopOnBRK}");
-        
+
         // In attach mode, we don't create the emulator - it's already running in the desktop app
         // We just load the debug symbols to enable source-level debugging
-        
+
         // Store program path for reference
         if (!string.IsNullOrEmpty(program))
         {
@@ -443,7 +390,7 @@ public class DebugAdapterLogic
             await SendOutputAsync($"Attached to running emulator\n");
             await SendOutputAsync($"Program: {program}\n");
         }
-        
+
         // Load debug symbols if provided
         if (!string.IsNullOrEmpty(dbgFile))
         {
@@ -454,7 +401,7 @@ public class DebugAdapterLogic
                     _dbgParser = new Ca65DbgParser();
                     _dbgParser.ParseFile(dbgFile);
                     var dbgLoadAddress = _dbgParser.GetLoadAddress();
-                    
+
                     // In attach mode, get program bounds from debug symbols
                     if (_dbgParser.SourceLineToAddress.Count > 0)
                     {
@@ -462,7 +409,7 @@ public class DebugAdapterLogic
                         var allAddresses = _dbgParser.SourceLineToAddress.Values
                             .SelectMany(lineDict => lineDict.Values)
                             .ToList();
-                        
+
                         if (allAddresses.Any())
                         {
                             _programStartAddress = allAddresses.Min();
@@ -470,7 +417,7 @@ public class DebugAdapterLogic
                             LogSafe($"[Attach] Program bounds from debug symbols: ${_programStartAddress:X4} - ${_programEndAddress:X4}");
                         }
                     }
-                    
+
                     await SendOutputAsync($"Loaded debug symbols from {dbgFile}\n");
                     await SendOutputAsync($"  Source files: {_dbgParser.SourceLineToAddress.Keys.Count}\n");
                     await SendOutputAsync($"  Load address from .dbg: ${dbgLoadAddress:X4}\n");
@@ -498,16 +445,16 @@ public class DebugAdapterLogic
             await SendOutputAsync($"Note: No debug symbols loaded - only instruction-level debugging available\n");
             LogSafe($"[Attach] No debug file specified");
         }
-        
+
         // Note: In attach mode, we don't have access to the CPU/Memory yet
         // The desktop app will need to provide a way to share this state
         // For now, we respond successfully and let breakpoints be set
-        
+
         await _protocol.SendResponseAsync(seq, "attach");
-        
+
         // Send initialized event
         await _protocol.SendEventAsync("initialized");
-        
+
         // Don't send stopped event in attach mode unless explicitly requested
         // The program is already running in the desktop app
         if (stopOnEntry)
@@ -515,7 +462,7 @@ public class DebugAdapterLogic
             LogSafe("[Attach] stopOnEntry requested, but emulator state not available in attach mode");
             await SendOutputAsync($"Note: stopOnEntry requested but requires desktop app integration\n");
         }
-        
+
         LogSafe("[Attach] Attach sequence complete");
     }
 
@@ -529,23 +476,22 @@ public class DebugAdapterLogic
         // This handles source-level breakpoints
         LogSafe("[SetBreakpoints] Called");
         LogSafe($"[SetBreakpoints] args: {args?.ToJsonString()}");
-        
+
         // Don't clear all breakpoints - VSCode calls setBreakpoints and setInstructionBreakpoints separately
         // Only remove breakpoints for the specific source file being updated
         var breakpoints = new JsonArray();
 
         var source = args?["source"] as JsonObject;
         var sourcePath = source?["path"]?.ToString();
-        var requestedBps = args?["breakpoints"] as JsonArray;
-        
+
         LogSafe($"[SetBreakpoints] sourcePath={sourcePath}");
 
-        if (requestedBps != null)
+        if (args?["breakpoints"] is JsonArray requestedBps)
         {
             foreach (var bp in requestedBps)
             {
                 LogSafe($"[SetBreakpoints] Processing breakpoint: {bp?.ToJsonString()}");
-                
+
                 var line = bp?["line"]?.GetValue<int>() ?? 0;
                 ushort address;
                 bool verified = false;
@@ -594,7 +540,7 @@ public class DebugAdapterLogic
                     ["verified"] = verified,
                     ["line"] = line
                 };
-                
+
                 if (bpSource != null)
                 {
                     bpObject["source"] = bpSource;
@@ -616,32 +562,30 @@ public class DebugAdapterLogic
     {
         LogSafe("[SetInstructionBreakpoints] Called");
         LogSafe($"[SetInstructionBreakpoints] args: {args?.ToJsonString()}");
-        
+
         // Don't clear all breakpoints - VSCode calls setBreakpoints and setInstructionBreakpoints separately
         // For instruction breakpoints, we can clear and re-add since VSCode sends all instruction breakpoints at once
         // But we need to preserve source breakpoints
-        
+
         // Remove only instruction breakpoints (we'll identify them by re-adding all from this request)
         // For now, clear and re-add all - this is a known limitation
         // A better solution would track source vs instruction breakpoints separately
         var breakpoints = new JsonArray();
 
-        var requestedBps = args?["breakpoints"] as JsonArray;
-        
-        if (requestedBps != null)
+        if (args?["breakpoints"] is JsonArray requestedBps)
         {
             foreach (var bp in requestedBps)
             {
                 LogSafe($"[SetInstructionBreakpoints] Processing breakpoint: {bp?.ToJsonString()}");
-                
+
                 var instructionReference = bp?["instructionReference"]?.ToString();
                 var offset = bp?["offset"]?.GetValue<int>() ?? 0;  // offset is in bytes
-                
+
                 if (instructionReference != null)
                 {
                     var baseAddress = ParseAddress(instructionReference);
                     var actualAddress = (ushort)(baseAddress + offset);
-                    
+
                     _breakpoints.Add(actualAddress);
                     LogSafe($"[SetInstructionBreakpoints] Added breakpoint at ${actualAddress:X4}");
 
@@ -685,8 +629,11 @@ public class DebugAdapterLogic
     private async Task HandleStackTraceAsync(int seq, JsonObject? args)
     {
         LogSafe("[HandleStackTrace] Called");
-        
-        if (_cpu == null || _memory == null)
+
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
+
+        if (cpu == null || memory == null)
         {
             var body = new JsonObject
             {
@@ -697,9 +644,9 @@ public class DebugAdapterLogic
             return;
         }
 
-        var pc = _cpu.PC;
-        var disasm = OutputGen.GetInstructionDisassembly(_cpu, _memory, pc);
-        
+        var pc = cpu.PC;
+        var disasm = OutputGen.GetInstructionDisassembly(cpu, memory, pc);
+
         LogSafe($"[HandleStackTrace] PC=${pc:X4}, instructionPointerReference={FormatAddress(pc)}");
 
         var frame = new JsonObject
@@ -761,6 +708,8 @@ public class DebugAdapterLogic
 
     private async Task HandleScopesAsync(int seq, JsonObject? args)
     {
+        LogSafe($"[HandleScopes] Called");
+
         var scopes = new JsonArray
         {
             new JsonObject
@@ -787,25 +736,30 @@ public class DebugAdapterLogic
 
     private async Task HandleVariablesAsync(int seq, JsonObject? args)
     {
+        LogSafe($"[HandleVariables] Called");
+
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
+
         var variablesReference = args?["variablesReference"]?.GetValue<int>() ?? 0;
         var variables = new JsonArray();
 
-        LogSafe($"[HandleVariables] Called with variablesReference={variablesReference}, PC=${_cpu?.PC:X4}");
+        LogSafe($"[HandleVariables] variablesReference={variablesReference}, PC=${cpu?.PC:X4}");
 
-        if (_cpu != null)
+        if (cpu != null)
         {
             if (variablesReference == 1) // Registers
             {
-                variables.Add(new JsonObject { ["name"] = "PC", ["value"] = $"${_cpu.PC:X4}", ["type"] = "ushort", ["variablesReference"] = 0 });
-                variables.Add(new JsonObject { ["name"] = "A", ["value"] = $"${_cpu.A:X2}", ["type"] = "byte", ["variablesReference"] = 0 });
-                variables.Add(new JsonObject { ["name"] = "X", ["value"] = $"${_cpu.X:X2}", ["type"] = "byte", ["variablesReference"] = 0 });
-                variables.Add(new JsonObject { ["name"] = "Y", ["value"] = $"${_cpu.Y:X2}", ["type"] = "byte", ["variablesReference"] = 0 });
-                variables.Add(new JsonObject { ["name"] = "SP", ["value"] = $"${_cpu.SP:X2}", ["type"] = "byte", ["variablesReference"] = 0 });
+                variables.Add(new JsonObject { ["name"] = "PC", ["value"] = $"${cpu.PC:X4}", ["type"] = "ushort", ["variablesReference"] = 0 });
+                variables.Add(new JsonObject { ["name"] = "A", ["value"] = $"${cpu.A:X2}", ["type"] = "byte", ["variablesReference"] = 0 });
+                variables.Add(new JsonObject { ["name"] = "X", ["value"] = $"${cpu.X:X2}", ["type"] = "byte", ["variablesReference"] = 0 });
+                variables.Add(new JsonObject { ["name"] = "Y", ["value"] = $"${cpu.Y:X2}", ["type"] = "byte", ["variablesReference"] = 0 });
+                variables.Add(new JsonObject { ["name"] = "SP", ["value"] = $"${cpu.SP:X2}", ["type"] = "byte", ["variablesReference"] = 0 });
                 LogSafe($"[HandleVariables] Returning {variables.Count} register variables");
             }
             else if (variablesReference == 2) // Flags
             {
-                var ps = _cpu.ProcessorStatus;
+                var ps = cpu.ProcessorStatus;
                 variables.Add(new JsonObject { ["name"] = "C (Carry)", ["value"] = ps.Carry ? "1" : "0", ["variablesReference"] = 0 });
                 variables.Add(new JsonObject { ["name"] = "Z (Zero)", ["value"] = ps.Zero ? "1" : "0", ["variablesReference"] = 0 });
                 variables.Add(new JsonObject { ["name"] = "I (IRQ Disable)", ["value"] = ps.InterruptDisable ? "1" : "0", ["variablesReference"] = 0 });
@@ -833,11 +787,11 @@ public class DebugAdapterLogic
         // Don't check bounds if the feature is disabled
         if (!_stopOnOutOfBounds)
             return false;
-        
+
         // Don't check bounds if we don't have valid program range
         if (_programStartAddress == 0 && _programEndAddress == 0)
             return false;
-        
+
         // Check if address is outside loaded program range
         if (address < _programStartAddress || address > _programEndAddress)
         {
@@ -867,7 +821,7 @@ public class DebugAdapterLogic
         // Parse command: "dump <start> [<length>]" or "dump <start> [<end>]"
         // Supports formats: dump 0xc000, dump 0xc000 256, dump $c000 $c0ff, md c000 100
         var parts = command.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        
+
         if (parts.Length < 2)
         {
             return "Usage: dump <start_address> [length_or_end_address]\nExamples:\n  dump 0xc000\n  dump 0xc000 256\n  dump $c000 $c0ff\n  md c000 100";
@@ -878,19 +832,19 @@ public class DebugAdapterLogic
             ushort startAddress = ParseAddress(parts[1]);
             int length = 256; // Default to 256 bytes
             int requestedLength = length;
-            
+
             // If second parameter provided, parse it
             if (parts.Length >= 3)
             {
                 string secondParam = parts[2];
                 ushort lengthOrEnd = ParseAddress(secondParam);
-                
+
                 // Determine if second parameter is length or end address based on format:
                 // - Hex format (0x or $) = end address
                 // - Decimal format = length
-                bool isHexFormat = secondParam.StartsWith("0x", StringComparison.OrdinalIgnoreCase) || 
+                bool isHexFormat = secondParam.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ||
                                    secondParam.StartsWith("$");
-                
+
                 if (isHexFormat && lengthOrEnd > startAddress)
                 {
                     // Treat as end address
@@ -926,14 +880,17 @@ public class DebugAdapterLogic
 
     private string FormatMemoryDump(ushort startAddress, int length)
     {
-        if (_memory == null)
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
+
+        if (memory == null)
         {
             return "Memory not available";
         }
 
         var sb = new System.Text.StringBuilder();
         int bytesPerRow = 16;
-        
+
         for (int offset = 0; offset < length; offset += bytesPerRow)
         {
             ushort address = (ushort)((startAddress + offset) & 0xFFFF);
@@ -945,7 +902,7 @@ public class DebugAdapterLogic
             {
                 if (i < rowBytes)
                 {
-                    byte value = _memory[(ushort)((address + i) & 0xFFFF)];
+                    byte value = memory[(ushort)((address + i) & 0xFFFF)];
                     sb.Append($"{value:X2} ");
                 }
                 else
@@ -959,9 +916,9 @@ public class DebugAdapterLogic
             // ASCII/PETSCII representation
             for (int i = 0; i < rowBytes; i++)
             {
-                byte value = _memory[(ushort)((address + i) & 0xFFFF)];
+                byte value = memory[(ushort)((address + i) & 0xFFFF)];
                 char c;
-                
+
                 // Convert PETSCII to displayable character
                 if (value >= 0x20 && value <= 0x7E)
                 {
@@ -976,7 +933,7 @@ public class DebugAdapterLogic
                 {
                     c = '.'; // Non-printable
                 }
-                
+
                 sb.Append(c);
             }
 
@@ -998,9 +955,14 @@ public class DebugAdapterLogic
 
     private async Task HandleGetMemoryDumpAsync(int seq, JsonObject? args)
     {
+        LogSafe("[HandleGetMemoryDump] Called");
+
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
+
         try
         {
-            if (_cpu == null || _memory == null)
+            if (cpu == null || memory == null)
             {
                 await _protocol.SendResponseAsync(seq, "getMemoryDump", new JsonObject
                 {
@@ -1011,7 +973,7 @@ public class DebugAdapterLogic
             }
 
             // Parse arguments
-            var address = args?["address"]?.GetValue<int>() ?? _cpu.PC;
+            var address = args?["address"]?.GetValue<int>() ?? cpu.PC;
             var length = args?["length"]?.GetValue<int>() ?? 256;
 
             // Validate address
@@ -1056,12 +1018,17 @@ public class DebugAdapterLogic
 
     private async Task HandleEvaluateAsync(int seq, JsonObject? args)
     {
+        LogSafe("[ HandleEvaluate] Called");
+
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
+
         var expression = args?["expression"]?.ToString() ?? "";
         var context = args?["context"]?.ToString();
 
         try
         {
-            if (_cpu == null || _memory == null)
+            if (cpu == null || memory == null)
             {
                 await _protocol.SendResponseAsync(seq, "evaluate");
                 return;
@@ -1071,7 +1038,7 @@ public class DebugAdapterLogic
             string result;
 
             // Check for REPL commands (Debug Console commands)
-            if (context == "repl" && (expression.StartsWith("dump ", StringComparison.OrdinalIgnoreCase) || 
+            if (context == "repl" && (expression.StartsWith("dump ", StringComparison.OrdinalIgnoreCase) ||
                 expression.StartsWith("md ", StringComparison.OrdinalIgnoreCase) ||
                 expression.StartsWith("memdump ", StringComparison.OrdinalIgnoreCase)))
             {
@@ -1094,29 +1061,29 @@ public class DebugAdapterLogic
                     address = Convert.ToUInt16(expression);
                 }
 
-                var value = _memory[address];
+                var value = memory[address];
                 result = $"${value:X2} ({value})";
             }
             // Check for register expressions
             else if (expression.Equals("PC", StringComparison.OrdinalIgnoreCase))
             {
-                result = $"${_cpu.PC:X4}";
+                result = $"${cpu.PC:X4}";
             }
             else if (expression.Equals("A", StringComparison.OrdinalIgnoreCase))
             {
-                result = $"${_cpu.A:X2}";
+                result = $"${cpu.A:X2}";
             }
             else if (expression.Equals("X", StringComparison.OrdinalIgnoreCase))
             {
-                result = $"${_cpu.X:X2}";
+                result = $"${cpu.X:X2}";
             }
             else if (expression.Equals("Y", StringComparison.OrdinalIgnoreCase))
             {
-                result = $"${_cpu.Y:X2}";
+                result = $"${cpu.Y:X2}";
             }
             else if (expression.Equals("SP", StringComparison.OrdinalIgnoreCase))
             {
-                result = $"${_cpu.SP:X2}";
+                result = $"${cpu.SP:X2}";
             }
             else
             {
@@ -1146,6 +1113,10 @@ public class DebugAdapterLogic
     {
         LogSafe("[HandleReadMemory] Called");
         LogSafe($"[HandleReadMemory] args: {args?.ToJsonString()}");
+
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
+
         try
         {
             var memoryReference = args?["memoryReference"]?.ToString();
@@ -1181,7 +1152,7 @@ public class DebugAdapterLogic
             address = (ushort)((address + offset) & 0xFFFF);
 
             // Read memory
-            if (_memory == null)
+            if (memory == null)
             {
                 await _protocol.SendResponseAsync(seq, "readMemory");
                 return;
@@ -1197,7 +1168,7 @@ public class DebugAdapterLogic
             var data = new byte[count];
             for (int i = 0; i < count; i++)
             {
-                data[i] = _memory[(ushort)((address + i) & 0xFFFF)];
+                data[i] = memory[(ushort)((address + i) & 0xFFFF)];
             }
 
             // Encode as base64
@@ -1226,67 +1197,80 @@ public class DebugAdapterLogic
 
     private async Task HandleContinueAsync(int seq, JsonObject? args)
     {
-        if (_cpu != null && _memory != null)
+        LogSafe("[HandleContinue] Called");
+
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
+
+        if (cpu != null && memory != null)
         {
+            LogSafe($"[Continue] Resuming emulator execution at PC=${cpu.PC:X4}");
+
             IsStopped = false; // Resume emulator
-            _continueTokenSource?.Cancel();
-            _continueTokenSource = new CancellationTokenSource();
-            var token = _continueTokenSource.Token;
-
-            _ = Task.Run(async () =>
+            if (_continueTokenSource != null)
             {
-                try
-                {
-                    LogSafe($"[Continue] Starting execution loop, PC=${_cpu.PC:X4}");
-                    
-                    // Execute one instruction first to move past current breakpoint
-                    _cpu.ExecuteOneInstruction(_memory);
-                    LogSafe($"[Continue] After first instruction, PC=${_cpu.PC:X4}");
-                    
-                    while (!token.IsCancellationRequested)
-                    {
-                        if (_breakpoints.Contains(_cpu.PC))
-                        {
-                            LogSafe($"[Continue] Hit breakpoint at ${_cpu.PC:X4}");
-                            IsStopped = true; // Pause emulator
-                            await SendStoppedEventAsync("breakpoint");
-                            return;
-                        }
+                await _continueTokenSource.CancelAsync();
+            }
+            _continueTokenSource = new CancellationTokenSource();
 
-                        if (_stopOnBRK && _memory[_cpu.PC] == 0x00)
-                        {
-                            LogSafe($"[Continue] Hit BRK at ${_cpu.PC:X4}");
-                            IsStopped = true; // Pause emulator
-                            await SendStoppedEventAsync("pause", "BRK instruction");
-                            return;
-                        }
+            // TODO: Is continue event needed for emulator?
+            //OnContinue?.Invoke();
 
-                        // Check if PC is out of bounds before execution
-                        if (IsOutOfBounds(_cpu.PC))
-                        {
-                            LogSafe($"[Continue] Execution outside program bounds at ${_cpu.PC:X4}");
-                            IsStopped = true; // Pause emulator
-                            await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${_cpu.PC:X4}\n");
-                            await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
-                            // preserveFocusHint=false to force disassembly view to show
-                            await SendStoppedEventAsync("pause", "Execution outside program bounds", preserveFocusHint: false);
-                            return;
-                        }
+            // TODO: Remove old code below. 
+            //_ = Task.Run(async () =>
+            //{
+            //    try
+            //    {
+            //        LogSafe($"[Continue] Starting execution loop, PC=${_cpu.PC:X4}");
 
-                        _cpu.ExecuteOneInstruction(_memory);
-                    }
+            //        // Execute one instruction first to move past current breakpoint
+            //        _cpu.ExecuteOneInstruction(_memory);
+            //        LogSafe($"[Continue] After first instruction, PC=${_cpu.PC:X4}");
 
-                    LogSafe("[Continue] Execution paused by user");
-                    IsStopped = true; // Pause emulator
-                    await SendStoppedEventAsync("pause", "Paused by user");
-                }
-                catch (Exception ex)
-                {
-                    LogSafe($"[Continue] Exception: {ex}");
-                    IsStopped = true; // Pause emulator
-                    await SendStoppedEventAsync("exception", ex.Message);
-                }
-            }, token);
+            //        while (!token.IsCancellationRequested)
+            //        {
+            //            if (_breakpoints.Contains(_cpu.PC))
+            //            {
+            //                LogSafe($"[Continue] Hit breakpoint at ${_cpu.PC:X4}");
+            //                IsStopped = true; // Pause emulator
+            //                await SendStoppedEventAsync("breakpoint");
+            //                return;
+            //            }
+
+            //            if (_stopOnBRK && _memory[_cpu.PC] == 0x00)
+            //            {
+            //                LogSafe($"[Continue] Hit BRK at ${_cpu.PC:X4}");
+            //                IsStopped = true; // Pause emulator
+            //                await SendStoppedEventAsync("pause", "BRK instruction");
+            //                return;
+            //            }
+
+            //            // Check if PC is out of bounds before execution
+            //            if (IsOutOfBounds(_cpu.PC))
+            //            {
+            //                LogSafe($"[Continue] Execution outside program bounds at ${_cpu.PC:X4}");
+            //                IsStopped = true; // Pause emulator
+            //                await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${_cpu.PC:X4}\n");
+            //                await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
+            //                // preserveFocusHint=false to force disassembly view to show
+            //                await SendStoppedEventAsync("pause", "Execution outside program bounds", preserveFocusHint: false);
+            //                return;
+            //            }
+
+            //            _cpu.ExecuteOneInstruction(_memory);
+            //        }
+
+            //        LogSafe("[Continue] Execution paused by user");
+            //        IsStopped = true; // Pause emulator
+            //        await SendStoppedEventAsync("pause", "Paused by user");
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        LogSafe($"[Continue] Exception: {ex}");
+            //        IsStopped = true; // Pause emulator
+            //        await SendStoppedEventAsync("exception", ex.Message);
+            //    }
+            //}, token);
         }
 
         var body = new JsonObject
@@ -1300,19 +1284,21 @@ public class DebugAdapterLogic
     private async Task HandleNextAsync(int seq, JsonObject? args)
     {
         LogSafe("[HandleNext] Starting...");
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
         try
         {
-            if (_cpu != null && _memory != null)
+            if (cpu != null && memory != null)
             {
-                LogSafe($"[HandleNext] Executing instruction at ${_cpu.PC:X4}");
-                _cpu.ExecuteOneInstruction(_memory);
-                LogSafe($"[HandleNext] New PC: ${_cpu.PC:X4}");
-                
+                LogSafe($"[HandleNext] Executing instruction at ${cpu.PC:X4}");
+                cpu.ExecuteOneInstruction(memory);
+                LogSafe($"[HandleNext] New PC: ${cpu.PC:X4}");
+
                 // Check if PC moved out of bounds after execution
-                if (IsOutOfBounds(_cpu.PC))
+                if (IsOutOfBounds(cpu.PC))
                 {
-                    LogSafe($"[HandleNext] Stepped outside program bounds to ${_cpu.PC:X4}");
-                    await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${_cpu.PC:X4}\n");
+                    LogSafe($"[HandleNext] Stepped outside program bounds to ${cpu.PC:X4}");
+                    await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${cpu.PC:X4}\n");
                     await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
                 }
                 // Always use "step" reason to prevent VSCode from clearing variables view
@@ -1332,14 +1318,19 @@ public class DebugAdapterLogic
 
     private async Task HandleStepInAsync(int seq, JsonObject? args)
     {
-        if (_cpu != null && _memory != null)
+        LogSafe("[HandleStepIn] Starting...");
+
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
+
+        if (cpu != null && memory != null)
         {
-            _cpu.ExecuteOneInstruction(_memory);
-            
+            cpu.ExecuteOneInstruction(memory);
+
             // Check if PC moved out of bounds after execution
-            if (IsOutOfBounds(_cpu.PC))
+            if (IsOutOfBounds(cpu.PC))
             {
-                await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${_cpu.PC:X4}\n");
+                await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${cpu.PC:X4}\n");
                 await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
             }
             // Always use "step" reason to prevent VSCode from clearing variables view
@@ -1352,9 +1343,14 @@ public class DebugAdapterLogic
 
     private async Task HandleStepOutAsync(int seq, JsonObject? args)
     {
-        if (_cpu != null && _memory != null)
+        LogSafe("[HandleStepOut] Starting...");
+
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
+
+        if (cpu != null && memory != null)
         {
-            _cpu.ExecuteOneInstruction(_memory);
+            cpu.ExecuteOneInstruction(memory);
             IsStopped = true; // Keep emulator paused after step
             await SendStoppedEventAsync("step");
         }
@@ -1364,12 +1360,16 @@ public class DebugAdapterLogic
 
     private async Task HandlePauseAsync(int seq, JsonObject? args)
     {
+        // TODO: This should probably set Stopped to true, which will stop execution in the emulator?
         LogSafe("[HandlePause] Pause requested");
-        
+
         if (_continueTokenSource != null && !_continueTokenSource.IsCancellationRequested)
         {
             LogSafe("[HandlePause] Cancelling continue operation");
-            _continueTokenSource.Cancel();
+            if (_continueTokenSource != null)
+            {
+                await _continueTokenSource.CancelAsync();
+            }
         }
         else
         {
@@ -1411,6 +1411,9 @@ public class DebugAdapterLogic
     /// </summary>
     public async Task SendStoppedEventAsync(string reason, string? text = null, bool preserveFocusHint = false)
     {
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
+
         var body = new JsonObject
         {
             ["reason"] = reason,
@@ -1428,7 +1431,7 @@ public class DebugAdapterLogic
             body["preserveFocusHint"] = true;
         }
 
-        LogSafe($"[SendStoppedEvent] reason={reason}, text={text}, preserveFocusHint={preserveFocusHint}, PC=${_cpu?.PC:X4}");
+        LogSafe($"[SendStoppedEvent] reason={reason}, text={text}, preserveFocusHint={preserveFocusHint}, PC=${cpu?.PC:X4}");
         LogSafe($"[SendStoppedEvent] Event body: {body.ToJsonString()}");
 
         await _protocol.SendEventAsync("stopped", body);
@@ -1448,42 +1451,44 @@ public class DebugAdapterLogic
     private async Task HandleDisassembleAsync(int seq, JsonObject? args)
     {
         LogSafe("[HandleDisassemble] Called");
-        
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
+
         var memoryReference = args?["memoryReference"]?.ToString();
         var offset = args?["offset"]?.GetValue<int>() ?? 0;
         var instructionOffset = args?["instructionOffset"]?.GetValue<int>() ?? 0;
         var requestedCount = args?["instructionCount"]?.GetValue<int>() ?? 100;
-        
+
         LogSafe($"[HandleDisassemble] memoryReference={memoryReference}, offset={offset}, instructionOffset={instructionOffset}, requestedCount={requestedCount}");
-        
+
         var instructions = new JsonArray();
-        
-        if (_cpu != null && _memory != null && memoryReference != null)
+
+        if (cpu != null && memory != null && memoryReference != null)
         {
             try
             {
                 // Parse base address and apply byte offset
                 var baseAddress = ParseAddress(memoryReference);
                 int targetAddr = baseAddress + offset;
-                
+
                 // Clamp to valid address range
                 if (targetAddr < 0) targetAddr = 0;
                 if (targetAddr > 0xFFFF) targetAddr = 0xFFFF;
-                
+
                 LogSafe($"[HandleDisassemble] baseAddress=${baseAddress:X4}, targetAddr=${targetAddr:X4}");
-                
+
                 // Build complete instruction list from 0x0000 - this ensures consistent boundaries
                 var instrList = new List<(ushort addr, int len)>();
                 int addr = 0;
                 while (addr <= 0xFFFF)
                 {
-                    var opcode = _memory[(ushort)addr];
+                    var opcode = memory[(ushort)addr];
                     var len = GetInstructionLength(opcode);
                     instrList.Add(((ushort)addr, len));
                     addr += len;
                     if (addr > 0xFFFF) break;
                 }
-                
+
                 // Find the index of the target address (or nearest instruction containing it)
                 int targetIndex = 0;
                 for (int i = 0; i < instrList.Count; i++)
@@ -1508,12 +1513,12 @@ public class DebugAdapterLogic
                     }
                     targetIndex = i;
                 }
-                
+
                 // Calculate start index with instruction offset
                 int rawStartIndex = targetIndex + instructionOffset;
-                
+
                 LogSafe($"[HandleDisassemble] targetIndex={targetIndex}, rawStartIndex={rawStartIndex}, totalInstr={instrList.Count}");
-                
+
                 // Determine how many instructions to return
                 // If the request would start near 0, return a large range to fill VS Code's cache gaps
                 int adjustedRequestedCount = requestedCount;
@@ -1523,7 +1528,7 @@ public class DebugAdapterLogic
                     adjustedRequestedCount = Math.Max(requestedCount, Math.Max(2000, targetIndex + 500));
                     LogSafe($"[HandleDisassemble] Adjusted count to {adjustedRequestedCount} to fill cache gaps");
                 }
-                
+
                 // If startIndex is negative, we need to pad with synthetic instructions
                 // so VS Code gets exactly the number of "before" instructions it expects.
                 // This is necessary for correct highlighting of the target instruction.
@@ -1532,7 +1537,7 @@ public class DebugAdapterLogic
                 {
                     paddingNeededBefore = -rawStartIndex;
                     LogSafe($"[HandleDisassemble] Need {paddingNeededBefore} padding for negative offset");
-                    
+
                     // Add synthetic instructions for addresses "before" 0x0000 at the START of array
                     // Use wrapped addresses that VS Code can track for position counting
                     for (int p = rawStartIndex; p < 0 && instructions.Count < adjustedRequestedCount; p++)
@@ -1546,29 +1551,29 @@ public class DebugAdapterLogic
                         });
                     }
                 }
-                
+
                 // Start from index 0 (or wherever is valid)
                 int startIndex = Math.Max(0, rawStartIndex);
                 if (startIndex >= instrList.Count) startIndex = instrList.Count - 1;
-                
+
                 LogSafe($"[HandleDisassemble] startIndex={startIndex}, paddingNeededBefore={paddingNeededBefore}");
-                
+
                 // Generate real instructions - use adjustedRequestedCount to fill gaps
                 for (int i = startIndex; i < instrList.Count && instructions.Count < adjustedRequestedCount; i++)
                 {
                     var (instrAddr, instrLen) = instrList[i];
-                    
+
                     // Get instruction bytes
                     var bytes = new List<byte>();
                     for (int j = 0; j < instrLen && (instrAddr + j) <= 0xFFFF; j++)
                     {
-                        bytes.Add(_memory[(ushort)(instrAddr + j)]);
+                        bytes.Add(memory[(ushort)(instrAddr + j)]);
                     }
-                    
+
                     // Get disassembly text
-                    var disasm = OutputGen.GetInstructionDisassembly(_cpu, _memory, instrAddr);
+                    var disasm = OutputGen.GetInstructionDisassembly(cpu, memory, instrAddr);
                     var instructionText = StripAddressPrefix(disasm);
-                    
+
                     instructions.Add(new JsonObject
                     {
                         ["address"] = FormatAddress(instrAddr),
@@ -1576,11 +1581,11 @@ public class DebugAdapterLogic
                         ["instruction"] = instructionText
                     });
                 }
-                
+
                 LogSafe($"[HandleDisassemble] Generated {instructions.Count} instructions");
                 if (instructions.Count > 0)
                 {
-                    LogSafe($"[HandleDisassemble] First: {instructions[0]?["address"]}, Last: {instructions[instructions.Count-1]?["address"]}");
+                    LogSafe($"[HandleDisassemble] First: {instructions[0]?["address"]}, Last: {instructions[instructions.Count - 1]?["address"]}");
                 }
             }
             catch (Exception ex)
@@ -1588,15 +1593,15 @@ public class DebugAdapterLogic
                 LogSafe($"[HandleDisassemble] Error: {ex.Message}");
             }
         }
-        
+
         var body = new JsonObject
         {
             ["instructions"] = instructions
         };
-        
+
         await _protocol.SendResponseAsync(seq, "disassemble", body);
     }
-    
+
     /// <summary>
     /// Create an invalid/placeholder instruction for addresses outside valid range
     /// </summary>
@@ -1604,7 +1609,7 @@ public class DebugAdapterLogic
     {
         // Keep address in valid range for display, mark as invalid
         var displayAddr = address < 0 ? 0 : (address > 0xFFFF ? 0xFFFF : address);
-        
+
         return new JsonObject
         {
             ["address"] = FormatAddress((ushort)displayAddr),
@@ -1613,19 +1618,22 @@ public class DebugAdapterLogic
             ["presentationHint"] = "invalid"
         };
     }
-    
+
     /// <summary>
     /// Get the length of a 6502 instruction based on its opcode
     /// </summary>
     private int GetInstructionLength(byte opCode)
     {
-        if (_cpu != null && _cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
+        var cpu = _system.CPU;
+        var memory = _system.Mem;
+
+        if (cpu != null && cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
         {
-            return _cpu.InstructionList.GetOpCode(opCode).Size;
+            return cpu.InstructionList.GetOpCode(opCode).Size;
         }
         return 1; // Unknown opcodes are treated as 1 byte
     }
-    
+
     /// <summary>
     /// Strip the address prefix from disassembly output.
     /// OutputGen returns something like "c000  LDA #$00" and we want just "LDA #$00"
@@ -1639,7 +1647,7 @@ public class DebugAdapterLogic
         }
         return disasm;
     }
-    
+
     /// <summary>
     /// Format an address for DAP protocol (must use "0x" prefix for BigInt parsing)
     /// Use lowercase hex like other DAP implementations (e.g., RetroC64)
@@ -1648,7 +1656,7 @@ public class DebugAdapterLogic
     {
         return $"0x{address:x4}";
     }
-    
+
     /// <summary>
     /// Parse an address from DAP protocol format
     /// Handles "0x1234", "$1234", and decimal formats

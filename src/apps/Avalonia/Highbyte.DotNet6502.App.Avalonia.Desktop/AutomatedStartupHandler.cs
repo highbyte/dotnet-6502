@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.App.Avalonia.Core;
@@ -97,7 +96,7 @@ internal static class AutomatedStartupHandler
         ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger(nameof(AutomatedStartupHandler));
-        
+
         try
         {
             // Wait for the Avalonia app to be fully initialized
@@ -218,13 +217,10 @@ internal static class AutomatedStartupHandler
                 }
 
                 logger.LogInformation("Automated startup complete.");
-                
+
                 // Signal the debug server manager that automated startup is complete
                 // so it can now set PC and stop at entry point
-                if (debugServerManager != null)
-                {
-                    debugServerManager.SignalAutomatedStartupComplete();
-                }
+                debugServerManager?.SignalAutomatedStartupComplete(hostApp);
             });
         }
         catch (Exception ex)

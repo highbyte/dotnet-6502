@@ -62,7 +62,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     internal AvaloniaMonitor? Monitor => _monitor;
 
     private bool _isExternalDebuggerAttached;
-
     /// <summary>
     /// Flag to indicate if an external debugger (e.g., VSCode) is attached.
     /// When true, the built-in monitor should not activate on breakpoints.
@@ -70,7 +69,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     public bool IsExternalDebuggerAttached
     {
         get => _isExternalDebuggerAttached;
-        set
+        private set
         {
             if (_isExternalDebuggerAttached != value)
             {
@@ -78,6 +77,20 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
                 OnPropertyChanged(nameof(IsExternalDebuggerAttached));
             }
         }
+    }
+    private DebugAdapterLogic? _debugAdapter;
+    public void SetExternalDebugAdapter(DebugAdapterLogic debugAdapter)
+    {
+        _originalBreakpointEvaluator = CurrentSystemRunner?.CustomExecEvaluator;
+        CurrentSystemRunner?.SetCustomExecEvaluator(debugAdapter.GetBreakpointEvaluator());
+        _debugAdapter = debugAdapter;
+        IsExternalDebuggerAttached = true;
+    }
+    public void ClearExternalDebugAdapter()
+    {
+        _debugAdapter = null;
+        CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
+        IsExternalDebuggerAttached = false;
     }
 
     private bool _skipDefaultSystemSelection;
@@ -97,16 +110,6 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
                 OnPropertyChanged(nameof(SkipDefaultSystemSelection));
             }
         }
-    }
-
-    private DebugAdapter.DebugAdapterLogic? _debugAdapter;
-
-    /// <summary>
-    /// Set the debug adapter instance. Called when VSCode attaches.
-    /// </summary>
-    public void SetDebugAdapter(DebugAdapter.DebugAdapterLogic debugAdapter)
-    {
-        _debugAdapter = debugAdapter;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -546,18 +549,20 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
             return;
         }
 
+        // If using built-in monitor, don't update emulator state when monitor is visible. This allows stepping through code and inspecting state in the monitor without the state changing under you.
         if (_monitor?.IsVisible == true)
         {
             shouldRun = false;
             shouldReceiveInput = false;
+            return;
         }
 
         // Pause emulator when VSCode debugger is stopped (at breakpoint or stepping)
-        // This prevents IRQs from firing and jumping to ROM interrupt handlers
         if (IsExternalDebuggerAttached && _debugAdapter?.IsStopped == true)
         {
             shouldRun = false;
             shouldReceiveInput = false;
+            return;
         }
     }
 
@@ -570,7 +575,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         {
             _monitor?.Enable(execEvaluatorTriggerResult);
         }
-    }
+
+   }
 
     internal float Scale
     {
@@ -586,6 +592,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     }
 
     private ObservableCollection<string> _validationErrors = new();
+    private IExecEvaluator? _originalBreakpointEvaluator;
+
     internal ObservableCollection<string> ValidationErrors
     {
         get => _validationErrors;

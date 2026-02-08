@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.DebugAdapter\Highbyte.DotNet6502.DebugAdapter.csproj" />
+    <ProjectReference Include="..\..\libraries\Highbyte.DotNet6502.Systems.Generic\Highbyte.DotNet6502.Systems.Generic.csproj" />
   </ItemGroup>
 
 </Project>

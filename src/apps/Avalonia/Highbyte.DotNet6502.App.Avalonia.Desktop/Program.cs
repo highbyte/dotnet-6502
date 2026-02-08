@@ -106,7 +106,7 @@ internal sealed partial class Program
         {
             WriteBootstrapLog($"Waiting for debugger to attach... (set DOTNET6502_WAIT_FOR_DEBUGGER=false to disable)");
 
-            while (!System.Diagnostics.Debugger.IsAttached)
+            while (!System.Diagnostics.Debugger.IsAttached) 
             {
                 Thread.Sleep(100);
             }
@@ -214,22 +214,22 @@ internal sealed partial class Program
 
             debugServerManager = new TcpDebugServerManager(debugLogWriter);
 
-            // If loading a PRG for debugging (not running it), set the pending PC before debugger connects
-            if (loadPrgPath != null && !runLoadedProgram)
-            {
-                var expandedPrgPath = PathHelper.ExpandOSEnvironmentVariables(loadPrgPath);
-                if (File.Exists(expandedPrgPath))
-                {
-                    var prgBytes = File.ReadAllBytes(expandedPrgPath);
-                    if (prgBytes.Length >= 2)
-                    {
-                        // Read load address (first two bytes, little-endian)
-                        ushort loadAddress = (ushort)(prgBytes[0] | (prgBytes[1] << 8));
-                        debugLogWriter.WriteLine($"Setting pending PC to 0x{loadAddress:X4} from PRG file (before debugger connects)");
-                        debugServerManager.SetPendingProgramCounter(loadAddress);
-                    }
-                }
-            }
+            //// If loading a PRG for debugging (not running it), set the pending PC before debugger connects
+            //if (loadPrgPath != null && !runLoadedProgram)
+            //{
+            //    var expandedPrgPath = PathHelper.ExpandOSEnvironmentVariables(loadPrgPath);
+            //    if (File.Exists(expandedPrgPath))
+            //    {
+            //        var prgBytes = File.ReadAllBytes(expandedPrgPath);
+            //        if (prgBytes.Length >= 2)
+            //        {
+            //            // Read load address (first two bytes, little-endian)
+            //            ushort loadAddress = (ushort)(prgBytes[0] | (prgBytes[1] << 8));
+            //            debugLogWriter.WriteLine($"Setting pending PC to 0x{loadAddress:X4} from PRG file (before debugger connects)");
+            //            debugServerManager.SetPendingProgramCounter(loadAddress);
+            //        }
+            //    }
+            //}
 
             // Start listening for connections
             // If automated startup is requested (systemName != null), delay server startup until after

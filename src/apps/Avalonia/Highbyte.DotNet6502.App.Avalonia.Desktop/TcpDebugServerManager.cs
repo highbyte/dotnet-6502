@@ -18,12 +18,13 @@ internal sealed class TcpDebugServerManager : IDisposable
     private bool _debugClientConnected;
     private int _activeConnectionCount = 0;
     private readonly object _connectionLock = new object();
-    private IExecEvaluator? _originalBreakpointEvaluator;
-    private ushort? _pendingProgramCounter;
+    //private IExecEvaluator? _originalBreakpointEvaluator;
+    //private ushort? _pendingProgramCounter;
     private bool _automatedStartupComplete = false;
-    private bool _stoppedEventSent = false; // Track if we've already sent the stopped event
+    //private bool _stoppedEventSent = false; // Track if we've already sent the stopped event
     private readonly object _startupLock = new object();
     private TaskCompletionSource<bool>? _startupCompletionSource;
+    private IHostApp _hostApp;
 
     public TcpDebugServerManager(StreamWriter debugLogWriter)
     {
@@ -39,24 +40,28 @@ internal sealed class TcpDebugServerManager : IDisposable
     /// </summary>
     public bool IsClientConnected => _debugClientConnected;
 
-    /// <summary>
-    /// Sets the pending program counter address that will be applied when a debugger connects.
-    /// This is used when a program is loaded but should not run until the debugger attaches.
-    /// </summary>
-    /// <param name="address">The address to set PC to when debugger connects.</param>
-    public void SetPendingProgramCounter(ushort address)
-    {
-        _pendingProgramCounter = address;
-        _debugLogWriter.WriteLine($"Pending PC set to 0x{address:X4} - will be applied when debugger connects");
-    }
+    ///// <summary>
+    ///// Sets the pending program counter address that will be applied when a debugger connects.
+    ///// This is used when a program is loaded but should not run until the debugger attaches.
+    ///// </summary>
+    ///// <param name="address">The address to set PC to when debugger connects.</param>
+    //public void SetPendingProgramCounter(ushort address)
+    //{
+    //    _pendingProgramCounter = address;
+    //    _debugLogWriter.WriteLine($"Pending PC set to 0x{address:X4} - will be applied when debugger connects");
+    //}
 
-    public void SignalAutomatedStartupComplete()
+    public void SignalAutomatedStartupComplete(IHostApp hostApp)
     {
+        if (hostApp == null)
+            throw new ArgumentNullException(nameof(hostApp));
+
         lock (_startupLock)
         {
             _automatedStartupComplete = true;
             _debugLogWriter.WriteLine("Automated startup complete signal received");
 
+            _hostApp = hostApp;
             // Signal that the server can now start listening for connections
             _startupCompletionSource?.TrySetResult(true);
         }
@@ -68,8 +73,13 @@ internal sealed class TcpDebugServerManager : IDisposable
     /// </summary>
     /// <param name="port">The port number to listen on.</param>
     /// <param name="waitForAutomatedStartup">If true, waits for automated startup to complete before listening.</param>
-    public async Task StartAsync(int port, bool waitForAutomatedStartup = false)
+    public async Task StartAsync(int port, bool waitForAutomatedStartup = false, ISystem? system = null)
     {
+        if (waitForAutomatedStartup && system != null)
+        {
+            throw new ArgumentException("Cannot provide a system instance when waiting for automated startup - the system will be obtained from the HostApp when startup completes");
+        }
+
         if (waitForAutomatedStartup)
         {
             _debugLogWriter.WriteLine("TCP server will wait for automated startup to complete before listening...");
@@ -87,6 +97,10 @@ internal sealed class TcpDebugServerManager : IDisposable
             {
                 _debugLogWriter.WriteLine("Automated startup complete, now starting TCP server...");
             }
+        }
+        else if (_hostApp.CurrentRunningSystem == null)
+        {
+            throw new ArgumentException("HostApp.CurrentRunningSystem instance must be provided before starting the debug server without waiting for automated startup");
         }
 
         await _debugServer.StartAsync(port);
@@ -115,152 +129,168 @@ internal sealed class TcpDebugServerManager : IDisposable
         {
             _activeConnectionCount++;
             _debugLogWriter.WriteLine($"Debug client connected at {DateTime.Now} (total active connections: {_activeConnectionCount})");
+
+            //if (_activeConnectionCount > 1)
+            //{
+            //    _debugLogWriter.WriteLine("WARNING: Multiple debug clients connected - ignoring all after the first.");
+            //    return;
+            //}
+            if (_activeConnectionCount == 1)
+            {
+                _debugLogWriter.WriteLine("WARNING: Testing ignoring first connection, because somehow two TCP connections are initiated by VSCode?");
+                return;
+            }
+
         }
+
+        var protocol = new DapProtocol(e.Transport, _debugLogWriter);
+        var adapter = new DebugAdapterLogic(protocol, _debugLogWriter, _hostApp.CurrentRunningSystem);
 
         // Set flag to disable built-in monitor when external debugger connects
         // Must be dispatched to UI thread for ReactiveUI to pick up the change
         Dispatcher.UIThread.Post(() =>
         {
+            // TODO: _hostApp (IHostApp) field is already available in this class with no dependency to Avalonia.
+            //       Try to remove dependency to AvaloniaHostApp here, move SetDebugAdapter and related logic to the IHostApp interface?
             if (Core.App.Current?.HostApp != null)
             {
-                Core.App.Current.HostApp.IsExternalDebuggerAttached = true;
-                _debugLogWriter.WriteLine("IsExternalDebuggerAttached set to true on UI thread");
+                Core.App.Current.HostApp.SetExternalDebugAdapter(adapter);
+                _debugLogWriter.WriteLine("Debug adapter is set in the host app on the UI thread");
             }
         });
 
-        var protocol = new DapProtocol(e.Transport, _debugLogWriter);
-        var adapter = new DebugAdapterLogic(protocol, _debugLogWriter);
+
 
         // Attach to emulator when it's running
-        _ = Task.Run(async () => await AttachToEmulatorAsync(adapter));
+        //_ = Task.Run(async () => await AttachToEmulatorAsync(adapter));
 
         // Start message loop for this client
         _ = Task.Run(async () => await ProcessMessagesAsync(protocol, adapter));
     }
 
-    private async Task AttachToEmulatorAsync(DebugAdapterLogic adapter)
-    {
-        try
-        {
-            // Wait for app instance and emulator to be in a running state
-            _debugLogWriter.WriteLine("Waiting for emulator to be in running state...");
-            ISystem? system = null;
-            while (system == null)
-            {
-                system = await Dispatcher.UIThread.InvokeAsync(() => Core.App.Current?.HostApp?.CurrentRunningSystem);
-                if (system == null)
-                    await Task.Delay(100);
-            }
+    //private async Task AttachToEmulatorAsync(DebugAdapterLogic adapter)
+    //{
+    //    try
+    //    {
+    //        // Wait for app instance and emulator to be in a running state
+    //        _debugLogWriter.WriteLine("Waiting for emulator to be in running state...");
+    //        ISystem? system = null;
+    //        while (system == null)
+    //        {
+    //            system = await Dispatcher.UIThread.InvokeAsync(() => Core.App.Current?.HostApp?.CurrentRunningSystem);
+    //            if (system == null)
+    //                await Task.Delay(100);
+    //        }
 
-            _debugLogWriter.WriteLine("Emulator is running, attaching debug adapter...");
-            adapter.AttachToEmulator(system.CPU, system.Mem);
+    //        _debugLogWriter.WriteLine("Emulator is running, attaching debug adapter...");
+    //        adapter.AttachToEmulator(system.CPU, system.Mem);
 
-            // If there's a pending PC address, wait for automated startup to complete before setting it
-            if (_pendingProgramCounter.HasValue)
-            {
-                var pendingPcValue = _pendingProgramCounter.Value; // Store value before clearing
-                _debugLogWriter.WriteLine($"Pending PC 0x{pendingPcValue:X4} - waiting for automated startup to complete...");
+    //        // If there's a pending PC address, wait for automated startup to complete before setting it
+    //        if (_pendingProgramCounter.HasValue)
+    //        {
+    //            var pendingPcValue = _pendingProgramCounter.Value; // Store value before clearing
+    //            _debugLogWriter.WriteLine($"Pending PC 0x{pendingPcValue:X4} - waiting for automated startup to complete...");
 
-                // Wait for automated startup to complete (with timeout)
-                int waitCount = 0;
-                while (waitCount < 100) // 10 second timeout
-                {
-                    lock (_startupLock)
-                    {
-                        if (_automatedStartupComplete)
-                            break;
-                    }
-                    await Task.Delay(100);
-                    waitCount++;
-                }
+    //            // Wait for automated startup to complete (with timeout)
+    //            int waitCount = 0;
+    //            while (waitCount < 100) // 10 second timeout
+    //            {
+    //                lock (_startupLock)
+    //                {
+    //                    if (_automatedStartupComplete)
+    //                        break;
+    //                }
+    //                await Task.Delay(100);
+    //                waitCount++;
+    //            }
 
-                _pendingProgramCounter = null; // Clear it now
+    //            _pendingProgramCounter = null; // Clear it now
 
-                bool shouldSendStoppedEvent = false;
-                lock (_startupLock)
-                {
-                    // Only send stopped event once, even if multiple connections
-                    if (!_stoppedEventSent)
-                    {
-                        _stoppedEventSent = true;
-                        shouldSendStoppedEvent = true;
-                    }
-                }
+    //            bool shouldSendStoppedEvent = false;
+    //            lock (_startupLock)
+    //            {
+    //                // Only send stopped event once, even if multiple connections
+    //                if (!_stoppedEventSent)
+    //                {
+    //                    _stoppedEventSent = true;
+    //                    shouldSendStoppedEvent = true;
+    //                }
+    //            }
 
-                if (_automatedStartupComplete && shouldSendStoppedEvent)
-                {
-                    _debugLogWriter.WriteLine($"Setting PC to pending address 0x{pendingPcValue:X4}");
+    //            if (_automatedStartupComplete && shouldSendStoppedEvent)
+    //            {
+    //                _debugLogWriter.WriteLine($"Setting PC to pending address 0x{pendingPcValue:X4}");
 
-                    // Pause the emulator before setting PC to prevent it from continuing to run
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        Core.App.Current?.HostApp?.Pause();
-                    });
+    //                // Pause the emulator before setting PC to prevent it from continuing to run
+    //                await Dispatcher.UIThread.InvokeAsync(() =>
+    //                {
+    //                    Core.App.Current?.HostApp?.Pause();
+    //                });
 
-                    system.CPU.PC = pendingPcValue;
+    //                system.CPU.PC = pendingPcValue;
 
-                    // Send stopped event so VSCode debugger UI updates and breaks at entry point
-                    // Delay slightly to ensure everything is settled before sending the event
-                    _debugLogWriter.WriteLine("Sending stopped event to debugger");
-                    await Task.Delay(100);
-                    try
-                    {
-                        await adapter.SendStoppedEventAsync("entry");
-                    }
-                    catch (Exception ex)
-                    {
-                        _debugLogWriter.WriteLine($"Error sending stopped event: {ex.Message}");
-                    }
-                }
-                else if (!_automatedStartupComplete && shouldSendStoppedEvent)
-                {
-                    _debugLogWriter.WriteLine("Timeout waiting for automated startup - setting PC anyway");
+    //                // Send stopped event so VSCode debugger UI updates and breaks at entry point
+    //                // Delay slightly to ensure everything is settled before sending the event
+    //                _debugLogWriter.WriteLine("Sending stopped event to debugger");
+    //                await Task.Delay(100);
+    //                try
+    //                {
+    //                    await adapter.SendStoppedEventAsync("entry");
+    //                }
+    //                catch (Exception ex)
+    //                {
+    //                    _debugLogWriter.WriteLine($"Error sending stopped event: {ex.Message}");
+    //                }
+    //            }
+    //            else if (!_automatedStartupComplete && shouldSendStoppedEvent)
+    //            {
+    //                _debugLogWriter.WriteLine("Timeout waiting for automated startup - setting PC anyway");
 
-                    // Pause the emulator before setting PC
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        Core.App.Current?.HostApp?.Pause();
-                    });
+    //                // Pause the emulator before setting PC
+    //                await Dispatcher.UIThread.InvokeAsync(() =>
+    //                {
+    //                    Core.App.Current?.HostApp?.Pause();
+    //                });
 
-                    system.CPU.PC = pendingPcValue;
+    //                system.CPU.PC = pendingPcValue;
 
-                    // Send stopped event so VSCode debugger UI updates and breaks at entry point
-                    try
-                    {
-                        await adapter.SendStoppedEventAsync("entry");
-                    }
-                    catch (Exception ex)
-                    {
-                        _debugLogWriter.WriteLine($"Error sending stopped event: {ex.Message}");
-                    }
-                }
-                else
-                {
-                    _debugLogWriter.WriteLine("Stopped event already sent by another connection - skipping");
-                }
-            }
+    //                // Send stopped event so VSCode debugger UI updates and breaks at entry point
+    //                try
+    //                {
+    //                    await adapter.SendStoppedEventAsync("entry");
+    //                }
+    //                catch (Exception ex)
+    //                {
+    //                    _debugLogWriter.WriteLine($"Error sending stopped event: {ex.Message}");
+    //                }
+    //            }
+    //            else
+    //            {
+    //                _debugLogWriter.WriteLine("Stopped event already sent by another connection - skipping");
+    //            }
+    //        }
 
-            // Install breakpoint evaluator - must be done on UI thread
-            var breakpointEvaluator = adapter.GetBreakpointEvaluator();
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                if (Core.App.Current?.HostApp != null)
-                {
-                    _originalBreakpointEvaluator = Core.App.Current.HostApp.CurrentSystemRunner!.CustomExecEvaluator;
-                    Core.App.Current.HostApp.CurrentSystemRunner!.SetCustomExecEvaluator(breakpointEvaluator);
+    //        // Install breakpoint evaluator - must be done on UI thread
+    //        var breakpointEvaluator = adapter.GetBreakpointEvaluator();
+    //        await Dispatcher.UIThread.InvokeAsync(() =>
+    //        {
+    //            if (Core.App.Current?.HostApp != null)
+    //            {
+    //                _originalBreakpointEvaluator = Core.App.Current.HostApp.CurrentSystemRunner!.CustomExecEvaluator;
+    //                Core.App.Current.HostApp.CurrentSystemRunner!.SetCustomExecEvaluator(breakpointEvaluator);
 
-                    // Set debug adapter reference so AvaloniaHostApp can check IsStopped property
-                    Core.App.Current.HostApp.SetDebugAdapter(adapter);
-                }
-            });
+    //                // Set debug adapter reference so AvaloniaHostApp can check IsStopped property
+    //                Core.App.Current.HostApp.SetDebugAdapter(adapter);
+    //            }
+    //        });
 
-            _debugLogWriter.WriteLine("Breakpoint evaluator installed and debug adapter set");
-        }
-        catch (Exception ex)
-        {
-            _debugLogWriter.WriteLine($"Failed to attach to emulator: {ex}");
-        }
-    }
+    //        _debugLogWriter.WriteLine("Breakpoint evaluator installed and debug adapter set");
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _debugLogWriter.WriteLine($"Failed to attach to emulator: {ex}");
+    //    }
+    //}
 
     private async Task ProcessMessagesAsync(DapProtocol protocol, DebugAdapterLogic adapter)
     {
@@ -289,7 +319,7 @@ internal sealed class TcpDebugServerManager : IDisposable
 
     private void CleanupDebugSession(DebugAdapterLogic adapter)
     {
-        bool shouldSetFlagToFalse = false;
+        bool clientDisconnected = false;
 
         lock (_connectionLock)
         {
@@ -299,7 +329,7 @@ internal sealed class TcpDebugServerManager : IDisposable
             // Only set flag to false if this is the last connection
             if (_activeConnectionCount <= 0)
             {
-                shouldSetFlagToFalse = true;
+                clientDisconnected = true;
                 _activeConnectionCount = 0; // Ensure it doesn't go negative
             }
         }
@@ -307,34 +337,31 @@ internal sealed class TcpDebugServerManager : IDisposable
         // Reset debugger state to unfreeze emulator
         adapter.Reset();
 
-        // All HostApp interactions must be done on UI thread
-        _ = Dispatcher.UIThread.InvokeAsync(async () =>
+        if (clientDisconnected)
         {
-            if (Core.App.Current?.HostApp != null)
+            // All HostApp interactions must be done on UI thread
+            _ = Dispatcher.UIThread.InvokeAsync(async () =>
             {
-                // Remove breakpoint evaluator to prevent exceptions when program runs again
-                Core.App.Current.HostApp.CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
-                Core.App.Current.HostApp.SetDebugAdapter(null!);
-
-                // Only set flag to false if all connections are closed
-                if (shouldSetFlagToFalse)
+                if (Core.App.Current?.HostApp != null)
                 {
-                    Core.App.Current.HostApp.IsExternalDebuggerAttached = false;
+                    //// TODO: Refator to not have dependency on Avalonia here. Move ClearDebugAdapter method and related code to IHostApp?
+                    //// Remove breakpoint evaluator to prevent exceptions when program runs again
+                    //Core.App.Current.HostApp.CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
+                    //// TODO: Why SetDebugAdapter(null!) and ClearDebugAdapter() below? Arent they for the same purpose?
+                    //Core.App.Current.HostApp.SetDebugAdapter(null!);
+
+                    Core.App.Current.HostApp.ClearExternalDebugAdapter();
                     _debugLogWriter.WriteLine("IsExternalDebuggerAttached set to false on UI thread (all connections closed)");
 
-                    if (Core.App.Current.HostApp.EmulatorState == EmulatorState.Paused)
-                    {
-                        _debugLogWriter.WriteLine("Resuming emulator after debugger disconnect");
-                        await Core.App.Current.HostApp.Start();
-                    }
+                    //if (Core.App.Current.HostApp.EmulatorState == EmulatorState.Paused)
+                    //{
+                    //    _debugLogWriter.WriteLine("Resuming emulator after debugger disconnect");
+                    //    await Core.App.Current.HostApp.Start();
+                    //}
+
+                    _debugLogWriter.WriteLine("Emulator state reset, breakpoint evaluator removed, resuming normal execution");
                 }
-
-                _debugLogWriter.WriteLine("Emulator state reset, breakpoint evaluator removed, resuming normal execution");
-            }
-        });
-
-        if (shouldSetFlagToFalse)
-        {
+            });
             _debugClientConnected = false;
         }
     }

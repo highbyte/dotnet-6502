@@ -47,6 +47,9 @@
 
       "launchAvalonia": true,
       "avaloniaExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop",
+      "windows": {
+        "avaloniaExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.exe"
+      },
       "avaloniaDebugPort": 4711,
       "avaloniaStartupTimeout": 300,
       "avaloniaSystem": "C64",

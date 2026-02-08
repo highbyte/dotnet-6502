@@ -15,14 +15,23 @@
         "--start-addr",
         "0xc000",
         "-Wl",
-        "-Ln,test-program.lbl",
+        {
+          "value": "-Ln,test-program.lbl",
+          "quoting": "strong"
+        },
         "-Wl",
-        "--dbgfile,test-program.dbg",
+        {
+          "value": "--dbgfile,test-program.dbg",
+          "quoting": "strong"
+        },
         "-Wl",
-        "-m,test-program.map"
+        {
+          "value": "-m,test-program.map",
+          "quoting": "strong"
+        }
       ],
       "options": {
-        "cwd": "/Users/highbyte/source/repos/dotnet-6502/tools/vscode-extension-test"
+        "cwd": "${workspaceFolder}"
       },
       "problemMatcher": "$ca65",
       "group": {

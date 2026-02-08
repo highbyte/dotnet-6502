@@ -1,4 +1,5 @@
-using Highbyte.DotNet6502.DebugAdapter;
+
+using Highbyte.DotNet6502.Systems.Generic;
 
 namespace Highbyte.DotNet6502.DebugAdapter.ConsoleApp;
 
@@ -19,9 +20,12 @@ class Program
             // Create STDIO transport
             var transport = new StdioTransport(Console.OpenStandardInput(), Console.OpenStandardOutput(), log);
             transport.Disconnected += (sender, e) => _shouldExit = true;
-            
+
+            // Use a generic computer as the system being debugged. It will have empty memory at start, and no ROM or program loaded.
+            var system = new GenericComputer();
+
             var protocol = new DapProtocol(transport, log);
-            var adapter = new DebugAdapterLogic(protocol, log);
+            var adapter = new DebugAdapterLogic(protocol, log, system);
             adapter.OnExit += () => _shouldExit = true;
 
             log.WriteLine("[Main] Protocol initialized, entering message loop...");
