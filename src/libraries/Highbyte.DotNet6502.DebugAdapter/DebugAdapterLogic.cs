@@ -363,6 +363,21 @@ public class DebugAdapterLogic
         if (stopOnEntry && !string.IsNullOrEmpty(program))
         {
             IsStopped = true;
+
+            // Hack: Wait a bit for emulator host to detect IsStopped is set not it doesn't continue execution before we send the stopped event. Ideally we would have a more robust way to coordinate this.
+            int waitCount = 0;
+            while (waitCount < 5) // 500 ms wait
+            {
+                //lock (_startupLock)
+                //{
+                //    if (_automatedStartupComplete)
+                //        break;
+                //}
+                await Task.Delay(100);
+                waitCount++;
+            }
+            cpu.PC = loadAddr; // Ensure PC is set to start of program before sending stopped event
+
             await SendStoppedEventAsync("entry");
         }
     }
