@@ -20,6 +20,8 @@ public class DebugAdapterLogic
     private readonly StreamWriter _log;
     private readonly ISystem _system;
     private readonly HashSet<ushort> _breakpoints = new();
+    private ushort? _temporaryBreakpoint = null; // Temporary breakpoint for step over JSR
+    private bool _stepOutMode = false; // Flag to indicate we're stepping out (waiting for RTS)
     private const int THREAD_ID = 1;
     private const int FRAME_ID = 0;
     private CancellationTokenSource? _continueTokenSource;
@@ -95,6 +97,30 @@ public class DebugAdapterLogic
             return false;
 
         var pc = cpu.PC;
+        byte currentOpcode = memory[pc];
+
+        // Check if we hit a temporary breakpoint (for step over JSR)
+        if (_temporaryBreakpoint.HasValue && _temporaryBreakpoint.Value == pc)
+        {
+            LogSafe($"[BreakpointHit] Temporary breakpoint hit at ${pc:X4}");
+            _temporaryBreakpoint = null; // Clear temporary breakpoint
+            IsStopped = true; // Pause emulator
+            await SendStoppedEventAsync("step");
+            return true;
+        }
+
+        // Check if we're in step out mode and about to execute RTS
+        if (_stepOutMode && currentOpcode == 0x60) // RTS opcode
+        {
+            LogSafe($"[StepOut] RTS detected at ${pc:X4}, executing and stopping");
+            // Execute the RTS instruction
+            cpu.ExecuteOneInstruction(memory);
+            LogSafe($"[StepOut] After RTS, PC=${cpu.PC:X4}");
+            _stepOutMode = false; // Clear step out mode
+            IsStopped = true; // Pause emulator
+            await SendStoppedEventAsync("step");
+            return true;
+        }
 
         // Check if we hit a breakpoint
         if (_breakpoints.Contains(pc))
@@ -105,7 +131,7 @@ public class DebugAdapterLogic
             return true;
         }
 
-        if (_stopOnBRK && memory[pc] == 0x00) // BRK opcode
+        if (_stopOnBRK && currentOpcode == 0x00) // BRK opcode
         {
             LogSafe($"[BreakpointHit] BRK instruction hit at ${pc:X4}");
             IsStopped = true; // Pause emulator
@@ -1305,20 +1331,39 @@ public class DebugAdapterLogic
         {
             if (cpu != null && memory != null)
             {
-                LogSafe($"[HandleNext] Executing instruction at ${cpu.PC:X4}");
-                cpu.ExecuteOneInstruction(memory);
-                LogSafe($"[HandleNext] New PC: ${cpu.PC:X4}");
+                // Check if current instruction is JSR (Jump to Subroutine)
+                byte opCode = memory[cpu.PC];
+                LogSafe($"[HandleNext] Instruction at ${cpu.PC:X4}: opcode=${opCode:X2}");
 
-                // Check if PC moved out of bounds after execution
-                if (IsOutOfBounds(cpu.PC))
+                if (opCode == 0x20) // JSR instruction
                 {
-                    LogSafe($"[HandleNext] Stepped outside program bounds to ${cpu.PC:X4}");
-                    await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${cpu.PC:X4}\n");
-                    await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
+                    // JSR is 3 bytes: opcode (1) + address (2)
+                    // Set temporary breakpoint at return address (PC + 3)
+                    ushort returnAddress = (ushort)(cpu.PC + 3);
+                    _temporaryBreakpoint = returnAddress;
+                    LogSafe($"[HandleNext] JSR detected, setting temporary breakpoint at ${returnAddress:X4}");
+
+                    // Resume execution - the breakpoint evaluator will stop at the return address
+                    IsStopped = false;
                 }
-                // Always use "step" reason to prevent VSCode from clearing variables view
-                IsStopped = true; // Keep emulator paused after step
-                await SendStoppedEventAsync("step");
+                else
+                {
+                    // Not a JSR - execute single instruction
+                    LogSafe($"[HandleNext] Executing single instruction at ${cpu.PC:X4}");
+                    cpu.ExecuteOneInstruction(memory);
+                    LogSafe($"[HandleNext] New PC: ${cpu.PC:X4}");
+
+                    // Check if PC moved out of bounds after execution
+                    if (IsOutOfBounds(cpu.PC))
+                    {
+                        LogSafe($"[HandleNext] Stepped outside program bounds to ${cpu.PC:X4}");
+                        await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${cpu.PC:X4}\n");
+                        await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
+                    }
+                    // Always use "step" reason to prevent VSCode from clearing variables view
+                    IsStopped = true; // Keep emulator paused after step
+                    await SendStoppedEventAsync("step");
+                }
             }
 
             await _protocol.SendResponseAsync(seq, "next");
@@ -1365,9 +1410,11 @@ public class DebugAdapterLogic
 
         if (cpu != null && memory != null)
         {
-            cpu.ExecuteOneInstruction(memory);
-            IsStopped = true; // Keep emulator paused after step
-            await SendStoppedEventAsync("step");
+            LogSafe($"[HandleStepOut] Enabling step out mode, will run until RTS at PC=${cpu.PC:X4}");
+            // Enable step out mode - execution will continue until RTS is found
+            _stepOutMode = true;
+            // Resume execution - the breakpoint evaluator will stop at RTS
+            IsStopped = false;
         }
 
         await _protocol.SendResponseAsync(seq, "stepOut");
