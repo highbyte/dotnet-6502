@@ -54,16 +54,97 @@ export function deactivate() {
 }
 
 /**
+ * Returns a platform-aware executable name (appends .exe on Windows).
+ */
+function platformExecutableName(baseName: string): string {
+    return process.platform === 'win32' ? `${baseName}.exe` : baseName;
+}
+
+/**
+ * Known build output locations for executables within the repo, relative to repo root.
+ * Maps base executable name (without .exe) to its project output directory.
+ */
+const REPO_EXECUTABLE_LOCATIONS: Record<string, string> = {
+    'Highbyte.DotNet6502.DebugAdapter.ConsoleApp': 'src/apps/Highbyte.DotNet6502.DebugAdapter',
+    'Highbyte.DotNet6502.App.Avalonia.Desktop': 'src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop',
+};
+
+/**
+ * Resolves the executable path. For a bare executable name (no path separators):
+ * 1. First checks the system PATH
+ * 2. Then tries known repo-relative build output locations (Debug/Release)
+ * For a full path, verifies it exists on disk.
+ *
+ * Returns the resolved path (may be the bare name if found in PATH, or a full
+ * repo-relative path), or undefined if not found (shows an error message).
+ */
+function resolveExecutable(executablePath: string): string | undefined {
+    const isBareExecutableName = !executablePath.includes('/') && !executablePath.includes('\\');
+
+    if (!isBareExecutableName) {
+        // Full path specified - just verify it exists
+        if (fs.existsSync(executablePath)) {
+            return executablePath;
+        }
+        vscode.window.showErrorMessage(
+            `Executable not found: ${executablePath}. Please verify the path in 'emulatorExecutable' in your launch configuration.`
+        );
+        return undefined;
+    }
+
+    // Bare executable name - try PATH first
+    const findCmd = process.platform === 'win32' ? 'where' : 'which';
+    try {
+        child_process.execSync(`${findCmd} "${executablePath}"`, { stdio: 'ignore' });
+        console.log(`[6502 Debug] Found '${executablePath}' in system PATH`);
+        return executablePath;
+    } catch {
+        console.log(`[6502 Debug] '${executablePath}' not found in system PATH, trying repo-relative paths...`);
+    }
+
+    // Not in PATH - try repo-relative build output locations
+    // __dirname is tools/vscode-extension/out/, so repo root is three levels up
+    const repoRoot = path.join(__dirname, '..', '..', '..');
+    const baseName = executablePath.replace(/\.exe$/, '');
+    const projectDir = REPO_EXECUTABLE_LOCATIONS[baseName];
+
+    if (projectDir) {
+        const buildConfigs = ['Debug', 'Release'];
+        for (const buildConfig of buildConfigs) {
+            const candidatePath = path.join(repoRoot, projectDir, 'bin', buildConfig, 'net10.0', executablePath);
+            if (fs.existsSync(candidatePath)) {
+                console.log(`[6502 Debug] Found executable via repo-relative path: ${candidatePath}`);
+                return candidatePath;
+            }
+            console.log(`[6502 Debug]   not found: ${candidatePath}`);
+        }
+    }
+
+    vscode.window.showErrorMessage(
+        `Executable '${executablePath}' not found in system PATH or in repo build output. Either add it to PATH, build the project, or set 'emulatorExecutable' to a full path in your launch configuration.`
+    );
+    return undefined;
+}
+
+/**
  * Debug configuration provider for 6502 debugging.
  *
  * Supports two debug adapter modes:
- * - 'console': Uses the standalone console debug adapter (limited functionality, generic 6502)
- *              Communicates via STDIO
- * - 'avalonia': Launches the Avalonia Desktop app which acts as the debug adapter
- *               Supports full emulation (C64, etc.) and communicates via TCP
+ * - 'minimal': Uses a minimal standalone debug adapter for generic 6502 debugging
+ *              (no full system emulation). Communicates via STDIO.
+ *              Default executable: Highbyte.DotNet6502.DebugAdapter.ConsoleApp[.exe]
+ * - 'emulator': Launches an emulator host app (Avalonia, SadConsole, SilkNetNative, etc.)
+ *               which acts as the debug adapter. Supports full emulation (C64, etc.) and
+ *               communicates via TCP.
+ *               Default executable: Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]
+ *
+ * In both modes, the executable is configured via the 'emulatorExecutable' parameter,
+ * which defaults to a platform-aware name. The executable is resolved by:
+ * 1. Checking the system PATH
+ * 2. Trying known repo-relative build output paths (Debug/Release)
  */
 class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
-    private avaloniaProcess: child_process.ChildProcess | undefined;
+    private emulatorProcess: child_process.ChildProcess | undefined;
 
     resolveDebugConfiguration(
         folder: vscode.WorkspaceFolder | undefined,
@@ -84,35 +165,46 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
     ): Promise<vscode.DebugConfiguration | undefined> {
         // Set default debug adapter if not specified
         if (!config.debugAdapter) {
-            config.debugAdapter = 'console';
+            config.debugAdapter = 'minimal';
         }
 
         // Validate debugAdapter parameter
-        if (config.debugAdapter !== 'console' && config.debugAdapter !== 'avalonia') {
+        if (config.debugAdapter !== 'minimal' && config.debugAdapter !== 'emulator') {
             vscode.window.showErrorMessage(
-                `Invalid debugAdapter value: ${config.debugAdapter}. Must be 'console' or 'avalonia'.`
+                `Invalid debugAdapter value: ${config.debugAdapter}. Must be 'minimal' or 'emulator'.`
             );
             return undefined;
         }
 
-        // If debugAdapter is 'avalonia', start the Avalonia Desktop app
-        if (config.debugAdapter === 'avalonia') {
-            console.log('[6502 Debug] debugAdapter is avalonia, starting Avalonia Desktop app');
-            
-            const executablePath = config.avaloniaExecutable;
-            if (!executablePath || !fs.existsSync(executablePath)) {
-                vscode.window.showErrorMessage(
-                    `Avalonia executable not found: ${executablePath}. Please set 'avaloniaExecutable' in your launch configuration.`
-                );
-                return undefined;
+        // Set default emulatorExecutable based on mode (platform-aware)
+        if (!config.emulatorExecutable) {
+            if (config.debugAdapter === 'minimal') {
+                config.emulatorExecutable = platformExecutableName('Highbyte.DotNet6502.DebugAdapter.ConsoleApp');
+            } else {
+                // Currently only Highbyte.DotNet6502.App.Avalonia.Desktop is supported as emulator host.
+                config.emulatorExecutable = platformExecutableName('Highbyte.DotNet6502.App.Avalonia.Desktop');
             }
+            console.log(`[6502 Debug] Using default emulatorExecutable for '${config.debugAdapter}' mode: ${config.emulatorExecutable}`);
+        }
 
-            const debugPort = config.avaloniaDebugPort || 4711;
-            const system = config.avaloniaSystem || 'C64';
-            const systemVariant = config.avaloniaSystemVariant;
-            const waitForReady = config.avaloniaWaitForReady !== false; // Default true
-            const loadPrg = config.avaloniaLoadPrg !== false; // Default true
-            const runProgram = config.avaloniaRunProgram === true; // Default false
+        // Resolve the executable: try PATH, then repo-relative build output
+        const resolvedExecutable = resolveExecutable(config.emulatorExecutable);
+        if (!resolvedExecutable) {
+            return undefined;
+        }
+        config.emulatorExecutable = resolvedExecutable;
+
+        // If debugAdapter is 'emulator', start the emulator host app
+        if (config.debugAdapter === 'emulator') {
+            console.log('[6502 Debug] debugAdapter is emulator, starting emulator host app');
+
+            const executablePath = config.emulatorExecutable;
+            const debugPort = config.debugPort || 4711;
+            const system = config.system || 'C64';
+            const systemVariant = config.systemVariant;
+            const waitForReady = config.waitForSystemReady !== false; // Default true
+            const loadPrg = config.loadProgram !== false; // Default true
+            const runProgram = config.runProgram === true; // Default false
             let programPath = config.program;
 
             console.log(`[6502 Debug] Initial programPath: ${programPath}`);
@@ -154,9 +246,9 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
 
             console.log(`[6502 Debug] Final programPath: ${programPath}, loadPrg: ${loadPrg}, runProgram: ${runProgram}`);
 
-            // For automated Avalonia startup, set program to empty string to prevent auto-detection
+            // For automated emulator host startup, set program to empty string to prevent auto-detection
             // The debug adapter should attach to the already-running emulator, not launch a new one
-            // Avalonia handles loading the program, so the debug adapter shouldn't load it
+            // The emulator host handles loading the program, so the debug adapter shouldn't load it
             config.program = "";  // Empty string prevents auto-detection in debug adapter
 
             // Build command line arguments
@@ -184,17 +276,17 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
                 args.push('--runLoadedProgram');
             }
 
-            console.log(`[6502 Debug] Launching Avalonia: ${executablePath} ${args.join(' ')}`);
-            
+            console.log(`[6502 Debug] Launching emulator host: ${executablePath} ${args.join(' ')}`);
+
             try {
-                // Kill any existing Avalonia process
-                if (this.avaloniaProcess) {
-                    console.log('[6502 Debug] Killing existing Avalonia process');
-                    this.avaloniaProcess.kill();
-                    this.avaloniaProcess = undefined;
+                // Kill any existing emulator process
+                if (this.emulatorProcess) {
+                    console.log('[6502 Debug] Killing existing emulator process');
+                    this.emulatorProcess.kill();
+                    this.emulatorProcess = undefined;
                 }
 
-                // Launch the Avalonia Desktop app
+                // Launch the emulator host app
                 const path = require('path');
                 const executableDir = path.dirname(executablePath);
                 
@@ -213,35 +305,35 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
                 
                 console.log(`[6502 Debug] Spawning: ${executablePath} ${args.join(' ')}`);
                 console.log(`[6502 Debug] Environment variables:`, config.env);
-                this.avaloniaProcess = child_process.spawn(executablePath, args, spawnOptions);
+                this.emulatorProcess = child_process.spawn(executablePath, args, spawnOptions);
 
-                this.avaloniaProcess.stdout?.on('data', (data) => {
-                    console.log(`[Avalonia] ${data.toString()}`);
+                this.emulatorProcess.stdout?.on('data', (data) => {
+                    console.log(`[Emulator Host] ${data.toString()}`);
                 });
 
-                this.avaloniaProcess.stderr?.on('data', (data) => {
-                    console.error(`[Avalonia Error] ${data.toString()}`);
+                this.emulatorProcess.stderr?.on('data', (data) => {
+                    console.error(`[Emulator Host Error] ${data.toString()}`);
                 });
 
-                this.avaloniaProcess.on('exit', (code) => {
-                    console.log(`[6502 Debug] Avalonia process exited with code ${code}`);
+                this.emulatorProcess.on('exit', (code) => {
+                    console.log(`[6502 Debug] Emulator host process exited with code ${code}`);
                     if (code !== 0 && code !== null) {
-                        vscode.window.showErrorMessage(`Avalonia Desktop app exited with error code ${code}. Check console output for details.`);
+                        vscode.window.showErrorMessage(`Emulator host app exited with error code ${code}. Check console output for details.`);
                     }
-                    this.avaloniaProcess = undefined;
+                    this.emulatorProcess = undefined;
                 });
 
-                // Avalonia will start the system, load PRG, and then start TCP server
+                // Emulator host will start the system, load PRG, and then start TCP server
                 // We need to wait for the TCP server to be ready before connecting
-                console.log(`[6502 Debug] Avalonia launched, will wait for TCP server on port ${debugPort}`);
+                console.log(`[6502 Debug] Emulator host launched, will wait for TCP server on port ${debugPort}`);
 
                 // Don't set debugServer yet - we'll set it after verifying the server is ready
                 // Store the port for later use
-                config.__avaloniaDebugPort = debugPort;
-                config.__waitingForAvalonia = true;
+                config.__emulatorDebugPort = debugPort;
+                config.__waitingForEmulator = true;
 
             } catch (error) {
-                const errorMsg = `Failed to launch Avalonia Desktop app: ${error}`;
+                const errorMsg = `Failed to launch emulator host app: ${error}`;
                 console.error('[6502 Debug]', errorMsg);
                 vscode.window.showErrorMessage(errorMsg);
                 return undefined;
@@ -252,10 +344,10 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
     }
 
     dispose() {
-        if (this.avaloniaProcess) {
-            console.log('[6502 Debug] Disposing: killing Avalonia process');
-            this.avaloniaProcess.kill();
-            this.avaloniaProcess = undefined;
+        if (this.emulatorProcess) {
+            console.log('[6502 Debug] Disposing: killing emulator host process');
+            this.emulatorProcess.kill();
+            this.emulatorProcess = undefined;
         }
     }
 }
@@ -268,23 +360,23 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         
         console.log('[6502 Debug] createDebugAdapterDescriptor called for session:', session.name);
         console.log('[6502 Debug] Session configuration:', JSON.stringify(session.configuration, null, 2));
-        console.log('[6502 Debug] __waitingForAvalonia:', session.configuration.__waitingForAvalonia);
+        console.log('[6502 Debug] __waitingForEmulator:', session.configuration.__waitingForEmulator);
         console.log('[6502 Debug] debugServer:', session.configuration.debugServer);
-        
-        // If waiting for Avalonia to start, wait for TCP server to be listening
-        if (session.configuration.__waitingForAvalonia) {
-            const port = session.configuration.__avaloniaDebugPort;
-            const timeoutSeconds = session.configuration.avaloniaStartupTimeout || 120;
+
+        // If waiting for emulator host to start, wait for TCP server to be listening
+        if (session.configuration.__waitingForEmulator) {
+            const port = session.configuration.__emulatorDebugPort;
+            const timeoutSeconds = session.configuration.startupTimeout || 120;
             const timeoutMs = timeoutSeconds * 1000;
-            console.log(`[6502 Debug] Waiting for Avalonia TCP server on port ${port} (timeout: ${timeoutSeconds}s)...`);
-            
+            console.log(`[6502 Debug] Waiting for emulator host TCP server on port ${port} (timeout: ${timeoutSeconds}s)...`);
+
             const isReady = await this.waitForTcpServerListening(port, timeoutMs);
             if (!isReady) {
-                vscode.window.showErrorMessage(`Avalonia TCP debug server did not start within ${timeoutSeconds} seconds on port ${port}`);
+                vscode.window.showErrorMessage(`Emulator host TCP debug server did not start within ${timeoutSeconds} seconds on port ${port}`);
                 return undefined;
             }
-            
-            console.log(`[6502 Debug] Avalonia TCP server is ready on port ${port}`);
+
+            console.log(`[6502 Debug] Emulator host TCP server is ready on port ${port}`);
             return this.createTcpDebugAdapter(port);
         }
         
@@ -295,9 +387,10 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
             return this.createTcpDebugAdapter(debugServerPort);
         }
         
-        // Otherwise, launch the debug adapter as a child process
-        console.log('[6502 Debug] No TCP connection detected, launching debug adapter executable');
-        return this.createExecutableDebugAdapter();
+        // Otherwise, launch the minimal debug adapter as a child process (STDIO)
+        const executablePath = session.configuration.emulatorExecutable;
+        console.log(`[6502 Debug] Launching minimal debug adapter executable: ${executablePath}`);
+        return this.createExecutableDebugAdapter(executablePath);
     }
 
     private async waitForTcpServerListening(port: number, timeoutMs: number): Promise<boolean> {
@@ -357,52 +450,11 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         }
     }
     
-    private createExecutableDebugAdapter(): vscode.DebugAdapterDescriptor | undefined {
+    private createExecutableDebugAdapter(executablePath: string): vscode.DebugAdapterDescriptor | undefined {
         try {
-            // Find the debug adapter executable
-            // Look for the debug adapter executable
-            // It's built in the main repo, not in the workspace folder
-            let adapterPath: string | undefined;
-            
-            // Determine the correct executable name based on the OS
-            const executableName = process.platform === 'win32'
-                ? 'Highbyte.DotNet6502.DebugAdapter.ConsoleApp.exe'
-                : 'Highbyte.DotNet6502.DebugAdapter.ConsoleApp';
-
-            // Try multiple possible locations
-            const possiblePaths = [
-                // Development: relative to workspace (when vscode-extension-test is open)
-                path.join(__dirname, '..', '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Debug', 'net10.0', executableName),
-                // If workspace is vscode-extension folder
-                path.join(__dirname, '..', '..', '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Debug', 'net10.0', executableName),
-                // Release build
-                path.join(__dirname, '..', '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Release', 'net10.0', executableName),
-                path.join(__dirname, '..', '..', '..', '..', 'src', 'apps', 'Highbyte.DotNet6502.DebugAdapter', 'bin', 'Release', 'net10.0', executableName),
-            ];
-            
-            console.log('[6502 Debug] Extension __dirname:', __dirname);
-            console.log('[6502 Debug] Testing paths for debug adapter:');
-            for (const testPath of possiblePaths) {
-                const exists = require('fs').existsSync(testPath);
-                console.log(`  ${exists ? '✓' : '✗'} ${testPath}`);
-                if (exists) {
-                    adapterPath = testPath;
-                    break;
-                }
-            }
-            
-            if (!adapterPath) {
-                const msg = 'Could not find the 6502 debug adapter executable. Please build: dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter/Highbyte.DotNet6502.DebugAdapter.ConsoleApp.csproj';
-                console.error('[6502 Debug]', msg);
-                vscode.window.showErrorMessage(msg);
-                return undefined;
-            }
-
-            console.log('[6502 Debug] ✓ Using debug adapter:', adapterPath);
-            
-            const debugAdapterExecutable = new DebugAdapterExecutable(adapterPath, []);
+            console.log('[6502 Debug] ✓ Using debug adapter:', executablePath);
+            const debugAdapterExecutable = new DebugAdapterExecutable(executablePath, []);
             console.log('[6502 Debug] ✓ Created DebugAdapterExecutable, returning to VSCode');
-            
             return debugAdapterExecutable;
         } catch (error) {
             const errorMsg = `[6502 Debug] Error in createDebugAdapterDescriptor: ${error}`;

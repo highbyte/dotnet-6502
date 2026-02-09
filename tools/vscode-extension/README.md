@@ -303,47 +303,49 @@ dump $d000 $d3ff        # VIC-II registers on C64
 - Variable inspection limited to registers and memory addresses
 - Disassembly view does not open automatically (must be opened manually via right-click on Call Stack)
 
-## Advanced: Launch Avalonia Desktop App Automatically
+## Advanced: Launch Emulator Host App Automatically
 
-The VSCode extension can launch the Avalonia Desktop app automatically with a system already started and your program loaded:
+The VSCode extension can launch an emulator host app automatically with a system already started and your program loaded.
+
+> **Note:** Currently only the Avalonia Desktop app (`Highbyte.DotNet6502.App.Avalonia.Desktop`) is supported as an emulator host. Support for SadConsole and SilkNetNative may be added in the future.
 
 **Configuration Example:**
 ```json
 {
   "type": "dotnet6502",
   "request": "launch",
-  "name": "Launch Avalonia Desktop (dotnet-6502)",
+  "name": "Launch Emulator Host (dotnet-6502)",
   "program": "${workspaceFolder}/program.prg",
   "stopOnEntry": true,
-  "launchAvalonia": true,
-  "avaloniaExecutable": "${workspaceFolder}/../bin/Publish/Highbyte.DotNet6502.App.Avalonia.Desktop",
-  "avaloniaSystem": "C64",
-  "avaloniaDebugPort": 4711,
-  "avaloniaWaitForReady": true,
-  "avaloniaLoadPrg": true,
-  "avaloniaRunProgram": false
+  "debugAdapter": "emulator",
+  "system": "C64",
+  "debugPort": 4711,
+  "waitForSystemReady": true,
+  "loadProgram": true,
+  "runProgram": false
 }
 ```
 
 **Configuration Properties:**
-- `launchAvalonia` (boolean): Set to `true` to launch Avalonia Desktop automatically
-- `avaloniaExecutable` (string): Path to the Avalonia Desktop executable
-- `avaloniaSystem` (string): System to start (e.g., "C64", "Generic")
-- `avaloniaSystemVariant` (string, optional): System variant to use (uses first variant if not specified)
-- `avaloniaDebugPort` (number): TCP port for debug adapter (default: 4711)
-- `avaloniaWaitForReady` (boolean): Wait for system to be ready before connecting (default: true, ~3 seconds for C64)
-- `avaloniaLoadPrg` (boolean): Automatically load the program file into memory (default: true)
-- `avaloniaRunProgram` (boolean): Automatically run the loaded program by setting PC (default: false)
+- `debugAdapter` (string): Set to `"emulator"` to launch an emulator host app, or `"minimal"` for a simple 6502-only debug adapter without full system emulation (default: `"minimal"`)
+- `emulatorExecutable` (string): Path or name of the executable. Default depends on `debugAdapter` mode: for `"minimal"`, defaults to `Highbyte.DotNet6502.DebugAdapter.ConsoleApp[.exe]`; for `"emulator"`, defaults to `Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]` (currently the only supported emulator host). Resolved by checking the system PATH first, then repo-relative build output paths (Debug/Release). Can also be set to a full path.
+- `system` (string): System to start (e.g., "C64", "Generic")
+- `systemVariant` (string, optional): System variant to use (uses first variant if not specified)
+- `debugPort` (number): TCP port for debug adapter (default: 4711)
+- `waitForSystemReady` (boolean): Wait for system to be ready before connecting (default: true, ~3 seconds for C64)
+- `loadProgram` (boolean): Automatically load the program file into memory (default: true)
+- `runProgram` (boolean): Automatically run the loaded program by setting PC (default: false)
+- `startupTimeout` (number): Timeout in seconds to wait for emulator host to start (default: 120)
 
 **How it works:**
-1. VSCode launches Avalonia with: `--enableExternalDebug --debug-port 4711 --debug-wait --system C64 --start --waitForSystemReady --loadPrg <path>`
-2. Avalonia starts the specified system (e.g., C64)
+1. VSCode launches the emulator host with: `--enableExternalDebug --debug-port 4711 --system C64 --start --waitForSystemReady --loadPrg <path>`
+2. The emulator host starts the specified system (e.g., C64)
 3. Waits for the system to be ready (Basic prompt appears)
 4. Loads the PRG file into memory at the address specified in the file
 5. Optionally runs the program by setting the CPU PC to the load address
 6. VSCode connects the debugger to the TCP port
 
-**Note:** Set `avaloniaRunProgram: true` if you want the program to start automatically. Otherwise, the program is loaded but you'll need to manually start it (e.g., `SYS 49152` in C64 Basic, or step through with the debugger).
+**Note:** Set `runProgram: true` if you want the program to start automatically. Otherwise, the program is loaded but you'll need to manually start it (e.g., `SYS 49152` in C64 Basic, or step through with the debugger).
 
 ## Advanced: Debugging the C# Code
 

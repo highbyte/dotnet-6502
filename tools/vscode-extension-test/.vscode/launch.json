@@ -4,63 +4,66 @@
     {
       "type": "dotnet6502",
       "request": "launch",
-      "name": "Debug test-program.asm",
+      "name": "Launch Simple Emulator Host to Debug test-program.asm",
       "preLaunchTask": "Build test-program.asm (C64)",
       "stopOnEntry": true,
       "stopOnBRK": true,
-      // Uses console debug adapter by default (debugAdapter: "console")
+      // Uses minimal debug adapter by default (debugAdapter: "minimal")
     },
     {
       "type": "dotnet6502",
       "request": "launch",
-      "name": "Debug test-program.bin with .dbg load address",
+      "name": "Launch Simple Emulator Host to Debug binary test-program.bin with .dbg load address",
       "program": "${workspaceFolder}/test-program.bin",
       "dbgFile": "${workspaceFolder}/test-program.dbg",
       "stopOnEntry": true,
       "stopOnBRK": true
+      // Uses minimal debug adapter by default (debugAdapter: "minimal")
     },
     {
       "type": "dotnet6502",
       "request": "launch",
-      "name": "Debug test-program.prg (C64) with built-in load address",
+      "name": "Launch Simple Emulator Host to Debug binary test-program.prg (C64) with built-in load address",
       "program": "${workspaceFolder}/test-program.prg",
       "dbgFile": "${workspaceFolder}/test-program.dbg",
       "stopOnEntry": true,
       "stopOnBRK": true
+      // Uses minimal debug adapter by default (debugAdapter: "minimal")
     },
     {
       "type": "dotnet6502",
       "request": "attach",
-      "name": "Attach to Avalonia Desktop (TCP debug adapter)",
+      "name": "Attach to Full Emulator Host (TCP debug adapter)",
       "debugServer": 4711,
       "program": "${workspaceFolder}/test-program.prg",
       "dbgFile": "${workspaceFolder}/test-program.dbg",
       "stopOnEntry": true
-      // Uses TCP connection to already-running Avalonia Desktop app
+      // Uses TCP connection to already-running emulator host app.
+      // Currently only Avalonia Desktop (Highbyte.DotNet6502.App.Avalonia.Desktop) is supported.
     },
     {
       "type": "dotnet6502",
       "request": "launch",
-      "name": "Launch Avalonia Desktop C64 with test-program.asm",
+      "name": "Launch Full Emulator Host with C64 to Debug and start test-program.asm",
       "preLaunchTask": "Build test-program.asm (C64)",
       "env": {
         "DOTNET6502_WAIT_FOR_DEBUGGER": "true"
       },
 
-      // Uses Avalonia Desktop app as debug adapter (full emulation support)
-      "debugAdapter": "avalonia",
+      // Uses emulator host app as debug adapter (full emulation support).
+      // Currently only Avalonia Desktop (Highbyte.DotNet6502.App.Avalonia.Desktop) is supported.
+      "debugAdapter": "emulator",
 
-      // Avalonia-specific configuration:
-      "avaloniaExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop",
-      "windows": {
-        "avaloniaExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.exe"
-      },
-      "avaloniaDebugPort": 4711,
-      "avaloniaStartupTimeout": 300,
-      "avaloniaSystem": "C64",
-      "avaloniaWaitForReady": true,
-      "avaloniaLoadPrg": true,
-      "avaloniaRunProgram": false,
+      // Emulator host configuration:
+      // "emulatorExecutable" defaults to "Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]" (assumes it's in system PATH).
+      // Override with a full path if not in PATH, e.g.:
+      //"emulatorExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.exe",
+      "debugPort": 4711,
+      "startupTimeout": 300,
+      "system": "C64",
+      "waitForSystemReady": true,
+      "loadProgram": true,
+      "runProgram": false,
       "stopOnEntry": true,
       "stopOnBRK": true,
     }
