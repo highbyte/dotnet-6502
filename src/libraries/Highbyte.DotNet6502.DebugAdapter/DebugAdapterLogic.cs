@@ -110,7 +110,7 @@ public class DebugAdapterLogic
         }
 
         // Check if we're in step out mode and about to execute RTS
-        if (_stepOutMode && currentOpcode == 0x60) // RTS opcode
+        if (_stepOutMode && currentOpcode == (byte)OpCodeId.RTS)
         {
             LogSafe($"[StepOut] RTS detected at ${pc:X4}, executing and stopping");
             // Execute the RTS instruction
@@ -131,7 +131,7 @@ public class DebugAdapterLogic
             return true;
         }
 
-        if (_stopOnBRK && currentOpcode == 0x00) // BRK opcode
+        if (_stopOnBRK && currentOpcode == (byte)OpCodeId.BRK)
         {
             LogSafe($"[BreakpointHit] BRK instruction hit at ${pc:X4}");
             IsStopped = true; // Pause emulator
@@ -1335,7 +1335,7 @@ public class DebugAdapterLogic
                 byte opCode = memory[cpu.PC];
                 LogSafe($"[HandleNext] Instruction at ${cpu.PC:X4}: opcode=${opCode:X2}");
 
-                if (opCode == 0x20) // JSR instruction
+                if (opCode == (byte)OpCodeId.JSR)
                 {
                     // JSR is 3 bytes: opcode (1) + address (2)
                     // Set temporary breakpoint at return address (PC + 3)
