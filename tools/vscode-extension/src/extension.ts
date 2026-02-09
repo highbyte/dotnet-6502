@@ -53,6 +53,15 @@ export function deactivate() {
     console.log('[6502 Debug] Extension deactivating...');
 }
 
+/**
+ * Debug configuration provider for 6502 debugging.
+ *
+ * Supports two debug adapter modes:
+ * - 'console': Uses the standalone console debug adapter (limited functionality, generic 6502)
+ *              Communicates via STDIO
+ * - 'avalonia': Launches the Avalonia Desktop app which acts as the debug adapter
+ *               Supports full emulation (C64, etc.) and communicates via TCP
+ */
 class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
     private avaloniaProcess: child_process.ChildProcess | undefined;
 
@@ -73,9 +82,22 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
         config: vscode.DebugConfiguration,
         token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | undefined> {
-        // If launchAvalonia is true, start the Avalonia Desktop app
-        if (config.launchAvalonia) {
-            console.log('[6502 Debug] launchAvalonia is true, starting Avalonia Desktop app');
+        // Set default debug adapter if not specified
+        if (!config.debugAdapter) {
+            config.debugAdapter = 'console';
+        }
+
+        // Validate debugAdapter parameter
+        if (config.debugAdapter !== 'console' && config.debugAdapter !== 'avalonia') {
+            vscode.window.showErrorMessage(
+                `Invalid debugAdapter value: ${config.debugAdapter}. Must be 'console' or 'avalonia'.`
+            );
+            return undefined;
+        }
+
+        // If debugAdapter is 'avalonia', start the Avalonia Desktop app
+        if (config.debugAdapter === 'avalonia') {
+            console.log('[6502 Debug] debugAdapter is avalonia, starting Avalonia Desktop app');
             
             const executablePath = config.avaloniaExecutable;
             if (!executablePath || !fs.existsSync(executablePath)) {

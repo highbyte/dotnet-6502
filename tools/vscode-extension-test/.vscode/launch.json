@@ -7,7 +7,8 @@
       "name": "Debug test-program.asm",
       "preLaunchTask": "Build test-program.asm (C64)",
       "stopOnEntry": true,
-      "stopOnBRK": true
+      "stopOnBRK": true,
+      // Uses console debug adapter by default (debugAdapter: "console")
     },
     {
       "type": "dotnet6502",
@@ -30,11 +31,12 @@
     {
       "type": "dotnet6502",
       "request": "attach",
-      "name": "Attach to Avalonia Desktop (TCP debug adapter)", 
+      "name": "Attach to Avalonia Desktop (TCP debug adapter)",
       "debugServer": 4711,
       "program": "${workspaceFolder}/test-program.prg",
       "dbgFile": "${workspaceFolder}/test-program.dbg",
       "stopOnEntry": true
+      // Uses TCP connection to already-running Avalonia Desktop app
     },
     {
       "type": "dotnet6502",
@@ -45,7 +47,10 @@
         "DOTNET6502_WAIT_FOR_DEBUGGER": "true"
       },
 
-      "launchAvalonia": true,
+      // Uses Avalonia Desktop app as debug adapter (full emulation support)
+      "debugAdapter": "avalonia",
+
+      // Avalonia-specific configuration:
       "avaloniaExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop",
       "windows": {
         "avaloniaExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.exe"
