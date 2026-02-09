@@ -719,7 +719,8 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         }
         // If F12 is pressed without Ctrl or Shift modifier, toggle monitor
         else if (key == Key.F12 && (modifiers & KeyModifiers.Control) == 0 && (modifiers & KeyModifiers.Shift) == 0
-                 && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused))
+                 && (EmulatorState == EmulatorState.Running || EmulatorState == EmulatorState.Paused)
+                 && !IsExternalDebuggerAttached)
         {
             _logger.LogInformation("F12 pressed - toggling monitor");
             _monitor?.Toggle();
