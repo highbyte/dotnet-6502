@@ -1,6 +1,6 @@
 Modules list:
 -------------
-test-program.asm.44296.0.o:
+test-program.asm.17896.0.o:
     CODE              Offs=000000  Size=00001C  Align=00001  Fill=0000
 C:\Users\highb\Documents\C64\cc65\lib/c64.lib(loadaddr.o):
     LOADADDR          Offs=000000  Size=000002  Align=00001  Fill=0000

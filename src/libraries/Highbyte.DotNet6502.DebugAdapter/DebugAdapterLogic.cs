@@ -1472,24 +1472,18 @@ public class DebugAdapterLogic
 
     private async Task HandlePauseAsync(int seq, JsonObject? args)
     {
-        // TODO: This should probably set Stopped to true, which will stop execution in the emulator?
         LogSafe("[HandlePause] Pause requested");
+
+        IsStopped = true; // Pause the emulator's run loop
 
         if (_continueTokenSource != null && !_continueTokenSource.IsCancellationRequested)
         {
             LogSafe("[HandlePause] Cancelling continue operation");
-            if (_continueTokenSource != null)
-            {
-                await _continueTokenSource.CancelAsync();
-            }
-        }
-        else
-        {
-            LogSafe("[HandlePause] Not currently running, sending stopped event");
-            await SendStoppedEventAsync("pause");
+            await _continueTokenSource.CancelAsync();
         }
 
         await _protocol.SendResponseAsync(seq, "pause");
+        await SendStoppedEventAsync("pause");
     }
 
     private async Task HandleTerminateAsync(int seq, JsonObject? args)

@@ -10,16 +10,16 @@
       "stopOnBRK": true,
       // Uses minimal debug adapter by default (debugAdapter: "minimal")
     },
-    {
-      "type": "dotnet6502",
-      "request": "launch",
-      "name": "Launch Simple Emulator Host to Source Debug test-program.asm (via .dbg info)",
-      "program": "${workspaceFolder}/test-program.bin",
-      "dbgFile": "${workspaceFolder}/test-program.dbg",
-      "stopOnEntry": true,
-      "stopOnBRK": true
-      // Uses minimal debug adapter by default (debugAdapter: "minimal")
-    },
+    // {
+    //   "type": "dotnet6502",
+    //   "request": "launch",
+    //   "name": "Launch Simple Emulator Host to Source Debug test-program.asm (via .dbg info)",
+    //   "program": "${workspaceFolder}/test-program.bin",
+    //   "dbgFile": "${workspaceFolder}/test-program.dbg",
+    //   "stopOnEntry": true,
+    //   "stopOnBRK": true
+    //   // Uses minimal debug adapter by default (debugAdapter: "minimal")
+    // },
     {
       "type": "dotnet6502",
       "request": "launch",
@@ -46,9 +46,9 @@
       "request": "launch",
       "name": "Launch Full Emulator Host with C64 to Source Debug test-program.asm",
       "preLaunchTask": "Build test-program.asm (C64)",
-      "env": {
-        "DOTNET6502_WAIT_FOR_DEBUGGER": "true"
-      },
+      // "env": {
+      //   "DOTNET6502_WAIT_FOR_DEBUGGER": "true"
+      // },
 
       // Uses emulator host app as debug adapter (full emulation support).
       // Currently only Avalonia Desktop (Highbyte.DotNet6502.App.Avalonia.Desktop) is supported.
