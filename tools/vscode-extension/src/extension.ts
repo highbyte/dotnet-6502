@@ -246,10 +246,10 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
 
             console.log(`[6502 Debug] Final programPath: ${programPath}, loadPrg: ${loadPrg}, runProgram: ${runProgram}`);
 
-            // For automated emulator host startup, set program to empty string to prevent auto-detection
-            // The debug adapter should attach to the already-running emulator, not launch a new one
-            // The emulator host handles loading the program, so the debug adapter shouldn't load it
-            config.program = "";  // Empty string prevents auto-detection in debug adapter
+            // The emulator host handles loading the program into memory, so tell the
+            // debug adapter not to load it again (but still use the path for debug symbols
+            // and program bounds).
+            config.__programAlreadyLoaded = true;
 
             // Build command line arguments
             const args = [

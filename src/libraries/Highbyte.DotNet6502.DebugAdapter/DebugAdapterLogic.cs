@@ -19,7 +19,11 @@ public class DebugAdapterLogic
     private readonly DapProtocol _protocol;
     private readonly StreamWriter _log;
     private readonly ISystem _system;
-    private readonly HashSet<ushort> _breakpoints = new();
+    // Track source and instruction breakpoints separately, because VSCode
+    // sends setBreakpoints (source) and setInstructionBreakpoints (disassembly)
+    // as independent requests, each containing the full set for that category.
+    private readonly HashSet<ushort> _sourceBreakpoints = new();
+    private readonly HashSet<ushort> _instructionBreakpoints = new();
     private ushort? _temporaryBreakpoint = null; // Temporary breakpoint for step over JSR
     private bool _stepOutMode = false; // Flag to indicate we're stepping out (waiting for RTS)
     private const int THREAD_ID = 1;
@@ -122,8 +126,8 @@ public class DebugAdapterLogic
             return true;
         }
 
-        // Check if we hit a breakpoint
-        if (_breakpoints.Contains(pc))
+        // Check if we hit a breakpoint (from either source or instruction breakpoints)
+        if (_sourceBreakpoints.Contains(pc) || _instructionBreakpoints.Contains(pc))
         {
             LogSafe($"[BreakpointHit] Breakpoint hit at ${pc:X4}");
             IsStopped = true; // Pause emulator
@@ -258,6 +262,7 @@ public class DebugAdapterLogic
         var stopOnEntry = args?["stopOnEntry"]?.GetValue<bool>() ?? true;
         var loadAddress = args?["loadAddress"]?.GetValue<int?>();
         _stopOnBRK = args?["stopOnBRK"]?.GetValue<bool>() ?? true;
+        var programAlreadyLoaded = args?["__programAlreadyLoaded"]?.GetValue<bool>() ?? false;
 
         // Get program and dbgFile from config, or auto-derive if preLaunchTask was used
         string? program = args?["program"]?.ToString();
@@ -298,20 +303,101 @@ public class DebugAdapterLogic
             }
         }
 
-        LogSafe($"[Launch] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_stopOnBRK}");
+        LogSafe($"[Launch] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_stopOnBRK}, programAlreadyLoaded={programAlreadyLoaded}");
 
-        if (string.IsNullOrEmpty(program) || !File.Exists(program))
+        var memory = _system.Mem;
+        var cpu = _system.CPU;
+
+        // When program is already loaded by the emulator host, we still use the program
+        // path for debug symbols and program bounds, but skip loading into memory.
+        if (programAlreadyLoaded)
         {
-            await SendOutputAsync($"Error: Program file not found: {program}\n");
-            await _protocol.SendResponseAsync(seq, "launch");
-            return;
+            LogSafe("[Launch] Program already loaded by emulator host, skipping memory load");
+
+            if (!string.IsNullOrEmpty(program) && File.Exists(program))
+            {
+                _programPath = program;
+                var isBinFile = program.EndsWith(".bin", StringComparison.OrdinalIgnoreCase);
+
+                // Read the file to determine program bounds (without loading into memory)
+                var fileBytes = File.ReadAllBytes(program);
+                ushort loadAddr;
+                ushort fileLength;
+                if (!isBinFile && fileBytes.Length >= 2)
+                {
+                    // .prg file: first two bytes are load address (little-endian)
+                    loadAddr = (ushort)(fileBytes[0] | (fileBytes[1] << 8));
+                    fileLength = (ushort)(fileBytes.Length - 2);
+                }
+                else
+                {
+                    // .bin file: use load address from config or debug symbols
+                    loadAddr = loadAddress.HasValue ? (ushort)loadAddress.Value : (ushort)0;
+                    fileLength = (ushort)fileBytes.Length;
+                }
+
+                _programStartAddress = loadAddr;
+                _programEndAddress = (ushort)(loadAddr + fileLength - 1);
+                await SendOutputAsync($"Program already loaded by emulator host: {Path.GetFileName(program)}\n");
+                await SendOutputAsync($"  Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
+            }
+            else
+            {
+                await SendOutputAsync($"Attached to emulator host (no program file specified for debug symbols)\n");
+            }
+        }
+        else
+        {
+            // Standard launch: load program into memory
+            if (string.IsNullOrEmpty(program) || !File.Exists(program))
+            {
+                await SendOutputAsync($"Error: Program file not found: {program}\n");
+                await _protocol.SendResponseAsync(seq, "launch");
+                return;
+            }
+
+            _programPath = program;
+            var isBinFile = program.EndsWith(".bin", StringComparison.OrdinalIgnoreCase);
+
+            // Determine load address for .bin files
+            ushort? effectiveLoadAddress = null;
+            if (isBinFile)
+            {
+                ushort? dbgLoadAddr = null;
+                if (_dbgParser != null)
+                    dbgLoadAddr = _dbgParser.GetLoadAddress();
+
+                if (loadAddress.HasValue)
+                {
+                    effectiveLoadAddress = (ushort)loadAddress.Value;
+                    await SendOutputAsync($".bin file: Using load address from config: ${effectiveLoadAddress:X4}\n");
+                }
+                else if (dbgLoadAddr.HasValue)
+                {
+                    effectiveLoadAddress = dbgLoadAddr.Value;
+                    await SendOutputAsync($".bin file: Using load address from .dbg: ${effectiveLoadAddress:X4}\n");
+                }
+                else
+                {
+                    await SendOutputAsync($"Error: .bin file requires either 'loadAddress' in config or a .dbg file\n");
+                    await _protocol.SendResponseAsync(seq, "launch");
+                    return;
+                }
+            }
+            else if (loadAddress.HasValue)
+            {
+                effectiveLoadAddress = (ushort)loadAddress.Value;
+            }
+
+            memory.Load(program, out ushort loadAddr, out ushort fileLength, forceLoadAddress: effectiveLoadAddress, fileContainsLoadAddress: !isBinFile);
+
+            _programStartAddress = loadAddr;
+            _programEndAddress = (ushort)(loadAddr + fileLength - 1);
+
+            await SendOutputAsync($"Loaded {program} at ${loadAddr:X4}, length: {fileLength} bytes\n");
         }
 
-        _programPath = program;
-        var isBinFile = program.EndsWith(".bin", StringComparison.OrdinalIgnoreCase);
-
         // Load debug symbols if provided
-        ushort? dbgLoadAddress = null;
         if (!string.IsNullOrEmpty(dbgFile))
         {
             if (File.Exists(dbgFile))
@@ -320,7 +406,7 @@ public class DebugAdapterLogic
                 {
                     _dbgParser = new Ca65DbgParser();
                     _dbgParser.ParseFile(dbgFile);
-                    dbgLoadAddress = _dbgParser.GetLoadAddress();
+                    var dbgLoadAddress = _dbgParser.GetLoadAddress();
                     await SendOutputAsync($"Loaded debug symbols from {dbgFile}\n");
                     await SendOutputAsync($"  Files: {_dbgParser.SourceLineToAddress.Count}\n");
                     await SendOutputAsync($"  Load address from .dbg: ${dbgLoadAddress:X4}\n");
@@ -337,44 +423,7 @@ public class DebugAdapterLogic
             }
         }
 
-        // Determine load address for .bin files
-        ushort? effectiveLoadAddress = null;
-        if (isBinFile)
-        {
-            if (loadAddress.HasValue)
-            {
-                effectiveLoadAddress = (ushort)loadAddress.Value;
-                await SendOutputAsync($".bin file: Using load address from config: ${effectiveLoadAddress:X4}\n");
-            }
-            else if (dbgLoadAddress.HasValue)
-            {
-                effectiveLoadAddress = dbgLoadAddress.Value;
-                await SendOutputAsync($".bin file: Using load address from .dbg: ${effectiveLoadAddress:X4}\n");
-            }
-            else
-            {
-                await SendOutputAsync($"Error: .bin file requires either 'loadAddress' in config or a .dbg file\n");
-                await _protocol.SendResponseAsync(seq, "launch");
-                return;
-            }
-        }
-        else if (loadAddress.HasValue)
-        {
-            effectiveLoadAddress = (ushort)loadAddress.Value;
-        }
-
-        // Load binary
-        var memory = _system.Mem;
-        var cpu = _system.CPU;
-
-        memory.Load(program, out ushort loadAddr, out ushort fileLength, forceLoadAddress: effectiveLoadAddress, fileContainsLoadAddress: !isBinFile);
-
-        // Track program bounds for out-of-bounds detection
-        _programStartAddress = loadAddr;
-        _programEndAddress = (ushort)(loadAddr + fileLength - 1);
-
-        await SendOutputAsync($"Loaded {program} at ${loadAddr:X4}, length: {fileLength} bytes\n");
-        await SendOutputAsync($"PC set to ${cpu.PC:X4}\n");
+        await SendOutputAsync($"PC at ${cpu.PC:X4}\n");
         if (!_stopOnBRK)
         {
             await SendOutputAsync("Note: stopOnBRK is disabled - use Pause button to stop execution\n");
@@ -385,24 +434,28 @@ public class DebugAdapterLogic
         // Send initialized event
         await _protocol.SendEventAsync("initialized");
 
-        // If stopOnEntry, send stopped event (unless no program loaded - external app will send it)
-        if (stopOnEntry && !string.IsNullOrEmpty(program))
+        // If stopOnEntry, send stopped event
+        if (stopOnEntry)
         {
             IsStopped = true;
 
-            // Hack: Wait a bit for emulator host to detect IsStopped is set not it doesn't continue execution before we send the stopped event. Ideally we would have a more robust way to coordinate this.
+            // Wait a bit for emulator host's run loop to detect IsStopped and pause,
+            // so it doesn't continue execution before we modify the PC.
             int waitCount = 0;
             while (waitCount < 5) // 500 ms wait
             {
-                //lock (_startupLock)
-                //{
-                //    if (_automatedStartupComplete)
-                //        break;
-                //}
                 await Task.Delay(100);
                 waitCount++;
             }
-            cpu.PC = loadAddr; // Ensure PC is set to start of program before sending stopped event
+
+            // Set PC to program start address so debugger stops at the right place.
+            // In emulator mode (programAlreadyLoaded), the emulator host loaded the
+            // program but the CPU may still be executing KERNAL code. We need to
+            // redirect execution to the program entry point.
+            if (_programStartAddress != 0)
+            {
+                cpu.PC = _programStartAddress;
+            }
 
             await SendStoppedEventAsync("entry");
         }
@@ -514,12 +567,13 @@ public class DebugAdapterLogic
 
     private async Task HandleSetBreakpointsAsync(int seq, JsonObject? args)
     {
-        // This handles source-level breakpoints
+        // This handles source-level breakpoints.
+        // VSCode sends the FULL set of source breakpoints on each call,
+        // so we clear and rebuild _sourceBreakpoints.
         LogSafe("[SetBreakpoints] Called");
         LogSafe($"[SetBreakpoints] args: {args?.ToJsonString()}");
 
-        // Don't clear all breakpoints - VSCode calls setBreakpoints and setInstructionBreakpoints separately
-        // Only remove breakpoints for the specific source file being updated
+        _sourceBreakpoints.Clear();
         var breakpoints = new JsonArray();
 
         var source = args?["source"] as JsonObject;
@@ -564,8 +618,8 @@ public class DebugAdapterLogic
 
                 if (verified && address > 0)
                 {
-                    _breakpoints.Add(address);
-                    LogSafe($"[SetBreakpoints] Added breakpoint at ${address:X4}");
+                    _sourceBreakpoints.Add(address);
+                    LogSafe($"[SetBreakpoints] Added source breakpoint at ${address:X4}");
                 }
 
                 // Create a new source object instead of reusing the one from the request
@@ -601,16 +655,12 @@ public class DebugAdapterLogic
 
     private async Task HandleSetInstructionBreakpointsAsync(int seq, JsonObject? args)
     {
+        // VSCode sends the FULL set of instruction breakpoints on each call,
+        // so we clear and rebuild _instructionBreakpoints.
         LogSafe("[SetInstructionBreakpoints] Called");
         LogSafe($"[SetInstructionBreakpoints] args: {args?.ToJsonString()}");
 
-        // Don't clear all breakpoints - VSCode calls setBreakpoints and setInstructionBreakpoints separately
-        // For instruction breakpoints, we can clear and re-add since VSCode sends all instruction breakpoints at once
-        // But we need to preserve source breakpoints
-
-        // Remove only instruction breakpoints (we'll identify them by re-adding all from this request)
-        // For now, clear and re-add all - this is a known limitation
-        // A better solution would track source vs instruction breakpoints separately
+        _instructionBreakpoints.Clear();
         var breakpoints = new JsonArray();
 
         if (args?["breakpoints"] is JsonArray requestedBps)
@@ -627,8 +677,8 @@ public class DebugAdapterLogic
                     var baseAddress = ParseAddress(instructionReference);
                     var actualAddress = (ushort)(baseAddress + offset);
 
-                    _breakpoints.Add(actualAddress);
-                    LogSafe($"[SetInstructionBreakpoints] Added breakpoint at ${actualAddress:X4}");
+                    _instructionBreakpoints.Add(actualAddress);
+                    LogSafe($"[SetInstructionBreakpoints] Added instruction breakpoint at ${actualAddress:X4}");
 
                     breakpoints.Add(new JsonObject
                     {
