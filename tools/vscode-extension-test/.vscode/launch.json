@@ -4,7 +4,7 @@
     {
       "type": "dotnet6502",
       "request": "launch",
-      "name": "Launch Simple Emulator Host to Debug test-program.asm",
+      "name": "Launch Simple Emulator Host to Source Debug test-program.asm",
       "preLaunchTask": "Build test-program.asm (C64)",
       "stopOnEntry": true,
       "stopOnBRK": true,
@@ -13,7 +13,7 @@
     {
       "type": "dotnet6502",
       "request": "launch",
-      "name": "Launch Simple Emulator Host to Debug binary test-program.bin with .dbg load address",
+      "name": "Launch Simple Emulator Host to Source Debug test-program.asm (via .dbg info)",
       "program": "${workspaceFolder}/test-program.bin",
       "dbgFile": "${workspaceFolder}/test-program.dbg",
       "stopOnEntry": true,
@@ -23,7 +23,7 @@
     {
       "type": "dotnet6502",
       "request": "launch",
-      "name": "Launch Simple Emulator Host to Debug binary test-program.prg (C64) with built-in load address",
+      "name": "Launch Simple Emulator Host to Source Debug C64 test-program.asm (via .dbg info)",
       "program": "${workspaceFolder}/test-program.prg",
       "dbgFile": "${workspaceFolder}/test-program.dbg",
       "stopOnEntry": true,
@@ -33,7 +33,7 @@
     {
       "type": "dotnet6502",
       "request": "attach",
-      "name": "Attach to Full Emulator Host (TCP debug adapter)",
+      "name": "Attach to Full Emulator Host (TCP debug adapter) to Source Debug C64 test-program.prg (via .dbg info)",
       "debugServer": 4711,
       "program": "${workspaceFolder}/test-program.prg",
       "dbgFile": "${workspaceFolder}/test-program.dbg",
@@ -44,7 +44,7 @@
     {
       "type": "dotnet6502",
       "request": "launch",
-      "name": "Launch Full Emulator Host with C64 to Debug and start test-program.asm",
+      "name": "Launch Full Emulator Host with C64 to Source Debug test-program.asm",
       "preLaunchTask": "Build test-program.asm (C64)",
       "env": {
         "DOTNET6502_WAIT_FOR_DEBUGGER": "true"
@@ -65,7 +65,48 @@
       "loadProgram": true,
       "runProgram": false,
       "stopOnEntry": true,
-      "stopOnBRK": true,
+      "stopOnBRK": true
+    },
+
+    {
+      "type": "dotnet6502",
+      "request": "launch",
+      "name": "Launch Simple Emulator Host to Disassembly Debug C64 test-program.prg (without .asm source)",
+      "program": "${workspaceFolder}/test-program.prg",
+      "stopOnEntry": true,
+      "stopOnBRK": true
+      // Uses minimal debug adapter by default (debugAdapter: "minimal")
+    },
+    {
+      "type": "dotnet6502",
+      "request": "launch",
+      "name": "Launch Simple Host to Disassembly Debug smooth_scroller_and_raster.prg (without .asm source)",
+      "program": "${workspaceFolder}/../../samples/Assembler/C64/Raster/Build/smooth_scroller_and_raster.prg",
+      "stopOnEntry": true,
+      "stopOnBRK": true
+    },
+    {
+      "type": "dotnet6502",
+      "request": "launch",
+      "name": "Launch Full Emulator Host with C64 to Disassembly Debug smooth_scroller_and_raster.prg (without .asm source)",
+      // Uses emulator host app as debug adapter (full emulation support).
+      // Currently only Avalonia Desktop (Highbyte.DotNet6502.App.Avalonia.Desktop) is supported.
+      "debugAdapter": "emulator",
+
+      "program": "${workspaceFolder}/../../samples/Assembler/C64/Raster/Build/smooth_scroller_and_raster.prg",
+
+      // Emulator host configuration:
+      // "emulatorExecutable" defaults to "Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]" (assumes it's in system PATH).
+      // Override with a full path if not in PATH, e.g.:
+      //"emulatorExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.exe",
+      "debugPort": 4711,
+      "startupTimeout": 300,
+      "system": "C64",
+      "waitForSystemReady": true,
+      "loadProgram": true,
+      "runProgram": false,
+      "stopOnEntry": true,
+      "stopOnBRK": true
     }
   ]
 }
