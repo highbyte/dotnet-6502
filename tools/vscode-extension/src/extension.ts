@@ -343,9 +343,9 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
             let adapterPath: string | undefined;
             
             // Determine the correct executable name based on the OS
-            const executableName = process.platform === 'win32' 
-                ? 'Highbyte.DotNet6502.DebugAdapter.exe' 
-                : 'Highbyte.DotNet6502.DebugAdapter';
+            const executableName = process.platform === 'win32'
+                ? 'Highbyte.DotNet6502.DebugAdapter.ConsoleApp.exe'
+                : 'Highbyte.DotNet6502.DebugAdapter.ConsoleApp';
 
             // Try multiple possible locations
             const possiblePaths = [
@@ -370,7 +370,7 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
             }
             
             if (!adapterPath) {
-                const msg = 'Could not find the 6502 debug adapter executable. Please build: dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter';
+                const msg = 'Could not find the 6502 debug adapter executable. Please build: dotnet build src/apps/Highbyte.DotNet6502.DebugAdapter/Highbyte.DotNet6502.DebugAdapter.ConsoleApp.csproj';
                 console.error('[6502 Debug]', msg);
                 vscode.window.showErrorMessage(msg);
                 return undefined;
