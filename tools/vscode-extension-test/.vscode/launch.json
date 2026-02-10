@@ -107,6 +107,17 @@
       "runProgram": false,
       "stopOnEntry": true,
       "stopOnBRK": true
+    },
+    {
+      "type": "dotnet6502",
+      "request": "launch",
+      "name": "Debug C64 KERNAL Boot",
+      "debugAdapter": "emulator",
+      "system": "C64",
+      "debugPort": 4711,
+      "stopOnEntry": true,
+      "loadProgram": false,
+      "waitForSystemReady": false
     }
   ]
 }

@@ -155,6 +155,15 @@ internal static class AutomatedStartupHandler
                     logger.LogInformation("Starting system...");
                     await hostApp.Start();
 
+                    // If no PRG to load, signal the debug server immediately after start.
+                    // This allows the debugger to connect while the system is booting
+                    // (e.g., to debug the C64 KERNAL boot sequence).
+                    if (loadPrgPath == null)
+                    {
+                        logger.LogInformation("No PRG to load, signaling debug server early (boot debugging possible).");
+                        debugServerManager?.SignalAutomatedStartupComplete(hostApp);
+                    }
+
                     // Wait for system to be ready if requested
                     if (waitForSystemReady)
                     {
@@ -196,8 +205,6 @@ internal static class AutomatedStartupHandler
                         logger.LogInformation($"Loaded {prgBytes.Length - 2} bytes at 0x{loadAddress:X4}");
 
                         // Run the loaded program if requested
-                        // Note: If debugging (debugServerManager != null && !runLoadedProgram), 
-                        // PC was already set as pending before debugger connected (in Program.cs)
                         if (runLoadedProgram)
                         {
                             logger.LogInformation($"Setting PC to 0x{loadAddress:X4} to run loaded program");
@@ -209,18 +216,20 @@ internal static class AutomatedStartupHandler
                             logger.LogInformation($"Setting PC to 0x{loadAddress:X4} (system paused)");
                             hostApp.CurrentRunningSystem.CPU.PC = loadAddress;
                         }
-                        else
-                        {
-                            logger.LogInformation($"PC was already set to 0x{loadAddress:X4} when debugger connected");
-                        }
+
+                        // Signal debug server after PRG is loaded and ready.
+                        // This ensures the debugger doesn't pause the emulator before
+                        // the program bytes are in memory.
+                        debugServerManager?.SignalAutomatedStartupComplete(hostApp);
                     }
+                }
+                else
+                {
+                    // System not started, but signal debug server so it can accept connections
+                    debugServerManager?.SignalAutomatedStartupComplete(hostApp);
                 }
 
                 logger.LogInformation("Automated startup complete.");
-
-                // Signal the debug server manager that automated startup is complete
-                // so it can now set PC and stop at entry point
-                debugServerManager?.SignalAutomatedStartupComplete(hostApp);
             });
         }
         catch (Exception ex)

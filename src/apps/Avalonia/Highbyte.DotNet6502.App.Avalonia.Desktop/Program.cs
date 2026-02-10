@@ -232,8 +232,10 @@ internal sealed partial class Program
             //}
 
             // Start listening for connections
-            // If automated startup is requested (systemName != null), delay server startup until after
-            // system has started and PRG is loaded to prevent premature debugger connection
+            // If automated startup is requested (systemName != null), delay server startup until
+            // AutomatedStartupHandler signals completion. The signal timing depends on mode:
+            // - No PRG: signaled right after system starts (enables boot sequence debugging)
+            // - With PRG: signaled after PRG is loaded into memory
             bool waitForAutomatedStartup = systemName != null;
             _ = Task.Run(async () => await debugServerManager.StartAsync(debugPort, waitForAutomatedStartup));
 
