@@ -1424,8 +1424,9 @@ public class DebugAdapterLogic
     private async Task HandleTerminateAsync(int seq, JsonObject? args)
     {
         await _protocol.SendResponseAsync(seq, "terminate");
-        await Task.Delay(100);
-        OnExit?.Invoke();
+        // Send terminated event so VSCode knows to follow up with disconnect.
+        // Without this, VSCode waits and the user must press Stop a second time.
+        await _protocol.SendEventAsync("terminated");
     }
 
     private async Task HandleDisconnectAsync(int seq, JsonObject? args)
