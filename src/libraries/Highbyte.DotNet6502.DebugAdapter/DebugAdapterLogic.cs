@@ -28,7 +28,7 @@ public class DebugAdapterLogic
     private bool _stepOutMode = false; // Flag to indicate we're stepping out (waiting for RTS)
     private const int THREAD_ID = 1;
     private const int FRAME_ID = 0;
-    private CancellationTokenSource? _continueTokenSource;
+
     private bool _stopOnBRK = true;
     private bool _stopOnOutOfBounds = false; // Disabled by default - don't stop when PC goes outside source range
     private Ca65DbgParser? _dbgParser;
@@ -86,7 +86,6 @@ public class DebugAdapterLogic
     public void Reset()
     {
         IsStopped = false;
-        _continueTokenSource?.Cancel();
         LogSafe("[Reset] Debug adapter reset, emulator will resume");
     }
 
@@ -1298,70 +1297,6 @@ public class DebugAdapterLogic
             LogSafe($"[Continue] Resuming emulator execution at PC=${cpu.PC:X4}");
 
             IsStopped = false; // Resume emulator
-            if (_continueTokenSource != null)
-            {
-                await _continueTokenSource.CancelAsync();
-            }
-            _continueTokenSource = new CancellationTokenSource();
-
-            // TODO: Is continue event needed for emulator?
-            //OnContinue?.Invoke();
-
-            // TODO: Remove old code below. 
-            //_ = Task.Run(async () =>
-            //{
-            //    try
-            //    {
-            //        LogSafe($"[Continue] Starting execution loop, PC=${_cpu.PC:X4}");
-
-            //        // Execute one instruction first to move past current breakpoint
-            //        _cpu.ExecuteOneInstruction(_memory);
-            //        LogSafe($"[Continue] After first instruction, PC=${_cpu.PC:X4}");
-
-            //        while (!token.IsCancellationRequested)
-            //        {
-            //            if (_breakpoints.Contains(_cpu.PC))
-            //            {
-            //                LogSafe($"[Continue] Hit breakpoint at ${_cpu.PC:X4}");
-            //                IsStopped = true; // Pause emulator
-            //                await SendStoppedEventAsync("breakpoint");
-            //                return;
-            //            }
-
-            //            if (_stopOnBRK && _memory[_cpu.PC] == 0x00)
-            //            {
-            //                LogSafe($"[Continue] Hit BRK at ${_cpu.PC:X4}");
-            //                IsStopped = true; // Pause emulator
-            //                await SendStoppedEventAsync("pause", "BRK instruction");
-            //                return;
-            //            }
-
-            //            // Check if PC is out of bounds before execution
-            //            if (IsOutOfBounds(_cpu.PC))
-            //            {
-            //                LogSafe($"[Continue] Execution outside program bounds at ${_cpu.PC:X4}");
-            //                IsStopped = true; // Pause emulator
-            //                await SendOutputAsync($"⚠️  Warning: Execution outside program bounds at ${_cpu.PC:X4}\n");
-            //                await SendOutputAsync($"   Program range: ${_programStartAddress:X4} - ${_programEndAddress:X4}\n");
-            //                // preserveFocusHint=false to force disassembly view to show
-            //                await SendStoppedEventAsync("pause", "Execution outside program bounds", preserveFocusHint: false);
-            //                return;
-            //            }
-
-            //            _cpu.ExecuteOneInstruction(_memory);
-            //        }
-
-            //        LogSafe("[Continue] Execution paused by user");
-            //        IsStopped = true; // Pause emulator
-            //        await SendStoppedEventAsync("pause", "Paused by user");
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        LogSafe($"[Continue] Exception: {ex}");
-            //        IsStopped = true; // Pause emulator
-            //        await SendStoppedEventAsync("exception", ex.Message);
-            //    }
-            //}, token);
         }
 
         var body = new JsonObject
@@ -1475,12 +1410,6 @@ public class DebugAdapterLogic
         LogSafe("[HandlePause] Pause requested");
 
         IsStopped = true; // Pause the emulator's run loop
-
-        if (_continueTokenSource != null && !_continueTokenSource.IsCancellationRequested)
-        {
-            LogSafe("[HandlePause] Cancelling continue operation");
-            await _continueTokenSource.CancelAsync();
-        }
 
         await _protocol.SendResponseAsync(seq, "pause");
         await SendStoppedEventAsync("pause");
