@@ -163,6 +163,17 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
         config: vscode.DebugConfiguration,
         token?: vscode.CancellationToken
     ): Promise<vscode.DebugConfiguration | undefined> {
+        // Attach mode: connect to an already-running emulator via TCP
+        if (config.request === 'attach') {
+            const debugPort = config.debugPort || 4711;
+            console.log(`[6502 Debug] Attach mode: connecting to emulator on port ${debugPort}`);
+
+            config.__programAlreadyLoaded = true;
+            config.__emulatorDebugPort = debugPort;
+            config.__waitingForEmulator = true;
+            return config;
+        }
+
         // Set default debug adapter if not specified
         if (!config.debugAdapter) {
             config.debugAdapter = 'minimal';
@@ -359,11 +370,9 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
     ): Promise<vscode.DebugAdapterDescriptor | undefined> {
         
         console.log('[6502 Debug] createDebugAdapterDescriptor called for session:', session.name);
-        console.log('[6502 Debug] Session configuration:', JSON.stringify(session.configuration, null, 2));
         console.log('[6502 Debug] __waitingForEmulator:', session.configuration.__waitingForEmulator);
-        console.log('[6502 Debug] debugServer:', session.configuration.debugServer);
 
-        // If waiting for emulator host to start, wait for TCP server to be listening
+        // Emulator mode: wait for the emulator's TCP debug server, then connect
         if (session.configuration.__waitingForEmulator) {
             const port = session.configuration.__emulatorDebugPort;
             const timeoutSeconds = session.configuration.startupTimeout || 120;
@@ -379,15 +388,8 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
             console.log(`[6502 Debug] Emulator host TCP server is ready on port ${port}`);
             return this.createTcpDebugAdapter(port);
         }
-        
-        // Check if this is a TCP connection (attach mode or launch with debugServer)
-        const debugServerPort = session.configuration.debugServer;
-        if (debugServerPort) {
-            console.log(`[6502 Debug] Using TCP connection to port ${debugServerPort}`);
-            return this.createTcpDebugAdapter(debugServerPort);
-        }
-        
-        // Otherwise, launch the minimal debug adapter as a child process (STDIO)
+
+        // Minimal mode: launch the debug adapter as a child process (STDIO)
         const executablePath = session.configuration.emulatorExecutable;
         console.log(`[6502 Debug] Launching minimal debug adapter executable: ${executablePath}`);
         return this.createExecutableDebugAdapter(executablePath);
