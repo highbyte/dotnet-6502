@@ -92,12 +92,12 @@
             "properties": {
               "program": {
                 "type": "string",
-                "description": "Path to the .prg file to debug (optional if buildSourceFile is specified, will use <basename>.prg)",
+                "description": "Path to the .prg file to debug (optional if preLaunchTask is specified, will auto-detect from task output)",
                 "default": "${workspaceFolder}/program.prg"
               },
               "dbgFile": {
                 "type": "string",
-                "description": "Path to ca65 .dbg file for source-level debugging (optional, will use <basename>.dbg if buildEnabled)",
+                "description": "Path to ca65 .dbg file for source-level debugging (optional, auto-detected from program path)",
                 "default": null
               },
               "loadAddress": {
@@ -115,63 +115,65 @@
                 "description": "Automatically stop when BRK instruction is encountered",
                 "default": true
               },
-              "debugServer": {
-                "type": "number",
-                "description": "TCP port number to connect to an existing debug adapter server (e.g., running emulator host app with --debug-port)",
-                "default": null
+              "debugAdapter": {
+                "type": "string",
+                "enum": ["minimal", "emulator"],
+                "description": "Debug adapter mode: 'minimal' launches a standalone 6502 debug adapter (STDIO), 'emulator' launches a full emulator host app (TCP)",
+                "default": "minimal"
               },
               "emulatorExecutable": {
                 "type": "string",
-                "description": "Path or name of the executable to use for debugging. Default depends on debugAdapter mode: for 'minimal', defaults to 'Highbyte.DotNet6502.DebugAdapter.ConsoleApp[.exe]'; for 'emulator', defaults to 'Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]' (currently the only supported emulator host). Resolved by checking the system PATH first, then repo-relative build output paths. Can also be set to a full path.",
-                "default": null
-              },
-              "system": {
-                "type": "string",
-                "description": "System to start in emulator host (e.g., 'C64')",
-                "default": "C64"
-              },
-              "systemVariant": {
-                "type": "string",
-                "description": "System variant to use (optional, uses first variant if not specified)",
+                "description": "Path or name of the executable. Default depends on debugAdapter mode: 'minimal' uses Highbyte.DotNet6502.DebugAdapter.ConsoleApp, 'emulator' uses Highbyte.DotNet6502.App.Avalonia.Desktop. Resolved via system PATH, then repo-relative build output paths.",
                 "default": null
               },
               "debugPort": {
                 "type": "number",
-                "description": "TCP port for debug adapter server (used when debugAdapter is 'emulator')",
+                "description": "TCP port for debug adapter communication (emulator mode only)",
                 "default": 4711
+              },
+              "system": {
+                "type": "string",
+                "description": "System to start in emulator host (emulator mode only)",
+                "default": "C64"
+              },
+              "systemVariant": {
+                "type": "string",
+                "description": "System variant to use (emulator mode only, uses first variant if not specified)",
+                "default": null
               },
               "startupTimeout": {
                 "type": "number",
-                "description": "Timeout in seconds to wait for emulator host TCP server to start (default 120, increase if using DOTNET6502_WAIT_FOR_DEBUGGER)",
+                "description": "Timeout in seconds to wait for emulator host TCP server to start (emulator mode only)",
                 "default": 120
               },
               "waitForSystemReady": {
                 "type": "boolean",
-                "description": "Wait for system to be ready before connecting debugger",
+                "description": "Wait for system to be ready before connecting debugger (emulator mode only)",
                 "default": true
               },
               "loadProgram": {
                 "type": "boolean",
-                "description": "Automatically load the program file into memory",
+                "description": "Automatically load the program file into emulator memory (emulator mode only)",
                 "default": true
               },
               "runProgram": {
                 "type": "boolean",
-                "description": "Automatically run the loaded program (sets PC to load address)",
+                "description": "Automatically run the loaded program by setting PC to load address (emulator mode only)",
                 "default": false
               }
             }
           },
           "attach": {
-            "required": ["debugServer"],
+            "required": [],
             "properties": {
-              "debugServer": {
+              "debugPort": {
                 "type": "number",
-                "description": "TCP port number to connect to the emulator host debug adapter server"
+                "description": "TCP port to connect to the emulator host debug adapter server",
+                "default": 4711
               },
               "program": {
                 "type": "string",
-                "description": "Path to the .prg file being debugged",
+                "description": "Path to the .prg file being debugged (for debug symbols and program bounds)",
                 "default": "${workspaceFolder}/program.prg"
               },
               "dbgFile": {
@@ -182,6 +184,11 @@
               "stopOnEntry": {
                 "type": "boolean",
                 "description": "Automatically stop after attaching",
+                "default": true
+              },
+              "stopOnBRK": {
+                "type": "boolean",
+                "description": "Automatically stop when BRK instruction is encountered",
                 "default": true
               }
             }
@@ -199,15 +206,15 @@
             "type": "dotnet6502",
             "request": "attach",
             "name": "Attach to Emulator Host (dotnet-6502)",
-            "debugServer": 4711,
+            "debugPort": 4711,
             "program": "${workspaceFolder}/program.prg",
             "stopOnEntry": true
           }
         ],
         "configurationSnippets": [
           {
-            "label": "dotnet-6502: Launch",
-            "description": "A new configuration for debugging a 6502 program with dotnet-6502",
+            "label": "dotnet-6502: Launch (minimal)",
+            "description": "Debug a 6502 program with the standalone minimal debug adapter",
             "body": {
               "type": "dotnet6502",
               "request": "launch",
@@ -217,19 +224,7 @@
             }
           },
           {
-            "label": "dotnet-6502: Attach",
-            "description": "Attach to a running emulator host app with debug adapter enabled",
-            "body": {
-              "type": "dotnet6502",
-              "request": "attach",
-              "name": "Attach to Emulator Host (dotnet-6502)",
-              "debugServer": 4711,
-              "program": "^\"\\${workspaceFolder}/program.prg\"",
-              "stopOnEntry": true
-            }
-          },
-          {
-            "label": "dotnet-6502: Launch Emulator",
+            "label": "dotnet-6502: Launch (emulator)",
             "description": "Launch emulator host app and attach debugger. Currently only Avalonia Desktop is supported.",
             "body": {
               "type": "dotnet6502",
@@ -243,6 +238,18 @@
               "waitForSystemReady": true,
               "loadProgram": true,
               "runProgram": false
+            }
+          },
+          {
+            "label": "dotnet-6502: Attach",
+            "description": "Attach to a running emulator host app with debug adapter enabled",
+            "body": {
+              "type": "dotnet6502",
+              "request": "attach",
+              "name": "Attach to Emulator Host (dotnet-6502)",
+              "debugPort": 4711,
+              "program": "^\"\\${workspaceFolder}/program.prg\"",
+              "stopOnEntry": true
             }
           }
         ]

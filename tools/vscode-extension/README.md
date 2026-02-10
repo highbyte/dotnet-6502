@@ -31,7 +31,7 @@ The generated files look like this:
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Build test-program.asm (C64)",
+      "label": "Build test-program.asm (to .prg format)",
       "type": "shell",
       "command": "cl65",
       "args": ["-g", "test-program.asm", "-o", "test-program.prg", 
@@ -52,7 +52,7 @@ The generated files look like this:
       "type": "dotnet6502",
       "request": "launch",
       "name": "Debug test-program.asm",
-      "preLaunchTask": "Build test-program.asm (C64)",
+      "preLaunchTask": "Build test-program.asm",
       "stopOnEntry": true
     }
   ]
@@ -138,14 +138,106 @@ For debugging pre-built .prg files without source:
 
 ## Configuration
 
+There are three ways to use the debugger, each with different launch.json configurations:
+
+| Mode | `request` | `debugAdapter` | Description |
+|------|-----------|----------------|-------------|
+| **Launch (minimal)** | `launch` | `minimal` (default) | Launches a standalone 6502 debug adapter. No system emulation — just CPU, memory, and your program. Communicates via STDIO. |
+| **Launch (emulator)** | `launch` | `emulator` | Launches an emulator host app (e.g., Avalonia Desktop with C64 emulation), loads your program, and connects the debugger via TCP. |
+| **Attach** | `attach` | — | Connects to an already-running emulator host app via TCP. You start the emulator manually with `--enableExternalDebug`. |
+
 ### Launch Configuration Parameters
 
-- `program`: Path to the .prg or .bin file to debug (optional when using preLaunchTask - will auto-detect)
-- `dbgFile`: Path to ca65 .dbg file for source-level debugging (optional - will auto-detect if using preLaunchTask)
-- `loadAddress`: Override the load address (optional, normally read from .prg file or .dbg file)
-- `stopOnEntry`: Automatically stop after launch (default: true)
-- `stopOnBRK`: Automatically stop when BRK instruction is encountered (default: true)
-- `preLaunchTask`: Task to run before launching (e.g., `"Build test-program.asm (C64)"`)
+| Parameter | Type | Default | Launch (minimal) | Launch (emulator) | Attach | Description |
+|-----------|------|---------|:-:|:-:|:-:|-------------|
+| `program` | string | — | Yes | Yes | Yes | Path to .prg file. Optional with `preLaunchTask` (auto-detected from task output). |
+| `dbgFile` | string | — | Yes | Yes | Yes | Path to ca65 .dbg file for source-level debugging. Auto-detected from program path. |
+| `loadAddress` | number | — | Yes | — | — | Override load address (normally read from .prg file header). |
+| `stopOnEntry` | boolean | `true` | Yes | Yes | Yes | Stop at program entry point after launch/attach. |
+| `stopOnBRK` | boolean | `true` | Yes | Yes | Yes | Stop when BRK instruction ($00) is encountered. |
+| `preLaunchTask` | string | — | Yes | Yes | — | VSCode task to run before launching (e.g., build task). |
+| `debugAdapter` | string | `"minimal"` | Yes | Yes | — | `"minimal"` for standalone adapter, `"emulator"` to launch emulator host app. |
+| `emulatorExecutable` | string | *(auto)* | Yes | Yes | — | Executable path or name. Defaults to `Highbyte.DotNet6502.DebugAdapter.ConsoleApp` (minimal) or `Highbyte.DotNet6502.App.Avalonia.Desktop` (emulator). Resolved via PATH, then repo build output. |
+| `debugPort` | number | `4711` | — | Yes | Yes | TCP port for debug adapter communication. |
+| `system` | string | `"C64"` | — | Yes | — | System to start in emulator host (e.g., `"C64"`, `"Generic"`). |
+| `systemVariant` | string | — | — | Yes | — | System variant (uses first variant if not specified). |
+| `startupTimeout` | number | `120` | — | Yes | — | Seconds to wait for emulator host TCP server to start. |
+| `waitForSystemReady` | boolean | `true` | — | Yes | — | Wait for system to be fully ready (e.g., C64 BASIC prompt) before connecting. |
+| `loadProgram` | boolean | `true` | — | Yes | — | Load the program file into emulator memory. |
+| `runProgram` | boolean | `false` | — | Yes | — | Set PC to load address to run program immediately. |
+
+### Example Configurations
+
+**Minimal (standalone debug adapter):**
+```json
+{
+  "type": "dotnet6502",
+  "request": "launch",
+  "name": "Debug 6502 Program",
+  "program": "${workspaceFolder}/program.prg",
+  "stopOnEntry": true
+}
+```
+
+**Minimal with build task (source-level debugging):**
+```json
+{
+  "type": "dotnet6502",
+  "request": "launch",
+  "name": "Debug test-program.asm",
+  "preLaunchTask": "Build test-program.asm",
+  "stopOnEntry": true
+}
+```
+
+**Emulator (launch Avalonia Desktop with C64) with .asm source level debugging:**
+```json
+{
+  "type": "dotnet6502",
+  "request": "launch",
+  "name": "Launch C64 Emulator",
+  "debugAdapter": "emulator",
+  "system": "C64",
+  "debugPort": 4711,
+  "stopOnEntry": true,
+  "loadProgram": true,
+  "runProgram": true
+}
+```
+
+**Emulator (launch Avalonia Desktop with C64) with .prg binary:**
+```json
+{
+  "type": "dotnet6502",
+  "request": "launch",
+  "name": "Launch C64 Emulator",
+  "preLaunchTask": "Build test-program.asm",
+  "debugAdapter": "emulator",
+  "program": "${workspaceFolder}/program.prg",
+  "system": "C64",
+  "debugPort": 4711,
+  "stopOnEntry": true,
+  "loadProgram": true,
+  "runProgram": false
+}
+```
+
+**Attach (connect to already-running emulator):**
+```json
+{
+  "type": "dotnet6502",
+  "request": "attach",
+  "name": "Attach to Emulator",
+  "debugPort": 4711,
+  "program": "${workspaceFolder}/program.prg",
+  "stopOnEntry": true
+}
+```
+
+For attach mode, start the emulator manually first:
+```bash
+Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 4711 --system C64 --start
+```
 
 ### Building Your Code
 
@@ -155,18 +247,6 @@ Generate a build task for your .asm file:
 2. Select **"Generate C64 Build Task (ca65)"**
 3. Enter the start/load address (e.g., `0xc000`)
 4. Optionally create a launch configuration
-
-Example launch configuration:
-
-```json
-{
-  "type": "dotnet6502",
-  "request": "launch",
-  "name": "Debug test-program.asm",
-  "preLaunchTask": "Build test-program.asm (C64)",
-  "stopOnEntry": true
-}
-```
 
 For more details, see [GENERATE_BUILD_TASK.md](GENERATE_BUILD_TASK.md).
 
@@ -303,49 +383,22 @@ dump $d000 $d3ff        # VIC-II registers on C64
 - Variable inspection limited to registers and memory addresses
 - Disassembly view does not open automatically (must be opened manually via right-click on Call Stack)
 
-## Advanced: Launch Emulator Host App Automatically
+## How Emulator Mode Works
 
-The VSCode extension can launch an emulator host app automatically with a system already started and your program loaded.
+> **Note:** Currently only the Avalonia Desktop app (`Highbyte.DotNet6502.App.Avalonia.Desktop`) is supported as an emulator host.
 
-> **Note:** Currently only the Avalonia Desktop app (`Highbyte.DotNet6502.App.Avalonia.Desktop`) is supported as an emulator host. Support for SadConsole and SilkNetNative may be added in the future.
+When using `"debugAdapter": "emulator"` (launch) or `"request": "attach"`:
 
-**Configuration Example:**
-```json
-{
-  "type": "dotnet6502",
-  "request": "launch",
-  "name": "Launch Emulator Host (dotnet-6502)",
-  "program": "${workspaceFolder}/program.prg",
-  "stopOnEntry": true,
-  "debugAdapter": "emulator",
-  "system": "C64",
-  "debugPort": 4711,
-  "waitForSystemReady": true,
-  "loadProgram": true,
-  "runProgram": false
-}
-```
-
-**Configuration Properties:**
-- `debugAdapter` (string): Set to `"emulator"` to launch an emulator host app, or `"minimal"` for a simple 6502-only debug adapter without full system emulation (default: `"minimal"`)
-- `emulatorExecutable` (string): Path or name of the executable. Default depends on `debugAdapter` mode: for `"minimal"`, defaults to `Highbyte.DotNet6502.DebugAdapter.ConsoleApp[.exe]`; for `"emulator"`, defaults to `Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]` (currently the only supported emulator host). Resolved by checking the system PATH first, then repo-relative build output paths (Debug/Release). Can also be set to a full path.
-- `system` (string): System to start (e.g., "C64", "Generic")
-- `systemVariant` (string, optional): System variant to use (uses first variant if not specified)
-- `debugPort` (number): TCP port for debug adapter (default: 4711)
-- `waitForSystemReady` (boolean): Wait for system to be ready before connecting (default: true, ~3 seconds for C64)
-- `loadProgram` (boolean): Automatically load the program file into memory (default: true)
-- `runProgram` (boolean): Automatically run the loaded program by setting PC (default: false)
-- `startupTimeout` (number): Timeout in seconds to wait for emulator host to start (default: 120)
-
-**How it works:**
-1. VSCode launches the emulator host with: `--enableExternalDebug --debug-port 4711 --system C64 --start --waitForSystemReady --loadPrg <path>`
-2. The emulator host starts the specified system (e.g., C64)
-3. Waits for the system to be ready (Basic prompt appears)
+1. The emulator host starts with: `--enableExternalDebug --debug-port 4711 --system C64 --start --waitForSystemReady --loadPrg <path>`
+2. The emulator starts the specified system (e.g., C64)
+3. Waits for the system to be ready (BASIC prompt appears)
 4. Loads the PRG file into memory at the address specified in the file
 5. Optionally runs the program by setting the CPU PC to the load address
-6. VSCode connects the debugger to the TCP port
+6. VSCode connects the debugger via TCP
 
-**Note:** Set `runProgram: true` if you want the program to start automatically. Otherwise, the program is loaded but you'll need to manually start it (e.g., `SYS 49152` in C64 Basic, or step through with the debugger).
+In **launch (emulator)** mode, steps 1-5 are handled automatically by the extension. In **attach** mode, you start the emulator manually and the extension only does step 6.
+
+**Note:** Set `runProgram: true` if you want the program to start automatically. Otherwise, the program is loaded but you'll need to manually start it (e.g., `SYS 49152` in C64 BASIC, or step through with the debugger).
 
 ## Advanced: Debugging the C# Code
 
