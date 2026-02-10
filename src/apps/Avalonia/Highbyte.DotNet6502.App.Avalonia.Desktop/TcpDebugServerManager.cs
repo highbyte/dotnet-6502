@@ -132,7 +132,12 @@ internal sealed class TcpDebugServerManager : IDisposable
         }
 
         var protocol = new DapProtocol(e.Transport, _debugLogWriter);
-        var adapter = new DebugAdapterLogic(protocol, _debugLogWriter, _hostApp.CurrentRunningSystem);
+        // Start with IsStopped=true if host is waiting for debugger (boot sequence debugging).
+        // This ensures no gap between SetExternalDebugAdapter clearing WaitForExternalDebugger
+        // and HandleLaunchAsync setting IsStopped — the adapter is already paused.
+        var hostApp = Core.App.Current?.HostApp;
+        bool initiallyPaused = hostApp?.WaitForExternalDebugger == true;
+        var adapter = new DebugAdapterLogic(protocol, _debugLogWriter, _hostApp.CurrentRunningSystem, initiallyPaused);
 
         // Only set up the external debug adapter when a real DAP session starts (initialize message received).
         // This avoids setting it up for probe connections (e.g., VSCode's TCP readiness check)

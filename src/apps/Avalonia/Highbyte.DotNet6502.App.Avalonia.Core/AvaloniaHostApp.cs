@@ -61,6 +61,13 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
     private AvaloniaMonitor? _monitor;
     internal AvaloniaMonitor? Monitor => _monitor;
 
+    /// <summary>
+    /// When true, the emulator will not execute any instructions until an external debugger connects.
+    /// Set before system start when debugging from the very first instruction is desired.
+    /// Cleared automatically when the debugger attaches.
+    /// </summary>
+    public bool WaitForExternalDebugger { get; set; }
+
     private bool _isExternalDebuggerAttached;
     /// <summary>
     /// Flag to indicate if an external debugger (e.g., VSCode) is attached.
@@ -84,6 +91,7 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
         _originalBreakpointEvaluator = CurrentSystemRunner?.CustomExecEvaluator;
         CurrentSystemRunner?.SetCustomExecEvaluator(debugAdapter.GetBreakpointEvaluator());
         _debugAdapter = debugAdapter;
+        WaitForExternalDebugger = false; // Debugger has taken over, clear the wait flag
         IsExternalDebuggerAttached = true;
     }
     public void ClearExternalDebugAdapter()
@@ -551,6 +559,14 @@ public class AvaloniaHostApp : HostApp<AvaloniaInputHandlerContext, NAudioAudioH
 
         // If using built-in monitor, don't update emulator state when monitor is visible. This allows stepping through code and inspecting state in the monitor without the state changing under you.
         if (_monitor?.IsVisible == true)
+        {
+            shouldRun = false;
+            shouldReceiveInput = false;
+            return;
+        }
+
+        // Block execution until external debugger connects (for boot sequence debugging)
+        if (WaitForExternalDebugger)
         {
             shouldRun = false;
             shouldReceiveInput = false;

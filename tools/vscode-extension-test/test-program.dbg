@@ -24,7 +24,7 @@ line	id=17,file=1,line=11
 line	id=18,file=1,line=0
 line	id=19,file=1,line=16
 line	id=20,file=1,line=15,span=15
-mod	id=0,name="test-program.asm.48408.0.o",file=0
+mod	id=0,name="test-program.asm.38072.0.o",file=0
 mod	id=1,name="loadaddr.o",file=1,lib=0
 seg	id=0,name="CODE",start=0x00C000,size=0x001C,addrsize=absolute,type=rw,oname="test-program.prg",ooffs=2
 seg	id=1,name="RODATA",start=0x00C01C,size=0x0000,addrsize=absolute,type=ro,oname="test-program.prg",ooffs=30

@@ -45,11 +45,12 @@ public class DebugAdapterLogic
     public event Action? OnExit;
     public event Action? OnInitialized;
 
-    public DebugAdapterLogic(DapProtocol protocol, StreamWriter log, ISystem system)
+    public DebugAdapterLogic(DapProtocol protocol, StreamWriter log, ISystem system, bool initiallyPaused = false)
     {
         _protocol = protocol;
         _log = log;
         _system = system;
+        IsStopped = initiallyPaused;
     }
 
     /// <summary>

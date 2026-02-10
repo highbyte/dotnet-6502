@@ -152,15 +152,23 @@ internal static class AutomatedStartupHandler
                 // Start the system if requested
                 if (autoStart)
                 {
+                    // If external debugger is enabled and no PRG to load, block execution
+                    // until the debugger connects. This allows debugging from the very
+                    // first CPU instruction (e.g., C64 KERNAL boot sequence).
+                    if (debugServerManager != null && loadPrgPath == null)
+                    {
+                        hostApp.WaitForExternalDebugger = true;
+                        logger.LogInformation("WaitForExternalDebugger set: CPU will not execute until debugger connects.");
+                    }
+
                     logger.LogInformation("Starting system...");
                     await hostApp.Start();
 
                     // If no PRG to load, signal the debug server immediately after start.
-                    // This allows the debugger to connect while the system is booting
-                    // (e.g., to debug the C64 KERNAL boot sequence).
+                    // The system exists but WaitForExternalDebugger prevents execution.
                     if (loadPrgPath == null)
                     {
-                        logger.LogInformation("No PRG to load, signaling debug server early (boot debugging possible).");
+                        logger.LogInformation("No PRG to load, signaling debug server (system created, waiting for debugger).");
                         debugServerManager?.SignalAutomatedStartupComplete(hostApp);
                     }
 
