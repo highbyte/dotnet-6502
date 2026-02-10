@@ -43,6 +43,7 @@ public class DebugAdapterLogic
     public bool IsStopped { get; private set; } = false;
 
     public event Action? OnExit;
+    public event Action? OnInitialized;
 
     public DebugAdapterLogic(DapProtocol protocol, StreamWriter log, ISystem system)
     {
@@ -86,6 +87,10 @@ public class DebugAdapterLogic
     public void Reset()
     {
         IsStopped = false;
+        _sourceBreakpoints.Clear();
+        _instructionBreakpoints.Clear();
+        _temporaryBreakpoint = null;
+        _stepOutMode = false;
         LogSafe("[Reset] Debug adapter reset, emulator will resume");
     }
 
@@ -254,6 +259,7 @@ public class DebugAdapterLogic
         };
 
         await _protocol.SendResponseAsync(seq, "initialize", body);
+        OnInitialized?.Invoke();
     }
 
     private async Task HandleLaunchAsync(int seq, JsonObject? args)

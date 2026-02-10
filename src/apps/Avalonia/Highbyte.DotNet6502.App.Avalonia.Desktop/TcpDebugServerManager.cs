@@ -129,40 +129,25 @@ internal sealed class TcpDebugServerManager : IDisposable
         {
             _activeConnectionCount++;
             _debugLogWriter.WriteLine($"Debug client connected at {DateTime.Now} (total active connections: {_activeConnectionCount})");
-
-            //if (_activeConnectionCount > 1)
-            //{
-            //    _debugLogWriter.WriteLine("WARNING: Multiple debug clients connected - ignoring all after the first.");
-            //    return;
-            //}
-            if (_activeConnectionCount == 1)
-            {
-                _debugLogWriter.WriteLine("WARNING: Testing ignoring first connection, because somehow two TCP connections are initiated by VSCode?");
-                return;
-            }
-
         }
 
         var protocol = new DapProtocol(e.Transport, _debugLogWriter);
         var adapter = new DebugAdapterLogic(protocol, _debugLogWriter, _hostApp.CurrentRunningSystem);
 
-        // Set flag to disable built-in monitor when external debugger connects
-        // Must be dispatched to UI thread for ReactiveUI to pick up the change
-        Dispatcher.UIThread.Post(() =>
+        // Only set up the external debug adapter when a real DAP session starts (initialize message received).
+        // This avoids setting it up for probe connections (e.g., VSCode's TCP readiness check)
+        // that connect and immediately disconnect without sending any DAP messages.
+        adapter.OnInitialized += () =>
         {
-            // TODO: _hostApp (IHostApp) field is already available in this class with no dependency to Avalonia.
-            //       Try to remove dependency to AvaloniaHostApp here, move SetDebugAdapter and related logic to the IHostApp interface?
-            if (Core.App.Current?.HostApp != null)
+            Dispatcher.UIThread.Post(() =>
             {
-                Core.App.Current.HostApp.SetExternalDebugAdapter(adapter);
-                _debugLogWriter.WriteLine("Debug adapter is set in the host app on the UI thread");
-            }
-        });
-
-
-
-        // Attach to emulator when it's running
-        //_ = Task.Run(async () => await AttachToEmulatorAsync(adapter));
+                if (Core.App.Current?.HostApp != null)
+                {
+                    Core.App.Current.HostApp.SetExternalDebugAdapter(adapter);
+                    _debugLogWriter.WriteLine("Debug adapter set in host app (DAP initialize received)");
+                }
+            });
+        };
 
         // Start message loop for this client
         _ = Task.Run(async () => await ProcessMessagesAsync(protocol, adapter));
@@ -340,26 +325,12 @@ internal sealed class TcpDebugServerManager : IDisposable
         if (clientDisconnected)
         {
             // All HostApp interactions must be done on UI thread
-            _ = Dispatcher.UIThread.InvokeAsync(async () =>
+            Dispatcher.UIThread.Post(() =>
             {
                 if (Core.App.Current?.HostApp != null)
                 {
-                    //// TODO: Refator to not have dependency on Avalonia here. Move ClearDebugAdapter method and related code to IHostApp?
-                    //// Remove breakpoint evaluator to prevent exceptions when program runs again
-                    //Core.App.Current.HostApp.CurrentSystemRunner?.SetCustomExecEvaluator(_originalBreakpointEvaluator);
-                    //// TODO: Why SetDebugAdapter(null!) and ClearDebugAdapter() below? Arent they for the same purpose?
-                    //Core.App.Current.HostApp.SetDebugAdapter(null!);
-
                     Core.App.Current.HostApp.ClearExternalDebugAdapter();
-                    _debugLogWriter.WriteLine("IsExternalDebuggerAttached set to false on UI thread (all connections closed)");
-
-                    //if (Core.App.Current.HostApp.EmulatorState == EmulatorState.Paused)
-                    //{
-                    //    _debugLogWriter.WriteLine("Resuming emulator after debugger disconnect");
-                    //    await Core.App.Current.HostApp.Start();
-                    //}
-
-                    _debugLogWriter.WriteLine("Emulator state reset, breakpoint evaluator removed, resuming normal execution");
+                    _debugLogWriter.WriteLine("External debug adapter cleared on UI thread (all connections closed)");
                 }
             });
             _debugClientConnected = false;
