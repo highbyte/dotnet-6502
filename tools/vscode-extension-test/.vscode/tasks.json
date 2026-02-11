@@ -60,7 +60,32 @@
     {
       "label": "Build smooth_scroller_and_raster2.asm (C64)",
       "type": "shell",
-      "command": "cl65 -g ${workspaceFolder}/../../samples/Assembler/C64/Raster/smooth_scroller_and_raster2.asm -o smooth_scroller_and_raster2.prg -C c64-asm.cfg --start-addr 0xc000 -Wl '-Ln,smooth_scroller_and_raster2.lbl' -Wl '--dbgfile,smooth_scroller_and_raster2.dbg' -Wl '-m,smooth_scroller_and_raster2.map' && mv ${workspaceFolder}/../../samples/Assembler/C64/Raster/smooth_scroller_and_raster2.o .",
+      "command": "cl65",
+      "args": [
+        "-g",
+        "${workspaceFolder}/../../samples/Assembler/C64/Raster/smooth_scroller_and_raster2.asm",
+        "-o",
+        "smooth_scroller_and_raster2.prg",
+        "-C",
+        "c64-asm.cfg",
+        "--start-addr",
+        "0xc000",
+        "-Wl",
+        {
+          "value": "-Ln,smooth_scroller_and_raster2.lbl",
+          "quoting": "strong"
+        },
+        "-Wl",
+        {
+          "value": "--dbgfile,smooth_scroller_and_raster2.dbg",
+          "quoting": "strong"
+        },
+        "-Wl",
+        {
+          "value": "-m,smooth_scroller_and_raster2.map",
+          "quoting": "strong"
+        }
+      ],
       "options": {
         "cwd": "${workspaceFolder}"
       },
