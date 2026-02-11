@@ -502,13 +502,25 @@ async function generateBuildTask(uri: vscode.Uri): Promise<void> {
         return; // User cancelled
     }
 
-    // Create the task definition using separate ca65 + ld65 commands
-    // This gives explicit control over intermediate .o file placement (unlike cl65 which puts it next to the source)
+    // Create the task definition
     const taskLabel = `Build ${fileBasename}.asm (C64)`;
     const newTask = {
         label: taskLabel,
         type: 'shell',
-        command: `ca65 -g ${fileName} -o ${fileBasename}.o && ld65 ${fileBasename}.o -o ${fileBasename}.prg -C c64-asm.cfg --start-addr ${startAddress} -Ln ${fileBasename}.lbl --dbgfile ${fileBasename}.dbg -m ${fileBasename}.map`,
+        command: 'cl65',
+        args: [
+            '-g',
+            fileName,
+            '-o',
+            `${fileBasename}.prg`,
+            '-C',
+            'c64-asm.cfg',
+            '--start-addr',
+            startAddress,
+            '-Wl', `-Ln,${fileBasename}.lbl`,
+            '-Wl', `--dbgfile,${fileBasename}.dbg`,
+            '-Wl', `-m,${fileBasename}.map`
+        ],
         options: {
             cwd: path.dirname(uri.fsPath)
         },
