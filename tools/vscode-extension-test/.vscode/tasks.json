@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Build test-program.asm (C64)",
+      "label": "Build test-program.asm",
       "type": "shell",
       "command": "cl65",
       "args": [
@@ -54,6 +54,44 @@
       "presentation": {
         "reveal": "silent",
         "panel": "shared"
+      }
+    },
+    {
+      "label": "Build smooth_scroller_and_raster2.asm (C64)",
+      "type": "shell",
+      "command": "cl65",
+      "args": [
+        "-g",
+        "${workspaceFolder}/../../samples/Assembler/C64/Raster/smooth_scroller_and_raster2.asm",
+        "-o",
+        "smooth_scroller_and_raster2.prg",
+        "-C",
+        "c64-asm.cfg",
+        "--start-addr",
+        "0xc000",
+        "-Wl",
+        {
+          "value": "-Ln,smooth_scroller_and_raster2.lbl",
+          "quoting": "strong"
+        },
+        "-Wl",
+        {
+          "value": "--dbgfile,smooth_scroller_and_raster2.dbg",
+          "quoting": "strong"
+        },
+        "-Wl",
+        {
+          "value": "-m,smooth_scroller_and_raster2.map",
+          "quoting": "strong"
+        }
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$ca65",
+      "group": {
+        "kind": "build",
+        "isDefault": false
       }
     }
   ]

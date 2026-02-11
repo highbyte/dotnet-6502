@@ -5,7 +5,7 @@
       "type": "dotnet6502",
       "request": "launch",
       "name": "Launch Simple Emulator Host to Source Debug test-program.asm",
-      "preLaunchTask": "Build test-program.asm (C64)",
+      "preLaunchTask": "Build test-program.asm",
       "stopOnEntry": true,
       "stopOnBRK": true,
       // Uses minimal debug adapter by default (debugAdapter: "minimal")
@@ -23,7 +23,7 @@
     {
       "type": "dotnet6502",
       "request": "launch",
-      "name": "Launch Simple Emulator Host to Source Debug C64 test-program.asm (via .dbg info)",
+      "name": "Launch Simple Emulator Host to Source Debug test-program.asm (via .dbg info)",
       "program": "${workspaceFolder}/test-program.prg",
       "dbgFile": "${workspaceFolder}/test-program.dbg",
       "stopOnEntry": true,
@@ -33,7 +33,7 @@
     {
       "type": "dotnet6502",
       "request": "attach",
-      "name": "Attach to Full Emulator Host (TCP debug adapter) to Source Debug C64 test-program.prg (via .dbg info)",
+      "name": "Attach to Full Emulator Host (TCP debug adapter) to Source Debug test-program.prg (via .dbg info)",
       "debugPort": 4711,
       "program": "${workspaceFolder}/test-program.prg",
       "dbgFile": "${workspaceFolder}/test-program.dbg",
@@ -44,8 +44,8 @@
     {
       "type": "dotnet6502",
       "request": "launch",
-      "name": "Launch Full Emulator Host with C64 to Source Debug test-program.asm",
-      "preLaunchTask": "Build test-program.asm (C64)",
+      "name": "Launch Full Emulator Host with C64 to Source Debug smooth_scroller_and_raster2.asm",
+      "preLaunchTask": "Build smooth_scroller_and_raster2.asm (C64)",
       // "env": {
       //   "DOTNET6502_WAIT_FOR_DEBUGGER": "true"
       // },
@@ -64,24 +64,6 @@
       "waitForSystemReady": true,
       "loadProgram": true,
       "runProgram": false,
-      "stopOnEntry": true,
-      "stopOnBRK": true
-    },
-
-    {
-      "type": "dotnet6502",
-      "request": "launch",
-      "name": "Launch Simple Emulator Host to Disassembly Debug C64 test-program.prg (without .asm source)",
-      "program": "${workspaceFolder}/test-program.prg",
-      "stopOnEntry": true,
-      "stopOnBRK": true
-      // Uses minimal debug adapter by default (debugAdapter: "minimal")
-    },
-    {
-      "type": "dotnet6502",
-      "request": "launch",
-      "name": "Launch Simple Host to Disassembly Debug smooth_scroller_and_raster.prg (without .asm source)",
-      "program": "${workspaceFolder}/../../samples/Assembler/C64/Raster/Build/smooth_scroller_and_raster.prg",
       "stopOnEntry": true,
       "stopOnBRK": true
     },
