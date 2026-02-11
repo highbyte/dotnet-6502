@@ -31,13 +31,10 @@ The generated files look like this:
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Build test-program.asm (to .prg format)",
+      "label": "Build test-program.asm (C64)",
       "type": "shell",
-      "command": "cl65",
-      "args": ["-g", "test-program.asm", "-o", "test-program.prg", 
-               "-C", "c64-asm.cfg", "--start-addr", "0xc000",
-               "-Wl", "-Ln,test-program.lbl", 
-               "-Wl", "--dbgfile,test-program.dbg"]
+      "command": "ca65 -g test-program.asm -o test-program.o && ld65 test-program.o -o test-program.prg -C c64-asm.cfg --start-addr 0xc000 -Ln test-program.lbl --dbgfile test-program.dbg -m test-program.map",
+      "problemMatcher": "$ca65"
     }
   ]
 }

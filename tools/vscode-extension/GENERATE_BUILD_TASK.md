@@ -42,20 +42,7 @@ Press **F5** to start debugging. The task will:
     {
       "label": "Build test-program.asm (C64)",
       "type": "shell",
-      "command": "cl65",
-      "args": [
-        "-g",
-        "test-program.asm",
-        "-o",
-        "test-program.prg",
-        "-C",
-        "c64-asm.cfg",
-        "--start-addr",
-        "0xc000",
-        "-Wl", "-Ln,test-program.lbl",
-        "-Wl", "--dbgfile,test-program.dbg",
-        "-Wl", "-m,test-program.map"
-      ],
+      "command": "ca65 -g test-program.asm -o test-program.o && ld65 test-program.o -o test-program.prg -C c64-asm.cfg --start-addr 0xc000 -Ln test-program.lbl --dbgfile test-program.dbg -m test-program.map",
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -105,18 +92,15 @@ Generate a task for each .asm file that needs a different configuration:
   "tasks": [
     {
       "label": "Build game.asm (C64)",
-      "command": "cl65",
-      "args": [..., "--start-addr", "0xc000"]
+      "command": "ca65 -g game.asm -o game.o && ld65 game.o -o game.prg -C c64-asm.cfg --start-addr 0xc000 -Ln game.lbl --dbgfile game.dbg -m game.map"
     },
     {
       "label": "Build loader.asm (C64)",
-      "command": "cl65",
-      "args": [..., "--start-addr", "0x0801"]
+      "command": "ca65 -g loader.asm -o loader.o && ld65 loader.o -o loader.prg -C c64-asm.cfg --start-addr 0x0801 -Ln loader.lbl --dbgfile loader.dbg -m loader.map"
     },
     {
       "label": "Build music.asm (C64)",
-      "command": "cl65",
-      "args": [..., "--start-addr", "0x1000"]
+      "command": "ca65 -g music.asm -o music.o && ld65 music.o -o music.prg -C c64-asm.cfg --start-addr 0x1000 -Ln music.lbl --dbgfile music.dbg -m music.map"
     }
   ]
 }
@@ -149,10 +133,9 @@ Then create separate launch configurations for each:
 After generation, you can edit the task in `tasks.json` to:
 
 - Change the config file: `-C atari.cfg` instead of `-C c64-asm.cfg`
-- Add optimization: Add `"-O"` to args
-- Add defines: Add `"-D", "DEBUG=1"` to args
-- Change CPU target: Add `"--cpu", "65C02"` to args
-- Modify any compiler flags
+- Add defines: Add `-D RELEASE=1` to the ca65 command
+- Change CPU target: Add `--cpu 65C02` to the ca65 command
+- Modify any assembler or linker flags
 
 Example customized task:
 
@@ -160,24 +143,7 @@ Example customized task:
 {
   "label": "Build game.asm (C64 Optimized)",
   "type": "shell",
-  "command": "cl65",
-  "args": [
-    "-g",
-    "-O",
-    "game.asm",
-    "-o",
-    "game.prg",
-    "-C",
-    "c64-asm.cfg",
-    "--start-addr",
-    "0xc000",
-    "--cpu",
-    "6502",
-    "-D", "RELEASE=1",
-    "-Wl", "-Ln,game.lbl",
-    "-Wl", "--dbgfile,game.dbg",
-    "-Wl", "-m,game.map"
-  ],
+  "command": "ca65 -g --cpu 6502 -D RELEASE=1 game.asm -o game.o && ld65 game.o -o game.prg -C c64-asm.cfg --start-addr 0xc000 -Ln game.lbl --dbgfile game.dbg -m game.map",
   "problemMatcher": "$ca65",
   "group": "build"
 }
