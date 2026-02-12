@@ -107,16 +107,20 @@ public class Ca65DbgParser
     private void ParseLineRecord(string record)
     {
         // line id=0,file=0,line=10,span=1
+        // Multi-span lines use '+' separator: span=474+473+472+...
+        // We use the first span for address mapping.
         var values = ParseKeyValuePairs(record);
-        if (values.TryGetValue("file", out var file) && 
-            values.TryGetValue("line", out var line) && 
+        if (values.TryGetValue("file", out var file) &&
+            values.TryGetValue("line", out var line) &&
             values.TryGetValue("span", out var span))
         {
+            // Take first span if multiple are specified (e.g. "474+473+472")
+            var firstSpan = span.Split('+')[0];
             _lines.Add(new LineInfo
             {
                 FileId = int.Parse(file),
                 LineNumber = int.Parse(line),
-                SpanId = int.Parse(span)
+                SpanId = int.Parse(firstSpan)
             });
         }
     }

@@ -601,8 +601,21 @@ public class DebugAdapterLogic
                 if (_dbgParser != null && !string.IsNullOrEmpty(sourcePath))
                 {
                     var fileName = Path.GetFileName(sourcePath);
-                    if (_dbgParser.SourceLineToAddress.TryGetValue(fileName, out var lineMap) &&
-                        lineMap.TryGetValue(line, out address))
+
+                    // Search by comparing filenames, because the .dbg file may store
+                    // just the filename ("test.asm") or a full absolute path
+                    // ("C:\...\test.asm") depending on how ca65 was invoked.
+                    Dictionary<int, ushort>? lineMap = null;
+                    foreach (var entry in _dbgParser.SourceLineToAddress)
+                    {
+                        if (Path.GetFileName(entry.Key).Equals(fileName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            lineMap = entry.Value;
+                            break;
+                        }
+                    }
+
+                    if (lineMap != null && lineMap.TryGetValue(line, out address))
                     {
                         verified = true;
                         LogSafe($"[SetBreakpoints] Resolved {fileName}:{line} to address ${address:X4}");
@@ -611,7 +624,7 @@ public class DebugAdapterLogic
                     {
                         // Can't resolve - set unverified breakpoint
                         address = 0;
-                        LogSafe($"[SetBreakpoints] Could not resolve {fileName}:{line} to address");
+                        LogSafe($"[SetBreakpoints] Could not resolve {fileName}:{line} to address (keys: {string.Join(", ", _dbgParser.SourceLineToAddress.Keys)})");
                     }
                 }
                 else
@@ -763,17 +776,26 @@ public class DebugAdapterLogic
                 {
                     if (lineEntry.Value == pc)
                     {
-                        // Found source mapping for this address
-                        var sourcePath = Path.Combine(Path.GetDirectoryName(_programPath) ?? "", fileEntry.Key);
+                        // Found source mapping for this address.
+                        // The .dbg file may store just a filename ("test.asm") or a full
+                        // absolute path ("C:\...\test.asm"). Use the path as-is if absolute,
+                        // otherwise combine with the program directory.
+                        var sourceFileName = Path.GetFileName(fileEntry.Key);
+                        string sourcePath;
+                        if (Path.IsPathRooted(fileEntry.Key))
+                            sourcePath = fileEntry.Key;
+                        else
+                            sourcePath = Path.Combine(Path.GetDirectoryName(_programPath) ?? "", fileEntry.Key);
+
                         frame["source"] = new JsonObject
                         {
-                            ["name"] = fileEntry.Key,
+                            ["name"] = sourceFileName,
                             ["path"] = sourcePath
                         };
                         frame["line"] = lineEntry.Key;
                         frame["column"] = 0;
                         sourceFound = true;
-                        LogSafe($"[HandleStackTrace] Resolved PC to {fileEntry.Key}:{lineEntry.Key}");
+                        LogSafe($"[HandleStackTrace] Resolved PC to {sourceFileName}:{lineEntry.Key} (path={sourcePath})");
                         break;
                     }
                 }
