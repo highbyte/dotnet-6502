@@ -5,6 +5,7 @@ import * as net from 'net';
 import * as child_process from 'child_process';
 import { DebugAdapterExecutable, DebugAdapterServer } from 'vscode';
 import { MemoryContentProvider, openMemoryViewer } from './memoryViewer';
+import * as jsonc from 'jsonc-parser';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('[6502 Debug] Extension activating...');
@@ -534,20 +535,22 @@ async function generateBuildTask(uri: vscode.Uri): Promise<void> {
     // Get or create tasks.json
     const tasksJsonPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'tasks.json');
     let tasksConfig: any;
+    let content: string;
+    let fileExists = fs.existsSync(tasksJsonPath);
 
     try {
-        if (fs.existsSync(tasksJsonPath)) {
+        if (fileExists) {
             // Read existing tasks.json
-            const content = fs.readFileSync(tasksJsonPath, 'utf8');
-            // Remove comments for parsing
-            const jsonContent = content.replace(/\/\/.*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
-            tasksConfig = JSON.parse(jsonContent);
+            content = fs.readFileSync(tasksJsonPath, 'utf8');
+            // Parse JSONC (JSON with Comments and trailing commas)
+            tasksConfig = jsonc.parse(content);
         } else {
             // Create new tasks.json structure
             tasksConfig = {
                 version: '2.0.0',
                 tasks: []
             };
+            content = JSON.stringify(tasksConfig, null, 2);
             // Ensure .vscode directory exists
             const vscodeDir = path.join(workspaceFolder.uri.fsPath, '.vscode');
             if (!fs.existsSync(vscodeDir)) {
@@ -559,7 +562,7 @@ async function generateBuildTask(uri: vscode.Uri): Promise<void> {
         if (!tasksConfig.tasks) {
             tasksConfig.tasks = [];
         }
-        
+
         const existingIndex = tasksConfig.tasks.findIndex((t: any) => t.label === taskLabel);
         if (existingIndex >= 0) {
             // Update existing task
@@ -568,18 +571,24 @@ async function generateBuildTask(uri: vscode.Uri): Promise<void> {
                 'Yes', 'No'
             );
             if (overwrite === 'Yes') {
-                tasksConfig.tasks[existingIndex] = newTask;
+                // Use jsonc.modify to update existing task while preserving comments
+                const edits = jsonc.modify(content, ['tasks', existingIndex], newTask, {
+                    formattingOptions: { tabSize: 2, insertSpaces: true }
+                });
+                content = jsonc.applyEdits(content, edits);
             } else {
                 return;
             }
         } else {
-            // Add new task
-            tasksConfig.tasks.push(newTask);
+            // Add new task using jsonc.modify to preserve comments
+            const edits = jsonc.modify(content, ['tasks', -1], newTask, {
+                formattingOptions: { tabSize: 2, insertSpaces: true }
+            });
+            content = jsonc.applyEdits(content, edits);
         }
 
-        // Write tasks.json with proper formatting
-        const jsonString = JSON.stringify(tasksConfig, null, 2);
-        fs.writeFileSync(tasksJsonPath, jsonString, 'utf8');
+        // Write tasks.json with preserved comments
+        fs.writeFileSync(tasksJsonPath, content, 'utf8');
 
         // Show success message with action
         const result = await vscode.window.showInformationMessage(
@@ -611,17 +620,19 @@ async function generateLaunchConfig(
 ): Promise<void> {
     const launchJsonPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'launch.json');
     let launchConfig: any;
+    let content: string;
+    let fileExists = fs.existsSync(launchJsonPath);
 
     try {
-        if (fs.existsSync(launchJsonPath)) {
-            const content = fs.readFileSync(launchJsonPath, 'utf8');
-            const jsonContent = content.replace(/\/\/.*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
-            launchConfig = JSON.parse(jsonContent);
+        if (fileExists) {
+            content = fs.readFileSync(launchJsonPath, 'utf8');
+            launchConfig = jsonc.parse(content);
         } else {
             launchConfig = {
                 version: '0.2.0',
                 configurations: []
             };
+            content = JSON.stringify(launchConfig, null, 2);
         }
 
         const configName = `Debug ${fileBasename}.asm`;
@@ -640,13 +651,21 @@ async function generateLaunchConfig(
 
         const existingIndex = launchConfig.configurations.findIndex((c: any) => c.name === configName);
         if (existingIndex >= 0) {
-            launchConfig.configurations[existingIndex] = newConfig;
+            // Update existing configuration using jsonc.modify to preserve comments
+            const edits = jsonc.modify(content, ['configurations', existingIndex], newConfig, {
+                formattingOptions: { tabSize: 2, insertSpaces: true }
+            });
+            content = jsonc.applyEdits(content, edits);
         } else {
-            launchConfig.configurations.push(newConfig);
+            // Add new configuration using jsonc.modify to preserve comments
+            const edits = jsonc.modify(content, ['configurations', -1], newConfig, {
+                formattingOptions: { tabSize: 2, insertSpaces: true }
+            });
+            content = jsonc.applyEdits(content, edits);
         }
 
-        const jsonString = JSON.stringify(launchConfig, null, 2);
-        fs.writeFileSync(launchJsonPath, jsonString, 'utf8');
+        // Write launch.json with preserved comments
+        fs.writeFileSync(launchJsonPath, content, 'utf8');
 
         vscode.window.showInformationMessage(
             `Launch configuration "${configName}" created! Press F5 to debug.`
@@ -687,8 +706,7 @@ async function generateLaunchConfigCommand(uri: vscode.Uri): Promise<void> {
     if (fs.existsSync(tasksJsonPath)) {
         try {
             const content = fs.readFileSync(tasksJsonPath, 'utf8');
-            const jsonContent = content.replace(/\/\/.*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
-            const tasksConfig = JSON.parse(jsonContent);
+            const tasksConfig = jsonc.parse(content);
             
             if (tasksConfig.tasks) {
                 // Find tasks that might be for this file
