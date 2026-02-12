@@ -5,7 +5,7 @@
       "type": "dotnet6502",
       "request": "launch",
       "name": "Launch Simple Emulator Host to Source Debug test-program.asm",
-      "preLaunchTask": "Build test-program.asm",
+      "preLaunchTask": "Build test-program.asm (C64)",
       "stopOnEntry": true,
       "stopOnBRK": true,
       // Uses minimal debug adapter by default (debugAdapter: "minimal")

@@ -2,6 +2,10 @@
 
 ## Overview
 
+> [!IMPORTANT]
+> This is feature generates build tasks targeting Commodore 64 using the `cc65` compiler/assembler toolchain.
+> The .prg program binary it creates has a 2 byte header with the load address (little endian).
+
 The extension provides a command to generate customized build tasks for individual .asm files. This solves the problem of needing different `--start-addr` values for different files.
 
 ## How to Use
@@ -93,7 +97,7 @@ Press **F5** to start debugging. The task will:
 ✅ **No custom syntax** - Uses standard VSCode tasks.json format  
 ✅ **Easy customization** - Edit tasks.json to change compiler flags, config files, etc.  
 ✅ **Works with preLaunchTask** - Seamlessly integrates with launch configurations  
-✅ **Correct load addresses** - Generates proper .prg headers and .dbg files  
+✅ **Correct load addresses** - Generates proper .prg headers (C64 conventinon with the first two bytes is the load address) and .dbg files  
 
 ## Multiple Files
 
@@ -193,7 +197,7 @@ If you run "Generate C64 Build Task" on a file that already has a task:
 ## Why Generate Tasks?
 
 Generated tasks provide:
-- **Custom load addresses** - Essential for C64 programs (most use 0xc000 or higher)
+- **Custom load addresses** - Essential for C64 programs (defaults to 0xc000)
 - **Per-file configuration** - Each .asm file can have different settings
 - **Full customization** - Edit tasks.json to add compiler flags, optimization, etc.
 - **Standard VSCode format** - No proprietary configuration or magic
