@@ -27,7 +27,15 @@
       },
       {
         "command": "dotnet6502.generateLaunchConfig",
-        "title": "Generate Launch Config (DotNet6502)"
+        "title": "Generate Launch Config for simple emulator (DotNet6502)"
+      },
+      {
+        "command": "dotnet6502.generateEmulatorLaunchConfig",
+        "title": "Generate Launch Config for C64 emulator (DotNet6502)"
+      },
+      {
+        "command": "dotnet6502.generatePrgLaunchConfig",
+        "title": "Generate Launch Config for C64 emulator (DotNet6502)"
       },
       {
         "command": "dotnet6502.viewMemory",
@@ -53,6 +61,16 @@
           "when": "resourceExtname == .asm",
           "command": "dotnet6502.generateLaunchConfig",
           "group": "2_workspace@2"
+        },
+        {
+          "when": "resourceExtname == .asm",
+          "command": "dotnet6502.generateEmulatorLaunchConfig",
+          "group": "2_workspace@3"
+        },
+        {
+          "when": "resourceExtname == .prg",
+          "command": "dotnet6502.generatePrgLaunchConfig",
+          "group": "2_workspace@1"
         }
       ]
     },
