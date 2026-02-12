@@ -63,7 +63,7 @@
       "command": "cl65",
       "args": [
         "-g",
-        "${workspaceFolder}/../../samples/Assembler/C64/Raster/smooth_scroller_and_raster2.asm",
+        "${workspaceFolder}/smooth_scroller_and_raster2.asm",
         "-o",
         "smooth_scroller_and_raster2.prg",
         "-C",
