@@ -26,6 +26,9 @@ public class DebugAdapterLogic
     // per source file (the full set for THAT file only).
     private readonly Dictionary<string, HashSet<ushort>> _sourceBreakpointsByFile = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<ushort> _instructionBreakpoints = new();
+    // Map from address to breakpoint ID, used to populate hitBreakpointIds in stopped events
+    private readonly Dictionary<ushort, int> _breakpointIdsByAddress = new();
+    private int _nextBreakpointId = 1;
     private ushort? _temporaryBreakpoint = null; // Temporary breakpoint for step over JSR
     private bool _stepOutMode = false; // Flag to indicate we're stepping out (waiting for RTS)
     private const int THREAD_ID = 1;
@@ -92,6 +95,8 @@ public class DebugAdapterLogic
         IsStopped = false;
         _sourceBreakpointsByFile.Clear();
         _instructionBreakpoints.Clear();
+        _breakpointIdsByAddress.Clear();
+        _nextBreakpointId = 1;
         _temporaryBreakpoint = null;
         _stepOutMode = false;
         LogSafe("[Reset] Debug adapter reset, emulator will resume");
@@ -138,7 +143,8 @@ public class DebugAdapterLogic
         {
             LogSafe($"[BreakpointHit] Breakpoint hit at ${pc:X4}");
             IsStopped = true; // Pause emulator
-            await SendStoppedEventAsync("breakpoint");
+            int[]? hitIds = _breakpointIdsByAddress.TryGetValue(pc, out var bpId) ? new[] { bpId } : null;
+            await SendStoppedEventAsync("breakpoint", hitBreakpointIds: hitIds);
             return true;
         }
 
@@ -587,9 +593,13 @@ public class DebugAdapterLogic
         var sourcePath = source?["path"]?.ToString();
         var fileKey = sourcePath != null ? Path.GetFileName(sourcePath).ToLowerInvariant() : "";
 
-        // Clear only this file's breakpoints (other files' breakpoints are preserved)
+        // Clear only this file's breakpoints and their IDs (other files' breakpoints are preserved)
         if (_sourceBreakpointsByFile.TryGetValue(fileKey, out var existingBps))
+        {
+            foreach (var addr in existingBps)
+                _breakpointIdsByAddress.Remove(addr);
             existingBps.Clear();
+        }
 
         LogSafe($"[SetBreakpoints] sourcePath={sourcePath}, fileKey={fileKey}");
 
@@ -641,6 +651,7 @@ public class DebugAdapterLogic
                     LogSafe($"[SetBreakpoints] No debug symbols, treating line {line} as address ${address:X4}");
                 }
 
+                int bpId = 0;
                 if (verified && address > 0)
                 {
                     if (!_sourceBreakpointsByFile.TryGetValue(fileKey, out var bpSet))
@@ -649,7 +660,9 @@ public class DebugAdapterLogic
                         _sourceBreakpointsByFile[fileKey] = bpSet;
                     }
                     bpSet.Add(address);
-                    LogSafe($"[SetBreakpoints] Added source breakpoint at ${address:X4} for {fileKey}");
+                    bpId = _nextBreakpointId++;
+                    _breakpointIdsByAddress[address] = bpId;
+                    LogSafe($"[SetBreakpoints] Added source breakpoint id={bpId} at ${address:X4} for {fileKey}");
                 }
 
                 // Create a new source object instead of reusing the one from the request
@@ -662,6 +675,7 @@ public class DebugAdapterLogic
 
                 var bpObject = new JsonObject
                 {
+                    ["id"] = bpId,
                     ["verified"] = verified,
                     ["line"] = line
                 };
@@ -690,7 +704,8 @@ public class DebugAdapterLogic
         LogSafe("[SetInstructionBreakpoints] Called");
         LogSafe($"[SetInstructionBreakpoints] args: {args?.ToJsonString()}");
 
-        _instructionBreakpoints.Clear();
+        // Build new set of addresses from the request
+        var newAddresses = new HashSet<ushort>();
         var breakpoints = new JsonArray();
 
         if (args?["breakpoints"] is JsonArray requestedBps)
@@ -706,19 +721,46 @@ public class DebugAdapterLogic
                 {
                     var baseAddress = ParseAddress(instructionReference);
                     var actualAddress = (ushort)(baseAddress + offset);
+                    newAddresses.Add(actualAddress);
 
-                    _instructionBreakpoints.Add(actualAddress);
-                    LogSafe($"[SetInstructionBreakpoints] Added instruction breakpoint at ${actualAddress:X4}");
+                    // Reuse existing ID if this address already has one, otherwise assign new ID
+                    // This keeps IDs stable so VSCode can properly track breakpoints for toggling
+                    if (!_breakpointIdsByAddress.TryGetValue(actualAddress, out var bpId))
+                    {
+                        bpId = _nextBreakpointId++;
+                        _breakpointIdsByAddress[actualAddress] = bpId;
+                        LogSafe($"[SetInstructionBreakpoints] Assigned new id={bpId} for instruction breakpoint at ${actualAddress:X4}");
+                    }
+                    else
+                    {
+                        LogSafe($"[SetInstructionBreakpoints] Reusing existing id={bpId} for instruction breakpoint at ${actualAddress:X4}");
+                    }
 
+                    // Return the same instructionReference and offset that VSCode sent
+                    // This ensures VSCode can properly match breakpoints when toggling them in the UI
                     breakpoints.Add(new JsonObject
                     {
+                        ["id"] = bpId,
                         ["verified"] = true,
-                        ["instructionReference"] = FormatAddress(actualAddress),
-                        ["offset"] = 0
+                        ["instructionReference"] = instructionReference,
+                        ["offset"] = offset
                     });
                 }
             }
         }
+
+        // Remove IDs for addresses that are no longer in the new set
+        var addressesToRemove = _instructionBreakpoints.Except(newAddresses).ToList();
+        foreach (var addr in addressesToRemove)
+        {
+            _breakpointIdsByAddress.Remove(addr);
+            LogSafe($"[SetInstructionBreakpoints] Removed id for instruction breakpoint at ${addr:X4}");
+        }
+
+        // Update the active instruction breakpoints set
+        _instructionBreakpoints.Clear();
+        foreach (var addr in newAddresses)
+            _instructionBreakpoints.Add(addr);
 
         var body = new JsonObject
         {
@@ -774,7 +816,8 @@ public class DebugAdapterLogic
         {
             ["id"] = FRAME_ID,
             ["name"] = $"${pc:X4}: {disasm}",
-            ["instructionPointerReference"] = FormatAddress(pc)
+            ["instructionPointerReference"] = FormatAddress(pc),
+            ["presentationHint"] = "normal"
         };
 
         // Add source information if debug symbols are available
@@ -815,10 +858,12 @@ public class DebugAdapterLogic
             }
         }
 
-        // If no source mapping found, omit line/column to signal VSCode to show disassembly view
+        // If no source mapping found, omit line/column entirely
+        // Even though DAP spec mentions "line is 0 and should be ignored", VSCode appears to need
+        // the complete absence of these fields to properly recognize it should use Disassembly view
         if (!sourceFound)
         {
-            LogSafe($"[HandleStackTrace] No source mapping found for PC=${pc:X4}, omitting line/column to trigger disassembly view");
+            LogSafe($"[HandleStackTrace] No source mapping found for PC=${pc:X4}, line/column/source omitted for Disassembly view");
         }
 
         var stackFrames = new JsonArray { frame };
@@ -1485,7 +1530,7 @@ public class DebugAdapterLogic
     /// Sends a stopped event to the debug client.
     /// Used internally and can be called externally when attaching to an already-running emulator.
     /// </summary>
-    public async Task SendStoppedEventAsync(string reason, string? text = null, bool preserveFocusHint = false)
+    public async Task SendStoppedEventAsync(string reason, string? text = null, bool preserveFocusHint = false, int[]? hitBreakpointIds = null)
     {
         var cpu = _system.CPU;
         var memory = _system.Mem;
@@ -1496,6 +1541,14 @@ public class DebugAdapterLogic
             ["threadId"] = THREAD_ID,
             ["allThreadsStopped"] = true
         };
+
+        if (hitBreakpointIds != null && hitBreakpointIds.Length > 0)
+        {
+            var ids = new JsonArray();
+            foreach (var id in hitBreakpointIds)
+                ids.Add(id);
+            body["hitBreakpointIds"] = ids;
+        }
 
         if (text != null)
         {
