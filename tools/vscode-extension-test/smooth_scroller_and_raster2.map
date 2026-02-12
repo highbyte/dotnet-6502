@@ -1,6 +1,6 @@
 Modules list:
 -------------
-smooth_scroller_and_raster2.asm.23580.0.o:
+smooth_scroller_and_raster2.asm.40356.0.o:
     CODE              Offs=000000  Size=00040F  Align=00001  Fill=0000
 C:\Users\highb\Documents\C64\cc65\lib/c64.lib(loadaddr.o):
     LOADADDR          Offs=000000  Size=000002  Align=00001  Fill=0000
