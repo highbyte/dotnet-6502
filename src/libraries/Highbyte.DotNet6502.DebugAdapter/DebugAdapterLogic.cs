@@ -22,7 +22,9 @@ public class DebugAdapterLogic
     // Track source and instruction breakpoints separately, because VSCode
     // sends setBreakpoints (source) and setInstructionBreakpoints (disassembly)
     // as independent requests, each containing the full set for that category.
-    private readonly HashSet<ushort> _sourceBreakpoints = new();
+    // Source breakpoints are tracked per file because VSCode sends setBreakpoints
+    // per source file (the full set for THAT file only).
+    private readonly Dictionary<string, HashSet<ushort>> _sourceBreakpointsByFile = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<ushort> _instructionBreakpoints = new();
     private ushort? _temporaryBreakpoint = null; // Temporary breakpoint for step over JSR
     private bool _stepOutMode = false; // Flag to indicate we're stepping out (waiting for RTS)
@@ -88,7 +90,7 @@ public class DebugAdapterLogic
     public void Reset()
     {
         IsStopped = false;
-        _sourceBreakpoints.Clear();
+        _sourceBreakpointsByFile.Clear();
         _instructionBreakpoints.Clear();
         _temporaryBreakpoint = null;
         _stepOutMode = false;
@@ -132,7 +134,7 @@ public class DebugAdapterLogic
         }
 
         // Check if we hit a breakpoint (from either source or instruction breakpoints)
-        if (_sourceBreakpoints.Contains(pc) || _instructionBreakpoints.Contains(pc))
+        if (_sourceBreakpointsByFile.Values.Any(bps => bps.Contains(pc)) || _instructionBreakpoints.Contains(pc))
         {
             LogSafe($"[BreakpointHit] Breakpoint hit at ${pc:X4}");
             IsStopped = true; // Pause emulator
@@ -579,13 +581,17 @@ public class DebugAdapterLogic
         LogSafe("[SetBreakpoints] Called");
         LogSafe($"[SetBreakpoints] args: {args?.ToJsonString()}");
 
-        _sourceBreakpoints.Clear();
         var breakpoints = new JsonArray();
 
         var source = args?["source"] as JsonObject;
         var sourcePath = source?["path"]?.ToString();
+        var fileKey = sourcePath != null ? Path.GetFileName(sourcePath).ToLowerInvariant() : "";
 
-        LogSafe($"[SetBreakpoints] sourcePath={sourcePath}");
+        // Clear only this file's breakpoints (other files' breakpoints are preserved)
+        if (_sourceBreakpointsByFile.TryGetValue(fileKey, out var existingBps))
+            existingBps.Clear();
+
+        LogSafe($"[SetBreakpoints] sourcePath={sourcePath}, fileKey={fileKey}");
 
         if (args?["breakpoints"] is JsonArray requestedBps)
         {
@@ -637,8 +643,13 @@ public class DebugAdapterLogic
 
                 if (verified && address > 0)
                 {
-                    _sourceBreakpoints.Add(address);
-                    LogSafe($"[SetBreakpoints] Added source breakpoint at ${address:X4}");
+                    if (!_sourceBreakpointsByFile.TryGetValue(fileKey, out var bpSet))
+                    {
+                        bpSet = new HashSet<ushort>();
+                        _sourceBreakpointsByFile[fileKey] = bpSet;
+                    }
+                    bpSet.Add(address);
+                    LogSafe($"[SetBreakpoints] Added source breakpoint at ${address:X4} for {fileKey}");
                 }
 
                 // Create a new source object instead of reusing the one from the request
