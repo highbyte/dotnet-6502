@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Systems;
@@ -152,6 +154,20 @@ internal sealed class TcpDebugServerManager : IDisposable
                     _debugLogWriter.WriteLine("Debug adapter set in host app (DAP initialize received)");
                 }
             });
+        };
+
+        // Handle disconnect: if terminateDebuggee is true (launch mode), shut down the app.
+        adapter.OnExit += (terminateDebuggee) =>
+        {
+            if (terminateDebuggee)
+            {
+                _debugLogWriter.WriteLine("terminateDebuggee=true (launch mode), shutting down application");
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
+                        lifetime.Shutdown();
+                });
+            }
         };
 
         // Start message loop for this client

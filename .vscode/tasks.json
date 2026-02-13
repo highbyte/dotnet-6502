@@ -98,19 +98,19 @@
             }
         },
         {
-            "label": "build debug adapter",
+            "label": "build simple debug adapter console host",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.DebugAdapter/Highbyte.DotNet6502.DebugAdapter.csproj",
+                "${workspaceFolder}/src/apps/Highbyte.DotNet6502.DebugAdapter/Highbyte.DotNet6502.DebugAdapter.ConsoleApp.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile",
             "group": {
                 "kind": "build",
-                "isDefault": false
+                "isDefault": true
             }
         },
         {

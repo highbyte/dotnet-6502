@@ -47,7 +47,12 @@ public class DebugAdapterLogic
     /// </summary>
     public bool IsStopped { get; private set; } = false;
 
-    public event Action? OnExit;
+    /// <summary>
+    /// Fired when a DAP disconnect request is received.
+    /// The bool parameter is the value of terminateDebuggee from the disconnect args
+    /// (true for launch sessions = debuggee should exit, false for attach sessions = keep running).
+    /// </summary>
+    public event Action<bool>? OnExit;
     public event Action? OnInitialized;
 
     public DebugAdapterLogic(DapProtocol protocol, StreamWriter log, ISystem system, bool initiallyPaused = false)
@@ -1510,9 +1515,15 @@ public class DebugAdapterLogic
 
     private async Task HandleDisconnectAsync(int seq, JsonObject? args)
     {
+        // Per DAP spec, terminateDebuggee indicates whether the debuggee should exit.
+        // VSCode sends true for "launch" sessions and false for "attach" sessions.
+        // Default to true if not specified (DAP spec default for launch).
+        bool terminateDebuggee = args?["terminateDebuggee"]?.GetValue<bool>() ?? true;
+        LogSafe($"[Disconnect] terminateDebuggee={terminateDebuggee}");
+
         await _protocol.SendResponseAsync(seq, "disconnect");
         await Task.Delay(100);
-        OnExit?.Invoke();
+        OnExit?.Invoke(terminateDebuggee);
     }
 
     private async Task SendOutputAsync(string text)

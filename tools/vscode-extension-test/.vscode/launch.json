@@ -42,6 +42,13 @@
     },
     {
       "type": "dotnet6502",
+      "request": "attach",
+      "name": "Attach to Full Emulator Host (TCP debug adapter) without loading any program",
+      // Uses TCP connection to already-running emulator host app.
+      // Currently only Avalonia Desktop (Highbyte.DotNet6502.App.Avalonia.Desktop) is supported.
+    },    
+    {
+      "type": "dotnet6502",
       "request": "launch",
       "name": "Launch Full Emulator Host with C64 to Source Debug smooth_scroller_and_raster2.asm",
       "preLaunchTask": "Build smooth_scroller_and_raster2.asm (C64)",

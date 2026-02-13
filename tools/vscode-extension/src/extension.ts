@@ -17,13 +17,26 @@ export function activate(context: vscode.ExtensionContext) {
     );
     
     // Register debug configuration provider
+    const configProvider = new DebugConfigurationProvider();
     context.subscriptions.push(
-        vscode.debug.registerDebugConfigurationProvider('dotnet6502', new DebugConfigurationProvider())
+        vscode.debug.registerDebugConfigurationProvider('dotnet6502', configProvider)
     );
-    
+
     // Register debug adapter
     context.subscriptions.push(
         vscode.debug.registerDebugAdapterDescriptorFactory('dotnet6502', new DebugAdapterExecutableFactory())
+    );
+
+    // Kill the emulator process when a launch+emulator debug session ends (safety net
+    // in case the .NET app doesn't exit on its own via terminateDebuggee).
+    context.subscriptions.push(
+        vscode.debug.onDidTerminateDebugSession((session) => {
+            if (session.type === 'dotnet6502' &&
+                session.configuration.request === 'launch' &&
+                session.configuration.debugAdapter === 'emulator') {
+                configProvider.killEmulatorProcess();
+            }
+        })
     );
     
     // Register command to generate build task
@@ -369,12 +382,16 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
         return config;
     }
 
-    dispose() {
+    killEmulatorProcess() {
         if (this.emulatorProcess) {
-            console.log('[6502 Debug] Disposing: killing emulator host process');
+            console.log('[6502 Debug] Killing emulator host process (debug session ended)');
             this.emulatorProcess.kill();
             this.emulatorProcess = undefined;
         }
+    }
+
+    dispose() {
+        this.killEmulatorProcess();
     }
 }
 
