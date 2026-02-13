@@ -180,7 +180,7 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
     ): Promise<vscode.DebugConfiguration | undefined> {
         // Attach mode: connect to an already-running emulator via TCP
         if (config.request === 'attach') {
-            const debugPort = config.debugPort || 4711;
+            const debugPort = config.debugPort || 6502;
             console.log(`[6502 Debug] Attach mode: connecting to emulator on port ${debugPort}`);
 
             config.__programAlreadyLoaded = true;
@@ -225,7 +225,7 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
             console.log('[6502 Debug] debugAdapter is emulator, starting emulator host app');
 
             const executablePath = config.emulatorExecutable;
-            const debugPort = config.debugPort || 4711;
+            const debugPort = config.debugPort || 6502;
             const system = config.system || 'C64';
             const systemVariant = config.systemVariant;
             const waitForReady = config.waitForSystemReady !== false; // Default true

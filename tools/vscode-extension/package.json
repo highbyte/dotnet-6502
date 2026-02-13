@@ -147,7 +147,7 @@
               "debugPort": {
                 "type": "number",
                 "description": "TCP port for debug adapter communication (emulator mode only)",
-                "default": 4711
+                "default": 6502
               },
               "system": {
                 "type": "string",
@@ -187,7 +187,7 @@
               "debugPort": {
                 "type": "number",
                 "description": "TCP port to connect to the emulator host debug adapter server",
-                "default": 4711
+                "default": 6502
               },
               "program": {
                 "type": "string",
@@ -224,7 +224,7 @@
             "type": "dotnet6502",
             "request": "attach",
             "name": "Attach to Emulator Host (dotnet-6502)",
-            "debugPort": 4711,
+            "debugPort": 6502,
             "program": "${workspaceFolder}/program.prg",
             "stopOnEntry": true
           }
@@ -252,7 +252,7 @@
               "stopOnEntry": true,
               "debugAdapter": "emulator",
               "system": "C64",
-              "debugPort": 4711,
+              "debugPort": 6502,
               "waitForSystemReady": true,
               "loadProgram": true,
               "runProgram": false
@@ -265,7 +265,7 @@
               "type": "dotnet6502",
               "request": "attach",
               "name": "Attach to Emulator Host (dotnet-6502)",
-              "debugPort": 4711,
+              "debugPort": 6502,
               "program": "^\"\\${workspaceFolder}/program.prg\"",
               "stopOnEntry": true
             }

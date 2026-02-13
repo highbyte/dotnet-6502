@@ -39,19 +39,19 @@ The debug adapter now supports TCP transport in addition to STDIN/STDOUT, enabli
 Start the Avalonia Desktop app with debug adapter enabled:
 
 ```bash
-./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 4711
+./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502
 ```
 
 To wait for the debugger to connect before starting:
 
 ```bash
-./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 4711 --debug-wait
+./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502 --debug-wait
 ```
 
 Combined with console logging:
 
 ```bash
-./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 4711 --console-log -l Debug
+./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502 --console-log -l Debug
 ```
 
 ### VSCode Configuration
@@ -63,7 +63,7 @@ To debug the Avalonia Desktop app from VSCode, you'll need to add a launch confi
     "type": "dotnet6502-debug",
     "request": "attach",
     "name": "Attach to Avalonia Desktop",
-    "debugServer": 4711,
+    "debugServer": 6502,
     "program": "${workspaceFolder}/samples/Assembler/GenericComputer/snake6502/build/snake6502.prg",
     "stopOnEntry": true,
     "trace": true
@@ -142,12 +142,12 @@ This log file contains:
 
 1. Start the Avalonia Desktop app with debug port:
    ```bash
-   ./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 4711 --debug-wait --console-log
+   ./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502 --debug-wait --console-log
    ```
 
 2. Connect with a TCP client (e.g., `nc`):
    ```bash
-   nc localhost 4711
+   nc localhost 6502
    ```
 
 3. Send a DAP initialize request:

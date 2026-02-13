@@ -117,7 +117,7 @@ internal sealed partial class Program
 
         // Parse debug adapter arguments
         bool enableExternalDebug = args.Contains("--enableExternalDebug");
-        int debugPort = ParseDebugPort(args, defaultPort: 4711);
+        int debugPort = ParseDebugPort(args, defaultPort: 6502);
         bool debugWait = args.Contains("--debug-wait");
 
         // Parse automated startup arguments
@@ -357,7 +357,7 @@ internal sealed partial class Program
 
     /// <summary>
     /// Parses the debug port from command line arguments.
-    /// Usage: --debug-port 4711
+    /// Usage: --debug-port 6502
     /// Returns defaultPort if not specified or invalid.
     /// </summary>
     private static int ParseDebugPort(string[] args, int defaultPort)

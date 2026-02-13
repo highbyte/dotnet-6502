@@ -66,7 +66,7 @@ Or launch with TCP (for testing server mode):
     "type": "dotnet6502",
     "request": "launch",
     "name": "Debug 6502 Program (TCP)",
-    "debugServer": 4711,
+    "debugServer": 6502,
     "program": "${workspaceFolder}/samples/Assembler/snake6502/build/snake6502.prg",
     "stopOnEntry": true
 }
@@ -78,7 +78,7 @@ Attach to a running Avalonia Desktop app with debug adapter enabled:
 
 **Step 1:** Start the Avalonia Desktop app with debug server:
 ```bash
-./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 4711 --debug-wait
+./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502 --debug-wait
 ```
 
 **Step 2:** Use this launch configuration in VSCode:
@@ -87,7 +87,7 @@ Attach to a running Avalonia Desktop app with debug adapter enabled:
     "type": "dotnet6502",
     "request": "attach",
     "name": "Attach to Avalonia Desktop",
-    "debugServer": 4711,
+    "debugServer": 6502,
     "program": "${workspaceFolder}/samples/Assembler/snake6502/build/snake6502.prg",
     "dbgFile": "${workspaceFolder}/samples/Assembler/snake6502/build/snake6502.dbg",
     "stopOnEntry": true
@@ -121,13 +121,13 @@ Attach to a running Avalonia Desktop app with debug adapter enabled:
 ┌────────────────────────────────────────────────┐
 │ VSCode Extension                                │
 │ • createDebugAdapterDescriptor()               │
-│ • Detects: debugServer: 4711                   │
-│ • Calls: createTcpDebugAdapter(4711)           │
-│ • Returns: new DebugAdapterServer(4711)        │
+│ • Detects: debugServer: 6502                   │
+│ • Calls: createTcpDebugAdapter(6502)           │
+│ • Returns: new DebugAdapterServer(6502)        │
 └─────────────────┬──────────────────────────────┘
                   │
                   │ TCP Socket Connection
-                  │ (127.0.0.1:4711)
+                  │ (127.0.0.1:6502)
                   ▼
          ┌────────────────────────┐
          │ Avalonia Desktop App   │
@@ -200,7 +200,7 @@ VSCode's `DebugAdapterServer` handles:
 3. **Start the Avalonia app with debug server:**
    ```bash
    cd src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0
-   ./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 4711 --debug-wait --console-log
+   ./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502 --debug-wait --console-log
    ```
 
 4. **Open the extension in development mode:**
@@ -213,7 +213,7 @@ VSCode's `DebugAdapterServer` handles:
    - Press F5 to start debugging
 
 6. **Expected behavior:**
-   - Console log shows: "Using TCP connection to port 4711"
+   - Console log shows: "Using TCP connection to port 6502"
    - Debug session starts successfully
    - Can set breakpoints, step through code, inspect variables
 

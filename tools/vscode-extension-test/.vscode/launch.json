@@ -34,7 +34,6 @@
       "type": "dotnet6502",
       "request": "attach",
       "name": "Attach to Full Emulator Host (TCP debug adapter) to Source Debug test-program.prg (via .dbg info)",
-      "debugPort": 4711,
       "program": "${workspaceFolder}/test-program.prg",
       "dbgFile": "${workspaceFolder}/test-program.dbg",
       "stopOnEntry": true
@@ -46,25 +45,12 @@
       "request": "launch",
       "name": "Launch Full Emulator Host with C64 to Source Debug smooth_scroller_and_raster2.asm",
       "preLaunchTask": "Build smooth_scroller_and_raster2.asm (C64)",
-      // "env": {
-      //   "DOTNET6502_WAIT_FOR_DEBUGGER": "true"
-      // },
-
-      // Uses emulator host app as debug adapter (full emulation support).
-      // Currently only Avalonia Desktop (Highbyte.DotNet6502.App.Avalonia.Desktop) is supported.
       "debugAdapter": "emulator",
-
-      // Emulator host configuration:
-      // "emulatorExecutable" defaults to "Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]" (assumes it's in system PATH).
-      // Override with a full path if not in PATH, e.g.:
-      //"emulatorExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.exe",
-      "debugPort": 4711,
-      "startupTimeout": 300,
       "system": "C64",
       "waitForSystemReady": true,
       "loadProgram": true,
-      "runProgram": false,
-      "stopOnEntry": true,
+      "runProgram": true,
+      "stopOnEntry": false,
       "stopOnBRK": true
     },
     {
@@ -81,8 +67,6 @@
       // "emulatorExecutable" defaults to "Highbyte.DotNet6502.App.Avalonia.Desktop[.exe]" (assumes it's in system PATH).
       // Override with a full path if not in PATH, e.g.:
       //"emulatorExecutable": "${userHome}/source/repos/dotnet-6502/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.exe",
-      "debugPort": 4711,
-      "startupTimeout": 300,
       "system": "C64",
       "waitForSystemReady": true,
       "loadProgram": true,
@@ -96,7 +80,6 @@
       "name": "Debug C64 KERNAL Boot",
       "debugAdapter": "emulator",
       "system": "C64",
-      "debugPort": 4711,
       "stopOnEntry": true,
       "loadProgram": false,
       "waitForSystemReady": false

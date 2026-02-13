@@ -76,7 +76,7 @@ Successfully completed Phase 2 of the debug adapter refactoring:
               │                 ▼
               │   ┌──────────────────────────────────────────┐
               │   │ Avalonia Desktop App                      │
-              │   │ (Running with --debug-port 4711)         │
+              │   │ (Running with --debug-port 6502)         │
               │   │ • TcpDebugAdapterServer listening        │
               │   │ • Creates TcpTransport on connect        │
               │   │ • Runs DapProtocol + DebugAdapterLogic  │
@@ -130,13 +130,13 @@ Start the Avalonia Desktop app with TCP debug adapter:
 
 ```bash
 # Start with debug port
-./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 4711
+./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502
 
 # Start and wait for debugger
-./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 4711 --debug-wait
+./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502 --debug-wait
 
 # With console logging
-./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 4711 --console-log -l Debug
+./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502 --console-log -l Debug
 ```
 
 Debug logs are written to:
@@ -160,7 +160,7 @@ To enable full TCP debugging from VSCode:
    - Handle connection errors and timeouts
 
 2. **Test End-to-End**
-   - Start Avalonia app with `--debug-port 4711`
+   - Start Avalonia app with `--debug-port 6502`
    - Use updated VSCode extension to connect
    - Verify breakpoints, stepping, and variable inspection
 

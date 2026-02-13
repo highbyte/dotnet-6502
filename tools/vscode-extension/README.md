@@ -160,7 +160,7 @@ There are three ways to use the debugger, each with different launch.json config
 | `preLaunchTask` | string | — | Yes | Yes | — | VSCode task to run before launching (e.g., build task). |
 | `debugAdapter` | string | `"minimal"` | Yes | Yes | — | `"minimal"` for standalone adapter, `"emulator"` to launch emulator host app. |
 | `emulatorExecutable` | string | *(auto)* | Yes | Yes | — | Executable path or name. Defaults to `Highbyte.DotNet6502.DebugAdapter.ConsoleApp` (minimal) or `Highbyte.DotNet6502.App.Avalonia.Desktop` (emulator). Resolved via PATH, then repo build output. |
-| `debugPort` | number | `4711` | — | Yes | Yes | TCP port for debug adapter communication. |
+| `debugPort` | number | `6502` | — | Yes | Yes | TCP port for debug adapter communication. |
 | `system` | string | `"C64"` | — | Yes | — | System to start in emulator host (e.g., `"C64"`, `"Generic"`). |
 | `systemVariant` | string | — | — | Yes | — | System variant (uses first variant if not specified). |
 | `startupTimeout` | number | `120` | — | Yes | — | Seconds to wait for emulator host TCP server to start. |
@@ -200,7 +200,7 @@ There are three ways to use the debugger, each with different launch.json config
   "name": "Launch C64 Emulator",
   "debugAdapter": "emulator",
   "system": "C64",
-  "debugPort": 4711,
+  "debugPort": 6502,
   "stopOnEntry": true,
   "loadProgram": true,
   "runProgram": true
@@ -217,7 +217,7 @@ There are three ways to use the debugger, each with different launch.json config
   "debugAdapter": "emulator",
   "program": "${workspaceFolder}/program.prg",
   "system": "C64",
-  "debugPort": 4711,
+  "debugPort": 6502,
   "stopOnEntry": true,
   "loadProgram": true,
   "runProgram": false
@@ -230,7 +230,7 @@ There are three ways to use the debugger, each with different launch.json config
   "type": "dotnet6502",
   "request": "attach",
   "name": "Attach to Emulator",
-  "debugPort": 4711,
+  "debugPort": 6502,
   "program": "${workspaceFolder}/program.prg",
   "stopOnEntry": true
 }
@@ -238,7 +238,7 @@ There are three ways to use the debugger, each with different launch.json config
 
 For attach mode, start the emulator manually first:
 ```bash
-Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 4711 --system C64 --start
+Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 6502 --system C64 --start
 ```
 
 ### Building Your Code
@@ -391,7 +391,7 @@ dump $d000 $d3ff        # VIC-II registers on C64
 
 When using `"debugAdapter": "emulator"` (launch) or `"request": "attach"`:
 
-1. The emulator host starts with: `--enableExternalDebug --debug-port 4711 --system C64 --start --waitForSystemReady --loadPrg <path>`
+1. The emulator host starts with: `--enableExternalDebug --debug-port 6502 --system C64 --start --waitForSystemReady --loadPrg <path>`
 2. The emulator starts the specified system (e.g., C64)
 3. Waits for the system to be ready (BASIC prompt appears)
 4. Loads the PRG file into memory at the address specified in the file

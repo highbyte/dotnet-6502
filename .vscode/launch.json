@@ -70,7 +70,7 @@
             "request": "launch",
             "preLaunchTask": "build avalonia desktop app",
             "program": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.dll",
-            "args": ["--enableExternalDebug", "--debug-port", "4711", "--console-log", "-l", "Debug"],
+            "args": ["--enableExternalDebug", "--debug-port", "6502", "--console-log", "-l", "Debug"],
             "cwd": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0",
             "console": "integratedTerminal",
             "stopAtEntry": false
@@ -81,7 +81,7 @@
             "request": "launch",
             "preLaunchTask": "build avalonia desktop app",
             "program": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0/Highbyte.DotNet6502.App.Avalonia.Desktop.dll",
-            "args": ["--system", "C64", "--start", "--waitForSystemReady", "--loadPrg", "~/source/repos/dotnet-6502/samples/Assembler/C64/Raster/Build/smooth_scroller_and_raster.prg", "--runLoadedProgram", "--enableExternalDebug", "--debug-port", "4711", "--console-log", "-l", "Debug"],
+            "args": ["--system", "C64", "--start", "--waitForSystemReady", "--loadPrg", "~/source/repos/dotnet-6502/samples/Assembler/C64/Raster/Build/smooth_scroller_and_raster.prg", "--runLoadedProgram", "--enableExternalDebug", "--debug-port", "6502", "--console-log", "-l", "Debug"],
             "cwd": "${workspaceFolder}/src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0",
             "console": "integratedTerminal",
             "stopAtEntry": false

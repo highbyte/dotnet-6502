@@ -34,14 +34,14 @@ From the main workspace root, run the Avalonia Desktop app task with debug serve
 4. Press F5 or click the green play button
 
 **Expected behavior:**
-- Terminal shows: "Starting TCP debug adapter server on port 4711"
+- Terminal shows: "Starting TCP debug adapter server on port 6502"
 - Terminal shows: "Waiting for debug client to connect (--debug-wait specified)..."
 - Avalonia app window appears but waits for debugger
 
 **Alternative (command line):**
 ```bash
 cd src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0
-./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 4711 --debug-wait --console-log -l Debug
+./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502 --debug-wait --console-log -l Debug
 ```
 
 ### Step 2: Attach VSCode Debugger
@@ -58,8 +58,8 @@ cd src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0
 - Extension Development Host Debug Console shows:
   ```
   [6502 Debug] createDebugAdapterDescriptor called for session: Attach to Avalonia Desktop (TCP debug adapter)
-  [6502 Debug] Using TCP connection to port 4711
-  [6502 Debug] ✓ Created DebugAdapterServer for port 4711
+  [6502 Debug] Using TCP connection to port 6502
+  [6502 Debug] ✓ Created DebugAdapterServer for port 6502
   ```
 - Avalonia app terminal shows: "Debug client connected, continuing startup"
 - Debug adapter log file created: `$TMPDIR/dotnet6502-debugadapter-avalonia-*.log`
@@ -136,7 +136,7 @@ Edit `tools/vscode-extension-test/.vscode/launch.json` and add:
   "type": "dotnet6502",
   "request": "launch",
   "name": "Debug with TCP (launch mode)",
-  "debugServer": 4711,
+  "debugServer": 6502,
   "program": "${workspaceFolder}/test-program.prg",
   "dbgFile": "${workspaceFolder}/test-program.dbg",
   "stopOnEntry": true
@@ -148,7 +148,7 @@ Edit `tools/vscode-extension-test/.vscode/launch.json` and add:
 In a terminal:
 ```bash
 cd src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0
-./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 4711 --debug-wait
+./Highbyte.DotNet6502.App.Avalonia.Desktop --debug-port 6502 --debug-wait
 ```
 
 ### Step 3: Launch Debug Session
@@ -157,13 +157,13 @@ cd src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0
 2. Press F5
 
 **Expected behavior:**
-- Connects to existing TCP server on port 4711
+- Connects to existing TCP server on port 6502
 - Debug session works identically to attach mode
 
 ## Verification Checklist
 
 ### Connection
-- [ ] VSCode successfully connects to TCP port 4711
+- [ ] VSCode successfully connects to TCP port 6502
 - [ ] Avalonia app detects client connection
 - [ ] Debug adapter log file is created
 - [ ] No connection errors in Debug Console
@@ -199,14 +199,14 @@ cd src/apps/Avalonia/Highbyte.DotNet6502.App.Avalonia.Desktop/bin/Debug/net10.0
 
 ## Troubleshooting
 
-### "Could not connect to port 4711"
+### "Could not connect to port 6502"
 
-**Cause:** Avalonia app not running or not listening on port 4711
+**Cause:** Avalonia app not running or not listening on port 6502
 
 **Solution:**
-1. Check Avalonia app is running with `--debug-port 4711`
-2. Check console output for "Started listening on port 4711"
-3. Verify no other process is using port 4711: `lsof -i :4711`
+1. Check Avalonia app is running with `--debug-port 6502`
+2. Check console output for "Started listening on port 6502"
+3. Verify no other process is using port 6502: `lsof -i :6502`
 
 ### "Debug adapter executable not found"
 
@@ -296,7 +296,7 @@ The TCP debug adapter integration is working correctly if:
 2. **Localhost Only:** Server binds to 127.0.0.1 (security)
 3. **No Auto-Discovery:** Must manually specify port number
 4. **No Reconnect:** If connection drops, must restart debug session
-5. **Port Conflicts:** If port 4711 is in use, must choose different port
+5. **Port Conflicts:** If port 6502 is in use, must choose different port
 
 ## Future Enhancements
 
