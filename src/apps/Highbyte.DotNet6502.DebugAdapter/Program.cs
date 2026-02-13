@@ -25,7 +25,7 @@ class Program
             var system = new GenericComputer();
 
             var protocol = new DapProtocol(transport, log);
-            var adapter = new DebugAdapterLogic(protocol, log, system);
+            var adapter = new DebugAdapterLogic(protocol, log, system, builtInExecution: true);
             adapter.OnExit += (terminateDebuggee) => _shouldExit = true;
 
             log.WriteLine("[Main] Protocol initialized, entering message loop...");

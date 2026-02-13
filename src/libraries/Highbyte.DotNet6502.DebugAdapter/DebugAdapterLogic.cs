@@ -31,6 +31,8 @@ public class DebugAdapterLogic
     private int _nextBreakpointId = 1;
     private ushort? _temporaryBreakpoint = null; // Temporary breakpoint for step over JSR
     private bool _stepOutMode = false; // Flag to indicate we're stepping out (waiting for RTS)
+    private readonly bool _builtInExecution; // When true, the adapter runs the CPU itself (no external execution engine)
+    private CancellationTokenSource? _executionCts;
     private const int THREAD_ID = 1;
     private const int FRAME_ID = 0;
 
@@ -55,12 +57,18 @@ public class DebugAdapterLogic
     public event Action<bool>? OnExit;
     public event Action? OnInitialized;
 
-    public DebugAdapterLogic(DapProtocol protocol, StreamWriter log, ISystem system, bool initiallyPaused = false)
+    /// <param name="builtInExecution">
+    /// When true, the adapter runs the CPU itself in a background task on continue/step-over-JSR/step-out.
+    /// Set to true for standalone hosts (e.g. ConsoleApp) that have no external execution engine.
+    /// Set to false (default) for hosts with their own execution loop (e.g. Avalonia emulator).
+    /// </param>
+    public DebugAdapterLogic(DapProtocol protocol, StreamWriter log, ISystem system, bool initiallyPaused = false, bool builtInExecution = false)
     {
         _protocol = protocol;
         _log = log;
         _system = system;
         IsStopped = initiallyPaused;
+        _builtInExecution = builtInExecution;
     }
 
     /// <summary>
@@ -97,6 +105,7 @@ public class DebugAdapterLogic
     /// </summary>
     public void Reset()
     {
+        StopExecutionLoop();
         IsStopped = false;
         _sourceBreakpointsByFile.Clear();
         _instructionBreakpoints.Clear();
@@ -105,6 +114,65 @@ public class DebugAdapterLogic
         _temporaryBreakpoint = null;
         _stepOutMode = false;
         LogSafe("[Reset] Debug adapter reset, emulator will resume");
+    }
+
+    /// <summary>
+    /// Starts the built-in execution loop on a background task.
+    /// Only used when <see cref="_builtInExecution"/> is true (standalone hosts with no external execution engine).
+    /// The loop runs CPU instructions and checks breakpoints until IsStopped becomes true.
+    /// </summary>
+    private void StartExecutionLoop()
+    {
+        if (!_builtInExecution)
+            return;
+
+        StopExecutionLoop();
+        _executionCts = new CancellationTokenSource();
+        var ct = _executionCts.Token;
+        _ = Task.Run(async () =>
+        {
+            var cpu = _system.CPU;
+            var memory = _system.Mem;
+            if (cpu == null || memory == null)
+                return;
+
+            LogSafe("[ExecutionLoop] Starting");
+            try
+            {
+                // Execute one instruction before checking breakpoints.
+                // This is necessary because when resuming from a breakpoint,
+                // PC is still at the breakpoint address — without this, we'd
+                // immediately break again on the same instruction.
+                cpu.ExecuteOneInstruction(memory);
+
+                int count = 1;
+                while (!IsStopped && !ct.IsCancellationRequested)
+                {
+                    // Check breakpoints before executing the next instruction
+                    if (await ShouldBreakAtCurrentPCAsync())
+                        break;
+
+                    cpu.ExecuteOneInstruction(memory);
+                    count++;
+
+                    // Yield periodically to keep the DAP message loop responsive
+                    if (count % 1000 == 0)
+                        await Task.Yield();
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                LogSafe($"[ExecutionLoop] Error: {ex.Message}");
+            }
+            LogSafe("[ExecutionLoop] Stopped");
+        });
+    }
+
+    private void StopExecutionLoop()
+    {
+        _executionCts?.Cancel();
+        _executionCts = null;
     }
 
     /// <summary>
@@ -1387,6 +1455,7 @@ public class DebugAdapterLogic
             LogSafe($"[Continue] Resuming emulator execution at PC=${cpu.PC:X4}");
 
             IsStopped = false; // Resume emulator
+            StartExecutionLoop();
         }
 
         var body = new JsonObject
@@ -1420,6 +1489,7 @@ public class DebugAdapterLogic
 
                     // Resume execution - the breakpoint evaluator will stop at the return address
                     IsStopped = false;
+                    StartExecutionLoop();
                 }
                 else
                 {
@@ -1490,6 +1560,7 @@ public class DebugAdapterLogic
             _stepOutMode = true;
             // Resume execution - the breakpoint evaluator will stop at RTS
             IsStopped = false;
+            StartExecutionLoop();
         }
 
         await _protocol.SendResponseAsync(seq, "stepOut");
@@ -1500,6 +1571,7 @@ public class DebugAdapterLogic
         LogSafe("[HandlePause] Pause requested");
 
         IsStopped = true; // Pause the emulator's run loop
+        StopExecutionLoop();
 
         await _protocol.SendResponseAsync(seq, "pause");
         await SendStoppedEventAsync("pause");
@@ -1520,6 +1592,7 @@ public class DebugAdapterLogic
         // Default to true if not specified (DAP spec default for launch).
         bool terminateDebuggee = args?["terminateDebuggee"]?.GetValue<bool>() ?? true;
         LogSafe($"[Disconnect] terminateDebuggee={terminateDebuggee}");
+        StopExecutionLoop();
 
         await _protocol.SendResponseAsync(seq, "disconnect");
         await Task.Delay(100);
