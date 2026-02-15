@@ -231,13 +231,8 @@ internal sealed partial class Program
             //    }
             //}
 
-            // Start listening for connections
-            // If automated startup is requested (systemName != null), delay server startup until
-            // AutomatedStartupHandler signals completion. The signal timing depends on mode:
-            // - No PRG: signaled right after system starts (enables boot sequence debugging)
-            // - With PRG: signaled after PRG is loaded into memory
-            bool waitForAutomatedStartup = systemName != null;
-            _ = Task.Run(async () => await debugServerManager.StartAsync(debugPort, waitForAutomatedStartup));
+            // Start listening immediately — the adapter handles connecting before a system is running.
+            _ = Task.Run(async () => await debugServerManager.StartAsync(debugPort));
 
             if (debugWait)
             {
@@ -270,7 +265,8 @@ internal sealed partial class Program
                 waitForSystemReady,
                 loadPrgPath,
                 runLoadedProgram,
-                debugServerManager,
+                enableExternalDebug,
+                onStartupComplete: () => debugServerManager?.SignalProgramReady(),
                 loggerFactory));
         }
 

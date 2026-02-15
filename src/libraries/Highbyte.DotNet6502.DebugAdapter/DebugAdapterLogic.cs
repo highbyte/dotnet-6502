@@ -82,6 +82,58 @@ public class DebugAdapterLogic
         LogSafe($"[SetSystem] System bound, PC=${system.CPU?.PC:X4}");
     }
 
+    // Set to true when SetExternalDebugAdapter is called in the host, which sets
+    // IsExternalDebuggerAttached=true in the run loop. Until that happens, IsStopped
+    // has no effect on the host's execution loop.
+    private volatile bool _isInstalledInHost = false;
+
+    /// <summary>
+    /// Called by the host after SetExternalDebugAdapter completes, signaling that
+    /// IsStopped is now effective (IsExternalDebuggerAttached=true in the run loop).
+    /// </summary>
+    public void NotifyInstalledInHost()
+    {
+        _isInstalledInHost = true;
+        LogSafe("[NotifyInstalledInHost] Adapter installed in host, IsStopped is now effective");
+    }
+
+    // Set to true when AutomatedStartupHandler has finished all setup:
+    // KERNAL booted, PRG loaded, PC set. Until then, stopOnEntry must NOT pause
+    // the emulator (the KERNAL needs to run freely to initialize hardware).
+    private volatile bool _programReady = false;
+
+    // Set to true at the start of the stopOnEntry block in HandleLaunchAsync.
+    // Signals NotifyProgramReady() to pause the CPU immediately so that no
+    // program instructions execute before HandleLaunchAsync sets PC.
+    private volatile bool _stopOnEntryPending = false;
+
+    /// <summary>
+    /// Called by the host when automated startup is complete (KERNAL booted, PRG loaded, PC set).
+    /// If stopOnEntry is pending, pauses the CPU immediately so the host can safely set PC
+    /// without the emulator executing any program instructions first.
+    /// </summary>
+    public void NotifyProgramReady()
+    {
+        if (_stopOnEntryPending)
+        {
+            IsStopped = true;
+            LogSafe("[NotifyProgramReady] Pausing CPU immediately for pending stopOnEntry");
+        }
+        _programReady = true;
+        LogSafe("[NotifyProgramReady] Program setup complete, stopOnEntry will now proceed");
+    }
+
+    /// <summary>
+    /// Marks the adapter as stopped (IsStopped=true).
+    /// Used by the host when it knows the emulator is already paused
+    /// (e.g., WaitForExternalDebugger was set before system start).
+    /// </summary>
+    public void MarkAsStopped()
+    {
+        IsStopped = true;
+        LogSafe("[MarkAsStopped] Adapter marked as stopped");
+    }
+
     /// <summary>
     /// Safe logging that checks if the writer is still open
     /// </summary>
@@ -124,6 +176,8 @@ public class DebugAdapterLogic
         _nextBreakpointId = 1;
         _temporaryBreakpoint = null;
         _stepOutMode = false;
+        _programReady = false;
+        _stopOnEntryPending = false;
         LogSafe("[Reset] Debug adapter reset, emulator will resume");
     }
 
@@ -543,27 +597,78 @@ public class DebugAdapterLogic
         // If stopOnEntry, send stopped event
         if (stopOnEntry)
         {
+            // Signal that a stopOnEntry pause is imminent. This causes NotifyProgramReady()
+            // to set IsStopped=true synchronously when called, BEFORE AutomatedStartupHandler
+            // sets CPU.PC — preventing any program instructions from executing first.
+            _stopOnEntryPending = true;
+
+            if (_system == null)
+            {
+                // Debugger connected before the system started.
+                // Wait for SetSystem to bind the system (called by emulatorStateHandler).
+                int waitCount = 0;
+                while (_system == null && waitCount < 100) // up to 10 seconds
+                {
+                    await Task.Delay(100);
+                    waitCount++;
+                }
+                if (_system == null)
+                {
+                    LogSafe("[Launch] Timeout waiting for system to start for stopOnEntry");
+                    IsStopped = true;
+                    await SendStoppedEventAsync("entry");
+                    return;
+                }
+            }
+
+            // For emulator mode (programAlreadyLoaded), wait for AutomatedStartupHandler to
+            // finish all setup: KERNAL boot, PRG load, PC set. Only then pause the emulator.
+            // This prevents freezing the C64 before hardware/BASIC is fully initialized.
+            if (programAlreadyLoaded && !_programReady)
+            {
+                LogSafe("[Launch] Waiting for automated startup to complete (KERNAL boot + PRG load)...");
+                int readyWait = 0;
+                while (!_programReady && readyWait < 300) // up to 30 seconds
+                {
+                    await Task.Delay(100);
+                    readyWait++;
+                }
+                if (!_programReady)
+                    LogSafe("[Launch] Warning: program-ready signal not received — stopOnEntry may be early");
+            }
+
+            // Wait for SetExternalDebugAdapter to complete in the host (sets IsExternalDebuggerAttached=true).
+            // Until that happens, IsStopped=true has no effect on the run loop.
+            int installWait = 0;
+            while (!_isInstalledInHost && installWait < 200) // up to 2 seconds
+            {
+                await Task.Delay(10);
+                installWait++;
+            }
+            if (!_isInstalledInHost)
+                LogSafe("[Launch] Warning: adapter not installed in host after timeout — stopOnEntry may not be reliable");
+
+            // NOW pause the emulator. All setup is done; IsExternalDebuggerAttached=true so
+            // IsStopped=true will take effect on the run loop immediately.
             IsStopped = true;
 
-            // Wait a bit for emulator host's run loop to detect IsStopped and pause,
-            // so it doesn't continue execution before we modify the PC.
-            int waitCount = 0;
-            while (waitCount < 5) // 500 ms wait
-            {
-                await Task.Delay(100);
-                waitCount++;
-            }
+            // Brief delay for the run loop to detect IsStopped=true and pause.
+            await Task.Delay(50);
+
+            // Re-read CPU in case SetSystem was called while waiting.
+            cpu = _system?.CPU;
 
             // Set PC to program start address so debugger stops at the right place.
             // In emulator mode (programAlreadyLoaded), the emulator host loaded the
-            // program but the CPU may still be executing KERNAL code. We need to
-            // redirect execution to the program entry point.
+            // program but the CPU may still be executing code at a different address.
+            // Redirect execution to the program entry point.
             if (_programStartAddress != 0 && cpu != null)
             {
                 cpu.PC = _programStartAddress;
             }
 
             await SendStoppedEventAsync("entry");
+            _stopOnEntryPending = false;
         }
     }
 

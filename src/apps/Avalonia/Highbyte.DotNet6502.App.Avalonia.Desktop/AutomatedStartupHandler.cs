@@ -92,7 +92,8 @@ internal static class AutomatedStartupHandler
         bool waitForSystemReady,
         string? loadPrgPath,
         bool runLoadedProgram,
-        TcpDebugServerManager? debugServerManager,
+        bool enableExternalDebug,
+        Action? onStartupComplete,
         ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger(nameof(AutomatedStartupHandler));
@@ -155,7 +156,7 @@ internal static class AutomatedStartupHandler
                     // If external debugger is enabled and no PRG to load, block execution
                     // until the debugger connects. This allows debugging from the very
                     // first CPU instruction (e.g., C64 KERNAL boot sequence).
-                    if (debugServerManager != null && loadPrgPath == null)
+                    if (enableExternalDebug && loadPrgPath == null)
                     {
                         hostApp.WaitForExternalDebugger = true;
                         logger.LogInformation("WaitForExternalDebugger set: CPU will not execute until debugger connects.");
@@ -163,14 +164,6 @@ internal static class AutomatedStartupHandler
 
                     logger.LogInformation("Starting system...");
                     await hostApp.Start();
-
-                    // If no PRG to load, signal the debug server immediately after start.
-                    // The system exists but WaitForExternalDebugger prevents execution.
-                    if (loadPrgPath == null)
-                    {
-                        logger.LogInformation("No PRG to load, signaling debug server (system created, waiting for debugger).");
-                        debugServerManager?.SignalAutomatedStartupComplete(hostApp);
-                    }
 
                     // Wait for system to be ready if requested
                     if (waitForSystemReady)
@@ -212,32 +205,39 @@ internal static class AutomatedStartupHandler
 
                         logger.LogInformation($"Loaded {prgBytes.Length - 2} bytes at 0x{loadAddress:X4}");
 
+                        logger.LogInformation("Automated startup complete.");
+
+                        // Signal debug adapters BEFORE setting CPU.PC.
+                        // When stopOnEntry is pending, NotifyProgramReady() sets IsStopped=true
+                        // synchronously so the run loop pauses BEFORE the PC is redirected to
+                        // the program start — preventing any program instructions from executing.
+                        onStartupComplete?.Invoke();
+
                         // Run the loaded program if requested
                         if (runLoadedProgram)
                         {
                             logger.LogInformation($"Setting PC to 0x{loadAddress:X4} to run loaded program");
                             hostApp.CurrentRunningSystem.CPU.PC = loadAddress;
                         }
-                        else if (debugServerManager == null)
+                        else if (!enableExternalDebug)
                         {
-                            // No debugger, just set PC but don't start running
-                            logger.LogInformation($"Setting PC to 0x{loadAddress:X4} (system paused)");
+                            // No debugger — set PC to load address so execution starts at the program
+                            logger.LogInformation($"Setting PC to 0x{loadAddress:X4} (no external debugger)");
                             hostApp.CurrentRunningSystem.CPU.PC = loadAddress;
                         }
-
-                        // Signal debug server after PRG is loaded and ready.
-                        // This ensures the debugger doesn't pause the emulator before
-                        // the program bytes are in memory.
-                        debugServerManager?.SignalAutomatedStartupComplete(hostApp);
+                    }
+                    else
+                    {
+                        // No PRG to load (KERNAL boot debugging or plain emulator start).
+                        // Signal adapters now — KERNAL is ready and no PC redirect is needed.
+                        logger.LogInformation("Automated startup complete.");
+                        onStartupComplete?.Invoke();
                     }
                 }
                 else
                 {
-                    // System not started, but signal debug server so it can accept connections
-                    debugServerManager?.SignalAutomatedStartupComplete(hostApp);
+                    // System not started — nothing to do, TCP server is already listening
                 }
-
-                logger.LogInformation("Automated startup complete.");
             });
         }
         catch (Exception ex)
