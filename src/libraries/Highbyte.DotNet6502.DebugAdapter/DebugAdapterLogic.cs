@@ -18,7 +18,7 @@ public class DebugAdapterLogic
 {
     private readonly DapProtocol _protocol;
     private readonly StreamWriter _log;
-    private readonly ISystem _system;
+    private ISystem? _system;
     // Track source and instruction breakpoints separately, because VSCode
     // sends setBreakpoints (source) and setInstructionBreakpoints (disassembly)
     // as independent requests, each containing the full set for that category.
@@ -62,13 +62,24 @@ public class DebugAdapterLogic
     /// Set to true for standalone hosts (e.g. ConsoleApp) that have no external execution engine.
     /// Set to false (default) for hosts with their own execution loop (e.g. Avalonia emulator).
     /// </param>
-    public DebugAdapterLogic(DapProtocol protocol, StreamWriter log, ISystem system, bool initiallyPaused = false, bool builtInExecution = false)
+    public DebugAdapterLogic(DapProtocol protocol, StreamWriter log, ISystem? system, bool initiallyPaused = false, bool builtInExecution = false)
     {
         _protocol = protocol;
         _log = log;
         _system = system;
         IsStopped = initiallyPaused;
         _builtInExecution = builtInExecution;
+    }
+
+    /// <summary>
+    /// Binds a system to the adapter after construction.
+    /// Used when the debugger attaches before a system is running.
+    /// The emulator continues running; use breakpoints or Pause to stop.
+    /// </summary>
+    public void SetSystem(ISystem system)
+    {
+        _system = system;
+        LogSafe($"[SetSystem] System bound, PC=${system.CPU?.PC:X4}");
     }
 
     /// <summary>
@@ -131,8 +142,8 @@ public class DebugAdapterLogic
         var ct = _executionCts.Token;
         _ = Task.Run(async () =>
         {
-            var cpu = _system.CPU;
-            var memory = _system.Mem;
+            var cpu = _system?.CPU;
+            var memory = _system?.Mem;
             if (cpu == null || memory == null)
                 return;
 
@@ -180,8 +191,8 @@ public class DebugAdapterLogic
     /// </summary>
     internal async Task<bool> ShouldBreakAtCurrentPCAsync()
     {
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
         if (cpu == null || memory == null)
             return false;
 
@@ -392,8 +403,8 @@ public class DebugAdapterLogic
 
         LogSafe($"[Launch] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_stopOnBRK}, programAlreadyLoaded={programAlreadyLoaded}");
 
-        var memory = _system.Mem;
-        var cpu = _system.CPU;
+        var memory = _system?.Mem;
+        var cpu = _system?.CPU;
 
         // When program is already loaded by the emulator host, we still use the program
         // path for debug symbols and program bounds, but skip loading into memory.
@@ -476,6 +487,13 @@ public class DebugAdapterLogic
                 effectiveLoadAddress = (ushort)loadAddress.Value;
             }
 
+            if (memory == null)
+            {
+                await SendOutputAsync($"Error: No system available to load program into\n");
+                await _protocol.SendResponseAsync(seq, "launch");
+                return;
+            }
+
             memory.Load(program, out ushort loadAddr, out ushort fileLength, forceLoadAddress: effectiveLoadAddress, fileContainsLoadAddress: !isBinFile);
 
             _programStartAddress = loadAddr;
@@ -510,7 +528,8 @@ public class DebugAdapterLogic
             }
         }
 
-        await SendOutputAsync($"PC at ${cpu.PC:X4}\n");
+        if (cpu != null)
+            await SendOutputAsync($"PC at ${cpu.PC:X4}\n");
         if (!_stopOnBRK)
         {
             await SendOutputAsync("Note: stopOnBRK is disabled - use Pause button to stop execution\n");
@@ -539,7 +558,7 @@ public class DebugAdapterLogic
             // In emulator mode (programAlreadyLoaded), the emulator host loaded the
             // program but the CPU may still be executing KERNAL code. We need to
             // redirect execution to the program entry point.
-            if (_programStartAddress != 0)
+            if (_programStartAddress != 0 && cpu != null)
             {
                 cpu.PC = _programStartAddress;
             }
@@ -627,21 +646,20 @@ public class DebugAdapterLogic
             LogSafe($"[Attach] No debug file specified");
         }
 
-        // Note: In attach mode, we don't have access to the CPU/Memory yet
-        // The desktop app will need to provide a way to share this state
-        // For now, we respond successfully and let breakpoints be set
-
         await _protocol.SendResponseAsync(seq, "attach");
 
         // Send initialized event
         await _protocol.SendEventAsync("initialized");
 
-        // Don't send stopped event in attach mode unless explicitly requested
-        // The program is already running in the desktop app
-        if (stopOnEntry)
+        if (stopOnEntry && _system != null)
         {
-            LogSafe("[Attach] stopOnEntry requested, but emulator state not available in attach mode");
-            await SendOutputAsync($"Note: stopOnEntry requested but requires desktop app integration\n");
+            IsStopped = true;
+            await SendStoppedEventAsync("entry");
+        }
+        else if (_system == null)
+        {
+            await SendOutputAsync("Waiting for emulator to start...\n");
+            LogSafe("[Attach] No system available yet, will bind when emulator starts");
         }
 
         LogSafe("[Attach] Attach sequence complete");
@@ -866,8 +884,8 @@ public class DebugAdapterLogic
     {
         LogSafe("[HandleStackTrace] Called");
 
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
 
         if (cpu == null || memory == null)
         {
@@ -986,8 +1004,8 @@ public class DebugAdapterLogic
     {
         LogSafe($"[HandleVariables] Called");
 
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
 
         var variablesReference = args?["variablesReference"]?.GetValue<int>() ?? 0;
         var variables = new JsonArray();
@@ -1128,8 +1146,8 @@ public class DebugAdapterLogic
 
     private string FormatMemoryDump(ushort startAddress, int length)
     {
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
 
         if (memory == null)
         {
@@ -1205,8 +1223,8 @@ public class DebugAdapterLogic
     {
         LogSafe("[HandleGetMemoryDump] Called");
 
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
 
         try
         {
@@ -1268,8 +1286,8 @@ public class DebugAdapterLogic
     {
         LogSafe("[ HandleEvaluate] Called");
 
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
 
         var expression = args?["expression"]?.ToString() ?? "";
         var context = args?["context"]?.ToString();
@@ -1362,8 +1380,8 @@ public class DebugAdapterLogic
         LogSafe("[HandleReadMemory] Called");
         LogSafe($"[HandleReadMemory] args: {args?.ToJsonString()}");
 
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
 
         try
         {
@@ -1447,8 +1465,8 @@ public class DebugAdapterLogic
     {
         LogSafe("[HandleContinue] Called");
 
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
 
         if (cpu != null && memory != null)
         {
@@ -1469,8 +1487,8 @@ public class DebugAdapterLogic
     private async Task HandleNextAsync(int seq, JsonObject? args)
     {
         LogSafe("[HandleNext] Starting...");
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
         try
         {
             if (cpu != null && memory != null)
@@ -1525,8 +1543,8 @@ public class DebugAdapterLogic
     {
         LogSafe("[HandleStepIn] Starting...");
 
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
 
         if (cpu != null && memory != null)
         {
@@ -1550,8 +1568,8 @@ public class DebugAdapterLogic
     {
         LogSafe("[HandleStepOut] Starting...");
 
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
 
         if (cpu != null && memory != null)
         {
@@ -1616,8 +1634,8 @@ public class DebugAdapterLogic
     /// </summary>
     public async Task SendStoppedEventAsync(string reason, string? text = null, bool preserveFocusHint = false, int[]? hitBreakpointIds = null)
     {
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
 
         var body = new JsonObject
         {
@@ -1664,8 +1682,8 @@ public class DebugAdapterLogic
     private async Task HandleDisassembleAsync(int seq, JsonObject? args)
     {
         LogSafe("[HandleDisassemble] Called");
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
 
         var memoryReference = args?["memoryReference"]?.ToString();
         var offset = args?["offset"]?.GetValue<int>() ?? 0;
@@ -1837,8 +1855,8 @@ public class DebugAdapterLogic
     /// </summary>
     private int GetInstructionLength(byte opCode)
     {
-        var cpu = _system.CPU;
-        var memory = _system.Mem;
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
 
         if (cpu != null && cpu.InstructionList.OpCodeDictionary.ContainsKey(opCode))
         {

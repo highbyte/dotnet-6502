@@ -39,6 +39,7 @@ public static class PathHelper
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             path = path.Replace("%HOME%", "%USERPROFILE%", s_stringComparison);
+            path = path.Replace("~", "%USERPROFILE%", s_stringComparison);
             // TODO: More Linux/Mac specific that need replacements on Windows
         }
         return path;
