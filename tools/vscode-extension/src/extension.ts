@@ -196,6 +196,15 @@ class DebugConfigurationProvider implements vscode.DebugConfigurationProvider {
             const debugPort = config.debugPort || 6502;
             console.log(`[6502 Debug] Attach mode: connecting to emulator on port ${debugPort}`);
 
+            const launchOnlyProps = ['system', 'systemVariant', 'waitForSystemReady', 'loadProgram', 'runProgram']
+                .filter(p => config[p] !== undefined);
+            if (launchOnlyProps.length > 0) {
+                vscode.window.showWarningMessage(
+                    `6502 Debugger: The following properties are ignored in attach mode: ${launchOnlyProps.join(', ')}. ` +
+                    `They only apply to launch configurations.`
+                );
+            }
+
             config.__programAlreadyLoaded = true;
             config.__emulatorDebugPort = debugPort;
             config.__waitingForEmulator = true;

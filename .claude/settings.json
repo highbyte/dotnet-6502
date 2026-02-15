@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Select-String \"Build succeeded\",\"Build FAILED\",\": error\")"
+    ]
+  }
+}
