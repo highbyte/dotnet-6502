@@ -1113,20 +1113,30 @@ async function generatePrgLaunchConfig(
  * Manages inline address decorations: shows the 6502 address ($XXXX) as
  * dim after-line text for each source line that has a known address mapping.
  * Fetches the source→address map from the debug adapter on first stop.
+ *
+ * Two decoration types are used:
+ *  - `decorationType`        (static)  — all non-macro lines, fixed from the .dbg file.
+ *  - `dynamicDecorationType` (dynamic) — only the current stopped line, and only when
+ *                                         that line has no static decoration (i.e. it is
+ *                                         inside a macro body). Updated on every stop so
+ *                                         repeated macro calls show the correct address.
  */
 class AddressDecorationManager implements vscode.Disposable {
     private readonly decorationType: vscode.TextEditorDecorationType;
+    private readonly dynamicDecorationType: vscode.TextEditorDecorationType;
     // sessionId → (dbg filename key → (1-based lineNumber → formatted address))
     private readonly sessionMaps = new Map<string, Map<string, Map<number, string>>>();
     private activeSessionId: string | undefined;
+    // Current stopped position for dynamic (macro) decoration
+    private currentStopInfo: { sessionId: string; file: string; line: number; addr: string } | undefined;
 
     constructor() {
-        this.decorationType = vscode.window.createTextEditorDecorationType({
-            after: {
-                color: new vscode.ThemeColor('editorLineNumber.foreground'),
-                fontStyle: 'italic',
-            }
-        });
+        const afterStyle = {
+            color: new vscode.ThemeColor('editorLineNumber.foreground'),
+            fontStyle: 'italic',
+        };
+        this.decorationType = vscode.window.createTextEditorDecorationType({ after: afterStyle });
+        this.dynamicDecorationType = vscode.window.createTextEditorDecorationType({ after: afterStyle });
     }
 
     async fetchAndApply(session: vscode.DebugSession): Promise<void> {
@@ -1156,13 +1166,45 @@ class AddressDecorationManager implements vscode.Disposable {
         }
     }
 
+    /**
+     * Called when the adapter sends a `stackTrace` response after a `stopped` event.
+     * Applies a dynamic decoration to the current stopped line if it is a macro body
+     * line (has no static decoration).
+     */
+    onStackFrame(session: vscode.DebugSession, frame: any): void {
+        const addrRef = frame.instructionPointerReference as string | undefined;
+        const sourcePath = frame.source?.path as string | undefined;
+        const line = frame.line as number | undefined;
+
+        if (!addrRef || !sourcePath || !line) {
+            this.currentStopInfo = undefined;
+            for (const editor of vscode.window.visibleTextEditors) {
+                editor.setDecorations(this.dynamicDecorationType, []);
+            }
+            return;
+        }
+
+        const addrNum = parseInt(addrRef.replace(/^0x/i, ''), 16);
+        const hex = addrNum.toString(16).toUpperCase().padStart(4, '0');
+
+        this.currentStopInfo = { sessionId: session.id, file: sourcePath, line, addr: `$${hex}` };
+
+        for (const editor of vscode.window.visibleTextEditors) {
+            this.applyDynamicToEditor(editor);
+        }
+    }
+
     onSessionEnded(session: vscode.DebugSession): void {
         this.sessionMaps.delete(session.id);
         if (this.activeSessionId === session.id) {
             this.activeSessionId = undefined;
             for (const editor of vscode.window.visibleTextEditors) {
                 editor.setDecorations(this.decorationType, []);
+                editor.setDecorations(this.dynamicDecorationType, []);
             }
+        }
+        if (this.currentStopInfo?.sessionId === session.id) {
+            this.currentStopInfo = undefined;
         }
     }
 
@@ -1192,26 +1234,84 @@ class AddressDecorationManager implements vscode.Disposable {
             }
         }
         editor.setDecorations(this.decorationType, decorations);
+
+        // Also apply dynamic decoration for the current stopped line (if any)
+        this.applyDynamicToEditor(editor);
+    }
+
+    /**
+     * Applies the dynamic decoration for the current stopped line, but only when
+     * that line is not already covered by a static decoration (i.e. macro body lines).
+     */
+    private applyDynamicToEditor(editor: vscode.TextEditor): void {
+        if (!this.currentStopInfo || this.currentStopInfo.sessionId !== this.activeSessionId) {
+            editor.setDecorations(this.dynamicDecorationType, []);
+            return;
+        }
+
+        const editorBase = path.basename(editor.document.uri.fsPath);
+        const stopBase = path.basename(this.currentStopInfo.file);
+        if (editorBase !== stopBase) {
+            editor.setDecorations(this.dynamicDecorationType, []);
+            return;
+        }
+
+        // If this line already has a static decoration, the dynamic one is not needed
+        const fileMap = this.sessionMaps.get(this.currentStopInfo.sessionId);
+        if (fileMap) {
+            for (const [key, lineMap] of fileMap) {
+                if (path.basename(key) === editorBase && lineMap.has(this.currentStopInfo.line)) {
+                    editor.setDecorations(this.dynamicDecorationType, []);
+                    return;
+                }
+            }
+        }
+
+        // Macro body line — apply the dynamic decoration with the actual PC for this invocation
+        const zeroIdx = this.currentStopInfo.line - 1;
+        if (zeroIdx >= 0 && zeroIdx < editor.document.lineCount) {
+            const lineEnd = editor.document.lineAt(zeroIdx).range.end;
+            editor.setDecorations(this.dynamicDecorationType, [{
+                range: new vscode.Range(lineEnd, lineEnd),
+                renderOptions: { after: { contentText: `  ${this.currentStopInfo.addr}` } }
+            }]);
+        } else {
+            editor.setDecorations(this.dynamicDecorationType, []);
+        }
     }
 
     dispose(): void {
         this.decorationType.dispose();
+        this.dynamicDecorationType.dispose();
     }
 }
 
 /**
- * Hooks into DAP message traffic to trigger address map fetching on the
- * first `stopped` event (i.e. when the debug adapter is fully initialized
- * and any .dbg file has been parsed).
+ * Hooks into DAP message traffic to:
+ *  1. Trigger static address map fetching on the first `stopped` event.
+ *  2. Intercept each `stackTrace` response (sent automatically by VSCode after
+ *     every stop) to apply a dynamic decoration on the current stopped line —
+ *     which is especially useful inside macro bodies where addresses differ per call.
  */
 class DotNet6502DebugTrackerFactory implements vscode.DebugAdapterTrackerFactory {
     constructor(private readonly manager: AddressDecorationManager) {}
 
     createDebugAdapterTracker(session: vscode.DebugSession): vscode.DebugAdapterTracker {
+        let pendingStop = false;
         return {
             onDidSendMessage: (message: any) => {
                 if (message.type === 'event' && message.event === 'stopped') {
                     this.manager.fetchAndApply(session);
+                    pendingStop = true;
+                }
+                // VSCode automatically sends stackTrace after every stopped event.
+                // Intercept the response to get the top frame's PC without extra requests.
+                if (pendingStop && message.type === 'response' && message.command === 'stackTrace') {
+                    pendingStop = false;
+                    const frame = message.body?.stackFrames?.[0];
+                    if (frame) {
+                        this.manager.onStackFrame(session, frame);
+                    }
                 }
             }
         };

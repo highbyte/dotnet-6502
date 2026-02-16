@@ -1072,42 +1072,32 @@ public class DebugAdapterLogic
             ["presentationHint"] = "normal"
         };
 
-        // Add source information if debug symbols are available
+        // Add source information if debug symbols are available.
+        // Use AddressToSource for O(1) reverse lookup keyed by the unique 6502 address.
+        // This correctly handles multiple invocations of the same macro: each invocation
+        // lives at a distinct address and has its own entry in the reverse map.
         bool sourceFound = false;
-        if (_dbgParser != null)
+        if (_dbgParser != null && _dbgParser.AddressToSource.TryGetValue(pc, out var sourceInfo))
         {
-            foreach (var fileEntry in _dbgParser.SourceLineToAddress)
-            {
-                foreach (var lineEntry in fileEntry.Value)
-                {
-                    if (lineEntry.Value == pc)
-                    {
-                        // Found source mapping for this address.
-                        // The .dbg file may store just a filename ("test.asm") or a full
-                        // absolute path ("C:\...\test.asm"). Use the path as-is if absolute,
-                        // otherwise combine with the program directory.
-                        var sourceFileName = Path.GetFileName(fileEntry.Key);
-                        string sourcePath;
-                        if (Path.IsPathRooted(fileEntry.Key))
-                            sourcePath = fileEntry.Key;
-                        else
-                            sourcePath = Path.Combine(Path.GetDirectoryName(_programPath) ?? "", fileEntry.Key);
+            // The .dbg file may store just a filename ("test.asm") or a full
+            // absolute path ("C:\...\test.asm"). Use the path as-is if absolute,
+            // otherwise combine with the program directory.
+            var sourceFileName = Path.GetFileName(sourceInfo.FileName);
+            string sourcePath;
+            if (Path.IsPathRooted(sourceInfo.FileName))
+                sourcePath = sourceInfo.FileName;
+            else
+                sourcePath = Path.Combine(Path.GetDirectoryName(_programPath) ?? "", sourceInfo.FileName);
 
-                        frame["source"] = new JsonObject
-                        {
-                            ["name"] = sourceFileName,
-                            ["path"] = sourcePath
-                        };
-                        frame["line"] = lineEntry.Key;
-                        frame["column"] = 0;
-                        sourceFound = true;
-                        LogSafe($"[HandleStackTrace] Resolved PC to {sourceFileName}:{lineEntry.Key} (path={sourcePath})");
-                        break;
-                    }
-                }
-                if (sourceFound)
-                    break;
-            }
+            frame["source"] = new JsonObject
+            {
+                ["name"] = sourceFileName,
+                ["path"] = sourcePath
+            };
+            frame["line"] = sourceInfo.LineNumber;
+            frame["column"] = 0;
+            sourceFound = true;
+            LogSafe($"[HandleStackTrace] Resolved PC to {sourceFileName}:{sourceInfo.LineNumber} (path={sourcePath})");
         }
 
         // If no source mapping found, omit line/column entirely

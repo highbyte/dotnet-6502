@@ -24,6 +24,16 @@ public class Ca65DbgParser
     public Dictionary<string, Dictionary<int, ushort>> NonMacroSourceLineToAddress { get; } = new();
 
     /// <summary>
+    /// Reverse map: 6502 address → (source file name, 1-based line number).
+    /// Covers ALL lines including macro expansion lines (type=2).
+    /// Used for PC→source reverse lookup so that every invocation of a macro
+    /// (each of which lives at a distinct address) resolves to the correct source line.
+    /// Unlike <see cref="SourceLineToAddress"/> (line→address, last-write-wins), this
+    /// map is keyed by the unique address so multiple macro invocations never collide.
+    /// </summary>
+    public Dictionary<ushort, (string FileName, int LineNumber)> AddressToSource { get; } = new();
+
+    /// <summary>
     /// All symbols from the .dbg file. Key is symbol name.
     /// Type "lab" = code/data label with memory address; "equ" = symbolic constant.
     /// </summary>
@@ -125,7 +135,15 @@ public class Ca65DbgParser
         // line id=0,file=0,line=10,span=1
         // line id=3,file=0,line=98,type=2,count=1,span=157  (type=2 = macro expansion)
         // Multi-span lines use '+' separator: span=474+473+472+...
-        // We use the first span for address mapping.
+        //
+        // For macros called from N sites, ca65 generates ONE line record per macro-body line
+        // with ALL N invocations' spans in a single '+'-delimited list:
+        //   line id=181,file=0,line=111,type=2,span=199+37+20
+        //   → span 199 = first call-site, span 37 = second, span 20 = third
+        //
+        // We store all span IDs so BuildAddressMap can add every invocation's address
+        // to AddressToSource.  For forward lookup (breakpoints, decorations) we use only
+        // the primary (first) span — that sets the breakpoint at the first invocation.
         var values = ParseKeyValuePairs(record);
         if (values.TryGetValue("file", out var file) &&
             values.TryGetValue("line", out var line) &&
@@ -136,13 +154,13 @@ public class Ca65DbgParser
             // We skip these so decorations appear at call sites, not inside macro bodies.
             var isMacroExpansion = values.TryGetValue("type", out var lineType) && lineType == "2";
 
-            // Take first span if multiple are specified (e.g. "474+473+472")
-            var firstSpan = span.Split('+')[0];
+            var spanIds = span.Split('+').Select(int.Parse).ToArray();
             _lines.Add(new LineInfo
             {
                 FileId = int.Parse(file),
                 LineNumber = int.Parse(line),
-                SpanId = int.Parse(firstSpan),
+                SpanId = spanIds[0],          // primary span for forward lookup
+                AllSpanIds = spanIds,          // all spans for reverse lookup
                 IsMacroExpansion = isMacroExpansion
             });
         }
@@ -186,11 +204,35 @@ public class Ca65DbgParser
             // Calculate the actual address
             var address = (ushort)(segment.Start + span.Start);
 
-            // Always populate the full map (used for PC→source reverse lookup, e.g. stepping into macros)
+            // Always populate the full map (used for forward lookup: line→address, e.g. setting breakpoints)
             if (!SourceLineToAddress.ContainsKey(fileName))
                 SourceLineToAddress[fileName] = new Dictionary<int, ushort>();
 
             SourceLineToAddress[fileName][lineInfo.LineNumber] = address;
+
+            // Populate the reverse map (address→source) for O(1) PC→source lookup.
+            // Keyed by the unique 6502 address, so multiple macro invocations at
+            // different addresses all get their own entry — no last-write-wins problem.
+            //
+            // Also add every *additional* span from the same line record: when a macro
+            // is called N times, ca65 puts all N invocation spans in a single line record
+            // (e.g. span=199+37+20).  We must add each one so the debugger can resolve
+            // the PC for any invocation back to the correct source line.
+            //
+            // Use TryAdd (first-write-wins): when two line records share the same spans
+            // (e.g. the .macro header line and the first body instruction both get assigned
+            // the same span because the header generates no code), the first record in the
+            // .dbg file is the actual instruction and should win; the header record comes
+            // later with a higher id and must NOT overwrite the instruction mapping.
+            AddressToSource.TryAdd(address, (fileName, lineInfo.LineNumber));
+            foreach (var extraSpanId in lineInfo.AllSpanIds)
+            {
+                if (extraSpanId == lineInfo.SpanId) continue; // already handled above
+                if (!_spans.TryGetValue(extraSpanId, out var extraSpan)) continue;
+                if (!_segments.TryGetValue(extraSpan.SegmentId, out var extraSeg)) continue;
+                var extraAddress = (ushort)(extraSeg.Start + extraSpan.Start);
+                AddressToSource.TryAdd(extraAddress, (fileName, lineInfo.LineNumber));
+            }
 
             // Also populate the non-macro map (used for after-line address decorations).
             // Macro expansion lines (type=2) are excluded so the decoration only appears
@@ -252,7 +294,15 @@ public class Ca65DbgParser
     {
         public int FileId { get; set; }
         public int LineNumber { get; set; }
+        /// <summary>Primary (first) span — used for forward lookup (breakpoints, decorations).</summary>
         public int SpanId { get; set; }
+        /// <summary>
+        /// All spans, including the primary.  When a macro is called N times, ca65 stores
+        /// all N invocation spans in one '+'-delimited field, so this array has N entries.
+        /// Used so <see cref="Ca65DbgParser.AddressToSource"/> gets an entry for every
+        /// invocation address, not just the first.
+        /// </summary>
+        public int[] AllSpanIds { get; set; } = Array.Empty<int>();
         /// <summary>True when type=2 in the .dbg file (macro expansion body line).</summary>
         public bool IsMacroExpansion { get; set; }
     }
