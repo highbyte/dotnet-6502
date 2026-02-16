@@ -107,6 +107,12 @@ public class DebugAdapterLogic
     // program instructions execute before HandleLaunchAsync sets PC.
     private volatile bool _stopOnEntryPending = false;
 
+    // Set to true by resume handlers (Continue, Next/JSR, StepOut) before IsStopped=false.
+    // Causes ShouldBreakAtCurrentPCAsync to skip the very next breakpoint check so that
+    // resuming from a breakpoint doesn't immediately re-trigger on the same address.
+    // The core evaluator is now called PRE-execution, so this skip is needed on resume.
+    private volatile bool _skipNextBreakpointCheck = false;
+
     /// <summary>
     /// Called by the host when automated startup is complete (KERNAL booted, PRG loaded, PC set).
     /// If stopOnEntry is pending, pauses the CPU immediately so the host can safely set PC
@@ -178,6 +184,7 @@ public class DebugAdapterLogic
         _stepOutMode = false;
         _programReady = false;
         _stopOnEntryPending = false;
+        _skipNextBreakpointCheck = false;
         LogSafe("[Reset] Debug adapter reset, emulator will resume");
     }
 
@@ -204,16 +211,14 @@ public class DebugAdapterLogic
             LogSafe("[ExecutionLoop] Starting");
             try
             {
-                // Execute one instruction before checking breakpoints.
-                // This is necessary because when resuming from a breakpoint,
-                // PC is still at the breakpoint address — without this, we'd
-                // immediately break again on the same instruction.
-                cpu.ExecuteOneInstruction(memory);
-
-                int count = 1;
+                // The skip flag is set by the resume handlers (Continue, Next/JSR, StepOut)
+                // before IsStopped=false so the first pre-execution check in
+                // ShouldBreakAtCurrentPCAsync is skipped, preventing an immediate
+                // re-trigger at the breakpoint address we're resuming from.
+                int count = 0;
                 while (!IsStopped && !ct.IsCancellationRequested)
                 {
-                    // Check breakpoints before executing the next instruction
+                    // Check breakpoints before executing the next instruction (pre-execution)
                     if (await ShouldBreakAtCurrentPCAsync())
                         break;
 
@@ -241,10 +246,21 @@ public class DebugAdapterLogic
     }
 
     /// <summary>
-    /// Check if execution should stop at the current PC (called by BreakpointEvaluator)
+    /// Check if execution should stop at the current PC (called by BreakpointEvaluator).
+    /// The core evaluator is called pre-execution, so when resuming from a breakpoint the
+    /// caller must set <see cref="_skipNextBreakpointCheck"/> to avoid re-triggering at
+    /// the same address.
     /// </summary>
     internal async Task<bool> ShouldBreakAtCurrentPCAsync()
     {
+        // Skip one check when resuming from a breakpoint/step so we don't immediately
+        // re-trigger at the address we just stopped at.
+        if (_skipNextBreakpointCheck)
+        {
+            _skipNextBreakpointCheck = false;
+            return false;
+        }
+
         var cpu = _system?.CPU;
         var memory = _system?.Mem;
         if (cpu == null || memory == null)
@@ -1577,6 +1593,9 @@ public class DebugAdapterLogic
         {
             LogSafe($"[Continue] Resuming emulator execution at PC=${cpu.PC:X4}");
 
+            // Skip the first pre-execution check to avoid re-triggering on the
+            // breakpoint address we're resuming from.
+            _skipNextBreakpointCheck = true;
             IsStopped = false; // Resume emulator
             StartExecutionLoop();
         }
@@ -1610,7 +1629,9 @@ public class DebugAdapterLogic
                     _temporaryBreakpoint = returnAddress;
                     LogSafe($"[HandleNext] JSR detected, setting temporary breakpoint at ${returnAddress:X4}");
 
-                    // Resume execution - the breakpoint evaluator will stop at the return address
+                    // Resume execution - the breakpoint evaluator will stop at the return address.
+                    // Skip the first pre-execution check so we don't re-trigger on the JSR itself.
+                    _skipNextBreakpointCheck = true;
                     IsStopped = false;
                     StartExecutionLoop();
                 }
@@ -1681,7 +1702,9 @@ public class DebugAdapterLogic
             LogSafe($"[HandleStepOut] Enabling step out mode, will run until RTS at PC=${cpu.PC:X4}");
             // Enable step out mode - execution will continue until RTS is found
             _stepOutMode = true;
-            // Resume execution - the breakpoint evaluator will stop at RTS
+            // Resume execution - the breakpoint evaluator will stop at RTS.
+            // Skip the first pre-execution check so we don't re-trigger on the current PC.
+            _skipNextBreakpointCheck = true;
             IsStopped = false;
             StartExecutionLoop();
         }

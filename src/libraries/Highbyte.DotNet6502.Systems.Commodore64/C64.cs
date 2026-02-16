@@ -144,6 +144,26 @@ public class C64 : ISystem, ISystemMonitor
         out InstructionExecResult instructionExecResult,
         IExecEvaluator? execEvaluator = null)
     {
+        // Check BEFORE executing the instruction so that breakpoints trigger at the
+        // correct address (i.e. before the instruction at that address runs).
+        // Build a pre-execution result with the opcode at the current PC so evaluators
+        // that check for BRK or unknown instructions work correctly pre-execution.
+        if (execEvaluator != null)
+        {
+            byte opcodeAtPC = Mem[CPU.PC];
+            bool isUnknown = !CPU.InstructionList.OpCodeDictionary.ContainsKey(opcodeAtPC);
+            var preExecResult = isUnknown
+                ? InstructionExecResult.UnknownInstructionResult(opcodeAtPC, CPU.PC)
+                : InstructionExecResult.KnownInstructionResult(opcodeAtPC, CPU.PC, 0);
+
+            var preCheckResult = execEvaluator.Check(preExecResult, CPU, Mem);
+            if (preCheckResult.Triggered)
+            {
+                instructionExecResult = preExecResult;
+                return preCheckResult;
+            }
+        }
+
         // Execute one CPU instruction
         instructionExecResult = CPU.ExecuteOneInstructionMinimal(Mem);
 
@@ -174,15 +194,6 @@ public class C64 : ISystem, ISystemMonitor
         _renderProvider?.OnAfterInstruction();
         _renderProviderPerInstructionStat.Stop(cont: true);
 
-        // Check for debugger breakpoints (or other possible IExecEvaluator implementations used).
-        if (execEvaluator != null)
-        {
-            var execEvaluatorTriggerResult = execEvaluator.Check(instructionExecResult, CPU, Mem);
-            if (execEvaluatorTriggerResult.Triggered)
-            {
-                return execEvaluatorTriggerResult;
-            }
-        }
         return ExecEvaluatorTriggerResult.NotTriggered;
     }
 

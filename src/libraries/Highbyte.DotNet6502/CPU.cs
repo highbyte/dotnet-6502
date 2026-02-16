@@ -219,6 +219,22 @@ public class CPU
         bool doNextInstruction = true;
         while (doNextInstruction)
         {
+            // Evaluate BEFORE executing the next instruction.
+            // Checking pre-execution means breakpoints trigger at the correct address
+            // (before the instruction at that address runs), and evaluators that count
+            // cycles/instructions use the cumulative totals from prior iterations.
+            foreach (var execEvaluator in execEvaluators)
+            {
+                var execEvaluatorTriggerResult = execEvaluator.Check(thisExecState, this, mem);
+                if (execEvaluatorTriggerResult.Triggered)
+                {
+                    doNextInstruction = false;
+                    break;
+                }
+            }
+            if (!doNextInstruction)
+                break;
+
             // Fire event before instruction executes
             OnInstructionToBeExecuted(new CPUInstructionToBeExecutedEventArgs(this, mem));
 
@@ -249,18 +265,6 @@ public class CPU
             }
 
             ProcessInterrupts(mem);
-
-            // Evaluate if execution shall continue to next instruction, or stop here.
-            // Will continue only if all of the ExecEvaluators reports true.
-            foreach (var execEvaluator in execEvaluators)
-            {
-                var execEvaluatorTriggerResult = execEvaluator.Check(thisExecState, this, mem);
-                if (execEvaluatorTriggerResult.Triggered)
-                {
-                    doNextInstruction = false;
-                    break;
-                }
-            }
         }
 
         // Return stats for this invocation of Execute();
