@@ -695,9 +695,46 @@ public class DebugAdapterLogic
         var stopOnEntry = args?["stopOnEntry"]?.GetValue<bool>() ?? false;
         _stopOnBRK = args?["stopOnBRK"]?.GetValue<bool>() ?? true;
 
-        // Get program and dbgFile from config
+        // Get program and dbgFile from config, or auto-derive if preLaunchTask was used
         string? program = args?["program"]?.ToString();
         string? dbgFile = args?["dbgFile"]?.ToString();
+        var preLaunchTask = args?["preLaunchTask"]?.ToString();
+
+        // If program not specified but preLaunchTask was used, look for recently built .prg files
+        if (string.IsNullOrEmpty(program) && !string.IsNullOrEmpty(preLaunchTask))
+        {
+            var workingDir = args?["__workspaceFolder"]?.ToString() ?? Directory.GetCurrentDirectory();
+            LogSafe($"[Attach] program not specified with preLaunchTask, searching in: {workingDir}");
+
+            var prgFiles = Directory.GetFiles(workingDir, "*.prg", SearchOption.AllDirectories)
+                .Select(f => new FileInfo(f))
+                .OrderByDescending(f => f.LastWriteTime)
+                .ToList();
+
+            if (prgFiles.Any())
+            {
+                var recentPrg = prgFiles.First();
+                program = recentPrg.FullName;
+                LogSafe($"[Attach] Auto-detected recently built program: {program} (modified: {recentPrg.LastWriteTime})");
+                await SendOutputAsync($"Auto-detected program: {Path.GetFileName(program)}\n");
+
+                // Also look for corresponding .dbg file
+                if (string.IsNullOrEmpty(dbgFile))
+                {
+                    var dbgPath = Path.ChangeExtension(program, ".dbg");
+                    if (File.Exists(dbgPath))
+                    {
+                        dbgFile = dbgPath;
+                        LogSafe($"[Attach] Auto-detected debug file: {dbgFile}");
+                        await SendOutputAsync($"Auto-detected debug file: {Path.GetFileName(dbgFile)}\n");
+                    }
+                }
+            }
+            else
+            {
+                LogSafe($"[Attach] No .prg files found in workspace");
+            }
+        }
 
         LogSafe($"[Attach] program={program}, dbgFile={dbgFile}, stopOnEntry={stopOnEntry}, stopOnBRK={_stopOnBRK}");
 
