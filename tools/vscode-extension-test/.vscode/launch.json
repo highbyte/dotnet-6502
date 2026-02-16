@@ -62,6 +62,16 @@
     },
     {
       "type": "dotnet6502",
+      "request": "attach",
+      "name": "Attach to Full Emulator Host with C64 to Source Debug smooth_scroller_and_raster2.asm",
+      "preLaunchTask": "Build smooth_scroller_and_raster2.asm (C64)",
+      // "program": "${workspaceFolder}/smooth_scroller_and_raster2.prg",
+      // "dbgFile": "${workspaceFolder}/smooth_scroller_and_raster2.dbg",
+      "stopOnEntry": false,
+      "stopOnBRK": true
+    },    
+    {
+      "type": "dotnet6502",
       "request": "launch",
       "name": "Launch Full Emulator Host with C64 to Disassembly Debug smooth_scroller_and_raster.prg (without .asm source)",
       // Uses emulator host app as debug adapter (full emulation support).

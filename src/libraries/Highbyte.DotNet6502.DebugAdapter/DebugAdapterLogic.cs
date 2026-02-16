@@ -1150,6 +1150,14 @@ public class DebugAdapterLogic
             }
         };
 
+        if (_dbgParser?.Symbols.Count > 0)
+        {
+            if (_dbgParser.Symbols.Values.Any(s => s.Type == "lab"))
+                scopes.Add(new JsonObject { ["name"] = "Labels", ["variablesReference"] = 3, ["expensive"] = false });
+            if (_dbgParser.Symbols.Values.Any(s => s.Type == "equ"))
+                scopes.Add(new JsonObject { ["name"] = "Constants", ["variablesReference"] = 4, ["expensive"] = false });
+        }
+
         var body = new JsonObject
         {
             ["scopes"] = scopes
@@ -1191,6 +1199,43 @@ public class DebugAdapterLogic
                 variables.Add(new JsonObject { ["name"] = "V (Overflow)", ["value"] = ps.Overflow ? "1" : "0", ["variablesReference"] = 0 });
                 variables.Add(new JsonObject { ["name"] = "N (Negative)", ["value"] = ps.Negative ? "1" : "0", ["variablesReference"] = 0 });
                 LogSafe($"[HandleVariables] Returning {variables.Count} flag variables");
+            }
+            else if (variablesReference == 3) // Labels
+            {
+                if (_dbgParser != null)
+                {
+                    foreach (var kvp in _dbgParser.Symbols.Where(s => s.Value.Type == "lab").OrderBy(s => s.Key))
+                    {
+                        var addr = kvp.Value.Value;
+                        var memByte = memory[addr];
+                        variables.Add(new JsonObject
+                        {
+                            ["name"] = kvp.Key,
+                            ["value"] = $"${addr:X4} [${memByte:X2}]",
+                            ["type"] = "label",
+                            ["variablesReference"] = 0
+                        });
+                    }
+                    LogSafe($"[HandleVariables] Returning {variables.Count} label variables");
+                }
+            }
+            else if (variablesReference == 4) // Constants
+            {
+                if (_dbgParser != null)
+                {
+                    foreach (var kvp in _dbgParser.Symbols.Where(s => s.Value.Type == "equ").OrderBy(s => s.Key))
+                    {
+                        var val = kvp.Value.Value;
+                        variables.Add(new JsonObject
+                        {
+                            ["name"] = kvp.Key,
+                            ["value"] = $"${val:X4} ({val})",
+                            ["type"] = "constant",
+                            ["variablesReference"] = 0
+                        });
+                    }
+                    LogSafe($"[HandleVariables] Returning {variables.Count} constant variables");
+                }
             }
         }
         else
@@ -1508,6 +1553,19 @@ public class DebugAdapterLogic
             else if (expression.Equals("SP", StringComparison.OrdinalIgnoreCase))
             {
                 result = $"${cpu.SP:X2}";
+            }
+            // Check for symbol name in .dbg symbols
+            else if (_dbgParser?.Symbols.TryGetValue(expression, out var symbol) == true)
+            {
+                if (symbol.Type == "lab")
+                {
+                    var memByte = memory[symbol.Value];
+                    result = $"${symbol.Value:X4} [${memByte:X2}]";
+                }
+                else // equ
+                {
+                    result = $"${symbol.Value:X4} ({symbol.Value})";
+                }
             }
             else
             {

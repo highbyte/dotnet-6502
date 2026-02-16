@@ -14,6 +14,12 @@ public class Ca65DbgParser
     private readonly List<LineInfo> _lines = new();
 
     public Dictionary<string, Dictionary<int, ushort>> SourceLineToAddress { get; } = new();
+
+    /// <summary>
+    /// All symbols from the .dbg file. Key is symbol name.
+    /// Type "lab" = code/data label with memory address; "equ" = symbolic constant.
+    /// </summary>
+    public Dictionary<string, SymbolInfo> Symbols { get; } = new();
     
     /// <summary>
     /// Gets the load address from the first CODE segment, or 0 if not found.
@@ -55,6 +61,8 @@ public class Ca65DbgParser
                 ParseSpanRecord(trimmed);
             else if (trimmed.StartsWith("line"))
                 ParseLineRecord(trimmed);
+            else if (trimmed.StartsWith("sym"))
+                ParseSymRecord(trimmed);
         }
 
         // Second pass: build source line to address mapping
@@ -122,6 +130,25 @@ public class Ca65DbgParser
                 LineNumber = int.Parse(line),
                 SpanId = int.Parse(firstSpan)
             });
+        }
+    }
+
+    private void ParseSymRecord(string record)
+    {
+        // sym id=28,name="vblank_irq",addrsize=absolute,scope=0,def=46,ref=145+145,val=0xC01A,seg=0,type=lab
+        // sym id=37,name="XSHIFT",addrsize=zeropage,scope=0,def=21,ref=137+215+93,val=0x5,type=equ
+        var values = ParseKeyValuePairs(record);
+        if (values.TryGetValue("name", out var name) &&
+            values.TryGetValue("val", out var val) &&
+            values.TryGetValue("type", out var type))
+        {
+            var addrSize = values.TryGetValue("addrsize", out var a) ? a : "";
+            Symbols[name.Trim('"')] = new SymbolInfo
+            {
+                Value = ParseHexValue(val),
+                Type = type,
+                AddrSize = addrSize
+            };
         }
     }
 
@@ -202,4 +229,14 @@ public class Ca65DbgParser
         public int LineNumber { get; set; }
         public int SpanId { get; set; }
     }
+}
+
+public class SymbolInfo
+{
+    /// <summary>The symbol's value (address for labels, constant for equ).</summary>
+    public ushort Value { get; set; }
+    /// <summary>"lab" for code/data labels, "equ" for symbolic constants.</summary>
+    public string Type { get; set; } = "";
+    /// <summary>"absolute", "zeropage", etc.</summary>
+    public string AddrSize { get; set; } = "";
 }
