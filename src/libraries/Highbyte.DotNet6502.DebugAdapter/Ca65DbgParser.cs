@@ -16,6 +16,14 @@ public class Ca65DbgParser
     public Dictionary<string, Dictionary<int, ushort>> SourceLineToAddress { get; } = new();
 
     /// <summary>
+    /// Like <see cref="SourceLineToAddress"/> but excludes macro-expansion lines (type=2).
+    /// Used for after-line address decorations so macro body definition lines don't get addresses.
+    /// The full <see cref="SourceLineToAddress"/> is still needed for PC→source reverse lookup
+    /// so stepping into a macro still shows source, not disassembly.
+    /// </summary>
+    public Dictionary<string, Dictionary<int, ushort>> NonMacroSourceLineToAddress { get; } = new();
+
+    /// <summary>
     /// All symbols from the .dbg file. Key is symbol name.
     /// Type "lab" = code/data label with memory address; "equ" = symbolic constant.
     /// </summary>
@@ -115,6 +123,7 @@ public class Ca65DbgParser
     private void ParseLineRecord(string record)
     {
         // line id=0,file=0,line=10,span=1
+        // line id=3,file=0,line=98,type=2,count=1,span=157  (type=2 = macro expansion)
         // Multi-span lines use '+' separator: span=474+473+472+...
         // We use the first span for address mapping.
         var values = ParseKeyValuePairs(record);
@@ -122,13 +131,19 @@ public class Ca65DbgParser
             values.TryGetValue("line", out var line) &&
             values.TryGetValue("span", out var span))
         {
+            // type=2 means this line was generated from a macro expansion.
+            // The line points back into the macro body definition, not the call site.
+            // We skip these so decorations appear at call sites, not inside macro bodies.
+            var isMacroExpansion = values.TryGetValue("type", out var lineType) && lineType == "2";
+
             // Take first span if multiple are specified (e.g. "474+473+472")
             var firstSpan = span.Split('+')[0];
             _lines.Add(new LineInfo
             {
                 FileId = int.Parse(file),
                 LineNumber = int.Parse(line),
-                SpanId = int.Parse(firstSpan)
+                SpanId = int.Parse(firstSpan),
+                IsMacroExpansion = isMacroExpansion
             });
         }
     }
@@ -171,11 +186,21 @@ public class Ca65DbgParser
             // Calculate the actual address
             var address = (ushort)(segment.Start + span.Start);
 
-            // Add to mapping
+            // Always populate the full map (used for PC→source reverse lookup, e.g. stepping into macros)
             if (!SourceLineToAddress.ContainsKey(fileName))
                 SourceLineToAddress[fileName] = new Dictionary<int, ushort>();
 
             SourceLineToAddress[fileName][lineInfo.LineNumber] = address;
+
+            // Also populate the non-macro map (used for after-line address decorations).
+            // Macro expansion lines (type=2) are excluded so the decoration only appears
+            // at the call site, not inside macro body definition lines.
+            if (!lineInfo.IsMacroExpansion)
+            {
+                if (!NonMacroSourceLineToAddress.ContainsKey(fileName))
+                    NonMacroSourceLineToAddress[fileName] = new Dictionary<int, ushort>();
+                NonMacroSourceLineToAddress[fileName][lineInfo.LineNumber] = address;
+            }
         }
     }
 
@@ -228,6 +253,8 @@ public class Ca65DbgParser
         public int FileId { get; set; }
         public int LineNumber { get; set; }
         public int SpanId { get; set; }
+        /// <summary>True when type=2 in the .dbg file (macro expansion body line).</summary>
+        public bool IsMacroExpansion { get; set; }
     }
 }
 

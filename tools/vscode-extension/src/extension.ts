@@ -9,13 +9,13 @@ import * as jsonc from 'jsonc-parser';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('[6502 Debug] Extension activating...');
-    
+
     // Register memory content provider
     const memoryProvider = new MemoryContentProvider(context);
     context.subscriptions.push(
         vscode.workspace.registerTextDocumentContentProvider('memory', memoryProvider)
     );
-    
+
     // Register debug configuration provider
     const configProvider = new DebugConfigurationProvider();
     context.subscriptions.push(
@@ -36,6 +36,28 @@ export function activate(context: vscode.ExtensionContext) {
                 session.configuration.debugAdapter === 'emulator') {
                 configProvider.killEmulatorProcess();
             }
+        })
+    );
+
+    // Inline address decorations: show $XXXX after each mapped source line
+    const addressDecorManager = new AddressDecorationManager();
+    context.subscriptions.push(addressDecorManager);
+    context.subscriptions.push(
+        vscode.debug.registerDebugAdapterTrackerFactory(
+            'dotnet6502',
+            new DotNet6502DebugTrackerFactory(addressDecorManager)
+        )
+    );
+    context.subscriptions.push(
+        vscode.debug.onDidTerminateDebugSession((session) => {
+            if (session.type === 'dotnet6502') {
+                addressDecorManager.onSessionEnded(session);
+            }
+        })
+    );
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor((editor) => {
+            if (editor) { addressDecorManager.applyToEditor(editor); }
         })
     );
     
@@ -1084,5 +1106,114 @@ async function generatePrgLaunchConfig(
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to create launch config: ${error}`);
         console.error('[6502 Debug] Error generating .prg launch config:', error);
+    }
+}
+
+/**
+ * Manages inline address decorations: shows the 6502 address ($XXXX) as
+ * dim after-line text for each source line that has a known address mapping.
+ * Fetches the source→address map from the debug adapter on first stop.
+ */
+class AddressDecorationManager implements vscode.Disposable {
+    private readonly decorationType: vscode.TextEditorDecorationType;
+    // sessionId → (dbg filename key → (1-based lineNumber → formatted address))
+    private readonly sessionMaps = new Map<string, Map<string, Map<number, string>>>();
+    private activeSessionId: string | undefined;
+
+    constructor() {
+        this.decorationType = vscode.window.createTextEditorDecorationType({
+            after: {
+                color: new vscode.ThemeColor('editorLineNumber.foreground'),
+                fontStyle: 'italic',
+            }
+        });
+    }
+
+    async fetchAndApply(session: vscode.DebugSession): Promise<void> {
+        if (this.sessionMaps.has(session.id)) { return; } // Already fetched for this session
+
+        try {
+            const response = await session.customRequest('getSourceAddressMap');
+            if (!response?.files) { return; }
+
+            const fileMap = new Map<string, Map<number, string>>();
+            for (const [fileName, lineObj] of Object.entries(response.files as Record<string, Record<string, number>>)) {
+                const lineMap = new Map<number, string>();
+                for (const [lineStr, addr] of Object.entries(lineObj)) {
+                    const hex = (addr as number).toString(16).toUpperCase().padStart(4, '0');
+                    lineMap.set(parseInt(lineStr), `$${hex}`);
+                }
+                fileMap.set(fileName, lineMap);
+            }
+            this.sessionMaps.set(session.id, fileMap);
+            this.activeSessionId = session.id;
+
+            for (const editor of vscode.window.visibleTextEditors) {
+                this.applyToEditor(editor);
+            }
+        } catch {
+            // No .dbg file loaded in this session — decorations simply won't appear
+        }
+    }
+
+    onSessionEnded(session: vscode.DebugSession): void {
+        this.sessionMaps.delete(session.id);
+        if (this.activeSessionId === session.id) {
+            this.activeSessionId = undefined;
+            for (const editor of vscode.window.visibleTextEditors) {
+                editor.setDecorations(this.decorationType, []);
+            }
+        }
+    }
+
+    applyToEditor(editor: vscode.TextEditor): void {
+        if (!this.activeSessionId) { editor.setDecorations(this.decorationType, []); return; }
+        const fileMap = this.sessionMaps.get(this.activeSessionId);
+        if (!fileMap) { editor.setDecorations(this.decorationType, []); return; }
+
+        // Match by basename since .dbg files store filenames inconsistently
+        const editorBase = path.basename(editor.document.uri.fsPath);
+        let lineAddrMap: Map<number, string> | undefined;
+        for (const [key, val] of fileMap) {
+            if (path.basename(key) === editorBase) { lineAddrMap = val; break; }
+        }
+
+        if (!lineAddrMap) { editor.setDecorations(this.decorationType, []); return; }
+
+        const decorations: vscode.DecorationOptions[] = [];
+        for (const [lineNum, addr] of lineAddrMap) {
+            const zeroIdx = lineNum - 1;
+            if (zeroIdx >= 0 && zeroIdx < editor.document.lineCount) {
+                const lineEnd = editor.document.lineAt(zeroIdx).range.end;
+                decorations.push({
+                    range: new vscode.Range(lineEnd, lineEnd),
+                    renderOptions: { after: { contentText: `  ${addr}` } }
+                });
+            }
+        }
+        editor.setDecorations(this.decorationType, decorations);
+    }
+
+    dispose(): void {
+        this.decorationType.dispose();
+    }
+}
+
+/**
+ * Hooks into DAP message traffic to trigger address map fetching on the
+ * first `stopped` event (i.e. when the debug adapter is fully initialized
+ * and any .dbg file has been parsed).
+ */
+class DotNet6502DebugTrackerFactory implements vscode.DebugAdapterTrackerFactory {
+    constructor(private readonly manager: AddressDecorationManager) {}
+
+    createDebugAdapterTracker(session: vscode.DebugSession): vscode.DebugAdapterTracker {
+        return {
+            onDidSendMessage: (message: any) => {
+                if (message.type === 'event' && message.event === 'stopped') {
+                    this.manager.fetchAndApply(session);
+                }
+            }
+        };
     }
 }

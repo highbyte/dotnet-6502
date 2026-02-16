@@ -392,6 +392,9 @@ public class DebugAdapterLogic
                     case "getMemoryDump":
                         await HandleGetMemoryDumpAsync(seq, arguments);
                         break;
+                    case "getSourceAddressMap":
+                        await HandleGetSourceAddressMapAsync(seq, arguments);
+                        break;
                     default:
                         LogSafe($"[Handler] Unknown command: {command}");
                         await _protocol.SendResponseAsync(seq, command ?? "unknown");
@@ -1420,6 +1423,28 @@ public class DebugAdapterLogic
         }
 
         return sb.ToString();
+    }
+
+    private async Task HandleGetSourceAddressMapAsync(int seq, JsonObject? args)
+    {
+        LogSafe("[HandleGetSourceAddressMap] Called");
+
+        var files = new JsonObject();
+        if (_dbgParser != null)
+        {
+            // Use NonMacroSourceLineToAddress so macro body definition lines don't get
+            // address decorations in the editor. The full SourceLineToAddress is still used
+            // for PC→source reverse lookup so stepping into a macro shows source correctly.
+            foreach (var fileEntry in _dbgParser.NonMacroSourceLineToAddress)
+            {
+                var lineMap = new JsonObject();
+                foreach (var lineAddr in fileEntry.Value.OrderBy(la => la.Key))
+                    lineMap[lineAddr.Key.ToString()] = (int)lineAddr.Value;
+                files[fileEntry.Key] = lineMap;
+            }
+        }
+
+        await _protocol.SendResponseAsync(seq, "getSourceAddressMap", new JsonObject { ["files"] = files });
     }
 
     private async Task HandleGetMemoryDumpAsync(int seq, JsonObject? args)
