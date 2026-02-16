@@ -161,7 +161,7 @@ public class DebugAdapterLogic
 
     /// <summary>
     /// Get an IExecEvaluator that checks breakpoints.
-    /// The Avalonia app should install this using SystemRunner.SetCustomExecEvaluator()
+    /// The host app should install this using SystemRunner.SetCustomExecEvaluator()
     /// </summary>
     public IExecEvaluator GetBreakpointEvaluator()
     {
@@ -1639,7 +1639,7 @@ public class DebugAdapterLogic
                 {
                     // Not a JSR - execute single instruction
                     LogSafe($"[HandleNext] Executing single instruction at ${cpu.PC:X4}");
-                    cpu.ExecuteOneInstruction(memory);
+                    _system?.ExecuteOneInstruction(out _);
                     LogSafe($"[HandleNext] New PC: ${cpu.PC:X4}");
 
                     // Check if PC moved out of bounds after execution
@@ -1674,7 +1674,7 @@ public class DebugAdapterLogic
 
         if (cpu != null && memory != null)
         {
-            cpu.ExecuteOneInstruction(memory);
+            _system?.ExecuteOneInstruction(out _);
 
             // Check if PC moved out of bounds after execution
             if (IsOutOfBounds(cpu.PC))

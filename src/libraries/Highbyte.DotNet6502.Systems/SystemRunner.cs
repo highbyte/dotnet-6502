@@ -77,7 +77,7 @@ public class SystemRunner
     /// </summary>
     public ExecEvaluatorTriggerResult RunEmulatorOneFrame()
     {
-        var execEvaluatorTriggerResult = _system.ExecuteOneFrame(this, _customExecEvaluator);
+        var execEvaluatorTriggerResult = _system.ExecuteOneFrame(_customExecEvaluator);
         //_renderer?.GenerateFrame();
         return execEvaluatorTriggerResult;
     }

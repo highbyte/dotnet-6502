@@ -91,7 +91,6 @@ public class C64 : ISystem, ISystemMonitor
     /// <param name="execEvaluator"></param>
     /// <returns></returns>
     public ExecEvaluatorTriggerResult ExecuteOneFrame(
-        SystemRunner systemRunner,
         IExecEvaluator? execEvaluator = null)
     {
         _postInstructionAudioCallbackStat.Reset(); // Reset stat, will be continuously updated after each instruction
@@ -103,7 +102,7 @@ public class C64 : ISystem, ISystemMonitor
         ulong totalCyclesConsumed = 0;
         while (totalCyclesConsumed < cyclesToExecute)
         {
-            ExecEvaluatorTriggerResult execEvaluatorTriggerResult = ExecuteOneInstruction(systemRunner, out InstructionExecResult instructionExecResult, execEvaluator);
+            ExecEvaluatorTriggerResult execEvaluatorTriggerResult = ExecuteOneInstruction(out InstructionExecResult instructionExecResult, execEvaluator);
             totalCyclesConsumed += instructionExecResult.CyclesConsumed;
 
             if (execEvaluatorTriggerResult.Triggered)
@@ -140,7 +139,6 @@ public class C64 : ISystem, ISystemMonitor
     /// <param name="execEvaluator"></param>
     /// <returns></returns>
     public ExecEvaluatorTriggerResult ExecuteOneInstruction(
-        SystemRunner systemRunner,
         out InstructionExecResult instructionExecResult,
         IExecEvaluator? execEvaluator = null)
     {
