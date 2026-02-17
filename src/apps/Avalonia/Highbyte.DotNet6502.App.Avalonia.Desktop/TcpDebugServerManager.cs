@@ -78,12 +78,16 @@ internal sealed class TcpDebugServerManager : IDisposable
 
     private void OnClientConnected(object? sender, ClientConnectedEventArgs e)
     {
-        _debugClientConnected = true;
+        // NOTE: Do NOT set _debugClientConnected or _activeAdapter here.
+        // VSCode's TCP readiness probe connects and immediately disconnects without sending
+        // any DAP messages. If we set these flags now, the probe's cleanup would clear the
+        // state needed by the real connection that follows.
+        // Instead, defer these until OnInitialized fires (real DAP initialize received).
 
         lock (_connectionLock)
         {
             _activeConnectionCount++;
-            _debugLogWriter.WriteLine($"Debug client connected at {DateTime.Now} (total active connections: {_activeConnectionCount})");
+            _debugLogWriter.WriteLine($"TCP connection accepted at {DateTime.Now} (total active connections: {_activeConnectionCount})");
         }
 
         var protocol = new DapProtocol(e.Transport, _debugLogWriter);
@@ -103,8 +107,6 @@ internal sealed class TcpDebugServerManager : IDisposable
         if (_startupCompleted)
             adapter.NotifyProgramReady();
 
-        _activeAdapter = adapter;
-
         _debugLogWriter.WriteLine($"Debug adapter created (system available: {system != null}, initiallyPaused: {initiallyPaused}, startupCompleted: {_startupCompleted})");
 
         // Only set up the external debug adapter when a real DAP session starts (initialize message received).
@@ -115,6 +117,12 @@ internal sealed class TcpDebugServerManager : IDisposable
         // the attached state immediately even before an emulator system has been started.
         adapter.OnInitialized += () =>
         {
+            // Real DAP session started (not a probe connection).
+            // Now safe to set these flags — probe connections never send initialize.
+            _debugClientConnected = true;
+            _activeAdapter = adapter;
+            _debugLogWriter.WriteLine("DAP initialize received — marked as active debug client");
+
             Dispatcher.UIThread.Post(() =>
             {
                 var currentHostApp = Core.App.Current?.HostApp;
@@ -273,12 +281,15 @@ internal sealed class TcpDebugServerManager : IDisposable
         // Cancel the background subscription task (if it's still waiting for HostApp to initialize).
         sessionCts.Cancel();
 
+        // Check if this was a real DAP session (OnInitialized fired) or a probe connection.
+        bool wasRealSession = (_activeAdapter == adapter);
+
         bool clientDisconnected = false;
 
         lock (_connectionLock)
         {
             _activeConnectionCount--;
-            _debugLogWriter.WriteLine($"Debug adapter stopped at {DateTime.Now} (remaining active connections: {_activeConnectionCount})");
+            _debugLogWriter.WriteLine($"Connection closed at {DateTime.Now} (remaining active connections: {_activeConnectionCount}, wasRealSession: {wasRealSession})");
 
             // Only set flag to false if this is the last connection
             if (_activeConnectionCount <= 0)
@@ -287,6 +298,16 @@ internal sealed class TcpDebugServerManager : IDisposable
                 _activeConnectionCount = 0; // Ensure it doesn't go negative
             }
         }
+
+        if (!wasRealSession)
+        {
+            // Probe connection — no DAP initialize was received. Minimal cleanup only.
+            _debugLogWriter.WriteLine("Probe connection cleaned up (no DAP session was established)");
+            sessionCts.Dispose();
+            return;
+        }
+
+        // Real DAP session — full cleanup.
 
         // Unsubscribe from PropertyChanged if still subscribed (e.g., debugger disconnected before system started)
         if (emulatorStateHandler != null)
