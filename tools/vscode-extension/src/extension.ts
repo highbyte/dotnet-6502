@@ -438,13 +438,18 @@ class DebugAdapterExecutableFactory implements vscode.DebugAdapterDescriptorFact
         // Emulator mode: wait for the emulator's TCP debug server, then connect
         if (session.configuration.__waitingForEmulator) {
             const port = session.configuration.__emulatorDebugPort;
-            const timeoutSeconds = session.configuration.startupTimeout || 120;
+            const isAttach = session.configuration.request === 'attach';
+            // Attach mode: emulator should already be running, so use a short default timeout.
+            // Launch mode: emulator needs time to boot, so use a longer default timeout.
+            const defaultTimeout = isAttach ? 5 : 120;
+            const timeoutSeconds = session.configuration.startupTimeout || defaultTimeout;
             const timeoutMs = timeoutSeconds * 1000;
-            console.log(`[6502 Debug] Waiting for emulator host TCP server on port ${port} (timeout: ${timeoutSeconds}s)...`);
+            console.log(`[6502 Debug] Waiting for emulator host TCP server on port ${port} (timeout: ${timeoutSeconds}s, mode: ${isAttach ? 'attach' : 'launch'})...`);
 
             const isReady = await this.waitForTcpServerListening(port, timeoutMs);
             if (!isReady) {
-                vscode.window.showErrorMessage(`Emulator host TCP debug server did not start within ${timeoutSeconds} seconds on port ${port}`);
+                const hint = isAttach ? ' Is the emulator running with --enableExternalDebug?' : '';
+                vscode.window.showErrorMessage(`Emulator host TCP debug server did not respond within ${timeoutSeconds} seconds on port ${port}.${hint}`);
                 return undefined;
             }
 
