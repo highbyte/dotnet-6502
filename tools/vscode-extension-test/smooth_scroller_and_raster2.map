@@ -1,7 +1,8 @@
 Modules list:
 -------------
-smooth_scroller_and_raster2.asm.50036.0.o:
-    CODE              Offs=000000  Size=00040F  Align=00001  Fill=0000
+smooth_scroller_and_raster2.asm.54492.0.o:
+    CODE              Offs=000000  Size=00016C  Align=00001  Fill=0000
+    RODATA            Offs=000000  Size=0002A3  Align=00001  Fill=0000
 C:\Users\highb\Documents\C64\cc65\lib/c64.lib(loadaddr.o):
     LOADADDR          Offs=000000  Size=000002  Align=00001  Fill=0000
 
@@ -11,7 +12,8 @@ Segment list:
 Name                   Start     End    Size  Align
 ----------------------------------------------------
 LOADADDR              00BFFE  00BFFF  000002  00001
-CODE                  00C000  00C40E  00040F  00001
+CODE                  00C000  00C16B  00016C  00001
+RODATA                00C16C  00C40E  0002A3  00001
 
 
 Exports list by name:

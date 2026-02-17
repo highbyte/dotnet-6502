@@ -84,6 +84,7 @@ RASTER_BAR_DIRECTION = $06	;Down = 0, Up = 1
 
 XSHIFT = $05
 
+.code ;Code section
 ;Macros
 .macro set_irq irqhandler, line
 
