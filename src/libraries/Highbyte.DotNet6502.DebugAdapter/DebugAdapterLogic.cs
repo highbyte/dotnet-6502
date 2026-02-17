@@ -1879,6 +1879,16 @@ public class DebugAdapterLogic
         await SendStoppedEventAsync("pause");
     }
 
+    /// <summary>
+    /// Sends a DAP "terminated" event to VSCode, signalling that the debug session should end.
+    /// Called by TcpDebugServerManager when the user stops the emulated system from the UI.
+    /// </summary>
+    public async Task SendTerminatedEventAsync()
+    {
+        LogSafe("[SendTerminatedEvent] Emulator system was stopped externally, sending terminated event");
+        await _protocol.SendEventAsync("terminated");
+    }
+
     private async Task HandleTerminateAsync(int seq, JsonObject? args)
     {
         await _protocol.SendResponseAsync(seq, "terminate");

@@ -176,6 +176,11 @@ internal sealed class TcpDebugServerManager : IDisposable
                         }
                     });
                 }
+                else if (currentHostApp?.EmulatorState == EmulatorState.Uninitialized)
+                {
+                    _debugLogWriter.WriteLine("EmulatorState became Uninitialized (system stopped from UI), sending terminated event");
+                    _ = adapter.SendTerminatedEventAsync();
+                }
             }
         };
 
