@@ -1518,6 +1518,44 @@ public class DebugAdapterLogic
                 return;
             }
 
+            // Detect immediate-mode operands in hover context.
+            // In 6502 assembly, '#' before a value (e.g. LDA #66, LDA #$42) means the operand is
+            // a literal value, not a memory address.  VSCode sends only the token under the cursor
+            // as the expression (e.g. "66" for "#66"), so we must inspect the source file to check
+            // whether the character immediately before the expression is '#'.
+            bool isImmediateValue = false;
+            if (context == "hover")
+            {
+                if (expression.StartsWith("#"))
+                {
+                    // Some language configs include the '#' in the token — strip it.
+                    isImmediateValue = true;
+                    expression = expression.Substring(1);
+                }
+                else
+                {
+                    var sourcePath = args?["source"]?["path"]?.ToString();
+                    var hoverLine = args?["line"]?.GetValue<int>();
+                    var hoverCol  = args?["column"]?.GetValue<int>();
+                    if (sourcePath != null && hoverLine.HasValue && hoverCol.HasValue && File.Exists(sourcePath))
+                    {
+                        try
+                        {
+                            var sourceLines = File.ReadAllLines(sourcePath);
+                            if (hoverLine.Value >= 1 && hoverLine.Value <= sourceLines.Length)
+                            {
+                                var sourceLine = sourceLines[hoverLine.Value - 1];
+                                // hoverCol is 1-based start of the expression; char before it is at 0-based index hoverCol-2
+                                var precedingIndex = hoverCol.Value - 2;
+                                if (precedingIndex >= 0 && precedingIndex < sourceLine.Length && sourceLine[precedingIndex] == '#')
+                                    isImmediateValue = true;
+                            }
+                        }
+                        catch { /* ignore file read errors */ }
+                    }
+                }
+            }
+
             // Parse different expression formats
             string result;
 
@@ -1528,25 +1566,33 @@ public class DebugAdapterLogic
             {
                 result = HandleMemoryDumpCommand(expression);
             }
-            // Check for memory address expressions: $c000, 0xc000, or decimal
+            // Check for memory address / immediate-value expressions: $c000, 0xc000, or decimal
             else if (expression.StartsWith("$") || expression.StartsWith("0x", StringComparison.OrdinalIgnoreCase) || int.TryParse(expression, out _))
             {
-                ushort address;
+                ushort numericValue;
                 if (expression.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                 {
-                    address = Convert.ToUInt16(expression.Substring(2), 16);
+                    numericValue = Convert.ToUInt16(expression.Substring(2), 16);
                 }
                 else if (expression.StartsWith("$"))
                 {
-                    address = Convert.ToUInt16(expression.Substring(1), 16);
+                    numericValue = Convert.ToUInt16(expression.Substring(1), 16);
                 }
                 else
                 {
-                    address = Convert.ToUInt16(expression);
+                    numericValue = Convert.ToUInt16(expression);
                 }
 
-                var value = memory[address];
-                result = $"${value:X2} ({value})";
+                if (isImmediateValue)
+                {
+                    // Immediate operand: show the literal value, not memory contents.
+                    result = $"#{numericValue} (${numericValue:X2})";
+                }
+                else
+                {
+                    var value = memory[numericValue];
+                    result = $"${value:X2} ({value})";
+                }
             }
             // Check for register expressions
             else if (expression.Equals("PC", StringComparison.OrdinalIgnoreCase))
