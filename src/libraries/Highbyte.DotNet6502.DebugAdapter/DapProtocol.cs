@@ -49,6 +49,20 @@ public class DapProtocol
         await SendMessageAsync(response);
     }
 
+    public async Task SendErrorResponseAsync(int requestSeq, string command, string message)
+    {
+        var response = new JsonObject
+        {
+            ["type"] = "response",
+            ["request_seq"] = requestSeq,
+            ["success"] = false,
+            ["command"] = command,
+            ["message"] = message
+        };
+
+        await SendMessageAsync(response);
+    }
+
     public async Task SendEventAsync(string eventName, JsonObject? body = null)
     {
         var evt = new JsonObject

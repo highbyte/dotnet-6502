@@ -365,6 +365,15 @@ public class DebugAdapterLogic
                     case "readMemory":
                         await HandleReadMemoryAsync(seq, arguments);
                         break;
+                    case "writeMemory":
+                        await HandleWriteMemoryAsync(seq, arguments);
+                        break;
+                    case "setVariable":
+                        await HandleSetVariableAsync(seq, arguments);
+                        break;
+                    case "setExpression":
+                        await HandleSetExpressionAsync(seq, arguments);
+                        break;
                     case "evaluate":
                         await HandleEvaluateAsync(seq, arguments);
                         break;
@@ -421,6 +430,9 @@ public class DebugAdapterLogic
             ["supportsDisassembleRequest"] = true,
             ["supportsSteppingGranularity"] = true,
             ["supportsReadMemoryRequest"] = true,
+            ["supportsWriteMemoryRequest"] = true,
+            ["supportsSetVariable"] = true,
+            ["supportsSetExpression"] = true,
             ["supportsEvaluateForHovers"] = true
         };
 
@@ -1206,7 +1218,8 @@ public class DebugAdapterLogic
                             ["name"] = kvp.Key,
                             ["value"] = $"${addr:X4} [${memByte:X2}]",
                             ["type"] = "label",
-                            ["variablesReference"] = 0
+                            ["variablesReference"] = 0,
+                            ["memoryReference"] = $"0x{addr:X4}"
                         });
                     }
                     LogSafe($"[HandleVariables] Returning {variables.Count} label variables");
@@ -1244,6 +1257,264 @@ public class DebugAdapterLogic
         await _protocol.SendResponseAsync(seq, "variables", body);
     }
 
+    private async Task HandleSetExpressionAsync(int seq, JsonObject? args)
+    {
+        LogSafe("[HandleSetExpression] Called");
+
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
+        var expression = args?["expression"]?.ToString() ?? "";
+        var valueStr = args?["value"]?.ToString() ?? "";
+
+        if (cpu == null || memory == null)
+        {
+            await _protocol.SendErrorResponseAsync(seq, "setExpression", "No system available");
+            return;
+        }
+
+        try
+        {
+            var parsed = ParseNumericValue(valueStr);
+            if (parsed == null)
+            {
+                await _protocol.SendErrorResponseAsync(seq, "setExpression", $"Invalid value: {valueStr}");
+                return;
+            }
+
+            string resultValue;
+
+            // Check if expression is a register name
+            switch (expression.ToUpperInvariant())
+            {
+                case "PC":
+                    cpu.PC = parsed.Value;
+                    resultValue = $"${cpu.PC:X4}";
+                    break;
+                case "A":
+                    cpu.A = (byte)parsed.Value;
+                    resultValue = $"${cpu.A:X2}";
+                    break;
+                case "X":
+                    cpu.X = (byte)parsed.Value;
+                    resultValue = $"${cpu.X:X2}";
+                    break;
+                case "Y":
+                    cpu.Y = (byte)parsed.Value;
+                    resultValue = $"${cpu.Y:X2}";
+                    break;
+                case "SP":
+                    cpu.SP = (byte)parsed.Value;
+                    resultValue = $"${cpu.SP:X2}";
+                    break;
+                default:
+                    // Check if expression is a symbol name
+                    if (_dbgParser?.Symbols.TryGetValue(expression, out var symbol) == true && symbol.Type == "lab")
+                    {
+                        memory[symbol.Value] = (byte)parsed.Value;
+                        var memByte = memory[symbol.Value];
+                        resultValue = $"${symbol.Value:X4} [${memByte:X2}]";
+                        LogSafe($"[HandleSetExpression] Set memory at label {expression} (${symbol.Value:X4}) = ${memByte:X2}");
+                    }
+                    // Check if expression is a memory address
+                    else
+                    {
+                        var addr = ParseNumericValue(expression);
+                        if (addr == null)
+                        {
+                            await _protocol.SendErrorResponseAsync(seq, "setExpression", $"Unknown expression: {expression}");
+                            return;
+                        }
+                        memory[addr.Value] = (byte)parsed.Value;
+                        resultValue = $"${memory[addr.Value]:X2} ({memory[addr.Value]})";
+                        LogSafe($"[HandleSetExpression] Set memory ${addr.Value:X4} = ${memory[addr.Value]:X2}");
+                    }
+                    break;
+            }
+
+            var body = new JsonObject
+            {
+                ["value"] = resultValue,
+                ["variablesReference"] = 0
+            };
+
+            await _protocol.SendResponseAsync(seq, "setExpression", body);
+        }
+        catch (Exception ex)
+        {
+            await _protocol.SendErrorResponseAsync(seq, "setExpression", $"Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Parses a user-supplied numeric string in hex ($XX, 0xXX) or decimal format.
+    /// Returns the parsed value, or null if the string is not a valid number.
+    /// </summary>
+    private static ushort? ParseNumericValue(string text)
+    {
+        text = text.Trim();
+        try
+        {
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                return Convert.ToUInt16(text.Substring(2), 16);
+            if (text.StartsWith("$"))
+                return Convert.ToUInt16(text.Substring(1), 16);
+            if (ushort.TryParse(text, out var dec))
+                return dec;
+        }
+        catch { }
+        return null;
+    }
+
+    private async Task HandleSetVariableAsync(int seq, JsonObject? args)
+    {
+        LogSafe("[HandleSetVariable] Called");
+
+        var cpu = _system?.CPU;
+        var memory = _system?.Mem;
+        var variablesReference = args?["variablesReference"]?.GetValue<int>() ?? 0;
+        var name = args?["name"]?.ToString() ?? "";
+        var valueStr = args?["value"]?.ToString() ?? "";
+
+        if (cpu == null || memory == null)
+        {
+            await _protocol.SendErrorResponseAsync(seq, "setVariable", "No system available");
+            return;
+        }
+
+        try
+        {
+            string resultValue;
+            string resultType;
+
+            if (variablesReference == 1) // Registers
+            {
+                var parsed = ParseNumericValue(valueStr);
+                if (parsed == null)
+                {
+                    await _protocol.SendErrorResponseAsync(seq, "setVariable", $"Invalid value: {valueStr}");
+                    return;
+                }
+
+                switch (name.ToUpperInvariant())
+                {
+                    case "PC":
+                        cpu.PC = parsed.Value;
+                        resultValue = $"${cpu.PC:X4}";
+                        resultType = "ushort";
+                        break;
+                    case "A":
+                        cpu.A = (byte)parsed.Value;
+                        resultValue = $"${cpu.A:X2}";
+                        resultType = "byte";
+                        break;
+                    case "X":
+                        cpu.X = (byte)parsed.Value;
+                        resultValue = $"${cpu.X:X2}";
+                        resultType = "byte";
+                        break;
+                    case "Y":
+                        cpu.Y = (byte)parsed.Value;
+                        resultValue = $"${cpu.Y:X2}";
+                        resultType = "byte";
+                        break;
+                    case "SP":
+                        cpu.SP = (byte)parsed.Value;
+                        resultValue = $"${cpu.SP:X2}";
+                        resultType = "byte";
+                        break;
+                    default:
+                        await _protocol.SendErrorResponseAsync(seq, "setVariable", $"Unknown register: {name}");
+                        return;
+                }
+
+                LogSafe($"[HandleSetVariable] Set register {name} = {resultValue}");
+            }
+            else if (variablesReference == 2) // Flags
+            {
+                bool flagValue;
+                if (valueStr == "1" || valueStr.Equals("true", StringComparison.OrdinalIgnoreCase))
+                    flagValue = true;
+                else if (valueStr == "0" || valueStr.Equals("false", StringComparison.OrdinalIgnoreCase))
+                    flagValue = false;
+                else
+                {
+                    await _protocol.SendErrorResponseAsync(seq, "setVariable", $"Invalid flag value: {valueStr} (use 0/1)");
+                    return;
+                }
+
+                // Flag names from HandleVariablesAsync: "C (Carry)", "Z (Zero)", etc.
+                if (name.StartsWith("C "))
+                    cpu.ProcessorStatus.Carry = flagValue;
+                else if (name.StartsWith("Z "))
+                    cpu.ProcessorStatus.Zero = flagValue;
+                else if (name.StartsWith("I "))
+                    cpu.ProcessorStatus.InterruptDisable = flagValue;
+                else if (name.StartsWith("D "))
+                    cpu.ProcessorStatus.Decimal = flagValue;
+                else if (name.StartsWith("V "))
+                    cpu.ProcessorStatus.Overflow = flagValue;
+                else if (name.StartsWith("N "))
+                    cpu.ProcessorStatus.Negative = flagValue;
+                else
+                {
+                    await _protocol.SendErrorResponseAsync(seq, "setVariable", $"Unknown flag: {name}");
+                    return;
+                }
+
+                resultValue = flagValue ? "1" : "0";
+                resultType = "bool";
+                LogSafe($"[HandleSetVariable] Set flag {name} = {resultValue}");
+            }
+            else if (variablesReference == 3) // Labels — write byte at label address
+            {
+                if (_dbgParser?.Symbols.TryGetValue(name, out var symbol) == true && symbol.Type == "lab")
+                {
+                    var parsed = ParseNumericValue(valueStr);
+                    if (parsed == null)
+                    {
+                        await _protocol.SendErrorResponseAsync(seq, "setVariable", $"Invalid value: {valueStr}");
+                        return;
+                    }
+
+                    var addr = symbol.Value;
+                    memory[addr] = (byte)parsed.Value;
+                    var memByte = memory[addr];
+                    resultValue = $"${addr:X4} [${memByte:X2}]";
+                    resultType = "label";
+                    LogSafe($"[HandleSetVariable] Set memory at label {name} (${addr:X4}) = ${memByte:X2}");
+                }
+                else
+                {
+                    await _protocol.SendErrorResponseAsync(seq, "setVariable", $"Unknown label: {name}");
+                    return;
+                }
+            }
+            else if (variablesReference == 4) // Constants — read-only
+            {
+                await _protocol.SendErrorResponseAsync(seq, "setVariable", "Constants cannot be modified");
+                return;
+            }
+            else
+            {
+                await _protocol.SendErrorResponseAsync(seq, "setVariable", $"Unknown variablesReference: {variablesReference}");
+                return;
+            }
+
+            var body = new JsonObject
+            {
+                ["value"] = resultValue,
+                ["type"] = resultType,
+                ["variablesReference"] = 0
+            };
+
+            await _protocol.SendResponseAsync(seq, "setVariable", body);
+        }
+        catch (Exception ex)
+        {
+            await _protocol.SendErrorResponseAsync(seq, "setVariable", $"Error: {ex.Message}");
+        }
+    }
+
     private bool IsOutOfBounds(ushort address)
     {
         // Don't check bounds if the feature is disabled
@@ -1276,6 +1547,58 @@ public class DebugAdapterLogic
         }
 
         return false;
+    }
+
+    private string HandleSetCommand(string args, CPU? cpu, Memory? memory)
+    {
+        // Parse: "<target> <value>" where target is a register name (A, X, Y, SP, PC) or address ($c000, 0xc000, decimal)
+        // Examples: "A $42", "PC $C000", "$C000 $FF", "X 10"
+        if (cpu == null || memory == null)
+            return "Error: No system available";
+
+        var parts = args.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2)
+            return "Usage: set <register|address> <value>\nExamples: set A $42, set $C000 $FF";
+
+        var target = parts[0];
+        var valueStr = parts[1];
+
+        // Check if target is a register
+        switch (target.ToUpperInvariant())
+        {
+            case "A":
+            case "X":
+            case "Y":
+            case "SP":
+            case "PC":
+            {
+                var parsed = ParseNumericValue(valueStr);
+                if (parsed == null)
+                    return $"Error: Invalid value: {valueStr}";
+
+                switch (target.ToUpperInvariant())
+                {
+                    case "PC": cpu.PC = parsed.Value; return $"PC = ${cpu.PC:X4}";
+                    case "A":  cpu.A = (byte)parsed.Value; return $"A = ${cpu.A:X2}";
+                    case "X":  cpu.X = (byte)parsed.Value; return $"X = ${cpu.X:X2}";
+                    case "Y":  cpu.Y = (byte)parsed.Value; return $"Y = ${cpu.Y:X2}";
+                    case "SP": cpu.SP = (byte)parsed.Value; return $"SP = ${cpu.SP:X2}";
+                }
+                break;
+            }
+        }
+
+        // Target is a memory address
+        var addr = ParseNumericValue(target);
+        if (addr == null)
+            return $"Error: Unknown target: {target}";
+
+        var val = ParseNumericValue(valueStr);
+        if (val == null)
+            return $"Error: Invalid value: {valueStr}";
+
+        memory[addr.Value] = (byte)val.Value;
+        return $"${addr.Value:X4} = ${memory[addr.Value]:X2}";
     }
 
     private string HandleMemoryDumpCommand(string command)
@@ -1566,6 +1889,10 @@ public class DebugAdapterLogic
             {
                 result = HandleMemoryDumpCommand(expression);
             }
+            else if (context == "repl" && expression.StartsWith("set ", StringComparison.OrdinalIgnoreCase))
+            {
+                result = HandleSetCommand(expression.Substring(4).Trim(), cpu, memory);
+            }
             // Check for memory address / immediate-value expressions: $c000, 0xc000, or decimal
             else if (expression.StartsWith("$") || expression.StartsWith("0x", StringComparison.OrdinalIgnoreCase) || int.TryParse(expression, out _))
             {
@@ -1735,6 +2062,61 @@ public class DebugAdapterLogic
         {
             LogSafe($"[ReadMemory] Error: {ex.Message}");
             await _protocol.SendResponseAsync(seq, "readMemory");
+        }
+    }
+
+    private async Task HandleWriteMemoryAsync(int seq, JsonObject? args)
+    {
+        LogSafe("[HandleWriteMemory] Called");
+
+        var memory = _system?.Mem;
+
+        try
+        {
+            var memoryReference = args?["memoryReference"]?.ToString();
+            var offset = args?["offset"]?.GetValue<int>() ?? 0;
+            var dataBase64 = args?["data"]?.ToString();
+
+            if (memory == null)
+            {
+                await _protocol.SendErrorResponseAsync(seq, "writeMemory", "No system available");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(memoryReference) || string.IsNullOrEmpty(dataBase64))
+            {
+                await _protocol.SendErrorResponseAsync(seq, "writeMemory", "Missing memoryReference or data");
+                return;
+            }
+
+            var parsed = ParseNumericValue(memoryReference);
+            if (parsed == null)
+            {
+                await _protocol.SendErrorResponseAsync(seq, "writeMemory", $"Invalid memoryReference: {memoryReference}");
+                return;
+            }
+
+            var address = (ushort)((parsed.Value + offset) & 0xFFFF);
+            var data = Convert.FromBase64String(dataBase64);
+
+            for (int i = 0; i < data.Length; i++)
+            {
+                memory[(ushort)((address + i) & 0xFFFF)] = data[i];
+            }
+
+            LogSafe($"[HandleWriteMemory] Wrote {data.Length} bytes at ${address:X4}");
+
+            var body = new JsonObject
+            {
+                ["bytesWritten"] = data.Length
+            };
+
+            await _protocol.SendResponseAsync(seq, "writeMemory", body);
+        }
+        catch (Exception ex)
+        {
+            LogSafe($"[WriteMemory] Error: {ex.Message}");
+            await _protocol.SendErrorResponseAsync(seq, "writeMemory", $"Error: {ex.Message}");
         }
     }
 
