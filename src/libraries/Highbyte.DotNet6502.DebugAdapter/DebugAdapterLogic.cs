@@ -39,6 +39,8 @@ public class DebugAdapterLogic
     private bool _stopOnBRK = true;
     private bool _stopOnOutOfBounds = false; // Disabled by default - don't stop when PC goes outside source range
     private Ca65DbgParser? _dbgParser;
+    // Maps variablesReference IDs (100+) to segment names for multi-segment label scopes.
+    private readonly Dictionary<int, string> _labelSegmentScopes = new();
     private string? _programPath;
     private ushort _programStartAddress;
     private ushort _programEndAddress;
@@ -1157,8 +1159,31 @@ public class DebugAdapterLogic
 
         if (_dbgParser?.Symbols.Count > 0)
         {
-            if (_dbgParser.Symbols.Values.Any(s => s.Type == "lab"))
-                scopes.Add(new JsonObject { ["name"] = "Labels", ["variablesReference"] = 3, ["expensive"] = false });
+            // Group labels by segment name. If all labels are in the same segment (common for
+            // simple programs that put everything in CODE), show a single "Labels" scope.
+            // If multiple segments are used (e.g. CODE + DATA/RODATA), show one scope per segment.
+            var labels = _dbgParser.Symbols.Where(s => s.Value.Type == "lab").ToList();
+            var segmentNames = labels.Select(s => s.Value.SegmentName ?? "").Distinct().ToList();
+
+            _labelSegmentScopes.Clear();
+            if (segmentNames.Count <= 1)
+            {
+                if (labels.Any())
+                    scopes.Add(new JsonObject { ["name"] = "Labels", ["variablesReference"] = 3, ["expensive"] = false });
+            }
+            else
+            {
+                // Multiple segments — one scope per segment, using variablesReference 100+.
+                int refId = 100;
+                foreach (var segName in segmentNames.OrderBy(s => s))
+                {
+                    var displayName = string.IsNullOrEmpty(segName) ? "Labels" : $"Labels ({segName})";
+                    _labelSegmentScopes[refId] = segName;
+                    scopes.Add(new JsonObject { ["name"] = displayName, ["variablesReference"] = refId, ["expensive"] = false });
+                    refId++;
+                }
+            }
+
             if (_dbgParser.Symbols.Values.Any(s => s.Type == "equ"))
                 scopes.Add(new JsonObject { ["name"] = "Constants", ["variablesReference"] = 4, ["expensive"] = false });
         }
@@ -1205,11 +1230,18 @@ public class DebugAdapterLogic
                 variables.Add(new JsonObject { ["name"] = "N (Negative)", ["value"] = ps.Negative ? "1" : "0", ["variablesReference"] = 0 });
                 LogSafe($"[HandleVariables] Returning {variables.Count} flag variables");
             }
-            else if (variablesReference == 3) // Labels
+            else if (variablesReference == 3 || _labelSegmentScopes.ContainsKey(variablesReference)) // Labels
             {
                 if (_dbgParser != null)
                 {
-                    foreach (var kvp in _dbgParser.Symbols.Where(s => s.Value.Type == "lab").OrderBy(s => s.Key))
+                    // variablesReference 3 = single-segment mode (all labels).
+                    // variablesReference 100+ = multi-segment mode (filter by segment name).
+                    string? filterSegment = _labelSegmentScopes.TryGetValue(variablesReference, out var seg) ? seg : null;
+
+                    foreach (var kvp in _dbgParser.Symbols
+                        .Where(s => s.Value.Type == "lab"
+                            && (filterSegment == null || (s.Value.SegmentName ?? "") == filterSegment))
+                        .OrderBy(s => s.Key))
                     {
                         var addr = kvp.Value.Value;
                         var memByte = memory[addr];
@@ -1222,7 +1254,7 @@ public class DebugAdapterLogic
                             ["memoryReference"] = $"0x{addr:X4}"
                         });
                     }
-                    LogSafe($"[HandleVariables] Returning {variables.Count} label variables");
+                    LogSafe($"[HandleVariables] Returning {variables.Count} label variables (segment={filterSegment ?? "all"})");
                 }
             }
             else if (variablesReference == 4) // Constants
@@ -1349,6 +1381,20 @@ public class DebugAdapterLogic
     /// Parses a user-supplied numeric string in hex ($XX, 0xXX) or decimal format.
     /// Returns the parsed value, or null if the string is not a valid number.
     /// </summary>
+    /// <summary>
+    /// Returns true if the segment is writable (DATA, BSS, ZEROPAGE).
+    /// CODE and RODATA are read-only. Null/unknown segment names default to read-only (CODE assumed).
+    /// </summary>
+    private static bool IsWritableSegment(string? segmentName)
+    {
+        if (string.IsNullOrEmpty(segmentName))
+            return false; // Default segment is CODE → read-only
+
+        return segmentName.Equals("DATA", StringComparison.OrdinalIgnoreCase)
+            || segmentName.Equals("BSS", StringComparison.OrdinalIgnoreCase)
+            || segmentName.Equals("ZEROPAGE", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static ushort? ParseNumericValue(string text)
     {
         text = text.Trim();
@@ -1465,10 +1511,19 @@ public class DebugAdapterLogic
                 resultType = "bool";
                 LogSafe($"[HandleSetVariable] Set flag {name} = {resultValue}");
             }
-            else if (variablesReference == 3) // Labels — write byte at label address
+            else if (variablesReference == 3 || _labelSegmentScopes.ContainsKey(variablesReference)) // Labels — write byte at label address
             {
                 if (_dbgParser?.Symbols.TryGetValue(name, out var symbol) == true && symbol.Type == "lab")
                 {
+                    // Only allow editing labels in writable segments (DATA, BSS, ZEROPAGE).
+                    // CODE and RODATA labels are read-only.
+                    if (!IsWritableSegment(symbol.SegmentName))
+                    {
+                        var segDisplay = symbol.SegmentName ?? "CODE";
+                        await _protocol.SendErrorResponseAsync(seq, "setVariable", $"Label in {segDisplay} segment is read-only");
+                        return;
+                    }
+
                     var parsed = ParseNumericValue(valueStr);
                     if (parsed == null)
                     {

@@ -176,11 +176,18 @@ public class Ca65DbgParser
             values.TryGetValue("type", out var type))
         {
             var addrSize = values.TryGetValue("addrsize", out var a) ? a : "";
+            string? segName = null;
+            if (values.TryGetValue("seg", out var segId) && int.TryParse(segId, out var segIdInt))
+            {
+                if (_segments.TryGetValue(segIdInt, out var segInfo))
+                    segName = segInfo.Name;
+            }
             Symbols[name.Trim('"')] = new SymbolInfo
             {
                 Value = ParseHexValue(val),
                 Type = type,
-                AddrSize = addrSize
+                AddrSize = addrSize,
+                SegmentName = segName
             };
         }
     }
@@ -316,4 +323,6 @@ public class SymbolInfo
     public string Type { get; set; } = "";
     /// <summary>"absolute", "zeropage", etc.</summary>
     public string AddrSize { get; set; } = "";
+    /// <summary>Segment name from .dbg file (e.g. "CODE", "DATA", "RODATA"). Null if not available.</summary>
+    public string? SegmentName { get; set; }
 }
