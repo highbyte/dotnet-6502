@@ -667,7 +667,7 @@ public class DebugAdapterLogic
     /// Background task that waits for all prerequisites before sending the stopOnEntry stopped event.
     /// This runs off the message loop so that configurationDone can be processed in parallel.
     /// </summary>
-    private async Task DeferredStopOnEntryAsync(bool waitForProgramReady)
+    private async Task DeferredStopOnEntryAsync(bool waitForProgramReady, bool resetProgramCounter = true)
     {
         // 1. Wait for system to be bound (SetSystem called by emulatorStateHandler).
         if (_system == null)
@@ -742,7 +742,8 @@ public class DebugAdapterLogic
         var cpu = _system?.CPU;
 
         // Set PC to program start address so debugger stops at the right place.
-        if (_programStartAddress != 0 && cpu != null)
+        // In attach mode (resetProgramCounter=false) we leave PC at the natural reset vector.
+        if (resetProgramCounter && _programStartAddress != 0 && cpu != null)
         {
             cpu.PC = _programStartAddress;
         }
@@ -876,10 +877,24 @@ public class DebugAdapterLogic
 
         if (stopOnEntry && _system != null)
         {
+            // System is already running — pause immediately at the current PC.
             IsStopped = true;
             await SendStoppedEventAsync("entry");
         }
-        else if (_system == null)
+        else if (stopOnEntry && _system == null)
+        {
+            // System hasn't started yet.  Set IsStopped=true now so the run loop pauses
+            // at the very first instruction when the user starts the emulated system
+            // (IsExternalDebuggerAttached is already true from OnInitialized, so the run
+            // loop will see IsStopped=true on its first cycle).
+            // Don't reset the PC — leave it at the natural hardware reset vector.
+            IsStopped = true;
+            _stopOnEntryPending = true;
+            await SendOutputAsync("stopOnEntry: waiting for emulator to start — will pause at first instruction\n");
+            LogSafe("[Attach] stopOnEntry pending — IsStopped=true, deferring stopped event until system starts");
+            _ = DeferredStopOnEntryAsync(waitForProgramReady: false, resetProgramCounter: false);
+        }
+        else
         {
             await SendOutputAsync("Waiting for emulator to start...\n");
             LogSafe("[Attach] No system available yet, will bind when emulator starts");
