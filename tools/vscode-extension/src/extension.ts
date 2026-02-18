@@ -1213,16 +1213,32 @@ class AddressDecorationManager implements vscode.Disposable {
         }
     }
 
+    /** Returns true when the editor's absolute file-system path corresponds to
+     * the key stored in the .dbg source-address map.  The map key may be:
+     *   • a bare filename:    "init.s"
+     *   • a relative path:   "kernal/init.s"
+     *   • an absolute path:  "C:/path/to/kernal/init.s"
+     * We normalise path separators to '/' and test for an exact match or a
+     * slash-bounded suffix match, so "kernal/init.s" matches ".../kernal/init.s"
+     * but NOT ".../basic/init.s".
+     */
+    private matchesEditorPath(editorFsPath: string, mapKey: string): boolean {
+        const editorNorm = editorFsPath.replace(/\\/g, '/');
+        const keyNorm = mapKey.replace(/\\/g, '/');
+        return editorNorm === keyNorm || editorNorm.endsWith('/' + keyNorm);
+    }
+
     applyToEditor(editor: vscode.TextEditor): void {
         if (!this.activeSessionId) { editor.setDecorations(this.decorationType, []); return; }
         const fileMap = this.sessionMaps.get(this.activeSessionId);
         if (!fileMap) { editor.setDecorations(this.decorationType, []); return; }
 
-        // Match by basename since .dbg files store filenames inconsistently
-        const editorBase = path.basename(editor.document.uri.fsPath);
+        // Match by path suffix so files with the same basename in different directories
+        // (e.g. "kernal/init.s" vs "basic/init.s") are distinguished correctly.
+        const editorFsPath = editor.document.uri.fsPath;
         let lineAddrMap: Map<number, string> | undefined;
         for (const [key, val] of fileMap) {
-            if (path.basename(key) === editorBase) { lineAddrMap = val; break; }
+            if (this.matchesEditorPath(editorFsPath, key)) { lineAddrMap = val; break; }
         }
 
         if (!lineAddrMap) { editor.setDecorations(this.decorationType, []); return; }
@@ -1254,9 +1270,11 @@ class AddressDecorationManager implements vscode.Disposable {
             return;
         }
 
-        const editorBase = path.basename(editor.document.uri.fsPath);
-        const stopBase = path.basename(this.currentStopInfo.file);
-        if (editorBase !== stopBase) {
+        // The stop file is always an absolute path (from HandleStackTraceAsync).
+        // Compare by full path to avoid collisions between files with the same
+        // basename in different directories (e.g. kernal/init.s vs basic/init.s).
+        const editorFsPath = editor.document.uri.fsPath;
+        if (!this.matchesEditorPath(editorFsPath, this.currentStopInfo.file)) {
             editor.setDecorations(this.dynamicDecorationType, []);
             return;
         }
@@ -1265,7 +1283,7 @@ class AddressDecorationManager implements vscode.Disposable {
         const fileMap = this.sessionMaps.get(this.currentStopInfo.sessionId);
         if (fileMap) {
             for (const [key, lineMap] of fileMap) {
-                if (path.basename(key) === editorBase && lineMap.has(this.currentStopInfo.line)) {
+                if (this.matchesEditorPath(editorFsPath, key) && lineMap.has(this.currentStopInfo.line)) {
                     editor.setDecorations(this.dynamicDecorationType, []);
                     return;
                 }

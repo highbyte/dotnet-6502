@@ -906,7 +906,10 @@ public class DebugAdapterLogic
 
         var source = args?["source"] as JsonObject;
         var sourcePath = source?["path"]?.ToString();
-        var fileKey = sourcePath != null ? Path.GetFileName(sourcePath).ToLowerInvariant() : "";
+        // Use the full normalized path (forward slashes, lower-case) as the key so that
+        // files with the same basename in different directories (e.g. kernal/init.s vs
+        // basic/init.s) don't overwrite each other's breakpoints.
+        var fileKey = sourcePath != null ? sourcePath.Replace('\\', '/').ToLowerInvariant() : "";
 
         // Clear only this file's breakpoints and their IDs (other files' breakpoints are preserved)
         if (_sourceBreakpointsByFile.TryGetValue(fileKey, out var existingBps))
@@ -933,13 +936,14 @@ public class DebugAdapterLogic
                 {
                     var fileName = Path.GetFileName(sourcePath);
 
-                    // Search by comparing filenames, because the .dbg file may store
-                    // just the filename ("test.asm") or a full absolute path
-                    // ("C:\...\test.asm") depending on how ca65 was invoked.
+                    // Use path-suffix matching so that files with the same basename in
+                    // different directories (e.g. "kernal/init.s" vs "basic/init.s") are
+                    // distinguished.  The .dbg key may be a bare filename, a relative path,
+                    // or an absolute path; MatchesSourcePath handles all cases.
                     Dictionary<int, ushort>? lineMap = null;
                     foreach (var entry in _dbgParser.SourceLineToAddress)
                     {
-                        if (Path.GetFileName(entry.Key).Equals(fileName, StringComparison.OrdinalIgnoreCase))
+                        if (MatchesSourcePath(sourcePath, entry.Key))
                         {
                             lineMap = entry.Value;
                             break;
@@ -1432,6 +1436,19 @@ public class DebugAdapterLogic
     /// </summary>
     /// <summary>
     /// Returns true if the segment is writable (DATA, BSS, ZEROPAGE).
+    /// Returns true when <paramref name="editorAbsPath"/> (from DAP source.path, always absolute)
+    /// corresponds to <paramref name="dbgKey"/> (from the .dbg file — may be a bare filename,
+    /// a relative path like "kernal/init.s", or an absolute path).
+    /// Uses path-suffix matching so "kernal/init.s" matches ".../kernal/init.s" but NOT ".../basic/init.s".
+    /// </summary>
+    private static bool MatchesSourcePath(string editorAbsPath, string dbgKey)
+    {
+        var editorNorm = editorAbsPath.Replace('\\', '/');
+        var keyNorm = dbgKey.Replace('\\', '/');
+        return string.Equals(editorNorm, keyNorm, StringComparison.OrdinalIgnoreCase)
+            || editorNorm.EndsWith('/' + keyNorm, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// CODE and RODATA are read-only. Null/unknown segment names default to read-only (CODE assumed).
     /// </summary>
     private static bool IsWritableSegment(string? segmentName)

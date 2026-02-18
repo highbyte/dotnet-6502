@@ -116,7 +116,7 @@
       "type": "dotnet6502",
       "request": "attach",
       "name": "Attach to Full Emulator Host with C64 to Source Debug Kernal and Basic ROMs",
-      "dbgFile": "${userHome}/source/public-repos/c64rom/rom.dbg",
+      "dbgFile": "${userHome}/source/public-repos/c64rom/rom.dbg", // Debug artifacts for C64 Kernal and Basic ROMs, used https://github.com/mist64/c64rom and modified Makefile to produce .dbg files
       "stopOnEntry": false,
       "stopOnBRK": false
     }
