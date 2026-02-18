@@ -1223,8 +1223,11 @@ class AddressDecorationManager implements vscode.Disposable {
      * but NOT ".../basic/init.s".
      */
     private matchesEditorPath(editorFsPath: string, mapKey: string): boolean {
-        const editorNorm = editorFsPath.replace(/\\/g, '/');
-        const keyNorm = mapKey.replace(/\\/g, '/');
+        // Lower-case both paths for Windows drive-letter insensitivity:
+        // VSCode gives "c:\..." but C# Path APIs give "C:\...", so without
+        // lowercasing the exact-match check fails on the drive letter.
+        const editorNorm = editorFsPath.replace(/\\/g, '/').toLowerCase();
+        const keyNorm = mapKey.replace(/\\/g, '/').toLowerCase();
         return editorNorm === keyNorm || editorNorm.endsWith('/' + keyNorm);
     }
 

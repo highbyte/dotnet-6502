@@ -94,7 +94,7 @@
     {
       "type": "dotnet6502",
       "request": "launch",
-      "name": "Launch debug C64 KERNAL Boot",
+      "name": "to Full Emulator Host with C64 to Debug Kernal startup without source",
       "debugAdapter": "emulator",
       "system": "C64",
       "stopOnEntry": true,
