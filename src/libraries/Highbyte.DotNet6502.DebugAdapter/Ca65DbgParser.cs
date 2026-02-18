@@ -333,9 +333,12 @@ public class Ca65DbgParser
             }
 
             // Also populate the non-macro map (used for after-line address decorations).
-            // Macro expansion lines (type=2) are excluded so the decoration only appears
-            // at the call site, not inside macro body definition lines.
-            if (!lineInfo.IsMacroExpansion)
+            // Exclude two categories so decorations only appear on plain, unambiguous lines:
+            //   1. type=2 lines — macro call-site / expansion-marker lines
+            //   2. Multi-span lines (AllSpanIds.Length > 1) — lines inside a .repeat or
+            //      macro body that were expanded multiple times; they map to many different
+            //      addresses so there is no single meaningful address to show as decoration.
+            if (!lineInfo.IsMacroExpansion && lineInfo.AllSpanIds.Length <= 1)
             {
                 if (!NonMacroSourceLineToAddress.ContainsKey(fileName))
                     NonMacroSourceLineToAddress[fileName] = new Dictionary<int, ushort>();
