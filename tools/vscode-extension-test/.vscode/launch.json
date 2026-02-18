@@ -67,7 +67,10 @@
       "preLaunchTask": "Build smooth_scroller_and_raster2.asm (C64)",
       // "program": "${workspaceFolder}/smooth_scroller_and_raster2.prg",
       // "dbgFile": "${workspaceFolder}/smooth_scroller_and_raster2.dbg",
-      "stopOnEntry": false,
+      "dbgFiles": [ // Additional .dbg files in addition to the main one specified by dbgFile, or as in this example automatically derived from the built program from preLaunchTask.
+        "${userHome}/source/public-repos/c64rom/rom.dbg",        
+      ],
+      "stopOnEntry": true, // Debug from first CPU instruction (kernal) if the emulator has not been started yet.
       "stopOnBRK": true
     },    
     {
@@ -94,7 +97,7 @@
     {
       "type": "dotnet6502",
       "request": "launch",
-      "name": "to Full Emulator Host with C64 to Debug Kernal startup without source",
+      "name": "Launch to Full Emulator Host with C64 to Debug Kernal startup without source",
       "debugAdapter": "emulator",
       "system": "C64",
       "stopOnEntry": true,

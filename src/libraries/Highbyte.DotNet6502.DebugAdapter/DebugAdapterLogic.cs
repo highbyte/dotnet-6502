@@ -596,7 +596,7 @@ public class DebugAdapterLogic
             await SendOutputAsync($"Loaded {program} at ${loadAddr:X4}, length: {fileLength} bytes\n");
         }
 
-        // Load debug symbols if provided
+        // Load primary debug symbols if provided
         if (!string.IsNullOrEmpty(dbgFile))
         {
             if (File.Exists(dbgFile))
@@ -622,6 +622,9 @@ public class DebugAdapterLogic
                 await SendOutputAsync($"Warning: Debug file not found: {dbgFile}\n");
             }
         }
+
+        // Merge any additional .dbg files (dbgFiles array)
+        await MergeAdditionalDbgFilesAsync(args);
 
         if (cpu != null)
             await SendOutputAsync($"PC at ${cpu.PC:X4}\n");
@@ -869,6 +872,9 @@ public class DebugAdapterLogic
             await SendOutputAsync($"Note: No debug symbols loaded - only instruction-level debugging available\n");
             LogSafe($"[Attach] No debug file specified");
         }
+
+        // Merge any additional .dbg files (dbgFiles array)
+        await MergeAdditionalDbgFilesAsync(args);
 
         await _protocol.SendResponseAsync(seq, "attach");
 
@@ -1462,6 +1468,66 @@ public class DebugAdapterLogic
         var keyNorm = dbgKey.Replace('\\', '/');
         return string.Equals(editorNorm, keyNorm, StringComparison.OrdinalIgnoreCase)
             || editorNorm.EndsWith('/' + keyNorm, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// Merges additional .dbg files from the <c>dbgFiles</c> array in <paramref name="args"/> into
+    /// <see cref="_dbgParser"/>. If <see cref="_dbgParser"/> is null (no primary <c>dbgFile</c> was
+    /// specified), the first entry in <c>dbgFiles</c> becomes the primary parser (and sets
+    /// <see cref="_dbgFileDirectory"/>); subsequent entries are merged on top of it.
+    /// </summary>
+    private async Task MergeAdditionalDbgFilesAsync(JsonObject? args)
+    {
+        var dbgFilesNode = args?["dbgFiles"] as JsonArray;
+        if (dbgFilesNode == null || dbgFilesNode.Count == 0)
+            return;
+
+        foreach (var node in dbgFilesNode)
+        {
+            var path = node?.ToString();
+            if (string.IsNullOrEmpty(path))
+                continue;
+
+            if (!File.Exists(path))
+            {
+                await SendOutputAsync($"Warning: dbgFiles entry not found: {path}\n");
+                LogSafe($"[DbgFiles] File not found: {path}");
+                continue;
+            }
+
+            try
+            {
+                var extraParser = new Ca65DbgParser();
+                extraParser.ParseFile(path);
+
+                // Resolve relative source-file paths to absolute using THIS .dbg file's
+                // directory before merging, so they aren't resolved relative to the
+                // primary .dbg's directory when HandleStackTraceAsync builds source paths.
+                var extraDir = Path.GetDirectoryName(Path.GetFullPath(path)) ?? "";
+                extraParser.ResolveRelativePaths(extraDir);
+
+                if (_dbgParser == null)
+                {
+                    // No primary parser yet — promote first entry to primary
+                    _dbgParser = extraParser;
+                    _dbgFileDirectory = extraDir;
+                    await SendOutputAsync($"Loaded primary debug symbols from {Path.GetFileName(path)}\n");
+                    LogSafe($"[DbgFiles] Loaded primary from {path}");
+                }
+                else
+                {
+                    _dbgParser.MergeFrom(extraParser);
+                    await SendOutputAsync($"Merged debug symbols from {Path.GetFileName(path)}\n");
+                    LogSafe($"[DbgFiles] Merged from {path}");
+                }
+
+                LogSafe($"[DbgFiles] After merge: {_dbgParser.SourceLineToAddress.Count} source files, {_dbgParser.Symbols.Count} symbols");
+            }
+            catch (Exception ex)
+            {
+                await SendOutputAsync($"Warning: Failed to load dbgFiles entry '{path}': {ex.Message}\n");
+                LogSafe($"[DbgFiles] Error loading {path}: {ex}");
+            }
+        }
     }
 
     /// CODE and RODATA are read-only. Null/unknown segment names default to read-only (CODE assumed).

@@ -118,6 +118,12 @@
                 "description": "Path to ca65 .dbg file for source-level debugging (optional, auto-detected from program path)",
                 "default": null
               },
+              "dbgFiles": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Additional ca65 .dbg files to merge for multi-component source debugging (e.g. add ROM debug symbols alongside your program's .dbg file). If dbgFile is omitted, the first entry here becomes the primary.",
+                "default": null
+              },
               "loadAddress": {
                 "type": "number",
                 "description": "Override load address (optional, normally read from .prg file)",
@@ -197,6 +203,12 @@
               "dbgFile": {
                 "type": "string",
                 "description": "Path to ca65 .dbg file for source-level debugging",
+                "default": null
+              },
+              "dbgFiles": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Additional ca65 .dbg files to merge for multi-component source debugging (e.g. add ROM debug symbols alongside your program's .dbg file). If dbgFile is omitted, the first entry here becomes the primary.",
                 "default": null
               },
               "stopOnEntry": {

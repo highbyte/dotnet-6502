@@ -57,6 +57,97 @@ public class Ca65DbgParser
         return _segments.Values.FirstOrDefault()?.Start ?? 0;
     }
 
+    /// <summary>
+    /// Resolves any relative source-file paths in this parser's output maps to absolute
+    /// paths using <paramref name="baseDirectory"/> as the root.  Absolute paths are
+    /// left unchanged.
+    ///
+    /// Call this on a secondary parser (with its own .dbg directory) before calling
+    /// <see cref="MergeFrom"/> so that relative paths from the secondary .dbg are not
+    /// accidentally resolved relative to the primary .dbg's directory.
+    /// </summary>
+    public void ResolveRelativePaths(string baseDirectory)
+    {
+        // SourceLineToAddress and NonMacroSourceLineToAddress are keyed by filename
+        ResolveKeysInDictionary(SourceLineToAddress, baseDirectory);
+        ResolveKeysInDictionary(NonMacroSourceLineToAddress, baseDirectory);
+
+        // AddressToSource values contain the filename
+        foreach (var addr in AddressToSource.Keys.ToList())
+        {
+            var (fileName, lineNum) = AddressToSource[addr];
+            var resolved = ResolveFileName(fileName, baseDirectory);
+            if (!string.Equals(resolved, fileName, StringComparison.Ordinal))
+                AddressToSource[addr] = (resolved, lineNum);
+        }
+    }
+
+    private static void ResolveKeysInDictionary(
+        Dictionary<string, Dictionary<int, ushort>> dict, string baseDirectory)
+    {
+        foreach (var key in dict.Keys.ToList())
+        {
+            var resolved = ResolveFileName(key, baseDirectory);
+            if (!string.Equals(resolved, key, StringComparison.Ordinal))
+            {
+                dict[resolved] = dict[key];
+                dict.Remove(key);
+            }
+        }
+    }
+
+    private static string ResolveFileName(string fileName, string baseDirectory)
+    {
+        if (Path.IsPathRooted(fileName))
+            return fileName;
+        return Path.GetFullPath(Path.Combine(baseDirectory, fileName));
+    }
+
+    /// <summary>
+    /// Merges source-map data from another parsed .dbg file into this one.
+    /// Call this after both parsers have had <see cref="ParseFile"/> called on them.
+    /// Used when multiple .dbg files cover different address ranges
+    /// (e.g., a user program's .dbg + C64 Kernal/Basic ROM .dbg files).
+    ///
+    /// Internal ID namespaces (file/span/segment/line IDs) are local to each .dbg
+    /// file, so only the resolved output maps are merged.
+    /// Primary parser entries win on collision (TryAdd / existing-key-wins).
+    /// </summary>
+    public void MergeFrom(Ca65DbgParser other)
+    {
+        // SourceLineToAddress — breakpoint lookup (line → address)
+        foreach (var (file, lineMap) in other.SourceLineToAddress)
+        {
+            if (!SourceLineToAddress.TryGetValue(file, out var existing))
+            {
+                existing = new Dictionary<int, ushort>();
+                SourceLineToAddress[file] = existing;
+            }
+            foreach (var (line, addr) in lineMap)
+                existing[line] = addr; // last-write-wins within a file, same as ParseFile
+        }
+
+        // NonMacroSourceLineToAddress — editor address decorations
+        foreach (var (file, lineMap) in other.NonMacroSourceLineToAddress)
+        {
+            if (!NonMacroSourceLineToAddress.TryGetValue(file, out var existing))
+            {
+                existing = new Dictionary<int, ushort>();
+                NonMacroSourceLineToAddress[file] = existing;
+            }
+            foreach (var (line, addr) in lineMap)
+                existing[line] = addr;
+        }
+
+        // AddressToSource — PC→source reverse lookup; primary parser takes precedence
+        foreach (var (addr, source) in other.AddressToSource)
+            AddressToSource.TryAdd(addr, source);
+
+        // Symbols — label/constant table; primary parser takes precedence
+        foreach (var (name, sym) in other.Symbols)
+            Symbols.TryAdd(name, sym);
+    }
+
     public void ParseFile(string dbgFilePath)
     {
         if (!File.Exists(dbgFilePath))
