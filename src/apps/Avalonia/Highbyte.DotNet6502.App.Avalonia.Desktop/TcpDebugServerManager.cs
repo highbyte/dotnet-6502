@@ -197,6 +197,15 @@ internal sealed class TcpDebugServerManager : IDisposable
             // HostApp is already available — subscribe immediately.
             notifier.PropertyChanged += emulatorStateHandler;
             _debugLogWriter.WriteLine("Subscribed to EmulatorState changes (HostApp available at connect time)");
+
+            // If the system is already running, fire the handler immediately.
+            // PropertyChanged only fires on *changes*, so if it's already Running we'd miss it.
+            if (hostApp.EmulatorState == EmulatorState.Running
+                && hostApp.CurrentRunningSystem != null)
+            {
+                _debugLogWriter.WriteLine("System already running at connect time — triggering handler immediately");
+                emulatorStateHandler(hostApp, new PropertyChangedEventArgs(nameof(IHostApp.EmulatorState)));
+            }
         }
         else
         {

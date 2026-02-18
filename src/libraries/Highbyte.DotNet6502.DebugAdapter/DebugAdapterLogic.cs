@@ -42,6 +42,7 @@ public class DebugAdapterLogic
     // Maps variablesReference IDs (100+) to segment names for multi-segment label scopes.
     private readonly Dictionary<int, string> _labelSegmentScopes = new();
     private string? _programPath;
+    private string? _dbgFileDirectory;
     private ushort _programStartAddress;
     private ushort _programEndAddress;
 
@@ -115,6 +116,11 @@ public class DebugAdapterLogic
     // The core evaluator is now called PRE-execution, so this skip is needed on resume.
     private volatile bool _skipNextBreakpointCheck = false;
 
+    // Set to true when the DAP configurationDone request is received.
+    // Per DAP spec, the stopped event (for stopOnEntry) should only be sent AFTER
+    // configurationDone. The deferred stopOnEntry task waits for this flag.
+    private volatile bool _configurationDoneReceived = false;
+
     /// <summary>
     /// Called by the host when automated startup is complete (KERNAL booted, PRG loaded, PC set).
     /// If stopOnEntry is pending, pauses the CPU immediately so the host can safely set PC
@@ -187,6 +193,7 @@ public class DebugAdapterLogic
         _programReady = false;
         _stopOnEntryPending = false;
         _skipNextBreakpointCheck = false;
+        _configurationDoneReceived = false;
         LogSafe("[Reset] Debug adapter reset, emulator will resume");
     }
 
@@ -598,6 +605,7 @@ public class DebugAdapterLogic
                 {
                     _dbgParser = new Ca65DbgParser();
                     _dbgParser.ParseFile(dbgFile);
+                    _dbgFileDirectory = Path.GetDirectoryName(Path.GetFullPath(dbgFile));
                     var dbgLoadAddress = _dbgParser.GetLoadAddress();
                     await SendOutputAsync($"Loaded debug symbols from {dbgFile}\n");
                     await SendOutputAsync($"  Files: {_dbgParser.SourceLineToAddress.Count}\n");
@@ -627,7 +635,10 @@ public class DebugAdapterLogic
         // Send initialized event
         await _protocol.SendEventAsync("initialized");
 
-        // If stopOnEntry, send stopped event
+        // If stopOnEntry, defer the stopped event to a background task.
+        // Per DAP spec, the stopped event must only be sent AFTER configurationDone.
+        // HandleLaunchAsync returns immediately so the message loop can process
+        // setBreakpoints, setExceptionBreakpoints, configurationDone, etc.
         if (stopOnEntry)
         {
             // Signal that a stopOnEntry pause is imminent. This causes NotifyProgramReady()
@@ -635,43 +646,68 @@ public class DebugAdapterLogic
             // sets CPU.PC — preventing any program instructions from executing first.
             _stopOnEntryPending = true;
 
+            // Capture whether we need to wait for program ready (emulator mode).
+            var waitForProgramReady = programAlreadyLoaded;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await DeferredStopOnEntryAsync(waitForProgramReady);
+                }
+                catch (Exception ex)
+                {
+                    LogSafe($"[Launch] DeferredStopOnEntry error: {ex}");
+                }
+            });
+        }
+    }
+
+    /// <summary>
+    /// Background task that waits for all prerequisites before sending the stopOnEntry stopped event.
+    /// This runs off the message loop so that configurationDone can be processed in parallel.
+    /// </summary>
+    private async Task DeferredStopOnEntryAsync(bool waitForProgramReady)
+    {
+        // 1. Wait for system to be bound (SetSystem called by emulatorStateHandler).
+        if (_system == null)
+        {
+            LogSafe("[StopOnEntry] Waiting for system to start...");
+            int waitCount = 0;
+            while (_system == null && waitCount < 100) // up to 10 seconds
+            {
+                await Task.Delay(100);
+                waitCount++;
+            }
             if (_system == null)
             {
-                // Debugger connected before the system started.
-                // Wait for SetSystem to bind the system (called by emulatorStateHandler).
-                int waitCount = 0;
-                while (_system == null && waitCount < 100) // up to 10 seconds
-                {
-                    await Task.Delay(100);
-                    waitCount++;
-                }
-                if (_system == null)
-                {
-                    LogSafe("[Launch] Timeout waiting for system to start for stopOnEntry");
-                    IsStopped = true;
-                    await SendStoppedEventAsync("entry");
-                    return;
-                }
+                LogSafe("[StopOnEntry] Timeout waiting for system — sending stopped anyway");
+                IsStopped = true;
+                await SendStoppedEventAsync("entry");
+                _stopOnEntryPending = false;
+                return;
             }
+        }
 
-            // For emulator mode (programAlreadyLoaded), wait for AutomatedStartupHandler to
-            // finish all setup: KERNAL boot, PRG load, PC set. Only then pause the emulator.
-            // This prevents freezing the C64 before hardware/BASIC is fully initialized.
-            if (programAlreadyLoaded && !_programReady)
+        // 2. For emulator mode, wait for AutomatedStartupHandler to finish
+        //    (KERNAL boot, PRG load, PC set).
+        if (waitForProgramReady && !_programReady)
+        {
+            LogSafe("[StopOnEntry] Waiting for automated startup to complete...");
+            int readyWait = 0;
+            while (!_programReady && readyWait < 300) // up to 30 seconds
             {
-                LogSafe("[Launch] Waiting for automated startup to complete (KERNAL boot + PRG load)...");
-                int readyWait = 0;
-                while (!_programReady && readyWait < 300) // up to 30 seconds
-                {
-                    await Task.Delay(100);
-                    readyWait++;
-                }
-                if (!_programReady)
-                    LogSafe("[Launch] Warning: program-ready signal not received — stopOnEntry may be early");
+                await Task.Delay(100);
+                readyWait++;
             }
+            if (!_programReady)
+                LogSafe("[StopOnEntry] Warning: program-ready signal not received — stopOnEntry may be early");
+        }
 
-            // Wait for SetExternalDebugAdapter to complete in the host (sets IsExternalDebuggerAttached=true).
-            // Until that happens, IsStopped=true has no effect on the run loop.
+        // 3. Wait for SetExternalDebugAdapter to complete in the host.
+        if (!_isInstalledInHost)
+        {
+            LogSafe("[StopOnEntry] Waiting for adapter to be installed in host...");
             int installWait = 0;
             while (!_isInstalledInHost && installWait < 200) // up to 2 seconds
             {
@@ -679,30 +715,41 @@ public class DebugAdapterLogic
                 installWait++;
             }
             if (!_isInstalledInHost)
-                LogSafe("[Launch] Warning: adapter not installed in host after timeout — stopOnEntry may not be reliable");
-
-            // NOW pause the emulator. All setup is done; IsExternalDebuggerAttached=true so
-            // IsStopped=true will take effect on the run loop immediately.
-            IsStopped = true;
-
-            // Brief delay for the run loop to detect IsStopped=true and pause.
-            await Task.Delay(50);
-
-            // Re-read CPU in case SetSystem was called while waiting.
-            cpu = _system?.CPU;
-
-            // Set PC to program start address so debugger stops at the right place.
-            // In emulator mode (programAlreadyLoaded), the emulator host loaded the
-            // program but the CPU may still be executing code at a different address.
-            // Redirect execution to the program entry point.
-            if (_programStartAddress != 0 && cpu != null)
-            {
-                cpu.PC = _programStartAddress;
-            }
-
-            await SendStoppedEventAsync("entry");
-            _stopOnEntryPending = false;
+                LogSafe("[StopOnEntry] Warning: adapter not installed in host after timeout");
         }
+
+        // 4. Wait for configurationDone from VSCode (DAP spec requirement).
+        if (!_configurationDoneReceived)
+        {
+            LogSafe("[StopOnEntry] Waiting for configurationDone...");
+            int configWait = 0;
+            while (!_configurationDoneReceived && configWait < 100) // up to 10 seconds
+            {
+                await Task.Delay(100);
+                configWait++;
+            }
+            if (!_configurationDoneReceived)
+                LogSafe("[StopOnEntry] Warning: configurationDone not received after timeout");
+        }
+
+        // NOW pause the emulator. All prerequisites met.
+        IsStopped = true;
+
+        // Brief delay for the run loop to detect IsStopped=true and pause.
+        await Task.Delay(50);
+
+        // Re-read CPU in case SetSystem was called while waiting.
+        var cpu = _system?.CPU;
+
+        // Set PC to program start address so debugger stops at the right place.
+        if (_programStartAddress != 0 && cpu != null)
+        {
+            cpu.PC = _programStartAddress;
+        }
+
+        LogSafe("[StopOnEntry] Sending stopped event (entry)");
+        await SendStoppedEventAsync("entry");
+        _stopOnEntryPending = false;
     }
 
     private async Task HandleAttachAsync(int seq, JsonObject? args)
@@ -775,6 +822,7 @@ public class DebugAdapterLogic
                 {
                     _dbgParser = new Ca65DbgParser();
                     _dbgParser.ParseFile(dbgFile);
+                    _dbgFileDirectory = Path.GetDirectoryName(Path.GetFullPath(dbgFile));
                     var dbgLoadAddress = _dbgParser.GetLoadAddress();
 
                     // In attach mode, get program bounds from debug symbols
@@ -842,6 +890,7 @@ public class DebugAdapterLogic
 
     private async Task HandleConfigurationDoneAsync(int seq)
     {
+        _configurationDoneReceived = true;
         await _protocol.SendResponseAsync(seq, "configurationDone");
     }
 
@@ -1095,13 +1144,13 @@ public class DebugAdapterLogic
         {
             // The .dbg file may store just a filename ("test.asm") or a full
             // absolute path ("C:\...\test.asm"). Use the path as-is if absolute,
-            // otherwise combine with the program directory.
+            // otherwise resolve relative to the .dbg file's directory.
             var sourceFileName = Path.GetFileName(sourceInfo.FileName);
             string sourcePath;
             if (Path.IsPathRooted(sourceInfo.FileName))
                 sourcePath = sourceInfo.FileName;
             else
-                sourcePath = Path.Combine(Path.GetDirectoryName(_programPath) ?? "", sourceInfo.FileName);
+                sourcePath = Path.Combine(_dbgFileDirectory ?? Path.GetDirectoryName(_programPath) ?? "", sourceInfo.FileName);
 
             frame["source"] = new JsonObject
             {
