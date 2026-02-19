@@ -158,8 +158,8 @@ There are three ways to use the debugger, each with different launch.json config
 
 | Parameter | Type | Default | Launch (minimal) | Launch (emulator) | Attach | Description |
 |-----------|------|---------|:-:|:-:|:-:|-------------|
-| `program` | string | — | Yes | Yes | Yes | Path to .prg file. Optional with `preLaunchTask` (auto-detected from task output). |
-| `dbgFile` | string | — | Yes | Yes | Yes | Path to ca65 .dbg file for source-level debugging. Auto-detected from program path. |
+| `program` | string | — | Yes | Yes | Optional | Path to .prg file. In launch modes, this is the program to load/debug. In attach mode, only used to auto-detect the `.dbg` file path — not needed if `dbgFile` or `preLaunchTask` is specified. Optional with `preLaunchTask` (auto-detected from task output). |
+| `dbgFile` | string | — | Yes | Yes | Yes | Path to ca65 .dbg file for source-level debugging. Auto-detected from `program` path or `preLaunchTask` output. |
 | `dbgFiles` | string[] | — | Yes | Yes | Yes | Additional .dbg files to merge for multi-component source debugging (e.g., ROM debug symbols alongside your program's .dbg file). If `dbgFile` is omitted, the first entry becomes the primary. |
 | `loadAddress` | number | — | Yes | — | — | Override load address (normally read from .prg file header). |
 | `stopOnEntry` | boolean | `true` | Yes | Yes | Yes | Stop at program entry point after launch/attach. |
@@ -231,14 +231,13 @@ There are three ways to use the debugger, each with different launch.json config
 }
 ```
 
-**Attach (connect to already-running emulator):**
+**Attach (connect to already-running emulator, no source debugging):**
 ```json
 {
   "type": "dotnet6502",
   "request": "attach",
   "name": "Attach to Emulator",
   "debugPort": 6502,
-  "program": "${workspaceFolder}/program.prg",
   "stopOnEntry": true
 }
 ```
@@ -248,13 +247,24 @@ For attach mode, start the emulator manually first:
 Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 6502 --system C64 --start
 ```
 
-**Attach with build task (auto-detect program and .dbg file):**
+**Attach with build task (auto-detect .dbg file for source debugging):**
 ```json
 {
   "type": "dotnet6502",
   "request": "attach",
   "name": "Attach to Emulator with Source Debug",
   "preLaunchTask": "Build test-program.asm (C64)",
+  "stopOnEntry": true
+}
+```
+
+**Attach with explicit .dbg file:**
+```json
+{
+  "type": "dotnet6502",
+  "request": "attach",
+  "name": "Attach with Source Debug",
+  "dbgFile": "${workspaceFolder}/program.dbg",
   "stopOnEntry": true
 }
 ```
