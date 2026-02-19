@@ -95,7 +95,65 @@ export function activate(context: vscode.ExtensionContext) {
             await openMemoryViewer(context, memoryProvider);
         })
     );
-    
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('dotnet6502.jumpToLine', async (...args: any[]) => {
+            console.log(`[6502 Debug] jumpToLine invoked with ${args.length} args:`, JSON.stringify(args.map(a => a?.toString?.() ?? a)));
+
+            const session = vscode.debug.activeDebugSession;
+            if (!session || session.type !== 'dotnet6502') {
+                console.log('[6502 Debug] jumpToLine: no active dotnet6502 session');
+                return;
+            }
+
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                console.log('[6502 Debug] jumpToLine: no active editor');
+                return;
+            }
+
+            // Determine the line number from arguments.
+            // VSCode passes different argument formats depending on where the menu was triggered.
+            let line: number | undefined;
+            let sourcePath = editor.document.uri.fsPath;
+
+            for (const arg of args) {
+                if (arg instanceof vscode.Uri) {
+                    sourcePath = arg.fsPath;
+                } else if (typeof arg === 'number') {
+                    line = arg;
+                } else if (arg && typeof arg === 'object') {
+                    if ('lineNumber' in arg && typeof arg.lineNumber === 'number') {
+                        line = arg.lineNumber;
+                    }
+                }
+            }
+
+            // Fall back to cursor position
+            if (line === undefined) {
+                line = editor.selection.active.line + 1; // Convert 0-based to 1-based
+            }
+
+            console.log(`[6502 Debug] jumpToLine: resolved line=${line}, source=${sourcePath}`);
+            const source = { path: sourcePath };
+
+            try {
+                const result = await session.customRequest('gotoTargets', { source, line });
+                console.log(`[6502 Debug] jumpToLine: gotoTargets returned ${result.targets?.length ?? 0} targets`);
+                if (result.targets && result.targets.length > 0) {
+                    const target = result.targets[0];
+                    console.log(`[6502 Debug] jumpToLine: goto targetId=${target.id}, label=${target.label}, line=${target.line}`);
+                    await session.customRequest('goto', { threadId: 1, targetId: target.id });
+                } else {
+                    vscode.window.showWarningMessage(`No executable code at line ${line}`);
+                }
+            } catch (e: any) {
+                console.log(`[6502 Debug] jumpToLine error:`, e);
+                vscode.window.showErrorMessage(`Jump to line failed: ${e.message || e}`);
+            }
+        })
+    );
+
     console.log('[6502 Debug] Extension activated successfully');
 }
 

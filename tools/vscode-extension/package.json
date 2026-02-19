@@ -41,6 +41,11 @@
         "command": "dotnet6502.viewMemory",
         "title": "View Memory",
         "icon": "$(symbol-array)"
+      },
+      {
+        "command": "dotnet6502.jumpToLine",
+        "title": "Jump to Line (Set PC)",
+        "icon": "$(debug-step-into)"
       }
     ],
     "menus": {
@@ -49,6 +54,13 @@
           "command": "dotnet6502.viewMemory",
           "when": "debugType == 'dotnet6502'",
           "group": "navigation"
+        }
+      ],
+      "editor/lineNumber/context": [
+        {
+          "command": "dotnet6502.jumpToLine",
+          "when": "debugType == 'dotnet6502' && debugState == 'stopped'",
+          "group": "debug@2"
         }
       ],
       "explorer/context": [

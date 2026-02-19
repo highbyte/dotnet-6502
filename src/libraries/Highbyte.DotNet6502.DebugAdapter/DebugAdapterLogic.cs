@@ -407,6 +407,12 @@ public class DebugAdapterLogic
                     case "disconnect":
                         await HandleDisconnectAsync(seq, arguments);
                         break;
+                    case "gotoTargets":
+                        await HandleGotoTargetsAsync(seq, arguments);
+                        break;
+                    case "goto":
+                        await HandleGotoAsync(seq, arguments);
+                        break;
                     case "getMemoryDump":
                         await HandleGetMemoryDumpAsync(seq, arguments);
                         break;
@@ -443,7 +449,8 @@ public class DebugAdapterLogic
             ["supportsSetVariable"] = true,
             ["supportsSetExpression"] = true,
             ["supportsEvaluateForHovers"] = true,
-            ["supportsInvalidatedEvent"] = true
+            ["supportsInvalidatedEvent"] = true,
+            ["supportsGotoTargetsRequest"] = true
         };
 
         await _protocol.SendResponseAsync(seq, "initialize", body);
@@ -1726,6 +1733,130 @@ public class DebugAdapterLogic
         {
             await _protocol.SendErrorResponseAsync(seq, "setVariable", $"Error: {ex.Message}");
         }
+    }
+
+    // Goto target IDs map to addresses. We use the address itself as the ID
+    // (valid 6502 addresses are 0x0000–0xFFFF, fitting in an int).
+    private async Task HandleGotoTargetsAsync(int seq, JsonObject? args)
+    {
+        var sourcePath = args?["source"]?["path"]?.ToString();
+        var line = args?["line"]?.GetValue<int>() ?? 0;
+
+        LogSafe($"[GotoTargets] source={sourcePath}, line={line}");
+
+        var targets = new JsonArray();
+
+        if (_dbgParser != null && !string.IsNullOrEmpty(sourcePath))
+        {
+            // Resolve source line to address using the same logic as setBreakpoints
+            Dictionary<int, ushort>? lineMap = null;
+            foreach (var entry in _dbgParser.SourceLineToAddress)
+            {
+                if (MatchesSourcePath(sourcePath, entry.Key))
+                {
+                    lineMap = entry.Value;
+                    break;
+                }
+            }
+
+            if (lineMap != null)
+            {
+                int resolvedLine = line;
+                ushort address;
+
+                if (lineMap.TryGetValue(line, out address))
+                {
+                    // Exact match
+                }
+                else
+                {
+                    // No code at this line (comment/label/blank) — snap to nearest executable line.
+                    // Search forward first (next code after clicked line), then backward.
+                    int? nearest = null;
+                    int bestDist = int.MaxValue;
+                    foreach (var mappedLine in lineMap.Keys)
+                    {
+                        int dist = Math.Abs(mappedLine - line);
+                        // Prefer forward (same distance = pick the one after the clicked line)
+                        if (dist < bestDist || (dist == bestDist && mappedLine > line))
+                        {
+                            bestDist = dist;
+                            nearest = mappedLine;
+                        }
+                    }
+                    if (nearest.HasValue)
+                    {
+                        resolvedLine = nearest.Value;
+                        address = lineMap[resolvedLine];
+                        LogSafe($"[GotoTargets] Line {line} has no code, snapped to nearest line {resolvedLine}");
+                    }
+                    else
+                    {
+                        LogSafe($"[GotoTargets] Could not resolve line {line} to address (no code lines in file)");
+                        var body2 = new JsonObject { ["targets"] = targets };
+                        await _protocol.SendResponseAsync(seq, "gotoTargets", body2);
+                        return;
+                    }
+                }
+
+                targets.Add(new JsonObject
+                {
+                    ["id"] = (int)address,
+                    ["label"] = $"${address:X4}",
+                    ["line"] = resolvedLine,
+                    ["column"] = 1
+                });
+                LogSafe($"[GotoTargets] Resolved line {line} to ${address:X4} (source line {resolvedLine})");
+            }
+            else
+            {
+                LogSafe($"[GotoTargets] No line map found for source file");
+            }
+        }
+        else
+        {
+            // No debug symbols — use line number as address (disassembly mode)
+            var address = (ushort)line;
+            targets.Add(new JsonObject
+            {
+                ["id"] = (int)address,
+                ["label"] = $"${address:X4}",
+                ["line"] = line,
+                ["column"] = 1
+            });
+            LogSafe($"[GotoTargets] No debug symbols, using line as address ${address:X4}");
+        }
+
+        var body = new JsonObject { ["targets"] = targets };
+        await _protocol.SendResponseAsync(seq, "gotoTargets", body);
+    }
+
+    private async Task HandleGotoAsync(int seq, JsonObject? args)
+    {
+        var targetId = args?["targetId"]?.GetValue<int>() ?? -1;
+
+        LogSafe($"[Goto] targetId={targetId}");
+
+        var cpu = _system?.CPU;
+        if (cpu == null)
+        {
+            await _protocol.SendErrorResponseAsync(seq, "goto", "No system available");
+            return;
+        }
+
+        if (targetId < 0 || targetId > 0xFFFF)
+        {
+            await _protocol.SendErrorResponseAsync(seq, "goto", $"Invalid target address: {targetId}");
+            return;
+        }
+
+        cpu.PC = (ushort)targetId;
+        IsStopped = true;
+
+        LogSafe($"[Goto] Set PC to ${cpu.PC:X4}");
+
+        await _protocol.SendResponseAsync(seq, "goto");
+        await SendStoppedEventAsync("goto");
     }
 
     private bool IsOutOfBounds(ushort address)
