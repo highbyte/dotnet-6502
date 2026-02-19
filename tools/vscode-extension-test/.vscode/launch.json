@@ -33,17 +33,7 @@
     {
       "type": "dotnet6502",
       "request": "attach",
-      "name": "Attach to Full Emulator Host (TCP debug adapter) to Source Debug test-program.prg (via .dbg info)",
-      "program": "${workspaceFolder}/test-program.prg",
-      "dbgFile": "${workspaceFolder}/test-program.dbg",
-      "stopOnEntry": true
-      // Uses TCP connection to already-running emulator host app.
-      // Currently only Avalonia Desktop (Highbyte.DotNet6502.App.Avalonia.Desktop) is supported.
-    },
-    {
-      "type": "dotnet6502",
-      "request": "attach",
-      "name": "Attach to Full Emulator Host (TCP debug adapter) without loading any program",
+      "name": "Attach to Full Emulator Host (TCP debug adapter) without any debug info",
       // Uses TCP connection to already-running emulator host app.
       // Currently only Avalonia Desktop (Highbyte.DotNet6502.App.Avalonia.Desktop) is supported.
     },    

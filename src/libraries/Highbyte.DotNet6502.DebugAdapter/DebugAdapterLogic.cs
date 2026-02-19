@@ -72,6 +72,8 @@ public class DebugAdapterLogic
         _system = system;
         IsStopped = initiallyPaused;
         _builtInExecution = builtInExecution;
+        if (system != null)
+            _systemBoundTcs.TrySetResult();
     }
 
     /// <summary>
@@ -82,13 +84,16 @@ public class DebugAdapterLogic
     public void SetSystem(ISystem system)
     {
         _system = system;
+        _systemBoundTcs.TrySetResult();
         LogSafe($"[SetSystem] System bound, PC=${system.CPU?.PC:X4}");
     }
 
-    // Set to true when SetExternalDebugAdapter is called in the host, which sets
-    // IsExternalDebuggerAttached=true in the run loop. Until that happens, IsStopped
-    // has no effect on the host's execution loop.
-    private volatile bool _isInstalledInHost = false;
+    // Async coordination for DeferredStopOnEntryAsync prerequisites.
+    // Each TCS is signaled when its prerequisite is met, replacing spin-wait loops.
+    private TaskCompletionSource _systemBoundTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private TaskCompletionSource _programReadyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private TaskCompletionSource _installedInHostTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private TaskCompletionSource _configurationDoneTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// Called by the host after SetExternalDebugAdapter completes, signaling that
@@ -96,14 +101,9 @@ public class DebugAdapterLogic
     /// </summary>
     public void NotifyInstalledInHost()
     {
-        _isInstalledInHost = true;
+        _installedInHostTcs.TrySetResult();
         LogSafe("[NotifyInstalledInHost] Adapter installed in host, IsStopped is now effective");
     }
-
-    // Set to true when AutomatedStartupHandler has finished all setup:
-    // KERNAL booted, PRG loaded, PC set. Until then, stopOnEntry must NOT pause
-    // the emulator (the KERNAL needs to run freely to initialize hardware).
-    private volatile bool _programReady = false;
 
     // Set to true at the start of the stopOnEntry block in HandleLaunchAsync.
     // Signals NotifyProgramReady() to pause the CPU immediately so that no
@@ -115,11 +115,6 @@ public class DebugAdapterLogic
     // resuming from a breakpoint doesn't immediately re-trigger on the same address.
     // The core evaluator is now called PRE-execution, so this skip is needed on resume.
     private volatile bool _skipNextBreakpointCheck = false;
-
-    // Set to true when the DAP configurationDone request is received.
-    // Per DAP spec, the stopped event (for stopOnEntry) should only be sent AFTER
-    // configurationDone. The deferred stopOnEntry task waits for this flag.
-    private volatile bool _configurationDoneReceived = false;
 
     /// <summary>
     /// Called by the host when automated startup is complete (KERNAL booted, PRG loaded, PC set).
@@ -133,7 +128,7 @@ public class DebugAdapterLogic
             IsStopped = true;
             LogSafe("[NotifyProgramReady] Pausing CPU immediately for pending stopOnEntry");
         }
-        _programReady = true;
+        _programReadyTcs.TrySetResult();
         LogSafe("[NotifyProgramReady] Program setup complete, stopOnEntry will now proceed");
     }
 
@@ -190,10 +185,15 @@ public class DebugAdapterLogic
         _nextBreakpointId = 1;
         _temporaryBreakpoint = null;
         _stepOutMode = false;
-        _programReady = false;
         _stopOnEntryPending = false;
         _skipNextBreakpointCheck = false;
-        _configurationDoneReceived = false;
+        // Recreate TCS instances so a reused adapter starts fresh
+        _systemBoundTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        _programReadyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        _installedInHostTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        _configurationDoneTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (_system != null)
+            _systemBoundTcs.TrySetResult();
         LogSafe("[Reset] Debug adapter reset, emulator will resume");
     }
 
@@ -677,70 +677,60 @@ public class DebugAdapterLogic
     /// <summary>
     /// Background task that waits for all prerequisites before sending the stopOnEntry stopped event.
     /// This runs off the message loop so that configurationDone can be processed in parallel.
+    /// Uses TaskCompletionSource awaits instead of spin-wait loops for clean async coordination.
     /// </summary>
     private async Task DeferredStopOnEntryAsync(bool waitForProgramReady, bool resetProgramCounter = true)
     {
         // 1. Wait for system to be bound (SetSystem called by emulatorStateHandler).
-        if (_system == null)
+        try
         {
             LogSafe("[StopOnEntry] Waiting for system to start...");
-            int waitCount = 0;
-            while (_system == null && waitCount < 100) // up to 10 seconds
-            {
-                await Task.Delay(100);
-                waitCount++;
-            }
-            if (_system == null)
-            {
-                LogSafe("[StopOnEntry] Timeout waiting for system — sending stopped anyway");
-                IsStopped = true;
-                await SendStoppedEventAsync("entry");
-                _stopOnEntryPending = false;
-                return;
-            }
+            await _systemBoundTcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        catch (TimeoutException)
+        {
+            LogSafe("[StopOnEntry] Timeout waiting for system — sending stopped anyway");
+            IsStopped = true;
+            await SendStoppedEventAsync("entry");
+            _stopOnEntryPending = false;
+            return;
         }
 
         // 2. For emulator mode, wait for AutomatedStartupHandler to finish
         //    (KERNAL boot, PRG load, PC set).
-        if (waitForProgramReady && !_programReady)
+        if (waitForProgramReady)
         {
-            LogSafe("[StopOnEntry] Waiting for automated startup to complete...");
-            int readyWait = 0;
-            while (!_programReady && readyWait < 300) // up to 30 seconds
+            try
             {
-                await Task.Delay(100);
-                readyWait++;
+                LogSafe("[StopOnEntry] Waiting for automated startup to complete...");
+                await _programReadyTcs.Task.WaitAsync(TimeSpan.FromSeconds(30));
             }
-            if (!_programReady)
+            catch (TimeoutException)
+            {
                 LogSafe("[StopOnEntry] Warning: program-ready signal not received — stopOnEntry may be early");
+            }
         }
 
         // 3. Wait for SetExternalDebugAdapter to complete in the host.
-        if (!_isInstalledInHost)
+        try
         {
             LogSafe("[StopOnEntry] Waiting for adapter to be installed in host...");
-            int installWait = 0;
-            while (!_isInstalledInHost && installWait < 200) // up to 2 seconds
-            {
-                await Task.Delay(10);
-                installWait++;
-            }
-            if (!_isInstalledInHost)
-                LogSafe("[StopOnEntry] Warning: adapter not installed in host after timeout");
+            await _installedInHostTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        }
+        catch (TimeoutException)
+        {
+            LogSafe("[StopOnEntry] Warning: adapter not installed in host after timeout");
         }
 
         // 4. Wait for configurationDone from VSCode (DAP spec requirement).
-        if (!_configurationDoneReceived)
+        try
         {
             LogSafe("[StopOnEntry] Waiting for configurationDone...");
-            int configWait = 0;
-            while (!_configurationDoneReceived && configWait < 100) // up to 10 seconds
-            {
-                await Task.Delay(100);
-                configWait++;
-            }
-            if (!_configurationDoneReceived)
-                LogSafe("[StopOnEntry] Warning: configurationDone not received after timeout");
+            await _configurationDoneTcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        catch (TimeoutException)
+        {
+            LogSafe("[StopOnEntry] Warning: configurationDone not received after timeout");
         }
 
         // NOW pause the emulator. All prerequisites met.
@@ -919,7 +909,7 @@ public class DebugAdapterLogic
 
     private async Task HandleConfigurationDoneAsync(int seq)
     {
-        _configurationDoneReceived = true;
+        _configurationDoneTcs.TrySetResult();
         await _protocol.SendResponseAsync(seq, "configurationDone");
     }
 
