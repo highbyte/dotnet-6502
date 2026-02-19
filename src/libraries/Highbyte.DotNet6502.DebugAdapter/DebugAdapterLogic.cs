@@ -442,7 +442,8 @@ public class DebugAdapterLogic
             ["supportsWriteMemoryRequest"] = true,
             ["supportsSetVariable"] = true,
             ["supportsSetExpression"] = true,
-            ["supportsEvaluateForHovers"] = true
+            ["supportsEvaluateForHovers"] = true,
+            ["supportsInvalidatedEvent"] = true
         };
 
         await _protocol.SendResponseAsync(seq, "initialize", body);
@@ -1710,6 +1711,16 @@ public class DebugAdapterLogic
             };
 
             await _protocol.SendResponseAsync(seq, "setVariable", body);
+
+            // If PC was changed, tell VSCode to refresh the stack trace so it
+            // navigates to the new location (source or disassembly).
+            if (variablesReference == 1 && name.Equals("PC", StringComparison.OrdinalIgnoreCase))
+            {
+                await _protocol.SendEventAsync("invalidated", new JsonObject
+                {
+                    ["areas"] = new JsonArray("stacks")
+                });
+            }
         }
         catch (Exception ex)
         {
