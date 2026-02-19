@@ -67,13 +67,19 @@ The generated files look like this:
 
 - **Easy setup**: Generate build tasks and launch configs with right-click commands
 - **Source-level debugging**: Debug .asm files with ca65 .dbg format support
+- **Multi-file debug symbols**: Merge multiple .dbg files (e.g., your program + C64 ROM symbols) via `dbgFiles`
 - **Per-file configuration**: Each .asm file can have its own build task with custom load address
 - **Address-based breakpoints**: Set breakpoints at specific memory addresses
 - **Source breakpoints**: Set breakpoints in .asm source files (with .dbg file)
 - **Step through instructions**: Step, step in, step out, and continue execution
-- **Register inspection**: View CPU registers (PC, SP, A, X, Y) and flags
+- **Register inspection**: View CPU registers (PC, SP, A, X, Y) and flags in Variables panel
+- **Register and flag editing**: Double-click registers or flags in the Variables panel to modify values
+- **Jump to Line (Set PC)**: Right-click a line number or gutter to set the Program Counter to that line
+- **Inline address decorations**: Source lines show their mapped 6502 address (`$XXXX`) as dim inline text
+- **Hover evaluation**: Hover over addresses, registers, or ca65 symbols in source code to see values
 - **Memory viewing**: Inspect memory via Watch panel and Debug Console (e.g., `$c000`, `PC`, `A`)
 - **Memory viewer**: View memory ranges in hex dump format with toolbar button or command palette
+- **Debug Console commands**: `dump`/`md` for memory dumps, `set` for modifying registers/memory
 - **Disassembly view**: See the disassembled instruction at the current PC
 - **Problem matcher**: Compiler errors appear in Problems panel with inline squiggles
 
@@ -154,10 +160,11 @@ There are three ways to use the debugger, each with different launch.json config
 |-----------|------|---------|:-:|:-:|:-:|-------------|
 | `program` | string | — | Yes | Yes | Yes | Path to .prg file. Optional with `preLaunchTask` (auto-detected from task output). |
 | `dbgFile` | string | — | Yes | Yes | Yes | Path to ca65 .dbg file for source-level debugging. Auto-detected from program path. |
+| `dbgFiles` | string[] | — | Yes | Yes | Yes | Additional .dbg files to merge for multi-component source debugging (e.g., ROM debug symbols alongside your program's .dbg file). If `dbgFile` is omitted, the first entry becomes the primary. |
 | `loadAddress` | number | — | Yes | — | — | Override load address (normally read from .prg file header). |
 | `stopOnEntry` | boolean | `true` | Yes | Yes | Yes | Stop at program entry point after launch/attach. |
 | `stopOnBRK` | boolean | `true` | Yes | Yes | Yes | Stop when BRK instruction ($00) is encountered. |
-| `preLaunchTask` | string | — | Yes | Yes | — | VSCode task to run before launching (e.g., build task). |
+| `preLaunchTask` | string | — | Yes | Yes | Yes | VSCode task to run before launching/attaching (e.g., build task). When used with attach, the program and .dbg file paths are auto-detected from task output. |
 | `debugAdapter` | string | `"minimal"` | Yes | Yes | — | `"minimal"` for standalone adapter, `"emulator"` to launch emulator host app. |
 | `emulatorExecutable` | string | *(auto)* | Yes | Yes | — | Executable path or name. Defaults to `Highbyte.DotNet6502.DebugAdapter.ConsoleApp` (minimal) or `Highbyte.DotNet6502.App.Avalonia.Desktop` (emulator). Resolved via PATH, then repo build output. |
 | `debugPort` | number | `6502` | — | Yes | Yes | TCP port for debug adapter communication. |
@@ -239,6 +246,31 @@ There are three ways to use the debugger, each with different launch.json config
 For attach mode, start the emulator manually first:
 ```bash
 Highbyte.DotNet6502.App.Avalonia.Desktop --enableExternalDebug --debug-port 6502 --system C64 --start
+```
+
+**Attach with build task (auto-detect program and .dbg file):**
+```json
+{
+  "type": "dotnet6502",
+  "request": "attach",
+  "name": "Attach to Emulator with Source Debug",
+  "preLaunchTask": "Build test-program.asm (C64)",
+  "stopOnEntry": true
+}
+```
+
+**Attach with additional ROM debug symbols:**
+```json
+{
+  "type": "dotnet6502",
+  "request": "attach",
+  "name": "Attach with ROM Symbols",
+  "preLaunchTask": "Build test-program.asm (C64)",
+  "dbgFiles": [
+    "${userHome}/path/to/rom.dbg"
+  ],
+  "stopOnEntry": true
+}
 ```
 
 ### Building Your Code
@@ -379,10 +411,112 @@ md fffe 2               # Interrupt vectors
 dump $d000 $d3ff        # VIC-II registers on C64
 ```
 
+#### Debug Console set Command
+
+Modify registers and memory directly from the Debug Console:
+
+```
+set A $42           # Set accumulator to $42
+set PC $C000        # Set program counter to $C000
+set X 10            # Set X register to 10 (decimal)
+set $C000 $FF       # Set memory at $C000 to $FF
+```
+
+#### Debug Console Expressions
+
+Type expressions directly in the Debug Console to evaluate them:
+
+```
+$C000               # Read memory at $C000
+PC                  # Show current program counter
+A                   # Show accumulator value
+screenptr           # Resolve ca65 symbol (if .dbg loaded)
+```
+
+### Register and Flag Editing
+
+You can modify CPU registers and flags during debugging:
+
+**In the Variables panel:**
+- Double-click any register (PC, A, X, Y, SP) to edit its value
+- Double-click any flag (C, Z, I, D, B, V, N) to toggle it (use `0`/`1` or `true`/`false`)
+- Values can be entered in hex (`$C000`, `0xC0`) or decimal (`192`)
+
+**In the Debug Console:**
+```
+set A $42           # Set accumulator to $42
+set PC $C000        # Set program counter to $C000
+set X 10            # Set X register to 10 (decimal)
+set $C000 $FF       # Set memory at $C000 to $FF
+```
+
+When you edit the PC register, the editor view automatically updates to show the new location.
+
+### Jump to Line (Set PC)
+
+You can jump the Program Counter to any source line without executing the instructions in between:
+
+1. **Right-click on a line number** or **right-click in the gutter** (to the left of line numbers)
+2. Select **"Jump to Line (Set PC)"**
+
+This sets the PC to the address corresponding to that source line. If you click on a non-code line (comment, label, blank line), it automatically snaps to the nearest executable line.
+
+This is available only when the debugger is paused (`debugState == 'stopped'`).
+
+### Inline Address Decorations
+
+When debugging with a `.dbg` file, each source line that maps to a 6502 address shows the address as dim italic text after the line content:
+
+```asm
+    LDA #$01        $C000
+    STA $D020       $C002
+    RTS             $C005
+```
+
+For macro body lines (where the address depends on the call site), the decoration updates dynamically on each stop to show the actual address for that specific macro invocation.
+
+### Hover Evaluation
+
+Hover over values in your source code to see their current state:
+
+- **Memory addresses**: Hover `$C000` or `0xC000` → shows the byte value at that address
+- **Immediate values**: Hover `#$42` → shows the literal value (not memory contents)
+- **Registers**: Hover `A`, `X`, `Y`, `PC`, `SP` → shows current register value
+- **ca65 symbols**: Hover a label name (e.g., `screenptr`) → shows the symbol's address and memory contents
+
+### Symbol Resolution
+
+When a `.dbg` file is loaded, ca65 symbols (labels and equates) can be evaluated:
+
+- In the **Debug Console**: Type a symbol name (e.g., `screenptr`) to see its address and value
+- In the **Watch panel**: Add symbol names as watch expressions
+- On **Hover**: Hover over symbol names in source code
+
+Labels show their address and the memory byte at that address. Equates show their numeric value.
+
+### Multi-File Debug Symbols
+
+For debugging programs that interact with ROM code (e.g., C64 KERNAL), you can merge multiple `.dbg` files:
+
+```json
+{
+  "type": "dotnet6502",
+  "request": "attach",
+  "name": "Debug with ROM symbols",
+  "preLaunchTask": "Build my-program.asm (C64)",
+  "dbgFiles": [
+    "${userHome}/path/to/rom.dbg"
+  ],
+  "stopOnEntry": true
+}
+```
+
+The primary `.dbg` file is auto-detected from the program path (or specified via `dbgFile`). The `dbgFiles` array adds additional symbol sources that are merged together.
+
 ## Limitations
 
 - Conditional breakpoints not yet supported
-- Variable inspection limited to registers and memory addresses
+- Variable inspection limited to registers, flags, and memory addresses
 - Disassembly view does not open automatically (must be opened manually via right-click on Call Stack)
 
 ## How Emulator Mode Works
