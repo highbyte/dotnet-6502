@@ -1,23 +1,18 @@
-using System;
 using System.ComponentModel;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Threading;
-using Highbyte.DotNet6502.DebugAdapter;
 using Highbyte.DotNet6502.Systems;
 
-namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
+namespace Highbyte.DotNet6502.DebugAdapter;
 
 /// <summary>
 /// Manages the TCP debug adapter server and handles incoming debug client connections.
+/// Platform-specific concerns (UI thread dispatch, application shutdown, host app access)
+/// are supplied by <see cref="ITcpDebugServerEnvironment"/>.
 /// </summary>
-internal sealed class TcpDebugServerManager : IDisposable
+public sealed class TcpDebugServerManager : IDisposable
 {
     private readonly TcpDebugAdapterServer _debugServer;
     private readonly StreamWriter _debugLogWriter;
+    private readonly ITcpDebugServerEnvironment _environment;
     private bool _debugClientConnected;
     private int _activeConnectionCount = 0;
     private readonly object _connectionLock = new object();
@@ -27,9 +22,10 @@ internal sealed class TcpDebugServerManager : IDisposable
     private volatile bool _startupCompleted = false;
     private DebugAdapterLogic? _activeAdapter;
 
-    public TcpDebugServerManager(StreamWriter debugLogWriter)
+    public TcpDebugServerManager(StreamWriter debugLogWriter, ITcpDebugServerEnvironment environment)
     {
         _debugLogWriter = debugLogWriter ?? throw new ArgumentNullException(nameof(debugLogWriter));
+        _environment = environment ?? throw new ArgumentNullException(nameof(environment));
         _debugServer = new TcpDebugAdapterServer(debugLogWriter);
 
         // Subscribe to client connection events
@@ -66,7 +62,7 @@ internal sealed class TcpDebugServerManager : IDisposable
     }
 
     /// <summary>
-    /// Called by AutomatedStartupHandler when all setup is complete (KERNAL booted, PRG loaded, PC set).
+    /// Called by the host when all setup is complete (KERNAL booted, PRG loaded, PC set).
     /// Notifies the active debug adapter that the emulator is ready to be paused for stopOnEntry.
     /// </summary>
     public void SignalProgramReady()
@@ -109,7 +105,7 @@ internal sealed class TcpDebugServerManager : IDisposable
     /// </summary>
     private DebugAdapterLogic CreateAdapter(DapProtocol protocol)
     {
-        var hostApp = Core.App.Current?.HostApp;
+        var hostApp = _environment.GetHostApp();
         var system = hostApp?.CurrentRunningSystem;
 
         // Start with IsStopped=true if host is waiting for debugger (boot sequence debugging).
@@ -139,9 +135,9 @@ internal sealed class TcpDebugServerManager : IDisposable
             _activeAdapter = adapter;
             _debugLogWriter.WriteLine("DAP initialize received — marked as active debug client");
 
-            Dispatcher.UIThread.Post(() =>
+            _environment.RunOnUiThread(() =>
             {
-                var currentHostApp = Core.App.Current?.HostApp;
+                var currentHostApp = _environment.GetHostApp();
                 if (currentHostApp != null)
                 {
                     currentHostApp.SetExternalDebugAdapter(adapter);
@@ -163,7 +159,7 @@ internal sealed class TcpDebugServerManager : IDisposable
             if (args.PropertyName != nameof(IHostApp.EmulatorState))
                 return;
 
-            var currentHostApp = Core.App.Current?.HostApp;
+            var currentHostApp = _environment.GetHostApp();
             if (currentHostApp?.EmulatorState == EmulatorState.Running
                 && currentHostApp.CurrentRunningSystem != null)
             {
@@ -182,11 +178,12 @@ internal sealed class TcpDebugServerManager : IDisposable
 
                 // Must be on UI thread — SetExternalDebugAdapter installs the
                 // breakpoint evaluator on the (possibly new) CurrentSystemRunner.
-                Dispatcher.UIThread.Post(() =>
+                _environment.RunOnUiThread(() =>
                 {
-                    if (Core.App.Current?.HostApp != null)
+                    var hostApp = _environment.GetHostApp();
+                    if (hostApp != null)
                     {
-                        Core.App.Current.HostApp.SetExternalDebugAdapter(adapter);
+                        hostApp.SetExternalDebugAdapter(adapter);
                         adapter.NotifyInstalledInHost();
                         _debugLogWriter.WriteLine("Debug adapter installed in host app (emulator started/restarted)");
                     }
@@ -204,12 +201,12 @@ internal sealed class TcpDebugServerManager : IDisposable
     /// Subscribes to EmulatorState changes for the lifetime of this debug session.
     /// Handles two timing scenarios:
     ///   (a) HostApp is already available — subscribes immediately.
-    ///   (b) HostApp is not yet initialized (TCP server started before Avalonia) — defers
+    ///   (b) HostApp is not yet initialized (TCP server started before the host) — defers
     ///       subscription via a background task that waits for HostApp to become available.
     /// </summary>
     private void SubscribeToEmulatorState(DebugAdapterLogic adapter, PropertyChangedEventHandler handler, CancellationTokenSource sessionCts)
     {
-        var hostApp = Core.App.Current?.HostApp;
+        var hostApp = _environment.GetHostApp();
 
         if (hostApp is INotifyPropertyChanged notifier)
         {
@@ -233,13 +230,13 @@ internal sealed class TcpDebugServerManager : IDisposable
 
     /// <summary>
     /// Background task that waits for HostApp to become available, then subscribes
-    /// to EmulatorState changes. Used when the TCP server starts before Avalonia.
+    /// to EmulatorState changes. Used when the TCP server starts before the host is ready.
     /// </summary>
     private async Task DeferredEmulatorStateSubscription(PropertyChangedEventHandler handler, CancellationTokenSource sessionCts)
     {
-        IHostApp? currentHostApp = null;
+        IDebuggableHostApp? currentHostApp = null;
         while (!sessionCts.IsCancellationRequested
-               && (currentHostApp = Core.App.Current?.HostApp) == null)
+               && (currentHostApp = _environment.GetHostApp()) == null)
         {
             await Task.Delay(100);
         }
@@ -267,7 +264,7 @@ internal sealed class TcpDebugServerManager : IDisposable
 
     /// <summary>
     /// Sets up the OnExit handler: if terminateDebuggee is true (launch mode),
-    /// shuts down the Avalonia application.
+    /// terminates the host application.
     /// </summary>
     private void SetupDisconnectHandler(DebugAdapterLogic adapter)
     {
@@ -275,12 +272,8 @@ internal sealed class TcpDebugServerManager : IDisposable
         {
             if (terminateDebuggee)
             {
-                _debugLogWriter.WriteLine("terminateDebuggee=true (launch mode), shutting down application");
-                Dispatcher.UIThread.Post(() =>
-                {
-                    if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
-                        lifetime.Shutdown();
-                });
+                _debugLogWriter.WriteLine("terminateDebuggee=true (launch mode), terminating application");
+                _environment.TerminateApplication();
             }
         };
     }
@@ -346,7 +339,7 @@ internal sealed class TcpDebugServerManager : IDisposable
         // Unsubscribe from PropertyChanged if still subscribed (e.g., debugger disconnected before system started)
         if (emulatorStateHandler != null)
         {
-            var hostApp = Core.App.Current?.HostApp;
+            var hostApp = _environment.GetHostApp();
             if (hostApp is INotifyPropertyChanged notifier)
             {
                 notifier.PropertyChanged -= emulatorStateHandler;
@@ -364,12 +357,12 @@ internal sealed class TcpDebugServerManager : IDisposable
 
         if (clientDisconnected)
         {
-            // All HostApp interactions must be done on UI thread
-            Dispatcher.UIThread.Post(() =>
+            _environment.RunOnUiThread(() =>
             {
-                if (Core.App.Current?.HostApp != null)
+                var hostApp = _environment.GetHostApp();
+                if (hostApp != null)
                 {
-                    Core.App.Current.HostApp.ClearExternalDebugAdapter();
+                    hostApp.ClearExternalDebugAdapter();
                     _debugLogWriter.WriteLine("External debug adapter cleared on UI thread (all connections closed)");
                 }
             });

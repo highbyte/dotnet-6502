@@ -15,6 +15,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Highbyte.DotNet6502.Utils;
 using System.Diagnostics;
+using Highbyte.DotNet6502.DebugAdapter;
 
 namespace Highbyte.DotNet6502.App.Avalonia.Desktop;
 
@@ -212,7 +213,7 @@ internal sealed partial class Program
             var debugLogWriter = new StreamWriter(debugLogFilePath, append: true) { AutoFlush = true };
             debugLogWriter.WriteLine($"Debug adapter server started at {DateTime.Now}");
 
-            debugServerManager = new TcpDebugServerManager(debugLogWriter);
+            debugServerManager = new TcpDebugServerManager(debugLogWriter, new AvaloniaDebugServerEnvironment());
 
             //// If loading a PRG for debugging (not running it), set the pending PC before debugger connects
             //if (loadPrgPath != null && !runLoadedProgram)
