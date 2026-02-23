@@ -91,8 +91,24 @@ internal sealed class TcpDebugServerManager : IDisposable
         }
 
         var protocol = new DapProtocol(e.Transport, _debugLogWriter);
+        var adapter = CreateAdapter(protocol);
+        var sessionCts = new CancellationTokenSource();
+        var emulatorStateHandler = CreateEmulatorStateHandler(adapter);
 
-        // Get the system from the running host app (may be null if emulator hasn't started yet)
+        SetupDapInitializationHandler(adapter);
+        SubscribeToEmulatorState(adapter, emulatorStateHandler, sessionCts);
+        SetupDisconnectHandler(adapter);
+
+        // Start message loop for this client
+        _ = Task.Run(async () => await ProcessMessagesAsync(protocol, adapter, emulatorStateHandler, sessionCts));
+    }
+
+    /// <summary>
+    /// Creates a new DebugAdapterLogic instance for the connection, pre-configured
+    /// with the current system state and startup completion status.
+    /// </summary>
+    private DebugAdapterLogic CreateAdapter(DapProtocol protocol)
+    {
         var hostApp = Core.App.Current?.HostApp;
         var system = hostApp?.CurrentRunningSystem;
 
@@ -103,22 +119,22 @@ internal sealed class TcpDebugServerManager : IDisposable
         var adapter = new DebugAdapterLogic(protocol, _debugLogWriter, system, initiallyPaused);
 
         // If automated startup already completed before this client connected, mark program ready now.
-        // Otherwise the adapter will wait for SignalProgramReady() to be called later.
         if (_startupCompleted)
             adapter.NotifyProgramReady();
 
         _debugLogWriter.WriteLine($"Debug adapter created (system available: {system != null}, initiallyPaused: {initiallyPaused}, startupCompleted: {_startupCompleted})");
+        return adapter;
+    }
 
-        // Only set up the external debug adapter when a real DAP session starts (initialize message received).
-        // This avoids setting it up for probe connections (e.g., VSCode's TCP readiness check)
-        // that connect and immediately disconnect without sending any DAP messages.
-        // Always call SetExternalDebugAdapter here — it is null-safe when CurrentSystemRunner
-        // is not yet available, and sets IsExternalDebuggerAttached=true so the UI reflects
-        // the attached state immediately even before an emulator system has been started.
+    /// <summary>
+    /// Sets up the OnInitialized handler that fires when a real DAP session starts
+    /// (initialize message received), as opposed to VSCode's TCP readiness probe.
+    /// Installs the debug adapter in the host app on the UI thread.
+    /// </summary>
+    private void SetupDapInitializationHandler(DebugAdapterLogic adapter)
+    {
         adapter.OnInitialized += () =>
         {
-            // Real DAP session started (not a probe connection).
-            // Now safe to set these flags — probe connections never send initialize.
             _debugClientConnected = true;
             _activeAdapter = adapter;
             _debugLogWriter.WriteLine("DAP initialize received — marked as active debug client");
@@ -134,115 +150,127 @@ internal sealed class TcpDebugServerManager : IDisposable
                 }
             });
         };
+    }
 
-        // Subscribe to EmulatorState changes for the lifetime of this debug session.
-        // This handles two cases:
-        //   (a) Initial binding when the debugger attached before the system started.
-        //   (b) Re-binding after the user stops and restarts the emulator — the new
-        //       SystemRunner needs the breakpoint evaluator reinstalled.
-        // The handler stays subscribed (does NOT unsubscribe) so restart cycles work.
-        //
-        // IMPORTANT: The debug client may connect before the Avalonia HostApp is initialized
-        // (the TCP server starts before app.StartWithClassicDesktopLifetime, so the extension's
-        // TCP readiness check can succeed before HostApp is available). We handle this by always
-        // defining the handler and using a background task to subscribe when HostApp is ready.
-        var sessionCts = new CancellationTokenSource();
-
-        PropertyChangedEventHandler? emulatorStateHandler = (s, args) =>
+    /// <summary>
+    /// Creates a PropertyChanged handler that binds/re-binds the debug adapter when
+    /// the emulator starts or restarts, and sends a terminated event when stopped from UI.
+    /// </summary>
+    private PropertyChangedEventHandler CreateEmulatorStateHandler(DebugAdapterLogic adapter)
+    {
+        return (s, args) =>
         {
-            if (args.PropertyName == nameof(IHostApp.EmulatorState))
+            if (args.PropertyName != nameof(IHostApp.EmulatorState))
+                return;
+
+            var currentHostApp = Core.App.Current?.HostApp;
+            if (currentHostApp?.EmulatorState == EmulatorState.Running
+                && currentHostApp.CurrentRunningSystem != null)
             {
-                var currentHostApp = Core.App.Current?.HostApp;
-                if (currentHostApp?.EmulatorState == EmulatorState.Running
-                    && currentHostApp.CurrentRunningSystem != null)
+                _debugLogWriter.WriteLine("EmulatorState became Running, binding/re-binding debug adapter");
+
+                // Capture WaitForExternalDebugger BEFORE SetExternalDebugAdapter clears it.
+                bool wasWaitingForDebugger = currentHostApp.WaitForExternalDebugger;
+
+                adapter.SetSystem(currentHostApp.CurrentRunningSystem);
+
+                if (wasWaitingForDebugger)
                 {
-                    _debugLogWriter.WriteLine("EmulatorState became Running, binding/re-binding debug adapter");
+                    adapter.MarkAsStopped();
+                    _debugLogWriter.WriteLine("WaitForExternalDebugger was set — adapter marked as stopped");
+                }
 
-                    // Capture WaitForExternalDebugger BEFORE SetExternalDebugAdapter clears it.
-                    // When the debugger connected before the system started, initiallyPaused was false
-                    // (the flag wasn't set yet). Mirror it into adapter.IsStopped now so the
-                    // stopOnEntry wait loop in HandleLaunchAsync unblocks correctly.
-                    bool wasWaitingForDebugger = currentHostApp.WaitForExternalDebugger;
-
-                    adapter.SetSystem(currentHostApp.CurrentRunningSystem);
-
-                    if (wasWaitingForDebugger)
+                // Must be on UI thread — SetExternalDebugAdapter installs the
+                // breakpoint evaluator on the (possibly new) CurrentSystemRunner.
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (Core.App.Current?.HostApp != null)
                     {
-                        adapter.MarkAsStopped();
-                        _debugLogWriter.WriteLine("WaitForExternalDebugger was set — adapter marked as stopped");
+                        Core.App.Current.HostApp.SetExternalDebugAdapter(adapter);
+                        adapter.NotifyInstalledInHost();
+                        _debugLogWriter.WriteLine("Debug adapter installed in host app (emulator started/restarted)");
                     }
-
-                    // Must be on UI thread — SetExternalDebugAdapter installs the
-                    // breakpoint evaluator on the (possibly new) CurrentSystemRunner.
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        if (Core.App.Current?.HostApp != null)
-                        {
-                            Core.App.Current.HostApp.SetExternalDebugAdapter(adapter);
-                            adapter.NotifyInstalledInHost();
-                            _debugLogWriter.WriteLine("Debug adapter installed in host app (emulator started/restarted)");
-                        }
-                    });
-                }
-                else if (currentHostApp?.EmulatorState == EmulatorState.Uninitialized)
-                {
-                    _debugLogWriter.WriteLine("EmulatorState became Uninitialized (system stopped from UI), sending terminated event");
-                    _ = adapter.SendTerminatedEventAsync();
-                }
+                });
+            }
+            else if (currentHostApp?.EmulatorState == EmulatorState.Uninitialized)
+            {
+                _debugLogWriter.WriteLine("EmulatorState became Uninitialized (system stopped from UI), sending terminated event");
+                _ = adapter.SendTerminatedEventAsync();
             }
         };
+    }
+
+    /// <summary>
+    /// Subscribes to EmulatorState changes for the lifetime of this debug session.
+    /// Handles two timing scenarios:
+    ///   (a) HostApp is already available — subscribes immediately.
+    ///   (b) HostApp is not yet initialized (TCP server started before Avalonia) — defers
+    ///       subscription via a background task that waits for HostApp to become available.
+    /// </summary>
+    private void SubscribeToEmulatorState(DebugAdapterLogic adapter, PropertyChangedEventHandler handler, CancellationTokenSource sessionCts)
+    {
+        var hostApp = Core.App.Current?.HostApp;
 
         if (hostApp is INotifyPropertyChanged notifier)
         {
-            // HostApp is already available — subscribe immediately.
-            notifier.PropertyChanged += emulatorStateHandler;
+            notifier.PropertyChanged += handler;
             _debugLogWriter.WriteLine("Subscribed to EmulatorState changes (HostApp available at connect time)");
 
-            // If the system is already running, fire the handler immediately.
             // PropertyChanged only fires on *changes*, so if it's already Running we'd miss it.
             if (hostApp.EmulatorState == EmulatorState.Running
                 && hostApp.CurrentRunningSystem != null)
             {
                 _debugLogWriter.WriteLine("System already running at connect time — triggering handler immediately");
-                emulatorStateHandler(hostApp, new PropertyChangedEventArgs(nameof(IHostApp.EmulatorState)));
+                handler(hostApp, new PropertyChangedEventArgs(nameof(IHostApp.EmulatorState)));
             }
         }
         else
         {
-            // HostApp is not yet initialized (Avalonia still starting up when client connected).
-            // Start background task to subscribe once HostApp becomes available.
-            _ = Task.Run(async () =>
-            {
-                IHostApp? currentHostApp = null;
-                while (!sessionCts.IsCancellationRequested
-                       && (currentHostApp = Core.App.Current?.HostApp) == null)
-                {
-                    await Task.Delay(100);
-                }
+            // HostApp is not yet initialized — wait for it in the background.
+            _ = Task.Run(async () => await DeferredEmulatorStateSubscription(handler, sessionCts));
+        }
+    }
 
-                if (sessionCts.IsCancellationRequested)
-                {
-                    _debugLogWriter.WriteLine("Session ended before HostApp became available — skipping EmulatorState subscription");
-                    return;
-                }
-
-                if (currentHostApp is INotifyPropertyChanged lateNotifier)
-                {
-                    lateNotifier.PropertyChanged += emulatorStateHandler;
-                    _debugLogWriter.WriteLine("Subscribed to EmulatorState changes (deferred — HostApp was not ready at connect time)");
-                }
-
-                // If the system is already running by the time we subscribe, fire the handler immediately.
-                if (currentHostApp?.EmulatorState == EmulatorState.Running
-                    && currentHostApp.CurrentRunningSystem != null)
-                {
-                    _debugLogWriter.WriteLine("System already running when deferred subscription completed — triggering handler immediately");
-                    emulatorStateHandler(currentHostApp, new PropertyChangedEventArgs(nameof(IHostApp.EmulatorState)));
-                }
-            });
+    /// <summary>
+    /// Background task that waits for HostApp to become available, then subscribes
+    /// to EmulatorState changes. Used when the TCP server starts before Avalonia.
+    /// </summary>
+    private async Task DeferredEmulatorStateSubscription(PropertyChangedEventHandler handler, CancellationTokenSource sessionCts)
+    {
+        IHostApp? currentHostApp = null;
+        while (!sessionCts.IsCancellationRequested
+               && (currentHostApp = Core.App.Current?.HostApp) == null)
+        {
+            await Task.Delay(100);
         }
 
-        // Handle disconnect: if terminateDebuggee is true (launch mode), shut down the app.
+        if (sessionCts.IsCancellationRequested)
+        {
+            _debugLogWriter.WriteLine("Session ended before HostApp became available — skipping EmulatorState subscription");
+            return;
+        }
+
+        if (currentHostApp is INotifyPropertyChanged lateNotifier)
+        {
+            lateNotifier.PropertyChanged += handler;
+            _debugLogWriter.WriteLine("Subscribed to EmulatorState changes (deferred — HostApp was not ready at connect time)");
+        }
+
+        // If the system is already running by the time we subscribe, fire the handler immediately.
+        if (currentHostApp?.EmulatorState == EmulatorState.Running
+            && currentHostApp.CurrentRunningSystem != null)
+        {
+            _debugLogWriter.WriteLine("System already running when deferred subscription completed — triggering handler immediately");
+            handler(currentHostApp, new PropertyChangedEventArgs(nameof(IHostApp.EmulatorState)));
+        }
+    }
+
+    /// <summary>
+    /// Sets up the OnExit handler: if terminateDebuggee is true (launch mode),
+    /// shuts down the Avalonia application.
+    /// </summary>
+    private void SetupDisconnectHandler(DebugAdapterLogic adapter)
+    {
         adapter.OnExit += (terminateDebuggee) =>
         {
             if (terminateDebuggee)
@@ -255,9 +283,6 @@ internal sealed class TcpDebugServerManager : IDisposable
                 });
             }
         };
-
-        // Start message loop for this client, passing the handler for cleanup on disconnect
-        _ = Task.Run(async () => await ProcessMessagesAsync(protocol, adapter, emulatorStateHandler, sessionCts));
     }
 
     private async Task ProcessMessagesAsync(DapProtocol protocol, DebugAdapterLogic adapter, PropertyChangedEventHandler? emulatorStateHandler, CancellationTokenSource sessionCts)
