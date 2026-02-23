@@ -1945,7 +1945,6 @@ public class DebugAdapterLogic
         {
             ushort startAddress = ParseAddress(parts[1]);
             int length = 256; // Default to 256 bytes
-            int requestedLength = length;
 
             // If second parameter provided, parse it
             if (parts.Length >= 3)
@@ -1960,16 +1959,9 @@ public class DebugAdapterLogic
                                    secondParam.StartsWith("$");
 
                 if (isHexFormat && lengthOrEnd > startAddress)
-                {
-                    // Treat as end address
-                    length = lengthOrEnd - startAddress + 1;
-                }
+                    length = lengthOrEnd - startAddress + 1; // Treat as end address
                 else
-                {
-                    // Treat as length
-                    length = lengthOrEnd;
-                }
-                requestedLength = length;
+                    length = lengthOrEnd;                    // Treat as length
             }
 
             // Limit to 64KB address space (don't wrap around past 0xFFFF)
@@ -1994,77 +1986,49 @@ public class DebugAdapterLogic
 
     private string FormatMemoryDump(ushort startAddress, int length)
     {
-        var cpu = _system?.CPU;
         var memory = _system?.Mem;
-
         if (memory == null)
-        {
             return "Memory not available";
-        }
 
         var sb = new System.Text.StringBuilder();
-        int bytesPerRow = 16;
+        const int bytesPerRow = 16;
 
         for (int offset = 0; offset < length; offset += bytesPerRow)
         {
+            if (offset > 0)
+                sb.AppendLine();
+
             ushort address = (ushort)((startAddress + offset) & 0xFFFF);
             sb.Append($"0x{address:X4}: ");
 
-            // Hex bytes
             int rowBytes = Math.Min(bytesPerRow, length - offset);
+
+            // Hex bytes
             for (int i = 0; i < bytesPerRow; i++)
             {
                 if (i < rowBytes)
-                {
-                    byte value = memory[(ushort)((address + i) & 0xFFFF)];
-                    sb.Append($"{value:X2} ");
-                }
+                    sb.Append($"{memory[(ushort)((address + i) & 0xFFFF)]:X2} ");
                 else
-                {
                     sb.Append("   "); // Padding for incomplete rows
-                }
             }
 
-            sb.Append(" ");
+            sb.Append(' ');
 
-            // ASCII/PETSCII representation
+            // Printable character representation
             for (int i = 0; i < rowBytes; i++)
-            {
-                byte value = memory[(ushort)((address + i) & 0xFFFF)];
-                char c;
-
-                // Convert PETSCII to displayable character
-                if (value >= 0x20 && value <= 0x7E)
-                {
-                    c = (char)value; // Standard ASCII printable
-                }
-                else if (value >= 0xA0 && value <= 0xFE)
-                {
-                    // PETSCII graphics characters - map to similar ASCII
-                    c = (char)(value - 0x80);
-                }
-                else
-                {
-                    c = '.'; // Non-printable
-                }
-
-                sb.Append(c);
-            }
-
-            sb.AppendLine();
-        }
-
-        // Remove trailing newline to avoid empty row at end
-        if (sb.Length > 0 && sb[sb.Length - 1] == '\n')
-        {
-            sb.Length--;
-            if (sb.Length > 0 && sb[sb.Length - 1] == '\r')
-            {
-                sb.Length--;
-            }
+                sb.Append(ToPrintableChar(memory[(ushort)((address + i) & 0xFFFF)]));
         }
 
         return sb.ToString();
+    }
+
+    private static char ToPrintableChar(byte value)
+    {
+        if (value >= 0x20 && value <= 0x7E)
+            return (char)value;                  // Standard ASCII printable
+        if (value >= 0xA0 && value <= 0xFE)
+            return (char)(value - 0x80);         // PETSCII graphics → similar ASCII
+        return '.';
     }
 
     private async Task HandleGetSourceAddressMapAsync(int seq, JsonObject? args)
@@ -2333,22 +2297,16 @@ public class DebugAdapterLogic
             }
 
             // Parse memory reference - could be hex (0xc000, $c000) or decimal
-            ushort address;
-            if (memoryReference.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            var parsedAddress = ParseNumericValue(memoryReference);
+            if (parsedAddress == null)
             {
-                address = Convert.ToUInt16(memoryReference.Substring(2), 16);
-            }
-            else if (memoryReference.StartsWith("$"))
-            {
-                address = Convert.ToUInt16(memoryReference.Substring(1), 16);
-            }
-            else
-            {
-                address = Convert.ToUInt16(memoryReference);
+                LogSafe($"[HandleReadMemory] Failed to parse memoryReference: {memoryReference}");
+                await _protocol.SendResponseAsync(seq, "readMemory");
+                return;
             }
 
             // Apply offset
-            address = (ushort)((address + offset) & 0xFFFF);
+            var address = (ushort)((parsedAddress.Value + offset) & 0xFFFF);
 
             // Read memory
             if (memory == null)
