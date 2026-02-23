@@ -1387,52 +1387,29 @@ public class DebugAdapterLogic
 
             string resultValue;
 
-            // Check if expression is a register name
-            switch (expression.ToUpperInvariant())
+            // Try registers first (PC, A, X, Y, SP), then symbols, then memory address.
+            if (TrySetRegister(cpu, expression, parsed.Value, out resultValue))
             {
-                case "PC":
-                    cpu.PC = parsed.Value;
-                    resultValue = $"${cpu.PC:X4}";
-                    break;
-                case "A":
-                    cpu.A = (byte)parsed.Value;
-                    resultValue = $"${cpu.A:X2}";
-                    break;
-                case "X":
-                    cpu.X = (byte)parsed.Value;
-                    resultValue = $"${cpu.X:X2}";
-                    break;
-                case "Y":
-                    cpu.Y = (byte)parsed.Value;
-                    resultValue = $"${cpu.Y:X2}";
-                    break;
-                case "SP":
-                    cpu.SP = (byte)parsed.Value;
-                    resultValue = $"${cpu.SP:X2}";
-                    break;
-                default:
-                    // Check if expression is a symbol name
-                    if (_dbgParser?.Symbols.TryGetValue(expression, out var symbol) == true && symbol.Type == "lab")
-                    {
-                        memory[symbol.Value] = (byte)parsed.Value;
-                        var memByte = memory[symbol.Value];
-                        resultValue = $"${symbol.Value:X4} [${memByte:X2}]";
-                        LogSafe($"[HandleSetExpression] Set memory at label {expression} (${symbol.Value:X4}) = ${memByte:X2}");
-                    }
-                    // Check if expression is a memory address
-                    else
-                    {
-                        var addr = ParseNumericValue(expression);
-                        if (addr == null)
-                        {
-                            await _protocol.SendErrorResponseAsync(seq, "setExpression", $"Unknown expression: {expression}");
-                            return;
-                        }
-                        memory[addr.Value] = (byte)parsed.Value;
-                        resultValue = $"${memory[addr.Value]:X2} ({memory[addr.Value]})";
-                        LogSafe($"[HandleSetExpression] Set memory ${addr.Value:X4} = ${memory[addr.Value]:X2}");
-                    }
-                    break;
+                // Register set — resultValue already populated.
+            }
+            else if (_dbgParser?.Symbols.TryGetValue(expression, out var symbol) == true && symbol.Type == "lab")
+            {
+                memory[symbol.Value] = (byte)parsed.Value;
+                var memByte = memory[symbol.Value];
+                resultValue = $"${symbol.Value:X4} [${memByte:X2}]";
+                LogSafe($"[HandleSetExpression] Set memory at label {expression} (${symbol.Value:X4}) = ${memByte:X2}");
+            }
+            else
+            {
+                var addr = ParseNumericValue(expression);
+                if (addr == null)
+                {
+                    await _protocol.SendErrorResponseAsync(seq, "setExpression", $"Unknown expression: {expression}");
+                    return;
+                }
+                memory[addr.Value] = (byte)parsed.Value;
+                resultValue = $"${memory[addr.Value]:X2} ({memory[addr.Value]})";
+                LogSafe($"[HandleSetExpression] Set memory ${addr.Value:X4} = ${memory[addr.Value]:X2}");
             }
 
             var body = new JsonObject
@@ -1556,6 +1533,42 @@ public class DebugAdapterLogic
         return null;
     }
 
+    /// <summary>
+    /// Attempts to set a CPU register (PC, A, X, Y, SP) by name.
+    /// Returns true and sets <paramref name="resultValue"/> to the formatted new value on success.
+    /// Returns false (leaving <paramref name="resultValue"/> empty) if <paramref name="name"/>
+    /// is not a known register.
+    /// </summary>
+    private static bool TrySetRegister(CPU cpu, string name, ushort value, out string resultValue)
+    {
+        switch (name.ToUpperInvariant())
+        {
+            case "PC":
+                cpu.PC = value;
+                resultValue = $"${cpu.PC:X4}";
+                return true;
+            case "A":
+                cpu.A = (byte)value;
+                resultValue = $"${cpu.A:X2}";
+                return true;
+            case "X":
+                cpu.X = (byte)value;
+                resultValue = $"${cpu.X:X2}";
+                return true;
+            case "Y":
+                cpu.Y = (byte)value;
+                resultValue = $"${cpu.Y:X2}";
+                return true;
+            case "SP":
+                cpu.SP = (byte)value;
+                resultValue = $"${cpu.SP:X2}";
+                return true;
+            default:
+                resultValue = "";
+                return false;
+        }
+    }
+
     private async Task HandleSetVariableAsync(int seq, JsonObject? args)
     {
         LogSafe("[HandleSetVariable] Called");
@@ -1586,38 +1599,13 @@ public class DebugAdapterLogic
                     return;
                 }
 
-                switch (name.ToUpperInvariant())
+                if (!TrySetRegister(cpu, name, parsed.Value, out resultValue))
                 {
-                    case "PC":
-                        cpu.PC = parsed.Value;
-                        resultValue = $"${cpu.PC:X4}";
-                        resultType = "ushort";
-                        break;
-                    case "A":
-                        cpu.A = (byte)parsed.Value;
-                        resultValue = $"${cpu.A:X2}";
-                        resultType = "byte";
-                        break;
-                    case "X":
-                        cpu.X = (byte)parsed.Value;
-                        resultValue = $"${cpu.X:X2}";
-                        resultType = "byte";
-                        break;
-                    case "Y":
-                        cpu.Y = (byte)parsed.Value;
-                        resultValue = $"${cpu.Y:X2}";
-                        resultType = "byte";
-                        break;
-                    case "SP":
-                        cpu.SP = (byte)parsed.Value;
-                        resultValue = $"${cpu.SP:X2}";
-                        resultType = "byte";
-                        break;
-                    default:
-                        await _protocol.SendErrorResponseAsync(seq, "setVariable", $"Unknown register: {name}");
-                        return;
+                    await _protocol.SendErrorResponseAsync(seq, "setVariable", $"Unknown register: {name}");
+                    return;
                 }
 
+                resultType = name.Equals("PC", StringComparison.OrdinalIgnoreCase) ? "ushort" : "byte";
                 LogSafe($"[HandleSetVariable] Set register {name} = {resultValue}");
             }
             else if (variablesReference == 2) // Flags
